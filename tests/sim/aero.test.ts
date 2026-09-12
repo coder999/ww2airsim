@@ -85,7 +85,7 @@ describe('post-stall drag blend (Important 3)', () => {
     // schema.ts only requires alphaCritDeg > 0, not < 90. No shipped spec
     // does this, but nothing stops one from having alphaCritDeg=120: the
     // blend fraction's span (90 - alphaCritDeg) then goes negative, and
-    // without a floor on `t` this drove Cd to -1.0523 at 150 degrees --
+    // without a floor on `t` this drove Cd to -0.9269394412426326 at 150 degrees --
     // drag that accelerates the aircraft. `t` is now clamped to [0, 1] on
     // both ends, so past-the-stall Cd for a spec like this should just sit
     // at its attached-flow value (no post-stall blend applies) rather than

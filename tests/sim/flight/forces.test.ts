@@ -43,9 +43,11 @@ describe('flight integrator: forces', () => {
   // "terminal velocity" the old test measured was really just wherever the
   // spiral happened to leave it (measured before that fix: 1019 m / 138.7
   // m/s after all 7200 steps, nowhere near equilibrium). Pointing the nose
-  // straight down instead keeps alpha within a fraction of a degree of 0, so
-  // bodyRates from neutral input stay exactly zero and the attitude never
-  // rotates -- no stall, no spiral.
+  // straight down instead keeps alpha small: the model trims toward its own
+  // Cl = 0 angle (about -1.19 degrees), and the measured peak over the 8000 m
+  // dive below is 1.1862 degrees -- comfortably inside the 15.5 degree stall
+  // margin, so bodyRates from neutral input stay exactly zero and the
+  // attitude never rotates -- no stall, no spiral.
   const noseDownAttitude = () => qFromAxisAngle(v3(0, 0, 1), -Math.PI / 2)
 
   it('sits at equilibrium when placed at its own analytic terminal velocity at 4000 m', () => {
@@ -54,10 +56,12 @@ describe('flight integrator: forces', () => {
     // Round 1's 25 km-fall version could never pass for the right reason:
     // this aero model has no Mach drag rise (Ruling R26 -- a deliberate
     // fidelity limit for this arcade-scope sim, not a bug to fix here), so
-    // its zero-lift vertical Vt is far beyond anything a fall of any
-    // reasonable length reaches (503.6 m/s at 8000 m, Mach ~1.5) -- the
-    // "convergence" round 1 measured was really two samples straddling a
-    // speed peak, one at 69% of local Vt and the other at 123% of it.
+    // its vertical Vt is far beyond anything a fall of any reasonable length
+    // reaches (503.6 m/s at 8000 m, Mach 1.635 -- not zero-lift: it includes
+    // induced drag from Cl(0) = 0.1, the true zero-lift value is 511.68 m/s)
+    // -- the "convergence" round 1 measured was really two samples
+    // straddling a speed peak, one at 69% of local Vt and the other at 123%
+    // of it.
     //
     // Here we instead derive the model's OWN equilibrium speed at 4000 m --
     // using its actual Cl and Cd at alpha=0, not just cd0 -- and place the
@@ -87,15 +91,16 @@ describe('flight integrator: forces', () => {
 
   it('approaches, but does not reach, a terminal velocity over an 8000 m dive', () => {
     // Ruling R27(b): what an 8000 m fall can honestly show is APPROACH to
-    // equilibrium, not attainment of it -- this model's zero-lift vertical Vt
-    // at 8000 m (503.6 m/s, derived below) sits at 2.2x the spec's own
-    // diveSpeedMps (216) and needs far more than 8000 m of fall to reach
-    // (measured: the aircraft is still accelerating, at 309.87 m/s, when it
-    // reaches the sea at t=37.8s -- see the closed-form check above for the
-    // honest convergence test). What this scenario CAN prove: the
-    // acceleration shrinks monotonically as speed builds (it is approaching
-    // some equilibrium, even if it never gets there), and speed never
-    // exceeds the analytic ceiling for the whole fall.
+    // equilibrium, not attainment of it -- this model's vertical Vt at
+    // 8000 m (503.6 m/s, derived below -- not zero-lift: it includes induced
+    // drag from Cl(0) = 0.1, the true zero-lift value is 511.68 m/s) sits at
+    // 2.33x the spec's own diveSpeedMps (216) and needs far more than 8000 m
+    // of fall to reach (measured: the aircraft is still accelerating, at
+    // 309.87 m/s, when it reaches the sea at t=37.8s -- see the closed-form
+    // check above for the honest convergence test). What this scenario CAN
+    // prove: the acceleration shrinks monotonically as speed builds (it is
+    // approaching some equilibrium, even if it never gets there), and speed
+    // never exceeds the analytic ceiling for the whole fall.
     const mass = f6f.mass.emptyKg + 400
     const rho8000 = densityAt(8000)
     const cl0 = liftCoefficient(f6f, 0)
