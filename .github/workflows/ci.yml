@@ -8,11 +8,24 @@ permissions:
   contents: read
 
 # `push: branches: ['**']` plus `pull_request` double-runs every same-repo PR
-# branch (once for the push, once for the PR). Keying the concurrency group
-# on workflow + ref (not the event) means both runs for the same branch share
-# a group, so the older one is cancelled rather than left to finish pointlessly.
+# branch (once for the push, once for the PR). `github.ref` alone does NOT
+# unify those two runs' groups: for a push event it is `refs/heads/<branch>`,
+# but for a pull_request event it is the synthetic `refs/pull/<n>/merge`, a
+# different string for the same commit -- verified 2026-09-12 against
+# GitHub's own context docs (github.head_ref is "only available when the
+# event that triggers a workflow run is either pull_request or
+# pull_request_target"; github.ref_name for a push is the branch's short
+# name with no prefix). `github.head_ref` (source branch short name, set
+# only on pull_request/pull_request_target) falls back to `github.ref_name`
+# (branch short name, set on push) for a push event -- both resolve to the
+# same short branch name for the same branch, so this is the expression that
+# actually puts a branch's push-triggered and PR-triggered runs in one group
+# and lets the older one be cancelled. `github.event.pull_request.number ||
+# github.ref` does not do this: the push run still keys off github.ref
+# (refs/heads/<branch>) and the PR run keys off the PR number, still two
+# different strings.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

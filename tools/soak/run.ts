@@ -100,8 +100,10 @@ function randomAttitude(rng: () => number) {
  * by the "reproducible from its seed" test), but the RNG is shared across
  * iterations and the number of draws a single iteration consumes varies (the
  * `throttle: rng() < 0.2 ? 0 : rng()` branch above draws one value or two,
- * the chaotic-injection branch draws either 2 or 5, and an early water hit
- * truncates a flight's draws entirely) -- so iteration N cannot be replayed
+ * the chaotic-injection check draws one value for its own 2% gate and, only
+ * when that gate fires, two more (the chaotic value and the channel
+ * selector) for three total, and an early water hit truncates a flight's
+ * draws entirely) -- so iteration N cannot be replayed
  * in isolation with a fresh `createRng(seed)` at iteration 0. The only
  * faithful replay is to run every iteration up to and including the failing
  * one from the same seed, i.e. `runSoak(spec, N + 1, seed)`, then inspect

@@ -50,7 +50,7 @@ export type GoldenTrajectory = {
  * double-cross-product and the quaternion integration across the whole
  * attitude sphere by inverting repeatedly, rather than staying near level.
  */
-export const ROLLING_DESCENT_CONTROLS = (tick: number): Controls =>
+const ROLLING_DESCENT_CONTROLS = (tick: number): Controls =>
   tick < 1800
     ? { pitch: 0.15, roll: 0.3, yaw: 0, throttle: 0.75 }
     : { pitch: -0.1, roll: -0.3, yaw: 0, throttle: 0.9 }
