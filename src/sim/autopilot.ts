@@ -2,7 +2,20 @@ import { v3, dot } from './math/vec3.js'
 import { qRotate } from './math/quat.js'
 import { densityAt } from './atmosphere.js'
 import type { AircraftSpec } from './flight/schema.js'
-import { airspeed, clampFinite, type AircraftState, type Controls } from './flight/model.js'
+import { airspeed, clampFinite, massKg, type AircraftState, type Controls } from './flight/model.js'
+
+/**
+ * Bank angle of the body up axis around the velocity/forward axis, radians.
+ * A positive rotation about body +X tips `up` toward body +Z (right), so a
+ * positive return here is a right bank. Shared rather than duplicated: the
+ * roll channel below and `tools/testcards/measure.ts`'s roll-rate card both
+ * need this exact quantity, and the roll card exists specifically to exercise
+ * the same quaternion integration this reads back out of `state.attitude`.
+ */
+export function bankAngleRad(state: AircraftState): number {
+  const up = qRotate(state.attitude, v3(0, 1, 0))
+  return Math.atan2(dot(up, v3(0, 0, 1)), up.y)
+}
 
 const G = 9.80665
 
@@ -19,8 +32,11 @@ const ROLL_GAIN = 3
  *
  * Ruling R6: this drives pitch attitude, not flight-path angle. The two differ
  * by the angle of attack, which for this aeroplane in a best-rate climb is
- * around 8 degrees -- so commanding 15 degrees here does NOT give a 15-degree
- * climb. `holdLevelFlight` is the one that regulates the flight path.
+ * around 8 degrees (measured 2026-09-12 at propEfficiency 0.75, testMassKg
+ * 5633.62: the 24-degree best-rate attitude in `measure.ts` against its
+ * ~15.8-degree flight-path angle) -- so commanding 15 degrees here does NOT
+ * give a 15-degree climb. `holdLevelFlight` is the one that regulates the
+ * flight path.
  *
  * Deliberately simple: its job is to make automated measurement possible, not
  * to fly well. There is no integral term, so it holds an attitude with a small
@@ -32,17 +48,15 @@ export function holdPitchAngle(
   throttle: number,
   targetPitchRad = 0,
 ): Controls {
-  const up = qRotate(state.attitude, v3(0, 1, 0))
   const fwd = qRotate(state.attitude, v3(1, 0, 0))
 
   // Pitch: drive the nose toward the target pitch attitude.
   const pitchNow = Math.asin(clampFinite(fwd.y, -1, 1))
   const pitch = clampFinite((targetPitchRad - pitchNow) * PITCH_GAIN, -1, 1)
 
-  // Roll: drive the body up axis back toward world up. A positive rotation
-  // about body +X tips `up` toward body +Z (right), so a positive `bank` here
-  // is a right bank and needs left (negative) aileron.
-  const bank = Math.atan2(dot(up, v3(0, 0, 1)), up.y)
+  // Roll: drive the body up axis back toward world up. `bankAngleRad` is
+  // positive for a right bank, so it needs left (negative) aileron.
+  const bank = bankAngleRad(state)
   const roll = clampFinite(-bank * ROLL_GAIN, -1, 1)
 
   return { pitch, roll, yaw: 0, throttle }
@@ -95,7 +109,7 @@ export function holdLevelFlight(
   // the flight-path angle is not defined; hold the attitude level instead.
   if (v < 1) return holdLevelHeading(spec, state, throttle)
 
-  const mass = spec.mass.emptyKg + state.fuelKg
+  const mass = massKg(spec, state)
   const q = 0.5 * densityAt(state.position.y) * v * v
   const clTrim = (mass * G) / (q * spec.geometry.wingAreaM2)
   const alphaTrim = (clTrim - spec.aero.clAtZeroAlpha) / spec.aero.clSlopePerRad

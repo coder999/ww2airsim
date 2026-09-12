@@ -13,7 +13,10 @@ const valid = {
   },
   rates: { maxRollRateDegPerSec: 80, maxPitchRateDegPerSec: 30, maxYawRateDegPerSec: 15, rateRefSpeedMps: 103 },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
-  reference: { source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132, climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80 },
+  reference: {
+    source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,
+    climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80, takeoffDistanceM: 230,
+  },
 }
 
 describe('AircraftSpec validation (spec §9)', () => {
@@ -45,6 +48,15 @@ describe('AircraftSpec validation (spec §9)', () => {
   it('rejects an empty power curve with the field named, not a raw TypeError', () => {
     const bad = { ...valid, engine: { ...valid.engine, powerFractionByAltitudeM: [] } }
     expect(() => parseAircraftSpec(bad)).toThrow(/powerFractionByAltitudeM/)
+  })
+
+  it('rejects a testMassKg above mass.maxTakeoffKg, naming both values', () => {
+    const bad = {
+      ...valid,
+      reference: { ...valid.reference, testMassKg: valid.mass.maxTakeoffKg + 1 },
+    }
+    expect(() => parseAircraftSpec(bad)).toThrow(/testMassKg/)
+    expect(() => parseAircraftSpec(bad)).toThrow(/maxTakeoffKg/)
   })
 
   it('loads and validates the real F6F content file', () => {

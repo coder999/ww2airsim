@@ -16,6 +16,15 @@ const FUEL_KG_PER_JOULE = 7.5e-8
 
 export const airspeed = (state: AircraftState): number => length(state.velocity)
 
+/** The model's only mass expression: empty weight plus whatever fuel remains,
+ *  no separate payload term. `step` and `autopilot.ts`'s `holdLevelFlight`
+ *  both need exactly this quantity to trim lift against weight, so it is
+ *  exported rather than duplicated -- a payload term added here later would
+ *  otherwise have to be found and added in two places to keep the autopilot
+ *  trimming for the aeroplane's actual weight. */
+export const massKg = (spec: AircraftSpec, state: AircraftState): number =>
+  spec.mass.emptyKg + state.fuelKg
+
 /** Body-frame forward and up axes for the current attitude. (Body right is
  *  not needed anywhere in this module -- dropped to avoid paying for two
  *  unused quaternion rotations every step.) */
@@ -117,7 +126,7 @@ export function step(
   controls: Controls,
   dt: number,
 ): AircraftState {
-  const mass = spec.mass.emptyKg + state.fuelKg
+  const mass = massKg(spec, state)
   const rho = densityAt(state.position.y)
   const v = airspeed(state)
   const q = 0.5 * rho * v * v

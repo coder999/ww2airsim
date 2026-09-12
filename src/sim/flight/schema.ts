@@ -6,7 +6,7 @@ const finite = z.number().refine(Number.isFinite, { message: 'must be a finite n
 const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
 const fraction = finite.refine((n) => n > 0 && n <= 1, { message: 'must be in (0, 1]' })
 
-export const AircraftSpecSchema = z.object({
+const AircraftSpecObject = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }),
@@ -57,7 +57,28 @@ export const AircraftSpecSchema = z.object({
     climbRateMps: positive,
     stallSpeedMps: positive,
     rollRateDegPerSec: positive,
+    /** Ground-roll distance the cited trial measured for take-off, metres.
+     *  The model has no flaps, no rolling friction and no ground effect, so
+     *  the card grading this is expected to run a bit short of the trial
+     *  figure -- see the tolerance comment on that card in f6f.test.ts. */
+    takeoffDistanceM: positive,
   }),
 })
+
+/** Cross-field: the trial the reference block was measured at has to be a
+ *  loading the aeroplane can actually fly, i.e. at or under its own
+ *  documented maximum take-off weight. This is on the whole object, not the
+ *  `reference` sub-schema, because it has to see `mass` too -- a mistyped or
+ *  mis-sourced testMassKg would otherwise pass validation and only surface
+ *  much later as a `disposableLoadKg` result nobody expects. */
+export const AircraftSpecSchema = AircraftSpecObject.refine(
+  (spec) => spec.reference.testMassKg <= spec.mass.maxTakeoffKg,
+  (spec) => ({
+    message:
+      `reference.testMassKg (${spec.reference.testMassKg} kg) exceeds ` +
+      `mass.maxTakeoffKg (${spec.mass.maxTakeoffKg} kg)`,
+    path: ['reference', 'testMassKg'],
+  }),
+)
 
 export type AircraftSpec = z.infer<typeof AircraftSpecSchema>
