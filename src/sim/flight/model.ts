@@ -53,6 +53,34 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, throttle: num
   return Math.min((spec.engine.propEfficiency * power) / v, spec.engine.staticThrustN * throttle)
 }
 
+const DEG = Math.PI / 180
+
+/**
+ * Spec §5: control input commands a body rotation rate, not a torque. The
+ * achievable fraction of the maximum rate scales with dynamic pressure
+ * normalised against sea-level dynamic pressure at the reference speed. This
+ * is what makes controls mushy near the stall and stiff at speed, without
+ * modelling moments of inertia or damping derivatives.
+ */
+export function commandedBodyRates(
+  spec: AircraftSpec,
+  state: AircraftState,
+  controls: Controls,
+): Vec3 {
+  const rho = densityAt(state.position.y)
+  const v = airspeed(state)
+  const q = 0.5 * rho * v * v
+  const qRef = 0.5 * densityAt(0) * spec.rates.rateRefSpeedMps * spec.rates.rateRefSpeedMps
+  const authority = Math.min(1, qRef === 0 ? 0 : q / qRef)
+
+  const clamp = (n: number) => Math.max(-1, Math.min(1, n))
+  return v3(
+    clamp(controls.roll) * spec.rates.maxRollRateDegPerSec * DEG * authority,
+    clamp(controls.yaw) * spec.rates.maxYawRateDegPerSec * DEG * authority,
+    clamp(controls.pitch) * spec.rates.maxPitchRateDegPerSec * DEG * authority,
+  )
+}
+
 export function step(
   spec: AircraftSpec,
   state: AircraftState,
@@ -90,8 +118,8 @@ export function step(
   const workJ = thrustN * Math.max(v, 1) * dt
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
 
-  // Moments arrive in Task 8; attitude integrates existing body rates only.
-  const attitude = qIntegrateBodyRates(state.attitude, state.bodyRates, dt)
+  const bodyRates = commandedBodyRates(spec, state, controls)
+  const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
 
-  return { position, velocity, attitude, bodyRates: state.bodyRates, fuelKg }
+  return { position, velocity, attitude, bodyRates, fuelKg }
 }
