@@ -20,3 +20,9 @@ dist-ssr/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# SDD scratch workspace (ledger, briefs, review packages)
+.superpowers/
+
+# Harness-managed worktrees
+.claude/worktrees/
