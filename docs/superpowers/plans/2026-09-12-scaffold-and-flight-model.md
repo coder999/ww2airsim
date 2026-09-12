@@ -64,7 +64,7 @@ a boundary added after the fact is a boundary already violated.
   (dependency-cruiser), `npm run typecheck` (tsc --noEmit). Every later task
   uses these four commands verbatim.
 
-- [ ] **Step 1: Initialise the project and install dev dependencies**
+- [x] **Step 1: Initialise the project and install dev dependencies**
 
 ```bash
 cd /home/mark/projects/ww2airsim
@@ -76,7 +76,7 @@ npm install -D typescript@^5 vitest@^2 @types/node@^22 zod@^3 \
   dependency-cruiser@^16 eslint@^9 typescript-eslint@^8
 ```
 
-- [ ] **Step 2: Write the config files**
+- [x] **Step 2: Write the config files**
 
 `tsconfig.json`:
 
@@ -179,7 +179,7 @@ npm pkg set scripts.depcruise="depcruise src --config .dependency-cruiser.cjs"
 npm pkg set scripts.verify="npm run typecheck && npm run lint && npm run depcruise && npm test"
 ```
 
-- [ ] **Step 3: Write the failing boundary test**
+- [x] **Step 3: Write the failing boundary test**
 
 `tests/architecture/boundary.test.ts`:
 
@@ -225,7 +225,7 @@ Note the probe is excluded from dependency-cruiser's own `exclude` for the
 `exclude` pattern in `.dependency-cruiser.cjs` does not suppress it — if the
 second test passes with exit code 0, delete the `exclude` line and re-run.
 
-- [ ] **Step 4: Create the placeholder render module so the probe has a target**
+- [x] **Step 4: Create the placeholder render module so the probe has a target**
 
 `src/render/placeholder.ts`:
 
@@ -235,7 +235,7 @@ second test passes with exit code 0, delete the `exclude` line and re-run.
 export const PLACEHOLDER = 'render' as const
 ```
 
-- [ ] **Step 5: Run the test to verify it fails, then passes correctly**
+- [x] **Step 5: Run the test to verify it fails, then passes correctly**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 
@@ -243,7 +243,7 @@ Expected on first run before `.dependency-cruiser.cjs` is correct: the second
 test FAILS because depcruise exits 0. Fix the config until both tests pass:
 test one green (clean tree) and test two green (violation detected).
 
-- [ ] **Step 6: Write the ESLint browser-global probe test**
+- [x] **Step 6: Write the ESLint browser-global probe test**
 
 Append to `tests/architecture/boundary.test.ts`:
 
@@ -264,7 +264,7 @@ describe('sim/ forbids browser globals and nondeterminism (spec §3)', () => {
 })
 ```
 
-- [ ] **Step 7: Run the full verify pipeline**
+- [x] **Step 7: Run the full verify pipeline**
 
 Run: `npm run verify`
 Expected: typecheck, lint, depcruise, and tests all PASS.
@@ -272,7 +272,7 @@ Expected: typecheck, lint, depcruise, and tests all PASS.
 Capture the exit status directly — never pipe this into `grep` and read the
 pipeline's status, which is grep's and not the runner's.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add package.json package-lock.json tsconfig.json vitest.config.ts \
@@ -301,7 +301,7 @@ and asserts ESLint reports them."
   Used by every later system needing randomness (dispersion cones, AI reaction
   delay, scenario spawn jitter).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/rng.test.ts`:
 
@@ -348,12 +348,12 @@ describe('createRng', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/rng.test.ts`
 Expected: FAIL — cannot resolve `src/sim/rng.js`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/sim/rng.ts`:
 
@@ -376,12 +376,12 @@ export function createRng(seed: number): () => number {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/rng.test.ts`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/rng.ts tests/sim/rng.test.ts
@@ -416,7 +416,7 @@ real consequence of the architecture, not an oversight.
   - Coordinate convention: right-handed, **+Y up**, body axes +X forward,
     +Y up, +Z right. Body rates are `{ x: roll, y: yaw, z: pitch }` in rad/s.
 
-- [ ] **Step 1: Write the failing vec3 test**
+- [x] **Step 1: Write the failing vec3 test**
 
 `tests/sim/math/vec3.test.ts`:
 
@@ -452,12 +452,12 @@ describe('vec3', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/math/vec3.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement vec3**
+- [x] **Step 3: Implement vec3**
 
 `src/sim/math/vec3.ts`:
 
@@ -481,12 +481,12 @@ export const normalize = (a: Vec3): Vec3 => {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/math/vec3.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Write the failing quaternion test**
+- [x] **Step 5: Write the failing quaternion test**
 
 `tests/sim/math/quat.test.ts`:
 
@@ -544,12 +544,12 @@ describe('quat', () => {
 })
 ```
 
-- [ ] **Step 6: Run test to verify it fails**
+- [x] **Step 6: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/math/quat.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 7: Implement quat**
+- [x] **Step 7: Implement quat**
 
 `src/sim/math/quat.ts`:
 
@@ -615,12 +615,12 @@ export const qIntegrateBodyRates = (q: Quat, rates: Vec3, dt: number): Quat => {
 }
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/math/`
 Expected: PASS, 12 tests across both files.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/sim/math tests/sim/math
@@ -647,7 +647,7 @@ long mission, which the 10k-step test asserts."
   `temperatureAt(altitudeM: number): number` (K),
   `speedOfSoundAt(altitudeM: number): number` (m/s).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/atmosphere.test.ts`:
 
@@ -695,12 +695,12 @@ describe('ISA atmosphere', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/atmosphere.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/sim/atmosphere.ts`:
 
@@ -733,12 +733,12 @@ export const speedOfSoundAt = (altitudeM: number): number =>
   Math.sqrt(GAMMA * R * temperatureAt(altitudeM))
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/atmosphere.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/atmosphere.ts tests/sim/atmosphere.test.ts
@@ -767,7 +767,7 @@ test cards -- compare against documented reality, not against ourselves."
   - `loadAircraftSpec(id: string): AircraftSpec` — reads
     `content/aircraft/<id>.json` and validates it
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/flight/schema.test.ts`:
 
@@ -825,12 +825,12 @@ describe('AircraftSpec validation (spec §9)', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/flight/schema.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the schema**
+- [x] **Step 3: Implement the schema**
 
 `src/sim/flight/schema.ts`:
 
@@ -913,7 +913,7 @@ export function loadAircraftSpec(id: string): AircraftSpec {
 }
 ```
 
-- [ ] **Step 4: Write the F6F content file**
+- [x] **Step 4: Write the F6F content file**
 
 `content/aircraft/f6f-hellcat.json`. These are commonly cited F6F-5 figures.
 Confirm each against a primary or reputable secondary source and record the
@@ -963,12 +963,12 @@ correct.
 The `reference.source` string above is intentionally an instruction, not data.
 The step is not complete until it names a real source.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/flight/schema.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/flight/schema.ts src/sim/content.ts \
@@ -997,7 +997,7 @@ out of the world. Error messages name the offending field path."
   - `aspectRatio(spec: AircraftSpec): number`
   - `inducedDragFactor(spec: AircraftSpec): number`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/aero.test.ts`:
 
@@ -1065,12 +1065,12 @@ describe('geometry derived values', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/aero.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/sim/aero.ts`:
 
@@ -1120,14 +1120,14 @@ export function dragCoefficient(spec: AircraftSpec, cl: number): number {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/aero.test.ts`
 Expected: PASS, 10 tests. If the negative-alpha assertion fails, adjust the
 negative branch of `liftCoefficient` — the requirement is only that negative
 alpha gives negative lift and nothing returns NaN.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/aero.ts tests/sim/aero.test.ts
@@ -1160,7 +1160,7 @@ and Oswald efficiency."
   - `airspeed(state: AircraftState): number` (m/s)
   - `DT = 1 / 60`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/flight/forces.test.ts`:
 
@@ -1252,12 +1252,12 @@ describe('flight integrator: forces', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/flight/forces.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement state**
+- [x] **Step 3: Implement state**
 
 `src/sim/flight/state.ts`:
 
@@ -1289,7 +1289,7 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
 })
 ```
 
-- [ ] **Step 4: Implement the model**
+- [x] **Step 4: Implement the model**
 
 `src/sim/flight/model.ts`:
 
@@ -1393,18 +1393,18 @@ export function step(
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/flight/forces.test.ts`
 Expected: PASS, 9 tests. The terminal-velocity and level-flight bounds are
 deliberately wide — Task 11's test cards tighten them against reference data.
 
-- [ ] **Step 6: Run the whole verify pipeline**
+- [x] **Step 6: Run the whole verify pipeline**
 
 Run: `npm run verify`
 Expected: all PASS. In particular depcruise must still report zero violations.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim/flight/state.ts src/sim/flight/model.ts tests/sim/flight/forces.test.ts
@@ -1433,7 +1433,7 @@ dynamic pressure. That scaling is what produces mushy controls near the stall.
 - Produces: `commandedBodyRates(spec, state, controls): Vec3` (rad/s), exported
   from `src/sim/flight/model.ts`. `step` now applies it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/flight/moments.test.ts`:
 
@@ -1510,12 +1510,12 @@ describe('rate-command moments (spec §5)', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/flight/moments.test.ts`
 Expected: FAIL — `commandedBodyRates` is not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to `src/sim/flight/model.ts`:
 
@@ -1559,14 +1559,14 @@ Then in `step`, replace the attitude lines:
 
 and return `bodyRates` instead of `state.bodyRates`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/flight/`
 Expected: PASS. If the "holds attitude with neutral input" test fails on the
 pitch component, that is gravity curving the flight path with no trim — widen
 that one bound and note it; Task 9 does not fix it and trim is Plan 5's concern.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/flight/model.ts tests/sim/flight/moments.test.ts
@@ -1591,7 +1591,7 @@ assert the cue that matters -- roll authority at 40 m/s is under half that at
 - Produces: `isStalled(spec, state): boolean` exported from
   `src/sim/flight/model.ts`. `step` injects a wing-drop roll rate when stalled.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/flight/stall.test.ts`:
 
@@ -1653,12 +1653,12 @@ describe('stall behaviour (spec §5)', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/flight/stall.test.ts`
 Expected: FAIL — `isStalled` is not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to `src/sim/flight/model.ts`:
 
@@ -1687,13 +1687,13 @@ and return `bodyRates: ratesWithStall`.
 Post-stall lift loss needs no new code: Task 6's `liftCoefficient` already
 decays past `alphaCrit`, so the lift fall-off is already in the force model.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/flight/`
 Expected: PASS. If "recoverable" fails, the recovery window may need longer than
 15 s — raise it to 30 s rather than weakening the assertion.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/flight/model.ts tests/sim/flight/stall.test.ts
@@ -1722,7 +1722,7 @@ that matters for playability: the stall is recoverable by unloading."
     `step`, asserts finiteness, and asserts airmass specific energy does not
     increase at idle throttle. Every later sim test uses `stepChecked`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/invariants.test.ts`:
 
@@ -1791,12 +1791,12 @@ describe('assertFinite', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/invariants.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/sim/invariants.ts`:
 
@@ -1865,12 +1865,12 @@ export function stepChecked(
 
 Note `v3` is imported but may be unused — remove it if ESLint flags it.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/invariants.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/invariants.ts tests/sim/invariants.test.ts
@@ -1903,7 +1903,7 @@ reference data rather than a judgement call (spec §11).
   - `measureStallSpeed(spec, altitudeM): number` (m/s)
   - `measureRollRate(spec, altitudeM, speedMps): number` (deg/s)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/sim/testcards/f6f.test.ts`:
 
@@ -1952,12 +1952,12 @@ describe('F6F-5 flight test card', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/testcards/f6f.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the autopilot**
+- [x] **Step 3: Implement the autopilot**
 
 `src/sim/autopilot.ts`:
 
@@ -2001,7 +2001,7 @@ export const holdLevelHeading = (
 ): Controls => holdFlightPath(spec, state, throttle, 0)
 ```
 
-- [ ] **Step 4: Implement the measurement harness**
+- [x] **Step 4: Implement the measurement harness**
 
 `tools/testcards/measure.ts`:
 
@@ -2097,7 +2097,7 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
 }
 ```
 
-- [ ] **Step 5: Run the test cards and tune to the reference figures**
+- [x] **Step 5: Run the test cards and tune to the reference figures**
 
 Run: `npx vitest run tests/sim/testcards/f6f.test.ts`
 
@@ -2119,7 +2119,7 @@ reference with a percentage. Tune in this order, editing only
 Do not widen `TOL` to make a test pass. A widened tolerance turns the reference
 figure into decoration, which defeats the entire point of the test card.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/autopilot.ts tools/testcards tests/sim/testcards \
