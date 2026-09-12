@@ -8,7 +8,7 @@ import {
   isIdleThrottle,
   stepChecked,
 } from '../../src/sim/invariants.js'
-import { loadAircraftSpec } from '../../src/sim/content.js'
+import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const IDLE: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }

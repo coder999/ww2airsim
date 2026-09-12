@@ -3,7 +3,7 @@ import { v3 } from '../../../src/sim/math/vec3.js'
 import { qIdentity, qRotate } from '../../../src/sim/math/quat.js'
 import { createState, step, commandedBodyRates, DT, type Controls }
   from '../../../src/sim/flight/model.js'
-import { loadAircraftSpec } from '../../../src/sim/content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const FULL_ROLL: Controls = { pitch: 0, roll: 1, yaw: 0, throttle: 0.5 }

@@ -11,7 +11,7 @@
  * did, sane or not.
  */
 import { writeFileSync } from 'node:fs'
-import { loadAircraftSpec } from '../../src/sim/content.js'
+import { loadAircraftSpec } from '../content/load.js'
 import { recordTrajectory } from './record.js'
 
 const t = recordTrajectory(loadAircraftSpec('f6f-hellcat'))

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parseAircraftSpec, loadAircraftSpec } from '../../../src/sim/content.js'
+import { parseAircraftSpec } from '../../../src/sim/content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const valid = {
   id: 'test-plane',

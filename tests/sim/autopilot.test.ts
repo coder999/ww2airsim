@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadAircraftSpec } from '../../src/sim/content.js'
+import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qIdentity, qFromAxisAngle } from '../../src/sim/math/quat.js'

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { loadAircraftSpec } from '../../../src/sim/content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { recordTrajectory, type GoldenTrajectory } from '../../../tools/golden/record.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')

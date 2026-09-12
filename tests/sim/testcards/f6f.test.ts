@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadAircraftSpec } from '../../../src/sim/content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 import {
   measureTopSpeed,
   measureClimbRate,

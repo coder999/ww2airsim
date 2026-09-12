@@ -32,6 +32,20 @@ describe('architecture boundary (spec §3)', () => {
     expect(code).not.toBe(0)
     expect(output).toContain('sim-must-not-import-render')
   })
+
+  // Finding I1: `src/sim` must also load in a browser, so a Node core import
+  // there means a later bundler either fails or silently shims it. The
+  // docstring on the old `loadAircraftSpec` already asserted "Node-only
+  // loader" -- a comment describing a constraint nothing enforced. Same
+  // negative-test pattern as the render boundary above, for the same reason:
+  // a lint or depcruise rule that is never seen to fail is indistinguishable
+  // from one that does not match anything.
+  it('fails when sim/ imports a Node core module', () => {
+    writeFileSync(PROBE, "import { readFileSync } from 'node:fs'\nexport const probe = readFileSync\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('sim-must-not-import-node-core')
+  })
 })
 
 describe('sim/ forbids browser globals and nondeterminism (spec §3)', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor, alphaCritRad }
   from '../../src/sim/aero.js'
-import { loadAircraftSpec } from '../../src/sim/content.js'
+import { loadAircraftSpec } from '../../tools/content/load.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')

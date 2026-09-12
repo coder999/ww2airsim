@@ -3,7 +3,7 @@ import { v3, length } from '../../../src/sim/math/vec3.js'
 import { qIdentity, qFromAxisAngle } from '../../../src/sim/math/quat.js'
 import { createState, step, airspeed, angleOfAttack, isStalled, DT, type Controls }
   from '../../../src/sim/flight/model.js'
-import { loadAircraftSpec } from '../../../src/sim/content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { densityAt } from '../../../src/sim/atmosphere.js'
 import { liftCoefficient, dragCoefficient } from '../../../src/sim/aero.js'
 
