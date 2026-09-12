@@ -3,6 +3,7 @@ import { v3 } from '../../../src/sim/math/vec3.js'
 import { qIdentity, qRotate } from '../../../src/sim/math/quat.js'
 import { createState, step, commandedBodyRates, DT, type Controls }
   from '../../../src/sim/flight/model.js'
+import { assertFinite } from '../../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -111,21 +112,21 @@ describe('control sign conventions (Important 1)', () => {
 
 describe('control input sanitisation (Important 4)', () => {
   const BASE = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
-  const isFiniteState = (s: ReturnType<typeof createState>): boolean =>
-    [s.position.x, s.position.y, s.position.z, s.velocity.x, s.velocity.y, s.velocity.z,
-      s.attitude.x, s.attitude.y, s.attitude.z, s.attitude.w, s.fuelKg,
-      s.bodyRates.x, s.bodyRates.y, s.bodyRates.z].every(Number.isFinite)
+  // Finding I7: this hand-copied all 14 fields of `invariants.ts`'s canonical
+  // FIELDS list. Correct at the time, but a fourth copy of a list that has
+  // already drifted elsewhere -- and `assertFinite` is the module written for
+  // exactly this, so it names the offending field on failure too.
 
   it('leaves the state finite when every control channel is NaN', () => {
     const bad: Controls = { pitch: NaN, roll: NaN, yaw: NaN, throttle: NaN }
     const s1 = step(f6f, BASE, bad, DT)
-    expect(isFiniteState(s1)).toBe(true)
+    expect(() => assertFinite(s1, 'all-NaN controls')).not.toThrow()
   })
 
   it('leaves the state finite for wildly out-of-range control input', () => {
     const wild: Controls = { pitch: 999, roll: -999, yaw: 1e12, throttle: -Infinity }
     const s1 = step(f6f, BASE, wild, DT)
-    expect(isFiniteState(s1)).toBe(true)
+    expect(() => assertFinite(s1, 'out-of-range controls')).not.toThrow()
   })
 
   it('clamps an out-of-range channel to the same rate as the clamped-in-range boundary', () => {

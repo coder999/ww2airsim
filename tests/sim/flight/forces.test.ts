@@ -5,6 +5,7 @@ import { createState, step, airspeed, angleOfAttack, isStalled, DT, type Control
   from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { densityAt } from '../../../src/sim/atmosphere.js'
+import { assertFinite } from '../../../src/sim/invariants.js'
 import { liftCoefficient, dragCoefficient } from '../../../src/sim/aero.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -20,17 +21,27 @@ describe('flight integrator: forces', () => {
 
   it('never produces a non-finite state over a long run', () => {
     let s = createState({ position: v3(0, 3000, 0), velocity: v3(120, 0, 0) })
+    // Finding I7: this hand-copied 11 of the 14 fields in `invariants.ts`'s
+    // canonical FIELDS list, omitting all three `bodyRates` components -- it
+    // predated `assertFinite` and was never refactored onto it. It calls the
+    // canonical checker now, so the list cannot drift here again.
+    //
     // A single expect() per iteration over 18000 steps buried the one that
-    // mattered in noise on failure (Important 4, minor). Track the first bad
-    // step and assert once, so a regression points straight at when it broke.
-    let firstBadStep = -1
+    // mattered in noise on failure (Important 4, minor), so the first
+    // failure's own message is captured and asserted once, which also names
+    // the offending field rather than just the step index.
+    let firstFailure: string | undefined
     for (let i = 0; i < 60 * 300; i++) {
       s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }, DT)
-      const all = [s.position.x, s.position.y, s.position.z, s.velocity.x, s.velocity.y,
-        s.velocity.z, s.attitude.x, s.attitude.y, s.attitude.z, s.attitude.w, s.fuelKg]
-      if (firstBadStep === -1 && !all.every(Number.isFinite)) firstBadStep = i
+      if (firstFailure === undefined) {
+        try {
+          assertFinite(s, `step ${i}`)
+        } catch (err) {
+          firstFailure = (err as Error).message
+        }
+      }
     }
-    expect(firstBadStep).toBe(-1)
+    expect(firstFailure).toBeUndefined()
   })
 
   // Shared by both dive tests below: a genuine nose-down attitude (body

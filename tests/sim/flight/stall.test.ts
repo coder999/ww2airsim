@@ -3,6 +3,7 @@ import { v3 } from '../../../src/sim/math/vec3.js'
 import { qIdentity } from '../../../src/sim/math/quat.js'
 import { createState, step, isStalled, angleOfAttack, DT, type Controls }
   from '../../../src/sim/flight/model.js'
+import { assertFinite } from '../../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -44,18 +45,27 @@ describe('stall behaviour (spec §5)', () => {
 
   it('produces no non-finite state through a full stall and recovery', () => {
     let s = createState({ position: v3(0, 5000, 0), velocity: v3(30, -30, 0), attitude: qIdentity() })
-    // Minor fix: one expect() per iteration over 3600 steps buried the single
-    // failure that mattered. Track the first bad step and assert once.
-    let firstBadStep = -1
+    // Finding I7: this checked 3 of the 14 fields in `invariants.ts`'s
+    // canonical FIELDS list (via a sum, which also cannot say which one went
+    // bad). It calls the canonical checker now.
+    //
+    // Minor fix, kept: one expect() per iteration over 3600 steps buried the
+    // single failure that mattered, so the first failure's message is
+    // captured and asserted once.
+    let firstFailure: string | undefined
     for (let i = 0; i < 60 * 60; i++) {
       const controls: Controls = i < 1800
         ? { pitch: 1, roll: 0, yaw: 0, throttle: 0 }
         : { pitch: -0.5, roll: 0, yaw: 0, throttle: 1 }
       s = step(f6f, s, controls, DT)
-      if (firstBadStep === -1 && !Number.isFinite(s.position.y + s.velocity.x + s.attitude.w)) {
-        firstBadStep = i
+      if (firstFailure === undefined) {
+        try {
+          assertFinite(s, `step ${i}`)
+        } catch (err) {
+          firstFailure = (err as Error).message
+        }
       }
     }
-    expect(firstBadStep).toBe(-1)
+    expect(firstFailure).toBeUndefined()
   })
 })
