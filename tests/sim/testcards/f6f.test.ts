@@ -68,11 +68,11 @@ describe('F6F-5 flight test card', () => {
   // figure and this model has no flaps, no rolling friction and no ground
   // effect, all three of which push a simulated roll shorter than the trial's.
   // Measured 2026-09-12 at the shipped propEfficiency 0.75 / staticThrustN
-  // 20,000 N / testMassKg 5633.62: the model reads 214.74 m against the
-  // trial's 230.124 m, a -6.7% under-estimate -- consistent in direction and
+  // 20,000 N / testMassKg 5633.62: the model reads 214.632 m against the
+  // trial's 230.124 m, a -6.73% under-estimate -- consistent in direction and
   // size with "missing flap drag and ground-roll friction make the model roll
   // a bit short", not a coincidence needing a tighter or wider band picked
-  // after the fact. 10% leaves headroom above that -6.7% without absorbing an
+  // after the fact. 10% leaves headroom above that -6.73% without absorbing an
   // error the model does not actually have.
   it('rolls to its documented full-flaps take-off distance, at a tolerance that is honest about the model gaps', () => {
     const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS), ref.takeoffDistanceM, 0.10)

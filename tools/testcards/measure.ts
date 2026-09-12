@@ -48,11 +48,14 @@ const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): Aircraf
  *  one weight, so the measurement is taken at one weight. Measured 2026-09-12
  *  at propEfficiency 0.75, testMassKg 5633.62: a variant of the top-speed card
  *  with this pin removed left the aeroplane to burn fuel freely, and it took
- *  436 s (not the shipped card's 421 s -- burning fuel changes qRef as it goes,
- *  so the mass-drifting variant converges on a different schedule) to lose
- *  36.6 kg, 0.65% of gross weight, worth 0.11 m/s on the reading (172.56 m/s
- *  drifting, 172.46 m/s held). Small, but it is free to remove and it would
- *  not stay small for a longer card. */
+ *  436 s (not the shipped card's 421 s) to lose 36.6 kg, 0.65% of gross weight,
+ *  worth 0.11 m/s on the reading (172.56 m/s drifting, 172.46 m/s held). That
+ *  436 s vs 421 s gap is NOT because burning fuel changes qRef as it goes --
+ *  qRef (`0.5 * densityAt(0) * rateRefSpeedMps^2` in flight/model.ts) has no
+ *  mass or fuel dependency at all. The real mechanism: a lighter aeroplane
+ *  trims to a lower clTrim (= massKg * G / (q * S)), which changes induced
+ *  drag and hence the equilibrium speed the run is converging toward. Small,
+ *  but it is free to remove and it would not stay small for a longer card. */
 const holdMass = (spec: AircraftSpec, s: AircraftState): AircraftState =>
   s.fuelKg === disposableLoadKg(spec) ? s : { ...s, fuelKg: disposableLoadKg(spec) }
 
@@ -136,7 +139,11 @@ const CLIMB_SWEEP_MAX_DEG = 40
 const CLIMB_SWEEP_STEP_DEG = 2
 /** Long enough for airspeed to settle at the commanded attitude: the aeroplane
  *  is spawned at the rate-reference speed and has to decelerate ~45 m/s at well
- *  under 1 m/s^2. */
+ *  under 1 m/s^2. Measured 2026-09-12 at propEfficiency 0.75, testMassKg
+ *  5633.62, at the best-rate (24-degree) attitude: spawn speed 103.000 m/s,
+ *  settled speed after 120 s 57.984 m/s, a 45.016 m/s drop (0.375 m/s^2 mean).
+ *  This number moves with propEfficiency and mass -- it is not a property of
+ *  the model in general, just of this content file as it stood on that date. */
 const CLIMB_SETTLE_S = 120
 /** Window over which the settled climb rate is averaged, seconds -- shorter
  *  than the brief's 10 s, and that is a measured choice rather than an

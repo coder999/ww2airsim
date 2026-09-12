@@ -2147,7 +2147,7 @@ comparison against documented reality rather than a judgement call (spec 11)."
 - Produces: `recordTrajectory(spec, controlsFor, steps): GoldenTrajectory` where
   `type GoldenTrajectory = { engine: string; checkpoints: Array<{ tick: number; position: [number, number, number]; speed: number }> }`
 
-- [ ] **Step 1: Write the recorder**
+- [x] **Step 1: Write the recorder**
 
 `tools/golden/record.ts`:
 
@@ -2190,7 +2190,7 @@ export function recordTrajectory(spec: AircraftSpec, steps = 3600): GoldenTrajec
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `tests/sim/golden/trajectory.test.ts`:
 
@@ -2243,7 +2243,7 @@ describe('golden trajectory regression', () => {
 })
 ```
 
-- [ ] **Step 3: Run to verify it fails, then generate the golden file**
+- [x] **Step 3: Run to verify it fails, then generate the golden file**
 
 Run: `npx vitest run tests/sim/golden/trajectory.test.ts`
 Expected: FAIL — golden file does not exist.
@@ -2268,12 +2268,12 @@ climb (position[1] rising in the first half), turn (position[2] changing sign of
 rate after tick 1800), and hold a plausible speed of roughly 100–200 m/s. A
 golden file recording nonsense locks in nonsense.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/golden/trajectory.test.ts`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Run the full pipeline and commit**
+- [x] **Step 5: Run the full pipeline and commit**
 
 Run: `npm run verify`
 Expected: typecheck, lint, depcruise, all tests PASS.

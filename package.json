@@ -9,7 +9,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --no-error-on-unmatched-pattern src tests tools",
+    "lint": "eslint src tests tools",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test"
   },
@@ -21,6 +21,7 @@
     "@types/node": "^22.20.2",
     "dependency-cruiser": "^16.10.4",
     "eslint": "^9.39.5",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.0",
