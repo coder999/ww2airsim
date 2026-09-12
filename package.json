@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests tools",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
-    "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test"
+    "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",
+    "golden:regen": "tsx tools/golden/generate.ts"
   },
   "keywords": [],
   "author": "",

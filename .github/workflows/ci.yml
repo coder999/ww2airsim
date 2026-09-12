@@ -4,6 +4,17 @@ on:
     branches: ['**']
   pull_request:
 
+permissions:
+  contents: read
+
+# `push: branches: ['**']` plus `pull_request` double-runs every same-repo PR
+# branch (once for the push, once for the PR). Keying the concurrency group
+# on workflow + ref (not the event) means both runs for the same branch share
+# a group, so the older one is cancelled rather than left to finish pointlessly.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest

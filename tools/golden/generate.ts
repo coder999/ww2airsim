@@ -1,5 +1,5 @@
 /**
- * Regenerates tests/sim/golden/f6f-cruise.golden.json.
+ * Regenerates tests/sim/golden/f6f-rolling-descent.golden.json.
  *
  * Ruling R7: this is a committed script rather than an `npx tsx --eval "..."`
  * one-liner, because relative `.js` specifiers inside an `--eval` string are
@@ -15,6 +15,6 @@ import { loadAircraftSpec } from '../../src/sim/content.js'
 import { recordTrajectory } from './record.js'
 
 const t = recordTrajectory(loadAircraftSpec('f6f-hellcat'))
-const outPath = new URL('../../tests/sim/golden/f6f-cruise.golden.json', import.meta.url)
+const outPath = new URL('../../tests/sim/golden/f6f-rolling-descent.golden.json', import.meta.url)
 writeFileSync(outPath, JSON.stringify(t, null, 2) + '\n')
 console.log('checkpoints:', t.checkpoints.length, 'engine:', t.engine)

@@ -4,7 +4,7 @@ import { loadAircraftSpec } from '../../../src/sim/content.js'
 import { recordTrajectory, type GoldenTrajectory } from '../../../tools/golden/record.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
-const GOLDEN_PATH = new URL('./f6f-cruise.golden.json', import.meta.url)
+const GOLDEN_PATH = new URL('./f6f-rolling-descent.golden.json', import.meta.url)
 
 /**
  * Spec §3: assert within tolerance, never exact equality. Math.sin/cos/exp are
@@ -29,7 +29,10 @@ describe('golden trajectory regression', () => {
           `tick ${want.tick} axis ${axis}: ${got.position[axis]} vs ${want.position[axis]}`,
         ).toBeLessThan(POSITION_TOL_M)
       }
-      expect(Math.abs(got.speed - want.speed)).toBeLessThan(SPEED_TOL_MPS)
+      expect(
+        Math.abs(got.speed - want.speed),
+        `tick ${want.tick} speed: ${got.speed} vs ${want.speed}`,
+      ).toBeLessThan(SPEED_TOL_MPS)
     }
   })
 
@@ -39,6 +42,13 @@ describe('golden trajectory regression', () => {
     expect(a.checkpoints).toEqual(b.checkpoints)
   })
 
+  // `engine` is provenance metadata only -- it records which Node produced
+  // this golden, it is not an enforced constraint. This deliberately does
+  // NOT assert the golden's engine matches `process.version`: a golden
+  // recorded on an older/newer Node is expected to still pass the tolerance
+  // checks above (that is the whole point of POSITION_TOL_M/SPEED_TOL_MPS),
+  // and asserting equality here would wrongly fail a still-valid golden on
+  // a Node upgrade.
   it('records the engine it was generated on', () => {
     const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as GoldenTrajectory
     expect(golden.engine).toMatch(/^node v\d+/)
