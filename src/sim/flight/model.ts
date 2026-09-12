@@ -52,7 +52,7 @@ function powerFractionAt(spec: AircraftSpec, altitudeM: number): number {
  *  malformed input event, a bad replay file, ...) poisons the whole state,
  *  and `qNormalize`'s zero-length guard cannot catch a NaN because a NaN
  *  quaternion's hypot is itself NaN, not 0. */
-const clampFinite = (n: number, lo: number, hi: number): number =>
+export const clampFinite = (n: number, lo: number, hi: number): number =>
   Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : 0
 
 function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: number): number {
