@@ -2302,7 +2302,7 @@ it was generated on."
 - Consumes: Tasks 2–10.
 - Produces: `runSoak(spec, iterations, seed): { failures: string[]; iterations: number }`
 
-- [ ] **Step 1: Write the failing soak test**
+- [x] **Step 1: Write the failing soak test**
 
 `tests/sim/soak.test.ts`:
 
@@ -2325,12 +2325,12 @@ describe('randomized soak (spec §11)', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/soak.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the soak runner**
+- [x] **Step 3: Implement the soak runner**
 
 `tools/soak/run.ts`:
 
@@ -2383,14 +2383,14 @@ export function runSoak(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/soak.test.ts`
 Expected: PASS. If it fails, the failure message names the iteration, altitude
 and speed — reproduce that single case before changing anything, per
 superpowers:systematic-debugging.
 
-- [ ] **Step 5: Write the CI workflows**
+- [x] **Step 5: Write the CI workflows**
 
 `.github/workflows/ci.yml`:
 
@@ -2475,7 +2475,7 @@ an assertion, push to a branch, confirm the run goes red and opens an issue,
 then revert. If it passes green on a broken test, add
 `set -o pipefail` as the step's shell or drop the `tee`.
 
-- [ ] **Step 6: Verify CI and commit**
+- [x] **Step 6: Verify CI and commit**
 
 ```bash
 npm run verify

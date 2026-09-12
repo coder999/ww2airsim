@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run depcruise
+      - run: npm test
+
+# No GPU on hosted runners, so there are no Tier 2 render checks here -- that
+# is deliberate per spec §11, not an omission.
