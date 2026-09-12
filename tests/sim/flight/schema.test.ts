@@ -13,7 +13,7 @@ const valid = {
   },
   rates: { maxRollRateDegPerSec: 80, maxPitchRateDegPerSec: 30, maxYawRateDegPerSec: 15, rateRefSpeedMps: 103 },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
-  reference: { source: 'test', topSpeedMps: 170, topSpeedAltitudeM: 7132, climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80 },
+  reference: { source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132, climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80 },
 }
 
 describe('AircraftSpec validation (spec §9)', () => {

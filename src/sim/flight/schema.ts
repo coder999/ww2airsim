@@ -45,6 +45,13 @@ export const AircraftSpecSchema = z.object({
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }),
   reference: z.object({
     source: z.string().min(1),
+    /** Gross weight the cited trial was flown at, kg. Every reference figure
+     *  below is weight-dependent, so a measurement harness that spawns at any
+     *  other mass is comparing apples to oranges (Ruling R31). Note this is a
+     *  gross weight, not a fuel load: `mass.emptyKg + fuelKg` is the model's
+     *  only mass expression, so a harness reproducing it has to carry the
+     *  pilot, oil and ammunition in `fuelKg` -- see tools/testcards/measure.ts. */
+    testMassKg: positive,
     topSpeedMps: positive,
     topSpeedAltitudeM: positive,
     climbRateMps: positive,
