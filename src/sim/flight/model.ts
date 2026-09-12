@@ -81,6 +81,14 @@ export function commandedBodyRates(
   )
 }
 
+/** Wing-drop roll rate injected at the stall, rad/s. Deterministic in sign so
+ *  the behaviour is reproducible; a randomised drop would need the seeded RNG. */
+const STALL_WING_DROP_RAD_PER_S = 0.6
+
+export function isStalled(spec: AircraftSpec, state: AircraftState): boolean {
+  return Math.abs(angleOfAttack(state)) > (spec.aero.alphaCritDeg * Math.PI) / 180
+}
+
 export function step(
   spec: AircraftSpec,
   state: AircraftState,
@@ -119,7 +127,11 @@ export function step(
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
 
   const bodyRates = commandedBodyRates(spec, state, controls)
-  const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
+  const stalled = isStalled(spec, state)
+  const ratesWithStall = stalled
+    ? v3(bodyRates.x + STALL_WING_DROP_RAD_PER_S, bodyRates.y, bodyRates.z)
+    : bodyRates
+  const attitude = qIntegrateBodyRates(state.attitude, ratesWithStall, dt)
 
-  return { position, velocity, attitude, bodyRates, fuelKg }
+  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg }
 }
