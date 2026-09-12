@@ -157,6 +157,60 @@ describe('flight integrator: forces', () => {
     expect(dLow).toBeGreaterThan(dHigh)
   })
 
+  /**
+   * Finding I9: no test exercised partial throttle at low airspeed. Every
+   * low-speed test used throttle 0 or 1, and removing `* throttle` from the
+   * static-thrust cap in `thrustMagnitude` -- doubling thrust at half throttle
+   * from a standstill -- passed all 111 tests. That cap is the sole
+   * determinant of thrust below 55.91 m/s at sea level (measured
+   * 2026-09-12: propEfficiency*maxPowerW/staticThrustN = 0.75*1,491,000/20,000
+   * -- note the crossover is independent of throttle, since both terms scale
+   * with it), which is the entire carrier-launch and wave-off regime a later
+   * plan depends on.
+   *
+   * `thrustMagnitude` is module-private, so thrust is recovered from the
+   * state: mass * dv_x/dt along the body forward axis, with the throttle-0 run
+   * subtracted to cancel drag and the lift component. Nothing else in the
+   * x-force depends on throttle, and `step` takes the mass from the incoming
+   * state, so the subtraction is exact rather than approximate.
+   */
+  describe('partial throttle at low airspeed (finding I9)', () => {
+    const thrustAt = (speedMps: number, throttle: number): number => {
+      const s0 = createState({
+        position: v3(0, 0, 0),
+        velocity: v3(speedMps, 0, 0),
+        attitude: qIdentity(),
+        fuelKg: 400,
+      })
+      const s1 = step(f6f, s0, { pitch: 0, roll: 0, yaw: 0, throttle }, DT)
+      const xForce = ((s1.velocity.x - s0.velocity.x) / DT) * (f6f.mass.emptyKg + s0.fuelKg)
+      if (throttle === 0) return xForce
+      return xForce - thrustAt(speedMps, 0)
+    }
+
+    it('produces about half the thrust at half throttle from a standstill', () => {
+      const half = thrustAt(0, 0.5)
+      const full = thrustAt(0, 1)
+      // Measured 2026-09-12: 10,000.000 N and 20,000.000 N.
+      expect(half / full).toBeCloseTo(0.5, 3)
+    })
+
+    it('is the static-thrust cap, scaled by throttle, that sets low-speed thrust', () => {
+      // If the cap did not scale with throttle, half throttle would produce
+      // the full 20,000 N here. Both ends asserted so the test says which
+      // term it is pinning: the power-based term at a standstill would be
+      // propEfficiency*maxPowerW/1 m/s = 1,118,250 N, 56x larger.
+      expect(thrustAt(0, 1)).toBeCloseTo(f6f.engine.staticThrustN, 3)
+      expect(thrustAt(0, 0.5)).toBeCloseTo(f6f.engine.staticThrustN * 0.5, 3)
+    })
+
+    it('still scales with throttle at 30 m/s, below the 55.91 m/s crossover', () => {
+      // A wave-off / carrier-launch speed, still in the capped regime.
+      expect(thrustAt(30, 0.5) / thrustAt(30, 1)).toBeCloseTo(0.5, 3)
+      expect(thrustAt(30, 0.25) / thrustAt(30, 1)).toBeCloseTo(0.25, 3)
+    })
+  })
+
   it('burns fuel at full throttle and not at idle', () => {
     const s0 = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), fuelKg: 600 })
     const burned = s0.fuelKg - step(f6f, s0, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, DT).fuelKg
