@@ -26,7 +26,12 @@ export const AircraftSpecSchema = z.object({
     powerFractionByAltitudeM: z
       .array(z.tuple([finite, fraction]))
       .min(2)
-      .refine((pts) => pts[0]![0] === 0, { message: 'power curve must start at sea level (altitude 0)' })
+      .refine((pts) => pts.length === 0 || pts[0]![0] === 0, {
+        message: 'power curve must start at sea level (altitude 0)',
+      })
+      // `.every` on an empty/undersized array never dereferences pts[i - 1], so
+      // this one is safe even when the preceding `.min(2)` has already failed
+      // (a "dirty" but not aborted parse still runs later refinements).
       .refine((pts) => pts.every((p, i) => i === 0 || p[0] > pts[i - 1]![0]), {
         message: 'power curve altitudes must strictly increase',
       }),

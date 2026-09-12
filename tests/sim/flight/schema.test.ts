@@ -42,6 +42,11 @@ describe('AircraftSpec validation (spec §9)', () => {
     expect(() => parseAircraftSpec(bad)).toThrow(/sea level/)
   })
 
+  it('rejects an empty power curve with the field named, not a raw TypeError', () => {
+    const bad = { ...valid, engine: { ...valid.engine, powerFractionByAltitudeM: [] } }
+    expect(() => parseAircraftSpec(bad)).toThrow(/powerFractionByAltitudeM/)
+  })
+
   it('loads and validates the real F6F content file', () => {
     const f6f = loadAircraftSpec('f6f-hellcat')
     expect(f6f.id).toBe('f6f-hellcat')

@@ -16,5 +16,22 @@ export function parseAircraftSpec(raw: unknown): AircraftSpec {
  *  over fetch and calls parseAircraftSpec directly. */
 export function loadAircraftSpec(id: string): AircraftSpec {
   const path = new URL(`../../content/aircraft/${id}.json`, import.meta.url)
-  return parseAircraftSpec(JSON.parse(readFileSync(path, 'utf8')))
+
+  let raw: string
+  try {
+    raw = readFileSync(path, 'utf8')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    throw new Error(`Failed to read aircraft content file for id "${id}" (${path.pathname}): ${message}`)
+  }
+
+  let json: unknown
+  try {
+    json = JSON.parse(raw)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    throw new Error(`Failed to parse aircraft content file for id "${id}" (${path.pathname}) as JSON: ${message}`)
+  }
+
+  return parseAircraftSpec(json)
 }

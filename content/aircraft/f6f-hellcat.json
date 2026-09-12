@@ -15,7 +15,7 @@
     "maxPowerW": 1491000,
     "propEfficiency": 0.8,
     "staticThrustN": 20000,
-    "powerFractionByAltitudeM": [[0, 1.0], [3000, 1.0], [7132, 1.0], [9000, 0.82], [11400, 0.6]]
+    "powerFractionByAltitudeM": [[0, 1.0], [3000, 1.0], [7041, 1.0], [9000, 0.82], [11400, 0.6]]
   },
   "rates": {
     "maxRollRateDegPerSec": 80,
@@ -25,7 +25,7 @@
   },
   "limits": { "diveSpeedMps": 216, "gLimit": 7.5 },
   "reference": {
-    "source": "U.S. Naval Air Station Patuxent River, 'Performance Test Each 1000th Airplane' (TED No. PTR-2125), 7 Sep 1944, F6F-5 BuNo 58310, military-power trial data as tabulated at wwiiaircraftperformance.org/f6f/f6f.html; weights and dimensions cross-checked against the Grumman F6F Hellcat Wikipedia infobox (334 sq ft / 31.0 sq m wing, 42 ft 10 in / 13.06 m span, 9,238 lb / 4,190 kg empty)",
+    "source": "U.S. Naval Air Station Patuxent River, 'Performance Test Each 1000th Airplane' (TED No. PTR-2125), 7 Sep 1944, F6F-5 BuNo 58310, military-power trial data as tabulated at wwiiaircraftperformance.org/f6f/f6f.html; weights and dimensions cross-checked against the Grumman F6F Hellcat Wikipedia infobox (334 sq ft / 31.0 sq m wing, 42 ft 10 in / 13.06 m span, 9,238 lb / 4,190 kg empty); rollRateDegPerSec is NOT corroborated by this source and remains an unsourced estimate",
     "topSpeedMps": 174.79,
     "topSpeedAltitudeM": 7040.9,
     "climbRateMps": 13.51,
