@@ -457,6 +457,12 @@ Eight, with original names rather than the 1991 game's mission list:
 The repo is public. The real legal exposure is **3D model provenance**, not
 game IP — free model sites are riddled with license laundering.
 
+Code is licensed **AGPL-3.0**. The network clause is deliberate: anyone running
+a modified version as a network service must offer source. A consequence to
+respect when pulling in dependencies — third-party code must be
+AGPL-compatible, which permissive licenses (MIT, BSD, Apache-2.0) are, and
+proprietary or GPL-incompatible code is not.
+
 Rules:
 
 - Either build deliberately simple low-poly models, or use only assets with
