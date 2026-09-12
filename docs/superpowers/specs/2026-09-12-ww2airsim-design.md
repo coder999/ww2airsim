@@ -46,9 +46,31 @@ depth is allocated unevenly on purpose:
 | Development, build, Tier 1 tests | nexus (headless Linux, Ryzen 7 PRO 6850H) | Pure-Node work; no GPU required |
 | Reference platform, Tier 2 tests | Windows Ryzen desktop, Radeon RX 6700 XT (RDNA 2, 40 CU, 12 GB GDDR6) | All GPU-touching verification; canonical golden screenshots |
 
-nexus is headless and cannot render. Chrome on the Windows desktop points at
-the Vite dev server on nexus over LAN (bound `0.0.0.0`); there is nothing to
-sync between the two.
+nexus is headless and cannot render, so the browser always runs on the Windows
+desktop against a build served from nexus. There is nothing to sync between the
+two machines.
+
+**The dev loop must be a secure context.** `navigator.gpu` is exposed only in
+secure contexts. Per the Secure Contexts definition, potentially trustworthy
+origins are `https`/`wss`/`file`, `127.0.0.0/8`, `::1/128`, and
+`localhost`/`*.localhost` — a plain-HTTP private LAN address such as
+`http://192.168.0.50:5173` is **not** one. Serving the dev server over HTTP by
+LAN IP would make WebGPU unavailable before any other work could begin.
+
+Resolution, in order of preference:
+
+1. **SSH tunnel (chosen).** From the Windows box,
+   `ssh -L 5173:localhost:5173 nexus`, and open `http://localhost:5173`. The
+   origin is then genuinely trustworthy rather than flag-excepted: no
+   certificate to manage, nothing to re-apply on a fresh Chrome profile,
+   Playwright needs no special configuration, and Vite binds loopback-only on
+   nexus instead of `0.0.0.0`.
+2. **HTTPS via mkcert**, with the CA trusted on the Windows box. Needed if
+   something later requires a non-localhost origin.
+3. **`--unsafely-treat-insecure-origin-as-secure`** is explicitly rejected: it
+   is silently lost on a new profile and must be duplicated into every
+   Playwright launch, which is exactly the kind of manual step this project is
+   trying to eliminate.
 
 Renderer target is WebGPU via Chrome's D3D12 backend. Golden screenshots are
 GPU-dependent and are therefore generated on and only valid for the reference
@@ -115,8 +137,23 @@ Required, not aspirational:
 - No wall-clock reads in `sim/`
 - No iteration over unordered collections in state-affecting paths
 
-A replay is therefore `(seed, input log)` and reproduces exactly. Replays are
-committable test fixtures and bug reports.
+A replay is therefore `(seed, input log)`.
+
+**Bit-exact within one engine, not across engines.** IEEE-754 guarantees
+exactness for basic arithmetic and `Math.sqrt`, but `Math.sin`, `cos`, `exp`,
+and `pow` are implementation-approximated and may differ between V8 versions
+and platforms — which is precisely the nexus-Node versus Windows-Chrome split
+in §2. Consequences:
+
+- Golden trajectories assert within tolerance, never exact equality, and record
+  the engine and version they were generated on.
+- A replay recorded in-browser reproduces exactly in that browser, and within
+  tolerance in Node.
+
+If replay fidelity across engines ever becomes load-bearing, the escape hatch
+is to own the transcendentals — polynomial `sin`/`cos`/`exp` inside `sim/` —
+which buys true cross-engine determinism at a small accuracy cost. Not needed
+for v1.
 
 ## 4. World and terrain
 
@@ -311,13 +348,20 @@ Cumulative banked score determines rank.
 | Lieutenant Commander | LCDR | 17,500 |
 | Commander | CDR | 35,000 |
 | Captain | CAPT | 60,000 |
-| Rear Admiral (lower half) | RDML | 100,000 |
-| Rear Admiral (upper half) | RADM | 150,000 |
+| Commodore | COMO | 100,000 |
+| Rear Admiral | RADM | 150,000 |
 | Vice Admiral | VADM | 225,000 |
 | Admiral | ADM | 325,000 |
 
-Flag officers do not fly combat aircraft. O-7 and above are prestige tiers, and
-the game does not pretend otherwise.
+Flag officers do not fly combat aircraft. The top tiers are prestige rewards,
+and the game does not pretend otherwise.
+
+**Period accuracy note.** The ladder deviates from the modern USN list it was
+drawn from. In 1944 the one-star flag rank was **Commodore** (reestablished
+9 April 1943 for wartime service) and **Rear Admiral** was two stars with no
+upper/lower-half split; "Rear Admiral (lower half)" as a title dates only to
+1986. The substitution is one-for-one, so tier count and thresholds are
+unchanged.
 
 ### Badges
 
@@ -455,7 +499,10 @@ vectors:
   recorded trajectory checkpoints. Any physics change that shifts them must be
   deliberate. This is what makes tuning safe.
 - **Invariants**, asserted every step: no `NaN` escapes an integration step;
-  energy never increases without thrust; trimmed level flight stays trimmed; no
+  specific energy in the **airmass frame** never increases at idle throttle
+  (ground-frame energy legitimately changes as the aircraft turns relative to a
+  scenario wind vector, so the ground frame would flap); trimmed level flight
+  stays trimmed; no
   aircraft is below terrain without a crash event; score is never negative.
 - **Mission-level end-to-end**, AI-flown: landed, touchdown vertical speed
   within limits, wire caught, recovery multiplier applied, badge awarded,
@@ -476,6 +523,12 @@ Playwright on the Windows desktop against a build served from nexus.
 Automated, but requires a GPU, so it runs locally and nightly rather than in
 hosted CI.
 
+- **Adapter guard, asserted on every run.** `adapter.info.isFallbackAdapter`
+  is `false` and `adapter.info` vendor/device identify the RX 6700 XT. Not a
+  one-time spike check: if a driver update, a headless flag change, or a new
+  Chrome version silently drops to a software rasterizer, every frame-time
+  number and every golden screenshot produced afterwards is invalid. Failing
+  loudly is the only way that does not quietly corrupt the baselines.
 - **Zero WebGPU validation errors** across a scripted camera sweep, via
   `pushErrorScope` and `onuncapturederror`. Catches a large class of renderer
   bugs with no screenshots and no human judgement.
@@ -512,7 +565,9 @@ blocking implementation.
 1. **Player-facing name.** Deferred until there is something to name. Current
    default: repo working title `ww2airsim`. Candidates considered and held:
    *Paddles* (the 1944 LSO, period-correct as the Fresnel lens postdates the
-   war), *Angels Fifteen*, *Taffy 3*, *Feet Wet*.
+   war), *Angels Fifteen*, *Feet Wet*. *Taffy 3* is recorded as **rejected**:
+   that task unit flew FM-2 Wildcats and TBM Avengers from escort carriers, not
+   Hellcats from fleet carriers.
 2. **Aircraft roster confirmation** against a primary source before art work
    (§9).
 
@@ -531,8 +586,25 @@ blocking implementation.
 Detailed sequencing is the implementation plan's job, not this document's. The
 minimum honest ordering:
 
-1. Day-0 spike: verify WebGPU compute on the reference platform
-2. Repo scaffold, TypeScript strict, vitest, architecture boundary test
+1. **Day-0 spike on the reference platform.** Settles, rather than assumes:
+   - Secure-context dev loop works end to end via the SSH tunnel (§2), with
+     `navigator.gpu` present
+   - `adapter.info.isFallbackAdapter` is `false` **and** `adapter.info` vendor
+     and device identify the RX 6700 XT. Both checks are required: a software
+     rasterizer can present as a non-fallback adapter, and frame-time budgets
+     or goldens taken from one are worthless. Note the check is on
+     `adapter.info`; the `GPUAdapter.isFallbackAdapter` property is removed
+     from the platform.
+   - The same adapter assertion holds under **headless** Chromium, which is how
+     Tier 2 runs; headless is the likeliest place to silently lose the discrete
+     GPU.
+   - A trivial TSL compute pass using `workgroupArray` + `workgroupBarrier` and
+     a `StorageTexture` write actually executes. Verified present in the API as
+     of three 0.186.0, so this confirms behaviour rather than existence; if it
+     regresses, the contingency is raw WGSL via `wgslFn` on the same device.
+2. Repo scaffold: TypeScript strict, vitest, architecture boundary test,
+   `.gitignore`, and a `LICENSE` — the repo is public, so absent a license the
+   code is all-rights-reserved, which contradicts §10 entirely.
 3. `sim/` flight model with flight test cards for the F6F, headless only
 4. Minimal renderer: flat water, one aircraft, camera-relative from the start
 5. Terrain pipeline and CDLOD
