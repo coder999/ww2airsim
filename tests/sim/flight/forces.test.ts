@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { v3, length } from '../../../src/sim/math/vec3.js'
-import { qIdentity } from '../../../src/sim/math/quat.js'
-import { createState, step, airspeed, angleOfAttack, DT, type Controls }
+import { qIdentity, qFromAxisAngle } from '../../../src/sim/math/quat.js'
+import { createState, step, airspeed, angleOfAttack, isStalled, DT, type Controls }
   from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../src/sim/content.js'
 
@@ -18,27 +18,77 @@ describe('flight integrator: forces', () => {
 
   it('never produces a non-finite state over a long run', () => {
     let s = createState({ position: v3(0, 3000, 0), velocity: v3(120, 0, 0) })
+    // A single expect() per iteration over 18000 steps buried the one that
+    // mattered in noise on failure (Important 4, minor). Track the first bad
+    // step and assert once, so a regression points straight at when it broke.
+    let firstBadStep = -1
     for (let i = 0; i < 60 * 300; i++) {
       s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }, DT)
       const all = [s.position.x, s.position.y, s.position.z, s.velocity.x, s.velocity.y,
         s.velocity.z, s.attitude.x, s.attitude.y, s.attitude.z, s.attitude.w, s.fuelKg]
-      expect(all.every(Number.isFinite)).toBe(true)
+      if (firstBadStep === -1 && !all.every(Number.isFinite)) firstBadStep = i
     }
+    expect(firstBadStep).toBe(-1)
   })
 
-  it('reaches a terminal velocity in a vertical power-off dive', () => {
-    let s = createState({
-      position: v3(0, 8000, 0),
-      velocity: v3(0, -60, 0),
-      attitude: qIdentity(),
-    })
-    for (let i = 0; i < 60 * 120; i++) {
+  it('reaches a terminal velocity in a nose-down power-off dive', () => {
+    // Ruling R23: a genuine nose-down dive, not a level attitude with vertical
+    // velocity. The old scenario left the aircraft wings-level while falling
+    // straight down, so alpha sat near +/-90 degrees; post-Task-9, that is
+    // well past alphaCritDeg, triggers isStalled, and the injected wing-drop
+    // roll rate turns the fall into a rolling spiral -- lift stops being zero
+    // as body up leaves the velocity vector, and the "terminal velocity" the
+    // old test measured was really just wherever the spiral happened to leave
+    // it (measured before this fix: 1019 m / 138.7 m/s after all 7200 steps,
+    // nowhere near equilibrium). Pointing the nose straight down instead keeps
+    // alpha within a degree or so of 0 (confirmed by the isStalled assertion
+    // below), so bodyRates from neutral input stay exactly zero and the
+    // attitude never rotates -- no stall, no spiral.
+    const noseDown = qFromAxisAngle(v3(0, 0, 1), -Math.PI / 2)
+    let s = createState({ position: v3(0, 25000, 0), velocity: v3(0, -60, 0), attitude: noseDown })
+
+    // Measured empirically at this commit: the dive accelerates well past
+    // any altitude's local equilibrium speed near the top of the fall, then
+    // crosses and tracks the (falling, since descending into denser air)
+    // local terminal velocity closely from about t=40s on. Sampled 20s apart,
+    // well before the ground (impact measured at t=72s, y=0):
+    //   t=46s, y=12255 m: speed=466.52 m/s
+    //   t=66s, y=2569 m:  speed=467.26 m/s   (delta 0.75 m/s)
+    let vAt46: number | undefined
+    let vAt66: number | undefined
+    let sawStall = false
+    for (let i = 0; i < 60 * 150; i++) {
       s = step(f6f, s, NEUTRAL, DT)
+      if (isStalled(f6f, s)) sawStall = true
+      const t = (i + 1) / 60
+      if (Math.abs(t - 46) < 1e-9) vAt46 = airspeed(s)
+      if (Math.abs(t - 66) < 1e-9) vAt66 = airspeed(s)
       if (s.position.y <= 0) break
     }
-    const speed = airspeed(s)
-    expect(speed).toBeGreaterThan(60)
-    expect(speed).toBeLessThan(400)
+
+    expect(sawStall).toBe(false)
+    expect(vAt46).toBeDefined()
+    expect(vAt66).toBeDefined()
+    // Convergence, not just a band: two samples 20 seconds apart, after the
+    // initial transient, agree within a few m/s -- what "reaches a terminal
+    // velocity" actually claims. A drag-free model could never satisfy this;
+    // the old band (60 < speed < 400) was satisfied by almost anything,
+    // including the still-accelerating pre-fix run above.
+    expect(Math.abs(vAt66! - vAt46!)).toBeLessThan(5)
+
+    // Absolute ceiling, derived rather than guessed: at the sampling window's
+    // higher altitude (y=12255 m here, rho=0.2986 kg/m^3 per the ISA model),
+    // the zero-lift analytic terminal velocity is
+    //   Vt = sqrt(2*m*g / (rho*A*Cd0))
+    //      = sqrt(2*4590*9.80665 / (0.2986*31.03*0.0211))
+    //      = sqrt(90033 / 0.1955) = sqrt(460532) ~= 678.6 m/s
+    // (m = emptyKg 4190 + default fuelKg 400; idle throttle burns none, so
+    // mass is constant through the run). Lower altitude means denser air and
+    // therefore a LOWER local terminal velocity, so this bounds every later
+    // sample too. 700 gives a little headroom without going anywhere near
+    // the ~467 m/s the dive actually converges to.
+    expect(vAt46!).toBeLessThan(700)
+    expect(vAt66!).toBeLessThan(700)
   })
 
   it('produces more thrust at sea level than at high altitude for equal throttle', () => {
@@ -84,5 +134,10 @@ describe('flight integrator: forces', () => {
     for (let i = 0; i < 60 * 30; i++) s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.75 }, DT)
     expect(length(s.velocity)).toBeGreaterThan(40)
     expect(length(s.velocity)).toBeLessThan(300)
+    // Ruling R24: the speed band alone passes even with lift deleted entirely
+    // (measured: 248.6 m/s at 30s with lift forced to zero) -- while the
+    // aircraft is 1813 m *below* sea level by then. An altitude floor is what
+    // actually proves lift is doing anything here.
+    expect(s.position.y).toBeGreaterThan(1500)
   })
 })

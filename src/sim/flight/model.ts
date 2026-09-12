@@ -16,11 +16,12 @@ const FUEL_KG_PER_JOULE = 7.5e-8
 
 export const airspeed = (state: AircraftState): number => length(state.velocity)
 
-/** Body-frame forward, up and right axes for the current attitude. */
+/** Body-frame forward and up axes for the current attitude. (Body right is
+ *  not needed anywhere in this module -- dropped to avoid paying for two
+ *  unused quaternion rotations every step.) */
 const bodyAxes = (state: AircraftState) => ({
   forward: qRotate(state.attitude, v3(1, 0, 0)),
   up: qRotate(state.attitude, v3(0, 1, 0)),
-  right: qRotate(state.attitude, v3(0, 0, 1)),
 })
 
 export function angleOfAttack(state: AircraftState): number {
@@ -45,7 +46,17 @@ function powerFractionAt(spec: AircraftSpec, altitudeM: number): number {
   return last[1]
 }
 
-function thrustMagnitude(spec: AircraftSpec, state: AircraftState, throttle: number): number {
+/** Clamps to [lo, hi], and maps any non-finite input to 0 rather than letting
+ *  it propagate. This is the simulation's only external input boundary --
+ *  Important 4: without this, a NaN or out-of-range control channel (a
+ *  malformed input event, a bad replay file, ...) poisons the whole state,
+ *  and `qNormalize`'s zero-length guard cannot catch a NaN because a NaN
+ *  quaternion's hypot is itself NaN, not 0. */
+const clampFinite = (n: number, lo: number, hi: number): number =>
+  Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : 0
+
+function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: number): number {
+  const throttle = clampFinite(rawThrottle, 0, 1)
   const v = Math.max(airspeed(state), 1)
   const power = spec.engine.maxPowerW * powerFractionAt(spec, state.position.y) * throttle
   // Propeller thrust from power, capped at static thrust so it does not blow up
@@ -54,6 +65,25 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, throttle: num
 }
 
 const DEG = Math.PI / 180
+
+/** Shared by `commandedBodyRates` and `step`, which both need it but must not
+ *  recompute rho/v/q a second time when `step` already has them in hand
+ *  (this is the hottest function in the project). */
+function ratesFromDynamicPressure(spec: AircraftSpec, q: number, controls: Controls): Vec3 {
+  const qRef = 0.5 * densityAt(0) * spec.rates.rateRefSpeedMps * spec.rates.rateRefSpeedMps
+  // qRef is always > 0: schema.ts validates rateRefSpeedMps as positive.
+  const authority = Math.min(1, q / qRef)
+
+  const clamp = (n: number) => clampFinite(n, -1, 1)
+  return v3(
+    clamp(controls.roll) * spec.rates.maxRollRateDegPerSec * DEG * authority,
+    // Negated: a positive rotation rate about body +Y (right-hand rule) turns
+    // +X (forward) toward -Z (left) in this right-handed frame, but the
+    // documented convention is yaw > 0 = nose right (+Z). See Controls.yaw.
+    -clamp(controls.yaw) * spec.rates.maxYawRateDegPerSec * DEG * authority,
+    clamp(controls.pitch) * spec.rates.maxPitchRateDegPerSec * DEG * authority,
+  )
+}
 
 /**
  * Spec §5: control input commands a body rotation rate, not a torque. The
@@ -70,15 +100,7 @@ export function commandedBodyRates(
   const rho = densityAt(state.position.y)
   const v = airspeed(state)
   const q = 0.5 * rho * v * v
-  const qRef = 0.5 * densityAt(0) * spec.rates.rateRefSpeedMps * spec.rates.rateRefSpeedMps
-  const authority = Math.min(1, qRef === 0 ? 0 : q / qRef)
-
-  const clamp = (n: number) => Math.max(-1, Math.min(1, n))
-  return v3(
-    clamp(controls.roll) * spec.rates.maxRollRateDegPerSec * DEG * authority,
-    clamp(controls.yaw) * spec.rates.maxYawRateDegPerSec * DEG * authority,
-    clamp(controls.pitch) * spec.rates.maxPitchRateDegPerSec * DEG * authority,
-  )
+  return ratesFromDynamicPressure(spec, q, controls)
 }
 
 /** Wing-drop roll rate injected at the stall, rad/s. Deterministic in sign so
@@ -103,7 +125,7 @@ export function step(
 
   const alpha = angleOfAttack(state)
   const cl = liftCoefficient(spec, alpha)
-  const cd = dragCoefficient(spec, cl)
+  const cd = dragCoefficient(spec, cl, alpha)
 
   const liftN = q * spec.geometry.wingAreaM2 * cl
   const dragN = q * spec.geometry.wingAreaM2 * cd
@@ -126,7 +148,7 @@ export function step(
   const workJ = thrustN * Math.max(v, 1) * dt
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
 
-  const bodyRates = commandedBodyRates(spec, state, controls)
+  const bodyRates = ratesFromDynamicPressure(spec, q, controls)
   const stalled = isStalled(spec, state)
   const ratesWithStall = stalled
     ? v3(bodyRates.x + STALL_WING_DROP_RAD_PER_S, bodyRates.y, bodyRates.z)

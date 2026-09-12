@@ -50,6 +50,37 @@ describe('drag coefficient', () => {
   })
 })
 
+describe('post-stall drag blend (Important 3)', () => {
+  it('is unchanged at or below the critical angle', () => {
+    const cl = liftCoefficient(f6f, deg(10))
+    expect(dragCoefficient(f6f, cl, deg(10))).toBeCloseTo(dragCoefficient(f6f, cl), 9)
+    const clAtCrit = liftCoefficient(f6f, deg(f6f.aero.alphaCritDeg))
+    expect(dragCoefficient(f6f, clAtCrit, deg(f6f.aero.alphaCritDeg)))
+      .toBeCloseTo(dragCoefficient(f6f, clAtCrit), 9)
+  })
+
+  it('rises monotonically past the critical angle, using the true post-stall Cl at each angle', () => {
+    const angles = [f6f.aero.alphaCritDeg, 25, 35, 45, 60, 75, 90]
+    const cds = angles.map((d) => dragCoefficient(f6f, liftCoefficient(f6f, deg(d)), deg(d)))
+    for (let i = 1; i < cds.length; i++) {
+      expect(cds[i]!).toBeGreaterThan(cds[i - 1]!)
+    }
+  })
+
+  it('approaches a flat-plate value near 90 degrees', () => {
+    const cd90 = dragCoefficient(f6f, liftCoefficient(f6f, deg(90)), deg(90))
+    expect(cd90).toBeGreaterThan(1.0)
+    expect(cd90).toBeLessThanOrEqual(1.2)
+  })
+
+  it('is never non-finite across the full angle range', () => {
+    for (let d = -180; d <= 180; d += 1) {
+      const cl = liftCoefficient(f6f, deg(d))
+      expect(Number.isFinite(dragCoefficient(f6f, cl, deg(d)))).toBe(true)
+    }
+  })
+})
+
 describe('geometry derived values', () => {
   it('computes aspect ratio as span squared over area', () => {
     expect(aspectRatio(f6f)).toBeCloseTo((13.06 * 13.06) / 31.03, 6)

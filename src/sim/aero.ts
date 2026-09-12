@@ -33,7 +33,30 @@ export function liftCoefficient(spec: AircraftSpec, alphaRad: number): number {
   return sign * decayed
 }
 
-/** cd0 + k*cl^2. Symmetric in the sign of lift. */
-export function dragCoefficient(spec: AircraftSpec, cl: number): number {
-  return spec.aero.cd0 + inducedDragFactor(spec) * cl * cl
+/** Order-of-magnitude flat-plate drag coefficient, approached as the angle of
+ *  attack nears 90 degrees. Real flat plates run roughly 1.0-1.2; the exact
+ *  value only matters for how briskly a departed aircraft decelerates. */
+const FLAT_PLATE_CD = 1.1
+
+/**
+ * cd0 + k*cl^2 in the attached-flow region (|alpha| <= alphaCritDeg),
+ * unchanged from Task 6. Past the stall, blends linearly in |alpha| from that
+ * attached-flow value toward FLAT_PLATE_CD at 90 degrees: a stalled wing is
+ * closer to a barn door than an airfoil, and Task 9's post-stall spiral needs
+ * that drag to actually shed the energy the wing-drop puts into the departure.
+ *
+ * `alphaRad` defaults to 0 so the existing two-argument call form used by
+ * Task 6's tests (and any caller that only cares about induced drag) keeps
+ * working unchanged -- 0 is always within the attached-flow region since
+ * alphaCritDeg is validated positive.
+ */
+export function dragCoefficient(spec: AircraftSpec, cl: number, alphaRad = 0): number {
+  const cdAttached = spec.aero.cd0 + inducedDragFactor(spec) * cl * cl
+  const alphaCrit = (spec.aero.alphaCritDeg * Math.PI) / 180
+  const a = Math.abs(alphaRad)
+  if (a <= alphaCrit) return cdAttached
+
+  const ninety = Math.PI / 2
+  const t = Math.min(1, (a - alphaCrit) / (ninety - alphaCrit))
+  return cdAttached + (FLAT_PLATE_CD - cdAttached) * t
 }

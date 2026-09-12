@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { v3 } from '../../../src/sim/math/vec3.js'
-import { qIdentity } from '../../../src/sim/math/quat.js'
+import { qIdentity, qRotate } from '../../../src/sim/math/quat.js'
 import { createState, step, commandedBodyRates, DT, type Controls }
   from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../src/sim/content.js'
@@ -66,5 +66,83 @@ describe('rate-command moments (spec §5)', () => {
         expect([r.x, r.y, r.z].every(Number.isFinite)).toBe(true)
       }
     }
+  })
+})
+
+describe('control sign conventions (Important 1)', () => {
+  // Body axes: +X forward, +Y up, +Z right. A positive rotation rate about
+  // +Y (right-hand rule) turns +X toward -Z (nose LEFT) -- the opposite of
+  // the documented "yaw > 0 = nose right" convention -- so commandedBodyRates
+  // must negate the yaw term. Roll and pitch need no such fix; these three
+  // tests pin all three signs down so this doesn't silently invert again.
+  const AT_SPEED = createState({ position: v3(0, 2000, 0), velocity: v3(150, 0, 0), attitude: qIdentity() })
+
+  it('positive yaw input turns the nose toward +Z (right), not -Z (left)', () => {
+    let s = { ...AT_SPEED }
+    const yawRight: Controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0.5 }
+    for (let i = 0; i < 30; i++) s = step(f6f, s, yawRight, DT)
+    const forward = qRotate(s.attitude, v3(1, 0, 0))
+    expect(forward.z).toBeGreaterThan(0)
+  })
+
+  it('negative yaw input turns the nose toward -Z (left)', () => {
+    let s = { ...AT_SPEED }
+    const yawLeft: Controls = { pitch: 0, roll: 0, yaw: -1, throttle: 0.5 }
+    for (let i = 0; i < 30; i++) s = step(f6f, s, yawLeft, DT)
+    const forward = qRotate(s.attitude, v3(1, 0, 0))
+    expect(forward.z).toBeLessThan(0)
+  })
+
+  it('positive roll input rolls right (attitude.x > 0)', () => {
+    let s = { ...AT_SPEED }
+    const rollRight: Controls = { pitch: 0, roll: 1, yaw: 0, throttle: 0.5 }
+    for (let i = 0; i < 30; i++) s = step(f6f, s, rollRight, DT)
+    expect(s.attitude.x).toBeGreaterThan(0)
+  })
+
+  it('positive pitch input raises the nose (forward.y > 0)', () => {
+    let s = { ...AT_SPEED }
+    const pitchUp: Controls = { pitch: 1, roll: 0, yaw: 0, throttle: 0.5 }
+    for (let i = 0; i < 30; i++) s = step(f6f, s, pitchUp, DT)
+    const forward = qRotate(s.attitude, v3(1, 0, 0))
+    expect(forward.y).toBeGreaterThan(0)
+  })
+})
+
+describe('control input sanitisation (Important 4)', () => {
+  const BASE = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+  const isFiniteState = (s: ReturnType<typeof createState>): boolean =>
+    [s.position.x, s.position.y, s.position.z, s.velocity.x, s.velocity.y, s.velocity.z,
+      s.attitude.x, s.attitude.y, s.attitude.z, s.attitude.w, s.fuelKg,
+      s.bodyRates.x, s.bodyRates.y, s.bodyRates.z].every(Number.isFinite)
+
+  it('leaves the state finite when every control channel is NaN', () => {
+    const bad: Controls = { pitch: NaN, roll: NaN, yaw: NaN, throttle: NaN }
+    const s1 = step(f6f, BASE, bad, DT)
+    expect(isFiniteState(s1)).toBe(true)
+  })
+
+  it('leaves the state finite for wildly out-of-range control input', () => {
+    const wild: Controls = { pitch: 999, roll: -999, yaw: 1e12, throttle: -Infinity }
+    const s1 = step(f6f, BASE, wild, DT)
+    expect(isFiniteState(s1)).toBe(true)
+  })
+
+  it('clamps an out-of-range channel to the same rate as the clamped-in-range boundary', () => {
+    const over = commandedBodyRates(f6f, BASE, { pitch: 0, roll: 999, yaw: 0, throttle: 0.5 })
+    const atBound = commandedBodyRates(f6f, BASE, { pitch: 0, roll: 1, yaw: 0, throttle: 0.5 })
+    expect(over.x).toBeCloseTo(atBound.x, 9)
+  })
+
+  it('saturates throttle at 1: throttle=5 gives the same thrust as throttle=1', () => {
+    const t1 = step(f6f, BASE, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, DT)
+    const t5 = step(f6f, BASE, { pitch: 0, roll: 0, yaw: 0, throttle: 5 }, DT)
+    expect(t5.velocity.x).toBeCloseTo(t1.velocity.x, 9)
+  })
+
+  it('clamps negative throttle to 0 rather than producing reverse thrust', () => {
+    const negative = step(f6f, BASE, { pitch: 0, roll: 0, yaw: 0, throttle: -3 }, DT)
+    const idle = step(f6f, BASE, { pitch: 0, roll: 0, yaw: 0, throttle: 0 }, DT)
+    expect(negative.velocity.x).toBeCloseTo(idle.velocity.x, 9)
   })
 })
