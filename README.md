@@ -10,10 +10,29 @@ mission text. `ww2airsim` is a working title.
 
 ## Status
 
-**Design complete, no implementation yet.** The full design lives in
+**Plan 1 of 7 complete (2026-09-12): the flight model.** A deterministic F6F
+Hellcat flight model runs headlessly in Node under `src/sim/`, graded against
+cited historical trial figures by the test-card harness in `tools/testcards/`,
+with a golden-trajectory regression, a randomised soak, and CI. Rendering,
+terrain, the carrier, AI and weather are the six later plans and do not exist
+yet.
+
+The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
-and is the authoritative description of this project — read it rather than
-inferring intent from the code, of which there currently is none.
+and remains the authoritative description of the project as a whole — read it
+for intent, and the code for what is actually built.
+
+## Getting started
+
+Node 22 and npm.
+
+```sh
+npm ci
+npm run verify   # typecheck -> lint -> depcruise -> tests
+```
+
+`npm run verify` is the gate: it runs `tsc --noEmit`, ESLint, the
+dependency-cruiser boundary rules, and the full vitest suite, in that order.
 
 ## What this is, and is not
 
