@@ -44,9 +44,12 @@ export type GoldenTrajectory = {
  * amplify a small numeric difference. A perturbation study measured the
  * response as linear at ~23.7x, so a single Math.sin/cos ULP difference
  * (the reason spec §3 requires a tolerance rather than exact equality)
- * propagates to on the order of 1e-11 m against this test's 1.0 m tolerance
+ * propagates to on the order of 1e-11 m against this test's 1e-3 m tolerance
  * -- i.e. this trajectory is *harder* to false-positive on than a gentler
- * one would be, not easier. It also exercises the lift-direction
+ * one would be, not easier. (That tolerance was 1.0 m until finding I2: eight
+ * orders looser than this paragraph's own argument, and loose enough to
+ * absorb a change of integration scheme. It is now ~8 orders above the drift
+ * it exists for, which is still all the headroom that argument asks for.) It also exercises the lift-direction
  * double-cross-product and the quaternion integration across the whole
  * attitude sphere by inverting repeatedly, rather than staying near level.
  */

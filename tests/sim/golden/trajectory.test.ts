@@ -10,9 +10,35 @@ const GOLDEN_PATH = new URL('./f6f-rolling-descent.golden.json', import.meta.url
  * Spec §3: assert within tolerance, never exact equality. Math.sin/cos/exp are
  * implementation-approximated and differ across V8 versions, so an exact
  * assertion would break on a Node upgrade for no real reason.
+ *
+ * Sized to the drift the tolerance actually exists for, not to a round
+ * number. Finding I2: these were 1.0 m and 0.1 m/s, eight orders looser than
+ * their own justification in `tools/golden/record.ts`, and loose enough that
+ * rewriting the integrator from semi-implicit to explicit Euler -- a change
+ * of integration SCHEME -- passed with a max checkpoint divergence of 0.807 m
+ * against the old 1.0 m.
+ *
+ * The real margin, measured on this checkout 2026-09-12, node v22.22.1:
+ *   - transcendental drift this golden is expected to absorb: on the order of
+ *     1e-11 m, from a single Math.sin/cos ULP amplified by the ~23.7x
+ *     perturbation response measured in `record.ts`
+ *   - the largest divergence actually observed from a legitimate change: the
+ *     C1 lift-curve fix rewrote the attached branch as one straight line
+ *     instead of a mirrored one, which is algebraically identical but rounds
+ *     differently for negative alpha, and moved 11 of 13 checkpoints by at
+ *     most 2.27e-13 m and 2.84e-14 m/s
+ *   - so POSITION_TOL_M sits ~8 orders above the ULP drift and ~4e9x above
+ *     the measured C1 movement
+ *
+ * Re-applying the explicit-Euler mutation now fails this test (verified
+ * 2026-09-12): it trips first at tick 0, by 1.13e-3 m -- only just over the
+ * tolerance, because the schemes differ by one dt of acceleration -- and the
+ * error accumulates to 0.807 m by tick 3599, 807x POSITION_TOL_M, with a max
+ * speed divergence of 7.49e-4 m/s, 75x SPEED_TOL_MPS. The test checks every
+ * checkpoint, so the detection does not rest on that first narrow margin.
  */
-const POSITION_TOL_M = 1.0
-const SPEED_TOL_MPS = 0.1
+const POSITION_TOL_M = 1e-3
+const SPEED_TOL_MPS = 1e-5
 
 describe('golden trajectory regression', () => {
   it('reproduces the recorded trajectory within tolerance', () => {
