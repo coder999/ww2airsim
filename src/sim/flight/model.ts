@@ -8,6 +8,12 @@ import type { AircraftState, Controls } from './state.js'
 export { createState } from './state.js'
 export type { AircraftState, Controls } from './state.js'
 
+/** The fixed timestep the whole simulation is designed around, seconds.
+ *  Spec: 60 Hz. This is a constant every caller is expected to pass, not
+ *  something `step` enforces -- `step` integrates whatever positive, finite
+ *  `dt` it is handed (see `assertUsableDt`). Who owns the fixed-step contract,
+ *  and how a variable frame time is accumulated into 60 Hz ticks, is a
+ *  deliberately deferred design decision for the next plan. */
 export const DT = 1 / 60
 const G = 9.80665
 /** kg of fuel per joule of work, tuned so a full internal load lasts a
@@ -120,12 +126,32 @@ export function isStalled(spec: AircraftSpec, state: AircraftState): boolean {
   return Math.abs(angleOfAttack(state)) > alphaCritRad(spec)
 }
 
+/**
+ * Finding I8: `step` would previously integrate a NaN, a negative or a 0.25 s
+ * frame-time `dt` perfectly happily -- a NaN poisons the whole state, a
+ * negative one runs the physics backwards, and neither produces anything a
+ * caller would recognise as an error. `dt` is the one `step` argument that is
+ * not otherwise validated: `spec` is Zod-checked at load and `controls` go
+ * through `clampFinite`.
+ *
+ * Deliberately narrow: it rejects only what cannot be integrated at all, and
+ * says nothing about the 60 Hz constraint. A large-but-finite `dt` is still
+ * accepted, because rejecting it needs a decision about who owns the
+ * fixed-step contract -- a step-context refactor deferred to the next plan.
+ */
+function assertUsableDt(dt: number): void {
+  if (!Number.isFinite(dt) || dt <= 0) {
+    throw new Error(`step() requires a positive, finite dt in seconds, got ${dt}`)
+  }
+}
+
 export function step(
   spec: AircraftSpec,
   state: AircraftState,
   controls: Controls,
   dt: number,
 ): AircraftState {
+  assertUsableDt(dt)
   const mass = massKg(spec, state)
   const rho = densityAt(state.position.y)
   const v = airspeed(state)
