@@ -44,7 +44,7 @@ depth is allocated unevenly on purpose:
 | Role | Machine | Use |
 | --- | --- | --- |
 | Development, build, Tier 1 tests | nexus (headless Linux, Ryzen 7 PRO 6850H) | Pure-Node work; no GPU required |
-| Reference platform, Tier 2 tests | Windows Ryzen desktop | All GPU-touching verification; canonical golden screenshots |
+| Reference platform, Tier 2 tests | Windows Ryzen desktop, Radeon RX 6700 XT (RDNA 2, 40 CU, 12 GB GDDR6) | All GPU-touching verification; canonical golden screenshots |
 
 nexus is headless and cannot render. Chrome on the Windows desktop points at
 the Vite dev server on nexus over LAN (bound `0.0.0.0`); there is nothing to
@@ -171,11 +171,22 @@ and base altitude are per-scenario weather parameters.
 
 ### Performance
 
-Target 60 fps at 1080p on the reference platform. Quality tiers (cloud
-resolution, ocean cascade count, shadow resolution, draw distance) are
-implemented from the start rather than retrofitted once it is slow. Tier
-thresholds are derived from measured frame time via the Tier 2 perf harness
-(§11), not from guessed hardware figures.
+Target is 60 fps at 1440p on the reference platform (RX 6700 XT), with 1080p
+as headroom. Quality tiers — cloud resolution, ocean cascade count, shadow
+resolution, draw distance — are implemented from the start rather than
+retrofitted once it is slow; tier thresholds derive from measured frame time
+via the Tier 2 perf harness (§11) rather than from estimated hardware figures.
+
+Two consequences of the reference card:
+
+- **12 GB of VRAM is generous for this workload.** The terrain tile cache can
+  hold a large resident set, so streaming pressure is not a design driver.
+  Half-resolution volumetric cloud and three ocean cascades are comfortable
+  rather than tight.
+- **The reference platform is well above median hardware.** Perf tiers and
+  golden screenshots are calibrated to a card most people do not have. That is
+  acceptable for a personal technical playground, but "fast on the reference
+  platform" must never be read as "runs anywhere".
 
 ## 5. Flight model
 
@@ -504,8 +515,6 @@ blocking implementation.
    war), *Angels Fifteen*, *Taffy 3*, *Feet Wet*.
 2. **Aircraft roster confirmation** against a primary source before art work
    (§9).
-3. **Reference platform GPU model**, needed only to set expectations; quality
-   tiers derive from measurement regardless (§4).
 
 ## 14. Risks
 
