@@ -1,7 +1,7 @@
 import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
-import { liftCoefficient, dragCoefficient } from '../aero.js'
+import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 
@@ -117,7 +117,7 @@ export function commandedBodyRates(
 const STALL_WING_DROP_RAD_PER_S = 0.6
 
 export function isStalled(spec: AircraftSpec, state: AircraftState): boolean {
-  return Math.abs(angleOfAttack(state)) > (spec.aero.alphaCritDeg * Math.PI) / 180
+  return Math.abs(angleOfAttack(state)) > alphaCritRad(spec)
 }
 
 export function step(

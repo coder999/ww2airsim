@@ -14,10 +14,18 @@ describe('randomized soak (spec §11)', () => {
     // an inner loop that breaks out immediately) -- all of those would still
     // report zero failures and 200 iterations. These floors are set well
     // below what this exact configuration (seed 1337, 200 iterations)
-    // measured on 2026-09-12: 622,380 steps, 137/200 flights completing the
-    // full 60 s, and 320,819 stalled steps (51.5%). Re-measure and adjust
-    // the floors, not the assertions, if the soak's input distribution
-    // changes again.
+    // measures. Re-measure and adjust the floors, not the assertions, if the
+    // soak's input distribution changes again.
+    //
+    // Measured 2026-09-12 after finding C1 (the negative-alpha lift
+    // discontinuity) was fixed: 611,160 steps, 132/200 flights completing
+    // the full 60 s, and 324,467 stalled steps (53.1%), with zero invariant
+    // failures -- the energy invariant does NOT trip on the corrected curve.
+    // Before that fix the same seed gave 622,380 steps, 137 completions and
+    // 320,819 stalled steps: removing the spurious extra lift below -15.5
+    // degrees alpha costs a handful of flights their last few seconds. The
+    // floors below are unchanged, because all three still clear them by
+    // 1.5x, 1.65x and 3.2x respectively.
     expect(result.steps).toBeGreaterThan(400000)
     expect(result.flightsCompleted).toBeGreaterThan(80)
     expect(result.stalledSteps).toBeGreaterThan(100000)

@@ -1,36 +1,87 @@
 import type { AircraftSpec } from './flight/schema.js'
 
+/**
+ * `alphaCritDeg` in radians. The single place that conversion happens: the
+ * stall boundary has to mean the identical number to the lift curve, the
+ * post-stall drag blend and `isStalled` in `flight/model.ts`, and when those
+ * three each recomputed it independently they did in fact disagree about what
+ * the curve does on one side of it (finding C1 -- the negative-alpha lift
+ * discontinuity fixed below).
+ */
+export const alphaCritRad = (spec: AircraftSpec): number =>
+  (spec.aero.alphaCritDeg * Math.PI) / 180
+
 export const aspectRatio = (spec: AircraftSpec): number =>
   (spec.geometry.wingSpanM * spec.geometry.wingSpanM) / spec.geometry.wingAreaM2
 
 export const inducedDragFactor = (spec: AircraftSpec): number =>
   1 / (Math.PI * aspectRatio(spec) * spec.aero.oswaldE)
 
+/** Post-stall decay floor, as a fraction of the peak Cl the attached-flow
+ *  branch reaches at alphaCrit. It does not bind anywhere between the stall
+ *  and 90 degrees on the shipped F6F curve -- the decay factor at exactly 90
+ *  degrees is 0.255, just above it -- but it is NOT a dead branch: for this
+ *  aircraft it starts binding at |alpha| = 90.5 degrees exactly and holds for
+ *  everything beyond, and that region is routinely reached, because
+ *  `angleOfAttack` is an atan2 spanning the full +/-180 degrees. Measured
+ *  2026-09-12 on the soak (seed 1337, 200 iterations, 611,160 steps): 40.8%
+ *  of steps sat past 90.5 degrees of |alpha|, peak 180.0 degrees. It
+ *  additionally guards a spec with a small `alphaCritDeg`, where the decay
+ *  would otherwise reach zero and change sign inside 90 degrees. */
+const POST_STALL_FLOOR = 0.25
+
+/** Fraction of the peak lost per radian past the stall. 0.9/(pi/2) means a
+ *  full 90 degrees past alphaCrit would cost 90% of the peak if the floor
+ *  above did not intervene first. */
+const POST_STALL_DECAY_PER_QUARTER_TURN = 0.9
+
 /**
  * Lift coefficient against angle of attack.
  *
  * Linear through the attached-flow region (Cl = clAtZeroAlpha + clSlopePerRad *
- * alpha, unscaled — see plan Ruling R2), peaking at clMax at alphaCrit, then
- * decaying post-stall toward a flat-plate value. Spec §5: the curve must peak
- * and fall, because that fall is what makes the stall a real event rather than
- * a number that keeps growing.
+ * alpha, unscaled — see plan Ruling R2) for alpha of either sign, so the whole
+ * attached branch is one straight line through `clAtZeroAlpha`. Past
+ * +/-alphaCrit the magnitude decays toward a flat-plate value. Spec §5: the
+ * curve must peak and fall, because that fall is what makes the stall a real
+ * event rather than a number that keeps growing.
+ *
+ * Finding C1: the post-stall branch used to decay from `clMax` regardless of
+ * the sign of alpha, so on the negative side it STEPPED UP onto a bigger
+ * magnitude at the stall -- Cl(-15.50 deg) = -1.200013 then Cl(-15.51 deg) =
+ * -1.399860, a 0.2007 jump worth 1.17 g at the trial weight, in the direction
+ * of *more* lift past the stall. The peak is now taken from the attached
+ * branch evaluated at the signed boundary, so continuity is structural rather
+ * than the numerical coincidence it was on the positive side (where
+ * clAtZeroAlpha + clSlopePerRad*alphaCrit = 1.400013 happened to sit 1.3e-4
+ * from this aircraft's clMax of 1.4). Note the consequence: `clMax` is no
+ * longer read by this curve at all -- the peak is whatever the linear branch
+ * reaches at alphaCrit, which is the only value that can meet it without a
+ * step. Measured 2026-09-12: peak |Cl| is 1.400013 at +15.5 deg and 1.200013
+ * at -15.5 deg; Cl(+15.51 deg) = 1.399873 and Cl(-15.51 deg) = -1.199893, so
+ * both boundaries now fall away; Cl(+90 deg) = 0.357003 and Cl(-90 deg) =
+ * -0.306003; and the largest Cl change over any 0.001 deg interval in
+ * +/-180 deg is 8.39e-5, which is just the attached branch's own slope (it
+ * was 0.19997, the jump, before this fix).
  */
 export function liftCoefficient(spec: AircraftSpec, alphaRad: number): number {
-  const { clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha } = spec.aero
-  const alphaCrit = (alphaCritDeg * Math.PI) / 180
-  const sign = alphaRad < 0 ? -1 : 1
+  const { clSlopePerRad, clAtZeroAlpha } = spec.aero
+  const alphaCrit = alphaCritRad(spec)
+  /** The attached-flow line, valid for signed alpha in [-alphaCrit, alphaCrit]. */
+  const attached = (a: number) => clAtZeroAlpha + clSlopePerRad * a
   const a = Math.abs(alphaRad)
 
-  if (a <= alphaCrit) {
-    const cl = clAtZeroAlpha + clSlopePerRad * a
-    return sign > 0 ? cl : -(cl - 2 * clAtZeroAlpha)
-  }
+  if (a <= alphaCrit) return attached(alphaRad)
 
-  // Post-stall: decay from clMax toward ~0.6*clMax at 90 degrees, monotonically
-  // down over the first 30 degrees past the stall.
+  const sign = alphaRad < 0 ? -1 : 1
+  // The signed peak this branch has to start from, so the two branches meet:
+  // attached(+alphaCrit) going positive, attached(-alphaCrit) going negative.
+  const peak = attached(sign * alphaCrit)
   const over = a - alphaCrit
-  const decayed = clMax * Math.max(0.25, 1 - 0.9 * (over / (Math.PI / 2)))
-  return sign * decayed
+  const decay = Math.max(
+    POST_STALL_FLOOR,
+    1 - POST_STALL_DECAY_PER_QUARTER_TURN * (over / (Math.PI / 2)),
+  )
+  return peak * decay
 }
 
 /** Order-of-magnitude flat-plate drag coefficient, approached as the angle of
@@ -52,7 +103,7 @@ const FLAT_PLATE_CD = 1.1
  */
 export function dragCoefficient(spec: AircraftSpec, cl: number, alphaRad = 0): number {
   const cdAttached = spec.aero.cd0 + inducedDragFactor(spec) * cl * cl
-  const alphaCrit = (spec.aero.alphaCritDeg * Math.PI) / 180
+  const alphaCrit = alphaCritRad(spec)
   const a = Math.abs(alphaRad)
   if (a <= alphaCrit) return cdAttached
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor } from '../../src/sim/aero.js'
+import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor, alphaCritRad }
+  from '../../src/sim/aero.js'
 import { loadAircraftSpec } from '../../src/sim/content.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 
@@ -32,6 +33,105 @@ describe('lift coefficient curve', () => {
       expect(Number.isFinite(liftCoefficient(f6f, deg(d)))).toBe(true)
     }
     expect(liftCoefficient(f6f, deg(-20))).toBeLessThan(0)
+  })
+})
+
+/**
+ * Finding C1: the post-stall branch decayed from `clMax` regardless of the
+ * sign of alpha, so on the negative side the curve STEPPED UP at the stall
+ * (Cl(-15.50 deg) = -1.200013 -> Cl(-15.51 deg) = -1.399860, a 0.2007 jump =
+ * 1.17 g at the trial weight) and produced *more* lift past the stall instead
+ * of less. Nothing here caught it: the old checks were finiteness across
+ * +/-90 degrees, `Cl(-20 deg) < 0`, and a fall-off test on the positive side
+ * only.
+ *
+ * These assertions are written against spec fields rather than this
+ * aircraft's numbers so they carry over unchanged to the five other aircraft
+ * a later plan adds. They hold for any spec whose attached-flow line grows in
+ * magnitude in both directions out of alpha = 0, i.e.
+ * |clAtZeroAlpha| < clSlopePerRad * alphaCritRad -- true of any real cambered
+ * or symmetric wing, and asserted below so a spec that violated it would say
+ * so rather than silently weakening the rest of the case.
+ */
+describe('lift curve is continuous and peaks at the stall on BOTH sides (finding C1)', () => {
+  const variant = (aero: Partial<AircraftSpec['aero']>): AircraftSpec =>
+    ({ ...f6f, aero: { ...f6f.aero, ...aero } }) satisfies AircraftSpec
+
+  const specs: Array<[string, AircraftSpec]> = [
+    ['f6f-hellcat (shipped)', f6f],
+    ['symmetric section (clAtZeroAlpha = 0)', variant({ clAtZeroAlpha: 0 })],
+    ['reflexed section (clAtZeroAlpha < 0)', variant({ clAtZeroAlpha: -0.12 })],
+    ['high-camber, early stall', variant({ clAtZeroAlpha: 0.35, alphaCritDeg: 11, clSlopePerRad: 5.4 })],
+    ['late stall, shallow slope', variant({ alphaCritDeg: 22, clSlopePerRad: 3.9 })],
+  ]
+
+  describe.each(specs)('%s', (_name, spec) => {
+    const crit = alphaCritRad(spec)
+    const cl = (a: number) => liftCoefficient(spec, a)
+
+    it('has an attached-flow line that grows in magnitude both ways from zero', () => {
+      // The precondition the peak assertions below rest on.
+      expect(Math.abs(spec.aero.clAtZeroAlpha)).toBeLessThan(spec.aero.clSlopePerRad * crit)
+    })
+
+    it.each([1, -1])('is continuous across the stall boundary at sign %i', (sign) => {
+      const eps = 1e-6
+      const inside = cl(sign * (crit - eps))
+      const outside = cl(sign * (crit + eps))
+      expect(Math.abs(outside - inside)).toBeLessThan(1e-3)
+      // Same side of zero, too: a sign flip across the boundary would be a
+      // 2x-magnitude "continuity" pass if only |Cl| were compared.
+      expect(Math.sign(outside)).toBe(Math.sign(inside))
+    })
+
+    it.each([1, -1])('loses lift immediately past the stall at sign %i', (sign) => {
+      // This is the assertion whose absence hid C1 on the negative side: past
+      // the boundary the magnitude must be BELOW the peak, where before the
+      // fix the negative side jumped 0.2007 above it.
+      //
+      // Compared against the peak at exactly `crit`, not against a point just
+      // inside it: the review's proposed form,
+      // |Cl(-crit - eps)| < |Cl(-crit + eps)|, cannot hold for any curve that
+      // peaks AT crit, because just inside the boundary the attached line is
+      // still climbing and so sits below the peak -- here by
+      // clSlopePerRad*eps = 4.8e-4 against the post-stall branch's 8e-5 loss
+      // over the same eps.
+      const eps = 1e-4
+      expect(Math.abs(cl(sign * (crit + eps)))).toBeLessThan(Math.abs(cl(sign * crit)))
+    })
+
+    it.each([1, -1])('falls monotonically in magnitude beyond the stall at sign %i', (sign) => {
+      // Out to 180 degrees, not 90: `angleOfAttack` is an atan2 and reaches
+      // the whole range. Non-increasing rather than strictly decreasing
+      // because POST_STALL_FLOOR deliberately flattens the far end.
+      let prev = Math.abs(cl(sign * crit))
+      for (let d = spec.aero.alphaCritDeg + 0.5; d <= 180; d += 0.5) {
+        const here = Math.abs(cl(sign * deg(d)))
+        expect(here).toBeLessThanOrEqual(prev + 1e-12)
+        prev = here
+      }
+    })
+
+    it.each([1, -1])('falls strictly over the first 30 degrees past the stall at sign %i', (sign) => {
+      let prev = Math.abs(cl(sign * crit))
+      for (let d = spec.aero.alphaCritDeg + 1; d <= spec.aero.alphaCritDeg + 30; d += 1) {
+        const here = Math.abs(cl(sign * deg(d)))
+        expect(here).toBeLessThan(prev)
+        prev = here
+      }
+    })
+
+    it('attains its maximum |Cl| at the critical angle, on whichever side is being swept', () => {
+      for (const sign of [1, -1]) {
+        const peak = Math.abs(cl(sign * crit))
+        for (let d = 0; d <= 180; d += 0.25) {
+          expect(
+            Math.abs(cl(sign * deg(d))),
+            `|Cl(${sign * d} deg)| exceeds the peak at ${sign * spec.aero.alphaCritDeg} deg`,
+          ).toBeLessThanOrEqual(peak + 1e-12)
+        }
+      }
+    })
   })
 })
 
