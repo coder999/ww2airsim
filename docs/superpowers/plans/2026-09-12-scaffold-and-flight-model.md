@@ -2112,6 +2112,17 @@ reference with a percentage. Tune in this order, editing only
    adjust `engine.staticThrustN` and re-check top speed did not move.
 3. **Stall speed off** → `aero.clMax`. Between 1.2 and 1.6 is defensible for a
    1940s fighter with this wing.
+
+   > **Correction, 2026-09-12 (post-execution): `aero.clMax` is no longer a live
+   > knob and this instruction will waste your time.** The fix for the
+   > negative-alpha lift discontinuity rewrote `liftCoefficient` so the curve's
+   > peak comes from the attached-flow line (`clAtZeroAlpha + clSlopePerRad *
+   > alphaCritRad`) rather than from `clMax`, which is what removed the step at
+   > the stall. Nothing in `src/` or `tools/` now reads `aero.clMax`. Measured:
+   > `measureStallSpeed(f6f, 0)` returns 45.43965937564541 m/s at `clMax` 1.2,
+   > 1.4 and 1.6 — bit-identical — while moving `alphaCritDeg` to 17 shifts it to
+   > 43.485. **The live knobs for stall speed are `aero.alphaCritDeg` and
+   > `aero.clSlopePerRad`.** See `docs/superpowers/plans/2026-09-12-plan1-rulings.md`.
 4. **Roll rate off** → `rates.maxRollRateDegPerSec` is the direct knob, but the
    reference figure and the spec value should agree; if they disagree, the
    reference is right.
