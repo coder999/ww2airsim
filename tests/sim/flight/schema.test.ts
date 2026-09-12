@@ -60,6 +60,37 @@ describe('AircraftSpec validation (spec §9)', () => {
     expect(() => parseAircraftSpec(bad)).toThrow(/maxTakeoffKg/)
   })
 
+  /**
+   * Finding I6: Zod strips unknown keys by default, so before `.strict()` a
+   * misspelled key was silently dropped and the aeroplane flew on the value
+   * the author thought they had overridden. `"cdO"` next to a present `cd0`
+   * is the exact case found -- it validated clean and vanished.
+   */
+  describe('rejects keys the schema does not declare (finding I6)', () => {
+    it('rejects a misspelled sub-object key, naming the offending key', () => {
+      const bad = { ...valid, aero: { ...valid.aero, cdO: 0.5 } }
+      expect(() => parseAircraftSpec(bad)).toThrow(/cdO/)
+      // And it says where, not just what.
+      expect(() => parseAircraftSpec(bad)).toThrow(/aero/)
+    })
+
+    it('rejects an unknown top-level key', () => {
+      const bad = { ...valid, aerodynamics: { cd0: 0.02 } }
+      expect(() => parseAircraftSpec(bad)).toThrow(/aerodynamics/)
+    })
+
+    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'reference'] as const)(
+      'rejects an unknown key inside %s',
+      (section) => {
+        const bad = {
+          ...valid,
+          [section]: { ...(valid[section] as Record<string, unknown>), notAField: 1 },
+        }
+        expect(() => parseAircraftSpec(bad)).toThrow(/notAField/)
+      },
+    )
+  })
+
   it('loads and validates the real F6F content file', () => {
     const f6f = loadAircraftSpec('f6f-hellcat')
     expect(f6f.id).toBe('f6f-hellcat')

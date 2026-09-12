@@ -1,5 +1,17 @@
 import { z } from 'zod'
 
+/**
+ * Every object below is `.strict()`, top level and each sub-object.
+ *
+ * Finding I6: Zod strips unknown keys by default, so a content typo was
+ * silently dropped rather than reported -- `"cdO": 0.5` sitting next to a
+ * present `cd0` validated clean and vanished, and the aeroplane flew on the
+ * value the author thought they had overridden. Spec §9 requires malformed
+ * content to fail loudly, and a key the schema has never heard of is
+ * malformed content. Adding a field here therefore now has to be done in both
+ * places, which is the point.
+ */
+
 /** Rejects NaN and Infinity. Zod's .number() accepts NaN, which is the exact
  *  failure mode spec §9 warns about: a NaN reaching the integrator. */
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
@@ -9,8 +21,8 @@ const fraction = finite.refine((n) => n > 0 && n <= 1, { message: 'must be in (0
 const AircraftSpecObject = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }),
-  mass: z.object({ emptyKg: positive, fuelCapacityKg: positive, maxTakeoffKg: positive }),
+  geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }).strict(),
+  mass: z.object({ emptyKg: positive, fuelCapacityKg: positive, maxTakeoffKg: positive }).strict(),
   aero: z.object({
     clSlopePerRad: positive,
     clMax: positive,
@@ -18,7 +30,7 @@ const AircraftSpecObject = z.object({
     clAtZeroAlpha: finite,
     cd0: positive,
     oswaldE: fraction,
-  }),
+  }).strict(),
   engine: z.object({
     maxPowerW: positive,
     propEfficiency: fraction,
@@ -35,14 +47,14 @@ const AircraftSpecObject = z.object({
       .refine((pts) => pts.every((p, i) => i === 0 || p[0] > pts[i - 1]![0]), {
         message: 'power curve altitudes must strictly increase',
       }),
-  }),
+  }).strict(),
   rates: z.object({
     maxRollRateDegPerSec: positive,
     maxPitchRateDegPerSec: positive,
     maxYawRateDegPerSec: positive,
     rateRefSpeedMps: positive,
-  }),
-  limits: z.object({ diveSpeedMps: positive, gLimit: positive }),
+  }).strict(),
+  limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
   reference: z.object({
     source: z.string().min(1),
     /** Gross weight the cited trial was flown at, kg. Every reference figure
@@ -62,8 +74,8 @@ const AircraftSpecObject = z.object({
      *  the card grading this is expected to run a bit short of the trial
      *  figure -- see the tolerance comment on that card in f6f.test.ts. */
     takeoffDistanceM: positive,
-  }),
-})
+  }).strict(),
+}).strict()
 
 /** Cross-field: the trial the reference block was measured at has to be a
  *  loading the aeroplane can actually fly, i.e. at or under its own
