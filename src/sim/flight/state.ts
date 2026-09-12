@@ -12,11 +12,17 @@ export type AircraftState = {
   readonly position: Vec3    // world metres, +Y up
   readonly velocity: Vec3    // world m/s
   readonly attitude: Quat
-  // rad/s, { x: roll, y: yaw, z: pitch }. Since Task 8, this is a pure output
-  // of `step` -- recomputed from `controls` every frame via
-  // `commandedBodyRates` -- not an initial condition `step` reads back. Any
-  // value passed into `createState({ bodyRates })` is overwritten on the
-  // very first step and has no effect.
+  // rad/s, { x: roll, y: yaw, z: pitch }. `y` is the rate about body +Y, so
+  // it is NEGATIVE when yawing right: a positive rotation about +Y turns +X
+  // (forward) toward -Z (left) in this right-handed frame, the opposite of
+  // Controls.yaw's "positive = nose right" -- e.g. yaw: +1 commands
+  // bodyRates.y < 0. Do not read this field's sign directly off Controls.yaw.
+  //
+  // Since Task 8, this is a pure output of `step` -- recomputed from
+  // `controls` every frame via `commandedBodyRates` -- not an initial
+  // condition `step` reads back. Any value passed into
+  // `createState({ bodyRates })` is overwritten on the very first step and
+  // has no effect.
   readonly bodyRates: Vec3
   readonly fuelKg: number
 }

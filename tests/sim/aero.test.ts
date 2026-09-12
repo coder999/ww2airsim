@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor } from '../../src/sim/aero.js'
 import { loadAircraftSpec } from '../../src/sim/content.js'
+import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const deg = (d: number) => (d * Math.PI) / 180
@@ -78,6 +79,24 @@ describe('post-stall drag blend (Important 3)', () => {
       const cl = liftCoefficient(f6f, deg(d))
       expect(Number.isFinite(dragCoefficient(f6f, cl, deg(d)))).toBe(true)
     }
+  })
+
+  it('never goes negative, even for an alphaCritDeg beyond 90 degrees (round 2 minor)', () => {
+    // schema.ts only requires alphaCritDeg > 0, not < 90. No shipped spec
+    // does this, but nothing stops one from having alphaCritDeg=120: the
+    // blend fraction's span (90 - alphaCritDeg) then goes negative, and
+    // without a floor on `t` this drove Cd to -1.0523 at 150 degrees --
+    // drag that accelerates the aircraft. `t` is now clamped to [0, 1] on
+    // both ends, so past-the-stall Cd for a spec like this should just sit
+    // at its attached-flow value (no post-stall blend applies) rather than
+    // going negative.
+    const wideStallSpec = {
+      ...f6f,
+      aero: { ...f6f.aero, alphaCritDeg: 120 },
+    } satisfies AircraftSpec
+    const cl = liftCoefficient(wideStallSpec, deg(150))
+    const cd = dragCoefficient(wideStallSpec, cl, deg(150))
+    expect(cd).toBeGreaterThanOrEqual(f6f.aero.cd0)
   })
 })
 

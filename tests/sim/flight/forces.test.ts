@@ -4,6 +4,8 @@ import { qIdentity, qFromAxisAngle } from '../../../src/sim/math/quat.js'
 import { createState, step, airspeed, angleOfAttack, isStalled, DT, type Controls }
   from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../src/sim/content.js'
+import { densityAt } from '../../../src/sim/atmosphere.js'
+import { liftCoefficient, dragCoefficient } from '../../../src/sim/aero.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
@@ -31,64 +33,103 @@ describe('flight integrator: forces', () => {
     expect(firstBadStep).toBe(-1)
   })
 
-  it('reaches a terminal velocity in a nose-down power-off dive', () => {
-    // Ruling R23: a genuine nose-down dive, not a level attitude with vertical
-    // velocity. The old scenario left the aircraft wings-level while falling
-    // straight down, so alpha sat near +/-90 degrees; post-Task-9, that is
-    // well past alphaCritDeg, triggers isStalled, and the injected wing-drop
-    // roll rate turns the fall into a rolling spiral -- lift stops being zero
-    // as body up leaves the velocity vector, and the "terminal velocity" the
-    // old test measured was really just wherever the spiral happened to leave
-    // it (measured before this fix: 1019 m / 138.7 m/s after all 7200 steps,
-    // nowhere near equilibrium). Pointing the nose straight down instead keeps
-    // alpha within a degree or so of 0 (confirmed by the isStalled assertion
-    // below), so bodyRates from neutral input stay exactly zero and the
-    // attitude never rotates -- no stall, no spiral.
-    const noseDown = qFromAxisAngle(v3(0, 0, 1), -Math.PI / 2)
-    let s = createState({ position: v3(0, 25000, 0), velocity: v3(0, -60, 0), attitude: noseDown })
+  // Shared by both dive tests below: a genuine nose-down attitude (body
+  // forward pointing straight down), not a level attitude with vertical
+  // velocity (Ruling R23). The old scenario left the aircraft wings-level
+  // while falling straight down, so alpha sat near +/-90 degrees;
+  // post-Task-9, that is well past alphaCritDeg, triggers isStalled, and the
+  // injected wing-drop roll rate turns the fall into a rolling spiral --
+  // lift stops being zero as body up leaves the velocity vector, and the
+  // "terminal velocity" the old test measured was really just wherever the
+  // spiral happened to leave it (measured before that fix: 1019 m / 138.7
+  // m/s after all 7200 steps, nowhere near equilibrium). Pointing the nose
+  // straight down instead keeps alpha within a fraction of a degree of 0, so
+  // bodyRates from neutral input stay exactly zero and the attitude never
+  // rotates -- no stall, no spiral.
+  const noseDownAttitude = () => qFromAxisAngle(v3(0, 0, 1), -Math.PI / 2)
 
-    // Measured empirically at this commit: the dive accelerates well past
-    // any altitude's local equilibrium speed near the top of the fall, then
-    // crosses and tracks the (falling, since descending into denser air)
-    // local terminal velocity closely from about t=40s on. Sampled 20s apart,
-    // well before the ground (impact measured at t=72s, y=0):
-    //   t=46s, y=12255 m: speed=466.52 m/s
-    //   t=66s, y=2569 m:  speed=467.26 m/s   (delta 0.75 m/s)
-    let vAt46: number | undefined
-    let vAt66: number | undefined
+  it('sits at equilibrium when placed at its own analytic terminal velocity at 4000 m', () => {
+    // Ruling R27(a): the honest terminal-velocity test is a closed-form
+    // check at one altitude, not a fitted sample pair from a long fall.
+    // Round 1's 25 km-fall version could never pass for the right reason:
+    // this aero model has no Mach drag rise (Ruling R26 -- a deliberate
+    // fidelity limit for this arcade-scope sim, not a bug to fix here), so
+    // its zero-lift vertical Vt is far beyond anything a fall of any
+    // reasonable length reaches (503.6 m/s at 8000 m, Mach ~1.5) -- the
+    // "convergence" round 1 measured was really two samples straddling a
+    // speed peak, one at 69% of local Vt and the other at 123% of it.
+    //
+    // Here we instead derive the model's OWN equilibrium speed at 4000 m --
+    // using its actual Cl and Cd at alpha=0, not just cd0 -- and place the
+    // aircraft there. If the drag model is self-consistent, one step from
+    // exactly that speed should show ~zero net acceleration along the
+    // velocity vector.
+    const mass = f6f.mass.emptyKg + 400 // default fuelKg; idle throttle burns none
+    const rho = densityAt(4000)
+    const cl0 = liftCoefficient(f6f, 0)
+    const cd0Attached = dragCoefficient(f6f, cl0, 0)
+    const vt4000 = Math.sqrt((2 * mass * 9.80665) / (rho * f6f.geometry.wingAreaM2 * cd0Attached))
+    // Measured at this commit: mass=4590, rho(4000m)=0.819129, cl(0)=0.1,
+    // Cd(0)=0.021781, giving vt4000=403.2486164201407 m/s via the formula
+    // above (Vt = sqrt(2*m*g / (rho*A*Cd))) -- computed by the test itself
+    // at run time, so it can't drift out of sync with the content file.
+
+    const s0 = createState({ position: v3(0, 4000, 0), velocity: v3(0, -vt4000, 0), attitude: noseDownAttitude() })
+    expect(isStalled(f6f, s0)).toBe(false)
+    const s1 = step(f6f, s0, NEUTRAL, DT)
+
+    const dvdt = (airspeed(s1) - airspeed(s0)) / DT
+    // Measured at this commit: dv/dt = 0.0419 m/s^2 -- a few cm/s^2, as
+    // expected for one 60 Hz step starting exactly at the closed-form
+    // equilibrium speed.
+    expect(Math.abs(dvdt)).toBeLessThan(0.1)
+  })
+
+  it('approaches, but does not reach, a terminal velocity over an 8000 m dive', () => {
+    // Ruling R27(b): what an 8000 m fall can honestly show is APPROACH to
+    // equilibrium, not attainment of it -- this model's zero-lift vertical Vt
+    // at 8000 m (503.6 m/s, derived below) sits at 2.2x the spec's own
+    // diveSpeedMps (216) and needs far more than 8000 m of fall to reach
+    // (measured: the aircraft is still accelerating, at 309.87 m/s, when it
+    // reaches the sea at t=37.8s -- see the closed-form check above for the
+    // honest convergence test). What this scenario CAN prove: the
+    // acceleration shrinks monotonically as speed builds (it is approaching
+    // some equilibrium, even if it never gets there), and speed never
+    // exceeds the analytic ceiling for the whole fall.
+    const mass = f6f.mass.emptyKg + 400
+    const rho8000 = densityAt(8000)
+    const cl0 = liftCoefficient(f6f, 0)
+    const cd0Attached = dragCoefficient(f6f, cl0, 0)
+    const vt8000 = Math.sqrt((2 * mass * 9.80665) / (rho8000 * f6f.geometry.wingAreaM2 * cd0Attached))
+    // Measured at this commit: vt8000 = 503.6169157910434 m/s.
+
+    let s = createState({ position: v3(0, 8000, 0), velocity: v3(0, -60, 0), attitude: noseDownAttitude() })
+    let prevSpeed = airspeed(s)
+    let firstDvDt: number | undefined
+    let lastDvDt: number | undefined
     let sawStall = false
-    for (let i = 0; i < 60 * 150; i++) {
+    for (let i = 0; i < 60 * 120; i++) {
       s = step(f6f, s, NEUTRAL, DT)
       if (isStalled(f6f, s)) sawStall = true
-      const t = (i + 1) / 60
-      if (Math.abs(t - 46) < 1e-9) vAt46 = airspeed(s)
-      if (Math.abs(t - 66) < 1e-9) vAt66 = airspeed(s)
+      const speed = airspeed(s)
+      const dvdt = (speed - prevSpeed) / DT
+      firstDvDt ??= dvdt
+      lastDvDt = dvdt
+      prevSpeed = speed
       if (s.position.y <= 0) break
     }
 
     expect(sawStall).toBe(false)
-    expect(vAt46).toBeDefined()
-    expect(vAt66).toBeDefined()
-    // Convergence, not just a band: two samples 20 seconds apart, after the
-    // initial transient, agree within a few m/s -- what "reaches a terminal
-    // velocity" actually claims. A drag-free model could never satisfy this;
-    // the old band (60 < speed < 400) was satisfied by almost anything,
-    // including the still-accelerating pre-fix run above.
-    expect(Math.abs(vAt66! - vAt46!)).toBeLessThan(5)
-
-    // Absolute ceiling, derived rather than guessed: at the sampling window's
-    // higher altitude (y=12255 m here, rho=0.2986 kg/m^3 per the ISA model),
-    // the zero-lift analytic terminal velocity is
-    //   Vt = sqrt(2*m*g / (rho*A*Cd0))
-    //      = sqrt(2*4590*9.80665 / (0.2986*31.03*0.0211))
-    //      = sqrt(90033 / 0.1955) = sqrt(460532) ~= 678.6 m/s
-    // (m = emptyKg 4190 + default fuelKg 400; idle throttle burns none, so
-    // mass is constant through the run). Lower altitude means denser air and
-    // therefore a LOWER local terminal velocity, so this bounds every later
-    // sample too. 700 gives a little headroom without going anywhere near
-    // the ~467 m/s the dive actually converges to.
-    expect(vAt46!).toBeLessThan(700)
-    expect(vAt66!).toBeLessThan(700)
+    // Measured at this commit: firstDvDt=9.6675 m/s^2 (near free-fall g, as
+    // expected at low initial speed), lastDvDt=1.4185 m/s^2 at splashdown --
+    // under 15% of the initial value. Approach to equilibrium, not
+    // attainment: the acceleration keeps falling but is still nonzero when
+    // the fall runs out of altitude.
+    expect(lastDvDt!).toBeLessThan(firstDvDt! * 0.3)
+    // Bounded by the analytic ceiling for the whole scenario (measured final
+    // speed 309.87 m/s against a derived ceiling of 503.6 m/s) -- not
+    // attained, per the comment above.
+    expect(airspeed(s)).toBeLessThan(vt8000)
   })
 
   it('produces more thrust at sea level than at high altitude for equal throttle', () => {

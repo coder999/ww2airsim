@@ -57,6 +57,10 @@ export function dragCoefficient(spec: AircraftSpec, cl: number, alphaRad = 0): n
   if (a <= alphaCrit) return cdAttached
 
   const ninety = Math.PI / 2
-  const t = Math.min(1, (a - alphaCrit) / (ninety - alphaCrit))
+  // Clamped on both ends: schema.ts only requires alphaCritDeg > 0, so a
+  // spec with alphaCritDeg > 90 (nothing shipped does, but nothing forbids
+  // it either) would otherwise divide by a negative span and drive t, and
+  // therefore Cd, negative -- drag that accelerates the aircraft.
+  const t = Math.max(0, Math.min(1, (a - alphaCrit) / (ninety - alphaCrit)))
   return cdAttached + (FLAT_PLATE_CD - cdAttached) * t
 }
