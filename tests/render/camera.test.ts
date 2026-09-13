@@ -58,12 +58,37 @@ describe('chase camera', () => {
     }
   })
 
-  it('follows heading, so the aeroplane stays in frame through a turn', () => {
+  it('points roughly at the aeroplane, not off into open sky', () => {
+    // Weaker than it looks: the offset and the returned attitude are both
+    // built from the same `heading`, so this dot product is geometrically
+    // guaranteed positive (it reduces to a constant, independent of heading)
+    // and cannot by itself catch a broken or frozen heading -- that is what
+    // the next test, comparing output heading against distinct known input
+    // yaws, is for. Kept anyway as a basic "camera looks the right general
+    // direction, not backwards" sanity check.
     const yawed = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2)
     const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), yawed))
     const fwd = qRotate(eye.attitude, v3(1, 0, 0))
     const toAircraft = sub(v3(0, 1000, 0), eye.position)
     const dotted = (fwd.x * toAircraft.x + fwd.y * toAircraft.y + fwd.z * toAircraft.z)
     expect(dotted).toBeGreaterThan(0)
+  })
+
+  it('tracks the aircraft heading itself, across distinct yaw values', () => {
+    // The test above cannot catch a broken heading: its dot product reduces
+    // algebraically to a heading-independent constant (proven by hardcoding
+    // `heading = 0` in cameraTransformFor -- every other test, including that
+    // one, still passed; see the report's Fix round 1 section). This one
+    // reads the camera's own output heading back out and compares it against
+    // the known input yaw, at two distinct values so a constant answer
+    // cannot satisfy it.
+    for (const yawDeg of [30, -100]) {
+      const yaw = (yawDeg * Math.PI) / 180
+      const yawed = qFromAxisAngle(v3(0, 1, 0), yaw)
+      const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), yawed))
+      const outFwd = qRotate(eye.attitude, v3(1, 0, 0))
+      const outputHeading = Math.atan2(-outFwd.z, outFwd.x)
+      expect(outputHeading).toBeCloseTo(yaw, 9)
+    }
   })
 })

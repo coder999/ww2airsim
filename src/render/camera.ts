@@ -10,7 +10,10 @@ export type EyeTransform = {
   readonly attitude: Quat
 }
 
-/** Behind, above, and slightly off the centreline. Body frame. */
+/** Behind and above, on the centreline (z = 0). Body frame. Whether it
+ *  should sit off-centre instead -- some chase views do, so the tail doesn't
+ *  mask the aeroplane -- is a question about how it feels to fly behind it,
+ *  decided in Task 13 with a view out of the window, not guessed here. */
 export const CHASE_OFFSET_M: readonly [number, number, number] = [-22, 6, 0]
 
 /**

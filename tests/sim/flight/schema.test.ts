@@ -27,8 +27,8 @@ describe('AircraftSpec validation (spec §9)', () => {
   })
 
   it('requires a view block with an eye point', () => {
-    const { view: _omitted, ...withoutView } = valid
-    void _omitted
+    const withoutView: Record<string, unknown> = { ...valid }
+    delete withoutView['view']
     expect(() => parseAircraftSpec(withoutView)).toThrow(/view/)
   })
 
@@ -91,7 +91,7 @@ describe('AircraftSpec validation (spec §9)', () => {
       expect(() => parseAircraftSpec(bad)).toThrow(/aerodynamics/)
     })
 
-    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'reference'] as const)(
+    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'reference', 'view'] as const)(
       'rejects an unknown key inside %s',
       (section) => {
         const bad = {
