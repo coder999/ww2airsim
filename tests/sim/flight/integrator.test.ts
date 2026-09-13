@@ -137,3 +137,23 @@ describe('SimContext', () => {
     }
   })
 })
+
+describe('AircraftState.tick', () => {
+  const level: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
+
+  it('defaults to 0 and takes the tick the context supplies', () => {
+    const s = createState({ velocity: v3(130, 0, 0) })
+    expect(s.tick).toBe(0)
+    const next = step(f6f, s, level, { dt: DT, tick: 41 })
+    expect(next.tick).toBe(41)
+  })
+
+  it('is what lets a renderer tell two snapshots apart', () => {
+    // Without a tick, a stale snapshot is indistinguishable from a fresh one
+    // whose state happens to match -- the bug this field exists to make visible.
+    const s = createState({ velocity: v3(130, 0, 0) })
+    const a = step(f6f, s, level, { dt: DT, tick: 1 })
+    const b = step(f6f, a, level, { dt: DT, tick: 2 })
+    expect(b.tick - a.tick).toBe(1)
+  })
+})

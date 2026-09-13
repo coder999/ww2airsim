@@ -26,6 +26,7 @@ const FIELDS: ReadonlyArray<readonly [string, (s: AircraftState) => number]> = [
   ['attitude.z', (s) => s.attitude.z], ['attitude.w', (s) => s.attitude.w],
   ['bodyRates.x', (s) => s.bodyRates.x], ['bodyRates.y', (s) => s.bodyRates.y],
   ['bodyRates.z', (s) => s.bodyRates.z], ['fuelKg', (s) => s.fuelKg],
+  ['tick', (s) => s.tick],
 ]
 
 export function assertFinite(state: AircraftState, context: string): void {

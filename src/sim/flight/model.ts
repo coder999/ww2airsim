@@ -194,5 +194,5 @@ export function step(
     : bodyRates
   const attitude = qIntegrateBodyRates(state.attitude, ratesWithStall, dt)
 
-  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg }
+  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick }
 }

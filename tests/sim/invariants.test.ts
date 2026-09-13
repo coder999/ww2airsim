@@ -68,6 +68,11 @@ describe('assertFinite', () => {
     const bad = { ...createState(), position: v3(0, Number.POSITIVE_INFINITY, 0) }
     expect(() => assertFinite(bad, 'ctx')).toThrow(/position\.y/)
   })
+
+  it('rejects a non-finite tick', () => {
+    const s = { ...createState({ velocity: v3(130, 0, 0) }), tick: NaN }
+    expect(() => assertFinite(s, 'test')).toThrow(/tick/)
+  })
 })
 
 // Ruling R30: with correct physics and no wind coupling, no reachable state
