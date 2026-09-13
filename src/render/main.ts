@@ -2,7 +2,7 @@ import { PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
 import { createOverlay } from './overlay.js'
-import { initialFrameState, nextFrameState } from './frame.js'
+import { initialFrameState, nextFrameState, toThreeOrientation, worldOffsetFor } from './frame.js'
 import { createWater } from './scene/water.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
@@ -28,10 +28,12 @@ const validationErrors: string[] = []
 
 /** Purely visual: gauges.ts explains why no tachometer is fitted -- there is
  *  no modeled engine RPM to drive it honestly. This spins the prop mesh at an
- *  arbitrary rate scaled by throttle so a held throttle key visibly does
- *  something, which is a free confirmation that input is reaching the
- *  simulation (see hellcat.ts's comment on why `prop` is a separate mesh).
- *  It is not a claim about real RPM and never appears on the instrument panel. */
+ *  arbitrary rate scaled by throttle (see hellcat.ts's comment on why `prop`
+ *  is a separate mesh); it confirms throttle reaches the frame state, not
+ *  that it reaches the simulation -- a bug that stopped `frame.controls` from
+ *  reaching `advance` would leave the prop spinning at the correct rate with
+ *  nothing driving the aeroplane (Task 13 review, measured 2026-09-13). It is
+ *  not a claim about real RPM and never appears on the instrument panel. */
 const PROP_MAX_RAD_PER_SEC = 40
 
 /**
@@ -142,21 +144,44 @@ async function boot(): Promise<void> {
     // Camera-relative: the world moves, the camera stays at the origin. float32
     // loses precision at 100 km, which shows as geometry jitter -- master spec §4
     // requires this from the first commit because retrofitting it means touching
-    // every position in the renderer.
-    scene.position.set(-frame.eye.position.x, -frame.eye.position.y, -frame.eye.position.z)
+    // every position in the renderer. `worldOffsetFor` and `toThreeOrientation`
+    // are the pure arithmetic (frame.ts); this is only the `.set()` calls that
+    // apply it -- Task 13 review, round 1: both bugs it fixed were coordinate
+    // arithmetic sitting in this file with no tests, which is why that
+    // arithmetic now lives in frame.ts instead.
+    const worldOffset = worldOffsetFor(frame.eye.position)
+    scene.position.set(worldOffset.x, worldOffset.y, worldOffset.z)
     camera.position.set(0, 0, 0)
+    const cameraOrientation = toThreeOrientation(frame.eye.attitude)
     camera.quaternion.set(
-      frame.eye.attitude.x,
-      frame.eye.attitude.y,
-      frame.eye.attitude.z,
-      frame.eye.attitude.w,
+      cameraOrientation.x,
+      cameraOrientation.y,
+      cameraOrientation.z,
+      cameraOrientation.w,
+    )
+
+    // The airframe mesh's own geometry is built with +X as its nose
+    // (hellcat.ts), matching sim convention exactly, so unlike the camera
+    // above it needs no basis fix -- see frame.ts's `render` field doc.
+    hellcatRoot.position.set(frame.render.position.x, frame.render.position.y, frame.render.position.z)
+    hellcatRoot.quaternion.set(
+      frame.render.attitude.x,
+      frame.render.attitude.y,
+      frame.render.attitude.z,
+      frame.render.attitude.w,
     )
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
     // horizontal position each frame (the whole scene, sky included, is
-    // translated by -eye above) keeps the horizon at eye level instead of
-    // sliding as the aeroplane moves.
+    // translated by -eye above) keeps the horizon centred under the camera
+    // horizontally. It is deliberately NOT re-centred vertically (y stays 0),
+    // so the horizon sits very slightly below eye level at any nonzero
+    // altitude -- about 0.76 degrees at this spawn's 600 m against the dome's
+    // 45,000 m radius (atan(600/45000)) -- rather than exactly at it. Fixing
+    // the horizontal drift is what matters: left unfixed, it is unbounded
+    // over a long flight and eventually carries the camera outside the dome;
+    // the vertical offset is bounded by altitude and stays negligible.
     sky.position.set(frame.eye.position.x, 0, frame.eye.position.z)
 
     prop.rotation.x += frame.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)

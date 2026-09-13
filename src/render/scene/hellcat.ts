@@ -51,8 +51,11 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
   spinner.position.set(5.1, 0, 0)
   root.add(spinner)
 
-  // Separate, so the frame loop can spin it with throttle -- free confirmation
-  // that input is reaching the simulation.
+  // Separate, so the frame loop can spin it with throttle. This confirms
+  // throttle reaches the frame state, not that it reaches the simulation --
+  // a bug that stops `frame.controls` from reaching `advance` would leave
+  // the prop spinning at the correct rate with nothing driving the
+  // aeroplane (Task 13 review, measured 2026-09-13).
   const prop = new Mesh(new BoxGeometry(0.12, 3.9, 0.3), dark)
   prop.position.set(5.4, 0, 0)
   root.add(prop)

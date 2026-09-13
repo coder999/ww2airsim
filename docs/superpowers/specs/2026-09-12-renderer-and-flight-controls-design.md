@@ -221,10 +221,13 @@ scale and make altitude judgeable.
 later plan. But attitude is judged against a horizon, so this is not optional.
 
 **The aircraft is built in code**: a low-poly F6F silhouette — fuselage, wings,
-tail, spinner — with a prop disc whose rotation tracks throttle, which doubles
-as free confirmation that input is reaching the sim. Per the master spec §10,
-building deliberately simple models is one of the two permitted routes, and it
-carries no license exposure and no `ASSETS.md` row.
+tail, spinner — with a prop disc whose rotation tracks throttle. That confirms
+throttle reaches the frame state, not that it reaches the simulation (amended
+2026-09-13; Task 13 review measured a case where the prop kept spinning while
+`advance` received `NEUTRAL` regardless — the visual and the physics can
+diverge). Per the master spec §10, building deliberately simple models is one
+of the two permitted routes, and it carries no license exposure and no
+`ASSETS.md` row.
 
 ## 6. Cameras
 
