@@ -4,6 +4,7 @@ import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
+import type { SimContext } from '../loop.js'
 
 export { createState } from './state.js'
 export type { AircraftState, Controls } from './state.js'
@@ -137,7 +138,9 @@ export function isStalled(spec: AircraftSpec, state: AircraftState): boolean {
  * Deliberately narrow: it rejects only what cannot be integrated at all, and
  * says nothing about the 60 Hz constraint. A large-but-finite `dt` is still
  * accepted, because rejecting it needs a decision about who owns the
- * fixed-step contract -- a step-context refactor deferred to the next plan.
+ * fixed-step contract -- the `SimContext` (`../loop.js`) carries `dt` as of
+ * this task, but its accumulator, which is what would actually own that
+ * contract, is Task 3's work, not this one's.
  */
 function assertUsableDt(dt: number): void {
   if (!Number.isFinite(dt) || dt <= 0) {
@@ -149,9 +152,10 @@ export function step(
   spec: AircraftSpec,
   state: AircraftState,
   controls: Controls,
-  dt: number,
+  ctx: SimContext,
 ): AircraftState {
-  assertUsableDt(dt)
+  assertUsableDt(ctx.dt)
+  const dt = ctx.dt
   const mass = massKg(spec, state)
   const rho = densityAt(state.position.y)
   const v = airspeed(state)

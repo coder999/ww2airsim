@@ -111,7 +111,7 @@ export function measureTopSpeed(spec: AircraftSpec, altitudeM: number): number {
   let s = spawn(spec, altitudeM, spec.rates.rateRefSpeedMps)
   let prev = 0
   for (let i = 0; i < 60 * TOP_SPEED_MAX_S; i++) {
-    s = holdMass(spec, stepChecked(spec, s, holdLevelFlight(spec, s, 1, altitudeM), DT))
+    s = holdMass(spec, stepChecked(spec, s, holdLevelFlight(spec, s, 1, altitudeM), { dt: DT, tick: i + 1 }))
     if (i % 60 === 0) {
       const v = airspeed(s)
       if (i > 600 && Math.abs(v - prev) < TOP_SPEED_SETTLED_MPS) return v
@@ -166,12 +166,12 @@ export function measureClimbRate(spec: AircraftSpec, altitudeM: number): number 
     const angle = angleDeg * DEG
     let s = spawn(spec, altitudeM, spec.rates.rateRefSpeedMps)
     for (let i = 0; i < 60 * CLIMB_SETTLE_S; i++) {
-      s = holdMassAndAltitude(spec, stepChecked(spec, s, holdPitchAngle(spec, s, 1, angle), DT), altitudeM)
+      s = holdMassAndAltitude(spec, stepChecked(spec, s, holdPitchAngle(spec, s, 1, angle), { dt: DT, tick: i + 1 }), altitudeM)
     }
     // Mean vertical velocity, not a position difference: position is pinned.
     let sum = 0
     for (let i = 0; i < 60 * CLIMB_SAMPLE_S; i++) {
-      s = holdMassAndAltitude(spec, stepChecked(spec, s, holdPitchAngle(spec, s, 1, angle), DT), altitudeM)
+      s = holdMassAndAltitude(spec, stepChecked(spec, s, holdPitchAngle(spec, s, 1, angle), { dt: DT, tick: i + 1 }), altitudeM)
       sum += s.velocity.y
     }
     const rate = sum / (60 * CLIMB_SAMPLE_S)
@@ -191,7 +191,7 @@ const STALL_MAX_S = 300
 export function measureStallSpeed(spec: AircraftSpec, altitudeM: number): number {
   let s = spawn(spec, altitudeM, spec.rates.rateRefSpeedMps)
   for (let i = 0; i < 60 * STALL_MAX_S; i++) {
-    s = holdMass(spec, stepChecked(spec, s, holdLevelFlight(spec, s, 0, altitudeM), DT))
+    s = holdMass(spec, stepChecked(spec, s, holdLevelFlight(spec, s, 0, altitudeM), { dt: DT, tick: i + 1 }))
     if (isStalled(spec, s)) return airspeed(s)
   }
   // Important 2: a wing that never stalls within the run is not evidence of a
@@ -233,7 +233,7 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
   let totalRad = 0
   let prevBank = bankAngleRad(s)
   for (let i = 0; i < 60 * SECONDS; i++) {
-    const next = stepChecked(spec, s, controls, DT)
+    const next = stepChecked(spec, s, controls, { dt: DT, tick: i + 1 })
     s = { ...next, velocity: v3(speedMps, 0, 0), position: v3(0, altitudeM, 0) }
     const bank = bankAngleRad(s)
     totalRad += bank - prevBank
@@ -262,7 +262,7 @@ export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): 
   let s = spawn(spec, 0, 0)
   const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
   for (let i = 0; i < 60 * TAKEOFF_MAX_S; i++) {
-    const next = holdMass(spec, stepChecked(spec, s, controls, DT))
+    const next = holdMass(spec, stepChecked(spec, s, controls, { dt: DT, tick: i + 1 }))
     s = {
       ...next,
       position: v3(next.position.x, 0, next.position.z),

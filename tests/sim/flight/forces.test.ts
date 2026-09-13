@@ -14,7 +14,7 @@ const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 describe('flight integrator: forces', () => {
   it('accelerates downward in free fall with no airspeed', () => {
     const s0 = createState({ position: v3(0, 5000, 0), velocity: v3(0, 0, 0) })
-    const s1 = step(f6f, s0, NEUTRAL, DT)
+    const s1 = step(f6f, s0, NEUTRAL, { dt: DT, tick: 1 })
     expect(s1.velocity.y).toBeLessThan(0)
     expect(s1.velocity.y).toBeCloseTo(-9.80665 * DT, 3)
   })
@@ -32,7 +32,7 @@ describe('flight integrator: forces', () => {
     // the offending field rather than just the step index.
     let firstFailure: string | undefined
     for (let i = 0; i < 60 * 300; i++) {
-      s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }, DT)
+      s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }, { dt: DT, tick: i + 1 })
       if (firstFailure === undefined) {
         try {
           assertFinite(s, `step ${i}`)
@@ -91,7 +91,7 @@ describe('flight integrator: forces', () => {
 
     const s0 = createState({ position: v3(0, 4000, 0), velocity: v3(0, -vt4000, 0), attitude: noseDownAttitude() })
     expect(isStalled(f6f, s0)).toBe(false)
-    const s1 = step(f6f, s0, NEUTRAL, DT)
+    const s1 = step(f6f, s0, NEUTRAL, { dt: DT, tick: 1 })
 
     const dvdt = (airspeed(s1) - airspeed(s0)) / DT
     // Measured at this commit: dv/dt = 0.0419 m/s^2 -- a few cm/s^2, as
@@ -125,7 +125,7 @@ describe('flight integrator: forces', () => {
     let lastDvDt: number | undefined
     let sawStall = false
     for (let i = 0; i < 60 * 120; i++) {
-      s = step(f6f, s, NEUTRAL, DT)
+      s = step(f6f, s, NEUTRAL, { dt: DT, tick: i + 1 })
       if (isStalled(f6f, s)) sawStall = true
       const speed = airspeed(s)
       const dvdt = (speed - prevSpeed) / DT
@@ -152,8 +152,8 @@ describe('flight integrator: forces', () => {
     const low = createState({ position: v3(0, 0, 0), velocity: v3(100, 0, 0) })
     const high = createState({ position: v3(0, 11000, 0), velocity: v3(100, 0, 0) })
     const full: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
-    const dLow = step(f6f, low, full, DT).velocity.x - low.velocity.x
-    const dHigh = step(f6f, high, full, DT).velocity.x - high.velocity.x
+    const dLow = step(f6f, low, full, { dt: DT, tick: 1 }).velocity.x - low.velocity.x
+    const dHigh = step(f6f, high, full, { dt: DT, tick: 1 }).velocity.x - high.velocity.x
     expect(dLow).toBeGreaterThan(dHigh)
   })
 
@@ -182,7 +182,7 @@ describe('flight integrator: forces', () => {
         attitude: qIdentity(),
         fuelKg: 400,
       })
-      const s1 = step(f6f, s0, { pitch: 0, roll: 0, yaw: 0, throttle }, DT)
+      const s1 = step(f6f, s0, { pitch: 0, roll: 0, yaw: 0, throttle }, { dt: DT, tick: 1 })
       const xForce = ((s1.velocity.x - s0.velocity.x) / DT) * (f6f.mass.emptyKg + s0.fuelKg)
       if (throttle === 0) return xForce
       return xForce - thrustAt(speedMps, 0)
@@ -213,8 +213,8 @@ describe('flight integrator: forces', () => {
 
   it('burns fuel at full throttle and not at idle', () => {
     const s0 = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), fuelKg: 600 })
-    const burned = s0.fuelKg - step(f6f, s0, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, DT).fuelKg
-    const idle = s0.fuelKg - step(f6f, s0, NEUTRAL, DT).fuelKg
+    const burned = s0.fuelKg - step(f6f, s0, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, { dt: DT, tick: 1 }).fuelKg
+    const idle = s0.fuelKg - step(f6f, s0, NEUTRAL, { dt: DT, tick: 1 }).fuelKg
     expect(burned).toBeGreaterThan(0)
     expect(burned).toBeGreaterThan(idle)
   })
@@ -232,7 +232,7 @@ describe('flight integrator: forces', () => {
   it('is deterministic: identical inputs give identical output', () => {
     const run = () => {
       let s = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) })
-      for (let i = 0; i < 600; i++) s = step(f6f, s, { pitch: 0.2, roll: 0.1, yaw: 0, throttle: 0.7 }, DT)
+      for (let i = 0; i < 600; i++) s = step(f6f, s, { pitch: 0.2, roll: 0.1, yaw: 0, throttle: 0.7 }, { dt: DT, tick: i + 1 })
       return s
     }
     expect(run()).toEqual(run())
@@ -242,7 +242,7 @@ describe('flight integrator: forces', () => {
     // Straight and level at 130 m/s with enough throttle to hold it: speed
     // should not run away in either direction over 30 seconds.
     let s = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) })
-    for (let i = 0; i < 60 * 30; i++) s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.75 }, DT)
+    for (let i = 0; i < 60 * 30; i++) s = step(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 0.75 }, { dt: DT, tick: i + 1 })
     expect(length(s.velocity)).toBeGreaterThan(40)
     expect(length(s.velocity)).toBeLessThan(300)
     // Ruling R24: the speed band alone passes even with lift deleted entirely

@@ -3,8 +3,10 @@ import { v3, length, sub } from '../../../src/sim/math/vec3.js'
 import { qIdentity } from '../../../src/sim/math/quat.js'
 import { createState, step, DT, type Controls } from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
+import type { SimContext } from '../../../src/sim/loop.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
+const ctx = (dt: number, tick = 0): SimContext => ({ dt, tick })
 
 describe('step() timestep validation (finding I8)', () => {
   const s0 = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) })
@@ -21,11 +23,11 @@ describe('step() timestep validation (finding I8)', () => {
     ['zero', 0],
     ['negative', -DT],
   ])('rejects a %s dt', (_label, dt) => {
-    expect(() => step(f6f, s0, NEUTRAL, dt)).toThrow(/positive, finite dt/)
+    expect(() => step(f6f, s0, NEUTRAL, ctx(dt, 1))).toThrow(/positive, finite dt/)
   })
 
   it('accepts the fixed 60 Hz timestep the simulation is designed around', () => {
-    expect(() => step(f6f, s0, NEUTRAL, DT)).not.toThrow()
+    expect(() => step(f6f, s0, NEUTRAL, ctx(DT, 1))).not.toThrow()
   })
 
   // Deliberately NOT rejected: enforcing 60 Hz needs a decision about who owns
@@ -34,7 +36,7 @@ describe('step() timestep validation (finding I8)', () => {
   // the current boundary is "integrable", not "60 Hz", so a later change that
   // tightens it has to come here and say so.
   it('accepts a large-but-finite dt, because owning the 60 Hz contract is deferred', () => {
-    expect(() => step(f6f, s0, NEUTRAL, 0.25)).not.toThrow()
+    expect(() => step(f6f, s0, NEUTRAL, ctx(0.25, 1))).not.toThrow()
   })
 })
 
@@ -82,7 +84,7 @@ describe('integrator convergence (recommendation 6)', () => {
       fuelKg: 400,
     })
     const steps = Math.round(DURATION_S / dt)
-    for (let i = 0; i < steps; i++) s = step(f6f, s, MANOEUVRE, dt)
+    for (let i = 0; i < steps; i++) s = step(f6f, s, MANOEUVRE, ctx(dt, i + 1))
     return s.position
   }
 
@@ -113,5 +115,25 @@ describe('integrator convergence (recommendation 6)', () => {
     // tiny and the ratio meaningless while still passing.
     expect(d1).toBeGreaterThan(1e-3)
     expect(length(sub(p1, v3(0, 2000, 0)))).toBeGreaterThan(100)
+  })
+})
+
+describe('SimContext', () => {
+  const level: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
+
+  it('carries dt to the integrator exactly as the old parameter did', () => {
+    const s = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) })
+    const a = step(f6f, s, level, ctx(DT))
+    // Same dt, same inputs -> bit-identical, since step is pure.
+    const b = step(f6f, s, level, ctx(DT))
+    expect(a).toEqual(b)
+    expect(a.position.y).not.toBe(s.position.y)
+  })
+
+  it('still rejects an unusable dt, now from inside the context', () => {
+    const s = createState({ velocity: v3(130, 0, 0) })
+    for (const bad of [NaN, Infinity, -Infinity, 0, -DT]) {
+      expect(() => step(f6f, s, level, ctx(bad))).toThrow(/dt/)
+    }
   })
 })

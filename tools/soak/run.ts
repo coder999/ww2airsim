@@ -139,7 +139,7 @@ export function runSoak(spec: AircraftSpec, iterations: number, seed: number): S
       for (let tick = 0; tick < 60; tick++) {
         const controls = rollControls(rng)
         for (let i = 0; i < 60; i++) {
-          s = stepChecked(spec, s, controls, DT)
+          s = stepChecked(spec, s, controls, { dt: DT, tick: i + 1 })
           steps++
           if (isStalled(spec, s)) stalledSteps++
         }

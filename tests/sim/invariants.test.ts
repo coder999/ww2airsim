@@ -36,7 +36,7 @@ describe('airmass-frame specific energy (spec §11)', () => {
     let s = createState({ position: v3(0, 6000, 0), velocity: v3(120, 0, 0) })
     let prev = specificEnergyAirmass(s)
     for (let i = 0; i < 60 * 120; i++) {
-      s = stepChecked(f6f, s, IDLE, DT)
+      s = stepChecked(f6f, s, IDLE, { dt: DT, tick: i + 1 })
       const e = specificEnergyAirmass(s)
       expect(e).toBeLessThanOrEqual(prev + 1e-3)
       prev = e
@@ -47,7 +47,7 @@ describe('airmass-frame specific energy (spec §11)', () => {
     let s = createState({ position: v3(0, 1000, 0), velocity: v3(80, 0, 0) })
     const e0 = specificEnergyAirmass(s)
     for (let i = 0; i < 60 * 20; i++) {
-      s = stepChecked(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, DT)
+      s = stepChecked(f6f, s, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, { dt: DT, tick: i + 1 })
     }
     expect(specificEnergyAirmass(s)).toBeGreaterThan(e0)
   })
