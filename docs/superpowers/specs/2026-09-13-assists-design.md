@@ -1,7 +1,32 @@
 # Plan 3 design — input assists
 
-**Status: DRAFT for Mark's review, 2026-09-13. Not agreed, not planned, not
-started.** Sections marked OPEN are questions I should not answer alone.
+**Status: approved by Mark 2026-09-13 ("Plan looks good"), with the four OPEN
+questions left unanswered.** Rather than block, each is resolved below with the
+decision recorded and marked as MINE, not his. Every one is cheap to reverse and
+none is load-bearing on the others.
+
+### Resolutions taken in the absence of an answer, 2026-09-13
+
+- **(A) Where it runs — a third module, called from the fixed step.**
+  `src/assists/`, invoked once per tick by `advance` before `step`. The master
+  spec's "between `input/` and `sim/`" is honoured as a call-chain position, not
+  a directory-tree one, because an assist needs `dt` and must not vary with
+  frame rate. Putting it in the frame loop instead would reproduce open item 5,
+  the defect we already have on the input ramp.
+- **(B) The weathercock constant does NOT move in this plan.** Weakening the fin
+  is only safe once auto-rudder demonstrably carries the feel, and that cannot
+  be judged until Mark can fly it. Deferred, still open item 9.
+- **(C) Rate damping is DROPPED from this plan, not converted.** It is a no-op
+  against a rate-command model, as argued below. The rotational-inertia idea
+  that would make it meaningful is a `sim/` change that alters how the aeroplane
+  feels, and Mark cannot fly it today, so shipping it now would be untestable by
+  the only person who can test it. Recorded as a separate proposal instead.
+- **(D) Switchable by keyboard, plus the Tier 2 diagnostics hook.** No options
+  UI and no persistence: neither exists, and the meta-game is far out in the
+  master spec's ordering. The hook matters more than the key, because it is what
+  lets a test flip each assist and assert the difference.
+
+This plan therefore builds THREE assists, not four.
 
 ## 1. Why now
 
