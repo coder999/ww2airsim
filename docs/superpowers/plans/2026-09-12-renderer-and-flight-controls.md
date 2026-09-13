@@ -2464,7 +2464,7 @@ void boot().catch((e: unknown) => {
 })
 ```
 
-- [ ] **Step 6: Verify by eye, once** — NOT DONE (needs the reference platform)
+- [x] **Step 6: Verify by eye, once** — DONE 2026-09-13 on the reference platform, driven remotely: the canvas clears and the overlay reads `Reference platform: vendor="amd" architecture="rdna-2"` at 119 fps / 8.4 ms.
 
 Run `npm run dev` on nexus, tunnel from the Windows desktop (`ssh -L 5173:localhost:5173 nexus`), open `http://localhost:5173`.
 Expected: a cleared canvas with the dev overlay top-left naming the adapter. This is one of the few steps in this plan that needs human eyes; from Task 15 the adapter half is automated.
@@ -3005,7 +3005,7 @@ Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Fly it** — NOT DONE (needs the reference platform)
+- [ ] **Step 6: Fly it** — STILL MARK'S. Flown programmatically on the reference platform 2026-09-13 to capture screenshots, which is not the same thing: this step exists to judge how the aeroplane FEELS, particularly `RAMP_SECONDS`, and that cannot be delegated.
 
 `npm run dev` on nexus, tunnel, open `http://localhost:5173`.
 Expected: an F6F over water, chase camera, arrow keys fly it, Shift opens the throttle, C switches to the cockpit, numpad looks around.
@@ -3227,7 +3227,7 @@ Hiding the airframe is not optional. The code-built Hellcat is an *external* mod
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Check legibility, once** — NOT DONE (needs the reference platform)
+- [ ] **Step 6: Check legibility, once** — STILL MARK'S. Rendered and inspected at 1440p on the reference platform 2026-09-13, and three objective defects were fixed as a result (overlapping dials, needles crossing into neighbours, numerals sitting on their own ticks). Whether it reads at a glance while flying is a human judgement and is not claimed.
 
 `npm run dev`, tunnel, press `C` for the cockpit.
 Expected: gauges readable at a glance at 1440p. This is the check that the appearance-authenticity trade was made for — if they are not readable, raise `DIAL_RADIUS` and say so in the commit.
@@ -3383,7 +3383,7 @@ Add to `package.json`:
 "test:tier2": "playwright test",
 ```
 
-- [ ] **Step 4: Run it on the reference platform** — NOT DONE (needs the reference platform)
+- [x] **Step 4: Run it on the reference platform** — DONE 2026-09-13, 2 passed in 8.6 s on the RX 6700 XT. The day-0 question it carried is answered: the adapter assertion holds, but only with a HEADED launch driven through a Playwright server on the Windows machine. Headless was not retried.
 
 With `npm run dev` running on nexus and the tunnel open, from the Windows desktop:
 

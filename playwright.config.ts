@@ -40,6 +40,9 @@ export default defineConfig({
   // timeout at the same moment with a less specific one.
   timeout: 60_000,
   use: {
+    connectOptions: process.env.PW_REMOTE
+      ? { wsEndpoint: process.env.PW_REMOTE, headers: { 'x-playwright-launch-options': JSON.stringify({ channel: 'chromium', headless: false }) } }
+      : undefined,
     baseURL: 'http://localhost:5173',
     headless: true,
     channel: 'chromium',
