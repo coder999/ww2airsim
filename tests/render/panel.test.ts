@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, Group, Quaternion, Vector3 } from 'three'
+import { Box3, BoxGeometry, Group, Mesh, Quaternion, Vector3 } from 'three'
 import { createPanel, updatePanel, type Panel } from '../../src/render/scene/panel.js'
-import { GAUGES } from '../../src/render/gauges.js'
+import { GAUGES, labelTextFor, tickMarksFor } from '../../src/render/gauges.js'
+import type { TextTextureFactory } from '../../src/render/scene/text.js'
 import { cameraTransformFor } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
@@ -167,5 +168,108 @@ describe('panel', () => {
     const p = createPanel(f6f)
     updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }))
     for (const n of p.needles.values()) expect(Number.isFinite(n.rotation.z)).toBe(true)
+  })
+})
+
+describe('panel markings and readouts (I-2)', () => {
+  // Whole-branch review, I-2: the panel had no labels, no scale markings and
+  // no readouts, against design spec section 7 which asks for gauges that are
+  // "oversized, high-contrast, clearly labelled, with digital readouts
+  // alongside needles". Six identical dark discs with six identical pointers.
+  // `GaugeSpec.label` and `.unit` were carried in GAUGES and rendered by
+  // nothing: zero non-definition hits across src, tests and tools.
+
+  /** Records every string the panel asks to have drawn. */
+  function recordingText(): { factory: TextTextureFactory; drawn: string[] } {
+    const drawn: string[] = []
+    return {
+      factory: (text: string): null => {
+        drawn.push(text)
+        return null
+      },
+      drawn,
+    }
+  }
+
+  it('prints the name and unit of every gauge', () => {
+    const { factory, drawn } = recordingText()
+    createPanel(f6f, factory)
+    for (const g of GAUGES) expect(drawn).toContain(labelTextFor(g))
+  })
+
+  it('prints a number beside every major scale mark', () => {
+    const { factory, drawn } = recordingText()
+    createPanel(f6f, factory)
+    for (const g of GAUGES) {
+      for (const m of tickMarksFor(g)) {
+        if (m.major) expect(drawn).toContain(m.text)
+      }
+    }
+  })
+
+  it('places every scale mark at the angle its own value maps to', () => {
+    // The mark has to sit where the needle will point, and this checks the
+    // built GEOMETRY rather than the function that generated it -- the angle
+    // is recovered from the mesh's position with atan2, independently of
+    // `angleForValue`. A transposed sin/cos or a sign slip in the placement
+    // would pass every test in gauges.test.ts and still scatter the marks.
+    const p = createPanel(f6f, recordingText().factory)
+    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    expect(dials.length).toBe(GAUGES.length)
+    GAUGES.forEach((g, i) => {
+      const expected = tickMarksFor(g).map((m) => m.angleRad).sort((a, b) => a - b)
+      const placed = dials[i]!.children
+        .filter((c) => c instanceof Mesh && c.geometry instanceof BoxGeometry)
+        .map((c) => {
+          const a = Math.atan2(c.position.x, c.position.y)
+          return a < 0 ? a + Math.PI * 2 : a
+        })
+        .sort((a, b) => a - b)
+      // Every mark angle appears among the placed meshes. The needle is a box
+      // too and sits at the dial centre, where atan2(0, 0) is 0 -- so a mark
+      // at 0 and the needle coincide, and the count is not asserted here.
+      for (const want of expected) {
+        expect(placed.some((got) => Math.abs(got - want) < 1e-9)).toBe(true)
+      }
+    })
+  })
+
+  it('shows the current value as digits, and updates them as the aeroplane moves', () => {
+    const { factory, drawn } = recordingText()
+    const p = createPanel(f6f, factory)
+    updatePanel(p, f6f, createState({ position: v3(0, 1234, 0) }), factory)
+    expect(p.readouts.get('altimeter')!.text).toBe('1234')
+    expect(drawn).toContain('1234')
+    updatePanel(p, f6f, createState({ position: v3(0, 2500, 0) }), factory)
+    expect(p.readouts.get('altimeter')!.text).toBe('2500')
+  })
+
+  it('re-rasterises only when the digits actually change', () => {
+    // Six canvases redrawn every frame at 60 fps to show the same six strings
+    // is pure waste, and the strings change a few times a second at most.
+    const { factory, drawn } = recordingText()
+    const p = createPanel(f6f, factory)
+    const state = createState({ position: v3(0, 1234, 0) })
+    updatePanel(p, f6f, state, factory)
+    const after = drawn.length
+    updatePanel(p, f6f, state, factory)
+    updatePanel(p, f6f, state, factory)
+    expect(drawn.length).toBe(after)
+  })
+
+  it('has one readout per fitted gauge and none spare', () => {
+    const p = createPanel(f6f, recordingText().factory)
+    expect(p.readouts.size).toBe(GAUGES.length)
+    for (const g of GAUGES) expect(p.readouts.has(g.id)).toBe(true)
+  })
+
+  it('builds without a canvas rather than throwing, which is how it is tested', () => {
+    // The default factory is the real one. On nexus there is no `document`,
+    // so it must return null and leave the geometry intact rather than throw.
+    expect(typeof document).toBe('undefined')
+    const p = createPanel(f6f)
+    expect(p.needles.size).toBe(GAUGES.length)
+    expect(p.readouts.size).toBe(GAUGES.length)
+    expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }))).not.toThrow()
   })
 })

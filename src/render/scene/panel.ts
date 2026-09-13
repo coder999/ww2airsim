@@ -1,12 +1,39 @@
-import { BoxGeometry, CircleGeometry, Group, Mesh, MeshBasicMaterial, type Object3D } from 'three'
-import { GAUGES, needleAngleFor, attitudeAngles, type GaugeId } from '../gauges.js'
+import {
+  BoxGeometry,
+  CircleGeometry,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
+  RingGeometry,
+  type Object3D,
+  type Texture,
+} from 'three'
+import {
+  GAUGES,
+  needleAngleFor,
+  attitudeAngles,
+  tickMarksFor,
+  labelTextFor,
+  readoutTextFor,
+  type GaugeId,
+} from '../gauges.js'
+import { makeTextTexture, type TextTextureFactory } from './text.js'
 import type { AircraftState } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 
 export type Panel = {
   readonly root: Object3D
   readonly needles: Map<GaugeId, Object3D>
+  /** The digital readout plate inside each dial, and the string it currently
+   *  shows -- kept so `updatePanel` can skip re-rasterising an unchanged one. */
+  readonly readouts: Map<GaugeId, Readout>
   readonly horizon: Object3D
+}
+
+export type Readout = {
+  readonly mesh: Mesh
+  text: string
 }
 
 /**
@@ -21,16 +48,62 @@ export type Panel = {
  */
 const DIAL_RADIUS = 0.085
 const DIAL_GAP = 0.2
+// Depth ordering within a dial. All small and all positive, so everything
+// stays in front of the face without needing render-order fiddling.
+const Z_MARKS = 0.0015
+const Z_READOUT = 0.0025
+const Z_NEEDLE = 0.005
 /** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up). */
 const PANEL_AHEAD_M = 0.6
 const PANEL_BELOW_M = 0.35
 
-export function createPanel(spec: AircraftSpec): Panel {
+/**
+ * A flat plate carrying rasterised text.
+ *
+ * Text is a texture rather than geometry because three's `TextGeometry` needs
+ * a font asset this project does not ship, and a stroke-font built out of
+ * boxes would be a lot of code to render six words. The rasteriser is injected
+ * (see `text.ts`) so the panel can still be BUILT on a machine with no canvas,
+ * which is every machine this project is developed on -- the tests assert the
+ * layout and the exact strings; only the pixels need a browser.
+ */
+function textPlate(
+  text: string,
+  widthM: number,
+  heightM: number,
+  makeText: TextTextureFactory,
+): Mesh {
+  const mesh = new Mesh(
+    new PlaneGeometry(widthM, heightM),
+    new MeshBasicMaterial({ map: makeText(text, widthM / heightM), transparent: true }),
+  )
+  mesh.userData.text = text
+  return mesh
+}
+
+function setPlateText(mesh: Mesh, text: string, makeText: TextTextureFactory): void {
+  const material = mesh.material as MeshBasicMaterial
+  const previous: Texture | null = material.map
+  const { width, height } = (mesh.geometry as PlaneGeometry).parameters
+  material.map = makeText(text, width / height)
+  material.needsUpdate = true
+  mesh.userData.text = text
+  // The old canvas texture is replaced every time the displayed value changes,
+  // which for the altimeter is several times a second. Not disposing it leaks
+  // one GPU texture per change for the life of the tab.
+  previous?.dispose()
+}
+
+export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = makeTextTexture): Panel {
   const root = new Group()
   const needles = new Map<GaugeId, Object3D>()
+  const readouts = new Map<GaugeId, Readout>()
 
   const faceMat = new MeshBasicMaterial({ color: 0x101418 })
   const needleMat = new MeshBasicMaterial({ color: 0xffd24a })
+  const bezelMat = new MeshBasicMaterial({ color: 0x2b3238 })
+  const markMajorMat = new MeshBasicMaterial({ color: 0xf2f6f8 })
+  const markMinorMat = new MeshBasicMaterial({ color: 0x8fa0ab })
 
   GAUGES.forEach((g, i) => {
     const dial = new Group()
@@ -39,11 +112,60 @@ export function createPanel(spec: AircraftSpec): Panel {
     const face = new Mesh(new CircleGeometry(DIAL_RADIUS, 32), faceMat)
     dial.add(face)
 
+    // A bezel, so a dial reads as an instrument rather than a hole.
+    const bezel = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.09, 32), bezelMat)
+    bezel.position.z = Z_MARKS
+    dial.add(bezel)
+
+    // Scale marks. Without these the dial had no zero, which made
+    // needleAngleFor's documented "clockwise from the dial's zero" a
+    // reference to something that did not exist (whole-branch review, I-2).
+    for (const mark of tickMarksFor(g)) {
+      const len = DIAL_RADIUS * (mark.major ? 0.2 : 0.11)
+      const tick = new Mesh(
+        new BoxGeometry(mark.major ? 0.005 : 0.0025, len, 0.002),
+        mark.major ? markMajorMat : markMinorMat,
+      )
+      // Marks sit just inside the rim, and the whole tick is rotated about
+      // the dial centre by the SAME angle the needle uses for that value --
+      // `tickMarksFor` and `needleAngleFor` both call `angleForValue`, so a
+      // needle cannot point between its own marks.
+      const r = DIAL_RADIUS - len / 2 - 0.004
+      const a = mark.angleRad
+      tick.position.set(r * Math.sin(a), r * Math.cos(a), Z_MARKS)
+      tick.rotation.z = -a
+      dial.add(tick)
+
+      if (mark.major && mark.text) {
+        const numeral = textPlate(mark.text, DIAL_RADIUS * 0.5, DIAL_RADIUS * 0.22, makeText)
+        const nr = DIAL_RADIUS - len - 0.018
+        numeral.position.set(nr * Math.sin(a), nr * Math.cos(a), Z_MARKS)
+        dial.add(numeral)
+      }
+    }
+
     const needle = new Mesh(new BoxGeometry(0.008, DIAL_RADIUS * 1.5, 0.004), needleMat)
     // Offset so the mesh pivots about the dial centre rather than its own end.
     needle.geometry.translate(0, DIAL_RADIUS * 0.55, 0)
+    needle.position.z = Z_NEEDLE
     dial.add(needle)
     needles.set(g.id, needle)
+
+    // The name and unit, which GAUGES has carried since Task 10 with nothing
+    // rendering them -- zero non-definition hits across src, tests and tools
+    // before this (whole-branch review, I-2).
+    const label = textPlate(labelTextFor(g), DIAL_GAP * 0.86, 0.028, makeText)
+    label.position.set(0, -DIAL_RADIUS - 0.026, Z_MARKS)
+    dial.add(label)
+
+    // Digital readout, per design spec section 7's "digital readouts alongside
+    // needles where that helps". It helps most for altitude and heading, where
+    // reading a needle to better than a few hundred metres or a few degrees is
+    // exactly what the oversized-dial trade gave up.
+    const readoutMesh = textPlate('', DIAL_RADIUS * 1.15, 0.032, makeText)
+    readoutMesh.position.set(0, -DIAL_RADIUS * 0.46, Z_READOUT)
+    dial.add(readoutMesh)
+    readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
     dial.position.set(x, 0, 0)
     root.add(dial)
@@ -72,11 +194,27 @@ export function createPanel(spec: AircraftSpec): Panel {
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, horizon }
+  return { root, needles, readouts, horizon }
 }
 
-export function updatePanel(panel: Panel, spec: AircraftSpec, state: AircraftState): void {
+export function updatePanel(
+  panel: Panel,
+  spec: AircraftSpec,
+  state: AircraftState,
+  makeText: TextTextureFactory = makeTextTexture,
+): void {
   for (const g of GAUGES) {
+    const readout = panel.readouts.get(g.id)
+    if (readout) {
+      const text = readoutTextFor(g.id, spec, state)
+      // Re-rasterise only on a real change. The altimeter's displayed metres
+      // change a few times a second; redrawing six canvases every frame at
+      // 60 fps to show the same six strings would be pure waste.
+      if (text !== readout.text) {
+        setPlateText(readout.mesh, text, makeText)
+        readout.text = text
+      }
+    }
     const needle = panel.needles.get(g.id)
     if (!needle) continue
     const angle = needleAngleFor(g.id, spec, state)

@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { gaugeValue, needleAngleFor, attitudeAngles, GAUGES } from '../../src/render/gauges.js'
+import {
+  gaugeValue,
+  needleAngleFor,
+  attitudeAngles,
+  angleForValue,
+  tickMarksFor,
+  labelTextFor,
+  readoutTextFor,
+  GAUGES,
+} from '../../src/render/gauges.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qIdentity } from '../../src/sim/math/quat.js'
@@ -133,5 +142,111 @@ describe('attitudeAngles', () => {
   it('reports nose-up as positive pitch', () => {
     const s = createState({ attitude: qFromAxisAngle(v3(0, 0, 1), Math.PI / 8) })
     expect(attitudeAngles(s).pitchRad).toBeGreaterThan(0)
+  })
+})
+
+describe('scale marks and readouts (I-2)', () => {
+  // Whole-branch review, I-2: until this, a dial was a dark disc with a
+  // pointer and no marks. `needleAngleFor` documented its result as
+  // "clockwise from the dial's zero" and the dial had no zero, and
+  // `GaugeSpec.label` and `.unit` were carried in GAUGES and rendered by
+  // nothing -- zero non-definition hits across src, tests and tools.
+
+  it('puts the needle exactly on the mark for the value it is showing', () => {
+    // The property the whole split exists for. Scale marks computed by one
+    // function and needle angles by another is how a needle ends up pointing
+    // between the numbers it should line up with -- obvious in a screenshot,
+    // invisible to a test written against either half alone.
+    for (const g of GAUGES) {
+      for (const mark of tickMarksFor(g)) {
+        expect(angleForValue(g, mark.value)).toBeCloseTo(mark.angleRad, 12)
+      }
+    }
+  })
+
+  it('gives every dial marks at both ends of its scale', () => {
+    for (const g of GAUGES) {
+      const marks = tickMarksFor(g)
+      expect(marks.length).toBeGreaterThan(4)
+      expect(marks.filter((m) => m.major).length).toBeGreaterThanOrEqual(3)
+      expect(marks[0]!.value).toBeCloseTo(g.min, 9)
+      if (!g.circular) expect(marks[marks.length - 1]!.value).toBeCloseTo(g.max, 9)
+    }
+  })
+
+  it('numbers its major marks and leaves the minor ones bare', () => {
+    for (const g of GAUGES) {
+      for (const m of tickMarksFor(g)) {
+        if (m.major) expect(m.text).not.toBe('')
+        else expect(m.text).toBe('')
+      }
+    }
+  })
+
+  it('keeps the majors on a round step, including where floats do not cooperate', () => {
+    // The slip gauge runs -0.5..0.5 with a 0.125 minor step. A `value %
+    // majorStep` test is one representation error away from silently dropping
+    // a major mark, so the implementation counts step indices instead.
+    const slip = GAUGES.find((g) => g.id === 'slip')!
+    const majors = tickMarksFor(slip).filter((m) => m.major).map((m) => m.value)
+    expect(majors).toEqual([-0.5, -0.25, 0, 0.25, 0.5])
+  })
+
+  it('does not draw north twice on the compass rose', () => {
+    // 0 and 2*pi are the same mark. Drawing both leaves a doubled tick and a
+    // doubled number at north.
+    const heading = GAUGES.find((g) => g.id === 'heading')!
+    const marks = tickMarksFor(heading)
+    const angles = marks.map((m) => m.angleRad)
+    expect(new Set(angles.map((a) => a.toFixed(9))).size).toBe(angles.length)
+    expect(Math.max(...angles)).toBeLessThan(Math.PI * 2)
+  })
+
+  it('labels every dial with the name and unit that were being carried unused', () => {
+    for (const g of GAUGES) {
+      const text = labelTextFor(g)
+      expect(text).toContain(g.label)
+      if (g.unit) expect(text).toContain(g.unit)
+    }
+  })
+
+  it('reads out the quantity, converted into the unit the label promises', () => {
+    const spec = loadAircraftSpec('f6f-hellcat')
+    // Heading is stored in radians and labelled "deg", so the readout must
+    // convert. A raw-radian readout under a "deg" label is the kind of false
+    // claim this project treats as a defect.
+    const east = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
+    expect(readoutTextFor('heading', spec, east)).toBe('090')
+    const north = createState({ attitude: qIdentity() })
+    expect(readoutTextFor('heading', spec, north)).toBe('000')
+    expect(readoutTextFor('altimeter', spec, createState({ position: v3(0, 1234, 0) }))).toBe('1234')
+    expect(readoutTextFor('fuel', spec, createState({ fuelKg: 512 }))).toBe('512')
+  })
+
+  it('signs a readout that can go either way, and never prints minus zero', () => {
+    const spec = loadAircraftSpec('f6f-hellcat')
+    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, 12.5, 0) }))).toBe('+12.5')
+    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, -12.5, 0) }))).toBe('-12.5')
+    // Level flight must read +0.0, not -0.0: a minus sign appearing and
+    // vanishing at the top of a climb reads as a fault.
+    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, -0, 0) }))).toBe('+0.0')
+  })
+
+  it('stops the readout where the needle stops, rather than counting past the peg', () => {
+    // A readout that keeps counting while the needle is pegged tells the pilot
+    // the instrument is fine when it is off its scale.
+    const spec = loadAircraftSpec('f6f-hellcat')
+    const tooHigh = createState({ position: v3(0, 99_000, 0) })
+    expect(readoutTextFor('altimeter', spec, tooHigh)).toBe('10000')
+    expect(needleAngleFor('altimeter', spec, tooHigh)).toBeCloseTo(
+      GAUGES.find((g) => g.id === 'altimeter')!.sweepRad,
+      9,
+    )
+  })
+
+  it('says so rather than printing a number when the state is degenerate', () => {
+    const spec = loadAircraftSpec('f6f-hellcat')
+    const bad = createState({ velocity: v3(NaN, 0, 0) })
+    expect(readoutTextFor('airspeed', spec, bad)).toBe('--')
   })
 })
