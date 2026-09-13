@@ -1439,7 +1439,7 @@ Pure: maps sim state to an eye transform with no Three.js involved, so the behav
 - Produces: `type CameraMode = 'chase' | 'cockpit'`, `type EyeTransform = { position: Vec3; attitude: Quat }`, `cameraTransformFor(mode, spec, render): EyeTransform`, `CHASE_OFFSET_M`, `CHASE_PITCH_FOLLOW`.
 - Produces: `spec.view.eyePointM: readonly [number, number, number]`.
 
-- [ ] **Step 1: Write the failing schema test**
+- [x] **Step 1: Write the failing schema test**
 
 Add to `tests/sim/flight/schema.test.ts`, extending the existing `valid` fixture with the new block and asserting it is required:
 
@@ -1457,7 +1457,7 @@ it('rejects an eye point that is not three finite numbers', () => {
 
 Add `view: { eyePointM: [1.2, 0.9, 0] }` to the `valid` fixture in that file.
 
-- [ ] **Step 2: Write the failing camera test**
+- [x] **Step 2: Write the failing camera test**
 
 Create `tests/render/camera.test.ts`:
 
@@ -1533,12 +1533,12 @@ describe('chase camera', () => {
 })
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `npx vitest run tests/render/camera.test.ts tests/sim/flight/schema.test.ts`
 Expected: FAIL — no `view` in the schema, no `camera.js`.
 
-- [ ] **Step 4: Add the schema block and the content**
+- [x] **Step 4: Add the schema block and the content**
 
 In `src/sim/flight/schema.ts`, add to the object (before the closing `.strict()`):
 
@@ -1563,7 +1563,7 @@ In `content/aircraft/f6f-hellcat.json`, add:
 
 That places the eye roughly 1.2 m forward of the reference point and 0.9 m above it. No primary source is needed for a number whose only job is to put a camera somewhere sensible; it is recorded as an estimate in the design's open items.
 
-- [ ] **Step 5: Implement the cameras**
+- [x] **Step 5: Implement the cameras**
 
 Create `src/render/camera.ts`:
 
@@ -1644,12 +1644,12 @@ export function cameraTransformFor(
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `npx vitest run tests/render/camera.test.ts tests/sim/flight/schema.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
