@@ -18,11 +18,23 @@ const valid = {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,
     climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80, takeoffDistanceM: 230,
   },
+  view: { eyePointM: [1.2, 0.9, 0] },
 }
 
 describe('AircraftSpec validation (spec §9)', () => {
   it('accepts a well-formed spec', () => {
     expect(parseAircraftSpec(valid).id).toBe('test-plane')
+  })
+
+  it('requires a view block with an eye point', () => {
+    const { view: _omitted, ...withoutView } = valid
+    void _omitted
+    expect(() => parseAircraftSpec(withoutView)).toThrow(/view/)
+  })
+
+  it('rejects an eye point that is not three finite numbers', () => {
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1] } })).toThrow(/eyePointM/)
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1, NaN] } })).toThrow(/eyePointM/)
   })
 
   it('rejects NaN rather than letting it reach the integrator', () => {

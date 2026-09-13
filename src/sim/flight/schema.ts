@@ -75,6 +75,14 @@ const AircraftSpecObject = z.object({
      *  figure -- see the tolerance comment on that card in f6f.test.ts. */
     takeoffDistanceM: positive,
   }).strict(),
+  /** Render-only data. `sim/` never reads this; it lives here because it is
+   *  per-aircraft content and a second content file for one field would be
+   *  over-engineering. Revisit if a second category of render-only data
+   *  appears (Plan 2 design §6). */
+  view: z.object({
+    /** Pilot's eye, metres in body frame: +X forward, +Y up, +Z right. */
+    eyePointM: z.tuple([finite, finite, finite]),
+  }).strict(),
 }).strict()
 
 /** Cross-field: the trial the reference block was measured at has to be a
