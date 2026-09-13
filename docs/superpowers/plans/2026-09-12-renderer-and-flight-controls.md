@@ -117,7 +117,7 @@ Plan 1's whole-branch review named `step(spec, state, controls, dt)` the highest
 **Interfaces:**
 - Produces: `SimContext { readonly dt: number; readonly tick: number }` from `src/sim/loop.ts`; `step(spec, state, controls, ctx: SimContext)`; `stepChecked(spec, state, controls, ctx: SimContext)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/sim/flight/integrator.test.ts`:
 
@@ -152,12 +152,12 @@ describe('SimContext', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/flight/integrator.test.ts`
 Expected: FAIL — `src/sim/loop.js` does not exist, so the import cannot resolve.
 
-- [ ] **Step 3: Create the context type**
+- [x] **Step 3: Create the context type**
 
 Create `src/sim/loop.ts`:
 
@@ -184,7 +184,7 @@ export interface SimContext {
 }
 ```
 
-- [ ] **Step 4: Change `step` to take the context**
+- [x] **Step 4: Change `step` to take the context**
 
 In `src/sim/flight/model.ts`, change the signature and the guard. The body is otherwise untouched — every `dt` inside becomes `ctx.dt`:
 
@@ -205,7 +205,7 @@ export function step(
 
 Do **not** rename or re-derive anything else in the body. A behaviour change here is the one failure mode this task cannot absorb.
 
-- [ ] **Step 5: Change `stepChecked` to match**
+- [x] **Step 5: Change `stepChecked` to match**
 
 In `src/sim/invariants.ts`:
 
@@ -224,7 +224,7 @@ export function stepChecked(
 }
 ```
 
-- [ ] **Step 6: Update every call site**
+- [x] **Step 6: Update every call site**
 
 Mechanical. Find them all first:
 
@@ -234,14 +234,14 @@ grep -rn 'step(\|stepChecked(' src tests tools --include='*.ts' | grep -v 'funct
 
 At each, replace the trailing `DT` (or other dt argument) with `{ dt: DT, tick }`, where `tick` is the tick the step **produces**: one more than the state going in, so a spawn at tick 0 is at tick 1 after its first step. That is the convention `advance` (Task 3) uses, and it has to be the same everywhere or a replay's tick numbers will not line up with a live session's. In `tools/golden/record.ts` the loop variable `tick` is zero-based and labels the checkpoint taken *after* step `tick` — pass `tick: tick + 1` and leave the checkpoint label alone (the label is in the golden file; `state.tick` is not, so nothing the golden checks changes). In `tools/soak/run.ts` and `tools/testcards/measure.ts`, pass the inner loop counter plus one. In tests with no loop, `tick: 1`, or `0` where the test never reads it back.
 
-- [ ] **Step 7: Run the whole suite — it must be green and unchanged**
+- [x] **Step 7: Run the whole suite — it must be green and unchanged**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0, **185 tests in 16 files plus the 2 new ones = 187**. The golden test in particular must pass without regenerating anything.
 
 If the golden fails, **stop**. It means the refactor changed physics, which it must not. Do not regenerate the golden to make it pass — that would destroy the evidence that this task was safe.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/sim/loop.ts src/sim/flight/model.ts src/sim/invariants.ts tools tests
