@@ -1,6 +1,7 @@
 import { Group, PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
+import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { createOverlay } from './overlay.js'
 import {
   airframeVisibilityFor,
@@ -141,8 +142,25 @@ async function boot(): Promise<void> {
   // node_modules/three/src/renderers/webgpu/WebGPUBackend.js), so every
   // invocation reaching this callback is a real loss worth surfacing, not a
   // teardown.
+  // Declared here so `onDeviceLost`, wired immediately below, closes over a
+  // binding that already exists -- Task 15's TDZ lesson.
+  let loop: RafLoop | null = null
+
   renderer.onDeviceLost = (info) => {
+    // Stop BEFORE showing the failure, and dispose after (whole-branch review,
+    // I-3). Until this, `showFailure` detached the canvas and the frame chain
+    // carried on regardless: rendering to a dead GPU, writing overlay text
+    // into a detached element, and pushing fresh validation errors into
+    // `validationErrors` behind the message the operator is meant to read.
+    // `loop` is assigned before the first frame is ever scheduled, so it
+    // exists by the time any real loss can reach this callback; the `?.`
+    // covers a loss during setup, when there is no loop to stop yet.
+    loop?.stop()
     showFailure(root, 'device-lost', info.message)
+    // three's WebGPUBackend filters `reason === 'destroyed'` before calling
+    // onDeviceLost (see the comment above), so the destroy this triggers
+    // cannot re-enter here.
+    renderer.dispose()
   }
 
   // See normalizeGpuError's doc comment: the installed three@0.186.0 runtime
@@ -311,11 +329,13 @@ async function boot(): Promise<void> {
       tick: current.world.aircraft.tick,
       adapter: adapterVerdict.summary,
     })
-    requestAnimationFrame(frameFn)
   }
-  requestAnimationFrame(frameFn)
+  loop = createRafLoop(frameFn)
+  loop.start()
 
   window.addEventListener('resize', () => {
+    // A resize after a device loss would reconfigure a disposed swap chain.
+    if (!loop?.running) return
     renderer.setSize(window.innerWidth, window.innerHeight)
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
