@@ -27,7 +27,7 @@ describe('architecture boundary (spec §3)', () => {
   })
 
   it('fails when sim/ imports render/', () => {
-    writeFileSync(PROBE, "import { PLACEHOLDER } from '../render/placeholder.js'\nexport const probe = PLACEHOLDER\n")
+    writeFileSync(PROBE, "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n")
     const { code, output } = runDepcruise()
     expect(code).not.toBe(0)
     expect(output).toContain('sim-must-not-import-render')
