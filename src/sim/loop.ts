@@ -3,7 +3,8 @@ import type { AircraftState, Controls } from './flight/state.js'
 import { DT, step } from './flight/model.js'
 
 /**
- * The simulation's clock and, in Task 3, its fixed-step accumulator.
+ * The simulation's clock: the per-step context type, and the fixed-step
+ * accumulator that decides when a step happens.
  *
  * `SimContext` exists because `step`'s signature is what every later plan has
  * to extend: terrain height queries, deck contact, a threaded RNG, a wind
@@ -86,12 +87,21 @@ export function advance(
   stepper: Stepper = step,
 ): AdvanceResult {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
-  // that is negative, enormous or not a number. Banking it would poison the
-  // accumulator permanently, so it is dropped rather than clamped.
+  // that is negative or not a number. Banking either would poison the
+  // accumulator permanently, so those are dropped here; an enormous but
+  // finite delta is banked like any other and handled below, by the
+  // MAX_STEPS_PER_FRAME cap.
   const elapsed = Number.isFinite(elapsedSeconds) && elapsedSeconds > 0 ? elapsedSeconds : 0
 
   let banked = world.accumulatorSeconds + elapsed
-  const owed = Math.floor(banked / DT + STEP_EPSILON)
+  const rawStepsOwed = banked / DT + STEP_EPSILON
+  // `banked` is always finite here, but dividing an enormous (though finite)
+  // elapsed by DT can itself overflow to Infinity (measured 2026-09-12, Node
+  // 22: elapsedSeconds = Number.MAX_VALUE overflows this division). That
+  // delta is unreachable from a real animation frame, but `droppedSteps` is
+  // compared numerically by a replay, so it must stay a finite integer
+  // rather than surface Infinity or a non-integral value.
+  const owed = Number.isFinite(rawStepsOwed) ? Math.floor(rawStepsOwed) : Number.MAX_SAFE_INTEGER
   const stepsRun = Math.min(owed, MAX_STEPS_PER_FRAME)
   const droppedSteps = owed - stepsRun
 

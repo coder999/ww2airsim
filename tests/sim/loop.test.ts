@@ -9,6 +9,19 @@ const f6f = loadAircraftSpec('f6f-hellcat')
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
 const start = () => createWorld(f6f, createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) }))
 
+// Recursively freezes an object graph so any in-place write throws (this
+// file is an ES module, hence always strict mode) instead of silently
+// succeeding or succeeding-but-round-tripping-identically through JSON.
+function deepFreeze<T>(value: T): T {
+  if (value !== null && (typeof value === 'object' || typeof value === 'function') && !Object.isFrozen(value)) {
+    Object.freeze(value)
+    for (const key of Object.getOwnPropertyNames(value)) {
+      deepFreeze((value as Record<string, unknown>)[key])
+    }
+  }
+  return value
+}
+
 describe('advance', () => {
   it('runs no steps when less than one step of time has elapsed', () => {
     const r = advance(start(), level, DT / 2)
@@ -30,10 +43,27 @@ describe('advance', () => {
     const r = advance(start(), level, DT * 2.5)
     expect(r.stepsRun).toBe(2)
     expect(r.alpha).toBeCloseTo(0.5, 9)
+    // alpha is an interpolation factor (Tasks 4 and 13 consume it as a
+    // fraction of a step); a negative value would be extrapolation.
+    expect(r.alpha).toBeGreaterThanOrEqual(0)
+    expect(r.alpha).toBeLessThan(1)
     // Feeding the remaining half a step now completes the third.
     const r2 = advance(r.world, level, DT * 0.5)
     expect(r2.stepsRun).toBe(1)
     expect(r2.world.aircraft.tick).toBe(3)
+  })
+
+  it('keeps alpha in [0, 1) on the epsilon path with an adversarially short delta', () => {
+    // DT * (2 - 9.99e-7) makes banked/DT land at 2 - 9.99e-7: STEP_EPSILON
+    // (1e-6) pushes the floor up to the 2nd step that is genuinely owed, but
+    // subtracting owed * DT from banked then goes slightly negative -- measured
+    // (2026-09-12, Node 22, with the :118 clamp disabled) banked = -1.665e-8
+    // seconds, i.e. alpha = banked / DT = -9.99e-7 -- before the clamp. Without
+    // it this surfaces as a negative alpha, i.e. extrapolation.
+    const r = advance(start(), level, DT * (2 - 9.99e-7))
+    expect(r.stepsRun).toBe(2)
+    expect(r.alpha).toBeGreaterThanOrEqual(0)
+    expect(r.alpha).toBeLessThan(1)
   })
 
   it('advances ticks monotonically by one per step', () => {
@@ -96,6 +126,12 @@ describe('advance', () => {
 
   it('is pure: the world passed in is not mutated', () => {
     const w = start()
+    // JSON.stringify is value-based and misses a mutation that round-trips to
+    // the same JSON shape (position.x = -0, or a write of NaN/Infinity to a
+    // field the comparison doesn't distinguish). Freezing every object this
+    // module could write through makes any in-place write throw in strict
+    // mode instead, regardless of what value it writes.
+    deepFreeze(w)
     const before = JSON.stringify(w)
     advance(w, level, DT * 3)
     expect(JSON.stringify(w)).toBe(before)
