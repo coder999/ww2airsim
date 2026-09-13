@@ -371,7 +371,7 @@ The seam. Everything downstream depends on this being right, and it is fully tes
 - Consumes: `SimContext` (Task 1), `AircraftState.tick` (Task 2), `step`/`stepChecked`.
 - Produces: `World` (carries `spec`), `AdvanceResult`, `Stepper`, `advance(world, controls, elapsedSeconds, stepper?)`, `createWorld(spec, aircraft)`, `MAX_STEPS_PER_FRAME`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/sim/loop.test.ts`:
 
@@ -481,12 +481,12 @@ describe('advance', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/loop.test.ts`
 Expected: FAIL — `advance`, `createWorld`, `MAX_STEPS_PER_FRAME` are not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `src/sim/loop.ts`:
 
@@ -588,12 +588,12 @@ export function advance(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/loop.test.ts`
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Run the full pipeline and commit**
+- [x] **Step 5: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0.
