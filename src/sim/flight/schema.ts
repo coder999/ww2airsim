@@ -67,6 +67,38 @@ const AircraftSpecObject = z.object({
      * has a lateral component while crabbed.
      */
     weathercockSeconds: positive,
+    /**
+     * Auto-rudder assist gain: yaw-command units (of the pilot's own
+     * `Controls.yaw`, range [-1, 1]) added per degree of sideslip.
+     * `src/assists/index.ts`'s `autoRudder` stage multiplies this by the
+     * current sideslip angle and adds the result to the pilot's own yaw
+     * command -- the fix Mark asked for after flying it twice: rolling into a
+     * turn and levelling out left the aeroplane travelling diagonally rather
+     * than straight, because nothing was pushing the nose back onto the
+     * velocity vector for him.
+     *
+     * Unlike `weathercockSeconds` above, this is NOT a measured aircraft
+     * characteristic -- it is a synthetic pilot aid layered on top of the
+     * airframe's own (poor) directional stability, not a property of the
+     * real F6F. NACA Wartime Report L-716 measured the real aeroplane's
+     * aileron yaw at about 18.5 degrees of sideslip in left rolls and 23.5
+     * degrees in right rolls at roughly 100 mph, and judged its directional
+     * stability "low" and the handling "objectionable" -- the report has no
+     * auto-rudder gain to cite, because the real aeroplane never had a
+     * rudder that moved by itself.
+     *
+     * 0.1 was chosen empirically against
+     * `tests/assists/autoRudder.test.ts`: a one-second full-deflection roll
+     * at 90/130/180 m/s develops only a few degrees of sideslip in this
+     * model (that test's own `slipWithoutAssist` measurements are 2.99,
+     * 2.01 and 1.07 degrees respectively, both roll directions), so a gain
+     * that reaches full rudder authority at 10 degrees of sideslip (1 /
+     * 0.1) gives a clearly measurable reduction at all three speeds and
+     * both roll directions inside that window, without saturating so hard
+     * that the "pilot rudder is still effective" test has no headroom left
+     * to show an added command changing the result.
+     */
+    autoRudderGainPerDeg: positive,
   }).strict(),
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
   reference: z.object({

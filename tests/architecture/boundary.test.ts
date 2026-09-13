@@ -143,3 +143,29 @@ describe('sim/ forbids browser globals and nondeterminism (spec §3)', () => {
     for (const m of messages) expect(m.severity, m.message).toBe(2)
   })
 })
+
+describe('assists/ forbids browser globals and nondeterminism, same as sim/ (Plan 3)', () => {
+  // Task 1 extended eslint.config.js's `files` glob (`no-restricted-globals`
+  // / `no-restricted-properties`) to cover `src/assists/**/*.ts`, on the
+  // Global Constraints' instruction that assists/ does deterministic
+  // arithmetic on the pilot's command exactly like sim/ does -- but that
+  // task left it unprobed, unlike every rule above. Task 2 is the first task
+  // writing real arithmetic in `src/assists/` (`autoRudder`'s sideslip
+  // maths), so it is the one that can no longer defer closing this: an
+  // unprobed rule is indistinguishable from one that matches nothing, per
+  // this file's own standard applied to every other rule in it.
+  it('reports a severity-2 error for Math.random() written in src/assists/', async () => {
+    const eslint = new ESLint({})
+    const results = await eslint.lintText(
+      'export const bad = Math.random()\n',
+      { filePath: 'src/assists/__lint_probe__.ts' },
+    )
+    const messages = results.flatMap((r) => r.messages)
+    expect(messages.map((m) => m.ruleId)).toContain('no-restricted-properties')
+    // SEVERITY, not just presence -- see the identical comment on the sim/
+    // probe above for why (2026-09-13 review: a rule downgraded to 'warn'
+    // left the whole suite, including `eslint src tests tools
+    // --max-warnings 0`, green).
+    for (const m of messages) expect(m.severity, m.ruleId ?? '').toBe(2)
+  })
+})
