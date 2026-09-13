@@ -84,12 +84,17 @@ export function parseAircraftSpec(raw: unknown): AircraftSpec   // pure, browser
 | `src/render/scene/water.ts` | **New.** Flat plane with procedural detail. |
 | `src/render/scene/sky.ts` | **New.** Gradient dome and horizon. |
 | `src/render/scene/hellcat.ts` | **New.** Code-built low-poly airframe and prop. |
+| `src/render/scene/markers.ts` | **New.** Boxes at a known spacing, so altitude is judgeable. |
+| `src/render/scene/lighting.ts` | **New.** Sun and sky light. Without it every lit material is black. |
 | `src/render/scene/panel.ts` | **New.** Cockpit panel and needle meshes. |
 | `src/render/overlay.ts` | **New.** Dev overlay: frame time, rates, `droppedSteps`. |
 | `src/render/failure.ts` | **New.** Visible failure states. Never a blank canvas. |
-| `src/render/app.ts` | **New.** Bootstrap and frame loop. The only file that wires the others together. |
+| `src/render/renderer.ts` | **New.** WebGPU bring-up and adapter judgement. |
+| `src/render/frame.ts` | **New.** `nextFrameState` — the pure per-frame bookkeeping. |
+| `src/render/main.ts` | **New.** Bootstrap and frame loop. The only file that wires the others together. |
+| `src/render/placeholder.ts` | **Deleted** in Task 11; the render-boundary probe repoints to `failure.ts`. |
 | `index.html`, `vite.config.ts` | **New.** App entry and dev server. |
-| `tests/e2e/adapter.spec.ts` | **New.** Tier 2: adapter guard and validation-error sweep. |
+| `tests/e2e/adapter.spec.ts`, `playwright.config.ts` | **New.** Tier 2: adapter guard and validation-error sweep. |
 
 **Milestone:** Tasks 1–13 deliver a flyable aeroplane with chase and cockpit cameras. Tasks 14–15 add the instrument panel and the Tier 2 harness. If the plan has to stop early, stop after Task 13 — it is a coherent, shippable state, and it is the first point at which anyone has flown this flight model.
 
@@ -227,7 +232,7 @@ Mechanical. Find them all first:
 grep -rn 'step(\|stepChecked(' src tests tools --include='*.ts' | grep -v 'function step'
 ```
 
-At each, replace the trailing `DT` (or other dt argument) with `{ dt: DT, tick }`, where `tick` is the loop's existing tick counter if there is one and `0` if there is not. In `tools/golden/record.ts` the loop variable is already named `tick` — pass it. In `tools/soak/run.ts` and `tools/testcards/measure.ts`, pass the inner loop counter.
+At each, replace the trailing `DT` (or other dt argument) with `{ dt: DT, tick }`, where `tick` is the tick the step **produces**: one more than the state going in, so a spawn at tick 0 is at tick 1 after its first step. That is the convention `advance` (Task 3) uses, and it has to be the same everywhere or a replay's tick numbers will not line up with a live session's. In `tools/golden/record.ts` the loop variable `tick` is zero-based and labels the checkpoint taken *after* step `tick` — pass `tick: tick + 1` and leave the checkpoint label alone (the label is in the golden file; `state.tick` is not, so nothing the golden checks changes). In `tools/soak/run.ts` and `tools/testcards/measure.ts`, pass the inner loop counter plus one. In tests with no loop, `tick: 1`, or `0` where the test never reads it back.
 
 - [ ] **Step 7: Run the whole suite — it must be green and unchanged**
 
@@ -364,27 +369,27 @@ The seam. Everything downstream depends on this being right, and it is fully tes
 
 **Interfaces:**
 - Consumes: `SimContext` (Task 1), `AircraftState.tick` (Task 2), `step`/`stepChecked`.
-- Produces: `World`, `AdvanceResult`, `advance(world, controls, elapsedSeconds)`, `createWorld(aircraft)`, `MAX_STEPS_PER_FRAME`.
+- Produces: `World` (carries `spec`), `AdvanceResult`, `Stepper`, `advance(world, controls, elapsedSeconds, stepper?)`, `createWorld(spec, aircraft)`, `MAX_STEPS_PER_FRAME`.
 
 - [ ] **Step 1: Write the failing test**
 
 Create `tests/sim/loop.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { advance, createWorld, MAX_STEPS_PER_FRAME } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
-import { DT } from '../../src/sim/flight/model.js'
+import { DT, step } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
-const start = () => createWorld(createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) }))
+const start = () => createWorld(f6f, createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) }))
 
 describe('advance', () => {
   it('runs no steps when less than one step of time has elapsed', () => {
-    const r = advance(f6f, start(), level, DT / 2)
+    const r = advance(start(), level, DT / 2)
     expect(r.stepsRun).toBe(0)
     expect(r.droppedSteps).toBe(0)
     expect(r.alpha).toBeCloseTo(0.5, 10)
@@ -392,7 +397,7 @@ describe('advance', () => {
   })
 
   it('runs exactly one step for exactly one step of time', () => {
-    const r = advance(f6f, start(), level, DT)
+    const r = advance(start(), level, DT)
     expect(r.stepsRun).toBe(1)
     expect(r.world.aircraft.tick).toBe(1)
     expect(r.alpha).toBeCloseTo(0, 9)
@@ -400,11 +405,11 @@ describe('advance', () => {
 
   it('keeps the remainder rather than losing or double-counting it', () => {
     // 2.5 steps of time -> 2 steps run, half a step banked.
-    const r = advance(f6f, start(), level, DT * 2.5)
+    const r = advance(start(), level, DT * 2.5)
     expect(r.stepsRun).toBe(2)
     expect(r.alpha).toBeCloseTo(0.5, 9)
     // Feeding the remaining half a step now completes the third.
-    const r2 = advance(f6f, r.world, level, DT * 0.5)
+    const r2 = advance(r.world, level, DT * 0.5)
     expect(r2.stepsRun).toBe(1)
     expect(r2.world.aircraft.tick).toBe(3)
   })
@@ -413,7 +418,7 @@ describe('advance', () => {
     let w = start()
     const ticks: number[] = []
     for (let i = 0; i < 10; i++) {
-      const r = advance(f6f, w, level, DT)
+      const r = advance(w, level, DT)
       w = r.world
       ticks.push(w.aircraft.tick)
     }
@@ -421,17 +426,17 @@ describe('advance', () => {
   })
 
   it('exposes the previous tick for interpolation, and holds it on a no-step call', () => {
-    const r = advance(f6f, start(), level, DT * 2)
+    const r = advance(start(), level, DT * 2)
     expect(r.world.previous.tick).toBe(1)
     expect(r.world.aircraft.tick).toBe(2)
-    const held = advance(f6f, r.world, level, DT / 4)
+    const held = advance(r.world, level, DT / 4)
     expect(held.world.previous.tick).toBe(1)
     expect(held.world.aircraft.tick).toBe(2)
   })
 
   it('caps the steps one call may run, and counts what it discarded', () => {
     // 20 steps of time owed; the cap is 5.
-    const r = advance(f6f, start(), level, DT * 20)
+    const r = advance(start(), level, DT * 20)
     expect(r.stepsRun).toBe(MAX_STEPS_PER_FRAME)
     expect(r.droppedSteps).toBe(20 - MAX_STEPS_PER_FRAME)
     expect(r.world.aircraft.tick).toBe(MAX_STEPS_PER_FRAME)
@@ -441,8 +446,8 @@ describe('advance', () => {
     // This is the property the cap exists for. Without it, the accumulator
     // grows without bound and every later call runs the cap again forever.
     let w = start()
-    for (let i = 0; i < 5; i++) w = advance(f6f, w, level, DT * 50).world
-    const r = advance(f6f, w, level, DT)
+    for (let i = 0; i < 5; i++) w = advance(w, level, DT * 50).world
+    const r = advance(w, level, DT)
     expect(r.stepsRun).toBe(1)
     expect(r.droppedSteps).toBe(0)
   })
@@ -450,17 +455,27 @@ describe('advance', () => {
   it('ignores a non-finite or negative elapsed time instead of poisoning the clock', () => {
     // requestAnimationFrame deltas go strange across a tab suspend.
     for (const bad of [NaN, Infinity, -1]) {
-      const r = advance(f6f, start(), level, bad)
+      const r = advance(start(), level, bad)
       expect(r.stepsRun).toBe(0)
       expect(r.droppedSteps).toBe(0)
       expect(Number.isFinite(r.alpha)).toBe(true)
     }
   })
 
+  it('runs the stepper it is given, once per step', () => {
+    // Development builds pass stepChecked so Plan 1's invariants run in the
+    // browser; production passes step. The caller chooses, so sim/ carries
+    // no build flag.
+    const spy = vi.fn(step)
+    const r = advance(start(), level, DT * 3, spy)
+    expect(r.stepsRun).toBe(3)
+    expect(spy).toHaveBeenCalledTimes(3)
+  })
+
   it('is pure: the world passed in is not mutated', () => {
     const w = start()
     const before = JSON.stringify(w)
-    advance(f6f, w, level, DT * 3)
+    advance(w, level, DT * 3)
     expect(JSON.stringify(w)).toBe(before)
   })
 })
@@ -490,7 +505,24 @@ import { DT, step } from './flight/model.js'
  */
 export const MAX_STEPS_PER_FRAME = 5
 
+/**
+ * Tolerance, in steps, when counting whole steps owed. Half a step banked
+ * plus half a step fed sums to 0.9999999999999998 steps in IEEE doubles
+ * (measured 2026-09-12, Node 22), and a bare floor would owe zero and carry
+ * a whole step of debt into the next frame. A millionth of a step is far
+ * below anything a frame delta resolves and far above the rounding error.
+ */
+const STEP_EPSILON = 1e-6
+
+/** The function that integrates one tick: `step` in production, `stepChecked`
+ *  in development builds. Chosen by the caller, so `sim/` carries no build flag. */
+export type Stepper = typeof step
+
 export interface World {
+  /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
+   *  list: the design has later plans add fields to World precisely so
+   *  that `advance`'s signature never grows. */
+  readonly spec: AircraftSpec
   readonly aircraft: AircraftState
   /** The tick before `aircraft`. Equal to it until the first step runs. */
   readonly previous: AircraftState
@@ -512,17 +544,18 @@ export interface AdvanceResult {
   readonly alpha: number
 }
 
-export const createWorld = (aircraft: AircraftState): World => ({
+export const createWorld = (spec: AircraftSpec, aircraft: AircraftState): World => ({
+  spec,
   aircraft,
   previous: aircraft,
   accumulatorSeconds: 0,
 })
 
 export function advance(
-  spec: AircraftSpec,
   world: World,
   controls: Controls,
   elapsedSeconds: number,
+  stepper: Stepper = step,
 ): AdvanceResult {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
   // that is negative, enormous or not a number. Banking it would poison the
@@ -530,7 +563,7 @@ export function advance(
   const elapsed = Number.isFinite(elapsedSeconds) && elapsedSeconds > 0 ? elapsedSeconds : 0
 
   let banked = world.accumulatorSeconds + elapsed
-  const owed = Math.floor(banked / DT)
+  const owed = Math.floor(banked / DT + STEP_EPSILON)
   const stepsRun = Math.min(owed, MAX_STEPS_PER_FRAME)
   const droppedSteps = owed - stepsRun
 
@@ -538,15 +571,16 @@ export function advance(
   let previous = world.previous
   for (let i = 0; i < stepsRun; i++) {
     previous = current
-    current = step(spec, current, controls, { dt: DT, tick: current.tick + 1 })
+    current = stepper(world.spec, current, controls, { dt: DT, tick: current.tick + 1 })
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
   // survives into the next call and the cap achieves nothing.
   banked -= owed * DT
+  if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { aircraft: current, previous, accumulatorSeconds: banked },
+    world: { spec: world.spec, aircraft: current, previous, accumulatorSeconds: banked },
     stepsRun,
     droppedSteps,
     alpha: banked / DT,
@@ -557,7 +591,7 @@ export function advance(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/loop.test.ts`
-Expected: PASS, 9 tests.
+Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Run the full pipeline and commit**
 
@@ -779,52 +813,42 @@ invent a future the simulation has not computed."
 
 ### Task 5: Browser toolchain
 
-No browser code typechecks today: `tsconfig.json` has `"types": ["node"]` and no DOM lib. Adding DOM is necessary and has a side effect worth closing in the same breath — it would let `sim/` reference `localStorage` or `fetch` and still typecheck. Plan 1's whole-branch review raised exactly this as finding **M5** (the ESLint denylist covers only four globals). So the denylist widens in the same task that makes it necessary.
+`tsconfig.json` sets no explicit `lib`, and TypeScript's default for an ES2022 target already includes DOM — so `localStorage`, `fetch` and `requestAnimationFrame` inside `sim/` typecheck clean **today** (verified 2026-09-12: a probe file using all three, `tsc --noEmit` exit 0). The type checker has never guarded this boundary. Only the ESLint denylist does, and it names four globals; Plan 1's whole-branch review raised exactly this as finding **M5**. This task adds the WebGPU and Vite client types the renderer needs, makes `lib` explicit so the DOM dependency is visible rather than implied, and widens the denylist in the same commit.
+
+The `sim/`-must-not-import-`input/` dependency-cruiser rule lives in Task 6, not here: its negative probe has to import a file that exists, and `src/input/` is empty until then. dependency-cruiser reports **no violation** for an unresolvable import (verified 2026-09-12 with the proposed rule against a probe importing a not-yet-created `src/input/keyboard.js`), so a probe written here would pass for the wrong reason.
 
 **Files:**
-- Modify: `tsconfig.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `package.json`
+- Modify: `tsconfig.json`, `eslint.config.js`, `package.json`
 - Create: `index.html`, `vite.config.ts`, `src/render/main.ts`
 - Test: `tests/architecture/boundary.test.ts`
 
 **Interfaces:**
-- Produces: `npm run dev`, `npm run build`; DOM and WebGPU types available to `src/render/**` and `src/input/**`.
+- Produces: `npm run dev`, `npm run build`; DOM, WebGPU and Vite client (`import.meta.env`) types available to `src/render/**` and `src/input/**`.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `tests/architecture/boundary.test.ts`, following the existing probe pattern in that file (it writes a real file, runs depcruise, asserts a non-zero exit, and deletes it):
+Add to the `sim/ forbids browser globals and nondeterminism` describe block in `tests/architecture/boundary.test.ts`, following the `lintText` pattern already there:
 
 ```ts
-it('forbids sim/ from importing input/', () => {
-  const probe = 'src/sim/__boundary_probe__.ts'
-  writeFileSync(probe, `import '../input/keyboard.js'\nexport const x = 1\n`)
-  try {
-    const r = spawnSync('npx', ['depcruise', 'src', '--config', '.dependency-cruiser.cjs'], {
-      encoding: 'utf8',
-    })
-    expect(r.status).not.toBe(0)
-    expect(r.stdout + r.stderr).toMatch(/sim-must-not-import-input/)
-  } finally {
-    rmSync(probe, { force: true })
-  }
-})
-
-it('forbids a browser storage global inside sim/', () => {
-  const probe = 'src/sim/__boundary_probe__.ts'
-  writeFileSync(probe, `export const x = localStorage.getItem('k')\n`)
-  try {
-    const r = spawnSync('npx', ['eslint', probe], { encoding: 'utf8' })
-    expect(r.status).not.toBe(0)
-    expect(r.stdout + r.stderr).toMatch(/localStorage/)
-  } finally {
-    rmSync(probe, { force: true })
-  }
-})
+  it('reports an error for the storage, network and scheduling globals', async () => {
+    // tsc has always accepted these in sim/ (its default lib includes DOM),
+    // so this denylist is the only guard. A rule never seen to fail is
+    // indistinguishable from one that matches nothing.
+    const names = ['localStorage', 'sessionStorage', 'fetch', 'self', 'requestAnimationFrame', 'crypto', 'XMLHttpRequest']
+    const eslint = new ESLint({})
+    const results = await eslint.lintText(
+      `export const bad = [${names.join(', ')}]\n`,
+      { filePath: 'src/sim/__lint_probe__.ts' },
+    )
+    const flagged = results.flatMap((r) => r.messages).map((m) => m.message)
+    for (const g of names) expect(flagged.some((m) => m.includes(g)), g).toBe(true)
+  })
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
-Expected: FAIL — neither rule exists yet, so both probes exit 0.
+Expected: FAIL — none of the seven names is in the denylist yet, so no message names them.
 
 - [ ] **Step 3: Add DOM and WebGPU types**
 
@@ -836,10 +860,10 @@ In `tsconfig.json`, add `lib` and extend `types`:
 
 ```json
 "lib": ["ES2022", "DOM", "DOM.Iterable"],
-"types": ["node", "@webgpu/types"],
+"types": ["node", "@webgpu/types", "vite/client"],
 ```
 
-Leave `include` as it is and add `"index.html"` to nothing — Vite reads the HTML directly.
+`vite/client` is what makes `import.meta.env.DEV` typecheck; Tasks 13 and 15 use it. Leave `include` as it is and add `"index.html"` to nothing — Vite reads the HTML directly.
 
 - [ ] **Step 4: Widen the ESLint denylist (finding M5)**
 
@@ -858,30 +882,14 @@ In `eslint.config.js`, inside the existing `files: ['src/sim/**/*.ts', 'tools/**
 Add a comment above the block recording why it grew:
 
 ```js
-// This list widened when DOM types were added in Plan 2: before that, `lib`
-// excluded DOM and the type checker was itself a guard. It no longer is, so
-// the denylist is now the only thing standing between sim/ and a browser
-// global (Plan 1 whole-branch review, finding M5).
+// This denylist is the ONLY guard between sim/ and a browser global. tsc has
+// never been one: with no explicit `lib`, TypeScript's ES2022 default already
+// includes DOM, and a sim/ file using localStorage typechecked clean before
+// Plan 2 (verified 2026-09-12). Widened in Plan 2 from four names to the
+// storage, network and scheduling globals (Plan 1 review, finding M5).
 ```
 
-- [ ] **Step 5: Add the dependency-cruiser rule**
-
-In `.dependency-cruiser.cjs`, add to `forbidden`:
-
-```js
-{
-  name: 'sim-must-not-import-input',
-  comment:
-    'Spec §3: input/ maps devices to the same Controls value the AI emits, so ' +
-    'the simulation must depend on the shape, never on the device layer. ' +
-    'Without this rule the dependency would be legal and nobody would notice.',
-  severity: 'error',
-  from: { path: '^src/sim' },
-  to: { path: '^src/input' },
-},
-```
-
-- [ ] **Step 6: Add the app entry and dev server**
+- [ ] **Step 5: Add the app entry and dev server**
 
 Create `index.html` at the repo root:
 
@@ -941,31 +949,28 @@ Add to `package.json` scripts:
 "build": "vite build",
 ```
 
-- [ ] **Step 7: Run the test to verify it passes**
+- [ ] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
-Expected: PASS. Both new probes now exit non-zero.
+Expected: PASS. All seven names are now reported.
 
-- [ ] **Step 8: Run the full pipeline**
+- [ ] **Step 7: Run the full pipeline**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. If adding DOM surfaces new type errors anywhere in `src/sim` or `tools`, that is information — fix the code, do not narrow `lib`.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add tsconfig.json eslint.config.js .dependency-cruiser.cjs package.json package-lock.json index.html vite.config.ts src/render/main.ts tests/architecture/boundary.test.ts
+git add tsconfig.json eslint.config.js package.json package-lock.json index.html vite.config.ts src/render/main.ts tests/architecture/boundary.test.ts
 git commit -m "build: browser toolchain, and widen the sim/ global denylist
 
-No browser code typechecked before this: tsconfig had types:[node] and no DOM
-lib. Adding DOM has a side effect worth closing in the same commit -- it lets
-sim/ reference localStorage or fetch and still typecheck, where previously the
-absent lib was itself a guard. Plan 1's whole-branch review raised exactly this
-as finding M5, so the ESLint denylist widens here, in the commit that made it
-necessary rather than later.
-
-Adds a sim-must-not-import-input dependency-cruiser rule with a negative test,
-matching how the render boundary is already proved.
+tsconfig set no explicit lib, and TypeScript's ES2022 default already includes
+DOM, so a sim/ file using localStorage or fetch typechecked clean before this
+commit: the type checker was never a guard on that boundary. Only the ESLint
+denylist was, and it named four globals (Plan 1 whole-branch review, finding
+M5). It widens here, with a negative test, in the commit that adds WebGPU and
+Vite client types alongside an explicit lib.
 
 Dev server binds loopback-only: WebGPU needs a secure context and a plain-HTTP
 LAN address is not one, so the loop is an SSH tunnel (master spec 2, verified
@@ -978,10 +983,11 @@ on the reference platform by the day-0 spike)."
 
 **Files:**
 - Create: `src/input/bindings.ts`, `src/input/keyboard.ts`
-- Test: `tests/input/keyboard.test.ts`
+- Modify: `.dependency-cruiser.cjs`
+- Test: `tests/input/keyboard.test.ts`, `tests/architecture/boundary.test.ts`
 
 **Interfaces:**
-- Produces: `BINDINGS`, `type PressedKeys = ReadonlySet<string>`, `controlsFromKeys(pressed: PressedKeys, dt: number, previous: Controls): Controls`, `RAMP_SECONDS`, `NEUTRAL: Controls`.
+- Produces: `BINDINGS`, `type PressedKeys = ReadonlySet<string>`, `controlsFromKeys(pressed: PressedKeys, dt: number, previous: Controls): Controls`, `RAMP_SECONDS`, `THROTTLE_SECONDS`, `NEUTRAL: Controls`; the `sim-must-not-import-input` dependency-cruiser rule.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -989,7 +995,7 @@ Create `tests/input/keyboard.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
-import { controlsFromKeys, NEUTRAL, RAMP_SECONDS } from '../../src/input/keyboard.js'
+import { controlsFromKeys, NEUTRAL, RAMP_SECONDS, THROTTLE_SECONDS } from '../../src/input/keyboard.js'
 
 const DT = 1 / 60
 const keys = (...k: string[]) => new Set(k)
@@ -1047,8 +1053,12 @@ describe('controlsFromKeys', () => {
   })
 
   it('clamps throttle to [0,1]', () => {
-    expect(hold(['ShiftLeft'], RAMP_SECONDS * 5).throttle).toBe(1)
-    expect(hold(['ControlLeft'], RAMP_SECONDS * 5).throttle).toBe(0)
+    // Held past the full SWEEP time, not the stick ramp time: the constants
+    // differ, and five ramp times is only 88% of the sweep.
+    const full = hold(['ShiftLeft'], THROTTLE_SECONDS * 1.5)
+    expect(full.throttle).toBe(1)
+    expect(hold(['KeyZ'], THROTTLE_SECONDS * 1.5).throttle).toBe(0)
+    expect(hold(['KeyZ'], THROTTLE_SECONDS * 1.5, full).throttle).toBe(0)
   })
 
   it('produces finite output for a nonsense dt', () => {
@@ -1084,15 +1094,52 @@ export const BINDINGS = {
   rollRight: ['ArrowRight', 'KeyD'],
   yawLeft: ['KeyQ'],
   yawRight: ['KeyE'],
-  throttleUp: ['ShiftLeft', 'ShiftRight'],
-  throttleDown: ['ControlLeft', 'ControlRight'],
+  throttleUp: ['ShiftLeft', 'ShiftRight', 'Equal'],
+  // Not Ctrl, which the design first named: Ctrl+W closes the tab in Chrome
+  // and preventDefault cannot stop it, so "nose down while throttling back"
+  // on WASD would quit the game. Ctrl+T and Ctrl+N are the same.
+  throttleDown: ['KeyZ', 'Minus'],
   cycleCamera: ['KeyC'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS
 ```
 
-- [ ] **Step 4: Implement the mapping**
+- [ ] **Step 4: Forbid `sim/` from importing `input/`, and prove the rule bites**
+
+Now that `src/input/bindings.ts` exists there is a real file for the negative probe to import. Add to `.dependency-cruiser.cjs`'s `forbidden`:
+
+```js
+{
+  name: 'sim-must-not-import-input',
+  comment:
+    'Spec §3: input/ maps devices to the same Controls value the AI emits, so ' +
+    'the simulation must depend on the shape, never on the device layer. ' +
+    'Without this rule the dependency would be legal and nobody would notice.',
+  severity: 'error',
+  from: { path: '^src/sim' },
+  to: { path: '^src/input' },
+},
+```
+
+Add to the `architecture boundary` describe block in `tests/architecture/boundary.test.ts`, alongside the render probe:
+
+```ts
+  it('fails when sim/ imports input/', () => {
+    // The probe imports a file that EXISTS. dependency-cruiser reports no
+    // violation for an unresolvable import (verified 2026-09-12), so a probe
+    // against a not-yet-written module passes for the wrong reason.
+    writeFileSync(PROBE, "import { BINDINGS } from '../input/bindings.js'\nexport const probe = BINDINGS\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('sim-must-not-import-input')
+  })
+```
+
+Run: `npx vitest run tests/architecture/boundary.test.ts`
+Expected: PASS, including the new probe.
+
+- [ ] **Step 5: Implement the mapping**
 
 Create `src/input/keyboard.ts`:
 
@@ -1115,7 +1162,7 @@ export const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 export const RAMP_SECONDS = 0.35
 
 /** Throttle is a lever: it stays where it is left. Full sweep in this long. */
-const THROTTLE_SECONDS = 2.0
+export const THROTTLE_SECONDS = 2.0
 
 const held = (pressed: PressedKeys, name: BindingName): boolean =>
   BINDINGS[name].some((code) => pressed.has(code))
@@ -1164,17 +1211,17 @@ export function controlsFromKeys(
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run tests/input/keyboard.test.ts`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 6: Run the full pipeline and commit**
+- [ ] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
 ```bash
-git add src/input tests/input
+git add src/input tests/input .dependency-cruiser.cjs tests/architecture/boundary.test.ts
 git commit -m "feat: keyboard input with ramped axes
 
 Emits the same Controls value the AI will, per master spec 3's 'the AI is a
@@ -1187,7 +1234,15 @@ validated against 1944 trial figures feel like a toy. RAMP_SECONDS is the
 number most worth tuning once the thing flies, so it is named and documented
 rather than buried.
 
-Throttle is a lever, not a stick: it integrates and holds where it is left."
+Throttle is a lever, not a stick: it integrates and holds where it is left.
+
+Throttle-down is Z rather than the Ctrl the design named: Ctrl+W closes the
+tab in Chrome and preventDefault cannot stop it.
+
+Also adds the sim-must-not-import-input dependency-cruiser rule with a
+negative probe, matching how the render boundary is proved. It lands here
+rather than with the toolchain because the probe needs a real file under
+src/input to import: depcruise passes an unresolvable import."
 ```
 
 ---
@@ -1381,7 +1436,7 @@ Pure: maps sim state to an eye transform with no Three.js involved, so the behav
 
 **Interfaces:**
 - Consumes: `RenderState` (Task 4), `AircraftSpec`.
-- Produces: `type CameraMode = 'chase' | 'cockpit'`, `type EyeTransform = { position: Vec3; attitude: Quat }`, `cameraTransformFor(mode, spec, render, previousEye, dt): EyeTransform`, `CHASE_OFFSET_M`, `CHASE_ROLL_DAMPING`.
+- Produces: `type CameraMode = 'chase' | 'cockpit'`, `type EyeTransform = { position: Vec3; attitude: Quat }`, `cameraTransformFor(mode, spec, render): EyeTransform`, `CHASE_OFFSET_M`, `CHASE_PITCH_FOLLOW`.
 - Produces: `spec.view.eyePointM: readonly [number, number, number]`.
 
 - [ ] **Step 1: Write the failing schema test**
@@ -1414,13 +1469,12 @@ import { qIdentity, qFromAxisAngle, qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
-const DT = 1 / 60
 const at = (pos = v3(0, 1000, 0), att = qIdentity()) => ({ position: pos, attitude: att })
 
 describe('cockpit camera', () => {
   it('sits at the eye point, rigidly attached', () => {
     const r = at()
-    const eye = cameraTransformFor('cockpit', f6f, r, null, DT)
+    const eye = cameraTransformFor('cockpit', f6f, r)
     const [ex, ey, ez] = f6f.view.eyePointM
     const expected = qRotate(r.attitude, v3(ex, ey, ez))
     expect(eye.position.x).toBeCloseTo(r.position.x + expected.x, 9)
@@ -1432,7 +1486,7 @@ describe('cockpit camera', () => {
     // Damping roll here would be a bug, not a comfort feature: from the
     // cockpit, the horizon turning over IS the information.
     const rolled = qFromAxisAngle(v3(1, 0, 0), Math.PI / 3)
-    const eye = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled), null, DT)
+    const eye = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled))
     expect(eye.attitude).toEqual(rolled)
   })
 })
@@ -1440,28 +1494,28 @@ describe('cockpit camera', () => {
 describe('chase camera', () => {
   it('sits behind and above at the configured distance', () => {
     const r = at()
-    const eye = cameraTransformFor('chase', f6f, r, null, DT)
+    const eye = cameraTransformFor('chase', f6f, r)
     const d = length(sub(eye.position, r.position))
     expect(d).toBeCloseTo(length(v3(...CHASE_OFFSET_M)), 6)
   })
 
-  it('damps roll instead of tracking it', () => {
+  it('discards roll instead of tracking it', () => {
     // Plan 1's own golden trajectory is four continuous barrel rolls. A camera
     // welded to the roll axis through that is nauseating, and the flight model
     // gets blamed for a camera problem.
     const rolled = qFromAxisAngle(v3(1, 0, 0), Math.PI / 2)
-    const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), rolled), null, DT)
+    const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), rolled))
     // Up stays near world-up rather than rotating 90 degrees with the aircraft.
     const up = qRotate(eye.attitude, v3(0, 1, 0))
     expect(up.y).toBeGreaterThan(0.9)
   })
 
   it('stays finite and upright through a full continuous roll', () => {
-    let eye = cameraTransformFor('chase', f6f, at(), null, DT)
+    let eye = cameraTransformFor('chase', f6f, at())
     for (let i = 0; i < 600; i++) {
       const angle = (i / 600) * Math.PI * 8
       const r = at(v3(i, 1000, 0), qFromAxisAngle(v3(1, 0, 0), angle))
-      eye = cameraTransformFor('chase', f6f, r, eye, DT)
+      eye = cameraTransformFor('chase', f6f, r)
       const up = qRotate(eye.attitude, v3(0, 1, 0))
       expect(Number.isFinite(eye.position.x + up.y)).toBe(true)
       expect(up.y).toBeGreaterThan(0)
@@ -1470,7 +1524,7 @@ describe('chase camera', () => {
 
   it('follows heading, so the aeroplane stays in frame through a turn', () => {
     const yawed = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2)
-    const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), yawed), null, DT)
+    const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), yawed))
     const fwd = qRotate(eye.attitude, v3(1, 0, 0))
     const toAircraft = sub(v3(0, 1000, 0), eye.position)
     const dotted = (fwd.x * toAircraft.x + fwd.y * toAircraft.y + fwd.z * toAircraft.z)
@@ -1530,13 +1584,16 @@ export type EyeTransform = {
 export const CHASE_OFFSET_M: readonly [number, number, number] = [-22, 6, 0]
 
 /**
- * How quickly the chase camera's roll relaxes toward level, per second.
+ * Fraction of the aircraft's pitch the chase camera follows. A little under
+ * one, so a steep climb or dive keeps some horizon in frame.
  *
- * Not a comfort tweak: Plan 1's golden trajectory is four continuous barrel
- * rolls, and a camera rigidly following roll through that is genuinely
- * nauseating -- and the flight model gets blamed for a camera problem.
+ * There is deliberately no roll constant. Roll is not damped, it is DISCARDED:
+ * the chase attitude is rebuilt from heading and pitch only. Not a comfort
+ * tweak -- Plan 1's golden trajectory is four continuous barrel rolls, and a
+ * camera following roll through that is nauseating, with the flight model
+ * getting the blame for a camera problem.
  */
-export const CHASE_ROLL_DAMPING = 0.92
+export const CHASE_PITCH_FOLLOW = 0.92
 
 /** Heading (yaw) of an attitude, radians, ignoring pitch and roll. */
 function headingOf(q: Quat): number {
@@ -1551,18 +1608,15 @@ function pitchOf(q: Quat): number {
 }
 
 /**
- * Places the eye for a mode.
- *
- * `previousEye` is passed for modes that smooth over time; `null` means "first
- * frame, snap". `dt` is the render delta, not the sim step: this is a display
- * concern and must not be quantised to 60 Hz.
+ * Places the eye for a mode. A pure function of the current render state:
+ * neither mode smooths over time, so there is no previous-eye or dt parameter
+ * carried unused. A later smoothed mode (external orbit, padlock) adds them
+ * when it has a consumer for them.
  */
 export function cameraTransformFor(
   mode: CameraMode,
   spec: AircraftSpec,
   render: RenderState,
-  previousEye: EyeTransform | null,
-  dt: number,
 ): EyeTransform {
   if (mode === 'cockpit') {
     const [ex, ey, ez] = spec.view.eyePointM
@@ -1578,7 +1632,7 @@ export function cameraTransformFor(
   // blending toward level through an inverted attitude is ambiguous and can
   // flip -- this cannot.
   const heading = headingOf(render.attitude)
-  const pitch = pitchOf(render.attitude) * CHASE_ROLL_DAMPING
+  const pitch = pitchOf(render.attitude) * CHASE_PITCH_FOLLOW
   const attitude = qNormalize(
     qMul(qFromAxisAngle(v3(0, 1, 0), heading), qFromAxisAngle(v3(0, 0, 1), pitch)),
   )
@@ -1586,8 +1640,6 @@ export function cameraTransformFor(
   const [ox, oy, oz] = CHASE_OFFSET_M
   const position = add(render.position, qRotate(attitude, v3(ox, oy, oz)))
 
-  void previousEye
-  void dt
   return { position, attitude }
 }
 ```
@@ -1609,7 +1661,7 @@ Pure functions of sim state with no Three.js involved, so the behaviour most
 likely to be subtly wrong -- stability through a sustained roll -- is Tier 1
 testable on a headless box.
 
-Roll is damped for chase and rigid for cockpit, and that asymmetry is the
+Roll is discarded for chase and rigid for cockpit, and that asymmetry is the
 point: Plan 1's golden trajectory is four continuous barrel rolls, which a
 rigidly-following chase camera makes nauseating, while damping the cockpit view
 would remove the horizon information the view exists to give.
@@ -1625,6 +1677,8 @@ ambiguous and can flip."
 
 An offset layered on whichever mode is active, rather than a mode of its own — so it behaves identically from the cockpit and from chase, and snap views are presets of the same thing.
 
+Keyboard hat only. The design's §6 also lists continuous mouse-look; it is **deferred**, not forgotten. Pointer-lock handling and a sensitivity constant nobody has flown with would be two more guesses stacked on `RAMP_SECONDS`, and the numpad hat answers the Plan 2 question (can you check your six). Recorded in Self-Review as a deviation, and in the design's non-goals.
+
 **Files:**
 - Create: `src/input/lookAround.ts`
 - Modify: `src/input/bindings.ts`, `src/render/camera.ts`
@@ -1632,7 +1686,7 @@ An offset layered on whichever mode is active, rather than a mode of its own —
 
 **Interfaces:**
 - Produces: `type LookOffset = { yawRad: number; pitchRad: number }`, `LOOK_CENTRE: LookOffset`, `lookOffsetFromKeys(pressed, dt, previous): LookOffset`, `LOOK_LIMIT_RAD`.
-- Changes: `cameraTransformFor(mode, spec, render, previousEye, dt, look: LookOffset)`.
+- Changes: `cameraTransformFor(mode, spec, render, look: LookOffset)`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1770,8 +1824,6 @@ export function cameraTransformFor(
   mode: CameraMode,
   spec: AircraftSpec,
   render: RenderState,
-  previousEye: EyeTransform | null,
-  dt: number,
   look: LookOffset = { yawRad: 0, pitchRad: 0 },
 ): EyeTransform {
   // ...compute `position` and `attitude` per mode as before, then:
@@ -1798,8 +1850,8 @@ Add a camera test asserting exactly that:
 ```ts
 it('applies look-around in body frame, not world frame', () => {
   const rolled = qFromAxisAngle(v3(1, 0, 0), Math.PI / 2)
-  const straight = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled), null, DT)
-  const left = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled), null, DT, {
+  const straight = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled))
+  const left = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled), {
     yawRad: Math.PI / 2, pitchRad: 0,
   })
   // Inverted 90 degrees, "look left" must swing the view about the aircraft's
@@ -1879,14 +1931,17 @@ describe('gaugeValue', () => {
 
   it('reports heading in [0, 2pi) and increases it turning right', () => {
     const north = createState({ velocity: v3(100, 0, 0) })
-    const h0 = gaugeValue('heading', f6f, north)
-    expect(h0).toBeGreaterThanOrEqual(0)
-    expect(h0).toBeLessThan(Math.PI * 2)
-    const right = createState({
-      velocity: v3(100, 0, 0),
-      attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2),
-    })
-    expect(gaugeValue('heading', f6f, right)).not.toBeCloseTo(h0, 3)
+    expect(gaugeValue('heading', f6f, north)).toBeCloseTo(0, 9)
+    // A NEGATIVE rotation about body +Y swings the nose toward +Z, which is
+    // right (see the sign note on Controls.yaw in state.ts). A compass reads
+    // that as an increasing heading. Exact values, not not-equal: a
+    // not-equal assertion here once let the gauge read backwards.
+    const right = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.3) })
+    expect(gaugeValue('heading', f6f, right)).toBeCloseTo(0.3, 6)
+    const hardRight = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
+    expect(gaugeValue('heading', f6f, hardRight)).toBeCloseTo(Math.PI / 2, 6)
+    const left = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.3) })
+    expect(gaugeValue('heading', f6f, left)).toBeCloseTo(Math.PI * 2 - 0.3, 6)
   })
 
   it('reads zero slip in coordinated flight and non-zero in a skid', () => {
@@ -1955,7 +2010,7 @@ Create `src/render/gauges.ts`:
 
 ```ts
 import { v3, length, dot, normalize } from '../sim/math/vec3.js'
-import { qRotate } from '../sim/math/quat.js'
+import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { airspeed } from '../sim/flight/model.js'
 import { createState, type AircraftState } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -2017,8 +2072,10 @@ export const GAUGES: readonly GaugeSpec[] = [
   {
     id: 'heading', label: 'HEADING', unit: 'deg',
     min: 0, max: TWO_PI, sweepRad: TWO_PI, circular: true,
-    sampleLow: createState({ velocity: v3(100, 0, 0) }),
-    sampleHigh: createState({ velocity: v3(0, 0, 100) }),
+    // Heading reads attitude, not velocity. A velocity-only sample here left
+    // both ends at 0 and the monotonic test comparing 0 > 0.
+    sampleLow: createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.2) }),
+    sampleHigh: createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) }),
   },
   {
     id: 'fuel', label: 'FUEL', unit: 'kg',
@@ -2060,8 +2117,12 @@ export function gaugeValue(id: GaugeId, _spec: AircraftSpec, state: AircraftStat
     case 'fuel':
       return state.fuelKg
     case 'heading': {
+      // Compass convention: clockwise seen from above, so a RIGHT turn increases
+      // it. Body +Z is right, so the nose swinging toward +Z must read as an
+      // increasing heading -- hence atan2(+z, x). A first draft had the sign
+      // reversed and read backwards; the test pins it with exact values.
       const fwd = qRotate(state.attitude, v3(1, 0, 0))
-      const h = Math.atan2(-fwd.z, fwd.x)
+      const h = Math.atan2(fwd.z, fwd.x)
       return h < 0 ? h + TWO_PI : h
     }
     case 'slip': {
@@ -2133,7 +2194,8 @@ First pixels. The day-0 spike is the reason this task exists separately: a page 
 
 **Files:**
 - Create: `src/render/failure.ts`, `src/render/overlay.ts`, `src/render/renderer.ts`
-- Modify: `src/render/main.ts`
+- Modify: `src/render/main.ts`, `tests/architecture/boundary.test.ts` (render probe repoints)
+- Delete: `src/render/placeholder.ts` — its own docstring says Plan 2 replaces it, and this is the task that does
 - Test: `tests/render/failure.test.ts`
 
 **Interfaces:**
@@ -2407,12 +2469,14 @@ void boot().catch((e: unknown) => {
 Run `npm run dev` on nexus, tunnel from the Windows desktop (`ssh -L 5173:localhost:5173 nexus`), open `http://localhost:5173`.
 Expected: a cleared canvas with the dev overlay top-left naming the adapter. This is one of the few steps in this plan that needs human eyes; from Task 15 the adapter half is automated.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [ ] **Step 7: Retire the placeholder, run the full pipeline and commit**
+
+`git rm src/render/placeholder.ts`, and in `tests/architecture/boundary.test.ts` change the render probe's import to `import { showFailure } from '../render/failure.js'` (and its export to `showFailure`). The probe still targets a real file, which is what makes it a probe.
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
 ```bash
-git add src/render tests/render/failure.test.ts
+git add src/render tests/render/failure.test.ts tests/architecture/boundary.test.ts
 git commit -m "feat: renderer bootstrap, visible failures, dev overlay
 
 Every failure state is visible and says what to do about it, before any scene
@@ -2434,11 +2498,11 @@ would corrupt the baselines."
 ### Task 12: Scene geometry
 
 **Files:**
-- Create: `src/render/scene/water.ts`, `src/render/scene/sky.ts`, `src/render/scene/hellcat.ts`, `src/render/scene/markers.ts`
+- Create: `src/render/scene/water.ts`, `src/render/scene/sky.ts`, `src/render/scene/lighting.ts`, `src/render/scene/hellcat.ts`, `src/render/scene/markers.ts`
 - Test: `tests/render/scene.test.ts`
 
 **Interfaces:**
-- Produces: `createWater(): Object3D`, `createSky(): Object3D`, `createHellcat(): { root: Object3D; prop: Object3D }`, `createMarkers(): Object3D`, `MARKER_SPACING_M`, `WATER_EXTENT_M`.
+- Produces: `createWater(): Object3D`, `createSky(): Object3D`, `createLighting(): Object3D`, `createHellcat(): { root: Object3D; prop: Object3D }`, `createMarkers(): Object3D`, `MARKER_SPACING_M`, `WATER_EXTENT_M`.
 
 Three constructs geometry without a GPU, so shape is Tier 1 testable even though appearance is not.
 
@@ -2448,10 +2512,12 @@ Create `tests/render/scene.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
-import { Box3, Vector3 } from 'three'
+import { Box3, DirectionalLight, Mesh, Vector3 } from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createWater, WATER_EXTENT_M } from '../../src/render/scene/water.js'
+import { createSky } from '../../src/render/scene/sky.js'
+import { createLighting } from '../../src/render/scene/lighting.js'
 
 describe('hellcat geometry', () => {
   it('is roughly F6F-sized: ~13 m span, ~10 m long', () => {
@@ -2509,6 +2575,28 @@ describe('water', () => {
     expect(size.z).toBeGreaterThanOrEqual(WATER_EXTENT_M)
   })
 })
+
+describe('sky', () => {
+  it('uses a node material, the only kind WebGPURenderer draws as written', () => {
+    // A GLSL ShaderMaterial is not in the WebGPU material library: the
+    // renderer logs 'not compatible' and draws with a bare NodeMaterial, and
+    // nothing headless would ever see it.
+    const sky = createSky() as Mesh
+    expect((sky.material as { isNodeMaterial?: boolean }).isNodeMaterial).toBe(true)
+  })
+})
+
+describe('lighting', () => {
+  it('parents the sun target with the sun, so camera-relative translation cannot bend it', () => {
+    // A DirectionalLight points from its position to its target. The frame
+    // loop translates the whole scene by -eye; a target left at the world
+    // origin would then swing the sun around as the aeroplane moves.
+    const l = createLighting()
+    const sun = l.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
+    expect(sun).toBeDefined()
+    expect(l.children).toContain(sun!.target)
+  })
+})
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -2561,34 +2649,53 @@ export function createWater(): Object3D {
 }
 ```
 
-- [ ] **Step 4: Build the sky and markers**
+- [ ] **Step 4: Build the sky, the lighting and the markers**
 
-Create `src/render/scene/sky.ts` — a large inverted sphere with a vertical gradient, giving a clean horizon to fly against. Not the scattering LUTs; those are a later plan.
+Create `src/render/scene/sky.ts` — a large inverted sphere with a vertical gradient, giving a clean horizon to fly against. Not the scattering LUTs; those are a later plan. **TSL, not a GLSL `ShaderMaterial`:** WebGPURenderer converts classic mesh materials through its material library and `ShaderMaterial` is not in it (checked in three 0.186's `three.webgpu.js`, 2026-09-12).
 
 ```ts
-import { BackSide, Mesh, ShaderMaterial, SphereGeometry, type Object3D } from 'three'
+import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
+import { MeshBasicNodeMaterial } from 'three/webgpu'
+import { clamp, color, mix, positionLocal } from 'three/tsl'
 
-/** Gradient dome. Attitude is judged against a horizon, so this is not optional. */
+/**
+ * Gradient dome. Attitude is judged against a horizon, so this is not optional.
+ *
+ * Built with TSL rather than a GLSL ShaderMaterial: WebGPURenderer converts
+ * the classic mesh materials to node materials through its material library,
+ * and ShaderMaterial is not in that library (three 0.186, checked 2026-09-12).
+ * It would log "not compatible" and draw with a bare NodeMaterial -- a
+ * failure only visible on the reference platform.
+ */
 export function createSky(): Object3D {
-  const material = new ShaderMaterial({
-    side: BackSide,
-    depthWrite: false,
-    uniforms: {},
-    vertexShader: `
-      varying vec3 vPos;
-      void main() { vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-    `,
-    fragmentShader: `
-      varying vec3 vPos;
-      void main() {
-        float h = clamp(normalize(vPos).y * 0.5 + 0.5, 0.0, 1.0);
-        vec3 low = vec3(0.62, 0.72, 0.80);
-        vec3 high = vec3(0.16, 0.38, 0.68);
-        gl_FragColor = vec4(mix(low, high, h), 1.0);
-      }
-    `,
-  })
+  const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false })
+  // 0 at the nadir, 1 at the zenith, in the dome's own frame.
+  const h = clamp(positionLocal.normalize().y.mul(0.5).add(0.5), 0, 1)
+  material.colorNode = mix(color(0x9eb8cc), color(0x29619f), h)
   return new Mesh(new SphereGeometry(45_000, 32, 16), material)
+}
+```
+
+Create `src/render/scene/lighting.ts`. Every other material in the scene is a lit `MeshStandardMaterial`; with no light they all render black, and no Tier 1 test can see that.
+
+```ts
+import { DirectionalLight, Group, HemisphereLight, type Object3D } from 'three'
+
+/**
+ * A sun and a sky/sea bounce. The sun's target is parented alongside it: a
+ * DirectionalLight points from its position to its target, and the frame
+ * loop translates the whole scene by -eye for camera-relative rendering. A
+ * target left at the default world origin would then swing the sun around
+ * as the aeroplane moves.
+ */
+export function createLighting(): Object3D {
+  const group = new Group()
+  const sun = new DirectionalLight(0xfff2e0, 2.5)
+  sun.position.set(0.4, 1, 0.3)
+  sun.target.position.set(0, 0, 0)
+  group.add(sun, sun.target)
+  group.add(new HemisphereLight(0x9eb8cc, 0x18384f, 0.8))
+  return group
 }
 ```
 
@@ -2674,7 +2781,7 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/scene.test.ts`
-Expected: PASS, 6 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 7: Run the full pipeline and commit**
 
@@ -2682,7 +2789,7 @@ Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.l
 
 ```bash
 git add src/render/scene tests/render/scene.test.ts
-git commit -m "feat: water, sky, markers and a code-built Hellcat
+git commit -m "feat: water, sky, lighting, markers and a code-built Hellcat
 
 The water carries procedural detail, which is an addition to the spec's 'flat
 water' and the reason is load-bearing: a uniform plane gives no motion
@@ -2693,7 +2800,12 @@ give absolute scale.
 The aeroplane is built from primitives in code, which master spec 10 permits
 outright, so there is no asset provenance to audit and no ASSETS.md row.
 Geometry is tested for scale and for pointing +X forward: a model built down -X
-flies backwards and every camera offset is 180 degrees wrong."
+flies backwards and every camera offset is 180 degrees wrong.
+
+The sky is TSL, not a GLSL ShaderMaterial, which WebGPURenderer's material
+library does not convert. The sun's target is parented with the sun so the
+camera-relative scene translation cannot bend it. Both failures would have
+been invisible headless and found only on the reference platform."
 ```
 
 ---
@@ -2709,7 +2821,7 @@ Wires the pieces together. **This is the milestone** — after this task there i
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–12.
-- Produces: `nextFrameState(prev, elapsedSeconds, pressed, spec): FrameState` — the pure part of the frame, so the loop's bookkeeping is testable without a GPU.
+- Produces: `initialFrameState(spec, aircraft)`, `nextFrameState(prev, elapsedSeconds, pressed, stepper?): FrameState` — the pure part of the frame, so the loop's bookkeeping is testable without a GPU.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2718,6 +2830,7 @@ Create `tests/render/frame.test.ts`:
 ```ts
 import { describe, it, expect } from 'vitest'
 import { nextFrameState, initialFrameState } from '../../src/render/frame.js'
+import { airspeed } from '../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -2725,18 +2838,18 @@ import { v3 } from '../../src/sim/math/vec3.js'
 const f6f = loadAircraftSpec('f6f-hellcat')
 const keys = (...k: string[]) => new Set(k)
 const start = () =>
-  initialFrameState(createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+  initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
 
 describe('nextFrameState', () => {
   it('advances the simulation and produces an eye transform', () => {
-    const f = nextFrameState(start(), 1 / 60, keys(), f6f)
+    const f = nextFrameState(start(), 1 / 60, keys())
     expect(f.world.aircraft.tick).toBe(1)
     expect(Number.isFinite(f.eye.position.x)).toBe(true)
   })
 
   it('routes held keys into the control vector the sim consumes', () => {
     let f = start()
-    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('ArrowDown'), f6f)
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('ArrowDown'))
     expect(f.controls.pitch).toBeGreaterThan(0.5)
   })
 
@@ -2745,30 +2858,35 @@ describe('nextFrameState', () => {
     // somewhere arbitrary.
     let f = start()
     const first = f.cameraMode
-    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyC'), f6f)
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyC'))
     expect(f.cameraMode).not.toBe(first)
     const afterHold = f.cameraMode
-    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyC'), f6f)
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyC'))
     expect(f.cameraMode).toBe(afterHold)
-    f = nextFrameState(f, 1 / 60, keys(), f6f)
-    f = nextFrameState(f, 1 / 60, keys('KeyC'), f6f)
+    f = nextFrameState(f, 1 / 60, keys())
+    f = nextFrameState(f, 1 / 60, keys('KeyC'))
     expect(f.cameraMode).not.toBe(afterHold)
   })
 
   it('survives a long stalled frame without spiralling or going non-finite', () => {
     let f = start()
-    f = nextFrameState(f, 2.0, keys(), f6f)
+    f = nextFrameState(f, 2.0, keys())
     expect(f.droppedSteps).toBeGreaterThan(0)
     expect(Number.isFinite(f.world.aircraft.position.y)).toBe(true)
-    const after = nextFrameState(f, 1 / 60, keys(), f6f)
+    const after = nextFrameState(f, 1 / 60, keys())
     expect(after.stepsRun).toBe(1)
   })
 
-  it('flies: a second of full throttle moves the aeroplane forward', () => {
-    let f = start()
-    const x0 = f.world.aircraft.position.x
-    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('ShiftLeft'), f6f)
-    expect(f.world.aircraft.position.x).toBeGreaterThan(x0 + 50)
+  it('flies: throttle reaches the engine, so full power ends faster than idle', () => {
+    // Starting at 120 m/s, position moves forward whatever the throttle does,
+    // so distance alone proves nothing. Airspeed after five seconds does.
+    let open = start()
+    let idle = start()
+    for (let i = 0; i < 300; i++) {
+      open = nextFrameState(open, 1 / 60, keys('ShiftLeft'))
+      idle = nextFrameState(idle, 1 / 60, keys())
+    }
+    expect(airspeed(open.world.aircraft)).toBeGreaterThan(airspeed(idle.world.aircraft) + 5)
   })
 })
 ```
@@ -2783,7 +2901,7 @@ Expected: FAIL — module not found.
 Create `src/render/frame.ts`:
 
 ```ts
-import { advance, createWorld, type World } from '../sim/loop.js'
+import { advance, createWorld, type Stepper, type World } from '../sim/loop.js'
 import { interpolateAircraft } from '../sim/interpolate.js'
 import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.js'
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
@@ -2806,9 +2924,9 @@ export type FrameState = {
 
 const MODES: readonly CameraMode[] = ['chase', 'cockpit']
 
-export function initialFrameState(aircraft: AircraftState): FrameState {
+export function initialFrameState(spec: AircraftSpec, aircraft: AircraftState): FrameState {
   return {
-    world: createWorld(aircraft),
+    world: createWorld(spec, aircraft),
     controls: NEUTRAL,
     look: LOOK_CENTRE,
     cameraMode: 'chase',
@@ -2830,8 +2948,9 @@ export function nextFrameState(
   prev: FrameState,
   elapsedSeconds: number,
   pressed: PressedKeys,
-  spec: AircraftSpec,
+  stepper?: Stepper,
 ): FrameState {
+  const spec = prev.world.spec
   const controls = controlsFromKeys(pressed, elapsedSeconds, prev.controls)
   const look = lookOffsetFromKeys(pressed, elapsedSeconds, prev.look)
 
@@ -2842,13 +2961,13 @@ export function nextFrameState(
       ? MODES[(MODES.indexOf(prev.cameraMode) + 1) % MODES.length]!
       : prev.cameraMode
 
-  const advanced = advance(spec, prev.world, controls, elapsedSeconds)
+  const advanced = advance(prev.world, controls, elapsedSeconds, stepper)
   const render = interpolateAircraft(
     advanced.world.previous,
     advanced.world.aircraft,
     advanced.alpha,
   )
-  const eye = cameraTransformFor(cameraMode, spec, render, prev.eye, elapsedSeconds, look)
+  const eye = cameraTransformFor(cameraMode, spec, render, look)
 
   return {
     world: advanced.world,
@@ -2865,7 +2984,7 @@ export function nextFrameState(
 
 - [ ] **Step 4: Wire the browser loop**
 
-Update `src/render/main.ts` to: fetch and `parseAircraftSpec` the F6F content; build the scene from Task 12; track pressed keys from `keydown`/`keyup`; call `nextFrameState` each frame; apply `frame.eye` to the Three camera **camera-relative** (translate the world so the eye sits at the origin); spin the prop by `controls.throttle`; and feed the overlay.
+Update `src/render/main.ts` to: fetch and `parseAircraftSpec` the F6F content; build the scene from Task 12, `createLighting()` included; track pressed keys from `keydown`/`keyup`, and **clear the set on `window` `blur`** (a `keyup` that fires while the tab is unfocused is never delivered, and the key stays down forever); re-centre the sky dome on the eye's x and z each frame so the horizon stays at eye level; call `nextFrameState` each frame; apply `frame.eye` to the Three camera **camera-relative** (translate the world so the eye sits at the origin); spin the prop by `controls.throttle`; and feed the overlay.
 
 Camera-relative is the part to get right, since retrofitting it is what master spec §4 warns about:
 
@@ -2879,7 +2998,7 @@ camera.position.set(0, 0, 0)
 camera.quaternion.set(frame.eye.attitude.x, frame.eye.attitude.y, frame.eye.attitude.z, frame.eye.attitude.w)
 ```
 
-Use `stepChecked` rather than `step` when `import.meta.env.DEV` is true — Plan 1's invariants turn "the aeroplane teleported" into "a NaN entered at tick 4,102", and that is worth the per-step cost in development. Thread this through `advance` as an optional stepper argument rather than branching inside `sim/`.
+Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` argument, which `advance` already accepts and tests (Task 3). Plan 1's invariants turn "the aeroplane teleported" into "a NaN entered at tick 4,102", and that is worth the per-step cost in development. The choice is made here, at the edge, so `sim/` carries no build flag; `import.meta.env` typechecks because Task 5 added `vite/client` to `types`.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -2927,7 +3046,7 @@ Task 10 produced the needle angles; this puts real geometry behind them.
 
 **Interfaces:**
 - Consumes: `GAUGES`, `needleAngleFor`, `attitudeAngles` (Task 10); `spec.view.eyePointM` (Task 8).
-- Produces: `createPanel(): { root: Object3D; needles: Map<GaugeId, Object3D>; horizon: Object3D }`, `updatePanel(panel, spec, state): void`.
+- Produces: `createPanel(spec): { root: Object3D; needles: Map<GaugeId, Object3D>; horizon: Object3D }`, `updatePanel(panel, spec, state): void`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2948,32 +3067,36 @@ describe('panel', () => {
   it('has exactly one needle per fitted gauge, and none spare', () => {
     // A needle with no gauge behind it is the failure mode this plan is most
     // determined to avoid: an instrument that appears to mean something.
-    const p = createPanel()
+    const p = createPanel(f6f)
     expect(p.needles.size).toBe(GAUGES.length)
     for (const g of GAUGES) expect(p.needles.has(g.id)).toBe(true)
   })
 
   it('sits ahead of and below the eye point, where a panel actually is', () => {
-    const p = createPanel()
+    // Ahead of the EYE, not of the airframe origin. A two-metre tolerance here
+    // once hid a panel sitting 0.65 m behind the pilot's head.
+    const p = createPanel(f6f)
     const c = new Box3().setFromObject(p.root).getCenter(new Vector3())
     const [ex, ey] = f6f.view.eyePointM
-    expect(c.x).toBeGreaterThan(ex - 2)
+    expect(c.x).toBeGreaterThan(ex + 0.3)
+    expect(c.x).toBeLessThan(ex + 1.5)
     expect(c.y).toBeLessThan(ey)
+    expect(ey - c.y).toBeLessThan(0.7)
   })
 
   it('turns needles when the state changes', () => {
-    const p = createPanel()
+    const p = createPanel(f6f)
     const slow = createState({ velocity: v3(40, 0, 0) })
     const fast = createState({ velocity: v3(180, 0, 0) })
     updatePanel(p, f6f, slow)
-    const a = p.needles.get('airspeed')!.rotation.x
+    const a = p.needles.get('airspeed')!.rotation.z
     updatePanel(p, f6f, fast)
-    const b = p.needles.get('airspeed')!.rotation.x
+    const b = p.needles.get('airspeed')!.rotation.z
     expect(b).not.toBeCloseTo(a, 6)
   })
 
   it('rolls the artificial horizon opposite the aircraft, as a real one does', () => {
-    const p = createPanel()
+    const p = createPanel(f6f)
     const level = createState({ velocity: v3(120, 0, 0) })
     updatePanel(p, f6f, level)
     const flat = p.horizon.rotation.z
@@ -2986,9 +3109,9 @@ describe('panel', () => {
   })
 
   it('stays finite for a degenerate state', () => {
-    const p = createPanel()
+    const p = createPanel(f6f)
     updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }))
-    for (const n of p.needles.values()) expect(Number.isFinite(n.rotation.x)).toBe(true)
+    for (const n of p.needles.values()) expect(Number.isFinite(n.rotation.z)).toBe(true)
   })
 })
 ```
@@ -3005,8 +3128,8 @@ Create `src/render/scene/panel.ts`. Build one dial per entry in `GAUGES`, laid o
 ```ts
 import { BoxGeometry, CircleGeometry, Group, Mesh, MeshBasicMaterial, type Object3D } from 'three'
 import { GAUGES, needleAngleFor, attitudeAngles, type GaugeId } from '../gauges.js'
-import type { AircraftState } from '../sim/flight/state.js'
-import type { AircraftSpec } from '../sim/flight/schema.js'
+import type { AircraftState } from '../../sim/flight/state.js'
+import type { AircraftSpec } from '../../sim/flight/schema.js'
 
 export type Panel = {
   readonly root: Object3D
@@ -3025,8 +3148,11 @@ export type Panel = {
  */
 const DIAL_RADIUS = 0.085
 const DIAL_GAP = 0.2
+/** Panel centre relative to the pilot's eye, body frame. */
+const PANEL_AHEAD_M = 0.6
+const PANEL_BELOW_M = 0.35
 
-export function createPanel(): Panel {
+export function createPanel(spec: AircraftSpec): Panel {
   const root = new Group()
   const needles = new Map<GaugeId, Object3D>()
 
@@ -3057,8 +3183,12 @@ export function createPanel(): Panel {
   horizon.position.set(0, DIAL_GAP * 0.9, 0.002)
   root.add(horizon)
 
-  // In body frame: ahead of the pilot and below the eye line.
-  root.position.set(0.55, -0.28, 0)
+  // Body frame, relative to the pilot's EYE rather than the airframe origin:
+  // ahead and below it, faces toward the pilot (dial faces are built in +Z;
+  // -pi/2 about Y turns +Z to -X, i.e. aft). An earlier draft used a fixed
+  // airframe offset that put the panel 0.65 m behind the F6F eye point.
+  const [ex, ey, ez] = spec.view.eyePointM
+  root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
   return { root, needles, horizon }
 }
@@ -3082,12 +3212,15 @@ export function updatePanel(panel: Panel, spec: AircraftSpec, state: AircraftSta
 
 - [ ] **Step 4: Attach it in the cockpit view**
 
-In `src/render/main.ts`, add the panel as a child of the aircraft object so it inherits the airframe's transform, and make it visible only in `cockpit` mode:
+In `src/render/main.ts`, put the panel in a `cockpit` `Group` that is given the same position and quaternion as the Hellcat root each frame, and **swap the two with camera mode**: cockpit mode shows the cockpit group and hides the external airframe; chase mode the reverse.
 
 ```ts
-panel.root.visible = frame.cameraMode === 'cockpit'
+cockpit.visible = frame.cameraMode === 'cockpit'
+hellcat.root.visible = !cockpit.visible
 updatePanel(panel, spec, frame.world.aircraft)
 ```
+
+Hiding the airframe is not optional. The code-built Hellcat is an *external* model: its fuselage box spans y ±0.75 m, so its top face lies between the eye (0.9 m) and the panel (0.55 m) and, being front-facing from above, would occlude the panel completely. Cockpit interior geometry is a later plan's; until then the panel floats in front of an invisible airframe, which is exactly the view a pilot has.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -3157,6 +3290,16 @@ Create `tests/e2e/adapter.spec.ts`:
 ```ts
 import { test, expect } from '@playwright/test'
 
+/** What main.ts publishes on window.__ww2 in a dev build (Step 1). Typed here
+ *  rather than reached through `any`: the project forbids `any`, and the lint
+ *  step in `npm run verify` covers tests/. */
+type Diagnostics = {
+  adapter: { severity: 'ok' | 'warn' | 'fail'; summary: string }
+  validationErrors: readonly string[]
+  tick: () => number
+}
+type DiagWindow = Window & { __ww2?: Diagnostics }
+
 /**
  * Tier 2. Requires a real GPU, so it runs on the Windows reference platform
  * against a dev server on nexus -- never in hosted CI, which has no GPU.
@@ -3168,8 +3311,8 @@ import { test, expect } from '@playwright/test'
  */
 test('the adapter is the reference GPU, not a software rasterizer', async ({ page }) => {
   await page.goto('/')
-  await page.waitForFunction(() => (window as any).__ww2?.adapter)
-  const verdict = await page.evaluate(() => (window as any).__ww2.adapter)
+  await page.waitForFunction(() => (window as DiagWindow).__ww2?.adapter !== undefined)
+  const verdict = await page.evaluate(() => (window as DiagWindow).__ww2!.adapter)
   // Fatal here, unlike in the app, where an unrecognised GPU only warns: this
   // is where a silent fallback would corrupt every frame-time number.
   expect(verdict.severity, verdict.summary).toBe('ok')
@@ -3177,7 +3320,7 @@ test('the adapter is the reference GPU, not a software rasterizer', async ({ pag
 
 test('a camera sweep produces zero WebGPU validation errors', async ({ page }) => {
   await page.goto('/')
-  await page.waitForFunction(() => (window as any).__ww2?.tick && (window as any).__ww2.tick() > 5)
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 5)
 
   // Fly a scripted sweep: every camera mode, look-around in each direction,
   // full control deflection. Catches a large class of renderer bugs with no
@@ -3193,8 +3336,9 @@ test('a camera sweep produces zero WebGPU validation errors', async ({ page }) =
     await page.keyboard.up(key)
   }
 
-  const errors = await page.evaluate(() => (window as any).__ww2.validationErrors)
-  expect(errors, `WebGPU validation errors:\n${JSON.stringify(errors, null, 2)}`).toEqual([])
+  const errors = await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)
+  expect(errors, `WebGPU validation errors:
+${JSON.stringify(errors, null, 2)}`).toEqual([])
 })
 ```
 
@@ -3249,9 +3393,13 @@ npm run test:tier2
 
 Expected: 2 passed. If the adapter test fails, read its summary before anything else — it is telling you the browser is not using the GPU you think it is.
 
+**This is the first time headless has been tried.** The day-0 spike ran in a headed Chrome tab; master spec §15 lists "the same adapter assertion holds under headless Chromium" as a day-0 question, and it is still open. If the guard fails here, flip `headless: false` before touching anything else: that separates "headless lost the discrete GPU" (try `--use-angle=d3d11`, or `channel: 'chrome'` to run the installed Chrome instead of Playwright's bundled Chromium) from "this Chromium build has no WebGPU at all". Record which it was, dated, in the config comment.
+
+The Windows side needs its own checkout of the repo with `npm ci` and `npx playwright install chromium` run once. The dev server is on nexus; the test runner has to be local to the GPU.
+
 - [ ] **Step 5: Document the loop**
 
-Add a short section to `README.md` under the existing dev instructions covering: `npm run dev` on nexus, the tunnel command, and `npm run test:tier2` from Windows — plus the sentence that Tier 2 never runs in hosted CI and why.
+Add a short section to `README.md` under the existing dev instructions covering: `npm run dev` on nexus, the tunnel command, the one-time Windows setup (checkout, `npm ci`, `npx playwright install chromium`), and `npm run test:tier2` from Windows — plus the sentence that Tier 2 never runs in hosted CI and why.
 
 - [ ] **Step 6: Run the full pipeline and commit**
 
@@ -3287,6 +3435,20 @@ Checked after writing, per the writing-plans skill.
 
 **Milestone numbering corrected.** The File Structure section originally said Tasks 1–11 deliver a flyable aeroplane; the real boundary is **Task 13**. Corrected in that section.
 
-**Type consistency.** `SimContext`, `World`, `AdvanceResult`, `RenderState`, `EyeTransform`, `LookOffset`, `FrameState`, `Panel`, `GaugeId` and `AdapterVerdict` are each defined once and referenced with the same names and shapes thereafter. `cameraTransformFor` gains its `look` parameter in Task 9 and every later call site passes it.
+**Type consistency.** `SimContext`, `World`, `AdvanceResult`, `Stepper`, `RenderState`, `EyeTransform`, `LookOffset`, `FrameState`, `Panel`, `GaugeId` and `AdapterVerdict` are each defined once and referenced with the same names and shapes thereafter. `cameraTransformFor` gains its `look` parameter in Task 9 and every later call site passes it.
 
 **Known deviation from the master spec, recorded deliberately:** §11's Tier 2 adapter guard is specified as confirming vendor *and device* identify the RX 6700 XT. Measured on the reference platform, Chrome returns `device` and `description` as empty strings, so Task 7 asserts vendor + architecture + `isFallbackAdapter` instead. The master spec should be corrected when a later plan touches §11.
+
+## Revision 2026-09-12 — pre-execution review
+
+A review pass ran the plan's own arithmetic and probes against the repo before any task was executed. What changed, so a reader of the diff knows why:
+
+- **Tests that failed as written, now fixed.** Task 3's half-step remainder (two halves summed to 0.9999999999999998 steps; `advance` floors with an epsilon). Task 6's throttle clamp (five ramp times is 88% of the sweep; now holds past `THROTTLE_SECONDS`). Task 10's heading monotonic sample (set velocity, gauge reads attitude). Task 14's needle test (read `rotation.x`, code writes `rotation.z`). Task 5's `input/` probe (imported a file Task 6 creates; dependency-cruiser passes an unresolvable import, so the rule moved to Task 6). Task 15's `as any` (fails the lint step of `npm run verify`).
+- **Would not have typechecked.** `import.meta.env` needs `vite/client` in `types` (Task 5).
+- **False premise removed.** Task 5 claimed tsc excluded DOM and was itself a guard. Verified false: the default lib includes DOM and a sim/ probe using `localStorage` typechecks today. The ESLint denylist has always been the only guard. Comment and commit message rewritten to say so.
+- **Would have rendered wrong, found only on the reference platform.** The sky used a GLSL `ShaderMaterial`, which WebGPURenderer's material library does not convert (now TSL, with a test). No task added a light, so every `MeshStandardMaterial` was black (Task 12 adds `lighting.ts`; the sun's target is parented with it so camera-relative translation cannot bend it). The panel sat 0.65 m behind the eye point and its test tolerated 2 m (now placed from `spec.view.eyePointM`, tolerance tightened). The external fuselage box would have occluded the panel from inside (cockpit mode hides the airframe).
+- **Read backwards.** The heading gauge increased turning left. Compass convention pinned with exact-value tests.
+- **Design deviations, now recorded rather than silent.** `advance` no longer takes `spec` — it lives in `World`, which is what the design's "add fields to World, not parameters to advance" means. Mouse-look deferred (Task 9). Throttle-down is Z, not Ctrl (Ctrl+W closes the tab). Chase roll is discarded, not damped; `CHASE_ROLL_DAMPING` was a pitch scale with a false docstring and is now `CHASE_PITCH_FOLLOW`; `cameraTransformFor` drops its unused `previousEye`/`dt`. The design doc carries matching dated amendments.
+- **Specified where it was hand-waved.** The `stepChecked`-in-dev switch is a tested `stepper` argument on `advance` (Task 3), threaded through `nextFrameState` (Task 13). `placeholder.ts` is retired in Task 11 and the render probe repointed. The File Structure table now names the files the tasks actually create (`main.ts`, `renderer.ts`, `frame.ts`, `markers.ts`, `lighting.ts`), not `app.ts`.
+- **Tick numbering.** One convention everywhere: the tick a step produces, so the first step from a tick-0 spawn yields 1 (Task 1 Step 6).
+- **Smaller.** Pressed keys cleared on window blur. Sky dome re-centred on the eye. Task 13's "flies" test compares full throttle against idle instead of asserting forward motion an aircraft already at 120 m/s has anyway. Task 15 says headless adapter identity is still the unverified day-0 question and lists the Windows one-time setup.

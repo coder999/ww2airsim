@@ -4,7 +4,7 @@ Plan 2 of 7. Companion to `2026-09-12-ww2airsim-design.md`, which remains the
 binding authority; where this document and that one disagree, that one wins and
 this one is wrong.
 
-**Status: design approved 2026-09-12, no implementation yet.**
+**Status: design approved 2026-09-12, no implementation yet.** Amended 2026-09-12 after the plan's pre-execution review; each amendment is marked inline and dated.
 
 ## 1. What this is
 
@@ -37,6 +37,7 @@ Deferred deliberately, each to a named later plan:
 | Carrier and airfield operations | Plan 6 |
 | Cockpit interior geometry beyond the panel | later |
 | Padlock and external orbit cameras | later |
+| Continuous mouse-look | later — see §6 (deferred 2026-09-12) |
 | Input assists (rate damping, auto-rudder, stall limiter, combat trim) | later — see §4 |
 | Screenshot goldens | later — see §8 |
 | Sim on a worker thread | Plan 5 — see §9 |
@@ -98,6 +99,9 @@ export interface SimContext {
  * fields here rather than adding parameters to `advance`.
  */
 export interface World {
+  /** Added 2026-09-12 (plan review): the coefficient set lives here, not as a
+   *  parameter of `advance`, for exactly the reason the comment above gives. */
+  readonly spec: AircraftSpec
   readonly aircraft: AircraftState
   /** The tick before `aircraft`, for interpolation. Equal to it on tick 0. */
   readonly previous: AircraftState
@@ -189,7 +193,10 @@ trim all calibrate against how the raw model behaves, and nobody has felt it
 yet. Building them now would be guesswork dressed as a feature.
 
 Bindings live in one table so they are trivially rebindable: arrows or WASD for
-pitch and roll, Q/E rudder, Shift/Ctrl throttle.
+pitch and roll, Q/E rudder, Shift and Z (or `=`/`-`) for throttle. *Not* Ctrl,
+which this document first named: Ctrl+W closes the tab in Chrome and
+`preventDefault` cannot stop it, so on WASD "nose down while throttling back"
+would quit the game (amended 2026-09-12).
 
 ## 5. The render layer
 
@@ -223,10 +230,12 @@ carries no license exposure and no `ASSETS.md` row.
 
 One interface, several modes, each mapping sim state to an eye transform.
 
-- **Chase** — behind and above; position and heading followed, **roll damped**.
-  Plan 1's own golden trajectory is four continuous barrel rolls; a camera
-  welded to the roll axis through that is nauseating, and the flight model would
-  get the blame for a camera problem.
+- **Chase** — behind and above; position and heading followed, **roll
+  discarded** — the eye attitude is rebuilt from heading and pitch alone, so
+  there is nothing to damp and no time constant to tune (amended 2026-09-12;
+  this first said "damped"). Plan 1's own golden trajectory is four continuous
+  barrel rolls; a camera welded to the roll axis through that is nauseating, and
+  the flight model would get the blame for a camera problem.
 - **First-person** — eye rigidly attached to the airframe at a named eye point.
   Attitude tracked exactly, **no damping**: from the cockpit, the horizon
   rotating with you is the point.
@@ -236,8 +245,10 @@ One interface, several modes, each mapping sim state to an eye transform.
   snap views are presets of the same offset rather than separate code.
 
 Numpad as hat-switch emulation — 8/2/4/6 for up/down/left/right, 5 to centre, 0
-for rearward — springing back to centre on release, plus continuous mouse-look
-and a key to cycle modes.
+for rearward — springing back to centre on release, plus a key to cycle modes.
+Continuous mouse-look is **deferred** to a later plan (2026-09-12): pointer lock
+and a sensitivity constant are two more untuned guesses, and the hat answers
+this plan's question, which is whether you can check your six.
 
 **Eye point is per-aircraft content.** `view: { eyePointM: [x, y, z] }` in
 `f6f-hellcat.json`, declared in the schema — Plan 1 made content validation
