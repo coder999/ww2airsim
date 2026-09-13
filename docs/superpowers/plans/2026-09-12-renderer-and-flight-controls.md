@@ -989,7 +989,7 @@ on the reference platform by the day-0 spike)."
 **Interfaces:**
 - Produces: `BINDINGS`, `type PressedKeys = ReadonlySet<string>`, `controlsFromKeys(pressed: PressedKeys, dt: number, previous: Controls): Controls`, `RAMP_SECONDS`, `THROTTLE_SECONDS`, `NEUTRAL: Controls`; the `sim-must-not-import-input` dependency-cruiser rule.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/input/keyboard.test.ts`:
 
@@ -1072,12 +1072,12 @@ describe('controlsFromKeys', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/input/keyboard.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write the bindings table**
+- [x] **Step 3: Write the bindings table**
 
 Create `src/input/bindings.ts`:
 
@@ -1105,7 +1105,7 @@ export const BINDINGS = {
 export type BindingName = keyof typeof BINDINGS
 ```
 
-- [ ] **Step 4: Forbid `sim/` from importing `input/`, and prove the rule bites**
+- [x] **Step 4: Forbid `sim/` from importing `input/`, and prove the rule bites**
 
 Now that `src/input/bindings.ts` exists there is a real file for the negative probe to import. Add to `.dependency-cruiser.cjs`'s `forbidden`:
 
@@ -1139,7 +1139,7 @@ Add to the `architecture boundary` describe block in `tests/architecture/boundar
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 Expected: PASS, including the new probe.
 
-- [ ] **Step 5: Implement the mapping**
+- [x] **Step 5: Implement the mapping**
 
 Create `src/input/keyboard.ts`:
 
@@ -1211,12 +1211,12 @@ export function controlsFromKeys(
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run tests/input/keyboard.test.ts`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
