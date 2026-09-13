@@ -1,0 +1,33 @@
+{
+  "name": "ww2airsim",
+  "version": "1.0.0",
+  "description": "A WWII Pacific air combat simulator that runs in the browser. Fly an F6F Hellcat from carrier and land bases over a geographically real Leyte Gulf, fight, and get back aboard — because your score does not count until you do.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests tools",
+    "depcruise": "depcruise src --config .dependency-cruiser.cjs",
+    "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",
+    "golden:regen": "tsx tools/golden/generate.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "dependency-cruiser": "^16.10.4",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.0"
+  }
+}

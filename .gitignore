@@ -20,3 +20,15 @@ dist-ssr/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# SDD scratch workspace (ledger, briefs, review packages)
+.superpowers/
+
+# The architecture boundary test writes a real file into src/sim/ and deletes it.
+# An interrupted run (Ctrl-C, CI timeout, OOM) leaves a node:fs import sitting in
+# the one tree that must stay browser-loadable, which then makes `npm run
+# depcruise` fail for a reason that has nothing to do with your change.
+src/sim/__boundary_probe__.ts
+
+# Harness-managed worktrees
+.claude/worktrees/
