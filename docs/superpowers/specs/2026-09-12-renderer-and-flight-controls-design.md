@@ -105,6 +105,11 @@ export interface World {
   readonly aircraft: AircraftState
   /** The tick before `aircraft`, for interpolation. Equal to it on tick 0. */
   readonly previous: AircraftState
+  /** Added 2026-09-13 (whole-branch review, I-5): the commanded controls live
+   *  here for the same reason `spec` does. They were an `advance` parameter
+   *  through Plan 2's fifteen tasks — the last counterexample to the rule
+   *  above, and the one Plan 5's N-entity AI would have hit. */
+  readonly controls: Controls
   readonly accumulatorSeconds: number
 }
 

@@ -3,11 +3,13 @@ import { advance, createWorld, MAX_STEPS_PER_FRAME } from '../../src/sim/loop.js
 import { createState } from '../../src/sim/flight/state.js'
 import { DT, step } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
-const start = () => createWorld(f6f, createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) }))
+const start = () =>
+  createWorld(f6f, createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) }), level)
 
 // Recursively freezes an object graph so any in-place write throws (this
 // file is an ES module, hence always strict mode) instead of silently
@@ -24,7 +26,7 @@ function deepFreeze<T>(value: T): T {
 
 describe('advance', () => {
   it('runs no steps when less than one step of time has elapsed', () => {
-    const r = advance(start(), level, DT / 2)
+    const r = advance(start(), DT / 2)
     expect(r.stepsRun).toBe(0)
     expect(r.droppedSteps).toBe(0)
     expect(r.alpha).toBeCloseTo(0.5, 10)
@@ -32,7 +34,7 @@ describe('advance', () => {
   })
 
   it('runs exactly one step for exactly one step of time', () => {
-    const r = advance(start(), level, DT)
+    const r = advance(start(), DT)
     expect(r.stepsRun).toBe(1)
     expect(r.world.aircraft.tick).toBe(1)
     expect(r.alpha).toBeCloseTo(0, 9)
@@ -40,7 +42,7 @@ describe('advance', () => {
 
   it('keeps the remainder rather than losing or double-counting it', () => {
     // 2.5 steps of time -> 2 steps run, half a step banked.
-    const r = advance(start(), level, DT * 2.5)
+    const r = advance(start(), DT * 2.5)
     expect(r.stepsRun).toBe(2)
     expect(r.alpha).toBeCloseTo(0.5, 9)
     // alpha is an interpolation factor (Tasks 4 and 13 consume it as a
@@ -48,7 +50,7 @@ describe('advance', () => {
     expect(r.alpha).toBeGreaterThanOrEqual(0)
     expect(r.alpha).toBeLessThan(1)
     // Feeding the remaining half a step now completes the third.
-    const r2 = advance(r.world, level, DT * 0.5)
+    const r2 = advance(r.world, DT * 0.5)
     expect(r2.stepsRun).toBe(1)
     expect(r2.world.aircraft.tick).toBe(3)
   })
@@ -60,7 +62,7 @@ describe('advance', () => {
     // (2026-09-12, Node 22, with the :118 clamp disabled) banked = -1.665e-8
     // seconds, i.e. alpha = banked / DT = -9.99e-7 -- before the clamp. Without
     // it this surfaces as a negative alpha, i.e. extrapolation.
-    const r = advance(start(), level, DT * (2 - 9.99e-7))
+    const r = advance(start(), DT * (2 - 9.99e-7))
     expect(r.stepsRun).toBe(2)
     expect(r.alpha).toBeGreaterThanOrEqual(0)
     expect(r.alpha).toBeLessThan(1)
@@ -70,7 +72,7 @@ describe('advance', () => {
     let w = start()
     const ticks: number[] = []
     for (let i = 0; i < 10; i++) {
-      const r = advance(w, level, DT)
+      const r = advance(w, DT)
       w = r.world
       ticks.push(w.aircraft.tick)
     }
@@ -78,17 +80,17 @@ describe('advance', () => {
   })
 
   it('exposes the previous tick for interpolation, and holds it on a no-step call', () => {
-    const r = advance(start(), level, DT * 2)
+    const r = advance(start(), DT * 2)
     expect(r.world.previous.tick).toBe(1)
     expect(r.world.aircraft.tick).toBe(2)
-    const held = advance(r.world, level, DT / 4)
+    const held = advance(r.world, DT / 4)
     expect(held.world.previous.tick).toBe(1)
     expect(held.world.aircraft.tick).toBe(2)
   })
 
   it('caps the steps one call may run, and counts what it discarded', () => {
     // 20 steps of time owed; the cap is 5.
-    const r = advance(start(), level, DT * 20)
+    const r = advance(start(), DT * 20)
     expect(r.stepsRun).toBe(MAX_STEPS_PER_FRAME)
     expect(r.droppedSteps).toBe(20 - MAX_STEPS_PER_FRAME)
     expect(r.world.aircraft.tick).toBe(MAX_STEPS_PER_FRAME)
@@ -98,8 +100,8 @@ describe('advance', () => {
     // This is the property the cap exists for. Without it, the accumulator
     // grows without bound and every later call runs the cap again forever.
     let w = start()
-    for (let i = 0; i < 5; i++) w = advance(w, level, DT * 50).world
-    const r = advance(w, level, DT)
+    for (let i = 0; i < 5; i++) w = advance(w, DT * 50).world
+    const r = advance(w, DT)
     expect(r.stepsRun).toBe(1)
     expect(r.droppedSteps).toBe(0)
   })
@@ -107,7 +109,7 @@ describe('advance', () => {
   it('ignores a non-finite or negative elapsed time instead of poisoning the clock', () => {
     // requestAnimationFrame deltas go strange across a tab suspend.
     for (const bad of [NaN, Infinity, -1]) {
-      const r = advance(start(), level, bad)
+      const r = advance(start(), bad)
       expect(r.stepsRun).toBe(0)
       expect(r.droppedSteps).toBe(0)
       expect(Number.isFinite(r.alpha)).toBe(true)
@@ -115,7 +117,7 @@ describe('advance', () => {
   })
 
   it('reports the honest step count for a realistic 2-second stall', () => {
-    const r = advance(start(), level, 2)
+    const r = advance(start(), 2)
     expect(r.stepsRun).toBe(5)
     expect(r.droppedSteps).toBe(115) // 2s / DT = 120 owed, cap 5, 115 discarded
   })
@@ -128,7 +130,7 @@ describe('advance', () => {
     // world. This is the test whose absence let that regression through:
     // it pins all three outputs together, not just the one that was reported.
     for (const elapsedSeconds of [Number.MAX_VALUE, 1e20, 1e6, 2, DT * (2 - 9.99e-7)]) {
-      const r = advance(start(), level, elapsedSeconds)
+      const r = advance(start(), elapsedSeconds)
       expect(r.alpha).toBeGreaterThanOrEqual(0)
       expect(r.alpha).toBeLessThan(1)
       expect(r.world.accumulatorSeconds).toBeGreaterThanOrEqual(0)
@@ -143,9 +145,27 @@ describe('advance', () => {
     // browser; production passes step. The caller chooses, so sim/ carries
     // no build flag.
     const spy = vi.fn(step)
-    const r = advance(start(), level, DT * 3, spy)
+    const r = advance(start(), DT * 3, spy)
     expect(r.stepsRun).toBe(3)
     expect(spy).toHaveBeenCalledTimes(3)
+  })
+
+  it('steps with the controls the world carries, and hands them back for the next call', () => {
+    // Whole-branch review, I-5: `controls` moved out of `advance`'s parameter
+    // list into `World`, so Plan 5's N-entity AI adds a field rather than a
+    // parameter at every call site. Two things have to hold for that move to
+    // be behaviour-preserving, and neither was covered before: the stepper
+    // must read the world's controls (a stale capture would leave the
+    // aeroplane flying the previous command forever), and the returned world
+    // must still carry them, or the next `advance` would fly neutral.
+    const w = start()
+    const pitchUp = advance({ ...w, controls: { ...level, pitch: 1 } }, DT * 5)
+    const neutral = advance(w, DT * 5)
+    const noseY = (s: { attitude: { x: number; y: number; z: number; w: number } }) =>
+      qRotate(s.attitude, v3(1, 0, 0)).y
+    expect(noseY(pitchUp.world.aircraft)).toBeGreaterThan(noseY(neutral.world.aircraft))
+    expect(pitchUp.world.controls.pitch).toBe(1)
+    expect(neutral.world.controls).toEqual(level)
   })
 
   it('is pure: the world passed in is not mutated', () => {
@@ -157,7 +177,7 @@ describe('advance', () => {
     // mode instead, regardless of what value it writes.
     deepFreeze(w)
     const before = JSON.stringify(w)
-    advance(w, level, DT * 3)
+    advance(w, DT * 3)
     expect(JSON.stringify(w)).toBe(before)
   })
 })

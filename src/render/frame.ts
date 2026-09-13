@@ -11,6 +11,9 @@ import type { AircraftSpec } from '../sim/flight/schema.js'
 
 export type FrameState = {
   readonly world: World
+  /** This frame's commanded controls -- the identical object `world.controls`
+   *  holds, kept here too because main.ts's prop spin and the Tier 2
+   *  diagnostics hook read the frame, not the world inside it. */
   readonly controls: Controls
   readonly look: LookOffset
   readonly cameraMode: CameraMode
@@ -33,7 +36,7 @@ const MODES: readonly CameraMode[] = ['chase', 'cockpit']
 
 export function initialFrameState(spec: AircraftSpec, aircraft: AircraftState): FrameState {
   return {
-    world: createWorld(spec, aircraft),
+    world: createWorld(spec, aircraft, NEUTRAL),
     controls: NEUTRAL,
     look: LOOK_CENTRE,
     cameraMode: 'chase',
@@ -69,7 +72,12 @@ export function nextFrameState(
       ? MODES[(MODES.indexOf(prev.cameraMode) + 1) % MODES.length]!
       : prev.cameraMode
 
-  const advanced = advance(prev.world, controls, elapsedSeconds, stepper)
+  // This frame's controls go into the world rather than alongside it (see
+  // `World.controls`): `advance` takes one object, so Plan 5's N-entity AI
+  // adds a field here instead of a parameter at every call site. A new object
+  // each frame, never a write into `prev.world` -- `advance`'s purity test
+  // deep-freezes the world it is handed.
+  const advanced = advance({ ...prev.world, controls }, elapsedSeconds, stepper)
   const render = interpolateAircraft(
     advanced.world.previous,
     advanced.world.aircraft,

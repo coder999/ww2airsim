@@ -79,6 +79,22 @@ export interface World {
   readonly aircraft: AircraftState
   /** The tick before `aircraft`. Equal to it until the first step runs. */
   readonly previous: AircraftState
+  /**
+   * What the pilot is commanding, held for every step this `advance` runs.
+   *
+   * Here for the same reason `spec` is, and moved here (whole-branch review,
+   * finding I-5) from `advance`'s parameter list, where it was the one
+   * remaining counterexample to the rule above. Plan 5's N-entity AI is
+   * exactly the change `SimContext` was introduced to avoid having to make at
+   * every call site, and it would have hit this parameter; it is ten lines to
+   * move now and a rewrite afterwards. The caller sets it by rebuilding the
+   * world (see `nextFrameState` in src/render/frame.ts), which keeps `World`
+   * immutable and `advance` a pure function of one object.
+   *
+   * Deliberately still ONE control vector for ONE aeroplane: generalising
+   * `World` to N entities is Plan 5's, not this branch's.
+   */
+  readonly controls: Controls
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -97,16 +113,20 @@ export interface AdvanceResult {
   readonly alpha: number
 }
 
-export const createWorld = (spec: AircraftSpec, aircraft: AircraftState): World => ({
+export const createWorld = (
+  spec: AircraftSpec,
+  aircraft: AircraftState,
+  controls: Controls,
+): World => ({
   spec,
   aircraft,
   previous: aircraft,
+  controls,
   accumulatorSeconds: 0,
 })
 
 export function advance(
   world: World,
-  controls: Controls,
   elapsedSeconds: number,
   stepper: Stepper = step,
 ): AdvanceResult {
@@ -131,7 +151,7 @@ export function advance(
   let previous = world.previous
   for (let i = 0; i < stepsRun; i++) {
     previous = current
-    current = stepper(world.spec, current, controls, { dt: DT, tick: current.tick + 1 })
+    current = stepper(world.spec, current, world.controls, { dt: DT, tick: current.tick + 1 })
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -140,7 +160,13 @@ export function advance(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { spec: world.spec, aircraft: current, previous, accumulatorSeconds: banked },
+    world: {
+      spec: world.spec,
+      aircraft: current,
+      previous,
+      controls: world.controls,
+      accumulatorSeconds: banked,
+    },
     stepsRun,
     droppedSteps,
     alpha: banked / DT,
