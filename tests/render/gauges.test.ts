@@ -13,6 +13,7 @@ import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qIdentity, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 
@@ -58,8 +59,8 @@ describe('gaugeValue', () => {
 describe('needleAngleFor', () => {
   it('is monotonic across each gauge range', () => {
     for (const g of GAUGES) {
-      const lo = needleAngleFor(g.id, f6f, g.sampleLow)
-      const hi = needleAngleFor(g.id, f6f, g.sampleHigh)
+      const lo = needleAngleFor(g.id, f6f, GAUGE_SAMPLES[g.id].low)
+      const hi = needleAngleFor(g.id, f6f, GAUGE_SAMPLES[g.id].high)
       expect(hi).toBeGreaterThan(lo)
     }
   })
@@ -343,7 +344,7 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
     // green. This one calls `needleAngleFor`, the function the panel uses.
     const spec = loadAircraftSpec('f6f-hellcat')
     for (const g of GAUGES) {
-      for (const sample of [g.sampleLow, g.sampleHigh]) {
+      for (const sample of [GAUGE_SAMPLES[g.id].low, GAUGE_SAMPLES[g.id].high]) {
         const value = gaugeValue(g.id, spec, sample)
         expect(needleAngleFor(g.id, spec, sample)).toBeCloseTo(angleForValue(g, value), 12)
       }

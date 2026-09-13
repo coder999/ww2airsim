@@ -15,6 +15,7 @@ import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const deg = (rad: number) => (rad * 180) / Math.PI
@@ -281,7 +282,7 @@ describe('panel', () => {
         .map((c) => new Box3().setFromObject(c).max.x),
     )
     for (const g of GAUGES) {
-      updatePanel(p, f6f, g.sampleHigh, () => null)
+      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
       const needle = p.needles.get(g.id) as Mesh
       const reach = new Box3().setFromObject(needle).max.length()
       expect(reach).toBeLessThanOrEqual(rim + 1e-9)
@@ -551,9 +552,9 @@ describe('panel markings and readouts (I-2)', () => {
     // as a tick mark placed at that same value.
     const p = createPanel(f6f, () => null)
     for (const g of GAUGES) {
-      updatePanel(p, f6f, g.sampleHigh, () => null)
+      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
       const needle = p.needles.get(g.id) as Mesh
-      const value = gaugeValue(g.id, f6f, g.sampleHigh)
+      const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high)
       // A tick at `value` sits at (sin a, cos a) from the dial centre; the
       // needle's own tip direction must agree.
       const a = angleForValue(g, value)

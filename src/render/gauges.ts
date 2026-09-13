@@ -1,7 +1,7 @@
 import { v3, length, dot, normalize } from '../sim/math/vec3.js'
-import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
+import { qRotate } from '../sim/math/quat.js'
 import { airspeed } from '../sim/flight/model.js'
-import { createState, type AircraftState } from '../sim/flight/state.js'
+import type { AircraftState } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 
 /**
@@ -51,8 +51,6 @@ export type GaugeSpec = {
   readonly decimals: number
   /** Wraps rather than clamping (a compass rose). */
   readonly circular: boolean
-  readonly sampleLow: AircraftState
-  readonly sampleHigh: AircraftState
 }
 
 const TWO_PI = Math.PI * 2
@@ -62,45 +60,31 @@ export const GAUGES: readonly GaugeSpec[] = [
     id: 'airspeed', label: 'AIRSPEED', unit: 'm/s',
     min: 0, max: 250, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 50, minorStep: 10, displayScale: 1, decimals: 0,
-    sampleLow: createState({ velocity: v3(20, 0, 0) }),
-    sampleHigh: createState({ velocity: v3(200, 0, 0) }),
   },
   {
     id: 'altimeter', label: 'ALTITUDE', unit: 'm',
     min: 0, max: 10_000, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 2000, minorStep: 500, displayScale: 1, decimals: 0,
-    sampleLow: createState({ position: v3(0, 100, 0) }),
-    sampleHigh: createState({ position: v3(0, 8000, 0) }),
   },
   {
     id: 'verticalSpeed', label: 'CLIMB', unit: 'm/s',
     min: -25, max: 25, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 25, minorStep: 5, displayScale: 1, decimals: 1,
-    sampleLow: createState({ velocity: v3(100, -20, 0) }),
-    sampleHigh: createState({ velocity: v3(100, 20, 0) }),
   },
   {
     id: 'heading', label: 'HEADING', unit: 'deg',
     min: 0, max: TWO_PI, sweepRad: TWO_PI, circular: true,
     majorStep: Math.PI / 2, minorStep: Math.PI / 6, displayScale: 180 / Math.PI, decimals: 0,
-    // Heading reads attitude, not velocity. A velocity-only sample here left
-    // both ends at 0 and the monotonic test comparing 0 > 0.
-    sampleLow: createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.2) }),
-    sampleHigh: createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) }),
   },
   {
     id: 'fuel', label: 'FUEL', unit: 'kg',
     min: 0, max: 700, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 200, minorStep: 50, displayScale: 1, decimals: 0,
-    sampleLow: createState({ fuelKg: 50 }),
-    sampleHigh: createState({ fuelKg: 650 }),
   },
   {
     id: 'slip', label: 'SLIP', unit: '',
     min: -0.5, max: 0.5, sweepRad: Math.PI / 2, circular: false,
     majorStep: 0.5, minorStep: 0.125, displayScale: 1, decimals: 2,
-    sampleLow: createState({ velocity: v3(100, 0, -20) }),
-    sampleHigh: createState({ velocity: v3(100, 0, 20) }),
   },
 ]
 
