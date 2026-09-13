@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { cameraTransformFor, CHASE_OFFSET_M } from '../../src/render/camera.js'
 import { v3, length, sub } from '../../src/sim/math/vec3.js'
-import { qIdentity, qFromAxisAngle, qRotate } from '../../src/sim/math/quat.js'
+import { qIdentity, qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { LOOK_CENTRE } from '../../src/input/lookAround.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const at = (pos = v3(0, 1000, 0), att = qIdentity()) => ({ position: pos, attitude: att })
@@ -109,6 +110,55 @@ describe('chase camera', () => {
       const outFwd = qRotate(eye.attitude, v3(1, 0, 0))
       const outputHeading = Math.atan2(-outFwd.z, outFwd.x)
       expect(outputHeading).toBeCloseTo(yaw, 9)
+    }
+  })
+
+  it('applies look-around to chase too, not just the cockpit', () => {
+    // Chase discards roll when it rebuilds its attitude (see "discards roll
+    // instead of tracking it" above), so a banked base attitude -- the case
+    // that discriminates body vs. world frame for the cockpit -- would prove
+    // nothing here: chase's own reconstructed attitude never has roll to
+    // begin with. What chase DOES keep is heading and pitch, so that's what
+    // has to carry this case: a climbing turn, not a bank.
+    //
+    // This also isn't just "look changes something": deleting the
+    // `withLook(attitude, look)` call from the chase branch of
+    // cameraTransformFor (returning plain `attitude` regardless of `look`)
+    // makes `right` identical to `straight` and this assertion fails --
+    // verified 2026-09-13, see the report's Fix round 1 section.
+    const climbingTurn = qNormalize(
+      qMul(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2), qFromAxisAngle(v3(0, 0, 1), Math.PI / 4)),
+    )
+    const straight = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), climbingTurn))
+    const right = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), climbingTurn), {
+      yawRad: -Math.PI / 2,
+      pitchRad: 0,
+    })
+    // Looking right rotates about the aircraft's own (body) up axis. A yaw
+    // about the WORLD's up axis cannot change the forward vector's Y
+    // component at all -- rotating about world Y preserves Y exactly, for
+    // any input. Hand-verified 2026-09-13 with this exact attitude and look:
+    // swapping the multiplication order in withLook to world-frame drops
+    // this diff to 0.000, against ~0.661 for the correct body-frame order.
+    const straightFwd = qRotate(straight.attitude, v3(1, 0, 0))
+    const rightFwd = qRotate(right.attitude, v3(1, 0, 0))
+    expect(Math.abs(rightFwd.y - straightFwd.y)).toBeGreaterThan(0.5)
+  })
+})
+
+describe('look default parity', () => {
+  it('camera default look and LOOK_CENTRE produce identical output', () => {
+    // camera.ts deliberately does NOT import LOOK_CENTRE (a value-level
+    // dependency from render/ on input/ would be architecturally backwards:
+    // the camera should not care where an offset came from), so it has its
+    // own "no rotation" default. Two constants meaning the same thing in two
+    // files is exactly how this plan's six false-comment incidents started
+    // -- this asserts they agree instead of just commenting that they should.
+    const r = at(v3(0, 1000, 0), qFromAxisAngle(v3(1, 0, 0), Math.PI / 5))
+    for (const mode of ['cockpit', 'chase'] as const) {
+      const withDefault = cameraTransformFor(mode, f6f, r)
+      const withCentre = cameraTransformFor(mode, f6f, r, LOOK_CENTRE)
+      expect(withCentre).toEqual(withDefault)
     }
   })
 })

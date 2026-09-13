@@ -4,6 +4,18 @@ export default tseslint.config(
   { ignores: ['node_modules', 'dist'] },
   ...tseslint.configs.recommended,
   {
+    rules: {
+      // A leading underscore is a positive, greppable signal that a
+      // parameter is deliberately unused -- e.g. one kept only to match a
+      // sibling function's call shape (src/input/lookAround.ts's `_dt` and
+      // `_previous`). Settled 2026-09-13 (Task 9 review) after three tasks
+      // in a row independently invented a different workaround for the same
+      // rule; unlike a scattered `eslint-disable`, this doesn't weaken
+      // detection for any variable that isn't deliberately marked.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     files: ['src/sim/**/*.ts', 'tools/**/*.ts'],
     rules: {
       // Spec §3 + Global Constraints: determinism and no browser globals.

@@ -41,4 +41,10 @@ describe('lookOffsetFromKeys', () => {
     const o = hold(['Numpad8'], 2)
     expect(Math.abs(o.pitchRad)).toBeLessThanOrEqual(LOOK_LIMIT_RAD + 1e-9)
   })
+
+  it('clamps pitch looking down too -- the clamp expression is symmetric, but nothing exercised the negative side', () => {
+    const o = hold(['Numpad2'], 2)
+    expect(o.pitchRad).toBeLessThan(0)
+    expect(Math.abs(o.pitchRad)).toBeLessThanOrEqual(LOOK_LIMIT_RAD + 1e-9)
+  })
 })

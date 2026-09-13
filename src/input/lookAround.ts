@@ -44,10 +44,8 @@ const held = (pressed: PressedKeys, name: BindingName): boolean =>
  */
 export function lookOffsetFromKeys(
   pressed: PressedKeys,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- shape-matching only, see doc above
-  dt: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- shape-matching only, see doc above
-  previous: LookOffset,
+  _dt: number,
+  _previous: LookOffset,
 ): LookOffset {
   if (held(pressed, 'lookCentre')) return LOOK_CENTRE
   if (held(pressed, 'lookBack')) return { yawRad: Math.PI, pitchRad: 0 }
