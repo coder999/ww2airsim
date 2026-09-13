@@ -18,7 +18,7 @@ import { createWater, recentreWater } from './scene/water.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
-import { createMarkers } from './scene/markers.js'
+import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
@@ -148,6 +148,14 @@ async function boot(): Promise<void> {
   // Declared here so `onDeviceLost`, wired immediately below, closes over a
   // binding that already exists -- Task 15's TDZ lesson.
   let loop: RafLoop | null = null
+  // Set by `onDeviceLost` so `boot` cannot go on to start a loop onto a device
+  // that is already gone. `stopped`-for-good inside `createRafLoop` does not
+  // help here: during setup the loop that gets stopped and the loop that gets
+  // started are different objects, and there is a real `await loadSpec()`
+  // between the callback being wired and the loop being created. Found by
+  // review 2026-09-13, correcting a comment that claimed this window was
+  // already covered.
+  let deviceLost = false
 
   renderer.onDeviceLost = (info) => {
     // Stop BEFORE showing the failure, and dispose after (whole-branch review,
@@ -158,6 +166,7 @@ async function boot(): Promise<void> {
     // `loop` is assigned before the first frame is ever scheduled, so it
     // exists by the time any real loss can reach this callback; the `?.`
     // covers a loss during setup, when there is no loop to stop yet.
+    deviceLost = true
     loop?.stop()
     showFailure(root, 'device-lost', info.message)
     // three's WebGPUBackend filters `reason === 'destroyed'` before calling
@@ -189,7 +198,8 @@ async function boot(): Promise<void> {
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
-  scene.add(createMarkers())
+  const markers = createMarkers()
+  scene.add(markers)
   const { root: hellcatRoot, prop } = createHellcat()
   scene.add(hellcatRoot)
 
@@ -243,7 +253,12 @@ async function boot(): Promise<void> {
   // the production path with no per-step assertion cost.
   const stepper = import.meta.env.DEV ? stepChecked : step
 
-  const overlay = createOverlay(root)
+  // DEV only, matching `__ww2` and `stepChecked` a few lines above. It was
+  // unconditional until 2026-09-13, and its "dropped N <-- replay invalid"
+  // string was confirmed present in the production bundle while `__ww2` was
+  // correctly absent -- so a release rendered developer telemetry over the
+  // game. Cross-task drift between Task 11 and Task 15's own convention.
+  const overlay = import.meta.env.DEV ? createOverlay(root) : null
   let last = performance.now()
   const frameFn = (now: number): void => {
     const frameMs = now - last
@@ -327,12 +342,15 @@ async function boot(): Promise<void> {
     // detail's texture offset, without which re-centring would pin the
     // detail to the aeroplane and remove the parallax it exists to provide.
     recentreWater(water, current.eye.position.x, current.eye.position.z)
+    // Same treatment, and missed twice before this: the markers are the third
+    // member of the sky/water family and the only one that carries a scale.
+    recentreMarkers(markers, current.eye.position.x, current.eye.position.z)
 
     prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
 
     renderer.render(scene, camera)
 
-    overlay.update({
+    overlay?.update({
       frameMs,
       fps: 1000 / Math.max(frameMs, 0.001),
       stepsRun: current.stepsRun,
@@ -341,6 +359,10 @@ async function boot(): Promise<void> {
       adapter: adapterVerdict.summary,
     })
   }
+  // If the device went away while `boot` was still setting up, the failure
+  // screen is already showing; starting a loop now would render onto a
+  // disposed device behind it.
+  if (deviceLost) return
   loop = createRafLoop(frameFn)
   loop.start()
 

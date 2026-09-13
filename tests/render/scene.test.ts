@@ -11,7 +11,7 @@ import {
   Vector3,
 } from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
-import { createMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
+import { createMarkers, recentreMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createWater, recentreWater, WATER_EXTENT_M } from '../../src/render/scene/water.js'
 import { createSky, domeColourFor, SKY_RADIUS_M } from '../../src/render/scene/sky.js'
 import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
@@ -59,11 +59,48 @@ describe('hellcat geometry', () => {
 
 describe('markers', () => {
   it('places markers at a known spacing so altitude is judgeable', () => {
+    // The previous version filtered gaps with `.filter(g => g > 1)`, which
+    // discards ZERO gaps -- so stacking all 105 markers at x = 0 produced an
+    // empty array and a vacuous loop, under a test named for the very
+    // property that would have destroyed. Found by mutation 2026-09-13.
     const m = createMarkers()
-    expect(m.children.length).toBeGreaterThan(8)
-    const xs = m.children.map((c) => c.position.x).sort((a, b) => a - b)
-    const gaps = xs.slice(1).map((x, i) => x - xs[i]!).filter((g) => g > 1)
-    for (const g of gaps) expect(g).toBeCloseTo(MARKER_SPACING_M, 0)
+    const xs = [...new Set(m.children.map((c) => c.position.x))].sort((a, b) => a - b)
+    const zs = [...new Set(m.children.map((c) => c.position.z))].sort((a, b) => a - b)
+    expect(xs.length).toBeGreaterThan(8)
+    expect(zs.length).toBeGreaterThan(8)
+    expect(m.children.length).toBe(xs.length * zs.length)
+    for (const axis of [xs, zs]) {
+      for (let i = 1; i < axis.length; i++) {
+        expect(axis[i]! - axis[i - 1]!).toBeCloseTo(MARKER_SPACING_M, 6)
+      }
+    }
+  })
+
+  it('follows the eye, snapped to its own spacing so the pattern stays world-locked', () => {
+    // The sky was re-centred from Task 12 and the water from I-1; the markers
+    // are the third member of that family and were missed both times. At the
+    // spawn's 120 m/s the aeroplane left the old fixed patch sideways in 17
+    // seconds, after which there was no scale reference at all -- invisible
+    // over featureless water, which is why flying it did not catch this.
+    const m = createMarkers()
+    recentreMarkers(m, 4400, -1600)
+    // Snapped, not tracked: an unsnapped translation would drag every marker
+    // along with the aeroplane and remove the parallax they exist to give.
+    expect(m.position.x).toBe(4000)
+    expect(m.position.z).toBe(-2000)
+    expect(m.position.y).toBe(0)
+    // Every marker still lands on a world grid point, from any eye position.
+    for (const eye of [[0, 0], [4400, -1600], [-98_765, 33_333]] as const) {
+      recentreMarkers(m, eye[0], eye[1])
+      for (const child of m.children.slice(0, 5)) {
+        const worldX = m.position.x + child.position.x
+        expect(Math.abs(worldX / MARKER_SPACING_M - Math.round(worldX / MARKER_SPACING_M))).toBeLessThan(1e-9)
+      }
+    }
+    // And it actually keeps up: never more than half a spacing from the eye.
+    recentreMarkers(m, 123_456, -654_321)
+    expect(Math.abs(m.position.x - 123_456)).toBeLessThanOrEqual(MARKER_SPACING_M / 2)
+    expect(Math.abs(m.position.z - -654_321)).toBeLessThanOrEqual(MARKER_SPACING_M / 2)
   })
 })
 

@@ -115,3 +115,39 @@ describe('createRafLoop', () => {
     expect(frame).toHaveBeenCalledWith(1234.5)
   })
 })
+
+describe('createRafLoop when a frame throws', () => {
+  it('stops honestly rather than reporting itself as running', () => {
+    // The throw escapes the rAF callback, so no reschedule happens and the
+    // loop is dead. Before this it still answered `running === true`, which
+    // main.ts's resize handler is gated on, and `start()` refused to revive it
+    // because it short-circuits on that same flag. A loop that has stopped
+    // must say so.
+    const s = fakeScheduler()
+    const boom = new Error('render exploded')
+    const loop = createRafLoop(
+      () => {
+        throw boom
+      },
+      s.raf,
+      s.caf,
+    )
+    loop.start()
+    expect(() => s.tick()).toThrow(boom)
+    expect(loop.running).toBe(false)
+    expect(s.queued).toBe(0)
+  })
+
+  it('re-throws rather than swallowing, so the failure is visible', () => {
+    const s = fakeScheduler()
+    const loop = createRafLoop(
+      () => {
+        throw new Error('nope')
+      },
+      s.raf,
+      s.caf,
+    )
+    loop.start()
+    expect(() => s.tick()).toThrow('nope')
+  })
+})

@@ -39,7 +39,19 @@ export function createRafLoop(
     // `frame` may stop the loop from inside itself: onDeviceLost fires during
     // a render call. Hence the re-check below rather than an unconditional
     // reschedule.
-    frame(now)
+    // A throwing frame used to escape the rAF callback and leave the loop
+    // silently dead while `running` still said true -- no reschedule, no
+    // failure screen, no diagnostic, and `start()` refusing to help because it
+    // short-circuits on `running`. That is I-3's own defect inverted: the loop
+    // stops without saying so, instead of continuing without stopping. Found
+    // by review 2026-09-13.
+    try {
+      frame(now)
+    } catch (error) {
+      running = false
+      stopped = true
+      throw error
+    }
     if (running) handle = raf(tick)
   }
 
