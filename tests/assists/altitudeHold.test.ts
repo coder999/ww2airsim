@@ -276,11 +276,16 @@ describe('altitudeHold (Plan 3 Task 4)', () => {
  * strongly negative (nose-down recovery) command could come out positive
  * (nose-up) depending only on which way the held altitude happened to sit.
  *
- * Fixed by an explicit `limiterEngaged` gate in `applyAssists`, computed from
- * the limiter's own before/after output: altitude hold now stands down
- * ENTIRELY -- contributes nothing at all, not a reduced nudge -- whenever the
- * limiter actually changed the pitch command, on the ruling that inside the
- * limiter's recoverable band nothing is left for altitude hold to trim.
+ * Fixed by a `limiterEngaged` gate, computed from the limiter's own
+ * before/after output. The final whole-branch review then replaced the
+ * mechanism (see `PitchAuthority` in `src/assists/index.ts`): the limiter now
+ * narrows the stack's pitch-authority budget to the single value it chose
+ * whenever it had to change the pilot's command, which is the same
+ * stand-down expressed as a budget rather than as a boolean handed to the
+ * stage that has to honour it. The BEHAVIOUR these tests pin is unchanged --
+ * altitude hold contributes nothing at all, not a reduced nudge -- and they
+ * are written against the behaviour, so they passed across that refactor
+ * untouched.
  */
 describe('altitude hold stands down when the stall limiter is engaged (fix round 1, Critical)', () => {
   /** Alpha 2 degrees past alphaCrit at 90 m/s, stick centred -- the limiter
@@ -362,14 +367,16 @@ describe('altitude hold stands down when the stall limiter is engaged (fix round
 
 // Fix round 1, Important 1 originally asked for a test arbitrating whether
 // the centred check should read `raw` or `controls`. Fix round 2's own
-// re-review established that no such test can exist: with `limiterEngaged`
-// in place, the two reads cannot diverge at any reachable input (the stall
-// limiter is the only earlier stage that ever touches pitch, and whenever it
-// changes the value `limiterEngaged` is already true and stands this stage
-// down regardless of which of the two the centred check reads). Confirmed by
-// re-running the plain mutation -- `controls` in place of `raw`, everything
-// else including `limiterEngaged` left intact -- against the full suite and
-// finding nothing fails. The reasoning now lives as a comment on
+// re-review established that no such test can exist: the two reads cannot
+// diverge at any reachable input, because the stall limiter is the only
+// earlier stage that ever touches pitch and whenever it changes the value the
+// pitch-authority budget it leaves is that value alone, so this stage's own
+// output is clamped back onto it either way. Confirmed by re-running the
+// plain mutation -- `controls.pitch !== 0` in place of `isPitchCentred(raw)`,
+// nothing else changed -- against the full suite: 2026-09-13 under the
+// `limiterEngaged` mechanism, and again 2026-09-13 under the budget that
+// replaced it, all 438 tests green both times. The reasoning now lives as a
+// comment on
 // `altitudeHold` itself (the `!isPitchCentred(raw)` bullet), not as a test
 // here, in the same register already used for the additive line in that
 // function: "not currently distinguishable ... proven by mutating it ...
@@ -386,7 +393,11 @@ describe('altitude hold stands down when the stall limiter is engaged (fix round
  * command whatever its own altitude error implied -- with a held altitude
  * below the aeroplane, full nose-down (-1), landing outside `[0, 1]` in the
  * dangerous direction. Fixed by clamping altitude hold's output into the
- * limiter's own bound unconditionally, not just when `limiterEngaged`.
+ * limiter's own bound unconditionally, not just when `limiterEngaged` -- and
+ * that clamp is now the one the whole stack shares (`PitchAuthority`), which
+ * the limiter narrows to its bound whether or not it had to act. Both this
+ * case and round 1's are the same line of code as of the final review, which
+ * is the point of the refactor: they were never two rules.
  */
 describe('altitude hold cannot leave the limiter\'s bound even when the limiter is not engaged (fix round 2)', () => {
   it('stays inside [0, 1] at alpha = -alphaCritRad with a held altitude below the aeroplane', () => {

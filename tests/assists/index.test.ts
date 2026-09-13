@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
   applyAssists,
+  applyAssistsWithAuthority,
   createAssistRunner,
   DEFAULT_ASSIST_SETTINGS,
   NOT_HOLDING,
   type AssistSettings,
 } from '../../src/assists/index.js'
 import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
-import { DT } from '../../src/sim/flight/model.js'
+import { DT, angleOfAttack, step } from '../../src/sim/flight/model.js'
 import { alphaCritRad } from '../../src/sim/aero.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qIdentity } from '../../src/sim/math/quat.js'
@@ -190,6 +191,189 @@ describe('the stack applies in a fixed, documented order (Plan 3 Task 5)', () =>
     expect(limiterOnly).toBeLessThan(-0.5)
     expect(holdOnly, 'the two stages must actually disagree here').toBeGreaterThan(0.5)
     expect(shipped).toBe(limiterOnly)
+  })
+
+  it("is final in the other direction too: altitude hold cannot ADD to the limiter's recovery", () => {
+    // The same state as above with the held altitude BELOW the aeroplane, so
+    // altitude hold wants nose-down and the two stages agree on the sign. The
+    // limiter still owns the number: measured 2026-09-13, altitude hold alone
+    // commands -1.0000 and the shipped stack commands the limiter's own
+    // -0.7085. That is Task 4's ruling -- once the limiter has had to change
+    // the pilot's value, the axis is spent and no later stage votes -- and
+    // this is the case that DISCRIMINATES it, which nothing did before. The
+    // test above cannot: there the bound's own clamp lands on the same number
+    // whether or not the ruling is implemented. Proved to fail 2026-09-13 by
+    // dropping the collapse-to-the-limiter's-value in `stallLimiter` and
+    // leaving only the bound: shipped becomes -1.0000 and this fails, while
+    // all 48 other assist tests stay green.
+    const s = pastCritical(2, 90)
+    const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
+    const memory = { heldAltitudeM: 1500 }
+    const limiterOnly = applyAssists(s, f6f, centred, DT, {
+      stallLimiter: true,
+      autoRudder: false,
+      altitudeHold: false,
+    }).pitch
+    const holdOnly = applyAssists(
+      s,
+      f6f,
+      centred,
+      DT,
+      { stallLimiter: false, autoRudder: false, altitudeHold: true },
+      memory,
+    ).pitch
+    expect(holdOnly, 'altitude hold must want a different number for this to discriminate').toBe(-1)
+    expect(limiterOnly).toBeCloseTo(-0.7085, 4)
+    expect(applyAssists(s, f6f, centred, DT, DEFAULT_ASSIST_SETTINGS, memory).pitch).toBe(limiterOnly)
+  })
+})
+
+describe('the pitch-authority budget bounds the whole stack (final review, C1)', () => {
+  /**
+   * The assertion that was missing, and the reason C1 shipped: nothing in the
+   * suite compared the stack's final pitch command against the authority the
+   * stack claims to be operating under. It could not -- past
+   * `DEPARTED_ALPHA_RAD` the old protocol's answer was a `null` bound meaning
+   * "no claim", and "inside no claim" is not a testable statement. The claim
+   * is now `PitchAuthority`, `applyAssistsWithAuthority` returns the one the
+   * run actually used (not a re-derivation of it), and these tests are total
+   * over alpha rather than sampled at the interesting-looking angles -- the
+   * defect lived at 91 degrees, one degree outside where every existing test
+   * looked.
+   */
+  const alphaState = (alphaDeg: number, speed: number): AircraftState => {
+    const a = (alphaDeg * Math.PI) / 180
+    return createState({
+      position: v3(0, 2000, 0),
+      velocity: v3(speed * Math.cos(a), -speed * Math.sin(a), 0),
+      attitude: qIdentity(),
+    })
+  }
+
+  // Legal pilot commands only: `Controls.pitch` documents its range as
+  // [-1, 1], and the budget is expressed in that range. A caller handing in
+  // 5.0 gets its own 5.0 back from a stack that is the identity on that axis,
+  // which is a contract violation upstream, not an authority leak here.
+  const RAW_PITCHES = [-1, -0.5, 0, 0.5, 1]
+  const MEMORIES = [NOT_HOLDING, { heldAltitudeM: 2500 }, { heldAltitudeM: 1500 }]
+
+  it('never lets the final pitch command leave the budget, at any alpha including past 90 degrees', () => {
+    const escapes: string[] = []
+    let departedCases = 0
+    for (let alphaDeg = -180; alphaDeg <= 180; alphaDeg += 1) {
+      for (const speed of [70, 130]) {
+        const s = alphaState(alphaDeg, speed)
+        const actualAlphaDeg = (angleOfAttack(s) * 180) / Math.PI
+        for (const pitch of RAW_PITCHES) {
+          const command: Controls = { pitch, roll: 0.3, yaw: 0, throttle: 0.7 }
+          for (const memory of MEMORIES) {
+            for (const enabled of ALL_SETTINGS_COMBOS) {
+              const { controls, pitchAuthority } = applyAssistsWithAuthority(
+                s,
+                f6f,
+                command,
+                DT,
+                enabled,
+                memory,
+              )
+              const where = `alpha ${alphaDeg} deg, ${speed} m/s, raw pitch ${pitch}, held ${String(
+                memory.heldAltitudeM,
+              )}, ${JSON.stringify(enabled)}`
+              // Narrowed, never widened: the budget starts at the full legal
+              // control range and no stage may hand back more than it got.
+              if (pitchAuthority.lower < -1 || pitchAuthority.upper > 1) {
+                escapes.push(`budget wider than [-1, 1]: ${JSON.stringify(pitchAuthority)} at ${where}`)
+              }
+              if (pitchAuthority.lower > pitchAuthority.upper) {
+                escapes.push(`empty budget ${JSON.stringify(pitchAuthority)} at ${where}`)
+              }
+              if (controls.pitch < pitchAuthority.lower || controls.pitch > pitchAuthority.upper) {
+                escapes.push(
+                  `commanded ${controls.pitch.toFixed(4)} outside ${JSON.stringify(pitchAuthority)} at ${where}`,
+                )
+              }
+              // Past the stand-down the correct narrowing is to the PILOT'S
+              // OWN COMMAND -- not to nothing (which would pin the stick of a
+              // pilot flying out of a departure) and not to unlimited (which
+              // is what shipped). Asserted clear of the boundary itself so
+              // this is a statement about the region, not about which side of
+              // 90.000 degrees a floating-point alpha lands on.
+              if (Math.abs(actualAlphaDeg) >= 90.5) {
+                departedCases++
+                if (pitchAuthority.lower !== pitch || pitchAuthority.upper !== pitch) {
+                  escapes.push(
+                    `departed budget ${JSON.stringify(pitchAuthority)} is not the pilot's own ${pitch} at ${where}`,
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(departedCases, 'the sweep must actually reach the departed region').toBeGreaterThan(1000)
+    expect(escapes.slice(0, 5)).toEqual([])
+    expect(escapes.length).toBe(0)
+  })
+
+  it('gives altitude hold no vote on a departed wing, where both of Task 4 fixes went inert', () => {
+    // The measured case, 2026-09-13, 90 m/s, stick centred, holding 500 m
+    // above the aeroplane -- shipped `DEFAULT_ASSIST_SETTINGS`:
+    //
+    //   alpha    limiter only    all three, before this fix    after
+    //    89 deg    -1.0000            -1.0000                  -1.0000
+    //    91 deg     0.0000            +1.0000                   0.0000
+    //   135 deg     0.0000            +1.0000                   0.0000
+    //
+    // Full nose-up on a wing that is 45 degrees past the flow reversal. Below
+    // the stand-down the limiter is still in charge and the stack still
+    // commands recovery, which is why 89 degrees is asserted here too: a
+    // "fix" that simply switched altitude hold off near the stall would pass
+    // the two departed rows and fail this one.
+    const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
+    const memory = { heldAltitudeM: 2500 }
+    const ONLY_LIMITER: AssistSettings = { stallLimiter: true, autoRudder: false, altitudeHold: false }
+
+    expect(applyAssists(alphaState(89, 90), f6f, centred, DT, ONLY_LIMITER, memory).pitch).toBeCloseTo(-1, 10)
+    expect(applyAssists(alphaState(89, 90), f6f, centred, DT, DEFAULT_ASSIST_SETTINGS, memory).pitch).toBeCloseTo(
+      -1,
+      10,
+    )
+    for (const alphaDeg of [91, 135]) {
+      const s = alphaState(alphaDeg, 90)
+      expect(applyAssists(s, f6f, centred, DT, ONLY_LIMITER, memory).pitch).toBe(0)
+      expect(
+        applyAssists(s, f6f, centred, DT, DEFAULT_ASSIST_SETTINGS, memory).pitch,
+        `all three assists at ${alphaDeg} deg must command exactly what the pilot did`,
+      ).toBe(0)
+    }
+  })
+
+  it('does not extend a departure it cannot help with, flown end to end', () => {
+    // The behavioural consequence, rather than the command at one tick: enter
+    // departed at 120 degrees of alpha, hands off, and fly 60 s through
+    // `step()` with the memory advanced the way `createAssistRunner` does.
+    // Measured 2026-09-13, before this fix: 126 ticks past 90 degrees with
+    // altitude hold off, 801 with it on, first unstalled tick 2.18 s against
+    // 5.35 s. After: 126 and 126, identical. This asserts the inequality
+    // rather than the pinned 126, because the number is a property of the
+    // flight model and the claim is about the assist.
+    const flyDeparted = (altitudeHold: boolean) => {
+      const enabled: AssistSettings = { stallLimiter: true, autoRudder: true, altitudeHold }
+      const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
+      const runner = createAssistRunner(enabled)
+      let s = alphaState(120, 90)
+      let ticksPast90 = 0
+      for (let i = 0; i < Math.round(60 / DT); i++) {
+        s = step(f6f, s, runner.assist(s, f6f, centred, DT), { dt: DT, tick: i + 1 })
+        if (Math.abs((angleOfAttack(s) * 180) / Math.PI) > 90) ticksPast90++
+      }
+      return ticksPast90
+    }
+    const off = flyDeparted(false)
+    const on = flyDeparted(true)
+    expect(off, 'the entry must actually be departed for this to mean anything').toBeGreaterThan(50)
+    expect(on, 'altitude hold must not lengthen the time spent past 90 degrees').toBeLessThanOrEqual(off)
   })
 })
 
