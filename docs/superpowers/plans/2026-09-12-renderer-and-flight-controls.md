@@ -3048,7 +3048,7 @@ Task 10 produced the needle angles; this puts real geometry behind them.
 - Consumes: `GAUGES`, `needleAngleFor`, `attitudeAngles` (Task 10); `spec.view.eyePointM` (Task 8).
 - Produces: `createPanel(spec): { root: Object3D; needles: Map<GaugeId, Object3D>; horizon: Object3D }`, `updatePanel(panel, spec, state): void`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/panel.test.ts`:
 
@@ -3116,12 +3116,12 @@ describe('panel', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/render/scene/panel.ts`. Build one dial per entry in `GAUGES`, laid out in a row below the eye line, each with a face and a needle pivoting about its own centre, plus a separate artificial-horizon element.
 
@@ -3210,7 +3210,7 @@ export function updatePanel(panel: Panel, spec: AircraftSpec, state: AircraftSta
 }
 ```
 
-- [ ] **Step 4: Attach it in the cockpit view**
+- [x] **Step 4: Attach it in the cockpit view**
 
 In `src/render/main.ts`, put the panel in a `cockpit` `Group` that is given the same position and quaternion as the Hellcat root each frame, and **swap the two with camera mode**: cockpit mode shows the cockpit group and hides the external airframe; chase mode the reverse.
 
@@ -3222,17 +3222,17 @@ updatePanel(panel, spec, frame.world.aircraft)
 
 Hiding the airframe is not optional. The code-built Hellcat is an *external* model: its fuselage box spans y ±0.75 m, so its top face lies between the eye (0.9 m) and the panel (0.55 m) and, being front-facing from above, would occlude the panel completely. Cockpit interior geometry is a later plan's; until then the panel floats in front of an invisible airframe, which is exactly the view a pilot has.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Check legibility, once**
+- [x] **Step 6: Check legibility, once**
 
 `npm run dev`, tunnel, press `C` for the cockpit.
 Expected: gauges readable at a glance at 1440p. This is the check that the appearance-authenticity trade was made for — if they are not readable, raise `DIAL_RADIUS` and say so in the commit.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
