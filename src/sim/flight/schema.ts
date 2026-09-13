@@ -188,12 +188,30 @@ const AircraftSpecObject = z.object({
      * at 180 m/s full throttle. With the assist engaged at tau = 3, the same
      * four conditions (plus 70 m/s / 100% and 130 m/s / 30% throttle) finish
      * within 0.4 m of the captured altitude, worst excursion during the 60 s
-     * under 11 m; capturing mid-climb or mid-descent (+/-20 to 40 m/s vertical
-     * speed at capture, 46-150 m/s true airspeed) stays within 16 m worst
-     * case. tau = 1 tightens every one of those figures further (worst
-     * excursion under 4 m) at the cost of a visibly twitchier stick; tau = 3
-     * is the looser of the two candidates that still keeps every measured
-     * case comfortably inside a few percent of the starting altitude, leaving
+     * under 11 m.
+     *
+     * The transient after capturing mid-manoeuvre is a different, larger
+     * number, and an earlier revision of this comment stated one that was
+     * measured wrong: it tipped `velocity` while leaving `attitude` at
+     * identity, a combination no manoeuvre in this flight model reaches
+     * (alpha -17.9 degrees at capture) and that understated the real number
+     * by 5 to 25 times. Re-measured 2026-09-13 through an actual
+     * pull-and-release (`/tmp/real_maneuver_probe.ts`: hold a real pitch
+     * input via `step()`, release, then hold): a mild 0.3 for 3 s at 90-180
+     * m/s captures with 17-69 m/s of vertical speed already in progress and
+     * transients 46-146 m over the 60 s hold, converging to under 0.2 m by
+     * the end; a moderate 0.6 for 3 s at 130 m/s transients 189 m, converging
+     * to 0.04 m; a full pull (1.0) for 5 s at 130 m/s -- captured climbing at
+     * 69 m/s vertical speed -- transients 394 m and is still 22 m off at 60 s,
+     * a slow phugoid that is converging but not yet damped in that window.
+     * These are the honest figures a caller re-capturing mid-manoeuvre should
+     * expect; the four-figure "within 0.4 m" statement above is level-entry
+     * only.
+     *
+     * tau = 1 tightens the level-entry figures further (worst excursion under
+     * 4 m) at the cost of a visibly twitchier stick; tau = 3 is the looser of
+     * the two candidates that still keeps every measured level-entry case
+     * comfortably inside a few percent of the starting altitude, leaving
      * headroom for Task 6 (Mark flying it) to retune either direction --
      * exactly the same status `stallLimiterSeconds`'s own comment gives it.
      *

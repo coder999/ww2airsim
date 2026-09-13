@@ -156,14 +156,30 @@ export function nextAltitudeHoldMemory(
  * reacts to a command the wing can actually sustain rather than the pilot's
  * raw, possibly-illegal one. Auto-rudder runs next and coordinates the turn
  * implied by THAT bounded attitude, not the pre-limiter one. Altitude hold
- * runs last, trimming whatever pitch authority the first two stages left
- * over -- it is a correction on top of their result, not a competing vote,
- * so it can never fight a decision either of them already made. Any other
- * order lets a later stage silently undo an earlier one's correction. This is
- * why altitude hold ADDS its correction to `controls.pitch` rather than
- * replacing it (see that function's own comment): replacing would throw away
- * a stall-recovery command the limiter already decided was necessary, the
- * exact failure this ordering comment warns about.
+ * runs last -- and STANDS DOWN ENTIRELY whenever the limiter actually
+ * changed the pitch command (`limiterEngaged` below), rather than adding a
+ * further correction on top of it.
+ *
+ * That is a correction to this comment, not just to the code: an earlier
+ * revision claimed altitude hold "trims whatever pitch authority the first
+ * two stages left over... a correction on top of their result, not a
+ * competing vote, so it can never fight a decision either of them already
+ * made," and added its correction to `controls.pitch` on that basis. It was
+ * wrong, and the reviewer measured exactly how: at alpha 17.5 degrees
+ * against a 15.5-degree critical (90 m/s, stick centred), the limiter alone
+ * commands -0.7085; adding altitude hold's own independently-computed
+ * correction on top (held altitude 2500 m) produced +0.2915 -- the recovery
+ * command REVERSED to nose-up while stalled, reachable without contrivance
+ * from `DEFAULT_ASSIST_SETTINGS` alone. "Additive" is only safe when the
+ * thing being added to is the pilot's own unforced command; it is not safe
+ * when the limiter has already spent the axis on recovery, because altitude
+ * hold's correction is computed from the ALTITUDE ERROR, which has no idea
+ * the wing is stalled and no business voting on the pitch axis while it is.
+ * Standing down entirely, not re-clamped inside the limiter's bound, is
+ * deliberate: an aeroplane near departure needs the nose down, and even the
+ * least-bad nose-up the limiter would still permit is the wrong trade at
+ * that moment. This is what "trims whatever is left over" actually has to
+ * mean -- inside the limiter's band, nothing is left.
  */
 export function applyAssists(
   state: AircraftState,
@@ -174,10 +190,20 @@ export function applyAssists(
   altitudeHoldMemory: AltitudeHoldMemory = NOT_HOLDING,
 ): Controls {
   let controls = raw
+  const beforeLimiter = controls
   controls = enabled.stallLimiter ? stallLimiter(state, spec, controls, dt) : controls
+  // Detectable, not implicit (Task 4 fix round 1, Critical finding): whether
+  // the limiter actually changed the pitch it was handed, observed from its
+  // real output rather than re-derived independently from alpha and
+  // `alphaCritRad`. A second, private copy of "is the limiter engaged" could
+  // silently disagree with the limiter's own bounds the moment either was
+  // retuned; this cannot, because it is not a copy -- it is the limiter's
+  // actual before/after. See `altitudeHold`'s doc comment for why this
+  // exists and what it fixes.
+  const limiterEngaged = enabled.stallLimiter && controls.pitch !== beforeLimiter.pitch
   controls = enabled.autoRudder ? autoRudder(state, spec, controls, dt) : controls
   controls = enabled.altitudeHold
-    ? altitudeHold(state, spec, controls, raw, dt, altitudeHoldMemory)
+    ? altitudeHold(state, spec, controls, raw, dt, altitudeHoldMemory, limiterEngaged)
     : controls
   return controls
 }
@@ -388,24 +414,49 @@ const G = 9.80665
  * speed changes, not attitude, and this is named for what it actually does.
  *
  * Stands down completely -- returns `controls` untouched -- unless
- * `memory.heldAltitudeM` is set AND the pilot's own pitch is centred. The
- * second check is not redundant with the first: `memory` is whatever the
- * caller last threaded through `nextAltitudeHoldMemory`, and a caller that
- * skipped a tick (or a test exercising this function directly, as several
- * below do) could hand it a captured altitude alongside a `raw.pitch` that
- * has since gone non-zero. Reading `raw` here rather than trusting the
- * memory alone is what makes "yields to pilot pitch input" a guarantee of
- * THIS function, provable by calling it directly, rather than a property
- * that only holds if some other caller kept its bookkeeping consistent.
+ * `memory.heldAltitudeM` is set, AND the pilot's own pitch is centred, AND
+ * the stall limiter did not just change the command. Three independent
+ * gates, each guarding a different failure:
  *
- * Checked against `raw`, the ORIGINAL pilot command, not `controls` -- the
- * value already run through the stall limiter and (a no-op for pitch)
- * auto-rudder. The two differ exactly when the limiter has forced a
- * non-neutral pitch onto an aeroplane whose pilot is holding the stick dead
- * centre (alpha already at or past its boundary). That is deliberately NOT
- * "centred" for this assist's purposes: capturing a hold target mid-stall-
- * recovery, while the limiter is actively fighting to bring alpha back, is
- * not a moment with a meaningful "altitude the pilot wants" to remember.
+ *  - `memory.heldAltitudeM === null`: nothing captured, or the pilot has the
+ *    stick (see `nextAltitudeHoldMemory`).
+ *  - `!isPitchCentred(raw)`: checked against `raw`, the ORIGINAL pilot
+ *    command, not `controls` (the value already run through the stall
+ *    limiter and, a no-op for pitch, auto-rudder) -- deliberately, so
+ *    "yields to pilot pitch input" answers only "did the PILOT ask for
+ *    something", the same question `nextAltitudeHoldMemory` asks with the
+ *    same value, and never an artifact of what an earlier stage did to the
+ *    command. `memory` is whatever the caller last threaded through
+ *    `nextAltitudeHoldMemory`, and a caller that skipped a tick (or a test
+ *    exercising this function directly, as several below do) could hand it
+ *    a captured altitude alongside a `raw.pitch` that has since gone
+ *    non-zero -- reading `raw` here rather than trusting the memory alone is
+ *    what makes "yields to pilot pitch input" a guarantee of THIS function,
+ *    provable by calling it directly, rather than a property that only
+ *    holds if some other caller kept its bookkeeping consistent.
+ *  - `limiterEngaged`: whether the stall limiter (run earlier in
+ *    `applyAssists`, whether or not it is enabled here) actually changed the
+ *    pitch it was handed. THIS is the gate that matters when the pilot's
+ *    stick is centred and alpha is at or past its boundary -- `raw.pitch` is
+ *    0 there (the pilot is doing nothing wrong), so the centred check alone
+ *    does not catch it, and an earlier revision of this function had no
+ *    third gate at all: it read `raw`, found the stick centred, and added
+ *    its own altitude-error correction on top of whatever the limiter had
+ *    already decided. That reversed the limiter's recovery command outright
+ *    (see `applyAssists`'s doc comment for the reviewer's measured numbers).
+ *    A plausible-looking alternative -- checking `controls.pitch === 0`
+ *    instead of `raw.pitch === 0`, collapsing this into the centred check --
+ *    was tried and rejected: it happens to agree with the fix in the
+ *    reported case, but it depends on the limiter's forced value never
+ *    coinciding with exactly 0 (it could, at the edge of its own clamp
+ *    range, for a pilot command that was already non-zero), and it conflates
+ *    two different questions ("did the pilot ask for something" and "did an
+ *    earlier stage change the command") into one check that answers neither
+ *    honestly on its own. `limiterEngaged` is computed once, in
+ *    `applyAssists`, from the limiter's actual before/after output -- not
+ *    re-derived from alpha and `alphaCritRad` independently, which could
+ *    silently drift out of sync with the limiter's own bounds the moment
+ *    either was retuned.
  *
  * The mechanism, once engaged, is feed-forward plus a two-loop proportional
  * correction -- structurally the same idea as `sim/autopilot.ts`'s
@@ -471,14 +522,22 @@ const G = 9.80665
  * full throttle, -19 m at 180 m/s. With this assist engaged and
  * `altitudeHoldSeconds = 3`, the same six conditions (including full and
  * partial throttle at the same speeds) finish within 0.4 m of the captured
- * altitude, worst-case excursion during the 60 s under 11 m. Re-run from a
- * captured altitude with the aeroplane already climbing or descending at
- * capture (+/-20 to 40 m/s of vertical speed, 46-150 m/s true airspeed) stays
- * within 16 m worst case. tau = 1 tightens this further (worst excursion
- * under 4 m) at the cost of a visibly twitchier stick; tau = 3 was chosen as
- * the looser of the two candidates that still keeps every measured case
- * comfortably inside a few percent of the starting altitude, leaving room
- * for Task 6 (flying it) to retune either direction. What tau CANNOT do:
+ * altitude, worst-case excursion during the 60 s under 11 m -- all LEVEL
+ * entries, alpha at or near trim when the stick was released.
+ *
+ * Capturing mid-manoeuvre is a different, larger number. Task 4 fix round 1
+ * measured it wrong once already: tipping `velocity` while leaving
+ * `attitude` at identity reaches alpha -17.9 degrees, a combination no real
+ * manoeuvre in this flight model produces, and understated the true
+ * transient by 5 to 25 times. Re-measured through an actual pull-and-release
+ * (`/tmp/real_maneuver_probe.ts`, 2026-09-13: hold a real pitch input via
+ * `step()`, release, then hold): a mild 0.3 for 3 s at 90-180 m/s transients
+ * 46-146 m over the 60 s hold, converging under 0.2 m by the end; a moderate
+ * 0.6 for 3 s at 130 m/s transients 189 m, converging to 0.04 m; a full pull
+ * (1.0) for 5 s at 130 m/s transients 394 m and is still 22 m off at 60 s --
+ * a slow phugoid, converging but not yet damped in that window. `schema.ts`'s
+ * `altitudeHoldSeconds` doc comment carries the same corrected figures; see
+ * that comment for how tau was chosen. What tau CANNOT do:
  * at zero throttle the aeroplane cannot hold any altitude at all -- lift
  * demand rises as speed bleeds off, which bleeds more speed, and the probe's
  * idle-throttle case departs (2277 m of drift in 120 s) exactly the way
@@ -495,9 +554,10 @@ function altitudeHold(
   raw: Controls,
   _dt: number,
   memory: AltitudeHoldMemory,
+  limiterEngaged: boolean,
 ): Controls {
   const target = memory.heldAltitudeM
-  if (target === null || !isPitchCentred(raw)) return controls
+  if (target === null || !isPitchCentred(raw) || limiterEngaged) return controls
 
   const v = airspeed(state)
   // Mirrors `holdLevelFlight`'s own guard and its stated reason: below 1 m/s
@@ -538,9 +598,18 @@ function altitudeHold(
   // being deliberate about -- degrades to `correction = clampFinite(NaN, -1,
   // 1) = 0`, i.e. no correction at all, which is already the right answer.
   const correction = clampFinite(desiredPitchRateRadPerS / fullBackStickRate, -1, 1)
-  // Additive, not a replacement -- see `applyAssists`'s stack-order comment.
-  // Adding to whatever the stall limiter already left in `controls.pitch`
-  // (typically the pilot's own centred 0, but not always) means a
-  // stall-recovery command already in flight is nudged, never discarded.
+  // Additive (`controls.pitch + correction`), not a replacement -- even
+  // though, given the three gates above, `controls.pitch` is PROVABLY 0
+  // every time this line runs: `isPitchCentred(raw)` already required
+  // `raw.pitch === 0`, and `!limiterEngaged` means the stall limiter (the
+  // only earlier stage that ever touches pitch) did not move it away from
+  // that. So this is not currently distinguishable from
+  // `return { ...controls, pitch: correction }` by any reachable input --
+  // proven by mutating it to exactly that and finding no test fails. Kept
+  // additive anyway, as a structural invariant rather than a load-bearing
+  // one: it is the same "never overwrite, only nudge" shape autoRudder
+  // uses, and it stays correct for free if a future stage is ever inserted
+  // between the limiter and this one that legitimately leaves a non-zero
+  // `controls.pitch` here without setting `limiterEngaged`.
   return { ...controls, pitch: clampFinite(controls.pitch + correction, -1, 1) }
 }
