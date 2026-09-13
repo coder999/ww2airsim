@@ -29,20 +29,21 @@ module.exports = {
     {
       name: 'no-circular',
       comment:
-        'Forbids RUNTIME import cycles only. loop.ts -> flight/model.ts (a value ' +
-        'import, for step/DT) and model.ts -> loop.ts (`import type { SimContext }`) ' +
-        'already form a graph cycle, but the back edge is type-only and is erased ' +
-        'by the compiler, so nothing cycles at runtime. `viaOnly.dependencyTypesNot` ' +
-        'restricts the match to cycles whose every edge is a real (non-type-only) ' +
-        'dependency, so that existing cycle passes and a later task turning the ' +
-        'back edge into a real import would not. Verified 2026-09-12: passes on ' +
-        'the real tree; a scratch two-file value-import cycle trips it by name, ' +
-        'then was removed.',
+        'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +
+        "`parser: 'tsc'`), a type-only import (e.g. model.ts's `import type { " +
+        "SimContext } from '../loop.js'`) produces NO dependency edge at all -- " +
+        'verified 2026-09-12: `model.ts` has zero edges to `loop.ts` in the real ' +
+        'graph, and `loop.ts -> model.ts` reports circular: false. So this rule ' +
+        'currently sees only runtime imports; a plain `to: { circular: true }` is ' +
+        'correct and sufficient. If anyone later enables `tsPreCompilationDeps` or ' +
+        "`parser: 'tsc'`, type-only edges start appearing in the graph and this " +
+        "rule's behaviour changes -- revisit this comment then. Verified 2026-09-12: " +
+        'passes on the real tree; a scratch two-file value-import cycle trips it by ' +
+        'name, then was removed.',
       severity: 'error',
       from: {},
       to: {
         circular: true,
-        viaOnly: { dependencyTypesNot: ['type-only'] },
       },
     },
   ],
