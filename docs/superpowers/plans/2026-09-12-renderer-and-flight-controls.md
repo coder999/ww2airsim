@@ -2506,7 +2506,7 @@ would corrupt the baselines."
 
 Three constructs geometry without a GPU, so shape is Tier 1 testable even though appearance is not.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/scene.test.ts`:
 
@@ -2599,12 +2599,12 @@ describe('lighting', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/scene.test.ts`
 Expected: FAIL — modules not found.
 
-- [ ] **Step 3: Build the water**
+- [x] **Step 3: Build the water**
 
 Create `src/render/scene/water.ts`. A large plane with a repeating procedural normal pattern:
 
@@ -2649,7 +2649,7 @@ export function createWater(): Object3D {
 }
 ```
 
-- [ ] **Step 4: Build the sky, the lighting and the markers**
+- [x] **Step 4: Build the sky, the lighting and the markers**
 
 Create `src/render/scene/sky.ts` — a large inverted sphere with a vertical gradient, giving a clean horizon to fly against. Not the scattering LUTs; those are a later plan. **TSL, not a GLSL `ShaderMaterial`:** WebGPURenderer converts classic mesh materials through its material library and `ShaderMaterial` is not in it (checked in three 0.186's `three.webgpu.js`, 2026-09-12).
 
@@ -2722,7 +2722,7 @@ export function createMarkers(): Object3D {
 }
 ```
 
-- [ ] **Step 5: Build the Hellcat**
+- [x] **Step 5: Build the Hellcat**
 
 Create `src/render/scene/hellcat.ts`. Low-poly, built from primitives, **+X forward, +Y up, +Z right** to match the sim body frame. Dimensions from the content file: 13.06 m span, roughly 10.2 m long.
 
@@ -2778,12 +2778,12 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/scene.test.ts`
 Expected: PASS, 8 tests.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
