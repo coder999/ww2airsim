@@ -442,6 +442,46 @@ a rewrite. Plan 5 is the plan that should revisit it.
    prevent. Note that it gets harder every plan, and no plan uses replay yet, so
    the cost of waiting is currently zero and the cost of guessing is not.
 
+9. **`weathercockSeconds = 1.5` is a guess, and a primary source exists that
+   probably contradicts it** — found 2026-09-13, an hour after the constant was
+   introduced, by asking whether the physics could be borrowed instead of
+   invented.
+
+   NACA Wartime Report L-716, *Flight Measurements of the Flying Qualities of
+   an F6F-3 Airplane (BuAer No. 04776) II: Lateral and Directional Stability
+   and Control*, Williams and Reeder, February 1945. It is a flight test of
+   THIS AIRCRAFT on THIS AXIS. Work of the US Government, public use permitted,
+   free PDF at
+   https://ntrs.nasa.gov/api/citations/19930092601/downloads/19930092601.pdf
+   (NTRS 19930092601, also numbered NACA-MR-L5B13a).
+
+   What it states, quoted from its own conclusions:
+
+   - "The control-free lateral oscillations damped to 1/2 amplitude within two
+     cycles but at the higher speeds tested small continuous oscillations
+     occurred." Figure 7 plots the period against indicated airspeed.
+   - "The maximum sideslip due to use of full aileron deflection (aileron yaw)
+     was approximately 18.5 degrees in rolls to the left and 23.5 degrees in
+     rolls to the right at approximately 100 miles per hour."
+   - "The directional stability, rudder fixed and free, was positive in all
+     conditions and speeds tested", but with "a decrease in directional
+     stability rudder fixed for small angles of sideslip at high speeds", and
+     "the high dihedral effect in conjunction with the low directional
+     stability was considered objectionable."
+
+   Two things follow. First, the real F6F had LOW directional stability and
+   large adverse yaw, so some of what Mark felt is authentic; what was wrong
+   was that our nose did not weathercock AT ALL, not that it was slow.
+   Second, half amplitude in two cycles is a much slower envelope than a 1.5 s
+   first-order decay, so 1.5 is probably several times too quick.
+
+   Not corrected yet, deliberately. The report measures an oscillatory Dutch
+   roll and our model is first-order with no oscillation, so mapping one onto
+   the other needs a stated method rather than a fudge, and the period comes
+   off a 1945 plot that has to be read by eye. Worth doing properly: it would
+   replace a guessed constant with a cited measurement, which is what
+   `reference.source` already does for mass, speed and stall.
+
 8. **`angleOfAttack` leaves the lateral component in its denominator** —
    found 2026-09-13 while adding directional stability. It is
    `atan2(-dot(v, up), dot(v, forward))`, and `dot(v, forward)` shrinks as the
