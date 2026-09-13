@@ -2,6 +2,7 @@ import { Group, PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
+import { AIRCRAFT_CONTENT_URL } from './content.js'
 import { createOverlay } from './overlay.js'
 import {
   airframeVisibilityFor,
@@ -69,7 +70,7 @@ const PROP_MAX_RAD_PER_SEC = 40
  * platform-free, so only the byte-reading half differs between the two.
  */
 async function loadSpec(): Promise<AircraftSpec> {
-  const res = await fetch('/content/aircraft/f6f-hellcat.json')
+  const res = await fetch(AIRCRAFT_CONTENT_URL)
   if (!res.ok) {
     throw new Error(`Failed to fetch aircraft content: ${res.status} ${res.statusText}`)
   }

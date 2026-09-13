@@ -1,4 +1,47 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
+import { cp } from 'node:fs/promises'
+import { resolve } from 'node:path'
+
+/**
+ * Copy `content/` into the build output.
+ *
+ * Ruling R20, closing the gap Ruling R14 recorded: the build exited 0 while
+ * producing a dist/ that contained only assets/ and index.html, so the
+ * artifact 404'd on its own aircraft content and booted straight to the
+ * bad-content failure screen.
+ *
+ * A plugin rather than `publicDir`, because `publicDir` copies the CONTENTS of
+ * the directory it names into the root of dist/. Pointing it at `content/`
+ * would put `aircraft/` at the top level and change the URL the app fetches;
+ * pointing it at the repository root would ship node_modules and the source
+ * tree. Neither is what is wanted, and a `public/` directory holding a symlink
+ * to `content/` makes the real content's location a matter of what Vite
+ * happens to do with symlinks.
+ *
+ * `tests/build/dist.test.ts` asserts the result by running an actual build,
+ * not by reading this file.
+ */
+function copyContent(): Plugin {
+  // Captured from `configResolved` rather than read off the hook context: the
+  // outDir has to be the one this build actually resolved, or a build into a
+  // custom directory silently writes its content into ./dist instead. The
+  // test builds into a temp directory precisely so that mistake cannot pass.
+  let config: ResolvedConfig
+  return {
+    name: 'ww2airsim-copy-content',
+    apply: 'build',
+    configResolved(resolved): void {
+      config = resolved
+    },
+    async closeBundle(): Promise<void> {
+      await cp(
+        resolve(config.root, 'content'),
+        resolve(config.root, config.build.outDir, 'content'),
+        { recursive: true },
+      )
+    },
+  }
+}
 
 /**
  * Loopback-only on purpose. `navigator.gpu` is exposed only in a secure
@@ -11,8 +54,13 @@ import { defineConfig } from 'vite'
  *     # then open http://localhost:5173 on Windows
  *
  * Verified working on the reference platform 2026-09-12 (day-0 spike).
+ *
+ * The dev server needs no content copy: it serves `content/` from the project
+ * root as-is, which is why the gap only ever existed in a build and why
+ * Task 15's Playwright harness, which runs against dev, could not see it.
  */
 export default defineConfig({
+  plugins: [copyContent()],
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
   build: { target: 'esnext' },
 })
