@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, DirectionalLight, HemisphereLight, Mesh, MeshStandardMaterial, Vector3 } from 'three'
+import { Box3, DirectionalLight, HemisphereLight, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createWater, recentreWater, SEA_COLOUR, WATER_EXTENT_M } from '../../src/render/scene/water.js'
@@ -143,6 +143,31 @@ describe('sky dome below the horizon', () => {
 })
 
 describe('sky', () => {
+  it('draws a horizon straighter than one pixel, since the horizon IS its equator', () => {
+    // I-1 made the water wider than the dome, so near eye level the dome is
+    // the nearer surface and its equator polygon is what a pilot reads as the
+    // horizon. At the original 32 segments each chord sagged 217 m below the
+    // true circle at 45 km -- about 5 px of scalloping at 1440p through the
+    // cockpit's 60-degree field, visible as a kink in the horizon on the
+    // 2026-09-13 Surface screenshots.
+    //
+    // Measured off the built geometry rather than the constant, so raising
+    // the radius without raising the segment count fails here.
+    const sky = createSky() as Mesh
+    const segments = (sky.geometry as SphereGeometry).parameters.widthSegments
+    const radius = (sky.geometry as SphereGeometry).parameters.radius
+    const sagM = radius * (1 - Math.cos(Math.PI / segments))
+    const VERTICAL_FOV_DEG = 60
+    const PIXELS_TALL = 1440
+    const sagPx = ((Math.atan(sagM / radius) * 180) / Math.PI / VERTICAL_FOV_DEG) * PIXELS_TALL
+    expect(sagPx).toBeLessThan(1)
+  })
+
+  it('splits its colour on a vertex ring, not through the middle of a triangle', () => {
+    const sky = createSky() as Mesh
+    expect((sky.geometry as SphereGeometry).parameters.heightSegments % 2).toBe(0)
+  })
+
   it('uses a node material, the only kind WebGPURenderer draws as written', () => {
     // A GLSL ShaderMaterial is not in the WebGPU material library: the
     // renderer logs 'not compatible' and draws with a bare NodeMaterial, and

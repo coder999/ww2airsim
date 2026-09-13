@@ -4,6 +4,25 @@ import { clamp, color, mix, positionLocal, step } from 'three/tsl'
 import { SEA_COLOUR } from './water.js'
 
 export const SKY_RADIUS_M = 45_000
+
+/**
+ * Segments around the dome's equator.
+ *
+ * This is the horizon line. Since I-1 made the water wider than the dome, the
+ * dome is the nearer surface near eye level, so what the pilot reads as the
+ * horizon is literally this polygon's silhouette -- and at 32 segments it was
+ * a visible one. Each chord sagged 217 m below the true circle at 45 km,
+ * about 5 px of scalloping at 1440p with the cockpit's 60-degree field, which
+ * showed up as a kink in the horizon on the 2026-09-13 Surface screenshots.
+ * At 128 it is 14 m, or 0.31 px: below one pixel, which is the point.
+ *
+ * Cheap: this is one unlit `MeshBasicNodeMaterial` sphere, so the extra
+ * triangles cost geometry memory and nothing per fragment.
+ */
+const SKY_WIDTH_SEGMENTS = 128
+/** Even, so a vertex ring lands exactly on the equator where the colour
+ *  splits -- an odd count puts the split mid-triangle. */
+const SKY_HEIGHT_SEGMENTS = 32
 /** Haze at the horizon. */
 export const SKY_HAZE = 0x9eb8cc
 /** Deep blue overhead. */
@@ -64,5 +83,5 @@ export function createSky(): Object3D {
   // Mirrors `domeColourFor`: sea below the equator, haze-to-zenith above it.
   const above = mix(color(SKY_HAZE), color(SKY_ZENITH), clamp(y, 0, 1))
   material.colorNode = mix(color(SEA_COLOUR), above, step(0, y))
-  return new Mesh(new SphereGeometry(SKY_RADIUS_M, 32, 16), material)
+  return new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
 }

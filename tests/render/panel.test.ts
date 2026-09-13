@@ -7,6 +7,7 @@ import { cameraTransformFor } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -23,6 +24,20 @@ const banked = (bankDeg: number): AircraftState =>
       z: 0,
       w: Math.cos((bankDeg * Math.PI) / 360),
     },
+  })
+
+/**
+ * Heading and pitch with the wings held level: yaw about world up, then pitch
+ * about the body's own lateral axis, which is how an aeroplane gets there.
+ */
+const wingsLevel = (headingDeg: number, pitchDeg: number): AircraftState =>
+  createState({
+    position: v3(0, 600, 0),
+    velocity: v3(120, 0, 0),
+    attitude: qMul(
+      qFromAxisAngle(v3(0, 1, 0), (headingDeg * Math.PI) / 180),
+      qFromAxisAngle(v3(0, 0, 1), (pitchDeg * Math.PI) / 180),
+    ),
   })
 
 /**
@@ -138,6 +153,33 @@ describe('panel', () => {
       // Not vacuous: at these banks the angle is genuinely away from level,
       // so a bar stuck at zero (or mirrored) fails rather than matching.
       expect(deg(bar)).toBeCloseTo(bankDeg, 4)
+    }
+  })
+
+  it('holds the bar level on a wings-level aeroplane, at any pitch and heading', () => {
+    // The gap the pure-roll cases above leave, found on the reference-class
+    // hardware 2026-09-13: a cockpit screenshot showed a dead-level true
+    // horizon, a level panel, and the bar tilted about 7 degrees.
+    //
+    // Wings level is the one combined-attitude case where the bar and the
+    // visible horizon must agree EXACTLY -- a level aeroplane shows a level
+    // horizon at any pitch and on any heading. So this asserts both: the bar
+    // matches the true horizon, and both are level.
+    //
+    // `banked()` above builds pure roll about the nose, under which the old
+    // roll formula happened to be right. That is why fifteen task reviews and
+    // C-1's own replacement test all passed while the instrument lied in
+    // ordinary flight.
+    const p = createPanel(f6f)
+    for (const headingDeg of [0, 30, 45, 90, 135, 180, -60]) {
+      for (const pitchDeg of [0, 10, -15]) {
+        const state = wingsLevel(headingDeg, pitchDeg)
+        updatePanel(p, f6f, state)
+        const { worldToCamera } = pose(p, state)
+        const bar = barScreenAngle(p, worldToCamera)
+        expect(deg(bar)).toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 4)
+        expect(deg(bar)).toBeCloseTo(0, 4)
+      }
     }
   })
 

@@ -11,7 +11,7 @@ import {
 } from '../../src/render/gauges.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
-import { qFromAxisAngle, qIdentity } from '../../src/sim/math/quat.js'
+import { qFromAxisAngle, qIdentity, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -248,5 +248,43 @@ describe('scale marks and readouts (I-2)', () => {
     const spec = loadAircraftSpec('f6f-hellcat')
     const bad = createState({ velocity: v3(NaN, 0, 0) })
     expect(readoutTextFor('airspeed', spec, bad)).toBe('--')
+  })
+})
+
+describe('attitudeAngles bank reference frame', () => {
+  const yaw = (d: number) => qFromAxisAngle(v3(0, 1, 0), (d * Math.PI) / 180)
+  const pitchQ = (d: number) => qFromAxisAngle(v3(0, 0, 1), (d * Math.PI) / 180)
+  const deg = (r: number) => (r * 180) / Math.PI
+
+  it('reads zero bank whenever the wings are level, whatever the heading and pitch', () => {
+    // The defect this replaced: `atan2(up.z, up.y)` is body-up's sideways
+    // lean measured in the BODY frame, which is a bank angle only when the
+    // aeroplane points along world +X. Pitch tilts body up out of vertical
+    // and yaw swings that tilt into the lateral axis, so a wings-level
+    // aeroplane read a bank set purely by its heading.
+    for (const h of [0, 30, 45, 90, 135, 180, -60]) {
+      for (const p of [0, 10, -15, 30]) {
+        const state = createState({ attitude: qMul(yaw(h), pitchQ(p)) })
+        expect(deg(attitudeAngles(state).rollRad)).toBeCloseTo(0, 9)
+      }
+    }
+  })
+
+  it('still reads the bank itself, on any heading', () => {
+    // The other half: a fix that returns zero everywhere would pass the test
+    // above and break the instrument completely.
+    for (const h of [0, 45, 135]) {
+      for (const bank of [30, -45]) {
+        const q = qMul(yaw(h), qFromAxisAngle(v3(1, 0, 0), (bank * Math.PI) / 180))
+        expect(deg(attitudeAngles(createState({ attitude: q })).rollRad)).toBeCloseTo(bank, 9)
+      }
+    }
+  })
+
+  it('reports pitch independently of heading', () => {
+    for (const h of [0, 45, 90, 180]) {
+      const state = createState({ attitude: qMul(yaw(h), pitchQ(12)) })
+      expect(deg(attitudeAngles(state).pitchRad)).toBeCloseTo(12, 9)
+    }
   })
 })
