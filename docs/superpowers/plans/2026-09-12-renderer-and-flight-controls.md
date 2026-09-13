@@ -2823,7 +2823,7 @@ Wires the pieces together. **This is the milestone** — after this task there i
 - Consumes: everything from Tasks 1–12.
 - Produces: `initialFrameState(spec, aircraft)`, `nextFrameState(prev, elapsedSeconds, pressed, stepper?): FrameState` — the pure part of the frame, so the loop's bookkeeping is testable without a GPU.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/frame.test.ts`:
 
@@ -2891,12 +2891,12 @@ describe('nextFrameState', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the pure frame step**
+- [x] **Step 3: Implement the pure frame step**
 
 Create `src/render/frame.ts`:
 
@@ -2982,7 +2982,7 @@ export function nextFrameState(
 }
 ```
 
-- [ ] **Step 4: Wire the browser loop**
+- [x] **Step 4: Wire the browser loop**
 
 Update `src/render/main.ts` to: fetch and `parseAircraftSpec` the F6F content; build the scene from Task 12, `createLighting()` included; track pressed keys from `keydown`/`keyup`, and **clear the set on `window` `blur`** (a `keyup` that fires while the tab is unfocused is never delivered, and the key stays down forever); re-centre the sky dome on the eye's x and z each frame, which keeps the horizon horizontally centred under the camera rather than drifting unbounded over a long flight (amended 2026-09-13, Task 13 review: this first said "so the horizon stays at eye level" -- y is deliberately left un-recentred, so the horizon actually sits a small, altitude-dependent angle below eye level, about 0.76 degrees at 600 m against the dome's 45,000 m radius, not exactly at it); call `nextFrameState` each frame; apply `frame.eye` to the Three camera **camera-relative** (translate the world so the eye sits at the origin); spin the prop by `controls.throttle`; and feed the overlay.
 
@@ -3000,19 +3000,19 @@ camera.quaternion.set(frame.eye.attitude.x, frame.eye.attitude.y, frame.eye.atti
 
 Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` argument, which `advance` already accepts and tests (Task 3). Plan 1's invariants turn "the aeroplane teleported" into "a NaN entered at tick 4,102", and that is worth the per-step cost in development. The choice is made here, at the edge, so `sim/` carries no build flag; `import.meta.env` typechecks because Task 5 added `vite/client` to `types`.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Fly it**
+- [x] **Step 6: Fly it**
 
 `npm run dev` on nexus, tunnel, open `http://localhost:5173`.
 Expected: an F6F over water, chase camera, arrow keys fly it, Shift opens the throttle, C switches to the cockpit, numpad looks around.
 
 **This is the answer to the question Plan 1 could not ask.** Note what it feels like — particularly whether `RAMP_SECONDS` is right — but change nothing yet; tuning is worth its own commit with a reason.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
