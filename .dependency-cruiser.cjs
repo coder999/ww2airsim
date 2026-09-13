@@ -26,6 +26,25 @@ module.exports = {
       from: { path: '^src/sim' },
       to: { dependencyTypes: ['core'] },
     },
+    {
+      name: 'no-circular',
+      comment:
+        'Forbids RUNTIME import cycles only. loop.ts -> flight/model.ts (a value ' +
+        'import, for step/DT) and model.ts -> loop.ts (`import type { SimContext }`) ' +
+        'already form a graph cycle, but the back edge is type-only and is erased ' +
+        'by the compiler, so nothing cycles at runtime. `viaOnly.dependencyTypesNot` ' +
+        'restricts the match to cycles whose every edge is a real (non-type-only) ' +
+        'dependency, so that existing cycle passes and a later task turning the ' +
+        'back edge into a real import would not. Verified 2026-09-12: passes on ' +
+        'the real tree; a scratch two-file value-import cycle trips it by name, ' +
+        'then was removed.',
+      severity: 'error',
+      from: {},
+      to: {
+        circular: true,
+        viaOnly: { dependencyTypesNot: ['type-only'] },
+      },
+    },
   ],
   options: {
     tsConfig: { fileName: 'tsconfig.json' },

@@ -59,4 +59,18 @@ describe('sim/ forbids browser globals and nondeterminism (spec §3)', () => {
     expect(messages).toContain('no-restricted-globals')
     expect(messages).toContain('no-restricted-properties')
   })
+
+  it('reports an error for the storage, network and scheduling globals', async () => {
+    // tsc has always accepted these in sim/ (its default lib includes DOM),
+    // so this denylist is the only guard. A rule never seen to fail is
+    // indistinguishable from one that matches nothing.
+    const names = ['localStorage', 'sessionStorage', 'fetch', 'self', 'requestAnimationFrame', 'crypto', 'XMLHttpRequest']
+    const eslint = new ESLint({})
+    const results = await eslint.lintText(
+      `export const bad = [${names.join(', ')}]\n`,
+      { filePath: 'src/sim/__lint_probe__.ts' },
+    )
+    const flagged = results.flatMap((r) => r.messages).map((m) => m.message)
+    for (const g of names) expect(flagged.some((m) => m.includes(g)), g).toBe(true)
+  })
 })
