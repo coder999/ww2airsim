@@ -15,7 +15,8 @@
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",
     "golden:regen": "tsx tools/golden/generate.ts",
-    "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts"
+    "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
+    "test:tier2": "playwright test"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.2",
     "@types/three": "^0.186.0",
     "@webgpu/types": "^0.1.72",

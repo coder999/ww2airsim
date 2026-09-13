@@ -34,6 +34,48 @@ npm run verify   # typecheck -> lint -> depcruise -> tests
 `npm run verify` is the gate: it runs `tsc --noEmit`, ESLint, the
 dependency-cruiser boundary rules, and the full vitest suite, in that order.
 
+## Tier 2: the GPU harness
+
+Two checks need a real GPU and a browser and so cannot run in `npm run
+verify` or in hosted CI: an adapter guard (confirms the browser is actually
+using the reference GPU, not a software rasterizer) and a camera sweep that
+asserts zero WebGPU validation errors. Deliberately no screenshot goldens —
+see `tests/e2e/adapter.spec.ts`'s doc comment for why.
+
+The dev server binds loopback-only (`vite.config.ts`), because WebGPU needs a
+secure context and a plain-HTTP LAN address is not one — so the loop is a dev
+server on nexus, reached over an SSH tunnel, with the Playwright runner itself
+on a machine with a real GPU:
+
+```sh
+# on nexus
+npm run dev
+
+# on the Windows desktop, in another terminal
+ssh -L 5173:localhost:5173 nexus
+```
+
+One-time setup on the Windows desktop (a separate checkout — the test runner
+has to be local to the GPU, the dev server does not):
+
+```sh
+git clone https://github.com/coder999/ww2airsim.git
+cd ww2airsim
+git checkout <branch-or-commit-with-this-work>   # until merged to main
+npm ci
+npx playwright install chromium
+```
+
+Then, with the tunnel open and `npm run dev` running on nexus:
+
+```sh
+npm run test:tier2
+```
+
+Expected: 2 passed. If the adapter test fails, read its printed summary
+before anything else — it is almost always telling you the browser fell back
+to a software rasterizer, not that anything else is wrong.
+
 ## What this is, and is not
 
 This is a technical playground; the engineering is the point. Depth is

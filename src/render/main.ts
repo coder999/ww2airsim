@@ -131,6 +131,38 @@ async function boot(): Promise<void> {
 
   let frame = initialFrameState(spec, initialAircraft)
 
+  // Tier 2 diagnostics (tests/e2e/adapter.spec.ts), guarded absent from a
+  // production build: `import.meta.env.DEV` is replaced with the literal
+  // `false` by Vite at build time, and esbuild's dead-code elimination drops
+  // an `if (false)` block, the same pattern already used for `stepper` above.
+  //
+  // `validationErrors` here is the exact array `renderer.onError` (above)
+  // pushes into -- not a second one. No explicit `pushErrorScope('validation')`
+  // wraps the first frame: WebGPUBackend installs `device.onuncapturederror`
+  // during `renderer.init()` (inside `initRenderer`, before this point) as a
+  // closure that calls `renderer.onError` *at the time an error fires*, not a
+  // reference captured when the listener was installed -- so every error from
+  // here on is already routed to this array, including ones raised while the
+  // scene below is first constructed, with no separate scope needed. Reaching
+  // the raw GPUDevice to call pushErrorScope directly would need an unsafe
+  // cast through `renderer.backend`, which @types/three 0.186.0 does not
+  // declare a `device` field for (node_modules/@types/three/src/renderers/
+  // webgpu/WebGPUBackend.d.ts has no instance property, only a same-named
+  // constructor parameter) -- the same gap Task 11 hit and avoided for
+  // `device.lost`, verified again here 2026-09-13 rather than assumed.
+  if (import.meta.env.DEV) {
+    ;(window as unknown as { __ww2: unknown }).__ww2 = {
+      adapter: adapterVerdict,
+      validationErrors,
+      tick: () => frame.world.aircraft.tick,
+      // Not in Task 15's original sketch: added so the camera-sweep test can
+      // assert the sweep actually drove the app (its own requirement) rather
+      // than trusting an empty error array that a wrong key code or a too-short
+      // wait would produce just as easily as a correct sweep would.
+      cameraMode: () => frame.cameraMode,
+    }
+  }
+
   const pressed = new Set<string>()
   window.addEventListener('keydown', (e) => {
     pressed.add(e.code)
