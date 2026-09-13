@@ -35,6 +35,18 @@ describe('randomized soak (spec §11)', () => {
     // absolute sideslip from 15.1 to 5.4 degrees and the peak from 41.9 to
     // 15.2.
     //
+    // Those four figures do NOT come from this harness, and 2026-09-13's final
+    // whole-branch review could not reproduce them here. Replaying this exact
+    // loop (seed 1337, 200 iterations) with |beta| sampled every step returns
+    // its step and completion counts to the digit -- 587,040 / 99 with the
+    // weathercock and 611,160 / 132 without, as above -- and mean absolute
+    // sideslip 28.0 -> 11.0 degrees with the peak 90.0 -> 89.6, roughly twice
+    // the quoted mean and six times the quoted peak. The direction and the
+    // conclusion are unchanged; the magnitudes are not, so read the four
+    // numbers above as belonging to whatever "soak-like" probe produced them,
+    // not to this test. The reproducible ones, and what they imply for the
+    // dynamic-pressure approximation, are in design open item 10.
+    //
     // The likely mechanism, NOT isolated: a crabbing aeroplane really is at a
     // higher alpha for the same flight path, by 1/cos(sideslip) -- 34% at 42
     // degrees of slip -- so removing the crab removes that. Other effects

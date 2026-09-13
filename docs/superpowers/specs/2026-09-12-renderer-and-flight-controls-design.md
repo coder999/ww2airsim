@@ -543,23 +543,62 @@ a rewrite. Plan 5 is the plan that should revisit it.
    replace a guessed constant with a cited measurement, which is what
    `reference.source` already does for mass, speed and stall.
 
-10. **Lift uses the total airspeed as its dynamic pressure, including the part
-    of the flow that runs along the span** — added 2026-09-13, replacing the
-    retracted item 8 with the thing that is actually approximated there.
+10. **The force model uses the total airspeed as its dynamic pressure,
+    including the part of the flow that runs along the span** — added
+    2026-09-13, replacing the retracted item 8 with the thing that is actually
+    approximated there; scope and measurements corrected 2026-09-13 by the
+    final whole-branch review of Plan 3.
 
-    `step` computes `L = 0.5*rho*V^2 * S * Cl(alpha)` from the total speed. For
-    an unswept wing the section force depends on the flow component normal to
-    the span, which is `V*cos(beta)`, so at large sideslip the model
-    over-estimates lift by roughly `1/cos^2(beta)`: 7% at 15 degrees, 81% at 42.
-    Alpha itself is right (item 8); it is the dynamic pressure that is not.
+    `step` computes one `q = 0.5*rho*V^2` from the total speed
+    (`src/sim/flight/model.ts`, in `step`) and feeds it to BOTH
+    `liftN = q * S * Cl(alpha)` and `dragN = q * S * Cd`, on the next line.
+    For an unswept wing the section force depends on the flow component normal
+    to the span, which is `V*cos(beta)`, so at large sideslip the model
+    over-estimates lift by roughly `1/cos^2(beta)`: 7.2% at 15 degrees, 81.1%
+    at 42. Alpha itself is right (item 8); it is the dynamic pressure that is
+    not.
 
-    **Derived, not measured** — from the standard independence principle for an
-    unswept wing, with no flight-test figure behind it and no soak measurement
-    of how often the aeroplane actually sits at a sideslip where it matters.
-    Anyone acting on it should measure that first.
+    **This item is about `q`, not about lift.** It was originally written as
+    "lift uses...", and anyone implementing it as written would change the
+    lift line and leave drag computed on the old `q` one line below —
+    correcting half the force model and leaving the two halves disagreeing
+    about what the free stream is, which is worse than either consistent
+    choice. Doing it properly needs its own derivation for drag rather than
+    the same factor copied across: the independence principle gives the
+    section NORMAL force directly, while the wing's parasite and induced drag
+    do not both follow it, and the fuselage's drag is not a span-wise
+    argument at all.
 
-    Not fixed: it is a flight-model change with no reported symptom behind it,
-    it would move the golden and re-baseline the soak, and the weathercock term
-    (item 6) already keeps steady-state sideslip small — under soak-like random
-    inputs it took mean absolute sideslip from 15.1 to 5.4 degrees, where the
-    error is 0.9%.
+    **Derived, not measured** — the `1/cos^2` factor comes from the standard
+    independence principle for an unswept wing, with no flight-test figure
+    behind it.
+
+    How often it matters, re-measured 2026-09-13. The soak harness itself
+    (`tools/soak/run.ts`, seed 1337, 200 iterations, 587,040 steps, the
+    shipped model with the weathercock on), sampling |beta| every step:
+    median 6.8 degrees (1.4% error), mean 11.0 (3.8%), 90th percentile 25.5
+    (22.7%), peak 89.6. **18.9% of all steps sit past 15 degrees of sideslip,
+    and 5.0% past 42** — i.e. one step in twenty is somewhere the lift term is
+    over-estimated by 81% or more. With the weathercock disabled
+    (`weathercockSeconds = 1e9`) the same run gives median 23.0, mean 28.0 and
+    65.3% of steps past 15 degrees, so item 6 does help a great deal; it does
+    not make this small.
+
+    This paragraph used to end "the weathercock term already keeps
+    steady-state sideslip small — under soak-like random inputs it took mean
+    absolute sideslip from 15.1 to 5.4 degrees, where the error is 0.9%",
+    quoting one central statistic and the error at it. The same source
+    (`tests/sim/soak.test.ts`'s comment) records a peak of 15.2 degrees from
+    that run in the same sentence, where the error is 7.4%, and the omission
+    is most of what made the item read as ignorable. Neither of those two
+    figures reproduces here: replaying the soak loop step for step gives its
+    step count and completion count to the digit (587,040 / 99 with the
+    weathercock, 611,160 / 132 without), and a sideslip mean twice the quoted
+    one with a peak nearly six times it. Whatever "soak-like" probe produced 5.4 and
+    15.2, it was not this harness, and the numbers above are the ones with a
+    reproduction recipe attached.
+
+    Still not fixed: it is a flight-model change with no reported symptom
+    behind it, and it would move the golden and re-baseline the soak. But the
+    measurement that was supposed to justify deferring it does not say what it
+    was quoted as saying, so the deferral now rests on cost and risk alone.
