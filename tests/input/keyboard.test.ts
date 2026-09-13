@@ -74,3 +74,34 @@ describe('controlsFromKeys', () => {
     }
   })
 })
+
+describe('control sign conventions (review 2026-09-13)', () => {
+  // A mutation sweep found that swapping rollLeft with rollRight, or yawLeft
+  // with yawRight, left the whole 335-test suite green. Only pitch had a
+  // direction assertion; roll appeared solely in a limit check and a
+  // both-keys-cancel check, both sign-blind, and yaw was never exercised at
+  // all. Inverted roll is C-1's defect moved from the instrument to the stick,
+  // and it is the one a pilot would notice first.
+  //
+  // Controls' documented convention (src/sim/flight/state.ts): positive pitch
+  // is nose up, positive roll is right roll, positive yaw is nose right.
+  const held = (code: string, seconds = 1) =>
+    controlsFromKeys(new Set([code]), seconds, NEUTRAL)
+
+  it('rolls right on the right-hand keys and left on the left-hand ones', () => {
+    for (const code of ['ArrowRight', 'KeyD']) expect(held(code).roll).toBeGreaterThan(0)
+    for (const code of ['ArrowLeft', 'KeyA']) expect(held(code).roll).toBeLessThan(0)
+  })
+
+  it('yaws the nose right on E and left on Q', () => {
+    expect(held('KeyE').yaw).toBeGreaterThan(0)
+    expect(held('KeyQ').yaw).toBeLessThan(0)
+  })
+
+  it('pitches the nose up on the back-stick keys', () => {
+    // Pull back to climb: ArrowDown and S are the back-stick, as bindings.ts
+    // says. Pinned here too so all three axes are guarded in one place.
+    for (const code of ['ArrowDown', 'KeyS']) expect(held(code).pitch).toBeGreaterThan(0)
+    for (const code of ['ArrowUp', 'KeyW']) expect(held(code).pitch).toBeLessThan(0)
+  })
+})

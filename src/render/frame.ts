@@ -157,8 +157,8 @@ export function worldOffsetFor(eyePosition: Vec3): Vec3 {
  * airframe mesh should be visible for a camera mode. Exactly one is ever
  * true, not just "the panel shown": the code-built Hellcat's fuselage box
  * spans y +/-0.75 m (src/render/scene/hellcat.ts), so its top face sits
- * between the eye (0.9 m) and the panel (0.55 m, src/render/scene/panel.ts)
- * and, being front-facing from above, would occlude the panel completely if
+ * between the eye (0.9 m) and the panel (0.71 m as of 2026-09-13, src/render/scene/panel.ts)
+ * and, being front-facing from above, would occlude roughly the lower half of the panel if
  * left visible in cockpit mode -- you would be looking at the inside of a
  * solid box.
  */

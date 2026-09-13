@@ -1,4 +1,10 @@
-import { CanvasTexture, LinearFilter, SRGBColorSpace, type Texture } from 'three'
+import {
+  CanvasTexture,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  SRGBColorSpace,
+  type Texture,
+} from 'three'
 
 /**
  * Rasterises a short string into a texture for a panel plate.
@@ -55,10 +61,16 @@ export const makeTextTexture: TextTextureFactory = (text, aspect) => {
 
   const texture = new CanvasTexture(canvas)
   texture.colorSpace = SRGBColorSpace
-  // No mipmaps: these are regenerated whenever a readout changes, and building
-  // a mip chain per change for text read at close to 1:1 is wasted work.
-  texture.generateMipmaps = false
-  texture.minFilter = LinearFilter
+  // A mip chain, despite these being regenerated whenever a readout changes.
+  // The first version skipped it, reasoning the text is "read at close to
+  // 1:1"; measured at 1440p from 0.6 m, the label plates are 590x96 texels
+  // drawn into about 357x58 px and the numerals 218x96 into about 88x39 --
+  // 1.65x and 2.5x minification. That is the same defect I-6 had just fixed on
+  // the water, reintroduced one commit later on the strength of an unmeasured
+  // claim. 96 px tall is a few kilobytes; the chain is cheap.
+  texture.generateMipmaps = true
+  texture.minFilter = LinearMipmapLinearFilter
+  texture.anisotropy = 4
   texture.magFilter = LinearFilter
   return texture
 }

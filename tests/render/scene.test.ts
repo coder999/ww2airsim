@@ -12,9 +12,13 @@ import {
 } from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
-import { createWater, recentreWater, SEA_COLOUR, WATER_EXTENT_M } from '../../src/render/scene/water.js'
-import { createSky, domeColourFor, SKY_RADIUS_M, SKY_ZENITH } from '../../src/render/scene/sky.js'
+import { createWater, recentreWater, WATER_EXTENT_M } from '../../src/render/scene/water.js'
+import { createSky, domeColourFor, SKY_RADIUS_M } from '../../src/render/scene/sky.js'
+import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { createLighting } from '../../src/render/scene/lighting.js'
+
+/** 1440p, the resolution the legibility trade was made for. */
+const PIXELS_TALL = 1440
 
 describe('hellcat geometry', () => {
   it('is roughly F6F-sized: ~13 m span, ~10 m long', () => {
@@ -152,46 +156,57 @@ describe('water', () => {
 })
 
 describe('sky dome below the horizon', () => {
-  it('is the sea colour, so the water/dome seam is invisible at any altitude', () => {
-    // I-1's residual half. No finite flat plane can put the water/dome
-    // boundary exactly at eye level: the boundary sits atan(altitude /
-    // SKY_RADIUS_M) below it, which is 0.76 degrees at the 600 m spawn but
-    // 7.59 degrees at 6000 m. Sizing the plane cannot fix that -- the dome
-    // is always the nearer surface near the horizon.
+  it('is sea below the equator and sky above it, matching step(0, y) exactly', () => {
+    // CORRECTED 2026-09-13. This asserted `domeColourFor(0) === SEA_COLOUR`,
+    // which was the ONE input where the JavaScript and the shader disagreed:
+    // `step(0, y)` returns 1 at y === 0 and therefore selects sky. The test
+    // that existed to keep the mirror honest pinned the mismatch instead --
+    // C-1's shape exactly.
     //
-    // So the fix is colour, not size: below its equator the dome is exactly
-    // SEA_COLOUR, which makes the boundary invisible however wide the band
-    // gets. This also makes the result independent of draw order, which
-    // matters because the dome writes no depth and nothing here pins the
-    // order the two are drawn in.
-    expect(domeColourFor(0)).toBe(SEA_COLOUR)
-    expect(domeColourFor(-0.001)).toBe(SEA_COLOUR)
-    expect(domeColourFor(-1)).toBe(SEA_COLOUR)
-    // Above the horizon the gradient is untouched.
-    expect(domeColourFor(1)).toBe(SKY_ZENITH)
-    expect(domeColourFor(0.0001)).not.toBe(SEA_COLOUR)
+    // The function no longer mirrors the colour ramp at all. Three converts
+    // colours into linear working space, so the shader interpolates there
+    // while JavaScript on sRGB bytes interpolates in gamma space; they agreed
+    // only at the endpoints and differed by up to 20 of 255 in between.
+    expect(domeColourFor(-1)).toBe('sea')
+    expect(domeColourFor(-0.001)).toBe('sea')
+    expect(domeColourFor(0)).toBe('sky')
+    expect(domeColourFor(0.0001)).toBe('sky')
+    expect(domeColourFor(1)).toBe('sky')
   })
 })
 
 describe('sky', () => {
-  it('draws a horizon straighter than one pixel, since the horizon IS its equator', () => {
-    // I-1 made the water wider than the dome, so near eye level the dome is
-    // the nearer surface and its equator polygon is what a pilot reads as the
-    // horizon. At the original 32 segments each chord sagged 217 m below the
-    // true circle at 45 km -- about 5 px of scalloping at 1440p through the
-    // cockpit's 60-degree field, visible as a kink in the horizon on the
-    // 2026-09-13 Surface screenshots.
+  it('keeps the equator polygon sub-pixel at the altitudes this plan flies', () => {
+    // CORRECTED 2026-09-13. The first version of this test computed the
+    // RADIAL sagitta, `radius * (1 - cos(pi/N))`, and then divided it by the
+    // radius again -- so the radius cancelled algebraically and the assertion
+    // was a function of the segment count alone, despite a comment promising
+    // that "raising the radius without raising the segment count fails here".
+    // It also measured the wrong thing: the equator ring lies in y = 0 at
+    // every segment count, so its chords bow inward, not downward.
     //
-    // Measured off the built geometry rather than the constant, so raising
-    // the radius without raising the segment count fails here.
+    // What a pilot sees is the change in DEPRESSION ANGLE of the equator
+    // between a vertex, at range R, and a chord midpoint, at range
+    // R*cos(pi/N), from an eye at altitude h. That does depend on the radius,
+    // and on the altitude, which is why both appear below.
     const sky = createSky() as Mesh
-    const segments = (sky.geometry as SphereGeometry).parameters.widthSegments
-    const radius = (sky.geometry as SphereGeometry).parameters.radius
-    const sagM = radius * (1 - Math.cos(Math.PI / segments))
-    const VERTICAL_FOV_DEG = 60
-    const PIXELS_TALL = 1440
-    const sagPx = ((Math.atan(sagM / radius) * 180) / Math.PI / VERTICAL_FOV_DEG) * PIXELS_TALL
-    expect(sagPx).toBeLessThan(1)
+    const { widthSegments, radius } = (sky.geometry as SphereGeometry).parameters
+    const scallopPx = (altitudeM: number, segments = widthSegments): number => {
+      const atVertex = Math.atan(altitudeM / radius)
+      const atMidpoint = Math.atan(altitudeM / (radius * Math.cos(Math.PI / segments)))
+      return (((atMidpoint - atVertex) * 180) / Math.PI / CAMERA_VFOV_DEG) * PIXELS_TALL
+    }
+    // The altimeter's full scale is the highest this plan can go, and the
+    // effect grows with altitude, so the top of the range is the check that
+    // matters. Testing only the spawn was how the first version of this let a
+    // 60-fold error through.
+    const TOP_OF_SCALE_M = 10_000
+    expect(scallopPx(600)).toBeLessThan(1)
+    expect(scallopPx(TOP_OF_SCALE_M)).toBeLessThan(1)
+    // Proven to bite, not merely to pass: a coarser dome crosses a pixel at
+    // the top of the altimeter, which is exactly what 32 segments did.
+    expect(scallopPx(TOP_OF_SCALE_M, 32)).toBeGreaterThan(1)
+    expect(scallopPx(TOP_OF_SCALE_M, widthSegments / 2)).toBeGreaterThan(1)
   })
 
   it('splits its colour on a vertex ring, not through the middle of a triangle', () => {

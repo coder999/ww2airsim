@@ -336,12 +336,14 @@ describe('panel', () => {
     // Same shape as the horizon case: each face normal is read off the built
     // geometry and compared with the direction to the eye point that
     // cameraTransformFor computes independently. Measured 2026-09-13, the
-    // worst (outermost) dial scores 0.70 -- the panel is 0.60 m ahead of and
-    // 0.35 m below the eye and is not tilted back, so nothing here can reach
-    // 1. The threshold separates that from the two ways of getting the
-    // authoring frame wrong: with no turn about Y the faces look out the
-    // right wing and score 0.00, and turned the wrong way they face away at
-    // -0.87 and the pilot sees six backs.
+    // worst (outermost) dial scores 0.79 -- the panel is 0.60 m ahead of and
+    // 0.19 m below the eye and is not tilted back, so nothing here can reach
+    // 1. (Both numbers were restated 2026-09-13 after the panel moved: the
+    // comment still quoted 0.70 and 0.35 m, which the same commit that
+    // changed them left behind.) The threshold separates that from the two
+    // ways of getting the authoring frame wrong: with no turn about Y the
+    // faces look out the right wing and score 0.00, and turned the wrong way
+    // they face away and the pilot sees six backs.
     const p = createPanel(f6f)
     const state = banked(0)
     const { eye } = pose(p, state)

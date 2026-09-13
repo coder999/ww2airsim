@@ -162,3 +162,28 @@ describe('look default parity', () => {
     }
   })
 })
+
+describe('chase offset sign (review 2026-09-13)', () => {
+  it('pins each component, not just the magnitude', () => {
+    // The existing rigid-attachment test compares the eye distance against
+    // `length(CHASE_OFFSET_M)`, which is invariant under any permutation or
+    // sign flip of the components. Flipping the vertical to [-22,-6,0] put the
+    // camera below the aeroplane looking up through the sea, and moving it to
+    // [-22,0,6] put it on the right wingtip; both left the whole suite green.
+    const [x, y, z] = CHASE_OFFSET_M
+    expect(x).toBeLessThan(0) // behind: the nose is body +X
+    expect(y).toBeGreaterThan(0) // above
+    expect(z).toBe(0) // on the centreline
+    expect(Math.abs(x)).toBeGreaterThan(y) // further back than up, or it is a top-down view
+  })
+
+  it('places the eye behind and above the aeroplane in the world, wings level', () => {
+    // The component check above is on the constant; this one is on the
+    // transform, so a sign lost between the two still fails.
+    const pose = at(v3(0, 600, 0), qIdentity())
+    const eye = cameraTransformFor('chase', f6f, pose, LOOK_CENTRE)
+    expect(eye.position.x).toBeLessThan(pose.position.x)
+    expect(eye.position.y).toBeGreaterThan(pose.position.y)
+    expect(Math.abs(eye.position.z - pose.position.z)).toBeLessThan(1e-9)
+  })
+})

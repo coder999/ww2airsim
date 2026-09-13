@@ -4,7 +4,7 @@ Plan 2 of 7. Companion to `2026-09-12-ww2airsim-design.md`, which remains the
 binding authority; where this document and that one disagree, that one wins and
 this one is wrong.
 
-**Status: design approved 2026-09-12, no implementation yet.** Amended 2026-09-12 after the plan's pre-execution review; each amendment is marked inline and dated.
+**Status: implemented. All 15 tasks committed on `worktree-plan2-renderer` as of 2026-09-13; 341 tests in 30 files green, `npm run build` produces a bootable artifact. Four steps remain, all needing the reference platform — see the plan's 2026-09-13 revision.** Amended 2026-09-12 after the plan's pre-execution review; each amendment is marked inline and dated.
 
 ## 1. What this is
 
@@ -71,12 +71,14 @@ vendor === 'amd' && architecture === 'rdna-2' && isFallbackAdapter === false
 which still discharges the guard's actual purpose — ruling out a software
 rasterizer whose frame times and screenshots would be worthless.
 
-**The TSL result is unsettled and it was our bug, not three's.** The probe
+**The TSL result is unsettled. This section originally concluded it was our bug, not three's; that no longer stands — see the 2026-09-13 second-platform section below, which re-ran the fixed probe and got the identical error.** The probe
 passed `storageBufferNode.toAttribute()` to `renderer.getArrayBufferAsync()`,
 which wants the `StorageInstancedBufferAttribute` at `.value`; `toAttribute()`
 returns a `BufferAttributeNode` for feeding geometry. Hence
 `TypeError: Cannot read properties of undefined (reading 'size')`. Fixed in the
-probe, not yet re-run. Since raw WGSL compute demonstrably works on this GPU,
+probe. Re-run 2026-09-13 on a Surface: it threw the identical error, so this
+diagnosis is not supported -- see the second-platform section above. Since raw
+WGSL compute demonstrably works on this GPU,
 **no part of this plan is blocked either way** — TSL versus `wgslFn` is a
 question for Plan 4's ocean, not for anything here.
 
@@ -223,7 +225,7 @@ first commit. It never touches `sim/` internals.
 **Frame order**, which is the part that is easy to get subtly wrong:
 
 1. Sample input → one `Controls` value
-2. `advance(world, controls, elapsed)` runs 0–5 fixed steps, all using it
+2. `advance(world, elapsedSeconds, stepper?)` runs 0–5 fixed steps, all using it — the controls ride in `World`, see the I-5 amendment above
 3. Render interpolates `prev`/`curr` by `alpha`
 
 Input is sampled per *frame*, not per step. A long frame running six steps
@@ -352,8 +354,8 @@ The structural move that decides whether a human is in the loop: **the
 renderer's logic is pure and separate from its drawing.**
 
 ```ts
-cameraTransformFor(mode, prev, curr, alpha, lookOffset) → { position, quaternion }
-needleAngleFor(gauge, state) → radians
+cameraTransformFor(mode, spec, render, look) → EyeTransform   // corrected 2026-09-13
+needleAngleFor(id, spec, state) → radians                     // corrected 2026-09-13
 controlsFromKeys(pressed, dt, previous) → Controls
 ```
 
@@ -426,6 +428,20 @@ a rewrite. Plan 5 is the plan that should revisit it.
    required for a number that exists to make a camera sit somewhere sensible.
 4. **Gauge legibility at 1440p** — the first thing to check in Tier 3, and the
    reason appearance authenticity was traded away up front.
+5. **Control ramping runs at frame rate, so replay is not frame-rate
+   independent** — added 2026-09-13 (whole-branch review, I-4; Ruling R18
+   settled the documentation half only). `nextFrameState` ramps the controls
+   against the animation-frame delta, outside the fixed step, so 60 Hz and
+   144 Hz replaying the same key log diverge even with `droppedSteps` zero
+   throughout. Master spec §3's replay guarantee therefore does not hold today,
+   and `droppedSteps === 0` does not imply it does.
+
+   Not fixed here on purpose: moving the ramp inside the fixed step changes how
+   the controls feel, and **nobody has flown this yet**. Deciding it before the
+   reference-platform trip is the same guessing the no-tuning rule exists to
+   prevent. Note that it gets harder every plan, and no plan uses replay yet, so
+   the cost of waiting is currently zero and the cost of guessing is not.
+
 6. **No directional stability: the aeroplane flies crabbed after every turn**
    — found by flying it, 2026-09-13, and it belongs to Plan 1's model rather
    than to anything here. Roll into a turn and level out, and the flight path
@@ -457,17 +473,3 @@ a rewrite. Plan 5 is the plan that should revisit it.
    strength constant, and picking one before the reference-platform trip is the
    guess the no-tuning rule exists to prevent. It is Plan 3's to settle, with
    `rates.maxYawRateDegPerSec` as the natural anchor for the saturation.
-
-5. **Control ramping runs at frame rate, so replay is not frame-rate
-   independent** — added 2026-09-13 (whole-branch review, I-4; Ruling R18
-   settled the documentation half only). `nextFrameState` ramps the controls
-   against the animation-frame delta, outside the fixed step, so 60 Hz and
-   144 Hz replaying the same key log diverge even with `droppedSteps` zero
-   throughout. Master spec §3's replay guarantee therefore does not hold today,
-   and `droppedSteps === 0` does not imply it does.
-
-   Not fixed here on purpose: moving the ramp inside the fixed step changes how
-   the controls feel, and **nobody has flown this yet**. Deciding it before the
-   reference-platform trip is the same guessing the no-tuning rule exists to
-   prevent. Note that it gets harder every plan, and no plan uses replay yet, so
-   the cost of waiting is currently zero and the cost of guessing is not.
