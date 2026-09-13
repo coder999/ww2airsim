@@ -2202,7 +2202,7 @@ First pixels. The day-0 spike is the reason this task exists separately: a page 
 - Consumes: `judgeAdapter` (Task 7).
 - Produces: `showFailure(root, kind, detail)`, `type FailureKind`, `createOverlay(root)`, `initRenderer(canvas)` returning `{ renderer, adapterVerdict }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/failure.test.ts`. This tests the message selection, which is pure — the DOM writing is a thin wrapper:
 
@@ -2243,12 +2243,12 @@ describe('failureMessage', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/failure.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the failure states**
+- [x] **Step 3: Implement the failure states**
 
 Create `src/render/failure.ts`:
 
@@ -2330,7 +2330,7 @@ export function showFailure(root: HTMLElement, kind: FailureKind, detail: string
 }
 ```
 
-- [ ] **Step 4: Implement the overlay and the renderer bootstrap**
+- [x] **Step 4: Implement the overlay and the renderer bootstrap**
 
 Create `src/render/overlay.ts`:
 
@@ -2411,7 +2411,7 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<RendererB
 }
 ```
 
-- [ ] **Step 5: Wire `main.ts` to show something**
+- [x] **Step 5: Wire `main.ts` to show something**
 
 Replace `src/render/main.ts` with a bootstrap that brings up the renderer, installs the `device.lost` and `uncapturederror` handlers, and clears to a colour. No scene content yet — that is Task 12.
 
@@ -2464,12 +2464,12 @@ void boot().catch((e: unknown) => {
 })
 ```
 
-- [ ] **Step 6: Verify by eye, once**
+- [x] **Step 6: Verify by eye, once**
 
 Run `npm run dev` on nexus, tunnel from the Windows desktop (`ssh -L 5173:localhost:5173 nexus`), open `http://localhost:5173`.
 Expected: a cleared canvas with the dev overlay top-left naming the adapter. This is one of the few steps in this plan that needs human eyes; from Task 15 the adapter half is automated.
 
-- [ ] **Step 7: Retire the placeholder, run the full pipeline and commit**
+- [x] **Step 7: Retire the placeholder, run the full pipeline and commit**
 
 `git rm src/render/placeholder.ts`, and in `tests/architecture/boundary.test.ts` change the render probe's import to `import { showFailure } from '../render/failure.js'` (and its export to `showFailure`). The probe still targets a real file, which is what makes it a probe.
 
