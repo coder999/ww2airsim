@@ -15,12 +15,24 @@ describe('failureMessage', () => {
   })
 
   it('explains a lost device as recoverable rather than as a crash', () => {
-    const m = failureMessage('device-lost', 'driver reset')
+    // 'thermal shutdown code 0x7' shares no vocabulary with the hardcoded
+    // prose below, so the /reload|driver/ match below can only be satisfied
+    // by that prose, not by echoing this input back -- verified by deleting
+    // the hardcoded explanation and watching this fail (see fix-round-1 notes).
+    const m = failureMessage('device-lost', 'thermal shutdown code 0x7')
+    expect(m.title).toMatch(/lost/i)
     expect(m.detail).toMatch(/reload|driver/i)
+    expect(m.detail).toContain('thermal shutdown code 0x7')
   })
 
   it('surfaces a content validation failure with the offending field', () => {
     const m = failureMessage('bad-content', 'aero.cd0: Required')
+    expect(m.title).toMatch(/valid/i)
+    // A substring that can only come from the hardcoded label/explanation,
+    // never from the echoed detail -- the field-name check below alone would
+    // still pass on a bare `{ title, detail }` passthrough, since the field
+    // name is exactly what got echoed.
+    expect(m.detail).toMatch(/schema-validated|Offending field/i)
     expect(m.detail).toMatch(/aero\.cd0/)
   })
 

@@ -1,10 +1,16 @@
-import { initRenderer } from './renderer.js'
+import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
 import { createOverlay } from './overlay.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
 // loaded from, so this assertion is safe at the entry point.
 const root = document.getElementById('app')!
+
+// Accumulated by the uncapturederror handler set on `renderer.onError` below.
+// Module-scoped and left un-exposed here on purpose: Task 15 hooks a
+// `window.__ww2` accumulator array so its camera-sweep check can assert this
+// stays empty; that exposure is Task 15's job, not this task's.
+const validationErrors: string[] = []
 
 async function boot(): Promise<void> {
   const canvas = document.createElement('canvas')
@@ -26,6 +32,14 @@ async function boot(): Promise<void> {
   // teardown.
   renderer.onDeviceLost = (info) => {
     showFailure(root, 'device-lost', info.message)
+  }
+
+  // See normalizeGpuError's doc comment: the installed three@0.186.0 runtime
+  // calls this with an object despite @types/three declaring a string
+  // parameter. Accepting the union here is what makes this assignment
+  // typecheck against the (wrong) declared signature without a cast.
+  renderer.onError = (info: string | { message?: string }) => {
+    validationErrors.push(normalizeGpuError(info))
   }
 
   const overlay = createOverlay(root)
