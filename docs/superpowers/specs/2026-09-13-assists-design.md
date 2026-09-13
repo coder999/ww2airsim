@@ -136,6 +136,20 @@ still climbs or sinks as speed changes. So this is an altitude or flight-path
 hold, not a trim in the classical sense, and calling it "trim" would be the
 kind of name-versus-behaviour mismatch this project has corrected repeatedly.
 
+**Implemented 2026-09-13 (Task 4), as `altitudeHold` in `src/assists/index.ts`,
+under exactly the name this section argued for.** It needs memory this
+document does not discuss (which altitude was captured, and when) -- see that
+function's doc comment, and `AltitudeHoldMemory`'s, for the design and why it
+is threaded explicitly rather than added to `World`. The mechanism is
+feed-forward plus a two-loop proportional correction, structurally the same
+idea as `sim/autopilot.ts`'s pre-existing `holdLevelFlight` (cited, not
+reused wholesale: that function also forces wings-level and uses gains tuned
+for a repeatable measurement harness, not pilot feel). One new content
+constant, `rates.altitudeHoldSeconds = 3`, measured against `step()` end to
+end: unassisted, 60 s hands-off drifts 19-236 m depending on speed and
+throttle; assisted, the same six conditions finish within 0.4 m, worst
+excursion under 11 m.
+
 ### Rate damping — I think this one is a no-op, and want to say so before building it
 
 In a rate-command model there is nothing to damp. Control input IS the body
@@ -208,5 +222,13 @@ and it is not.
 
 ## 6. What this plan does not do
 
-No options UI, no persistence, no per-aircraft assist tuning, no AI use of the
-assists. Those belong to later plans in the master spec's ordering.
+No options UI, no persistence, no AI use of the assists. Those belong to
+later plans in the master spec's ordering.
+
+**Amended 2026-09-13, during Task 4: "no per-aircraft assist tuning" (the
+original wording here) was already false by Task 3 and is deleted rather than
+carried forward stale.** `autoRudderGainPerDeg` (Task 2), `stallLimiterSeconds`
+(Task 3) and `altitudeHoldSeconds` (Task 4) are all per-aircraft content, each
+with a schema entry -- exactly per-aircraft assist tuning, just not a UI for a
+player to change it. What this section actually means, and should have said,
+is no player-facing settings to CHOOSE those values at runtime.

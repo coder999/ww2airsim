@@ -20,6 +20,7 @@ const valid = {
     weathercockSeconds: 1.5,
     autoRudderGainPerDeg: 0.1,
     stallLimiterSeconds: 0.15,
+    altitudeHoldSeconds: 3,
   },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
   reference: {
