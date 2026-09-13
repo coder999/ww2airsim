@@ -136,10 +136,16 @@ export function runSoak(spec: AircraftSpec, iterations: number, seed: number): S
 
     try {
       let completedFull = true
-      for (let tick = 0; tick < 60; tick++) {
+      // Run-scoped to the whole flight, not the per-second outer loop below:
+      // SimContext.tick's contract (src/sim/loop.ts) is monotonic for the
+      // whole run it belongs to, and a flight -- from this spawn to this
+      // water hit or timeout -- is that run. See Task 1 fix round 1.
+      let flightTick = 0
+      for (let second = 0; second < 60; second++) {
         const controls = rollControls(rng)
         for (let i = 0; i < 60; i++) {
-          s = stepChecked(spec, s, controls, { dt: DT, tick: i + 1 })
+          flightTick++
+          s = stepChecked(spec, s, controls, { dt: DT, tick: flightTick })
           steps++
           if (isStalled(spec, s)) stalledSteps++
         }
