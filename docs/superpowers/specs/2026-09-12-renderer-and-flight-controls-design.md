@@ -426,6 +426,38 @@ a rewrite. Plan 5 is the plan that should revisit it.
    required for a number that exists to make a camera sit somewhere sensible.
 4. **Gauge legibility at 1440p** — the first thing to check in Tier 3, and the
    reason appearance authenticity was traded away up front.
+6. **No directional stability: the aeroplane flies crabbed after every turn**
+   — found by flying it, 2026-09-13, and it belongs to Plan 1's model rather
+   than to anything here. Roll into a turn and level out, and the flight path
+   stays angled away from the nose for minutes.
+
+   Measured with the project's own `step`: from a wings-level state deliberately
+   given 10 degrees of sideslip at 120 m/s, hands off,
+
+   | t (s) | 0 | 10 | 20 | 30 | 40 | 50 | 60 |
+   | --- | --- | --- | --- | --- | --- | --- | --- |
+   | sideslip (deg) | 10.00 | 8.91 | 7.96 | 7.12 | 6.39 | 5.73 | 5.15 |
+
+   a half-life of about 60 seconds. **The nose heading does not move at all**,
+   holding 0.00 for the full minute. Nothing in the model produces a yaw moment
+   from sideslip, so the aeroplane never weathercocks. The slow decay above is
+   the TRACK swinging toward the nose, not the nose turning into the wind, and
+   its only cause is that thrust acts along the body forward axis and therefore
+   has a lateral component whenever the aeroplane is crabbed. Drag opposes
+   velocity and so can never correct it.
+
+   This follows directly from master spec section 5's rate-command choice,
+   which states it models no damping derivatives. Directional stability is a
+   damping derivative. The simplification was deliberate and its consequence
+   simply had not been seen, because nobody had flown it. A real fighter's
+   directional mode settles in a second or two, so 60 seconds reads to a pilot
+   as never.
+
+   NOT fixed here, deliberately, and not tuned. A weathercock term needs a
+   strength constant, and picking one before the reference-platform trip is the
+   guess the no-tuning rule exists to prevent. It is Plan 3's to settle, with
+   `rates.maxYawRateDegPerSec` as the natural anchor for the saturation.
+
 5. **Control ramping runs at frame rate, so replay is not frame-rate
    independent** — added 2026-09-13 (whole-branch review, I-4; Ruling R18
    settled the documentation half only). `nextFrameState` ramps the controls
