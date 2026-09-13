@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ww2airsim — day-0 WebGPU probe</title>
+    <!-- Inline, so a favicon 404 does not sit in the console looking like a real
+         failure in a report whose whole job is to be read for failures. -->
+    <link rel="icon" href="data:," />
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; padding: 2rem;
+        background: #14171c; color: #dfe3e8;
+        font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      h1 { font-size: 1.05rem; font-weight: 600; margin: 0 0 .35rem; letter-spacing: .01em; }
+      .sub { color: #8b949e; margin: 0 0 1.5rem; }
+      .row {
+        display: grid; grid-template-columns: 1.6rem 15rem 1fr;
+        gap: .75rem; align-items: baseline;
+        padding: .5rem .6rem; border-radius: 5px;
+      }
+      .row + .row { margin-top: .15rem; }
+      .row.pass { background: #122b1a; }
+      .row.fail { background: #34161a; }
+      .row.warn { background: #33290f; }
+      .row.info { background: #1b2027; }
+      .mark { font-size: 1rem; text-align: center; }
+      .pass .mark { color: #4ec97a; }
+      .fail .mark { color: #f2686f; }
+      .warn .mark { color: #e0b341; }
+      .name { color: #b6bec8; }
+      .detail { color: #eaeef3; white-space: pre-wrap; word-break: break-word; }
+      #verdict {
+        margin: 1.75rem 0 1rem; padding: .9rem 1.1rem;
+        border-left: 3px solid #3d444d; border-radius: 4px; background: #1b2027;
+        font-size: 1rem;
+      }
+      #verdict.go { border-left-color: #4ec97a; }
+      #verdict.nogo { border-left-color: #f2686f; }
+      button {
+        font: inherit; cursor: pointer; color: #dfe3e8;
+        background: #262c35; border: 1px solid #3d444d;
+        border-radius: 5px; padding: .5rem .9rem;
+      }
+      button:hover { background: #2f3641; }
+      textarea {
+        width: 100%; min-height: 15rem; margin-top: .75rem;
+        font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+        color: #dfe3e8; background: #0f1216;
+        border: 1px solid #3d444d; border-radius: 5px; padding: .75rem;
+      }
+      .hint { color: #8b949e; margin-top: 1.5rem; }
+    </style>
+  </head>
+  <body>
+    <h1>ww2airsim — day-0 WebGPU probe</h1>
+    <p class="sub">
+      Throwaway. Settles spec §15's day-0 questions on the reference platform.
+      Nothing here is kept.
+    </p>
+
+    <div id="results">
+      <div class="row info">
+        <span class="mark">…</span>
+        <span class="name">running</span>
+        <span class="detail">If this line never changes, the module failed to load — open DevTools and copy the console.</span>
+      </div>
+    </div>
+
+    <div id="verdict">Running…</div>
+
+    <button id="copy">Copy report to clipboard</button>
+    <textarea id="json" readonly spellcheck="false"></textarea>
+
+    <p class="hint">
+      Paste the report back into the Claude session. The raw object is also at
+      <code>window.__probe</code> in the console.
+    </p>
+
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>
