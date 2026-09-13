@@ -85,8 +85,25 @@ export function updatePanel(panel: Panel, spec: AircraftSpec, state: AircraftSta
     needle.rotation.z = -angle
   }
   const { rollRad, pitchRad } = attitudeAngles(state)
-  // A real artificial horizon stays level with the world while the aeroplane
-  // rolls around it, so the instrument rotates opposite the aircraft.
-  panel.horizon.rotation.z = -rollRad
+  // A real artificial horizon stays level with the WORLD, so the bar must sit
+  // at the angle the true horizon appears at in the pilot's view -- which is
+  // NOT the same as "rotate the bar opposite the aircraft's roll number".
+  //
+  // This frame's +Z points back at the pilot (the panel root is turned -pi/2
+  // about Y, sending local +Z to body -X), so a POSITIVE rotation.z is
+  // anticlockwise on screen; and in a right bank the true horizon appears
+  // rotated anticlockwise. Both signs therefore go the same way, and
+  // `rotation.z = rollRad` is what makes the bar match the horizon rather
+  // than mirror it.
+  //
+  // Measured 2026-09-13 with this project's own createPanel/updatePanel/
+  // cameraTransformFor/toThreeOrientation, posed as main.ts poses them: at a
+  // 30-degree right bank the bar now reads +30.00 degrees (+ = right end up)
+  // against a true horizon of +30.00; the previous `-rollRad` read -30.00, a
+  // 60-degree error that scaled with bank. tests/render/panel.test.ts pins
+  // this against the camera-space projection of world-up, computed
+  // independently of this line -- the old test asserted `-rollRad` and so
+  // defended the bug through fifteen task reviews.
+  panel.horizon.rotation.z = rollRad
   panel.horizon.position.y = DIAL_GAP * 0.9 + Math.max(-0.05, Math.min(0.05, pitchRad * 0.08))
 }
