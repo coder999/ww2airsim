@@ -5,6 +5,28 @@ import { ESLint } from 'eslint'
 
 const PROBE = 'src/sim/__boundary_probe__.ts'
 const ASSISTS_PROBE = 'src/assists/__boundary_probe__.ts'
+const CYCLE_A = 'src/sim/__cycle_a__.ts'
+const CYCLE_B = 'src/sim/__cycle_b__.ts'
+
+/** Every path this file writes a REAL file to. One list, so the cleanup, the
+ *  cycle probe and the git-ignore assertion below cannot disagree about what
+ *  the suite leaves lying around. (The `__lint_probe__` paths elsewhere in
+ *  this file are not here on purpose: they are passed to `ESLint.lintText`
+ *  as a virtual filename and never touch the disk.) */
+const PROBE_FILES = [PROBE, ASSISTS_PROBE, CYCLE_A, CYCLE_B]
+
+/** True when git would ignore `path`. `git check-ignore --quiet` exits 0 for
+ *  ignored, 1 for not ignored (and 128 outside a work tree, which lands here as
+ *  `false` -- a loud failure being the right outcome for a suite that cannot
+ *  check the thing it claims). The path does not have to exist. */
+function isGitIgnored(path: string): boolean {
+  try {
+    execFileSync('git', ['check-ignore', '--quiet', path], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
 
 function runDepcruise(): { code: number; output: string } {
   try {
@@ -19,13 +41,29 @@ function runDepcruise(): { code: number; output: string } {
 }
 
 afterEach(() => {
-  if (existsSync(PROBE)) rmSync(PROBE)
-  if (existsSync(ASSISTS_PROBE)) rmSync(ASSISTS_PROBE)
+  for (const f of PROBE_FILES) if (existsSync(f)) rmSync(f)
 })
 
 describe('architecture boundary (spec §3)', () => {
   it('passes on the real source tree', () => {
     expect(runDepcruise().code).toBe(0)
+  })
+
+  it.each(PROBE_FILES)('leaves %s git-ignored, so an interrupted run cannot be committed', (probe) => {
+    // Final review, 2026-09-13: .gitignore covered ONE of the four paths this
+    // file writes, with a comment explaining exactly why that one had to be
+    // ignored -- the other three were added by later tasks that did not read
+    // it. An interrupted run (Ctrl-C, CI timeout, OOM) leaves an untracked
+    // `node:fs` or `three` import inside the tree that must stay
+    // browser-loadable, which is the hazard the original entry exists to
+    // prevent, and it is equally a hazard for a file called `__cycle_a__.ts`.
+    //
+    // Asserted rather than restated in a comment, because the rot here was a
+    // comment describing a list that had moved: this fails the moment a fifth
+    // probe path is written without a matching ignore rule. `git check-ignore`
+    // exits 0 when the path is ignored and 1 when it is not; the path need not
+    // exist, which is why this can run without writing anything.
+    expect(isGitIgnored(probe)).toBe(true)
   })
 
   it('fails when sim/ imports a render LIBRARY, not just render/', () => {
@@ -48,8 +86,8 @@ describe('architecture boundary (spec §3)', () => {
   it('fails on a circular import', () => {
     // The fifth rule, and the other one that had no probe. Two files that
     // import each other, both inside sim/, so the cycle is unambiguous.
-    const A = 'src/sim/__cycle_a__.ts'
-    const B = 'src/sim/__cycle_b__.ts'
+    const A = CYCLE_A
+    const B = CYCLE_B
     try {
       writeFileSync(A, "import { b } from './__cycle_b__.js'\nexport const a = b\n")
       writeFileSync(B, "import { a } from './__cycle_a__.js'\nexport const b = a\n")
