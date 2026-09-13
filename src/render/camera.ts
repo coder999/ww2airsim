@@ -2,6 +2,7 @@ import { type Vec3, v3, add } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qRotate, qNormalize } from '../sim/math/quat.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { RenderState } from '../sim/interpolate.js'
+import type { LookOffset } from '../input/lookAround.js'
 
 export type CameraMode = 'chase' | 'cockpit'
 
@@ -40,23 +41,51 @@ function pitchOf(q: Quat): number {
   return Math.asin(Math.max(-1, Math.min(1, fwd.y)))
 }
 
+const LOOK_ZERO: LookOffset = { yawRad: 0, pitchRad: 0 }
+
 /**
- * Places the eye for a mode. A pure function of the current render state:
- * neither mode smooths over time, so there is no previous-eye or dt parameter
- * carried unused. A later smoothed mode (external orbit, padlock) adds them
- * when it has a consumer for them.
+ * Turns a body-frame attitude plus a look-around offset into the attitude the
+ * eye actually faces.
+ *
+ * The offset is applied AFTER the mode's own attitude -- `qMul(attitude,
+ * offset)`, not `qMul(offset, attitude)` -- so it composes in body frame:
+ * turning your head is relative to the aeroplane, not the world. Get this
+ * order backwards and the view swings the wrong way whenever the aeroplane
+ * isn't level, which in a fighter is most of the time. See
+ * tests/render/camera.test.ts's "body frame, not world frame" case, taken
+ * steeply banked, where the two orders visibly disagree.
+ */
+function withLook(attitude: Quat, look: LookOffset): Quat {
+  if (look.yawRad === 0 && look.pitchRad === 0) return attitude
+  return qNormalize(
+    qMul(
+      attitude,
+      qMul(qFromAxisAngle(v3(0, 1, 0), look.yawRad), qFromAxisAngle(v3(0, 0, 1), look.pitchRad)),
+    ),
+  )
+}
+
+/**
+ * Places the eye for a mode. A pure function of its arguments: neither mode
+ * smooths over time, so there is no previous-eye or dt parameter carried
+ * unused. A later smoothed mode (external orbit, padlock) adds them when it
+ * has a consumer for them.
+ *
+ * `look` defaults to centred so every existing call site (and the tests
+ * written before Task 9) keeps working unchanged.
  */
 export function cameraTransformFor(
   mode: CameraMode,
   spec: AircraftSpec,
   render: RenderState,
+  look: LookOffset = LOOK_ZERO,
 ): EyeTransform {
   if (mode === 'cockpit') {
     const [ex, ey, ez] = spec.view.eyePointM
     return {
       position: add(render.position, qRotate(render.attitude, v3(ex, ey, ez))),
       // Rigid. Damping here would remove the information the view exists for.
-      attitude: render.attitude,
+      attitude: withLook(render.attitude, look),
     }
   }
 
@@ -73,5 +102,5 @@ export function cameraTransformFor(
   const [ox, oy, oz] = CHASE_OFFSET_M
   const position = add(render.position, qRotate(attitude, v3(ox, oy, oz)))
 
-  return { position, attitude }
+  return { position, attitude: withLook(attitude, look) }
 }

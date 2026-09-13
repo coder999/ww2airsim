@@ -16,6 +16,12 @@ export const BINDINGS = {
   // on WASD would quit the game. Ctrl+T and Ctrl+N are the same.
   throttleDown: ['KeyZ', 'Minus'],
   cycleCamera: ['KeyC'],
+  lookUp: ['Numpad8'],
+  lookDown: ['Numpad2'],
+  lookLeft: ['Numpad4'],
+  lookRight: ['Numpad6'],
+  lookCentre: ['Numpad5'],
+  lookBack: ['Numpad0'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS

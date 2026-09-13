@@ -25,6 +25,26 @@ describe('cockpit camera', () => {
     const eye = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled))
     expect(eye.attitude).toEqual(rolled)
   })
+
+  it('applies look-around in body frame, not world frame', () => {
+    // Steeply banked (90 degrees), where body frame and world frame disagree
+    // most about which way "left" points. Straight and level cannot tell the
+    // two apart -- with rolled = identity, "left" is the same direction in
+    // both frames and this test would pass against either multiplication
+    // order.
+    const rolled = qFromAxisAngle(v3(1, 0, 0), Math.PI / 2)
+    const straight = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled))
+    const left = cameraTransformFor('cockpit', f6f, at(v3(0, 1000, 0), rolled), {
+      yawRad: Math.PI / 2,
+      pitchRad: 0,
+    })
+    // Banked 90 degrees, "look left" must swing the view about the
+    // aircraft's own up axis, not the world's -- otherwise the head turns the
+    // wrong way whenever the aeroplane is not level.
+    const straightFwd = qRotate(straight.attitude, v3(1, 0, 0))
+    const leftFwd = qRotate(left.attitude, v3(1, 0, 0))
+    expect(Math.abs(leftFwd.y - straightFwd.y)).toBeGreaterThan(0.5)
+  })
 })
 
 describe('chase camera', () => {
