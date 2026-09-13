@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, DirectionalLight, Mesh, Vector3 } from 'three'
+import { Box3, DirectionalLight, HemisphereLight, Mesh, Vector3 } from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createWater, WATER_EXTENT_M } from '../../src/render/scene/water.js'
@@ -82,5 +82,16 @@ describe('lighting', () => {
     const sun = l.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
     expect(sun).toBeDefined()
     expect(l.children).toContain(sun!.target)
+  })
+
+  it('includes a hemisphere light as bounce fill', () => {
+    // Every material in the scene (water.ts, markers.ts, hellcat.ts) is a lit
+    // MeshStandardMaterial: with only the directional sun, the shadowed side
+    // of the aeroplane renders flat black and nothing headless would ever
+    // show that. Without this assertion, deleting the HemisphereLight left
+    // every other test in this suite green (Task 12 review finding).
+    const l = createLighting()
+    const hemi = l.children.find((c) => c instanceof HemisphereLight)
+    expect(hemi).toBeDefined()
   })
 })
