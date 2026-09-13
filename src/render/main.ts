@@ -10,7 +10,7 @@ import {
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
-import { createWater } from './scene/water.js'
+import { createWater, recentreWater } from './scene/water.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
@@ -163,7 +163,8 @@ async function boot(): Promise<void> {
   }
 
   const scene = new Scene()
-  scene.add(createWater())
+  const water = createWater()
+  scene.add(water)
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
@@ -289,6 +290,14 @@ async function boot(): Promise<void> {
     // over a long flight and eventually carries the camera outside the dome;
     // the vertical offset is bounded by altitude and stays negligible.
     sky.position.set(current.eye.position.x, 0, current.eye.position.z)
+
+    // The water gets the same treatment, and did not until the whole-branch
+    // review (I-1): left at the world origin it slid out from under the
+    // aeroplane, and at the spawn's 120 m/s its old half-extent was spent in
+    // under three minutes. `recentreWater` also compensates the surface
+    // detail's texture offset, without which re-centring would pin the
+    // detail to the aeroplane and remove the parallax it exists to provide.
+    recentreWater(water, current.eye.position.x, current.eye.position.z)
 
     prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
 
