@@ -252,6 +252,86 @@ describe('panel', () => {
     expect(new Vector3().setFromMatrixPosition(p.horizon.matrixWorld).y).toBeCloseTo(ey, 6)
   })
 
+  it('leaves clear air between adjacent dials', () => {
+    // Flying it 2026-09-13: the bezels were 0.185 m across on a 0.165 m centre
+    // spacing, so every pair of neighbours overlapped by 20 mm and the row read
+    // as one smear. Nothing measured the relation between the two constants.
+    const p = createPanel(f6f, () => null)
+    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    const centres = dials.map((d) => d.position.x).sort((a, b) => a - b)
+    const bezelOuter = Math.max(
+      ...dials[0]!.children
+        .filter((c): c is Mesh => c instanceof Mesh)
+        .map((c) => new Box3().setFromObject(c).max.x),
+    )
+    for (let i = 1; i < centres.length; i++) {
+      expect(centres[i]! - centres[i - 1]!).toBeGreaterThan(bezelOuter * 2)
+    }
+  })
+
+  it('keeps every needle inside its own dial', () => {
+    // The needle reached 1.30 radii from the pivot against a rim at 1.09, so
+    // each one speared its neighbour. Visible in the screenshot; measured by
+    // nothing.
+    const p = createPanel(f6f, () => null)
+    const dial = p.root.children.find((c): c is Group => c instanceof Group)!
+    const rim = Math.max(
+      ...dial.children
+        .filter((c): c is Mesh => c instanceof Mesh)
+        .map((c) => new Box3().setFromObject(c).max.x),
+    )
+    for (const g of GAUGES) {
+      updatePanel(p, f6f, g.sampleHigh, () => null)
+      const needle = p.needles.get(g.id) as Mesh
+      const reach = new Box3().setFromObject(needle).max.length()
+      expect(reach).toBeLessThanOrEqual(rim + 1e-9)
+    }
+  })
+
+  it('gives every printed scale number room not to collide with the next one', () => {
+    // The fuel dial ran eight majors 38.6 degrees apart and the slip dial five
+    // at 22.5, against a numeral plate more than twice the arc available. The
+    // screenshot shows "-0.50.25" and "+15+8.0-5.0" as a result.
+    const p = createPanel(f6f, () => null)
+    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    GAUGES.forEach((g, i) => {
+      const numerals = dials[i]!.children.filter(
+        (c): c is Mesh => c instanceof Mesh && c.geometry instanceof PlaneGeometry,
+      )
+      const majors = tickMarksFor(g).filter((m) => m.major)
+      expect(numerals.length).toBeGreaterThanOrEqual(majors.length)
+      const placed = numerals.map((n) => n.position)
+      for (let a = 0; a < placed.length; a++) {
+        for (let b = a + 1; b < placed.length; b++) {
+          const dx = Math.abs(placed[a]!.x - placed[b]!.x)
+          const dy = Math.abs(placed[a]!.y - placed[b]!.y)
+          const w = (numerals[a]!.geometry as PlaneGeometry).parameters.width
+          const h = (numerals[a]!.geometry as PlaneGeometry).parameters.height
+          // Boxes must not intersect: separated on at least one axis.
+          expect(dx >= w || dy >= h).toBe(true)
+        }
+      }
+    })
+  })
+
+  it('keeps the digital readout clear of the scale numerals', () => {
+    // Inside the dial it sat across them -- the altimeter's "605" was drawn
+    // over its own 8000 and 6000 marks. A three-quarter sweep covers the
+    // bottom of the face, so there is no clear window down there.
+    const p = createPanel(f6f, () => null)
+    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    GAUGES.forEach((g, i) => {
+      const readout = p.readouts.get(g.id)!.mesh
+      const rBox = new Box3().setFromObject(readout)
+      for (const numeral of dials[i]!.children) {
+        if (numeral === readout || !(numeral instanceof Mesh)) continue
+        if (!(numeral.geometry instanceof PlaneGeometry)) continue
+        const nBox = new Box3().setFromObject(numeral)
+        expect(rBox.intersectsBox(nBox)).toBe(false)
+      }
+    })
+  })
+
   it('hides the horizon bar behind the coaming rather than across the dials', () => {
     // I-7 gave the bar exact geometry, which keeps it travelling: from about
     // 8 degrees nose-up it reached the dial faces and by 17.5 it crossed the

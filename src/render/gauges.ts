@@ -31,7 +31,16 @@ export type GaugeSpec = {
   readonly max: number
   /** Needle sweep, radians, from `min` to `max`. */
   readonly sweepRad: number
-  /** Spacing of labelled scale marks, in the gauge's own unit. */
+  /**
+   * Spacing of labelled scale marks, in the gauge's own unit.
+   *
+   * Coarsened for the climb, fuel and slip dials on 2026-09-13 after Mark flew
+   * it: printed numerals need arc room, and at the old spacing the fuel dial's
+   * eight majors and the slip dial's five ran into each other on screen. Slip
+   * was the worst at 22.5 degrees apart, where the numeral plate is more than
+   * twice the available arc. Climb also gains a major mark AT ZERO, which the
+   * old 10-unit step could not produce from a -25 minimum.
+   */
   readonly majorStep: number
   /** Spacing of unlabelled scale marks. Must divide `majorStep`. */
   readonly minorStep: number
@@ -66,7 +75,7 @@ export const GAUGES: readonly GaugeSpec[] = [
   {
     id: 'verticalSpeed', label: 'CLIMB', unit: 'm/s',
     min: -25, max: 25, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 10, minorStep: 5, displayScale: 1, decimals: 1,
+    majorStep: 25, minorStep: 5, displayScale: 1, decimals: 1,
     sampleLow: createState({ velocity: v3(100, -20, 0) }),
     sampleHigh: createState({ velocity: v3(100, 20, 0) }),
   },
@@ -82,14 +91,14 @@ export const GAUGES: readonly GaugeSpec[] = [
   {
     id: 'fuel', label: 'FUEL', unit: 'kg',
     min: 0, max: 700, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 100, minorStep: 50, displayScale: 1, decimals: 0,
+    majorStep: 200, minorStep: 50, displayScale: 1, decimals: 0,
     sampleLow: createState({ fuelKg: 50 }),
     sampleHigh: createState({ fuelKg: 650 }),
   },
   {
     id: 'slip', label: 'SLIP', unit: '',
     min: -0.5, max: 0.5, sweepRad: Math.PI / 2, circular: false,
-    majorStep: 0.25, minorStep: 0.125, displayScale: 1, decimals: 2,
+    majorStep: 0.5, minorStep: 0.125, displayScale: 1, decimals: 2,
     sampleLow: createState({ velocity: v3(100, 0, -20) }),
     sampleHigh: createState({ velocity: v3(100, 0, 20) }),
   },

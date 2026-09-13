@@ -46,7 +46,7 @@ export type Readout = {
  * flight model produces, which is why there is no tachometer (see gauges.ts's
  * doc comment on GaugeId).
  */
-const DIAL_RADIUS = 0.085
+const DIAL_RADIUS = 0.06
 /**
  * Dial spacing. Narrowed from 0.20 on 2026-09-13: at 0.20 the panel spanned
  * +/-0.593 m at 0.6 m ahead, subtending 45.0 degrees off boresight, so the
@@ -56,7 +56,7 @@ const DIAL_RADIUS = 0.085
  * looked like it covered it compared against the VERTICAL half-angle times a
  * bare 4, giving 2.3x slack, so it could not have caught either.
  */
-const DIAL_GAP = 0.165
+const DIAL_GAP = 0.155
 /**
  * Narrowest window the panel is designed to fit, width over height.
  *
@@ -107,8 +107,8 @@ const HORIZON_Z = -0.003
 const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
 /** The coaming: an opaque plate the horizon bar passes behind. */
 const BACKING_Z = -0.001
-const BACKING_TOP = 0.105
-const BACKING_BOTTOM = -0.14
+const BACKING_TOP = 0.108
+const BACKING_BOTTOM = -0.115
 
 /**
  * A flat plate carrying rasterised text.
@@ -188,16 +188,16 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
       dial.add(tick)
 
       if (mark.major && mark.text) {
-        const numeral = textPlate(mark.text, DIAL_RADIUS * 0.5, DIAL_RADIUS * 0.22, makeText)
-        const nr = DIAL_RADIUS - len - 0.018
+        const numeral = textPlate(mark.text, DIAL_RADIUS * 0.42, DIAL_RADIUS * 0.18, makeText)
+        const nr = DIAL_RADIUS * 0.6
         numeral.position.set(nr * Math.sin(a), nr * Math.cos(a), Z_MARKS)
         dial.add(numeral)
       }
     }
 
-    const needle = new Mesh(new BoxGeometry(0.008, DIAL_RADIUS * 1.5, 0.004), needleMat)
+    const needle = new Mesh(new BoxGeometry(0.006, DIAL_RADIUS * 1.1, 0.004), needleMat)
     // Offset so the mesh pivots about the dial centre rather than its own end.
-    needle.geometry.translate(0, DIAL_RADIUS * 0.55, 0)
+    needle.geometry.translate(0, DIAL_RADIUS * 0.45, 0)
     needle.position.z = Z_NEEDLE
     dial.add(needle)
     needles.set(g.id, needle)
@@ -205,16 +205,20 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // The name and unit, which GAUGES has carried since Task 10 with nothing
     // rendering them -- zero non-definition hits across src, tests and tools
     // before this (whole-branch review, I-2).
-    const label = textPlate(labelTextFor(g), DIAL_GAP * 0.86, 0.028, makeText)
-    label.position.set(0, -DIAL_RADIUS - 0.026, Z_MARKS)
+    const label = textPlate(labelTextFor(g), DIAL_GAP * 0.86, 0.024, makeText)
+    label.position.set(0, -0.088, Z_MARKS)
     dial.add(label)
 
-    // Digital readout, per design spec section 7's "digital readouts alongside
-    // needles where that helps". It helps most for altitude and heading, where
+    // Digital readout, ABOVE the dial rather than inside it. Inside, it
+    // collided with the scale numerals along the bottom of the face -- the
+    // altimeter's "605" was drawn across its own 8000 and 6000 marks. A
+    // three-quarter sweep covers the bottom of the dial, so there is no clear
+    // window down there to put it in. Per design spec section 7's "digital
+    // readouts alongside needles where that helps". It helps most for altitude and heading, where
     // reading a needle to better than a few hundred metres or a few degrees is
     // exactly what the oversized-dial trade gave up.
-    const readoutMesh = textPlate('', DIAL_RADIUS * 1.15, 0.032, makeText)
-    readoutMesh.position.set(0, -DIAL_RADIUS * 0.46, Z_READOUT)
+    const readoutMesh = textPlate('', DIAL_RADIUS * 1.15, 0.022, makeText)
+    readoutMesh.position.set(0, 0.088, Z_READOUT)
     dial.add(readoutMesh)
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 

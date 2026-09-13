@@ -189,7 +189,12 @@ describe('scale marks and readouts (I-2)', () => {
     // a major mark, so the implementation counts step indices instead.
     const slip = GAUGES.find((g) => g.id === 'slip')!
     const majors = tickMarksFor(slip).filter((m) => m.major).map((m) => m.value)
-    expect(majors).toEqual([-0.5, -0.25, 0, 0.25, 0.5])
+    // Coarsened from a 0.25 step on 2026-09-13: five printed numbers over a
+    // 90-degree sweep collided on screen. The float hazard this test exists
+    // for is unchanged -- 0.5 is still four 0.125 minor steps, so the index
+    // arithmetic still has to be exact.
+    expect(majors).toEqual([-0.5, 0, 0.5])
+    expect(tickMarksFor(slip).length).toBe(9)
   })
 
   it('does not draw north twice on the compass rose', () => {
