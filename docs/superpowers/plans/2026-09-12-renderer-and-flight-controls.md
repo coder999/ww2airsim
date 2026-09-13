@@ -2464,7 +2464,7 @@ void boot().catch((e: unknown) => {
 })
 ```
 
-- [x] **Step 6: Verify by eye, once**
+- [ ] **Step 6: Verify by eye, once** — NOT DONE (needs the reference platform)
 
 Run `npm run dev` on nexus, tunnel from the Windows desktop (`ssh -L 5173:localhost:5173 nexus`), open `http://localhost:5173`.
 Expected: a cleared canvas with the dev overlay top-left naming the adapter. This is one of the few steps in this plan that needs human eyes; from Task 15 the adapter half is automated.
@@ -3005,7 +3005,7 @@ Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: PASS, 5 tests.
 
-- [x] **Step 6: Fly it**
+- [ ] **Step 6: Fly it** — NOT DONE (needs the reference platform)
 
 `npm run dev` on nexus, tunnel, open `http://localhost:5173`.
 Expected: an F6F over water, chase camera, arrow keys fly it, Shift opens the throttle, C switches to the cockpit, numpad looks around.
@@ -3227,7 +3227,7 @@ Hiding the airframe is not optional. The code-built Hellcat is an *external* mod
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: PASS, 5 tests.
 
-- [x] **Step 6: Check legibility, once**
+- [ ] **Step 6: Check legibility, once** — NOT DONE (needs the reference platform)
 
 `npm run dev`, tunnel, press `C` for the cockpit.
 Expected: gauges readable at a glance at 1440p. This is the check that the appearance-authenticity trade was made for — if they are not readable, raise `DIAL_RADIUS` and say so in the commit.
@@ -3383,7 +3383,7 @@ Add to `package.json`:
 "test:tier2": "playwright test",
 ```
 
-- [x] **Step 4: Run it on the reference platform**
+- [ ] **Step 4: Run it on the reference platform** — NOT DONE (needs the reference platform)
 
 With `npm run dev` running on nexus and the tunnel open, from the Windows desktop:
 
@@ -3452,3 +3452,24 @@ A review pass ran the plan's own arithmetic and probes against the repo before a
 - **Specified where it was hand-waved.** The `stepChecked`-in-dev switch is a tested `stepper` argument on `advance` (Task 3), threaded through `nextFrameState` (Task 13). `placeholder.ts` is retired in Task 11 and the render probe repointed. The File Structure table now names the files the tasks actually create (`main.ts`, `renderer.ts`, `frame.ts`, `markers.ts`, `lighting.ts`), not `app.ts`.
 - **Tick numbering.** One convention everywhere: the tick a step produces, so the first step from a tick-0 spawn yields 1 (Task 1 Step 6).
 - **Smaller.** Pressed keys cleared on window blur. Sky dome re-centred on the eye. Task 13's "flies" test compares full throttle against idle instead of asserting forward motion an aircraft already at 120 m/s has anyway. Task 15 says headless adapter identity is still the unverified day-0 question and lists the Windows one-time setup.
+
+## Revision 2026-09-13 — four checkboxes corrected (whole-branch review, M-8)
+
+Four steps were ticked that nobody has performed. Every one of them needs the
+Windows desktop with the RX 6700 XT; nexus is headless and cannot run any of
+them. They are now unticked and marked, and they are the outstanding work on
+this branch:
+
+- Task 11 Step 6 — verify by eye that the canvas clears and the overlay names
+  the adapter
+- Task 13 Step 6 — fly it, and note how `RAMP_SECONDS` feels without changing it
+- Task 14 Step 6 — check the gauges are legible at 1440p
+- Task 15 Step 4 — run `npm run test:tier2` against a real GPU
+
+This was a defect in the tick convention, not an oversight by any one task: the
+convention says a task's commit ticks its own boxes, and a step whose executor
+is a human rather than the agent gets ticked along with the rest. A document
+that asserts a human looked at something when nobody did is the same class of
+error as the nine false comments this plan corrected — an untrue durable claim
+that no test can catch. A step that needs the reference platform now says so in
+the checkbox text itself, so it cannot be ticked by a machine that cannot run it.
