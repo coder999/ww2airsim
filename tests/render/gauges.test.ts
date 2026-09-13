@@ -91,14 +91,19 @@ describe('needleAngleFor', () => {
     expect(steeperClimb).toBeCloseTo(steepClimb, 9)
   })
 
-  it('wraps the compass across the 0/2pi seam instead of pegging at either end', () => {
-    // A turn that swings just past due north to the left reads as just under
-    // 2pi, not as a value clamped down to 0 (wrong direction) or up to some
-    // pegged maximum (wrong instrument entirely -- a compass has no "off the
-    // end of the dial"). Picked deliberately close to the seam (0.02 rad,
-    // about 1 degree) rather than the 0.3 rad already used elsewhere, so a
-    // clamp-shaped bug that only misbehaves very close to the boundary would
-    // still be caught here.
+  it('reads headings across the 0/2pi seam as adjacent, not pegged at either end', () => {
+    // Despite sitting in the `needleAngleFor` describe block, this pins
+    // `gaugeValue`'s own `h < 0 ? h + TWO_PI : h` normalisation, not the
+    // `circular` modulo formula in `needleAngleFor` beside it -- gaugeValue
+    // already delivers headings inside [0, 2*pi), so that modulo is a no-op
+    // on every value this test can produce (see the doc-comment above
+    // `needleAngleFor`). A turn that swings just past due north to the left
+    // reads as just under 2pi, not as a value clamped down to 0 (wrong
+    // direction) or up to some pegged maximum (wrong instrument entirely --
+    // a compass has no "off the end of the dial"). Picked deliberately close
+    // to the seam (0.02 rad, about 1 degree) rather than the 0.3 rad already
+    // used elsewhere, so a clamp-shaped bug that only misbehaves very close
+    // to the boundary would still be caught here.
     const justLeftOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.02) })
     const justRightOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.02) })
     const left = needleAngleFor('heading', f6f, justLeftOfNorth)

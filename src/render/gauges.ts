@@ -130,6 +130,16 @@ export function gaugeValue(id: GaugeId, _spec: AircraftSpec, state: AircraftStat
  * Non-circular gauges CLAMP past their ends rather than wrapping. A needle
  * that wraps shows a plausible small value at exactly the moment the pilot
  * most needs to see a pegged one.
+ *
+ * The `circular` branch below is genuinely dead-by-divergence today, not
+ * dead-by-absence: `heading` is the only circular gauge, and `gaugeValue`'s
+ * heading case already normalises into `[0, 2*pi)` before this function ever
+ * sees the value, so on every input this branch can currently receive, the
+ * modulo-wrap here and the clamp path below it agree exactly -- verified by
+ * forcing `heading`'s `GaugeSpec.circular` to `false` and finding all tests
+ * still pass. It becomes load-bearing the moment either changes: a second
+ * circular gauge, or a heading/angle producer that does not pre-normalise
+ * (e.g. a raw, unwrapped multi-turn yaw accumulator).
  */
 export function needleAngleFor(
   id: GaugeId,
