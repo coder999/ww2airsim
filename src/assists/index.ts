@@ -180,6 +180,21 @@ export function nextAltitudeHoldMemory(
  * least-bad nose-up the limiter would still permit is the wrong trade at
  * that moment. This is what "trims whatever is left over" actually has to
  * mean -- inside the limiter's band, nothing is left.
+ *
+ * Fix round 2: standing down on `limiterEngaged` is necessary but was not
+ * sufficient. "The limiter changed the pilot's value" and "the limiter has a
+ * bound to enforce" are different questions -- a centred pilot's 0 can
+ * already be a LEGAL value inside the limiter's bound (so the limiter is a
+ * no-op and `limiterEngaged` is false) while that bound still excludes
+ * whatever altitude hold's own correction would otherwise produce. Measured:
+ * at alpha exactly `-alphaCritRad`, the bound is `[0, 1]` (an inverted
+ * departure needs nose-up recovery); a centred pilot's 0 is already inside
+ * it, so the limiter does nothing, yet with a held altitude below the
+ * aeroplane altitude hold wanted -1 -- outside the bound, in the dangerous
+ * direction, with nothing in round 1's fix to stop it. Altitude hold's
+ * output is therefore ALSO clamped into the limiter's own `[lower, upper]`
+ * bound unconditionally, independent of `limiterEngaged` -- see that
+ * function's own doc comment and its `limiterBounds` parameter.
  */
 export function applyAssists(
   state: AircraftState,
@@ -201,9 +216,15 @@ export function applyAssists(
   // actual before/after. See `altitudeHold`'s doc comment for why this
   // exists and what it fixes.
   const limiterEngaged = enabled.stallLimiter && controls.pitch !== beforeLimiter.pitch
+  // Task 4 fix round 2: "the limiter changed the value" and "the limiter has
+  // a bound to enforce" are NOT the same question -- see `altitudeHold`'s
+  // doc comment for the reversal this distinction missed in round 1. This is
+  // the second one, computed only when the limiter is actually part of the
+  // stack (`null` otherwise, meaning "no bound to enforce", not "unlimited").
+  const limiterBounds = enabled.stallLimiter ? stallLimiterBounds(state, spec) : null
   controls = enabled.autoRudder ? autoRudder(state, spec, controls, dt) : controls
   controls = enabled.altitudeHold
-    ? altitudeHold(state, spec, controls, raw, dt, altitudeHoldMemory, limiterEngaged)
+    ? altitudeHold(state, spec, controls, raw, dt, altitudeHoldMemory, limiterEngaged, limiterBounds)
     : controls
   return controls
 }
@@ -309,9 +330,26 @@ const DEPARTED_ALPHA_RAD = Math.PI / 2
  * boundary is expressed in, or it would clamp against a boundary the wing
  * does not have.
  */
-function stallLimiter(state: AircraftState, spec: AircraftSpec, controls: Controls, _dt: number): Controls {
+/**
+ * The stall limiter's own `[lower, upper]` pitch-command bound at this state,
+ * shared with `altitudeHold` (Task 4 fix round 2) rather than duplicated --
+ * exactly the reasoning this file already applies to `commandedBodyRates`
+ * itself: a private second copy of this formula could silently disagree with
+ * the limiter's actual bound the moment either was retuned, which is the
+ * class of bug fix round 2 exists to close.
+ *
+ * `null` in the same two cases `stallLimiter` itself stands down in: departed
+ * past 90 degrees (`DEPARTED_ALPHA_RAD`), or no pitch authority to bound
+ * anything with. Both mean "there is no bound to enforce", not "the bound is
+ * unlimited" -- a caller that treats `null` as "anything goes" is using this
+ * correctly; one that invents a fallback bound is not.
+ */
+function stallLimiterBounds(
+  state: AircraftState,
+  spec: AircraftSpec,
+): { lower: number; upper: number } | null {
   const alpha = angleOfAttack(state)
-  if (!(Math.abs(alpha) < DEPARTED_ALPHA_RAD)) return controls
+  if (!(Math.abs(alpha) < DEPARTED_ALPHA_RAD)) return null
 
   const fullBackStickRate = commandedBodyRates(spec, state, {
     pitch: 1,
@@ -320,20 +358,23 @@ function stallLimiter(state: AircraftState, spec: AircraftSpec, controls: Contro
     throttle: 0,
   }).z
   // Also catches a NaN, which `>` is false for: `commandedBodyRates` cannot
-  // produce one from a validated spec, but returning the pilot's command is
-  // the right answer either way -- an assist that cannot compute a bound has
-  // no business replacing a bound with a guess.
-  if (!(fullBackStickRate > 0)) return controls
+  // produce one from a validated spec, but returning "no bound" is the right
+  // answer either way -- an assist that cannot compute a bound has no
+  // business replacing a bound with a guess.
+  if (!(fullBackStickRate > 0)) return null
 
   const limit = alphaCritRad(spec)
   const asCommand = (marginRad: number) =>
     clampFinite(marginRad / spec.rates.stallLimiterSeconds / fullBackStickRate, -1, 1)
   // upper >= lower always: they differ by 2 * limit / (tau * rate) > 0 before
   // clamping, and clamping both into [-1, 1] preserves the order.
-  const upper = asCommand(limit - alpha)
-  const lower = asCommand(-limit - alpha)
+  return { upper: asCommand(limit - alpha), lower: asCommand(-limit - alpha) }
+}
 
-  return { ...controls, pitch: Math.min(upper, Math.max(lower, clampFinite(controls.pitch, -1, 1))) }
+function stallLimiter(state: AircraftState, spec: AircraftSpec, controls: Controls, _dt: number): Controls {
+  const bounds = stallLimiterBounds(state, spec)
+  if (bounds === null) return controls
+  return { ...controls, pitch: Math.min(bounds.upper, Math.max(bounds.lower, clampFinite(controls.pitch, -1, 1))) }
 }
 
 /**
@@ -416,24 +457,41 @@ const G = 9.80665
  * Stands down completely -- returns `controls` untouched -- unless
  * `memory.heldAltitudeM` is set, AND the pilot's own pitch is centred, AND
  * the stall limiter did not just change the command. Three independent
- * gates, each guarding a different failure:
+ * gates, each guarding a different failure. Even when all three pass and a
+ * correction is computed, the result is separately, unconditionally clamped
+ * into the limiter's own `[lower, upper]` bound before it is returned (fix
+ * round 2) -- the gates below decide whether to compute a correction at
+ * all; the clamp at the end of this function decides whether the correction
+ * computed is allowed to leave the band the limiter would enforce, which is
+ * a different question with a different failure mode (see `limiterBounds`
+ * below).
  *
  *  - `memory.heldAltitudeM === null`: nothing captured, or the pilot has the
  *    stick (see `nextAltitudeHoldMemory`).
  *  - `!isPitchCentred(raw)`: checked against `raw`, the ORIGINAL pilot
  *    command, not `controls` (the value already run through the stall
- *    limiter and, a no-op for pitch, auto-rudder) -- deliberately, so
- *    "yields to pilot pitch input" answers only "did the PILOT ask for
- *    something", the same question `nextAltitudeHoldMemory` asks with the
- *    same value, and never an artifact of what an earlier stage did to the
- *    command. `memory` is whatever the caller last threaded through
- *    `nextAltitudeHoldMemory`, and a caller that skipped a tick (or a test
- *    exercising this function directly, as several below do) could hand it
- *    a captured altitude alongside a `raw.pitch` that has since gone
- *    non-zero -- reading `raw` here rather than trusting the memory alone is
- *    what makes "yields to pilot pitch input" a guarantee of THIS function,
- *    provable by calling it directly, rather than a property that only
- *    holds if some other caller kept its bookkeeping consistent.
+ *    limiter and, a no-op for pitch, auto-rudder). `memory` is whatever the
+ *    caller last threaded through `nextAltitudeHoldMemory`, and a caller
+ *    that skipped a tick (or a test exercising this function directly, as
+ *    several below do) could hand it a captured altitude alongside a
+ *    `raw.pitch` that has since gone non-zero -- reading `raw` here rather
+ *    than trusting the memory alone is what makes "yields to pilot pitch
+ *    input" a guarantee of THIS function, provable by calling it directly,
+ *    rather than a property that only holds if some other caller kept its
+ *    bookkeeping consistent.
+ *
+ *    Whether this reads `raw` or `controls` is, as of the gate below,
+ *    NOT CURRENTLY DISTINGUISHABLE by any reachable input -- proven by
+ *    mutating it to read `controls.pitch !== 0` instead (with
+ *    `limiterEngaged` left in place) and finding no test fails. The only
+ *    stage between "raw" and here that ever touches pitch is the stall
+ *    limiter, and whenever it changes the value `limiterEngaged` is already
+ *    true and stands this stage down regardless of which of the two this
+ *    check reads; whenever it does not change the value, `raw.pitch` and
+ *    `controls.pitch` are the same number. `raw` is kept because it is the
+ *    more directly honest statement of what the check means ("did the pilot
+ *    ask for something", not "does the value downstream happen to be zero"),
+ *    not because a test currently requires it.
  *  - `limiterEngaged`: whether the stall limiter (run earlier in
  *    `applyAssists`, whether or not it is enabled here) actually changed the
  *    pitch it was handed. THIS is the gate that matters when the pilot's
@@ -444,19 +502,18 @@ const G = 9.80665
  *    its own altitude-error correction on top of whatever the limiter had
  *    already decided. That reversed the limiter's recovery command outright
  *    (see `applyAssists`'s doc comment for the reviewer's measured numbers).
- *    A plausible-looking alternative -- checking `controls.pitch === 0`
- *    instead of `raw.pitch === 0`, collapsing this into the centred check --
- *    was tried and rejected: it happens to agree with the fix in the
- *    reported case, but it depends on the limiter's forced value never
- *    coinciding with exactly 0 (it could, at the edge of its own clamp
- *    range, for a pilot command that was already non-zero), and it conflates
- *    two different questions ("did the pilot ask for something" and "did an
- *    earlier stage change the command") into one check that answers neither
- *    honestly on its own. `limiterEngaged` is computed once, in
- *    `applyAssists`, from the limiter's actual before/after output -- not
- *    re-derived from alpha and `alphaCritRad` independently, which could
- *    silently drift out of sync with the limiter's own bounds the moment
- *    either was retuned.
+ *    Computed once, in `applyAssists`, from the limiter's actual before/after
+ *    output -- not re-derived from alpha and `alphaCritRad` independently,
+ *    which could silently drift out of sync with the limiter's own bounds
+ *    the moment either was retuned.
+ *
+ *    "The limiter changed the value" is NOT the same question as "the
+ *    limiter has a bound to enforce", and fix round 1 shipped only the
+ *    first. See the `limiterBounds` parameter and the unconditional clamp at
+ *    the end of this function for the case that gate alone misses: the
+ *    pilot's own value already legal (so the limiter is a no-op and
+ *    `limiterEngaged` is false), but this stage's OWN correction pushing the
+ *    result outside the limiter's bound anyway.
  *
  * The mechanism, once engaged, is feed-forward plus a two-loop proportional
  * correction -- structurally the same idea as `sim/autopilot.ts`'s
@@ -555,6 +612,7 @@ function altitudeHold(
   _dt: number,
   memory: AltitudeHoldMemory,
   limiterEngaged: boolean,
+  limiterBounds: { lower: number; upper: number } | null,
 ): Controls {
   const target = memory.heldAltitudeM
   if (target === null || !isPitchCentred(raw) || limiterEngaged) return controls
@@ -611,5 +669,24 @@ function altitudeHold(
   // uses, and it stays correct for free if a future stage is ever inserted
   // between the limiter and this one that legitimately leaves a non-zero
   // `controls.pitch` here without setting `limiterEngaged`.
-  return { ...controls, pitch: clampFinite(controls.pitch + correction, -1, 1) }
+  const uncapped = clampFinite(controls.pitch + correction, -1, 1)
+  // Task 4 fix round 2: clamped into the limiter's own bound UNCONDITIONALLY,
+  // not just when `limiterEngaged`. Round 1's stand-down handles the case the
+  // limiter actually had to CHANGE the pilot's value; it does not handle the
+  // case where the pilot's own value was already legal (so the limiter
+  // changed nothing, and `limiterEngaged` is false) but this stage's OWN
+  // correction pushes the result outside the bound anyway. Measured: at
+  // alpha exactly -alphaCritRad, the bound is [0, 1] (an inverted departure
+  // needs nose-up); a centred pilot's 0 is already inside it, so the limiter
+  // is a no-op, `limiterEngaged` is false, and with a held altitude below the
+  // aeroplane this stage wants -1 (full nose-down) -- exactly outside [0, 1]
+  // in the dangerous direction. Clamping here catches that regardless of
+  // which branch produced `uncapped`, so it is written once, after both
+  // paths that can reach this line, rather than duplicated at the earlier
+  // `return controls` guards above -- those are provably already inside any
+  // bound that exists (see `stallLimiterBounds`: if `raw.pitch` were outside
+  // it, the limiter would have changed it, setting `limiterEngaged`), so
+  // clamping them would be a no-op, not a second real guard.
+  const pitch = limiterBounds ? Math.min(limiterBounds.upper, Math.max(limiterBounds.lower, uncapped)) : uncapped
+  return { ...controls, pitch }
 }

@@ -360,44 +360,63 @@ describe('altitude hold stands down when the stall limiter is engaged (fix round
   })
 })
 
+// Fix round 1, Important 1 originally asked for a test arbitrating whether
+// the centred check should read `raw` or `controls`. Fix round 2's own
+// re-review established that no such test can exist: with `limiterEngaged`
+// in place, the two reads cannot diverge at any reachable input (the stall
+// limiter is the only earlier stage that ever touches pitch, and whenever it
+// changes the value `limiterEngaged` is already true and stands this stage
+// down regardless of which of the two the centred check reads). Confirmed by
+// re-running the plain mutation -- `controls` in place of `raw`, everything
+// else including `limiterEngaged` left intact -- against the full suite and
+// finding nothing fails. The reasoning now lives as a comment on
+// `altitudeHold` itself (the `!isPitchCentred(raw)` bullet), not as a test
+// here, in the same register already used for the additive line in that
+// function: "not currently distinguishable ... proven by mutating it ...
+// and finding no test fails."
+
 /**
- * Fix round 1, Important 1: the reviewer changed the "is the pilot centred"
- * guard to read `controls.pitch` instead of `raw.pitch` and all 411 tests
- * still passed -- proof the distinction was untested. Decision: keep `raw`
- * (it answers "did the PILOT ask for something", independent of what an
- * earlier stage did) AND keep the separate, explicit `limiterEngaged` gate
- * (it answers "did an earlier stage change the command", independent of
- * what the pilot originally asked for). This test is the one that shows
- * `controls`-only -- collapsing both questions into one check, with no
- * separate `limiterEngaged` concept at all -- is not just untested but
- * actually wrong on a constructible input.
+ * Fix round 2: the coordinator's round-1 ruling ("stand down when the
+ * limiter is engaged") was itself incomplete. "The limiter changed the
+ * value" is not the same as "the limiter has a bound to enforce" -- at alpha
+ * exactly `-alphaCritRad` the limiter's bound is `[0, 1]` (an inverted
+ * departure needs nose-up recovery), and a centred pilot's own 0 is already
+ * a LEGAL value inside that bound, so the limiter changes nothing and
+ * `limiterEngaged` is false. Round 1's fix alone left altitude hold free to
+ * command whatever its own altitude error implied -- with a held altitude
+ * below the aeroplane, full nose-down (-1), landing outside `[0, 1]` in the
+ * dangerous direction. Fixed by clamping altitude hold's output into the
+ * limiter's own bound unconditionally, not just when `limiterEngaged`.
  */
-describe('the centred check reads raw, not controls (fix round 1, Important 1)', () => {
-  it('stands down for a pilot who is NOT centred, even though the limiter clamps them to exactly 0', () => {
-    // Alpha exactly AT alphaCritRad: the limiter's upper bound is exactly 0
-    // there (margin = 0), so a pilot pulling 0.3 (not centred) gets clamped
-    // to precisely 0 by the limiter alone. A `controls.pitch === 0`-based
-    // centred check would read that as "centred" and let altitude hold
-    // proceed to compute its own correction from a pilot input that was
-    // never released -- confirmed by mutating the guard to exactly that
-    // (`controls.pitch !== 0` in place of `!isPitchCentred(raw)`, and
-    // dropping `limiterEngaged`): the same inputs then produce `pitch: 1`
-    // instead of matching the limiter's `0`.
+describe('altitude hold cannot leave the limiter\'s bound even when the limiter is not engaged (fix round 2)', () => {
+  it('stays inside [0, 1] at alpha = -alphaCritRad with a held altitude below the aeroplane', () => {
     const critRad = alphaCritRad(spec)
     const speed = 90
+    // Nose BELOW the velocity vector by critRad (negative alpha), the mirror
+    // of `stalledState` above's positive-alpha construction.
     const s = createState({
       position: v3(0, 2000, 0),
-      velocity: v3(speed * Math.cos(critRad), -speed * Math.sin(critRad), 0),
+      velocity: v3(speed * Math.cos(critRad), speed * Math.sin(critRad), 0),
       attitude: qIdentity(),
     })
-    expect(angleOfAttack(s)).toBeCloseTo(critRad, 6)
+    expect(angleOfAttack(s)).toBeCloseTo(-critRad, 6)
 
-    const raw: Controls = { pitch: 0.3, roll: 0, yaw: 0, throttle: 0.8 }
+    const raw: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
     const limiterOnly = applyAssists(s, spec, raw, DT, { stallLimiter: true, autoRudder: false, altitudeHold: false })
-    expect(limiterOnly.pitch, 'sanity: the limiter must actually clamp to exactly 0 here').toBe(0)
+    // Sanity: the limiter is a no-op here (0 is already legal), so this is
+    // genuinely the "not engaged" case, not a re-run of the Critical fix.
+    expect(limiterOnly.pitch, 'sanity: the limiter must not have changed anything').toBe(0)
 
-    const memory: AltitudeHoldMemory = { heldAltitudeM: 2500 }
+    // Held well below the aeroplane: altitude hold wants a strong descent,
+    // i.e. full nose-down, which is exactly outside the limiter's [0, 1].
+    const memory: AltitudeHoldMemory = { heldAltitudeM: 1500 }
     const both = applyAssists(s, spec, raw, DT, { stallLimiter: true, autoRudder: false, altitudeHold: true }, memory)
+
+    expect(both.pitch).toBeGreaterThanOrEqual(0)
+    expect(both.pitch).toBeLessThanOrEqual(1)
+    // The discriminating part: without the round-2 clamp this is exactly
+    // -1 (confirmed by removing it), so merely being "inside [-1, 1]" would
+    // not catch the regression -- pin it at the limiter's own boundary.
     expect(both.pitch).toBe(0)
   })
 })
