@@ -1258,7 +1258,7 @@ Pure, so the logic is Tier 1 testable; the Tier 2 harness in Task 15 asserts it 
 **Interfaces:**
 - Produces: `type AdapterVerdict = { ok: boolean; severity: 'ok' | 'warn' | 'fail'; summary: string }`, `judgeAdapter(info: AdapterInfoLike): AdapterVerdict`, `type AdapterInfoLike`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/adapterGuard.test.ts`:
 
@@ -1326,12 +1326,12 @@ describe('judgeAdapter', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/adapterGuard.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/render/adapterGuard.ts`:
 
@@ -1398,12 +1398,12 @@ export function judgeAdapter(info: AdapterInfoLike): AdapterVerdict {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/adapterGuard.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/adapterGuard.ts tests/render/adapterGuard.test.ts
