@@ -22,6 +22,22 @@ export const BINDINGS = {
   lookRight: ['Numpad6'],
   lookCentre: ['Numpad5'],
   lookBack: ['Numpad0'],
+  // Plan 3 Task 5: one edge-triggered toggle per assist (`AssistSettings` in
+  // src/assists/index.ts), all three on by default. Mnemonic letters -- L for
+  // limiter, R for rudder, H for hold -- on plain keys with no modifier, for
+  // the reason `throttleDown` above documents: a Ctrl combination can be a
+  // browser shortcut that `preventDefault` cannot stop.
+  //
+  // These are the free letters today, not reserved ones: a later plan wanting
+  // L for landing gear or R for a radio has to move a toggle, and this table
+  // is deliberately the only place that edit happens. There is no options UI
+  // and no persistence -- see the design doc's OPEN (D): a keyboard toggle
+  // plus the `window.__ww2` hook is the whole switching mechanism this plan
+  // ships, and the meta-game that would own a settings screen is far out in
+  // the master spec's ordering.
+  toggleStallLimiter: ['KeyL'],
+  toggleAutoRudder: ['KeyR'],
+  toggleAltitudeHold: ['KeyH'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS

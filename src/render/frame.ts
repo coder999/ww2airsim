@@ -1,9 +1,16 @@
 import { advance, createWorld, type Stepper, type World } from '../sim/loop.js'
+import {
+  createAssistRunner,
+  DEFAULT_ASSIST_SETTINGS,
+  NOT_HOLDING,
+  type AltitudeHoldMemory,
+  type AssistSettings,
+} from '../assists/index.js'
 import { interpolateAircraft, type RenderState } from '../sim/interpolate.js'
 import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.js'
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
 import { cameraTransformFor, type CameraMode, type EyeTransform } from './camera.js'
-import { BINDINGS } from '../input/bindings.js'
+import { BINDINGS, type BindingName } from '../input/bindings.js'
 import { type Vec3, v3 } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
@@ -30,11 +37,67 @@ export type FrameState = {
   readonly droppedSteps: number
   /** Whether the camera-cycle key was down last frame, for edge detection. */
   readonly cyclePressed: boolean
+  /**
+   * Which assists are on. Here rather than in a module-level variable so the
+   * whole frame remains one immutable value a test can construct, and so two
+   * sessions (two tests, two aeroplanes later) cannot share one set of flags.
+   * `DEFAULT_ASSIST_SETTINGS` (all three on) until a toggle key says otherwise
+   * -- there is no options UI and no persistence, deliberately; see
+   * `BINDINGS`' own comment on the toggle keys.
+   */
+  readonly assists: AssistSettings
+  /**
+   * The altitude-hold memory as of the last fixed step this frame ran, carried
+   * into the next frame's runner.
+   *
+   * This is the one piece of assist state that has to survive a frame (see
+   * `AltitudeHoldMemory` in src/assists/index.ts), and it cannot be threaded
+   * the way `world` is: `advance` calls the assist once per fixed STEP and
+   * returns no memory, so `nextFrameState` hands it a `createAssistRunner`
+   * closure and reads this back off the runner afterwards. Updating it once per
+   * frame out here instead would read the wrong state (`world.aircraft` is
+   * stale from the second step of a multi-step frame onward) and could not
+   * clear mid-frame.
+   */
+  readonly altitudeHoldMemory: AltitudeHoldMemory
+  /**
+   * Whether each assist's toggle key was down last frame, for edge detection --
+   * the same reason `cyclePressed` exists, and one flag per assist because
+   * three keys need three independent edges. Structurally identical to
+   * `AssistSettings` and deliberately a separate type: these booleans mean "the
+   * key was physically down", not "the assist is enabled", and conflating them
+   * would let a wrong field assignment typecheck.
+   */
+  readonly assistTogglesDown: AssistTogglesDown
 }
+
+/** One "was this toggle key down last frame" flag per assist. See
+ *  `FrameState.assistTogglesDown`. */
+export type AssistTogglesDown = Readonly<Record<keyof AssistSettings, boolean>>
 
 const MODES: readonly CameraMode[] = ['chase', 'cockpit']
 
-export function initialFrameState(spec: AircraftSpec, aircraft: AircraftState): FrameState {
+/** Which key toggles which assist. The keys themselves live in
+ *  `src/input/bindings.ts` with every other key in the game; this is only the
+ *  mapping from an assist flag to its binding name, so a rebind is still a
+ *  one-line data change in that table. */
+const ASSIST_TOGGLES = {
+  stallLimiter: 'toggleStallLimiter',
+  autoRudder: 'toggleAutoRudder',
+  altitudeHold: 'toggleAltitudeHold',
+} as const satisfies Record<keyof AssistSettings, BindingName>
+
+const NO_TOGGLES_DOWN: AssistTogglesDown = {
+  stallLimiter: false,
+  autoRudder: false,
+  altitudeHold: false,
+}
+
+export function initialFrameState(
+  spec: AircraftSpec,
+  aircraft: AircraftState,
+  assists: AssistSettings = DEFAULT_ASSIST_SETTINGS,
+): FrameState {
   return {
     world: createWorld(spec, aircraft, NEUTRAL),
     controls: NEUTRAL,
@@ -45,6 +108,9 @@ export function initialFrameState(spec: AircraftSpec, aircraft: AircraftState): 
     stepsRun: 0,
     droppedSteps: 0,
     cyclePressed: false,
+    assists,
+    altitudeHoldMemory: NOT_HOLDING,
+    assistTogglesDown: NO_TOGGLES_DOWN,
   }
 }
 
@@ -72,12 +138,46 @@ export function nextFrameState(
       ? MODES[(MODES.indexOf(prev.cameraMode) + 1) % MODES.length]!
       : prev.cameraMode
 
+  // Each assist toggles on its own key's rising edge, for exactly the reason
+  // the camera cycle above does: a key held for a second would otherwise flip
+  // the flag sixty times and land wherever the frame count left it. Written out
+  // per assist rather than looped so `assists` and `assistTogglesDown` are both
+  // plain object literals the typechecker fully checks -- three lines of
+  // repetition against a `Record` built by reduce, which would need a cast.
+  const toggleDown = (assist: keyof AssistSettings): boolean =>
+    BINDINGS[ASSIST_TOGGLES[assist]].some((c) => pressed.has(c))
+  const flipped = (assist: keyof AssistSettings): boolean =>
+    toggleDown(assist) && !prev.assistTogglesDown[assist]
+      ? !prev.assists[assist]
+      : prev.assists[assist]
+  const assistTogglesDown: AssistTogglesDown = {
+    stallLimiter: toggleDown('stallLimiter'),
+    autoRudder: toggleDown('autoRudder'),
+    altitudeHold: toggleDown('altitudeHold'),
+  }
+  const assists: AssistSettings = {
+    stallLimiter: flipped('stallLimiter'),
+    autoRudder: flipped('autoRudder'),
+    altitudeHold: flipped('altitudeHold'),
+  }
+
+  // THE production assist path: without this argument the whole assists layer
+  // is inert in the browser and every behavioural test still passes, because
+  // those call `applyAssists` directly (found during Plan 3 execution, plan
+  // defect, ruled into this task). `advance` calls `runner.assist` once per
+  // fixed step -- never once per frame -- and the runner owns the
+  // memory-then-stack ordering `applyAssists` requires; see
+  // `createAssistRunner`. The memory is read back off the runner after
+  // `advance` returns, which is the only channel there is: `advance` returns a
+  // `World` and no memory.
+  const runner = createAssistRunner(assists, prev.altitudeHoldMemory)
+
   // This frame's controls go into the world rather than alongside it (see
   // `World.controls`): `advance` takes one object, so Plan 5's N-entity AI
   // adds a field here instead of a parameter at every call site. A new object
   // each frame, never a write into `prev.world` -- `advance`'s purity test
   // deep-freezes the world it is handed.
-  const advanced = advance({ ...prev.world, controls }, elapsedSeconds, stepper)
+  const advanced = advance({ ...prev.world, controls }, elapsedSeconds, stepper, runner.assist)
   const render = interpolateAircraft(
     advanced.world.previous,
     advanced.world.aircraft,
@@ -95,6 +195,9 @@ export function nextFrameState(
     stepsRun: advanced.stepsRun,
     droppedSteps: advanced.droppedSteps,
     cyclePressed: cycleDown,
+    assists,
+    altitudeHoldMemory: runner.memory(),
+    assistTogglesDown,
   }
 }
 

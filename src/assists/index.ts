@@ -1,5 +1,6 @@
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
+import type { Assist } from '../sim/loop.js'
 import { clampFinite, angleOfAttack, commandedBodyRates, airspeed, massKg } from '../sim/flight/model.js'
 import { alphaCritRad } from '../sim/aero.js'
 import { densityAt } from '../sim/atmosphere.js'
@@ -77,12 +78,14 @@ export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
  *     `src/render/frame.ts`, never mutated in place) -- so there is nothing
  *     to fight over by construction, not by discipline.
  *
- * `nextAltitudeHoldMemory` is the pure function that advances it; a caller
- * that wants a real hold calls it once per tick and threads the result
- * forward exactly the way `nextFrameState` already threads `World` forward.
- * Task 4 does not wire this into the render loop -- that is Task 5's
- * "switching" work -- so nothing in `src/render/` calls it yet; the seam is
- * proved from tests only, the same way Task 1 proved `applyAssists` itself.
+ * `nextAltitudeHoldMemory` is the pure function that advances it, and it must
+ * run once per fixed step, BEFORE `applyAssists`, on the same `state` and
+ * `raw`. Task 5 made that pairing structural rather than a rule to remember:
+ * `createAssistRunner` below is the one place it is written, `nextFrameState`
+ * (src/render/frame.ts) is the production caller, and it threads the runner's
+ * memory from frame to frame the way it already threads `World`. Tests that
+ * predate it call the pair by hand, which is still legal and still the way to
+ * test either half in isolation.
  */
 export type AltitudeHoldMemory = {
   readonly heldAltitudeM: number | null
@@ -131,6 +134,79 @@ export function nextAltitudeHoldMemory(
 ): AltitudeHoldMemory {
   if (!isPitchCentred(raw)) return NOT_HOLDING
   return memory.heldAltitudeM === null ? { heldAltitudeM: state.position.y } : memory
+}
+
+/**
+ * One flight's worth of assist stack, ready to hand to `advance` -- and the
+ * only thing a real caller should need to get the altitude-hold memory right.
+ *
+ * Why this exists at all (Plan 3 Task 5). `applyAssists` and
+ * `nextAltitudeHoldMemory` have a pairing invariant: the memory must be
+ * advanced BEFORE the stack runs, with the SAME `state` and `raw`, exactly once
+ * per fixed step. Until this, that invariant was prose in a doc comment plus a
+ * hand-rolled two-liner copied into each test's own `fly` helper -- a rule
+ * somebody has to remember at every call site, which is precisely the shape of
+ * rule this project has already had go wrong. Here it is one function body
+ * that cannot be called half-way: `state`, `raw` and the ordering are not
+ * parameters a caller chooses, they are whatever `advance` passes in, once per
+ * step, by construction.
+ *
+ * Why a closure over a mutable local rather than threading the memory the way
+ * `nextFrameState` threads `World`. `advance` calls the assist once per fixed
+ * STEP inside its own loop and has no channel to hand anything back: its
+ * return type is `AdvanceResult`, `World` comes back out of it and a memory
+ * does not. So the memory has to leave by the only route that exists -- a
+ * variable the caller still holds a reference to after `advance` returns. The
+ * tempting alternative, updating the memory once per FRAME outside `advance`,
+ * is wrong twice over: it would capture from `world.aircraft` rather than from
+ * the state the step actually ran on (those differ from the second step of a
+ * multi-step frame onward, which is the whole reason `advance` calls the assist
+ * inside its loop), and it could not clear mid-frame.
+ *
+ * This is NOT the "hidden mutable cell" `AltitudeHoldMemory`'s own doc comment
+ * rules out, and the difference is the one that matters there: the cell is
+ * created fresh by each `createAssistRunner` call and reachable only through
+ * the returned object, so two callers -- two test files, or two aeroplanes once
+ * Plan 5 exists -- cannot share one captured altitude unless they deliberately
+ * share a runner. A module-level variable could not offer that.
+ *
+ * Lifetime: one runner per `advance` call (i.e. per frame in `nextFrameState`),
+ * created with the memory the previous frame ended on and read back with
+ * `memory()` afterward. `enabled` is fixed for a runner's lifetime, which is
+ * what makes a mid-flight toggle a clean per-frame boundary rather than
+ * something that can change between two steps of one frame.
+ */
+export type AssistRunner = {
+  /** Exactly `sim/loop.ts`'s injected-assist shape, typed as that type so a
+   *  change to it is a compile error here rather than a silent mismatch at the
+   *  one call site that matters. */
+  readonly assist: Assist
+  /** The memory as of the last step run, for the caller to thread into the
+   *  next frame's runner. Unchanged from what was passed in if no step ran. */
+  readonly memory: () => AltitudeHoldMemory
+}
+
+export function createAssistRunner(
+  enabled: AssistSettings,
+  initialMemory: AltitudeHoldMemory = NOT_HOLDING,
+): AssistRunner {
+  let memory = initialMemory
+  return {
+    assist: (state, spec, raw, dt) => {
+      // Altitude hold switched off does not merely stop correcting, it stops
+      // REMEMBERING. Otherwise a pilot who turns it off at 2000 m, descends to
+      // 1000 m with the stick centred (so nothing ever clears the memory) and
+      // turns it back on would get an immediate full-authority climb command
+      // back to an altitude they deliberately left -- a stale target
+      // reasserting itself, which is exactly the failure
+      // `nextAltitudeHoldMemory`'s "yield" rule exists to prevent for pitch
+      // input. Re-enabling instead re-captures at the first centred step, the
+      // same way releasing the stick does.
+      memory = enabled.altitudeHold ? nextAltitudeHoldMemory(state, raw, memory) : NOT_HOLDING
+      return applyAssists(state, spec, raw, dt, enabled, memory)
+    },
+    memory: () => memory,
+  }
 }
 
 /**
@@ -221,7 +297,7 @@ export function applyAssists(
   // doc comment for the reversal this distinction missed in round 1. This is
   // the second one, computed only when the limiter is actually part of the
   // stack (`null` otherwise, meaning "no bound to enforce", not "unlimited").
-  const limiterBounds = enabled.stallLimiter ? stallLimiterBounds(state, spec) : null
+  const limiterBounds = enabled.stallLimiter ? stallLimiterBounds(state, spec, dt) : null
   controls = enabled.autoRudder ? autoRudder(state, spec, controls, dt) : controls
   controls = enabled.altitudeHold
     ? altitudeHold(state, spec, controls, raw, dt, altitudeHoldMemory, limiterEngaged, limiterBounds)
@@ -264,9 +340,11 @@ const DEPARTED_ALPHA_RAD = Math.PI / 2
  * ignoring it OVER-estimates how fast the pull drives alpha. What is left is
  * a bound on rate:
  *
- *     allowed pitch rate = (alphaCrit - alpha) / stallLimiterSeconds
+ *     allowed pitch rate = (alphaCrit - alpha) / max(stallLimiterSeconds, dt)
  *
- * -- the margin, spent no faster than one time constant. As alpha approaches
+ * -- the margin, spent no faster than one time constant (or one step, if the
+ * caller's step is the longer of the two -- see `stallLimiterBounds` for why
+ * that `max` is the limiter's own business and not its caller's). As alpha approaches
  * the boundary the allowance goes to zero, so the limit is approached and not
  * crossed; past it the allowance goes NEGATIVE, which commands nose-down, so
  * the same expression that limits the pull is also the recovery. The lower
@@ -343,10 +421,34 @@ const DEPARTED_ALPHA_RAD = Math.PI / 2
  * anything with. Both mean "there is no bound to enforce", not "the bound is
  * unlimited" -- a caller that treats `null` as "anything goes" is using this
  * correctly; one that invents a fallback bound is not.
+ *
+ * `dt` is real here, and was ignored until Task 5. The derivation spends the
+ * remaining margin over one time constant, so a STEP longer than that time
+ * constant spends more than the whole margin in one go and sails past the
+ * boundary the limiter exists to defend -- the bound is a rate, and a rate is
+ * only a bound on the next step if the step is shorter than the interval the
+ * rate was computed for. `Math.max(tau, dt)` is the whole fix: at any dt <=
+ * tau (every production step, and every pre-Task-5 test, which all pass `DT` =
+ * 1/60 against a 0.15 s tau) it is exactly the old expression, byte for byte;
+ * at dt > tau it rations the margin over the step actually being taken
+ * instead. Task 3's implementer and its re-reviewer both flagged this
+ * independently: `src/sim/flight/schema.ts`'s `stallLimiterSeconds` comment
+ * asserts "the pilot's command alone cannot cross the boundary at any tau >=
+ * DT", and until this that guarantee belonged to whoever called the limiter
+ * rather than to the limiter, which is a guarantee nobody owns. Task 5 is the
+ * task that first puts a real caller (`nextFrameState`) in front of it, so it
+ * is the task that owes it.
+ *
+ * A non-finite or non-positive `dt` falls back to `tau` alone rather than
+ * poisoning the bound: `Math.max(tau, NaN)` is `NaN`, which would make every
+ * bound `NaN`, which `clampFinite` would turn into a hard 0 -- i.e. pinning
+ * the pilot's pitch command to exactly zero, the precise failure the "no pitch
+ * authority" guard below exists to prevent.
  */
 function stallLimiterBounds(
   state: AircraftState,
   spec: AircraftSpec,
+  dt: number,
 ): { lower: number; upper: number } | null {
   const alpha = angleOfAttack(state)
   if (!(Math.abs(alpha) < DEPARTED_ALPHA_RAD)) return null
@@ -364,15 +466,19 @@ function stallLimiterBounds(
   if (!(fullBackStickRate > 0)) return null
 
   const limit = alphaCritRad(spec)
-  const asCommand = (marginRad: number) =>
-    clampFinite(marginRad / spec.rates.stallLimiterSeconds / fullBackStickRate, -1, 1)
+  // See this function's doc comment: the margin is rationed over one time
+  // constant OR one step, whichever is longer, so the bound is a real bound on
+  // the step about to be taken rather than only on a step at most `tau` long.
+  const step = Number.isFinite(dt) && dt > 0 ? dt : 0
+  const tau = Math.max(spec.rates.stallLimiterSeconds, step)
+  const asCommand = (marginRad: number) => clampFinite(marginRad / tau / fullBackStickRate, -1, 1)
   // upper >= lower always: they differ by 2 * limit / (tau * rate) > 0 before
   // clamping, and clamping both into [-1, 1] preserves the order.
   return { upper: asCommand(limit - alpha), lower: asCommand(-limit - alpha) }
 }
 
-function stallLimiter(state: AircraftState, spec: AircraftSpec, controls: Controls, _dt: number): Controls {
-  const bounds = stallLimiterBounds(state, spec)
+function stallLimiter(state: AircraftState, spec: AircraftSpec, controls: Controls, dt: number): Controls {
+  const bounds = stallLimiterBounds(state, spec, dt)
   if (bounds === null) return controls
   return { ...controls, pitch: Math.min(bounds.upper, Math.max(bounds.lower, clampFinite(controls.pitch, -1, 1))) }
 }

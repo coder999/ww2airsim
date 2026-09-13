@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { applyAssists, type AssistSettings } from '../../src/assists/index.js'
-import { step, DT, angleOfAttack, isStalled } from '../../src/sim/flight/model.js'
+import { step, DT, angleOfAttack, isStalled, commandedBodyRates } from '../../src/sim/flight/model.js'
 import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
 import { alphaCritRad } from '../../src/sim/aero.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -276,5 +276,98 @@ describe('stall limiter (Plan 3 Task 3)', () => {
     // to something invented is not.
     const stationary = createState({ position: v3(0, 0, 0), velocity: v3(0, 0, 0), attitude: qIdentity() })
     expect(applyAssists(stationary, spec, FULL_BACK, DT, ONLY_LIMITER(true))).toEqual(FULL_BACK)
+  })
+})
+
+/**
+ * Plan 3 Task 5: the limiter's own `dt`, which it ignored until now.
+ *
+ * The bound is a RATE -- the remaining alpha margin, spent no faster than one
+ * time constant -- so it only bounds the NEXT STEP if that step is shorter than
+ * the time constant the rate was computed for. Step longer than tau and the
+ * same rate spends more than the whole margin in one go. Task 3's implementer
+ * and its re-reviewer both flagged this: `src/sim/flight/schema.ts` documented
+ * the no-exceedance guarantee "at any tau >= DT", i.e. as a condition on the
+ * CALLER, and Task 5 is the task that first puts a real caller in front of the
+ * stage. `stallLimiterBounds` now rations the margin over `max(tau, dt)`, which
+ * is a no-op at every dt <= tau (every production step and every test above,
+ * all of which pass `DT` = 1/60 against a 0.15 s tau) and makes the guarantee
+ * the limiter's own at any dt.
+ *
+ * What is asserted is the guarantee itself, not the formula: the pitch RATE the
+ * simulation will actually integrate for the command the limiter returned,
+ * taken from `sim/`'s own `commandedBodyRates`, multiplied by the step being
+ * taken, must not exceed the alpha margin remaining at the start of that step.
+ * Max alpha reached is deliberately NOT the assertion here -- at steps this long
+ * alpha also moves because the flight path falls away (which no pitch command
+ * opposes) and because a 0.5 s Euler step is a poor integrator, so a max-alpha
+ * bound would be measuring those instead. Measured 2026-09-13: honest dt
+ * overshoots the margin by exactly 0.000 degrees at every condition below,
+ * while a caller stepping the same 0.5 s but telling the limiter `DT`
+ * overshoots by up to 6.7 degrees.
+ */
+describe('the stall limiter bounds the step it is given, not a step of length tau (Plan 3 Task 5)', () => {
+  /** Worst `commandedRate * dt - margin` over a run, degrees. Positive means
+   *  the command the limiter allowed could consume more than the whole
+   *  remaining margin in one step, which is what the bound exists to forbid. */
+  const worstMarginOvershootDeg = (
+    speed: number,
+    stepSeconds: number,
+    dtToldToLimiter: number,
+    seconds: number,
+  ): number => {
+    let s = createState({ position: v3(0, 2000, 0), velocity: v3(speed, 0, 0), attitude: qIdentity() })
+    let worst = -Infinity
+    for (let i = 0; i < Math.round(seconds / stepSeconds); i++) {
+      const marginRad = CRIT - angleOfAttack(s)
+      const controls = applyAssists(s, spec, FULL_BACK, dtToldToLimiter, ONLY_LIMITER(true))
+      const rate = commandedBodyRates(spec, s, controls).z
+      worst = Math.max(worst, rate * stepSeconds - marginRad)
+      s = step(spec, s, controls, { dt: stepSeconds, tick: i + 1 })
+    }
+    return deg(worst)
+  }
+
+  it.each([0.2, 0.3, 0.5])(
+    'never lets one %i-second step command more than the remaining alpha margin',
+    (stepSeconds) => {
+      for (const speed of [70, 90, 130, 200]) {
+        const honest = worstMarginOvershootDeg(speed, stepSeconds, stepSeconds, 6)
+        expect(honest, `speed=${speed} dt=${stepSeconds}`).toBeLessThanOrEqual(1e-9)
+      }
+    },
+  )
+
+  it('is exactly what a caller lying about its step size loses -- so the guard is reachable, not vacuous', () => {
+    // The same runs, with the limiter told `DT` while the integrator actually
+    // steps 0.5 s: this is the pre-Task-5 behaviour, reproduced through the
+    // shipped function by feeding it the wrong dt rather than by mutating it.
+    // Without the `max(tau, dt)` the two arms are the same call and this
+    // assertion fails.
+    for (const speed of [70, 90, 130, 200]) {
+      const lying = worstMarginOvershootDeg(speed, 0.5, DT, 6)
+      expect(lying, `speed=${speed}`).toBeGreaterThan(0.5)
+    }
+  })
+
+  it('leaves the production step untouched: at dt <= tau the bound is the old expression exactly', () => {
+    // The change must be invisible where it matters most. `DT` is 1/60 s
+    // against a 0.15 s tau, so `max(tau, dt)` is tau, and a single
+    // hand-computed reference value pins that: at 90 m/s, alpha 2 degrees past
+    // critical, the limiter commands -0.7084896352614817 -- the same figure
+    // Task 4's own fix-round-1 tests match against. Also checked at a dt of
+    // exactly tau, the boundary of the `max`, and at a nonsense dt, which must
+    // fall back to tau rather than poisoning the bound with a NaN.
+    const alphaRad = CRIT + (2 * Math.PI) / 180
+    const s = createState({
+      position: v3(0, 2000, 0),
+      velocity: v3(90 * Math.cos(alphaRad), -90 * Math.sin(alphaRad), 0),
+      attitude: qIdentity(),
+    })
+    const raw: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
+    const expected = -0.7084896352614817
+    for (const dt of [DT, DT / 10, spec.rates.stallLimiterSeconds, Number.NaN, -1, 0]) {
+      expect(applyAssists(s, spec, raw, dt, ONLY_LIMITER(true)).pitch, `dt=${dt}`).toBe(expected)
+    }
   })
 })

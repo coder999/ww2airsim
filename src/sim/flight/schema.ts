@@ -139,9 +139,20 @@ const AircraftSpecObject = z.object({
      * Not one of 36 runs at any tau crossed the boundary, down to tau = the
      * fixed step itself. That is the derivation working as intended: the bound
      * lets alpha consume at most the margin per time constant, so the pilot's
-     * command alone cannot cross the boundary at any tau >= DT, and the
-     * flight-path term the derivation drops happens to help rather than hurt
-     * in a pull.
+     * command alone cannot cross the boundary, and the flight-path term the
+     * derivation drops happens to help rather than hurt in a pull.
+     *
+     * That sentence used to end "at any tau >= DT", which quietly made the
+     * guarantee the CALLER's: a caller stepping longer than tau would have
+     * spent more than the whole margin in one step and sailed past the
+     * boundary. Corrected 2026-09-13 (Task 5) by making it the limiter's own
+     * property -- it rations the margin over `max(tau, dt)`, so the guarantee
+     * holds at any dt, whatever the caller does. The value of this field is
+     * unchanged and the production path (a fixed `DT` step, well under 0.15 s)
+     * is byte-for-byte unaffected; see `stallLimiterBounds` in
+     * `src/assists/index.ts`, and the dt test in
+     * `tests/assists/stallLimiter.test.ts` that measures a caller stepping at
+     * 0.5 s crossing the boundary on the old expression and not on this one.
      *
      * So the choice is about FEEL, and the right-hand column is the one that
      * decides it: limiting begins at `alphaCrit - tau * maxPitchRate` (times
