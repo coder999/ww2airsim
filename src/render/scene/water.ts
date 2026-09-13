@@ -1,4 +1,14 @@
-import { Mesh, MeshStandardMaterial, PlaneGeometry, RepeatWrapping, DataTexture, RGBAFormat, type Object3D } from 'three'
+import {
+  DataTexture,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  Mesh,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  RepeatWrapping,
+  RGBAFormat,
+  type Object3D,
+} from 'three'
 
 /**
  * Half of this must exceed `SKY_RADIUS_M`, or the plane runs out before the
@@ -56,6 +66,22 @@ export function createWater(): Object3D {
     WATER_EXTENT_M / WATER_DETAIL_METRES,
     WATER_EXTENT_M / WATER_DETAIL_METRES,
   )
+  // three's DataTexture defaults to NearestFilter on BOTH filters with
+  // generateMipmaps off (verified 2026-09-13 against the installed
+  // three@0.186.0). Tiled 2500 times across the plane and viewed at the
+  // grazing angles that fill most of the screen, that samples one texel out
+  // of thousands per pixel: a fixed moiré grid standing over the whole ocean,
+  // which crawls as the aeroplane moves. Visible on the 2026-09-13 Surface
+  // screenshots, and made denser by I-1 raising WATER_EXTENT_M -- the detail
+  // scale per metre is unchanged, but there are 2.5x as many tiles in frame.
+  //
+  // 64 is a power of two, so a mip chain is valid and costs a few kilobytes.
+  // Anisotropy is what actually rescues a grazing angle; three clamps this to
+  // whatever the device reports, so asking for more than exists is harmless.
+  normalMap.generateMipmaps = true
+  normalMap.minFilter = LinearMipmapLinearFilter
+  normalMap.magFilter = LinearFilter
+  normalMap.anisotropy = 16
   normalMap.needsUpdate = true
 
   const mesh = new Mesh(

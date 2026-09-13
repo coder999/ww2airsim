@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, DirectionalLight, HemisphereLight, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three'
+import {
+  Box3,
+  DirectionalLight,
+  HemisphereLight,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  Mesh,
+  MeshStandardMaterial,
+  SphereGeometry,
+  Vector3,
+} from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createWater, recentreWater, SEA_COLOUR, WATER_EXTENT_M } from '../../src/render/scene/water.js'
@@ -72,6 +82,27 @@ describe('water', () => {
     expect(size.x).toBeGreaterThanOrEqual(WATER_EXTENT_M)
     expect(size.z).toBeGreaterThanOrEqual(WATER_EXTENT_M)
     expect(WATER_EXTENT_M / 2).toBeGreaterThan(SKY_RADIUS_M)
+  })
+
+  it('filters its surface detail, which three does not do by default', () => {
+    // three's DataTexture ships with NearestFilter on both filters and no
+    // mipmaps. Tiled thousands of times and seen at the grazing angles that
+    // fill most of the screen, that is one texel sampled out of thousands per
+    // pixel: a moiré grid standing over the whole ocean that crawls as the
+    // aeroplane moves. Seen on the 2026-09-13 Surface screenshots.
+    //
+    // The values are asserted, not the defaults, because the defect was
+    // inherited by saying nothing rather than by setting anything.
+    const w = createWater() as Mesh
+    const map = (w.material as MeshStandardMaterial).normalMap!
+    expect(map.generateMipmaps).toBe(true)
+    expect(map.minFilter).toBe(LinearMipmapLinearFilter)
+    expect(map.magFilter).toBe(LinearFilter)
+    expect(map.anisotropy).toBeGreaterThan(1)
+    // A mip chain needs power-of-two dimensions to be built at all.
+    const { width, height } = map.image as { width: number; height: number }
+    expect(Number.isInteger(Math.log2(width))).toBe(true)
+    expect(Number.isInteger(Math.log2(height))).toBe(true)
   })
 
   it('re-centres under the eye, as the sky already does', () => {
