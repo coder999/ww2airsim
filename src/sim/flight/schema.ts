@@ -166,11 +166,29 @@ const AircraftSpecObject = z.object({
      *
      * What no tau can prevent, and no test should claim: alpha also rises
      * because the FLIGHT PATH falls away, which no pitch command opposes. A
-     * 60 m/s pull-up into a 60-degree climb departs at every tau tried (peak
-     * alpha 89.6 degrees, airspeed down to 11 m/s), with the limiter's
-     * allowance saturated because there is no pitch authority left to ration.
-     * See `tests/assists/stallLimiter.test.ts`, which tests that honestly
-     * rather than asserting a guarantee the limiter does not make.
+     * 60 m/s entry at a 60-degree climb angle -- full back stick, full
+     * throttle, 15 s from 3000 m -- departs at every tau tried, and departs
+     * completely. Re-measured 2026-09-13 at tau 0.017, 0.10, 0.15, 0.25 and
+     * 0.50: every one of the five reaches a peak |alpha| of 180.0 degrees
+     * (179.96, and the five differ by under 0.001) and an airspeed of 2.9
+     * m/s; the wing first stalls at 9.3 s and the aeroplane is past the
+     * limiter's own 90-degree stand-down from 11.3 s onward. Of the 900 ticks
+     * in that run the limiter commands full nose-down for 119, and for 780 it
+     * has stood down and is handing the pilot's own command straight back.
+     *
+     * The figures this paragraph used to carry -- "peak alpha 89.6 degrees,
+     * airspeed down to 11 m/s" -- were not measurements of the aeroplane.
+     * 89.6 is the ceiling of the SWEEP HARNESS's own |alpha| < 90 scoring
+     * filter -- the same harness and the same scoring as the 36-condition
+     * grid above -- carried out of it and printed as a physical result: the
+     * identical run scored through that filter reports exactly 89.6, and
+     * scored without it reports 180.0. No
+     * scoring reproduces 11 m/s at all -- the run's minimum is 2.9 and the
+     * harness's own airspeed floor is 50. The qualitative claim was right and
+     * both numbers were artefacts of the instrument, which is why a figure in
+     * a durable comment is worth only as much as the statement of how it was
+     * measured. See `tests/assists/stallLimiter.test.ts`, which tests this
+     * honestly rather than asserting a guarantee the limiter does not make.
      *
      * Being a feel constant, this is exactly the kind of value Plan 3's own
      * Task 6 -- Mark flying it -- is expected to revise.
