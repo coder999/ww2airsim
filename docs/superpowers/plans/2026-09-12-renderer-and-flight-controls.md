@@ -1688,7 +1688,7 @@ Keyboard hat only. The design's §6 also lists continuous mouse-look; it is **de
 - Produces: `type LookOffset = { yawRad: number; pitchRad: number }`, `LOOK_CENTRE: LookOffset`, `lookOffsetFromKeys(pressed, dt, previous): LookOffset`, `LOOK_LIMIT_RAD`.
 - Changes: `cameraTransformFor(mode, spec, render, look: LookOffset)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/input/lookAround.test.ts`:
 
@@ -1739,12 +1739,12 @@ describe('lookOffsetFromKeys', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/input/lookAround.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Add the bindings**
+- [x] **Step 3: Add the bindings**
 
 In `src/input/bindings.ts`, add to `BINDINGS`:
 
@@ -1757,7 +1757,7 @@ In `src/input/bindings.ts`, add to `BINDINGS`:
   lookBack: ['Numpad0'],
 ```
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Create `src/input/lookAround.ts`:
 
@@ -1813,7 +1813,7 @@ export function lookOffsetFromKeys(
 }
 ```
 
-- [ ] **Step 5: Apply the offset in the camera**
+- [x] **Step 5: Apply the offset in the camera**
 
 In `src/render/camera.ts`, add the parameter and apply it to the returned attitude in **both** modes:
 
@@ -1863,12 +1863,12 @@ it('applies look-around in body frame, not world frame', () => {
 })
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `npx vitest run tests/input/lookAround.test.ts tests/render/camera.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
