@@ -1,6 +1,6 @@
 import { Group, PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
-import { showFailure } from './failure.js'
+import { showFailure, type FailureKind } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
@@ -377,5 +377,9 @@ async function boot(): Promise<void> {
 
 void boot().catch((e: unknown) => {
   const msg = e instanceof Error ? e.message : String(e)
-  showFailure(root, msg === 'no-webgpu' ? 'no-webgpu' : 'unknown', msg)
+  // Both boot-time throws carry their kind as the message, so route each to
+  // its own screen rather than collapsing them (review 2026-09-13).
+  const kind: FailureKind =
+    msg === 'no-webgpu' ? 'no-webgpu' : msg === 'no-adapter' ? 'no-adapter' : 'unknown'
+  showFailure(root, kind, msg)
 })

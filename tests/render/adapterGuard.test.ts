@@ -59,3 +59,19 @@ describe('judgeAdapter', () => {
       .toMatch(/intel/)
   })
 })
+
+it('keeps ok and severity from drifting apart', () => {
+  // `ok` duplicates `severity === 'ok'` and only tests read it, so nothing
+  // stopped the two disagreeing. One assertion is cheaper than deleting a
+  // field the tests use for readability (review 2026-09-13).
+  const cases = [
+    { vendor: 'amd', architecture: 'rdna-2', device: '', description: '', isFallbackAdapter: false },
+    { vendor: 'qualcomm', architecture: 'adreno-7xx', device: '', description: '', isFallbackAdapter: false },
+    { vendor: 'google', architecture: 'swiftshader', device: '', description: '', isFallbackAdapter: true },
+    { vendor: '', architecture: '', device: '', description: '', isFallbackAdapter: false },
+  ]
+  for (const info of cases) {
+    const v = judgeAdapter(info)
+    expect(v.ok).toBe(v.severity === 'ok')
+  }
+})

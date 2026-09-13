@@ -42,6 +42,15 @@ export const CHASE_OFFSET_M: readonly [number, number, number] = [-22, 6, 0]
 export const CHASE_PITCH_FOLLOW = 0.92
 
 /** Heading (yaw) of an attitude, radians, ignoring pitch and roll. */
+/**
+ * The chase camera's yaw about world up. NOT a compass heading, and
+ * deliberately opposite in sign to `gauges.ts`'s: this is the rotation angle
+ * that aims the camera, where anticlockwise from +X is positive, while the
+ * gauge reads a clockwise compass rose. A +30-degree yaw about +Y reads 30.0
+ * here and 330.0 there. Both are right for their purpose; nothing said so
+ * until a review asked (2026-09-13), and a sign-convention pair with no
+ * cross-reference is the shape C-1 and C-2 both took.
+ */
 function headingOf(q: Quat): number {
   const fwd = qRotate(q, v3(1, 0, 0))
   return Math.atan2(-fwd.z, fwd.x)

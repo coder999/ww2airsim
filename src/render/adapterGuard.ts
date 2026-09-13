@@ -23,6 +23,9 @@ export type AdapterInfoLike = {
 
 export type AdapterVerdict = {
   /** True only for the reference platform. */
+  /** True exactly when `severity === 'ok'`. Kept for readability at call
+   *  sites; `src/` reads `severity`, so a divergence would be silent. Pinned
+   *  by adapterGuard.test.ts rather than left to drift (review 2026-09-13). */
   readonly ok: boolean
   /** `fail` is a software rasterizer; `warn` is a real but different GPU. */
   readonly severity: 'ok' | 'warn' | 'fail'

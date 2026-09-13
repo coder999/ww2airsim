@@ -442,6 +442,24 @@ a rewrite. Plan 5 is the plan that should revisit it.
    prevent. Note that it gets harder every plan, and no plan uses replay yet, so
    the cost of waiting is currently zero and the cost of guessing is not.
 
+7. **`spike/webgpu-day0/probe.ts` is neither typechecked nor linted by
+   `npm run verify`, and it does not compile** — found 2026-09-13. `tsconfig`'s
+   `include` lists `src`, `tests`, `tools` and root `*.ts`, so `tsc --listFiles`
+   emits nothing under `spike/`. Adding it produces real errors: eight or more
+   in the TSL compute block alone, mostly `Cannot invoke an object which is
+   possibly 'undefined'` around `workgroupArray` and `instanceIndex`.
+
+   `npm run lint` now covers `spike` and passes. Typechecking does not, and
+   forcing it would turn the pipeline red on throwaway code, so it stays out
+   until someone fixes the probe's types.
+
+   This matters more than a lint gap normally would, because open item 1 now
+   turns on this file's correctness: the fixed probe threw the identical error
+   on a second GPU, and "the fix was incomplete" is the hypothesis with the
+   least evidence against it precisely because nothing checks this file. The
+   probe also wraps its whole compute block in one `catch`, so the error is
+   not localised to the call that was fixed and no stack was recorded.
+
 6. **No directional stability: the aeroplane flies crabbed after every turn**
    — found by flying it, 2026-09-13, and it belongs to Plan 1's model rather
    than to anything here. Roll into a turn and level out, and the flight path

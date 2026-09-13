@@ -146,3 +146,18 @@ describe('airframeVisibilityFor', () => {
     expect(airframeVisibilityFor('chase')).toEqual({ cockpitVisible: false, hellcatVisible: true })
   })
 })
+
+it('hands the frame and the world the same controls object', () => {
+  // frame.ts documents `FrameState.controls` as "the identical object
+  // `world.controls` holds". True, but untested: `nextFrameState` rebuilds
+  // `{...prev.world, controls}` from `prev.controls` and never reads
+  // `prev.world.controls`, so the render path would keep working while the
+  // comment quietly became false (review 2026-09-13).
+  const f6f = loadAircraftSpec('f6f-hellcat')
+  let f = initialFrameState(f6f, createState({ position: v3(0, 600, 0), velocity: v3(120, 0, 0) }))
+  expect(f.controls).toBe(f.world.controls)
+  for (const keys of [new Set(['ArrowLeft']), new Set(['ShiftLeft']), new Set<string>()]) {
+    f = nextFrameState(f, 1 / 60, keys)
+    expect(f.controls).toBe(f.world.controls)
+  }
+})

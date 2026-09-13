@@ -117,11 +117,9 @@ describe('water', () => {
     // at ~SKY_RADIUS_M, so if the half-extent is the smaller of the two the
     // water runs out BEFORE the dome and the boundary sits deep inside the
     // dome's lower hemisphere instead of on its equator.
-    const w = createWater()
-    const b = new Box3().setFromObject(w)
-    const size = b.getSize(new Vector3())
-    expect(size.x).toBeGreaterThanOrEqual(WATER_EXTENT_M)
-    expect(size.z).toBeGreaterThanOrEqual(WATER_EXTENT_M)
+    // The two `size >= WATER_EXTENT_M` assertions this comment says were
+    // removed were in fact still here until 2026-09-13, sitting directly
+    // beneath the paragraph describing them as vacuous. They are gone now.
     expect(WATER_EXTENT_M / 2).toBeGreaterThan(SKY_RADIUS_M)
   })
 
@@ -173,9 +171,17 @@ describe('water', () => {
     // local +Y maps to world -Z.
     const w = createWater() as Mesh
     const map = (w.material as MeshStandardMaterial).normalMap!
+    // Read the plane's orientation off the MESH rather than asserting it in
+    // prose. The previous version derived "local +Y maps to world -Z" from a
+    // comment and never looked at `w.rotation`, so flipping the rotation to
+    // +pi/2 -- sea normals pointing down -- left this test green with its own
+    // model silently no longer describing the object.
+    const localY = new Vector3(0, 1, 0).applyEuler(w.rotation)
+    expect(localY.z).toBeCloseTo(-1, 9)
+    expect(Math.abs(localY.x) + Math.abs(localY.y)).toBeLessThan(1e-9)
     const sampleAt = (worldX: number, worldZ: number): [number, number] => {
       const u = (worldX - w.position.x) / WATER_EXTENT_M + 0.5
-      const v = -(worldZ - w.position.z) / WATER_EXTENT_M + 0.5
+      const v = localY.z * ((worldZ - w.position.z) / WATER_EXTENT_M) + 0.5
       return [u * map.repeat.x + map.offset.x, v * map.repeat.y + map.offset.y]
     }
     // One fixed point on the sea, sampled from two different aircraft positions.
@@ -281,4 +287,19 @@ describe('lighting', () => {
     const hemi = l.children.find((c) => c instanceof HemisphereLight)
     expect(hemi).toBeDefined()
   })
+  it('points the sun from above, and gives the fill real intensity', () => {
+    // Both of these were `toBeDefined()`. Setting the hemisphere intensity to
+    // zero is behaviourally identical to the deletion the test's own comment
+    // says it exists to catch, and it passed; so did moving the sun below the
+    // sea, which lights the whole scene from underneath.
+    const lights = createLighting()
+    const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
+    const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)
+    expect(sun).toBeDefined()
+    expect(fill).toBeDefined()
+    expect(sun!.position.y).toBeGreaterThan(0)
+    expect(sun!.intensity).toBeGreaterThan(0)
+    expect(fill!.intensity).toBeGreaterThan(0)
+  })
+
 })

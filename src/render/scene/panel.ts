@@ -130,7 +130,6 @@ function textPlate(
     new PlaneGeometry(widthM, heightM),
     new MeshBasicMaterial({ map: makeText(text, widthM / heightM), transparent: true }),
   )
-  mesh.userData.text = text
   return mesh
 }
 
@@ -140,7 +139,6 @@ function setPlateText(mesh: Mesh, text: string, makeText: TextTextureFactory): v
   const { width, height } = (mesh.geometry as PlaneGeometry).parameters
   material.map = makeText(text, width / height)
   material.needsUpdate = true
-  mesh.userData.text = text
   // The old canvas texture is replaced every time the displayed value changes,
   // which for the altimeter is several times a second. Not disposing it leaks
   // one GPU texture per change for the life of the tab.
@@ -292,9 +290,13 @@ export function updatePanel(
     const readout = panel.readouts.get(g.id)
     if (readout) {
       const text = readoutTextFor(g.id, spec, state)
-      // Re-rasterise only on a real change. The altimeter's displayed metres
-      // change a few times a second; redrawing six canvases every frame at
-      // 60 fps to show the same six strings would be pure waste.
+      // Re-rasterise only on a real change. Measured over 600 ticks of the
+      // real flight model: about 0.07 redraws per frame in gentle flight but
+      // 1.44 per frame under active manoeuvring, driven mostly by the climb
+      // gauge's single decimal place. So this saves roughly three quarters of
+      // the work rather than almost all of it -- "a few times a second", which
+      // this comment used to claim, was wrong by more than an order of
+      // magnitude under exactly the conditions the panel is read in.
       if (text !== readout.text) {
         setPlateText(readout.mesh, text, makeText)
         readout.text = text

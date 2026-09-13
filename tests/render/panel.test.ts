@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { Box3, BoxGeometry, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
 import { createPanel, updatePanel, PANEL_MIN_ASPECT, type Panel } from '../../src/render/scene/panel.js'
-import { GAUGES, labelTextFor, tickMarksFor } from '../../src/render/gauges.js'
+import {
+  GAUGES,
+  angleForValue,
+  gaugeValue,
+  labelTextFor,
+  tickMarksFor,
+} from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
 import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
@@ -425,6 +431,36 @@ describe('panel markings and readouts (I-2)', () => {
         expect(placed.some((got) => Math.abs(got - want) < 1e-9)).toBe(true)
       }
     })
+  })
+
+  it('turns the needle the way the gauge says, on every instrument', () => {
+    // Mutation, 2026-09-13: `needle.rotation.z = -angle` changed to `= angle`
+    // mirrored all six instruments about their own zero and the whole suite
+    // stayed green, as did negating the pivot translation so each needle
+    // pointed 180 degrees out. gauges.test.ts pins the NUMBER and the earlier
+    // panel tests pin the TICK MESHES; the join between them -- the needle
+    // actually rotating that way -- was untested.
+    //
+    // Read against the marks, not against the sign in panel.ts: for each
+    // gauge the needle at its high sample must point at the same screen angle
+    // as a tick mark placed at that same value.
+    const p = createPanel(f6f, () => null)
+    for (const g of GAUGES) {
+      updatePanel(p, f6f, g.sampleHigh, () => null)
+      const needle = p.needles.get(g.id) as Mesh
+      const value = gaugeValue(g.id, f6f, g.sampleHigh)
+      // A tick at `value` sits at (sin a, cos a) from the dial centre; the
+      // needle's own tip direction must agree.
+      const a = angleForValue(g, value)
+      const tip = new Vector3(0, 1, 0).applyEuler(needle.rotation)
+      expect(tip.x).toBeCloseTo(Math.sin(a), 9)
+      expect(tip.y).toBeCloseTo(Math.cos(a), 9)
+      // And the mesh must extend from the pivot outward, not back through it.
+      const centre = new Vector3()
+      needle.geometry.computeBoundingBox()
+      needle.geometry.boundingBox!.getCenter(centre)
+      expect(centre.y).toBeGreaterThan(0)
+    }
   })
 
   it('shows the current value as digits, and updates them as the aeroplane moves', () => {

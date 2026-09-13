@@ -3453,6 +3453,32 @@ A review pass ran the plan's own arithmetic and probes against the repo before a
 - **Tick numbering.** One convention everywhere: the tick a step produces, so the first step from a tick-0 spawn yields 1 (Task 1 Step 6).
 - **Smaller.** Pressed keys cleared on window blur. Sky dome re-centred on the eye. Task 13's "flies" test compares full throttle against idle instead of asserting forward motion an aircraft already at 120 m/s has anyway. Task 15 says headless adapter identity is still the unverified day-0 question and lists the Windows one-time setup.
 
+## Revision 2026-09-13 (second) — this plan is history, not reference
+
+Read the code, not this document, for anything you intend to copy.
+
+A review pass found this file now contradicts the tree in roughly twenty
+places. Most are harmless drift — constants that moved, signatures that gained
+a parameter, per-task test counts, a File Structure table missing the files
+later tasks added. Three are not harmless, because they quote code that was
+LATER FOUND DEFECTIVE and fixed, so anyone reading the plan for reference would
+reintroduce a known bug:
+
+- the roll expression `Math.atan2(up.z, up.y)`, which is C-2: it is a body-frame
+  quantity, not a bank angle, and reports up to 10 degrees of false bank on a
+  wings-level aeroplane purely as a function of heading.
+- `panel.horizon.rotation.z = -rollRad` together with `pitchRad * 0.08`, which
+  are C-1 and I-7: the bar read backwards, and its height was an invented scale
+  that hung it 15.8 degrees below the eye line at zero pitch.
+- `WATER_EXTENT_M = 40_000` under the comment "Big enough that its edge never
+  enters frame at this plan's altitudes", which is the exact false comment I-1
+  removed. No finite flat plane can satisfy it.
+
+Left in place deliberately rather than edited. The plan is the record of what
+was intended and executed, and rewriting it to match the outcome would destroy
+that; the header above is the fix. The design doc, by contrast, IS maintained
+as reference and has been corrected.
+
 ## Revision 2026-09-13 — four checkboxes corrected (whole-branch review, M-8)
 
 Four steps were ticked that nobody has performed. Every one of them needs the

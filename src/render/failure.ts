@@ -9,6 +9,7 @@
  */
 export type FailureKind =
   | 'no-webgpu'
+  | 'no-adapter'
   | 'software-adapter'
   | 'device-lost'
   | 'bad-content'
@@ -25,6 +26,15 @@ export function failureMessage(kind: FailureKind, detail: string): FailureMessag
           'navigator.gpu is absent. It is exposed only in a secure context, and a ' +
           'plain-HTTP LAN address is not one — reach the dev server through the SSH ' +
           'tunnel at http://localhost:5173 rather than by IP. ' + detail,
+      }
+    case 'no-adapter':
+      return {
+        title: 'WebGPU is present but no adapter was granted',
+        detail:
+          'navigator.gpu exists and requestAdapter() returned null, so the page origin ' +
+          'is not the problem — this is the GPU side. Usual causes are a headless ' +
+          'browser built without a GPU process, WebGPU disabled by policy or flag, or ' +
+          'a driver the browser refuses to use. ' + detail,
       }
     case 'software-adapter':
       return {
@@ -45,7 +55,16 @@ export function failureMessage(kind: FailureKind, detail: string): FailureMessag
         title: 'Aircraft content failed validation',
         detail:
           'Content is schema-validated at load so a malformed value fails here rather ' +
-          'than becoming a NaN in the integrator. Offending field: ' + (detail || '(none reported)'),
+          'than becoming a NaN in the integrator. ' +
+          // Not always a field: this kind also carries a 404 from the fetch and a
+          // JSON parse error, and labelling those "Offending field:" was a false
+          // statement rendered to the operator (review 2026-09-13). The label is
+          // now applied only when the detail looks like zod's `path: message`.
+          (detail
+            ? /^[A-Za-z_$][\w$.[\]]*: /.test(detail)
+              ? 'Offending field: ' + detail
+              : detail
+            : '(none reported)'),
       }
     case 'unknown':
       return {

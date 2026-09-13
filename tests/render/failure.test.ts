@@ -44,3 +44,35 @@ describe('failureMessage', () => {
     }
   })
 })
+
+describe('failure kinds match the condition that actually occurred', () => {
+  // Review 2026-09-13: two kinds were reached from more than one condition and
+  // hard-coded prose for only one of them, so the screen asserted a cause the
+  // caller had not established. The test could not catch it because it fed
+  // `failureMessage` the one detail string for which the label was accurate.
+
+  it('does not blame the tunnel when navigator.gpu was present', () => {
+    // requestAdapter() returning null used to raise 'no-webgpu', whose message
+    // sends the operator to check their SSH tunnel. That advice is impossible
+    // here: without the tunnel there would have been no navigator.gpu to call.
+    const m = failureMessage('no-adapter', 'requestAdapter returned null')
+    expect(m.detail).not.toMatch(/tunnel|secure context|localhost/i)
+    expect(m.detail).toMatch(/adapter|GPU process|driver|policy/i)
+    // And it must still be distinguishable from the genuinely-absent case.
+    expect(m.title).not.toBe(failureMessage('no-webgpu', '').title)
+  })
+
+  it('only calls a content detail an "offending field" when it is one', () => {
+    // A 404 and a JSON parse error both arrive as 'bad-content'. Rendering
+    // "Offending field: Failed to fetch aircraft content: 404 Not Found" is a
+    // false statement shown to the operator, which is the loudest form of this
+    // project's named defect.
+    const zod = failureMessage('bad-content', 'aero.cd0: Required')
+    expect(zod.detail).toContain('Offending field: aero.cd0: Required')
+    const http = failureMessage('bad-content', 'Failed to fetch aircraft content: 404 Not Found')
+    expect(http.detail).not.toContain('Offending field')
+    expect(http.detail).toContain('404 Not Found')
+    const parse = failureMessage('bad-content', 'Unexpected token < in JSON at position 0')
+    expect(parse.detail).not.toContain('Offending field')
+  })
+})

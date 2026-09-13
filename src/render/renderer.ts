@@ -39,7 +39,12 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<RendererB
   if (!('gpu' in navigator)) throw new Error('no-webgpu')
 
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
-  if (!adapter) throw new Error('no-webgpu')
+  // A DISTINCT kind from a missing navigator.gpu. Both threw 'no-webgpu'
+  // until 2026-09-13, and the message for that kind sends the operator to
+  // check their SSH tunnel -- advice that is false here, because a tunnel
+  // that were not working could not have got them a `navigator.gpu` to call
+  // `requestAdapter` on in the first place.
+  if (!adapter) throw new Error('no-adapter')
 
   const info = adapter.info
   const adapterVerdict = judgeAdapter({
