@@ -116,6 +116,17 @@ its denominator, so it over-reports alpha when crabbed (design open item 8).
 A limiter built on it would clamp early during a slipping turn. That open item
 should probably be fixed as part of this plan rather than before it.
 
+**Amended 2026-09-13, during Task 3: that caveat is withdrawn, because open item
+8 is wrong and has been retracted.** `atan2(-dot(v, up), dot(v, forward))` is
+already the angle in the plane of symmetry — projecting the lateral component
+out first changes neither dot product, verified to 1.2e-14 rad over 20,000
+random states. Alpha does rise with crab, which is what alpha means, not an
+inflation to be corrected. So the limiter is built on the shipped
+`angleOfAttack` unchanged, and it should be: it has to bound the same quantity
+`isStalled` and `liftCoefficient` are driven by, or it would clamp against a
+boundary the wing does not have. The retraction, with the derivation and the
+numbers, is item 8 in the Plan 2 design doc.
+
 ### Combat trim
 
 Holds the aeroplane where it is pointed with the stick centred. In a
