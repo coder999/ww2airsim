@@ -80,6 +80,49 @@ probe, not yet re-run. Since raw WGSL compute demonstrably works on this GPU,
 **no part of this plan is blocked either way** — TSL versus `wgslFn` is a
 question for Plan 4's ocean, not for anything here.
 
+### Second platform, 2026-09-13 — Surface (Snapdragon, Adreno 7xx, Chrome 152)
+
+Mark ran the **fixed** probe (commit 3f6ee0b, its first run on any machine) on
+an ARM Windows Surface over the same SSH tunnel. Not the reference platform,
+and not a substitute for it — but it settles one question and reopens another.
+
+| Question | Answer |
+| --- | --- |
+| Secure context over the tunnel | Yes — `isSecureContext: true` at `http://localhost:5173` |
+| `navigator.gpu` | Present |
+| Adapter | `vendor: "qualcomm"`, `architecture: "adreno-7xx"`, `device: ""`, `isFallbackAdapter: false` |
+| three on a WebGPU backend | Yes — `WebGPUBackend` |
+| Raw WGSL `workgroupBarrier` compute | Works |
+| TSL `workgroupArray` + `workgroupBarrier` | **Fails**, `TypeError: Cannot read properties of undefined (reading 'size')` |
+| Adapter guard verdict | `warn` — "unrecognised adapter", `haystack="qualcomm adreno-7xx"` |
+
+**The empty `device`/`description` finding generalises.** Chrome reports coarse
+adapter identifiers on a completely different vendor and architecture too, so
+the vendor-plus-architecture ceiling above is a property of Chrome, not of the
+AMD driver. The guard's shape is right.
+
+**The TSL diagnosis above is not supported, and this section says so rather
+than being quietly left to stand.** The 2026-09-12 entry concluded the
+`TypeError` "was our bug, not three's", from passing `toAttribute()` where
+`.value` was wanted. That fix is in the probe (`spike/webgpu-day0/probe.ts`,
+the `.value` cast and the comment above it) and the fixed probe throws the
+**identical** error on this machine. So one of three things is true and none of
+them is "fixed": the fix was incomplete, the same message is now coming from
+somewhere else, or three's TSL compute path genuinely does not work here. It
+has still never been run on the reference GPU. Open item 1 is reopened
+accordingly.
+
+Not blocking anything, for the same reason as before: raw WGSL compute works on
+both machines, so the contingency holds on two GPUs from different vendors,
+which is a stronger result than the plan had yesterday.
+
+**Tier 2 cannot run here, by design.** The adapter guard returns `warn`, and
+Ruling R17 makes warn fatal — the reviewer considered loosening it and would
+not, because a false negative silently corrupts every frame-time number
+downstream while a false positive fails loudly on one machine. Adding
+`adreno` to the allowlist would be loosening it for a machine that is not the
+reference platform, so the Surface is a probe host, not a Tier 2 runner.
+
 ## 3. The sim↔render seam
 
 The load-bearing decision of this plan, and the one later plans inherit.
@@ -370,9 +413,13 @@ a rewrite. Plan 5 is the plan that should revisit it.
 
 ## 10. Open items
 
-1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. The fixed
-   probe has not been re-run. Raw WGSL compute works on the reference GPU, so
-   the contingency is proven; this only matters to Plan 4's ocean.
+1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. Updated
+   2026-09-13: the fixed probe HAS now been run, on the Surface, and throws the
+   identical `TypeError` the fix was supposed to remove (see the second-platform
+   section above). It has still never been run on the reference GPU. Raw WGSL
+   compute now works on two GPUs from different vendors, so the contingency is
+   better proven than the TSL path is broken; this only matters to Plan 4's
+   ocean.
 2. **Keyboard ramp time constant** — a named value, expected to change once the
    aeroplane has been flown.
 3. **Eye point** — needs a plausible value for the F6F; no primary source is
