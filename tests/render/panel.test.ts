@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, BoxGeometry, Group, Mesh, Quaternion, Vector3 } from 'three'
-import { createPanel, updatePanel, type Panel } from '../../src/render/scene/panel.js'
+import { Box3, BoxGeometry, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
+import { createPanel, updatePanel, PANEL_MIN_ASPECT, type Panel } from '../../src/render/scene/panel.js'
 import { GAUGES, labelTextFor, tickMarksFor } from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
 import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
@@ -222,7 +222,16 @@ describe('panel', () => {
       const angle = Math.atan2(Math.abs(y - ey), nearestX)
       expect(angle).toBeLessThan(halfFovRad)
     }
-    expect(Math.abs(box.max.z - ez)).toBeLessThan(nearestX * Math.tan(halfFovRad) * 4)
+    // The horizontal half-angle is the vertical one scaled by the ASPECT
+    // RATIO. This assertion used the vertical half-angle times a bare 4,
+    // which permitted a half-width of 1.386 m against an actual 0.53 -- it
+    // would have passed a panel 2.3 times too wide, while reading as a guard.
+    // Found by review 2026-09-13, in the same commit that fixed the vertical
+    // case it was written alongside.
+    const halfWidthAllowed = nearestX * Math.tan(halfFovRad) * PANEL_MIN_ASPECT
+    for (const z of [box.min.z, box.max.z]) {
+      expect(Math.abs(z - ez)).toBeLessThan(halfWidthAllowed)
+    }
   })
 
   it('starts the bar at eye level, before any update has run', () => {
@@ -235,6 +244,42 @@ describe('panel', () => {
     const [, ey] = f6f.view.eyePointM
     p.root.updateMatrixWorld(true)
     expect(new Vector3().setFromMatrixPosition(p.horizon.matrixWorld).y).toBeCloseTo(ey, 6)
+  })
+
+  it('hides the horizon bar behind the coaming rather than across the dials', () => {
+    // I-7 gave the bar exact geometry, which keeps it travelling: from about
+    // 8 degrees nose-up it reached the dial faces and by 17.5 it crossed the
+    // centres of the two inner dials. It is now behind an opaque backing
+    // plate, which is what a real coaming does, so no clamp is needed --
+    // but only if the layering is right, which is what this checks.
+    const p = createPanel(f6f, () => null)
+    const backing = p.root.children.find(
+      (c): c is Mesh => c instanceof Mesh && c.geometry instanceof PlaneGeometry,
+    )
+    expect(backing).toBeDefined()
+    // Local +Z points at the pilot, so "behind" is a SMALLER z.
+    expect(p.horizon.position.z).toBeLessThan(backing!.position.z)
+    const dialFaceZ = 0
+    expect(backing!.position.z).toBeLessThan(dialFaceZ)
+    // And the plate must actually cover the dials it is shielding.
+    const box = new Box3().setFromObject(p.root)
+    const bb = new Box3().setFromObject(backing!)
+    expect(bb.min.z).toBeLessThanOrEqual(box.min.z)
+    expect(bb.max.z).toBeGreaterThanOrEqual(box.max.z)
+  })
+
+  it('lays the bar against the attitude it is given, not the one in the state', () => {
+    // The camera and airframe are posed from the interpolated tick and the
+    // gauges from the simulated one. The bar took the simulated attitude too,
+    // so at 80 deg/s of roll it led the visible horizon by up to 1.33 degrees,
+    // sawtoothing at tick rate against the one thing it must agree with.
+    const p = createPanel(f6f, () => null)
+    const level = attitude(0, 0)
+    const rolled = attitude(0, 30)
+    updatePanel(p, f6f, level, () => null, rolled.attitude)
+    expect(deg(p.horizon.rotation.z)).toBeCloseTo(30, 6)
+    updatePanel(p, f6f, rolled, () => null, level.attitude)
+    expect(deg(p.horizon.rotation.z)).toBeCloseTo(0, 6)
   })
 
   it('puts the horizon bar ON the true horizon, not merely parallel to it', () => {

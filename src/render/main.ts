@@ -3,6 +3,7 @@ import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG } from './camera.js'
+import { makeTextTexture } from './scene/text.js'
 import { AIRCRAFT_CONTENT_URL } from './content.js'
 import { createOverlay } from './overlay.js'
 import {
@@ -301,7 +302,10 @@ async function boot(): Promise<void> {
     const visibility = airframeVisibilityFor(current.cameraMode)
     cockpit.visible = visibility.cockpitVisible
     hellcatRoot.visible = visibility.hellcatVisible
-    updatePanel(panel, spec, current.world.aircraft)
+    // Numeric gauges from the simulated tick; the horizon bar from the
+    // INTERPOLATED attitude, because it is the one instrument compared
+    // against something visible in the same frame.
+    updatePanel(panel, spec, current.world.aircraft, makeTextTexture, current.render.attitude)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's

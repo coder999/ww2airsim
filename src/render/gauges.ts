@@ -258,7 +258,20 @@ function formatDisplay(g: GaugeSpec, value: number): string {
   const body = Math.abs(n).toFixed(g.decimals)
   // A compass reads 005, not 5 -- three digits is the convention, and a
   // varying width makes a heading unreadable at a glance while turning.
-  if (g.circular) return body.padStart(g.decimals > 0 ? g.decimals + 4 : 3, '0')
+  //
+  // The wrap has to happen AFTER rounding, not before. `gaugeValue` already
+  // normalises heading into [0, 2*pi), but `toFixed(0)` rounds anything from
+  // 359.5 up to "360", which is not a compass heading and is not a number the
+  // rose prints -- so a right turn through north read 358, 359, 360, 001 for
+  // half a degree on every pass. Found by review, 2026-09-13.
+  //
+  // The `decimals > 0` padding width is dead-by-absence: no circular gauge has
+  // decimals today. It is 3 integer digits plus the point plus the decimals.
+  if (g.circular) {
+    const turn = (g.max - g.min) * g.displayScale
+    const wrapped = (((Number(body) % turn) + turn) % turn).toFixed(g.decimals)
+    return wrapped.padStart(g.decimals > 0 ? g.decimals + 4 : 3, '0')
+  }
   const sign = g.min < 0 ? (n < 0 ? '-' : '+') : n < 0 ? '-' : ''
   return sign + body
 }

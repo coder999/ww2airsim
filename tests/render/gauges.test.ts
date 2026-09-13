@@ -288,3 +288,73 @@ describe('attitudeAngles bank reference frame', () => {
     }
   })
 })
+
+describe('gauge scale integrity (review 2026-09-13)', () => {
+  it('never prints 360 on the compass, which is not a heading', () => {
+    // Rounding happened before padding and nothing re-wrapped, so every pass
+    // through north spent half a degree showing a number the rose does not
+    // contain: 358, 359, 360, 001.
+    const spec = loadAircraftSpec('f6f-hellcat')
+    const at = (headingDeg: number) =>
+      readoutTextFor(
+        'heading',
+        spec,
+        createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
+      )
+    expect(at(359.4)).toBe('359')
+    expect(at(359.5)).toBe('000')
+    expect(at(359.999)).toBe('000')
+    expect(at(0)).toBe('000')
+    for (let h = 0; h < 360; h += 0.37) expect(Number(at(h))).toBeLessThan(360)
+  })
+
+  it('pins every dial to its own sweep, not to one shared literal', () => {
+    // Review 2026-09-13: giving every gauge the airspeed sweep left the whole
+    // 335-test suite green. Only verticalSpeed's sweep was pinned against a
+    // literal; the others were read out of the same field the implementation
+    // reads, so a wrongly computed sweep was undetectable. The slip dial is
+    // specified at a quarter turn and would have been drawn over three
+    // quarters with nothing red.
+    const expected: Record<string, number> = {
+      airspeed: (Math.PI * 2 * 3) / 4,
+      altimeter: (Math.PI * 2 * 3) / 4,
+      verticalSpeed: (Math.PI * 2 * 3) / 4,
+      heading: Math.PI * 2,
+      fuel: (Math.PI * 2 * 3) / 4,
+      slip: Math.PI / 2,
+    }
+    expect(Object.keys(expected).sort()).toEqual(GAUGES.map((g) => g.id).sort())
+    for (const g of GAUGES) {
+      expect(g.sweepRad).toBeCloseTo(expected[g.id]!, 12)
+      expect(angleForValue(g, g.max)).toBeCloseTo(g.circular ? 0 : g.sweepRad, 9)
+      expect(angleForValue(g, g.min)).toBeCloseTo(0, 9)
+    }
+  })
+
+  it('actually points the NEEDLE at the mark, which the sibling test only appeared to', () => {
+    // The test titled "puts the needle exactly on the mark" compares
+    // `angleForValue` against `TickMark.angleRad`, which `tickMarksFor`
+    // defines as that same call. Adding 0.3 rad to every needle left it
+    // green. This one calls `needleAngleFor`, the function the panel uses.
+    const spec = loadAircraftSpec('f6f-hellcat')
+    for (const g of GAUGES) {
+      for (const sample of [g.sampleLow, g.sampleHigh]) {
+        const value = gaugeValue(g.id, spec, sample)
+        expect(needleAngleFor(g.id, spec, sample)).toBeCloseTo(angleForValue(g, value), 12)
+      }
+    }
+  })
+
+  it('holds the step relations its own comments only assert in prose', () => {
+    // `minorStep` carries "Must divide majorStep" as a comment, and
+    // `tickMarksFor` also assumes the range is a whole number of minor steps.
+    // Neither was validated or tested; a plausible boost gauge at 0..60 with
+    // majorStep 10 and minorStep 4 would silently number its dial every 8 and
+    // 12 units. Prefer an assertion to a sentence.
+    for (const g of GAUGES) {
+      expect(Number.isInteger(Math.round((g.max - g.min) / g.minorStep))).toBe(true)
+      expect(Math.abs((g.max - g.min) / g.minorStep - Math.round((g.max - g.min) / g.minorStep))).toBeLessThan(1e-9)
+      expect(Math.abs(g.majorStep / g.minorStep - Math.round(g.majorStep / g.minorStep))).toBeLessThan(1e-9)
+    }
+  })
+})

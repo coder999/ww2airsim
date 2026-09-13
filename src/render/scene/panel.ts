@@ -47,7 +47,25 @@ export type Readout = {
  * doc comment on GaugeId).
  */
 const DIAL_RADIUS = 0.085
-const DIAL_GAP = 0.2
+/**
+ * Dial spacing. Narrowed from 0.20 on 2026-09-13: at 0.20 the panel spanned
+ * +/-0.593 m at 0.6 m ahead, subtending 45.0 degrees off boresight, so the
+ * outer two dials left the frustum below an aspect ratio of 1.73 -- including
+ * on a 3:2 Surface, the only machine that has ever displayed this panel.
+ * That is I-7's defect on the other axis, and the horizontal assertion that
+ * looked like it covered it compared against the VERTICAL half-angle times a
+ * bare 4, giving 2.3x slack, so it could not have caught either.
+ */
+const DIAL_GAP = 0.165
+/**
+ * Narrowest window the panel is designed to fit, width over height.
+ *
+ * 3:2 covers the Surface this has actually been flown on, and with it every
+ * 16:10, 16:9 and ultrawide shape. A 4:3 or square window still clips the
+ * outer dials; that is a stated limit rather than an accident, and
+ * `panel.test.ts` pins the built geometry against this number.
+ */
+export const PANEL_MIN_ASPECT = 1.5
 // Depth ordering within a dial. All small and all positive, so everything
 // stays in front of the face without needing render-order fiddling.
 const Z_MARKS = 0.0015
@@ -85,8 +103,12 @@ const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
  * distance, and using 0.6 instead of 0.598 left a 0.33% error that the
  * screen-position test caught.
  */
-const HORIZON_Z = 0.002
+const HORIZON_Z = -0.003
 const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
+/** The coaming: an opaque plate the horizon bar passes behind. */
+const BACKING_Z = -0.001
+const BACKING_TOP = 0.105
+const BACKING_BOTTOM = -0.14
 
 /**
  * A flat plate carrying rasterised text.
@@ -202,6 +224,25 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     root.add(dial)
   })
 
+  // The bar now sits BEHIND an opaque coaming rather than in front of the
+  // dials. I-7 replaced its clamped offset with exact geometry, which is
+  // right, but exact geometry means it keeps travelling: from 8 degrees
+  // nose-up it reached the dial faces and by 17.5 it crossed the centres of
+  // the two inner dials, drawn over their scale marks and under their
+  // needles -- a layering nobody chose. Letting the panel occlude it is what
+  // a real coaming does, and it needs no clamp to do it.
+  const backing = new Mesh(
+    new PlaneGeometry(
+      // Exactly the dial row's own span, bezels included, so it cannot leave
+      // a sliver of bar showing past the outermost dial.
+      (DIAL_GAP * (GAUGES.length - 1) + DIAL_RADIUS * 2.18) * 1.01,
+      BACKING_TOP - BACKING_BOTTOM,
+    ),
+    new MeshBasicMaterial({ color: 0x0b0e11 }),
+  )
+  backing.position.set(0, (BACKING_TOP + BACKING_BOTTOM) / 2, BACKING_Z)
+  root.add(backing)
+
   const horizon = new Mesh(
     new BoxGeometry(DIAL_RADIUS * 1.6, 0.01, 0.004),
     new MeshBasicMaterial({ color: 0x6fd3ff }),
@@ -233,6 +274,19 @@ export function updatePanel(
   spec: AircraftSpec,
   state: AircraftState,
   makeText: TextTextureFactory = makeTextTexture,
+  /**
+   * The attitude to lay the horizon bar against, when it differs from the
+   * simulated one.
+   *
+   * The camera and the airframe are posed from the INTERPOLATED tick, the
+   * numeric gauges from the simulated one. Until 2026-09-13 the bar took the
+   * simulated attitude too, so at 80 deg/s of roll it led the visible horizon
+   * by up to a third of a tick -- 1.33 degrees of sawtooth against the one
+   * thing it exists to agree with, worst on a display faster than the 60 Hz
+   * sim. The numbers on the dials are unaffected: nothing on screen contradicts
+   * them, so reading them a fraction of a tick early is invisible.
+   */
+  renderAttitude: AircraftState['attitude'] = state.attitude,
 ): void {
   for (const g of GAUGES) {
     const readout = panel.readouts.get(g.id)
@@ -253,7 +307,7 @@ export function updatePanel(
     // and a positive rotation about +Z in this frame is anticlockwise.
     needle.rotation.z = -angle
   }
-  const { rollRad, pitchRad } = attitudeAngles(state)
+  const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
   // A real artificial horizon stays level with the WORLD, so the bar must sit
   // at the angle the true horizon appears at in the pilot's view -- which is
   // NOT the same as "rotate the bar opposite the aircraft's roll number".
