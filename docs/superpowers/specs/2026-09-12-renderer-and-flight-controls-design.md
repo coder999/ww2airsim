@@ -414,7 +414,6 @@ context object — a worker boundary becomes a message-passing change rather tha
 a rewrite. Plan 5 is the plan that should revisit it.
 
 ## 10. Open items
-
 1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. Updated
    2026-09-13: the fixed probe HAS now been run, on the Surface, and throws the
    identical `TypeError` the fix was supposed to remove (see the second-platform
@@ -441,6 +440,43 @@ a rewrite. Plan 5 is the plan that should revisit it.
    reference-platform trip is the same guessing the no-tuning rule exists to
    prevent. Note that it gets harder every plan, and no plan uses replay yet, so
    the cost of waiting is currently zero and the cost of guessing is not.
+
+6. **RESOLVED 2026-09-13 — no directional stability.** The fin now swings
+   the nose into the wind; see `rates.weathercockSeconds` and
+   `tests/sim/flight/weathercock.test.ts`. Kept in the list rather than
+   deleted because items 8 and 9 both descend from it and would read as
+   orphans otherwise.
+
+7. **`spike/webgpu-day0/probe.ts` is neither typechecked nor linted by
+   `npm run verify`, and it does not compile** — found 2026-09-13. `tsconfig`'s
+   `include` lists `src`, `tests`, `tools` and root `*.ts`, so `tsc --listFiles`
+   emits nothing under `spike/`. Adding it produces real errors: eight or more
+   in the TSL compute block alone, mostly `Cannot invoke an object which is
+   possibly 'undefined'` around `workgroupArray` and `instanceIndex`.
+
+   `npm run lint` now covers `spike` and passes. Typechecking does not, and
+   forcing it would turn the pipeline red on throwaway code, so it stays out
+   until someone fixes the probe's types.
+
+   This matters more than a lint gap normally would, because open item 1 now
+   turns on this file's correctness: the fixed probe threw the identical error
+   on a second GPU, and "the fix was incomplete" is the hypothesis with the
+   least evidence against it precisely because nothing checks this file. The
+   probe also wraps its whole compute block in one `catch`, so the error is
+   not localised to the call that was fixed and no stack was recorded.
+
+8. **`angleOfAttack` leaves the lateral component in its denominator** —
+   found 2026-09-13 while adding directional stability. It is
+   `atan2(-dot(v, up), dot(v, forward))`, and `dot(v, forward)` shrinks as the
+   aeroplane crabs, so alpha is over-reported by 1/cos(sideslip): 3.5% at 15
+   degrees, 34% at 42. Alpha should be measured in the body x-z plane, with the
+   lateral component projected out first.
+
+   Pre-existing and Plan 1's. It mattered far more before the weathercock term,
+   when random inputs left the aeroplane permanently crabbed; the soak's stall
+   fraction fell from 53.1% to 7.9% once the crab was removed. Not fixed here
+   because it changes the flight model a second time in one day, and the
+   golden has already been re-recorded once.
 
 9. **`weathercockSeconds = 1.5` is a guess, and a primary source exists that
    probably contradicts it** — found 2026-09-13, an hour after the constant was
@@ -481,66 +517,3 @@ a rewrite. Plan 5 is the plan that should revisit it.
    off a 1945 plot that has to be read by eye. Worth doing properly: it would
    replace a guessed constant with a cited measurement, which is what
    `reference.source` already does for mass, speed and stall.
-
-8. **`angleOfAttack` leaves the lateral component in its denominator** —
-   found 2026-09-13 while adding directional stability. It is
-   `atan2(-dot(v, up), dot(v, forward))`, and `dot(v, forward)` shrinks as the
-   aeroplane crabs, so alpha is over-reported by 1/cos(sideslip): 3.5% at 15
-   degrees, 34% at 42. Alpha should be measured in the body x-z plane, with the
-   lateral component projected out first.
-
-   Pre-existing and Plan 1's. It mattered far more before the weathercock term,
-   when random inputs left the aeroplane permanently crabbed; the soak's stall
-   fraction fell from 53.1% to 7.9% once the crab was removed. Not fixed here
-   because it changes the flight model a second time in one day, and the
-   golden has already been re-recorded once.
-
-7. **`spike/webgpu-day0/probe.ts` is neither typechecked nor linted by
-   `npm run verify`, and it does not compile** — found 2026-09-13. `tsconfig`'s
-   `include` lists `src`, `tests`, `tools` and root `*.ts`, so `tsc --listFiles`
-   emits nothing under `spike/`. Adding it produces real errors: eight or more
-   in the TSL compute block alone, mostly `Cannot invoke an object which is
-   possibly 'undefined'` around `workgroupArray` and `instanceIndex`.
-
-   `npm run lint` now covers `spike` and passes. Typechecking does not, and
-   forcing it would turn the pipeline red on throwaway code, so it stays out
-   until someone fixes the probe's types.
-
-   This matters more than a lint gap normally would, because open item 1 now
-   turns on this file's correctness: the fixed probe threw the identical error
-   on a second GPU, and "the fix was incomplete" is the hypothesis with the
-   least evidence against it precisely because nothing checks this file. The
-   probe also wraps its whole compute block in one `catch`, so the error is
-   not localised to the call that was fixed and no stack was recorded.
-
-6. **No directional stability: the aeroplane flies crabbed after every turn**
-   — found by flying it, 2026-09-13, and it belongs to Plan 1's model rather
-   than to anything here. Roll into a turn and level out, and the flight path
-   stays angled away from the nose for minutes.
-
-   Measured with the project's own `step`: from a wings-level state deliberately
-   given 10 degrees of sideslip at 120 m/s, hands off,
-
-   | t (s) | 0 | 10 | 20 | 30 | 40 | 50 | 60 |
-   | --- | --- | --- | --- | --- | --- | --- | --- |
-   | sideslip (deg) | 10.00 | 8.91 | 7.96 | 7.12 | 6.39 | 5.73 | 5.15 |
-
-   a half-life of about 60 seconds. **The nose heading does not move at all**,
-   holding 0.00 for the full minute. Nothing in the model produces a yaw moment
-   from sideslip, so the aeroplane never weathercocks. The slow decay above is
-   the TRACK swinging toward the nose, not the nose turning into the wind, and
-   its only cause is that thrust acts along the body forward axis and therefore
-   has a lateral component whenever the aeroplane is crabbed. Drag opposes
-   velocity and so can never correct it.
-
-   This follows directly from master spec section 5's rate-command choice,
-   which states it models no damping derivatives. Directional stability is a
-   damping derivative. The simplification was deliberate and its consequence
-   simply had not been seen, because nobody had flown it. A real fighter's
-   directional mode settles in a second or two, so 60 seconds reads to a pilot
-   as never.
-
-   NOT fixed here, deliberately, and not tuned. A weathercock term needs a
-   strength constant, and picking one before the reference-platform trip is the
-   guess the no-tuning rule exists to prevent. It is Plan 3's to settle, with
-   `rates.maxYawRateDegPerSec` as the natural anchor for the saturation.
