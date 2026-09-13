@@ -43,6 +43,30 @@ export const MAX_STEPS_PER_FRAME = 5
  */
 const STEP_EPSILON = 1e-6
 
+/**
+ * The most one call's `elapsedSeconds` is allowed to bank, seconds.
+ *
+ * A tab suspend or a debugger pause can hand `advance` an enormous delta.
+ * Without this, an enormous-but-finite `elapsedSeconds` (e.g.
+ * `Number.MAX_VALUE`) survives into `banked / DT`, which can itself overflow
+ * to `Infinity` (measured 2026-09-12, Node 22). That poisons everything
+ * downstream: `owed` becomes non-finite, `alpha` can come back `Infinity`
+ * instead of in `[0, 1)`, and `accumulatorSeconds` can come back outside its
+ * documented `[0, DT)` range and ride, poisoned, into every later `advance`
+ * call on that world. Guarding at the input rather than clamping `owed`
+ * afterward keeps every downstream field consistent by construction, rather
+ * than requiring a second special case for each one individually.
+ *
+ * 60 seconds is comfortably beyond any real animation-frame stall (a tab
+ * backgrounded for a few seconds, a GC pause, a debugger break) while being
+ * astronomically far from where division by DT could overflow -- at this
+ * bound, `banked / DT` is at most ~3600, nowhere near a double's range.
+ * `MAX_STEPS_PER_FRAME` discards the excess regardless of how the input is
+ * bounded, so this constant only decides how large `droppedSteps` can
+ * honestly get for a delta that long, not whether the cap fires.
+ */
+const MAX_ELAPSED_SECONDS = 60
+
 /** The function that integrates one tick: `step` in production, `stepChecked`
  *  in development builds. Chosen by the caller, so `sim/` carries no build flag. */
 export type Stepper = typeof step
@@ -87,21 +111,19 @@ export function advance(
   stepper: Stepper = step,
 ): AdvanceResult {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
-  // that is negative or not a number. Banking either would poison the
-  // accumulator permanently, so those are dropped here; an enormous but
-  // finite delta is banked like any other and handled below, by the
-  // MAX_STEPS_PER_FRAME cap.
-  const elapsed = Number.isFinite(elapsedSeconds) && elapsedSeconds > 0 ? elapsedSeconds : 0
+  // that is negative or not a number; banking either would poison the
+  // accumulator permanently, so those are dropped here. A delta that is
+  // positive and finite but enormous is instead clamped to
+  // MAX_ELAPSED_SECONDS -- see that constant for why clamping the input,
+  // rather than anything computed from it, is what keeps `owed`, `alpha`
+  // and `accumulatorSeconds` all well-formed together.
+  const elapsed =
+    Number.isFinite(elapsedSeconds) && elapsedSeconds > 0
+      ? Math.min(elapsedSeconds, MAX_ELAPSED_SECONDS)
+      : 0
 
   let banked = world.accumulatorSeconds + elapsed
-  const rawStepsOwed = banked / DT + STEP_EPSILON
-  // `banked` is always finite here, but dividing an enormous (though finite)
-  // elapsed by DT can itself overflow to Infinity (measured 2026-09-12, Node
-  // 22: elapsedSeconds = Number.MAX_VALUE overflows this division). That
-  // delta is unreachable from a real animation frame, but `droppedSteps` is
-  // compared numerically by a replay, so it must stay a finite integer
-  // rather than surface Infinity or a non-integral value.
-  const owed = Number.isFinite(rawStepsOwed) ? Math.floor(rawStepsOwed) : Number.MAX_SAFE_INTEGER
+  const owed = Math.floor(banked / DT + STEP_EPSILON)
   const stepsRun = Math.min(owed, MAX_STEPS_PER_FRAME)
   const droppedSteps = owed - stepsRun
 

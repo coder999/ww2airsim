@@ -114,6 +114,30 @@ describe('advance', () => {
     }
   })
 
+  it('reports the honest step count for a realistic 2-second stall', () => {
+    const r = advance(start(), level, 2)
+    expect(r.stepsRun).toBe(5)
+    expect(r.droppedSteps).toBe(115) // 2s / DT = 120 owed, cap 5, 115 discarded
+  })
+
+  it('keeps alpha and accumulatorSeconds in range, and droppedSteps finite and integral, for hostile elapsed inputs', () => {
+    // Round 1 fixed droppedSteps for Number.MAX_VALUE by clamping `owed`
+    // after the fact, which left `alpha` at Infinity and `accumulatorSeconds`
+    // at 1.7977e308 for that same input -- both outside their documented
+    // ranges, and both poisoned into every later `advance` call on that
+    // world. This is the test whose absence let that regression through:
+    // it pins all three outputs together, not just the one that was reported.
+    for (const elapsedSeconds of [Number.MAX_VALUE, 1e20, 1e6, 2, DT * (2 - 9.99e-7)]) {
+      const r = advance(start(), level, elapsedSeconds)
+      expect(r.alpha).toBeGreaterThanOrEqual(0)
+      expect(r.alpha).toBeLessThan(1)
+      expect(r.world.accumulatorSeconds).toBeGreaterThanOrEqual(0)
+      expect(r.world.accumulatorSeconds).toBeLessThan(DT)
+      expect(Number.isFinite(r.droppedSteps)).toBe(true)
+      expect(Number.isInteger(r.droppedSteps)).toBe(true)
+    }
+  })
+
   it('runs the stepper it is given, once per step', () => {
     // Development builds pass stepChecked so Plan 1's invariants run in the
     // browser; production passes step. The caller chooses, so sim/ carries
