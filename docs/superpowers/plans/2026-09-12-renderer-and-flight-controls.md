@@ -273,7 +273,7 @@ which is the evidence this was a signature change and not a physics change."
 **Interfaces:**
 - Produces: `AircraftState.tick: number`, set by `step` to `ctx.tick`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/sim/flight/integrator.test.ts`:
 
@@ -306,12 +306,12 @@ it('rejects a non-finite tick', () => {
 })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/sim/flight/integrator.test.ts tests/sim/invariants.test.ts`
 Expected: FAIL — `Property 'tick' does not exist on type 'AircraftState'`.
 
-- [ ] **Step 3: Add the field**
+- [x] **Step 3: Add the field**
 
 In `src/sim/flight/state.ts`, add to the type and the factory:
 
@@ -332,20 +332,20 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
 })
 ```
 
-- [ ] **Step 4: Have `step` set it**
+- [x] **Step 4: Have `step` set it**
 
 In `src/sim/flight/model.ts`, in the object `step` returns, add `tick: ctx.tick`.
 
-- [ ] **Step 5: Add it to the finiteness check**
+- [x] **Step 5: Add it to the finiteness check**
 
 In `src/sim/invariants.ts`, add `['tick', (s) => s.tick]` to the `FIELDS` array, following the existing entries' exact shape.
 
-- [ ] **Step 6: Run the suite**
+- [x] **Step 6: Run the suite**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. The golden still passes — `tick` is not one of the values the golden records.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim tests
