@@ -626,7 +626,7 @@ The renderer draws between ticks. Getting quaternion interpolation wrong produce
 **Interfaces:**
 - Produces: `interpolateAircraft(prev: AircraftState, curr: AircraftState, alpha: number): RenderState` where `RenderState = { position: Vec3; attitude: Quat }`; `qSlerp(a: Quat, b: Quat, t: number): Quat`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/sim/interpolate.test.ts`:
 
@@ -698,12 +698,12 @@ describe('interpolateAircraft', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/interpolate.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/sim/interpolate.ts`:
 
@@ -788,12 +788,12 @@ export function interpolateAircraft(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/interpolate.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/interpolate.ts tests/sim/interpolate.test.ts
