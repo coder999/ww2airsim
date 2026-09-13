@@ -176,11 +176,35 @@ The property that matters for each assist, and the one to write first:
 | Assist | The test that would have caught a wrong sign |
 | --- | --- |
 | Auto-rudder | Sideslip after a full-deflection roll is smaller with it ON than OFF, at several airspeeds and both directions |
-| Stall limiter | Full back-stick from level flight does not exceed `alphaCritRad`, at several speeds |
+| Stall limiter | Full back-stick from level flight does not exceed `alphaCritRad` at 130 and 180 m/s, where the same pull stalls without the assist; and at every tick inside the recoverable band the limiter is commanding recovery — see the amendment below |
 | Combat trim | Hands off for 60 s holds altitude within a band, where it currently does not |
 
 Each must be proven to fail with the assist disabled, because "the assist is on
 and the number is good" is not evidence that the assist did it.
+
+**Amended 2026-09-13, during Task 3: the stall-limiter row above originally read
+"Full back-stick from level flight does not exceed `alphaCritRad`, at several
+speeds", and that is not true of any limiter of this kind.** At 130 and 180 m/s
+it holds (measured peak alpha 12.72 and 12.47 degrees against a 15.5 degree
+`alphaCritDeg`, where the unassisted pull reaches 15.87 and 15.58 with 109 and
+102 stalled ticks). At 70 m/s, level, full back stick, the same 30 seconds
+reaches **179.8 degrees of alpha with 1,049 stalled ticks even with the assist
+on** — the aeroplane loops, runs out of energy, and alpha rises because the
+FLIGHT PATH falls away, which no pitch command opposes.
+
+So the row is restated as the guarantee that does hold and is asserted:
+`Controls.pitch` never asks for more than the remaining margin, and once the
+boundary is crossed the limiter commands recovery at every tick until the
+aeroplane is past 90 degrees of alpha and there is no authority left to ration.
+`tests/assists/stallLimiter.test.ts` proves it on the 70 m/s departure (133
+ticks inside that band, zero of them without a recovery command); Task 3's
+review reproduced it across 192 runs, 8,756 band ticks, zero exceptions.
+
+This was corrected for the same reason design open item 8 was retracted on the
+same day: a durable document asserting a behaviour the code does not have is
+this project's recurring defect, and an acceptance row is the worst place for
+one, because the next person to read it will believe the assist is stall-proofing
+and it is not.
 
 ## 6. What this plan does not do
 

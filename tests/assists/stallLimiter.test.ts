@@ -206,6 +206,34 @@ describe('stall limiter (Plan 3 Task 3)', () => {
     expect(applyAssists(stalled, spec, raw, DT, ONLY_LIMITER(false)).pitch).toBe(1)
   })
 
+  it('commands nose-UP from an inverted departure, against full forward stick', () => {
+    // The mirror of the test above, and the case that had no test at all until
+    // the review found one: the limiter DOES add nose-up, and this is the one
+    // situation where it fights the pilot hardest. Climbing through a level
+    // attitude at -45 degrees of alpha -- the wing stalled upside down -- with
+    // the pilot holding full FORWARD stick, the limiter returns +1.000.
+    // Measured 2026-09-13: alpha -45.00, out +1.000 against a raw -1, and alpha
+    // back inside alphaCrit at tick 61 (1.02 s) against tick 74 (1.23 s) with
+    // the assist off.
+    //
+    // Deliberate, not a side effect of the mirror: recovering from an inverted
+    // departure is the same physics as recovering from an upright one, and a
+    // limiter that refused to command nose-up would leave the negative-alpha
+    // stall with no recovery at all. The review proved this case was unasserted
+    // by clamping the lower bound to `Math.min(0, ...)` -- matching a doc
+    // comment that wrongly claimed the limiter "never adds nose-up" -- and
+    // finding all 399 tests still green. This test is what now decides it.
+    const invertedStall = createState({
+      position: v3(0, 4000, 0),
+      velocity: v3(30, 30, 0),
+      attitude: qIdentity(),
+    })
+    const raw: Controls = { pitch: -1, roll: 0, yaw: 0, throttle: 1 }
+    expect(deg(angleOfAttack(invertedStall))).toBeCloseTo(-45, 3)
+    expect(applyAssists(invertedStall, spec, raw, DT, ONLY_LIMITER(true)).pitch).toBeCloseTo(1, 10)
+    expect(applyAssists(invertedStall, spec, raw, DT, ONLY_LIMITER(false)).pitch).toBe(-1)
+  })
+
   it('cannot prevent a low-speed departure, and keeps asking for nose-down throughout it', () => {
     // The honest scope of the assist, stated as a test rather than only as a
     // comment. A 30 s full back-stick pull from 70 m/s loops, runs out of

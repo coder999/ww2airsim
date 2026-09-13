@@ -133,14 +133,39 @@ const DEPARTED_ALPHA_RAD = Math.PI / 2
  * because the command cannot move alpha; the pilot's command is returned
  * untouched rather than clamped to something invented.
  *
- * Note what the limiter deliberately does NOT do: it never adds nose-up. The
- * pilot's command is clamped into `[lower, upper]`, so a gentler command
- * passes through byte-for-byte and ordinary manoeuvring is untouched (with
- * this aircraft's content, full back stick is unrestricted below about 8
- * degrees of alpha). It also cannot prevent every stall -- alpha rises when
- * the flight path falls away in a zoom, and no pitch command stops that -- so
- * `isStalled` remains reachable with the assist on. What it guarantees is that
- * the PILOT'S PITCH COMMAND is not what took the wing past the boundary.
+ * Inside the boundary the limiter is passive: the pilot's command is clamped
+ * into `[lower, upper]`, which both sit outside `[-1, 1]` while the margin is
+ * large, so a legal command passes through byte-for-byte and ordinary
+ * manoeuvring is untouched. With this aircraft's content the onset is
+ * `alphaCrit - stallLimiterSeconds * fullBackStickRate`: full back stick is
+ * unrestricted below 11.0 degrees of alpha wherever the rate authority is
+ * saturated (at or above 103 m/s at sea level), and below more than that when
+ * slower, because a smaller achievable rate buys the same margin more stick --
+ * measured 2026-09-13 at sea level, 12.06 degrees at 90 m/s and 13.42 at 70;
+ * at the 2000 m the tests spawn at, 13.79 at 70 m/s.
+ *
+ * OUTSIDE the boundary it is not passive, and it will fight the pilot in
+ * either direction. Once |alpha| exceeds alphaCrit the relevant bound crosses
+ * zero, so the clamp does not merely reduce the pilot's command, it reverses
+ * it: at +45 degrees of alpha a pilot holding full BACK stick gets -1.000, and
+ * at -45 degrees a pilot holding full FORWARD stick gets +1.000. The second
+ * one is deliberate, not a side effect of the mirror -- recovering from an
+ * inverted departure is the same physics as recovering from an upright one,
+ * and a limiter that declined to command nose-up would leave the negative-alpha
+ * stall with no recovery at all. Both are asserted in
+ * `tests/assists/stallLimiter.test.ts`. (An earlier revision of this comment
+ * claimed the limiter "never adds nose-up". It was wrong, it contradicted the
+ * mirror described three paragraphs above, and nothing in the suite arbitrated
+ * between them -- the review found that clamping the bound to match the
+ * sentence left all 399 tests green. The mirrored test below exists so that
+ * cannot recur.)
+ *
+ * It also cannot prevent every stall -- alpha rises when the flight path falls
+ * away in a zoom, and no pitch command stops that -- so `isStalled` remains
+ * reachable with the assist on. What it guarantees is that the PILOT'S PITCH
+ * COMMAND is not what took the wing past the boundary, and that the command
+ * handed to the simulation is asking for recovery at every tick inside the
+ * band where recovery is possible.
  *
  * It bounds the same `angleOfAttack` that `isStalled` and `liftCoefficient`
  * read, on purpose. Design open item 8 claimed that function over-reports
