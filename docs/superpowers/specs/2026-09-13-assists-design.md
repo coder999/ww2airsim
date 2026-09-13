@@ -232,3 +232,53 @@ carried forward stale.** `autoRudderGainPerDeg` (Task 2), `stallLimiterSeconds`
 with a schema entry -- exactly per-aircraft assist tuning, just not a UI for a
 player to change it. What this section actually means, and should have said,
 is no player-facing settings to CHOOSE those values at runtime.
+
+## Open items carried out of Plan 3, 2026-09-13
+
+Recorded here because the execution workspace is deleted at merge and these
+would otherwise be lost. All three were found by the final review or its
+re-review, all three are pre-existing rather than introduced by the fix wave,
+and none blocks merge.
+
+1. **Altitude hold does not stand down in the stalled band unless the stall
+   limiter is switched on.** The pitch-authority budget narrows to the pilot's
+   own command past `DEPARTED_ALPHA_RAD`, which is unconditional and holds with
+   every assist combination. Below 90 degrees the narrowing comes from the
+   limiter, so with the limiter OFF and altitude hold ON, altitude hold still
+   commands full nose-up across the whole 15.5 to 90 degree stalled band.
+   Measured, stick centred, held altitude 500 m above: +1.0000 at every alpha
+   from 16 to 89.9 degrees, then 0 from 90.1 up. There is a step discontinuity
+   at exactly 90.
+
+   That is the band real stalls live in, and it is where the ruling behind the
+   departed narrowing points hardest — an aeroplane near departure needs the
+   nose down. The honest statement of today's behaviour is that the principle
+   is enforced on one side of a cliff. The fix is for altitude hold to stand
+   down whenever the aeroplane is stalled, independent of the limiter's switch,
+   which is a behaviour question worth deciding at the controls rather than
+   here.
+
+2. **The published budget is only truthful for a legal `Controls.pitch`.** With
+   a raw pitch of ±5 or NaN the stack returns that value while publishing a
+   budget of [1,1], [-1,-1] or [0,0]. The command passes through identically to
+   before the refactor, so nothing leaks — the budget is a false claim rather
+   than a breach. Unreachable from the input layer today; the soak injects such
+   values but calls `step` directly, not `applyAssists`.
+
+3. **`stallLimiter` clamps into its own bounds rather than into the narrowed
+   authority.** Unreachable today, because a departed aeroplane returns early
+   and nothing narrows ahead of the limiter. It matters the moment a narrowing
+   stage is inserted before it: the limiter is then the one place that puts a
+   value on the axis without going through `withinAuthority`. One line.
+
+4. **The architecture tests still write probe files into the real source tree.**
+   `tests/architecture/boundary.test.ts` writes four `src/**/__*__.ts` files and
+   removes them in an `afterEach`, while vitest runs test files in parallel
+   workers. A concurrent `depcruise` — another worker's, a developer's, or a
+   parallel CI job's — can see another test's probe: reproduced during Plan 3's
+   execution as a violation reported against 41 modules where the quiescent tree
+   has 39. The `.gitignore` now covers all four paths, which removes the
+   commit-a-probe hazard but not the race. The fix shape recommended by the
+   final review, and verified by it to work, is to copy `src/` plus the two
+   config files into a per-test temp root outside the repo and cruise that. The
+   rule patterns are relative to the cruise root, so no config changes.
