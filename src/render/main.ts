@@ -1,13 +1,20 @@
-import { PerspectiveCamera, Scene } from 'three'
+import { Group, PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
 import { createOverlay } from './overlay.js'
-import { initialFrameState, nextFrameState, toThreeOrientation, worldOffsetFor } from './frame.js'
+import {
+  airframeVisibilityFor,
+  initialFrameState,
+  nextFrameState,
+  toThreeOrientation,
+  worldOffsetFor,
+} from './frame.js'
 import { createWater } from './scene/water.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createMarkers } from './scene/markers.js'
+import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
 import { step } from '../sim/flight/model.js'
@@ -99,6 +106,17 @@ async function boot(): Promise<void> {
   const { root: hellcatRoot, prop } = createHellcat()
   scene.add(hellcatRoot)
 
+  // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
+  // occlusion during look-around for free (spec rationale, this task). It
+  // lives in its own group rather than as a child of hellcatRoot because the
+  // two are visibility-exclusive (see the cockpit.visible/hellcatRoot.visible
+  // swap below), not because they move differently -- both are posed from the
+  // same `frame.render` pose each frame.
+  const panel = createPanel(spec)
+  const cockpit = new Group()
+  cockpit.add(panel.root)
+  scene.add(cockpit)
+
   const camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 60_000)
 
   // Spawn over open water, comfortably above the clean, power-off stall
@@ -162,7 +180,10 @@ async function boot(): Promise<void> {
 
     // The airframe mesh's own geometry is built with +X as its nose
     // (hellcat.ts), matching sim convention exactly, so unlike the camera
-    // above it needs no basis fix -- see frame.ts's `render` field doc.
+    // above it needs no basis fix -- see frame.ts's `render` field doc. The
+    // cockpit group (the panel) shares this exact pose: panel.ts authors the
+    // panel in the same body frame, relative to the eye, so it needs no
+    // separate transform here.
     hellcatRoot.position.set(frame.render.position.x, frame.render.position.y, frame.render.position.z)
     hellcatRoot.quaternion.set(
       frame.render.attitude.x,
@@ -170,6 +191,18 @@ async function boot(): Promise<void> {
       frame.render.attitude.z,
       frame.render.attitude.w,
     )
+    cockpit.position.copy(hellcatRoot.position)
+    cockpit.quaternion.copy(hellcatRoot.quaternion)
+
+    // Cockpit mode must hide the external airframe (frame.ts's
+    // `airframeVisibilityFor` doc comment has the occlusion measurement).
+    // Cockpit interior geometry is a later plan's; until then the panel
+    // floats in front of an invisible airframe, which is exactly the view a
+    // pilot has.
+    const visibility = airframeVisibilityFor(frame.cameraMode)
+    cockpit.visible = visibility.cockpitVisible
+    hellcatRoot.visible = visibility.hellcatVisible
+    updatePanel(panel, spec, frame.world.aircraft)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's

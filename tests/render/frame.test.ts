@@ -5,6 +5,7 @@ import {
   initialFrameState,
   toThreeOrientation,
   worldOffsetFor,
+  airframeVisibilityFor,
 } from '../../src/render/frame.js'
 import { airspeed } from '../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -131,5 +132,17 @@ describe('worldOffsetFor', () => {
     // reference frame -- terrain, a carrier deck -- exists.
     const offset = worldOffsetFor(v3(120, -40, 7))
     expect(offset).toEqual(v3(-120, 40, -7))
+  })
+})
+
+describe('airframeVisibilityFor', () => {
+  it('hides the airframe in cockpit mode and shows it in chase, in both directions', () => {
+    // Both directions, or one of them regresses silently: the external
+    // fuselage box would otherwise occlude the panel from inside cockpit
+    // mode (see this function's doc comment for the measurement), and a
+    // test only checking one mode would miss chase mode losing the
+    // airframe just as easily.
+    expect(airframeVisibilityFor('cockpit')).toEqual({ cockpitVisible: true, hellcatVisible: false })
+    expect(airframeVisibilityFor('chase')).toEqual({ cockpitVisible: false, hellcatVisible: true })
   })
 })

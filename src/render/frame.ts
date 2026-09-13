@@ -143,3 +143,21 @@ export function toThreeOrientation(attitude: Quat): Quat {
 export function worldOffsetFor(eyePosition: Vec3): Vec3 {
   return v3(-eyePosition.x, -eyePosition.y, -eyePosition.z)
 }
+
+/**
+ * Which of the cockpit group (the instrument panel) and the external
+ * airframe mesh should be visible for a camera mode. Exactly one is ever
+ * true, not just "the panel shown": the code-built Hellcat's fuselage box
+ * spans y +/-0.75 m (src/render/scene/hellcat.ts), so its top face sits
+ * between the eye (0.9 m) and the panel (0.55 m, src/render/scene/panel.ts)
+ * and, being front-facing from above, would occlude the panel completely if
+ * left visible in cockpit mode -- you would be looking at the inside of a
+ * solid box.
+ */
+export function airframeVisibilityFor(mode: CameraMode): {
+  readonly cockpitVisible: boolean
+  readonly hellcatVisible: boolean
+} {
+  const cockpitVisible = mode === 'cockpit'
+  return { cockpitVisible, hellcatVisible: !cockpitVisible }
+}
