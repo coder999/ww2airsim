@@ -8,6 +8,7 @@ import {
   nextFrameState,
   toThreeOrientation,
   worldOffsetFor,
+  type FrameState,
 } from './frame.js'
 import { createWater } from './scene/water.js'
 import { createSky } from './scene/sky.js'
@@ -21,6 +22,8 @@ import { step } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { v3 } from '../sim/math/vec3.js'
 import { qIdentity } from '../sim/math/quat.js'
+import { NEUTRAL } from '../input/keyboard.js'
+import { LOOK_CENTRE } from '../input/lookAround.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { Ww2Diagnostics } from './diagnostics.js'
 
@@ -79,6 +82,12 @@ async function boot(): Promise<void> {
 
   const { renderer, adapterVerdict } = await initRenderer(canvas)
 
+  // Declared here, before the hook below installs, initialised to `null` --
+  // not assigned a real `FrameState` until after `loadSpec` resolves, well
+  // down this function. See the hook's own comment for why that ordering
+  // matters and is not just tidiness.
+  let frame: FrameState | null = null
+
   // Tier 2 diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
   // a production build: `import.meta.env.DEV` is replaced with the literal
   // `false` by Vite at build time, and esbuild's dead-code elimination drops
@@ -93,19 +102,30 @@ async function boot(): Promise<void> {
   // `verdict.summary` never printed, on exactly the run where reading it
   // matters most (Task 15 review, round 1).
   //
-  // `tick`, `cameraMode`, `controls` and `look` close over `frame`, which
-  // is not declared until further down `boot` -- safe here because they are
-  // functions, evaluated lazily, not read immediately: nothing calls them
-  // before `frame` exists except in the `severity === 'fail'` path, which
-  // this spec's adapter test never does (it reads only `.adapter`).
+  // `tick`, `cameraMode`, `controls` and `look` all read `frame` through a
+  // `??`-guard rather than closing over it directly, because installing the
+  // hook this early means `frame` is genuinely `null` for a real stretch of
+  // wall-clock time on the SUCCESS path too, not just before the `fail`
+  // return below: `await loadSpec()` further down is a real network
+  // round-trip, and the sweep spec's first call after `page.goto` invokes
+  // `.tick()` unconditionally as soon as `__ww2` exists. Round 1's comment
+  // here claimed the closures were merely "lazy" and safe because nothing
+  // calls them before the `fail` return -- that reasoned about the wrong
+  // path and was false the moment the spec's own `waitForFunction` runs
+  // (Task 15 review, round 2). The guard is what makes both paths work from
+  // one hook: `fail` reads only `.adapter`, which needs no guard; success
+  // reads the others before the first frame exists and gets exactly
+  // `initialFrameState`'s own defaults (0 / `'chase'` / `NEUTRAL` /
+  // `LOOK_CENTRE`) -- a poll that keeps waiting, not a thrown
+  // `ReferenceError` whose cause the test output would never show.
   if (import.meta.env.DEV) {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
       validationErrors,
-      tick: () => frame.world.aircraft.tick,
-      cameraMode: () => frame.cameraMode,
-      controls: () => frame.controls,
-      look: () => frame.look,
+      tick: () => frame?.world.aircraft.tick ?? 0,
+      cameraMode: () => frame?.cameraMode ?? 'chase',
+      controls: () => frame?.controls ?? NEUTRAL,
+      look: () => frame?.look ?? LOOK_CENTRE,
     }
   }
 
@@ -174,7 +194,7 @@ async function boot(): Promise<void> {
     attitude: qIdentity(),
   })
 
-  let frame = initialFrameState(spec, initialAircraft)
+  frame = initialFrameState(spec, initialAircraft)
 
   const pressed = new Set<string>()
   window.addEventListener('keydown', (e) => {
@@ -202,7 +222,15 @@ async function boot(): Promise<void> {
     const frameMs = now - last
     last = now
 
-    frame = nextFrameState(frame, frameMs / 1000, pressed, stepper)
+    // `frame` is assigned a real `FrameState` just above, before this
+    // function is ever scheduled, and reassigned at the end of every call to
+    // it from here on -- always non-null whenever `frameFn` runs, which is
+    // exactly why the single `!` lives here and nowhere else. Everything
+    // below reads `current` (typed `FrameState`, non-null), not the nullable
+    // `frame` -- one assertion at the top of the hot path rather than one at
+    // every read.
+    const current = nextFrameState(frame!, frameMs / 1000, pressed, stepper)
+    frame = current
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
     // loses precision at 100 km, which shows as geometry jitter -- master spec §4
@@ -212,10 +240,10 @@ async function boot(): Promise<void> {
     // apply it -- Task 13 review, round 1: both bugs it fixed were coordinate
     // arithmetic sitting in this file with no tests, which is why that
     // arithmetic now lives in frame.ts instead.
-    const worldOffset = worldOffsetFor(frame.eye.position)
+    const worldOffset = worldOffsetFor(current.eye.position)
     scene.position.set(worldOffset.x, worldOffset.y, worldOffset.z)
     camera.position.set(0, 0, 0)
-    const cameraOrientation = toThreeOrientation(frame.eye.attitude)
+    const cameraOrientation = toThreeOrientation(current.eye.attitude)
     camera.quaternion.set(
       cameraOrientation.x,
       cameraOrientation.y,
@@ -229,12 +257,12 @@ async function boot(): Promise<void> {
     // cockpit group (the panel) shares this exact pose: panel.ts authors the
     // panel in the same body frame, relative to the eye, so it needs no
     // separate transform here.
-    hellcatRoot.position.set(frame.render.position.x, frame.render.position.y, frame.render.position.z)
+    hellcatRoot.position.set(current.render.position.x, current.render.position.y, current.render.position.z)
     hellcatRoot.quaternion.set(
-      frame.render.attitude.x,
-      frame.render.attitude.y,
-      frame.render.attitude.z,
-      frame.render.attitude.w,
+      current.render.attitude.x,
+      current.render.attitude.y,
+      current.render.attitude.z,
+      current.render.attitude.w,
     )
     cockpit.position.copy(hellcatRoot.position)
     cockpit.quaternion.copy(hellcatRoot.quaternion)
@@ -244,10 +272,10 @@ async function boot(): Promise<void> {
     // Cockpit interior geometry is a later plan's; until then the panel
     // floats in front of an invisible airframe, which is exactly the view a
     // pilot has.
-    const visibility = airframeVisibilityFor(frame.cameraMode)
+    const visibility = airframeVisibilityFor(current.cameraMode)
     cockpit.visible = visibility.cockpitVisible
     hellcatRoot.visible = visibility.hellcatVisible
-    updatePanel(panel, spec, frame.world.aircraft)
+    updatePanel(panel, spec, current.world.aircraft)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
@@ -260,18 +288,18 @@ async function boot(): Promise<void> {
     // the horizontal drift is what matters: left unfixed, it is unbounded
     // over a long flight and eventually carries the camera outside the dome;
     // the vertical offset is bounded by altitude and stays negligible.
-    sky.position.set(frame.eye.position.x, 0, frame.eye.position.z)
+    sky.position.set(current.eye.position.x, 0, current.eye.position.z)
 
-    prop.rotation.x += frame.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
+    prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
 
     renderer.render(scene, camera)
 
     overlay.update({
       frameMs,
       fps: 1000 / Math.max(frameMs, 0.001),
-      stepsRun: frame.stepsRun,
-      droppedSteps: frame.droppedSteps,
-      tick: frame.world.aircraft.tick,
+      stepsRun: current.stepsRun,
+      droppedSteps: current.droppedSteps,
+      tick: current.world.aircraft.tick,
       adapter: adapterVerdict.summary,
     })
     requestAnimationFrame(frameFn)
