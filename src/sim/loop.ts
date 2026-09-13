@@ -105,8 +105,23 @@ export interface AdvanceResult {
   readonly stepsRun: number
   /**
    * Steps owed but discarded to break a spiral. Non-zero means simulated time
-   * was skipped, so this session is NOT reproducible from (seed, input log) --
-   * master spec §3's replay guarantee. A replay asserts this stayed zero.
+   * was skipped, so this session is definitely NOT reproducible from
+   * (seed, input log) -- master spec §3's replay guarantee.
+   *
+   * Zero does NOT currently mean the converse (whole-branch review, I-5's
+   * sibling I-4; corrected 2026-09-13). It says the fixed-step integrator ran
+   * every tick it was owed, and that much is true. But the CONTROLS fed to
+   * those ticks are ramped at frame rate, not at DT: `nextFrameState` calls
+   * `controlsFromKeys(pressed, elapsedSeconds, prev.controls)` with the
+   * animation-frame delta, and that function integrates toward the target over
+   * `RAMP_SECONDS`. So 60 Hz and 144 Hz replaying the same key log reach
+   * different deflections at the same tick, and diverge, with `droppedSteps`
+   * zero throughout.
+   *
+   * Ruling R18 fixed this comment and deliberately did NOT move the ramp inside
+   * the fixed step: that changes control feel, and nobody has flown this yet.
+   * The architectural half is an open item in the design doc. It gets harder
+   * every plan; no plan uses replay yet.
    */
   readonly droppedSteps: number
   /** Remainder as a fraction of a step: the renderer's interpolation factor. */

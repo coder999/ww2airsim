@@ -379,3 +379,16 @@ a rewrite. Plan 5 is the plan that should revisit it.
    required for a number that exists to make a camera sit somewhere sensible.
 4. **Gauge legibility at 1440p** — the first thing to check in Tier 3, and the
    reason appearance authenticity was traded away up front.
+5. **Control ramping runs at frame rate, so replay is not frame-rate
+   independent** — added 2026-09-13 (whole-branch review, I-4; Ruling R18
+   settled the documentation half only). `nextFrameState` ramps the controls
+   against the animation-frame delta, outside the fixed step, so 60 Hz and
+   144 Hz replaying the same key log diverge even with `droppedSteps` zero
+   throughout. Master spec §3's replay guarantee therefore does not hold today,
+   and `droppedSteps === 0` does not imply it does.
+
+   Not fixed here on purpose: moving the ramp inside the fixed step changes how
+   the controls feel, and **nobody has flown this yet**. Deciding it before the
+   reference-platform trip is the same guessing the no-tuning rule exists to
+   prevent. Note that it gets harder every plan, and no plan uses replay yet, so
+   the cost of waiting is currently zero and the cost of guessing is not.
