@@ -825,7 +825,7 @@ The `sim/`-must-not-import-`input/` dependency-cruiser rule lives in Task 6, not
 **Interfaces:**
 - Produces: `npm run dev`, `npm run build`; DOM, WebGPU and Vite client (`import.meta.env`) types available to `src/render/**` and `src/input/**`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the `sim/ forbids browser globals and nondeterminism` describe block in `tests/architecture/boundary.test.ts`, following the `lintText` pattern already there:
 
@@ -845,12 +845,12 @@ Add to the `sim/ forbids browser globals and nondeterminism` describe block in `
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 Expected: FAIL — none of the seven names is in the denylist yet, so no message names them.
 
-- [ ] **Step 3: Add DOM and WebGPU types**
+- [x] **Step 3: Add DOM and WebGPU types**
 
 ```bash
 npm install --save-dev @webgpu/types
@@ -865,7 +865,7 @@ In `tsconfig.json`, add `lib` and extend `types`:
 
 `vite/client` is what makes `import.meta.env.DEV` typecheck; Tasks 13 and 15 use it. Leave `include` as it is and add `"index.html"` to nothing — Vite reads the HTML directly.
 
-- [ ] **Step 4: Widen the ESLint denylist (finding M5)**
+- [x] **Step 4: Widen the ESLint denylist (finding M5)**
 
 In `eslint.config.js`, inside the existing `files: ['src/sim/**/*.ts', 'tools/**/*.ts']` block, add to `no-restricted-globals`:
 
@@ -889,7 +889,7 @@ Add a comment above the block recording why it grew:
 // storage, network and scheduling globals (Plan 1 review, finding M5).
 ```
 
-- [ ] **Step 5: Add the app entry and dev server**
+- [x] **Step 5: Add the app entry and dev server**
 
 Create `index.html` at the repo root:
 
@@ -949,17 +949,17 @@ Add to `package.json` scripts:
 "build": "vite build",
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 Expected: PASS. All seven names are now reported.
 
-- [ ] **Step 7: Run the full pipeline**
+- [x] **Step 7: Run the full pipeline**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. If adding DOM surfaces new type errors anywhere in `src/sim` or `tools`, that is information — fix the code, do not narrow `lib`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tsconfig.json eslint.config.js package.json package-lock.json index.html vite.config.ts src/render/main.ts tests/architecture/boundary.test.ts
