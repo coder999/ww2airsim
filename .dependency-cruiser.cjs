@@ -27,6 +27,16 @@ module.exports = {
       to: { dependencyTypes: ['core'] },
     },
     {
+      name: 'sim-must-not-import-input',
+      comment:
+        'Spec §3: input/ maps devices to the same Controls value the AI emits, so ' +
+        'the simulation must depend on the shape, never on the device layer. ' +
+        'Without this rule the dependency would be legal and nobody would notice.',
+      severity: 'error',
+      from: { path: '^src/sim' },
+      to: { path: '^src/input' },
+    },
+    {
       name: 'no-circular',
       comment:
         'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +

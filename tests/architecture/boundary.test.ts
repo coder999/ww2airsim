@@ -46,6 +46,16 @@ describe('architecture boundary (spec §3)', () => {
     expect(code).not.toBe(0)
     expect(output).toContain('sim-must-not-import-node-core')
   })
+
+  it('fails when sim/ imports input/', () => {
+    // The probe imports a file that EXISTS. dependency-cruiser reports no
+    // violation for an unresolvable import (verified 2026-09-12), so a probe
+    // against a not-yet-written module passes for the wrong reason.
+    writeFileSync(PROBE, "import { BINDINGS } from '../input/bindings.js'\nexport const probe = BINDINGS\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('sim-must-not-import-input')
+  })
 })
 
 describe('sim/ forbids browser globals and nondeterminism (spec §3)', () => {
