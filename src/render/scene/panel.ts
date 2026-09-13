@@ -172,7 +172,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // needleAngleFor's documented "clockwise from the dial's zero" a
     // reference to something that did not exist (whole-branch review, I-2).
     for (const mark of tickMarksFor(g)) {
-      const len = DIAL_RADIUS * (mark.major ? 0.2 : 0.11)
+      const len = DIAL_RADIUS * (mark.major ? 0.16 : 0.09)
       const tick = new Mesh(
         new BoxGeometry(mark.major ? 0.005 : 0.0025, len, 0.002),
         mark.major ? markMajorMat : markMinorMat,
@@ -188,8 +188,20 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
       dial.add(tick)
 
       if (mark.major && mark.text) {
-        const numeral = textPlate(mark.text, DIAL_RADIUS * 0.42, DIAL_RADIUS * 0.18, makeText)
-        const nr = DIAL_RADIUS * 0.6
+        const numeral = textPlate(mark.text, DIAL_RADIUS * 0.36, DIAL_RADIUS * 0.17, makeText)
+        // Inside the ticks, not on them. At 0.6 the numeral's own half-width
+        // reached the major tick at the scale ends -- "10000" sat across the
+        // 9 o'clock mark on the altimeter, which the reference platform showed
+        // plainly and no test measured (2026-09-13).
+        //
+        // The radius is squeezed between two constraints that were solved
+        // together rather than by trial: the plate must clear the ticks
+        // (nr + halfWidth <= tick inner edge) and adjacent plates must clear
+        // each other (nr * angleStep >= plate width). The slip dial binds the
+        // second one at 45 degrees between majors, and at the original plate
+        // size the two constraints had no overlapping solution -- hence the
+        // shorter major ticks and the narrower plate above.
+        const nr = DIAL_RADIUS * 0.53
         numeral.position.set(nr * Math.sin(a), nr * Math.cos(a), Z_MARKS)
         dial.add(numeral)
       }

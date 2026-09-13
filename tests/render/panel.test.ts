@@ -314,6 +314,31 @@ describe('panel', () => {
     })
   })
 
+  it('keeps every scale number clear of the tick marks', () => {
+    // Seen on the reference platform 2026-09-13: at the end of each scale the
+    // numeral sat across its own major tick, because the numerals were placed
+    // by radius alone with no account of their own width. The sibling tests
+    // checked numeral-versus-numeral and readout-versus-numeral, and this
+    // third pair was the one left out.
+    const p = createPanel(f6f, () => null)
+    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    for (const dial of dials) {
+      const meshes = dial.children.filter((c): c is Mesh => c instanceof Mesh)
+      const numerals = meshes.filter((m) => m.geometry instanceof PlaneGeometry)
+      const ticks = meshes.filter(
+        (m) => m.geometry instanceof BoxGeometry && m !== p.needles.get('airspeed'),
+      )
+      for (const n of numerals) {
+        const nb = new Box3().setFromObject(n)
+        for (const t of ticks) {
+          // The needle legitimately crosses everything; it is drawn on top.
+          if ([...p.needles.values()].includes(t)) continue
+          expect(nb.intersectsBox(new Box3().setFromObject(t))).toBe(false)
+        }
+      }
+    }
+  })
+
   it('keeps the digital readout clear of the scale numerals', () => {
     // Inside the dial it sat across them -- the altimeter's "605" was drawn
     // over its own 8000 and 6000 marks. A three-quarter sweep covers the
