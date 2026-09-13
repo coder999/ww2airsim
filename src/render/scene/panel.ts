@@ -53,9 +53,40 @@ const DIAL_GAP = 0.2
 const Z_MARKS = 0.0015
 const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
+
 /** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up). */
 const PANEL_AHEAD_M = 0.6
-const PANEL_BELOW_M = 0.35
+/**
+ * How far below the eye the dial row is centred.
+ *
+ * Was 0.35 until 2026-09-13, which put the label edge 38.4 degrees below the
+ * eye line against the 30-degree screen edge of `CAMERA_VFOV_DEG`. The lower
+ * half of every dial, every label and every digital readout were outside the
+ * frustum; only the top slivers of six discs were ever visible, which is why
+ * flying it produced "would also label the instruments with text" about a
+ * panel that had been labelled since the commit before.
+ *
+ * `panel.test.ts` now measures the built geometry against the camera's own
+ * exported field of view, so a bigger dial or a narrower lens fails there
+ * rather than in a screenshot. Design spec section 7 already settled the
+ * principle: legibility beats period authenticity, and markings that cannot
+ * be read at a realistic eye point are faithful and useless.
+ */
+const PANEL_BELOW_M = 0.19
+
+/** Beyond this the horizon is well off screen and `tan` runs away. */
+const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
+/**
+ * The horizon bar's depth within the panel, and its distance from the eye.
+ *
+ * The panel root is turned -90 degrees about Y, which sends local +Z to body
+ * -X: a bar nudged forward off the panel face in local +Z is 2 mm CLOSER to
+ * the pilot, not further. Small, but the bar's placement divides by this
+ * distance, and using 0.6 instead of 0.598 left a 0.33% error that the
+ * screen-position test caught.
+ */
+const HORIZON_Z = 0.002
+const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
 
 /**
  * A flat plate carrying rasterised text.
@@ -175,7 +206,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     new BoxGeometry(DIAL_RADIUS * 1.6, 0.01, 0.004),
     new MeshBasicMaterial({ color: 0x6fd3ff }),
   )
-  horizon.position.set(0, DIAL_GAP * 0.9, 0.002)
+  horizon.position.set(0, PANEL_BELOW_M, HORIZON_Z)
   root.add(horizon)
 
   // Positioned in the SAME body frame the cockpit group is posed in (sim
@@ -243,5 +274,29 @@ export function updatePanel(
   // independently of this line -- the old test asserted `-rollRad` and so
   // defended the bug through fifteen task reviews.
   panel.horizon.rotation.z = rollRad
-  panel.horizon.position.y = DIAL_GAP * 0.9 + Math.max(-0.05, Math.min(0.05, pitchRad * 0.08))
+
+  // Where the bar SITS, which nothing checked until 2026-09-13. C-1 and C-2
+  // both corrected its angle; its height was a fixed panel offset plus
+  // `pitchRad * 0.08`, an invented scale, so at zero pitch it hung 15.8
+  // degrees below the eye line and read as a permanent nose-up error against
+  // the visible horizon in level flight.
+  //
+  // It is now placed by geometry with no tuned constant at all. The bar's
+  // datum, `PANEL_BELOW_M` in this frame, is exactly eye height. The true
+  // horizon is depressed below the nose by the pitch angle, so at
+  // `PANEL_AHEAD_M` ahead it lies `PANEL_AHEAD_M * tan(pitch)` lower -- and
+  // that offset runs PERPENDICULAR TO THE BAR, along the projected world up,
+  // not along the panel's own up, which is why it is rotated by roll too.
+  // Offsetting along panel up instead would be right at zero bank and wrong
+  // everywhere else, the same shape of error as C-2.
+  //
+  // Clamped only to keep `tan` finite near the vertical; at that pitch the
+  // horizon is far off screen and its exact position stops mattering.
+  const clampedPitch = Math.max(-MAX_HORIZON_PITCH, Math.min(MAX_HORIZON_PITCH, pitchRad))
+  const drop = HORIZON_DISTANCE_M * Math.tan(clampedPitch)
+  panel.horizon.position.set(
+    drop * Math.sin(rollRad),
+    PANEL_BELOW_M - drop * Math.cos(rollRad),
+    HORIZON_Z,
+  )
 }

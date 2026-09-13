@@ -3,7 +3,7 @@ import { Box3, BoxGeometry, Group, Mesh, Quaternion, Vector3 } from 'three'
 import { createPanel, updatePanel, type Panel } from '../../src/render/scene/panel.js'
 import { GAUGES, labelTextFor, tickMarksFor } from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
-import { cameraTransformFor } from '../../src/render/camera.js'
+import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -70,6 +70,49 @@ function pose(panel: Panel, state: AircraftState): {
     worldToCamera: new Quaternion(cq.x, cq.y, cq.z, cq.w).invert(),
     eye: new Vector3(eye.position.x, eye.position.y, eye.position.z),
   }
+}
+
+/** Pitch then bank, applied in the body frame after a zero heading. */
+const attitude = (pitchDeg: number, bankDeg: number): AircraftState =>
+  createState({
+    position: v3(0, 600, 0),
+    velocity: v3(120, 0, 0),
+    attitude: qMul(
+      qFromAxisAngle(v3(0, 0, 1), (pitchDeg * Math.PI) / 180),
+      qFromAxisAngle(v3(1, 0, 0), (bankDeg * Math.PI) / 180),
+    ),
+  })
+
+/**
+ * How far the bar's centre sits above the middle of the screen, in tangent
+ * units (the projective quantity, so it does not depend on the lens).
+ */
+function barScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Quaternion): number {
+  const eye = cameraTransformFor('cockpit', f6f, {
+    position: state.position,
+    attitude: state.attitude,
+  })
+  const centre = new Vector3()
+    .setFromMatrixPosition(panel.horizon.matrixWorld)
+    .sub(new Vector3(eye.position.x, eye.position.y, eye.position.z))
+    .applyQuaternion(worldToCamera)
+  return centre.y / -centre.z
+}
+
+/**
+ * The same quantity for the TRUE horizon, from world up alone.
+ *
+ * The horizontal direction straight ahead is the camera's own forward with
+ * its vertical component removed; where that direction lands on screen is
+ * where the horizon crosses the middle of the frame.
+ */
+function trueHorizonScreenHeight(worldToCamera: Quaternion): number {
+  const cameraToWorld = worldToCamera.clone().invert()
+  const forward = new Vector3(0, 0, -1).applyQuaternion(cameraToWorld)
+  const horizontal = forward.clone().addScaledVector(new Vector3(0, 1, 0), -forward.y)
+  if (horizontal.lengthSq() < 1e-12) return 0
+  const h = horizontal.normalize().applyQuaternion(worldToCamera)
+  return h.y / -h.z
 }
 
 /** The angle, on screen, of the horizon bar's right-hand end: 0 is level,
@@ -153,6 +196,67 @@ describe('panel', () => {
       // Not vacuous: at these banks the angle is genuinely away from level,
       // so a bar stuck at zero (or mirrored) fails rather than matching.
       expect(deg(bar)).toBeCloseTo(bankDeg, 4)
+    }
+  })
+
+  it('fits inside the field of view, labels and readouts included', () => {
+    // Found by flying it, 2026-09-13. Mark asked for the instruments to be
+    // labelled; they already were, and every label was off the bottom of the
+    // screen. The panel sat with its label edge 38.4 degrees below the eye
+    // line against a 30-degree screen edge, so the lower half of every dial,
+    // every label and every digital readout were outside the frustum. Only
+    // the top slivers of six discs were ever visible.
+    //
+    // Measured off the built geometry against the camera's own exported
+    // field of view, so a bigger dial, a lower panel or a narrower lens all
+    // fail here rather than being discovered in a screenshot.
+    const p = createPanel(f6f, () => null)
+    const box = new Box3().setFromObject(p.root)
+    const [ex, ey, ez] = f6f.view.eyePointM
+    const halfFovRad = ((CAMERA_VFOV_DEG / 2) * Math.PI) / 180
+    // Body frame: +X forward. Worst case is the nearest slice of the panel,
+    // where a given vertical offset subtends the largest angle.
+    const nearestX = box.min.x - ex
+    expect(nearestX).toBeGreaterThan(0)
+    for (const y of [box.min.y, box.max.y]) {
+      const angle = Math.atan2(Math.abs(y - ey), nearestX)
+      expect(angle).toBeLessThan(halfFovRad)
+    }
+    expect(Math.abs(box.max.z - ez)).toBeLessThan(nearestX * Math.tan(halfFovRad) * 4)
+  })
+
+  it('starts the bar at eye level, before any update has run', () => {
+    // `updatePanel` overwrites this on the first frame, so it is easy to
+    // leave at whatever it was and never notice. It is still a claim: a panel
+    // that has been built but not yet updated must not show a horizon at an
+    // arbitrary height, because that is exactly the frame the pilot sees
+    // first.
+    const p = createPanel(f6f, () => null)
+    const [, ey] = f6f.view.eyePointM
+    p.root.updateMatrixWorld(true)
+    expect(new Vector3().setFromMatrixPosition(p.horizon.matrixWorld).y).toBeCloseTo(ey, 6)
+  })
+
+  it('puts the horizon bar ON the true horizon, not merely parallel to it', () => {
+    // The other half of what flying it found: the bar was pinned to the panel
+    // at a fixed height and sat 15.8 degrees below the eye line at ZERO
+    // pitch, so in level flight it hung well below the visible horizon and
+    // read as a permanent nose-up error. C-1 and C-2 both fixed its ANGLE;
+    // nothing had ever checked its POSITION.
+    //
+    // The screen position is computed here from world up alone, exactly as
+    // the angle checks above are, and never from anything in panel.ts.
+    const p = createPanel(f6f, () => null)
+    for (const pitchDeg of [0, 10, -10, 25, -20]) {
+      for (const bankDeg of [0, 30, -45]) {
+        const state = attitude(pitchDeg, bankDeg)
+        updatePanel(p, f6f, state, () => null)
+        const { worldToCamera } = pose(p, state)
+        expect(barScreenHeight(p, state, worldToCamera)).toBeCloseTo(
+          trueHorizonScreenHeight(worldToCamera),
+          3,
+        )
+      }
     }
   })
 

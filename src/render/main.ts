@@ -2,6 +2,7 @@ import { Group, PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
+import { CAMERA_VFOV_DEG } from './camera.js'
 import { AIRCRAFT_CONTENT_URL } from './content.js'
 import { createOverlay } from './overlay.js'
 import {
@@ -202,7 +203,12 @@ async function boot(): Promise<void> {
   cockpit.add(panel.root)
   scene.add(cockpit)
 
-  const camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 60_000)
+  const camera = new PerspectiveCamera(
+    CAMERA_VFOV_DEG,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    60_000,
+  )
 
   // Spawn over open water, comfortably above the clean, power-off stall
   // (content/aircraft/f6f-hellcat.json's reference.stallSpeedMps, 43.8 m/s)

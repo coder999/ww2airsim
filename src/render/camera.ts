@@ -15,6 +15,18 @@ export type EyeTransform = {
  *  should sit off-centre instead -- some chase views do, so the tail doesn't
  *  mask the aeroplane -- is a question about how it feels to fly behind it,
  *  decided in Task 13 with a view out of the window, not guessed here. */
+/**
+ * Vertical field of view, degrees, for both camera modes.
+ *
+ * Exported because it is a LAYOUT constraint, not just a camera setting: the
+ * cockpit panel has to fit inside it, and `panel.test.ts` asserts that it
+ * does. Before 2026-09-13 main.ts held the only copy as a literal, and the
+ * panel sat with its labels 38 degrees below the eye line against a 30-degree
+ * screen edge -- every label and readout was off the bottom of the screen, and
+ * nothing could tell, because nothing else knew what the field of view was.
+ */
+export const CAMERA_VFOV_DEG = 60
+
 export const CHASE_OFFSET_M: readonly [number, number, number] = [-22, 6, 0]
 
 /**
