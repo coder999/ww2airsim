@@ -442,6 +442,19 @@ a rewrite. Plan 5 is the plan that should revisit it.
    prevent. Note that it gets harder every plan, and no plan uses replay yet, so
    the cost of waiting is currently zero and the cost of guessing is not.
 
+8. **`angleOfAttack` leaves the lateral component in its denominator** —
+   found 2026-09-13 while adding directional stability. It is
+   `atan2(-dot(v, up), dot(v, forward))`, and `dot(v, forward)` shrinks as the
+   aeroplane crabs, so alpha is over-reported by 1/cos(sideslip): 3.5% at 15
+   degrees, 34% at 42. Alpha should be measured in the body x-z plane, with the
+   lateral component projected out first.
+
+   Pre-existing and Plan 1's. It mattered far more before the weathercock term,
+   when random inputs left the aeroplane permanently crabbed; the soak's stall
+   fraction fell from 53.1% to 7.9% once the crab was removed. Not fixed here
+   because it changes the flight model a second time in one day, and the
+   golden has already been re-recorded once.
+
 7. **`spike/webgpu-day0/probe.ts` is neither typechecked nor linted by
    `npm run verify`, and it does not compile** — found 2026-09-13. `tsconfig`'s
    `include` lists `src`, `tests`, `tools` and root `*.ts`, so `tsc --listFiles`

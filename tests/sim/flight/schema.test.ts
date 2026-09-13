@@ -12,7 +12,13 @@ const valid = {
     maxPowerW: 1_491_000, propEfficiency: 0.8, staticThrustN: 20_000,
     powerFractionByAltitudeM: [[0, 1], [7132, 1], [11400, 0.6]],
   },
-  rates: { maxRollRateDegPerSec: 80, maxPitchRateDegPerSec: 30, maxYawRateDegPerSec: 15, rateRefSpeedMps: 103 },
+  rates: {
+    maxRollRateDegPerSec: 80,
+    maxPitchRateDegPerSec: 30,
+    maxYawRateDegPerSec: 15,
+    rateRefSpeedMps: 103,
+    weathercockSeconds: 1.5,
+  },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
   reference: {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,
