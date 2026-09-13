@@ -1,6 +1,7 @@
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
-import { clampFinite } from '../sim/flight/model.js'
+import { clampFinite, angleOfAttack, commandedBodyRates } from '../sim/flight/model.js'
+import { alphaCritRad } from '../sim/aero.js'
 import { v3, dot, length, normalize } from '../sim/math/vec3.js'
 import { qRotate } from '../sim/math/quat.js'
 
@@ -37,15 +38,14 @@ export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
 /**
  * Turns the pilot's raw command into what the simulation actually flies.
  *
- * This is Plan 3 Task 1: the seam only, with no assist behaviour in it yet.
- * Each stage below is currently the identity function, chained in the order
- * later tasks are required to preserve -- see the stack-order comment below.
- * Building the wiring before any assist exists is deliberate: it proves the
- * seam in isolation, so that a later behavioural bug can be pinned on "this
- * assist's logic is wrong" rather than left ambiguous against "did this
- * assist even run" (`sim/loop.ts`'s `advance` calls this once per fixed
- * STEP, via an injected parameter -- see that file for why `sim/` invokes it
- * without importing it).
+ * Two of the three stages are real as of Task 3: the stall limiter and
+ * auto-rudder. Altitude hold is still Task 1's identity stub, and is labelled
+ * as one where it is defined. Task 1 built this seam with all three stubbed
+ * deliberately: it proved the wiring in isolation, so that a behavioural bug
+ * in any of them can be pinned on "this assist's logic is wrong" rather than
+ * left ambiguous against "did this assist even run" (`sim/loop.ts`'s `advance`
+ * calls this once per fixed STEP, via an injected parameter -- see that file
+ * for why `sim/` invokes it without importing it).
  *
  * `raw` is the pilot's held command for the whole frame (`World.controls`);
  * `state` is the aircraft as of the START of this step, i.e. what the pilot
@@ -76,15 +76,107 @@ export function applyAssists(
   return controls
 }
 
-// The three stages below are stubs: Task 1 builds only the seam. Plan 3
-// Tasks 2-4 replace each body in place; none of them may change this file's
-// call order in `applyAssists` above without updating the comment that
-// justifies it.
+// The stages, in the order `applyAssists` chains them. Task 1 created all
+// three as identity stubs and Tasks 2 and 3 replaced two of them in place;
+// Task 4 replaces the last. No task may change this file's call order without
+// updating the comment on `applyAssists` that justifies it.
 
-/** Task 2: bounds commanded pitch so the wing cannot be driven past
- *  `spec.aero.alphaCritDeg`. Identity until then. */
-function stallLimiter(_state: AircraftState, _spec: AircraftSpec, controls: Controls, _dt: number): Controls {
-  return controls
+/**
+ * Beyond this much |alpha| the limiter stands down and hands the pilot their
+ * own command back. Not a tuning constant and not in content: 90 degrees is
+ * where the flow crosses from in front of the wing to behind it, which is
+ * also where `sim/aero.ts`'s post-stall drag blend reaches the flat plate.
+ *
+ * The limiter's whole model -- "commanded pitch rate moves alpha, so bound the
+ * rate by the remaining margin" -- is about an aeroplane still flying roughly
+ * forwards. Past 90 degrees it is not: the aeroplane is departed, `alpha` is
+ * an atan2 running to +/-180 (see `angleOfAttack`, and `sim/aero.ts`'s note
+ * that 40.8% of soak steps sit past 90.5 degrees), and the margin term would
+ * simply saturate at full nose-down and PIN it there -- taking pitch authority
+ * away from a pilot who needs all of it to fly out of a departure. An assist
+ * that cannot help must not interfere.
+ */
+const DEPARTED_ALPHA_RAD = Math.PI / 2
+
+/**
+ * Plan 3 Task 3: bounds the pilot's pitch command so the wing is not driven
+ * past `aero.alphaCritDeg`, and drives it back if something else already has.
+ *
+ * How, and why this shape. `Controls.pitch` commands a body pitch RATE (spec
+ * §5, `ratesFromDynamicPressure`), and alpha is the angle between the nose and
+ * the velocity in the plane of symmetry, so to first order
+ * `d(alpha)/dt = pitchRate - (rate the flight path itself is pitching)`.
+ * Dropping the second term is deliberate and conservative in the case that
+ * matters: pulling hard means high lift, which pitches the flight path UP, so
+ * ignoring it OVER-estimates how fast the pull drives alpha. What is left is
+ * a bound on rate:
+ *
+ *     allowed pitch rate = (alphaCrit - alpha) / stallLimiterSeconds
+ *
+ * -- the margin, spent no faster than one time constant. As alpha approaches
+ * the boundary the allowance goes to zero, so the limit is approached and not
+ * crossed; past it the allowance goes NEGATIVE, which commands nose-down, so
+ * the same expression that limits the pull is also the recovery. The lower
+ * bound is the mirror image about `-alphaCrit`, because a bunt stalls the wing
+ * upside down just as a pull stalls it the right way up, and the model's lift
+ * curve breaks on |alpha| (`liftCoefficient`, finding C1).
+ *
+ * The two bounds are converted from rad/s into `Controls.pitch` units by
+ * dividing by the rate FULL back stick would command in this exact state,
+ * which is taken from `commandedBodyRates` -- `sim/`'s own rate model, called
+ * rather than re-derived here. That matters more than saving the duplication:
+ * the achievable rate scales with dynamic pressure, so the same margin is
+ * worth a much bigger stick fraction slow than fast, and an assist carrying
+ * its own copy of that authority curve would silently disagree with the
+ * simulation the moment either was tuned. When that rate is zero -- no
+ * airspeed, hence no pitch authority at all -- there is nothing to limit,
+ * because the command cannot move alpha; the pilot's command is returned
+ * untouched rather than clamped to something invented.
+ *
+ * Note what the limiter deliberately does NOT do: it never adds nose-up. The
+ * pilot's command is clamped into `[lower, upper]`, so a gentler command
+ * passes through byte-for-byte and ordinary manoeuvring is untouched (with
+ * this aircraft's content, full back stick is unrestricted below about 8
+ * degrees of alpha). It also cannot prevent every stall -- alpha rises when
+ * the flight path falls away in a zoom, and no pitch command stops that -- so
+ * `isStalled` remains reachable with the assist on. What it guarantees is that
+ * the PILOT'S PITCH COMMAND is not what took the wing past the boundary.
+ *
+ * It bounds the same `angleOfAttack` that `isStalled` and `liftCoefficient`
+ * read, on purpose. Design open item 8 claimed that function over-reports
+ * alpha in a slipping turn and that the limiter should be built on a corrected
+ * one; that item is retracted (it is already the in-plane angle -- see the
+ * derivation on `angleOfAttack`, asserted in
+ * `tests/sim/flight/angleOfAttack.test.ts`). Even had it been right, the
+ * limiter would have to bound the quantity the simulation's own stall
+ * boundary is expressed in, or it would clamp against a boundary the wing
+ * does not have.
+ */
+function stallLimiter(state: AircraftState, spec: AircraftSpec, controls: Controls, _dt: number): Controls {
+  const alpha = angleOfAttack(state)
+  if (!(Math.abs(alpha) < DEPARTED_ALPHA_RAD)) return controls
+
+  const fullBackStickRate = commandedBodyRates(spec, state, {
+    pitch: 1,
+    roll: 0,
+    yaw: 0,
+    throttle: 0,
+  }).z
+  // Also catches a NaN, which `>` is false for: `commandedBodyRates` cannot
+  // produce one from a validated spec, but returning the pilot's command is
+  // the right answer either way -- an assist that cannot compute a bound has
+  // no business replacing a bound with a guess.
+  if (!(fullBackStickRate > 0)) return controls
+
+  const limit = alphaCritRad(spec)
+  const asCommand = (marginRad: number) =>
+    clampFinite(marginRad / spec.rates.stallLimiterSeconds / fullBackStickRate, -1, 1)
+  // upper >= lower always: they differ by 2 * limit / (tau * rate) > 0 before
+  // clamping, and clamping both into [-1, 1] preserves the order.
+  const upper = asCommand(limit - alpha)
+  const lower = asCommand(-limit - alpha)
+
+  return { ...controls, pitch: Math.min(upper, Math.max(lower, clampFinite(controls.pitch, -1, 1))) }
 }
 
 /**

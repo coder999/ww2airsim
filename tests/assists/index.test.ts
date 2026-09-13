@@ -35,6 +35,14 @@ describe('AssistSettings', () => {
 
 describe('applyAssists (Plan 3 Task 1: the seam, no assist behaviour yet)', () => {
   it('is the identity function for every combination of enabled flags', () => {
+    // Still true as of Task 3, but no longer because the stages are stubs:
+    // `state` here is `createState({})`, i.e. stationary, and BOTH live stages
+    // stand down on it by their own guards -- auto-rudder because a stationary
+    // aeroplane has no relative wind to be misaligned with, the stall limiter
+    // because zero airspeed means zero pitch authority to ration. So this
+    // test says the seam does not invent behaviour of its own; it is NOT
+    // evidence that the stages do nothing. That is
+    // tests/assists/autoRudder.test.ts's and stallLimiter.test.ts's job.
     // Proved to fail: giving any one of the three stub stages in
     // src/assists/index.ts a body that changes its input (e.g. `stallLimiter`
     // returning `{ ...controls, pitch: 0 }`) makes the combo with that flag

@@ -82,6 +82,26 @@ describe('architecture boundary (spec §3)', () => {
     expect(output).toContain('sim-must-not-import-node-core')
   })
 
+  it('fails when sim/ imports assists/', () => {
+    // Plan 3 Task 2's review: the "sim/ must not import assists/" ruling was
+    // enforced only as a side effect of `no-circular`, because assists/ imports
+    // sim/ today and the pair therefore forms a cycle. That is real
+    // enforcement, but it names the wrong thing in the failure output and it
+    // disappears the day an assist stops importing sim/ -- so `no-circular`
+    // is exactly the "rule that happens to cover it" this file exists to
+    // replace with a named one. The assertion below is on the NAME, so a
+    // cycle report alone would not satisfy it.
+    //
+    // The probe imports a VALUE, not a type: with this config a type-only
+    // import produces no dependency edge at all (see `no-circular`'s comment
+    // in .dependency-cruiser.cjs), so a `import type` probe would pass for the
+    // wrong reason.
+    writeFileSync(PROBE, "import { applyAssists } from '../assists/index.js'\nexport const probe = applyAssists\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('sim-must-not-import-assists')
+  })
+
   it('fails when assists/ imports render/', () => {
     // Plan 3: assists/ is injected into sim/loop.ts's `advance` rather than
     // imported by it (see `Assist` there), and has no legitimate reason to

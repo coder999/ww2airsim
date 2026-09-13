@@ -99,6 +99,72 @@ const AircraftSpecObject = z.object({
      * to show an added command changing the result.
      */
     autoRudderGainPerDeg: positive,
+    /**
+     * Stall-limiter assist time constant, seconds: the limiter lets the pilot
+     * consume the REMAINING angle-of-attack margin no faster than
+     * `margin / stallLimiterSeconds` radians per second, so the commanded
+     * pitch rate falls to zero as alpha reaches `aero.alphaCritDeg`.
+     * `src/assists/index.ts`'s `stallLimiter` stage is the only reader.
+     *
+     * Like `autoRudderGainPerDeg` and unlike `weathercockSeconds`, this is NOT
+     * a measured aircraft characteristic: no F6F ever had an alpha limiter, so
+     * there is no primary source to cite and NACA WR L-716 has nothing to say
+     * about it. It is per-aircraft tuning of a synthetic pilot aid, in content
+     * rather than in code because the Global Constraints forbid a tuning
+     * constant invented in a source file.
+     *
+     * It sets two things at once, which is why one number does the job of a
+     * margin and a rate limit both. Larger is more conservative: the limiter
+     * starts biting at `margin = tau * maxPitchRate`, i.e. at alpha above
+     * `alphaCrit - tau * maxPitchRate` for full back stick, and it leaves more
+     * headroom against the one thing it cannot command away -- alpha rising
+     * because the flight path is falling, which no pitch input prevents.
+     *
+     * 0.15 was chosen by measurement, 2026-09-13, and the measurement's first
+     * result is that SAFETY DOES NOT DISCRIMINATE between the candidates. The
+     * sweep was a 36-condition grid -- 6 entry speeds (70 to 200 m/s) x 6
+     * flight-path angles (-30 to +45 degrees), 15 s of full back stick, full
+     * throttle, spawned at 3000 m -- scoring the highest alpha reached while
+     * the aeroplane was still flying (airspeed above 50 m/s, |alpha| under 90).
+     * With the limiter OFF that grid reaches 16.86 degrees against this
+     * aircraft's 15.5 degree alphaCrit. With it on, at every tau tried:
+     *
+     *     tau     worst alpha, 36 runs     full back stick limited above
+     *     0.017 (= DT)   15.27            15.0 deg
+     *     0.10           14.63            12.5 deg
+     *     0.15           14.29            11.0 deg
+     *     0.25           13.74             8.0 deg
+     *     0.50           12.98             0.5 deg
+     *
+     * Not one of 36 runs at any tau crossed the boundary, down to tau = the
+     * fixed step itself. That is the derivation working as intended: the bound
+     * lets alpha consume at most the margin per time constant, so the pilot's
+     * command alone cannot cross the boundary at any tau >= DT, and the
+     * flight-path term the derivation drops happens to help rather than hurt
+     * in a pull.
+     *
+     * So the choice is about FEEL, and the right-hand column is the one that
+     * decides it: limiting begins at `alphaCrit - tau * maxPitchRate` (times
+     * the dynamic-pressure authority, so later than this when slow). 0.50
+     * would start softening full back stick from half a degree of alpha, i.e.
+     * from level cruise, and make the aeroplane feel blunt everywhere. 0.017
+     * gets within 0.23 degrees of the boundary with no margin for the one case
+     * the bound cannot cover. 0.15 leaves the first 11 degrees of alpha --
+     * over two-thirds of the usable range -- completely untouched while
+     * keeping the measured worst case 1.2 degrees clear.
+     *
+     * What no tau can prevent, and no test should claim: alpha also rises
+     * because the FLIGHT PATH falls away, which no pitch command opposes. A
+     * 60 m/s pull-up into a 60-degree climb departs at every tau tried (peak
+     * alpha 89.6 degrees, airspeed down to 11 m/s), with the limiter's
+     * allowance saturated because there is no pitch authority left to ration.
+     * See `tests/assists/stallLimiter.test.ts`, which tests that honestly
+     * rather than asserting a guarantee the limiter does not make.
+     *
+     * Being a feel constant, this is exactly the kind of value Plan 3's own
+     * Task 6 -- Mark flying it -- is expected to revise.
+     */
+    stallLimiterSeconds: positive,
   }).strict(),
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
   reference: z.object({

@@ -19,6 +19,7 @@ const valid = {
     rateRefSpeedMps: 103,
     weathercockSeconds: 1.5,
     autoRudderGainPerDeg: 0.1,
+    stallLimiterSeconds: 0.15,
   },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
   reference: {
