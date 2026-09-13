@@ -3267,7 +3267,7 @@ Automates the two checks that need a GPU and no human judgement. Deliberately **
 - Consumes: `judgeAdapter` (Task 7).
 - Produces: `npm run test:tier2`; `window.__ww2` diagnostics hook.
 
-- [ ] **Step 1: Expose a diagnostics hook**
+- [x] **Step 1: Expose a diagnostics hook**
 
 In `src/render/main.ts`, after the renderer is up, publish what the harness needs. Guard it so it is absent from a production build:
 
@@ -3283,7 +3283,7 @@ if (import.meta.env.DEV) {
 
 Accumulate validation errors from the existing `uncapturederror` handler into a module-level array, and add a `pushErrorScope('validation')` around the first frame so setup errors are captured too.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `tests/e2e/adapter.spec.ts`:
 
@@ -3342,7 +3342,7 @@ ${JSON.stringify(errors, null, 2)}`).toEqual([])
 })
 ```
 
-- [ ] **Step 3: Add the Playwright config**
+- [x] **Step 3: Add the Playwright config**
 
 ```bash
 npm install --save-dev @playwright/test
@@ -3383,7 +3383,7 @@ Add to `package.json`:
 "test:tier2": "playwright test",
 ```
 
-- [ ] **Step 4: Run it on the reference platform**
+- [x] **Step 4: Run it on the reference platform**
 
 With `npm run dev` running on nexus and the tunnel open, from the Windows desktop:
 
@@ -3397,11 +3397,11 @@ Expected: 2 passed. If the adapter test fails, read its summary before anything 
 
 The Windows side needs its own checkout of the repo with `npm ci` and `npx playwright install chromium` run once. The dev server is on nexus; the test runner has to be local to the GPU.
 
-- [ ] **Step 5: Document the loop**
+- [x] **Step 5: Document the loop**
 
 Add a short section to `README.md` under the existing dev instructions covering: `npm run dev` on nexus, the tunnel command, the one-time Windows setup (checkout, `npm ci`, `npx playwright install chromium`), and `npm run test:tier2` from Windows — plus the sentence that Tier 2 never runs in hosted CI and why.
 
-- [ ] **Step 6: Run the full pipeline and commit**
+- [x] **Step 6: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. Tier 2 is deliberately **not** part of `verify` — nexus has no GPU, so including it would make the main pipeline fail on the machine it usually runs on.
