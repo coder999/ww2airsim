@@ -4,6 +4,7 @@ import { writeFileSync, rmSync, existsSync } from 'node:fs'
 import { ESLint } from 'eslint'
 
 const PROBE = 'src/sim/__boundary_probe__.ts'
+const ASSISTS_PROBE = 'src/assists/__boundary_probe__.ts'
 
 function runDepcruise(): { code: number; output: string } {
   try {
@@ -19,6 +20,7 @@ function runDepcruise(): { code: number; output: string } {
 
 afterEach(() => {
   if (existsSync(PROBE)) rmSync(PROBE)
+  if (existsSync(ASSISTS_PROBE)) rmSync(ASSISTS_PROBE)
 })
 
 describe('architecture boundary (spec §3)', () => {
@@ -78,6 +80,21 @@ describe('architecture boundary (spec §3)', () => {
     const { code, output } = runDepcruise()
     expect(code).not.toBe(0)
     expect(output).toContain('sim-must-not-import-node-core')
+  })
+
+  it('fails when assists/ imports render/', () => {
+    // Plan 3: assists/ is injected into sim/loop.ts's `advance` rather than
+    // imported by it (see `Assist` there), and has no legitimate reason to
+    // reach into the renderer either. Same negative-test pattern as the sim/
+    // render probe above, for the same reason -- a rule never seen to fail is
+    // indistinguishable from one that matches nothing. This probe writes
+    // under src/assists/, not src/sim/, so it also confirms the new rule's
+    // `from` path actually matches that directory rather than being a dead
+    // copy-paste of the sim/ rule.
+    writeFileSync(ASSISTS_PROBE, "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('assists-must-not-import-render')
   })
 
   it('fails when sim/ imports input/', () => {

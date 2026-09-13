@@ -53,7 +53,11 @@ export type GoldenTrajectory = {
  * double-cross-product and the quaternion integration across the whole
  * attitude sphere by inverting repeatedly, rather than staying near level.
  */
-const ROLLING_DESCENT_CONTROLS = (tick: number): Controls =>
+// Exported so tests/sim/loop.test.ts can drive this exact manoeuvre through
+// `advance` (rather than `step` directly, as `recordTrajectory` below does)
+// and check the result against the same golden file -- point at one
+// manoeuvre definition instead of a second copy drifting from this one.
+export const ROLLING_DESCENT_CONTROLS = (tick: number): Controls =>
   tick < 1800
     ? { pitch: 0.15, roll: 0.3, yaw: 0, throttle: 0.75 }
     : { pitch: -0.1, roll: -0.3, yaw: 0, throttle: 0.9 }

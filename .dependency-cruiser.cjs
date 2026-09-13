@@ -37,6 +37,18 @@ module.exports = {
       to: { path: '^src/input' },
     },
     {
+      name: 'assists-must-not-import-render',
+      comment:
+        'Plan 3: assists/ sits between input/ and sim/ in the call chain (injected ' +
+        'into sim/loop.ts\'s `advance`, never imported by it -- see Assist in that ' +
+        "file). It has no reason to touch the renderer, and importing it would let " +
+        'a rendering type or a Three.js dependency reach the assist stack the same ' +
+        'way sim-must-not-import-render exists to keep it out of the physics.',
+      severity: 'error',
+      from: { path: '^src/assists' },
+      to: { path: '^src/render' },
+    },
+    {
       name: 'no-circular',
       comment:
         'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +
