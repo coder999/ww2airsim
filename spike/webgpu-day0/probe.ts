@@ -172,7 +172,12 @@ async function main(): Promise<void> {
     haystack,
   )
   const looksAmd = /amd|radeon|rdna/.test(haystack)
-  const looksTarget = /6700|navi ?2|rdna ?2/.test(haystack)
+  // Chrome reports `rdna-2` with a hyphen, and leaves `device` and `description`
+  // EMPTY for fingerprinting reasons -- measured on the reference platform
+  // 2026-09-13. So "does the string say 6700 XT" is not a question this API can
+  // answer in a normal Chrome build, and vendor + architecture is the real
+  // ceiling on adapter identification.
+  const looksTarget = /6700|navi[ -]?2|rdna[ -]?2/.test(haystack)
 
   const fallbackFlag =
     infoDump?.isFallbackAdapter ??
@@ -186,13 +191,20 @@ async function main(): Promise<void> {
         `taken here are worthless. haystack="${haystack.trim()}" fallbackFlag=${fallbackFlag}`,
     )
   } else if (looksAmd && looksTarget) {
-    add('discrete GPU — RX 6700 XT identified', 'pass', haystack.trim())
+    add(
+      'discrete GPU — AMD RDNA 2 confirmed',
+      'pass',
+      `vendor="${infoDump?.vendor}" architecture="${infoDump?.architecture}" ` +
+        `isFallbackAdapter=${fallbackFlag}. RDNA 2 is the RX 6700 XT's architecture; ` +
+        `Chrome leaves device/description empty, so this is as specific as ` +
+        `adapter.info gets and it is enough to rule out a software rasterizer.`,
+    )
   } else if (looksAmd) {
     add(
-      'discrete GPU — AMD, model not confirmed',
+      'discrete GPU — AMD, architecture not confirmed',
       'warn',
-      `AMD adapter, but nothing in the string names a 6700/RDNA2. Chrome often ` +
-        `reports coarse identifiers; not necessarily wrong. haystack="${haystack.trim()}"`,
+      `AMD adapter, but the architecture does not read as RDNA 2. ` +
+        `haystack="${haystack.trim()}"`,
     )
   } else {
     add(
@@ -294,8 +306,13 @@ async function main(): Promise<void> {
       const vErr = await device.popErrorScope()
 
       const expected = (COUNT * (COUNT - 1)) / 2 // 2016
+      // `.value` is the StorageInstancedBufferAttribute, which is what
+      // getArrayBufferAsync takes. NOT `.toAttribute()` -- that returns a
+      // BufferAttributeNode for feeding geometry, and passing it here fails with
+      // "Cannot read properties of undefined (reading 'size')". Cost me one
+      // round trip to the reference platform on 2026-09-13.
       const buf = await renderer.getArrayBufferAsync(
-        (out.toAttribute ? out.toAttribute() : out) as never,
+        (out as unknown as { value: unknown }).value as never,
       )
       const got = new Uint32Array(buf)[0]
 
