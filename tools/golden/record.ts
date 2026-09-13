@@ -75,7 +75,7 @@ export function recordTrajectory(spec: AircraftSpec, steps = 3600): GoldenTrajec
   // i.e. `tick: 0`'s position is the state after one physics step, not the
   // initial spawn state, so it is not `(0, 2000, 0)`.
   for (let tick = 0; tick < steps; tick++) {
-    s = step(spec, s, ROLLING_DESCENT_CONTROLS(tick), DT)
+    s = step(spec, s, ROLLING_DESCENT_CONTROLS(tick), { dt: DT, tick: tick + 1 })
     if (tick % 300 === 0 || tick === steps - 1) {
       checkpoints.push({
         tick,

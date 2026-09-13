@@ -53,6 +53,20 @@ const AircraftSpecObject = z.object({
     maxPitchRateDegPerSec: positive,
     maxYawRateDegPerSec: positive,
     rateRefSpeedMps: positive,
+    /**
+     * Time constant, seconds, for the fin to swing the nose into the relative
+     * wind. Sideslip decays by 1/e in this long at full control authority.
+     *
+     * Added 2026-09-13. Master spec section 5's rate-command model says it
+     * carries no damping derivatives, and directional stability is one, so
+     * until now nothing in the model produced a yaw moment from sideslip at
+     * all: roll into a turn, level out, and the aeroplane kept flying crabbed
+     * for minutes. Measured before the fix, hands off at 120 m/s from 10
+     * degrees of sideslip, the nose heading did not move at all in a full
+     * minute and the slip decayed only to 5.15 degrees, purely because thrust
+     * has a lateral component while crabbed.
+     */
+    weathercockSeconds: positive,
   }).strict(),
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
   reference: z.object({
@@ -74,6 +88,14 @@ const AircraftSpecObject = z.object({
      *  the card grading this is expected to run a bit short of the trial
      *  figure -- see the tolerance comment on that card in f6f.test.ts. */
     takeoffDistanceM: positive,
+  }).strict(),
+  /** Render-only data. `sim/` never reads this; it lives here because it is
+   *  per-aircraft content and a second content file for one field would be
+   *  over-engineering. Revisit if a second category of render-only data
+   *  appears (Plan 2 design §6). */
+  view: z.object({
+    /** Pilot's eye, metres in body frame: +X forward, +Y up, +Z right. */
+    eyePointM: z.tuple([finite, finite, finite]),
   }).strict(),
 }).strict()
 

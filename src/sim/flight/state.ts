@@ -25,6 +25,12 @@ export type AircraftState = {
   // has no effect.
   readonly bodyRates: Vec3
   readonly fuelKg: number
+  /** The simulation tick this state is the result of. Starts at 0.
+   *  Master spec §3 has the renderer interpolating between the two most recent
+   *  ticks, which needs each snapshot to say which tick it is. It also makes a
+   *  stale-snapshot bug loud instead of silent: without it, yesterday's state
+   *  and today's are indistinguishable whenever their values happen to agree. */
+  readonly tick: number
 }
 
 export const createState = (init: Partial<AircraftState> = {}): AircraftState => ({
@@ -33,4 +39,5 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
   attitude: init.attitude ?? qIdentity(),
   bodyRates: init.bodyRates ?? v3(0, 0, 0),
   fuelKg: init.fuelKg ?? 400,
+  tick: init.tick ?? 0,
 })

@@ -26,6 +26,36 @@ module.exports = {
       from: { path: '^src/sim' },
       to: { dependencyTypes: ['core'] },
     },
+    {
+      name: 'sim-must-not-import-input',
+      comment:
+        'Spec §3: input/ maps devices to the same Controls value the AI emits, so ' +
+        'the simulation must depend on the shape, never on the device layer. ' +
+        'Without this rule the dependency would be legal and nobody would notice.',
+      severity: 'error',
+      from: { path: '^src/sim' },
+      to: { path: '^src/input' },
+    },
+    {
+      name: 'no-circular',
+      comment:
+        'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +
+        "`parser: 'tsc'`), a type-only import (e.g. model.ts's `import type { " +
+        "SimContext } from '../loop.js'`) produces NO dependency edge at all -- " +
+        'verified 2026-09-12: `model.ts` has zero edges to `loop.ts` in the real ' +
+        'graph, and `loop.ts -> model.ts` reports circular: false. So this rule ' +
+        'currently sees only runtime imports; a plain `to: { circular: true }` is ' +
+        'correct and sufficient. If anyone later enables `tsPreCompilationDeps` or ' +
+        "`parser: 'tsc'`, type-only edges start appearing in the graph and this " +
+        "rule's behaviour changes -- revisit this comment then. Verified 2026-09-12: " +
+        'passes on the real tree; a scratch two-file value-import cycle trips it by ' +
+        'name, then was removed.',
+      severity: 'error',
+      from: {},
+      to: {
+        circular: true,
+      },
+    },
   ],
   options: {
     tsConfig: { fileName: 'tsconfig.json' },

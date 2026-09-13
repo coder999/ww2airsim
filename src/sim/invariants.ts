@@ -1,6 +1,7 @@
 import { type Vec3, sub, dot, ZERO } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import { type AircraftState, type Controls, clampFinite, step } from './flight/model.js'
+import type { SimContext } from './loop.js'
 
 const G = 9.80665
 const ENERGY_EPS = 1e-3
@@ -25,6 +26,7 @@ const FIELDS: ReadonlyArray<readonly [string, (s: AircraftState) => number]> = [
   ['attitude.z', (s) => s.attitude.z], ['attitude.w', (s) => s.attitude.w],
   ['bodyRates.x', (s) => s.bodyRates.x], ['bodyRates.y', (s) => s.bodyRates.y],
   ['bodyRates.z', (s) => s.bodyRates.z], ['fuelKg', (s) => s.fuelKg],
+  ['tick', (s) => s.tick],
 ]
 
 export function assertFinite(state: AircraftState, context: string): void {
@@ -91,10 +93,10 @@ export function stepChecked(
   spec: AircraftSpec,
   state: AircraftState,
   controls: Controls,
-  dt: number,
+  ctx: SimContext,
 ): AircraftState {
   const before = specificEnergyAirmass(state)
-  const next = step(spec, state, controls, dt)
+  const next = step(spec, state, controls, ctx)
   assertFinite(next, 'stepChecked')
   if (isIdleThrottle(controls)) {
     const after = specificEnergyAirmass(next)

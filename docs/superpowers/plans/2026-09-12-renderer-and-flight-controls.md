@@ -117,7 +117,7 @@ Plan 1's whole-branch review named `step(spec, state, controls, dt)` the highest
 **Interfaces:**
 - Produces: `SimContext { readonly dt: number; readonly tick: number }` from `src/sim/loop.ts`; `step(spec, state, controls, ctx: SimContext)`; `stepChecked(spec, state, controls, ctx: SimContext)`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/sim/flight/integrator.test.ts`:
 
@@ -152,12 +152,12 @@ describe('SimContext', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/flight/integrator.test.ts`
 Expected: FAIL — `src/sim/loop.js` does not exist, so the import cannot resolve.
 
-- [ ] **Step 3: Create the context type**
+- [x] **Step 3: Create the context type**
 
 Create `src/sim/loop.ts`:
 
@@ -184,7 +184,7 @@ export interface SimContext {
 }
 ```
 
-- [ ] **Step 4: Change `step` to take the context**
+- [x] **Step 4: Change `step` to take the context**
 
 In `src/sim/flight/model.ts`, change the signature and the guard. The body is otherwise untouched — every `dt` inside becomes `ctx.dt`:
 
@@ -205,7 +205,7 @@ export function step(
 
 Do **not** rename or re-derive anything else in the body. A behaviour change here is the one failure mode this task cannot absorb.
 
-- [ ] **Step 5: Change `stepChecked` to match**
+- [x] **Step 5: Change `stepChecked` to match**
 
 In `src/sim/invariants.ts`:
 
@@ -224,7 +224,7 @@ export function stepChecked(
 }
 ```
 
-- [ ] **Step 6: Update every call site**
+- [x] **Step 6: Update every call site**
 
 Mechanical. Find them all first:
 
@@ -234,14 +234,14 @@ grep -rn 'step(\|stepChecked(' src tests tools --include='*.ts' | grep -v 'funct
 
 At each, replace the trailing `DT` (or other dt argument) with `{ dt: DT, tick }`, where `tick` is the tick the step **produces**: one more than the state going in, so a spawn at tick 0 is at tick 1 after its first step. That is the convention `advance` (Task 3) uses, and it has to be the same everywhere or a replay's tick numbers will not line up with a live session's. In `tools/golden/record.ts` the loop variable `tick` is zero-based and labels the checkpoint taken *after* step `tick` — pass `tick: tick + 1` and leave the checkpoint label alone (the label is in the golden file; `state.tick` is not, so nothing the golden checks changes). In `tools/soak/run.ts` and `tools/testcards/measure.ts`, pass the inner loop counter plus one. In tests with no loop, `tick: 1`, or `0` where the test never reads it back.
 
-- [ ] **Step 7: Run the whole suite — it must be green and unchanged**
+- [x] **Step 7: Run the whole suite — it must be green and unchanged**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0, **185 tests in 16 files plus the 2 new ones = 187**. The golden test in particular must pass without regenerating anything.
 
 If the golden fails, **stop**. It means the refactor changed physics, which it must not. Do not regenerate the golden to make it pass — that would destroy the evidence that this task was safe.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/sim/loop.ts src/sim/flight/model.ts src/sim/invariants.ts tools tests
@@ -273,7 +273,7 @@ which is the evidence this was a signature change and not a physics change."
 **Interfaces:**
 - Produces: `AircraftState.tick: number`, set by `step` to `ctx.tick`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/sim/flight/integrator.test.ts`:
 
@@ -306,12 +306,12 @@ it('rejects a non-finite tick', () => {
 })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run tests/sim/flight/integrator.test.ts tests/sim/invariants.test.ts`
 Expected: FAIL — `Property 'tick' does not exist on type 'AircraftState'`.
 
-- [ ] **Step 3: Add the field**
+- [x] **Step 3: Add the field**
 
 In `src/sim/flight/state.ts`, add to the type and the factory:
 
@@ -332,20 +332,20 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
 })
 ```
 
-- [ ] **Step 4: Have `step` set it**
+- [x] **Step 4: Have `step` set it**
 
 In `src/sim/flight/model.ts`, in the object `step` returns, add `tick: ctx.tick`.
 
-- [ ] **Step 5: Add it to the finiteness check**
+- [x] **Step 5: Add it to the finiteness check**
 
 In `src/sim/invariants.ts`, add `['tick', (s) => s.tick]` to the `FIELDS` array, following the existing entries' exact shape.
 
-- [ ] **Step 6: Run the suite**
+- [x] **Step 6: Run the suite**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. The golden still passes — `tick` is not one of the values the golden records.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim tests
@@ -371,7 +371,7 @@ The seam. Everything downstream depends on this being right, and it is fully tes
 - Consumes: `SimContext` (Task 1), `AircraftState.tick` (Task 2), `step`/`stepChecked`.
 - Produces: `World` (carries `spec`), `AdvanceResult`, `Stepper`, `advance(world, controls, elapsedSeconds, stepper?)`, `createWorld(spec, aircraft)`, `MAX_STEPS_PER_FRAME`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/sim/loop.test.ts`:
 
@@ -481,12 +481,12 @@ describe('advance', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/loop.test.ts`
 Expected: FAIL — `advance`, `createWorld`, `MAX_STEPS_PER_FRAME` are not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `src/sim/loop.ts`:
 
@@ -588,12 +588,12 @@ export function advance(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/loop.test.ts`
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Run the full pipeline and commit**
+- [x] **Step 5: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0.
@@ -626,7 +626,7 @@ The renderer draws between ticks. Getting quaternion interpolation wrong produce
 **Interfaces:**
 - Produces: `interpolateAircraft(prev: AircraftState, curr: AircraftState, alpha: number): RenderState` where `RenderState = { position: Vec3; attitude: Quat }`; `qSlerp(a: Quat, b: Quat, t: number): Quat`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/sim/interpolate.test.ts`:
 
@@ -698,12 +698,12 @@ describe('interpolateAircraft', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/sim/interpolate.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/sim/interpolate.ts`:
 
@@ -788,12 +788,12 @@ export function interpolateAircraft(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/sim/interpolate.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/interpolate.ts tests/sim/interpolate.test.ts
@@ -825,7 +825,7 @@ The `sim/`-must-not-import-`input/` dependency-cruiser rule lives in Task 6, not
 **Interfaces:**
 - Produces: `npm run dev`, `npm run build`; DOM, WebGPU and Vite client (`import.meta.env`) types available to `src/render/**` and `src/input/**`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the `sim/ forbids browser globals and nondeterminism` describe block in `tests/architecture/boundary.test.ts`, following the `lintText` pattern already there:
 
@@ -845,12 +845,12 @@ Add to the `sim/ forbids browser globals and nondeterminism` describe block in `
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 Expected: FAIL — none of the seven names is in the denylist yet, so no message names them.
 
-- [ ] **Step 3: Add DOM and WebGPU types**
+- [x] **Step 3: Add DOM and WebGPU types**
 
 ```bash
 npm install --save-dev @webgpu/types
@@ -865,7 +865,7 @@ In `tsconfig.json`, add `lib` and extend `types`:
 
 `vite/client` is what makes `import.meta.env.DEV` typecheck; Tasks 13 and 15 use it. Leave `include` as it is and add `"index.html"` to nothing — Vite reads the HTML directly.
 
-- [ ] **Step 4: Widen the ESLint denylist (finding M5)**
+- [x] **Step 4: Widen the ESLint denylist (finding M5)**
 
 In `eslint.config.js`, inside the existing `files: ['src/sim/**/*.ts', 'tools/**/*.ts']` block, add to `no-restricted-globals`:
 
@@ -889,7 +889,7 @@ Add a comment above the block recording why it grew:
 // storage, network and scheduling globals (Plan 1 review, finding M5).
 ```
 
-- [ ] **Step 5: Add the app entry and dev server**
+- [x] **Step 5: Add the app entry and dev server**
 
 Create `index.html` at the repo root:
 
@@ -949,17 +949,17 @@ Add to `package.json` scripts:
 "build": "vite build",
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 Expected: PASS. All seven names are now reported.
 
-- [ ] **Step 7: Run the full pipeline**
+- [x] **Step 7: Run the full pipeline**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. If adding DOM surfaces new type errors anywhere in `src/sim` or `tools`, that is information — fix the code, do not narrow `lib`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tsconfig.json eslint.config.js package.json package-lock.json index.html vite.config.ts src/render/main.ts tests/architecture/boundary.test.ts
@@ -989,7 +989,7 @@ on the reference platform by the day-0 spike)."
 **Interfaces:**
 - Produces: `BINDINGS`, `type PressedKeys = ReadonlySet<string>`, `controlsFromKeys(pressed: PressedKeys, dt: number, previous: Controls): Controls`, `RAMP_SECONDS`, `THROTTLE_SECONDS`, `NEUTRAL: Controls`; the `sim-must-not-import-input` dependency-cruiser rule.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/input/keyboard.test.ts`:
 
@@ -1072,12 +1072,12 @@ describe('controlsFromKeys', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/input/keyboard.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write the bindings table**
+- [x] **Step 3: Write the bindings table**
 
 Create `src/input/bindings.ts`:
 
@@ -1105,7 +1105,7 @@ export const BINDINGS = {
 export type BindingName = keyof typeof BINDINGS
 ```
 
-- [ ] **Step 4: Forbid `sim/` from importing `input/`, and prove the rule bites**
+- [x] **Step 4: Forbid `sim/` from importing `input/`, and prove the rule bites**
 
 Now that `src/input/bindings.ts` exists there is a real file for the negative probe to import. Add to `.dependency-cruiser.cjs`'s `forbidden`:
 
@@ -1139,7 +1139,7 @@ Add to the `architecture boundary` describe block in `tests/architecture/boundar
 Run: `npx vitest run tests/architecture/boundary.test.ts`
 Expected: PASS, including the new probe.
 
-- [ ] **Step 5: Implement the mapping**
+- [x] **Step 5: Implement the mapping**
 
 Create `src/input/keyboard.ts`:
 
@@ -1211,12 +1211,12 @@ export function controlsFromKeys(
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run tests/input/keyboard.test.ts`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -1258,7 +1258,7 @@ Pure, so the logic is Tier 1 testable; the Tier 2 harness in Task 15 asserts it 
 **Interfaces:**
 - Produces: `type AdapterVerdict = { ok: boolean; severity: 'ok' | 'warn' | 'fail'; summary: string }`, `judgeAdapter(info: AdapterInfoLike): AdapterVerdict`, `type AdapterInfoLike`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/adapterGuard.test.ts`:
 
@@ -1326,12 +1326,12 @@ describe('judgeAdapter', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/adapterGuard.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/render/adapterGuard.ts`:
 
@@ -1398,12 +1398,12 @@ export function judgeAdapter(info: AdapterInfoLike): AdapterVerdict {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/adapterGuard.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/adapterGuard.ts tests/render/adapterGuard.test.ts
@@ -1439,7 +1439,7 @@ Pure: maps sim state to an eye transform with no Three.js involved, so the behav
 - Produces: `type CameraMode = 'chase' | 'cockpit'`, `type EyeTransform = { position: Vec3; attitude: Quat }`, `cameraTransformFor(mode, spec, render): EyeTransform`, `CHASE_OFFSET_M`, `CHASE_PITCH_FOLLOW`.
 - Produces: `spec.view.eyePointM: readonly [number, number, number]`.
 
-- [ ] **Step 1: Write the failing schema test**
+- [x] **Step 1: Write the failing schema test**
 
 Add to `tests/sim/flight/schema.test.ts`, extending the existing `valid` fixture with the new block and asserting it is required:
 
@@ -1457,7 +1457,7 @@ it('rejects an eye point that is not three finite numbers', () => {
 
 Add `view: { eyePointM: [1.2, 0.9, 0] }` to the `valid` fixture in that file.
 
-- [ ] **Step 2: Write the failing camera test**
+- [x] **Step 2: Write the failing camera test**
 
 Create `tests/render/camera.test.ts`:
 
@@ -1533,12 +1533,12 @@ describe('chase camera', () => {
 })
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `npx vitest run tests/render/camera.test.ts tests/sim/flight/schema.test.ts`
 Expected: FAIL — no `view` in the schema, no `camera.js`.
 
-- [ ] **Step 4: Add the schema block and the content**
+- [x] **Step 4: Add the schema block and the content**
 
 In `src/sim/flight/schema.ts`, add to the object (before the closing `.strict()`):
 
@@ -1563,7 +1563,7 @@ In `content/aircraft/f6f-hellcat.json`, add:
 
 That places the eye roughly 1.2 m forward of the reference point and 0.9 m above it. No primary source is needed for a number whose only job is to put a camera somewhere sensible; it is recorded as an estimate in the design's open items.
 
-- [ ] **Step 5: Implement the cameras**
+- [x] **Step 5: Implement the cameras**
 
 Create `src/render/camera.ts`:
 
@@ -1644,12 +1644,12 @@ export function cameraTransformFor(
 }
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `npx vitest run tests/render/camera.test.ts tests/sim/flight/schema.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -1688,7 +1688,7 @@ Keyboard hat only. The design's §6 also lists continuous mouse-look; it is **de
 - Produces: `type LookOffset = { yawRad: number; pitchRad: number }`, `LOOK_CENTRE: LookOffset`, `lookOffsetFromKeys(pressed, dt, previous): LookOffset`, `LOOK_LIMIT_RAD`.
 - Changes: `cameraTransformFor(mode, spec, render, look: LookOffset)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/input/lookAround.test.ts`:
 
@@ -1739,12 +1739,12 @@ describe('lookOffsetFromKeys', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/input/lookAround.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Add the bindings**
+- [x] **Step 3: Add the bindings**
 
 In `src/input/bindings.ts`, add to `BINDINGS`:
 
@@ -1757,7 +1757,7 @@ In `src/input/bindings.ts`, add to `BINDINGS`:
   lookBack: ['Numpad0'],
 ```
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Create `src/input/lookAround.ts`:
 
@@ -1813,7 +1813,7 @@ export function lookOffsetFromKeys(
 }
 ```
 
-- [ ] **Step 5: Apply the offset in the camera**
+- [x] **Step 5: Apply the offset in the camera**
 
 In `src/render/camera.ts`, add the parameter and apply it to the returned attitude in **both** modes:
 
@@ -1863,12 +1863,12 @@ it('applies look-around in body frame, not world frame', () => {
 })
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `npx vitest run tests/input/lookAround.test.ts tests/render/camera.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -1899,7 +1899,7 @@ Pure: state in, needle angle out. Fitted only where Plan 1's model produces the 
 **Interfaces:**
 - Produces: `type GaugeId = 'airspeed' | 'altimeter' | 'verticalSpeed' | 'heading' | 'fuel' | 'slip'`, `GAUGES`, `gaugeValue(id, spec, state): number`, `needleAngleFor(id, spec, state): number`, `attitudeAngles(state): { pitchRad: number; rollRad: number }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/gauges.test.ts`:
 
@@ -1999,12 +1999,12 @@ describe('attitudeAngles', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/gauges.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/render/gauges.ts`:
 
@@ -2160,12 +2160,12 @@ export function needleAngleFor(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/gauges.test.ts`
 Expected: PASS, 11 tests.
 
-- [ ] **Step 5: Run the full pipeline and commit**
+- [x] **Step 5: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -2202,7 +2202,7 @@ First pixels. The day-0 spike is the reason this task exists separately: a page 
 - Consumes: `judgeAdapter` (Task 7).
 - Produces: `showFailure(root, kind, detail)`, `type FailureKind`, `createOverlay(root)`, `initRenderer(canvas)` returning `{ renderer, adapterVerdict }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/failure.test.ts`. This tests the message selection, which is pure — the DOM writing is a thin wrapper:
 
@@ -2243,12 +2243,12 @@ describe('failureMessage', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/failure.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the failure states**
+- [x] **Step 3: Implement the failure states**
 
 Create `src/render/failure.ts`:
 
@@ -2330,7 +2330,7 @@ export function showFailure(root: HTMLElement, kind: FailureKind, detail: string
 }
 ```
 
-- [ ] **Step 4: Implement the overlay and the renderer bootstrap**
+- [x] **Step 4: Implement the overlay and the renderer bootstrap**
 
 Create `src/render/overlay.ts`:
 
@@ -2411,7 +2411,7 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<RendererB
 }
 ```
 
-- [ ] **Step 5: Wire `main.ts` to show something**
+- [x] **Step 5: Wire `main.ts` to show something**
 
 Replace `src/render/main.ts` with a bootstrap that brings up the renderer, installs the `device.lost` and `uncapturederror` handlers, and clears to a colour. No scene content yet — that is Task 12.
 
@@ -2464,12 +2464,12 @@ void boot().catch((e: unknown) => {
 })
 ```
 
-- [ ] **Step 6: Verify by eye, once**
+- [x] **Step 6: Verify by eye, once** — DONE 2026-09-13 on the reference platform, driven remotely: the canvas clears and the overlay reads `Reference platform: vendor="amd" architecture="rdna-2"` at 119 fps / 8.4 ms.
 
 Run `npm run dev` on nexus, tunnel from the Windows desktop (`ssh -L 5173:localhost:5173 nexus`), open `http://localhost:5173`.
 Expected: a cleared canvas with the dev overlay top-left naming the adapter. This is one of the few steps in this plan that needs human eyes; from Task 15 the adapter half is automated.
 
-- [ ] **Step 7: Retire the placeholder, run the full pipeline and commit**
+- [x] **Step 7: Retire the placeholder, run the full pipeline and commit**
 
 `git rm src/render/placeholder.ts`, and in `tests/architecture/boundary.test.ts` change the render probe's import to `import { showFailure } from '../render/failure.js'` (and its export to `showFailure`). The probe still targets a real file, which is what makes it a probe.
 
@@ -2506,7 +2506,7 @@ would corrupt the baselines."
 
 Three constructs geometry without a GPU, so shape is Tier 1 testable even though appearance is not.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/scene.test.ts`:
 
@@ -2599,12 +2599,12 @@ describe('lighting', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/scene.test.ts`
 Expected: FAIL — modules not found.
 
-- [ ] **Step 3: Build the water**
+- [x] **Step 3: Build the water**
 
 Create `src/render/scene/water.ts`. A large plane with a repeating procedural normal pattern:
 
@@ -2649,7 +2649,7 @@ export function createWater(): Object3D {
 }
 ```
 
-- [ ] **Step 4: Build the sky, the lighting and the markers**
+- [x] **Step 4: Build the sky, the lighting and the markers**
 
 Create `src/render/scene/sky.ts` — a large inverted sphere with a vertical gradient, giving a clean horizon to fly against. Not the scattering LUTs; those are a later plan. **TSL, not a GLSL `ShaderMaterial`:** WebGPURenderer converts classic mesh materials through its material library and `ShaderMaterial` is not in it (checked in three 0.186's `three.webgpu.js`, 2026-09-12).
 
@@ -2722,7 +2722,7 @@ export function createMarkers(): Object3D {
 }
 ```
 
-- [ ] **Step 5: Build the Hellcat**
+- [x] **Step 5: Build the Hellcat**
 
 Create `src/render/scene/hellcat.ts`. Low-poly, built from primitives, **+X forward, +Y up, +Z right** to match the sim body frame. Dimensions from the content file: 13.06 m span, roughly 10.2 m long.
 
@@ -2778,12 +2778,12 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/scene.test.ts`
 Expected: PASS, 8 tests.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -2823,7 +2823,7 @@ Wires the pieces together. **This is the milestone** — after this task there i
 - Consumes: everything from Tasks 1–12.
 - Produces: `initialFrameState(spec, aircraft)`, `nextFrameState(prev, elapsedSeconds, pressed, stepper?): FrameState` — the pure part of the frame, so the loop's bookkeeping is testable without a GPU.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/frame.test.ts`:
 
@@ -2891,12 +2891,12 @@ describe('nextFrameState', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement the pure frame step**
+- [x] **Step 3: Implement the pure frame step**
 
 Create `src/render/frame.ts`:
 
@@ -2982,9 +2982,9 @@ export function nextFrameState(
 }
 ```
 
-- [ ] **Step 4: Wire the browser loop**
+- [x] **Step 4: Wire the browser loop**
 
-Update `src/render/main.ts` to: fetch and `parseAircraftSpec` the F6F content; build the scene from Task 12, `createLighting()` included; track pressed keys from `keydown`/`keyup`, and **clear the set on `window` `blur`** (a `keyup` that fires while the tab is unfocused is never delivered, and the key stays down forever); re-centre the sky dome on the eye's x and z each frame so the horizon stays at eye level; call `nextFrameState` each frame; apply `frame.eye` to the Three camera **camera-relative** (translate the world so the eye sits at the origin); spin the prop by `controls.throttle`; and feed the overlay.
+Update `src/render/main.ts` to: fetch and `parseAircraftSpec` the F6F content; build the scene from Task 12, `createLighting()` included; track pressed keys from `keydown`/`keyup`, and **clear the set on `window` `blur`** (a `keyup` that fires while the tab is unfocused is never delivered, and the key stays down forever); re-centre the sky dome on the eye's x and z each frame, which keeps the horizon horizontally centred under the camera rather than drifting unbounded over a long flight (amended 2026-09-13, Task 13 review: this first said "so the horizon stays at eye level" -- y is deliberately left un-recentred, so the horizon actually sits a small, altitude-dependent angle below eye level, about 0.76 degrees at 600 m against the dome's 45,000 m radius, not exactly at it); call `nextFrameState` each frame; apply `frame.eye` to the Three camera **camera-relative** (translate the world so the eye sits at the origin); spin the prop by `controls.throttle`; and feed the overlay.
 
 Camera-relative is the part to get right, since retrofitting it is what master spec §4 warns about:
 
@@ -3000,19 +3000,19 @@ camera.quaternion.set(frame.eye.attitude.x, frame.eye.attitude.y, frame.eye.atti
 
 Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` argument, which `advance` already accepts and tests (Task 3). Plan 1's invariants turn "the aeroplane teleported" into "a NaN entered at tick 4,102", and that is worth the per-step cost in development. The choice is made here, at the edge, so `sim/` carries no build flag; `import.meta.env` typechecks because Task 5 added `vite/client` to `types`.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Fly it**
+- [ ] **Step 6: Fly it** — STILL MARK'S. Flown programmatically on the reference platform 2026-09-13 to capture screenshots, which is not the same thing: this step exists to judge how the aeroplane FEELS, particularly `RAMP_SECONDS`, and that cannot be delegated.
 
 `npm run dev` on nexus, tunnel, open `http://localhost:5173`.
 Expected: an F6F over water, chase camera, arrow keys fly it, Shift opens the throttle, C switches to the cockpit, numpad looks around.
 
 **This is the answer to the question Plan 1 could not ask.** Note what it feels like — particularly whether `RAMP_SECONDS` is right — but change nothing yet; tuning is worth its own commit with a reason.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -3048,7 +3048,7 @@ Task 10 produced the needle angles; this puts real geometry behind them.
 - Consumes: `GAUGES`, `needleAngleFor`, `attitudeAngles` (Task 10); `spec.view.eyePointM` (Task 8).
 - Produces: `createPanel(spec): { root: Object3D; needles: Map<GaugeId, Object3D>; horizon: Object3D }`, `updatePanel(panel, spec, state): void`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/panel.test.ts`:
 
@@ -3116,12 +3116,12 @@ describe('panel', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/render/scene/panel.ts`. Build one dial per entry in `GAUGES`, laid out in a row below the eye line, each with a face and a needle pivoting about its own centre, plus a separate artificial-horizon element.
 
@@ -3210,7 +3210,7 @@ export function updatePanel(panel: Panel, spec: AircraftSpec, state: AircraftSta
 }
 ```
 
-- [ ] **Step 4: Attach it in the cockpit view**
+- [x] **Step 4: Attach it in the cockpit view**
 
 In `src/render/main.ts`, put the panel in a `cockpit` `Group` that is given the same position and quaternion as the Hellcat root each frame, and **swap the two with camera mode**: cockpit mode shows the cockpit group and hides the external airframe; chase mode the reverse.
 
@@ -3222,17 +3222,17 @@ updatePanel(panel, spec, frame.world.aircraft)
 
 Hiding the airframe is not optional. The code-built Hellcat is an *external* model: its fuselage box spans y ±0.75 m, so its top face lies between the eye (0.9 m) and the panel (0.55 m) and, being front-facing from above, would occlude the panel completely. Cockpit interior geometry is a later plan's; until then the panel floats in front of an invisible airframe, which is exactly the view a pilot has.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Check legibility, once**
+- [ ] **Step 6: Check legibility, once** — STILL MARK'S. Rendered and inspected at 1440p on the reference platform 2026-09-13, and three objective defects were fixed as a result (overlapping dials, needles crossing into neighbours, numerals sitting on their own ticks). Whether it reads at a glance while flying is a human judgement and is not claimed.
 
 `npm run dev`, tunnel, press `C` for the cockpit.
 Expected: gauges readable at a glance at 1440p. This is the check that the appearance-authenticity trade was made for — if they are not readable, raise `DIAL_RADIUS` and say so in the commit.
 
-- [ ] **Step 7: Run the full pipeline and commit**
+- [x] **Step 7: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
@@ -3267,7 +3267,7 @@ Automates the two checks that need a GPU and no human judgement. Deliberately **
 - Consumes: `judgeAdapter` (Task 7).
 - Produces: `npm run test:tier2`; `window.__ww2` diagnostics hook.
 
-- [ ] **Step 1: Expose a diagnostics hook**
+- [x] **Step 1: Expose a diagnostics hook**
 
 In `src/render/main.ts`, after the renderer is up, publish what the harness needs. Guard it so it is absent from a production build:
 
@@ -3283,7 +3283,7 @@ if (import.meta.env.DEV) {
 
 Accumulate validation errors from the existing `uncapturederror` handler into a module-level array, and add a `pushErrorScope('validation')` around the first frame so setup errors are captured too.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `tests/e2e/adapter.spec.ts`:
 
@@ -3342,7 +3342,7 @@ ${JSON.stringify(errors, null, 2)}`).toEqual([])
 })
 ```
 
-- [ ] **Step 3: Add the Playwright config**
+- [x] **Step 3: Add the Playwright config**
 
 ```bash
 npm install --save-dev @playwright/test
@@ -3383,7 +3383,7 @@ Add to `package.json`:
 "test:tier2": "playwright test",
 ```
 
-- [ ] **Step 4: Run it on the reference platform**
+- [x] **Step 4: Run it on the reference platform** — DONE 2026-09-13, 2 passed in 8.6 s on the RX 6700 XT. The day-0 question it carried is answered: the adapter assertion holds, but only with a HEADED launch driven through a Playwright server on the Windows machine. Headless was not retried.
 
 With `npm run dev` running on nexus and the tunnel open, from the Windows desktop:
 
@@ -3397,11 +3397,11 @@ Expected: 2 passed. If the adapter test fails, read its summary before anything 
 
 The Windows side needs its own checkout of the repo with `npm ci` and `npx playwright install chromium` run once. The dev server is on nexus; the test runner has to be local to the GPU.
 
-- [ ] **Step 5: Document the loop**
+- [x] **Step 5: Document the loop**
 
 Add a short section to `README.md` under the existing dev instructions covering: `npm run dev` on nexus, the tunnel command, the one-time Windows setup (checkout, `npm ci`, `npx playwright install chromium`), and `npm run test:tier2` from Windows — plus the sentence that Tier 2 never runs in hosted CI and why.
 
-- [ ] **Step 6: Run the full pipeline and commit**
+- [x] **Step 6: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 Expected: exit 0. Tier 2 is deliberately **not** part of `verify` — nexus has no GPU, so including it would make the main pipeline fail on the machine it usually runs on.
@@ -3452,3 +3452,50 @@ A review pass ran the plan's own arithmetic and probes against the repo before a
 - **Specified where it was hand-waved.** The `stepChecked`-in-dev switch is a tested `stepper` argument on `advance` (Task 3), threaded through `nextFrameState` (Task 13). `placeholder.ts` is retired in Task 11 and the render probe repointed. The File Structure table now names the files the tasks actually create (`main.ts`, `renderer.ts`, `frame.ts`, `markers.ts`, `lighting.ts`), not `app.ts`.
 - **Tick numbering.** One convention everywhere: the tick a step produces, so the first step from a tick-0 spawn yields 1 (Task 1 Step 6).
 - **Smaller.** Pressed keys cleared on window blur. Sky dome re-centred on the eye. Task 13's "flies" test compares full throttle against idle instead of asserting forward motion an aircraft already at 120 m/s has anyway. Task 15 says headless adapter identity is still the unverified day-0 question and lists the Windows one-time setup.
+
+## Revision 2026-09-13 (second) — this plan is history, not reference
+
+Read the code, not this document, for anything you intend to copy.
+
+A review pass found this file now contradicts the tree in roughly twenty
+places. Most are harmless drift — constants that moved, signatures that gained
+a parameter, per-task test counts, a File Structure table missing the files
+later tasks added. Three are not harmless, because they quote code that was
+LATER FOUND DEFECTIVE and fixed, so anyone reading the plan for reference would
+reintroduce a known bug:
+
+- the roll expression `Math.atan2(up.z, up.y)`, which is C-2: it is a body-frame
+  quantity, not a bank angle, and reports up to 10 degrees of false bank on a
+  wings-level aeroplane purely as a function of heading.
+- `panel.horizon.rotation.z = -rollRad` together with `pitchRad * 0.08`, which
+  are C-1 and I-7: the bar read backwards, and its height was an invented scale
+  that hung it 15.8 degrees below the eye line at zero pitch.
+- `WATER_EXTENT_M = 40_000` under the comment "Big enough that its edge never
+  enters frame at this plan's altitudes", which is the exact false comment I-1
+  removed. No finite flat plane can satisfy it.
+
+Left in place deliberately rather than edited. The plan is the record of what
+was intended and executed, and rewriting it to match the outcome would destroy
+that; the header above is the fix. The design doc, by contrast, IS maintained
+as reference and has been corrected.
+
+## Revision 2026-09-13 — four checkboxes corrected (whole-branch review, M-8)
+
+Four steps were ticked that nobody has performed. Every one of them needs the
+Windows desktop with the RX 6700 XT; nexus is headless and cannot run any of
+them. They are now unticked and marked, and they are the outstanding work on
+this branch:
+
+- Task 11 Step 6 — verify by eye that the canvas clears and the overlay names
+  the adapter
+- Task 13 Step 6 — fly it, and note how `RAMP_SECONDS` feels without changing it
+- Task 14 Step 6 — check the gauges are legible at 1440p
+- Task 15 Step 4 — run `npm run test:tier2` against a real GPU
+
+This was a defect in the tick convention, not an oversight by any one task: the
+convention says a task's commit ticks its own boxes, and a step whose executor
+is a human rather than the agent gets ticked along with the rest. A document
+that asserts a human looked at something when nobody did is the same class of
+error as the nine false comments this plan corrected — an untrue durable claim
+that no test can catch. A step that needs the reference platform now says so in
+the checkbox text itself, so it cannot be ticked by a machine that cannot run it.

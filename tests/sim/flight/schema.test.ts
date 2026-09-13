@@ -12,17 +12,35 @@ const valid = {
     maxPowerW: 1_491_000, propEfficiency: 0.8, staticThrustN: 20_000,
     powerFractionByAltitudeM: [[0, 1], [7132, 1], [11400, 0.6]],
   },
-  rates: { maxRollRateDegPerSec: 80, maxPitchRateDegPerSec: 30, maxYawRateDegPerSec: 15, rateRefSpeedMps: 103 },
+  rates: {
+    maxRollRateDegPerSec: 80,
+    maxPitchRateDegPerSec: 30,
+    maxYawRateDegPerSec: 15,
+    rateRefSpeedMps: 103,
+    weathercockSeconds: 1.5,
+  },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
   reference: {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,
     climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80, takeoffDistanceM: 230,
   },
+  view: { eyePointM: [1.2, 0.9, 0] },
 }
 
 describe('AircraftSpec validation (spec §9)', () => {
   it('accepts a well-formed spec', () => {
     expect(parseAircraftSpec(valid).id).toBe('test-plane')
+  })
+
+  it('requires a view block with an eye point', () => {
+    const withoutView: Record<string, unknown> = { ...valid }
+    delete withoutView['view']
+    expect(() => parseAircraftSpec(withoutView)).toThrow(/view/)
+  })
+
+  it('rejects an eye point that is not three finite numbers', () => {
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1] } })).toThrow(/eyePointM/)
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1, NaN] } })).toThrow(/eyePointM/)
   })
 
   it('rejects NaN rather than letting it reach the integrator', () => {
@@ -79,7 +97,7 @@ describe('AircraftSpec validation (spec §9)', () => {
       expect(() => parseAircraftSpec(bad)).toThrow(/aerodynamics/)
     })
 
-    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'reference'] as const)(
+    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'reference', 'view'] as const)(
       'rejects an unknown key inside %s',
       (section) => {
         const bad = {

@@ -4,7 +4,7 @@ Plan 2 of 7. Companion to `2026-09-12-ww2airsim-design.md`, which remains the
 binding authority; where this document and that one disagree, that one wins and
 this one is wrong.
 
-**Status: design approved 2026-09-12, no implementation yet.** Amended 2026-09-12 after the plan's pre-execution review; each amendment is marked inline and dated.
+**Status: implemented. All 15 tasks committed on `worktree-plan2-renderer` as of 2026-09-13; 341 tests in 30 files green, `npm run build` produces a bootable artifact. Four steps remain, all needing the reference platform — see the plan's 2026-09-13 revision.** Amended 2026-09-12 after the plan's pre-execution review; each amendment is marked inline and dated.
 
 ## 1. What this is
 
@@ -71,14 +71,59 @@ vendor === 'amd' && architecture === 'rdna-2' && isFallbackAdapter === false
 which still discharges the guard's actual purpose — ruling out a software
 rasterizer whose frame times and screenshots would be worthless.
 
-**The TSL result is unsettled and it was our bug, not three's.** The probe
+**The TSL result is unsettled. This section originally concluded it was our bug, not three's; that no longer stands — see the 2026-09-13 second-platform section below, which re-ran the fixed probe and got the identical error.** The probe
 passed `storageBufferNode.toAttribute()` to `renderer.getArrayBufferAsync()`,
 which wants the `StorageInstancedBufferAttribute` at `.value`; `toAttribute()`
 returns a `BufferAttributeNode` for feeding geometry. Hence
 `TypeError: Cannot read properties of undefined (reading 'size')`. Fixed in the
-probe, not yet re-run. Since raw WGSL compute demonstrably works on this GPU,
+probe. Re-run 2026-09-13 on a Surface: it threw the identical error, so this
+diagnosis is not supported -- see the second-platform section above. Since raw
+WGSL compute demonstrably works on this GPU,
 **no part of this plan is blocked either way** — TSL versus `wgslFn` is a
 question for Plan 4's ocean, not for anything here.
+
+### Second platform, 2026-09-13 — Surface (Snapdragon, Adreno 7xx, Chrome 152)
+
+Mark ran the **fixed** probe (commit 3f6ee0b, its first run on any machine) on
+an ARM Windows Surface over the same SSH tunnel. Not the reference platform,
+and not a substitute for it — but it settles one question and reopens another.
+
+| Question | Answer |
+| --- | --- |
+| Secure context over the tunnel | Yes — `isSecureContext: true` at `http://localhost:5173` |
+| `navigator.gpu` | Present |
+| Adapter | `vendor: "qualcomm"`, `architecture: "adreno-7xx"`, `device: ""`, `isFallbackAdapter: false` |
+| three on a WebGPU backend | Yes — `WebGPUBackend` |
+| Raw WGSL `workgroupBarrier` compute | Works |
+| TSL `workgroupArray` + `workgroupBarrier` | **Fails**, `TypeError: Cannot read properties of undefined (reading 'size')` |
+| Adapter guard verdict | `warn` — "unrecognised adapter", `haystack="qualcomm adreno-7xx"` |
+
+**The empty `device`/`description` finding generalises.** Chrome reports coarse
+adapter identifiers on a completely different vendor and architecture too, so
+the vendor-plus-architecture ceiling above is a property of Chrome, not of the
+AMD driver. The guard's shape is right.
+
+**The TSL diagnosis above is not supported, and this section says so rather
+than being quietly left to stand.** The 2026-09-12 entry concluded the
+`TypeError` "was our bug, not three's", from passing `toAttribute()` where
+`.value` was wanted. That fix is in the probe (`spike/webgpu-day0/probe.ts`,
+the `.value` cast and the comment above it) and the fixed probe throws the
+**identical** error on this machine. So one of three things is true and none of
+them is "fixed": the fix was incomplete, the same message is now coming from
+somewhere else, or three's TSL compute path genuinely does not work here. It
+has still never been run on the reference GPU. Open item 1 is reopened
+accordingly.
+
+Not blocking anything, for the same reason as before: raw WGSL compute works on
+both machines, so the contingency holds on two GPUs from different vendors,
+which is a stronger result than the plan had yesterday.
+
+**Tier 2 cannot run here, by design.** The adapter guard returns `warn`, and
+Ruling R17 makes warn fatal — the reviewer considered loosening it and would
+not, because a false negative silently corrupts every frame-time number
+downstream while a false positive fails loudly on one machine. Adding
+`adreno` to the allowlist would be loosening it for a machine that is not the
+reference platform, so the Surface is a probe host, not a Tier 2 runner.
 
 ## 3. The sim↔render seam
 
@@ -105,6 +150,11 @@ export interface World {
   readonly aircraft: AircraftState
   /** The tick before `aircraft`, for interpolation. Equal to it on tick 0. */
   readonly previous: AircraftState
+  /** Added 2026-09-13 (whole-branch review, I-5): the commanded controls live
+   *  here for the same reason `spec` does. They were an `advance` parameter
+   *  through Plan 2's fifteen tasks — the last counterexample to the rule
+   *  above, and the one Plan 5's N-entity AI would have hit. */
+  readonly controls: Controls
   readonly accumulatorSeconds: number
 }
 
@@ -175,7 +225,7 @@ first commit. It never touches `sim/` internals.
 **Frame order**, which is the part that is easy to get subtly wrong:
 
 1. Sample input → one `Controls` value
-2. `advance(world, controls, elapsed)` runs 0–5 fixed steps, all using it
+2. `advance(world, elapsedSeconds, stepper?)` runs 0–5 fixed steps, all using it — the controls ride in `World`, see the I-5 amendment above
 3. Render interpolates `prev`/`curr` by `alpha`
 
 Input is sampled per *frame*, not per step. A long frame running six steps
@@ -221,10 +271,13 @@ scale and make altitude judgeable.
 later plan. But attitude is judged against a horizon, so this is not optional.
 
 **The aircraft is built in code**: a low-poly F6F silhouette — fuselage, wings,
-tail, spinner — with a prop disc whose rotation tracks throttle, which doubles
-as free confirmation that input is reaching the sim. Per the master spec §10,
-building deliberately simple models is one of the two permitted routes, and it
-carries no license exposure and no `ASSETS.md` row.
+tail, spinner — with a prop disc whose rotation tracks throttle. That confirms
+throttle reaches the frame state, not that it reaches the simulation (amended
+2026-09-13; Task 13 review measured a case where the prop kept spinning while
+`advance` received `NEUTRAL` regardless — the visual and the physics can
+diverge). Per the master spec §10, building deliberately simple models is one
+of the two permitted routes, and it carries no license exposure and no
+`ASSETS.md` row.
 
 ## 6. Cameras
 
@@ -301,8 +354,8 @@ The structural move that decides whether a human is in the loop: **the
 renderer's logic is pure and separate from its drawing.**
 
 ```ts
-cameraTransformFor(mode, prev, curr, alpha, lookOffset) → { position, quaternion }
-needleAngleFor(gauge, state) → radians
+cameraTransformFor(mode, spec, render, look) → EyeTransform   // corrected 2026-09-13
+needleAngleFor(id, spec, state) → radians                     // corrected 2026-09-13
 controlsFromKeys(pressed, dt, previous) → Controls
 ```
 
@@ -361,13 +414,106 @@ context object — a worker boundary becomes a message-passing change rather tha
 a rewrite. Plan 5 is the plan that should revisit it.
 
 ## 10. Open items
-
-1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. The fixed
-   probe has not been re-run. Raw WGSL compute works on the reference GPU, so
-   the contingency is proven; this only matters to Plan 4's ocean.
+1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. Updated
+   2026-09-13: the fixed probe HAS now been run, on the Surface, and throws the
+   identical `TypeError` the fix was supposed to remove (see the second-platform
+   section above). It has still never been run on the reference GPU. Raw WGSL
+   compute now works on two GPUs from different vendors, so the contingency is
+   better proven than the TSL path is broken; this only matters to Plan 4's
+   ocean.
 2. **Keyboard ramp time constant** — a named value, expected to change once the
    aeroplane has been flown.
 3. **Eye point** — needs a plausible value for the F6F; no primary source is
    required for a number that exists to make a camera sit somewhere sensible.
 4. **Gauge legibility at 1440p** — the first thing to check in Tier 3, and the
    reason appearance authenticity was traded away up front.
+5. **Control ramping runs at frame rate, so replay is not frame-rate
+   independent** — added 2026-09-13 (whole-branch review, I-4; Ruling R18
+   settled the documentation half only). `nextFrameState` ramps the controls
+   against the animation-frame delta, outside the fixed step, so 60 Hz and
+   144 Hz replaying the same key log diverge even with `droppedSteps` zero
+   throughout. Master spec §3's replay guarantee therefore does not hold today,
+   and `droppedSteps === 0` does not imply it does.
+
+   Not fixed here on purpose: moving the ramp inside the fixed step changes how
+   the controls feel, and **nobody has flown this yet**. Deciding it before the
+   reference-platform trip is the same guessing the no-tuning rule exists to
+   prevent. Note that it gets harder every plan, and no plan uses replay yet, so
+   the cost of waiting is currently zero and the cost of guessing is not.
+
+6. **RESOLVED 2026-09-13 — no directional stability.** The fin now swings
+   the nose into the wind; see `rates.weathercockSeconds` and
+   `tests/sim/flight/weathercock.test.ts`. Kept in the list rather than
+   deleted because items 8 and 9 both descend from it and would read as
+   orphans otherwise.
+
+7. **`spike/webgpu-day0/probe.ts` is neither typechecked nor linted by
+   `npm run verify`, and it does not compile** — found 2026-09-13. `tsconfig`'s
+   `include` lists `src`, `tests`, `tools` and root `*.ts`, so `tsc --listFiles`
+   emits nothing under `spike/`. Adding it produces real errors: eight or more
+   in the TSL compute block alone, mostly `Cannot invoke an object which is
+   possibly 'undefined'` around `workgroupArray` and `instanceIndex`.
+
+   `npm run lint` now covers `spike` and passes. Typechecking does not, and
+   forcing it would turn the pipeline red on throwaway code, so it stays out
+   until someone fixes the probe's types.
+
+   This matters more than a lint gap normally would, because open item 1 now
+   turns on this file's correctness: the fixed probe threw the identical error
+   on a second GPU, and "the fix was incomplete" is the hypothesis with the
+   least evidence against it precisely because nothing checks this file. The
+   probe also wraps its whole compute block in one `catch`, so the error is
+   not localised to the call that was fixed and no stack was recorded.
+
+8. **`angleOfAttack` leaves the lateral component in its denominator** —
+   found 2026-09-13 while adding directional stability. It is
+   `atan2(-dot(v, up), dot(v, forward))`, and `dot(v, forward)` shrinks as the
+   aeroplane crabs, so alpha is over-reported by 1/cos(sideslip): 3.5% at 15
+   degrees, 34% at 42. Alpha should be measured in the body x-z plane, with the
+   lateral component projected out first.
+
+   Pre-existing and Plan 1's. It mattered far more before the weathercock term,
+   when random inputs left the aeroplane permanently crabbed; the soak's stall
+   fraction fell from 53.1% to 7.9% once the crab was removed. Not fixed here
+   because it changes the flight model a second time in one day, and the
+   golden has already been re-recorded once.
+
+9. **`weathercockSeconds = 1.5` is a guess, and a primary source exists that
+   probably contradicts it** — found 2026-09-13, an hour after the constant was
+   introduced, by asking whether the physics could be borrowed instead of
+   invented.
+
+   NACA Wartime Report L-716, *Flight Measurements of the Flying Qualities of
+   an F6F-3 Airplane (BuAer No. 04776) II: Lateral and Directional Stability
+   and Control*, Williams and Reeder, February 1945. It is a flight test of
+   THIS AIRCRAFT on THIS AXIS. Work of the US Government, public use permitted,
+   free PDF at
+   https://ntrs.nasa.gov/api/citations/19930092601/downloads/19930092601.pdf
+   (NTRS 19930092601, also numbered NACA-MR-L5B13a).
+
+   What it states, quoted from its own conclusions:
+
+   - "The control-free lateral oscillations damped to 1/2 amplitude within two
+     cycles but at the higher speeds tested small continuous oscillations
+     occurred." Figure 7 plots the period against indicated airspeed.
+   - "The maximum sideslip due to use of full aileron deflection (aileron yaw)
+     was approximately 18.5 degrees in rolls to the left and 23.5 degrees in
+     rolls to the right at approximately 100 miles per hour."
+   - "The directional stability, rudder fixed and free, was positive in all
+     conditions and speeds tested", but with "a decrease in directional
+     stability rudder fixed for small angles of sideslip at high speeds", and
+     "the high dihedral effect in conjunction with the low directional
+     stability was considered objectionable."
+
+   Two things follow. First, the real F6F had LOW directional stability and
+   large adverse yaw, so some of what Mark felt is authentic; what was wrong
+   was that our nose did not weathercock AT ALL, not that it was slow.
+   Second, half amplitude in two cycles is a much slower envelope than a 1.5 s
+   first-order decay, so 1.5 is probably several times too quick.
+
+   Not corrected yet, deliberately. The report measures an oscillatory Dutch
+   roll and our model is first-order with no oscillation, so mapping one onto
+   the other needs a stated method rather than a fudge, and the period comes
+   off a 1945 plot that has to be read by eye. Worth doing properly: it would
+   replace a guessed constant with a cited measurement, which is what
+   `reference.source` already does for mass, speed and stall.

@@ -1,0 +1,189 @@
+import type { AircraftSpec } from './flight/schema.js'
+import type { AircraftState, Controls } from './flight/state.js'
+import { DT, step } from './flight/model.js'
+
+/**
+ * The simulation's clock: the per-step context type, and the fixed-step
+ * accumulator that decides when a step happens.
+ *
+ * `SimContext` exists because `step`'s signature is what every later plan has
+ * to extend: terrain height queries, deck contact, a threaded RNG, a wind
+ * vector. As a parameter list that is a change to every call site; as one
+ * object it is a change to one interface (Plan 1 whole-branch review, highest
+ * -risk structural finding).
+ *
+ * It carries `dt` and `tick` and NOTHING ELSE on purpose. The same review
+ * flagged `speedOfSoundAt` as an export with no consumer; speculative
+ * `wind`/`terrain`/`rng` fields would repeat exactly that. Later plans add a
+ * field when they have a consumer for it.
+ */
+export interface SimContext {
+  /** Seconds this step advances. Always `DT` in production; tests vary it. */
+  readonly dt: number
+  /** Monotonic simulation tick this step produces. Starts at 0. */
+  readonly tick: number
+}
+
+/**
+ * The most steps one `advance` call may run.
+ *
+ * Without a cap, a frame that runs long owes more steps next frame, which makes
+ * that frame longer still: the accumulator grows without bound and the game
+ * locks up. Five steps is 83 ms of simulated time, comfortably more than any
+ * healthy frame and far short of a freeze.
+ */
+export const MAX_STEPS_PER_FRAME = 5
+
+/**
+ * Tolerance, in steps, when counting whole steps owed. Half a step banked
+ * plus half a step fed sums to 0.9999999999999998 steps in IEEE doubles
+ * (measured 2026-09-12, Node 22), and a bare floor would owe zero and carry
+ * a whole step of debt into the next frame. A millionth of a step is far
+ * below anything a frame delta resolves and far above the rounding error.
+ */
+const STEP_EPSILON = 1e-6
+
+/**
+ * The most one call's `elapsedSeconds` is allowed to bank, seconds.
+ *
+ * A tab suspend or a debugger pause can hand `advance` an enormous delta.
+ * Without this, an enormous-but-finite `elapsedSeconds` (e.g.
+ * `Number.MAX_VALUE`) survives into `banked / DT`, which can itself overflow
+ * to `Infinity` (measured 2026-09-12, Node 22). That poisons everything
+ * downstream: `owed` becomes non-finite, `alpha` can come back `Infinity`
+ * instead of in `[0, 1)`, and `accumulatorSeconds` can come back outside its
+ * documented `[0, DT)` range and ride, poisoned, into every later `advance`
+ * call on that world. Guarding at the input rather than clamping `owed`
+ * afterward keeps every downstream field consistent by construction, rather
+ * than requiring a second special case for each one individually.
+ *
+ * 60 seconds is comfortably beyond any real animation-frame stall (a tab
+ * backgrounded for a few seconds, a GC pause, a debugger break) while being
+ * astronomically far from where division by DT could overflow -- at this
+ * bound, `banked / DT` is at most ~3600, nowhere near a double's range.
+ * `MAX_STEPS_PER_FRAME` discards the excess regardless of how the input is
+ * bounded, so this constant only decides how large `droppedSteps` can
+ * honestly get for a delta that long, not whether the cap fires.
+ */
+const MAX_ELAPSED_SECONDS = 60
+
+/** The function that integrates one tick: `step` in production, `stepChecked`
+ *  in development builds. Chosen by the caller, so `sim/` carries no build flag. */
+export type Stepper = typeof step
+
+export interface World {
+  /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
+   *  list: the design has later plans add fields to World precisely so
+   *  that `advance`'s signature never grows. */
+  readonly spec: AircraftSpec
+  readonly aircraft: AircraftState
+  /** The tick before `aircraft`. Equal to it until the first step runs. */
+  readonly previous: AircraftState
+  /**
+   * What the pilot is commanding, held for every step this `advance` runs.
+   *
+   * Here for the same reason `spec` is, and moved here (whole-branch review,
+   * finding I-5) from `advance`'s parameter list, where it was the one
+   * remaining counterexample to the rule above. Plan 5's N-entity AI is
+   * exactly the change `SimContext` was introduced to avoid having to make at
+   * every call site, and it would have hit this parameter; it is ten lines to
+   * move now and a rewrite afterwards. The caller sets it by rebuilding the
+   * world (see `nextFrameState` in src/render/frame.ts), which keeps `World`
+   * immutable and `advance` a pure function of one object.
+   *
+   * Deliberately still ONE control vector for ONE aeroplane: generalising
+   * `World` to N entities is Plan 5's, not this branch's.
+   */
+  readonly controls: Controls
+  /** Unspent time, always in [0, DT). */
+  readonly accumulatorSeconds: number
+}
+
+export interface AdvanceResult {
+  readonly world: World
+  /** Whole steps actually run, 0..MAX_STEPS_PER_FRAME. */
+  readonly stepsRun: number
+  /**
+   * Steps owed but discarded to break a spiral. Non-zero means simulated time
+   * was skipped, so this session is definitely NOT reproducible from
+   * (seed, input log) -- master spec §3's replay guarantee.
+   *
+   * Zero does NOT currently mean the converse (whole-branch review, I-5's
+   * sibling I-4; corrected 2026-09-13). It says the fixed-step integrator ran
+   * every tick it was owed, and that much is true. But the CONTROLS fed to
+   * those ticks are ramped at frame rate, not at DT: `nextFrameState` calls
+   * `controlsFromKeys(pressed, elapsedSeconds, prev.controls)` with the
+   * animation-frame delta, and that function integrates toward the target over
+   * `RAMP_SECONDS`. So 60 Hz and 144 Hz replaying the same key log reach
+   * different deflections at the same tick, and diverge, with `droppedSteps`
+   * zero throughout.
+   *
+   * Ruling R18 fixed this comment and deliberately did NOT move the ramp inside
+   * the fixed step: that changes control feel, and nobody has flown this yet.
+   * The architectural half is an open item in the design doc. It gets harder
+   * every plan; no plan uses replay yet.
+   */
+  readonly droppedSteps: number
+  /** Remainder as a fraction of a step: the renderer's interpolation factor. */
+  readonly alpha: number
+}
+
+export const createWorld = (
+  spec: AircraftSpec,
+  aircraft: AircraftState,
+  controls: Controls,
+): World => ({
+  spec,
+  aircraft,
+  previous: aircraft,
+  controls,
+  accumulatorSeconds: 0,
+})
+
+export function advance(
+  world: World,
+  elapsedSeconds: number,
+  stepper: Stepper = step,
+): AdvanceResult {
+  // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
+  // that is negative or not a number; banking either would poison the
+  // accumulator permanently, so those are dropped here. A delta that is
+  // positive and finite but enormous is instead clamped to
+  // MAX_ELAPSED_SECONDS -- see that constant for why clamping the input,
+  // rather than anything computed from it, is what keeps `owed`, `alpha`
+  // and `accumulatorSeconds` all well-formed together.
+  const elapsed =
+    Number.isFinite(elapsedSeconds) && elapsedSeconds > 0
+      ? Math.min(elapsedSeconds, MAX_ELAPSED_SECONDS)
+      : 0
+
+  let banked = world.accumulatorSeconds + elapsed
+  const owed = Math.floor(banked / DT + STEP_EPSILON)
+  const stepsRun = Math.min(owed, MAX_STEPS_PER_FRAME)
+  const droppedSteps = owed - stepsRun
+
+  let current = world.aircraft
+  let previous = world.previous
+  for (let i = 0; i < stepsRun; i++) {
+    previous = current
+    current = stepper(world.spec, current, world.controls, { dt: DT, tick: current.tick + 1 })
+  }
+
+  // Discarded steps have their time discarded with them; otherwise the debt
+  // survives into the next call and the cap achieves nothing.
+  banked -= owed * DT
+  if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
+
+  return {
+    world: {
+      spec: world.spec,
+      aircraft: current,
+      previous,
+      controls: world.controls,
+      accumulatorSeconds: banked,
+    },
+    stepsRun,
+    droppedSteps,
+    alpha: banked / DT,
+  }
+}

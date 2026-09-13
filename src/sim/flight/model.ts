@@ -4,6 +4,7 @@ import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
+import type { SimContext } from '../loop.js'
 
 export { createState } from './state.js'
 export type { AircraftState, Controls } from './state.js'
@@ -137,7 +138,9 @@ export function isStalled(spec: AircraftSpec, state: AircraftState): boolean {
  * Deliberately narrow: it rejects only what cannot be integrated at all, and
  * says nothing about the 60 Hz constraint. A large-but-finite `dt` is still
  * accepted, because rejecting it needs a decision about who owns the
- * fixed-step contract -- a step-context refactor deferred to the next plan.
+ * fixed-step contract -- the `SimContext` (`../loop.js`) carries `dt` as of
+ * this task, but its accumulator, which is what would actually own that
+ * contract, is Task 3's work, not this one's.
  */
 function assertUsableDt(dt: number): void {
   if (!Number.isFinite(dt) || dt <= 0) {
@@ -149,9 +152,10 @@ export function step(
   spec: AircraftSpec,
   state: AircraftState,
   controls: Controls,
-  dt: number,
+  ctx: SimContext,
 ): AircraftState {
-  assertUsableDt(dt)
+  assertUsableDt(ctx.dt)
+  const dt = ctx.dt
   const mass = massKg(spec, state)
   const rho = densityAt(state.position.y)
   const v = airspeed(state)
@@ -184,11 +188,48 @@ export function step(
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
 
   const bodyRates = ratesFromDynamicPressure(spec, q, controls)
+
+  // Weathercock: the fin swings the nose into the relative wind.
+  //
+  // Added 2026-09-13 after Mark flew it twice and reported the same thing both
+  // times -- roll into a turn, level out, and the aeroplane keeps travelling
+  // diagonally instead of straightening. Correct: master spec section 5's
+  // rate-command model states it carries no damping derivatives, and
+  // directional stability is one, so nothing here produced a yaw moment from
+  // sideslip at all. Measured before this, hands off at 120 m/s from 10
+  // degrees of sideslip, the nose heading did not move by a hundredth of a
+  // degree in a full minute.
+  //
+  // Deliberately a RATE, not a moment, because that is the model this project
+  // chose: the fin is treated as commanding a yaw rate proportional to the
+  // sideslip it sees, scaled by the same dynamic-pressure authority as every
+  // other rate here, so it goes mushy near the stall exactly as the controls
+  // do. Sideslip then decays as exp(-t / weathercockSeconds) at full
+  // authority.
+  //
+  // Saturated at the fin's own commanded maximum: a large sideslip cannot
+  // produce a yaw rate the pilot could not command with full rudder, which
+  // keeps a violent entry from snapping the nose round faster than the
+  // aeroplane can physically yaw.
+  const weathercockY = (() => {
+    if (v < 1e-6) return 0
+    const right = qRotate(state.attitude, v3(0, 0, 1))
+    const sideslipRad = Math.asin(Math.max(-1, Math.min(1, dot(vdir, right))))
+    const authority = Math.min(1, q / (0.5 * densityAt(0) * spec.rates.rateRefSpeedMps ** 2))
+    const maxRad = spec.rates.maxYawRateDegPerSec * DEG
+    const rate = (sideslipRad / spec.rates.weathercockSeconds) * authority
+    // Negated for the same reason `ratesFromDynamicPressure` negates yaw: a
+    // positive rotation about body +Y turns the nose toward -Z, i.e. LEFT,
+    // while positive sideslip means the airflow is coming from the right and
+    // the nose must go right to meet it.
+    return -Math.max(-maxRad, Math.min(maxRad, rate))
+  })()
   const stalled = isStalled(spec, state)
+  const withWeathercock = v3(bodyRates.x, bodyRates.y + weathercockY, bodyRates.z)
   const ratesWithStall = stalled
-    ? v3(bodyRates.x + STALL_WING_DROP_RAD_PER_S, bodyRates.y, bodyRates.z)
-    : bodyRates
+    ? v3(withWeathercock.x + STALL_WING_DROP_RAD_PER_S, withWeathercock.y, withWeathercock.z)
+    : withWeathercock
   const attitude = qIntegrateBodyRates(state.attitude, ratesWithStall, dt)
 
-  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg }
+  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick }
 }

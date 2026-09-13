@@ -1,0 +1,305 @@
+import { describe, it, expect } from 'vitest'
+import {
+  Box3,
+  DirectionalLight,
+  HemisphereLight,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  Mesh,
+  MeshStandardMaterial,
+  SphereGeometry,
+  Vector3,
+} from 'three'
+import { createHellcat } from '../../src/render/scene/hellcat.js'
+import { createMarkers, recentreMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
+import { createWater, recentreWater, WATER_EXTENT_M } from '../../src/render/scene/water.js'
+import { createSky, domeColourFor, SKY_RADIUS_M } from '../../src/render/scene/sky.js'
+import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
+import { createLighting } from '../../src/render/scene/lighting.js'
+
+/** 1440p, the resolution the legibility trade was made for. */
+const PIXELS_TALL = 1440
+
+describe('hellcat geometry', () => {
+  it('is roughly F6F-sized: ~13 m span, ~10 m long', () => {
+    // Not art direction -- scale is what makes altitude and speed readable
+    // against the water. A model twice the right size reads as half the height.
+    const { root } = createHellcat()
+    const b = new Box3().setFromObject(root)
+    const size = b.getSize(new Vector3())
+    expect(size.z).toBeGreaterThan(11)
+    expect(size.z).toBeLessThan(15)
+    expect(size.x).toBeGreaterThan(8)
+    expect(size.x).toBeLessThan(12)
+  })
+
+  it('is built around its origin, so it rotates about itself', () => {
+    const { root } = createHellcat()
+    const c = new Box3().setFromObject(root).getCenter(new Vector3())
+    expect(Math.abs(c.x)).toBeLessThan(2)
+    expect(Math.abs(c.y)).toBeLessThan(2)
+    expect(Math.abs(c.z)).toBeLessThan(2)
+  })
+
+  it('exposes the prop separately so it can be spun', () => {
+    const { root, prop } = createHellcat()
+    expect(prop).toBeDefined()
+    expect(root.getObjectById(prop.id)).toBeTruthy()
+  })
+
+  it('points +X forward, matching the sim body frame', () => {
+    // sim/ body frame is +X forward, +Y up, +Z right. A model built down -X
+    // flies backwards and every camera offset is wrong by 180 degrees.
+    const { prop } = createHellcat()
+    const p = new Vector3()
+    prop.getWorldPosition(p)
+    expect(p.x).toBeGreaterThan(2)
+  })
+})
+
+describe('markers', () => {
+  it('places markers at a known spacing so altitude is judgeable', () => {
+    // The previous version filtered gaps with `.filter(g => g > 1)`, which
+    // discards ZERO gaps -- so stacking all 105 markers at x = 0 produced an
+    // empty array and a vacuous loop, under a test named for the very
+    // property that would have destroyed. Found by mutation 2026-09-13.
+    const m = createMarkers()
+    const xs = [...new Set(m.children.map((c) => c.position.x))].sort((a, b) => a - b)
+    const zs = [...new Set(m.children.map((c) => c.position.z))].sort((a, b) => a - b)
+    expect(xs.length).toBeGreaterThan(8)
+    expect(zs.length).toBeGreaterThan(8)
+    expect(m.children.length).toBe(xs.length * zs.length)
+    for (const axis of [xs, zs]) {
+      for (let i = 1; i < axis.length; i++) {
+        expect(axis[i]! - axis[i - 1]!).toBeCloseTo(MARKER_SPACING_M, 6)
+      }
+    }
+  })
+
+  it('follows the eye, snapped to its own spacing so the pattern stays world-locked', () => {
+    // The sky was re-centred from Task 12 and the water from I-1; the markers
+    // are the third member of that family and were missed both times. At the
+    // spawn's 120 m/s the aeroplane left the old fixed patch sideways in 17
+    // seconds, after which there was no scale reference at all -- invisible
+    // over featureless water, which is why flying it did not catch this.
+    const m = createMarkers()
+    recentreMarkers(m, 4400, -1600)
+    // Snapped, not tracked: an unsnapped translation would drag every marker
+    // along with the aeroplane and remove the parallax they exist to give.
+    expect(m.position.x).toBe(4000)
+    expect(m.position.z).toBe(-2000)
+    expect(m.position.y).toBe(0)
+    // Every marker still lands on a world grid point, from any eye position.
+    for (const eye of [[0, 0], [4400, -1600], [-98_765, 33_333]] as const) {
+      recentreMarkers(m, eye[0], eye[1])
+      for (const child of m.children.slice(0, 5)) {
+        const worldX = m.position.x + child.position.x
+        expect(Math.abs(worldX / MARKER_SPACING_M - Math.round(worldX / MARKER_SPACING_M))).toBeLessThan(1e-9)
+      }
+    }
+    // And it actually keeps up: never more than half a spacing from the eye.
+    recentreMarkers(m, 123_456, -654_321)
+    expect(Math.abs(m.position.x - 123_456)).toBeLessThanOrEqual(MARKER_SPACING_M / 2)
+    expect(Math.abs(m.position.z - -654_321)).toBeLessThanOrEqual(MARKER_SPACING_M / 2)
+  })
+})
+
+describe('water', () => {
+  it('is at least as wide as the sky dome, so the seam lands on the dome equator', () => {
+    // Whole-branch review, I-1. The old test here asserted the plane was at
+    // least WATER_EXTENT_M across, which is true by construction of a
+    // PlaneGeometry(WATER_EXTENT_M, WATER_EXTENT_M) and therefore proved
+    // nothing -- the same self-referential shape as C-1's horizon test.
+    //
+    // The property that matters is a RELATION between two independently
+    // chosen constants: the plane's half-extent against the dome's radius.
+    // A ray below eye level meets the y=0 plane at h/sin(theta) and the dome
+    // at ~SKY_RADIUS_M, so if the half-extent is the smaller of the two the
+    // water runs out BEFORE the dome and the boundary sits deep inside the
+    // dome's lower hemisphere instead of on its equator.
+    // The two `size >= WATER_EXTENT_M` assertions this comment says were
+    // removed were in fact still here until 2026-09-13, sitting directly
+    // beneath the paragraph describing them as vacuous. They are gone now.
+    expect(WATER_EXTENT_M / 2).toBeGreaterThan(SKY_RADIUS_M)
+  })
+
+  it('filters its surface detail, which three does not do by default', () => {
+    // three's DataTexture ships with NearestFilter on both filters and no
+    // mipmaps. Tiled thousands of times and seen at the grazing angles that
+    // fill most of the screen, that is one texel sampled out of thousands per
+    // pixel: a moiré grid standing over the whole ocean that crawls as the
+    // aeroplane moves. Seen on the 2026-09-13 Surface screenshots.
+    //
+    // The values are asserted, not the defaults, because the defect was
+    // inherited by saying nothing rather than by setting anything.
+    const w = createWater() as Mesh
+    const map = (w.material as MeshStandardMaterial).normalMap!
+    expect(map.generateMipmaps).toBe(true)
+    expect(map.minFilter).toBe(LinearMipmapLinearFilter)
+    expect(map.magFilter).toBe(LinearFilter)
+    expect(map.anisotropy).toBeGreaterThan(1)
+    // A mip chain needs power-of-two dimensions to be built at all.
+    const { width, height } = map.image as { width: number; height: number }
+    expect(Number.isInteger(Math.log2(width))).toBe(true)
+    expect(Number.isInteger(Math.log2(height))).toBe(true)
+  })
+
+  it('re-centres under the eye, as the sky already does', () => {
+    // I-1's unbounded half: the sky is re-centred every frame and the water
+    // was not, so the plane stayed at the origin while the aeroplane flew
+    // away from it. At the spawn's 120 m/s the old 20 km half-extent was
+    // spent in under three minutes, after which the aeroplane is off the
+    // water entirely.
+    const w = createWater()
+    recentreWater(w, 5000, -3000)
+    expect(w.position.x).toBe(5000)
+    expect(w.position.z).toBe(-3000)
+    expect(w.position.y).toBe(0)
+  })
+
+  it('keeps its surface detail world-locked while re-centring, or there is no parallax', () => {
+    // Re-centring a textured plane naively drags the texture along with it,
+    // so the surface detail becomes perfectly stationary relative to the
+    // aeroplane -- which destroys the only thing the detail exists for
+    // (createWater's own doc: at 170 m/s over featureless water you cannot
+    // perceive speed, altitude or sink rate).
+    //
+    // The texture coordinate a fixed WORLD point samples is computed here
+    // from three's PlaneGeometry UV convention directly, NOT by calling any
+    // helper the implementation also uses: u runs 0..1 along local +X and
+    // v along local +Y, and the mesh is rotated -90 degrees about X, so
+    // local +Y maps to world -Z.
+    const w = createWater() as Mesh
+    const map = (w.material as MeshStandardMaterial).normalMap!
+    // Read the plane's orientation off the MESH rather than asserting it in
+    // prose. The previous version derived "local +Y maps to world -Z" from a
+    // comment and never looked at `w.rotation`, so flipping the rotation to
+    // +pi/2 -- sea normals pointing down -- left this test green with its own
+    // model silently no longer describing the object.
+    const localY = new Vector3(0, 1, 0).applyEuler(w.rotation)
+    expect(localY.z).toBeCloseTo(-1, 9)
+    expect(Math.abs(localY.x) + Math.abs(localY.y)).toBeLessThan(1e-9)
+    const sampleAt = (worldX: number, worldZ: number): [number, number] => {
+      const u = (worldX - w.position.x) / WATER_EXTENT_M + 0.5
+      const v = localY.z * ((worldZ - w.position.z) / WATER_EXTENT_M) + 0.5
+      return [u * map.repeat.x + map.offset.x, v * map.repeat.y + map.offset.y]
+    }
+    // One fixed point on the sea, sampled from two different aircraft positions.
+    recentreWater(w, 0, 0)
+    const [u0, v0] = sampleAt(1234, -567)
+    recentreWater(w, 8000, 2500)
+    const [u1, v1] = sampleAt(1234, -567)
+    expect(u1).toBeCloseTo(u0, 6)
+    expect(v1).toBeCloseTo(v0, 6)
+    // And a moving point pinned to the aeroplane must NOT sample the same
+    // texel, or the plane is world-locked in name only.
+    const [uMoved] = sampleAt(8000, 2500)
+    expect(Math.abs(uMoved - u0)).toBeGreaterThan(1)
+  })
+})
+
+describe('sky dome below the horizon', () => {
+  it('is sea below the equator and sky above it, matching step(0, y) exactly', () => {
+    // CORRECTED 2026-09-13. This asserted `domeColourFor(0) === SEA_COLOUR`,
+    // which was the ONE input where the JavaScript and the shader disagreed:
+    // `step(0, y)` returns 1 at y === 0 and therefore selects sky. The test
+    // that existed to keep the mirror honest pinned the mismatch instead --
+    // C-1's shape exactly.
+    //
+    // The function no longer mirrors the colour ramp at all. Three converts
+    // colours into linear working space, so the shader interpolates there
+    // while JavaScript on sRGB bytes interpolates in gamma space; they agreed
+    // only at the endpoints and differed by up to 20 of 255 in between.
+    expect(domeColourFor(-1)).toBe('sea')
+    expect(domeColourFor(-0.001)).toBe('sea')
+    expect(domeColourFor(0)).toBe('sky')
+    expect(domeColourFor(0.0001)).toBe('sky')
+    expect(domeColourFor(1)).toBe('sky')
+  })
+})
+
+describe('sky', () => {
+  it('keeps the equator polygon sub-pixel at the altitudes this plan flies', () => {
+    // CORRECTED 2026-09-13. The first version of this test computed the
+    // RADIAL sagitta, `radius * (1 - cos(pi/N))`, and then divided it by the
+    // radius again -- so the radius cancelled algebraically and the assertion
+    // was a function of the segment count alone, despite a comment promising
+    // that "raising the radius without raising the segment count fails here".
+    // It also measured the wrong thing: the equator ring lies in y = 0 at
+    // every segment count, so its chords bow inward, not downward.
+    //
+    // What a pilot sees is the change in DEPRESSION ANGLE of the equator
+    // between a vertex, at range R, and a chord midpoint, at range
+    // R*cos(pi/N), from an eye at altitude h. That does depend on the radius,
+    // and on the altitude, which is why both appear below.
+    const sky = createSky() as Mesh
+    const { widthSegments, radius } = (sky.geometry as SphereGeometry).parameters
+    const scallopPx = (altitudeM: number, segments = widthSegments): number => {
+      const atVertex = Math.atan(altitudeM / radius)
+      const atMidpoint = Math.atan(altitudeM / (radius * Math.cos(Math.PI / segments)))
+      return (((atMidpoint - atVertex) * 180) / Math.PI / CAMERA_VFOV_DEG) * PIXELS_TALL
+    }
+    // The altimeter's full scale is the highest this plan can go, and the
+    // effect grows with altitude, so the top of the range is the check that
+    // matters. Testing only the spawn was how the first version of this let a
+    // 60-fold error through.
+    const TOP_OF_SCALE_M = 10_000
+    expect(scallopPx(600)).toBeLessThan(1)
+    expect(scallopPx(TOP_OF_SCALE_M)).toBeLessThan(1)
+    // Proven to bite, not merely to pass: a coarser dome crosses a pixel at
+    // the top of the altimeter, which is exactly what 32 segments did.
+    expect(scallopPx(TOP_OF_SCALE_M, 32)).toBeGreaterThan(1)
+    expect(scallopPx(TOP_OF_SCALE_M, widthSegments / 2)).toBeGreaterThan(1)
+  })
+
+  it('splits its colour on a vertex ring, not through the middle of a triangle', () => {
+    const sky = createSky() as Mesh
+    expect((sky.geometry as SphereGeometry).parameters.heightSegments % 2).toBe(0)
+  })
+
+  it('uses a node material, the only kind WebGPURenderer draws as written', () => {
+    // A GLSL ShaderMaterial is not in the WebGPU material library: the
+    // renderer logs 'not compatible' and draws with a bare NodeMaterial, and
+    // nothing headless would ever see it.
+    const sky = createSky() as Mesh
+    expect((sky.material as { isNodeMaterial?: boolean }).isNodeMaterial).toBe(true)
+  })
+})
+
+describe('lighting', () => {
+  it('parents the sun target with the sun, so camera-relative translation cannot bend it', () => {
+    // A DirectionalLight points from its position to its target. The frame
+    // loop translates the whole scene by -eye; a target left at the world
+    // origin would then swing the sun around as the aeroplane moves.
+    const l = createLighting()
+    const sun = l.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
+    expect(sun).toBeDefined()
+    expect(l.children).toContain(sun!.target)
+  })
+
+  it('includes a hemisphere light as bounce fill', () => {
+    // Every material in the scene (water.ts, markers.ts, hellcat.ts) is a lit
+    // MeshStandardMaterial: with only the directional sun, the shadowed side
+    // of the aeroplane renders flat black and nothing headless would ever
+    // show that. Without this assertion, deleting the HemisphereLight left
+    // every other test in this suite green (Task 12 review finding).
+    const l = createLighting()
+    const hemi = l.children.find((c) => c instanceof HemisphereLight)
+    expect(hemi).toBeDefined()
+  })
+  it('points the sun from above, and gives the fill real intensity', () => {
+    // Both of these were `toBeDefined()`. Setting the hemisphere intensity to
+    // zero is behaviourally identical to the deletion the test's own comment
+    // says it exists to catch, and it passed; so did moving the sun below the
+    // sea, which lights the whole scene from underneath.
+    const lights = createLighting()
+    const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
+    const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)
+    expect(sun).toBeDefined()
+    expect(fill).toBeDefined()
+    expect(sun!.position.y).toBeGreaterThan(0)
+    expect(sun!.intensity).toBeGreaterThan(0)
+    expect(fill!.intensity).toBeGreaterThan(0)
+  })
+
+})
