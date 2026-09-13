@@ -40,6 +40,52 @@ const bodyAxes = (state: AircraftState) => ({
   up: qRotate(state.attitude, v3(0, 1, 0)),
 })
 
+/**
+ * Angle of attack, radians, positive when the airflow comes from below the
+ * wing. This is the standard flight-dynamics definition -- the angle, measured
+ * in the aeroplane's plane of symmetry, between the body forward axis and the
+ * velocity projected into that plane.
+ *
+ * It IS already measured in the plane of symmetry, and open item 8 in
+ * `docs/superpowers/specs/2026-09-12-renderer-and-flight-controls-design.md`
+ * was wrong to say otherwise (retracted there 2026-09-13, with the numbers).
+ * Derivation, because that item was believed for a day and is the kind of
+ * claim this codebase has shipped wrongly before. Write the velocity in the
+ * body basis, which `qRotate` keeps orthogonal for any attitude:
+ *
+ *     v = u * forward + n * up + s * right
+ *     u = dot(v, forward)   n = dot(v, up)   s = dot(v, right)
+ *
+ * Projecting the lateral component out gives `vSym = v - s * right`, and
+ * because `right` is orthogonal to both `forward` and `up`:
+ *
+ *     dot(vSym, forward) = u        dot(vSym, up) = n
+ *
+ * -- so `atan2(-n, u)` below is already the in-plane angle, and doing the
+ * subtraction first cannot change it. Verified numerically 2026-09-13 over
+ * 20,000 random attitude/velocity pairs: the largest disagreement between
+ * this function and the explicitly-projected form is 1.2e-14 rad (7e-13
+ * degrees), i.e. the rounding cost of the extra subtraction and nothing else.
+ * `tests/sim/flight/angleOfAttack.test.ts` asserts the identity rather than
+ * leaving it as this paragraph.
+ *
+ * What open item 8 mistook for an artefact is real: yaw the nose away from a
+ * fixed flight path and alpha grows as `tan(alpha) = tan(alpha_0) / cos(beta)`
+ * -- 3.5% at 15 degrees of sideslip, 34% at 42. That is what the definition
+ * says, not a bug in it. Crabbing cuts the chordwise component of the flow
+ * (`u`) while leaving the component normal to the wing (`n`) alone, so the
+ * flow does meet the chord at a larger angle. The same test file pins that
+ * relation, so a future "fix" that removes it has to fail a test first.
+ *
+ * `normalize(v)` is not load-bearing: both arguments are scaled by the same
+ * positive `1/|v|`, which `atan2` is invariant to. It is kept because it
+ * costs one sqrt in a function that is not the hot path (`step` calls it
+ * once) and it keeps the arguments in a readable range for anyone debugging.
+ *
+ * Note also that this form degrades gracefully where the projected form does
+ * not: in a purely lateral flow (90 degrees of sideslip) `vSym` is the zero
+ * vector, so normalizing it yields NaN, while `atan2(0, 0)` is 0.
+ */
 export function angleOfAttack(state: AircraftState): number {
   const v = state.velocity
   if (length(v) < 1e-6) return 0

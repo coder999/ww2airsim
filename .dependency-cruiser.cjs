@@ -37,6 +37,36 @@ module.exports = {
       to: { path: '^src/input' },
     },
     {
+      name: 'sim-must-not-import-assists',
+      comment:
+        'Plan 3: the dependency runs assists/ -> sim/ and never back. `advance` ' +
+        'takes the assist as an injected parameter (see `Assist` in ' +
+        'src/sim/loop.ts) precisely so the physics layer never depends on ' +
+        "whoever wrote the assist, and so an assist's tuning cannot end up " +
+        'inside the layer spec §3 requires to stay pure physics. Added ' +
+        '2026-09-13 (Task 2 review): until then the constraint held only as a ' +
+        'side effect of `no-circular` below, because assists/ happens to import ' +
+        'sim/ today -- genuine enforcement, but an accident of another rule ' +
+        'rather than a statement, and it would evaporate the day an assist ' +
+        'stopped importing sim/. tests/architecture/boundary.test.ts proves ' +
+        'this rule bites.',
+      severity: 'error',
+      from: { path: '^src/sim' },
+      to: { path: '^src/assists' },
+    },
+    {
+      name: 'assists-must-not-import-render',
+      comment:
+        'Plan 3: assists/ sits between input/ and sim/ in the call chain (injected ' +
+        'into sim/loop.ts\'s `advance`, never imported by it -- see Assist in that ' +
+        "file). It has no reason to touch the renderer, and importing it would let " +
+        'a rendering type or a Three.js dependency reach the assist stack the same ' +
+        'way sim-must-not-import-render exists to keep it out of the physics.',
+      severity: 'error',
+      from: { path: '^src/assists' },
+      to: { path: '^src/render' },
+    },
+    {
       name: 'no-circular',
       comment:
         'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +

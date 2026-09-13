@@ -2,6 +2,7 @@ import type { AdapterVerdict } from './adapterGuard.js'
 import type { CameraMode } from './camera.js'
 import type { Controls } from '../sim/flight/state.js'
 import type { LookOffset } from '../input/lookAround.js'
+import type { AssistSettings } from '../assists/index.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -34,4 +35,15 @@ export type Ww2Diagnostics = {
    *  (src/input/lookAround.ts), so proving a look key took effect has to
    *  read this while the key is still held, not after. */
   readonly look: () => LookOffset
+  /**
+   * Which assists are on (Plan 3 Task 5). Read-only on purpose: Tier 2 flips
+   * them the way a pilot does, by pressing the toggle keys in
+   * `src/input/bindings.ts`, and reads this to confirm the press landed --
+   * exactly the pattern the camera sweep already uses for `KeyC` and
+   * `cameraMode()`. A setter here would be a second write path into
+   * `FrameState`, bypassing `nextFrameState`, which is the one function that
+   * owns how a frame becomes the next frame; the keyboard path is also the one
+   * a real pilot uses, so testing it tests something that ships.
+   */
+  readonly assists: () => AssistSettings
 }

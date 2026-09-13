@@ -24,11 +24,21 @@ dist-ssr/
 # SDD scratch workspace (ledger, briefs, review packages)
 .superpowers/
 
-# The architecture boundary test writes a real file into src/sim/ and deletes it.
-# An interrupted run (Ctrl-C, CI timeout, OOM) leaves a node:fs import sitting in
-# the one tree that must stay browser-loadable, which then makes `npm run
-# depcruise` fail for a reason that has nothing to do with your change.
-src/sim/__boundary_probe__.ts
+# The architecture boundary test writes REAL source files into src/ and deletes
+# them again. An interrupted run (Ctrl-C, CI timeout, OOM) leaves a node:fs or
+# render import sitting in the one tree that must stay browser-loadable, which
+# then makes `npm run depcruise` fail for a reason that has nothing to do with
+# your change -- and a concurrent depcruise can see one mid-run even when the
+# run is not interrupted (Task 4 reproduced exactly that flake).
+#
+# The glob, rather than a list: 2026-09-13's final review found this entry
+# covered one of the four paths that test actually writes, the other three
+# having been added later without it. `__name__.ts` is this repo's probe
+# convention and nothing else uses it. Which files the test writes is not
+# restated here -- `tests/architecture/boundary.test.ts` asserts that every one
+# of them is ignored, so a fifth probe added without a matching rule fails the
+# suite instead of rotting this comment.
+src/**/__*__.ts
 
 # Harness-managed worktrees
 .claude/worktrees/

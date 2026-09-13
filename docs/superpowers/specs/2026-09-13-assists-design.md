@@ -116,6 +116,17 @@ its denominator, so it over-reports alpha when crabbed (design open item 8).
 A limiter built on it would clamp early during a slipping turn. That open item
 should probably be fixed as part of this plan rather than before it.
 
+**Amended 2026-09-13, during Task 3: that caveat is withdrawn, because open item
+8 is wrong and has been retracted.** `atan2(-dot(v, up), dot(v, forward))` is
+already the angle in the plane of symmetry — projecting the lateral component
+out first changes neither dot product, verified to 1.2e-14 rad over 20,000
+random states. Alpha does rise with crab, which is what alpha means, not an
+inflation to be corrected. So the limiter is built on the shipped
+`angleOfAttack` unchanged, and it should be: it has to bound the same quantity
+`isStalled` and `liftCoefficient` are driven by, or it would clamp against a
+boundary the wing does not have. The retraction, with the derivation and the
+numbers, is item 8 in the Plan 2 design doc.
+
 ### Combat trim
 
 Holds the aeroplane where it is pointed with the stick centred. In a
@@ -124,6 +135,20 @@ commands zero rate. What it does not hold is the flight path: the aeroplane
 still climbs or sinks as speed changes. So this is an altitude or flight-path
 hold, not a trim in the classical sense, and calling it "trim" would be the
 kind of name-versus-behaviour mismatch this project has corrected repeatedly.
+
+**Implemented 2026-09-13 (Task 4), as `altitudeHold` in `src/assists/index.ts`,
+under exactly the name this section argued for.** It needs memory this
+document does not discuss (which altitude was captured, and when) -- see that
+function's doc comment, and `AltitudeHoldMemory`'s, for the design and why it
+is threaded explicitly rather than added to `World`. The mechanism is
+feed-forward plus a two-loop proportional correction, structurally the same
+idea as `sim/autopilot.ts`'s pre-existing `holdLevelFlight` (cited, not
+reused wholesale: that function also forces wings-level and uses gains tuned
+for a repeatable measurement harness, not pilot feel). One new content
+constant, `rates.altitudeHoldSeconds = 3`, measured against `step()` end to
+end: unassisted, 60 s hands-off drifts 19-236 m depending on speed and
+throttle; assisted, the same six conditions finish within 0.4 m, worst
+excursion under 11 m.
 
 ### Rate damping — I think this one is a no-op, and want to say so before building it
 
@@ -165,13 +190,95 @@ The property that matters for each assist, and the one to write first:
 | Assist | The test that would have caught a wrong sign |
 | --- | --- |
 | Auto-rudder | Sideslip after a full-deflection roll is smaller with it ON than OFF, at several airspeeds and both directions |
-| Stall limiter | Full back-stick from level flight does not exceed `alphaCritRad`, at several speeds |
+| Stall limiter | Full back-stick from level flight does not exceed `alphaCritRad` at 130 and 180 m/s, where the same pull stalls without the assist; and at every tick inside the recoverable band the limiter is commanding recovery — see the amendment below |
 | Combat trim | Hands off for 60 s holds altitude within a band, where it currently does not |
 
 Each must be proven to fail with the assist disabled, because "the assist is on
 and the number is good" is not evidence that the assist did it.
 
+**Amended 2026-09-13, during Task 3: the stall-limiter row above originally read
+"Full back-stick from level flight does not exceed `alphaCritRad`, at several
+speeds", and that is not true of any limiter of this kind.** At 130 and 180 m/s
+it holds (measured peak alpha 12.72 and 12.47 degrees against a 15.5 degree
+`alphaCritDeg`, where the unassisted pull reaches 15.87 and 15.58 with 109 and
+102 stalled ticks). At 70 m/s, level, full back stick, the same 30 seconds
+reaches **179.8 degrees of alpha with 1,049 stalled ticks even with the assist
+on** — the aeroplane loops, runs out of energy, and alpha rises because the
+FLIGHT PATH falls away, which no pitch command opposes.
+
+So the row is restated as the guarantee that does hold and is asserted:
+`Controls.pitch` never asks for more than the remaining margin, and once the
+boundary is crossed the limiter commands recovery at every tick until the
+aeroplane is past 90 degrees of alpha and there is no authority left to ration.
+`tests/assists/stallLimiter.test.ts` proves it on the 70 m/s departure (133
+ticks inside that band, zero of them without a recovery command); Task 3's
+review reproduced it across 192 runs, 8,756 band ticks, zero exceptions.
+
+This was corrected for the same reason design open item 8 was retracted on the
+same day: a durable document asserting a behaviour the code does not have is
+this project's recurring defect, and an acceptance row is the worst place for
+one, because the next person to read it will believe the assist is stall-proofing
+and it is not.
+
 ## 6. What this plan does not do
 
-No options UI, no persistence, no per-aircraft assist tuning, no AI use of the
-assists. Those belong to later plans in the master spec's ordering.
+No options UI, no persistence, no AI use of the assists. Those belong to
+later plans in the master spec's ordering.
+
+**Amended 2026-09-13, during Task 4: "no per-aircraft assist tuning" (the
+original wording here) was already false by Task 3 and is deleted rather than
+carried forward stale.** `autoRudderGainPerDeg` (Task 2), `stallLimiterSeconds`
+(Task 3) and `altitudeHoldSeconds` (Task 4) are all per-aircraft content, each
+with a schema entry -- exactly per-aircraft assist tuning, just not a UI for a
+player to change it. What this section actually means, and should have said,
+is no player-facing settings to CHOOSE those values at runtime.
+
+## Open items carried out of Plan 3, 2026-09-13
+
+Recorded here because the execution workspace is deleted at merge and these
+would otherwise be lost. All three were found by the final review or its
+re-review, all three are pre-existing rather than introduced by the fix wave,
+and none blocks merge.
+
+1. **Altitude hold does not stand down in the stalled band unless the stall
+   limiter is switched on.** The pitch-authority budget narrows to the pilot's
+   own command past `DEPARTED_ALPHA_RAD`, which is unconditional and holds with
+   every assist combination. Below 90 degrees the narrowing comes from the
+   limiter, so with the limiter OFF and altitude hold ON, altitude hold still
+   commands full nose-up across the whole 15.5 to 90 degree stalled band.
+   Measured, stick centred, held altitude 500 m above: +1.0000 at every alpha
+   from 16 to 89.9 degrees, then 0 from 90.1 up. There is a step discontinuity
+   at exactly 90.
+
+   That is the band real stalls live in, and it is where the ruling behind the
+   departed narrowing points hardest — an aeroplane near departure needs the
+   nose down. The honest statement of today's behaviour is that the principle
+   is enforced on one side of a cliff. The fix is for altitude hold to stand
+   down whenever the aeroplane is stalled, independent of the limiter's switch,
+   which is a behaviour question worth deciding at the controls rather than
+   here.
+
+2. **The published budget is only truthful for a legal `Controls.pitch`.** With
+   a raw pitch of ±5 or NaN the stack returns that value while publishing a
+   budget of [1,1], [-1,-1] or [0,0]. The command passes through identically to
+   before the refactor, so nothing leaks — the budget is a false claim rather
+   than a breach. Unreachable from the input layer today; the soak injects such
+   values but calls `step` directly, not `applyAssists`.
+
+3. **`stallLimiter` clamps into its own bounds rather than into the narrowed
+   authority.** Unreachable today, because a departed aeroplane returns early
+   and nothing narrows ahead of the limiter. It matters the moment a narrowing
+   stage is inserted before it: the limiter is then the one place that puts a
+   value on the axis without going through `withinAuthority`. One line.
+
+4. **The architecture tests still write probe files into the real source tree.**
+   `tests/architecture/boundary.test.ts` writes four `src/**/__*__.ts` files and
+   removes them in an `afterEach`, while vitest runs test files in parallel
+   workers. A concurrent `depcruise` — another worker's, a developer's, or a
+   parallel CI job's — can see another test's probe: reproduced during Plan 3's
+   execution as a violation reported against 41 modules where the quiescent tree
+   has 39. The `.gitignore` now covers all four paths, which removes the
+   commit-a-probe hazard but not the race. The fix shape recommended by the
+   final review, and verified by it to work, is to copy `src/` plus the two
+   config files into a per-test temp root outside the repo and cruise that. The
+   rule patterns are relative to the cruise root, so no config changes.

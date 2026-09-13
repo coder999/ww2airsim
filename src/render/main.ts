@@ -28,6 +28,7 @@ import { v3 } from '../sim/math/vec3.js'
 import { qIdentity } from '../sim/math/quat.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
+import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { Ww2Diagnostics } from './diagnostics.js'
 
@@ -130,6 +131,10 @@ async function boot(): Promise<void> {
       cameraMode: () => frame?.cameraMode ?? 'chase',
       controls: () => frame?.controls ?? NEUTRAL,
       look: () => frame?.look ?? LOOK_CENTRE,
+      // Same `??`-guard as the four above, for the same reason: the hook is
+      // installed before `frame` exists. The fallback is the same value
+      // `initialFrameState` would have produced.
+      assists: () => frame?.assists ?? DEFAULT_ASSIST_SETTINGS,
     }
   }
 

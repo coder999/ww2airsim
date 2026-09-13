@@ -16,7 +16,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/sim/**/*.ts', 'tools/**/*.ts'],
+    files: ['src/sim/**/*.ts', 'src/assists/**/*.ts', 'tools/**/*.ts'],
     rules: {
       // Spec §3 + Global Constraints: determinism and no browser globals.
       // This denylist is the ONLY guard between sim/ and a browser global. tsc has
@@ -24,6 +24,9 @@ export default tseslint.config(
       // includes DOM, and a sim/ file using localStorage typechecked clean before
       // Plan 2 (verified 2026-09-12). Widened in Plan 2 from four names to the
       // storage, network and scheduling globals (Plan 1 review, finding M5).
+      // Plan 3 Global Constraints: `src/assists/` is new and inherits this same
+      // rule set -- it does deterministic arithmetic on the pilot's command,
+      // exactly like `sim/`, so the same denylist applies for the same reason.
       'no-restricted-globals': ['error',
         { name: 'window', message: 'sim/ must not touch browser globals (spec §3).' },
         { name: 'document', message: 'sim/ must not touch browser globals (spec §3).' },

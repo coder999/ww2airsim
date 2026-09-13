@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
-import { advance, createWorld, MAX_STEPS_PER_FRAME } from '../../src/sim/loop.js'
+import { readFileSync } from 'node:fs'
+import { advance, createWorld, MAX_STEPS_PER_FRAME, type Assist } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
-import { DT, step } from '../../src/sim/flight/model.js'
+import { DT, step, airspeed } from '../../src/sim/flight/model.js'
+import type { Controls } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { ROLLING_DESCENT_CONTROLS, type GoldenTrajectory } from '../../tools/golden/record.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
@@ -150,6 +153,76 @@ describe('advance', () => {
     expect(spy).toHaveBeenCalledTimes(3)
   })
 
+  describe('the injected assist (Plan 3 Task 1: the seam, no assist behaviour yet)', () => {
+    // Plan 3's design put the assist call inside the fixed-step loop
+    // specifically so it runs at DT and not at frame rate (open item 5 is the
+    // bug that already exists in this codebase for NOT doing that on the
+    // input ramp). A `vi.fn` counting calls against `stepsRun` is exactly the
+    // existing "runs the stepper it is given, once per step" test's shape,
+    // reused here for the assist. Proved to fail: temporarily hoisting the
+    // `assist(...)` call in src/sim/loop.ts to above the `for` loop (so it
+    // runs once per `advance` call on `world.aircraft` instead of once per
+    // step on `current`) makes this test's expectation of 3 calls see 1
+    // instead, and it fails.
+    it('runs once per fixed step, not once per advance() call', () => {
+      const spy = vi.fn<Assist>((_state, _spec, raw, _dt) => raw)
+      const r = advance(start(), DT * 3, step, spy)
+      expect(r.stepsRun).toBe(3)
+      expect(spy).toHaveBeenCalledTimes(3)
+    })
+
+    it('runs before the stepper on every step, not after', () => {
+      // Order matters: an assist that saw the stepper's OUTPUT rather than
+      // its input would be reacting to next tick's state a tick early. Two
+      // spies pushing onto one shared array is the only way to observe
+      // interleaving rather than just counts. Proved to fail: swapping the
+      // two lines inside src/sim/loop.ts's step loop (stepper before assist)
+      // turns this into ['stepper', 'assist', 'stepper', 'assist'] and the
+      // `toEqual` below fails.
+      const order: string[] = []
+      const spyAssist: Assist = (_state, _spec, raw, _dt) => {
+        order.push('assist')
+        return raw
+      }
+      const spyStepper = vi.fn<typeof step>((spec, state, controls, ctx) => {
+        order.push('stepper')
+        return step(spec, state, controls, ctx)
+      })
+      advance(start(), DT * 2, spyStepper, spyAssist)
+      expect(order).toEqual(['assist', 'stepper', 'assist', 'stepper'])
+    })
+
+    it('is fed the pilot\'s raw command, the state entering that step, and the fixed DT -- not the frame\'s elapsed time', () => {
+      const calls: Array<{ tick: number; raw: Controls; dt: number }> = []
+      const spy: Assist = (state, _spec, raw, dt) => {
+        calls.push({ tick: state.tick, raw, dt })
+        return raw
+      }
+      const pitchUp = { ...level, pitch: 1 }
+      // An elapsed time that is NOT a whole multiple of DT, so a bug that fed
+      // the assist `elapsedSeconds` (or `elapsedSeconds / stepsRun`) instead
+      // of the fixed step would show up as `dt !== DT` below.
+      advance({ ...start(), controls: pitchUp }, DT * 2.5, step, spy)
+      expect(calls).toHaveLength(2)
+      expect(calls[0]!.tick).toBe(0) // state entering the first step: tick 0
+      expect(calls[1]!.tick).toBe(1) // state entering the second step: tick 1
+      for (const c of calls) {
+        expect(c.dt).toBe(DT)
+        expect(c.raw).toEqual(pitchUp)
+      }
+    })
+
+    it('defaults to a no-op, so callers written before Plan 3 are unaffected', () => {
+      // Every other test in this file calls `advance` without an assist
+      // argument at all; this pins the specific claim that the default
+      // behaves as identity, rather than relying on the rest of the suite
+      // merely happening not to notice a difference.
+      const withDefault = advance(start(), DT * 3)
+      const withExplicitIdentity = advance(start(), DT * 3, step, (_s, _sp, raw) => raw)
+      expect(withDefault.world.aircraft).toEqual(withExplicitIdentity.world.aircraft)
+    })
+  })
+
   it('steps with the controls the world carries, and hands them back for the next call', () => {
     // Whole-branch review, I-5: `controls` moved out of `advance`'s parameter
     // list into `World`, so Plan 5's N-entity AI adds a field rather than a
@@ -179,5 +252,58 @@ describe('advance', () => {
     const before = JSON.stringify(w)
     advance(w, DT * 3)
     expect(JSON.stringify(w)).toBe(before)
+  })
+})
+
+describe('advance with the default (identity) assist, driven through the golden manoeuvre', () => {
+  // Plan 3 Task 1's second required test: proves the seam added to `advance`
+  // is behaviourally inert. `tools/golden/record.ts`'s `recordTrajectory`
+  // calls `step` directly and never goes through `advance`, so it cannot see
+  // this change at all -- it would pass unmodified no matter what Task 1 did
+  // to `loop.ts`. This test closes that gap by driving the exact same
+  // manoeuvre (`ROLLING_DESCENT_CONTROLS`, the same initial state) through
+  // `advance` one fixed step at a time instead, with no assist argument
+  // passed (so the production default, `identityAssist`, is what runs), and
+  // checks the result against the same golden file.
+  //
+  // The comparison is EXACT equality, not a tolerance: calling
+  // `advance(world, DT)` with `world.controls` set to this tick's command
+  // runs `identityAssist` (which returns `raw` unchanged) and then `step`
+  // with precisely the same arguments, in the same order, that
+  // `recordTrajectory` passes to `step` directly -- the same floating-point
+  // operations in the same order produce the same bits. A tolerance here
+  // would hide exactly the kind of bug this test exists to catch (the assist
+  // silently perturbing the command by even one ULP).
+  //
+  // Proved to fail: temporarily changing `identityAssist` in src/sim/loop.ts
+  // to `(_s, _sp, raw) => ({ ...raw, pitch: raw.pitch + 1e-6 })` makes this
+  // test fail at tick 0 (position mismatch on the order of 1e-4 m by the
+  // first checkpoint), while every other test in this file still passes --
+  // isolating the failure to this test, as intended.
+  it('matches the recorded checkpoints tick-for-tick', () => {
+    const golden = JSON.parse(
+      readFileSync(new URL('./golden/f6f-rolling-descent.golden.json', import.meta.url), 'utf8'),
+    ) as GoldenTrajectory
+    const steps = golden.checkpoints[golden.checkpoints.length - 1]!.tick + 1
+
+    let world = createWorld(
+      f6f,
+      createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0), fuelKg: 400 }),
+      ROLLING_DESCENT_CONTROLS(0),
+    )
+    const checkpoints: GoldenTrajectory['checkpoints'] = []
+    for (let tick = 0; tick < steps; tick++) {
+      world = { ...world, controls: ROLLING_DESCENT_CONTROLS(tick) }
+      world = advance(world, DT).world
+      if (tick % 300 === 0 || tick === steps - 1) {
+        const s = world.aircraft
+        checkpoints.push({
+          tick,
+          position: [s.position.x, s.position.y, s.position.z],
+          speed: airspeed(s),
+        })
+      }
+    }
+    expect(checkpoints).toEqual(golden.checkpoints)
   })
 })

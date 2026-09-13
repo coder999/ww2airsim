@@ -71,6 +71,36 @@ const MAX_ELAPSED_SECONDS = 60
  *  in development builds. Chosen by the caller, so `sim/` carries no build flag. */
 export type Stepper = typeof step
 
+/**
+ * The function that turns the pilot's raw command into what the stepper
+ * actually integrates, run once per fixed STEP inside `advance`'s loop below.
+ *
+ * Plan 3's assists layer (`src/assists/index.ts`'s `applyAssists`) implements
+ * this signature, but `sim/` deliberately does not import it: `assists/`
+ * depends on `sim/`'s types, and importing it back here would invert that
+ * direction and put an assist's tuning inside the layer the master spec
+ * requires to stay pure physics (spec §3; whole-branch review precedent --
+ * `Stepper` above already establishes "the caller injects the function"
+ * as this codebase's way of extending a fixed-step call without sim/
+ * depending on whoever wrote the extension). The caller closes over whatever
+ * `AssistSettings` it wants and hands `advance` a plain four-argument
+ * function; `sim/` only ever sees this shape.
+ *
+ * Takes `state`, not the World: `applyAssists`'s `state` parameter is the
+ * aircraft AT THE START of the step being computed, which inside the loop is
+ * `current`, not `world.aircraft` (those differ from the second step of a
+ * multi-step frame onward). `raw` is `world.controls`, held constant for
+ * every step in one `advance` call, and `dt` is always `DT` here -- an assist
+ * that needs to know how much time actually passed must be able to answer
+ * that without depending on frame rate (open item 5's whole complaint), and
+ * the fixed step is the only quantity in this loop that is not.
+ */
+export type Assist = (state: AircraftState, spec: AircraftSpec, raw: Controls, dt: number) => Controls
+
+/** No-op default: hands the stepper exactly what the pilot commanded, so
+ *  every existing call site and test that predates Plan 3 is unaffected. */
+const identityAssist: Assist = (_state, _spec, raw, _dt) => raw
+
 export interface World {
   /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
    *  list: the design has later plans add fields to World precisely so
@@ -144,6 +174,7 @@ export function advance(
   world: World,
   elapsedSeconds: number,
   stepper: Stepper = step,
+  assist: Assist = identityAssist,
 ): AdvanceResult {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
   // that is negative or not a number; banking either would poison the
@@ -166,7 +197,17 @@ export function advance(
   let previous = world.previous
   for (let i = 0; i < stepsRun; i++) {
     previous = current
-    current = stepper(world.spec, current, world.controls, { dt: DT, tick: current.tick + 1 })
+    // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
+    // once per `advance` call and not on `world.controls` directly. Hoisting
+    // it above this loop would run it once per frame instead of once per
+    // step, at the frame's dt rather than DT, reproducing exactly the
+    // frame-rate dependence `AdvanceResult.droppedSteps`'s doc already flags
+    // as open item 5's defect for the input ramp. Running it inside means an
+    // assist reacting to the aeroplane's stall margin sees the STATE that
+    // margin actually applied to on this tick (`current`, not `world.aircraft`,
+    // which is stale from the second step of a multi-step frame onward).
+    const controls = assist(current, world.spec, world.controls, DT)
+    current = stepper(world.spec, current, controls, { dt: DT, tick: current.tick + 1 })
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt

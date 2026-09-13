@@ -35,18 +35,39 @@ describe('randomized soak (spec §11)', () => {
     // absolute sideslip from 15.1 to 5.4 degrees and the peak from 41.9 to
     // 15.2.
     //
-    // The likely mechanism, NOT isolated: `angleOfAttack` is
-    // `atan2(-dot(v, up), dot(v, forward))`, and the denominator shrinks with
-    // sideslip, so a crabbing aeroplane over-reports alpha -- by 34% at 42
-    // degrees of slip. Removing the crab removes the inflation. Other effects
+    // Those four figures do NOT come from this harness, and 2026-09-13's final
+    // whole-branch review could not reproduce them here. Replaying this exact
+    // loop (seed 1337, 200 iterations) with |beta| sampled every step returns
+    // its step and completion counts to the digit -- 587,040 / 99 with the
+    // weathercock and 611,160 / 132 without, as above -- and mean absolute
+    // sideslip 28.0 -> 11.0 degrees with the peak 90.0 -> 89.6, roughly twice
+    // the quoted mean and six times the quoted peak. The direction and the
+    // conclusion are unchanged; the magnitudes are not, so read the four
+    // numbers above as belonging to whatever "soak-like" probe produced them,
+    // not to this test. The reproducible ones, and what they imply for the
+    // dynamic-pressure approximation, are in design open item 10.
+    //
+    // The likely mechanism, NOT isolated: a crabbing aeroplane really is at a
+    // higher alpha for the same flight path, by 1/cos(sideslip) -- 34% at 42
+    // degrees of slip -- so removing the crab removes that. Other effects
     // point the same way and were not separated out, notably that less
     // sideslip means less drag, so more speed, so less alpha is needed to hold
     // the same lift. Treat the number, not the story, as the measured part.
     //
-    // That alpha is computed with the lateral component left in the
-    // denominator, rather than in the body x-z plane, is a genuine modelling
-    // defect regardless -- pre-existing, Plan 1's, recorded as a design-doc
-    // open item rather than fixed here.
+    // CORRECTED 2026-09-13 (Plan 3 Task 3). This comment used to add that the
+    // 1/cos(sideslip) term was itself a defect -- alpha "computed with the
+    // lateral component left in the denominator, rather than in the body x-z
+    // plane" -- repeating design open item 8. That was wrong, and the item is
+    // now retracted: `atan2(-dot(v, up), dot(v, forward))` IS the in-plane
+    // angle, because projecting the lateral component out changes neither dot
+    // product (derivation on `angleOfAttack`; asserted in
+    // tests/sim/flight/angleOfAttack.test.ts). The physical claim in the
+    // paragraph above survives; only the diagnosis was wrong.
+    //
+    // So nothing about the model changed in that task, and these three floors
+    // did not move. RE-MEASURED 2026-09-13 on the same configuration, after
+    // the retraction: 587,040 steps, 99 completions, 46,086 stalled steps,
+    // zero failures -- identical in every digit to the run above.
     expect(result.steps).toBeGreaterThan(400000)
     expect(result.flightsCompleted).toBeGreaterThan(80)
     expect(result.stalledSteps).toBeGreaterThan(25000)

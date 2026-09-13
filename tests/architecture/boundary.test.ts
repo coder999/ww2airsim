@@ -4,6 +4,29 @@ import { writeFileSync, rmSync, existsSync } from 'node:fs'
 import { ESLint } from 'eslint'
 
 const PROBE = 'src/sim/__boundary_probe__.ts'
+const ASSISTS_PROBE = 'src/assists/__boundary_probe__.ts'
+const CYCLE_A = 'src/sim/__cycle_a__.ts'
+const CYCLE_B = 'src/sim/__cycle_b__.ts'
+
+/** Every path this file writes a REAL file to. One list, so the cleanup, the
+ *  cycle probe and the git-ignore assertion below cannot disagree about what
+ *  the suite leaves lying around. (The `__lint_probe__` paths elsewhere in
+ *  this file are not here on purpose: they are passed to `ESLint.lintText`
+ *  as a virtual filename and never touch the disk.) */
+const PROBE_FILES = [PROBE, ASSISTS_PROBE, CYCLE_A, CYCLE_B]
+
+/** True when git would ignore `path`. `git check-ignore --quiet` exits 0 for
+ *  ignored, 1 for not ignored (and 128 outside a work tree, which lands here as
+ *  `false` -- a loud failure being the right outcome for a suite that cannot
+ *  check the thing it claims). The path does not have to exist. */
+function isGitIgnored(path: string): boolean {
+  try {
+    execFileSync('git', ['check-ignore', '--quiet', path], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
 
 function runDepcruise(): { code: number; output: string } {
   try {
@@ -18,12 +41,29 @@ function runDepcruise(): { code: number; output: string } {
 }
 
 afterEach(() => {
-  if (existsSync(PROBE)) rmSync(PROBE)
+  for (const f of PROBE_FILES) if (existsSync(f)) rmSync(f)
 })
 
 describe('architecture boundary (spec §3)', () => {
   it('passes on the real source tree', () => {
     expect(runDepcruise().code).toBe(0)
+  })
+
+  it.each(PROBE_FILES)('leaves %s git-ignored, so an interrupted run cannot be committed', (probe) => {
+    // Final review, 2026-09-13: .gitignore covered ONE of the four paths this
+    // file writes, with a comment explaining exactly why that one had to be
+    // ignored -- the other three were added by later tasks that did not read
+    // it. An interrupted run (Ctrl-C, CI timeout, OOM) leaves an untracked
+    // `node:fs` or `three` import inside the tree that must stay
+    // browser-loadable, which is the hazard the original entry exists to
+    // prevent, and it is equally a hazard for a file called `__cycle_a__.ts`.
+    //
+    // Asserted rather than restated in a comment, because the rot here was a
+    // comment describing a list that had moved: this fails the moment a fifth
+    // probe path is written without a matching ignore rule. `git check-ignore`
+    // exits 0 when the path is ignored and 1 when it is not; the path need not
+    // exist, which is why this can run without writing anything.
+    expect(isGitIgnored(probe)).toBe(true)
   })
 
   it('fails when sim/ imports a render LIBRARY, not just render/', () => {
@@ -46,8 +86,8 @@ describe('architecture boundary (spec §3)', () => {
   it('fails on a circular import', () => {
     // The fifth rule, and the other one that had no probe. Two files that
     // import each other, both inside sim/, so the cycle is unambiguous.
-    const A = 'src/sim/__cycle_a__.ts'
-    const B = 'src/sim/__cycle_b__.ts'
+    const A = CYCLE_A
+    const B = CYCLE_B
     try {
       writeFileSync(A, "import { b } from './__cycle_b__.js'\nexport const a = b\n")
       writeFileSync(B, "import { a } from './__cycle_a__.js'\nexport const b = a\n")
@@ -78,6 +118,41 @@ describe('architecture boundary (spec §3)', () => {
     const { code, output } = runDepcruise()
     expect(code).not.toBe(0)
     expect(output).toContain('sim-must-not-import-node-core')
+  })
+
+  it('fails when sim/ imports assists/', () => {
+    // Plan 3 Task 2's review: the "sim/ must not import assists/" ruling was
+    // enforced only as a side effect of `no-circular`, because assists/ imports
+    // sim/ today and the pair therefore forms a cycle. That is real
+    // enforcement, but it names the wrong thing in the failure output and it
+    // disappears the day an assist stops importing sim/ -- so `no-circular`
+    // is exactly the "rule that happens to cover it" this file exists to
+    // replace with a named one. The assertion below is on the NAME, so a
+    // cycle report alone would not satisfy it.
+    //
+    // The probe imports a VALUE, not a type: with this config a type-only
+    // import produces no dependency edge at all (see `no-circular`'s comment
+    // in .dependency-cruiser.cjs), so a `import type` probe would pass for the
+    // wrong reason.
+    writeFileSync(PROBE, "import { applyAssists } from '../assists/index.js'\nexport const probe = applyAssists\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('sim-must-not-import-assists')
+  })
+
+  it('fails when assists/ imports render/', () => {
+    // Plan 3: assists/ is injected into sim/loop.ts's `advance` rather than
+    // imported by it (see `Assist` there), and has no legitimate reason to
+    // reach into the renderer either. Same negative-test pattern as the sim/
+    // render probe above, for the same reason -- a rule never seen to fail is
+    // indistinguishable from one that matches nothing. This probe writes
+    // under src/assists/, not src/sim/, so it also confirms the new rule's
+    // `from` path actually matches that directory rather than being a dead
+    // copy-paste of the sim/ rule.
+    writeFileSync(ASSISTS_PROBE, "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n")
+    const { code, output } = runDepcruise()
+    expect(code).not.toBe(0)
+    expect(output).toContain('assists-must-not-import-render')
   })
 
   it('fails when sim/ imports input/', () => {
@@ -124,5 +199,31 @@ describe('sim/ forbids browser globals and nondeterminism (spec §3)', () => {
     const flagged = messages.map((m) => m.message)
     for (const g of names) expect(flagged.some((m) => m.includes(g)), g).toBe(true)
     for (const m of messages) expect(m.severity, m.message).toBe(2)
+  })
+})
+
+describe('assists/ forbids browser globals and nondeterminism, same as sim/ (Plan 3)', () => {
+  // Task 1 extended eslint.config.js's `files` glob (`no-restricted-globals`
+  // / `no-restricted-properties`) to cover `src/assists/**/*.ts`, on the
+  // Global Constraints' instruction that assists/ does deterministic
+  // arithmetic on the pilot's command exactly like sim/ does -- but that
+  // task left it unprobed, unlike every rule above. Task 2 is the first task
+  // writing real arithmetic in `src/assists/` (`autoRudder`'s sideslip
+  // maths), so it is the one that can no longer defer closing this: an
+  // unprobed rule is indistinguishable from one that matches nothing, per
+  // this file's own standard applied to every other rule in it.
+  it('reports a severity-2 error for Math.random() written in src/assists/', async () => {
+    const eslint = new ESLint({})
+    const results = await eslint.lintText(
+      'export const bad = Math.random()\n',
+      { filePath: 'src/assists/__lint_probe__.ts' },
+    )
+    const messages = results.flatMap((r) => r.messages)
+    expect(messages.map((m) => m.ruleId)).toContain('no-restricted-properties')
+    // SEVERITY, not just presence -- see the identical comment on the sim/
+    // probe above for why (2026-09-13 review: a rule downgraded to 'warn'
+    // left the whole suite, including `eslint src tests tools
+    // --max-warnings 0`, green).
+    for (const m of messages) expect(m.severity, m.ruleId ?? '').toBe(2)
   })
 })

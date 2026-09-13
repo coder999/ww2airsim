@@ -465,18 +465,43 @@ a rewrite. Plan 5 is the plan that should revisit it.
    probe also wraps its whole compute block in one `catch`, so the error is
    not localised to the call that was fixed and no stack was recorded.
 
-8. **`angleOfAttack` leaves the lateral component in its denominator** —
-   found 2026-09-13 while adding directional stability. It is
-   `atan2(-dot(v, up), dot(v, forward))`, and `dot(v, forward)` shrinks as the
-   aeroplane crabs, so alpha is over-reported by 1/cos(sideslip): 3.5% at 15
-   degrees, 34% at 42. Alpha should be measured in the body x-z plane, with the
-   lateral component projected out first.
+8. **RETRACTED 2026-09-13 — `angleOfAttack` does NOT leave the lateral
+   component in its denominator.** This item claimed alpha was over-reported by
+   1/cos(sideslip) and should instead be measured with the lateral component
+   projected out of the velocity first. The prescribed fix is algebraically
+   inert: the code already computes the in-plane angle.
 
-   Pre-existing and Plan 1's. It mattered far more before the weathercock term,
-   when random inputs left the aeroplane permanently crabbed; the soak's stall
-   fraction fell from 53.1% to 7.9% once the crab was removed. Not fixed here
-   because it changes the flight model a second time in one day, and the
-   golden has already been re-recorded once.
+   Derivation. Write the velocity in the body basis, which `qRotate` keeps
+   orthogonal at any attitude: `v = u*forward + n*up + s*right`. Projecting the
+   lateral component out gives `vSym = v - s*right`, and because `right` is
+   orthogonal to both of the other two axes, `dot(vSym, forward) = u` and
+   `dot(vSym, up) = n` — the two quantities `atan2(-n, u)` is built from are
+   unchanged. Measured 2026-09-13 over 20,000 random attitude/velocity pairs:
+   the largest disagreement between the shipped function and the explicitly
+   projected form is 1.2e-14 rad, i.e. the rounding cost of the subtraction.
+   `tests/sim/flight/angleOfAttack.test.ts` asserts this on a 360-case attitude
+   grid rather than leaving it as this paragraph, and the same file pins the
+   discriminating case: adding a lateral velocity component at a fixed attitude
+   does not move alpha at all.
+
+   What the item saw is real and is not an artefact. Yaw the nose off a fixed
+   flight path and alpha grows as `tan(alpha) = tan(alpha_0)/cos(yaw)` — the two
+   percentages above are correct (measured: 4.772738, 4.940283 and 6.410367
+   degrees at 0, 15 and 42 degrees of yaw offset). That is what angle of attack
+   *means*: crabbing cuts the chordwise component of the flow while leaving the
+   component normal to the wing alone, so the chord meets the air at a bigger
+   angle. Reading that as a bug is what produced this item.
+
+   Consequences of the retraction: Plan 3 Task 3 changed no flight-model
+   behaviour, the golden did not move (regenerated 2026-09-13, byte-identical),
+   and the soak's stall figures did not move either. The claim was also copied
+   into `tests/sim/soak.test.ts`'s baseline comment, which is corrected in the
+   same commit. Item 6's note that items 8 and 9 descend from it still holds —
+   this item's *observation* came from the weathercock work; only its diagnosis
+   was wrong.
+
+   Left open in a narrower form as item 10, which is what a reader chasing
+   "sideslip makes the aeroplane stall early" should read next.
 
 9. **`weathercockSeconds = 1.5` is a guess, and a primary source exists that
    probably contradicts it** — found 2026-09-13, an hour after the constant was
@@ -517,3 +542,63 @@ a rewrite. Plan 5 is the plan that should revisit it.
    off a 1945 plot that has to be read by eye. Worth doing properly: it would
    replace a guessed constant with a cited measurement, which is what
    `reference.source` already does for mass, speed and stall.
+
+10. **The force model uses the total airspeed as its dynamic pressure,
+    including the part of the flow that runs along the span** — added
+    2026-09-13, replacing the retracted item 8 with the thing that is actually
+    approximated there; scope and measurements corrected 2026-09-13 by the
+    final whole-branch review of Plan 3.
+
+    `step` computes one `q = 0.5*rho*V^2` from the total speed
+    (`src/sim/flight/model.ts`, in `step`) and feeds it to BOTH
+    `liftN = q * S * Cl(alpha)` and `dragN = q * S * Cd`, on the next line.
+    For an unswept wing the section force depends on the flow component normal
+    to the span, which is `V*cos(beta)`, so at large sideslip the model
+    over-estimates lift by roughly `1/cos^2(beta)`: 7.2% at 15 degrees, 81.1%
+    at 42. Alpha itself is right (item 8); it is the dynamic pressure that is
+    not.
+
+    **This item is about `q`, not about lift.** It was originally written as
+    "lift uses...", and anyone implementing it as written would change the
+    lift line and leave drag computed on the old `q` one line below —
+    correcting half the force model and leaving the two halves disagreeing
+    about what the free stream is, which is worse than either consistent
+    choice. Doing it properly needs its own derivation for drag rather than
+    the same factor copied across: the independence principle gives the
+    section NORMAL force directly, while the wing's parasite and induced drag
+    do not both follow it, and the fuselage's drag is not a span-wise
+    argument at all.
+
+    **Derived, not measured** — the `1/cos^2` factor comes from the standard
+    independence principle for an unswept wing, with no flight-test figure
+    behind it.
+
+    How often it matters, re-measured 2026-09-13. The soak harness itself
+    (`tools/soak/run.ts`, seed 1337, 200 iterations, 587,040 steps, the
+    shipped model with the weathercock on), sampling |beta| every step:
+    median 6.8 degrees (1.4% error), mean 11.0 (3.8%), 90th percentile 25.5
+    (22.7%), peak 89.6. **18.9% of all steps sit past 15 degrees of sideslip,
+    and 5.0% past 42** — i.e. one step in twenty is somewhere the lift term is
+    over-estimated by 81% or more. With the weathercock disabled
+    (`weathercockSeconds = 1e9`) the same run gives median 23.0, mean 28.0 and
+    65.3% of steps past 15 degrees, so item 6 does help a great deal; it does
+    not make this small.
+
+    This paragraph used to end "the weathercock term already keeps
+    steady-state sideslip small — under soak-like random inputs it took mean
+    absolute sideslip from 15.1 to 5.4 degrees, where the error is 0.9%",
+    quoting one central statistic and the error at it. The same source
+    (`tests/sim/soak.test.ts`'s comment) records a peak of 15.2 degrees from
+    that run in the same sentence, where the error is 7.4%, and the omission
+    is most of what made the item read as ignorable. Neither of those two
+    figures reproduces here: replaying the soak loop step for step gives its
+    step count and completion count to the digit (587,040 / 99 with the
+    weathercock, 611,160 / 132 without), and a sideslip mean twice the quoted
+    one with a peak nearly six times it. Whatever "soak-like" probe produced 5.4 and
+    15.2, it was not this harness, and the numbers above are the ones with a
+    reproduction recipe attached.
+
+    Still not fixed: it is a flight-model change with no reported symptom
+    behind it, and it would move the golden and re-baseline the soak. But the
+    measurement that was supposed to justify deferring it does not say what it
+    was quoted as saying, so the deferral now rests on cost and risk alone.
