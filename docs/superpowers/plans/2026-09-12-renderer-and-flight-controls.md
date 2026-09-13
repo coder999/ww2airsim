@@ -1899,7 +1899,7 @@ Pure: state in, needle angle out. Fitted only where Plan 1's model produces the 
 **Interfaces:**
 - Produces: `type GaugeId = 'airspeed' | 'altimeter' | 'verticalSpeed' | 'heading' | 'fuel' | 'slip'`, `GAUGES`, `gaugeValue(id, spec, state): number`, `needleAngleFor(id, spec, state): number`, `attitudeAngles(state): { pitchRad: number; rollRad: number }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/render/gauges.test.ts`:
 
@@ -1999,12 +1999,12 @@ describe('attitudeAngles', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/gauges.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/render/gauges.ts`:
 
@@ -2160,12 +2160,12 @@ export function needleAngleFor(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/gauges.test.ts`
 Expected: PASS, 11 tests.
 
-- [ ] **Step 5: Run the full pipeline and commit**
+- [x] **Step 5: Run the full pipeline and commit**
 
 Run: `npm run verify > /tmp/v.log 2>&1; rc=$?; echo "exit=$rc"; tail -5 /tmp/v.log`
 
