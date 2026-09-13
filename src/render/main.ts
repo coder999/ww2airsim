@@ -22,15 +22,30 @@ import { stepChecked } from '../sim/invariants.js'
 import { v3 } from '../sim/math/vec3.js'
 import { qIdentity } from '../sim/math/quat.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
+import type { Ww2Diagnostics } from './diagnostics.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
 // loaded from, so this assertion is safe at the entry point.
 const root = document.getElementById('app')!
 
-// Accumulated by the uncapturederror handler set on `renderer.onError` below.
-// Module-scoped and left un-exposed here on purpose: Task 15 hooks a
-// `window.__ww2` accumulator array so its camera-sweep check can assert this
-// stays empty; that exposure is Task 15's job, not this task's.
+// Accumulated by the `renderer.onError` handler wired below. Exposed (DEV
+// builds only) on `window.__ww2.validationErrors` near the top of `boot`,
+// below -- the harness in tests/e2e/adapter.spec.ts reads this exact array,
+// not a copy.
+//
+// Residual gap, named rather than fixed (Task 15 review, round 1):
+// `initRenderer` (renderer.ts) calls `renderer.init()` internally, which is
+// where WebGPUBackend wires `device.onuncapturederror` -- but `renderer.onError`
+// below is not assigned until after `initRenderer` already returned. A
+// validation error raised inside that window reaches three's default
+// `onError` (a console.error) instead of this array. Wrapping the first
+// frame in `pushErrorScope('validation')`, as this task's brief first
+// suggested, would not close this either -- the scope would need pushing
+// inside `initRenderer`, before `renderer.init()`'s own device setup, not
+// around the first application frame. That window holds only device and
+// canvas configuration, no draw calls, so it is narrow and not worth chasing
+// here -- but it is real, so it is named rather than left for someone else
+// to rediscover.
 const validationErrors: string[] = []
 
 /** Purely visual: gauges.ts explains why no tachometer is fitted -- there is
@@ -63,6 +78,36 @@ async function boot(): Promise<void> {
   root.appendChild(canvas)
 
   const { renderer, adapterVerdict } = await initRenderer(canvas)
+
+  // Tier 2 diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
+  // a production build: `import.meta.env.DEV` is replaced with the literal
+  // `false` by Vite at build time, and esbuild's dead-code elimination drops
+  // an `if (false)` block, the same pattern already used for `stepper`
+  // further down.
+  //
+  // Installed here, immediately after `adapterVerdict` exists and BEFORE the
+  // `severity === 'fail'` early return just below -- not at the bottom of
+  // `boot`, where round 0 left it. That placement meant the one case this
+  // harness exists to catch -- a software rasterizer -- hid `__ww2` entirely:
+  // the adapter spec's `waitForFunction` would time out at 30s with
+  // `verdict.summary` never printed, on exactly the run where reading it
+  // matters most (Task 15 review, round 1).
+  //
+  // `tick`, `cameraMode`, `controls` and `look` close over `frame`, which
+  // is not declared until further down `boot` -- safe here because they are
+  // functions, evaluated lazily, not read immediately: nothing calls them
+  // before `frame` exists except in the `severity === 'fail'` path, which
+  // this spec's adapter test never does (it reads only `.adapter`).
+  if (import.meta.env.DEV) {
+    ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
+      adapter: adapterVerdict,
+      validationErrors,
+      tick: () => frame.world.aircraft.tick,
+      cameraMode: () => frame.cameraMode,
+      controls: () => frame.controls,
+      look: () => frame.look,
+    }
+  }
 
   if (adapterVerdict.severity === 'fail') {
     showFailure(root, 'software-adapter', adapterVerdict.summary)
@@ -130,38 +175,6 @@ async function boot(): Promise<void> {
   })
 
   let frame = initialFrameState(spec, initialAircraft)
-
-  // Tier 2 diagnostics (tests/e2e/adapter.spec.ts), guarded absent from a
-  // production build: `import.meta.env.DEV` is replaced with the literal
-  // `false` by Vite at build time, and esbuild's dead-code elimination drops
-  // an `if (false)` block, the same pattern already used for `stepper` above.
-  //
-  // `validationErrors` here is the exact array `renderer.onError` (above)
-  // pushes into -- not a second one. No explicit `pushErrorScope('validation')`
-  // wraps the first frame: WebGPUBackend installs `device.onuncapturederror`
-  // during `renderer.init()` (inside `initRenderer`, before this point) as a
-  // closure that calls `renderer.onError` *at the time an error fires*, not a
-  // reference captured when the listener was installed -- so every error from
-  // here on is already routed to this array, including ones raised while the
-  // scene below is first constructed, with no separate scope needed. Reaching
-  // the raw GPUDevice to call pushErrorScope directly would need an unsafe
-  // cast through `renderer.backend`, which @types/three 0.186.0 does not
-  // declare a `device` field for (node_modules/@types/three/src/renderers/
-  // webgpu/WebGPUBackend.d.ts has no instance property, only a same-named
-  // constructor parameter) -- the same gap Task 11 hit and avoided for
-  // `device.lost`, verified again here 2026-09-13 rather than assumed.
-  if (import.meta.env.DEV) {
-    ;(window as unknown as { __ww2: unknown }).__ww2 = {
-      adapter: adapterVerdict,
-      validationErrors,
-      tick: () => frame.world.aircraft.tick,
-      // Not in Task 15's original sketch: added so the camera-sweep test can
-      // assert the sweep actually drove the app (its own requirement) rather
-      // than trusting an empty error array that a wrong key code or a too-short
-      // wait would produce just as easily as a correct sweep would.
-      cameraMode: () => frame.cameraMode,
-    }
-  }
 
   const pressed = new Set<string>()
   window.addEventListener('keydown', (e) => {
