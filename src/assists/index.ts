@@ -302,7 +302,8 @@ const FULL_PITCH_AUTHORITY: PitchAuthority = { lower: -1, upper: 1 }
  * this function a conflict, and it found the incoherent-claim case immediately.
  * `decided` is pinned by that test from both sides, after review 2026-09-13
  * found that replacing it with `lower`, with `upper` or with `(lower + upper) /
- * 2` left all 453 tests green -- the same shape as this file's own "never adds
+ * 2` left all 451 tests green, the suite as it stood before this test existed --
+ * the same shape as this file's own "never adds
  * nose-up" history, where a sentence nothing arbitrated turned out to be false.
  */
 const narrowAuthority = (a: PitchAuthority, lower: number, upper: number): PitchAuthority => {

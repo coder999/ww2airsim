@@ -313,7 +313,8 @@ and none blocks merge.
      published budget is NOT a subset of the incoming one, so "narrowed, never
      widened" holds only where the ranges overlap. The decided point is pinned
      from both sides by a test, after review found that `lower`, `upper` and
-     the midpoint each left all 453 tests green.
+     the midpoint each left all 451 tests green, the suite as it stood before the
+     pinning test existed. Each now fails exactly that one test, 1 of 452.
 
    All three are unreachable through `applyAssists` today and measured to be
    so: reverting any of them leaves the 442 tests as merged green, which is why
@@ -344,3 +345,18 @@ and none blocks merge.
    the real tree still cruises clean immediately afterward; the `.gitignore`
    entry stays as a backstop, with its comment corrected to say that nothing
    writes those paths any more.
+
+5. **The sweep's per-value floor is not scoped to a discriminating region** —
+   found by the hardening branch's own re-review, 2026-09-13, and not fixed
+   because it is latent rather than live.
+
+   `authoritySweep.test.ts` asserts each illegal pitch value is drawn at least
+   a floor number of times, which is what stops the sweep silently ceasing to
+   test NaN — the exact defect that round was fixed for. But the floor counts
+   occurrences over the WHOLE run, not over the non-departed region. Past the
+   departed threshold `narrowToCommand` re-clamps, which masks an upstream
+   clamp regression, so a future seed or grid change could satisfy the floor
+   with a value that only ever appears where it cannot discriminate.
+
+   That is the same shape of blind spot the whole sweep exists to close, one
+   level up. The fix is to condition the per-value floor on `!departed`.
