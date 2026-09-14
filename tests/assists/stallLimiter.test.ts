@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { applyAssists, type AssistSettings } from '../../src/assists/index.js'
+import {
+  applyAssists,
+  stallLimiter,
+  type AssistSettings,
+  type PitchAuthority,
+} from '../../src/assists/index.js'
 import { step, DT, angleOfAttack, isStalled, commandedBodyRates } from '../../src/sim/flight/model.js'
 import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
 import { alphaCritRad } from '../../src/sim/aero.js'
@@ -369,5 +374,118 @@ describe('the stall limiter bounds the step it is given, not a step of length ta
     for (const dt of [DT, DT / 10, spec.rates.stallLimiterSeconds, Number.NaN, -1, 0]) {
       expect(applyAssists(s, spec, raw, dt, ONLY_LIMITER(true)).pitch, `dt=${dt}`).toBe(expected)
     }
+  })
+})
+
+describe('honours a pitch-authority budget narrowed ahead of it (design open item 3)', () => {
+  /**
+   * The limiter is the one place in `src/assists/index.ts` that puts a value on
+   * the pitch axis, and until 2026-09-13 it clamped into its OWN bounds and
+   * ignored the `authority` it was handed -- so a stage narrowing the budget
+   * ahead of it would have been silently overruled by the very mechanism every
+   * other stage is made to obey.
+   *
+   * There is no input to `applyAssists` that reaches it: the only narrowing
+   * that happens before this stage today is `runStack`'s departed collapse, and
+   * `stallLimiterBounds` stands down on that same predicate, so the clamp is
+   * not executed when it has fired. That is why these call the stage directly
+   * rather than going through the stack -- a test that could only be written
+   * through `applyAssists` would be a test that cannot fail, today or after a
+   * narrowing stage is inserted, which is the failure mode this suite keeps
+   * finding.
+   *
+   * The state is level flight at 130 m/s, alpha 0, where the limiter is
+   * measurably passive: with a full budget it hands back +1, -1 and +0.5
+   * unchanged and publishes [-1, 1] (measured 2026-09-13 through this exact
+   * call), so every number below comes from the incoming budget and nothing
+   * from the limiter's own bound.
+   *
+   * Proved to fail 2026-09-13 by restoring the old line (`Math.min(bounds.upper,
+   * Math.max(bounds.lower, clampFinite(controls.pitch, -1, 1)))`): both cases
+   * below return the pilot's raw +-1 instead of the budgeted value, and the
+   * whole rest of the suite -- all 442 tests as merged -- stays green, which is
+   * exactly why this guard is worth its lines.
+   */
+  const level = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0), attitude: qIdentity() })
+  const held = (pitch: number): Controls => ({ pitch, roll: 0, yaw: 0, throttle: 0.8 })
+
+  it('clamps the command into the narrowed budget, not into its own wider bounds', () => {
+    const narrowed: PitchAuthority = { lower: -0.2, upper: 0.2 }
+    expect(stallLimiter(level, spec, held(1), DT, narrowed).controls.pitch).toBe(0.2)
+    expect(stallLimiter(level, spec, held(-1), DT, narrowed).controls.pitch).toBe(-0.2)
+    // A legal command already inside the narrowed budget is still untouched:
+    // the stage did not become an unconditional clamp.
+    expect(stallLimiter(level, spec, held(0.1), DT, narrowed).controls.pitch).toBe(0.1)
+  })
+
+  it('respects a budget already narrowed to a single value, whichever way the pilot pushes', () => {
+    // What a narrowing stage inserted ahead of the limiter would actually
+    // publish when it spent the axis: one value, no room either side.
+    const spent: PitchAuthority = { lower: 0.1, upper: 0.1 }
+    for (const pitch of [1, -1, 0, 0.1]) {
+      expect(stallLimiter(level, spec, held(pitch), DT, spent).controls.pitch, `pitch=${pitch}`).toBe(0.1)
+    }
+  })
+
+  it('never publishes a budget wider than the one it was handed, at any alpha', () => {
+    // The other half of the contract, and the one the whole arbitration rests
+    // on: this stage may narrow the budget and may not widen it. Total over
+    // alpha rather than sampled at the interesting angles, including past the
+    // 90-degree stand-down in both directions -- the two no-bound paths return
+    // early, and writing them as bare pass-throughs is what this test caught:
+    // handed a budget of [-0.4, 0.4] at alpha -100, the stage returned the
+    // pilot's raw +1 alongside it.
+    //
+    // Where the incoming budget and the limiter's own bound do not OVERLAP,
+    // there is no subset of both and the conflict is decided rather than
+    // intersected (`narrowAuthority`: the bound being applied wins, collapsed
+    // to its point nearest the incoming budget). That case is asserted as the
+    // documented rule instead of as a subset, because a subset does not exist
+    // -- it is not a hole in the test.
+    let conflicts = 0
+    for (let alphaDeg = -180; alphaDeg <= 180; alphaDeg += 1) {
+      const alphaRad = (alphaDeg * Math.PI) / 180
+      for (const speed of [70, 130]) {
+        const s = createState({
+          position: v3(0, 2000, 0),
+          velocity: v3(speed * Math.cos(alphaRad), -speed * Math.sin(alphaRad), 0),
+          attitude: qIdentity(),
+        })
+        for (const incoming of [
+          { lower: -1, upper: 1 },
+          { lower: -0.4, upper: 0.4 },
+          { lower: 0.25, upper: 0.25 },
+          { lower: -0.6, upper: -0.6 },
+        ] as PitchAuthority[]) {
+          for (const pitch of [1, 0.3, 0, -0.3, -1]) {
+            const out = stallLimiter(s, spec, held(pitch), DT, incoming)
+            const where = `alpha=${alphaDeg} speed=${speed} incoming=${JSON.stringify(incoming)} pitch=${pitch}`
+            // Total, no exceptions: a published budget is non-empty and the
+            // command this stage hands on is inside it.
+            expect(out.authority.lower, where).toBeLessThanOrEqual(out.authority.upper)
+            expect(out.controls.pitch, where).toBeGreaterThanOrEqual(out.authority.lower)
+            expect(out.controls.pitch, where).toBeLessThanOrEqual(out.authority.upper)
+            // Subset of the incoming budget, UNLESS the two ranges are
+            // disjoint -- and the only way out of the incoming budget is that
+            // decided conflict, which always collapses to one value. Asserted
+            // in that form (rather than by re-deriving the limiter's bound here
+            // to classify the case, which would put a second copy of the bound
+            // formula in the suite) because it is total: it holds at every one
+            // of these 14,440 calls with no case left unchecked.
+            const subset = out.authority.lower >= incoming.lower && out.authority.upper <= incoming.upper
+            if (!subset) {
+              expect(out.authority.lower, `decided conflict must be one value: ${where}`).toBe(
+                out.authority.upper,
+              )
+              conflicts++
+            }
+          }
+        }
+      }
+    }
+    // The conflict branch must actually be exercised, or the clause above is
+    // an escape hatch rather than a case. Measured 2026-09-13: 4,410 of the
+    // 14,440 calls are decided conflicts.
+    expect(conflicts).toBeGreaterThan(1000)
   })
 })

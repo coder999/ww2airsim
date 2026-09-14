@@ -258,18 +258,54 @@ and none blocks merge.
    which is a behaviour question worth deciding at the controls rather than
    here.
 
-2. **The published budget is only truthful for a legal `Controls.pitch`.** With
-   a raw pitch of ±5 or NaN the stack returns that value while publishing a
-   budget of [1,1], [-1,-1] or [0,0]. The command passes through identically to
-   before the refactor, so nothing leaks — the budget is a false claim rather
-   than a breach. Unreachable from the input layer today; the soak injects such
-   values but calls `step` directly, not `applyAssists`.
+2. **CLOSED 2026-09-13 (hardening wave).** The published budget was only
+   truthful for a legal `Controls.pitch`: with a raw pitch of ±5 or NaN the
+   stack returned that value while publishing a budget of [1,1], [-1,-1] or
+   [0,0] — a false claim rather than a breach, since the command passed through
+   identically to before the refactor.
 
-3. **`stallLimiter` clamps into its own bounds rather than into the narrowed
-   authority.** Unreachable today, because a departed aeroplane returns early
-   and nothing narrows ahead of the limiter. It matters the moment a narrowing
-   stage is inserted before it: the limiter is then the one place that puts a
-   value on the axis without going through `withinAuthority`. One line.
+   Fixed by clamping the INPUT, in `runStack`, before any stage or any budget
+   sees it, rather than by widening the claim. Widening was not available
+   without giving up "the budget never leaves the pilot's legal range", which
+   is the property the whole arbitration rests on: a budget that has to contain
+   5 is not inside [-1,1]. Clamping is also behaviour-preserving rather than
+   merely defensible — `commandedBodyRates` already put every channel through
+   the same `clampFinite(n, -1, 1)`, so 5 was already flown as 1 and NaN as 0,
+   and `tests/assists/index.test.ts` now asserts the state reached through
+   `step` is identical field-for-field either way. The two GATES that read the
+   pilot's literal command (`isPitchCentred`, `nextAltitudeHoldMemory`) are
+   deliberately left reading the unsanitised value: NaN means a malformed input
+   event, not a centred stick, and mapping it to 0 there would engage altitude
+   hold and capture a held altitude off a broken input.
+
+3. **CLOSED 2026-09-13 (hardening wave).** `stallLimiter` clamped into its own
+   bounds rather than into the narrowed authority — the one place a value went
+   onto the pitch axis without going through `withinAuthority`. It now clamps
+   into the intersection, and its guard test
+   (`tests/assists/stallLimiter.test.ts`, total over alpha at 1-degree steps,
+   14,440 direct calls to the stage) found two further holes the one-line
+   description did not cover:
+
+   - both no-bound EARLY RETURNS (departed, and no pitch authority) handed the
+     command straight back alongside a budget it might not be inside. Handed
+     [-0.4, 0.4] at alpha −100 the stage returned the pilot's raw +1. Both now
+     put their value on the axis through the budget too, which is a no-op on
+     every reachable path (departed: `runStack` has already collapsed the
+     budget onto that exact command; unauthorised: nothing has narrowed it, so
+     it is still [-1,1]).
+   - `narrowAuthority` could publish an EMPTY budget when an incoming budget
+     and the limiter's bound do not overlap — e.g. an upstream [0.25, 0.25]
+     against a bound of [−1, 0] — and `withinAuthority` then answers `upper` or
+     `lower` depending on which side the value came from, i.e. arbitrarily. The
+     conflict is now decided rather than intersected: the bound being applied
+     wins (it is later, more specific, and in the shipped stack it is the one
+     keeping the wing attached), collapsed to its point nearest the budget it
+     replaces, so `lower <= upper` holds of every budget this file publishes.
+
+   All three are unreachable through `applyAssists` today and measured to be
+   so: reverting any of them leaves the 442 tests as merged green, which is why
+   the guard calls the stage directly. The stage is exported for exactly that
+   test and has no other caller.
 
 4. **The architecture tests still write probe files into the real source tree.**
    `tests/architecture/boundary.test.ts` writes four `src/**/__*__.ts` files and
