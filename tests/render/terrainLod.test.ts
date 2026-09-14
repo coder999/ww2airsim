@@ -123,9 +123,16 @@ describe('CDLOD node selection', () => {
     // each) and 3 of the 24 ring-1 leaves at this camera -- the fine half
     // of the tree, which is exactly where a compensating hole-plus-overlap
     // is most plausible, was effectively untested. 201x201 = 40,401 points
-    // (1 km spacing) puts dozens of samples inside every ring-0 leaf, and
-    // is still well under a second (measured 2026-09-14: ~0.2 s against the
-    // ~145 leaves this camera selects).
+    // is a 1 km pitch against 1,562.5 m ring-0 leaves, i.e. ~2.4 samples per
+    // leaf on average (an earlier version of this comment claimed "dozens
+    // per leaf", which overstated it by roughly an order of magnitude --
+    // corrected 2026-09-14, round 2). ~2.4 is not a generous margin by
+    // itself, but it is enough: a dropped ring-0 child is invisible to the
+    // occupancy loop at 21x21 (caught only by the summed-area assertion
+    // below) and fails the occupancy loop directly at 201x201, at
+    // (8000, -7000) -- see the fix report's I2 mutation proof. Still well
+    // under a second (measured 2026-09-14: ~0.2 s against the ~145 leaves
+    // this camera selects).
     const half = LOD.halfExtentM
     const SAMPLES_PER_AXIS = 201 // 40,401 points total
     // Half-open per axis (lower inclusive, upper exclusive) so every point
