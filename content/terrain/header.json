@@ -1,0 +1,8 @@
+{
+  "centreLatDeg": 10.8,
+  "centreLonDeg": 125.3,
+  "halfExtentM": 100000,
+  "finestSamples": 8193,
+  "levels": 13,
+  "encoding": "int16-decimetres"
+}

@@ -15,6 +15,7 @@
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",
     "golden:regen": "tsx tools/golden/generate.ts",
+    "terrain:build": "tsx tools/terrain/build.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"
   },
@@ -33,6 +34,7 @@
     "@webgpu/types": "^0.1.72",
     "dependency-cruiser": "^16.10.4",
     "eslint": "^9.39.5",
+    "geotiff": "^3.0.5",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.0",
