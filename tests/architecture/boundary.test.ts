@@ -96,6 +96,19 @@ function runDepcruise(cruiseRoot: string): { code: number; output: string } {
  * verified 2026-09-13 by watching that rule fire from a temp root. `rmSync` does
  * not follow the link (checked: the target's files survive a recursive remove of
  * the root), so deleting the root cannot touch the repo's dependencies.
+ *
+ * This root also has no `content/` (only `src/`, the two config files, and a
+ * symlinked `node_modules` -- see the copy loop below), which makes
+ * `src/render/terrain/lod.ts`'s `import ... from '../../../content/terrain/
+ * header.json'` unresolvable inside it. That is harmless ONLY because
+ * `.dependency-cruiser.cjs` has no `not-to-unresolvable` rule today (checked
+ * 2026-09-14: none of its seven rules is) -- dependency-cruiser reports no
+ * violation for an import it cannot resolve at all (see the `node_modules`
+ * paragraph above for the same fact used the other way round). If the
+ * standard recommended rule set is ever added, THIS is why a real,
+ * intentional `content/` import would start failing here in a way that looks
+ * unrelated to its actual cause: the failure is in this test's temp root
+ * construction, not in `lod.ts`.
  */
 function cruiseWithProbes(probes: Record<string, string>): { code: number; output: string } {
   const root = mkdtempSync(join(tmpdir(), 'ww2airsim-boundary-'))

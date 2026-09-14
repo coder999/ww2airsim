@@ -77,6 +77,21 @@ export const LOD: LodParams = {
   rings: RINGS,
   quadsPerNode: 64,
   finestRangeM: FINEST_RANGE_M,
+  // Exactly the value given by the Task 9 brief's own LodParams interface
+  // comment ("drawDistanceM: number // 100000"), not derived from anything.
+  // Its numeric equality with HEADER.halfExtentM below is COINCIDENTAL, not
+  // a relationship -- halfExtentM is the resampled world's half-extent
+  // (tools/terrain/resample.ts's GRID.halfExtentM), drawDistanceM is a
+  // camera far-plane/fog distance the brief specified directly, and nothing
+  // ties the two together (review 2026-09-14, finding I3).
+  //
+  // Flagging for Task 10, which is the first task that will actually use
+  // this number: the world's diagonal is up to 2 * halfExtentM * sqrt(2) =
+  // ~283 km, so a 100 km draw distance WILL clip terrain that `selectNodes`
+  // legitimately returns for a camera near one corner looking toward the
+  // opposite one. Node selection itself does not cull on this value (see
+  // the LodParams doc comment above) -- Task 10 has to decide whether to
+  // raise it, fog the gap, or accept the clip.
   drawDistanceM: 100_000,
 }
 
@@ -194,10 +209,16 @@ export function selectNodes(cameraX: number, cameraZ: number, params: LodParams 
     const distance = distanceTo(cell)
     const lower = cell.ring === 0 ? 0 : rangeAtRing(cell.ring - 1, finestRangeM)
     const upper = rangeAtRing(cell.ring, finestRangeM)
-    // Clamped: a forced-balance split, or a node whose sibling near the
-    // camera forced their shared parent to subdivide, can leave a leaf at a
-    // distance far outside its own [lower, upper) band. Without the clamp
-    // `morph` would exceed the 0..1 range in exactly that case.
+    // Clamped, and this is the ROUTINE case, not a rare edge case: whenever
+    // a parent subdivides, it does so because ITS CLOSEST child is within
+    // range, but the other three children can easily be much farther from
+    // the camera than their own [lower, upper) band expects -- and a
+    // forced-balance split does the same. Measured 2026-09-14 at camera
+    // (3000, 3000): 73 of 148 returned nodes have morph clamped to exactly
+    // 1, and only 74 have a distance genuinely inside their own band.
+    // Task 10 blends geometry toward the next coarser ring using `morph`;
+    // it needs to know "fully morphed" is the common case near any tree
+    // boundary, not the exception.
     const morph = Math.min(1, Math.max(0, (distance - lower) / (upper - lower)))
     return { centreX: cell.centreX, centreZ: cell.centreZ, sizeM: cell.sizeM, ring: cell.ring, morph }
   })

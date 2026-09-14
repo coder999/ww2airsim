@@ -1,10 +1,81 @@
 import { existsSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { selectNodes, LOD, type LodNode } from '../../src/render/terrain/lod.js'
-import { loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
+import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
 import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
+import type { TerrainHeader } from '../../src/sim/world/schema.js'
 
 const area = (n: { sizeM: number }) => n.sizeM * n.sizeM
+
+/**
+ * Worst absolute height difference between `referenceLevel`'s mip and the
+ * mip actually selected, by ring, for a camera at `(cameraX, cameraZ)` --
+ * design spec §6's "how wrong is the far field" as a number. Sampled at
+ * every one of a node's `quadsPerNode + 1` grid vertices (the resolution
+ * Task 10 will actually draw), taking the worst over every node
+ * `selectNodes` returned at that ring. Rings below `referenceLevel` are
+ * skipped entirely -- not just `referenceLevel` itself (trivially zero) --
+ * because the caller may only have committed levels on disk (see the
+ * CI-runnable L4-referenced table below, which cannot load rings 0-3 at
+ * all).
+ */
+function worstErrorByRing(
+  header: TerrainHeader,
+  referenceLevel: number,
+  cameraX: number,
+  cameraZ: number,
+): Record<number, number> {
+  const reference = createTerrainField(header, referenceLevel, loadTerrainLevel(referenceLevel, header))
+  const fieldByRing = new Map<number, TerrainField>()
+  const fieldForRing = (ring: number): TerrainField => {
+    let field = fieldByRing.get(ring)
+    if (!field) {
+      field = createTerrainField(header, ring, loadTerrainLevel(ring, header))
+      fieldByRing.set(ring, field)
+    }
+    return field
+  }
+
+  const nodesByRing = new Map<number, LodNode[]>()
+  for (const node of selectNodes(cameraX, cameraZ)) {
+    const list = nodesByRing.get(node.ring)
+    if (list) list.push(node)
+    else nodesByRing.set(node.ring, [node])
+  }
+
+  const q = LOD.quadsPerNode
+  const worstByRing: Record<number, number> = {}
+  for (const [ring, nodes] of nodesByRing) {
+    if (ring <= referenceLevel) continue
+    const field = fieldForRing(ring)
+    let worst = 0
+    for (const node of nodes) {
+      for (let i = 0; i <= q; i++) {
+        for (let j = 0; j <= q; j++) {
+          const x = node.centreX - node.sizeM / 2 + (i / q) * node.sizeM
+          const z = node.centreZ - node.sizeM / 2 + (j / q) * node.sizeM
+          const diff = Math.abs(heightAt(reference, x, z) - heightAt(field, x, z))
+          if (diff > worst) worst = diff
+        }
+      }
+    }
+    worstByRing[ring] = worst
+  }
+  return worstByRing
+}
+
+const numericAscending = (a: number, b: number) => a - b
+
+/** Asserts `actual`'s ring set and values match `pinned` exactly (to one
+ *  decimal place, matching the int16-decimetres on-disk encoding). */
+function expectPinnedTable(actual: Record<number, number>, pinned: Readonly<Record<number, number>>): void {
+  expect(Object.keys(actual).map(Number).sort(numericAscending)).toEqual(
+    Object.keys(pinned).map(Number).sort(numericAscending),
+  )
+  for (const [ring, value] of Object.entries(pinned)) {
+    expect(actual[Number(ring)], `ring ${ring}`).toBeCloseTo(value, 1)
+  }
+}
 
 describe('CDLOD node selection', () => {
   it('always draws the ground under the camera at the finest ring', () => {
@@ -41,13 +112,22 @@ describe('CDLOD node selection', () => {
     // Rasterised occupancy check, up front: summed area can, in principle,
     // be satisfied by a wrong tree with compensating errors -- a hole here
     // and an equal-area overlap there -- so it is not proof by itself
-    // (design's own review-gates note). This instead asks, at 441 points
-    // spanning the world, "does exactly one selected node contain this
-    // point?", which a hole (zero owners) or an overlap (two or more) both
-    // fail directly, with no way for the errors to cancel (Ruling: LOD
-    // review, coordinator dispatch).
+    // (design's own review-gates note). This instead asks, at tens of
+    // thousands of points spanning the world, "does exactly one selected
+    // node contain this point?", which a hole (zero owners) or an overlap
+    // (two or more) both fail directly, with no way for the errors to
+    // cancel (Ruling: LOD review, coordinator dispatch).
+    //
+    // I2 (review 2026-09-14): an earlier 21x21 = 441-point grid (10 km
+    // spacing) landed inside only 1 of the 32 ring-0 leaves (1,562.5 m
+    // each) and 3 of the 24 ring-1 leaves at this camera -- the fine half
+    // of the tree, which is exactly where a compensating hole-plus-overlap
+    // is most plausible, was effectively untested. 201x201 = 40,401 points
+    // (1 km spacing) puts dozens of samples inside every ring-0 leaf, and
+    // is still well under a second (measured 2026-09-14: ~0.2 s against the
+    // ~145 leaves this camera selects).
     const half = LOD.halfExtentM
-    const SAMPLES_PER_AXIS = 21 // 441 points total, "a few hundred"
+    const SAMPLES_PER_AXIS = 201 // 40,401 points total
     // Half-open per axis (lower inclusive, upper exclusive) so every point
     // belongs to exactly one node under a correct dyadic partition, with no
     // need to dodge exact shared-boundary coordinates -- except the world's
@@ -82,8 +162,15 @@ describe('CDLOD node selection', () => {
 
   it('coarsens with distance, at a pinned threshold', () => {
     const nodes = selectNodes(0, 0)
-    const ringAt = (d: number) =>
-      Math.min(...nodes.filter((n) => Math.hypot(n.centreX - d, n.centreZ) <= n.sizeM).map((n) => n.ring))
+    const ringAt = (d: number): number => {
+      const matching = nodes.filter((n) => Math.hypot(n.centreX - d, n.centreZ) <= n.sizeM)
+      // Without this, `Math.min(...[])` is `Infinity` and
+      // `expect(Infinity).toBeGreaterThan(0)` below passes vacuously --
+      // closing that permanently rather than relying on today's two
+      // assertions to jointly happen to catch every possible mutation (M4).
+      expect(matching.length, `no node found near d=${d}`).toBeGreaterThan(0)
+      return Math.min(...matching.map((n) => n.ring))
+    }
     expect(ringAt(500)).toBe(0)
     expect(ringAt(LOD.finestRangeM * 3)).toBeGreaterThan(0)
   })
@@ -102,12 +189,25 @@ describe('CDLOD node selection', () => {
     }
   })
 
-  it('stays inside a triangle budget from every camera position on a sweep', () => {
+  it('stays inside a triangle budget from every camera position on a sweep, staying balanced there too', () => {
+    // The ring-difference check is folded in here (M5) rather than left
+    // only at the single camera (31e3, 4e3) below that found the original
+    // balance bug: this sweep already visits 289 positions for the budget
+    // check, so re-using it for balance is near-zero extra cost and much
+    // broader cover than one fixed point.
     for (let x = -100e3; x <= 100e3; x += 12.5e3) {
       for (let z = -100e3; z <= 100e3; z += 12.5e3) {
-        const n = selectNodes(x, z).length
-        expect(n, `at ${x},${z}`).toBeLessThan(400) // 400 * 64*64*2 tris
-        expect(n, `at ${x},${z}`).toBeGreaterThan(0)
+        const nodes = selectNodes(x, z)
+        expect(nodes.length, `at ${x},${z}`).toBeLessThan(400) // 400 * 64*64*2 tris
+        expect(nodes.length, `at ${x},${z}`).toBeGreaterThan(0)
+        for (const a of nodes) {
+          for (const b of nodes) {
+            const touching =
+              Math.abs(a.centreX - b.centreX) <= (a.sizeM + b.sizeM) / 2 + 1 &&
+              Math.abs(a.centreZ - b.centreZ) <= (a.sizeM + b.sizeM) / 2 + 1
+            if (touching) expect(Math.abs(a.ring - b.ring), `at ${x},${z}`).toBeLessThanOrEqual(1)
+          }
+        }
       }
     }
   })
@@ -118,7 +218,67 @@ describe('CDLOD node selection', () => {
       expect(n.morph).toBeLessThanOrEqual(1)
     }
   })
+
+  it('computes a specific, non-clamped morph value, and is monotonic with distance', () => {
+    // I1 (review 2026-09-14): the range check above is structurally true of
+    // ANY expression clamped to [0, 1] -- replacing `morph` outright with a
+    // constant 0 or 1 still passes it, so it catches nothing but NaN. This
+    // test instead engineers an exact scenario and checks a computed value.
+    //
+    // A tiny two-ring world (root = ring 1, four ring-0 leaves, no deeper
+    // recursion possible) makes every leaf's own footprint and distance
+    // hand-computable, rather than depending on where the real 8-ring tree
+    // happens to put a boundary.
+    const params = { halfExtentM: 1000, rings: 2, quadsPerNode: 1, finestRangeM: 100, drawDistanceM: 1000 }
+    // Camera sits inside the SE quadrant (x >= 0, z <= 0), 10 m east of the
+    // vertical midline and 50 m south of the horizontal one.
+    const nodes = selectNodes(10, -50, params)
+    expect(nodes).toHaveLength(4) // root always subdivides once; ring 0 cannot subdivide further
+
+    const byQuadrant = (cx: number, cz: number): LodNode => {
+      const found = nodes.find((n) => n.centreX === cx && n.centreZ === cz)
+      if (!found) throw new Error(`no node at quadrant (${cx}, ${cz})`)
+      return found
+    }
+
+    // SE (500, -500): contains the camera, closest-point distance 0.
+    expect(byQuadrant(500, -500).morph).toBe(0)
+    // SW (-500, -500): closest point is (0, -50) -- 10 m west of camera,
+    // same z. distance = 10, band is [0, 100), so morph = 10 / 100 = 0.1
+    // exactly.
+    expect(byQuadrant(-500, -500).morph).toBeCloseTo(0.1, 9)
+    // NE (500, 500): closest point is (10, 0) -- same x as camera, 50 m
+    // north. distance = 50, exactly the midpoint of [0, 100), so morph
+    // must be 0.5 -- the "midpoint of its band" case the review asked for.
+    expect(byQuadrant(500, 500).morph).toBeCloseTo(0.5, 9)
+    // NW (-500, 500): closest point is (0, 0) -- 10 m west, 50 m north of
+    // camera. distance = hypot(10, 50) ~= 50.99, just past the NE value.
+    const expectedNW = Math.hypot(10, 50) / 100
+    expect(byQuadrant(-500, 500).morph).toBeCloseTo(expectedNW, 9)
+
+    // Monotonic in distance, strictly, across all four (all ring 0, so this
+    // is a same-ring comparison, not an artefact of ring boundaries): SE
+    // (0) < SW (0.1) < NE (0.5) < NW (~0.51). Replacing the morph formula
+    // with any constant, or with a formula that ignores distance, collapses
+    // this to non-strict and fails.
+    const inDistanceOrder = [
+      byQuadrant(500, -500).morph,
+      byQuadrant(-500, -500).morph,
+      byQuadrant(500, 500).morph,
+      byQuadrant(-500, 500).morph,
+    ]
+    for (let i = 1; i < inDistanceOrder.length; i++) {
+      expect(inDistanceOrder[i]!, `index ${i}`).toBeGreaterThan(inDistanceOrder[i - 1]!)
+    }
+  })
 })
+
+// M8 (review 2026-09-14): both pinned tables below depend on `finestRangeM`
+// (lod.ts, PROVISIONAL pending Task 11) -- retuning it moves ring
+// boundaries, which moves which mip lands under which distance, which moves
+// every pinned number below. If either table goes red, check whether
+// `finestRangeM` or the committed pyramid changed before treating it as a
+// regression: it may just need re-measuring and re-pinning.
 
 // Mip 0 (the finest, 8193-sample level) lives in the gitignored
 // `content/terrain/tiles/` -- see `tools/terrain/load.ts`'s
@@ -129,81 +289,54 @@ describe('CDLOD node selection', () => {
 const haveFinestMip = existsSync(terrainLevelPath(0))
 if (!haveFinestMip) {
   console.warn(
-    `[terrainLod.test.ts] ${terrainLevelPath(0)} is absent -- the far-field height-error ` +
-    'measurement is SKIPPED. Run `npx tsx tools/terrain/fetch.ts && npm run terrain:build` to enable it.',
+    `[terrainLod.test.ts] ${terrainLevelPath(0)} is absent -- the mip-0-referenced far-field ` +
+    'height-error measurement is SKIPPED (the L4-referenced twin below still runs everywhere). ' +
+    'Run `npx tsx tools/terrain/fetch.ts && npm run terrain:build` to enable it.',
   )
 }
 
-describe.skipIf(!haveFinestMip)('far-field height error, by ring', () => {
+describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring', () => {
   it('matches the pinned worst-case error against mip 0, measured 2026-09-14', () => {
     // Design spec §6 asks "how wrong is the far field" to have a number in
-    // the repo, not just a plausibility argument. This measures it directly:
-    // for a camera near a corner (so every ring from 0 up to the coarsest
-    // this bounded world reaches is actually selected somewhere), take every
-    // node `selectNodes` actually returned at each ring, sample mip 0 and
-    // that ring's own mip at every one of its `quadsPerNode + 1` grid
-    // vertices (the resolution Task 10 will actually draw), and record the
-    // worst absolute difference. Ring 0 is mip 0 itself, so its error is
-    // zero by construction and is not pinned.
+    // the repo, not just a plausibility argument. Camera (99000, -99000) is
+    // not arbitrary: that corner puts real Leyte relief (not open ocean)
+    // under every coarse ring, so these are the pipeline's actual worst
+    // case, not a flat-sea zero -- an earlier choice of corner gave zero
+    // error for rings 1-3 because that quadrant of the map is open water at
+    // those rings. Values are exact multiples of 0.1 m because the on-disk
+    // encoding is int16 decimetres (`schema.ts`'s `encoding`).
     const header = loadTerrainHeader()
-    const mip0 = createTerrainField(header, 0, loadTerrainLevel(0, header))
-    const fieldByRing = new Map<number, TerrainField>()
-    const fieldForRing = (ring: number): TerrainField => {
-      let field = fieldByRing.get(ring)
-      if (!field) {
-        field = createTerrainField(header, ring, loadTerrainLevel(ring, header))
-        fieldByRing.set(ring, field)
-      }
-      return field
-    }
-
-    const nodesByRing = new Map<number, LodNode[]>()
-    for (const node of selectNodes(99e3, -99e3)) {
-      const list = nodesByRing.get(node.ring)
-      if (list) list.push(node)
-      else nodesByRing.set(node.ring, [node])
-    }
-
-    const q = LOD.quadsPerNode
-    const worstByRing: Record<number, number> = {}
-    for (const [ring, nodes] of nodesByRing) {
-      if (ring === 0) continue
-      const field = fieldForRing(ring)
-      let worst = 0
-      for (const node of nodes) {
-        for (let i = 0; i <= q; i++) {
-          for (let j = 0; j <= q; j++) {
-            const x = node.centreX - node.sizeM / 2 + (i / q) * node.sizeM
-            const z = node.centreZ - node.sizeM / 2 + (j / q) * node.sizeM
-            const diff = Math.abs(heightAt(mip0, x, z) - heightAt(field, x, z))
-            if (diff > worst) worst = diff
-          }
-        }
-      }
-      worstByRing[ring] = worst
-    }
-
-    // Measured 2026-09-14 by running the computation above once and
-    // recording its output. Camera (99000, -99000) is not arbitrary: that
-    // corner puts real Leyte relief (not open ocean) under every coarse
-    // ring, so these are the pipeline's actual worst case, not a flat-sea
-    // zero -- an earlier choice of corner gave zero error for rings 1-3
-    // because that quadrant of the map is open water at those rings. Values
-    // are exact multiples of 0.1 m because the on-disk encoding is int16
-    // decimetres (`schema.ts`'s `encoding`).
-    const PINNED_WORST_ERROR_M: Readonly<Record<number, number>> = {
+    const worstByRing = worstErrorByRing(header, 0, 99e3, -99e3)
+    expectPinnedTable(worstByRing, {
       1: 4.6,
       2: 21.4,
       3: 47.7,
       4: 80.2,
       5: 221.7,
-    }
-    const numericAscending = (a: number, b: number) => a - b
-    expect(Object.keys(worstByRing).map(Number).sort(numericAscending)).toEqual(
-      Object.keys(PINNED_WORST_ERROR_M).map(Number).sort(numericAscending),
-    )
-    for (const [ring, pinned] of Object.entries(PINNED_WORST_ERROR_M)) {
-      expect(worstByRing[Number(ring)], `ring ${ring}`).toBeCloseTo(pinned, 1)
-    }
+    })
+  })
+})
+
+// Controller ruling (review 2026-09-14): the mip-0-referenced table above
+// never runs in CI or in a fresh clone (mip 0 is gitignored), so it cannot
+// be the plan's only far-field guard -- "a guard that only executes on a box
+// that has run the 178 MB build is not a guard." This twin uses L4, the
+// finest COMMITTED level, as its reference instead: same measurement, worse
+// reference (so smaller, less dramatic numbers than the mip-0 table above --
+// that is expected, not a discrepancy), but it runs everywhere. It only
+// measures rings 5 and up (`worstErrorByRing` skips anything <= the
+// reference level), because rings 0-3 need mips that are not on disk here.
+describe('far-field height error against mip 4, by ring (runs everywhere)', () => {
+  it('matches the pinned worst-case error against mip 4, measured 2026-09-14', () => {
+    // Camera at the exact world corner (100000, -100000): the opposite
+    // corner from it is far enough to stay at ring 6, which a moderate
+    // corner like (99000, -99000) above does not reach, giving two rings of
+    // data instead of one.
+    const header = loadTerrainHeader()
+    const worstByRing = worstErrorByRing(header, FIRST_COMMITTED_LEVEL, 100e3, -100e3)
+    expectPinnedTable(worstByRing, {
+      5: 94.7,
+      6: 205.4,
+    })
   })
 })
