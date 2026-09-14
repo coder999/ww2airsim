@@ -62,6 +62,12 @@ const realFetch: TileFetcher = async (url) => {
   const res = await globalThis.fetch(url)
   if (res.status === 404) throw new TileNotFoundError(url)
   if (!res.ok) throw new Error(`fetch ${url}: HTTP ${res.status} ${res.statusText}`)
+  // No length check against Content-Length here: a body that ends early is
+  // relied on to make undici's fetch() reject res.arrayBuffer() itself
+  // (observed behaviour, not a documented guarantee re-verified per Node
+  // version). ensureTileInto's .part-then-rename only guards a PROCESS-level
+  // interruption (the run is killed, the machine loses power); it does not,
+  // and cannot, re-check the bytes fetch() already handed back as complete.
   return new Uint8Array(await res.arrayBuffer())
 }
 
@@ -92,6 +98,20 @@ export async function ensureAllTilesInto(
       }
       throw err
     }
+  }
+  // Zero is the one threshold that isn't an invented constant -- it's the
+  // boundary between "some data" and "none". Without this, "0 of 9 landed,
+  // every one a 404" (e.g. a renamed bucket path) looks exactly like "8 of 9
+  // landed, one is legitimately open ocean": both just print a count and
+  // return normally. A silently empty cache is the sea-level-world failure
+  // the 404/other-error split above exists to avoid, so it must throw, not
+  // just log alongside the per-tile warnings already printed above.
+  if (paths.length === 0 && tiles.length > 0) {
+    throw new Error(
+      `fetched 0 of ${tiles.length} tiles -- every one 404'd or the batch was empty; ` +
+      `most likely the bucket path/naming changed (see tools/terrain/tiles.ts's tileUrl), ` +
+      `not that the whole requested area is open ocean`,
+    )
   }
   return paths
 }

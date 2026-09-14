@@ -101,4 +101,17 @@ describe('the batch fetch and its open-ocean gap', () => {
     const fetcher = vi.fn(async () => { throw new Error('connection reset') })
     await expect(ensureAllTilesInto(halfExtentM, dir, fetcher)).rejects.toThrow('connection reset')
   })
+
+  // A renamed bucket path or a typo in tileUrl 404s on EVERY tile, which the
+  // skip-and-continue rule above turns into a normal return of an empty list
+  // -- indistinguishable, downstream, from a world that is legitimately all
+  // open ocean, and the seed of a silently sea-level world. Zero is the one
+  // threshold here that is not an invented constant, so it is the one the
+  // batch refuses to return.
+  it('refuses to return an empty cache when every single tile 404s', async () => {
+    const dir = tmp(); dirs.push(dir)
+    const fetcher = vi.fn(async (url: string) => { throw new TileNotFoundError(url) })
+    await expect(ensureAllTilesInto(halfExtentM, dir, fetcher)).rejects.toThrow(/0 of 4 tiles/)
+    expect(fetcher).toHaveBeenCalledTimes(4)
+  })
 })

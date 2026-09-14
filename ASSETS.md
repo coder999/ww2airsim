@@ -77,6 +77,19 @@ source datasets:
   > produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus
   > Defence and Space GmbH 2014-2018 provided under COPERNICUS by the
   > European Union and ESA; all rights reserved.
+- **Required no-liability notice (Licence Article 6(c)):** triggers on the
+  same act as 6(a)/6(b) — distributing or communicating the DEM (modified or
+  not) to the general public. Task 6 commits *derived* terrain tiles into
+  this public repository, which is that trigger, so this is recorded now
+  rather than left for that task to rediscover:
+  > The organisations in charge of the Copernicus programme by law or by
+  > delegation do not incur any liability for any use of the Copernicus
+  > WorldDEM-30.
+  The licence text (Article 6(c) in full) additionally requires ensuring
+  Subsequent Users understand that neither the Licensor nor other Copernicus
+  programme entities may be held liable "with regard to any aspect of the
+  Copernicus WorldDEM-30" — the quoted sentence above is what must literally
+  appear in whatever notice accompanies the shipped, derived tiles.
 - **Known dataset gap, not a bug:** GLO-30 Public does not publish tiles for
   1°×1° cells that are 100% open ocean — the bucket's `readme.html` states
   "ocean areas do not have tiles, there one can assume height values equal
