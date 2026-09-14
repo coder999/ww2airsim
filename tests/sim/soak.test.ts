@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { runSoak } from '../../tools/soak/run.js'
+import { DEFAULT_ASSIST_SETTINGS } from '../../src/assists/index.js'
 
 describe('randomized soak (spec §11)', () => {
   it('survives 200 randomized flights with no invariant violations', () => {
+    // The UNASSISTED arm: no assist between the pilot's command and `step`.
+    // Kept exactly as it was, rng draw for rng draw, so the figures below --
+    // and the weathercock comparison they rest on -- stay checkable; the
+    // assisted arm is the separate test below.
     const result = runSoak(loadAircraftSpec('f6f-hellcat'), 200, 1337)
     expect(result.failures, result.failures.slice(0, 5).join('\n')).toHaveLength(0)
     expect(result.iterations).toBe(200)
@@ -73,8 +78,81 @@ describe('randomized soak (spec §11)', () => {
     expect(result.stalledSteps).toBeGreaterThan(25000)
   })
 
-  it('is reproducible from its seed', () => {
+  it('is reproducible from its seed, on both arms', () => {
     const f6f = loadAircraftSpec('f6f-hellcat')
     expect(runSoak(f6f, 20, 99)).toEqual(runSoak(f6f, 20, 99))
+    // The assisted arm too: `createAssistRunner` carries a mutable cell (the
+    // captured altitude), so determinism there is a claim about the harness
+    // threading it per flight rather than a property inherited from the rng.
+    expect(runSoak(f6f, 20, 99, DEFAULT_ASSIST_SETTINGS)).toEqual(
+      runSoak(f6f, 20, 99, DEFAULT_ASSIST_SETTINGS),
+    )
+  })
+
+  it('survives 200 randomized flights with the shipped assists ON', () => {
+    // WHY THIS ARM EXISTS. Every test of the assists flies one hand-picked
+    // trajectory, and this harness drove the model with no assist at all -- so
+    // the configuration that actually ships, three interacting stages all
+    // switched on, had no randomised, long-horizon, invariant-checked coverage.
+    // The three Criticals Plan 3 produced were all interactions between two of
+    // those stages.
+    //
+    // It checks more than the unassisted arm does: `stepChecked`'s finiteness
+    // and energy invariants as before, plus, on every one of the ~578,000 steps,
+    // that the stack's published pitch-authority budget is non-empty, inside
+    // [-1, 1], contains the command that was flown, and collapses onto the
+    // pilot's own command past 90 degrees of alpha. Those are the same clauses
+    // `tests/assists/authoritySweep.test.ts` sweeps over CONSTRUCTED states;
+    // here they are checked over states 60 Hz of `step()` actually produced,
+    // with the altitude-hold memory threaded the way production threads it.
+    const result = runSoak(loadAircraftSpec('f6f-hellcat'), 200, 1337, DEFAULT_ASSIST_SETTINGS)
+    expect(result.failures, result.failures.slice(0, 5).join('\n')).toHaveLength(0)
+    expect(result.iterations).toBe(200)
+
+    // Floors, set well below what this exact configuration measures, exactly
+    // the convention the unassisted arm's comment above lays down: re-measure
+    // and move the floors, never the assertions, if the input distribution
+    // changes again.
+    //
+    // MEASURED 2026-09-13, node v22.22.1, seed 1337, 200 iterations,
+    // `DEFAULT_ASSIST_SETTINGS`, this aircraft's content: 577,980 steps, 92
+    // flights completing the full 60 s, 32,793 stalled steps, 159,224 steps
+    // where the stack moved the pitch axis away from the pilot's own command,
+    // 145,140 steps with altitude hold engaged (both its gates open), 577,980
+    // steps where auto-rudder moved the yaw axis -- i.e. every step, which is
+    // why the pitch and yaw counters are separate -- and zero failures. Runtime
+    // 2.5 s against the unassisted arm's 1.0 s.
+    //
+    // Two other seeds, for a sense of how much spread the floors have to
+    // tolerate: seed 4242 gives 594,600 / 103 / 33,551 / 164,805 / 149,940 and
+    // seed 7 gives 602,040 / 110 / 31,276 / 165,206 / 148,620, both with zero
+    // failures.
+    //
+    // The assisted arm is NOT comparable flight-for-flight with the unassisted
+    // one and its numbers are not expected to match: the assists change the
+    // trajectory, so which flights reach the water changes, which changes how
+    // many rng draws each iteration consumes. It also draws a released pitch
+    // stick on 25% of seconds, which the unassisted arm does not (see
+    // `rollControls`: altitude hold's gate is an exact 0 and a continuous draw
+    // never produces one -- without it this arm engaged altitude hold on 0 of
+    // 550,320 steps). The unassisted arm's own figures are unchanged to the
+    // digit by all of this, which is asserted above rather than asserted here.
+    expect(result.steps).toBeGreaterThan(400000)
+    expect(result.flightsCompleted).toBeGreaterThan(60)
+    expect(result.stalledSteps).toBeGreaterThan(18000)
+    expect(result.assistPitchInterventions).toBeGreaterThan(80000)
+    expect(result.assistHoldEngagedSteps).toBeGreaterThan(80000)
+    expect(result.assistYawInterventions).toBeGreaterThan(300000)
+
+    // PROVED TO FAIL, 2026-09-13, by the two mutations the authority check
+    // exists for -- both of which leave the unassisted arm green, because it
+    // runs no assist at all:
+    //  - `altitudeHold`'s final `withinAuthority(authority, uncapped)` replaced
+    //    by `uncapped` (the original C1 shape): 99 of 200 iterations fail, the
+    //    first with `commanded -1 against {"lower":0,"upper":0}`.
+    //  - `runStack`'s departed narrowing replaced by `FULL_PITCH_AUTHORITY`
+    //    (the third Critical): 53 of 200 iterations fail, the first with
+    //    `departed budget {"lower":-1,"upper":1} is not the pilot's own
+    //    0.3210875145159662 at alpha -111.66 deg`.
   })
 })
