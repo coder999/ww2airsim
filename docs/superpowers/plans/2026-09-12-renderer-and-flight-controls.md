@@ -3005,7 +3005,7 @@ Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Fly it** — STILL MARK'S. Flown programmatically on the reference platform 2026-09-13 to capture screenshots, which is not the same thing: this step exists to judge how the aeroplane FEELS, particularly `RAMP_SECONDS`, and that cannot be delegated.
+- [x] **Step 6: Fly it** — DONE 2026-09-13. Mark flew the merged branch on the reference platform and reported "flying feels pretty good", then after Plan 3's assists landed, "i tried it and i like it". `RAMP_SECONDS` is left where it is; nobody asked for it to move. Original note follows: Flown programmatically on the reference platform 2026-09-13 to capture screenshots, which is not the same thing: this step exists to judge how the aeroplane FEELS, particularly `RAMP_SECONDS`, and that cannot be delegated.
 
 `npm run dev` on nexus, tunnel, open `http://localhost:5173`.
 Expected: an F6F over water, chase camera, arrow keys fly it, Shift opens the throttle, C switches to the cockpit, numpad looks around.
@@ -3227,7 +3227,7 @@ Hiding the airframe is not optional. The code-built Hellcat is an *external* mod
 Run: `npx vitest run tests/render/panel.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Check legibility, once** — STILL MARK'S. Rendered and inspected at 1440p on the reference platform 2026-09-13, and three objective defects were fixed as a result (overlapping dials, needles crossing into neighbours, numerals sitting on their own ticks). Whether it reads at a glance while flying is a human judgement and is not claimed.
+- [x] **Step 6: Check legibility, once** — DONE 2026-09-13, after three objective defects were fixed in response to his own screenshots: overlapping dials, needles crossing into neighbours, and numerals sitting on their own tick marks. He confirmed the result. Original note follows: Rendered and inspected at 1440p on the reference platform 2026-09-13, and three objective defects were fixed as a result (overlapping dials, needles crossing into neighbours, numerals sitting on their own ticks). Whether it reads at a glance while flying is a human judgement and is not claimed.
 
 `npm run dev`, tunnel, press `C` for the cockpit.
 Expected: gauges readable at a glance at 1440p. This is the check that the appearance-authenticity trade was made for — if they are not readable, raise `DIAL_RADIUS` and say so in the commit.
