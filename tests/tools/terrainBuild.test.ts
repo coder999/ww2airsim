@@ -50,6 +50,38 @@ describe('the committed terrain fallback', () => {
     // directly (not through the built grid) gives 1.92 m at the Tacloban point
     // and exactly 0.00 m at the gulf point, i.e. dry land just above the sea
     // and open water -- which is what the two are asserted to be below.
+    //
+    // Fix round 1 (2026-09-14): the two assertions above pass under EVERY one
+    // of the grid's 8 dihedral symmetries (row-flip, col-flip, 180-rotation,
+    // transpose, anti-transpose, both 90-rotations) -- proven by direct
+    // experiment against this committed grid, not assumed. Root cause: L4
+    // holds no negative values anywhere in this no-bathymetry build, so
+    // `> -2` is true of every cell; and the gulf point sits only ~5.5 km
+    // (14 grid cells) from L4's geometric centre (row 270/col 242 of 513,
+    // centre 256/256), so a reflection barely moves it and it stays in the
+    // same flat water patch. Two more points, independently sourced, far
+    // from centre and off every symmetry axis, close that gap:
+    //   Mt Nacolod, Southern Leyte  10.450846 N 125.096068 E, 915-1007 m --
+    //     PeakVisor (https://peakvisor.com/peak/mount-nacolod.html) and the
+    //     Province of Southern Leyte
+    //     (https://southernleyte.gov.ph/topography/), both read 2026-09-14.
+    //     114 grid cells (~44 km) from centre.
+    //   Surigao Strait  10.167 N 125.383 E -- open water between Leyte/Panaon
+    //     and Mindanao/Dinagat, historically the site of the Battle of
+    //     Surigao Strait (25 Oct 1944) -- Wikipedia
+    //     (https://en.wikipedia.org/wiki/Surigao_Strait), read 2026-09-14.
+    //     181 grid cells (~71 km) from centre.
+    // Nacolod's real elevation (841 m in this build's L4) is high enough, and
+    // its grid position generic enough (off the row axis, the column axis and
+    // both diagonals), that EVERY one of its 8 dihedral images reads well
+    // under 300 m in the correctly-built grid -- measured, not assumed:
+    //   identity 841.0, row-flip 0.0, col-flip 0.0, 180-rot 132.9,
+    //   transpose 4.0, anti-transpose 60.1, rot90cw 32.1, rot90ccw 0.0 (m)
+    // so asserting > 300 m at Nacolod alone kills all seven non-identity
+    // transforms; each is demonstrated individually in
+    // task-6-report.md's "Fix round 1". Surigao Strait's images reinforce two
+    // of them independently (row-flip -> 98.4 m, 180-rot -> 363.7 m, both
+    // fail an open-water assertion), as a second, unrelated line of defence.
     const sample = (latDeg: number, lonDeg: number, level: number): number => {
       const { x, z } = toLocal(latDeg, lonDeg)
       const n = samplesAtLevel(header, level)
@@ -60,6 +92,8 @@ describe('the committed terrain fallback', () => {
     }
     expect(sample(11.228, 125.028, 4)).toBeGreaterThan(-2)
     expect(sample(10.75, 125.25, 4)).toBeLessThanOrEqual(0)
+    expect(sample(10.450846, 125.096068, 4)).toBeGreaterThan(300)
+    expect(sample(10.167, 125.383, 4)).toBeLessThanOrEqual(0)
   })
 
   it('is not flat, and is not noise', () => {
