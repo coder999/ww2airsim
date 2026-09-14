@@ -14,7 +14,8 @@ describe('source tile coverage', () => {
     // A guard against the off-by-one that leaves a missing tile as a cliff of
     // sea-level at the world edge -- which looks like terrain data being
     // wrong, not like a tile list being short. Also guard that interior tiles
-    // are not silently omitted: the set must be contiguous across its bounds.
+    // are not silently omitted: the set must be contiguous across its bounds,
+    // and the bounds themselves must be correct.
     const ids = tilesCovering(200e3)
     expect(ids.length).toBeGreaterThan(9)
 
@@ -25,7 +26,16 @@ describe('source tile coverage', () => {
     const minLon = Math.min(...lons)
     const maxLon = Math.max(...lons)
 
-    // Verify every integer tile in the bounding box is present.
+    // Expected bounds for 400 km box (200 km half-extent) centred on 10.8 N, 125.3 E:
+    // Box extends ±1.8 degrees, so roughly 9-12.6 N and 123.5-127.1 E. Tile indices
+    // are floor(degrees), giving N8-N12, E123-E127 (5×5 grid). Computed via azimuthal
+    // equidistant projection at S4 / master spec.
+    expect(minLat).toBe(8)
+    expect(maxLat).toBe(12)
+    expect(minLon).toBe(123)
+    expect(maxLon).toBe(127)
+
+    // Verify every integer tile in the bounding box is present (catches interior holes).
     const seen = new Set(ids.map((t) => `${t.lat},${t.lon}`))
     for (let lat = minLat; lat <= maxLat; lat++) {
       for (let lon = minLon; lon <= maxLon; lon++) {

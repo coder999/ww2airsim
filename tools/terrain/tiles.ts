@@ -11,6 +11,11 @@ export type TileId = { readonly lat: number; readonly lon: number }
  *  which covers all interior tiles by construction. */
 export function tilesCovering(halfExtentM: number): readonly TileId[] {
   const tiles: TileId[] = []
+  // Perimeter discretisation: 64 steps across each half-edge is ample. The
+  // true max latitude difference between an edge midpoint and its endpoints is
+  // about 0.005 degrees (roughly 570 m) for the 400 km box; discretisation
+  // error at 64 steps is orders of magnitude below tile size, nowhere near
+  // enough to cross a degree boundary.
   const steps = 64
 
   // Walk perimeter to find bounds.
