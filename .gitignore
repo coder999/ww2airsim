@@ -24,20 +24,18 @@ dist-ssr/
 # SDD scratch workspace (ledger, briefs, review packages)
 .superpowers/
 
-# The architecture boundary test writes REAL source files into src/ and deletes
-# them again. An interrupted run (Ctrl-C, CI timeout, OOM) leaves a node:fs or
-# render import sitting in the one tree that must stay browser-loadable, which
-# then makes `npm run depcruise` fail for a reason that has nothing to do with
-# your change -- and a concurrent depcruise can see one mid-run even when the
-# run is not interrupted (Task 4 reproduced exactly that flake).
+# Probe files. NOTHING WRITES THESE INTO THIS TREE ANY MORE, as of 2026-09-13:
+# tests/architecture/boundary.test.ts copies src/ into a temp root outside the
+# repo and writes its probes there, and asserts that none of the four paths
+# exists here afterward. The reason is in that file's `cruiseWithProbes`
+# comment, with the measured race it closes.
 #
-# The glob, rather than a list: 2026-09-13's final review found this entry
-# covered one of the four paths that test actually writes, the other three
-# having been added later without it. `__name__.ts` is this repo's probe
-# convention and nothing else uses it. Which files the test writes is not
-# restated here -- `tests/architecture/boundary.test.ts` asserts that every one
-# of them is ignored, so a fifth probe added without a matching rule fails the
-# suite instead of rotting this comment.
+# Kept as a backstop rather than deleted, because the hazard it guards is cheap
+# to guard and expensive to hit: a stray `node:fs` or `three` import inside the
+# one tree that must stay browser-loadable, committed by accident. `__name__.ts`
+# is this repo's probe convention and nothing else uses it. The same test
+# asserts each path is ignored, so a fifth probe path added without a matching
+# rule fails the suite instead of rotting this comment.
 src/**/__*__.ts
 
 # Harness-managed worktrees

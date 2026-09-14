@@ -307,14 +307,27 @@ and none blocks merge.
    the guard calls the stage directly. The stage is exported for exactly that
    test and has no other caller.
 
-4. **The architecture tests still write probe files into the real source tree.**
-   `tests/architecture/boundary.test.ts` writes four `src/**/__*__.ts` files and
-   removes them in an `afterEach`, while vitest runs test files in parallel
-   workers. A concurrent `depcruise` — another worker's, a developer's, or a
-   parallel CI job's — can see another test's probe: reproduced during Plan 3's
-   execution as a violation reported against 41 modules where the quiescent tree
-   has 39. The `.gitignore` now covers all four paths, which removes the
-   commit-a-probe hazard but not the race. The fix shape recommended by the
-   final review, and verified by it to work, is to copy `src/` plus the two
-   config files into a per-test temp root outside the repo and cruise that. The
-   rule patterns are relative to the cruise root, so no config changes.
+4. **CLOSED 2026-09-13 (hardening wave).** The architecture tests wrote four
+   `src/**/__*__.ts` probe files into the real source tree and removed them in an
+   `afterEach`, while vitest runs test files in parallel workers, so a concurrent
+   `depcruise` — another worker's, a developer's, or a parallel CI job's — could
+   see another test's probe.
+
+   Fixed as the final review recommended: `cruiseWithProbes` copies `src/` plus
+   `.dependency-cruiser.cjs` and `tsconfig.json` into a fresh `mkdtemp` root
+   outside the repo, symlinks `node_modules` (needed because
+   `sim-must-not-import-render-libs` matches `node_modules/(three|@webgpu)` and
+   an unresolvable import produces no violation at all), writes the probes there
+   and cruises that root. No config changes: every rule pattern is relative to
+   the cruise root, and all seven rules were watched firing by name from a temp
+   root.
+
+   Measured, rather than argued: looping `npm run depcruise`'s exact command in
+   a shell for as long as the boundary suite takes to run, 9 of 13 concurrent
+   cruises failed with the old in-tree probes — seven reporting violations
+   against 40 or 41 modules where the quiescent tree has 39, two dying with
+   `ENOENT ... __cycle_a__.ts` — against 0 of 12 with the temp root. A new test
+   asserts the four paths do not exist in the repo after a probe run and that
+   the real tree still cruises clean immediately afterward; the `.gitignore`
+   entry stays as a backstop, with its comment corrected to say that nothing
+   writes those paths any more.
