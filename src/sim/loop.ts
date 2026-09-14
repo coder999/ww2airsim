@@ -204,6 +204,18 @@ export interface World<M = undefined> {
    * own memory field, so two aeroplanes cannot share one captured altitude
    * even if they share an assist function.
    *
+   * "Written to disk and read back" means under a serialiser that preserves
+   * this object's actual runtime types, not any serialiser -- `World.terrain`
+   * (below) is the field that makes the difference concrete: its
+   * `heightsDm` is an `Int16Array`, which `structuredClone` (and anything
+   * built on the structured clone algorithm: IndexedDB, `postMessage`,
+   * MessagePack, CBOR) reproduces exactly, but plain `JSON.stringify` /
+   * `JSON.parse` does not -- a typed array survives JSON only as an object of
+   * numeric-string keys, which fails `instanceof Int16Array` and has no
+   * `.length`, so `createTerrainField`'s own validation would reject it on
+   * read-back. `tests/sim/loop.test.ts`'s "survives structuredClone" test
+   * pins the claim under the serialiser it actually holds for.
+   *
    * `undefined` for a world flown with no assist, which is what the default
    * type parameter says.
    */
@@ -219,6 +231,12 @@ export interface World<M = undefined> {
    * is a later task's job (wiring the renderer). Every existing world and the
    * whole pre-Task-8 test suite, including the golden trajectory, is
    * unaffected: `heightAt` is never called when this is `null`.
+   *
+   * Carries an `Int16Array` (`TerrainField.heightsDm`), which is exactly the
+   * case `assistMemory`'s comment above now qualifies: this field round-trips
+   * under `structuredClone` but not under `JSON.stringify`/`JSON.parse` --
+   * see that comment for why, and `tests/sim/loop.test.ts` for the pinned
+   * assertion.
    */
   readonly terrain: TerrainField | null
   /**

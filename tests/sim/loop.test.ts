@@ -8,6 +8,8 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { ROLLING_DESCENT_CONTROLS, type GoldenTrajectory } from '../../tools/golden/record.js'
+import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
@@ -311,5 +313,53 @@ describe('advance with the default (identity) assist, driven through the golden 
       }
     }
     expect(checkpoints).toEqual(golden.checkpoints)
+  })
+})
+
+describe('World.terrain under structuredClone (Fix round 1)', () => {
+  // A 5x5 grid (level 11 of this header) with a distinct height at every
+  // sample -- i*10 metres -- rather than the terrainContact fixture's flat
+  // plateau: a flat field can't tell a genuine bilinear interpolation from a
+  // raw sample lookup, because every combination gives the same answer.
+  const header = parseTerrainHeader({
+    centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
+    finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
+  })
+  const heightsDm = new Int16Array(25)
+  for (let i = 0; i < 25; i++) heightsDm[i] = i * 100 // i*10 m, in decimetres
+  const terrain = createTerrainField(header, 11, heightsDm)
+
+  it('survives structuredClone with heightsDm intact, and still flies the same', () => {
+    const world = { ...start(), terrain }
+    const cloned = structuredClone(world)
+
+    expect(cloned.terrain).not.toBeNull()
+    // The claim `World`'s own comments now make precise: this is what
+    // JSON.stringify/JSON.parse would NOT preserve (measured separately:
+    // JSON.parse(JSON.stringify(new Int16Array([1,2,3,-5]))) comes back
+    // `{"0":1,"1":2,"2":3,"3":-5}` -- not an array, no `.length`, fails
+    // `instanceof Int16Array`).
+    expect(cloned.terrain!.heightsDm).toBeInstanceOf(Int16Array)
+    expect(cloned.terrain!.heightsDm.length).toBe(terrain.heightsDm.length)
+    expect(cloned.terrain!.heightsDm).toEqual(terrain.heightsDm)
+
+    // The point of the test: the clone doesn't just carry the right BYTES, it
+    // still FLIES the same -- heightAt against the clone must agree with
+    // heightAt against the original, for an exact grid node (row 2, col 2 of
+    // this 5x5 grid, i.e. world (0, 0): index 12, 120 m) and for a point that
+    // genuinely exercises bilinear interpolation rather than landing on a
+    // sample (world (10000, 0): between col 2 (120 m) and col 3 (130 m) at
+    // fx = 0.2, i.e. 122 m -- not equal to any single grid sample, so this
+    // could not pass by accident of raw indexing).
+    const interior = { x: 0, z: 0 }
+    const interpolated = { x: 10000, z: 0 }
+    expect(heightAt(cloned.terrain!, interior.x, interior.z)).toBe(120)
+    expect(heightAt(cloned.terrain!, interior.x, interior.z)).toBe(
+      heightAt(terrain, interior.x, interior.z),
+    )
+    expect(heightAt(cloned.terrain!, interpolated.x, interpolated.z)).toBe(122)
+    expect(heightAt(cloned.terrain!, interpolated.x, interpolated.z)).toBe(
+      heightAt(terrain, interpolated.x, interpolated.z),
+    )
   })
 })
