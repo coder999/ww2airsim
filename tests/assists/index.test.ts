@@ -37,6 +37,24 @@ function pastCritical(degPastCrit: number, speed: number): AircraftState {
   })
 }
 
+/** A wings-level state at exactly `alphaDeg`, at the given true airspeed, at
+ *  2000 m -- the construction two describes below share, so they cannot
+ *  disagree about what "alpha 120 degrees" means. */
+const alphaState = (alphaDeg: number, speed: number): AircraftState => {
+  const a = (alphaDeg * Math.PI) / 180
+  return createState({
+    position: v3(0, 2000, 0),
+    velocity: v3(speed * Math.cos(a), -speed * Math.sin(a), 0),
+    attitude: qIdentity(),
+  })
+}
+
+/** Nothing held, an altitude held 500 m ABOVE the states built above, and one
+ *  held 500 m BELOW -- so altitude hold wants nose-up in one and nose-down in
+ *  the other, and a stage that only ever gets vetoed in one direction cannot
+ *  pass by luck. */
+const MEMORIES = [NOT_HOLDING, { heldAltitudeM: 2500 }, { heldAltitudeM: 1500 }]
+
 // Every combination of the three flags, so a stage that is wired up wrong
 // (e.g. only checked when a DIFFERENT flag is on) has nowhere to hide.
 const ALL_SETTINGS_COMBOS: AssistSettings[] = (() => {
@@ -241,21 +259,11 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
    * defect lived at 91 degrees, one degree outside where every existing test
    * looked.
    */
-  const alphaState = (alphaDeg: number, speed: number): AircraftState => {
-    const a = (alphaDeg * Math.PI) / 180
-    return createState({
-      position: v3(0, 2000, 0),
-      velocity: v3(speed * Math.cos(a), -speed * Math.sin(a), 0),
-      attitude: qIdentity(),
-    })
-  }
-
   // Legal pilot commands only: `Controls.pitch` documents its range as
   // [-1, 1], and the budget is expressed in that range. A caller handing in
   // 5.0 gets its own 5.0 back from a stack that is the identity on that axis,
   // which is a contract violation upstream, not an authority leak here.
   const RAW_PITCHES = [-1, -0.5, 0, 0.5, 1]
-  const MEMORIES = [NOT_HOLDING, { heldAltitudeM: 2500 }, { heldAltitudeM: 1500 }]
 
   it('never lets the final pitch command leave the budget, at any alpha including past 90 degrees', () => {
     const escapes: string[] = []
@@ -374,6 +382,79 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
     const on = flyDeparted(true)
     expect(off, 'the entry must actually be departed for this to mean anything').toBeGreaterThan(50)
     expect(on, 'altitude hold must not lengthen the time spent past 90 degrees').toBeLessThanOrEqual(off)
+  })
+})
+
+describe('an illegal Controls.pitch is sanitised rather than published as a false claim (design open item 2)', () => {
+  /**
+   * The item, as carried out of Plan 3: handed a raw pitch of +-5 or NaN, the
+   * stack returned that value while publishing a budget of [1, 1], [-1, -1] or
+   * [0, 0] -- `narrowToCommand` clamps, the command did not. Nothing leaked,
+   * because the value reached `step` exactly as it had before the budget
+   * existed, but the published claim was false about the command it was
+   * published with, and this project treats a false durable claim as a defect
+   * equal to a bug.
+   *
+   * Fixed by clamping the INPUT (`runStack`'s `rawPitch`) rather than by
+   * widening the claim -- see that comment for why widening is not available
+   * without giving up "the budget never leaves the pilot's legal range", which
+   * is the property the whole arbitration rests on.
+   *
+   * Both tests proved to fail 2026-09-13 by reverting that one line (all 5
+   * illegal values escape the budget in the first, and the second's own
+   * "must have been sanitised" precondition goes 5 against 1). The second is
+   * not a duplicate of the first: it is what makes the fix safe to believe
+   * rather than merely tidy, by measuring that the clamp moved no aeroplane.
+   */
+  const ILLEGAL = [5, -5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]
+  const level = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0), attitude: qIdentity() })
+
+  it('never returns a pitch outside the budget it publishes, at any alpha or setting', () => {
+    const escapes: string[] = []
+    // A departed state (120 degrees) and a normal one, because the departed
+    // collapse is the narrowing that made the claim specific enough to be
+    // false: away from it the budget is [-1, 1] and an illegal 5 is outside
+    // that too.
+    for (const s of [level, alphaState(120, 90), alphaState(-20, 70)]) {
+      for (const pitch of ILLEGAL) {
+        for (const memory of MEMORIES) {
+          for (const enabled of ALL_SETTINGS_COMBOS) {
+            const command: Controls = { pitch, roll: 0.2, yaw: 0, throttle: 0.7 }
+            const { controls, pitchAuthority } = applyAssistsWithAuthority(s, f6f, command, DT, enabled, memory)
+            const where = `raw pitch ${pitch}, alpha ${((angleOfAttack(s) * 180) / Math.PI).toFixed(1)} deg, held ${String(memory.heldAltitudeM)}, ${JSON.stringify(enabled)}`
+            if (!Number.isFinite(controls.pitch)) escapes.push(`non-finite command ${controls.pitch} at ${where}`)
+            if (controls.pitch < pitchAuthority.lower || controls.pitch > pitchAuthority.upper) {
+              escapes.push(`commanded ${controls.pitch} outside ${JSON.stringify(pitchAuthority)} at ${where}`)
+            }
+          }
+        }
+      }
+    }
+    expect(escapes.slice(0, 5)).toEqual([])
+    expect(escapes.length).toBe(0)
+  })
+
+  it('flies identically to the unsanitised command, so the clamp moved no aeroplane', () => {
+    // The claim that makes the fix safe rather than merely tidy:
+    // `commandedBodyRates` (src/sim/flight/model.ts) already put every channel
+    // through the same `clampFinite(n, -1, 1)`, so +5 was flown as 1 and NaN as
+    // 0. This asserts that end to end through `step` -- the state reached from
+    // the illegal command and the state reached from the stack's sanitised
+    // version of it are identical in every field -- with all three assists OFF,
+    // so the sanitisation is the only difference between the two calls.
+    const ALL_OFF: AssistSettings = { stallLimiter: false, autoRudder: false, altitudeHold: false }
+    for (const s of [level, alphaState(120, 90), alphaState(-20, 70)]) {
+      for (const pitch of ILLEGAL) {
+        const command: Controls = { pitch, roll: 0.2, yaw: -0.3, throttle: 0.7 }
+        const sanitised = applyAssists(s, f6f, command, DT, ALL_OFF)
+        expect(sanitised.pitch, `raw ${pitch} must have been sanitised`).toBe(
+          Number.isFinite(pitch) ? Math.max(-1, Math.min(1, pitch)) : 0,
+        )
+        expect(step(f6f, s, sanitised, { dt: DT, tick: 1 }), `raw pitch ${pitch}`).toEqual(
+          step(f6f, s, command, { dt: DT, tick: 1 }),
+        )
+      }
+    }
   })
 })
 

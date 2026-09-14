@@ -258,27 +258,105 @@ and none blocks merge.
    which is a behaviour question worth deciding at the controls rather than
    here.
 
-2. **The published budget is only truthful for a legal `Controls.pitch`.** With
-   a raw pitch of ±5 or NaN the stack returns that value while publishing a
-   budget of [1,1], [-1,-1] or [0,0]. The command passes through identically to
-   before the refactor, so nothing leaks — the budget is a false claim rather
-   than a breach. Unreachable from the input layer today; the soak injects such
-   values but calls `step` directly, not `applyAssists`.
+2. **CLOSED 2026-09-13 (hardening wave).** The published budget was only
+   truthful for a legal `Controls.pitch`: with a raw pitch of ±5 or NaN the
+   stack returned that value while publishing a budget of [1,1], [-1,-1] or
+   [0,0] — a false claim rather than a breach, since the command passed through
+   identically to before the refactor.
 
-3. **`stallLimiter` clamps into its own bounds rather than into the narrowed
-   authority.** Unreachable today, because a departed aeroplane returns early
-   and nothing narrows ahead of the limiter. It matters the moment a narrowing
-   stage is inserted before it: the limiter is then the one place that puts a
-   value on the axis without going through `withinAuthority`. One line.
+   Fixed by clamping the INPUT, in `runStack`, before any stage or any budget
+   sees it, rather than by widening the claim. Widening was not available
+   without giving up "the budget never leaves the pilot's legal range", which
+   is the property the whole arbitration rests on: a budget that has to contain
+   5 is not inside [-1,1]. Clamping is also behaviour-preserving rather than
+   merely defensible — `commandedBodyRates` already put every channel through
+   the same `clampFinite(n, -1, 1)`, so 5 was already flown as 1 and NaN as 0,
+   and `tests/assists/index.test.ts` now asserts the state reached through
+   `step` is identical field-for-field either way. The two GATES that read the
+   pilot's literal command (`isPitchCentred`, `nextAltitudeHoldMemory`) are
+   deliberately left reading the unsanitised value: NaN means a malformed input
+   event, not a centred stick, and mapping it to 0 there would engage altitude
+   hold and capture a held altitude off a broken input.
 
-4. **The architecture tests still write probe files into the real source tree.**
-   `tests/architecture/boundary.test.ts` writes four `src/**/__*__.ts` files and
-   removes them in an `afterEach`, while vitest runs test files in parallel
-   workers. A concurrent `depcruise` — another worker's, a developer's, or a
-   parallel CI job's — can see another test's probe: reproduced during Plan 3's
-   execution as a violation reported against 41 modules where the quiescent tree
-   has 39. The `.gitignore` now covers all four paths, which removes the
-   commit-a-probe hazard but not the race. The fix shape recommended by the
-   final review, and verified by it to work, is to copy `src/` plus the two
-   config files into a per-test temp root outside the repo and cruise that. The
-   rule patterns are relative to the cruise root, so no config changes.
+3. **CLOSED 2026-09-13 (hardening wave).** `stallLimiter` clamped into its own
+   bounds rather than into the narrowed authority — the one place a value went
+   onto the pitch axis without going through `withinAuthority`. It now clamps
+   into the intersection, and its guard test
+   (`tests/assists/stallLimiter.test.ts`, total over alpha at 1-degree steps,
+   14,440 direct calls to the stage) found two further holes the one-line
+   description did not cover:
+
+   - both no-bound EARLY RETURNS (departed, and no pitch authority) handed the
+     command straight back alongside a budget it might not be inside. Handed
+     [-0.4, 0.4] at alpha −100 the stage returned the pilot's raw +1. Both now
+     put their value on the axis through the budget too, which is a no-op on
+     every reachable path (departed: `runStack` has already collapsed the
+     budget onto that exact command; unauthorised: nothing has narrowed it, so
+     it is still [-1,1]).
+   - `narrowAuthority` could publish an EMPTY budget when an incoming budget
+     and the limiter's bound do not overlap — e.g. an upstream [0.25, 0.25]
+     against a bound of [−1, 0]. `withinAuthority` on an empty budget returns
+     `upper` for EVERY input (measured 2026-09-13: [0.25, 0] gives 0 from +1,
+     from −1 and from 0.1; an earlier revision of this item said "upper or
+     lower depending on which side the value came from", which is untrue — the
+     correction is recorded here rather than quietly dropped). The objection is
+     therefore not that the answer varies but that it comes from the order of a
+     `min` and a `max` inside a helper rather than from a decision anybody
+     wrote down, and that no caller can state a true invariant about a budget
+     that cannot contain anything.
+
+     The conflict is now decided rather than intersected: the bound being
+     applied wins (later, more specific, and in the shipped stack the one
+     keeping the wing attached), collapsed to its point nearest the budget it
+     replaces, so `lower <= upper` holds of every budget this file publishes.
+     Note the cost, stated where the rule is defined: on that branch the
+     published budget is NOT a subset of the incoming one, so "narrowed, never
+     widened" holds only where the ranges overlap. The decided point is pinned
+     from both sides by a test, after review found that `lower`, `upper` and
+     the midpoint each left all 451 tests green, the suite as it stood before the
+     pinning test existed. Each now fails exactly that one test, 1 of 452.
+
+   All three are unreachable through `applyAssists` today and measured to be
+   so: reverting any of them leaves the 442 tests as merged green, which is why
+   the guard calls the stage directly. The stage is exported for exactly that
+   test and has no other caller.
+
+4. **CLOSED 2026-09-13 (hardening wave).** The architecture tests wrote four
+   `src/**/__*__.ts` probe files into the real source tree and removed them in an
+   `afterEach`, while vitest runs test files in parallel workers, so a concurrent
+   `depcruise` — another worker's, a developer's, or a parallel CI job's — could
+   see another test's probe.
+
+   Fixed as the final review recommended: `cruiseWithProbes` copies `src/` plus
+   `.dependency-cruiser.cjs` and `tsconfig.json` into a fresh `mkdtemp` root
+   outside the repo, symlinks `node_modules` (needed because
+   `sim-must-not-import-render-libs` matches `node_modules/(three|@webgpu)` and
+   an unresolvable import produces no violation at all), writes the probes there
+   and cruises that root. No config changes: every rule pattern is relative to
+   the cruise root, and all seven rules were watched firing by name from a temp
+   root.
+
+   Measured, rather than argued: looping `npm run depcruise`'s exact command in
+   a shell for as long as the boundary suite takes to run, 9 of 13 concurrent
+   cruises failed with the old in-tree probes — seven reporting violations
+   against 40 or 41 modules where the quiescent tree has 39, two dying with
+   `ENOENT ... __cycle_a__.ts` — against 0 of 12 with the temp root. A new test
+   asserts the four paths do not exist in the repo after a probe run and that
+   the real tree still cruises clean immediately afterward; the `.gitignore`
+   entry stays as a backstop, with its comment corrected to say that nothing
+   writes those paths any more.
+
+5. **The sweep's per-value floor is not scoped to a discriminating region** —
+   found by the hardening branch's own re-review, 2026-09-13, and not fixed
+   because it is latent rather than live.
+
+   `authoritySweep.test.ts` asserts each illegal pitch value is drawn at least
+   a floor number of times, which is what stops the sweep silently ceasing to
+   test NaN — the exact defect that round was fixed for. But the floor counts
+   occurrences over the WHOLE run, not over the non-departed region. Past the
+   departed threshold `narrowToCommand` re-clamps, which masks an upstream
+   clamp regression, so a future seed or grid change could satisfy the floor
+   with a value that only ever appears where it cannot discriminate.
+
+   That is the same shape of blind spot the whole sweep exists to close, one
+   level up. The fix is to condition the per-value floor on `!departed`.

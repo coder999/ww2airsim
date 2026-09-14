@@ -255,12 +255,64 @@ export type PitchAuthority = { readonly lower: number; readonly upper: number }
  *  is that range restated, not a limit invented here. */
 const FULL_PITCH_AUTHORITY: PitchAuthority = { lower: -1, upper: 1 }
 
-/** Narrow to the intersection with `[lower, upper]`. Cannot widen: `Math.max`
- *  on the lower bound and `Math.min` on the upper cannot move either outward. */
-const narrowAuthority = (a: PitchAuthority, lower: number, upper: number): PitchAuthority => ({
-  lower: Math.max(a.lower, lower),
-  upper: Math.min(a.upper, upper),
-})
+/**
+ * Narrow to the intersection with `[lower, upper]`, WHEN the two overlap: then
+ * this cannot widen, because `Math.max` on the lower bound and `Math.min` on
+ * the upper cannot move either outward.
+ *
+ * When they do not overlap there is no subset of both to return, so the
+ * conflict has to be DECIDED rather than intersected, and the bound being
+ * applied wins: it is the later and more specific of the two, computed from the
+ * state the aeroplane is actually in, and in the shipped stack it is the stall
+ * limiter's -- the one keeping the wing attached. The result is the single point
+ * of `[lower, upper]` NEAREST the budget it replaces.
+ *
+ * Two caveats, both of which this comment previously got wrong or left out.
+ *
+ * FIRST, "cannot widen" is false on that branch, and the qualifier above is
+ * there because of it: the point returned lies outside `a` whenever the two
+ * ranges are disjoint, so the published budget is NOT a subset of the incoming
+ * one. That is inherent rather than an oversight -- honouring both an incoming
+ * `[0.25, 0.25]` and a bound of `[-1, 0]` is impossible, one of them has to
+ * lose -- but it means the invariant callers may rely on is "the budget is
+ * non-empty and the command is inside it", NOT "each budget is a subset of the
+ * last". `tests/assists/stallLimiter.test.ts` asserts subset-ness only where
+ * the ranges overlap, and pins the decided point where they do not.
+ *
+ * SECOND, the alternative to deciding is an empty budget, and the reason that
+ * is worse is NOT that `withinAuthority` would answer arbitrarily per value: it
+ * always returns `upper`, for every input, since `Math.min(upper, Math.max(
+ * lower, p))` with `lower > upper` is `upper` whatever `p` is (measured
+ * 2026-09-13: `[0.25, 0]` returns 0 from +1, from -1 and from 0.1; an earlier
+ * revision of this comment, and of the design doc, claimed "upper or lower
+ * depending on which side the value came from", which is simply untrue). The
+ * real objection is that the answer would then come from the ORDER of a `min`
+ * and a `max` inside a helper -- an implementation detail with no opinion about
+ * aeroplanes -- rather than from a decision anybody wrote down, and that no
+ * caller could state a true invariant about a budget that cannot contain
+ * anything.
+ *
+ * Unreachable as of 2026-09-13, and measured so rather than asserted: the
+ * shipped stack has exactly one stage that narrows to a RANGE, and it is only
+ * ever handed `FULL_PITCH_AUTHORITY` (`runStack`'s departed collapse makes
+ * `stallLimiterBounds` return `null`, so the narrowing stage returns before
+ * reaching this), so nothing can disagree with it and the branch below never
+ * runs -- reverting it leaves the whole suite green. It is written because the
+ * stage guard test for design open item 3 is the first caller that CAN hand
+ * this function a conflict, and it found the incoherent-claim case immediately.
+ * `decided` is pinned by that test from both sides, after review 2026-09-13
+ * found that replacing it with `lower`, with `upper` or with `(lower + upper) /
+ * 2` left all 451 tests green, the suite as it stood before this test existed --
+ * the same shape as this file's own "never adds
+ * nose-up" history, where a sentence nothing arbitrated turned out to be false.
+ */
+const narrowAuthority = (a: PitchAuthority, lower: number, upper: number): PitchAuthority => {
+  const lo = Math.max(a.lower, lower)
+  const hi = Math.min(a.upper, upper)
+  if (lo <= hi) return { lower: lo, upper: hi }
+  const decided = Math.min(upper, Math.max(lower, a.lower))
+  return { lower: decided, upper: decided }
+}
 
 /** The only way a stage is allowed to put a value on the pitch axis. */
 const withinAuthority = (a: PitchAuthority, pitch: number): number =>
@@ -368,7 +420,41 @@ function runStack(
   enabled: AssistSettings,
   altitudeHoldMemory: AltitudeHoldMemory,
 ): { controls: Controls; pitchAuthority: PitchAuthority } {
-  let controls = raw
+  // The pitch axis is sanitised into the range `Controls.pitch` documents
+  // before any stage or any budget sees it -- design open item 2, closed
+  // 2026-09-13.
+  //
+  // The item: handed a raw pitch of +5, -5 or NaN, this function returned that
+  // value unchanged (on the paths where no stage rewrote it) while publishing
+  // a budget of [1, 1], [-1, -1] or [0, 0] -- `narrowToCommand` clamps, the
+  // command did not, so the budget said "the command is exactly 1" about a
+  // command of 5. Nothing leaked, because the value reached `step` exactly as
+  // it would have before the budget existed, but a published claim that is
+  // false about the value it is published with is this project's recurring
+  // defect and is treated as one here.
+  //
+  // Of the two available fixes -- clamp the input, or widen the claim to admit
+  // the illegal value -- this is the first, for three reasons. Widening is not
+  // available without destroying the type: a budget that has to contain 5 is
+  // no longer inside the pilot's legal range, so "narrowed and never widened
+  // beyond [-1, 1]", the property the whole arbitration rests on and the one
+  // the sweep asserts, would have to go. Clamping is also behaviour-preserving
+  // through the simulation rather than merely defensible: `commandedBodyRates`
+  // (src/sim/flight/model.ts) puts every control channel through the SAME
+  // `clampFinite(n, -1, 1)`, so 5 was already flown as 1 and NaN as 0 -- this
+  // moves that clamp one stage earlier, where the claim is made, and
+  // `tests/assists/index.test.ts` asserts the resulting state is identical
+  // step-for-step. And it makes the stack's own contract total: `Controls` in,
+  // legal `Controls` out, for every input a caller can construct.
+  //
+  // `raw` itself is deliberately NOT re-sanitised for the two GATES that read
+  // it (`isPitchCentred` here and in `nextAltitudeHoldMemory`): NaN means a
+  // malformed input event, not a centred stick, and mapping it to 0 before
+  // those gates would engage altitude hold and capture a held altitude off a
+  // broken input. The sanitised value is what goes on the AXIS; the pilot's
+  // literal command is what answers "did the pilot ask for something".
+  const rawPitch = clampFinite(raw.pitch, -1, 1)
+  let controls: Controls = rawPitch === raw.pitch ? raw : { ...raw, pitch: rawPitch }
   // The budget starts at the pilot's full legal range -- UNLESS the wing is
   // gone, in which case it starts collapsed onto the pilot's own command and
   // no assist gets a vote on pitch for the rest of this tick.
@@ -381,7 +467,7 @@ function runStack(
   // down on, called rather than re-stated, so the two cannot disagree about
   // where the boundary is.
   let pitchAuthority = isDeparted(state)
-    ? narrowToCommand(FULL_PITCH_AUTHORITY, raw.pitch)
+    ? narrowToCommand(FULL_PITCH_AUTHORITY, rawPitch)
     : FULL_PITCH_AUTHORITY
 
   if (enabled.stallLimiter) {
@@ -594,10 +680,9 @@ function stallLimiterBounds(
  *
  *  - No bound and the wing is DEPARTED. Nothing is narrowed here, because
  *    `runStack` narrowed the budget to the pilot's own command before this
- *    stage ran. The pilot's command comes back untouched (see
- *    `DEPARTED_ALPHA_RAD`: a pilot flying out of a departure needs all of the
- *    axis), and now so does the budget, so no later stage can spend what this
- *    one declined to take.
+ *    stage ran. The pilot's command comes back (see `DEPARTED_ALPHA_RAD`: a
+ *    pilot flying out of a departure needs all of the axis), and so does the
+ *    budget, so no later stage can spend what this one declined to take.
  *  - No bound because there is no pitch AUTHORITY. Genuinely nothing to
  *    narrow: the command cannot move alpha at all, so no vote on this axis
  *    changes anything. Nothing downstream can exploit it either -- zero pitch
@@ -605,6 +690,19 @@ function stallLimiterBounds(
  *    (`ratesFromDynamicPressure` scales linearly with q, and density is never
  *    zero), and altitude hold's own `v < 1` guard already stands it down
  *    there.
+ *
+ *    Both no-bound paths still put their value on the axis through the budget
+ *    rather than beside it, which is why they are not a bare
+ *    `return { controls, authority }`. On both, the value that comes out is
+ *    provably the one that went in as of 2026-09-13: departed, `runStack` has
+ *    already collapsed the budget onto that exact command; unauthorised,
+ *    nothing has narrowed the budget at all, so it is still [-1, 1] and the
+ *    command inside it. The clamp is there so that "what this stage returns is
+ *    inside what this stage publishes" is true of the FUNCTION rather than true
+ *    of one caller's ordering -- writing these as pass-throughs was found by
+ *    this stage's own guard test (design open item 3), which handed the
+ *    departed path a budget of [-0.4, 0.4] and got the pilot's raw +1 back
+ *    alongside it.
  *  - A real bound. The budget narrows to it. And if the limiter had to CHANGE
  *    the pilot's value to respect it, the budget narrows further, to the
  *    single value the limiter chose: the axis is now spent on recovery, and
@@ -614,8 +712,32 @@ function stallLimiterBounds(
  *    budget instead of as a boolean handed to the stage that must honour it).
  *    "Changed the value" is read from this stage's own before and after, not
  *    re-derived from alpha, so it cannot disagree with the bound it came from.
+ *
+ * The clamp goes through `withinAuthority` on the ALREADY-NARROWED budget
+ * (`bounded`), not into `bounds` alone -- design open item 3, closed
+ * 2026-09-13. This stage is the only place in the file that puts a value on
+ * the pitch axis without consulting the budget it was handed, and the budget
+ * is the thing every other stage is made to obey; a stage that narrows ahead
+ * of this one would have been silently overruled by it. It is a behavioural
+ * no-op today and measurably so: the incoming budget is `FULL_PITCH_AUTHORITY`
+ * on every reachable path (`runStack`'s only narrowing-before-this-stage is
+ * the departed collapse, and `stallLimiterBounds` returns `null` on exactly
+ * that predicate, so this line is unreachable when it has fired), and
+ * `stallLimiterBounds` already clamps both of its bounds into [-1, 1], so
+ * intersecting them with [-1, 1] cannot move either. Verified by reverting
+ * this one line: all 442 pre-existing tests stay green, which is why the guard
+ * below is a direct call on the stage rather than a case through
+ * `applyAssists`.
+ *
+ * Which is also why this one stage is exported while its two siblings are not:
+ * a guard that "a narrowing stage inserted ahead of the limiter is honoured"
+ * has no reachable input through `applyAssists` to work with -- the only
+ * narrowing that exists today is the one whose predicate makes this code
+ * unreachable -- so the only way to assert it is to hand the stage a narrowed
+ * budget directly. The export exists for that test and has no production
+ * caller other than `runStack` below.
  */
-function stallLimiter(
+export function stallLimiter(
   state: AircraftState,
   spec: AircraftSpec,
   controls: Controls,
@@ -623,9 +745,11 @@ function stallLimiter(
   authority: PitchAuthority,
 ): { controls: Controls; authority: PitchAuthority } {
   const bounds = stallLimiterBounds(state, spec, dt)
-  if (bounds === null) return { controls, authority }
-  const pitch = Math.min(bounds.upper, Math.max(bounds.lower, clampFinite(controls.pitch, -1, 1)))
+  if (bounds === null) {
+    return { controls: { ...controls, pitch: withinAuthority(authority, clampFinite(controls.pitch, -1, 1)) }, authority }
+  }
   const bounded = narrowAuthority(authority, bounds.lower, bounds.upper)
+  const pitch = withinAuthority(bounded, clampFinite(controls.pitch, -1, 1))
   return {
     controls: { ...controls, pitch },
     authority: pitch !== controls.pitch ? narrowToCommand(bounded, pitch) : bounded,
