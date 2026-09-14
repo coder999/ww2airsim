@@ -10,12 +10,17 @@ mission text. `ww2airsim` is a working title.
 
 ## Status
 
-**Plan 1 of 7 complete (2026-09-12): the flight model.** A deterministic F6F
-Hellcat flight model runs headlessly in Node under `src/sim/`, graded against
-cited historical trial figures by the test-card harness in `tools/testcards/`,
-with a golden-trajectory regression, a randomised soak, and CI. Rendering,
-terrain, the carrier, AI and weather are the six later plans and do not exist
-yet.
+**Plans 1-3 of 7 complete (2026-09-13).** A deterministic F6F Hellcat flight
+model runs headlessly in Node under `src/sim/`, graded against cited
+historical trial figures by the test-card harness in `tools/testcards/`, with
+a golden-trajectory regression, a randomised soak, and CI (Plan 1). It is
+flyable in the browser on a WebGPU renderer over flat water, with keyboard
+controls, a chase and cockpit camera and a gauge panel (Plan 2). Three input
+assists -- stall limiter, auto-rudder and altitude hold -- sit between the
+keyboard and the simulation, each switchable in flight (Plan 3).
+
+Terrain, the ocean, weapons, damage, AI, carrier operations and the meta-game
+are the four later plans and do not exist yet.
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
@@ -54,6 +59,27 @@ npm run dev
 # on the Windows desktop, in another terminal
 ssh -L 5173:localhost:5173 nexus
 ```
+
+**Or drive the whole thing from nexus** (verified 2026-09-13: 2 passed, real
+RX 6700 XT, with a screenshot pulled back). The tunnels simply run the other
+way, and Playwright connects to a server on the Windows box rather than being
+started there:
+
+```sh
+# on nexus, both backgrounded
+ssh -N -R 5173:localhost:5173 ryzen     # ryzen's localhost:5173 -> this dev server
+ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
+
+PW_REMOTE=ws://localhost:39001/ npm run test:tier2
+```
+
+The one thing this cannot do for itself: **the `playwright run-server` it
+connects to must already be running in the Windows console session** (started
+there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1`).
+Chromium launched over SSH gets no GPU at all -- `requestAdapter()` returns
+null, headless AND headed, because the SSH session is not the console session
+(measured 2026-09-13). That is a session problem, not a headless one, so
+`headless: false` is not a workaround for it.
 
 One-time setup on the Windows desktop (a separate checkout — the test runner
 has to be local to the GPU, the dev server does not):

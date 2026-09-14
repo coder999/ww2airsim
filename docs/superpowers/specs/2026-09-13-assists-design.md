@@ -233,6 +233,28 @@ with a schema entry -- exactly per-aircraft assist tuning, just not a UI for a
 player to change it. What this section actually means, and should have said,
 is no player-facing settings to CHOOSE those values at runtime.
 
+## Settled after Plan 3, 2026-09-13: where the assist memory lives
+
+Plan 3 shipped `advance(world, elapsed, stepper, assist)` taking ONE assist,
+whose memory lived in a closure (`createAssistRunner`) the caller held. Plan 5
+flies many aeroplanes, each needing its own altitude-hold memory, so the shape
+had to be settled before Plan 4 rather than during Plan 5.
+
+**Decision (Mark, 2026-09-13): explicit threaded memory.** `Assist` is a
+reducer generic in its memory type, and `advance` threads the memory through
+its step loop into `World.assistMemory`. `sim/` never inspects it, so the
+boundary argument that put the memory outside `sim/` in the first place is
+untouched; `advance`'s parameter list does not grow; and Plan 5's per-entity
+record carries its own memory field, making per-aeroplane isolation structural
+rather than a rule every caller has to remember.
+
+The argument that decided it was not N-aircraft but replay: a `World` with the
+memory in a closure is not a complete description of a flight, so a world
+serialised and resumed re-captures at whatever altitude it happens to be at
+and diverges silently. `tests/assists/worldMemory.test.ts` measures that
+divergence at 14.5 m and pins the fix. Implemented in commit 80a14aa, which
+deletes `createAssistRunner`.
+
 ## Open items carried out of Plan 3, 2026-09-13
 
 Recorded here because the execution workspace is deleted at merge and these
