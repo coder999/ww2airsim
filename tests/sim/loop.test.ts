@@ -165,7 +165,10 @@ describe('advance', () => {
     // step on `current`) makes this test's expectation of 3 calls see 1
     // instead, and it fails.
     it('runs once per fixed step, not once per advance() call', () => {
-      const spy = vi.fn<Assist>((_state, _spec, raw, _dt) => raw)
+      const spy = vi.fn<Assist<undefined>>((_state, _spec, raw, _dt, memory) => ({
+        controls: raw,
+        memory,
+      }))
       const r = advance(start(), DT * 3, step, spy)
       expect(r.stepsRun).toBe(3)
       expect(spy).toHaveBeenCalledTimes(3)
@@ -180,9 +183,9 @@ describe('advance', () => {
       // turns this into ['stepper', 'assist', 'stepper', 'assist'] and the
       // `toEqual` below fails.
       const order: string[] = []
-      const spyAssist: Assist = (_state, _spec, raw, _dt) => {
+      const spyAssist: Assist<undefined> = (_state, _spec, raw, _dt, memory) => {
         order.push('assist')
-        return raw
+        return { controls: raw, memory }
       }
       const spyStepper = vi.fn<typeof step>((spec, state, controls, ctx) => {
         order.push('stepper')
@@ -194,9 +197,9 @@ describe('advance', () => {
 
     it('is fed the pilot\'s raw command, the state entering that step, and the fixed DT -- not the frame\'s elapsed time', () => {
       const calls: Array<{ tick: number; raw: Controls; dt: number }> = []
-      const spy: Assist = (state, _spec, raw, dt) => {
+      const spy: Assist<undefined> = (state, _spec, raw, dt, memory) => {
         calls.push({ tick: state.tick, raw, dt })
-        return raw
+        return { controls: raw, memory }
       }
       const pitchUp = { ...level, pitch: 1 }
       // An elapsed time that is NOT a whole multiple of DT, so a bug that fed
@@ -218,7 +221,10 @@ describe('advance', () => {
       // behaves as identity, rather than relying on the rest of the suite
       // merely happening not to notice a difference.
       const withDefault = advance(start(), DT * 3)
-      const withExplicitIdentity = advance(start(), DT * 3, step, (_s, _sp, raw) => raw)
+      const withExplicitIdentity = advance(start(), DT * 3, step, (_s, _sp, raw, _dt, memory) => ({
+        controls: raw,
+        memory,
+      }))
       expect(withDefault.world.aircraft).toEqual(withExplicitIdentity.world.aircraft)
     })
   })

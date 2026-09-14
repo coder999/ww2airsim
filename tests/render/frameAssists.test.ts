@@ -113,9 +113,9 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
 
   it('altitude hold reaches the simulation, and its memory survives the frame boundary', () => {
     // The strongest of the three, because it fails for TWO independent wiring
-    // defects: no assist passed to `advance` at all, and an
-    // `altitudeHoldMemory` that is not threaded from frame to frame. The
-    // second one matters -- a runner rebuilt each frame from `NOT_HOLDING`
+    // defects: no assist passed to `advance` at all, and an assist memory
+    // that is not threaded from frame to frame. The second one matters -- a
+    // world rebuilt each frame from `NOT_HOLDING`
     // re-captures the aeroplane's current altitude every frame, so the target
     // can never disagree with where the aeroplane already is and the hold is
     // silently a no-op (`nextAltitudeHoldMemory`'s own doc comment names this
@@ -143,10 +143,10 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     // not re-captured as the aeroplane moves: the aeroplane has flown 62 s and
     // over 8 km by here, so a re-capturing implementation would show its
     // current altitude instead of the spawn's exact 2000.
-    expect(on.final.altitudeHoldMemory.heldAltitudeM).toBe(2000)
+    expect(on.final.world.assistMemory.heldAltitudeM).toBe(2000)
     // And with the assist off the layer holds no target at all -- switched off
     // means forgotten, so re-enabling captures afresh (asserted below).
-    expect(off.final.altitudeHoldMemory.heldAltitudeM).toBeNull()
+    expect(off.final.world.assistMemory.heldAltitudeM).toBeNull()
   })
 
   it('runs the assist once per fixed step, so one long frame and several short ones agree exactly', () => {
@@ -170,7 +170,7 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
 
     expect(oneLongFrame.stepsRun, 'sanity: the long frame must really be multi-step').toBe(4)
     expect(oneLongFrame.world.aircraft).toEqual(fourShortFrames.world.aircraft)
-    expect(oneLongFrame.altitudeHoldMemory).toEqual(fourShortFrames.altitudeHoldMemory)
+    expect(oneLongFrame.world.assistMemory).toEqual(fourShortFrames.world.assistMemory)
   })
 })
 
@@ -223,11 +223,11 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     // target reasserting itself, the same failure the "yield to pilot pitch
     // input" rule exists to prevent.
     const captured = fly(start(DEFAULT_ASSIST_SETTINGS, 130), 2, keys('ShiftLeft'))
-    expect(captured.altitudeHoldMemory.heldAltitudeM).toBe(2000)
+    expect(captured.world.assistMemory.heldAltitudeM).toBe(2000)
 
     const switchedOff = tap(captured, 'KeyH')
     expect(switchedOff.assists.altitudeHold).toBe(false)
-    expect(switchedOff.altitudeHoldMemory.heldAltitudeM, 'off must forget').toBeNull()
+    expect(switchedOff.world.assistMemory.heldAltitudeM, 'off must forget').toBeNull()
 
     // Nose down for 20 s, then centre: the stick is centred again at the end,
     // so a memory that had merely been kept warm would still say 2000.
@@ -237,7 +237,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
 
     const switchedOn = tap(lower, 'KeyH')
     expect(switchedOn.assists.altitudeHold).toBe(true)
-    const held = switchedOn.altitudeHoldMemory.heldAltitudeM
+    const held = switchedOn.world.assistMemory.heldAltitudeM
     expect(held, 're-enabling must capture, not resume').not.toBeNull()
     // Within a few metres of where the aeroplane actually is, and nowhere near
     // the 2000 m it left -- and it must then HOLD that new altitude, which is

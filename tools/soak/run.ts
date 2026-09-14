@@ -14,7 +14,8 @@ import { createRng } from '../../src/sim/rng.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import {
   applyAssistsWithAuthority,
-  createAssistRunner,
+  assistFor,
+  NOT_HOLDING,
   type AltitudeHoldMemory,
   type AssistSettings,
 } from '../../src/assists/index.js'
@@ -155,9 +156,9 @@ function sameControls(a: Controls, b: Controls): boolean {
  * one message per flight rather than one per step, which is what makes a
  * genuine breach readable instead of 3,600 copies of itself.
  *
- * The budget is recovered by re-running the stack with `runner.memory()`, the
- * memory the runner has just advanced and used (`createAssistRunner` advances
- * it and then calls `applyAssists` with it, in that order), so this is the same
+ * The budget is recovered by re-running the stack with the memory the assist
+ * has just advanced and used (`assistFor` advances it and then calls
+ * `applyAssists` with it, in that order), so this is the same
  * evaluation and not an approximation of it. That is asserted rather than
  * assumed: if the reconstructed command differs from the one actually flown,
  * this throws on that instead, and every claim below would be about the wrong
@@ -250,7 +251,7 @@ function assertAuthorityHolds(
  *
  * THE ASSISTS ARM (`assists`, default `null`). Passing an `AssistSettings`
  * runs the identical harness with the assist stack in front of `stepChecked`,
- * once per step, through `createAssistRunner` -- the same pairing production
+ * once per step, through `assistFor` -- the same pairing production
  * uses (`src/render/frame.ts` -> `advance` -> the injected assist). Without it
  * the shipped default configuration, three interacting stages all switched on,
  * had no randomised long-horizon coverage at all: every assist test flies one
@@ -315,13 +316,16 @@ export function runSoak(
 
     try {
       let completedFull = true
-      // One runner per FLIGHT, not per soak: `createAssistRunner`'s lifetime is
-      // "one `advance` call" in production and its captured altitude belongs to
-      // one aeroplane, so sharing one across 200 spawns would carry a held
-      // altitude from a dead flight into a fresh one. Null on the unassisted
-      // arm, which is the pre-existing behaviour byte for byte -- no assist is
-      // constructed and the raw command goes straight to `stepChecked`.
-      const runner = assists === null ? null : createAssistRunner(assists)
+      // The MEMORY is per flight, which is what matters and is now structural:
+      // a captured altitude belongs to one aeroplane, so carrying one across
+      // 200 spawns would drag a held altitude out of a dead flight into a
+      // fresh one. The assist FUNCTION itself is stateless and could be built
+      // once for the whole soak; it is built here only to keep the two
+      // lifetimes visibly together. Null on the unassisted arm, which is the
+      // pre-existing behaviour byte for byte -- no assist is constructed and
+      // the raw command goes straight to `stepChecked`.
+      const assist = assists === null ? null : assistFor(assists)
+      let assistMemory: AltitudeHoldMemory = NOT_HOLDING
       // Run-scoped to the whole flight, not the per-second outer loop below:
       // SimContext.tick's contract (src/sim/loop.ts) is monotonic for the
       // whole run it belongs to, and a flight -- from this spawn to this
@@ -331,14 +335,17 @@ export function runSoak(
         const controls = rollControls(rng, assists === null ? 0 : CENTRED_PITCH_CHANCE)
         for (let i = 0; i < 60; i++) {
           flightTick++
-          const flown = runner === null ? controls : runner.assist(s, spec, controls, DT)
-          if (runner !== null && assists !== null) {
+          let flown = controls
+          if (assist !== null && assists !== null) {
+            const assisted = assist(s, spec, controls, DT, assistMemory)
+            flown = assisted.controls
+            // Taken from the RESULT, which is the memory the stack just ran
+            // with -- not the one going in, which is a step behind.
+            assistMemory = assisted.memory
             if (!Object.is(flown.pitch, clampFinite(controls.pitch, -1, 1))) assistPitchInterventions++
             if (!Object.is(flown.yaw, controls.yaw)) assistYawInterventions++
-            // Read AFTER `runner.assist`, which is when the memory the stack
-            // just ran with is what `memory()` returns.
-            if (controls.pitch === 0 && runner.memory().heldAltitudeM !== null) assistHoldEngagedSteps++
-            assertAuthorityHolds(spec, s, controls, flown, assists, runner.memory())
+            if (controls.pitch === 0 && assistMemory.heldAltitudeM !== null) assistHoldEngagedSteps++
+            assertAuthorityHolds(spec, s, controls, flown, assists, assistMemory)
           }
           s = stepChecked(spec, s, flown, { dt: DT, tick: flightTick })
           steps++

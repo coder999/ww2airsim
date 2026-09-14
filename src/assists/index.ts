@@ -50,42 +50,36 @@ export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
  * `null` means "the pilot has the stick, or nothing has been captured yet";
  * a number is the altitude, metres, being held.
  *
- * Design decision, argued rather than assumed (the brief asked for this): the
- * memory is external and explicit, not carried inside `applyAssists` itself,
- * and not added to `World` in `sim/loop.ts`. Three constraints ruled out the
- * alternatives:
+ * Where it lives, and why that changed. Plan 3 kept this OUTSIDE `sim/`,
+ * threaded by each caller, on the grounds that `World` is `sim/`'s type and a
+ * captured altitude is not physics. `advance` had no channel to hand a memory
+ * back, so the production caller held a closure over a mutable cell
+ * (`createAssistRunner`, deleted 2026-09-13) and read it back after each frame.
  *
- *  1. `applyAssists(state, spec, raw, dt, enabled)` is an established contract
- *     -- every test written for Tasks 1-3 calls it with exactly those five
- *     arguments and reads the result as a bare `Controls`. Widening the
- *     return type to smuggle memory out (e.g. `{ controls, memory }`) would
- *     touch every one of those pre-existing call sites for a need only the
- *     third stage has. It stays five arguments in, `Controls` out, with this
- *     type as an OPTIONAL sixth argument -- every caller that omits it (all
- *     of Tasks 1-3's tests, unchanged) gets `NOT_HOLDING`, under which
- *     altitude hold behaves exactly as its old identity stub did.
- *  2. `sim/` must not gain assist state. `World` is `sim/`'s type, and a
- *     captured altitude is exactly the kind of thing "sim/ is a pure physics
- *     model, assists sit outside it" (spec §3, this file's own boundary
- *     rule) says does not belong there.
- *  3. A hidden mutable cell (a module-level variable, or an object this file
- *     owns and mutates in place) would make two callers fight over it -- two
- *     test files running concurrently, or two aeroplanes once Plan 5 exists,
- *     would silently share one captured altitude. Making the type exported
- *     and the transition function pure means each caller holds its OWN
- *     memory value in its OWN per-session state (the same way `World` and
- *     `FrameState` are already threaded by their callers in `sim/loop.ts` and
- *     `src/render/frame.ts`, never mutated in place) -- so there is nothing
- *     to fight over by construction, not by discipline.
+ * That was sound on the boundary and wrong on two counts the boundary does not
+ * cover. A `World` written to disk and read back was NOT the same flight: the
+ * captured altitude was not in it, so a resumed replay re-captured at whatever
+ * altitude it happened to be at and diverged, silently. And N aeroplanes
+ * (Plan 5) needed N runners, which every caller had to remember to build.
  *
- * `nextAltitudeHoldMemory` is the pure function that advances it, and it must
- * run once per fixed step, BEFORE `applyAssists`, on the same `state` and
- * `raw`. Task 5 made that pairing structural rather than a rule to remember:
- * `createAssistRunner` below is the one place it is written, `nextFrameState`
- * (src/render/frame.ts) is the production caller, and it threads the runner's
- * memory from frame to frame the way it already threads `World`. Tests that
- * predate it call the pair by hand, which is still legal and still the way to
- * test either half in isolation.
+ * So `advance` now carries it: `World.assistMemory`, opaque to `sim/`, typed
+ * by a parameter `sim/` never inspects (see `Assist` in src/sim/loop.ts). The
+ * boundary argument survives intact -- `sim/` still imports nothing from here
+ * and still knows nothing about altitude -- and `tests/assists/worldMemory.test.ts`
+ * measures both failures above, including the 14.5 m divergence a dropped
+ * memory produces.
+ *
+ * `applyAssists`'s own signature is unchanged: five arguments in, `Controls`
+ * out, with the memory an optional sixth. Every test written for Tasks 1-3
+ * still calls it exactly as it did.
+ *
+ * `nextAltitudeHoldMemory` is the pure function that advances this, and it
+ * must run once per fixed step, BEFORE `applyAssists`, on the same `state` and
+ * `raw`. That pairing is structural rather than a rule to remember:
+ * `assistFor` below is the one place it is written, and `advance` is what
+ * calls it -- once per step, on a state no caller chooses. Tests that predate
+ * it call the pair by hand, which is still legal and still the way to test
+ * either half in isolation.
  */
 export type AltitudeHoldMemory = {
   readonly heldAltitudeM: number | null
@@ -137,75 +131,43 @@ export function nextAltitudeHoldMemory(
 }
 
 /**
- * One flight's worth of assist stack, ready to hand to `advance` -- and the
- * only thing a real caller should need to get the altitude-hold memory right.
+ * One flight's worth of assist stack as the reducer `advance` wants: memory in,
+ * `{ controls, memory }` out, once per fixed step. The only thing a real caller
+ * needs in order to get the altitude-hold memory right.
  *
- * Why this exists at all (Plan 3 Task 5). `applyAssists` and
- * `nextAltitudeHoldMemory` have a pairing invariant: the memory must be
- * advanced BEFORE the stack runs, with the SAME `state` and `raw`, exactly once
- * per fixed step. Until this, that invariant was prose in a doc comment plus a
- * hand-rolled two-liner copied into each test's own `fly` helper -- a rule
- * somebody has to remember at every call site, which is precisely the shape of
- * rule this project has already had go wrong. Here it is one function body
- * that cannot be called half-way: `state`, `raw` and the ordering are not
- * parameters a caller chooses, they are whatever `advance` passes in, once per
- * step, by construction.
+ * This is what `createAssistRunner` was (Plan 3 Task 5), minus the mutable
+ * cell. The pairing invariant it exists to enforce is unchanged and still
+ * written exactly once, here: the memory is advanced BEFORE the stack runs,
+ * from the same `state` and `raw`, and neither is a parameter a caller gets to
+ * choose -- they are whatever `advance` passes in, once per step, by
+ * construction. What is gone is the channel the memory used to leave by.
+ * `advance` now carries it in `World` (see `Assist` in src/sim/loop.ts), so
+ * this closes over `enabled` -- fixed for the flight -- and over nothing that
+ * changes.
  *
- * Why a closure over a mutable local rather than threading the memory the way
- * `nextFrameState` threads `World`. `advance` calls the assist once per fixed
- * STEP inside its own loop and has no channel to hand anything back: its
- * return type is `AdvanceResult`, `World` comes back out of it and a memory
- * does not. So the memory has to leave by the only route that exists -- a
- * variable the caller still holds a reference to after `advance` returns. The
- * tempting alternative, updating the memory once per FRAME outside `advance`,
- * is wrong twice over: it would capture from `world.aircraft` rather than from
- * the state the step actually ran on (those differ from the second step of a
- * multi-step frame onward, which is the whole reason `advance` calls the assist
- * inside its loop), and it could not clear mid-frame.
+ * Closing over nothing mutable is the point, not incidental tidiness: two
+ * aeroplanes may share one `assistFor` result and cannot thereby share a
+ * captured altitude, which `tests/assists/worldMemory.test.ts` asserts by
+ * flying two of them through a single one.
  *
- * This is NOT the "hidden mutable cell" `AltitudeHoldMemory`'s own doc comment
- * rules out, and the difference is the one that matters there: the cell is
- * created fresh by each `createAssistRunner` call and reachable only through
- * the returned object, so two callers -- two test files, or two aeroplanes once
- * Plan 5 exists -- cannot share one captured altitude unless they deliberately
- * share a runner. A module-level variable could not offer that.
- *
- * Lifetime: one runner per `advance` call (i.e. per frame in `nextFrameState`),
- * created with the memory the previous frame ended on and read back with
- * `memory()` afterward. `enabled` is fixed for a runner's lifetime, which is
- * what makes a mid-flight toggle a clean per-frame boundary rather than
- * something that can change between two steps of one frame.
+ * `enabled` being fixed for the returned function's lifetime is what makes a
+ * mid-flight toggle a clean per-frame boundary: `nextFrameState` builds a new
+ * one each frame from that frame's settings, so a flag cannot change between
+ * two steps of one frame.
  */
-export type AssistRunner = {
-  /** Exactly `sim/loop.ts`'s injected-assist shape, typed as that type so a
-   *  change to it is a compile error here rather than a silent mismatch at the
-   *  one call site that matters. */
-  readonly assist: Assist
-  /** The memory as of the last step run, for the caller to thread into the
-   *  next frame's runner. Unchanged from what was passed in if no step ran. */
-  readonly memory: () => AltitudeHoldMemory
-}
-
-export function createAssistRunner(
-  enabled: AssistSettings,
-  initialMemory: AltitudeHoldMemory = NOT_HOLDING,
-): AssistRunner {
-  let memory = initialMemory
-  return {
-    assist: (state, spec, raw, dt) => {
-      // Altitude hold switched off does not merely stop correcting, it stops
-      // REMEMBERING. Otherwise a pilot who turns it off at 2000 m, descends to
-      // 1000 m with the stick centred (so nothing ever clears the memory) and
-      // turns it back on would get an immediate full-authority climb command
-      // back to an altitude they deliberately left -- a stale target
-      // reasserting itself, which is exactly the failure
-      // `nextAltitudeHoldMemory`'s "yield" rule exists to prevent for pitch
-      // input. Re-enabling instead re-captures at the first centred step, the
-      // same way releasing the stick does.
-      memory = enabled.altitudeHold ? nextAltitudeHoldMemory(state, raw, memory) : NOT_HOLDING
-      return applyAssists(state, spec, raw, dt, enabled, memory)
-    },
-    memory: () => memory,
+export const assistFor = (enabled: AssistSettings): Assist<AltitudeHoldMemory> => {
+  return (state, spec, raw, dt, memory) => {
+    // Altitude hold switched off does not merely stop correcting, it stops
+    // REMEMBERING. Otherwise a pilot who turns it off at 2000 m, descends to
+    // 1000 m with the stick centred (so nothing ever clears the memory) and
+    // turns it back on would get an immediate full-authority climb command
+    // back to an altitude they deliberately left -- a stale target
+    // reasserting itself, which is exactly the failure
+    // `nextAltitudeHoldMemory`'s "yield" rule exists to prevent for pitch
+    // input. Re-enabling instead re-captures at the first centred step, the
+    // same way releasing the stick does.
+    const next = enabled.altitudeHold ? nextAltitudeHoldMemory(state, raw, memory) : NOT_HOLDING
+    return { controls: applyAssists(state, spec, raw, dt, enabled, next), memory: next }
   }
 }
 

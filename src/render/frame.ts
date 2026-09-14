@@ -1,6 +1,6 @@
 import { advance, createWorld, type Stepper, type World } from '../sim/loop.js'
 import {
-  createAssistRunner,
+  assistFor,
   DEFAULT_ASSIST_SETTINGS,
   NOT_HOLDING,
   type AltitudeHoldMemory,
@@ -17,7 +17,11 @@ import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 
 export type FrameState = {
-  readonly world: World
+  /** Carries the altitude-hold memory in `assistMemory`, which is why this is
+   *  `World<AltitudeHoldMemory>` and not a bare `World`. It used to be a
+   *  separate field on this type; see `assistFor` in src/assists/index.ts for
+   *  why one copy inside the world beats two that can disagree. */
+  readonly world: World<AltitudeHoldMemory>
   /** This frame's commanded controls -- the identical object `world.controls`
    *  holds, kept here too because main.ts's prop spin and the Tier 2
    *  diagnostics hook read the frame, not the world inside it. */
@@ -46,20 +50,6 @@ export type FrameState = {
    * `BINDINGS`' own comment on the toggle keys.
    */
   readonly assists: AssistSettings
-  /**
-   * The altitude-hold memory as of the last fixed step this frame ran, carried
-   * into the next frame's runner.
-   *
-   * This is the one piece of assist state that has to survive a frame (see
-   * `AltitudeHoldMemory` in src/assists/index.ts), and it cannot be threaded
-   * the way `world` is: `advance` calls the assist once per fixed STEP and
-   * returns no memory, so `nextFrameState` hands it a `createAssistRunner`
-   * closure and reads this back off the runner afterwards. Updating it once per
-   * frame out here instead would read the wrong state (`world.aircraft` is
-   * stale from the second step of a multi-step frame onward) and could not
-   * clear mid-frame.
-   */
-  readonly altitudeHoldMemory: AltitudeHoldMemory
   /**
    * Whether each assist's toggle key was down last frame, for edge detection --
    * the same reason `cyclePressed` exists, and one flag per assist because
@@ -99,7 +89,7 @@ export function initialFrameState(
   assists: AssistSettings = DEFAULT_ASSIST_SETTINGS,
 ): FrameState {
   return {
-    world: createWorld(spec, aircraft, NEUTRAL),
+    world: createWorld(spec, aircraft, NEUTRAL, NOT_HOLDING),
     controls: NEUTRAL,
     look: LOOK_CENTRE,
     cameraMode: 'chase',
@@ -109,7 +99,6 @@ export function initialFrameState(
     droppedSteps: 0,
     cyclePressed: false,
     assists,
-    altitudeHoldMemory: NOT_HOLDING,
     assistTogglesDown: NO_TOGGLES_DOWN,
   }
 }
@@ -164,20 +153,18 @@ export function nextFrameState(
   // THE production assist path: without this argument the whole assists layer
   // is inert in the browser and every behavioural test still passes, because
   // those call `applyAssists` directly (found during Plan 3 execution, plan
-  // defect, ruled into this task). `advance` calls `runner.assist` once per
-  // fixed step -- never once per frame -- and the runner owns the
-  // memory-then-stack ordering `applyAssists` requires; see
-  // `createAssistRunner`. The memory is read back off the runner after
-  // `advance` returns, which is the only channel there is: `advance` returns a
-  // `World` and no memory.
-  const runner = createAssistRunner(assists, prev.altitudeHoldMemory)
+  // defect, ruled into this task). `advance` calls this once per fixed step --
+  // never once per frame -- and it owns the memory-then-stack ordering
+  // `applyAssists` requires; see `assistFor`. The memory rides in and out
+  // inside `World`, so there is nothing to read back here.
+  const assist = assistFor(assists)
 
   // This frame's controls go into the world rather than alongside it (see
   // `World.controls`): `advance` takes one object, so Plan 5's N-entity AI
   // adds a field here instead of a parameter at every call site. A new object
   // each frame, never a write into `prev.world` -- `advance`'s purity test
   // deep-freezes the world it is handed.
-  const advanced = advance({ ...prev.world, controls }, elapsedSeconds, stepper, runner.assist)
+  const advanced = advance({ ...prev.world, controls }, elapsedSeconds, stepper, assist)
   const render = interpolateAircraft(
     advanced.world.previous,
     advanced.world.aircraft,
@@ -196,7 +183,6 @@ export function nextFrameState(
     droppedSteps: advanced.droppedSteps,
     cyclePressed: cycleDown,
     assists,
-    altitudeHoldMemory: runner.memory(),
     assistTogglesDown,
   }
 }

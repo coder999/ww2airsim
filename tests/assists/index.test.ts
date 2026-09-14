@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAssists,
   applyAssistsWithAuthority,
-  createAssistRunner,
+  assistFor,
   DEFAULT_ASSIST_SETTINGS,
   NOT_HOLDING,
+  type AltitudeHoldMemory,
   type AssistSettings,
 } from '../../src/assists/index.js'
 import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
@@ -360,7 +361,7 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
   it('does not extend a departure it cannot help with, flown end to end', () => {
     // The behavioural consequence, rather than the command at one tick: enter
     // departed at 120 degrees of alpha, hands off, and fly 60 s through
-    // `step()` with the memory advanced the way `createAssistRunner` does.
+    // `step()` with the memory advanced the way `assistFor` does.
     // Measured 2026-09-13, before this fix: 126 ticks past 90 degrees with
     // altitude hold off, 801 with it on, first unstalled tick 2.18 s against
     // 5.35 s. After: 126 and 126, identical. This asserts the inequality
@@ -369,11 +370,14 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
     const flyDeparted = (altitudeHold: boolean) => {
       const enabled: AssistSettings = { stallLimiter: true, autoRudder: true, altitudeHold }
       const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
-      const runner = createAssistRunner(enabled)
+      const assist = assistFor(enabled)
       let s = alphaState(120, 90)
+      let memory: AltitudeHoldMemory = NOT_HOLDING
       let ticksPast90 = 0
       for (let i = 0; i < Math.round(60 / DT); i++) {
-        s = step(f6f, s, runner.assist(s, f6f, centred, DT), { dt: DT, tick: i + 1 })
+        const assisted = assist(s, f6f, centred, DT, memory)
+        memory = assisted.memory
+        s = step(f6f, s, assisted.controls, { dt: DT, tick: i + 1 })
         if (Math.abs((angleOfAttack(s) * 180) / Math.PI) > 90) ticksPast90++
       }
       return ticksPast90
@@ -458,33 +462,35 @@ describe('an illegal Controls.pitch is sanitised rather than published as a fals
   })
 })
 
-describe('createAssistRunner (Plan 3 Task 5)', () => {
+describe('assistFor (Plan 3 Task 5, reshaped as a reducer 2026-09-13)', () => {
   /**
-   * The runner exists so the altitude-hold memory's pairing invariant -- advance
-   * it BEFORE the stack, on the same `state` and `raw`, once per fixed step --
-   * is one function body rather than a rule every caller has to remember. These
-   * tests are on the invariant, not on the arithmetic each stage does (that is
-   * the other three files' job).
+   * `assistFor` exists so the altitude-hold memory's pairing invariant --
+   * advance it BEFORE the stack, on the same `state` and `raw`, once per fixed
+   * step -- is one function body rather than a rule every caller has to
+   * remember. These tests are on the invariant, not on the arithmetic each
+   * stage does (that is the other three files' job).
    */
   const level = (altitudeM: number) =>
     createState({ position: v3(0, altitudeM, 0), velocity: v3(130, 0, 0) })
   const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
   const ONLY_HOLD: AssistSettings = { stallLimiter: false, autoRudder: false, altitudeHold: true }
 
-  it('advances the memory itself, so a caller that only calls `assist` still gets a real hold', () => {
-    // Call the runner's assist twice, at two different altitudes, exactly the
-    // way `advance` would across two steps. The first call is the capture; the
-    // second is 100 m lower, so a runner that genuinely carried the first
-    // call's memory forward must command a climb. A runner that forgot it (or
-    // never advanced it) would see `NOT_HOLDING` again and hand back the
-    // pilot's centred command untouched.
-    const runner = createAssistRunner(ONLY_HOLD)
-    const first = runner.assist(level(2000), f6f, centred, DT)
-    expect(runner.memory()).toEqual({ heldAltitudeM: 2000 })
+  it('advances the memory itself, so a caller that only threads the result gets a real hold', () => {
+    // Call it twice, at two different altitudes, exactly the way `advance`
+    // would across two steps. The first call is the capture; the second is
+    // 100 m lower and is handed the first call's memory back, so it must
+    // command a climb. A caller threading a memory that never advanced would
+    // see `NOT_HOLDING` again and get the pilot's centred command untouched.
+    const assist = assistFor(ONLY_HOLD)
+    const first = assist(level(2000), f6f, centred, DT, NOT_HOLDING)
+    expect(first.memory).toEqual({ heldAltitudeM: 2000 })
 
-    const second = runner.assist(level(1900), f6f, centred, DT)
-    expect(second.pitch, 'the second step must be flying back up to the captured 2000 m').toBeGreaterThan(0.1)
-    expect(runner.memory(), 'and the target must stay pinned where it was captured').toEqual({
+    const second = assist(level(1900), f6f, centred, DT, first.memory)
+    expect(
+      second.controls.pitch,
+      'the second step must be flying back up to the captured 2000 m',
+    ).toBeGreaterThan(0.1)
+    expect(second.memory, 'and the target must stay pinned where it was captured').toEqual({
       heldAltitudeM: 2000,
     })
     // The first call captures at zero ALTITUDE error, but that is not the same
@@ -494,46 +500,46 @@ describe('createAssistRunner (Plan 3 Task 5)', () => {
     // (the angle of attack that trims lift) is nonzero while `level(2000)`'s
     // actual attitude is dead level, so the two disagree even though the
     // altitude error is exactly 0. That is exactly the gap that would vanish
-    // if the runner computed `applyAssists` BEFORE advancing the memory
-    // instead of after -- `memory` would still read `NOT_HOLDING` at the
-    // moment `applyAssists` ran, altitude hold would stand down completely
-    // (its first gate), and `first.pitch` would be exactly 0 rather than the
+    // if this computed `applyAssists` BEFORE advancing the memory instead of
+    // after -- `memory` would still read `NOT_HOLDING` at the moment
+    // `applyAssists` ran, altitude hold would stand down completely (its first
+    // gate), and `first.controls.pitch` would be exactly 0 rather than the
     // small trim correction below. Measured 2026-09-13, this aircraft's
     // content, through this exact call.
-    expect(first.pitch).toBeCloseTo(0.009348025602234161, 10)
+    expect(first.controls.pitch).toBeCloseTo(0.009348025602234161, 10)
   })
 
   it('starts from the memory it is handed, which is how a frame boundary is crossed', () => {
-    // `nextFrameState` builds a new runner every frame, so the hold would reset
-    // sixty times a second if the second argument were ignored.
-    const runner = createAssistRunner(ONLY_HOLD, { heldAltitudeM: 2000 })
-    expect(runner.assist(level(1900), f6f, centred, DT).pitch).toBeGreaterThan(0.1)
+    // The memory arrives as an argument every step (from `World.assistMemory`),
+    // so the hold would reset sixty times a second if it were ignored.
+    const assist = assistFor(ONLY_HOLD)
+    expect(assist(level(1900), f6f, centred, DT, { heldAltitudeM: 2000 }).controls.pitch).toBeGreaterThan(0.1)
   })
 
   it('remembers nothing at all while altitude hold is switched off', () => {
     // Off means forgotten, not paused: a target kept warm through a
     // deliberate descent would reassert itself the moment the assist came back
-    // on. Handed a memory AND a centred stick, a runner with the flag off must
-    // still report nothing held.
-    const runner = createAssistRunner(
-      { stallLimiter: false, autoRudder: false, altitudeHold: false },
-      { heldAltitudeM: 2000 },
-    )
-    expect(runner.assist(level(1900), f6f, centred, DT)).toEqual(centred)
-    expect(runner.memory()).toBe(NOT_HOLDING)
+    // on. Handed a memory AND a centred stick, the flag off must still hand
+    // back nothing held.
+    const assist = assistFor({ stallLimiter: false, autoRudder: false, altitudeHold: false })
+    const out = assist(level(1900), f6f, centred, DT, { heldAltitudeM: 2000 })
+    expect(out.controls).toEqual(centred)
+    expect(out.memory).toBe(NOT_HOLDING)
   })
 
-  it('gives each runner its own memory, so two flights cannot share one captured altitude', () => {
-    // The reason this is a factory and not a module-level cell (see
+  it('keeps two flights apart even through one shared assist function', () => {
+    // The reason this is a pure reducer and not a closure over a cell (see
     // `AltitudeHoldMemory`'s doc comment): two test files, or two aeroplanes
-    // once Plan 5 exists, must not fight over one target.
-    const a = createAssistRunner(ONLY_HOLD)
-    const b = createAssistRunner(ONLY_HOLD)
-    a.assist(level(2000), f6f, centred, DT)
-    expect(a.memory()).toEqual({ heldAltitudeM: 2000 })
-    expect(b.memory()).toBe(NOT_HOLDING)
-    b.assist(level(1000), f6f, centred, DT)
-    expect(a.memory()).toEqual({ heldAltitudeM: 2000 })
-    expect(b.memory()).toEqual({ heldAltitudeM: 1000 })
+    // once Plan 5 exists, must not fight over one target -- and unlike the
+    // factory this replaced, they may now safely share one function value.
+    // Interleaved deliberately: a cell would be overwritten by whichever call
+    // came last, so alternating is what makes that visible.
+    const assist = assistFor(ONLY_HOLD)
+    const a1 = assist(level(2000), f6f, centred, DT, NOT_HOLDING)
+    const b1 = assist(level(1000), f6f, centred, DT, NOT_HOLDING)
+    const a2 = assist(level(2000), f6f, centred, DT, a1.memory)
+    const b2 = assist(level(1000), f6f, centred, DT, b1.memory)
+    expect(a2.memory).toEqual({ heldAltitudeM: 2000 })
+    expect(b2.memory).toEqual({ heldAltitudeM: 1000 })
   })
 })

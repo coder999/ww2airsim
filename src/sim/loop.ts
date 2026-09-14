@@ -94,14 +94,52 @@ export type Stepper = typeof step
  * that needs to know how much time actually passed must be able to answer
  * that without depending on frame rate (open item 5's whole complaint), and
  * the fixed step is the only quantity in this loop that is not.
+ *
+ * An assist may need to REMEMBER something across steps -- altitude hold's
+ * captured altitude is the first, and "the altitude at some past tick" appears
+ * in no other argument here. So the assist is a reducer rather than a plain
+ * function: memory in, `{ controls, memory }` out, with the advanced memory
+ * stored back into the returned `World`. `M` is a type parameter and `sim/`
+ * never looks inside it, which is what lets the memory live in `World` without
+ * `sim/` learning anything about assists (spec §3's boundary, and the reason
+ * `assists/` can keep importing `sim/` rather than the reverse).
+ *
+ * Threading it, rather than letting the assist keep a closure over a mutable
+ * local (which is what Plan 3 shipped), buys two things a closure cannot:
+ *  - a `World` is now a COMPLETE description of the flight. Serialise it,
+ *    rebuild it, carry on, and the trajectory is identical -- which a closure
+ *    breaks silently, because the captured altitude is not in the object being
+ *    saved. `tests/assists/worldMemory.test.ts` measures both halves.
+ *  - N aeroplanes get N memories by construction rather than by every caller
+ *    remembering to build one runner each (Plan 5).
  */
-export type Assist = (state: AircraftState, spec: AircraftSpec, raw: Controls, dt: number) => Controls
+export type Assist<M> = (
+  state: AircraftState,
+  spec: AircraftSpec,
+  raw: Controls,
+  dt: number,
+  memory: M,
+) => AssistResult<M>
 
-/** No-op default: hands the stepper exactly what the pilot commanded, so
- *  every existing call site and test that predates Plan 3 is unaffected. */
-const identityAssist: Assist = (_state, _spec, raw, _dt) => raw
+/** What an `Assist` hands back: what to fly this step, and what to remember
+ *  for the next one. */
+export interface AssistResult<M> {
+  readonly controls: Controls
+  readonly memory: M
+}
 
-export interface World {
+/** No-op default: hands the stepper exactly what the pilot commanded and
+ *  remembers exactly what it was told, so every existing call site and test
+ *  that predates Plan 3 is unaffected. */
+const identityAssist = <M>(
+  _state: AircraftState,
+  _spec: AircraftSpec,
+  raw: Controls,
+  _dt: number,
+  memory: M,
+): AssistResult<M> => ({ controls: raw, memory })
+
+export interface World<M = undefined> {
   /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
    *  list: the design has later plans add fields to World precisely so
    *  that `advance`'s signature never grows. */
@@ -125,12 +163,29 @@ export interface World {
    * `World` to N entities is Plan 5's, not this branch's.
    */
   readonly controls: Controls
+  /**
+   * Whatever the injected `Assist` asked to remember, as of the last fixed
+   * step run. `sim/` treats this as opaque -- it is carried from step to step
+   * and stored back here, never read.
+   *
+   * In `World` rather than in a closure the caller holds (Plan 3's shape,
+   * replaced here) so that this object is the WHOLE flight: a world written
+   * to disk and read back flies on identically, where a closure's contents
+   * would be silently missing from the save. It also settles Plan 5 in
+   * advance -- N aeroplanes are N worlds, or N entity records, each with its
+   * own memory field, so two aeroplanes cannot share one captured altitude
+   * even if they share an assist function.
+   *
+   * `undefined` for a world flown with no assist, which is what the default
+   * type parameter says.
+   */
+  readonly assistMemory: M
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
 
-export interface AdvanceResult {
-  readonly world: World
+export interface AdvanceResult<M = undefined> {
+  readonly world: World<M>
   /** Whole steps actually run, 0..MAX_STEPS_PER_FRAME. */
   readonly stepsRun: number
   /**
@@ -158,24 +213,44 @@ export interface AdvanceResult {
   readonly alpha: number
 }
 
-export const createWorld = (
+/** Overloaded rather than given a defaulted generic parameter: `assistMemory`
+ *  has no sensible value to invent for an arbitrary `M`, and writing one
+ *  (`undefined as M`) would be a lie the type system then believes. Omitting
+ *  it says exactly what it means -- this world is flown with no assist, so
+ *  there is nothing to remember. */
+export function createWorld(
   spec: AircraftSpec,
   aircraft: AircraftState,
   controls: Controls,
-): World => ({
-  spec,
-  aircraft,
-  previous: aircraft,
-  controls,
-  accumulatorSeconds: 0,
-})
+): World<undefined>
+export function createWorld<M>(
+  spec: AircraftSpec,
+  aircraft: AircraftState,
+  controls: Controls,
+  assistMemory: M,
+): World<M>
+export function createWorld<M>(
+  spec: AircraftSpec,
+  aircraft: AircraftState,
+  controls: Controls,
+  assistMemory?: M,
+): World<M | undefined> {
+  return {
+    spec,
+    aircraft,
+    previous: aircraft,
+    controls,
+    assistMemory,
+    accumulatorSeconds: 0,
+  }
+}
 
-export function advance(
-  world: World,
+export function advance<M>(
+  world: World<M>,
   elapsedSeconds: number,
   stepper: Stepper = step,
-  assist: Assist = identityAssist,
-): AdvanceResult {
+  assist: Assist<M> = identityAssist,
+): AdvanceResult<M> {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
   // that is negative or not a number; banking either would poison the
   // accumulator permanently, so those are dropped here. A delta that is
@@ -195,6 +270,12 @@ export function advance(
 
   let current = world.aircraft
   let previous = world.previous
+  // Advanced once per step alongside `current`, for the same reason the assist
+  // itself runs in here: a memory that reacted to `world.aircraft` would be
+  // reading a state from the start of the frame, which is stale from the
+  // second step onward. Never written back into `world` -- `advance` is pure
+  // and its purity is asserted by a deep-frozen world in tests/sim/loop.test.ts.
+  let assistMemory = world.assistMemory
   for (let i = 0; i < stepsRun; i++) {
     previous = current
     // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
@@ -206,8 +287,9 @@ export function advance(
     // assist reacting to the aeroplane's stall margin sees the STATE that
     // margin actually applied to on this tick (`current`, not `world.aircraft`,
     // which is stale from the second step of a multi-step frame onward).
-    const controls = assist(current, world.spec, world.controls, DT)
-    current = stepper(world.spec, current, controls, { dt: DT, tick: current.tick + 1 })
+    const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
+    assistMemory = assisted.memory
+    current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1 })
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -221,6 +303,7 @@ export function advance(
       aircraft: current,
       previous,
       controls: world.controls,
+      assistMemory,
       accumulatorSeconds: banked,
     },
     stepsRun,
