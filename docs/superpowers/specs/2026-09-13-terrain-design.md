@@ -150,8 +150,10 @@ GDAL, no system dependency, reproducible from a fresh clone. Source tiles are
 cached under `tools/**/cache/`, already gitignored.
 
 **Steps.** Fetch → resample to the azimuthal-equidistant grid (bilinear) →
-quantise to `int16` decimetres → build the mip chain by successive 2×2 box
-filtering → write the levels and a JSON header → record provenance and licence
+quantise to `int16` decimetres → build the mip chain via sample-aligned tent
+filter with mirror boundary (see `tools/terrain/mips.ts`; corrected 2026-09-14 —
+strict 2×2 box filtering cannot produce the (2^(k-1))+1 sample sizes §2 requires)
+→ write the levels and a JSON header → record provenance and licence
 in `ASSETS.md`, which master spec §10 requires before anything is committed.
 
 **Determinism.** Same inputs produce byte-identical outputs, and that is
