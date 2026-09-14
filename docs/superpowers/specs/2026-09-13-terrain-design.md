@@ -45,10 +45,20 @@ Measured 2026-09-13:
 | Quantity | Value |
 | --- | --- |
 | World, per §4 | 200 × 200 km |
-| Heightfield at 30 m posting | 6667 × 6667 samples |
+| Heightfield grid | 8193 × 8193 samples, 24.4 m posting |
 | `maxTextureDimension2D` on the reference RX 6700 XT | **16384** |
-| Full mip chain, 2 bytes/sample | 118.5 MB |
-| As `r32float` in VRAM, with mips | 237 MB, of 12288 MB |
+| Full mip chain, 2 bytes/sample | 179 MB |
+| As `r32float` in VRAM, with mips | 358 MB, of 12288 MB |
+
+**Why 8193 and not 6667** (settled while planning, 2026-09-13). The obvious
+grid is the source posting, 200 km / 30 m = 6667 samples. That number halves
+to 3334, 1667, 834 … — odd sizes with a dangling row and column at every
+level, which is an edge case in the mip filter, in node addressing and in
+texture-coordinate arithmetic, repeated thirteen times. `2^13 + 1` halves
+exactly to `2^12 + 1` all the way down to 3, sharing edge samples the way
+heightfield pyramids conventionally do. It costs a 1.23× oversample of the
+source (24.4 m posting from 30 m data, so no invented detail, just resampled)
+and buys the clean quadtree in §5.
 
 So the whole world is **one texture**, not a grid of tiles, and it is resident
 from load to exit. Deleted along with the tile grid: a tile manifest, a cache,
@@ -64,24 +74,27 @@ level of the one texture, and morphs between levels in the vertex stage.
 needs no streaming system at all. The mip chain is nine files, smallest first:
 
 ```
-L8    26^2      1 KB          L3   833^2     1.4 MB
-L7    52^2      5 KB          L2  1666^2     5.6 MB
-L6   104^2     22 KB          L1  3333^2    22.2 MB
-L5   208^2     87 KB          L0  6667^2    88.9 MB
-L4   416^2    346 KB
+L0  8193^2  134.2 MB   24 m      L5   257^2   132 KB    781 m
+L1  4097^2   33.6 MB   49 m      L6   129^2    33 KB   1562 m
+L2  2049^2    8.4 MB   98 m      L7    65^2     8 KB   3125 m
+L3  1025^2    2.1 MB  195 m      L8..L12 down to 3^2, 3 KB total
+L4   513^2    0.5 MB  391 m
 ```
 
-L5–L8 total ~115 KB and are **committed**, so a fresh clone runs and shows a
-recognisable Leyte immediately (master spec §10's "small low-resolution
-fallback"). L0–L4 are generated, gitignored (`/content/terrain/tiles/` already
-is), and fetched at runtime in ascending order of size. Nothing is ever
-evicted, so there is no cache-coherence question to get wrong.
+L4 and coarser total 703 KB and are **committed**, so a fresh clone runs and
+shows a recognisable Leyte immediately (master spec §10's "small
+low-resolution fallback"). L0–L3 are generated, gitignored
+(`/content/terrain/tiles/` already is), and fetched at runtime in ascending
+order of size. Nothing is ever evicted, so there is no cache-coherence
+question to get wrong.
 
 ### Wire format: raw `int16` decimetres, not an image
 
 One `.bin` per level plus one JSON header. Elevation is stored as signed
 decimetres (`round(metres * 10)`), which spans ±3276.7 m — Leyte's highest
-ground is near 1350 m — at 0.1 m precision.
+ground is well inside that — at 0.1 m precision. The pipeline asserts the
+range rather than trusting it: a source sample outside ±3276.7 m is a hard
+failure, not a silent wrap.
 
 - **Not 16-bit PNG**, because browsers do not reliably decode 16-bit PNG to 16
   bits; `createImageBitmap` gives 8-bit results, which would quantise elevation
@@ -97,7 +110,7 @@ Measured on the card, 2026-09-13: `r16float` and `r32float` both create and
 filter; **`r16unorm` throws** without the optional `texture-formats-tier1`
 feature, so it is off the table.
 
-Default is `r32float` (237 MB with mips): exact, filterable, and 2% of the
+Default is `r32float` (358 MB with mips): exact, filterable, and 2% of the
 card. `r16float` halves that but has only an 11-bit mantissa, so above 1024 m
 it cannot represent decimetres at all and steps by 1 m — acceptable but not
 free. The switch is a one-line change and is to be made on a measured
@@ -155,14 +168,12 @@ against a pipeline that was wrong in the same way twice.
 - `mesh.ts` — the CDLOD quadtree: node selection, the shared grid mesh,
   vertex-stage displacement from an explicit mip, and morphing.
 
-A node is a 64 × 64 quad grid. At the finest detail that spans 1.92 km; ranges
-double per level, so **eight LOD rings** reach 246 km, comfortably beyond the
-100 km draw distance, with the finest detail held close to the camera.
-
-The LOD rings and the mip chain of §2 are different things and are deliberately
-not numbered alike here: there are nine mip levels because that is how many
-times 6667 halves, and eight rings because that is how many doublings cover the
-draw distance. A ring samples whichever mip matches its sample spacing.
+A node is a 64 × 64 quad grid. The grid of §2 makes this fall out exactly:
+8192 intervals ÷ 64 = 128 nodes across at the finest ring, so the quadtree is
+**8 rings deep and its root is precisely the whole world** — no partial nodes,
+no world-edge special case, and **ring k samples mip k**, one texel per quad,
+by construction rather than by a lookup table someone has to keep true. A
+finest-ring node spans 1562 m; the root spans 200 km.
 
 Two properties master spec §4 requires from the first commit, one of which is
 already built:
