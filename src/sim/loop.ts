@@ -207,14 +207,14 @@ export interface World<M = undefined> {
    * "Written to disk and read back" means under a serialiser that preserves
    * this object's actual runtime types, not any serialiser -- `World.terrain`
    * (below) is the field that makes the difference concrete: its
-   * `heightsDm` is an `Int16Array`, which `structuredClone` (and anything
-   * built on the structured clone algorithm: IndexedDB, `postMessage`,
-   * MessagePack, CBOR) reproduces exactly, but plain `JSON.stringify` /
-   * `JSON.parse` does not -- a typed array survives JSON only as an object of
-   * numeric-string keys, which fails `instanceof Int16Array` and has no
-   * `.length`, so `createTerrainField`'s own validation would reject it on
-   * read-back. `tests/sim/loop.test.ts`'s "survives structuredClone" test
-   * pins the claim under the serialiser it actually holds for.
+   * `heightsDm` is an `Int16Array`, which `structuredClone` reproduces
+   * exactly (verified by `tests/sim/loop.test.ts`'s "survives
+   * structuredClone" test -- the same algorithm IndexedDB and `postMessage`
+   * use per spec, though nothing here exercises those two). Plain
+   * `JSON.stringify`/`JSON.parse` does not: a typed array survives JSON only
+   * as an object of numeric-string keys, which fails `instanceof Int16Array`
+   * and has no `.length`, so `createTerrainField`'s own validation would
+   * reject it on read-back.
    *
    * `undefined` for a world flown with no assist, which is what the default
    * type parameter says.
