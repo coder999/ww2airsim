@@ -19,6 +19,9 @@ import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
+import { createTerrainMesh } from './terrain/mesh.js'
+import { loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
+import { LOD } from './terrain/lod.js'
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
@@ -219,11 +222,35 @@ async function boot(): Promise<void> {
   cockpit.add(panel.root)
   scene.add(cockpit)
 
+  // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
+  // it so it inherits the camera-relative translation applied below -- a
+  // terrain mesh that missed it would jitter at 100 km exactly as master
+  // spec §4 describes, and would be the only thing in the scene that did.
+  const terrain = createTerrainMesh(TERRAIN_HEADER)
+  scene.add(terrain.object)
+
   const camera = new PerspectiveCamera(
     CAMERA_VFOV_DEG,
     window.innerWidth / window.innerHeight,
     0.1,
-    60_000,
+    // Raised from 60,000 m for the terrain (Task 10). `selectNodes` does not
+    // cull on distance -- the world is bounded, so it returns patches out to
+    // the far corner, up to 283 km away -- and something has to decide what
+    // happens past the far plane. Neither a bigger number nor accepting a
+    // visible edge: the terrain's fog reaches exactly 1 at
+    // `LOD.drawDistanceM` (mesh.ts), so sitting the far plane ON that
+    // distance means every fragment the frustum removes was already exactly
+    // the haze colour of the sky dome that replaces it. View-space depth is
+    // never greater than radial distance, so that holds for every clipped
+    // fragment, not just the ones straight ahead.
+    //
+    // The side effect is on the water: its square edge reaches 70,711 m at
+    // the diagonals, so the old 60,000 m plane cut it along a line that swung
+    // round with the camera's heading. That cut is gone, which makes the
+    // sea's edge a fixed feature of the world instead of one that follows the
+    // view -- an improvement, but a visible change, so it is on this task's
+    // GPU checklist rather than assumed.
+    LOD.drawDistanceM,
   )
 
   // Spawn over open water, comfortably above the clean, power-off stall
@@ -351,6 +378,13 @@ async function boot(): Promise<void> {
     // member of the sky/water family and the only one that carries a scale.
     recentreMarkers(markers, current.eye.position.x, current.eye.position.z)
 
+    // Reselects the patches to draw for this frame's eye position. Inside the
+    // camera-relative block above only in the sense that it takes the same
+    // WORLD position the offset was built from -- the mesh's own vertex node
+    // works in world metres and lets `scene.position` do the shift, exactly
+    // as the water and markers do.
+    terrain.update(current.eye.position.x, current.eye.position.z)
+
     prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
 
     renderer.render(scene, camera)
@@ -370,6 +404,29 @@ async function boot(): Promise<void> {
   if (deviceLost) return
   loop = createRafLoop(frameFn)
   loop.start()
+
+  // Deliberately NOT awaited: the pyramid is 703 KB over nine requests, and
+  // the aeroplane is flyable before any of it lands (the mesh draws nothing
+  // until a level arrives -- mesh.ts). Each level lands in its own texture,
+  // coarsest first.
+  //
+  // One consequence worth knowing when watching it load: the rings are drawn
+  // from the level they match, and the near rings all read L4, which is 526
+  // of those 703 KB and lands LAST. So the far field appears first and the
+  // ground under the aeroplane fills in at the end -- the opposite order to
+  // what "coarse first" suggests, and correct: there is no coarser level a
+  // near ring could legitimately draw that its neighbours would agree with.
+  //
+  // A level that will not load routes to the same screen as unloadable
+  // aircraft content, because it is the same fault: content the build was
+  // supposed to ship. Carrying on would leave a sea with no islands in it,
+  // which looks exactly like the game working.
+  void loadTerrainProgressively((level, data) => {
+    terrain.setLevel(level, data)
+  }).catch((err: unknown) => {
+    loop?.stop()
+    showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
+  })
 
   window.addEventListener('resize', () => {
     // A resize after a device loss would reconfigure a disposed swap chain.
