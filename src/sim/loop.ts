@@ -1,6 +1,8 @@
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { DT, step } from './flight/model.js'
+import { heightAt, type TerrainField } from './world/terrain.js'
+import type { Vec3 } from './math/vec3.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -139,6 +141,32 @@ const identityAssist = <M>(
   memory: M,
 ): AssistResult<M> => ({ controls: raw, memory })
 
+/**
+ * Recorded once, on the first step where the aeroplane is at or below the
+ * ground under it. `advance` does not clear it on later steps and does not
+ * react to it (no bounce, no stop, no invariant trip) -- this task only
+ * records the event; what happens to the aeroplane after a crash is Plan 8's
+ * subject, so acting on `impact` here would be scope this task does not own.
+ */
+export type Impact = {
+  /** `SimContext.tick` of the step that first satisfied the impact test. */
+  readonly tick: number
+  /** The aeroplane's position on that step, world metres, +Y up. */
+  readonly position: Vec3
+  /** `velocity.y` on that step -- negative for a normal descent into terrain,
+   *  but not asserted to be: an aeroplane can be at or below the ground with
+   *  a non-negative vertical speed (e.g. it spawned there), and recording the
+   *  true value rather than clamping it is what lets a caller tell the two
+   *  cases apart later. */
+  readonly verticalSpeedMps: number
+  /** `heightAt(terrain, position.x, position.z)` at the moment of impact --
+   *  captured rather than left for the caller to recompute, since a later
+   *  step's ground height at the SAME (x, z) can differ once the aeroplane
+   *  has moved on (a later task's field, not this one's, could even swap the
+   *  field itself). */
+  readonly groundHeightM: number
+}
+
 export interface World<M = undefined> {
   /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
    *  list: the design has later plans add fields to World precisely so
@@ -180,6 +208,31 @@ export interface World<M = undefined> {
    * type parameter says.
    */
   readonly assistMemory: M
+  /**
+   * The ground this world's aeroplane can hit, or `null` for "no terrain
+   * loaded". `sim/` may not import `tools/terrain/load.ts` (Node-only, and a
+   * `src/sim/` file must load in a browser -- `.dependency-cruiser.cjs`,
+   * `tests/architecture/boundary.test.ts`), so this arrives the same way
+   * `Assist` does: the caller injects the value, `sim/` never learns where it
+   * came from. `null` here on purpose -- Task 8 puts the FIELD on `World` and
+   * the impact CHECK in `advance`; nothing populates a real field yet, which
+   * is a later task's job (wiring the renderer). Every existing world and the
+   * whole pre-Task-8 test suite, including the golden trajectory, is
+   * unaffected: `heightAt` is never called when this is `null`.
+   */
+  readonly terrain: TerrainField | null
+  /**
+   * Set once `advance` finds the aeroplane at or below `terrain`'s height
+   * under it, and never overwritten afterward -- seeded from `world.impact`
+   * at the top of `advance`.
+   *
+   * In `World`, not a value `advance` merely returns alongside it, for the
+   * same completeness reason `assistMemory` is here rather than in a
+   * caller's closure (see that field's comment): a world written to disk and
+   * read back must still remember that this flight already crashed, not
+   * silently re-open the possibility of a second "first" impact.
+   */
+  readonly impact: Impact | null
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -241,6 +294,8 @@ export function createWorld<M>(
     previous: aircraft,
     controls,
     assistMemory,
+    terrain: null,
+    impact: null,
     accumulatorSeconds: 0,
   }
 }
@@ -276,6 +331,13 @@ export function advance<M>(
   // second step onward. Never written back into `world` -- `advance` is pure
   // and its purity is asserted by a deep-frozen world in tests/sim/loop.test.ts.
   let assistMemory = world.assistMemory
+  // Seeded from the incoming world, not `null`: an impact already recorded on
+  // an earlier `advance` call must survive this one (`World.impact`'s "never
+  // overwritten afterward"). Read once, here, rather than through
+  // `world.impact` inside the loop below, so the loop's own "impact === null"
+  // check is testing this call's progress and not silently re-reading a
+  // field that never changes underneath it.
+  let impact = world.impact
   for (let i = 0; i < stepsRun; i++) {
     previous = current
     // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
@@ -290,6 +352,36 @@ export function advance<M>(
     const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
     assistMemory = assisted.memory
     current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1 })
+
+    // Checked after EVERY step in a multi-step frame, not just the loop's
+    // last iteration -- a frame that owes several steps (a stalled tab,
+    // `MAX_STEPS_PER_FRAME` up to 5) can cross the ground partway through,
+    // and checking only the final `current` would silently skip that tick's
+    // impact, moving `impact.tick` and `impact.position` to a later,
+    // already-through-the-ground state. `terrain !== null` short-circuits the
+    // `heightAt` call entirely on the (overwhelmingly common, pre-Task-8)
+    // no-terrain path, and `impact === null` makes the first recorded impact
+    // permanent for the rest of this call, matching `World.impact`'s "never
+    // overwritten afterward". `<=`, not `<`: `heightAt` is a real number for
+    // any finite (x, z), including exactly on the ground, and a strict `<`
+    // would let the aeroplane sit buried at exactly ground level forever
+    // with no impact ever recorded (proved to bite in this task's commit).
+    // `current.position.y` cannot be NaN here without `stepper` itself
+    // already having produced one (spec §9's hazard, and this check does not
+    // introduce a new path to it: a NaN position makes this comparison false
+    // by IEEE 754 rules, so it is read-only and skips silently rather than
+    // fabricating an impact).
+    if (impact === null && world.terrain !== null) {
+      const groundHeightM = heightAt(world.terrain, current.position.x, current.position.z)
+      if (current.position.y <= groundHeightM) {
+        impact = {
+          tick: current.tick,
+          position: current.position,
+          verticalSpeedMps: current.velocity.y,
+          groundHeightM,
+        }
+      }
+    }
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -304,6 +396,8 @@ export function advance<M>(
       previous,
       controls: world.controls,
       assistMemory,
+      terrain: world.terrain,
+      impact,
       accumulatorSeconds: banked,
     },
     stepsRun,

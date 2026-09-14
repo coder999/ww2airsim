@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec } from '../../tools/content/load.js'
-import { runSoak } from '../../tools/soak/run.js'
+import { runSoak, runTerrainSoak } from '../../tools/soak/run.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../../src/assists/index.js'
+import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { createTerrainField } from '../../src/sim/world/terrain.js'
 
 describe('randomized soak (spec §11)', () => {
   it('survives 200 randomized flights with no invariant violations', () => {
@@ -154,5 +156,43 @@ describe('randomized soak (spec §11)', () => {
     //    (the third Critical): 53 of 200 iterations fail, the first with
     //    `departed budget {"lower":-1,"upper":1} is not the pilot's own
     //    0.3210875145159662 at alpha -111.66 deg`.
+  })
+})
+
+describe('terrain contact soak (spec §11, Task 8: the ground the aeroplane can hit)', () => {
+  it('never ends a physics step below the ground with impact still null, over the committed L4 field', () => {
+    // The committed field, the same one shipped for the offline fallback
+    // (Task 6) -- loaded here, in the test, not inside `runTerrainSoak`
+    // itself: `tools/soak/run.ts` takes a `TerrainField` the same way
+    // `src/sim/loop.ts`'s `advance` does, the caller-injects-the-data pattern
+    // this whole plan uses so `sim/` never has to know where terrain data
+    // came from. `tools/terrain/load.ts` is fine to import here -- this file
+    // is a test, not `src/sim/`.
+    const header = loadTerrainHeader()
+    const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
+    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
+
+    const result = runTerrainSoak(loadAircraftSpec('f6f-hellcat'), 200, 1337, terrain)
+    expect(
+      result.failures,
+      `${result.failures.slice(0, 5).join('\n')}\n(${result.terrainHits} of ${result.iterations} flights recorded an impact)`,
+    ).toHaveLength(0)
+    expect(result.iterations).toBe(200)
+
+    // Floors, well below what this exact configuration measures -- same
+    // convention `runSoak`'s own tests use: re-measure and move the floor,
+    // never the assertion, if the input distribution changes again.
+    //
+    // MEASURED 2026-09-14, node v22.22.1, seed 1337, 200 iterations, this
+    // aircraft's content, the committed L4 field: 400,958 steps, 142 of 200
+    // flights recording an impact, zero failures. Two other seeds, for a
+    // sense of spread: seed 4242 gives 448,873 steps / 128 hits and seed 7
+    // gives 411,643 steps / 148 hits, both zero failures.
+    expect(result.steps).toBeGreaterThan(300000)
+    // The floor that matters most: without it, a soak that never put an
+    // aeroplane within reach of the ground would still report zero failures
+    // forever, indistinguishable from "the invariant held". 100 is comfortably
+    // below every seed measured above (128-148) while being nowhere near 0.
+    expect(result.terrainHits).toBeGreaterThan(100)
   })
 })

@@ -1,4 +1,5 @@
 import { advance, createWorld, type Stepper, type World } from '../sim/loop.js'
+import type { TerrainField } from '../sim/world/terrain.js'
 import {
   assistFor,
   DEFAULT_ASSIST_SETTINGS,
@@ -87,9 +88,17 @@ export function initialFrameState(
   spec: AircraftSpec,
   aircraft: AircraftState,
   assists: AssistSettings = DEFAULT_ASSIST_SETTINGS,
+  // `null` (no terrain) by default, exactly `World.terrain`'s own default via
+  // `createWorld` -- see that field's comment. Threaded through here, rather
+  // than left for a caller to `{ ...frame.world, terrain }` after the fact,
+  // so a `FrameState` is buildable with terrain already in place the moment
+  // a later task has a field to hand it (main.ts's `initialFrameState(spec,
+  // initialAircraft)` call passes none, so this task changes no runtime
+  // behaviour: `advance`'s impact check never runs while this stays `null`).
+  terrain: TerrainField | null = null,
 ): FrameState {
   return {
-    world: createWorld(spec, aircraft, NEUTRAL, NOT_HOLDING),
+    world: { ...createWorld(spec, aircraft, NEUTRAL, NOT_HOLDING), terrain },
     controls: NEUTRAL,
     look: LOOK_CENTRE,
     cameraMode: 'chase',

@@ -19,6 +19,8 @@ import {
   type AltitudeHoldMemory,
   type AssistSettings,
 } from '../../src/assists/index.js'
+import { advance, createWorld } from '../../src/sim/loop.js'
+import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 
 export type SoakResult = {
   failures: string[]
@@ -375,4 +377,117 @@ export function runSoak(
     assistYawInterventions,
     assistHoldEngagedSteps,
   }
+}
+
+export type TerrainSoakResult = {
+  failures: string[]
+  iterations: number
+  steps: number
+  /**
+   * Flights that recorded an impact before their 60 simulated seconds ran
+   * out. Reported separately from `failures` because "zero failures" is
+   * ambiguous on its own: a soak that never puts an aeroplane within reach of
+   * the ground also reports zero failures, and would keep doing so forever
+   * even if the impact check were silently broken (`tests/sim/soak.test.ts`'s
+   * floor on this field is what tells the two apart).
+   */
+  terrainHits: number
+}
+
+/**
+ * Randomized soak for the master spec §11 invariant terrain contact closes:
+ * "no aircraft is below terrain without a crash event" (design doc
+ * `docs/superpowers/specs/2026-09-13-terrain-design.md` §5). Unlike `runSoak`
+ * above, this drives flights through `advance` itself (`src/sim/loop.ts`),
+ * with `world.terrain` set to the field the caller passes in -- the actual
+ * production impact-detection path, not a reimplementation of it -- so what
+ * this soaks is whether `advance`'s own bookkeeping holds up over thousands
+ * of real, varied trajectories and real terrain samples, not just the four
+ * hand-picked states `tests/sim/terrainContact.test.ts` constructs against a
+ * flat synthetic plateau.
+ *
+ * Each flight spawns at a random (x, z) within the terrain field's extent (so
+ * the soak exercises the real committed elevation data across the whole
+ * field, not always the same column), and at an altitude drawn relative to
+ * the ground height there rather than sea level -- 30% of flights within 300
+ * m of it (so a meaningful fraction are genuinely at risk of contact within
+ * the 60 s flight budget) and the rest in the same 200-9,200 m-above-ground
+ * band `runSoak` uses above sea level, so ordinary cruise over real terrain is
+ * exercised too. `rollControls` (this file's existing input generator, with
+ * `centredPitchChance` 0 -- there is no assist here to engage altitude hold)
+ * supplies the same violent, occasionally chaotic control input `runSoak`
+ * does, re-rolled once per simulated second.
+ *
+ * Per-tick, after `advance`, the invariant is checked from OUTSIDE `advance`'s
+ * own state: `heightAt(terrain, ...)` is recomputed independently against the
+ * position `advance` just produced, and if that says the aeroplane is at or
+ * below the ground, `world.impact` must already be non-null (`advance` runs
+ * its own identical check first, in the same call, so a correct
+ * implementation can never observe otherwise -- this is the same
+ * cross-check-by-recomputation shape `assertAuthorityHolds` above uses for
+ * the assist stack, not an independent oracle). A flight stops the instant it
+ * has one (nothing after the first impact is this task's concern -- see
+ * `Impact`'s own comment in `src/sim/loop.ts`), which is also why this
+ * function takes no `assists` parameter: coverage of the assist stack over
+ * long flights is `runSoak`'s job, and adding it here would only double the
+ * cost of this arm for no new coverage of the terrain path.
+ */
+export function runTerrainSoak(
+  spec: AircraftSpec,
+  iterations: number,
+  seed: number,
+  terrain: TerrainField,
+): TerrainSoakResult {
+  const rng = createRng(seed)
+  const failures: string[] = []
+  let steps = 0
+  let terrainHits = 0
+
+  for (let n = 0; n < iterations; n++) {
+    const half = terrain.header.halfExtentM
+    const x = (rng() * 2 - 1) * half
+    const z = (rng() * 2 - 1) * half
+    const groundHeightM = heightAt(terrain, x, z)
+    const nearGround = rng() < 0.3
+    const altitude = nearGround ? groundHeightM + rng() * 300 : groundHeightM + 200 + rng() * 9000
+    const speed = 30 + rng() * 200
+
+    let world = createWorld(
+      spec,
+      createState({
+        position: v3(x, altitude, z),
+        velocity: v3(speed, (rng() - 0.5) * 40, (rng() - 0.5) * 40),
+        attitude: randomAttitude(rng),
+        fuelKg: rng() * spec.mass.fuelCapacityKg,
+      }),
+      { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 },
+    )
+    world = { ...world, terrain }
+
+    try {
+      for (let second = 0; second < 60 && world.impact === null; second++) {
+        world = { ...world, controls: rollControls(rng, 0) }
+        for (let i = 0; i < 60 && world.impact === null; i++) {
+          world = advance(world, DT, stepChecked).world
+          steps++
+          const gh = heightAt(terrain, world.aircraft.position.x, world.aircraft.position.z)
+          if (world.impact === null && world.aircraft.position.y <= gh) {
+            failures.push(
+              `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
+                `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} <= groundHeightM ${gh} but impact is null`,
+            )
+            break
+          }
+        }
+      }
+      if (world.impact !== null) terrainHits++
+    } catch (err) {
+      failures.push(
+        `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
+          `${(err as Error).message} -- replay with runTerrainSoak(spec, ${n + 1}, ${seed}, terrain) and inspect iteration ${n}, the last one run`,
+      )
+    }
+  }
+
+  return { failures, iterations, steps, terrainHits }
 }
