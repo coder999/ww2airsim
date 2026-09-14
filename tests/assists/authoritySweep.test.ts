@@ -31,7 +31,14 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
  *
  * WHAT IT ASSERTS, and why each clause is total rather than conditional:
  *
- *  1. the published budget is non-empty (`lower <= upper`);
+ *  1. the published budget is non-empty (`lower <= upper`) -- a FORWARD
+ *     TRIPWIRE rather than a discriminator, and labelled as one because this
+ *     project treats an overclaimed test as a defect: since `narrowAuthority`
+ *     gained its conflict rule, every producer of a budget in
+ *     `src/assists/index.ts` guarantees this by construction, so no mutation
+ *     of the stages can break it (two were tried, both gave zero violations).
+ *     It exists for the day a SECOND narrowing stage publishes a pair
+ *     directly, which is exactly the change design open item 3 was about;
  *  2. it never leaves the pilot's own legal range, [-1, 1];
  *  3. the command the stack returns is inside it, exactly, not to a tolerance;
  *  4. past `DEPARTED_ALPHA_RAD` the budget is the pilot's own command and
@@ -59,30 +66,41 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
  * COST AND SHAPE. Sampled rather than exhaustive on purpose: the full cross
  * product of these dimensions is astronomical and this runs in CI on every
  * `npm run verify`. Measured 2026-09-13 on node v22.22.1: 177 alphas x 48
- * draws x 8 settings combinations = 67,968 stack evaluations in 254 ms for the
- * sweep case, 578 ms for the whole file including loading the spec -- against
- * 13.5 s for the suite it joins. The draws come from `createRng` (mulberry32,
+ * draws x 8 settings combinations = 67,968 stack evaluations in 251 ms for the
+ * sweep case, 570 ms for the whole file including loading the spec -- against
+ * 13.4 s for the suite it joins. The draws come from `createRng` (mulberry32,
  * bit-identical across platforms by construction -- see that file) off a fixed
- * seed, so a failure is reproducible from its message alone and two CI runs of
- * one commit cannot sweep different spaces.
+ * seed and are re-drawn PER ALPHA, so every non-alpha dimension gets 8,496
+ * independent samples rather than 48, and two CI runs of one commit still
+ * sweep the same space.
  *
- * PROVED TO DISCRIMINATE, 2026-09-13, by re-introducing each of the two defect
- * shapes this exists for and counting what fails:
+ * PROVED TO DISCRIMINATE, 2026-09-13, by re-introducing each defect shape this
+ * exists for and counting what fails and on WHICH clause:
  *
  *  - the departed-region defect (the third Critical): `runStack`'s
  *    `isDeparted(state) ? narrowToCommand(FULL_PITCH_AUTHORITY, rawPitch) :
- *    FULL_PITCH_AUTHORITY` replaced by `FULL_PITCH_AUTHORITY` unconditionally,
- *    i.e. the budget NOT narrowed to the pilot's own command past the
- *    threshold. 31,368 cases fail -- every departed case, at every settings
- *    combination -- and every one of them fails on clause 4 and on nothing
- *    else. Clauses 1, 2, 3 and 5 stay satisfied, which is exactly why clause 4
- *    is separate: the command is still inside [-1, 1], so a
- *    "command inside the budget" check alone is blind to it. That blindness is
- *    what let the defect ship.
+ *    FULL_PITCH_AUTHORITY` replaced by `FULL_PITCH_AUTHORITY` unconditionally.
+ *    31,384 cases fail -- every departed case, at every settings combination --
+ *    and every one of them on clause 4 and on nothing else. Clauses 2, 3 and 5
+ *    stay satisfied, because the command is still inside [-1, 1]: a
+ *    "command inside the budget" check alone is blind to it, which is what let
+ *    the defect ship.
  *  - the original C1 shape (altitude hold voting outside its authority):
  *    `altitudeHold`'s final `withinAuthority(authority, uncapped)` replaced by
- *    `uncapped`. 4,988 cases fail, all on clause 3, including the +1.0000
- *    nose-up-on-a-departed-wing command the final review measured by hand.
+ *    `uncapped`. 5,864 cases fail, all on clause 3.
+ *  - the whole input clamp removed (design open item 2 restored): 5,792 fail --
+ *    3,072 on clause 3, 1,952 on the legal-control-range check and 768 on
+ *    clause 5. Clause 4 does NOT fire, because the departed budget is
+ *    `narrowToCommand`'d and that clamps.
+ *  - a NaN-ONLY hole in the input clamp (`Number.isNaN(raw.pitch) ?
+ *    raw.pitch : clampFinite(...)`): 1,377 fail -- 612 on clause 3, 612 on the
+ *    legal-control-range check, 153 on clause 5. This is the case review found
+ *    the FIRST version of this file missing entirely (zero violations), because
+ *    NaN was never drawn; `tools/soak/run.ts`'s assisted arm misses it too, at
+ *    every seed tried, because the stall limiter re-clamps. It is caught here
+ *    now, and in `tests/assists/index.test.ts`, which is the only other place.
+ *
+ * Clause 1 is deliberately absent from that list -- see its entry above.
  */
 const f6f = loadAircraftSpec('f6f-hellcat')
 const CRIT_DEG = (alphaCritRad(f6f) * 180) / Math.PI
@@ -152,7 +170,28 @@ type Draw = {
  *  fixed). The same list `tools/soak/run.ts` injects, for the same reason. */
 const ILLEGAL_PITCHES = [5, -5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY] as const
 
-function rollDraw(rng: () => number, n: number): Draw {
+/**
+ * A source of draws, cycling the illegal pitch values in order.
+ *
+ * Cycled on a counter of ILLEGAL DRAWS, not on the draw index and not on a
+ * fresh random pick, and that is a correction rather than a preference. The
+ * first committed version of this file indexed `ILLEGAL_PITCHES` by the draw
+ * index against a single fixed array of 48 draws, which meant only four
+ * illegal draws existed at all and they landed on -5, +Infinity, +5, -5: NaN
+ * and -Infinity were NEVER SWEPT. Review 2026-09-13 measured the cost -- a
+ * NaN-only hole in the input clamp (`Number.isNaN(raw.pitch) ? raw.pitch :
+ * clampFinite(...)`) left this sweep green with zero violations, and left the
+ * soak's assisted arm green too, because the stall limiter re-clamps there.
+ * Only `tests/assists/index.test.ts` caught it. A counter makes the five
+ * values' appearances a property of the cycle rather than of where the random
+ * draws happen to fall, and the test asserts each one's count below.
+ */
+function createDrawer(rng: () => number): () => Draw {
+  let illegalDrawn = 0
+  return () => rollDraw(rng, illegalDrawn++)
+}
+
+function rollDraw(rng: () => number, illegalIndex: number): Draw {
   // Speed spans the content envelope and, on one draw in eight, nearly zero --
   // the state where there is no pitch authority to ration and both the limiter
   // and altitude hold stand down on their own guards.
@@ -165,11 +204,24 @@ function rollDraw(rng: () => number, n: number): Draw {
   const centredStick = rng() < 0.4
   const illegal = rng() < 0.15
   const raw: Controls = {
-    // A centred stick on 40% of draws, because that is the only condition
-    // under which altitude hold engages at all, and its vote is half of what
-    // the budget arbitrates. The illegal draws deliberately overlap the
-    // centred ones: NaN is not "centred" and must not be read as such.
-    pitch: centredStick ? 0 : illegal ? ILLEGAL_PITCHES[n % ILLEGAL_PITCHES.length]! : (rng() - 0.5) * 2,
+    // An exactly centred stick, because `pitch === 0` is the only condition
+    // under which altitude hold engages at all and its vote is half of what
+    // the budget arbitrates -- and an illegal value otherwise, because the
+    // budget has to be truthful about those too (design open item 2).
+    //
+    // The two gates are nested, so a centred draw SHADOWS an illegal one and
+    // the realised rates are not the two gate constants: measured over the
+    // 8,496 draws this file takes, 3,372 are centred (39.7%) and 768 illegal
+    // (9.04%), against 40% and 0.6 x 15% = 9% nominal. The counters below
+    // assert the measured numbers, not these two constants. (An earlier comment here claimed the
+    // illegal draws "deliberately overlap the centred ones". They cannot: the
+    // conditional beneath it makes that impossible, and the sentence was
+    // describing an intent the code never had.)
+    pitch: centredStick
+      ? 0
+      : illegal
+        ? ILLEGAL_PITCHES[illegalIndex % ILLEGAL_PITCHES.length]!
+        : (rng() - 0.5) * 2,
     roll: (rng() - 0.5) * 2,
     yaw: (rng() - 0.5) * 2,
     throttle: rng(),
@@ -243,7 +295,7 @@ const isDeparted = (state: AircraftState): boolean =>
 describe('property sweep: the pitch-authority budget is total over alpha', () => {
   it('holds every clause at every sampled point of the space', () => {
     const rng = createRng(20260913)
-    const draws = Array.from({ length: DRAWS }, (_, n) => rollDraw(rng, n))
+    const draw = createDrawer(rng)
 
     const violations: string[] = []
     let cases = 0
@@ -258,10 +310,22 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
     let holdVotedCases = 0
     let rolledCases = 0
     let illegalPitchCases = 0
+    let centredCases = 0
+    // One count per illegal value, so "NaN was swept" is asserted rather than
+    // implied by a total. The total was 708 when NaN's own count was 0.
+    const illegalDrawn = new Map<string, number>(ILLEGAL_PITCHES.map((v) => [String(v), 0]))
     let worstAlphaErrorDeg = 0
 
     for (const alphaDeg of ALPHA_GRID_DEG) {
-      for (const d of draws) {
+      // Re-drawn PER ALPHA rather than once for the whole sweep (review
+      // 2026-09-13). One fixed set of 48 draws crossed against 177 alphas gave
+      // every non-alpha dimension 48 independent samples, not 8,496 -- five
+      // draws with a long `dt`, eleven with nothing held, four illegal in the
+      // entire run. Re-drawing costs nothing measurable (the 8,496 draws are a
+      // rounding error against 67,968 stack evaluations) and multiplies the
+      // independent coverage of every dimension except alpha by 177.
+      for (let i = 0; i < DRAWS; i++) {
+        const d = draw()
         const s = stateAt(alphaDeg, d)
         const departed = isDeparted(s)
         const actualAlphaDeg = (angleOfAttack(s) * 180) / Math.PI
@@ -277,7 +341,11 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
         // reachable by heading and pitch alone, so |right.y| isolates roll
         // rather than counting a pitched-up aeroplane as a banked one.
         if (Math.abs(qRotate(d.attitude, v3(0, 0, 1)).y) > 0.5) rolledCases++
-        if (!Number.isFinite(d.raw.pitch) || Math.abs(d.raw.pitch) > 1) illegalPitchCases++
+        if (!Number.isFinite(d.raw.pitch) || Math.abs(d.raw.pitch) > 1) {
+          illegalPitchCases++
+          illegalDrawn.set(String(d.raw.pitch), (illegalDrawn.get(String(d.raw.pitch)) ?? 0) + 1)
+        }
+        if (d.raw.pitch === 0) centredCases++
         const legalPitch = clampFinite(d.raw.pitch, -1, 1)
 
         for (const enabled of ALL_SETTINGS_COMBOS) {
@@ -362,16 +430,19 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
     // well under it, the same convention `tests/sim/soak.test.ts` uses:
     // re-measure and move the floor, never the assertion. A sweep whose draws
     // or grid narrowed would otherwise keep passing while no longer visiting
-    // the regions the whole file exists for.
+    // the regions the whole file exists for -- which is not hypothetical here:
+    // the first committed version drew four illegal pitches in the entire run
+    // and never once drew NaN, and only a per-VALUE count would have said so.
     //
     // Measured: 177 alphas x 48 draws x 8 combinations = 67,968 cases, of which
-    // 31,368 departed, 28,488 in the stalled band below 90 degrees, 6,928 where
-    // the limiter moved the command with altitude hold off, and 2,280 where
-    // altitude hold moved it with the limiter off. Of the 8,496 (alpha, draw)
-    // pairs -- these two are per pair, not per case, because they are
-    // properties of the draw -- 3,186 have the wings more than 30 degrees out
-    // of horizontal and 708 carry an illegal raw pitch. The constructed alpha
-    // lands within 1.14e-13 degrees of the alpha asked for.
+    // 31,384 departed, 28,400 in the stalled band below 90 degrees, 7,030 where
+    // the limiter moved the command with altitude hold off, and 2,688 where
+    // altitude hold moved it with the limiter off. Of the 8,496 draws -- these
+    // are per DRAW, not per case, because they are properties of the draw --
+    // 3,462 have the wings more than 30 degrees out of horizontal, 3,372 hold
+    // the stick exactly centred, and 768 carry an illegal raw pitch, made up of
+    // 133 x 5, 147 x -5, 153 x NaN, 165 x +Infinity and 170 x -Infinity. The
+    // constructed alpha lands within 1.14e-13 degrees of the alpha asked for.
     expect(cases).toBe(ALPHA_GRID_DEG.length * DRAWS * 8)
     expect(cases).toBeGreaterThan(60000)
     expect(departedCases).toBeGreaterThan(20000)
@@ -379,7 +450,13 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
     expect(limiterVotedCases).toBeGreaterThan(4000)
     expect(holdVotedCases).toBeGreaterThan(1500)
     expect(rolledCases).toBeGreaterThan(2000)
+    expect(centredCases).toBeGreaterThan(2000)
     expect(illegalPitchCases).toBeGreaterThan(400)
+    // Per value, not just the total: the total was a healthy-looking 708 in the
+    // version that never drew NaN at all.
+    for (const [value, count] of illegalDrawn) {
+      expect(count, `illegal pitch ${value} must actually be swept`).toBeGreaterThan(50)
+    }
     expect(worstAlphaErrorDeg).toBeLessThan(1e-9)
   })
 

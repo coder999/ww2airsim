@@ -427,6 +427,68 @@ describe('honours a pitch-authority budget narrowed ahead of it (design open ite
     }
   })
 
+  it('decides a conflicting budget by the nearest point of its own bound, from either side', () => {
+    // THE one genuinely novel decision in `narrowAuthority`, and until review
+    // 2026-09-13 nothing pinned it: replacing `Math.min(upper, Math.max(lower,
+    // a.lower))` with `lower`, with `upper` or with `(lower + upper) / 2` each
+    // left the whole suite green. "Collapsed to its point nearest the budget it
+    // replaces" was prose with nothing arbitrating it -- structurally the same
+    // as this file's own "never adds nose-up" comment, which was false and
+    // which 399 tests failed to notice.
+    //
+    // Both directions are needed and neither alone is enough: an incoming
+    // budget ABOVE the limiter's bound discriminates the `lower` and midpoint
+    // variants but not `upper`, and one BELOW it discriminates `upper` and the
+    // midpoint but not `lower`.
+    //
+    // The bound itself is MEASURED through the shipped stage (full budget, full
+    // back stick gives its upper, full forward its lower) rather than
+    // re-derived from `stallLimiterSeconds` and `commandedBodyRates` here: a
+    // second copy of that formula in the suite is exactly what this file's
+    // existing comments warn against. Measured 2026-09-13 at 130 m/s: the bound
+    // is [-1, 0.1111] at alpha +15 and [-0.1111, 1] at alpha -15 -- one side
+    // clamped, which is why a budget strictly inside the other side is a
+    // conflict.
+    const bound = (alphaDeg: number) => {
+      const alphaRad = (alphaDeg * Math.PI) / 180
+      const s = createState({
+        position: v3(0, 2000, 0),
+        velocity: v3(130 * Math.cos(alphaRad), -130 * Math.sin(alphaRad), 0),
+        attitude: qIdentity(),
+      })
+      const FULL: PitchAuthority = { lower: -1, upper: 1 }
+      return {
+        state: s,
+        lower: stallLimiter(s, spec, held(-1), DT, FULL).controls.pitch,
+        upper: stallLimiter(s, spec, held(1), DT, FULL).controls.pitch,
+      }
+    }
+
+    const above = bound(15)
+    expect(above.upper, 'the bound must have room above it for this to be a conflict').toBeLessThan(0.5)
+    for (const pitch of [1, 0, -1]) {
+      // Incoming budget entirely ABOVE the limiter's bound: the nearest point
+      // of the bound is its UPPER. `lower` would give -1 and the midpoint
+      // -0.44.
+      const out = stallLimiter(above.state, spec, held(pitch), DT, { lower: 0.9, upper: 0.9 })
+      expect(out.authority, `pitch=${pitch}`).toEqual({ lower: above.upper, upper: above.upper })
+      expect(out.controls.pitch, `pitch=${pitch}`).toBe(above.upper)
+    }
+
+    const below = bound(-15)
+    expect(below.lower, 'the bound must have room below it for this to be a conflict').toBeGreaterThan(-0.5)
+    for (const pitch of [1, 0, -1]) {
+      // Incoming budget entirely BELOW it: the nearest point is its LOWER.
+      // `upper` would give +1 and the midpoint +0.44.
+      const out = stallLimiter(below.state, spec, held(pitch), DT, { lower: -0.9, upper: -0.9 })
+      expect(out.authority, `pitch=${pitch}`).toEqual({ lower: below.lower, upper: below.lower })
+      expect(out.controls.pitch, `pitch=${pitch}`).toBe(below.lower)
+    }
+    // And the two cases really do disagree, so a variant cannot satisfy both by
+    // returning one constant.
+    expect(above.upper).not.toBe(below.lower)
+  })
+
   it('never publishes a budget wider than the one it was handed, at any alpha', () => {
     // The other half of the contract, and the one the whole arbitration rests
     // on: this stage may narrow the budget and may not widen it. Total over

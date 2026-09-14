@@ -295,12 +295,25 @@ and none blocks merge.
      it is still [-1,1]).
    - `narrowAuthority` could publish an EMPTY budget when an incoming budget
      and the limiter's bound do not overlap — e.g. an upstream [0.25, 0.25]
-     against a bound of [−1, 0] — and `withinAuthority` then answers `upper` or
-     `lower` depending on which side the value came from, i.e. arbitrarily. The
-     conflict is now decided rather than intersected: the bound being applied
-     wins (it is later, more specific, and in the shipped stack it is the one
+     against a bound of [−1, 0]. `withinAuthority` on an empty budget returns
+     `upper` for EVERY input (measured 2026-09-13: [0.25, 0] gives 0 from +1,
+     from −1 and from 0.1; an earlier revision of this item said "upper or
+     lower depending on which side the value came from", which is untrue — the
+     correction is recorded here rather than quietly dropped). The objection is
+     therefore not that the answer varies but that it comes from the order of a
+     `min` and a `max` inside a helper rather than from a decision anybody
+     wrote down, and that no caller can state a true invariant about a budget
+     that cannot contain anything.
+
+     The conflict is now decided rather than intersected: the bound being
+     applied wins (later, more specific, and in the shipped stack the one
      keeping the wing attached), collapsed to its point nearest the budget it
      replaces, so `lower <= upper` holds of every budget this file publishes.
+     Note the cost, stated where the rule is defined: on that branch the
+     published budget is NOT a subset of the incoming one, so "narrowed, never
+     widened" holds only where the ranges overlap. The decided point is pinned
+     from both sides by a test, after review found that `lower`, `upper` and
+     the midpoint each left all 453 tests green.
 
    All three are unreachable through `applyAssists` today and measured to be
    so: reverting any of them leaves the 442 tests as merged green, which is why

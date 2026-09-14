@@ -256,20 +256,41 @@ export type PitchAuthority = { readonly lower: number; readonly upper: number }
 const FULL_PITCH_AUTHORITY: PitchAuthority = { lower: -1, upper: 1 }
 
 /**
- * Narrow to the intersection with `[lower, upper]`. Cannot widen: `Math.max` on
- * the lower bound and `Math.min` on the upper cannot move either outward.
+ * Narrow to the intersection with `[lower, upper]`, WHEN the two overlap: then
+ * this cannot widen, because `Math.max` on the lower bound and `Math.min` on
+ * the upper cannot move either outward.
  *
- * When the two ranges do not overlap at all there is no subset of both to
- * return, so the conflict has to be DECIDED rather than intersected, and the
- * bound being applied wins: it is the later and more specific of the two,
- * computed from the state the aeroplane is actually in, and in the shipped
- * stack it is the stall limiter's -- the one keeping the wing attached. The
- * result is the single point of `[lower, upper]` nearest the budget it
- * replaces, which keeps `lower <= upper` true of every budget this file
- * publishes. That matters because the alternative is an empty budget, and an
- * empty budget makes `withinAuthority` return `upper` or `lower` depending on
- * which side the value came from -- an arbitrary answer from an incoherent
- * claim, exactly what the budget type exists to stop.
+ * When they do not overlap there is no subset of both to return, so the
+ * conflict has to be DECIDED rather than intersected, and the bound being
+ * applied wins: it is the later and more specific of the two, computed from the
+ * state the aeroplane is actually in, and in the shipped stack it is the stall
+ * limiter's -- the one keeping the wing attached. The result is the single point
+ * of `[lower, upper]` NEAREST the budget it replaces.
+ *
+ * Two caveats, both of which this comment previously got wrong or left out.
+ *
+ * FIRST, "cannot widen" is false on that branch, and the qualifier above is
+ * there because of it: the point returned lies outside `a` whenever the two
+ * ranges are disjoint, so the published budget is NOT a subset of the incoming
+ * one. That is inherent rather than an oversight -- honouring both an incoming
+ * `[0.25, 0.25]` and a bound of `[-1, 0]` is impossible, one of them has to
+ * lose -- but it means the invariant callers may rely on is "the budget is
+ * non-empty and the command is inside it", NOT "each budget is a subset of the
+ * last". `tests/assists/stallLimiter.test.ts` asserts subset-ness only where
+ * the ranges overlap, and pins the decided point where they do not.
+ *
+ * SECOND, the alternative to deciding is an empty budget, and the reason that
+ * is worse is NOT that `withinAuthority` would answer arbitrarily per value: it
+ * always returns `upper`, for every input, since `Math.min(upper, Math.max(
+ * lower, p))` with `lower > upper` is `upper` whatever `p` is (measured
+ * 2026-09-13: `[0.25, 0]` returns 0 from +1, from -1 and from 0.1; an earlier
+ * revision of this comment, and of the design doc, claimed "upper or lower
+ * depending on which side the value came from", which is simply untrue). The
+ * real objection is that the answer would then come from the ORDER of a `min`
+ * and a `max` inside a helper -- an implementation detail with no opinion about
+ * aeroplanes -- rather than from a decision anybody wrote down, and that no
+ * caller could state a true invariant about a budget that cannot contain
+ * anything.
  *
  * Unreachable as of 2026-09-13, and measured so rather than asserted: the
  * shipped stack has exactly one stage that narrows to a RANGE, and it is only
@@ -279,6 +300,10 @@ const FULL_PITCH_AUTHORITY: PitchAuthority = { lower: -1, upper: 1 }
  * runs -- reverting it leaves the whole suite green. It is written because the
  * stage guard test for design open item 3 is the first caller that CAN hand
  * this function a conflict, and it found the incoherent-claim case immediately.
+ * `decided` is pinned by that test from both sides, after review 2026-09-13
+ * found that replacing it with `lower`, with `upper` or with `(lower + upper) /
+ * 2` left all 453 tests green -- the same shape as this file's own "never adds
+ * nose-up" history, where a sentence nothing arbitrated turned out to be false.
  */
 const narrowAuthority = (a: PitchAuthority, lower: number, upper: number): PitchAuthority => {
   const lo = Math.max(a.lower, lower)
