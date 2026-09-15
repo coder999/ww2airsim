@@ -1,5 +1,23 @@
 # Plan 5 design — the ocean
 
+
+## Measured bathymetry correction — 2026-09-15
+
+The fetched world subset spans **−7971 to +1189 m**; the built 513² grid spans
+**−7807 to +1172 m**, with **−125 m** at its centre. The design's centre probe
+did not establish the depth range of the whole box. Ocean data therefore use
+**int16 metres**, little-endian, row 0 north and column 0 west, instead of the
+int16 decimetres in the original snippets below. The header literal is
+`int16-metres`; the size remains 526338 bytes and rounding error is at most
+0.5 m. Terrain retains its own int16-decimetre format unchanged.
+
+The proposed eastern orientation fixture `(60000, 0)` is only −25 m, not deep
+water. The verified fixture is `(90000, 0)`, −4156 m. North/south fixtures
+`(0, 80000)` (+224 m) and `(0, -80000)` (−1357 m) catch flipped rows.
+GEBCO uses WGS84 horizontal coordinates and assumed mean sea level vertically,
+not a WGS84 vertical datum. These measured corrections supersede the original
+range, encoding, and fixture claims below.
+
 **Date:** 2026-09-15
 **Status:** Approved shape (Mark, 2026-09-15), pre-implementation
 **Master spec:** [`2026-09-12-ww2airsim-design.md`](2026-09-12-ww2airsim-design.md) §4

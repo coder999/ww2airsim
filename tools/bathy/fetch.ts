@@ -86,7 +86,8 @@ export function parseSubset(text: string, window: SubsetWindow): Subset {
 }
 
 export function terrainBox(): WorldBox {
-  return JSON.parse(readFileSync(new URL('../../content/terrain/header.json', import.meta.url), 'utf8')) as WorldBox
+  const { centreLatDeg, centreLonDeg, halfExtentM } = JSON.parse(readFileSync(new URL('../../content/terrain/header.json', import.meta.url), 'utf8')) as WorldBox
+  return { centreLatDeg, centreLonDeg, halfExtentM }
 }
 
 export async function fetchSubset(cacheDir: string): Promise<string> {
