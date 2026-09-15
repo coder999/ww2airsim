@@ -39,7 +39,9 @@ export const WATER_DETAIL_METRES = 40
 /**
  * Flat water with procedural surface detail.
  *
- * The detail is not decoration and is not the ocean (that is Plan 4's FFT).
+ * The detail is not decoration and is not the ocean (that is the ocean plan's
+ * FFT -- Plan 5, see docs/superpowers/specs/2026-09-15-ocean-design.md; this
+ * line said "Plan 4's" until the numbering was settled 2026-09-15).
  * A uniform plane gives no motion parallax: at 170 m/s over featureless water
  * you cannot perceive speed, altitude or sink rate, which would leave this
  * plan unable to answer the only question it exists to answer -- how the

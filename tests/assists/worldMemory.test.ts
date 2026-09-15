@@ -103,7 +103,7 @@ describe('assist memory lives in the world', () => {
   })
 
   it('keeps two aeroplanes flying through one assist function on their own memories', () => {
-    // Plan 5 flies many aeroplanes through one assist. Sharing a captured
+    // The combat plan flies many aeroplanes through one assist. Sharing a captured
     // altitude between them is the failure this shape exists to make
     // impossible, so it gets a test rather than a comment: a `assistFor` that
     // cached the memory in its closure would pass every other test in this

@@ -33,8 +33,16 @@ source datasets:
 | Dataset | Source | License / terms |
 | --- | --- | --- |
 | Copernicus DEM GLO-30 | ESA / Copernicus Programme | Recorded below, fetched 2026-09-13 |
-| GEBCO 2024 bathymetry | GEBCO Compilation Group | To be recorded with the pipeline, before first use |
+| GEBCO_2026 bathymetry | GEBCO Bathymetric Compilation Group 2026 | Public domain with acknowledgement — full terms to be recorded here with the pipeline, before first use |
 | ESA WorldCover 10 m | ESA WorldCover project | To be recorded with the pipeline, before first use |
+
+**The GEBCO row said "GEBCO 2024" until 2026-09-15.** GEBCO publishes annually
+and the current release is **GEBCO_2026** (April 2026, DOI
+`10.5285/4f68d5c7-45eb-f999-e063-7086abc036fa`), confirmed against the dataset
+itself on 2026-09-15 — a subset fetch over CEDA's OPeNDAP returned
+`Int16 elevation[lat = 43200][lon = 86400]`, 15 arc-second global coverage. The
+year in a dataset name is a fact with a shelf life, which is why this note is
+dated and the row above is not a citation.
 
 ### Derived terrain committed to this repo — 2026-09-14 (Task 6)
 

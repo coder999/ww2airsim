@@ -21,14 +21,19 @@ simulation, each switchable in flight (Plan 3). And the water it flies over is
 no longer empty: real Leyte Gulf is under it (Plan 4, below).
 
 The ocean, weapons, damage, AI, carrier operations and the meta-game do not
-exist yet. **How they divide into plans after Plan 4 is not settled**, and this
-line used to say "of 7" as though it were: the design docs disagree, because
-the assists plan was inserted into the slot the roadmap had given terrain and
-every later number shifted by one without anything being updated. The renderer
-design's deferral table still says terrain is Plan 3 and the FFT ocean Plan 4;
-the terrain design says the ocean is Plan 6 and deck operations Plan 8.
-Whichever is right, it is a decision nobody has taken, so no count is asserted
-here.
+exist yet. **Plans 1–4 of 9**, settled 2026-09-15: 5 ocean, 6 combat and
+damage, 7 AI, 8 carrier and airfield operations, 9 meta-game. Plan 5 is
+designed ([`2026-09-15-ocean-design.md`](docs/superpowers/specs/2026-09-15-ocean-design.md))
+and not yet built.
+
+That count was genuinely unsettled until then, and this paragraph said so:
+input assists were inserted into the slot the roadmap had given terrain, and
+three design documents each shifted differently — the renderer design still
+called terrain Plan 3 and the ocean Plan 4, the terrain design called the
+ocean Plan 6, and the assists design reserved Plan 5 for combat. Those encoded
+two different answers to "what comes after terrain" rather than three typos.
+**The table in master spec §15 is now the only authoritative copy**; every
+other document points at it.
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)

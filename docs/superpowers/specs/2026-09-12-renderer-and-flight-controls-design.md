@@ -26,21 +26,26 @@ and it is why the deliverable is flyable rather than a watch-only demo.
 
 ### Non-goals
 
-Deferred deliberately, each to a named later plan:
+Deferred deliberately, each to a named later plan. **The plan numbers below
+were corrected on 2026-09-15 and are no longer restated here**: this table
+names the subject, and the master spec's §15 numbering table says which plan
+each subject is. When this document was written, input assists did not exist;
+they were later inserted as Plan 3, shifting every number in the original
+version of this table by one and leaving it silently wrong for two days.
 
 | Deferred | Where it belongs |
 | --- | --- |
-| Terrain, CDLOD, real geography | Plan 3 |
-| FFT ocean, Beaufort wind, foam | Plan 4 |
+| Terrain, CDLOD, real geography | Terrain — master spec §15 |
+| FFT ocean, Beaufort wind, foam | Ocean — master spec §15 |
 | Atmospheric scattering LUTs, volumetric cloud | later; §5 ships a gradient sky |
-| Weapons, damage, AI | Plan 5 |
-| Carrier and airfield operations | Plan 6 |
+| Weapons, damage, AI | Combat, then AI — master spec §15 |
+| Carrier and airfield operations | Deck operations — master spec §15 |
 | Cockpit interior geometry beyond the panel | later |
 | Padlock and external orbit cameras | later |
 | Continuous mouse-look | later — see §6 (deferred 2026-09-12) |
-| Input assists (rate damping, auto-rudder, stall limiter, combat trim) | later — see §4 |
+| Input assists (rate damping, auto-rudder, stall limiter, combat trim) | **Built** — shipped as Plan 3, 2026-09-13; see `2026-09-13-assists-design.md` |
 | Screenshot goldens | later — see §8 |
-| Sim on a worker thread | Plan 5 — see §9 |
+| Sim on a worker thread | Combat, when many aeroplanes make it pay — master spec §15; see §9 |
 
 ## 2. Spike findings, 2026-09-12
 

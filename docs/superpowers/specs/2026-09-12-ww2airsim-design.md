@@ -654,3 +654,36 @@ minimum honest ordering:
 7. Weapons, damage, AI
 8. Carrier and airfield operations
 9. Meta-game, persistence, menus
+
+### The numbered plans — authoritative
+
+**This table is the only authoritative statement of plan numbering.** Other
+design documents point at it; none of them restate it.
+
+It exists because for two days three documents disagreed. Input assists were
+inserted as Plan 3, taking the slot the ordering above had given terrain, and
+every later number shifted without anything being updated: the renderer design
+still called terrain Plan 3 and the ocean Plan 4, the terrain design called the
+ocean Plan 6 and deck operations Plan 8, and the assists design reserved Plan 5
+for combat. Those were not three transcription errors — they encoded two
+different answers to "what comes after terrain", and nobody had taken that
+decision. Mark took it on 2026-09-15.
+
+Note that the list above is a *minimum honest ordering*, written before any
+plan existed, and the assists work has no entry in it. The table is what the
+plans are actually numbered.
+
+| Plan | Subject | Sections | Status |
+| --- | --- | --- | --- |
+| 1 | Scaffold and flight model | §5, §11 | Complete |
+| 2 | Renderer and flight controls | §3, §4 | Complete |
+| 3 | Input assists | §5 | Complete |
+| 4 | Terrain and level of detail | §4 | Complete |
+| 5 | Ocean | §4 | Designed 2026-09-15 |
+| 6 | Combat and damage | §6 | Not started |
+| 7 | AI | §7 | Not started |
+| 8 | Carrier and airfield operations | §4, §8 | Not started |
+| 9 | Meta-game | §8 | Not started |
+
+Deploying the game to a public URL (2026-09-15) is infrastructure and takes no
+plan number.

@@ -113,7 +113,7 @@ export type Stepper = typeof step
  *    breaks silently, because the captured altitude is not in the object being
  *    saved. `tests/assists/worldMemory.test.ts` measures both halves.
  *  - N aeroplanes get N memories by construction rather than by every caller
- *    remembering to build one runner each (Plan 5).
+ *    remembering to build one runner each (the combat plan).
  */
 export type Assist<M> = (
   state: AircraftState,
@@ -180,7 +180,7 @@ export interface World<M = undefined> {
    *
    * Here for the same reason `spec` is, and moved here (whole-branch review,
    * finding I-5) from `advance`'s parameter list, where it was the one
-   * remaining counterexample to the rule above. Plan 5's N-entity AI is
+   * remaining counterexample to the rule above. The combat plan's N-entity AI is
    * exactly the change `SimContext` was introduced to avoid having to make at
    * every call site, and it would have hit this parameter; it is ten lines to
    * move now and a rewrite afterwards. The caller sets it by rebuilding the
@@ -188,7 +188,7 @@ export interface World<M = undefined> {
    * immutable and `advance` a pure function of one object.
    *
    * Deliberately still ONE control vector for ONE aeroplane: generalising
-   * `World` to N entities is Plan 5's, not this branch's.
+   * `World` to N entities belongs to the combat plan, not this branch.
    */
   readonly controls: Controls
   /**
@@ -199,7 +199,7 @@ export interface World<M = undefined> {
    * In `World` rather than in a closure the caller holds (Plan 3's shape,
    * replaced here) so that this object is the WHOLE flight: a world written
    * to disk and read back flies on identically, where a closure's contents
-   * would be silently missing from the save. It also settles Plan 5 in
+   * would be silently missing from the save. It also settles the combat plan in
    * advance -- N aeroplanes are N worlds, or N entity records, each with its
    * own memory field, so two aeroplanes cannot share one captured altitude
    * even if they share an assist function.
