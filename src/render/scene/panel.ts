@@ -16,10 +16,25 @@ import {
   tickMarksFor,
   labelTextFor,
   readoutTextFor,
+  gaugeValue,
+  fractionForValue,
+  tapeOffsetFor,
   type GaugeId,
+  type DialSpec,
+  type ColumnSpec,
+  type TapeSpec,
 } from '../gauges.js'
 import { makeTextTexture, type TextTextureFactory } from './text.js'
-import type { AircraftState } from '../../sim/flight/state.js'
+import {
+  DIAL_GAP,
+  DIAL_RADIUS,
+  PANEL_AHEAD_M,
+  PANEL_BANDS,
+  PANEL_SLOTS,
+  metresBelowEye,
+} from './panelLayout.js'
+import { CAMERA_VFOV_DEG } from '../camera.js'
+import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 
 export type Panel = {
@@ -31,7 +46,32 @@ export type Panel = {
   /** The digital readout plate inside each dial, and the string it currently
    *  shows -- kept so `updatePanel` can skip re-rasterising an unchanged one. */
   readonly readouts: Map<GaugeId, Readout>
+  /** Column gauges (today: only `throttle`) -- the light bar `updatePanel`
+   *  scales on Y to show how full the control's travel is. */
+  readonly columns: Map<GaugeId, { readonly fill: Object3D }>
   readonly horizon: Object3D
+  /** The full-width coaming plate. Runs past the bottom of the frame on
+   *  purpose (see `createPanel`), so it reads as clipped rather than
+   *  floating with sky visible beneath it. */
+  readonly backing: Object3D
+  /**
+   * The heading tape: a sliding compass strip across the upper band, with a
+   * fixed index and digital readout at its centre (Task 5, 2026-09-15).
+   *
+   * `strip` is the only piece `updatePanel` moves -- `updatePanel` sets its
+   * `position.x` each frame (`tapeOffsetFor`, gauges.ts). It carries the rose
+   * drawn THREE TIMES end to end, so sliding within the middle copy always
+   * has a neighbour rendered on both sides and crossing north never exposes
+   * an edge or jumps the whole strip. `readout` is the fixed digital
+   * readout -- parented apart from `strip` so it does not slide with it.
+   * There is no `slotX('heading')`: `PANEL_SLOTS` deliberately has no
+   * `heading` entry (context point 4, task-5-brief.md) because the tape
+   * spans the UPPER band's width rather than a row slot.
+   */
+  readonly tape: {
+    readonly strip: Object3D
+    readonly readout: Mesh
+  }
 }
 
 export type Readout = {
@@ -49,17 +89,9 @@ export type Readout = {
  * flight model produces, which is why there is no tachometer (see gauges.ts's
  * doc comment on GaugeId).
  */
-const DIAL_RADIUS = 0.06
-/**
- * Dial spacing. Narrowed from 0.20 on 2026-09-13: at 0.20 the panel spanned
- * +/-0.593 m at 0.6 m ahead, subtending 45.0 degrees off boresight, so the
- * outer two dials left the frustum below an aspect ratio of 1.73 -- including
- * on a 3:2 Surface, the only machine that has ever displayed this panel.
- * That is I-7's defect on the other axis, and the horizontal assertion that
- * looked like it covered it compared against the VERTICAL half-angle times a
- * bare 4, giving 2.3x slack, so it could not have caught either.
- */
-const DIAL_GAP = 0.155
+// DIAL_RADIUS and DIAL_GAP now live in panelLayout.ts, alongside PANEL_SLOTS
+// which is built from them -- see that module's doc comment for the
+// horizontal-budget history (2026-09-13 narrowing, 2026-09-15 confirmation).
 /**
  * Narrowest window the panel is designed to fit, width over height.
  *
@@ -75,8 +107,24 @@ const Z_MARKS = 0.0015
 const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
 
-/** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up). */
-const PANEL_AHEAD_M = 0.6
+/**
+ * The heading tape's visible window, metres. Exported so tests can derive
+ * the strip's own full-rose width (`TAPE_W * (360 / windowSpan)`) without
+ * hardcoding it a second time -- gauges.ts's `tapeOffsetFor` reports the
+ * offset as a FRACTION of that width, and `updatePanel` scales by it.
+ */
+export const TAPE_W = 0.30
+
+/**
+ * Slack added to the `TAPE_W` culling window so a mark does not pop in or
+ * out abruptly right at the visible edge (Ruling R8, review round 2,
+ * 2026-09-15). Deliberately small next to `TAPE_W`.
+ */
+export const TAPE_CULL_MARGIN_M = 0.01
+
+/** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up).
+ *  Re-exported from panelLayout.ts for backwards compatibility. */
+export { PANEL_AHEAD_M }
 /**
  * How far below the eye the dial row is centred.
  *
@@ -93,7 +141,7 @@ const PANEL_AHEAD_M = 0.6
  * principle: legibility beats period authenticity, and markings that cannot
  * be read at a realistic eye point are faithful and useless.
  */
-const PANEL_BELOW_M = 0.19
+export const PANEL_BELOW_M = 0.19
 
 /** Beyond this the horizon is well off screen and `tan` runs away. */
 const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
@@ -125,8 +173,6 @@ const RETICLE_Z = -0.004
 
 /** The coaming: an opaque plate the horizon bar passes behind. */
 const BACKING_Z = -0.001
-const BACKING_TOP = 0.108
-const BACKING_BOTTOM = -0.115
 
 /**
  * A flat plate carrying rasterised text.
@@ -167,6 +213,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const root = new Group()
   const needles = new Map<GaugeId, Object3D>()
   const readouts = new Map<GaugeId, Readout>()
+  let tape: Panel['tape']
 
   const faceMat = new MeshBasicMaterial({ color: 0x101418 })
   const needleMat = new MeshBasicMaterial({ color: 0xffd24a })
@@ -174,9 +221,26 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const markMajorMat = new MeshBasicMaterial({ color: 0xf2f6f8 })
   const markMinorMat = new MeshBasicMaterial({ color: 0x8fa0ab })
 
-  GAUGES.forEach((g, i) => {
+  // Round dials only. A column or a tape is a different shape entirely --
+  // giving one a needle and a bezel here is exactly the bug this filter
+  // exists to prevent (controller ruling R1, 2026-09-15: the lower row is
+  // five dials plus the ball, not six dials). Rendering a column or a tape
+  // is a later task's; for now they exist only in `GAUGES` and are not drawn.
+  const dialGauges = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
+
+  // Layout slots are keyed by id (panelLayout.ts's PANEL_SLOTS), not by
+  // position in this array -- the row has a hole where the attitude ball
+  // will go, so a dial's index here is not its index in the slot table.
+  const slotX = (id: string): number => {
+    const slot = PANEL_SLOTS.find((s) => s.id === id)
+    if (!slot) throw new Error(`no layout slot for ${id}`)
+    return slot.centreX
+  }
+  const lowerCentre = (PANEL_BANDS.lower.top + PANEL_BANDS.lower.bottom) / 2
+
+  dialGauges.forEach((g) => {
     const dial = new Group()
-    const x = (i - (GAUGES.length - 1) / 2) * DIAL_GAP
+    const x = slotX(g.id)
 
     const face = new Mesh(new CircleGeometry(DIAL_RADIUS, 32), faceMat)
     dial.add(face)
@@ -253,8 +317,98 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
     dial.name = `dial:${g.id}`
-    dial.position.set(x, 0, 0)
+    dial.position.set(x, PANEL_BELOW_M - lowerCentre, 0)
     root.add(dial)
+  })
+  // radar and armament are layout slots only (PANEL_SLOTS) -- nothing is
+  // added to `root` for them. An unlit bezel that never fills reads as a
+  // broken instrument; the space is reserved in the arithmetic until a later
+  // plan has something to draw there.
+
+  // Column gauges: a vertical light bar, not a needle -- Mark asked for this
+  // one (Task 4, 2026-09-15) after pressing the throttle key and seeing
+  // nothing on the panel move, and reasonably concluding the aeroplane was
+  // broken. `throttle` is the only entry with `kind: 'column'` today.
+  const columnGauges = GAUGES.filter((g): g is ColumnSpec => g.kind === 'column')
+  const columns = new Map<GaugeId, { readonly fill: Object3D }>()
+
+  // A band's local y is `PANEL_BELOW_M - band` (panelLayout.ts's doc
+  // comment): `top` is the smaller "metres below eye" figure, so it maps to
+  // the LARGER, more-upward y. The column is full-height in the lower band,
+  // so its bezel spans exactly that span -- no more, or it would eat the
+  // 1-degree horizontal margin `panelLayout.test.ts` pins for this slot.
+  const columnTopY = PANEL_BELOW_M - PANEL_BANDS.lower.top
+  const columnBottomY = PANEL_BELOW_M - PANEL_BANDS.lower.bottom
+  const columnH = columnTopY - columnBottomY
+  const columnCentreY = (columnTopY + columnBottomY) / 2
+  // Thin enough that a numeral or a tick never has to fight the bezel for
+  // room; the face's own extent is what everything else below is sized from.
+  const COLUMN_BEZEL_T = 0.004
+
+  columnGauges.forEach((g) => {
+    const slot = PANEL_SLOTS.find((s) => s.id === g.id)
+    if (!slot) throw new Error(`no layout slot for ${g.id}`)
+    const { centreX: x, widthM } = slot
+
+    const column = new Group()
+
+    // Bezel spans the slot's FULL width, matching it exactly rather than
+    // overhanging it -- the brief's stop condition ("if anything you draw
+    // would exceed the slot width, STOP") is met by construction: nothing
+    // below is wider than this plate.
+    const bezel = new Mesh(new PlaneGeometry(widthM, columnH), bezelMat)
+    column.add(bezel)
+
+    const faceW = widthM - COLUMN_BEZEL_T * 2
+    const fullH = columnH - COLUMN_BEZEL_T * 2
+    const face = new Mesh(new PlaneGeometry(faceW, fullH), faceMat)
+    face.position.z = Z_MARKS / 2
+    column.add(face)
+
+    // Ticks and numerals live in the left part of the face; the fill bar
+    // occupies the right part, so a full-throttle bar never runs under its
+    // own "100" numeral (brief step 3: "a fill plane on the right").
+    const fillW = faceW * 0.34
+    const tickZoneW = faceW - fillW
+    const fillX = faceW / 2 - fillW / 2
+    const tickLeftX = -faceW / 2
+
+    // Nine marks (0, 12.5, .. 100 per GAUGES' throttle entry), numerals only
+    // at the two majors, 0 and 100 -- exactly what the brief asks for.
+    for (const mark of tickMarksFor(g)) {
+      const len = tickZoneW * (mark.major ? 0.62 : 0.36)
+      const y = -fullH / 2 + mark.fraction * fullH
+      const tick = new Mesh(
+        new BoxGeometry(len, mark.major ? 0.005 : 0.0025, 0.002),
+        mark.major ? markMajorMat : markMinorMat,
+      )
+      tick.position.set(tickLeftX + len / 2, y, Z_MARKS)
+      column.add(tick)
+
+      if (mark.major && mark.text) {
+        const numeral = textPlate(mark.text, tickZoneW * 0.8, 0.018, makeText)
+        // Nudged inward from the very top/bottom edge so the 0 and 100
+        // numerals do not print half off the top or bottom of the face.
+        const ny = mark.fraction === 0 ? y + 0.011 : mark.fraction === 1 ? y - 0.011 : y
+        numeral.position.set(tickLeftX + tickZoneW * 0.42, ny, Z_MARKS)
+        column.add(numeral)
+      }
+    }
+
+    const fill = new Mesh(new PlaneGeometry(fillW, fullH), new MeshBasicMaterial({ color: 0xc8ccd2 }))
+    // A PlaneGeometry is centred on its own origin, so scaling it on Y grows
+    // it in BOTH directions and the bar creeps downward out of its own
+    // bezel. Move the origin to the bar's BASE first, so `scale.y` only
+    // grows it upward -- tests/render/panel.test.ts's "grows the throttle
+    // fill upward from its base" is the regression test for this line.
+    fill.geometry.translate(0, fullH / 2, 0)
+    fill.position.set(fillX, -fullH / 2, Z_NEEDLE)
+    column.add(fill)
+    columns.set(g.id, { fill })
+
+    column.name = `column:${g.id}`
+    column.position.set(x, columnCentreY, 0)
+    root.add(column)
   })
 
   // The bar now sits BEHIND an opaque coaming rather than in front of the
@@ -264,16 +418,24 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // the two inner dials, drawn over their scale marks and under their
   // needles -- a layering nobody chose. Letting the panel occlude it is what
   // a real coaming does, and it needs no clamp to do it.
+  //
+  // Full width at the NARROWEST supported window, so a wider one still has
+  // the bezel reaching both edges rather than stopping short of them.
+  const halfV = Math.tan(((CAMERA_VFOV_DEG / 2) * Math.PI) / 180)
+  const backingHalfW = PANEL_MIN_ASPECT * halfV * PANEL_AHEAD_M * 1.02
+  // Past the frame edge, not up to it (Task 3, 2026-09-15): this is the clip
+  // that stops the panel reading as a strip floating in mid-screen with sky
+  // visible below it. `panel.test.ts`'s "runs the bezel past the bottom of
+  // the frame" pins this against the camera's own vertical half-angle.
+  const backingBottom = metresBelowEye(CAMERA_VFOV_DEG / 2) * 1.15
+  const backingTop = PANEL_BANDS.upper.top
+
   const backing = new Mesh(
-    new PlaneGeometry(
-      // Exactly the dial row's own span, bezels included, so it cannot leave
-      // a sliver of bar showing past the outermost dial.
-      (DIAL_GAP * (GAUGES.length - 1) + DIAL_RADIUS * 2.18) * 1.01,
-      BACKING_TOP - BACKING_BOTTOM,
-    ),
+    new PlaneGeometry(backingHalfW * 2, backingBottom - backingTop),
     new MeshBasicMaterial({ color: 0x0b0e11 }),
   )
-  backing.position.set(0, (BACKING_TOP + BACKING_BOTTOM) / 2, BACKING_Z)
+  backing.name = 'backing'
+  backing.position.set(0, PANEL_BELOW_M - (backingTop + backingBottom) / 2, BACKING_Z)
   root.add(backing)
 
   const horizon = new Mesh(
@@ -306,6 +468,89 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   reticle.position.set(0, PANEL_BELOW_M, RETICLE_Z)
   root.add(reticle)
 
+  // The heading tape: a sliding compass strip across the upper band,
+  // replacing the round HEADING dial (Task 5, 2026-09-15). Positioned from
+  // `PANEL_BANDS.upper` directly, NOT from `slotX` -- `PANEL_SLOTS` has no
+  // `heading` entry (deliberate: F4/context point 4), because the tape spans
+  // the band's own width rather than a row slot.
+  {
+    const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
+    const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
+    const upperCentreY = (PANEL_BANDS.upper.top + PANEL_BANDS.upper.bottom) / 2
+    const tapeY = PANEL_BELOW_M - upperCentreY
+
+    // The rose, drawn THREE copies end to end (copy in [-1, 0, 1]). Sliding
+    // within the middle copy then always has a neighbour rendered on both
+    // sides, so crossing north (359 -> 001) never exposes bare space at the
+    // edge of the visible window or leaps the strip's whole width.
+    const strip = new Group()
+    strip.name = 'tape:strip'
+    for (const copy of [-1, 0, 1]) {
+      for (const mark of tickMarksFor(tapeGauge)) {
+        // NOT `... - stripW / 2` (Ruling R9, review round 3): that term
+        // centred the three-copy BLOCK's own extent on the origin, which
+        // is cosmetic, but the slide below (`strip.position.x =
+        // -tapeOffsetFor(...) * stripW`) assumes fraction `f` sits at `f *
+        // stripW` with no such term. The two disagreed by exactly `stripW /
+        // 2` -- half a rose, i.e. 180 degrees -- so the mark under the
+        // index was always the heading's ANTIPODE, not the heading itself.
+        // The strip's own extent is now asymmetric (`[-stripW, 2*stripW)`
+        // rather than centred), which no longer matters: R8's per-frame
+        // culling is what decides visibility, not this offset.
+        const x = (mark.fraction + copy) * stripW
+        const tick = new Mesh(
+          new PlaneGeometry(0.002, mark.major ? 0.010 : 0.006),
+          new MeshBasicMaterial({ color: 0xe6ecf5 }),
+        )
+        tick.position.set(x, 0.006, Z_MARKS)
+        // Local x stashed on `userData` (Ruling R8, review round 2): nothing
+        // clips or masks the strip, so without per-frame culling all three
+        // copies paint across the sky and sea for the whole width of the
+        // view and past it (measured at deploy time: 71.67 degrees off
+        // boresight against a 40.89-degree frame half-width at 3:2).
+        // `updatePanel` reads this back to decide `.visible` against the
+        // `TAPE_W` window every tick, alongside the slide it already does.
+        tick.userData.localX = x
+        // The VALUE this mark stands for, stashed alongside its position
+        // (Ruling R9, review round 3): tests recover "which heading is
+        // under the index" from the nearest mark's own stashed value rather
+        // than re-deriving it from a formula that could itself be wrong --
+        // which is exactly how a 180-degree placement error survived two
+        // review rounds.
+        tick.userData.value = mark.value
+        strip.add(tick)
+        if (mark.major) {
+          const numeral = textPlate(mark.text, 0.022, 0.011, makeText)
+          numeral.position.set(x, -0.006, Z_MARKS)
+          numeral.userData.localX = x
+          numeral.userData.value = mark.value
+          strip.add(numeral)
+        }
+      }
+    }
+    strip.position.set(0, tapeY, 0)
+    root.add(strip)
+
+    // The fixed index and the digital readout are children of ROOT, not of
+    // `strip` -- if either were parented to the strip they would slide with
+    // it, and an index that moves with the heading it is meant to point at
+    // is not an index.
+    const index = new Mesh(
+      new PlaneGeometry(0.0025, 0.016),
+      new MeshBasicMaterial({ color: 0xffd24a }),
+    )
+    index.name = 'tape:index'
+    index.position.set(0, tapeY - 0.001, Z_NEEDLE)
+    root.add(index)
+
+    const tapeReadout = textPlate('', 0.05, 0.020, makeText)
+    tapeReadout.name = 'tape:readout'
+    tapeReadout.position.set(0, tapeY - 0.028, Z_READOUT)
+    root.add(tapeReadout)
+
+    tape = { strip, readout: tapeReadout }
+  }
+
   // Positioned in the SAME body frame the cockpit group is posed in (sim
   // convention, +X forward, +Y up, +Z right -- see src/render/frame.ts's
   // `render` field doc: an Object3D, unlike a Three camera, has no hardcoded
@@ -322,13 +567,24 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, readouts, horizon, reticle }
+  return { root, needles, readouts, columns, horizon, reticle, backing, tape: tape! }
 }
 
 export function updatePanel(
   panel: Panel,
   spec: AircraftSpec,
   state: AircraftState,
+  /**
+   * The pilot's control inputs, for the one gauge (`throttle`) that reads
+   * `Controls` rather than `AircraftState` (state.ts:8). Required, 4th, ahead
+   * of `makeText` -- controller ruling R3, 2026-09-15: a defaulted vector
+   * would let a caller forget to thread it and get a plausible-looking "0%
+   * throttle" instead of a compile error, the same wired-vs-unwired failure
+   * mode `tests/render/frameAssists.test.ts` exists to catch. Callers with
+   * nothing to report pass the shared `NEUTRAL_CONTROLS` fixture explicitly
+   * (tests/render/panel.test.ts).
+   */
+  controls: Controls,
   makeText: TextTextureFactory = makeTextTexture,
   /**
    * The attitude to lay the horizon bar against, when it differs from the
@@ -347,7 +603,7 @@ export function updatePanel(
   for (const g of GAUGES) {
     const readout = panel.readouts.get(g.id)
     if (readout) {
-      const text = readoutTextFor(g.id, spec, state)
+      const text = readoutTextFor(g.id, spec, state, controls)
       // Re-rasterise only on a real change. Measured over 600 ticks of the
       // real flight model: about 0.07 redraws per frame in gentle flight but
       // 1.44 per frame under active manoeuvring, driven mostly by the climb
@@ -360,12 +616,55 @@ export function updatePanel(
         readout.text = text
       }
     }
+    const column = panel.columns.get(g.id)
+    if (column) {
+      // `gaugeValue`/`fractionForValue`, not `needleAngleFor`: a column has
+      // no angle, and `throttle` is the one gauge that reads `controls`
+      // rather than `state` (gauges.ts's `NEUTRAL_CONTROLS` doc comment).
+      const value = gaugeValue(g.id, spec, state, controls)
+      column.fill.scale.y = Math.max(1e-4, fractionForValue(g, value))
+    }
     const needle = panel.needles.get(g.id)
     if (!needle) continue
     const angle = needleAngleFor(g.id, spec, state)
     // Negative: needle angles are clockwise from the dial's zero (gauges.ts),
     // and a positive rotation about +Z in this frame is anticlockwise.
     needle.rotation.z = -angle
+  }
+
+  // The heading tape: slide the rose under the fixed index, and print the
+  // digits on the fixed readout. Not reached through `panel.readouts` above
+  // -- `heading` is a `TapeSpec`, not a dial, so `createPanel` never put it
+  // in that map (it filters to `kind === 'dial'`).
+  {
+    const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
+    const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
+    const headingDeg = gaugeValue('heading', spec, state, controls)
+    const stripX = -tapeOffsetFor(tapeGauge, headingDeg) * stripW
+    panel.tape.strip.position.x = stripX
+    // Cull to the visible window, per frame (Ruling R8, review round 2):
+    // there is no clipping plane, stencil or mask anywhere in this file, so
+    // without this every one of the ~108 tick/numeral meshes across all
+    // three copies would render regardless of where it lands -- most of the
+    // rose painted across the sky and sea, well past the panel, for the
+    // whole width of the view and beyond. A mark counts as visible only
+    // once its WORLD-relative x (`stripX + its own local x`, stashed on
+    // `userData.localX` at build time) falls inside `TAPE_W`'s window, with
+    // `TAPE_CULL_MARGIN_M` of slack so a mark does not pop right at the
+    // edge.
+    for (const mark of panel.tape.strip.children) {
+      const localX = mark.userData.localX as number
+      mark.visible = Math.abs(stripX + localX) <= TAPE_W / 2 + TAPE_CULL_MARGIN_M
+    }
+    // Cached on `userData`, the same "only on a real change" saving the
+    // dial readouts get from `panel.readouts`' own `Readout.text` field --
+    // `Panel.tape.readout` is a bare `Mesh` (the interface this task was
+    // handed), so there is no sibling wrapper to hold the last string.
+    const text = readoutTextFor('heading', spec, state, controls)
+    if (panel.tape.readout.userData.text !== text) {
+      setPlateText(panel.tape.readout, text, makeText)
+      panel.tape.readout.userData.text = text
+    }
   }
   const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
   // A real artificial horizon stays level with the WORLD, so the bar must sit

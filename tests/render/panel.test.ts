@@ -1,17 +1,29 @@
 import { describe, it, expect } from 'vitest'
 import { Box3, BoxGeometry, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
-import { createPanel, updatePanel, PANEL_MIN_ASPECT, type Panel } from '../../src/render/scene/panel.js'
+import {
+  createPanel,
+  updatePanel,
+  PANEL_MIN_ASPECT,
+  PANEL_BELOW_M,
+  TAPE_W,
+  TAPE_CULL_MARGIN_M,
+  type Panel,
+} from '../../src/render/scene/panel.js'
+import { degreesBelowEye, PANEL_BANDS } from '../../src/render/scene/panelLayout.js'
 import {
   GAUGES,
   angleForValue,
   gaugeValue,
   labelTextFor,
   tickMarksFor,
+  tapeOffsetFor,
+  type DialSpec,
+  type TapeSpec,
 } from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
 import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
-import { createState, type AircraftState } from '../../src/sim/flight/state.js'
+import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -19,6 +31,20 @@ import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const deg = (rad: number) => (rad * 180) / Math.PI
+
+/** No input held. Every `updatePanel` call in later tasks uses this -- see
+ *  task-1-brief.md. */
+const NEUTRAL_CONTROLS: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+
+/**
+ * The gauges the panel actually builds as round dials.
+ *
+ * `GAUGES` gained a throttle column and a heading tape on 2026-09-15
+ * (controller ruling R1); `createPanel` filters to `kind === 'dial'` when
+ * building the row (panel.ts), so tests that check the BUILT geometry --
+ * dial count, needle count, readout count -- have to filter the same way.
+ */
+const DIAL_GAUGES = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
 
 /**
  * The dial groups, selected by NAME rather than by "every Group child".
@@ -161,8 +187,8 @@ describe('panel', () => {
     // A needle with no gauge behind it is the failure mode this plan is most
     // determined to avoid: an instrument that appears to mean something.
     const p = createPanel(f6f)
-    expect(p.needles.size).toBe(GAUGES.length)
-    for (const g of GAUGES) expect(p.needles.has(g.id)).toBe(true)
+    expect(p.needles.size).toBe(DIAL_GAUGES.length)
+    for (const g of DIAL_GAUGES) expect(p.needles.has(g.id)).toBe(true)
   })
 
   it('sits ahead of and below the eye point, where a panel actually is', () => {
@@ -181,9 +207,9 @@ describe('panel', () => {
     const p = createPanel(f6f)
     const slow = createState({ velocity: v3(40, 0, 0) })
     const fast = createState({ velocity: v3(180, 0, 0) })
-    updatePanel(p, f6f, slow)
+    updatePanel(p, f6f, slow, NEUTRAL_CONTROLS)
     const a = p.needles.get('airspeed')!.rotation.z
-    updatePanel(p, f6f, fast)
+    updatePanel(p, f6f, fast, NEUTRAL_CONTROLS)
     const b = p.needles.get('airspeed')!.rotation.z
     expect(b).not.toBeCloseTo(a, 6)
   })
@@ -206,7 +232,7 @@ describe('panel', () => {
     const p = createPanel(f6f)
     for (const bankDeg of [0, 30, -45, 120]) {
       const state = banked(bankDeg)
-      updatePanel(p, f6f, state)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
       const { worldToCamera } = pose(p, state)
       const bar = barScreenAngle(p, worldToCamera)
       const truth = trueHorizonScreenAngle(worldToCamera)
@@ -228,8 +254,52 @@ describe('panel', () => {
     // Measured off the built geometry against the camera's own exported
     // field of view, so a bigger dial, a lower panel or a narrower lens all
     // fail here rather than being discovered in a screenshot.
+    //
+    // Excludes `p.backing`: Task 3 (2026-09-15) deliberately runs that plate
+    // past the frustum on every edge -- past the bottom so it reads as
+    // clipped rather than floating, and out to the frustum's own horizontal
+    // edge so it spans full width at the narrowest supported window. This
+    // test is about the READABLE content (dials, labels, readouts), which is
+    // exactly what its own title says; the coaming behind it is checked
+    // separately in "runs the bezel past the bottom of the frame".
+    //
+    // Excluded by IDENTITY (`child === p.backing`), not by name. Review
+    // ruling R5, 2026-09-15: a name match excludes only the plate's own
+    // Box3 -- anything mounted UNDER it (its natural role, since it is the
+    // one full-width surface behind the dials -- exactly where a radar or
+    // armament screen would eventually mount) would be silently swallowed
+    // along with it and never checked here. Identity has no such hole, and
+    // the sibling assertion below pins the plate bare so the hole cannot
+    // reopen by something being parented there later.
+    //
+    // `p.tape.strip` is no longer excluded (review round 2, Ruling R8):
+    // before culling, the rose's three uncropped copies genuinely painted
+    // past the frame edge on every side (measured at deploy time: the strip
+    // reached 71.67 degrees off boresight against a 40.89-degree frame
+    // half-width at 3:2 -- a 30.78-degree overshoot per side, invisible to
+    // both review rounds because this test excluded the strip wholesale
+    // rather than measuring it). `updatePanel` now culls each mark to
+    // `.visible = false` once it slides outside `TAPE_W`'s window
+    // (`panel.ts`), so only marks that genuinely belong on screen are
+    // included below -- the off-screen buffer copies (and the culled tail
+    // of copy 0 itself) are excluded by their OWN `.visible` flag, not by a
+    // wholesale identity check that could hide a real overshoot again.
     const p = createPanel(f6f, () => null)
-    const box = new Box3().setFromObject(p.root)
+    expect(p.backing.children).toHaveLength(0)
+    updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
+    p.root.updateMatrixWorld(true)
+    const box = new Box3()
+    for (const child of p.root.children) {
+      if (child === p.backing) continue
+      if (child === p.tape.strip) {
+        for (const mark of child.children) {
+          if (!mark.visible) continue
+          box.union(new Box3().setFromObject(mark))
+        }
+        continue
+      }
+      box.union(new Box3().setFromObject(child))
+    }
     const [ex, ey, ez] = f6f.view.eyePointM
     const halfFovRad = ((CAMERA_VFOV_DEG / 2) * Math.PI) / 180
     // Body frame: +X forward. Worst case is the nearest slice of the panel,
@@ -292,8 +362,8 @@ describe('panel', () => {
         .filter((c): c is Mesh => c instanceof Mesh)
         .map((c) => new Box3().setFromObject(c).max.x),
     )
-    for (const g of GAUGES) {
-      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
+    for (const g of DIAL_GAUGES) {
+      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS, () => null)
       const needle = p.needles.get(g.id) as Mesh
       const reach = new Box3().setFromObject(needle).max.length()
       expect(reach).toBeLessThanOrEqual(rim + 1e-9)
@@ -306,7 +376,7 @@ describe('panel', () => {
     // screenshot shows "-0.50.25" and "+15+8.0-5.0" as a result.
     const p = createPanel(f6f, () => null)
     const dials = dialsOf(p)
-    GAUGES.forEach((g, i) => {
+    DIAL_GAUGES.forEach((g, i) => {
       const numerals = dials[i]!.children.filter(
         (c): c is Mesh => c instanceof Mesh && c.geometry instanceof PlaneGeometry,
       )
@@ -357,7 +427,7 @@ describe('panel', () => {
     // bottom of the face, so there is no clear window down there.
     const p = createPanel(f6f, () => null)
     const dials = dialsOf(p)
-    GAUGES.forEach((g, i) => {
+    DIAL_GAUGES.forEach((g, i) => {
       const readout = p.readouts.get(g.id)!.mesh
       const rBox = new Box3().setFromObject(readout)
       for (const numeral of dials[i]!.children) {
@@ -385,7 +455,26 @@ describe('panel', () => {
     const dialFaceZ = 0
     expect(backing!.position.z).toBeLessThan(dialFaceZ)
     // And the plate must actually cover the dials it is shielding.
-    const box = new Box3().setFromObject(p.root)
+    //
+    // Excludes `p.tape.strip` (Task 5, 2026-09-15), the same way the FOV
+    // test below does and for the same reason: the rose is deliberately
+    // drawn three copies wide so sliding never runs out of neighbour, and
+    // the outer two copies are off-screen buffer, not readable content the
+    // coaming needs to shield.
+    //
+    // `updateMatrixWorld` first, matching the FOV test's own pattern below:
+    // `Box3.setFromObject` on a CHILD calls `updateWorldMatrix(false, false)`
+    // (three.js's Box3.js), which composes with whatever the parent's own
+    // `matrixWorld` already holds rather than recomputing it -- calling it on
+    // `p.root` directly (as this test did before excluding anything) happens
+    // to update root-then-children in the right order, but iterating root's
+    // children one at a time on an otherwise-untouched panel does not.
+    p.root.updateMatrixWorld(true)
+    const box = new Box3()
+    for (const child of p.root.children) {
+      if (child === p.tape.strip) continue
+      box.union(new Box3().setFromObject(child))
+    }
     const bb = new Box3().setFromObject(backing!)
     expect(bb.min.z).toBeLessThanOrEqual(box.min.z)
     expect(bb.max.z).toBeGreaterThanOrEqual(box.max.z)
@@ -399,9 +488,9 @@ describe('panel', () => {
     const p = createPanel(f6f, () => null)
     const level = attitude(0, 0)
     const rolled = attitude(0, 30)
-    updatePanel(p, f6f, level, () => null, rolled.attitude)
+    updatePanel(p, f6f, level, NEUTRAL_CONTROLS, () => null, rolled.attitude)
     expect(deg(p.horizon.rotation.z)).toBeCloseTo(30, 6)
-    updatePanel(p, f6f, rolled, () => null, level.attitude)
+    updatePanel(p, f6f, rolled, NEUTRAL_CONTROLS, () => null, level.attitude)
     expect(deg(p.horizon.rotation.z)).toBeCloseTo(0, 6)
   })
 
@@ -418,7 +507,7 @@ describe('panel', () => {
     for (const pitchDeg of [0, 10, -10, 25, -20]) {
       for (const bankDeg of [0, 30, -45]) {
         const state = attitude(pitchDeg, bankDeg)
-        updatePanel(p, f6f, state, () => null)
+        updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
         const { worldToCamera } = pose(p, state)
         expect(barScreenHeight(p, state, worldToCamera)).toBeCloseTo(
           trueHorizonScreenHeight(worldToCamera),
@@ -446,7 +535,7 @@ describe('panel', () => {
     for (const headingDeg of [0, 30, 45, 90, 135, 180, -60]) {
       for (const pitchDeg of [0, 10, -15]) {
         const state = wingsLevel(headingDeg, pitchDeg)
-        updatePanel(p, f6f, state)
+        updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
         const { worldToCamera } = pose(p, state)
         const bar = barScreenAngle(p, worldToCamera)
         expect(deg(bar)).toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 4)
@@ -482,8 +571,19 @@ describe('panel', () => {
 
   it('stays finite for a degenerate state', () => {
     const p = createPanel(f6f)
-    updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }))
+    updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }), NEUTRAL_CONTROLS)
     for (const n of p.needles.values()) expect(Number.isFinite(n.rotation.z)).toBe(true)
+  })
+
+  it('accepts an explicit control vector without throwing (2026-09-15)', () => {
+    // main.ts now passes `current.controls` as the required fourth argument,
+    // the same vector it already reads for the propeller spin, so the
+    // throttle gauge (a column, not yet drawn) can eventually read it too.
+    // This is a smoke test of that plumbing rather than a behavioural one:
+    // no dial reads `controls` today, so there is nothing visible to assert
+    // yet.
+    const p = createPanel(f6f)
+    expect(() => updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS)).not.toThrow()
   })
 })
 
@@ -507,16 +607,20 @@ describe('panel markings and readouts (I-2)', () => {
     }
   }
 
-  it('prints the name and unit of every gauge', () => {
+  it('prints the name and unit of every fitted dial', () => {
+    // Dial-only: createPanel only builds a label plate for a rendered dial.
+    // Throttle (a column) and heading (a tape, since 2026-09-15) are in
+    // GAUGES but not yet drawn at all -- see the file-level comment on
+    // DIAL_GAUGES.
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
-    for (const g of GAUGES) expect(drawn).toContain(labelTextFor(g))
+    for (const g of DIAL_GAUGES) expect(drawn).toContain(labelTextFor(g))
   })
 
-  it('prints a number beside every major scale mark', () => {
+  it('prints a number beside every major scale mark on a fitted dial', () => {
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
-    for (const g of GAUGES) {
+    for (const g of DIAL_GAUGES) {
       for (const m of tickMarksFor(g)) {
         if (m.major) expect(drawn).toContain(m.text)
       }
@@ -531,8 +635,8 @@ describe('panel markings and readouts (I-2)', () => {
     // would pass every test in gauges.test.ts and still scatter the marks.
     const p = createPanel(f6f, recordingText().factory)
     const dials = dialsOf(p)
-    expect(dials.length).toBe(GAUGES.length)
-    GAUGES.forEach((g, i) => {
+    expect(dials.length).toBe(DIAL_GAUGES.length)
+    DIAL_GAUGES.forEach((g, i) => {
       const expected = tickMarksFor(g).map((m) => m.angleRad).sort((a, b) => a - b)
       const placed = dials[i]!.children
         .filter((c) => c instanceof Mesh && c.geometry instanceof BoxGeometry)
@@ -562,10 +666,14 @@ describe('panel markings and readouts (I-2)', () => {
     // gauge the needle at its high sample must point at the same screen angle
     // as a tick mark placed at that same value.
     const p = createPanel(f6f, () => null)
+    // Dial-only since 2026-09-15: only a dial gets a needle (createPanel
+    // filters `GAUGES` to `kind === 'dial'`), and `angleForValue` is typed
+    // to `DialSpec` accordingly.
     for (const g of GAUGES) {
-      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
+      if (g.kind !== 'dial') continue
+      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS, () => null)
       const needle = p.needles.get(g.id) as Mesh
-      const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high)
+      const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS)
       // A tick at `value` sits at (sin a, cos a) from the dial centre; the
       // needle's own tip direction must agree.
       const a = angleForValue(g, value)
@@ -587,10 +695,10 @@ describe('panel markings and readouts (I-2)', () => {
     // Deliberately NOT the metres the state holds -- a panel printing the
     // stored number under an "ft" label is the false claim this change exists
     // to remove.
-    updatePanel(p, f6f, createState({ position: v3(0, 1234, 0) }), factory)
+    updatePanel(p, f6f, createState({ position: v3(0, 1234, 0) }), NEUTRAL_CONTROLS, factory)
     expect(p.readouts.get('altimeter')!.text).toBe('4049')
     expect(drawn).toContain('4049')
-    updatePanel(p, f6f, createState({ position: v3(0, 2500, 0) }), factory)
+    updatePanel(p, f6f, createState({ position: v3(0, 2500, 0) }), NEUTRAL_CONTROLS, factory)
     expect(p.readouts.get('altimeter')!.text).toBe('8202')
   })
 
@@ -600,17 +708,17 @@ describe('panel markings and readouts (I-2)', () => {
     const { factory, drawn } = recordingText()
     const p = createPanel(f6f, factory)
     const state = createState({ position: v3(0, 1234, 0) })
-    updatePanel(p, f6f, state, factory)
+    updatePanel(p, f6f, state, NEUTRAL_CONTROLS, factory)
     const after = drawn.length
-    updatePanel(p, f6f, state, factory)
-    updatePanel(p, f6f, state, factory)
+    updatePanel(p, f6f, state, NEUTRAL_CONTROLS, factory)
+    updatePanel(p, f6f, state, NEUTRAL_CONTROLS, factory)
     expect(drawn.length).toBe(after)
   })
 
   it('has one readout per fitted gauge and none spare', () => {
     const p = createPanel(f6f, recordingText().factory)
-    expect(p.readouts.size).toBe(GAUGES.length)
-    for (const g of GAUGES) expect(p.readouts.has(g.id)).toBe(true)
+    expect(p.readouts.size).toBe(DIAL_GAUGES.length)
+    for (const g of DIAL_GAUGES) expect(p.readouts.has(g.id)).toBe(true)
   })
 
   it('builds without a canvas rather than throwing, which is how it is tested', () => {
@@ -618,9 +726,35 @@ describe('panel markings and readouts (I-2)', () => {
     // so it must return null and leave the geometry intact rather than throw.
     expect(typeof document).toBe('undefined')
     const p = createPanel(f6f)
-    expect(p.needles.size).toBe(GAUGES.length)
-    expect(p.readouts.size).toBe(GAUGES.length)
-    expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }))).not.toThrow()
+    expect(p.needles.size).toBe(DIAL_GAUGES.length)
+    expect(p.readouts.size).toBe(DIAL_GAUGES.length)
+    expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }), NEUTRAL_CONTROLS)).not.toThrow()
+  })
+})
+
+describe('the two-band dashboard (2026-09-15)', () => {
+  it('runs the bezel past the bottom of the frame, so it is clipped not floating', () => {
+    // The complaint this fixes: sky was visible below the panel on both sides,
+    // so it read as a strip hanging in the view rather than a dashboard.
+    const p = createPanel(f6f, () => null)
+    const box = new Box3().setFromObject(p.backing)
+    const lowestBelowEye = PANEL_BELOW_M - box.min.y
+    expect(degreesBelowEye(lowestBelowEye)).toBeGreaterThan(CAMERA_VFOV_DEG / 2)
+  })
+
+  it('draws nothing in the reserved radar and armament slots', () => {
+    // An unlit bezel that never fills reads as a broken instrument. The slots
+    // exist in the arithmetic only, until Plan 6 has something to put in them.
+    const p = createPanel(f6f, () => null)
+    const named = p.root.children.map((c) => c.name)
+    expect(named).not.toContain('radar')
+    expect(named).not.toContain('armament')
+  })
+
+  it('keeps five dials, heading having left for the tape', () => {
+    // Ruling R1: the ball is panel geometry, not a GAUGES row, so it is not a
+    // dial and does not appear here. Five dials plus the ball fill the row.
+    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(5)
   })
 })
 
@@ -654,5 +788,233 @@ describe('the gunsight reticle (2026-09-15)', () => {
       expect(at.x, `pitch ${pitchDeg} bank ${bankDeg}: horizontal`).toBeCloseTo(0, 6)
       expect(at.y, `pitch ${pitchDeg} bank ${bankDeg}: vertical`).toBeCloseTo(0, 6)
     }
+  })
+})
+
+describe('the throttle column (Task 4, 2026-09-15)', () => {
+  it('fills the throttle column in proportion to the control vector', () => {
+    const p = createPanel(f6f, () => null)
+    const level = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    const heightAt = (throttle: number): number => {
+      updatePanel(p, f6f, level, { pitch: 0, roll: 0, yaw: 0, throttle }, () => null)
+      return new Box3().setFromObject(p.columns.get('throttle')!.fill).getSize(new Vector3()).y
+    }
+    const [shut, half, open] = [heightAt(0), heightAt(0.5), heightAt(1)]
+    expect(shut).toBeLessThan(half)
+    expect(half).toBeLessThan(open)
+    // Linear: half throttle is half the travel, within a millimetre.
+    expect(half).toBeCloseTo((shut + open) / 2, 3)
+  })
+
+  it('grows the throttle fill upward from its base, not from its centre', () => {
+    // A plane scaled about its centre creeps downward as it grows, so the bar
+    // would leave its own bezel at full throttle.
+    const p = createPanel(f6f, () => null)
+    const level = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    const baseOf = (t: number): number => {
+      updatePanel(p, f6f, level, { pitch: 0, roll: 0, yaw: 0, throttle: t }, () => null)
+      return new Box3().setFromObject(p.columns.get('throttle')!.fill).min.y
+    }
+    expect(baseOf(1)).toBeCloseTo(baseOf(0.1), 4)
+  })
+})
+
+describe('the heading tape (Task 5, 2026-09-15)', () => {
+  const headingGauge = () => GAUGES.find((g) => g.id === 'heading') as TapeSpec
+  const stripWidth = () => TAPE_W * (360 / headingGauge().windowSpan)
+
+  it('slides the strip left as the heading increases', () => {
+    // `wingsLevel(headingDeg, pitchDeg)` already exists in this file.
+    const p = createPanel(f6f, () => null)
+    const at = (headingDeg: number): number => {
+      updatePanel(p, f6f, wingsLevel(headingDeg, 0), NEUTRAL_CONTROLS, () => null)
+      return p.tape.strip.position.x
+    }
+    expect(at(90)).toBeLessThan(at(0))
+  })
+
+  it('puts the mark for the CURRENT heading under the index, not its antipode (R9, round 3)', () => {
+    // Round 2 flagged, unfixed: the brief's own build formula, `x =
+    // (mark.fraction + copy) * stripW - stripW / 2`, centres the THREE-COPY
+    // BLOCK on the origin (cosmetic), which the slide formula --
+    // `strip.position.x = -tapeOffsetFor(...) * stripW`, which assumes
+    // fraction f sits at `f * stripW` with no such term -- does not account
+    // for. The two disagree by exactly `stripW / 2`, i.e. half a rose, i.e.
+    // 180 degrees: at heading 0 the old code centred value 180 under the
+    // index, not 0. The "slides the strip left..." test above cannot catch
+    // this: a rose displaced by ANY constant still slides left as heading
+    // increases.
+    //
+    // Recovers the value from the NEAREST-TO-INDEX mark's own stashed
+    // `userData.value` rather than hardcoding an expected x position, so
+    // this pins the actual built geometry, not a restated formula.
+    //
+    // Compares against `gaugeValue`'s own compass heading, NOT the
+    // `headingDeg` argument passed to `wingsLevel` directly: that argument
+    // is a yaw angle fed to `qFromAxisAngle`, and gauges.ts's heading
+    // convention is the opposite sign (a positive yaw there is a LEFT turn,
+    // decreasing compass heading) -- the same trap round 1's "slides by
+    // exactly the fraction..." test hit and fixed the same way.
+    const p = createPanel(f6f, () => null)
+    const minorStep = headingGauge().minorStep
+    for (const headingDeg of [0, 45, 90, 180, 270, 359]) {
+      const state = wingsLevel(headingDeg, 0)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const compassHeading = gaugeValue('heading', f6f, state, NEUTRAL_CONTROLS)
+      const stripX = p.tape.strip.position.x
+      let nearestValue = NaN
+      let nearestDist = Infinity
+      for (const mark of p.tape.strip.children) {
+        const dist = Math.abs(stripX + mark.position.x)
+        if (dist < nearestDist) {
+          nearestDist = dist
+          nearestValue = mark.userData.value as number
+        }
+      }
+      // Circular difference, so 359 vs 0 reads as 1 degree apart, not 359.
+      const circularDiff = Math.abs((((nearestValue - compassHeading + 180) % 360) + 360) % 360 - 180)
+      expect(circularDiff).toBeLessThanOrEqual(minorStep / 2 + 1e-6)
+    }
+  })
+
+  it('slides by exactly the fraction tapeOffsetFor reports, scaled by the strip width', () => {
+    // Ties the rendered geometry back to the pure helper `gauges.test.ts`
+    // pins directly, so a placement bug in `panel.ts` (a sign flip, a wrong
+    // scale) cannot hide behind a helper that is separately correct.
+    //
+    // Reads the actual COMPASS heading back out of `gaugeValue` rather than
+    // assuming it equals `wingsLevel`'s own `headingDeg` argument: that
+    // argument is a yaw angle fed into `qFromAxisAngle`, and gauges.ts's
+    // heading convention is the opposite sign (a positive yaw there is a
+    // LEFT turn, decreasing compass heading) -- exactly the trap
+    // `gaugeValue`'s own "reports heading... and increases it turning right"
+    // test exists to pin. Composing the two independently-correct pieces the
+    // same way `updatePanel` does is the point of this test, not
+    // re-deriving the sign convention here.
+    const p = createPanel(f6f, () => null)
+    const g = headingGauge()
+    for (const headingDeg of [0, 45, 90, 200, 359]) {
+      const state = wingsLevel(headingDeg, 0)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const compassHeading = gaugeValue('heading', f6f, state, NEUTRAL_CONTROLS)
+      expect(p.tape.strip.position.x).toBeCloseTo(-tapeOffsetFor(g, compassHeading) * stripWidth(), 9)
+    }
+  })
+
+  it('draws the rose three copies wide, so sliding always leaves a neighbour on both sides', () => {
+    // THE subtlety this tape exists to get right: without a copy on each
+    // side of the middle one, sliding across the seam (359 -> 001) would
+    // either expose bare space at the edge of the visible window or -- if
+    // the strip held only a single un-repeated copy -- have to leap the
+    // entire width of the rose once per revolution. Proved by mutation: with
+    // the copy loop narrowed to `[0]`, this test's min/max bounds collapse to
+    // a single copy's own span and it fails (see the task report for the
+    // recorded run).
+    //
+    // Expected bounds are derived from `tickMarksFor`'s own fractions and
+    // the build formula `x = (fraction + copy) * stripWidth()` (no `-
+    // stripWidth() / 2` term since review round 3's Ruling R9 -- that term
+    // centred the three-copy block cosmetically but disagreed with the
+    // slide formula by half a rose, a 180-degree placement bug). Review
+    // round 1, Finding 1 also fixed `tickMarksFor` to drop the seam-doubling
+    // mark at `fraction === 1` for a tape (the same dedup a circular dial
+    // already gets), so the rendered range is asymmetric within each copy --
+    // `fraction` 0 is kept (copy -1's copy of it is the leftmost mark) but
+    // `fraction` 1 is gone (so copy +1's rightmost mark is its own last
+    // MINOR step short of a full turn, not the seam duplicate).
+    const p = createPanel(f6f, () => null)
+    const fractions = tickMarksFor(headingGauge()).map((m) => m.fraction)
+    const expectedMin = (Math.min(...fractions) - 1) * stripWidth()
+    const expectedMax = (Math.max(...fractions) + 1) * stripWidth()
+    const xs = p.tape.strip.children
+      .filter((c): c is Mesh => c instanceof Mesh)
+      .map((c) => c.position.x)
+    expect(xs.length).toBeGreaterThan(0)
+    expect(Math.min(...xs)).toBeCloseTo(expectedMin, 6)
+    expect(Math.max(...xs)).toBeCloseTo(expectedMax, 6)
+  })
+
+  it('never lays two marks at the same seam position across copies', () => {
+    // Review round 1, Finding 1 (Important): before the `tickMarksFor` fix,
+    // copy 0's fraction-1 mark (value 360) and copy 1's fraction-0 mark
+    // (value 0) landed at the EXACT same (x, y) -- a doubled tick and two
+    // identical "000" numeral plates z-fighting at every seam.
+    const p = createPanel(f6f, () => null)
+    const positions = p.tape.strip.children.map(
+      (c) => `${c.position.x.toFixed(6)},${c.position.y.toFixed(6)}`,
+    )
+    expect(new Set(positions).size).toBe(positions.length)
+  })
+
+  it('culls marks outside the visible window, so the rose does not paint past the panel (R8, round 2)', () => {
+    // Critical, found at deploy time: nothing clips or masks the strip, so
+    // all three copies -- ticks and numerals -- painted across the sky and
+    // sea for the whole width of the view and past it (measured: the strip
+    // reaches 71.67 degrees off boresight against a 40.89-degree frame
+    // half-width at 3:2, a 30.78-degree overshoot per side). Ruling R8:
+    // cull per frame, in `updatePanel`, rather than adding renderer-level
+    // clipping -- the geometry keeps existing (so the three-copy wrap stays
+    // seamless), only `.visible` toggles.
+    const p = createPanel(f6f, () => null)
+    for (const headingDeg of [0, 45, 180, 359]) {
+      updatePanel(p, f6f, wingsLevel(headingDeg, 0), NEUTRAL_CONTROLS, () => null)
+      for (const mark of p.tape.strip.children) {
+        if (!mark.visible) continue
+        const worldX = p.tape.strip.position.x + mark.position.x
+        expect(Math.abs(worldX)).toBeLessThanOrEqual(TAPE_W / 2 + TAPE_CULL_MARGIN_M + 1e-9)
+      }
+      // Not vacuous: at least one mark must actually be visible, or the
+      // culling could be hiding everything and passing by omission.
+      expect(p.tape.strip.children.some((m) => m.visible)).toBe(true)
+    }
+  })
+
+  it('keeps the fixed readout out of the sliding strip', () => {
+    // If the readout were a child of `strip` it would slide out from under
+    // the fixed index along with the rose -- it has to be parented to
+    // something that does not move.
+    const p = createPanel(f6f, () => null)
+    expect(p.tape.readout.parent).not.toBe(p.tape.strip)
+  })
+
+  it('prints the zero-padded, wrapped heading digits on the fixed readout', () => {
+    const drawn: string[] = []
+    const factory: TextTextureFactory = (text: string): null => {
+      drawn.push(text)
+      return null
+    }
+    const p = createPanel(f6f, factory)
+    // Due north (F3): the readout must show "000", zero-padded, not a bare
+    // "0".
+    updatePanel(p, f6f, wingsLevel(0, 0), NEUTRAL_CONTROLS, factory)
+    expect(drawn).toContain('000')
+    updatePanel(p, f6f, wingsLevel(90, 0), NEUTRAL_CONTROLS, factory)
+    expect(drawn).toContain('090')
+  })
+
+  it('keeps the whole tape assembly inside the upper band, not spilling into the lower row', () => {
+    // Controller context point 4: the tape is positioned from
+    // `PANEL_BANDS.upper`, not a layout slot (there is none for `heading`,
+    // deliberately -- context point 3 / F4). This checks the built geometry
+    // against that band directly, so a wrong offset fails here rather than
+    // only being visible in a screenshot.
+    //
+    // The strip's own left/right copies run far outside the frustum by
+    // design (the three-copy test above), so only its own LOCAL y (shared by
+    // every tick, uniform regardless of x) is meaningful here -- checked
+    // together with the fixed readout, which does vary in y.
+    const p = createPanel(f6f, () => null)
+    const upperTopY = PANEL_BELOW_M - PANEL_BANDS.upper.top
+    const upperBottomY = PANEL_BELOW_M - PANEL_BANDS.upper.bottom
+    const stripTickYs = p.tape.strip.children
+      .filter((c): c is Mesh => c instanceof Mesh)
+      .map((c) => c.position.y + p.tape.strip.position.y)
+    const readoutBox = new Box3().setFromObject(p.tape.readout)
+    for (const y of stripTickYs) {
+      expect(y).toBeLessThanOrEqual(upperTopY)
+      expect(y).toBeGreaterThanOrEqual(upperBottomY)
+    }
+    expect(readoutBox.max.y).toBeLessThanOrEqual(upperTopY + 1e-6)
+    expect(readoutBox.min.y).toBeGreaterThanOrEqual(upperBottomY - 1e-6)
   })
 })

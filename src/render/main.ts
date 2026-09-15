@@ -482,8 +482,11 @@ async function boot(): Promise<void> {
     hellcatRoot.visible = visibility.hellcatVisible
     // Numeric gauges from the simulated tick; the horizon bar from the
     // INTERPOLATED attitude, because it is the one instrument compared
-    // against something visible in the same frame.
-    updatePanel(panel, spec, current.world.aircraft, makeTextTexture, current.render.attitude)
+    // against something visible in the same frame. `current.controls` is
+    // also the pilot's raw input, not part of `AircraftState` (state.ts:8),
+    // which is why the throttle gauge needs it passed separately -- the same
+    // vector the propeller spin below already reads.
+    updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
