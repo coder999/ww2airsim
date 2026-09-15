@@ -147,7 +147,8 @@ describe('the committed terrain is byte-for-byte the pinned build', () => {
   })
 })
 
-// The source tiles are gitignored and hundreds of megabytes, so CI has none:
+// The source tiles are gitignored (106,966,683 bytes over eight COGs,
+// measured 2026-09-14), so CI has none:
 // `describe.skipIf` prints a NAMED skip rather than vanishing, which is what
 // keeps "green because it checked" distinguishable from "green because it did
 // not". The console line below makes that unmissable even in a dot reporter.

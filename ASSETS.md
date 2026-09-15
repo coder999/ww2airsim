@@ -26,7 +26,8 @@ None yet.
 
 Not committed — terrain tiles are cached under `tools/terrain/cache/` (gitignored
 via `/tools/**/cache/` and `*.tif`, both present in `.gitignore`, checked
-2026-09-13) and are hundreds of megabytes (see spec §10). Attribution for the
+2026-09-13) and measure 106,966,683 bytes over eight tiles (2026-09-14).
+Attribution for the
 source datasets:
 
 | Dataset | Source | License / terms |

@@ -71,7 +71,8 @@ count survivable. A fixed grid mesh per quadtree node samples an explicit mip
 level of the one texture, and morphs between levels in the vertex stage.
 
 "Coarse first, then everything resident" (Mark's call, 2026-09-13) therefore
-needs no streaming system at all. The mip chain is nine files, smallest first:
+needs no streaming system at all. The mip chain is thirteen files (L0..L12),
+fetched smallest first:
 
 ```
 L0  8193^2  134.2 MB   24 m      L5   257^2   132 KB    781 m
@@ -81,12 +82,18 @@ L3  1025^2    2.1 MB  195 m      L8..L12 down to 3^2, 3 KB total
 L4   513^2    0.5 MB  391 m
 ```
 
-L4 and coarser total 703 KB and are **committed**, so a fresh clone runs and
-shows a recognisable Leyte immediately (master spec §10's "small
-low-resolution fallback"). L0–L3 are generated, gitignored
-(`/content/terrain/tiles/` already is), and fetched at runtime in ascending
-order of size. Nothing is ever evicted, so there is no cache-coherence
-question to get wrong.
+L4 and coarser total 703,306 bytes and are **committed**, so a fresh clone
+runs and shows a recognisable Leyte immediately (master spec §10's "small
+low-resolution fallback"). L0–L3 are generated and gitignored
+(`/content/terrain/tiles/` already is). Nothing is ever evicted, so there is
+no cache-coherence question to get wrong.
+
+[Amended 2026-09-14 (Task 12): this said L0–L3 are "fetched at runtime in
+ascending order of size". They are not fetched at all, and never have been —
+the browser fetches L8..L4 only, 702,346 bytes over five requests, because
+nothing coarser than mip `LOD.rings` can be sampled by any ring and nothing
+finer than L4 is shipped. §9 item 2 recorded that when it closed, and this
+paragraph did not follow; it does now.]
 
 ### Wire format: raw `int16` decimetres, not an image
 
@@ -140,8 +147,15 @@ all, which also keeps `sim/world/terrain.ts` free of trigonometry.
 
 **Source.** Copernicus DEM GLO-30, nine 1° tiles, N09–N11 × E124–E126.
 Confirmed 2026-09-13: public on `copernicus-dem-30m.s3.amazonaws.com`, no
-credentials, 9.6 MB each. Each is 3600 × 3600 float32 metres at 1 arcsec with
-COG overviews.
+credentials. Each is 3600 × 3600 float32 metres at 1 arcsec with COG
+overviews.
+
+[Corrected 2026-09-14 (Task 12): this said "9.6 MB each", generalised from the
+one tile probed on 2026-09-13, and that figure is where the plan's "~90 MB of
+downloads" estimate came from. **Eight** of the nine cells have a tile at all
+(the ninth is 100% open ocean, for which GLO-30 Public publishes nothing —
+`ASSETS.md`), and they range from 226,292 to 22,828,318 bytes, totalling
+**106,966,683**. These are COGs: size tracks how much land the cell contains.]
 
 **Reader.** `geotiff` (MIT, so AGPL-compatible per master spec §10). Confirmed
 2026-09-13 reading that exact tile *remotely by HTTP range request in 2.0 s*,
@@ -210,10 +224,31 @@ trivially reach.
 
 ## 6. The hazard this plan has to be honest about
 
-**What the simulation hits is not what the renderer draws.** The sim always
-queries L0. The renderer draws a morphed blend of two mip levels chosen by
-camera distance. Those agree only where the camera is close enough that L0 is
-selected, and nowhere else — so a hill can be drawn lower than it is.
+**What the simulation hits is not what the renderer draws.** The renderer
+draws a morphed blend of two mip levels chosen by camera distance, so a hill
+can be drawn lower than it is.
+
+**Amended 2026-09-14 (Task 12).** This said "the sim always queries L0", which
+was true of the plan and is not true of what shipped. In the browser the
+simulation is handed the finest **fetched** level — L4 — because L0–L3 are not
+shipped (`physicsFieldFor`, `src/render/terrain/load.ts`; `FINEST_FETCHED_LEVEL`,
+`src/render/content.ts`). The renderer clamps both mip taps of rings 0–3 to L4
+for the same reason (`sampleLevelsForRing`, `src/render/terrain/mesh.ts`). Two
+consequences, neither of which this section anticipated:
+
+- In the shipped browser build the near field is **drawn from the level the
+  physics queries**, so the disagreement this section is about does not begin
+  until ring 4 — roughly 27 km out at the Tier 2 camera. It begins at ring 1 in
+  a checkout that has run `npm run terrain:build`, which is the configuration
+  the pinned mip-0 error table in `tests/render/terrainLod.test.ts` measures.
+- What both are wrong about instead is the **whole surface against the source
+  grid**: worst |L0 − L4| over every one of L0's 8193² samples is **220.9 m**,
+  at (−78,027, 80,664), measured 2026-09-14. A fresh clone flies a Leyte whose
+  peaks are that much flatter than the Copernicus data, everywhere, near field
+  included.
+
+The guard below is unchanged and is still the right one; only the premise
+above moved.
 
 A test that samples the sim at L0 and the heightfield at L0 and finds them
 equal would pass, prove nothing, and read as thorough. This project has shipped

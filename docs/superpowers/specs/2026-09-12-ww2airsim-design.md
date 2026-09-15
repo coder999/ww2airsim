@@ -178,9 +178,23 @@ alternative is hand-authoring 40,000 km2, which is not worth it.
 
 ### Terrain rendering
 
-CDLOD quadtree clipmap: heightmap tiles as textures, displacement in the
-vertex stage, continuous LOD morphing to eliminate popping. Draw distance
-60–100 km with aerial-perspective fog.
+CDLOD quadtree: displacement in the vertex stage, continuous LOD morphing to
+eliminate popping, aerial-perspective fog, draw distance 100 km.
+
+**Amended 2026-09-14, after Plan 4 built it.** This paragraph used to say
+"heightmap tiles as textures" and "draw distance 60–100 km", and the tile grid
+in particular is not what shipped — it was measured to be unnecessary and
+deleted rather than built. The world is 8193 × 8193 samples and
+`maxTextureDimension2D` on the reference card is 16384, so the whole world is
+**one texture per mip level**, resident from load to exit. Deleted with the
+tile grid: a tile manifest, a cache, an eviction policy, seam handling, and the
+class of hitching bugs that only appear when a fetch lands late. The draw
+distance is exactly 100,000 m, and the fog reaches full haze at that same
+distance, which is what makes the far plane provably invisible rather than
+merely distant. The measurements, the "why 8193 and not 6667" argument and the
+fog/far-plane derivation are in
+[`2026-09-13-terrain-design.md`](2026-09-13-terrain-design.md) §2 and §5 — read
+those rather than trusting a summary here.
 
 Two properties must be present from the first commit, because retrofitting
 either is far more expensive than building with them:
@@ -214,12 +228,27 @@ resolution, draw distance — are implemented from the start rather than
 retrofitted once it is slow; tier thresholds derive from measured frame time
 via the Tier 2 perf harness (§11) rather than from estimated hardware figures.
 
+**What "measured frame time" turned out to mean, 2026-09-14 (Plan 4, the first
+budget in this project).** It is not a frame interval. `requestAnimationFrame`
+on the reference desktop fires every 10.0 ms and no Chromium flag moves it —
+and that cadence is the browser's own, not the display's: the monitor runs at
+3840×2160 @ 120 Hz, and the same 10.0 ms appears with the GPU disabled and
+under headless. The budget is therefore a **WebGPU timestamp-query GPU-pass
+duration**: 2.097 ms p50 at 1440p over Leyte, asserted at ≤ 3.5 ms
+(`tests/e2e/terrain.spec.ts`). It excludes everything on the CPU side, which is
+a real gap and is the reason a second instrument will be wanted before a tier
+threshold rests on this. Evidence, method and the exact shape of that gap:
+[`2026-09-13-terrain-design.md`](2026-09-13-terrain-design.md) §10.
+
 Two consequences of the reference card:
 
-- **12 GB of VRAM is generous for this workload.** The terrain tile cache can
-  hold a large resident set, so streaming pressure is not a design driver.
-  Half-resolution volumetric cloud and three ocean cascades are comfortable
-  rather than tight.
+- **12 GB of VRAM is generous for this workload.** Streaming pressure is not a
+  design driver. [Amended 2026-09-14: this said "the terrain tile cache can
+  hold a large resident set". There is no tile cache — see the terrain-rendering
+  note above. The conclusion survives the correction and gets stronger: the
+  entire terrain pyramid is resident, and costs 358 MB as `r32float` with mips,
+  of 12,288 MB.] Half-resolution volumetric cloud and three ocean cascades are
+  comfortable rather than tight.
 - **The reference platform is well above median hardware.** Perf tiers and
   golden screenshots are calibrated to a card most people do not have. That is
   acceptable for a personal technical playground, but "fast on the reference
@@ -473,9 +502,16 @@ Rules:
 - Terrain source data is open government data; attribution recorded in
   `ASSETS.md`
 
-Terrain tiles are hundreds of megabytes and **are not committed**. The repo
-holds the `tools/` pipeline plus a small low-resolution fallback so that a
-fresh clone runs. Full tiles are generated locally or served from R2.
+The Copernicus source rasters **are not committed** (106,966,683 bytes over
+eight tiles, measured 2026-09-14). The repo holds the `tools/` pipeline plus a
+small low-resolution fallback so that a fresh clone runs.
+
+[Amended 2026-09-14: "Full tiles are generated locally or served from R2" —
+the R2 half is retired. The browser fetches five levels totalling 702,346
+bytes, and has never been able to fetch the 178,319,368 bytes of L0–L3, so
+there is nothing an object store would be for. Closed, with the one condition
+that would reopen it, in
+[`2026-09-13-terrain-design.md`](2026-09-13-terrain-design.md) §9 item 2.]
 
 ## 11. Testing
 

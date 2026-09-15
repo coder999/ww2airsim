@@ -3,9 +3,31 @@ import { build } from 'vite'
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { AIRCRAFT_CONTENT_PATH } from '../../src/render/content.js'
+import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
+import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
+import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
+
+/**
+ * The two Copernicus licence strings that must accompany the derived terrain
+ * wherever it goes (Articles 6(b) and 6(c); `ASSETS.md` is authoritative for
+ * why, and `content/terrain/NOTICE.md` is the copy that ships).
+ *
+ * Pinned here as literals on purpose, the same way
+ * `tests/tools/terrainBuild.test.ts` pins the content hashes: a licence string
+ * is not ours to paraphrase, so a test that read it back out of the file it is
+ * checking would assert nothing. Line breaks are normalised away below because
+ * NOTICE.md wraps them as a Markdown blockquote.
+ */
+const COPERNICUS_ADAPTED_ATTRIBUTION =
+  'produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus ' +
+  'Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European ' +
+  'Union and ESA; all rights reserved.'
+const COPERNICUS_NO_LIABILITY =
+  'The organisations in charge of the Copernicus programme by law or by ' +
+  'delegation do not incur any liability for any use of the Copernicus WorldDEM-30.'
+const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
 
 /**
  * Ruling R14, placed by Ruling R20.
@@ -22,7 +44,7 @@ import { SPAWN_PARAMS } from '../../src/render/spawn.js'
  * that says it does.
  */
 describe('the built artifact', () => {
-  it('ships the content it fetches at runtime', async () => {
+  it('ships the content it fetches at runtime, and the licence notice that must travel with it', async () => {
     const outDir = mkdtempSync(join(tmpdir(), 'ww2airsim-dist-'))
     try {
       await build({ logLevel: 'silent', build: { outDir, emptyOutDir: true } })
@@ -31,6 +53,30 @@ describe('the built artifact', () => {
       // then fail parsing in the browser, which is the same failure screen by
       // a slower route.
       expect(() => AircraftSpecSchema.parse(JSON.parse(shipped))).not.toThrow()
+
+      // Every terrain level the loader actually asks for, derived from the
+      // same two functions the loader derives it from rather than written out
+      // as five names -- a change to either bound has to move this set too.
+      // Without this, a missing terrain level is a 404 at runtime and the
+      // aeroplane flies over an empty sea, which looks like the game working.
+      const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
+      for (let level = FINEST_FETCHED_LEVEL; level <= coarsest; level++) {
+        const bytes = readFileSync(join(outDir, terrainLevelPath(level)))
+        expect(bytes.byteLength, `${terrainLevelPath(level)} is empty`).toBeGreaterThan(0)
+      }
+
+      // Copernicus Article 6(b)/6(c): the attribution and the no-liability
+      // sentence have to accompany the derived data. They do so via
+      // NOTICE.md, which is committed in the same directory as the .bin files
+      // so a recipient of only those files still receives it -- and this
+      // asserts the build does not quietly drop it on the way to dist/. The
+      // repo-side copy is checked by reading the shipped one, so a notice
+      // edited to say something else fails here rather than in a lawyer's
+      // letter.
+      const notice = readFileSync(join(outDir, TERRAIN_NOTICE_PATH), 'utf8')
+      const flattened = notice.replace(/^>\s?/gm, '').replace(/\s+/g, ' ')
+      expect(flattened, 'Copernicus Article 6(b) attribution').toContain(COPERNICUS_ADAPTED_ATTRIBUTION)
+      expect(flattened, 'Copernicus Article 6(c) no-liability notice').toContain(COPERNICUS_NO_LIABILITY)
     } finally {
       rmSync(outDir, { recursive: true, force: true })
     }

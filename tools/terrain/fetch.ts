@@ -85,7 +85,8 @@ export async function ensureAllTilesInto(
 ): Promise<readonly string[]> {
   const tiles = tilesCovering(halfExtentM)
   const paths: string[] = []
-  // Sequential, not Promise.all: nine concurrent 9.6 MB pulls against one
+  // Sequential, not Promise.all: nine concurrent multi-megabyte pulls (the
+  // eight that exist total 106,966,683 bytes, measured 2026-09-14) against one
   // public bucket buys nothing (single link is the bottleneck) and makes a
   // failure harder to attribute to which tile.
   for (const id of tiles) {
