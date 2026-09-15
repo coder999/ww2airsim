@@ -85,7 +85,7 @@ probe. Re-run 2026-09-13 on a Surface: it threw the identical error, so this
 diagnosis is not supported -- see the second-platform section above. Since raw
 WGSL compute demonstrably works on this GPU,
 **no part of this plan is blocked either way** — TSL versus `wgslFn` is a
-question for Plan 4's ocean, not for anything here.
+question subsequently settled by Plan 5's ocean, not for anything here.
 
 ### Second platform, 2026-09-13 — Surface (Snapdragon, Adreno 7xx, Chrome 152)
 
@@ -419,13 +419,11 @@ context object — a worker boundary becomes a message-passing change rather tha
 a rewrite. Plan 5 is the plan that should revisit it.
 
 ## 10. Open items
-1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. Updated
-   2026-09-13: the fixed probe HAS now been run, on the Surface, and throws the
-   identical `TypeError` the fix was supposed to remove (see the second-platform
-   section above). It has still never been run on the reference GPU. Raw WGSL
-   compute now works on two GPUs from different vendors, so the contingency is
-   better proven than the TSL path is broken; this only matters to Plan 4's
-   ocean.
+1. **TSL versus raw WGSL — closed 2026-09-15.** Plan 5 uses native WGSL
+   compute pipelines on Three's WebGPU device and shared storage textures.
+   The FFT module needs bindings and workgroup storage, which `wgslFn` does
+   not represent. Actual GPU textures agree with the CPU oracle at N=64,
+   128 and 256; see the ocean compute follow-up below.
 2. **Keyboard ramp time constant** — a named value, expected to change once the
    aeroplane has been flown.
 3. **Eye point** — needs a plausible value for the F6F; no primary source is

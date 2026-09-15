@@ -408,13 +408,19 @@ contradict itself, and this contradiction cost a decision nobody had taken.
 
 ## 11. Open items
 
-1. **Cascade patch sizes and N.** Starting values only; tuned against measured
-   frame time and visual beat, and recorded with their measurements.
-2. **Where the Beaufort default sits.** A constant in this plan; it becomes a
-   per-scenario weather parameter when master spec §9's scenarios exist.
-3. **Whether the outer rings need the FFT at all.** Beyond some distance the
-   displacement subtends less than a pixel and only the normal matters.
-   Measured, not guessed.
+1. **Cascade patch sizes and N — resolved 2026-09-15.** Pairwise-coprime
+   509/127/31 m periods, with disjoint bands split at 32 m and 4 m
+   wavelengths. High: 3 × 256², medium: 2 × 128², low: 1 × 128².
+   Reference 1440p combined GPU p50/p95: 3.277/3.539, 2.425/2.621,
+   2.228/2.490 ms respectively. See the handoff for sampling limitations.
+2. **Beaufort default — remains an art-direction question.** Implemented
+   force 4; force 2 and 6 captures differ visibly. Mark should judge the
+   default before scenarios supply their own weather.
+3. **Outer-ring FFT — resolved by filtering and measurement.** The shader
+   skips displacement reads below mesh resolution and normal/foam reads below
+   pixel resolution, with smooth fades. This lowered the measured high-tier
+   total p95 from 10.55 ms to 3.54 ms at 1440p/600 m. Compute still produces
+   the periodic textures once per frame for the visible near field.
 
 ## 12. Risks
 
