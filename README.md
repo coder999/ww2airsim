@@ -163,6 +163,8 @@ ssh -N -R 5173:localhost:5173 ryzen     # ryzen's localhost:5173 -> this dev ser
 ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 
 PW_REMOTE=ws://localhost:39001/ npm run test:tier2
+# An isolated worktree may use another forwarded port:
+# PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=http://localhost:5183 npm run test:tier2
 ```
 
 The one thing this cannot do for itself: **the `playwright run-server` it

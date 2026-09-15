@@ -14,14 +14,16 @@ import {
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
-import { createWater, recentreWater } from './scene/water.js'
+import { createOcean, recentreOcean } from './ocean/mesh.js'
+import { loadDepth } from './ocean/depth.js'
+import { DEFAULT_BEAUFORT, beaufortFromQuery } from './ocean/weather.js'
+import { OCEAN_EXTENT_M } from './horizon.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
-import { LOD } from './terrain/lod.js'
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
@@ -126,6 +128,8 @@ async function boot(): Promise<void> {
     ? spawnPositionFromQuery(window.location.search)
     : DEFAULT_SPAWN_POSITION
 
+  const beaufort = import.meta.env.DEV ? beaufortFromQuery(window.location.search) : DEFAULT_BEAUFORT
+
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
@@ -172,6 +176,7 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
+      reversedDepthBuffer: renderer.reversedDepthBuffer,
       validationErrors,
       tick: () => frame?.world.aircraft.tick ?? 0,
       cameraMode: () => frame?.cameraMode ?? 'chase',
@@ -272,7 +277,7 @@ async function boot(): Promise<void> {
   }
 
   const scene = new Scene()
-  const water = createWater()
+  const water = createOcean(await loadDepth(), beaufort)
   scene.add(water)
   const sky = createSky()
   scene.add(sky)
@@ -304,43 +309,10 @@ async function boot(): Promise<void> {
     CAMERA_VFOV_DEG,
     window.innerWidth / window.innerHeight,
     0.1,
-    // Raised from 60,000 m for the terrain (Task 10). `selectNodes` does not
-    // cull on distance -- the world is bounded, so it returns patches out to
-    // the far corner, up to 283 km away -- and something has to decide what
-    // happens past the far plane. Neither a bigger number nor accepting a
-    // visible edge: the terrain's fog reaches exactly 1 at
-    // `LOD.drawDistanceM` (mesh.ts), so sitting the far plane ON that
-    // distance means every fragment the frustum removes was already the haze
-    // colour of the sky dome that replaces it.
-    //
-    // Closing that argument properly, because it is one step longer than it
-    // looks (review 2026-09-14, M6): the frustum clips on VIEW-SPACE DEPTH
-    // while the fog runs on HORIZONTAL distance, so "depth never exceeds
-    // radial distance" is not on its own enough. For a clipped fragment,
-    // depth > 100 km, hence radial > 100 km, hence horizontal >=
-    // sqrt(100000^2 - dy^2) where dy is the height difference between eye and
-    // fragment. At 3,000 m over terrain sunk 780 m by curvature, dy <= 3,800
-    // m and horizontal >= 99,929 m, where `smoothstep` is 1 - 1.5e-6. At the
-    // altimeter's 10,000 m full scale it is 1 - 1.0e-4. Both are far below
-    // one part in 255, so the clipped fragment and the dome behind it are the
-    // same colour to the display.
-    //
-    // The side effect is on the water: its square half-extent reaches 70,711 m
-    // at the diagonals, so the old 60,000 m plane cut it along a line
-    // perpendicular to the view, which swung round as the camera yawed. That
-    // cut is gone. The water's edge still travels with the aeroplane --
-    // `recentreWater` re-centres the plane on the eye every frame, by design,
-    // and nothing here changes that -- it just no longer moves with where you
-    // are LOOKING.
-    //
-    // What this argument does NOT cover, recorded rather than acted on (final
-    // review 2026-09-14): the far plane also sets depth-buffer resolution, and
-    // 0.1 m to 100 km spends it so unevenly that a depth step is ~5 m at 3 km
-    // and several hundred metres at 30 km. Nothing z-fights today -- the water
-    // is a single plane and the terrain does not overlap it -- so the far plane
-    // stays where the fog argument puts it. It is the ocean surface a later
-    // plan draws against this terrain that will meet that number first.
-    LOD.drawDistanceM,
+    // The ocean reaches 400 km. Ten percent slack also encloses its 12.6 km
+    // curvature sink and the service-ceiling camera height. Terrain still
+    // fades at its own draw distance; the far plane no longer clips the sea.
+    OCEAN_EXTENT_M * 1.1,
   )
 
   // 120 m/s, wings level, heading east (+x; the body frame's nose is +X and
@@ -468,10 +440,8 @@ async function boot(): Promise<void> {
     // The water gets the same treatment, and did not until the whole-branch
     // review (I-1): left at the world origin it slid out from under the
     // aeroplane, and at the spawn's 120 m/s its old half-extent was spent in
-    // under three minutes. `recentreWater` also compensates the surface
-    // detail's texture offset, without which re-centring would pin the
-    // detail to the aeroplane and remove the parallax it exists to provide.
-    recentreWater(water, current.eye.position.x, current.eye.position.z)
+    // under three minutes. Its depth lookup stays anchored in world space.
+    recentreOcean(water, current.eye.position.x, current.eye.position.z)
     // Same treatment, and missed twice before this: the markers are the third
     // member of the sky/water family and the only one that carries a scale.
     recentreMarkers(markers, current.eye.position.x, current.eye.position.z)

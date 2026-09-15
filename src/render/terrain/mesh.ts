@@ -327,13 +327,9 @@ function createRingMaterial(
   const shaded = varying(mix(lit, color(SKY_HAZE), fog))
   const vertexHeightM = varying(heightM)
 
-  // The sea is drawn by scene/water.ts, and this grid covers the whole
-  // world: over the 65% of it that is ocean the DEM is exactly 0 (measured
-  // over the committed L4 grid: 170,819 of 263,169 samples), i.e. coplanar
-  // with the water plane at y = 0, and two coplanar opaque surfaces z-fight
-  // across the entire sea. Dropping every fragment at or below sea level
-  // leaves the water exactly as it was before this task and puts the
-  // coastline on the interpolated h = 0 contour, which is where it belongs.
+  // The ocean owns water fragments. Discard the DEM's zero-elevation sea
+  // before shading so two overlapping surfaces never compete there. Both
+  // materials apply the shared curvature sink; the contour stays at h=0.
   material.colorNode = Fn(() => {
     Discard(vertexHeightM.lessThanEqual(0))
     return shaded

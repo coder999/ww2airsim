@@ -75,7 +75,10 @@ export async function initRenderer(
     isFallbackAdapter: info.isFallbackAdapter,
   })
 
-  const renderer = new WebGPURenderer({ canvas, antialias: true, trackTimestamp })
+  // The 0.1 m cockpit near plane and 440 km ocean far plane need reversed
+  // floating-point depth. Conventional depth visibly interleaved land and
+  // water at 30–100 km (reference GPU capture, 2026-09-15).
+  const renderer = new WebGPURenderer({ canvas, antialias: true, trackTimestamp, reversedDepthBuffer: true })
   await renderer.init()
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight)

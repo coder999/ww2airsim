@@ -22,6 +22,7 @@ import type { Vec3 } from '../sim/math/vec3.js'
  * not survive `npm run build`.
  */
 export type Ww2Diagnostics = {
+  readonly reversedDepthBuffer: boolean
   readonly adapter: AdapterVerdict
   readonly validationErrors: readonly string[]
   readonly tick: () => number

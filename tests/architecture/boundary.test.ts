@@ -452,8 +452,12 @@ describe('the Earth-curvature sink has exactly one home (Plan 5 Task 1)', () => 
     expect(offenders).toEqual([])
   })
 
-  // `src/render/ocean/mesh.ts` does not exist until Task 7 creates it -- this
-  // is `it.todo` on purpose, not an oversight, so that nobody forgets it.
-  // Task 7's final step converts it to `it`.
-  it.todo('every surface that is drawn to the horizon imports the sink')
+  it('every surface that is drawn to the horizon imports and calls the sink', () => {
+    for (const path of ['src/render/terrain/mesh.ts', 'src/render/ocean/mesh.ts']) {
+      const source = sourceFilesUnder('src').find((f) => f.path === path)!.text
+      expect(source).toMatch(/import\s*\{[^}]*horizonSinkNode[^}]*\}\s*from/)
+      expect(source).toMatch(/horizonSinkNode\(distanceM\)/)
+      expect(source).toContain('material.positionNode =')
+    }
+  })
 })
