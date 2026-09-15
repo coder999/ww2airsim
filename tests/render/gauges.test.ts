@@ -8,8 +8,10 @@ import {
   tickMarksFor,
   labelTextFor,
   readoutTextFor,
+  tapeOffsetFor,
   GAUGES,
   type DialSpec,
+  type TapeSpec,
 } from '../../src/render/gauges.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -22,6 +24,26 @@ const f6f = loadAircraftSpec('f6f-hellcat')
 // 2026-09-15): every gauge below except the dedicated throttle tests reads
 // only `state`, so this fixture is what they pass.
 const NEUTRAL_CONTROLS: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+
+describe('the heading tape (2026-09-15)', () => {
+  const tape = () => GAUGES.find((g) => g.id === 'heading') as TapeSpec
+
+  it('centres the current heading under the index', () => {
+    expect(tapeOffsetFor(tape(), 0)).toBeCloseTo(0, 9)
+    expect(tapeOffsetFor(tape(), 90)).toBeCloseTo(90 / 360, 9)
+  })
+
+  it('wraps through north without a jump', () => {
+    // 359 -> 001 is two degrees of travel, not 358. A tape that fails this
+    // whips the whole rose across the screen once per circuit.
+    const step = tapeOffsetFor(tape(), 1) - tapeOffsetFor(tape(), 359)
+    expect(Math.abs(((step % 1) + 1.5) % 1 - 0.5)).toBeCloseTo(2 / 360, 6)
+  })
+
+  it('shows a 90 degree window', () => {
+    expect(tape().windowSpan).toBe(90)
+  })
+})
 
 describe('gaugeValue', () => {
   it('reads airspeed from velocity magnitude', () => {
@@ -265,13 +287,15 @@ describe('scale marks and readouts (I-2)', () => {
     // convert. A raw-radian readout under a "deg" label is the kind of false
     // claim this project treats as a defect.
     //
-    // Not zero-padded to three digits any more: that was `formatDisplay`'s
-    // `circular` branch, which only a `DialSpec` has, and heading moved to a
-    // tape on 2026-09-15 (R1). See "rounds to a bare number..." below.
+    // Zero-padded to three digits: F3, 2026-09-15 -- see "zero-pads the
+    // heading readout..." below. This briefly regressed to a bare, unpadded
+    // number when heading moved from a circular `DialSpec` to a `TapeSpec`
+    // (R1), which dropped the field `formatDisplay` used to key the padding
+    // off; restored here keyed on `kind === 'tape'` instead.
     const east = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
-    expect(readoutTextFor('heading', spec, east, NEUTRAL_CONTROLS)).toBe('90')
+    expect(readoutTextFor('heading', spec, east, NEUTRAL_CONTROLS)).toBe('090')
     const north = createState({ attitude: qIdentity() })
-    expect(readoutTextFor('heading', spec, north, NEUTRAL_CONTROLS)).toBe('0')
+    expect(readoutTextFor('heading', spec, north, NEUTRAL_CONTROLS)).toBe('000')
     // 1234 m is 4048.6 ft and 512 kg of avgas is 188.1 US gal: the readout
     // converts, so neither prints the number the simulation stores.
     expect(readoutTextFor('altimeter', spec, createState({ position: v3(0, 1234, 0) }), NEUTRAL_CONTROLS)).toBe('4049')
@@ -346,21 +370,14 @@ describe('attitudeAngles bank reference frame', () => {
 })
 
 describe('gauge scale integrity (review 2026-09-13)', () => {
-  it('rounds to a bare number now that heading is not a circular dial (2026-09-15)', () => {
-    // Until heading moved to a tape (controller ruling R1), this test pinned
-    // `formatDisplay`'s `circular` wrap-after-rounding fix: `toFixed(0)`
-    // rounds anything from 359.5 up to "360", which is not a compass heading,
-    // so the old circular branch wrapped it back to "000" and zero-padded to
-    // three digits.
-    //
-    // `TapeSpec` has no `circular` field (gauges.ts) -- only a `DialSpec`
-    // does -- so `readoutTextFor` no longer takes that branch for heading; it
-    // now prints a bare, unpadded, unwrapped number like any other linear
-    // gauge. That is not a visible regression today: `panel.ts` filters
-    // `GAUGES` to `kind === 'dial'` when it builds readout boxes, so nothing
-    // currently calls `readoutTextFor('heading', ...)` outside a test. It is
-    // a known gap for whichever later task gives the heading tape its own
-    // digital readout.
+  it('zero-pads the heading readout to three digits, restored for the tape (F3, 2026-09-15)', () => {
+    // CARRIED FINDING F3: when `heading` moved from a circular `DialSpec` to
+    // a `TapeSpec` (controller ruling R1), `readoutTextFor`'s zero-padding
+    // went with the `circular` field it used to key off -- `TapeSpec` has no
+    // such field. A compass reads "005", not "5": the tape ships its own
+    // digital readout (Task 5), so the padding is restored here, driven off
+    // `g.kind === 'tape'` rather than a resurrected `circular` field (which
+    // would mean nothing for a tape -- it has no needle to wrap).
     const spec = loadAircraftSpec('f6f-hellcat')
     const at = (headingDeg: number) =>
       readoutTextFor(
@@ -369,9 +386,25 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
         createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
         NEUTRAL_CONTROLS,
       )
-    expect(at(0)).toBe('0')
-    expect(at(90)).toBe('90')
+    expect(at(0)).toBe('000')
+    expect(at(90)).toBe('090')
     expect(at(359.4)).toBe('359')
+  })
+
+  it('rolls the heading readout through north instead of pegging at 360 (F3, 2026-09-15)', () => {
+    // The other half of F3: `toFixed(0)` rounds 359.6 up to "360", which is
+    // not a compass heading a rose ever prints, so the wrap has to happen
+    // AFTER rounding -- exactly the `formatDisplay` fix a circular DialSpec
+    // used to get, now restored for `kind === 'tape'`.
+    const spec = loadAircraftSpec('f6f-hellcat')
+    const at = (headingDeg: number) =>
+      readoutTextFor(
+        'heading',
+        spec,
+        createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
+        NEUTRAL_CONTROLS,
+      )
+    expect(at(359.6)).toBe('000')
   })
 
   it('pins every dial to its own sweep, not to one shared literal', () => {

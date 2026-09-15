@@ -5,16 +5,19 @@ import {
   updatePanel,
   PANEL_MIN_ASPECT,
   PANEL_BELOW_M,
+  TAPE_W,
   type Panel,
 } from '../../src/render/scene/panel.js'
-import { degreesBelowEye } from '../../src/render/scene/panelLayout.js'
+import { degreesBelowEye, PANEL_BANDS } from '../../src/render/scene/panelLayout.js'
 import {
   GAUGES,
   angleForValue,
   gaugeValue,
   labelTextFor,
   tickMarksFor,
+  tapeOffsetFor,
   type DialSpec,
+  type TapeSpec,
 } from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
 import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
@@ -267,12 +270,23 @@ describe('panel', () => {
     // along with it and never checked here. Identity has no such hole, and
     // the sibling assertion below pins the plate bare so the hole cannot
     // reopen by something being parented there later.
+    //
+    // Also excludes `p.tape.strip`, for the same reason as `p.backing` but on
+    // the horizontal axis: Task 5 (2026-09-15) deliberately draws the rose
+    // three copies wide (+/-1.5 * stripWidth) so sliding across the seam
+    // always has a neighbour rendered on both sides ("draws the rose three
+    // copies wide" below). Only the middle copy, within the camera's own
+    // frustum, is ever meant to be seen -- the outer two exist purely as
+    // off-screen buffer for the slide, not as READABLE content, which is
+    // exactly what this test's title is about. The tape's own fixed index
+    // and readout are NOT excluded: they are small, centred, and covered by
+    // this test like any other readout.
     const p = createPanel(f6f, () => null)
     expect(p.backing.children).toHaveLength(0)
     p.root.updateMatrixWorld(true)
     const box = new Box3()
     for (const child of p.root.children) {
-      if (child === p.backing) continue
+      if (child === p.backing || child === p.tape.strip) continue
       box.union(new Box3().setFromObject(child))
     }
     const [ex, ey, ez] = f6f.view.eyePointM
@@ -430,7 +444,26 @@ describe('panel', () => {
     const dialFaceZ = 0
     expect(backing!.position.z).toBeLessThan(dialFaceZ)
     // And the plate must actually cover the dials it is shielding.
-    const box = new Box3().setFromObject(p.root)
+    //
+    // Excludes `p.tape.strip` (Task 5, 2026-09-15), the same way the FOV
+    // test below does and for the same reason: the rose is deliberately
+    // drawn three copies wide so sliding never runs out of neighbour, and
+    // the outer two copies are off-screen buffer, not readable content the
+    // coaming needs to shield.
+    //
+    // `updateMatrixWorld` first, matching the FOV test's own pattern below:
+    // `Box3.setFromObject` on a CHILD calls `updateWorldMatrix(false, false)`
+    // (three.js's Box3.js), which composes with whatever the parent's own
+    // `matrixWorld` already holds rather than recomputing it -- calling it on
+    // `p.root` directly (as this test did before excluding anything) happens
+    // to update root-then-children in the right order, but iterating root's
+    // children one at a time on an otherwise-untouched panel does not.
+    p.root.updateMatrixWorld(true)
+    const box = new Box3()
+    for (const child of p.root.children) {
+      if (child === p.tape.strip) continue
+      box.union(new Box3().setFromObject(child))
+    }
     const bb = new Box3().setFromObject(backing!)
     expect(bb.min.z).toBeLessThanOrEqual(box.min.z)
     expect(bb.max.z).toBeGreaterThanOrEqual(box.max.z)
@@ -772,5 +805,111 @@ describe('the throttle column (Task 4, 2026-09-15)', () => {
       return new Box3().setFromObject(p.columns.get('throttle')!.fill).min.y
     }
     expect(baseOf(1)).toBeCloseTo(baseOf(0.1), 4)
+  })
+})
+
+describe('the heading tape (Task 5, 2026-09-15)', () => {
+  const headingGauge = () => GAUGES.find((g) => g.id === 'heading') as TapeSpec
+  const stripWidth = () => TAPE_W * (360 / headingGauge().windowSpan)
+
+  it('slides the strip left as the heading increases', () => {
+    // `wingsLevel(headingDeg, pitchDeg)` already exists in this file.
+    const p = createPanel(f6f, () => null)
+    const at = (headingDeg: number): number => {
+      updatePanel(p, f6f, wingsLevel(headingDeg, 0), NEUTRAL_CONTROLS, () => null)
+      return p.tape.strip.position.x
+    }
+    expect(at(90)).toBeLessThan(at(0))
+  })
+
+  it('slides by exactly the fraction tapeOffsetFor reports, scaled by the strip width', () => {
+    // Ties the rendered geometry back to the pure helper `gauges.test.ts`
+    // pins directly, so a placement bug in `panel.ts` (a sign flip, a wrong
+    // scale) cannot hide behind a helper that is separately correct.
+    //
+    // Reads the actual COMPASS heading back out of `gaugeValue` rather than
+    // assuming it equals `wingsLevel`'s own `headingDeg` argument: that
+    // argument is a yaw angle fed into `qFromAxisAngle`, and gauges.ts's
+    // heading convention is the opposite sign (a positive yaw there is a
+    // LEFT turn, decreasing compass heading) -- exactly the trap
+    // `gaugeValue`'s own "reports heading... and increases it turning right"
+    // test exists to pin. Composing the two independently-correct pieces the
+    // same way `updatePanel` does is the point of this test, not
+    // re-deriving the sign convention here.
+    const p = createPanel(f6f, () => null)
+    const g = headingGauge()
+    for (const headingDeg of [0, 45, 90, 200, 359]) {
+      const state = wingsLevel(headingDeg, 0)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const compassHeading = gaugeValue('heading', f6f, state, NEUTRAL_CONTROLS)
+      expect(p.tape.strip.position.x).toBeCloseTo(-tapeOffsetFor(g, compassHeading) * stripWidth(), 9)
+    }
+  })
+
+  it('draws the rose three copies wide, so sliding always leaves a neighbour on both sides', () => {
+    // THE subtlety this tape exists to get right: without a copy on each
+    // side of the middle one, sliding across the seam (359 -> 001) would
+    // either expose bare space at the edge of the visible window or -- if
+    // the strip held only a single un-repeated copy -- have to leap the
+    // entire width of the rose once per revolution. Proved by mutation: with
+    // the copy loop narrowed to `[0]`, this test's min/max bounds shrink from
+    // +/-1.5 * stripWidth to +/-0.5 * stripWidth and it fails (see the task
+    // report for the recorded run).
+    const p = createPanel(f6f, () => null)
+    const xs = p.tape.strip.children
+      .filter((c): c is Mesh => c instanceof Mesh)
+      .map((c) => c.position.x)
+    expect(xs.length).toBeGreaterThan(0)
+    expect(Math.min(...xs)).toBeCloseTo(-1.5 * stripWidth(), 6)
+    expect(Math.max(...xs)).toBeCloseTo(1.5 * stripWidth(), 6)
+  })
+
+  it('keeps the fixed readout out of the sliding strip', () => {
+    // If the readout were a child of `strip` it would slide out from under
+    // the fixed index along with the rose -- it has to be parented to
+    // something that does not move.
+    const p = createPanel(f6f, () => null)
+    expect(p.tape.readout.parent).not.toBe(p.tape.strip)
+  })
+
+  it('prints the zero-padded, wrapped heading digits on the fixed readout', () => {
+    const drawn: string[] = []
+    const factory: TextTextureFactory = (text: string): null => {
+      drawn.push(text)
+      return null
+    }
+    const p = createPanel(f6f, factory)
+    // Due north (F3): the readout must show "000", zero-padded, not a bare
+    // "0".
+    updatePanel(p, f6f, wingsLevel(0, 0), NEUTRAL_CONTROLS, factory)
+    expect(drawn).toContain('000')
+    updatePanel(p, f6f, wingsLevel(90, 0), NEUTRAL_CONTROLS, factory)
+    expect(drawn).toContain('090')
+  })
+
+  it('keeps the whole tape assembly inside the upper band, not spilling into the lower row', () => {
+    // Controller context point 4: the tape is positioned from
+    // `PANEL_BANDS.upper`, not a layout slot (there is none for `heading`,
+    // deliberately -- context point 3 / F4). This checks the built geometry
+    // against that band directly, so a wrong offset fails here rather than
+    // only being visible in a screenshot.
+    //
+    // The strip's own left/right copies run far outside the frustum by
+    // design (the three-copy test above), so only its own LOCAL y (shared by
+    // every tick, uniform regardless of x) is meaningful here -- checked
+    // together with the fixed readout, which does vary in y.
+    const p = createPanel(f6f, () => null)
+    const upperTopY = PANEL_BELOW_M - PANEL_BANDS.upper.top
+    const upperBottomY = PANEL_BELOW_M - PANEL_BANDS.upper.bottom
+    const stripTickYs = p.tape.strip.children
+      .filter((c): c is Mesh => c instanceof Mesh)
+      .map((c) => c.position.y + p.tape.strip.position.y)
+    const readoutBox = new Box3().setFromObject(p.tape.readout)
+    for (const y of stripTickYs) {
+      expect(y).toBeLessThanOrEqual(upperTopY)
+      expect(y).toBeGreaterThanOrEqual(upperBottomY)
+    }
+    expect(readoutBox.max.y).toBeLessThanOrEqual(upperTopY + 1e-6)
+    expect(readoutBox.min.y).toBeGreaterThanOrEqual(upperBottomY - 1e-6)
   })
 })

@@ -311,6 +311,12 @@ export function fractionForValue(g: GaugeSpec, value: number): number {
   return t < 0 ? 0 : t > 1 ? 1 : t
 }
 
+/** How far to slide the rose, in fractions of the full 360. Wrapped, so the
+ *  strip never travels the long way round. */
+export function tapeOffsetFor(g: TapeSpec, headingDeg: number): number {
+  return fractionForValue(g, ((headingDeg % 360) + 360) % 360)
+}
+
 export type TickMark = {
   /** The value this mark stands for, in the gauge's own unit. */
   readonly value: number
@@ -364,6 +370,25 @@ export function tickMarksFor(g: GaugeSpec): readonly TickMark[] {
   return marks
 }
 
+/**
+ * Whether a gauge's printed value should WRAP into `[min, max)` rather than
+ * clamp, and zero-pad to a fixed width -- the compass convention ("005", not
+ * "5"), and a 359 -> 000 roll rather than sticking at 360.
+ *
+ * Driven off the gauge's KIND, not a resurrected `circular` field on
+ * `TapeSpec`. CARRIED FINDING F3, 2026-09-15: when `heading` moved from a
+ * circular `DialSpec` to a `TapeSpec` (controller ruling R1), both
+ * behaviours went with the `circular` field they used to key off --
+ * `TapeSpec` has no such field, and a needle-less tape has no angle to wrap
+ * either way. `formatDisplay` and `readoutTextFor` both need this same
+ * decision, so it lives in one place rather than two copies drifting apart.
+ * The `dial && circular` half is kept for whichever later circular dial
+ * revives it -- `tickMarksFor`'s doc comment on the same subject.
+ */
+function wrapsAndPads(g: GaugeSpec): boolean {
+  return g.kind === 'tape' || (g.kind === 'dial' && g.circular)
+}
+
 /** The value as it is printed: scaled into the display unit and rounded. */
 function formatDisplay(g: GaugeSpec, value: number): string {
   const n = value
@@ -382,14 +407,10 @@ function formatDisplay(g: GaugeSpec, value: number): string {
   // rose prints -- so a right turn through north read 358, 359, 360, 001 for
   // half a degree on every pass. Found by review, 2026-09-13.
   //
-  // The `decimals > 0` padding width is dead-by-absence: no circular gauge has
-  // decimals today. It is 3 integer digits plus the point plus the decimals.
-  //
-  // Dial-only, like the field it reads: no dial in `GAUGES` is circular today
-  // (heading moved to a tape, 2026-09-15), so this whole branch is currently
-  // dead-by-absence too. A tape's own wrap-at-the-seam display is a rendering
-  // concern for the task that builds one -- see `windowSpan` on `TapeSpec`.
-  if (g.kind === 'dial' && g.circular) {
+  // The `decimals > 0` padding width is dead-by-absence: no wrapping gauge
+  // has decimals today. It is 3 integer digits plus the point plus the
+  // decimals.
+  if (wrapsAndPads(g)) {
     const turn = g.max - g.min
     const wrapped = (((Number(body) % turn) + turn) % turn).toFixed(g.decimals)
     return wrapped.padStart(g.decimals > 0 ? g.decimals + 4 : 3, '0')
@@ -429,6 +450,6 @@ export function readoutTextFor(
   if (!g) throw new Error(`Unknown gauge: ${id}`)
   const raw = gaugeValue(id, spec, state, controls)
   if (!Number.isFinite(raw)) return '--'
-  const value = g.kind === 'dial' && g.circular ? raw : Math.min(g.max, Math.max(g.min, raw))
+  const value = wrapsAndPads(g) ? raw : Math.min(g.max, Math.max(g.min, raw))
   return formatDisplay(g, value)
 }

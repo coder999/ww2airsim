@@ -18,9 +18,11 @@ import {
   readoutTextFor,
   gaugeValue,
   fractionForValue,
+  tapeOffsetFor,
   type GaugeId,
   type DialSpec,
   type ColumnSpec,
+  type TapeSpec,
 } from '../gauges.js'
 import { makeTextTexture, type TextTextureFactory } from './text.js'
 import {
@@ -52,6 +54,24 @@ export type Panel = {
    *  purpose (see `createPanel`), so it reads as clipped rather than
    *  floating with sky visible beneath it. */
   readonly backing: Object3D
+  /**
+   * The heading tape: a sliding compass strip across the upper band, with a
+   * fixed index and digital readout at its centre (Task 5, 2026-09-15).
+   *
+   * `strip` is the only piece `updatePanel` moves -- `updatePanel` sets its
+   * `position.x` each frame (`tapeOffsetFor`, gauges.ts). It carries the rose
+   * drawn THREE TIMES end to end, so sliding within the middle copy always
+   * has a neighbour rendered on both sides and crossing north never exposes
+   * an edge or jumps the whole strip. `readout` is the fixed digital
+   * readout -- parented apart from `strip` so it does not slide with it.
+   * There is no `slotX('heading')`: `PANEL_SLOTS` deliberately has no
+   * `heading` entry (context point 4, task-5-brief.md) because the tape
+   * spans the UPPER band's width rather than a row slot.
+   */
+  readonly tape: {
+    readonly strip: Object3D
+    readonly readout: Mesh
+  }
 }
 
 export type Readout = {
@@ -86,6 +106,14 @@ export const PANEL_MIN_ASPECT = 1.5
 const Z_MARKS = 0.0015
 const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
+
+/**
+ * The heading tape's visible window, metres. Exported so tests can derive
+ * the strip's own full-rose width (`TAPE_W * (360 / windowSpan)`) without
+ * hardcoding it a second time -- gauges.ts's `tapeOffsetFor` reports the
+ * offset as a FRACTION of that width, and `updatePanel` scales by it.
+ */
+export const TAPE_W = 0.30
 
 /** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up).
  *  Re-exported from panelLayout.ts for backwards compatibility. */
@@ -178,6 +206,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const root = new Group()
   const needles = new Map<GaugeId, Object3D>()
   const readouts = new Map<GaugeId, Readout>()
+  let tape: Panel['tape']
 
   const faceMat = new MeshBasicMaterial({ color: 0x101418 })
   const needleMat = new MeshBasicMaterial({ color: 0xffd24a })
@@ -432,6 +461,62 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   reticle.position.set(0, PANEL_BELOW_M, RETICLE_Z)
   root.add(reticle)
 
+  // The heading tape: a sliding compass strip across the upper band,
+  // replacing the round HEADING dial (Task 5, 2026-09-15). Positioned from
+  // `PANEL_BANDS.upper` directly, NOT from `slotX` -- `PANEL_SLOTS` has no
+  // `heading` entry (deliberate: F4/context point 4), because the tape spans
+  // the band's own width rather than a row slot.
+  {
+    const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
+    const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
+    const upperCentreY = (PANEL_BANDS.upper.top + PANEL_BANDS.upper.bottom) / 2
+    const tapeY = PANEL_BELOW_M - upperCentreY
+
+    // The rose, drawn THREE copies end to end (copy in [-1, 0, 1]). Sliding
+    // within the middle copy then always has a neighbour rendered on both
+    // sides, so crossing north (359 -> 001) never exposes bare space at the
+    // edge of the visible window or leaps the strip's whole width.
+    const strip = new Group()
+    strip.name = 'tape:strip'
+    for (const copy of [-1, 0, 1]) {
+      for (const mark of tickMarksFor(tapeGauge)) {
+        const x = (mark.fraction + copy) * stripW - stripW / 2
+        const tick = new Mesh(
+          new PlaneGeometry(0.002, mark.major ? 0.010 : 0.006),
+          new MeshBasicMaterial({ color: 0xe6ecf5 }),
+        )
+        tick.position.set(x, 0.006, Z_MARKS)
+        strip.add(tick)
+        if (mark.major) {
+          const numeral = textPlate(mark.text, 0.022, 0.011, makeText)
+          numeral.position.set(x, -0.006, Z_MARKS)
+          strip.add(numeral)
+        }
+      }
+    }
+    strip.position.set(0, tapeY, 0)
+    root.add(strip)
+
+    // The fixed index and the digital readout are children of ROOT, not of
+    // `strip` -- if either were parented to the strip they would slide with
+    // it, and an index that moves with the heading it is meant to point at
+    // is not an index.
+    const index = new Mesh(
+      new PlaneGeometry(0.0025, 0.016),
+      new MeshBasicMaterial({ color: 0xffd24a }),
+    )
+    index.name = 'tape:index'
+    index.position.set(0, tapeY - 0.001, Z_NEEDLE)
+    root.add(index)
+
+    const tapeReadout = textPlate('', 0.05, 0.020, makeText)
+    tapeReadout.name = 'tape:readout'
+    tapeReadout.position.set(0, tapeY - 0.028, Z_READOUT)
+    root.add(tapeReadout)
+
+    tape = { strip, readout: tapeReadout }
+  }
+
   // Positioned in the SAME body frame the cockpit group is posed in (sim
   // convention, +X forward, +Y up, +Z right -- see src/render/frame.ts's
   // `render` field doc: an Object3D, unlike a Three camera, has no hardcoded
@@ -448,7 +533,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, readouts, columns, horizon, reticle, backing }
+  return { root, needles, readouts, columns, horizon, reticle, backing, tape: tape! }
 }
 
 export function updatePanel(
@@ -511,6 +596,26 @@ export function updatePanel(
     // Negative: needle angles are clockwise from the dial's zero (gauges.ts),
     // and a positive rotation about +Z in this frame is anticlockwise.
     needle.rotation.z = -angle
+  }
+
+  // The heading tape: slide the rose under the fixed index, and print the
+  // digits on the fixed readout. Not reached through `panel.readouts` above
+  // -- `heading` is a `TapeSpec`, not a dial, so `createPanel` never put it
+  // in that map (it filters to `kind === 'dial'`).
+  {
+    const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
+    const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
+    const headingDeg = gaugeValue('heading', spec, state, controls)
+    panel.tape.strip.position.x = -tapeOffsetFor(tapeGauge, headingDeg) * stripW
+    // Cached on `userData`, the same "only on a real change" saving the
+    // dial readouts get from `panel.readouts`' own `Readout.text` field --
+    // `Panel.tape.readout` is a bare `Mesh` (the interface this task was
+    // handed), so there is no sibling wrapper to hold the last string.
+    const text = readoutTextFor('heading', spec, state, controls)
+    if (panel.tape.readout.userData.text !== text) {
+      setPlateText(panel.tape.readout, text, makeText)
+      panel.tape.readout.userData.text = text
+    }
   }
   const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
   // A real artificial horizon stays level with the WORLD, so the bar must sit
