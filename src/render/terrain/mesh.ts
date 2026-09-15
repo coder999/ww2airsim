@@ -50,16 +50,21 @@ import { SUN_DIRECTION } from '../scene/lighting.js'
  * instance per patch `selectNodes` returns, and one height texture per
  * pyramid level.
  *
- * `levelTexture` is not part of the mesh's job -- it is here because nothing
- * else in this file can be observed without a GPU, and a Node test asserting
- * that `setLevel` wrote metres into the right texture is the only check on
- * that half of it (see tests/render/terrainLoad.test.ts).
+ * `levelTexture` and `shaderCameraXZ` are not part of the mesh's job -- they
+ * are here because nothing else in this file can be observed without a GPU,
+ * and a Node test asserting that `setLevel` wrote metres into the right
+ * texture, and that `update` moved the camera position the shader actually
+ * reads, is the only check on those halves of it (see
+ * tests/render/terrainLoad.test.ts). `shaderCameraXZ` returns the uniform's
+ * own live value, not a copy, so the test cannot pass against a mesh that
+ * updates some other vector.
  */
 export type TerrainMesh = {
   readonly object: Object3D
   setLevel(level: number, data: Int16Array): void
   update(cameraX: number, cameraZ: number): void
   levelTexture(level: number): DataTexture
+  shaderCameraXZ(): Vector2
 }
 
 /**
@@ -114,10 +119,24 @@ const INITIAL_RING_CAPACITY = 64
 const SAND = 0xcbb894
 const JUNGLE = 0x2f4a2b
 const ROCK = 0x6d6559
-/** Top of the sand band, in metres. One tenth of a level-4 cell's typical
- *  coastal relief, so the band is a shoreline rather than a beach the width
- *  of a county. */
-const SAND_TOP_M = 8
+/**
+ * Top of the sand band, in metres: above this the ground is vegetation.
+ *
+ * Measured, so it can be re-derived rather than taken on trust. Over the
+ * committed L4 grid (2026-09-14) there are 4,846 samples that are above sea
+ * level and orthogonally adjacent to a sample at exactly 0 -- the first land
+ * sample inland, all the way round every coast in the world. Their heights:
+ * median 0.9 m, 75th percentile 2.7 m, maximum 52.3 m. Rounding the 75th
+ * percentile to 3 puts the top of the band at or before the first land
+ * sample for three coastlines in four, i.e. the sand is about ONE level-4
+ * cell wide (390 m) -- a shoreline, not a beach the width of a county.
+ *
+ * It is worth knowing what this does and does not buy: at 30 km a 390 m band
+ * is well under a pixel, so the coastline at range reads from the sea-level
+ * discard edge (`createRingMaterial`), not from this. The band is for the
+ * near field.
+ */
+const SAND_TOP_M = 3
 /** Where bare rock takes over from vegetation with height, in metres.
  *  Leyte's highest sample is 1236.6 m (measured over the committed L4
  *  grid), so this puts rock on the top few hundred metres of the tallest
@@ -343,7 +362,14 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  * mesh's own bookkeeping depends on it and so does the Node test.
  */
 export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
-  const coarsestLevel = header.levels - 1
+  // The coarsest level any ring can sample, which is not the top of the
+  // pyramid: ring `rings - 1` morphs toward mip `rings`, and the pyramid runs
+  // four levels past that (down to 3x3). Allocating textures to the top would
+  // reserve four that nothing can ever draw into -- and `load.ts` bounds its
+  // fetch loop by the same rule, so a level arriving for one of them would be
+  // a bug, which `levelTexture` below turns into a throw rather than a
+  // silently ignored write.
+  const coarsestLevel = Math.min(LOD.rings, header.levels - 1)
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
 
@@ -416,6 +442,8 @@ export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
     object,
 
     levelTexture,
+
+    shaderCameraXZ: () => cameraXZ.value,
 
     setLevel(level: number, data: Int16Array): void {
       const tex = levelTexture(level)

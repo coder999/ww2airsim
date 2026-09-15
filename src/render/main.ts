@@ -11,6 +11,7 @@ import {
   initialFrameState,
   nextFrameState,
   toThreeOrientation,
+  withTerrain,
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
@@ -20,7 +21,7 @@ import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
-import { loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
+import { loadTerrainProgressively, physicsFieldFor, TERRAIN_HEADER } from './terrain/load.js'
 import { LOD } from './terrain/lod.js'
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
@@ -29,6 +30,7 @@ import { step } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { v3 } from '../sim/math/vec3.js'
 import { qIdentity } from '../sim/math/quat.js'
+import { heightAt } from '../sim/world/terrain.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
@@ -138,6 +140,19 @@ async function boot(): Promise<void> {
       // installed before `frame` exists. The fallback is the same value
       // `initialFrameState` would have produced.
       assists: () => frame?.assists ?? DEFAULT_ASSIST_SETTINGS,
+      // Added in Task 10, and the only way to confirm that task's last wire
+      // from outside: the heightfield the physics can hit arrives over the
+      // network and changes nothing on screen -- the terrain is drawn from
+      // the mesh's own textures either way, so a `World.terrain` left null
+      // looks identical and merely means the aeroplane flies through the
+      // mountains it can see. `null` here means no field has arrived (or
+      // none was wired); a number is the ground under the aeroplane right
+      // now, which should read 0 over open water and hundreds of metres over
+      // Leyte.
+      groundHeightM: () =>
+        frame?.world.terrain
+          ? heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
+          : null,
     }
   }
 
@@ -239,17 +254,28 @@ async function boot(): Promise<void> {
     // happens past the far plane. Neither a bigger number nor accepting a
     // visible edge: the terrain's fog reaches exactly 1 at
     // `LOD.drawDistanceM` (mesh.ts), so sitting the far plane ON that
-    // distance means every fragment the frustum removes was already exactly
-    // the haze colour of the sky dome that replaces it. View-space depth is
-    // never greater than radial distance, so that holds for every clipped
-    // fragment, not just the ones straight ahead.
+    // distance means every fragment the frustum removes was already the haze
+    // colour of the sky dome that replaces it.
     //
-    // The side effect is on the water: its square edge reaches 70,711 m at
-    // the diagonals, so the old 60,000 m plane cut it along a line that swung
-    // round with the camera's heading. That cut is gone, which makes the
-    // sea's edge a fixed feature of the world instead of one that follows the
-    // view -- an improvement, but a visible change, so it is on this task's
-    // GPU checklist rather than assumed.
+    // Closing that argument properly, because it is one step longer than it
+    // looks (review 2026-09-14, M6): the frustum clips on VIEW-SPACE DEPTH
+    // while the fog runs on HORIZONTAL distance, so "depth never exceeds
+    // radial distance" is not on its own enough. For a clipped fragment,
+    // depth > 100 km, hence radial > 100 km, hence horizontal >=
+    // sqrt(100000^2 - dy^2) where dy is the height difference between eye and
+    // fragment. At 3,000 m over terrain sunk 780 m by curvature, dy <= 3,800
+    // m and horizontal >= 99,929 m, where `smoothstep` is 1 - 1.5e-6. At the
+    // altimeter's 10,000 m full scale it is 1 - 1.0e-4. Both are far below
+    // one part in 255, so the clipped fragment and the dome behind it are the
+    // same colour to the display.
+    //
+    // The side effect is on the water: its square half-extent reaches 70,711 m
+    // at the diagonals, so the old 60,000 m plane cut it along a line
+    // perpendicular to the view, which swung round as the camera yawed. That
+    // cut is gone. The water's edge still travels with the aeroplane --
+    // `recentreWater` re-centres the plane on the eye every frame, by design,
+    // and nothing here changes that -- it just no longer moves with where you
+    // are LOOKING.
     LOD.drawDistanceM,
   )
 
@@ -423,6 +449,16 @@ async function boot(): Promise<void> {
   // which looks exactly like the game working.
   void loadTerrainProgressively((level, data) => {
     terrain.setLevel(level, data)
+    // The same decoded samples go to the physics, for the one level
+    // `physicsFieldFor` picks (load.ts states which and why). Until this,
+    // `World.terrain` stayed null for the life of the process and Task 8's
+    // impact detection could never fire in the app that ships -- the
+    // aeroplane flew through the mountains it could see (review 2026-09-14,
+    // promoted to Important). `frame` is non-null here: it is assigned well
+    // above and the loop is already running, which is the same guarantee
+    // `frameFn`'s single `!` rests on.
+    const field = physicsFieldFor(level, data)
+    if (field) frame = withTerrain(frame!, field)
   }).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))

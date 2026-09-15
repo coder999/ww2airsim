@@ -46,4 +46,18 @@ export type Ww2Diagnostics = {
    * a real pilot uses, so testing it tests something that ships.
    */
   readonly assists: () => AssistSettings
+  /**
+   * Metres of ground under the aeroplane, or `null` if no terrain field has
+   * reached `World.terrain` yet.
+   *
+   * Added in Task 10 for one reason: that task loads a heightfield the
+   * physics can collide with, and whether it arrived is invisible. The
+   * terrain on screen comes from the renderer's own textures, so a
+   * `World.terrain` still `null` -- which is what shipped until 2026-09-14 --
+   * renders identically and merely means nothing can be hit. Reading a
+   * plausible height here (0 over open water, hundreds of metres over Leyte)
+   * is the check that the wire exists; the alternative was flying into a
+   * mountain and observing that nothing happens either way.
+   */
+  readonly groundHeightM: () => number | null
 }

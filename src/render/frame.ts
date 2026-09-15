@@ -113,6 +113,26 @@ export function initialFrameState(
 }
 
 /**
+ * The same `FrameState` with a different (or no) terrain field under it.
+ *
+ * Exists because the heightfield arrives over the network, seconds after the
+ * first frame is drawn: `initialFrameState`'s `terrain` parameter covers the
+ * case where a caller already holds the field, and this covers the case where
+ * it turns up later. From then on `advance` copies `world.terrain` into the
+ * next world untouched (loop.ts), so one call is enough -- there is no
+ * per-frame re-injection to forget.
+ *
+ * Here rather than as a `{ ...frame.world, terrain }` spread at the call
+ * site, for the reason Task 13's review gave when it moved the camera
+ * arithmetic out of main.ts: a state transition nothing tests is how this
+ * renderer got its last two silent bugs. Everything except `world.terrain` is
+ * preserved, which is what the test asserts.
+ */
+export function withTerrain(frame: FrameState, terrain: TerrainField | null): FrameState {
+  return { ...frame, world: { ...frame.world, terrain } }
+}
+
+/**
  * One frame's worth of state change, with no Three.js and no DOM.
  *
  * Everything here is bookkeeping that is easy to get subtly wrong and painful
