@@ -82,11 +82,13 @@ const frameTimesMs: number[] = []
  *
  * Separate from `frameTimesMs` above because they measure different things
  * and only one of them is measurable on this platform: the frame INTERVAL is
- * pinned to the display's 100 Hz refresh no matter what Chromium is launched
- * with (measured 2026-09-14, playwright.config.ts's CHROMIUM_ARGS comment),
- * so it can say "we made the deadline" and nothing more. This one is the
- * GPU's own clock around the render pass and does not know the display
- * exists.
+ * pinned at a fixed 10.0 ms cadence no matter what Chromium is launched with
+ * (measured 2026-09-14, playwright.config.ts's CHROMIUM_ARGS comment), so it
+ * can say "we made the deadline" and nothing more. That cadence is NOT the
+ * display -- the monitor runs at 120 Hz, and the same 10.0 ms appears with
+ * the GPU disabled and headless, so it is Chromium's own; design spec
+ * section 10.2 has the evidence. This one is the GPU's own clock around the
+ * render pass and does not know any of that exists.
  */
 const gpuFrameTimesMs: number[] = []
 

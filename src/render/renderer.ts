@@ -49,8 +49,11 @@ export async function initRenderer(
   // the adapter advertises), but this flag is what adds the two
   // `timestampWrites` per pass and allocates a 2,048-entry query set
   // (WebGPUTimestampQueryPool, three@0.186.0). Task 11 turns it on in DEV so
-  // Tier 2 can measure a frame budget that vsync cannot flatten; see
-  // `diagnostics.ts`'s `gpuFrameTimesMs`.
+  // Tier 2 can measure a frame budget that the browser's fixed 10.0 ms
+  // requestAnimationFrame cadence cannot flatten -- not "that vsync cannot
+  // flatten", which is what this said until 2026-09-14 and which attributed
+  // the cadence to a display that turned out to run at 120 Hz (design spec
+  // section 10.2). See `diagnostics.ts`'s `gpuFrameTimesMs`.
   trackTimestamp = false,
 ): Promise<RendererBundle> {
   if (!('gpu' in navigator)) throw new Error('no-webgpu')

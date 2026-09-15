@@ -118,8 +118,8 @@ export type Ww2Diagnostics = {
    * `.superpowers/` and is not in a fresh clone.
    *
    * Read from WebGPU timestamp queries written around the render pass, so it
-   * is the GPU's own clock and knows nothing about vsync, the compositor or
-   * the present. It therefore EXCLUDES the simulation, the scene update and
+   * is the GPU's own clock and knows nothing about the cadence above, vsync,
+   * the compositor or the present. It therefore EXCLUDES the simulation, the scene update and
    * three's submission work -- it is the GPU half of a frame, not the whole
    * of one. Empty if `gpuTimestampsSupported` is false.
    */

@@ -105,8 +105,7 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  * the frame) and it is rejected on both counts: it costs real time AND buys
  * no detail, because rings 0-3 all clamp both mip taps to L4 (`content.ts`'s
  * `FINEST_FETCHED_LEVEL`; L0-L3 are 178,319,368 bytes and are not shipped).
- * A ring-0
- * patch already tessellates at 24.4 m against L4's 390 m sample spacing --
+ * A ring-0 patch already tessellates at 24.4 m against L4's 390 m spacing --
  * sixteen times finer than the data can express -- so widening ring 0 adds
  * triangles to a surface that is already the bilinear interpolant of samples
  * it has all of.

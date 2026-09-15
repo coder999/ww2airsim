@@ -101,7 +101,14 @@ describe('the built artifact', () => {
         expect(bundle.includes(name), `\`${name}\` reached the production bundle`).toBe(false)
       }
     } finally {
-      process.env.NODE_ENV = priorNodeEnv
+      // `delete`, not assignment, when it was unset: assigning `undefined` to
+      // a `process.env` key stores the STRING "undefined", which is not
+      // `=== 'production'` but is also not absent -- and absent is what the
+      // rest of Vite's config resolution branches on. Latent today because
+      // Vitest always sets NODE_ENV, so this restore has never actually taken
+      // the unset path (review fix round 2).
+      if (priorNodeEnv === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = priorNodeEnv
       rmSync(outDir, { recursive: true, force: true })
     }
   }, 60_000)

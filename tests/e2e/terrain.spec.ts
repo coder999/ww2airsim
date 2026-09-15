@@ -237,9 +237,9 @@ test.describe('frame-time budget', () => {
       errors: (window as DiagWindow).__ww2!.validationErrors,
     }))
 
-    // ~500 of each is what a 5 s window at 100 Hz produces; 100 is a floor
-    // that says "the loop really ran and really resolved queries" without
-    // pinning the test to a frame rate.
+    // ~500 of each is what a 5 s window at the platform's 10.0 ms cadence
+    // produces; 100 is a floor that says "the loop really ran and really
+    // resolved queries" without pinning the test to a frame rate.
     expect(times.gpu.length, 'too few GPU timestamp samples to take a percentile').toBeGreaterThan(100)
     expect(times.interval.length, 'too few frames to take a percentile').toBeGreaterThan(100)
 
@@ -254,7 +254,14 @@ test.describe('frame-time budget', () => {
     console.log(`frame-time budget: ${detail}`)
 
     expect(gpuP95, detail).toBeLessThanOrEqual(GPU_BUDGET_P95_MS)
-    expect(intervalP95, `a frame interval this long is a missed vsync -- ${detail}`).toBeLessThanOrEqual(
+    // The message says DEADLINE, not vsync. Fix round 1 retired "missed
+    // vsync" in the doc comment above and left it standing here, so a failing
+    // run printed the retired label while the constant's own documentation
+    // ten lines up contradicted it (review fix round 2).
+    expect(
+      intervalP95,
+      `a frame interval this long is a missed frame deadline -- ${detail}`,
+    ).toBeLessThanOrEqual(
       INTERVAL_P95_MS,
     )
     expect(times.errors, `WebGPU validation errors:

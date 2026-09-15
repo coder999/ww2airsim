@@ -192,8 +192,10 @@ const AMBIENT = 0.35
  * Identical to the digit, at all three altitudes, in a paired run. The
  * instrument quantises to 65.54 us, so the honest statement is that the
  * vertex-fetch difference is below 0.066 ms -- under 3% of a 2.1 ms frame,
- * and 0.7% of the display's 10 ms. `r16float` would halve the ~700 KB of
- * height textures, which is not a constraint anything here has.
+ * and 0.7% of the platform's 10.0 ms requestAnimationFrame cadence (which is
+ * Chromium's, not the display's -- design spec section 10.2). `r16float`
+ * would halve the ~700 KB of height textures, which is not a constraint
+ * anything here has.
  *
  * So the measurement did not decide it, and **the choice is `r32float` on the
  * quantisation argument above, not on speed**. Recording the number anyway
