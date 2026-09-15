@@ -1,0 +1,108 @@
+name: Deploy ww2airsim to VPS
+
+# Manual only. Pushing main does NOT deploy (fleet rule, 2026-08-26).
+on:
+  workflow_dispatch:
+
+# Nothing here needs the repo token for anything but the checkout.
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Unlike every other site in this fleet, ww2airsim builds -- so the
+      # tests can gate the release. A red suite fails the deploy before
+      # anything is shipped.
+      - name: Verify
+        run: npm run verify
+
+      - name: Build
+        run: npm run build
+
+      # The committed terrain fallback is what a fresh visitor flies on. If it
+      # is missing the world renders as empty sea, which reads as a broken
+      # renderer rather than a broken deploy -- so fail here instead.
+      - name: Assert the build carries the terrain fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/content/terrain/L4.bin
+          test ! -e dist/content/terrain/tiles
+          echo "dist size: $(du -sh dist | cut -f1)"
+
+      - name: Set up SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "${{ secrets.VPS_DEPLOY_KEY }}" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          ssh-keyscan vps-4b80346f.vps.ovh.us >> "$HOME/.ssh/known_hosts"
+
+      # --delete so a renamed hashed asset does not accumulate forever. No
+      # put-env and no redeploy: this site has no .env, and app/htdocs is a
+      # read-only bind mount, so an rsync'd file is served on the next request
+      # with no container action and no 502.
+      #
+      # The trailing slash on `dist/` is load-bearing: without it rsync creates
+      # `htdocs/dist/` and index.html never reaches the document root, leaving
+      # the site 403 and the container unhealthy forever -- which presents as a
+      # routing bug rather than the path bug it is.
+      - name: Deploy via rsync
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -avz --delete \
+            -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            dist/ ww2airsim-deploy@vps-4b80346f.vps.ovh.us:htdocs/
+
+      - name: Verify the live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://ww2airsim.marktuttle.dev
+
+          # The container's healthcheck fetches `/`, which 403s while htdocs is
+          # empty, and Traefik's Docker provider drops an unhealthy container's
+          # router entirely -- so until one probe passes AFTER the rsync above,
+          # the hostname 404s from Traefik rather than answering from nginx.
+          # The healthcheck interval is 120s, so the very first deploy has to
+          # poll instead of asserting once. On an already-healthy site the
+          # first attempt wins and this costs nothing.
+          deadline=$(( SECONDS + 300 ))
+          code=000
+          while :; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/") || code=000
+            if [ "$code" = "200" ]; then break; fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::homepage returned $code after waiting for the router"
+              exit 1
+            fi
+            echo "waiting for the router to appear (got $code)"
+            sleep 10
+          done
+          echo "homepage 200"
+
+          # `$R` is deliberately absent: the hand-run version of these checks
+          # pins --resolve because nexus caches this name as NXDOMAIN, but a
+          # GitHub runner resolves it normally and an unset variable under
+          # `set -u` would abort the step.
+          curl -sSI "$base/" | grep -qi 'x-robots-tag: *noindex' \
+            || { echo "::error::noindex header missing"; exit 1; }
+          tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin")
+          test "$tcode" = "200" || { echo "::error::terrain L4 returned $tcode"; exit 1; }
+          lcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/tiles/L0.bin")
+          test "$lcode" = "404" || { echo "::error::gitignored L0 is public ($lcode)"; exit 1; }
+          echo "live site verified"
