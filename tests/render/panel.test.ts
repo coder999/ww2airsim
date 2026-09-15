@@ -251,18 +251,28 @@ describe('panel', () => {
     // field of view, so a bigger dial, a lower panel or a narrower lens all
     // fail here rather than being discovered in a screenshot.
     //
-    // Excludes `backing`: Task 3 (2026-09-15) deliberately runs that plate
+    // Excludes `p.backing`: Task 3 (2026-09-15) deliberately runs that plate
     // past the frustum on every edge -- past the bottom so it reads as
     // clipped rather than floating, and out to the frustum's own horizontal
     // edge so it spans full width at the narrowest supported window. This
     // test is about the READABLE content (dials, labels, readouts), which is
     // exactly what its own title says; the coaming behind it is checked
     // separately in "runs the bezel past the bottom of the frame".
+    //
+    // Excluded by IDENTITY (`child === p.backing`), not by name. Review
+    // ruling R5, 2026-09-15: a name match excludes only the plate's own
+    // Box3 -- anything mounted UNDER it (its natural role, since it is the
+    // one full-width surface behind the dials -- exactly where a radar or
+    // armament screen would eventually mount) would be silently swallowed
+    // along with it and never checked here. Identity has no such hole, and
+    // the sibling assertion below pins the plate bare so the hole cannot
+    // reopen by something being parented there later.
     const p = createPanel(f6f, () => null)
+    expect(p.backing.children).toHaveLength(0)
     p.root.updateMatrixWorld(true)
     const box = new Box3()
     for (const child of p.root.children) {
-      if (child.name === 'backing') continue
+      if (child === p.backing) continue
       box.union(new Box3().setFromObject(child))
     }
     const [ex, ey, ez] = f6f.view.eyePointM

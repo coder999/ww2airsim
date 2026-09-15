@@ -28,14 +28,25 @@ export const PANEL_BANDS: { readonly upper: Band; readonly lower: Band } = {
  * looked like it covered it compared against the VERTICAL half-angle times a
  * bare 4, giving 2.3x slack, so it could not have caught either.
  *
- * Left at 0.155 on 2026-09-15 (Task 3), which added the horizontal budget
- * assertion in `panelLayout.test.ts`: it measures the outer edge of every
- * layout slot, including the throttle/armament edge blocks that task added,
- * against 40.9 degrees (the horizontal half-angle at `PANEL_MIN_ASPECT`,
- * 3:2). At 0.155 the worst slot (throttle/armament) reaches 40.75 degrees --
- * inside the 40.9-degree edge, so the constant did not need to move.
+ * Task 3 (2026-09-15) added a horizontal budget assertion in
+ * `panelLayout.test.ts` measuring the outer edge of every layout slot,
+ * including the throttle/armament edge blocks that task added, against the
+ * 40.9-degree horizontal half-angle at `PANEL_MIN_ASPECT` (3:2). At 0.155
+ * the worst slot (throttle/armament, at 40.75 degrees) cleared that edge by
+ * only 0.14 degrees -- a margin that pinned nothing real, since neither
+ * throttle (undrawn until Task 4) nor armament (reserved, never drawn) had
+ * a bezel yet to breach it. Review ruling R4 required the assertion to
+ * demand a full 1-degree margin, which 0.155 does not clear, so the row was
+ * narrowed rather than `EDGE_W`: the row had 3.8 degrees of slack against
+ * the dials' own scale-mark and numeral constraints, while shrinking
+ * `EDGE_W` far enough (to about 0.036) would leave the throttle column too
+ * narrow for its ticks and its "100" numeral.
+ *
+ * Narrowed to 0.145: the dial row now reaches 35.50 degrees, and the worst
+ * slot (throttle/armament) reaches 39.07 degrees against the 40.9-degree
+ * edge -- a 1.83-degree margin, comfortably past the required 1 degree.
  */
-export const DIAL_GAP = 0.155
+export const DIAL_GAP = 0.145
 export const DIAL_RADIUS = 0.06
 /** Throttle column / armament block half-width companion. */
 const EDGE_W = 0.052
