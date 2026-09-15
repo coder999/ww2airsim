@@ -26,21 +26,26 @@ and it is why the deliverable is flyable rather than a watch-only demo.
 
 ### Non-goals
 
-Deferred deliberately, each to a named later plan:
+Deferred deliberately, each to a named later plan. **The plan numbers below
+were corrected on 2026-09-15 and are no longer restated here**: this table
+names the subject, and the master spec's §15 numbering table says which plan
+each subject is. When this document was written, input assists did not exist;
+they were later inserted as Plan 3, shifting every number in the original
+version of this table by one and leaving it silently wrong for two days.
 
 | Deferred | Where it belongs |
 | --- | --- |
-| Terrain, CDLOD, real geography | Plan 3 |
-| FFT ocean, Beaufort wind, foam | Plan 4 |
+| Terrain, CDLOD, real geography | Terrain — master spec §15 |
+| FFT ocean, Beaufort wind, foam | Ocean — master spec §15 |
 | Atmospheric scattering LUTs, volumetric cloud | later; §5 ships a gradient sky |
-| Weapons, damage, AI | Plan 5 |
-| Carrier and airfield operations | Plan 6 |
+| Weapons, damage, AI | Combat, then AI — master spec §15 |
+| Carrier and airfield operations | Deck operations — master spec §15 |
 | Cockpit interior geometry beyond the panel | later |
 | Padlock and external orbit cameras | later |
 | Continuous mouse-look | later — see §6 (deferred 2026-09-12) |
-| Input assists (rate damping, auto-rudder, stall limiter, combat trim) | later — see §4 |
+| Input assists (rate damping, auto-rudder, stall limiter, combat trim) | **Built** — shipped as Plan 3, 2026-09-13; see `2026-09-13-assists-design.md` |
 | Screenshot goldens | later — see §8 |
-| Sim on a worker thread | Plan 5 — see §9 |
+| Sim on a worker thread | Combat, when many aeroplanes make it pay — master spec §15; see §9 |
 
 ## 2. Spike findings, 2026-09-12
 
@@ -80,7 +85,7 @@ probe. Re-run 2026-09-13 on a Surface: it threw the identical error, so this
 diagnosis is not supported -- see the second-platform section above. Since raw
 WGSL compute demonstrably works on this GPU,
 **no part of this plan is blocked either way** — TSL versus `wgslFn` is a
-question for Plan 4's ocean, not for anything here.
+question subsequently settled by Plan 5's ocean, not for anything here.
 
 ### Second platform, 2026-09-13 — Surface (Snapdragon, Adreno 7xx, Chrome 152)
 
@@ -414,13 +419,11 @@ context object — a worker boundary becomes a message-passing change rather tha
 a rewrite. Plan 5 is the plan that should revisit it.
 
 ## 10. Open items
-1. **TSL versus raw WGSL** — unsettled, and deliberately not blocking. Updated
-   2026-09-13: the fixed probe HAS now been run, on the Surface, and throws the
-   identical `TypeError` the fix was supposed to remove (see the second-platform
-   section above). It has still never been run on the reference GPU. Raw WGSL
-   compute now works on two GPUs from different vendors, so the contingency is
-   better proven than the TSL path is broken; this only matters to Plan 4's
-   ocean.
+1. **TSL versus raw WGSL — closed 2026-09-15.** Plan 5 uses native WGSL
+   compute pipelines on Three's WebGPU device and shared storage textures.
+   The FFT module needs bindings and workgroup storage, which `wgslFn` does
+   not represent. Actual GPU textures agree with the CPU oracle at N=64,
+   128 and 256; see the ocean compute follow-up below.
 2. **Keyboard ramp time constant** — a named value, expected to change once the
    aeroplane has been flown.
 3. **Eye point** — needs a plausible value for the F6F; no primary source is
@@ -602,3 +605,11 @@ a rewrite. Plan 5 is the plan that should revisit it.
     behind it, and it would move the golden and re-baseline the soak. But the
     measurement that was supposed to justify deferring it does not say what it
     was quoted as saying, so the deferral now rests on cost and risk alone.
+
+### Ocean compute follow-up — 2026-09-15
+
+The ocean now uses the native WGSL pipeline path from the successful day-0
+probe. The plan's `wgslFn` wording described a function wrapper that was not
+what the probe actually ran. GPU texture readbacks of all three displacement
+components match the CPU oracle at N=64/128/256 and three times; see the ocean
+plan Task 8 and `tests/e2e/ocean.spec.ts`. This closes the compute-path choice.

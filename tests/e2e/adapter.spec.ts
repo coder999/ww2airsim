@@ -27,6 +27,7 @@ test('the adapter is the reference GPU, not a software rasterizer', async ({ pag
   // not yet recognise as software, Task 7's recorded gap) must still fail
   // this check, or that gap stops being caught by anything.
   expect(verdict.severity, verdict.summary).toBe('ok')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.reversedDepthBuffer)).toBe(true)
 })
 
 test('a camera sweep produces zero WebGPU validation errors', async ({ page }) => {

@@ -60,7 +60,7 @@ export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
  * cover. A `World` written to disk and read back was NOT the same flight: the
  * captured altitude was not in it, so a resumed replay re-captured at whatever
  * altitude it happened to be at and diverged, silently. And N aeroplanes
- * (Plan 5) needed N runners, which every caller had to remember to build.
+ * (the combat plan) needed N runners, which every caller had to remember to build.
  *
  * So `advance` now carries it: `World.assistMemory`, opaque to `sim/`, typed
  * by a parameter `sim/` never inspects (see `Assist` in src/sim/loop.ts). The

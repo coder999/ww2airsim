@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
+import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
@@ -103,6 +104,8 @@ describe('the built artifact', () => {
       // The expected size is one call away (`samplesAtLevel`, the same
       // function the decoder sizes its buffer with), so accepting "non-empty"
       // was choosing a weaker check over a free stronger one.
+      expect(readFileSync(join(outDir, 'content/ocean/depth.bin')).length).toBe(513 * 513 * 2)
+      expect(readFileSync(join(outDir, 'content/ocean/NOTICE.md'), 'utf8')).toContain('GEBCO_2026')
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       for (let level = FINEST_FETCHED_LEVEL; level <= coarsest; level++) {
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
@@ -206,6 +209,10 @@ describe('the built artifact', () => {
       // The diagnostics hook. Its absence was verified by hand on 2026-09-13
       // and is now verified every run.
       expect(bundle.includes('__ww2'), '`__ww2` reached the production bundle').toBe(false)
+      // Reject the query-key literal; general Beaufort validation can remain
+      // in production as scenario weather will use it too.
+      expect(bundle).not.toContain(JSON.stringify(BEAUFORT_PARAM))
+      expect(bundle).not.toContain('ocean weather:')
       // The spawn override, by the parameter names the app actually parses
       // rather than by three literals -- renaming one in `spawn.ts` must not
       // quietly narrow what this test looks for.

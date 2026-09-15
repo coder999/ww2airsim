@@ -4,7 +4,7 @@ import { showFailure, type FailureKind } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { AIRCRAFT_CONTENT_URL } from './content.js'
+import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
 import {
   airframeVisibilityFor,
@@ -14,18 +14,23 @@ import {
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
-import { createWater, recentreWater } from './scene/water.js'
+import { createOcean, recentreOcean } from './ocean/mesh.js'
+import { loadDepth } from './ocean/depth.js'
+import { DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from './ocean/weather.js'
+import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
+import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tiers.js'
+import { cascadeOptions } from './ocean/bands.js'
+import { OCEAN_EXTENT_M } from './horizon.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
-import { LOD } from './terrain/lod.js'
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
-import { step } from '../sim/flight/model.js'
+import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { v3 } from '../sim/math/vec3.js'
 import { qIdentity } from '../sim/math/quat.js'
@@ -126,17 +131,22 @@ async function boot(): Promise<void> {
     ? spawnPositionFromQuery(window.location.search)
     : DEFAULT_SPAWN_POSITION
 
+  const beaufort = import.meta.env.DEV ? beaufortFromQuery(window.location.search) : DEFAULT_BEAUFORT
+
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
-  // Timestamp queries in DEV only: they are what makes `gpuFrameTimesMs`
-  // possible, and the same flag every other diagnostic here is gated on.
-  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV)
+  // Timestamp queries also support one automatic ocean quality decision.
+  // The external diagnostics hook remains development-only.
+  const { renderer, adapterVerdict } = await initRenderer(canvas, true)
 
   // Declared here, before the hook below installs, initialised to `null` --
   // not assigned a real `FrameState` until after `loadSpec` resolves, well
   // down this function. See the hook's own comment for why that ordering
   // matters and is not just tidiness.
+  let cascades: OceanCompute[] = []
+  const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
+  let oceanTier = forcedOceanTier ?? OCEAN_TIERS[0]
   let frame: FrameState | null = null
 
   // Tier 2 diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
@@ -172,6 +182,15 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
+      oceanTier: () => oceanTier.name,
+      oceanComputeTimesMs: () => cascades.map(c => c.computeTimesMs()),
+      oceanDisplacementSample: async (index) => {
+        const cascade = cascades[index]
+        if (!cascade || cascade.timeS === undefined) return null
+        const sample = await cascade.readDisplacement()
+        return {...sample, values:Array.from(sample.values), options:cascade.options, phaseSeed:cascade.phaseSeed}
+      },
+      reversedDepthBuffer: renderer.reversedDepthBuffer,
       validationErrors,
       tick: () => frame?.world.aircraft.tick ?? 0,
       cameraMode: () => frame?.cameraMode ?? 'chase',
@@ -206,6 +225,7 @@ async function boot(): Promise<void> {
       // same question cannot drift from what it actually did.
       gpuTimestampsSupported: renderer.hasFeature('timestamp-query'),
       resetFrameTimes: () => {
+        cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
         gpuFrameTimesMs.length = 0
       },
@@ -272,8 +292,38 @@ async function boot(): Promise<void> {
   }
 
   const scene = new Scene()
-  const water = createWater()
+  const terrain = createTerrainMesh(TERRAIN_HEADER)
+  const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
+  cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
+  const oceanDepth = await loadDepth()
+  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
   scene.add(water)
+  let qualityChecked = false
+  const adaptOceanQuality = async (): Promise<void> => {
+    // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
+    // pipelines during flight; a DEV override holds the tier for comparison.
+    const p95 = (values: readonly number[]) => [...values].sort((a,b)=>a-b)[Math.floor(values.length * .95)] ?? 0
+    const timed = renderer.hasFeature('timestamp-query')
+    if (qualityChecked || forcedOceanTier || (timed ? gpuFrameTimesMs.length < 180 : frameTimesMs.length < 180)) return
+    qualityChecked = true
+    const cost = timed ? p95(gpuFrameTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
+      : p95(frameTimesMs.slice(60))
+    // Without GPU timestamps, frame intervals include refresh cadence. Keep
+    // high at 60 fps, medium below 30 fps, low otherwise.
+    const next = timed ? tierForFrameTimeMs(cost) : cost <= 18 ? OCEAN_TIERS[0] : cost <= 34 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
+    if (next === oceanTier) return
+    const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
+    const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
+    if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
+    const replacement = createOcean(oceanDepth,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL))
+    scene.remove(water)
+    water.userData.disposeOcean()
+    cascades.forEach(c=>c.dispose())
+    cascades = ready
+    water = replacement
+    scene.add(water)
+    oceanTier = next
+  }
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
@@ -297,50 +347,16 @@ async function boot(): Promise<void> {
   // it so it inherits the camera-relative translation applied below -- a
   // terrain mesh that missed it would jitter at 100 km exactly as master
   // spec §4 describes, and would be the only thing in the scene that did.
-  const terrain = createTerrainMesh(TERRAIN_HEADER)
   scene.add(terrain.object)
 
   const camera = new PerspectiveCamera(
     CAMERA_VFOV_DEG,
     window.innerWidth / window.innerHeight,
     0.1,
-    // Raised from 60,000 m for the terrain (Task 10). `selectNodes` does not
-    // cull on distance -- the world is bounded, so it returns patches out to
-    // the far corner, up to 283 km away -- and something has to decide what
-    // happens past the far plane. Neither a bigger number nor accepting a
-    // visible edge: the terrain's fog reaches exactly 1 at
-    // `LOD.drawDistanceM` (mesh.ts), so sitting the far plane ON that
-    // distance means every fragment the frustum removes was already the haze
-    // colour of the sky dome that replaces it.
-    //
-    // Closing that argument properly, because it is one step longer than it
-    // looks (review 2026-09-14, M6): the frustum clips on VIEW-SPACE DEPTH
-    // while the fog runs on HORIZONTAL distance, so "depth never exceeds
-    // radial distance" is not on its own enough. For a clipped fragment,
-    // depth > 100 km, hence radial > 100 km, hence horizontal >=
-    // sqrt(100000^2 - dy^2) where dy is the height difference between eye and
-    // fragment. At 3,000 m over terrain sunk 780 m by curvature, dy <= 3,800
-    // m and horizontal >= 99,929 m, where `smoothstep` is 1 - 1.5e-6. At the
-    // altimeter's 10,000 m full scale it is 1 - 1.0e-4. Both are far below
-    // one part in 255, so the clipped fragment and the dome behind it are the
-    // same colour to the display.
-    //
-    // The side effect is on the water: its square half-extent reaches 70,711 m
-    // at the diagonals, so the old 60,000 m plane cut it along a line
-    // perpendicular to the view, which swung round as the camera yawed. That
-    // cut is gone. The water's edge still travels with the aeroplane --
-    // `recentreWater` re-centres the plane on the eye every frame, by design,
-    // and nothing here changes that -- it just no longer moves with where you
-    // are LOOKING.
-    //
-    // What this argument does NOT cover, recorded rather than acted on (final
-    // review 2026-09-14): the far plane also sets depth-buffer resolution, and
-    // 0.1 m to 100 km spends it so unevenly that a depth step is ~5 m at 3 km
-    // and several hundred metres at 30 km. Nothing z-fights today -- the water
-    // is a single plane and the terrain does not overlap it -- so the far plane
-    // stays where the fog argument puts it. It is the ocean surface a later
-    // plan draws against this terrain that will meet that number first.
-    LOD.drawDistanceM,
+    // The ocean reaches 400 km. Ten percent slack also encloses its 12.6 km
+    // curvature sink and the service-ceiling camera height. Terrain still
+    // fades at its own draw distance; the far plane no longer clips the sea.
+    OCEAN_EXTENT_M * 1.1,
   )
 
   // 120 m/s, wings level, heading east (+x; the body frame's nose is +X and
@@ -468,10 +484,8 @@ async function boot(): Promise<void> {
     // The water gets the same treatment, and did not until the whole-branch
     // review (I-1): left at the world origin it slid out from under the
     // aeroplane, and at the spawn's 120 m/s its old half-extent was spent in
-    // under three minutes. `recentreWater` also compensates the surface
-    // detail's texture offset, without which re-centring would pin the
-    // detail to the aeroplane and remove the parallax it exists to provide.
-    recentreWater(water, current.eye.position.x, current.eye.position.z)
+    // under three minutes. Its depth lookup stays anchored in world space.
+    recentreOcean(water, current.eye.position.x, current.eye.position.z, current.eye.position.y)
     // Same treatment, and missed twice before this: the markers are the third
     // member of the sky/water family and the only one that carries a scale.
     recentreMarkers(markers, current.eye.position.x, current.eye.position.z)
@@ -485,9 +499,10 @@ async function boot(): Promise<void> {
 
     prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
 
+    for (const cascade of cascades) cascade.dispatch(oceanTime ?? current.world.aircraft.tick * DT + current.world.accumulatorSeconds)
     renderer.render(scene, camera)
 
-    // One GPU timestamp sample per resolve, DEV only. Guarded on a pending
+    // One GPU timestamp sample per resolve; quality selection also uses it. Guarded on a pending
     // resolve rather than fired every frame because `resolveQueriesAsync`
     // hands back the SAME promise while one is outstanding
     // (WebGPUTimestampQueryPool, three@0.186.0), so an unguarded call would
@@ -508,7 +523,8 @@ async function boot(): Promise<void> {
     // platform makes resolves slow enough for that ratio to drop, this
     // guard's bias stops being theoretical and the percentiles want
     // re-deriving.
-    if (import.meta.env.DEV && !gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
+    void adaptOceanQuality()
+    if (!gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
       gpuResolvePending = true
       void renderer
         .resolveTimestampsAsync('render')

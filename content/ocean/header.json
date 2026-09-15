@@ -1,0 +1,7 @@
+{
+  "centreLatDeg": 10.8,
+  "centreLonDeg": 125.3,
+  "halfExtentM": 100000,
+  "samples": 513,
+  "encoding": "int16-metres"
+}

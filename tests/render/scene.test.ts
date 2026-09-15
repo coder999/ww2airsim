@@ -1,19 +1,17 @@
+import { DEEP_WATER_COLOUR } from '../../src/render/ocean/mesh.js'
+import { SEA_COLOUR } from '../../src/render/scene/water.js'
 import { describe, it, expect } from 'vitest'
 import {
   Box3,
   DirectionalLight,
   HemisphereLight,
-  LinearFilter,
-  LinearMipmapLinearFilter,
   Mesh,
-  MeshStandardMaterial,
   SphereGeometry,
   Vector3,
 } from 'three'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, recentreMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
-import { createWater, recentreWater, WATER_EXTENT_M } from '../../src/render/scene/water.js'
-import { createSky, domeColourFor, SKY_RADIUS_M } from '../../src/render/scene/sky.js'
+import { createSky, domeColourFor } from '../../src/render/scene/sky.js'
 import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { createLighting } from '../../src/render/scene/lighting.js'
 
@@ -104,97 +102,17 @@ describe('markers', () => {
   })
 })
 
-describe('water', () => {
-  it('is at least as wide as the sky dome, so the seam lands on the dome equator', () => {
-    // Whole-branch review, I-1. The old test here asserted the plane was at
-    // least WATER_EXTENT_M across, which is true by construction of a
-    // PlaneGeometry(WATER_EXTENT_M, WATER_EXTENT_M) and therefore proved
-    // nothing -- the same self-referential shape as C-1's horizon test.
-    //
-    // The property that matters is a RELATION between two independently
-    // chosen constants: the plane's half-extent against the dome's radius.
-    // A ray below eye level meets the y=0 plane at h/sin(theta) and the dome
-    // at ~SKY_RADIUS_M, so if the half-extent is the smaller of the two the
-    // water runs out BEFORE the dome and the boundary sits deep inside the
-    // dome's lower hemisphere instead of on its equator.
-    // The two `size >= WATER_EXTENT_M` assertions this comment says were
-    // removed were in fact still here until 2026-09-13, sitting directly
-    // beneath the paragraph describing them as vacuous. They are gone now.
-    expect(WATER_EXTENT_M / 2).toBeGreaterThan(SKY_RADIUS_M)
+describe('the ocean backdrop', () => {
+  it('shares its deep-water colour with the lower sky', () => {
+    expect(DEEP_WATER_COLOUR).toBe(SEA_COLOUR)
   })
 
-  it('filters its surface detail, which three does not do by default', () => {
-    // three's DataTexture ships with NearestFilter on both filters and no
-    // mipmaps. Tiled thousands of times and seen at the grazing angles that
-    // fill most of the screen, that is one texel sampled out of thousands per
-    // pixel: a moiré grid standing over the whole ocean that crawls as the
-    // aeroplane moves. Seen on the 2026-09-13 Surface screenshots.
-    //
-    // The values are asserted, not the defaults, because the defect was
-    // inherited by saying nothing rather than by setting anything.
-    const w = createWater() as Mesh
-    const map = (w.material as MeshStandardMaterial).normalMap!
-    expect(map.generateMipmaps).toBe(true)
-    expect(map.minFilter).toBe(LinearMipmapLinearFilter)
-    expect(map.magFilter).toBe(LinearFilter)
-    expect(map.anisotropy).toBeGreaterThan(1)
-    // A mip chain needs power-of-two dimensions to be built at all.
-    const { width, height } = map.image as { width: number; height: number }
-    expect(Number.isInteger(Math.log2(width))).toBe(true)
-    expect(Number.isInteger(Math.log2(height))).toBe(true)
-  })
-
-  it('re-centres under the eye, as the sky already does', () => {
-    // I-1's unbounded half: the sky is re-centred every frame and the water
-    // was not, so the plane stayed at the origin while the aeroplane flew
-    // away from it. At the spawn's 120 m/s the old 20 km half-extent was
-    // spent in under three minutes, after which the aeroplane is off the
-    // water entirely.
-    const w = createWater()
-    recentreWater(w, 5000, -3000)
-    expect(w.position.x).toBe(5000)
-    expect(w.position.z).toBe(-3000)
-    expect(w.position.y).toBe(0)
-  })
-
-  it('keeps its surface detail world-locked while re-centring, or there is no parallax', () => {
-    // Re-centring a textured plane naively drags the texture along with it,
-    // so the surface detail becomes perfectly stationary relative to the
-    // aeroplane -- which destroys the only thing the detail exists for
-    // (createWater's own doc: at 170 m/s over featureless water you cannot
-    // perceive speed, altitude or sink rate).
-    //
-    // The texture coordinate a fixed WORLD point samples is computed here
-    // from three's PlaneGeometry UV convention directly, NOT by calling any
-    // helper the implementation also uses: u runs 0..1 along local +X and
-    // v along local +Y, and the mesh is rotated -90 degrees about X, so
-    // local +Y maps to world -Z.
-    const w = createWater() as Mesh
-    const map = (w.material as MeshStandardMaterial).normalMap!
-    // Read the plane's orientation off the MESH rather than asserting it in
-    // prose. The previous version derived "local +Y maps to world -Z" from a
-    // comment and never looked at `w.rotation`, so flipping the rotation to
-    // +pi/2 -- sea normals pointing down -- left this test green with its own
-    // model silently no longer describing the object.
-    const localY = new Vector3(0, 1, 0).applyEuler(w.rotation)
-    expect(localY.z).toBeCloseTo(-1, 9)
-    expect(Math.abs(localY.x) + Math.abs(localY.y)).toBeLessThan(1e-9)
-    const sampleAt = (worldX: number, worldZ: number): [number, number] => {
-      const u = (worldX - w.position.x) / WATER_EXTENT_M + 0.5
-      const v = localY.z * ((worldZ - w.position.z) / WATER_EXTENT_M) + 0.5
-      return [u * map.repeat.x + map.offset.x, v * map.repeat.y + map.offset.y]
-    }
-    // One fixed point on the sea, sampled from two different aircraft positions.
-    recentreWater(w, 0, 0)
-    const [u0, v0] = sampleAt(1234, -567)
-    recentreWater(w, 8000, 2500)
-    const [u1, v1] = sampleAt(1234, -567)
-    expect(u1).toBeCloseTo(u0, 6)
-    expect(v1).toBeCloseTo(v0, 6)
-    // And a moving point pinned to the aeroplane must NOT sample the same
-    // texel, or the plane is world-locked in name only.
-    const [uMoved] = sampleAt(8000, 2500)
-    expect(Math.abs(uMoved - u0)).toBeGreaterThan(1)
+  it('draws the sky behind distant ocean and terrain regardless of depth', () => {
+    const sky = createSky() as Mesh
+    expect(sky.renderOrder).toBeLessThan(0)
+    const material = sky.material as { depthTest: boolean; depthWrite: boolean }
+    expect(material.depthTest).toBe(false)
+    expect(material.depthWrite).toBe(false)
   })
 })
 

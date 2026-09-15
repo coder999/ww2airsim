@@ -530,7 +530,7 @@ describe('assistFor (Plan 3 Task 5, reshaped as a reducer 2026-09-13)', () => {
   it('keeps two flights apart even through one shared assist function', () => {
     // The reason this is a pure reducer and not a closure over a cell (see
     // `AltitudeHoldMemory`'s doc comment): two test files, or two aeroplanes
-    // once Plan 5 exists, must not fight over one target -- and unlike the
+    // once the combat plan exists, must not fight over one target -- and unlike the
     // factory this replaced, they may now safely share one function value.
     // Interleaved deliberately: a cell would be overwritten by whichever call
     // came last, so alternating is what makes that visible.

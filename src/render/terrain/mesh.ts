@@ -38,7 +38,7 @@ import {
   vec3,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
-import { EARTH_RADIUS_M } from '../../sim/world/projection.js'
+import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
@@ -300,10 +300,10 @@ function createRingMaterial(
   const heightM = field.x
 
   const distanceM = length(worldXZ.sub(cameraXZ))
-  // Horizon sink (master spec §4): the Earth drops d^2/2R below the tangent
-  // plane through the camera -- 780 m at 100 km, 20 m at 16 km. Without it
-  // the far field stands up like the inside of a bowl.
-  const sinkM = distanceM.mul(distanceM).div(2 * EARTH_RADIUS_M)
+  // Horizon sink (master spec §4). The expression lives in `horizon.ts` and
+  // only there -- see its doc comment for why a second copy is how the hidden
+  // beach comes back.
+  const sinkM = horizonSinkNode(distanceM)
   material.positionNode = vec3(worldXZ.x, heightM.sub(sinkM), worldXZ.y)
 
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
@@ -327,13 +327,9 @@ function createRingMaterial(
   const shaded = varying(mix(lit, color(SKY_HAZE), fog))
   const vertexHeightM = varying(heightM)
 
-  // The sea is drawn by scene/water.ts, and this grid covers the whole
-  // world: over the 65% of it that is ocean the DEM is exactly 0 (measured
-  // over the committed L4 grid: 170,819 of 263,169 samples), i.e. coplanar
-  // with the water plane at y = 0, and two coplanar opaque surfaces z-fight
-  // across the entire sea. Dropping every fragment at or below sea level
-  // leaves the water exactly as it was before this task and puts the
-  // coastline on the interpolated h = 0 contour, which is where it belongs.
+  // The ocean owns water fragments. Discard the DEM's zero-elevation sea
+  // before shading so two overlapping surfaces never compete there. Both
+  // materials apply the shared curvature sink; the contour stays at h=0.
   material.colorNode = Fn(() => {
     Discard(vertexHeightM.lessThanEqual(0))
     return shaded

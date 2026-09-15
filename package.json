@@ -15,6 +15,7 @@
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",
     "golden:regen": "tsx tools/golden/generate.ts",
+    "bathy:build": "tsx tools/bathy/build.ts",
     "terrain:build": "tsx tools/terrain/build.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"

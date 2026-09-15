@@ -69,23 +69,9 @@ export const SKY_ZENITH = 0x29619f
  * selects sky. The previous `unitY <= 0` disagreed with the shader on that
  * single value, and the test pinned the disagreement.
  *
- * WHAT THE SEA BRANCH IS ACTUALLY FOR, corrected 2026-09-13. It was introduced
- * as "I-1's real fix, a COLOUR fix and not a size one". That was wrong twice.
- * The band between eye level and the water/dome boundary lies ABOVE the
- * equator, so this graph paints it haze; the sea branch is on the other side.
- * And with the water's half-extent now larger than `SKY_RADIUS_M`, a sweep of
- * every depression angle and azimuth at 600, 2000 and 6000 m finds no ray on
- * which the sub-equator dome is the nearer surface -- the water always
- * occludes it. So widening the water is what closed the seam, and this branch
- * guards a surface that is currently never visible.
- *
- * Kept anyway: it costs nothing, and it makes the result independent of a draw
- * order that nothing pins. three falls through to Object3D construction order
- * for these two, so without it the arrangement would work only because
- * `createWater()` happens to be called before `createSky()`. It would not make
- * the two indistinguishable if the band ever did show, though -- the dome is
- * unlit and the water is lit, so the same constant renders about 20% darker on
- * the water.
+ * The dome is a background pass (depth test/write disabled), drawn before
+ * the terrain and ocean. The curved sea now extends beyond this sphere;
+ * sphere depth must never occlude those more distant surfaces.
  */
 export function domeColourFor(unitY: number): 'sea' | 'sky' {
   return unitY < 0 ? 'sea' : 'sky'
@@ -108,12 +94,15 @@ export function domeColourFor(unitY: number): 'sea' | 'sky' {
  * never headless.
  */
 export function createSky(): Object3D {
-  const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false })
+  const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, depthTest: false })
   const y = positionLocal.normalize().y
   // `domeColourFor` states the branch this selects; the ramp itself is not
   // mirrored in JavaScript, because it happens in linear working space here
   // and would not agree.
   const above = mix(color(SKY_HAZE), color(SKY_ZENITH), clamp(y, 0, 1))
   material.colorNode = mix(color(SEA_COLOUR), above, step(0, y))
-  return new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
+  const sky = new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
+  // Background first: a 45 km dome must never paint over the 400 km ocean.
+  sky.renderOrder = -1
+  return sky
 }

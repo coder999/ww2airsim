@@ -233,7 +233,7 @@ describe('advance', () => {
 
   it('steps with the controls the world carries, and hands them back for the next call', () => {
     // Whole-branch review, I-5: `controls` moved out of `advance`'s parameter
-    // list into `World`, so Plan 5's N-entity AI adds a field rather than a
+    // list into `World`, so the combat plan's N-entity AI adds a field rather than a
     // parameter at every call site. Two things have to hold for that move to
     // be behaviour-preserving, and neither was covered before: the stepper
     // must read the world's controls (a stale capture would leave the

@@ -236,17 +236,23 @@ is no player-facing settings to CHOOSE those values at runtime.
 ## Settled after Plan 3, 2026-09-13: where the assist memory lives
 
 Plan 3 shipped `advance(world, elapsed, stepper, assist)` taking ONE assist,
-whose memory lived in a closure (`createAssistRunner`) the caller held. Plan 5
-flies many aeroplanes, each needing its own altitude-hold memory, so the shape
-had to be settled before Plan 4 rather than during Plan 5.
+whose memory lived in a closure (`createAssistRunner`) the caller held. The
+**combat** plan flies many aeroplanes, each needing its own altitude-hold
+memory, so the shape had to be settled before terrain rather than during
+combat.
+
+(This section said "Plan 5" for combat until 2026-09-15. It was one of the
+three documents whose disagreement over numbering had to be settled — combat
+is Plan 6 and the ocean is Plan 5. Numbering: master spec §15; subjects, not
+numbers, are used below.)
 
 **Decision (Mark, 2026-09-13): explicit threaded memory.** `Assist` is a
 reducer generic in its memory type, and `advance` threads the memory through
 its step loop into `World.assistMemory`. `sim/` never inspects it, so the
 boundary argument that put the memory outside `sim/` in the first place is
-untouched; `advance`'s parameter list does not grow; and Plan 5's per-entity
-record carries its own memory field, making per-aeroplane isolation structural
-rather than a rule every caller has to remember.
+untouched; `advance`'s parameter list does not grow; and the combat plan's
+per-entity record carries its own memory field, making per-aeroplane isolation
+structural rather than a rule every caller has to remember.
 
 The argument that decided it was not N-aircraft but replay: a `World` with the
 memory in a closure is not a complete description of a flight, so a world

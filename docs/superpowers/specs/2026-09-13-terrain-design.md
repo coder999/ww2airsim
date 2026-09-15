@@ -27,11 +27,20 @@ Stated explicitly, because each is a plausible place to drift:
 - **Surface materials.** The ESA WorldCover splat guide is 400 MB and a
   subject of its own. Terrain is coloured by height and slope here.
 - **Bathymetry.** Master spec §4 calls it "not optional", and it is — for the
-  ocean, which is Plan 6. Flat water at y = 0 is unchanged by this plan, and
-  the pipeline is built so a second source layer is an addition rather than a
-  redesign.
+  ocean (numbering: master spec §15; this line said "Plan 6" until 2026-09-15,
+  when the count was settled). Flat water at y = 0 is unchanged by this plan.
+
+  **What the ocean design actually did with that pipeline, 2026-09-15.** The
+  sentence that used to end this bullet — "the pipeline is built so a second
+  source layer is an addition rather than a redesign" — turned out to be true
+  and unused. Bathymetry became its **own 513 × 513 field** rather than a
+  layer inside this pyramid, because merging would mean either resampling
+  GEBCO's 460 m data up to 8193² (134 MB of invented detail) or coarsening
+  this pyramid's 24.4 m coastline to 390 m. See
+  [`2026-09-15-ocean-design.md`](2026-09-15-ocean-design.md) §3.
 - **Ground handling.** Contact produces a crash event, not a landing. Runways,
-  gear and deck operations are Plan 8's.
+  gear and deck operations belong to the deck-operations plan (master spec
+  §15; this line said "Plan 8's", which the settled numbering confirms).
 - **Trees, buildings, roads.** None. The surface is bare relief.
 
 ## 2. The deviation from master spec §4, and why

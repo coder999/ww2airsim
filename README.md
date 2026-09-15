@@ -10,7 +10,7 @@ mission text. `ww2airsim` is a working title.
 
 ## Status
 
-**Plans 1–4 complete (2026-09-14).** A deterministic F6F Hellcat flight
+**Plans 1–5 implemented (2026-09-15; ocean branch).** A deterministic F6F Hellcat flight
 model runs headlessly in Node under `src/sim/`, graded against cited
 historical trial figures by the test-card harness in `tools/testcards/`, with
 a golden-trajectory regression, a randomised soak, and CI (Plan 1). It is
@@ -20,20 +20,39 @@ limiter, auto-rudder and altitude hold — sit between the keyboard and the
 simulation, each switchable in flight (Plan 3). And the water it flies over is
 no longer empty: real Leyte Gulf is under it (Plan 4, below).
 
-The ocean, weapons, damage, AI, carrier operations and the meta-game do not
-exist yet. **How they divide into plans after Plan 4 is not settled**, and this
-line used to say "of 7" as though it were: the design docs disagree, because
-the assists plan was inserted into the slot the roadmap had given terrain and
-every later number shifted by one without anything being updated. The renderer
-design's deferral table still says terrain is Plan 3 and the FFT ocean Plan 4;
-the terrain design says the ocean is Plan 6 and deck operations Plan 8.
-Whichever is right, it is a decision nobody has taken, so no count is asserted
-here.
+The sea now has deterministic, Beaufort-driven FFT waves, depth colour,
+shallow-water attenuation and foam (Plan 5). Weapons, damage, AI, carrier
+operations and the meta-game remain ahead: 6 combat and damage, 7 AI,
+8 carrier and airfield operations, 9 meta-game. See the
+[ocean handoff](docs/handoff/2026-09-15-plan5-ocean.md) for GPU measurements,
+visual comparisons and the remaining art-direction questions.
+
+That count was genuinely unsettled until then, and this paragraph said so:
+input assists were inserted into the slot the roadmap had given terrain, and
+three design documents each shifted differently — the renderer design still
+called terrain Plan 3 and the ocean Plan 4, the terrain design called the
+ocean Plan 6, and the assists design reserved Plan 5 for combat. Those encoded
+two different answers to "what comes after terrain" rather than three typos.
+**The table in master spec §15 is now the only authoritative copy**; every
+other document points at it.
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
 and remains the authoritative description of the project as a whole — read it
 for intent, and the code for what is actually built.
+
+## Ocean: trying Plan 5
+
+Run `npm run dev -- --port 5183` in the ocean worktree. Compare
+`http://localhost:5183/?spawnY=100&beaufort=2&oceanTime=17` with force `6`.
+Remove `oceanTime` to animate. `oceanTier=high`, `medium` or `low` holds a
+quality tier for development comparisons. These URL overrides are absent
+from production builds. Default weather is Beaufort 4.
+
+Three disjoint wave bands use 509/127/31 m periods. High quality runs three
+256² FFTs, medium two 128² FFTs, low one 128² FFT. A one-time warm-up check
+can reduce quality if measured cost exceeds its threshold. Water remains a
+rendering effect: wave forces and water collision are future work.
 
 ## Terrain: what Plan 4 built, and what it did not
 
@@ -50,9 +69,9 @@ plan rather than to a to-do list:
 
 - **No surface materials.** The terrain is coloured by height and slope. The
   ESA WorldCover splat guide is 400 MB and a subject of its own.
-- **No bathymetry.** The sea is still a flat plane at y = 0, unchanged by this
-  plan. Bathymetry is what makes water read as *this place*, and it arrives
-  with the ocean.
+- **Bathymetry arrived in Plan 5.** A 513 × 513 GEBCO grid drives ocean colour
+  and shallow-water attenuation. It stores signed metre depths in 526,338
+  bytes; the terrain pyramid and collision surface retain their own encoding.
 - **No ground handling.** Contact produces a crash event, not a landing. No
   runways, no gear, no deck operations.
 - **No trees, buildings or roads.** The surface is bare relief.
@@ -60,11 +79,10 @@ plan rather than to a to-do list:
 **Three things you will see that have already been ruled on**, recorded here
 so they are not re-reported as bugs:
 
-- **The true beach is hidden.** The terrain sinks by `d²/2R` while the water
-  plane stays flat, so the flat sea occludes land lower than the sink at its
-  own distance — 80 m at 32 km. The near coast reads as "water meets rising
-  ground" rather than as a beach. Accepted 2026-09-14: the fix is the real
-  ocean, which has to solve the same problem anyway.
+- ~~**The true beach is hidden by flat water.**~~ Fixed 2026-09-15: terrain
+  and ocean use the same curvature sink, with reversed floating-point depth
+  preventing long-range interleaving. Coastline detail is still limited by
+  the source grids; judge the visual result in the Plan 5 captures.
 - **Red/orange specks on the sea are not terrain's.** The pre-terrain checkout
   `544bd7e`, served as a control on 2026-09-14, shows the identical specks in
   the same places while drawing no terrain at all.
@@ -105,6 +123,7 @@ itself if the cache is empty:
 
 ```sh
 npm run terrain:build    # tools/terrain/build.ts; prints bytes written and elapsed time
+npm run bathy:build      # GEBCO subset → 513² int16 metre grid, 526338 bytes
 ```
 
 Measured on nexus, 2026-09-14:
@@ -158,6 +177,8 @@ ssh -N -R 5173:localhost:5173 ryzen     # ryzen's localhost:5173 -> this dev ser
 ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 
 PW_REMOTE=ws://localhost:39001/ npm run test:tier2
+# An isolated worktree may use another forwarded port:
+# PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=http://localhost:5183 npm run test:tier2
 ```
 
 The one thing this cannot do for itself: **the `playwright run-server` it

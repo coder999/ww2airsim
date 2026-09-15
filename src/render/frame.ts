@@ -189,7 +189,7 @@ export function nextFrameState(
   const assist = assistFor(assists)
 
   // This frame's controls go into the world rather than alongside it (see
-  // `World.controls`): `advance` takes one object, so Plan 5's N-entity AI
+  // `World.controls`): `advance` takes one object, so the combat plan's N-entity AI
   // adds a field here instead of a parameter at every call site. A new object
   // each frame, never a write into `prev.world` -- `advance`'s purity test
   // deep-freezes the world it is handed.

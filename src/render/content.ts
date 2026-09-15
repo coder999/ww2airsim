@@ -67,3 +67,6 @@ export function terrainLevelUrl(level: number): string {
  * without the suite noticing.
  */
 export const FINEST_FETCHED_LEVEL = 4
+
+/** Same-origin bathymetry, in int16 metres; header is bundled with the code. */
+export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.bin`
