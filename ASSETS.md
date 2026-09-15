@@ -33,7 +33,7 @@ source datasets:
 | Dataset | Source | License / terms |
 | --- | --- | --- |
 | Copernicus DEM GLO-30 | ESA / Copernicus Programme | Recorded below, fetched 2026-09-13 |
-| GEBCO_2026 bathymetry | GEBCO Bathymetric Compilation Group 2026 | Public domain with acknowledgement — full terms to be recorded here with the pipeline, before first use |
+| GEBCO_2026 bathymetry | GEBCO Bathymetric Compilation Group 2026 | Public domain with acknowledgement; derived game data, no official status or endorsement; not for navigation. See `content/ocean/NOTICE.md` and the provenance below. |
 | ESA WorldCover 10 m | ESA WorldCover project | To be recorded with the pipeline, before first use |
 
 **The GEBCO row said "GEBCO 2024" until 2026-09-15.** GEBCO publishes annually
@@ -126,3 +126,20 @@ pipeline's output, which is a derivative work of them:
   `tools/terrain/fetch.ts`'s `ensureAllTiles` treats this specific case (HTTP
   404 only) as "no tile here", not a download failure, and caches the other
   eight (~107 MB total, 2026-09-13).
+
+## Ocean bathymetry provenance (retrieved 2026-09-15)
+
+GEBCO Bathymetric Compilation Group 2026, **GEBCO_2026 Grid**, published by
+NERC EDS British Oceanographic Data Centre NOC; DOI
+[10.5285/4f68d5c7-45eb-f999-e063-7086abc036fa](https://doi.org/10.5285/4f68d5c7-45eb-f999-e063-7086abc036fa).
+The CEDA ice-surface-elevation OPeNDAP subset is cached by `tools/bathy/fetch.ts`;
+its latitude/longitude maps and shape are checked before use. The source is
+15 arc-seconds, integer metres, WGS84 horizontal coordinates, assuming mean
+sea level vertically (the provider notes mixed source datums near shore).
+
+[Terms](https://www.gebco.net/data-products/gridded-bathymetry/terms-of-use):
+public domain; copying, publishing, distribution, adaptation and commercial
+use permitted with acknowledgement. No implied official status or GEBCO/IHO/IOC
+endorsement, and no misrepresentation. Supplied as is without guaranteed
+accuracy or completeness or responsibility for consequences. Not for navigation
+or safety at sea. The derived binary is accompanied by `content/ocean/NOTICE.md`.
