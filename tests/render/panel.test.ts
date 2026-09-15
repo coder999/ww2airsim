@@ -6,6 +6,7 @@ import {
   PANEL_MIN_ASPECT,
   PANEL_BELOW_M,
   TAPE_W,
+  TAPE_CULL_MARGIN_M,
   type Panel,
 } from '../../src/render/scene/panel.js'
 import { degreesBelowEye, PANEL_BANDS } from '../../src/render/scene/panelLayout.js'
@@ -271,38 +272,33 @@ describe('panel', () => {
     // the sibling assertion below pins the plate bare so the hole cannot
     // reopen by something being parented there later.
     //
-    // Also excludes `p.tape.strip` from the HORIZONTAL (Z) check below, for
-    // the same reason as `p.backing`: Task 5 (2026-09-15) deliberately draws
-    // the rose three copies wide (+/-1.5 * stripWidth) so sliding across the
-    // seam always has a neighbour rendered on both sides ("draws the rose
-    // three copies wide" below). Even just copy 0 (a full 360-degree rose,
-    // `stripWidth()` wide) is on its own well past the horizontal budget
-    // below -- the tape is not clipped to its `TAPE_W` "visible window", so
-    // horizontally this is a known, accepted characteristic of the current
-    // design, not something this test is positioned to police. The tape's
-    // own fixed index and readout are NOT excluded: they are small, centred,
-    // and covered by this test like any other readout.
-    //
-    // Review round 1, Finding 2 (elevated): excluding the WHOLE strip also
-    // dropped copy 0's VERTICAL placement from direct coverage here, leaving
-    // it checked only transitively via the design-time upper-band budget
-    // ("keeps the whole tape assembly inside the upper band",
-    // `panelLayout.test.ts`'s own frustum check on that same budget). Copy 0
-    // -- tagged `userData.copy === 0` in `panel.ts`, distinguishing it from
-    // the two off-screen buffer copies -- is measured on the Y axis here
-    // like every other drawn instrument, via `tapeMiddleCopyBox` below.
+    // `p.tape.strip` is no longer excluded (review round 2, Ruling R8):
+    // before culling, the rose's three uncropped copies genuinely painted
+    // past the frame edge on every side (measured at deploy time: the strip
+    // reached 71.67 degrees off boresight against a 40.89-degree frame
+    // half-width at 3:2 -- a 30.78-degree overshoot per side, invisible to
+    // both review rounds because this test excluded the strip wholesale
+    // rather than measuring it). `updatePanel` now culls each mark to
+    // `.visible = false` once it slides outside `TAPE_W`'s window
+    // (`panel.ts`), so only marks that genuinely belong on screen are
+    // included below -- the off-screen buffer copies (and the culled tail
+    // of copy 0 itself) are excluded by their OWN `.visible` flag, not by a
+    // wholesale identity check that could hide a real overshoot again.
     const p = createPanel(f6f, () => null)
     expect(p.backing.children).toHaveLength(0)
+    updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
     p.root.updateMatrixWorld(true)
     const box = new Box3()
     for (const child of p.root.children) {
-      if (child === p.backing || child === p.tape.strip) continue
+      if (child === p.backing) continue
+      if (child === p.tape.strip) {
+        for (const mark of child.children) {
+          if (!mark.visible) continue
+          box.union(new Box3().setFromObject(mark))
+        }
+        continue
+      }
       box.union(new Box3().setFromObject(child))
-    }
-    const tapeMiddleCopyBox = new Box3()
-    for (const mark of p.tape.strip.children) {
-      if (mark.userData.copy !== 0) continue
-      tapeMiddleCopyBox.union(new Box3().setFromObject(mark))
     }
     const [ex, ey, ez] = f6f.view.eyePointM
     const halfFovRad = ((CAMERA_VFOV_DEG / 2) * Math.PI) / 180
@@ -310,7 +306,7 @@ describe('panel', () => {
     // where a given vertical offset subtends the largest angle.
     const nearestX = box.min.x - ex
     expect(nearestX).toBeGreaterThan(0)
-    for (const y of [box.min.y, box.max.y, tapeMiddleCopyBox.min.y, tapeMiddleCopyBox.max.y]) {
+    for (const y of [box.min.y, box.max.y]) {
       const angle = Math.atan2(Math.abs(y - ey), nearestX)
       expect(angle).toBeLessThan(halfFovRad)
     }
@@ -901,6 +897,29 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
       (c) => `${c.position.x.toFixed(6)},${c.position.y.toFixed(6)}`,
     )
     expect(new Set(positions).size).toBe(positions.length)
+  })
+
+  it('culls marks outside the visible window, so the rose does not paint past the panel (R8, round 2)', () => {
+    // Critical, found at deploy time: nothing clips or masks the strip, so
+    // all three copies -- ticks and numerals -- painted across the sky and
+    // sea for the whole width of the view and past it (measured: the strip
+    // reaches 71.67 degrees off boresight against a 40.89-degree frame
+    // half-width at 3:2, a 30.78-degree overshoot per side). Ruling R8:
+    // cull per frame, in `updatePanel`, rather than adding renderer-level
+    // clipping -- the geometry keeps existing (so the three-copy wrap stays
+    // seamless), only `.visible` toggles.
+    const p = createPanel(f6f, () => null)
+    for (const headingDeg of [0, 45, 180, 359]) {
+      updatePanel(p, f6f, wingsLevel(headingDeg, 0), NEUTRAL_CONTROLS, () => null)
+      for (const mark of p.tape.strip.children) {
+        if (!mark.visible) continue
+        const worldX = p.tape.strip.position.x + mark.position.x
+        expect(Math.abs(worldX)).toBeLessThanOrEqual(TAPE_W / 2 + TAPE_CULL_MARGIN_M + 1e-9)
+      }
+      // Not vacuous: at least one mark must actually be visible, or the
+      // culling could be hiding everything and passing by omission.
+      expect(p.tape.strip.children.some((m) => m.visible)).toBe(true)
+    }
   })
 
   it('keeps the fixed readout out of the sliding strip', () => {

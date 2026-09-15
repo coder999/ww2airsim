@@ -115,6 +115,13 @@ const Z_NEEDLE = 0.005
  */
 export const TAPE_W = 0.30
 
+/**
+ * Slack added to the `TAPE_W` culling window so a mark does not pop in or
+ * out abruptly right at the visible edge (Ruling R8, review round 2,
+ * 2026-09-15). Deliberately small next to `TAPE_W`.
+ */
+export const TAPE_CULL_MARGIN_M = 0.01
+
 /** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up).
  *  Re-exported from panelLayout.ts for backwards compatibility. */
 export { PANEL_AHEAD_M }
@@ -486,18 +493,19 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
           new MeshBasicMaterial({ color: 0xe6ecf5 }),
         )
         tick.position.set(x, 0.006, Z_MARKS)
-        // Tagged with its own copy index (review round 1, Finding 2): the
-        // two OUTER copies exist purely as off-screen slide buffer, but copy
-        // 0 is the actual instrument and tests need to tell them apart --
-        // `panel.test.ts`'s "fits inside the field of view" measures copy 0's
-        // vertical placement directly rather than only transitively via the
-        // upper-band budget.
-        tick.userData.copy = copy
+        // Local x stashed on `userData` (Ruling R8, review round 2): nothing
+        // clips or masks the strip, so without per-frame culling all three
+        // copies paint across the sky and sea for the whole width of the
+        // view and past it (measured at deploy time: 71.67 degrees off
+        // boresight against a 40.89-degree frame half-width at 3:2).
+        // `updatePanel` reads this back to decide `.visible` against the
+        // `TAPE_W` window every tick, alongside the slide it already does.
+        tick.userData.localX = x
         strip.add(tick)
         if (mark.major) {
           const numeral = textPlate(mark.text, 0.022, 0.011, makeText)
           numeral.position.set(x, -0.006, Z_MARKS)
-          numeral.userData.copy = copy
+          numeral.userData.localX = x
           strip.add(numeral)
         }
       }
@@ -614,7 +622,22 @@ export function updatePanel(
     const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
     const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
     const headingDeg = gaugeValue('heading', spec, state, controls)
-    panel.tape.strip.position.x = -tapeOffsetFor(tapeGauge, headingDeg) * stripW
+    const stripX = -tapeOffsetFor(tapeGauge, headingDeg) * stripW
+    panel.tape.strip.position.x = stripX
+    // Cull to the visible window, per frame (Ruling R8, review round 2):
+    // there is no clipping plane, stencil or mask anywhere in this file, so
+    // without this every one of the ~108 tick/numeral meshes across all
+    // three copies would render regardless of where it lands -- most of the
+    // rose painted across the sky and sea, well past the panel, for the
+    // whole width of the view and beyond. A mark counts as visible only
+    // once its WORLD-relative x (`stripX + its own local x`, stashed on
+    // `userData.localX` at build time) falls inside `TAPE_W`'s window, with
+    // `TAPE_CULL_MARGIN_M` of slack so a mark does not pop right at the
+    // edge.
+    for (const mark of panel.tape.strip.children) {
+      const localX = mark.userData.localX as number
+      mark.visible = Math.abs(stripX + localX) <= TAPE_W / 2 + TAPE_CULL_MARGIN_M
+    }
     // Cached on `userData`, the same "only on a real change" saving the
     // dial readouts get from `panel.readouts`' own `Readout.text` field --
     // `Panel.tape.readout` is a bare `Mesh` (the interface this task was
