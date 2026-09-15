@@ -22,6 +22,21 @@ describe('the control legend (2026-09-15)', () => {
     expect(throttle).toContain('Z')
   })
 
+  it('never shows a bound key as its raw DOM code', () => {
+    // The case above only checks the codes someone thought to list, which is
+    // exactly how `Slash` shipped reading "Controls  Slash" in the 2026-09-15
+    // screenshot: it was added to BINDINGS, had no entry in NAMED, and fell
+    // through to `return code`. This sweeps every key actually bound, so the
+    // next one added is covered whether or not anyone remembers to list it.
+    for (const [name, codes] of Object.entries(BINDINGS)) {
+      for (const code of codes) {
+        const label = keyLabel(code)
+        if (code.length === 1) continue
+        expect(label, `${name}: ${code} is shown to the pilot unchanged`).not.toBe(code)
+      }
+    }
+  })
+
   it('prints key codes the way a keyboard is labelled, not the way the DOM is', () => {
     // `KeyboardEvent.code` is what BINDINGS stores, and printing it raw gives a
     // pilot "Numpad8" and "ShiftLeft" to hunt for on a keycap.

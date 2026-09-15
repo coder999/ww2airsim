@@ -48,6 +48,21 @@ const NAMED: Readonly<Record<string, string>> = {
   ShiftRight: 'Shift',
   Minus: '-',
   Equal: '=',
+  // Punctuation codes are named, not symbolic, so every one of these reads as
+  // a word unless it is listed. `Slash` shipped as the literal text "Slash"
+  // on 2026-09-15 for exactly that reason; `legend.test.ts` now sweeps every
+  // bound key rather than the handful anyone thought to list.
+  Slash: '/',
+  Backslash: '\\',
+  Period: '.',
+  Comma: ',',
+  Semicolon: ';',
+  Quote: "'",
+  BracketLeft: '[',
+  BracketRight: ']',
+  Backquote: '`',
+  Space: 'Space',
+  Escape: 'Esc',
 }
 
 /**
@@ -92,6 +107,11 @@ export type LegendHandle = {
 /**
  * Renders the legend into the page.
  *
+ * TOP right, not bottom right: the instrument panel occupies the bottom of the
+ * frame in cockpit view, and the first screenshot of this feature (2026-09-15)
+ * had the legend sitting on top of the slip dial. The dev overlay takes the
+ * top LEFT corner, so the two do not collide either.
+ *
  * DOM only, and deliberately thin: the vitest environment is `node`, so
  * everything worth asserting lives in the pure functions above. Same split as
  * `overlay.ts`.
@@ -99,7 +119,7 @@ export type LegendHandle = {
 export function createLegend(root: HTMLElement): LegendHandle {
   const el = document.createElement('pre')
   el.style.cssText =
-    'position:fixed;right:8px;bottom:8px;margin:0;padding:8px 10px;border-radius:4px;' +
+    'position:fixed;right:8px;top:8px;margin:0;padding:8px 10px;border-radius:4px;' +
     'background:rgba(12,14,18,.72);color:#cfe3ff;font:12px/1.45 ui-monospace,Menlo,monospace;' +
     'pointer-events:none;white-space:pre;text-align:right'
   root.appendChild(el)
