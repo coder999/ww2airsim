@@ -572,11 +572,15 @@ describe('panel markings and readouts (I-2)', () => {
   it('shows the current value as digits, and updates them as the aeroplane moves', () => {
     const { factory, drawn } = recordingText()
     const p = createPanel(f6f, factory)
+    // Feet since 2026-09-15: 1234 m is 4048.6 ft and 2500 m is 8202.1 ft.
+    // Deliberately NOT the metres the state holds -- a panel printing the
+    // stored number under an "ft" label is the false claim this change exists
+    // to remove.
     updatePanel(p, f6f, createState({ position: v3(0, 1234, 0) }), factory)
-    expect(p.readouts.get('altimeter')!.text).toBe('1234')
-    expect(drawn).toContain('1234')
+    expect(p.readouts.get('altimeter')!.text).toBe('4049')
+    expect(drawn).toContain('4049')
     updatePanel(p, f6f, createState({ position: v3(0, 2500, 0) }), factory)
-    expect(p.readouts.get('altimeter')!.text).toBe('2500')
+    expect(p.readouts.get('altimeter')!.text).toBe('8202')
   })
 
   it('re-rasterises only when the digits actually change', () => {

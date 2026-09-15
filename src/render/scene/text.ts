@@ -40,10 +40,15 @@ export const makeTextTexture: TextTextureFactory = (text, aspect) => {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  // Shrink to fit rather than clipping or squashing. "AIRSPEED  m/s" is far
-  // wider than "FUEL  kg", and a panel where one label is cropped mid-word is
+  // Shrink to fit rather than clipping or squashing. "AIRSPEED  mph" is far
+  // wider than "SLIP", and a panel where one label is cropped mid-word is
   // worse than one where it is a little smaller. Monospace so a changing
   // readout does not jitter horizontally as its digits change width.
+  //
+  // The examples were "AIRSPEED  m/s" and "FUEL  kg" until 2026-09-15; the
+  // dials read imperial now (gauges.ts's `fromSI`), and "FUEL  US gal" is no
+  // longer the short one. The widest label grew, so if anything this matters
+  // slightly more than it did.
   let size = Math.round(TEXTURE_HEIGHT_PX * 0.72)
   const maxWidth = canvas.width * 0.94
   for (; size > 8; size--) {

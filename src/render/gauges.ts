@@ -44,9 +44,21 @@ export type GaugeSpec = {
   readonly majorStep: number
   /** Spacing of unlabelled scale marks. Must divide `majorStep`. */
   readonly minorStep: number
-  /** Multiply the raw value by this to get the displayed number: the heading
-   *  gauge holds radians and reads degrees, everything else reads as stored. */
-  readonly displayScale: number
+  /**
+   * Multiply the SIMULATION's SI quantity by this to get the dial's own unit.
+   *
+   * Applied once, in `gaugeValue`, so everything downstream -- `min`, `max`,
+   * both step sizes, the needle, the marks and the readout -- is already in
+   * the unit the label promises. The alternative, keeping the table in SI and
+   * scaling only at print time, was what this file did until 2026-09-15: it
+   * would have put `majorStep: 1524` in the altimeter to get a 5,000 ft
+   * numeral, which is a constant nobody can check by reading.
+   *
+   * `sim/` stays SI throughout and is untouched by this -- the golden
+   * trajectory, the Patuxent test cards and every determinism guarantee are
+   * built on those units. This is a display conversion and nothing more.
+   */
+  readonly fromSI: number
   /** Decimal places in the digital readout. */
   readonly decimals: number
   /** Wraps rather than clamping (a compass rose). */
@@ -57,34 +69,34 @@ const TWO_PI = Math.PI * 2
 
 export const GAUGES: readonly GaugeSpec[] = [
   {
-    id: 'airspeed', label: 'AIRSPEED', unit: 'm/s',
-    min: 0, max: 250, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 50, minorStep: 10, displayScale: 1, decimals: 0,
+    id: 'airspeed', label: 'AIRSPEED', unit: 'mph',
+    min: 0, max: 500, sweepRad: (TWO_PI * 3) / 4, circular: false,
+    majorStep: 100, minorStep: 25, fromSI: 1 / 0.44704, decimals: 0,
   },
   {
-    id: 'altimeter', label: 'ALTITUDE', unit: 'm',
-    min: 0, max: 10_000, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 2000, minorStep: 500, displayScale: 1, decimals: 0,
+    id: 'altimeter', label: 'ALTITUDE', unit: 'ft',
+    min: 0, max: 40_000, sweepRad: (TWO_PI * 3) / 4, circular: false,
+    majorStep: 10_000, minorStep: 2000, fromSI: 1 / 0.3048, decimals: 0,
   },
   {
-    id: 'verticalSpeed', label: 'CLIMB', unit: 'm/s',
-    min: -25, max: 25, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 25, minorStep: 5, displayScale: 1, decimals: 1,
+    id: 'verticalSpeed', label: 'CLIMB', unit: 'ft/min',
+    min: -5000, max: 5000, sweepRad: (TWO_PI * 3) / 4, circular: false,
+    majorStep: 5000, minorStep: 1000, fromSI: 60 / 0.3048, decimals: 0,
   },
   {
     id: 'heading', label: 'HEADING', unit: 'deg',
-    min: 0, max: TWO_PI, sweepRad: TWO_PI, circular: true,
-    majorStep: Math.PI / 2, minorStep: Math.PI / 6, displayScale: 180 / Math.PI, decimals: 0,
+    min: 0, max: 360, sweepRad: TWO_PI, circular: true,
+    majorStep: 90, minorStep: 30, fromSI: 180 / Math.PI, decimals: 0,
   },
   {
-    id: 'fuel', label: 'FUEL', unit: 'kg',
-    min: 0, max: 700, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 200, minorStep: 50, displayScale: 1, decimals: 0,
+    id: 'fuel', label: 'FUEL', unit: 'US gal',
+    min: 0, max: 250, sweepRad: (TWO_PI * 3) / 4, circular: false,
+    majorStep: 100, minorStep: 25, fromSI: 1 / (6 * 0.45359237), decimals: 0,
   },
   {
     id: 'slip', label: 'SLIP', unit: '',
     min: -0.5, max: 0.5, sweepRad: Math.PI / 2, circular: false,
-    majorStep: 0.5, minorStep: 0.125, displayScale: 1, decimals: 2,
+    majorStep: 0.5, minorStep: 0.125, fromSI: 1, decimals: 2,
   },
 ]
 
@@ -121,7 +133,14 @@ export function attitudeAngles(state: AircraftState): {
   return { pitchRad, rollRad }
 }
 
-export function gaugeValue(id: GaugeId, _spec: AircraftSpec, state: AircraftState): number {
+export function gaugeValue(id: GaugeId, spec: AircraftSpec, state: AircraftState): number {
+  const g = byId.get(id)
+  if (!g) throw new Error(`Unknown gauge: ${id}`)
+  return siValueFor(id, spec, state) * g.fromSI
+}
+
+/** The quantity the SIMULATION holds, in SI, before the dial's unit is applied. */
+function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState): number {
   switch (id) {
     case 'airspeed':
       return airspeed(state)
@@ -195,8 +214,13 @@ export function needleAngleFor(
  * screenshot and invisible in a unit test written against either half alone.
  */
 export function angleForValue(g: GaugeSpec, value: number): number {
-  if (g.circular) return ((value % TWO_PI) + TWO_PI) % TWO_PI
+  // One mapping for both kinds of dial. The circular branch used to be
+  // `value % TWO_PI`, which silently assumed the compass stored RADIANS --
+  // true until 2026-09-15, when the table moved into display units and
+  // heading became degrees. Expressed as a fraction of the dial's own span
+  // it no longer cares what unit that span is in.
   const t = (value - g.min) / (g.max - g.min)
+  if (g.circular) return (((t % 1) + 1) % 1) * g.sweepRad
   return (t < 0 ? 0 : t > 1 ? 1 : t) * g.sweepRad
 }
 
@@ -246,7 +270,7 @@ export function tickMarksFor(g: GaugeSpec): readonly TickMark[] {
 
 /** The value as it is printed: scaled into the display unit and rounded. */
 function formatDisplay(g: GaugeSpec, value: number): string {
-  const n = value * g.displayScale
+  const n = value
   // `Math.abs` and the `n < 0` test below both treat -0 as zero, so a climb
   // gauge sitting exactly level reads "+0.0" and never flickers to "-0.0".
   // An explicit Object.is(-0) guard was written here first and removed: a
@@ -265,7 +289,7 @@ function formatDisplay(g: GaugeSpec, value: number): string {
   // The `decimals > 0` padding width is dead-by-absence: no circular gauge has
   // decimals today. It is 3 integer digits plus the point plus the decimals.
   if (g.circular) {
-    const turn = (g.max - g.min) * g.displayScale
+    const turn = g.max - g.min
     const wrapped = (((Number(body) % turn) + turn) % turn).toFixed(g.decimals)
     return wrapped.padStart(g.decimals > 0 ? g.decimals + 4 : 3, '0')
   }
