@@ -88,8 +88,17 @@ export type TapeSpec = GaugeBase & { readonly kind: 'tape'; readonly windowSpan:
 
 export type GaugeSpec = DialSpec | ColumnSpec | TapeSpec
 
-/** A control vector with no input held -- the fallback for callers (mostly
- *  tests) that have no reason to care what the throttle gauge reads. */
+/**
+ * A control vector with no input held.
+ *
+ * Private -- not a default for any exported function (controller ruling R3:
+ * `controls` is required everywhere a caller could plausibly need to supply
+ * a real one). This exists only for `needleAngleFor`, which is dial-only by
+ * construction (it throws for anything else) and so can NEVER reach the one
+ * gauge, `throttle`, that reads `controls` at all: passing a fixed vector
+ * through `gaugeValue` there is not a silent default, it is dead code
+ * documenting that the value truly cannot matter.
+ */
 const NEUTRAL_CONTROLS: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 
 const TWO_PI = Math.PI * 2
@@ -172,16 +181,19 @@ export function attitudeAngles(state: AircraftState): {
 }
 
 /**
- * `controls` defaults to a neutral vector: every gauge except `throttle`
- * reads the flight model's `state` alone, so almost every call site (and
- * every existing test written before `throttle` existed) has no reason to
- * supply one.
+ * `controls` is required, even though every gauge except `throttle` reads
+ * the flight model's `state` alone. Controller ruling R3, 2026-09-15: a
+ * defaulted control vector would let a call site forget to thread it and get
+ * a plausible-looking "0% throttle" instead of a compile error -- the same
+ * wired-vs-unwired failure mode `tests/render/frameAssists.test.ts` exists to
+ * catch. Callers that genuinely have no input to report pass the shared
+ * `NEUTRAL_CONTROLS` fixture explicitly (tests/render/panel.test.ts).
  */
 export function gaugeValue(
   id: GaugeId,
   spec: AircraftSpec,
   state: AircraftState,
-  controls: Controls = NEUTRAL_CONTROLS,
+  controls: Controls,
 ): number {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
@@ -256,7 +268,10 @@ export function needleAngleFor(
   // another kind is a caller bug, not a value to degrade gracefully for.
   if (g.kind !== 'dial') throw new Error(`needleAngleFor is dial-only, not for '${g.kind}': ${id}`)
 
-  const value = gaugeValue(id, spec, state)
+  // NEUTRAL_CONTROLS, not a real vector: `g.kind === 'dial'` above rules out
+  // `throttle`, the only gauge `gaugeValue` reads `controls` for, so nothing
+  // here can ever be sensitive to which vector is passed.
+  const value = gaugeValue(id, spec, state, NEUTRAL_CONTROLS)
   if (!Number.isFinite(value)) return 0
 
   return angleForValue(g, value)
@@ -399,12 +414,16 @@ export function labelTextFor(g: GaugeSpec): string {
  * Clamped to the dial's ends for a non-circular gauge, matching the needle:
  * a readout that keeps counting while the needle is pegged tells the pilot
  * the instrument is fine when it is off its scale.
+ *
+ * `controls` is required, like `gaugeValue`'s (controller ruling R3): a
+ * defaulted vector here would let a caller silently show a plausible-looking
+ * throttle reading instead of failing to compile.
  */
 export function readoutTextFor(
   id: GaugeId,
   spec: AircraftSpec,
   state: AircraftState,
-  controls: Controls = NEUTRAL_CONTROLS,
+  controls: Controls,
 ): string {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)

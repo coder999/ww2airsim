@@ -11,13 +11,17 @@ import {
   GAUGES,
   type DialSpec,
 } from '../../src/render/gauges.js'
-import { createState } from '../../src/sim/flight/state.js'
+import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qIdentity, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
+// `gaugeValue`/`readoutTextFor` require `controls` (controller ruling R3,
+// 2026-09-15): every gauge below except the dedicated throttle tests reads
+// only `state`, so this fixture is what they pass.
+const NEUTRAL_CONTROLS: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 
 describe('gaugeValue', () => {
   it('reads airspeed from velocity magnitude', () => {
@@ -25,40 +29,40 @@ describe('gaugeValue', () => {
     // In mph since 2026-09-15 -- `gaugeValue` returns the DIAL's unit, not
     // the simulation's. The conversion itself is pinned in the imperial
     // block below; what this asserts is where the quantity comes from.
-    expect(gaugeValue('airspeed', f6f, s)).toBeCloseTo(100 / 0.44704, 9)
+    expect(gaugeValue('airspeed', f6f, s, NEUTRAL_CONTROLS)).toBeCloseTo(100 / 0.44704, 9)
   })
 
   it('reads altitude from position.y and vertical speed from velocity.y', () => {
     const s = createState({ position: v3(0, 1234, 0), velocity: v3(100, -7.5, 0) })
-    expect(gaugeValue('altimeter', f6f, s)).toBeCloseTo(1234 / 0.3048, 9)
-    expect(gaugeValue('verticalSpeed', f6f, s)).toBeCloseTo((-7.5 / 0.3048) * 60, 9)
+    expect(gaugeValue('altimeter', f6f, s, NEUTRAL_CONTROLS)).toBeCloseTo(1234 / 0.3048, 9)
+    expect(gaugeValue('verticalSpeed', f6f, s, NEUTRAL_CONTROLS)).toBeCloseTo((-7.5 / 0.3048) * 60, 9)
   })
 
   it('reads fuel, which the model genuinely burns', () => {
-    expect(gaugeValue('fuel', f6f, createState({ fuelKg: 300 }))).toBeCloseTo(300 / (6 * 0.45359237), 9)
+    expect(gaugeValue('fuel', f6f, createState({ fuelKg: 300 }), NEUTRAL_CONTROLS)).toBeCloseTo(300 / (6 * 0.45359237), 9)
   })
 
   it('reports heading in [0, 360) degrees and increases it turning right', () => {
     const north = createState({ velocity: v3(100, 0, 0) })
-    expect(gaugeValue('heading', f6f, north)).toBeCloseTo(0, 9)
+    expect(gaugeValue('heading', f6f, north, NEUTRAL_CONTROLS)).toBeCloseTo(0, 9)
     // A NEGATIVE rotation about body +Y swings the nose toward +Z, which is
     // right (see the sign note on Controls.yaw in state.ts). A compass reads
     // that as an increasing heading. Exact values, not not-equal: a
     // not-equal assertion here once let the gauge read backwards.
     const right = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.3) })
     const deg = (rad: number) => (rad * 180) / Math.PI
-    expect(gaugeValue('heading', f6f, right)).toBeCloseTo(deg(0.3), 6)
+    expect(gaugeValue('heading', f6f, right, NEUTRAL_CONTROLS)).toBeCloseTo(deg(0.3), 6)
     const hardRight = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
-    expect(gaugeValue('heading', f6f, hardRight)).toBeCloseTo(90, 6)
+    expect(gaugeValue('heading', f6f, hardRight, NEUTRAL_CONTROLS)).toBeCloseTo(90, 6)
     const left = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.3) })
-    expect(gaugeValue('heading', f6f, left)).toBeCloseTo(360 - deg(0.3), 6)
+    expect(gaugeValue('heading', f6f, left, NEUTRAL_CONTROLS)).toBeCloseTo(360 - deg(0.3), 6)
   })
 
   it('reads zero slip in coordinated flight and non-zero in a skid', () => {
     const straight = createState({ velocity: v3(100, 0, 0) })
-    expect(Math.abs(gaugeValue('slip', f6f, straight))).toBeLessThan(1e-9)
+    expect(Math.abs(gaugeValue('slip', f6f, straight, NEUTRAL_CONTROLS))).toBeLessThan(1e-9)
     const skidding = createState({ velocity: v3(100, 0, 20) })
-    expect(Math.abs(gaugeValue('slip', f6f, skidding))).toBeGreaterThan(0.1)
+    expect(Math.abs(gaugeValue('slip', f6f, skidding, NEUTRAL_CONTROLS))).toBeGreaterThan(0.1)
   })
 })
 
@@ -129,8 +133,8 @@ describe('gaugeValue at the heading seam', () => {
     // still be caught here.
     const justLeftOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.02) })
     const justRightOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.02) })
-    const left = gaugeValue('heading', f6f, justLeftOfNorth)
-    const right = gaugeValue('heading', f6f, justRightOfNorth)
+    const left = gaugeValue('heading', f6f, justLeftOfNorth, NEUTRAL_CONTROLS)
+    const right = gaugeValue('heading', f6f, justRightOfNorth, NEUTRAL_CONTROLS)
     const deg = (rad: number) => (rad * 180) / Math.PI
     expect(left).toBeCloseTo(360 - deg(0.02), 6)
     expect(right).toBeCloseTo(deg(0.02), 6)
@@ -265,24 +269,24 @@ describe('scale marks and readouts (I-2)', () => {
     // `circular` branch, which only a `DialSpec` has, and heading moved to a
     // tape on 2026-09-15 (R1). See "rounds to a bare number..." below.
     const east = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
-    expect(readoutTextFor('heading', spec, east)).toBe('90')
+    expect(readoutTextFor('heading', spec, east, NEUTRAL_CONTROLS)).toBe('90')
     const north = createState({ attitude: qIdentity() })
-    expect(readoutTextFor('heading', spec, north)).toBe('0')
+    expect(readoutTextFor('heading', spec, north, NEUTRAL_CONTROLS)).toBe('0')
     // 1234 m is 4048.6 ft and 512 kg of avgas is 188.1 US gal: the readout
     // converts, so neither prints the number the simulation stores.
-    expect(readoutTextFor('altimeter', spec, createState({ position: v3(0, 1234, 0) }))).toBe('4049')
-    expect(readoutTextFor('fuel', spec, createState({ fuelKg: 512 }))).toBe('188')
+    expect(readoutTextFor('altimeter', spec, createState({ position: v3(0, 1234, 0) }), NEUTRAL_CONTROLS)).toBe('4049')
+    expect(readoutTextFor('fuel', spec, createState({ fuelKg: 512 }), NEUTRAL_CONTROLS)).toBe('188')
   })
 
   it('signs a readout that can go either way, and never prints minus zero', () => {
     const spec = loadAircraftSpec('f6f-hellcat')
     // 12.5 m/s is 2460.6 ft/min. A VSI reads whole feet per minute, so the
     // climb dial lost its decimal place when the units changed.
-    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, 12.5, 0) }))).toBe('+2461')
-    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, -12.5, 0) }))).toBe('-2461')
+    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, 12.5, 0) }), NEUTRAL_CONTROLS)).toBe('+2461')
+    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, -12.5, 0) }), NEUTRAL_CONTROLS)).toBe('-2461')
     // Level flight must read +0.0, not -0.0: a minus sign appearing and
     // vanishing at the top of a climb reads as a fault.
-    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, -0, 0) }))).toBe('+0')
+    expect(readoutTextFor('verticalSpeed', spec, createState({ velocity: v3(100, -0, 0) }), NEUTRAL_CONTROLS)).toBe('+0')
   })
 
   it('stops the readout where the needle stops, rather than counting past the peg', () => {
@@ -290,7 +294,7 @@ describe('scale marks and readouts (I-2)', () => {
     // the instrument is fine when it is off its scale.
     const spec = loadAircraftSpec('f6f-hellcat')
     const tooHigh = createState({ position: v3(0, 99_000, 0) })
-    expect(readoutTextFor('altimeter', spec, tooHigh)).toBe('40000')
+    expect(readoutTextFor('altimeter', spec, tooHigh, NEUTRAL_CONTROLS)).toBe('40000')
     const altimeter = GAUGES.find((g) => g.id === 'altimeter')!
     if (altimeter.kind !== 'dial') throw new Error('expected altimeter to stay a dial')
     expect(needleAngleFor('altimeter', spec, tooHigh)).toBeCloseTo(altimeter.sweepRad, 9)
@@ -299,7 +303,7 @@ describe('scale marks and readouts (I-2)', () => {
   it('says so rather than printing a number when the state is degenerate', () => {
     const spec = loadAircraftSpec('f6f-hellcat')
     const bad = createState({ velocity: v3(NaN, 0, 0) })
-    expect(readoutTextFor('airspeed', spec, bad)).toBe('--')
+    expect(readoutTextFor('airspeed', spec, bad, NEUTRAL_CONTROLS)).toBe('--')
   })
 })
 
@@ -363,6 +367,7 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
         'heading',
         spec,
         createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
+        NEUTRAL_CONTROLS,
       )
     expect(at(0)).toBe('0')
     expect(at(90)).toBe('90')
@@ -409,7 +414,7 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
     for (const g of GAUGES) {
       if (g.kind !== 'dial') continue
       for (const sample of [GAUGE_SAMPLES[g.id].low, GAUGE_SAMPLES[g.id].high]) {
-        const value = gaugeValue(g.id, spec, sample)
+        const value = gaugeValue(g.id, spec, sample, NEUTRAL_CONTROLS)
         expect(needleAngleFor(g.id, spec, sample)).toBeCloseTo(angleForValue(g, value), 12)
       }
     }
@@ -442,18 +447,18 @@ describe('imperial instrumentation (2026-09-15)', () => {
   it('reads airspeed in mph, not metres per second', () => {
     const s = createState({ velocity: v3(100, 0, 0) })
     // 1 m/s = 1/0.44704 mph exactly (the international mile is 1609.344 m).
-    expect(gaugeValue('airspeed', f6f, s)).toBeCloseTo(100 / 0.44704, 9)
+    expect(gaugeValue('airspeed', f6f, s, NEUTRAL_CONTROLS)).toBeCloseTo(100 / 0.44704, 9)
   })
 
   it('reads altitude in feet', () => {
     const s = createState({ position: v3(0, 3000, 0) })
     // 1 ft = 0.3048 m exactly.
-    expect(gaugeValue('altimeter', f6f, s)).toBeCloseTo(3000 / 0.3048, 9)
+    expect(gaugeValue('altimeter', f6f, s, NEUTRAL_CONTROLS)).toBeCloseTo(3000 / 0.3048, 9)
   })
 
   it('reads climb in feet per minute, the unit a VSI is calibrated in', () => {
     const s = createState({ velocity: v3(100, 10, 0) })
-    expect(gaugeValue('verticalSpeed', f6f, s)).toBeCloseTo((10 / 0.3048) * 60, 9)
+    expect(gaugeValue('verticalSpeed', f6f, s, NEUTRAL_CONTROLS)).toBeCloseTo((10 / 0.3048) * 60, 9)
   })
 
   it('reads fuel in US gallons, and a full tank is the documented 250', () => {
@@ -463,8 +468,8 @@ describe('imperial instrumentation (2026-09-15)', () => {
     // This is the one gauge whose conversion is a physical constant rather
     // than a definition, which is exactly why it is pinned here.
     const full = createState({ fuelKg: spec.mass.fuelCapacityKg })
-    expect(gaugeValue('fuel', f6f, full)).toBeCloseTo(681 / (6 * 0.45359237), 9)
-    expect(readoutTextFor('fuel', spec, full)).toBe('250')
+    expect(gaugeValue('fuel', f6f, full, NEUTRAL_CONTROLS)).toBeCloseTo(681 / (6 * 0.45359237), 9)
+    expect(readoutTextFor('fuel', spec, full, NEUTRAL_CONTROLS)).toBe('250')
   })
 
   it('labels the dials with imperial units', () => {

@@ -486,7 +486,7 @@ async function boot(): Promise<void> {
     // also the pilot's raw input, not part of `AircraftState` (state.ts:8),
     // which is why the throttle gauge needs it passed separately -- the same
     // vector the propeller spin below already reads.
-    updatePanel(panel, spec, current.world.aircraft, makeTextTexture, current.render.attitude, current.controls)
+    updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's

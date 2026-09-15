@@ -340,6 +340,17 @@ export function updatePanel(
   panel: Panel,
   spec: AircraftSpec,
   state: AircraftState,
+  /**
+   * The pilot's control inputs, for the one gauge (`throttle`) that reads
+   * `Controls` rather than `AircraftState` (state.ts:8). Required, 4th, ahead
+   * of `makeText` -- controller ruling R3, 2026-09-15: a defaulted vector
+   * would let a caller forget to thread it and get a plausible-looking "0%
+   * throttle" instead of a compile error, the same wired-vs-unwired failure
+   * mode `tests/render/frameAssists.test.ts` exists to catch. Callers with
+   * nothing to report pass the shared `NEUTRAL_CONTROLS` fixture explicitly
+   * (tests/render/panel.test.ts).
+   */
+  controls: Controls,
   makeText: TextTextureFactory = makeTextTexture,
   /**
    * The attitude to lay the horizon bar against, when it differs from the
@@ -354,14 +365,6 @@ export function updatePanel(
    * them, so reading them a fraction of a tick early is invisible.
    */
   renderAttitude: AircraftState['attitude'] = state.attitude,
-  /**
-   * The pilot's control inputs, for the one gauge (`throttle`) that reads
-   * `Controls` rather than `AircraftState` (state.ts:8). Defaults to a
-   * neutral vector so every call site written before `throttle` existed --
-   * which is every one of them today, since a column has no readout box yet
-   * -- keeps compiling unchanged.
-   */
-  controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 },
 ): void {
   for (const g of GAUGES) {
     const readout = panel.readouts.get(g.id)

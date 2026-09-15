@@ -196,9 +196,9 @@ describe('panel', () => {
     const p = createPanel(f6f)
     const slow = createState({ velocity: v3(40, 0, 0) })
     const fast = createState({ velocity: v3(180, 0, 0) })
-    updatePanel(p, f6f, slow)
+    updatePanel(p, f6f, slow, NEUTRAL_CONTROLS)
     const a = p.needles.get('airspeed')!.rotation.z
-    updatePanel(p, f6f, fast)
+    updatePanel(p, f6f, fast, NEUTRAL_CONTROLS)
     const b = p.needles.get('airspeed')!.rotation.z
     expect(b).not.toBeCloseTo(a, 6)
   })
@@ -221,7 +221,7 @@ describe('panel', () => {
     const p = createPanel(f6f)
     for (const bankDeg of [0, 30, -45, 120]) {
       const state = banked(bankDeg)
-      updatePanel(p, f6f, state)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
       const { worldToCamera } = pose(p, state)
       const bar = barScreenAngle(p, worldToCamera)
       const truth = trueHorizonScreenAngle(worldToCamera)
@@ -308,7 +308,7 @@ describe('panel', () => {
         .map((c) => new Box3().setFromObject(c).max.x),
     )
     for (const g of DIAL_GAUGES) {
-      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
+      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS, () => null)
       const needle = p.needles.get(g.id) as Mesh
       const reach = new Box3().setFromObject(needle).max.length()
       expect(reach).toBeLessThanOrEqual(rim + 1e-9)
@@ -414,9 +414,9 @@ describe('panel', () => {
     const p = createPanel(f6f, () => null)
     const level = attitude(0, 0)
     const rolled = attitude(0, 30)
-    updatePanel(p, f6f, level, () => null, rolled.attitude)
+    updatePanel(p, f6f, level, NEUTRAL_CONTROLS, () => null, rolled.attitude)
     expect(deg(p.horizon.rotation.z)).toBeCloseTo(30, 6)
-    updatePanel(p, f6f, rolled, () => null, level.attitude)
+    updatePanel(p, f6f, rolled, NEUTRAL_CONTROLS, () => null, level.attitude)
     expect(deg(p.horizon.rotation.z)).toBeCloseTo(0, 6)
   })
 
@@ -433,7 +433,7 @@ describe('panel', () => {
     for (const pitchDeg of [0, 10, -10, 25, -20]) {
       for (const bankDeg of [0, 30, -45]) {
         const state = attitude(pitchDeg, bankDeg)
-        updatePanel(p, f6f, state, () => null)
+        updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
         const { worldToCamera } = pose(p, state)
         expect(barScreenHeight(p, state, worldToCamera)).toBeCloseTo(
           trueHorizonScreenHeight(worldToCamera),
@@ -461,7 +461,7 @@ describe('panel', () => {
     for (const headingDeg of [0, 30, 45, 90, 135, 180, -60]) {
       for (const pitchDeg of [0, 10, -15]) {
         const state = wingsLevel(headingDeg, pitchDeg)
-        updatePanel(p, f6f, state)
+        updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
         const { worldToCamera } = pose(p, state)
         const bar = barScreenAngle(p, worldToCamera)
         expect(deg(bar)).toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 4)
@@ -497,20 +497,19 @@ describe('panel', () => {
 
   it('stays finite for a degenerate state', () => {
     const p = createPanel(f6f)
-    updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }))
+    updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }), NEUTRAL_CONTROLS)
     for (const n of p.needles.values()) expect(Number.isFinite(n.rotation.z)).toBe(true)
   })
 
   it('accepts an explicit control vector without throwing (2026-09-15)', () => {
-    // main.ts now passes `current.controls` as a sixth argument, the same
-    // vector it already reads for the propeller spin, so the throttle gauge
-    // (a column, not yet drawn) can eventually read it too. This is a smoke
-    // test of that plumbing rather than a behavioural one: no dial reads
-    // `controls` today, so there is nothing visible to assert yet.
+    // main.ts now passes `current.controls` as the required fourth argument,
+    // the same vector it already reads for the propeller spin, so the
+    // throttle gauge (a column, not yet drawn) can eventually read it too.
+    // This is a smoke test of that plumbing rather than a behavioural one:
+    // no dial reads `controls` today, so there is nothing visible to assert
+    // yet.
     const p = createPanel(f6f)
-    expect(() =>
-      updatePanel(p, f6f, createState(), undefined, undefined, NEUTRAL_CONTROLS),
-    ).not.toThrow()
+    expect(() => updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS)).not.toThrow()
   })
 })
 
@@ -598,9 +597,9 @@ describe('panel markings and readouts (I-2)', () => {
     // to `DialSpec` accordingly.
     for (const g of GAUGES) {
       if (g.kind !== 'dial') continue
-      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
+      updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS, () => null)
       const needle = p.needles.get(g.id) as Mesh
-      const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high)
+      const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS)
       // A tick at `value` sits at (sin a, cos a) from the dial centre; the
       // needle's own tip direction must agree.
       const a = angleForValue(g, value)
@@ -622,10 +621,10 @@ describe('panel markings and readouts (I-2)', () => {
     // Deliberately NOT the metres the state holds -- a panel printing the
     // stored number under an "ft" label is the false claim this change exists
     // to remove.
-    updatePanel(p, f6f, createState({ position: v3(0, 1234, 0) }), factory)
+    updatePanel(p, f6f, createState({ position: v3(0, 1234, 0) }), NEUTRAL_CONTROLS, factory)
     expect(p.readouts.get('altimeter')!.text).toBe('4049')
     expect(drawn).toContain('4049')
-    updatePanel(p, f6f, createState({ position: v3(0, 2500, 0) }), factory)
+    updatePanel(p, f6f, createState({ position: v3(0, 2500, 0) }), NEUTRAL_CONTROLS, factory)
     expect(p.readouts.get('altimeter')!.text).toBe('8202')
   })
 
@@ -635,10 +634,10 @@ describe('panel markings and readouts (I-2)', () => {
     const { factory, drawn } = recordingText()
     const p = createPanel(f6f, factory)
     const state = createState({ position: v3(0, 1234, 0) })
-    updatePanel(p, f6f, state, factory)
+    updatePanel(p, f6f, state, NEUTRAL_CONTROLS, factory)
     const after = drawn.length
-    updatePanel(p, f6f, state, factory)
-    updatePanel(p, f6f, state, factory)
+    updatePanel(p, f6f, state, NEUTRAL_CONTROLS, factory)
+    updatePanel(p, f6f, state, NEUTRAL_CONTROLS, factory)
     expect(drawn.length).toBe(after)
   })
 
@@ -655,7 +654,7 @@ describe('panel markings and readouts (I-2)', () => {
     const p = createPanel(f6f)
     expect(p.needles.size).toBe(DIAL_GAUGES.length)
     expect(p.readouts.size).toBe(DIAL_GAUGES.length)
-    expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }))).not.toThrow()
+    expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }), NEUTRAL_CONTROLS)).not.toThrow()
   })
 })
 
