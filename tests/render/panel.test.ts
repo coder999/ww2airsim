@@ -746,3 +746,31 @@ describe('the gunsight reticle (2026-09-15)', () => {
     }
   })
 })
+
+describe('the throttle column (Task 4, 2026-09-15)', () => {
+  it('fills the throttle column in proportion to the control vector', () => {
+    const p = createPanel(f6f, () => null)
+    const level = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    const heightAt = (throttle: number): number => {
+      updatePanel(p, f6f, level, { pitch: 0, roll: 0, yaw: 0, throttle }, () => null)
+      return new Box3().setFromObject(p.columns.get('throttle')!.fill).getSize(new Vector3()).y
+    }
+    const [shut, half, open] = [heightAt(0), heightAt(0.5), heightAt(1)]
+    expect(shut).toBeLessThan(half)
+    expect(half).toBeLessThan(open)
+    // Linear: half throttle is half the travel, within a millimetre.
+    expect(half).toBeCloseTo((shut + open) / 2, 3)
+  })
+
+  it('grows the throttle fill upward from its base, not from its centre', () => {
+    // A plane scaled about its centre creeps downward as it grows, so the bar
+    // would leave its own bezel at full throttle.
+    const p = createPanel(f6f, () => null)
+    const level = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    const baseOf = (t: number): number => {
+      updatePanel(p, f6f, level, { pitch: 0, roll: 0, yaw: 0, throttle: t }, () => null)
+      return new Box3().setFromObject(p.columns.get('throttle')!.fill).min.y
+    }
+    expect(baseOf(1)).toBeCloseTo(baseOf(0.1), 4)
+  })
+})

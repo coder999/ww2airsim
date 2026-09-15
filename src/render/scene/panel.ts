@@ -16,8 +16,11 @@ import {
   tickMarksFor,
   labelTextFor,
   readoutTextFor,
+  gaugeValue,
+  fractionForValue,
   type GaugeId,
   type DialSpec,
+  type ColumnSpec,
 } from '../gauges.js'
 import { makeTextTexture, type TextTextureFactory } from './text.js'
 import {
@@ -41,6 +44,9 @@ export type Panel = {
   /** The digital readout plate inside each dial, and the string it currently
    *  shows -- kept so `updatePanel` can skip re-rasterising an unchanged one. */
   readonly readouts: Map<GaugeId, Readout>
+  /** Column gauges (today: only `throttle`) -- the light bar `updatePanel`
+   *  scales on Y to show how full the control's travel is. */
+  readonly columns: Map<GaugeId, { readonly fill: Object3D }>
   readonly horizon: Object3D
   /** The full-width coaming plate. Runs past the bottom of the frame on
    *  purpose (see `createPanel`), so it reads as clipped rather than
@@ -283,6 +289,92 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // broken instrument; the space is reserved in the arithmetic until a later
   // plan has something to draw there.
 
+  // Column gauges: a vertical light bar, not a needle -- Mark asked for this
+  // one (Task 4, 2026-09-15) after pressing the throttle key and seeing
+  // nothing on the panel move, and reasonably concluding the aeroplane was
+  // broken. `throttle` is the only entry with `kind: 'column'` today.
+  const columnGauges = GAUGES.filter((g): g is ColumnSpec => g.kind === 'column')
+  const columns = new Map<GaugeId, { readonly fill: Object3D }>()
+
+  // A band's local y is `PANEL_BELOW_M - band` (panelLayout.ts's doc
+  // comment): `top` is the smaller "metres below eye" figure, so it maps to
+  // the LARGER, more-upward y. The column is full-height in the lower band,
+  // so its bezel spans exactly that span -- no more, or it would eat the
+  // 1-degree horizontal margin `panelLayout.test.ts` pins for this slot.
+  const columnTopY = PANEL_BELOW_M - PANEL_BANDS.lower.top
+  const columnBottomY = PANEL_BELOW_M - PANEL_BANDS.lower.bottom
+  const columnH = columnTopY - columnBottomY
+  const columnCentreY = (columnTopY + columnBottomY) / 2
+  // Thin enough that a numeral or a tick never has to fight the bezel for
+  // room; the face's own extent is what everything else below is sized from.
+  const COLUMN_BEZEL_T = 0.004
+
+  columnGauges.forEach((g) => {
+    const slot = PANEL_SLOTS.find((s) => s.id === g.id)
+    if (!slot) throw new Error(`no layout slot for ${g.id}`)
+    const { centreX: x, widthM } = slot
+
+    const column = new Group()
+
+    // Bezel spans the slot's FULL width, matching it exactly rather than
+    // overhanging it -- the brief's stop condition ("if anything you draw
+    // would exceed the slot width, STOP") is met by construction: nothing
+    // below is wider than this plate.
+    const bezel = new Mesh(new PlaneGeometry(widthM, columnH), bezelMat)
+    column.add(bezel)
+
+    const faceW = widthM - COLUMN_BEZEL_T * 2
+    const fullH = columnH - COLUMN_BEZEL_T * 2
+    const face = new Mesh(new PlaneGeometry(faceW, fullH), faceMat)
+    face.position.z = Z_MARKS / 2
+    column.add(face)
+
+    // Ticks and numerals live in the left part of the face; the fill bar
+    // occupies the right part, so a full-throttle bar never runs under its
+    // own "100" numeral (brief step 3: "a fill plane on the right").
+    const fillW = faceW * 0.34
+    const tickZoneW = faceW - fillW
+    const fillX = faceW / 2 - fillW / 2
+    const tickLeftX = -faceW / 2
+
+    // Nine marks (0, 12.5, .. 100 per GAUGES' throttle entry), numerals only
+    // at the two majors, 0 and 100 -- exactly what the brief asks for.
+    for (const mark of tickMarksFor(g)) {
+      const len = tickZoneW * (mark.major ? 0.62 : 0.36)
+      const y = -fullH / 2 + mark.fraction * fullH
+      const tick = new Mesh(
+        new BoxGeometry(len, mark.major ? 0.005 : 0.0025, 0.002),
+        mark.major ? markMajorMat : markMinorMat,
+      )
+      tick.position.set(tickLeftX + len / 2, y, Z_MARKS)
+      column.add(tick)
+
+      if (mark.major && mark.text) {
+        const numeral = textPlate(mark.text, tickZoneW * 0.8, 0.018, makeText)
+        // Nudged inward from the very top/bottom edge so the 0 and 100
+        // numerals do not print half off the top or bottom of the face.
+        const ny = mark.fraction === 0 ? y + 0.011 : mark.fraction === 1 ? y - 0.011 : y
+        numeral.position.set(tickLeftX + tickZoneW * 0.42, ny, Z_MARKS)
+        column.add(numeral)
+      }
+    }
+
+    const fill = new Mesh(new PlaneGeometry(fillW, fullH), new MeshBasicMaterial({ color: 0xc8ccd2 }))
+    // A PlaneGeometry is centred on its own origin, so scaling it on Y grows
+    // it in BOTH directions and the bar creeps downward out of its own
+    // bezel. Move the origin to the bar's BASE first, so `scale.y` only
+    // grows it upward -- tests/render/panel.test.ts's "grows the throttle
+    // fill upward from its base" is the regression test for this line.
+    fill.geometry.translate(0, fullH / 2, 0)
+    fill.position.set(fillX, -fullH / 2, Z_NEEDLE)
+    column.add(fill)
+    columns.set(g.id, { fill })
+
+    column.name = `column:${g.id}`
+    column.position.set(x, columnCentreY, 0)
+    root.add(column)
+  })
+
   // The bar now sits BEHIND an opaque coaming rather than in front of the
   // dials. I-7 replaced its clamped offset with exact geometry, which is
   // right, but exact geometry means it keeps travelling: from 8 degrees
@@ -356,7 +448,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, readouts, horizon, reticle, backing }
+  return { root, needles, readouts, columns, horizon, reticle, backing }
 }
 
 export function updatePanel(
@@ -404,6 +496,14 @@ export function updatePanel(
         setPlateText(readout.mesh, text, makeText)
         readout.text = text
       }
+    }
+    const column = panel.columns.get(g.id)
+    if (column) {
+      // `gaugeValue`/`fractionForValue`, not `needleAngleFor`: a column has
+      // no angle, and `throttle` is the one gauge that reads `controls`
+      // rather than `state` (gauges.ts's `NEUTRAL_CONTROLS` doc comment).
+      const value = gaugeValue(g.id, spec, state, controls)
+      column.fill.scale.y = Math.max(1e-4, fractionForValue(g, value))
     }
     const needle = panel.needles.get(g.id)
     if (!needle) continue
