@@ -13,6 +13,9 @@ export type ReferenceOptions = {
   cascade: number
   n: number
   patchM: number
+  kMin?: number
+  kMax?: number
+  windDirectionRad?: number
 }
 
 /**
@@ -29,10 +32,11 @@ export type ReferenceOptions = {
  * Two independent h0 terms evolve into a Hermitian spectrum, so each h0
  * complex component has variance P Δk² / 4. The unscaled inverse transform
  * then sums Fourier amplitudes in metres, independent of N.
- * Directional spreading and cascade band partitioning remain GPU integration
- * work; this oracle represents one complete isotropic patch.
+ * Optional k bands partition cascade energy. With windDirectionRad absent
+ * this is isotropic; otherwise it uses normalized downwind cosine-squared
+ * spreading. Both paths retain the same draw order and normalization.
  */
-export function referenceDisplacement(opts: ReferenceOptions): Float64Array {
+export function stationarySpectrum(opts: ReferenceOptions): { re: Float64Array; im: Float64Array; frequencies: Float64Array; kx: Float64Array; kz: Float64Array } {
   const { n, patchM, timeS, cascade } = opts
   if (!Number.isInteger(n) || n < 2 || !Number.isInteger(Math.log2(n))) {
     throw new Error('ocean: n must be a power of two >= 2')
@@ -49,6 +53,14 @@ export function referenceDisplacement(opts: ReferenceOptions): Float64Array {
   const h0Re = new Float64Array(n * n)
   const h0Im = new Float64Array(n * n)
   const frequencies = new Float64Array(n * n)
+  const waveX = new Float64Array(n * n)
+  const waveZ = new Float64Array(n * n)
+  const kMin = opts.kMin ?? 0
+  const kMax = opts.kMax ?? Infinity
+  if (!Number.isFinite(kMin) || kMin < 0 || !(kMax > kMin) ||
+      (opts.windDirectionRad !== undefined && !Number.isFinite(opts.windDirectionRad))) {
+    throw new Error('ocean: invalid spectral band or wind direction')
+  }
   for (let z = 0; z < n; z++) for (let x = 0; x < n; x++) {
     const radius = Math.sqrt(-2 * Math.log(1 - next()))
     const phase = 2 * Math.PI * next()
@@ -57,13 +69,28 @@ export function referenceDisplacement(opts: ReferenceOptions): Float64Array {
     const kz = (z < n / 2 ? z : z - n) * dk
     const k = Math.hypot(kx, kz)
     const omega = angularFrequency(k)
-    const density = pmSpectrum(omega, u) * (9.81 / (2 * omega)) / (2 * Math.PI * k)
+    const band = k >= kMin && k < kMax ? 1 : 0
+    const alignment = opts.windDirectionRad === undefined ? 1 :
+      (kx * Math.cos(opts.windDirectionRad) + kz * Math.sin(opts.windDirectionRad)) / k
+    // 2/pi cos² over the downwind half-plane integrates to one; relative
+    // to the isotropic 1/(2pi) density this is 4 cos² (and zero upwind).
+    const spread = opts.windDirectionRad === undefined ? 1 : 4 * Math.max(0, alignment) ** 2
+    const density = band * spread * pmSpectrum(omega, u) * (9.81 / (2 * omega)) / (2 * Math.PI * k)
     const amplitude = Math.sqrt(density * dk * dk / 4) * radius
     const i = z * n + x
     h0Re[i] = amplitude * Math.cos(phase)
     h0Im[i] = amplitude * Math.sin(phase)
     frequencies[i] = omega
+    waveX[i] = kx
+    waveZ[i] = kz
   }
+  return { re: h0Re, im: h0Im, frequencies, kx: waveX, kz: waveZ }
+}
+
+/** Unscaled CPU inverse transform of the same spectrum used by the GPU. */
+export function referenceDisplacement(opts: ReferenceOptions, component: 'height' | 'x' | 'z' = 'height'): Float64Array {
+  const { n, timeS } = opts
+  const { re: h0Re, im: h0Im, frequencies, kx, kz } = stationarySpectrum(opts)
   const re = new Float64Array(n * n)
   const im = new Float64Array(n * n)
   for (let z = 0; z < n; z++) for (let x = 0; x < n; x++) {
@@ -74,6 +101,13 @@ export function referenceDisplacement(opts: ReferenceOptions): Float64Array {
     const s = Math.sin(phase)
     re[i] = (h0Re[i]! + h0Re[opposite]!) * c - (h0Im[i]! + h0Im[opposite]!) * s
     im[i] = (h0Re[i]! - h0Re[opposite]!) * s + (h0Im[i]! - h0Im[opposite]!) * c
+  }
+  if (component !== 'height') for (let i = 0; i < re.length; i++) {
+    const k = Math.hypot(kx[i]!, kz[i]!)
+    const direction = k === 0 ? 0 : (component === 'x' ? kx[i]! : kz[i]!) / k
+    const r = re[i]!
+    re[i] = im[i]! * direction
+    im[i] = -r * direction
   }
   inverseFft2d(re, im, n)
   // Assert Hermitian symmetry's observable consequence instead of silently

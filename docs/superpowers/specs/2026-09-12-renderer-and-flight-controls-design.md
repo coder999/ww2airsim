@@ -607,3 +607,11 @@ a rewrite. Plan 5 is the plan that should revisit it.
     behind it, and it would move the golden and re-baseline the soak. But the
     measurement that was supposed to justify deferring it does not say what it
     was quoted as saying, so the deferral now rests on cost and risk alone.
+
+### Ocean compute follow-up — 2026-09-15
+
+The ocean now uses the native WGSL pipeline path from the successful day-0
+probe. The plan's `wgslFn` wording described a function wrapper that was not
+what the probe actually ran. GPU texture readbacks of all three displacement
+components match the CPU oracle at N=64/128/256 and three times; see the ocean
+plan Task 8 and `tests/e2e/ocean.spec.ts`. This closes the compute-path choice.
