@@ -182,6 +182,38 @@ function trueHorizonScreenAngle(worldToCamera: Quaternion): number {
   return Math.atan2(-up.x, up.y)
 }
 
+/**
+ * The attitude ball's counterparts to `barScreenHeight`/`barScreenAngle`
+ * above -- same maths, reading `panel.attitude.ball.matrixWorld` in place of
+ * `panel.horizon.matrixWorld`.
+ *
+ * Added ALONGSIDE the bar's helpers rather than renaming them in place: the
+ * horizon bar and its tests are still live in this file (the next task
+ * retires them, once this ball's coverage exists) and renaming would break
+ * every bar test still asserting against `barScreenAngle`/`barScreenHeight`.
+ */
+function ballScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Quaternion): number {
+  const eye = cameraTransformFor('cockpit', f6f, {
+    position: state.position,
+    attitude: state.attitude,
+  })
+  const centre = new Vector3()
+    .setFromMatrixPosition(panel.attitude.ball.matrixWorld)
+    .sub(new Vector3(eye.position.x, eye.position.y, eye.position.z))
+    .applyQuaternion(worldToCamera)
+  return centre.y / -centre.z
+}
+
+/** The angle, on screen, of the attitude ball's horizon line: 0 is level,
+ *  positive is right-end-up. Read off the built geometry, not off any
+ *  constant in panel.ts. */
+function ballScreenAngle(panel: Panel, worldToCamera: Quaternion): number {
+  const dir = new Vector3(1, 0, 0)
+    .transformDirection(panel.attitude.ball.matrixWorld)
+    .applyQuaternion(worldToCamera)
+  return Math.atan2(dir.y, dir.x)
+}
+
 describe('panel', () => {
   it('has exactly one needle per fitted gauge, and none spare', () => {
     // A needle with no gauge behind it is the failure mode this plan is most
@@ -584,6 +616,40 @@ describe('panel', () => {
     // yet.
     const p = createPanel(f6f)
     expect(() => updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS)).not.toThrow()
+  })
+})
+
+describe('the attitude ball (2026-09-15)', () => {
+  it('lays its horizon at the true horizon angle, both bank directions', () => {
+    // The same failure mode the horizon bar test above exists for: this
+    // compares the ball's projected screen angle against the WORLD quantity
+    // `trueHorizonScreenAngle`, never against `rollRad` itself -- a test
+    // that asserted `rotation.z === rollRad` would pass just as confidently
+    // with the sign flipped, which is exactly how the bar's own -30/+30
+    // defect survived fifteen task reviews (panel.ts:337-348, task-6-brief).
+    for (const bankDeg of [30, -30, 60, -60]) {
+      const p = createPanel(f6f, () => null)
+      const state = attitude(0, bankDeg)
+      // updatePanel BEFORE pose(): `ballScreenAngle` reads the ball's
+      // `matrixWorld`, which is only refreshed by `pose()`'s own
+      // `cockpit.updateMatrixWorld(true)` call -- calling pose() first would
+      // measure the ball's PRE-update (identity) transform instead.
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const { worldToCamera } = pose(p, state)
+      expect(ballScreenAngle(p, worldToCamera), `bank ${bankDeg}`)
+        .toBeCloseTo(trueHorizonScreenAngle(worldToCamera), 1)
+    }
+  })
+
+  it('drops its horizon as the nose comes up', () => {
+    const p = createPanel(f6f, () => null)
+    const heightAt = (pitchDeg: number): number => {
+      const state = attitude(pitchDeg, 0)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const { worldToCamera } = pose(p, state)
+      return ballScreenHeight(p, state, worldToCamera)
+    }
+    expect(heightAt(20)).toBeLessThan(heightAt(-20))
   })
 })
 
