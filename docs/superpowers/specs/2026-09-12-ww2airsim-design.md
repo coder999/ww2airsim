@@ -679,7 +679,7 @@ plans are actually numbered.
 | 2 | Renderer and flight controls | §3, §4 | Complete |
 | 3 | Input assists | §5 | Complete |
 | 4 | Terrain and level of detail | §4 | Complete |
-| 5 | Ocean | §4 | Designed 2026-09-15 |
+| 5 | Ocean | §4 | Complete |
 | 6 | Combat and damage | §6 | Not started |
 | 7 | AI | §7 | Not started |
 | 8 | Carrier and airfield operations | §4, §8 | Not started |
