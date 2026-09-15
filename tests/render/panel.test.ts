@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { Box3, BoxGeometry, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
-import { createPanel, updatePanel, PANEL_MIN_ASPECT, type Panel } from '../../src/render/scene/panel.js'
+import {
+  createPanel,
+  updatePanel,
+  PANEL_MIN_ASPECT,
+  PANEL_BELOW_M,
+  type Panel,
+} from '../../src/render/scene/panel.js'
+import { degreesBelowEye } from '../../src/render/scene/panelLayout.js'
 import {
   GAUGES,
   angleForValue,
@@ -243,8 +250,21 @@ describe('panel', () => {
     // Measured off the built geometry against the camera's own exported
     // field of view, so a bigger dial, a lower panel or a narrower lens all
     // fail here rather than being discovered in a screenshot.
+    //
+    // Excludes `backing`: Task 3 (2026-09-15) deliberately runs that plate
+    // past the frustum on every edge -- past the bottom so it reads as
+    // clipped rather than floating, and out to the frustum's own horizontal
+    // edge so it spans full width at the narrowest supported window. This
+    // test is about the READABLE content (dials, labels, readouts), which is
+    // exactly what its own title says; the coaming behind it is checked
+    // separately in "runs the bezel past the bottom of the frame".
     const p = createPanel(f6f, () => null)
-    const box = new Box3().setFromObject(p.root)
+    p.root.updateMatrixWorld(true)
+    const box = new Box3()
+    for (const child of p.root.children) {
+      if (child.name === 'backing') continue
+      box.union(new Box3().setFromObject(child))
+    }
     const [ex, ey, ez] = f6f.view.eyePointM
     const halfFovRad = ((CAMERA_VFOV_DEG / 2) * Math.PI) / 180
     // Body frame: +X forward. Worst case is the nearest slice of the panel,
@@ -655,6 +675,32 @@ describe('panel markings and readouts (I-2)', () => {
     expect(p.needles.size).toBe(DIAL_GAUGES.length)
     expect(p.readouts.size).toBe(DIAL_GAUGES.length)
     expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }), NEUTRAL_CONTROLS)).not.toThrow()
+  })
+})
+
+describe('the two-band dashboard (2026-09-15)', () => {
+  it('runs the bezel past the bottom of the frame, so it is clipped not floating', () => {
+    // The complaint this fixes: sky was visible below the panel on both sides,
+    // so it read as a strip hanging in the view rather than a dashboard.
+    const p = createPanel(f6f, () => null)
+    const box = new Box3().setFromObject(p.backing)
+    const lowestBelowEye = PANEL_BELOW_M - box.min.y
+    expect(degreesBelowEye(lowestBelowEye)).toBeGreaterThan(CAMERA_VFOV_DEG / 2)
+  })
+
+  it('draws nothing in the reserved radar and armament slots', () => {
+    // An unlit bezel that never fills reads as a broken instrument. The slots
+    // exist in the arithmetic only, until Plan 6 has something to put in them.
+    const p = createPanel(f6f, () => null)
+    const named = p.root.children.map((c) => c.name)
+    expect(named).not.toContain('radar')
+    expect(named).not.toContain('armament')
+  })
+
+  it('keeps five dials, heading having left for the tape', () => {
+    // Ruling R1: the ball is panel geometry, not a GAUGES row, so it is not a
+    // dial and does not appear here. Five dials plus the ball fill the row.
+    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(5)
   })
 })
 

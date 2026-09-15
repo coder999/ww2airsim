@@ -20,7 +20,15 @@ import {
   type DialSpec,
 } from '../gauges.js'
 import { makeTextTexture, type TextTextureFactory } from './text.js'
-import { PANEL_AHEAD_M } from './panelLayout.js'
+import {
+  DIAL_GAP,
+  DIAL_RADIUS,
+  PANEL_AHEAD_M,
+  PANEL_BANDS,
+  PANEL_SLOTS,
+  metresBelowEye,
+} from './panelLayout.js'
+import { CAMERA_VFOV_DEG } from '../camera.js'
 import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 
@@ -34,6 +42,10 @@ export type Panel = {
    *  shows -- kept so `updatePanel` can skip re-rasterising an unchanged one. */
   readonly readouts: Map<GaugeId, Readout>
   readonly horizon: Object3D
+  /** The full-width coaming plate. Runs past the bottom of the frame on
+   *  purpose (see `createPanel`), so it reads as clipped rather than
+   *  floating with sky visible beneath it. */
+  readonly backing: Object3D
 }
 
 export type Readout = {
@@ -51,17 +63,9 @@ export type Readout = {
  * flight model produces, which is why there is no tachometer (see gauges.ts's
  * doc comment on GaugeId).
  */
-const DIAL_RADIUS = 0.06
-/**
- * Dial spacing. Narrowed from 0.20 on 2026-09-13: at 0.20 the panel spanned
- * +/-0.593 m at 0.6 m ahead, subtending 45.0 degrees off boresight, so the
- * outer two dials left the frustum below an aspect ratio of 1.73 -- including
- * on a 3:2 Surface, the only machine that has ever displayed this panel.
- * That is I-7's defect on the other axis, and the horizontal assertion that
- * looked like it covered it compared against the VERTICAL half-angle times a
- * bare 4, giving 2.3x slack, so it could not have caught either.
- */
-const DIAL_GAP = 0.155
+// DIAL_RADIUS and DIAL_GAP now live in panelLayout.ts, alongside PANEL_SLOTS
+// which is built from them -- see that module's doc comment for the
+// horizontal-budget history (2026-09-13 narrowing, 2026-09-15 confirmation).
 /**
  * Narrowest window the panel is designed to fit, width over height.
  *
@@ -96,7 +100,7 @@ export { PANEL_AHEAD_M }
  * principle: legibility beats period authenticity, and markings that cannot
  * be read at a realistic eye point are faithful and useless.
  */
-const PANEL_BELOW_M = 0.19
+export const PANEL_BELOW_M = 0.19
 
 /** Beyond this the horizon is well off screen and `tan` runs away. */
 const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
@@ -128,8 +132,6 @@ const RETICLE_Z = -0.004
 
 /** The coaming: an opaque plate the horizon bar passes behind. */
 const BACKING_Z = -0.001
-const BACKING_TOP = 0.108
-const BACKING_BOTTOM = -0.115
 
 /**
  * A flat plate carrying rasterised text.
@@ -184,9 +186,19 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // is a later task's; for now they exist only in `GAUGES` and are not drawn.
   const dialGauges = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
 
-  dialGauges.forEach((g, i) => {
+  // Layout slots are keyed by id (panelLayout.ts's PANEL_SLOTS), not by
+  // position in this array -- the row has a hole where the attitude ball
+  // will go, so a dial's index here is not its index in the slot table.
+  const slotX = (id: string): number => {
+    const slot = PANEL_SLOTS.find((s) => s.id === id)
+    if (!slot) throw new Error(`no layout slot for ${id}`)
+    return slot.centreX
+  }
+  const lowerCentre = (PANEL_BANDS.lower.top + PANEL_BANDS.lower.bottom) / 2
+
+  dialGauges.forEach((g) => {
     const dial = new Group()
-    const x = (i - (dialGauges.length - 1) / 2) * DIAL_GAP
+    const x = slotX(g.id)
 
     const face = new Mesh(new CircleGeometry(DIAL_RADIUS, 32), faceMat)
     dial.add(face)
@@ -263,9 +275,13 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
     dial.name = `dial:${g.id}`
-    dial.position.set(x, 0, 0)
+    dial.position.set(x, PANEL_BELOW_M - lowerCentre, 0)
     root.add(dial)
   })
+  // radar and armament are layout slots only (PANEL_SLOTS) -- nothing is
+  // added to `root` for them. An unlit bezel that never fills reads as a
+  // broken instrument; the space is reserved in the arithmetic until a later
+  // plan has something to draw there.
 
   // The bar now sits BEHIND an opaque coaming rather than in front of the
   // dials. I-7 replaced its clamped offset with exact geometry, which is
@@ -274,19 +290,24 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // the two inner dials, drawn over their scale marks and under their
   // needles -- a layering nobody chose. Letting the panel occlude it is what
   // a real coaming does, and it needs no clamp to do it.
+  //
+  // Full width at the NARROWEST supported window, so a wider one still has
+  // the bezel reaching both edges rather than stopping short of them.
+  const halfV = Math.tan(((CAMERA_VFOV_DEG / 2) * Math.PI) / 180)
+  const backingHalfW = PANEL_MIN_ASPECT * halfV * PANEL_AHEAD_M * 1.02
+  // Past the frame edge, not up to it (Task 3, 2026-09-15): this is the clip
+  // that stops the panel reading as a strip floating in mid-screen with sky
+  // visible below it. `panel.test.ts`'s "runs the bezel past the bottom of
+  // the frame" pins this against the camera's own vertical half-angle.
+  const backingBottom = metresBelowEye(CAMERA_VFOV_DEG / 2) * 1.15
+  const backingTop = PANEL_BANDS.upper.top
+
   const backing = new Mesh(
-    new PlaneGeometry(
-      // Exactly the dial row's own span, bezels included, so it cannot leave
-      // a sliver of bar showing past the outermost dial. `dialGauges.length`,
-      // not `GAUGES.length`: since 2026-09-15 GAUGES also carries the
-      // throttle column and the heading tape, neither of which is in this
-      // row.
-      (DIAL_GAP * (dialGauges.length - 1) + DIAL_RADIUS * 2.18) * 1.01,
-      BACKING_TOP - BACKING_BOTTOM,
-    ),
+    new PlaneGeometry(backingHalfW * 2, backingBottom - backingTop),
     new MeshBasicMaterial({ color: 0x0b0e11 }),
   )
-  backing.position.set(0, (BACKING_TOP + BACKING_BOTTOM) / 2, BACKING_Z)
+  backing.name = 'backing'
+  backing.position.set(0, PANEL_BELOW_M - (backingTop + backingBottom) / 2, BACKING_Z)
   root.add(backing)
 
   const horizon = new Mesh(
@@ -335,7 +356,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, readouts, horizon, reticle }
+  return { root, needles, readouts, horizon, reticle, backing }
 }
 
 export function updatePanel(
