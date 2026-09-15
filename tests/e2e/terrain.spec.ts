@@ -52,11 +52,20 @@ for (const altitudeM of ALTITUDES_M) {
     // back silently) cannot satisfy this, and without it every assertion in
     // this file would pass over an empty sea. 5 km of slack because the
     // aeroplane has been flying east at 120 m/s since the first frame, while
-    // the nine level fetches were still landing.
+    // the FIVE level fetches (L8..L4) were still landing. [Fix round 1: this
+    // said "nine", the exact stale figure the same commit hunted down in
+    // main.ts and then reintroduced here.]
     expect(Math.hypot(start.position.x - SPAWN_X_M, start.position.z - SPAWN_Z_M), 'spawn did not land').toBeLessThan(
       5000,
     )
+    // Two-sided. One-sided (`> altitudeM - 300`) let the 100 m case pass at
+    // the 600 m default spawn, i.e. at an altitude three LOD compositions away
+    // from the one it names -- the assertion would have been satisfied by
+    // exactly the bug it exists to catch (review fix round 1, m6). The band is
+    // +/-300 m because the aeroplane is flying, not parked: it trades a little
+    // height for speed while the levels land.
     expect(start.position.y, 'spawn altitude did not land').toBeGreaterThan(altitudeM - 300)
+    expect(start.position.y, 'spawn altitude did not land').toBeLessThan(altitudeM + 300)
 
     // ...and prove there is terrain under it. `groundHeightM()` is null until
     // the heightfield reaches the simulation and exactly 0 over water, so a
@@ -95,12 +104,23 @@ ${JSON.stringify(end.errors, null, 2)}`).toEqual([])
  * WebGPU at all, and against `--disable-gpu-vsync`,
  * `--disable-frame-rate-limit`, `--disable-features=CalculateNativeWinOcclusion`
  * and combinations of them -- all five configurations reported the same
- * 9.9-10.0 ms median (task-11-report.md has the table). Task 10's "10.0 ms
- * with terrain against 9.9 ms without" was that cap measured twice, which is
- * why it is not quoted as a baseline anywhere. So the budget is written
- * against WebGPU timestamp queries around the render pass
- * (`window.__ww2.gpuFrameTimesMs()`), which are on the GPU's own clock and
- * cannot see vsync.
+ * 9.9-10.0 ms median. Task 10's "10.0 ms with terrain against 9.9 ms without"
+ * was that cadence measured twice, which is why it is not quoted as a
+ * baseline anywhere. So the budget is written against WebGPU timestamp
+ * queries around the render pass (`window.__ww2.gpuFrameTimesMs()`), which
+ * are on the GPU's own clock and cannot see the cadence at all.
+ *
+ * That 10.0 ms is NOT the monitor. `Win32_VideoController` over `ssh ryzen`
+ * reads 3840x2160 @ 120 Hz (8.33 ms), and the same 10.0 ms appears under
+ * `--disable-gpu` and under headless -- so it is Chromium's own scheduler,
+ * surviving the removal of both the GPU and the display. An earlier draft of
+ * this comment inferred "the display is 100 Hz" from the interval; it was
+ * wrong, and the check that settled it refuted it rather than confirming it.
+ *
+ * **The evidence for all of the above lives in design spec section 10**, not
+ * in `.superpowers/sdd/2026-09-13-terrain/task-11-report.md` -- `.gitignore`
+ * ignores `.superpowers/`, so that report is not in a fresh clone. Only the
+ * raw per-run tables are exclusive to it.
  *
  * **What the measurement was.** 2026-09-14, this spawn at 3,000 m, a 5-second
  * window after a 1.5 s settle, 2560x1440:
@@ -120,6 +140,9 @@ ${JSON.stringify(end.errors, null, 2)}`).toEqual([])
  * a Playwright viewport, which is a CDP device-metrics override rather than a
  * window resize -- `window.screen` reports whatever the override says, so it
  * cannot be used to confirm a real 1440p monitor and this comment does not.
+ * Settled directly in fix round 1: the adapter's actual mode is 3840x2160
+ * (`Win32_VideoController`, read 2026-09-14), so 2560x1440 is definitively
+ * emulated rather than native.
  * What IS confirmed, and is the part that decides how much work the GPU does:
  * `canvas.width x canvas.height` is 2560 x 1440 with `devicePixelRatio` 1.0
  * (measured 2026-09-14), i.e. the swap-chain texture really is 3.7 Mpx, with
@@ -127,16 +150,21 @@ ${JSON.stringify(end.errors, null, 2)}`).toEqual([])
  * scales that down for a smaller window costs the GPU nothing this test is
  * measuring.
  *
- * **Why 3.5 ms.** Two things meet there. It is a third of the platform's 10.0
- * ms frame interval -- the share the GPU can take while leaving the
- * simulation, three's submission and the compositor the rest -- and it is
+ * **Why 3.5 ms.** Two things meet there. It is about a third of the 10.0 ms
+ * cadence the app actually gets, and about 40% of the 8.33 ms the 120 Hz
+ * monitor would impose if the cadence ever tracked it -- either way the share
+ * the GPU can take while leaving the simulation, three's submission and the
+ * compositor the rest. Quoting both so the basis is not hostage to whichever
+ * of the two turns out to govern. And it is
  * ~1.5x the worst p95 above, which is enough margin for a shared desktop
  * without being so loose that a regression hides in it. Proven to bite:
  * `LOD.quadsPerNode` 64 -> 128 (four times the vertices, the same terrain)
- * measured 4.129 p50 / 4.194 p95 and fails this, while the plan's other
- * candidate regression -- `finestRangeM` at 4x node size -- measured 2.949
- * and does not, which is the right outcome for a setting that is a taste
- * question rather than a defect.
+ * measured **p50 4.129 in both runs of it, p95 4.194 and 4.391** -- two runs,
+ * not a transcription slip; the p95 tail moved three quantisation steps
+ * between them while the median did not move at all -- and fails this budget
+ * on either. The plan's other candidate regression, `finestRangeM` at 4x node
+ * size, measured 2.949 and does NOT fail, which is the right outcome for a
+ * setting that is a taste question rather than a defect.
  */
 test.describe('frame-time budget', () => {
   test.use({ viewport: { width: 2560, height: 1440 } })
@@ -144,9 +172,11 @@ test.describe('frame-time budget', () => {
   /** Milliseconds of GPU render pass, 95th percentile. See the block comment. */
   const GPU_BUDGET_P95_MS = 3.5
   /** Milliseconds of wall-clock frame interval, 95th percentile. NOT a budget
-   *  -- at 100 Hz this can only ever read ~10 -- but a doubled interval is a
-   *  missed vsync, and no GPU-side pass duration reports one. 15 ms sits
-   *  between one refresh and two with room on both sides. */
+   *  -- at a fixed 10.0 ms cadence this can only ever read ~10 -- but a
+   *  doubled interval is a missed frame DEADLINE (not a missed vsync: the
+   *  cadence is not the monitor's, see the block comment), and no GPU-side
+   *  pass duration reports one. 15 ms sits between one interval and two with
+   *  room on both sides. */
   const INTERVAL_P95_MS = 15
 
   /** Settle before measuring: the LOD rings re-pack, textures upload, and
@@ -177,7 +207,10 @@ test.describe('frame-time budget', () => {
     // And the budget is only a 1440p budget if the surface is 1440p. A
     // viewport that silently failed to apply would report a smaller canvas and
     // a comfortably-passing, meaningless number.
-    expect(surface.canvas[0] * surface.canvas[1], `canvas was ${surface.canvas.join('x')}`).toBe(2560 * 1440)
+    // Each dimension, not the product: 3,686,400 is also 1440x2560, and a
+    // transposed or differently-shaped surface of the same area would have
+    // passed the product form (review fix round 1, m11).
+    expect(surface.canvas, `canvas was ${surface.canvas.join('x')}`).toEqual([2560, 1440])
 
     // Over Leyte, not over the sea. Found by mutation on 2026-09-14: with
     // `spawn.ts` neutered so the query string was ignored, the three sweeps

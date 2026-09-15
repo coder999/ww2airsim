@@ -36,23 +36,32 @@ import { defineConfig } from '@playwright/test'
  * Chromium flags for the Tier 2 browser.
  *
  * The first two were already here and are about getting a real GPU at all
- * (see the block comment above). The last two are Task 11's, and exist
- * because the frame-budget test is otherwise unmeasurable: with the
- * compositor's frame-rate limiter in place, every frame interval is the
- * display's refresh interval and a "budget" is a statement about the monitor.
- * Task 10 measured 10.0 ms with terrain and 9.9 ms without at 720p, which is
- * one number twice -- the 100 Hz cap on the reference platform, not a
- * measurement. `--disable-gpu-vsync` stops the presenter blocking on the
- * display's vblank; `--disable-frame-rate-limit` stops the display compositor
- * throttling BeginFrame to the same rate afterwards. Both are needed: with
- * only the first, the observed interval stays pinned at the refresh interval
- * (measured 2026-09-14, see task-11-report.md).
+ * (see the block comment above).
+ *
+ * **The last two changed nothing, and are kept anyway. Do not read them as
+ * load-bearing.** They were added in Task 11 expecting to uncap the frame
+ * rate for a frame-time budget. They do not. Measured 2026-09-14 on a BLANK
+ * page carrying no WebGPU at all -- no flags, `--disable-gpu-vsync` alone,
+ * both of these, both plus `--disable-features=CalculateNativeWinOcclusion`,
+ * and both plus `--disable-new-content-rendering-timeout` -- every one of the
+ * five reported the same 9.9-10.0 ms median `requestAnimationFrame` interval.
+ * The flags do reach the browser (`--disable-gpu` through this same header
+ * made `navigator.gpu` vanish), so that is a real null result and not a
+ * plumbing failure: the 10.0 ms cadence is Chromium's own and survives
+ * removing both the GPU and the display. Design spec section 10.2 has the
+ * evidence, including the 120 Hz the monitor actually runs at.
+ *
+ * They stay because they are free, correct, and may matter on a future
+ * reference platform with a variable-refresh or windowed compositor. The
+ * frame budget does NOT go through them: it is a WebGPU timestamp query on
+ * the GPU's own clock (design spec section 10.3), which is why the cap being
+ * immovable stopped mattering.
  *
  * NOTE these reach the browser ONLY through the `x-playwright-launch-options`
  * header below when `PW_REMOTE` is set. `use.launchOptions` is ignored on a
  * `connectOptions` run -- the remote server launches the browser, not this
  * process -- so anything that must apply to the reference platform has to be
- * in the header. Until this task, `--use-angle=d3d12` and
+ * in the header. Until Task 11, `--use-angle=d3d12` and
  * `--enable-unsafe-webgpu` were in `launchOptions` only and therefore were
  * NOT in force on the machine the whole suite exists to run on; the adapter
  * test passing without them is evidence they were never load-bearing there.

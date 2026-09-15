@@ -91,11 +91,11 @@ export type Ww2Diagnostics = {
    * the simulation, the scene update, three's draw submission and the
    * present. It is NOT a GPU pass duration.
    *
-   * On the reference platform it is pinned to the display's refresh interval
-   * and CANNOT carry the frame budget -- see `gpuFrameTimesMs` below, which
-   * can. What it is still good for is the complementary question: whether the
+   * On the reference platform it is pinned at a fixed 10.0 ms cadence and
+   * CANNOT carry the frame budget -- see `gpuFrameTimesMs` below, which can.
+   * What it is still good for is the complementary question: whether the
    * frame made its deadline at all. An interval that has doubled is a missed
-   * vsync, which no GPU-side pass duration reports.
+   * frame deadline, which no GPU-side pass duration reports.
    *
    * Recording STOPS at capacity rather than dropping the oldest sample, so
    * "the first N frames after the reset" is exactly what a caller gets and
@@ -108,11 +108,14 @@ export type Ww2Diagnostics = {
    *
    * This is the frame-time number Task 11's budget is written against, and it
    * exists because `frameTimesMs` above CANNOT carry one on this platform:
-   * `requestAnimationFrame` fires at the display's 100 Hz on the reference
-   * desktop whatever Chromium is launched with -- proven 2026-09-14 against a
-   * blank page with no WebGPU on it at all, which reported the same 10.0 ms
-   * as the game (task-11-report.md). A frame-interval "budget" there is a
-   * statement about the monitor.
+   * `requestAnimationFrame` fires every 10.0 ms on the reference desktop
+   * whatever Chromium is launched with -- proven 2026-09-14 against a blank
+   * page with no WebGPU on it at all, which reported the same 10.0 ms as the
+   * game, and against `--disable-gpu` and headless, which also did. It is a
+   * browser-side cadence, NOT the display: that monitor runs at 120 Hz
+   * (8.33 ms). Design spec section 10 carries the evidence and is the
+   * committed home for it -- Task 11's own report lives under the gitignored
+   * `.superpowers/` and is not in a fresh clone.
    *
    * Read from WebGPU timestamp queries written around the render pass, so it
    * is the GPU's own clock and knows nothing about vsync, the compositor or
@@ -137,8 +140,8 @@ export type Ww2Diagnostics = {
  * How many samples `frameTimesMs` and `gpuFrameTimesMs` each hold after a
  * reset.
  *
- * 4,096 is ~41 s at the reference platform's 100 Hz, comfortably more than
- * the budget test's window, and bounds each array to 32 KB for a session that
- * never resets at all.
+ * 4,096 is ~41 s at the reference platform's 10.0 ms cadence, comfortably
+ * more than the budget test's window, and bounds each array to 32 KB for a
+ * session that never resets at all.
  */
 export const FRAME_TIME_CAPACITY = 4096

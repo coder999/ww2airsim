@@ -302,10 +302,10 @@ the relief feel like ground rather than a texture, does anything pop.
    is not what the browser does. The loader fetches **L4 through L8 only** —
    702,346 bytes over five requests, of which L4 is 526,338 — because `LOD.rings` is
    8 and nothing coarser than mip 8 can be sampled by any ring
-   (`coarsestFetchedLevel`, `src/render/terrain/lod.ts`). L0–L3 are 178 MB,
-   are gitignored, and exist only on the machine that ran the pipeline; the
-   browser has never been able to fetch them and `FINEST_FETCHED_LEVEL = 4`
-   says so in code.
+   (`coarsestFetchedLevel`, `src/render/terrain/lod.ts`). L0–L3 are
+   **178,319,368 bytes (178 MB)**, are gitignored, and exist only on the
+   machine that ran the pipeline; the browser has never been able to fetch
+   them and `FINEST_FETCHED_LEVEL = 4` says so in code.
 
    700 KB of immutable content beside `index.html` needs no object store and
    no decision. R2 becomes a question again only if L0–L3 are ever shipped —
@@ -315,9 +315,16 @@ the relief feel like ground rather than a texture, does anything pop.
    of that argument.
 
    **Not closed by this:** `npm run build` still copies all thirteen levels,
-   including the 171 MB of gitignored tiles, into `dist/` — a one-line filter
-   in `vite.config.ts`'s `copyContent`, carried as a concern since Task 10 and
-   still outside any task's file list.
+   including those 178 MB of gitignored tiles, into `dist/` — a one-line
+   filter in `vite.config.ts`'s `copyContent`, carried as a concern since
+   Task 10 and still outside any task's file list.
+
+   (Review 2026-09-14 flagged "178 MB" here against "171 MB" in the Task 10
+   concern as a contradiction. It is not one — it is the same bytes in two
+   units, and both were right. `ls -l` sums L0–L3 to 178,319,368 bytes;
+   that is 170.06 MiB, which `du -sh` rounds up and prints as `171M`.
+   Everything in this plan now quotes decimal MB, or the byte count, and
+   never `du`'s output.)
 
 3. **Vertical exaggeration.** Still open, deliberately, and still for Mark at
    the controls: real relief at real scale can read as flat from 15,000 ft,
@@ -334,3 +341,116 @@ the relief feel like ground rather than a texture, does anything pop.
    `src/sim/world/terrain.ts`, which is the single point where a sample
    becomes a height the simulation uses. Two call sites, one number, and a
    test that they are the same number.
+
+## 10. The Tier 2 frame-time instrument (added 2026-09-14, Task 11)
+
+§7 asked for "a frame-time budget at 1440p". This section records what that
+turned out to mean on the reference platform, because the answer is not the
+obvious one and several code comments point here for it.
+
+It lives in the design doc rather than only in
+`.superpowers/sdd/2026-09-13-terrain/task-11-report.md` for a boring but
+load-bearing reason: **`.gitignore` ignores `.superpowers/`, so that report is
+not in the repository and a fresh clone does not have it.** The raw per-run
+tables are still only there. Everything a reader needs in order to trust, or
+to overturn, the substitution below is here.
+
+### 10.1 The budget cannot be a frame interval on this platform
+
+`requestAnimationFrame` on the reference desktop fires every **10.0 ms**, and
+nothing available moves it. Measured 2026-09-14:
+
+- A **blank page** — `setContent('<html><body>blank</body></html>')`, no
+  WebGPU, no canvas, nothing but a rAF counter — reports the same 9.9–10.0 ms
+  median as the game does.
+- Five flag configurations (none; `--disable-gpu-vsync`; that plus
+  `--disable-frame-rate-limit`; those plus
+  `--disable-features=CalculateNativeWinOcclusion`; those plus
+  `--disable-new-content-rendering-timeout`) all report 9.9–10.0 ms.
+- The flags **do** reach the remote browser: `--disable-gpu` through the same
+  channel made `navigator.gpu` vanish. So this is not a plumbing failure.
+
+Task 10's "10.0 ms with terrain against 9.9 ms without" was this cadence
+measured twice. It is not a baseline and is not quoted as one anywhere.
+
+### 10.2 Where the 10.0 ms comes from — and where it does NOT
+
+An earlier draft of this work inferred "the display is 100 Hz" from the 9.9 ms
+interval. **That inference is wrong, and the check that settled it refuted it
+rather than confirming it** (review 2026-09-14, finding m9):
+
+- `Get-CimInstance Win32_VideoController` over `ssh ryzen`, read 2026-09-14,
+  reports **AMD Radeon RX 6700 XT, 3840×2160 @ 120 Hz**. 120 Hz is 8.33 ms,
+  not 10.0.
+- It is not the GPU presentation path either. Blank-page rAF measured through
+  three launch configurations on the same machine, same day:
+
+  | launch | rAF p50 | implied |
+  | --- | --- | --- |
+  | headed, default args | 9.900 ms | 101.0 Hz |
+  | headed, `--disable-gpu` | 10.000 ms | 100.0 Hz |
+  | headless (no display present path at all) | 10.000 ms | 100.0 Hz |
+
+So the cadence survives removing the GPU and removing the display. **It is
+Chromium's own scheduler, not the monitor and not vsync** — which is also why
+no vsync flag moves it. The exact mechanism was not identified and is out of
+scope; what matters is that it is a property of the browser, is stable, and is
+not a number about this renderer.
+
+Consequences for the prose elsewhere: a doubled interval is a **missed frame
+deadline**, not a "missed vsync", and the 10.0 ms figure is the **rAF
+cadence**, not a refresh interval. Both were relabelled.
+
+### 10.3 What the budget is measured with instead
+
+**WebGPU timestamp queries around the render pass.** three@0.186.0 supports it
+directly: `new WebGPURenderer({ trackTimestamp: true })` writes a timestamp
+pair per pass, and `renderer.resolveTimestampsAsync('render')` returns the
+duration of the most recent frame in the batch (read from
+`WebGPUTimestampQueryPool._resolveQueries`, not assumed — it is the last
+frame's total, not a sum over the batch). Exposed as
+`window.__ww2.gpuFrameTimesMs()`, DEV only.
+
+This is on the GPU's own clock, so the cadence above is irrelevant to it
+rather than merely worked around. Results quantise to **65.54 µs (2^16 ns)**;
+one step is not a difference.
+
+Measured 2026-09-14 at 2560×1440 over Leyte, ~515-frame windows: GPU p50/p95
+of **2.032/2.294** at 100 m, **2.097/2.359** at 3,000 m, **1.769/2.097** at
+8,000 m. The asserted budget is **GPU p95 ≤ 3.5 ms**
+(`tests/e2e/terrain.spec.ts`).
+
+### 10.4 The residual gap this substitution leaves
+
+Stated here because it is the honest cost of the trade and because nothing in
+the repository recorded it before:
+
+**A purely CPU-side regression is invisible to the budget.** The GPU pass
+duration excludes the simulation, the scene update and three's draw
+submission. Main-thread work could grow from ~2 ms to ~9 ms and both
+assertions in the budget test would still pass — the GPU number would not
+move, and the frame interval would still be 10.0 ms, because 9 ms of CPU still
+fits inside a 10.0 ms cadence. Only at the point where a frame actually misses
+its deadline does the interval guard (p95 ≤ 15 ms) see anything, and by then
+the regression is already user-visible.
+
+Closing it needs a second instrument — wall-clock time spent inside the render
+callback, which nothing measures today. Not built here: it is a new diagnostic
+and a new budget, and this task was asked for one.
+
+### 10.5 What "1440p" means here, precisely
+
+The remote browser runs **headed** on the Windows desktop. `test.use({
+viewport: { width: 2560, height: 1440 } })` is a CDP device-metrics override,
+not a window resize — `window.screen` follows the override (proven: with no
+viewport set, the page reported `screen: [1280, 720]` with an outer window of
+1296×808, larger than its own "screen"), and the physical adapter mode is
+3840×2160, so 2560×1440 is definitively emulated and this document claims no
+1440p monitor.
+
+What is confirmed, and is the part the GPU pays for: `canvas.width ×
+canvas.height` is 2560 × 1440 at `devicePixelRatio` 1.0, i.e. a 3.7 Mpx
+swap-chain texture with MSAA on (`antialias: true`, `renderer.ts`). The budget
+test asserts both dimensions, so a viewport that silently failed to apply
+fails the test rather than producing a comfortable 720p number.
+

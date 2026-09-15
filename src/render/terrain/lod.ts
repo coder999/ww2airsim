@@ -69,8 +69,12 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  * **No longer provisional. Measured 2026-09-14** on the reference GPU (RX
  * 6700 XT, Chromium 153, Dawn/D3D12) at 2560x1440, 3,000 m over Leyte, as
  * WebGPU timestamp-query durations over a 5-second window
- * (`tests/e2e/terrain.spec.ts`; the raw runs are in task-11-report.md). The
- * multiplier here is the only thing that changed between rows:
+ * (`tests/e2e/terrain.spec.ts`; the instrument and the platform are described
+ * in design spec section 10, which is the committed home for them --
+ * `.gitignore` ignores `.superpowers/`, so Task 11's report and its raw
+ * per-run tables are NOT in a fresh clone and this comment does not send
+ * anyone there). The multiplier here is the only thing that changed between
+ * rows:
  *
  *   finestRangeM        selected nodes   vertices   GPU p50   GPU p95
  *   0.5x =    781.25 m             121      0.51 M    1.442*    2.032*
@@ -89,7 +93,9 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  * **What the measurement says, and it is not "go finer".** Between 1x and 2x
  * the whole GPU frame moves by 0.065 ms -- exactly one step of the timestamp
  * query's 65.54 us quantisation, i.e. at the floor of what the instrument can
- * resolve. Against the platform's 10 ms frame interval that is 0.7%. Frame
+ * resolve. Against the platform's 10.0 ms requestAnimationFrame cadence that
+ * is 0.7%. (Cadence, not refresh rate: the monitor runs at 120 Hz and the
+ * 10.0 ms comes from Chromium itself -- design spec section 10.2.) Frame
  * time therefore does not choose between 1x and 2x, and 2x is kept because it
  * is the ratio the rest of this file's geometry is written for and it puts
  * the ring-0 -> ring-1 transition further from the eye, where a transition is
@@ -98,7 +104,8 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  * 4x is the first setting frame time has an opinion about (+0.85 ms, 40% of
  * the frame) and it is rejected on both counts: it costs real time AND buys
  * no detail, because rings 0-3 all clamp both mip taps to L4 (`content.ts`'s
- * `FINEST_FETCHED_LEVEL`; L0-L3 are 178 MB and are not shipped). A ring-0
+ * `FINEST_FETCHED_LEVEL`; L0-L3 are 178,319,368 bytes and are not shipped).
+ * A ring-0
  * patch already tessellates at 24.4 m against L4's 390 m sample spacing --
  * sixteen times finer than the data can express -- so widening ring 0 adds
  * triangles to a surface that is already the bilinear interpolant of samples

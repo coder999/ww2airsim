@@ -137,8 +137,12 @@ export async function flySweep(page: Page): Promise<void> {
   )
 }
 
-/** The q-th percentile of `values`, nearest-rank, 0 <= q <= 1. Small enough
- *  to inline, here so the two suites cannot compute it two different ways. */
+/** The q-th percentile of `values`, nearest-rank, 0 <= q <= 1.
+ *
+ *  Used only by `terrain.spec.ts` today. It is here rather than there because
+ *  this file is where the Tier 2 suites' shared vocabulary lives, not because
+ *  two callers exist -- an earlier version of this comment claimed the latter,
+ *  which was simply untrue (review fix round 1, m10). */
 export function percentile(values: readonly number[], q: number): number {
   const sorted = [...values].sort((a, b) => a - b)
   return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? NaN

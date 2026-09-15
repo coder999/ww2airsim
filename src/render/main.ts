@@ -487,6 +487,18 @@ async function boot(): Promise<void> {
     // The resolve itself is a separate command buffer submitted after the
     // pass, so it cannot inflate the duration it is reading -- it makes the
     // frame slightly heavier without making the measurement wrong.
+    //
+    // The guard's own bias, stated because it is the obvious objection and it
+    // is not free (review fix round 1, m7): skipping frames while a resolve is
+    // outstanding preferentially skips frames during which the GPU was busy,
+    // which is exactly when a resolve takes longer -- so in principle this can
+    // under-sample the slow tail it is meant to measure. Measured 2026-09-14
+    // it does not, because it almost never skips: three 5-second windows at
+    // 100 m / 3,000 m / 8,000 m recorded 516 / 515 / 514 GPU samples against
+    // 517 / 515 / 514 frames, i.e. within one sample of 1:1. If a future
+    // platform makes resolves slow enough for that ratio to drop, this
+    // guard's bias stops being theoretical and the percentiles want
+    // re-deriving.
     if (import.meta.env.DEV && !gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
       gpuResolvePending = true
       void renderer
