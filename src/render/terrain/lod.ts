@@ -163,9 +163,16 @@ export const LOD: LodParams = {
  * Takes the pyramid's level count rather than a header or `TerrainHeader`
  * object: `load.ts` closes over the one committed `TERRAIN_HEADER`, while
  * `createTerrainMesh` is handed whatever header its caller passes, and the
- * level count is the only field either side needs -- forcing them onto one
- * concrete header shape would couple two things that don't need to agree
- * about anything else.
+ * level count is the only field THIS function needs.
+ *
+ * That is a statement about `levels` alone, and it was once written as though
+ * it were a statement about the whole header (review 2026-09-14, finding I2).
+ * It is not: `createTerrainMesh` also calls `selectNodes` with the default
+ * `LOD` below, whose `halfExtentM` comes from the committed header, so a
+ * caller-supplied header with a DIFFERENT `halfExtentM` would lay patches out
+ * over one world and sample textures built for another. `createTerrainMesh`
+ * throws on exactly that mismatch; the two headers are free to differ in
+ * `levels` and nothing else.
  */
 export function coarsestFetchedLevel(pyramidLevels: number): number {
   return Math.min(LOD.rings, pyramidLevels - 1)

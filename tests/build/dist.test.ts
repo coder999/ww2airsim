@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { build } from 'vite'
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
@@ -47,6 +48,21 @@ const COPERNICUS_LICENCE_STRINGS = {
     'delegation do not incur any liability for any use of the Copernicus WorldDEM-30.',
 } as const
 const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
+
+/**
+ * The gitignored half of the pyramid: L0-L3, 178,319,368 bytes, which
+ * `tools/terrain/build.ts` writes and no browser code path fetches
+ * (`src/render/content.ts`'s FINEST_FETCHED_LEVEL). `vite.config.ts`'s content
+ * copy filters this directory out; without the filter, every build on a
+ * machine that has run `npm run terrain:build` ships it, and this file runs
+ * two builds.
+ *
+ * Resolved from this file's own URL rather than from `process.cwd()`, and the
+ * same relative string is reused inside `outDir` so the two halves of the
+ * claim cannot name different directories.
+ */
+const TERRAIN_TILES_PATH = 'content/terrain/tiles'
+const REPO_TERRAIN_TILES_DIR = fileURLToPath(new URL(`../../${TERRAIN_TILES_PATH}`, import.meta.url))
 
 /**
  * Ruling R14, placed by Ruling R20.
@@ -102,6 +118,20 @@ describe('the built artifact', () => {
       // repo-side copy is checked by reading the shipped one, so a notice
       // edited to say something else fails here rather than in a lawyer's
       // letter.
+      // The 178 MB the build must NOT ship -- asserted only where the bug is
+      // reachable. `expect(existsSync(...)).toBe(false)` unconditionally would
+      // be green in CI and in a fresh clone for the wrong reason: the SOURCE
+      // directory is absent there, so nothing could have been copied whether
+      // the filter exists or not. Guarded on the source, this is a real
+      // assertion on a machine that has run `npm run terrain:build` and a
+      // stated no-op everywhere else.
+      if (existsSync(REPO_TERRAIN_TILES_DIR)) {
+        expect(
+          existsSync(join(outDir, TERRAIN_TILES_PATH)),
+          'the build shipped the gitignored L0-L3 tiles (vite.config.ts\'s content-copy filter)',
+        ).toBe(false)
+      }
+
       const notice = readFileSync(join(outDir, TERRAIN_NOTICE_PATH), 'utf8')
       const flatten = (md: string): string => md.replace(/^>\s?/gm, '').replace(/\s+/g, ' ')
       // Split on the `## ` headings, so each licence string is looked for

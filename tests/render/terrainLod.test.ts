@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { selectNodes, LOD, type LodNode } from '../../src/render/terrain/lod.js'
 import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
 import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
-import type { TerrainHeader } from '../../src/sim/world/schema.js'
+import { samplesAtLevel, type TerrainHeader } from '../../src/sim/world/schema.js'
 
 const area = (n: { sizeM: number }) => n.sizeM * n.sizeM
 
@@ -281,11 +281,17 @@ describe('CDLOD node selection', () => {
 })
 
 // M8 (review 2026-09-14): both pinned tables below depend on `finestRangeM`
-// (lod.ts, PROVISIONAL pending Task 11) -- retuning it moves ring
-// boundaries, which moves which mip lands under which distance, which moves
-// every pinned number below. If either table goes red, check whether
-// `finestRangeM` or the committed pyramid changed before treating it as a
-// regression: it may just need re-measuring and re-pinning.
+// (lod.ts) -- retuning it moves ring boundaries, which moves which mip lands
+// under which distance, which moves every pinned number below. If either
+// table goes red, check whether `finestRangeM` or the committed pyramid
+// changed before treating it as a regression: it may just need re-measuring
+// and re-pinning.
+//
+// This said "PROVISIONAL pending Task 11" until the final review on
+// 2026-09-14. Task 11 measured it and `lod.ts` has read "No longer
+// provisional" since -- a comment about another file that had moved, which is
+// this repository's named worst failure mode. The dependency itself is real
+// and unchanged; only the word was stale.
 
 // Mip 0 (the finest, 8193-sample level) lives in the gitignored
 // `content/terrain/tiles/` -- see `tools/terrain/load.ts`'s
@@ -321,6 +327,51 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
       4: 80.2,
       5: 221.7,
     })
+  })
+
+  it('pins the worst |L0 - L4| error over the whole surface, measured 2026-09-14', () => {
+    // The table above is about LOD SELECTION -- how much coarser the far field
+    // is than the near field. This is the error both of them share: L4 is the
+    // finest level a clone has, the renderer clamps rings 0-3 to it and the
+    // physics is handed it, so a fresh clone flies a Leyte that is this much
+    // flatter than the Copernicus data EVERYWHERE, near field included.
+    //
+    // Recorded in the design spec (section 6) and in the handoff as the number
+    // behind "does the relief want a vertical exaggeration?", and pinned here
+    // rather than left as prose because it is the premise that argument rests
+    // on. It was previously called unpinnable "because it needs L0, which CI
+    // lacks" -- which this block already answers: it is the same
+    // `skipIf(!haveFinestMip)` gate the mip-0 table above runs under.
+    //
+    // Every one of L0's 8193^2 samples against `heightAt` on the L4 field, not
+    // a subsample: the worst cell is a single ridge top and a stride would
+    // step over it.
+    const header = loadTerrainHeader()
+    const l0 = loadTerrainLevel(0, header)
+    const l4 = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const n = samplesAtLevel(header, 0)
+    const half = header.halfExtentM
+    const step = (2 * half) / (n - 1)
+    let worst = 0
+    let worstX = 0
+    let worstZ = 0
+    for (let row = 0; row < n; row++) {
+      const z = half - row * step
+      for (let col = 0; col < n; col++) {
+        const x = -half + col * step
+        // Decimetres on disk (schema.ts's `encoding`), metres everywhere else.
+        const diff = Math.abs(l0[row * n + col]! / 10 - heightAt(l4, x, z))
+        if (diff > worst) {
+          worst = diff
+          worstX = x
+          worstZ = z
+        }
+      }
+    }
+    expect(worst).toBeCloseTo(220.862, 3)
+    // WHERE, not just how much: a measurement that moved to a different peak
+    // is a different claim even if the magnitude happened to survive.
+    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-78027, 80664])
   })
 })
 

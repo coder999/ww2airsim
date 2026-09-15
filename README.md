@@ -68,11 +68,11 @@ so they are not re-reported as bugs:
 - **Red/orange specks on the sea are not terrain's.** The pre-terrain checkout
   `544bd7e`, served as a control on 2026-09-14, shows the identical specks in
   the same places while drawing no terrain at all.
-- **`main.ts`'s three-line physics-wiring call site is unasserted**, and
-  deliberately parked. It is the entry point; the logic each line calls is two
-  tested pure functions (`physicsFieldFor`, `withTerrain`). The check from
-  outside is `window.__ww2.groundHeightM()`, which is `null` if no field ever
-  reached the simulation.
+- ~~**`main.ts`'s three-line physics-wiring call site is unasserted**~~ —
+  closed 2026-09-14. The body moved to `applyTerrainLevel`
+  (`src/render/terrain/load.ts`) and is driven by a test with a fake mesh;
+  the call site is now one line. `window.__ww2.groundHeightM()` remains the
+  check from outside, and is `null` if no field ever reached the simulation.
 
 The hand-off to Mark — screenshots, the measured GPU frame cost, the LOD
 height-error tables, and the one open question — is
@@ -121,8 +121,11 @@ publishes no tile for it — `ASSETS.md` has the confirmation.)
 Two Tier 1 checks skip themselves **by name** without those files, rather than
 vanishing: the mip-0 far-field height-error table in
 `tests/render/terrainLod.test.ts`, and the built-grid-against-source-tiles
-block in `tests/tools/terrainBuild.test.ts`. Everything else in `npm run
-verify` runs against the committed levels.
+block in `tests/tools/terrainBuild.test.ts`. Both gate on `L0.bin` AND the
+source cache, because both read both — until 2026-09-14 the second gated on the
+cache alone, so running only the `fetch.ts` half of the command above turned
+its named skip into an ENOENT. Everything else in `npm run verify` runs against
+the committed levels.
 
 ## Tier 2: the GPU harness
 

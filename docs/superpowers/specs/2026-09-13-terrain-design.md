@@ -263,10 +263,17 @@ consequences, neither of which this section anticipated:
   **49.0 km** at (99000, −99000), the camera the mip-0 table uses. Both are
   correct for their camera; neither is "the" ring-4 distance.
 - What both are wrong about instead is the **whole surface against the source
-  grid**: worst |L0 − L4| over every one of L0's 8193² samples is **220.9 m**,
+  grid**: worst |L0 − L4| over every one of L0's 8193² samples is **220.862 m**,
   at (−78,027, 80,664), measured 2026-09-14. A fresh clone flies a Leyte whose
   peaks are that much flatter than the Copernicus data, everywhere, near field
   included.
+
+  **Pinned, not quoted** (final review 2026-09-14): it is asserted in
+  `tests/render/terrainLod.test.ts`, inside the same `skipIf(!haveFinestMip)`
+  block as the mip-0 table above, so it is re-derived on every run of a
+  checkout that has L0 rather than believed from this paragraph. It had been
+  recorded as unpinnable "because it needs L0, which CI lacks", which that
+  block already answers.
 
 The guard below is unchanged and is still the right one; only the premise
 above moved.
@@ -370,10 +377,13 @@ the relief feel like ground rather than a texture, does anything pop.
    finest available level is 390 m, and shipping finer levels invalidates half
    of that argument.
 
-   **Not closed by this:** `npm run build` still copies all thirteen levels,
-   including those 178 MB of gitignored tiles, into `dist/` — a one-line
-   filter in `vite.config.ts`'s `copyContent`, carried as a concern since
-   Task 10 and still outside any task's file list.
+   **Closed 2026-09-14 (final review, I1).** `npm run build` used to copy all
+   thirteen levels, including those 178 MB of gitignored tiles, into `dist/`.
+   `vite.config.ts`'s `copyContent` now filters `content/terrain/tiles` out,
+   and `tests/build/dist.test.ts` asserts the built artifact does not contain
+   it — guarded on the SOURCE directory existing, so it is a real assertion on
+   a machine that has run the pipeline and a stated no-op in CI, where an
+   unconditional check would have passed because there was nothing to copy.
 
    (Review 2026-09-14 flagged "178 MB" here against "171 MB" in the Task 10
    concern as a contradiction. It is not one — it is the same bytes in two

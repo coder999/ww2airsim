@@ -2,7 +2,12 @@ import terrainHeader from '../../../content/terrain/header.json' with { type: 'j
 import { FINEST_FETCHED_LEVEL, terrainLevelUrl } from '../content.js'
 import { parseTerrainHeader, samplesAtLevel } from '../../sim/world/schema.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
+import { withTerrain, type FrameState } from '../frame.js'
 import { coarsestFetchedLevel } from './lod.js'
+// Type-only, and it has to stay that way: this module is imported by tests
+// that have no GPU and no `three/webgpu`, and `Pick<TerrainMesh, 'setLevel'>`
+// is erased at compile time, so nothing here pulls the renderer in.
+import type { TerrainMesh } from './mesh.js'
 
 /**
  * The browser side of `tools/terrain/load.ts`: the same bytes, fetched
@@ -92,6 +97,39 @@ const COARSEST_FETCHED_LEVEL = coarsestFetchedLevel(TERRAIN_HEADER.levels)
 export function physicsFieldFor(level: number, data: Int16Array): TerrainField | null {
   if (level !== FINEST_FETCHED_LEVEL) return null
   return createTerrainField(TERRAIN_HEADER, level, data)
+}
+
+/**
+ * Everything `main.ts` does with one arrived pyramid level: hand it to the
+ * mesh, and hand it to the physics too if it is the level the physics takes.
+ *
+ * This is three lines and it lives here rather than inline in `main.ts`
+ * because of what those three lines are. Until 2026-09-14 the physics half was
+ * simply missing -- `World.terrain` stayed null for the life of the process
+ * and the aeroplane flew through the mountains it could see. Reverting the fix
+ * left all 536 tests green, because the call site was inside a callback inside
+ * `boot()`, which nothing headless can reach; the only thing that caught it was
+ * `groundHeightM()` read off a real GPU. A regression hole that can only be
+ * closed by a person at the controls is not closed.
+ *
+ * `mesh` is `Pick<TerrainMesh, 'setLevel'>` so a test can pass a recorder
+ * object: the seam is exactly "what happens to a level", with no renderer, no
+ * DOM and no `boot()` in it, and it is a pure function of its arguments apart
+ * from that one call.
+ */
+export function applyTerrainLevel(
+  mesh: Pick<TerrainMesh, 'setLevel'>,
+  frame: FrameState,
+  level: number,
+  data: Int16Array,
+): FrameState {
+  mesh.setLevel(level, data)
+  // The SAME decoded array goes to both, deliberately: `physicsFieldFor`
+  // retains it rather than copying (see its cost note), and `setLevel` only
+  // reads it, so the mesh's float copy and the physics' int16 view can never
+  // be of different samples.
+  const field = physicsFieldFor(level, data)
+  return field ? withTerrain(frame, field) : frame
 }
 
 /**

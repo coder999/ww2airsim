@@ -152,11 +152,21 @@ describe('the committed terrain is byte-for-byte the pinned build', () => {
 // `describe.skipIf` prints a NAMED skip rather than vanishing, which is what
 // keeps "green because it checked" distinguishable from "green because it did
 // not". The console line below makes that unmissable even in a dot reporter.
-const haveSource = existsSync(CACHE_DIR)
+//
+// BOTH preconditions, not just the cache. The block below also calls
+// `loadTerrainLevel(0, header)`, and L0.bin lives in the SEPARATELY gitignored
+// `content/terrain/tiles/` -- so gating on the cache alone turned a named skip
+// into a hard ENOENT for anyone who followed the instruction this line used to
+// print: `npx tsx tools/terrain/fetch.ts` creates the cache and does not create
+// L0 (review 2026-09-14, finding M3). `tests/render/terrainLod.test.ts` gates
+// on `existsSync(terrainLevelPath(0))` and names both commands, which is the
+// shape copied here.
+const haveSource = existsSync(CACHE_DIR) && existsSync(terrainLevelPath(0))
 if (!haveSource) {
   console.warn(
-    `[terrainBuild.test.ts] ${CACHE_DIR} is absent -- the source cross-check and the ` +
-    `source-tile digests are SKIPPED. Run \`npx tsx tools/terrain/fetch.ts\` to enable them.`,
+    `[terrainBuild.test.ts] ${CACHE_DIR} or ${terrainLevelPath(0)} is absent -- the source ` +
+    `cross-check and the source-tile digests are SKIPPED. Run ` +
+    `\`npx tsx tools/terrain/fetch.ts && npm run terrain:build\` to enable them.`,
   )
 }
 

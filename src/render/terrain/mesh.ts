@@ -103,9 +103,10 @@ export function sampleLevelsForRing(
  * Instances a single ring can hold before the buffer is reallocated.
  *
  * Measured 2026-09-14 over a 21x21 sweep of camera positions covering the
- * whole world: the worst single ring held 48 patches (at the world corner,
- * -50,000 / -50,000) and the worst total across all rings was 196 (at the
- * origin). 64 covers the measured worst without being a number anything
+ * whole world (every 10 km from -100,000 to 100,000 on both axes): the worst
+ * single ring held 48 patches, at (-50,000, -50,000) -- a quarter-point of
+ * the world, not a corner; the corners are at +/-100,000 -- and the worst
+ * total across all rings was 196, at the origin. 64 covers the measured worst without being a number anything
  * depends on: `ensureCapacity` doubles on demand, so being wrong costs one
  * reallocation, not a dropped patch.
  */
@@ -194,8 +195,13 @@ const AMBIENT = 0.35
  * vertex-fetch difference is below 0.066 ms -- under 3% of a 2.1 ms frame,
  * and 0.7% of the platform's 10.0 ms requestAnimationFrame cadence (which is
  * Chromium's, not the display's -- design spec section 10.2). `r16float`
- * would halve the ~700 KB of height textures, which is not a constraint
- * anything here has.
+ * would halve the height textures, which is not a constraint anything here
+ * has: L4..L8 is 351,173 samples, and they are held as `Float32Array`, so the
+ * textures are **1,404,692 bytes** and halving them lands AT ~700 KB. (The
+ * 702,346-byte figure quoted elsewhere -- `load.ts`, the design spec, the
+ * README -- is the same levels' int16 size ON THE WIRE, which is what those
+ * places are about. Two quantities, one coincidence of arithmetic; this
+ * comment used to give the wire figure as though it were the texture one.)
  *
  * So the measurement did not decide it, and **the choice is `r32float` on the
  * quantisation argument above, not on speed**. Recording the number anyway
@@ -387,6 +393,22 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  * mesh's own bookkeeping depends on it and so does the Node test.
  */
 export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
+  // Two world extents would be two worlds. `header` decides the texture sizes
+  // and `sampleField`'s world->grid mapping below, but `update` calls
+  // `selectNodes` with the DEFAULT `LOD`, whose `halfExtentM` comes from the
+  // committed `content/terrain/header.json` (`lod.ts`). If the two disagree,
+  // patch footprints are laid out over one world while the shader maps them
+  // onto a texture built for another -- terrain that is wrong everywhere and
+  // plausible everywhere, with no seam to point at. Every caller and every
+  // test passes `TERRAIN_HEADER` today, so the disagreeing case is not
+  // reachable; this is what stops it becoming reachable in silence (review
+  // 2026-09-14, finding I2).
+  if (header.halfExtentM !== LOD.halfExtentM) {
+    throw new Error(
+      `terrain header half-extent ${header.halfExtentM} m disagrees with the LOD's ` +
+        `${LOD.halfExtentM} m: node selection and the height textures would describe different worlds`,
+    )
+  }
   // The coarsest level any ring can sample, for the header this particular
   // mesh was handed. See `coarsestFetchedLevel`'s doc comment in `lod.ts` for
   // the rule and why it is shared with `load.ts`'s fetch loop -- allocating a

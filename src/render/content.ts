@@ -29,10 +29,19 @@ export const AIRCRAFT_CONTENT_URL = `${import.meta.env.BASE_URL}${AIRCRAFT_CONTE
  * `src/render/terrain/load.ts` asks the network for it, and those two claims
  * are only worth something if they cannot drift apart.
  *
- * A function rather than a constant because there are nine of them and the
- * level number is the only thing that varies; `tools/terrain/load.ts`'s
- * `terrainLevelPath` is the Node-side twin, with the same name for the same
- * concept (the `tools/content/load.ts` <-> `src/sim/content.ts` pattern).
+ * A function rather than a constant because the level number is the only
+ * thing that varies; `tools/terrain/load.ts`'s `terrainLevelPath` is the
+ * Node-side twin, with the same name for the same concept (the
+ * `tools/content/load.ts` <-> `src/sim/content.ts` pattern).
+ *
+ * How many levels that is depends on which question is being asked, and the
+ * two numbers are not the same. NINE are committed -- L4 through L12, the
+ * pyramid from `tools/terrain/load.ts`'s FIRST_COMMITTED_LEVEL to its 3x3 top
+ * -- and the browser asks for FIVE of them: L8 down to L4, the only levels a
+ * LOD ring can sample (`lod.ts`'s `coarsestFetchedLevel`, and
+ * `src/render/terrain/load.ts`'s fetch loop). L9-L12 are 808 bytes in total
+ * and no code path reads them; they are committed because they are the
+ * pyramid, not because anything loads them.
  */
 export function terrainLevelPath(level: number): string {
   return `content/terrain/L${level}.bin`

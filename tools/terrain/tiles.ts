@@ -11,11 +11,18 @@ export type TileId = { readonly lat: number; readonly lon: number }
  *  which covers all interior tiles by construction. */
 export function tilesCovering(halfExtentM: number): readonly TileId[] {
   const tiles: TileId[] = []
-  // Perimeter discretisation: 64 steps across each half-edge is ample. The
-  // true max latitude difference between an edge midpoint and its endpoints is
-  // about 0.005 degrees (roughly 570 m) for the 400 km box; discretisation
-  // error at 64 steps is orders of magnitude below tile size, nowhere near
-  // enough to cross a degree boundary.
+  // Perimeter discretisation: 64 steps across each edge is ample. For the box
+  // this world is actually built at -- 200 km, i.e. `resample.ts`'s
+  // `GRID.halfExtentM` of 100 km, which is also what the CLI at the bottom of
+  // `fetch.ts` passes -- the true maximum latitude departure between an edge
+  // and the straight line through its endpoints is 0.00139 degrees (~154 m),
+  // measured 2026-09-14 against a 20,000-step walk of the same perimeter.
+  // Discretisation error at 64 steps is orders of magnitude below the 1-degree
+  // tile size, nowhere near enough to cross a degree boundary. (This comment
+  // read "0.005 degrees ... for the 400 km box" until 2026-09-14: 0.00572
+  // degrees is the half = 200 km value, quoted for a world twice the size of
+  // the one that was built. Conservative in the safe direction, but a
+  // statement about a configuration that does not exist.)
   const steps = 64
 
   // Walk perimeter to find bounds.

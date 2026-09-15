@@ -156,8 +156,9 @@ shipped, so those rings clamp both mip taps to L4 — and the physics is handed
 L4 as well. Near the aeroplane, what you see and what you hit are the same
 level; the two only part company from ring 4 outward. What they are *jointly*
 wrong about is the source data: worst |L0 − L4| over all 8193² samples is
-**220.9 m**, at `(-78027, 80664)`, measured 2026-09-14. A fresh clone flies a
-Leyte whose peaks are up to that much flatter than Copernicus measured them.
+**220.862 m**, at `(-78027, 80664)`, measured 2026-09-14 and pinned in
+`tests/render/terrainLod.test.ts`. A fresh clone flies a Leyte whose peaks are
+up to that much flatter than Copernicus measured them.
 
 ---
 
@@ -181,7 +182,7 @@ the question is whether honest is what you want.
 flattenings in that frame, and only one of them is a scale choice:
 
 - The **data** flattening: the browser draws L4 at 390 m sample spacing, which
-  is up to 220.9 m below the source peaks (table above). An exaggeration
+  is up to 220.862 m below the source peaks (table above). An exaggeration
   constant multiplies that flattened surface, it does not undo it.
 - The **scale** flattening: 1,233 m of relief spread over tens of kilometres
   subtends very little from 15,000 ft, which is simply true of Leyte.
@@ -214,18 +215,17 @@ straight through.
 - **Red/orange specks on the sea.** Pre-existing and not terrain's: the
   pre-terrain checkout `544bd7e`, served as a control on 2026-09-14, shows the
   identical specks in the same places while drawing no terrain at all.
-- **`main.ts`'s three-line physics-wiring call site is unasserted**, and
-  parked. It is the entry point; each line calls a tested pure function. The
-  check from outside is `window.__ww2.groundHeightM()` — `null` means no field
-  ever reached the simulation, `0` is correct over water, a few hundred metres
-  is correct over Leyte.
+- ~~**`main.ts`'s three-line physics-wiring call site is unasserted**~~ —
+  **closed 2026-09-14 (final review, P2).** The body is now
+  `applyTerrainLevel` in `src/render/terrain/load.ts` and the call site is one
+  line; `tests/render/terrainLoad.test.ts` drives it with a fake mesh, and
+  deleting either half of it now fails the suite (proven by mutation) rather
+  than only `window.__ww2.groundHeightM()` on a real GPU. That hook is still
+  the check from outside: `null` means no field ever reached the simulation,
+  `0` is correct over water, a few hundred metres is correct over Leyte.
 
 ## Carried forward, not fixed
 
-- **`npm run build` ships 178,319,368 bytes of gitignored L0–L3 into `dist/`**,
-  which the loader has never fetched. A one-line filter in `vite.config.ts`'s
-  `copyContent`. Named in design §9 item 2; outside every task's file list so
-  far.
 - **The 10.0 ms rAF cadence is unexplained.** What it is *not* is proven
   (display, GPU present path); what it *is* was not chased. Nothing rests on
   the explanation, only on the measured value.

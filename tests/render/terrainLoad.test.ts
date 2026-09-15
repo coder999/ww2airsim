@@ -8,6 +8,7 @@ import {
   type InstancedBufferAttribute,
 } from 'three'
 import {
+  applyTerrainLevel,
   decodeLevel,
   loadTerrainProgressively,
   physicsFieldFor,
@@ -327,6 +328,23 @@ describe('load/mesh coupling', () => {
     }
     expect(maxMeshLevel).toBe(maxFetched)
   })
+
+  it('refuses a header whose world is a different size from the LOD\'s', () => {
+    // `createTerrainMesh` sizes its textures and its world->grid mapping from
+    // the header it is HANDED, but `update` selects nodes with the default
+    // `LOD`, whose half-extent comes from the committed header.json. Disagree,
+    // and patch footprints are laid out over one world while the shader reads
+    // a texture built for another: terrain that is wrong everywhere and
+    // plausible everywhere. Every real caller passes TERRAIN_HEADER, so this
+    // is the only thing standing between "not reachable" and "not reachable
+    // in silence" (review 2026-09-14, finding I2).
+    expect(() => createTerrainMesh({ ...TERRAIN_HEADER, halfExtentM: TERRAIN_HEADER.halfExtentM / 2 })).toThrow(
+      /half-extent/,
+    )
+    // ...and the level count is still free to differ, which is what
+    // `coarsestFetchedLevel` takes a level count rather than a header for.
+    expect(() => createTerrainMesh({ ...TERRAIN_HEADER, levels: LOD.rings + 1 })).not.toThrow()
+  })
 })
 
 describe('terrain under the aeroplane', () => {
@@ -377,6 +395,44 @@ describe('terrain under the aeroplane', () => {
     const viaNode = createTerrainField(TERRAIN_HEADER, level, loadTerrainLevel(FIRST_COMMITTED_LEVEL))
     expect(heightAt(framed.world.terrain!, x, z)).toBe(heightAt(viaNode, x, z))
     expect(heightAt(framed.world.terrain!, x, z)).toBeGreaterThan(0)
+  })
+
+  it('hands each arrived level to the mesh, and the finest one to the physics too', () => {
+    // `main.ts`'s terrain callback, with the renderer taken out of it. The
+    // body used to live inline inside `boot()`, where nothing headless could
+    // reach it: deleting the physics half left all 536 tests green and the
+    // aeroplane flying through the mountains it could see, and only
+    // `groundHeightM()` on a real GPU noticed. This is that call site, as a
+    // function, asserted.
+    const seen: Array<{ level: number; data: Int16Array }> = []
+    const mesh = { setLevel: (level: number, data: Int16Array) => seen.push({ level, data }) }
+
+    const coarseLevel = FINEST_FETCHED_LEVEL + 1
+    const coarseN = samplesAtLevel(TERRAIN_HEADER, coarseLevel)
+    const coarseData = new Int16Array(coarseN * coarseN)
+    const before = frameAt(0, 0)
+    const afterCoarse = applyTerrainLevel(mesh, before, coarseLevel, coarseData)
+    // Drawn, but NOT given to the physics: a coarse mip averages peaks down
+    // and valleys up, and `advance` never overwrites the first impact it
+    // records (load.ts's `physicsFieldFor`).
+    expect(seen).toEqual([{ level: coarseLevel, data: coarseData }])
+    expect(afterCoarse.world.terrain).toBeNull()
+
+    const n = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
+    const fine = loadTerrainLevel(FINEST_FETCHED_LEVEL)
+    const afterFine = applyTerrainLevel(mesh, afterCoarse, FINEST_FETCHED_LEVEL, fine)
+    expect(seen.length).toBe(2)
+    expect(seen[1]!.level).toBe(FINEST_FETCHED_LEVEL)
+    // The SAME array object, not a copy: the mesh's float texture and the
+    // physics' int16 view are then provably of the same samples.
+    expect(seen[1]!.data).toBe(fine)
+    expect(afterFine.world.terrain?.samples).toBe(n)
+    // Real ground, at the same land point the end-to-end test above uses --
+    // a field that was wired up but built from the wrong level would still
+    // be non-null here.
+    expect(heightAt(afterFine.world.terrain!, -19_921.875, -11_718.75)).toBe(
+      heightAt(createTerrainField(TERRAIN_HEADER, FINEST_FETCHED_LEVEL, fine), -19_921.875, -11_718.75),
+    )
   })
 
   it('changes nothing else about the frame it is given', () => {

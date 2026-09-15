@@ -11,7 +11,6 @@ import {
   initialFrameState,
   nextFrameState,
   toThreeOrientation,
-  withTerrain,
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
@@ -21,7 +20,7 @@ import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
-import { loadTerrainProgressively, physicsFieldFor, TERRAIN_HEADER } from './terrain/load.js'
+import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { LOD } from './terrain/lod.js'
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
@@ -333,6 +332,14 @@ async function boot(): Promise<void> {
     // `recentreWater` re-centres the plane on the eye every frame, by design,
     // and nothing here changes that -- it just no longer moves with where you
     // are LOOKING.
+    //
+    // What this argument does NOT cover, recorded rather than acted on (final
+    // review 2026-09-14): the far plane also sets depth-buffer resolution, and
+    // 0.1 m to 100 km spends it so unevenly that a depth step is ~5 m at 3 km
+    // and several hundred metres at 30 km. Nothing z-fights today -- the water
+    // is a single plane and the terrain does not overlap it -- so the far plane
+    // stays where the fog argument puts it. It is the ocean surface a later
+    // plan draws against this terrain that will meet that number first.
     LOD.drawDistanceM,
   )
 
@@ -550,18 +557,15 @@ async function boot(): Promise<void> {
   // aircraft content, because it is the same fault: content the build was
   // supposed to ship. Carrying on would leave a sea with no islands in it,
   // which looks exactly like the game working.
+  //
+  // The body is `applyTerrainLevel`, in load.ts, and it is there rather than
+  // written out here because nothing headless can reach a callback inside
+  // `boot()`: the physics half of it was once missing outright and the whole
+  // suite stayed green (that comment is on the function). `frame` is non-null
+  // here -- it is assigned well above and the loop is already running, the
+  // same guarantee `frameFn`'s single `!` rests on.
   void loadTerrainProgressively((level, data) => {
-    terrain.setLevel(level, data)
-    // The same decoded samples go to the physics, for the one level
-    // `physicsFieldFor` picks (load.ts states which and why). Until this,
-    // `World.terrain` stayed null for the life of the process and Task 8's
-    // impact detection could never fire in the app that ships -- the
-    // aeroplane flew through the mountains it could see (review 2026-09-14,
-    // promoted to Important). `frame` is non-null here: it is assigned well
-    // above and the loop is already running, which is the same guarantee
-    // `frameFn`'s single `!` rests on.
-    const field = physicsFieldFor(level, data)
-    if (field) frame = withTerrain(frame!, field)
+    frame = applyTerrainLevel(terrain, frame!, level, data)
   }).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))

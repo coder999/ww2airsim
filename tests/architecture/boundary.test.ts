@@ -37,6 +37,56 @@ function isGitIgnored(path: string): boolean {
   }
 }
 
+/**
+ * Every dependency-cruiser rule name this file pins, in one table.
+ *
+ * `sim-must-not-import-render` is a strict PREFIX of
+ * `sim-must-not-import-render-libs`, so `expect(output).toContain(...)` for the
+ * first is satisfied by a report that names only the second. It was not a false
+ * pass as written -- the render probe imports `src/render/failure.js`, which can
+ * only trip the path rule, and no `src/sim/` module imports `three` -- but it
+ * goes live the instant one probe trips both rules, and this repository has
+ * already paid for exactly this shape once: in `tests/build/dist.test.ts`,
+ * Copernicus Article 6(a) is a literal suffix of 6(b), and deleting the entire
+ * 6(a) block left that test green. Found by review 2026-09-14, M6.
+ *
+ * So every pin goes through `reportsRule` below, which matches a WHOLE rule
+ * name, and this table exists so "no pinned name can be satisfied by a report
+ * of another pinned name" is itself an assertion (the first test in the
+ * describe) instead of something a reader must re-check by eye each time a
+ * rule is added.
+ *
+ * Scoped to the depcruise rule names on purpose. The `toContain` calls further
+ * down this file compare eslint rule IDs against an ARRAY -- element equality,
+ * not substring -- so they are a different shape and are not in this table.
+ */
+const PINNED_RULE_NAMES = [
+  'no-circular',
+  'sim-must-not-import-render',
+  'sim-must-not-import-render-libs',
+  'sim-must-not-import-node-core',
+  'sim-must-not-import-input',
+  'sim-must-not-import-assists',
+  'assists-must-not-import-render',
+] as const
+
+/** Whether `output` reports rule `name` -- as a whole name, not as a prefix of
+ *  a longer one. depcruise prints `  error <rule>: <from> -> <to>`, so the
+ *  character following a real rule name is never `-` nor a word character.
+ *  Interpolated into the pattern unescaped, which the test below checks is
+ *  safe by asserting every pinned name is kebab-case and so contains no regex
+ *  metacharacter. */
+function reportsRule(output: string, name: string): boolean {
+  return new RegExp(`${name}(?![\\w-])`).test(output)
+}
+
+/** One line of depcruise output, in its real format (captured 2026-09-14),
+ *  reporting `name` and nothing else. Used only to ask whether the pin for one
+ *  rule can be satisfied by a report of a different one. */
+function reportLine(name: string): string {
+  return `  error ${name}: src/sim/__boundary_probe__.ts → src/render/failure.ts\n`
+}
+
 /** `depcruise src --config .dependency-cruiser.cjs` -- `npm run depcruise`'s
  *  exact arguments -- run with `cruiseRoot` as the working directory. Every rule
  *  pattern in the config is relative (`^src/sim`, `node_modules/(three|@webgpu)`,
@@ -128,6 +178,32 @@ function cruiseWithProbes(probes: Record<string, string>): { code: number; outpu
 }
 
 describe('architecture boundary (spec §3)', () => {
+  it('pins each rule name so that no OTHER pinned rule name can satisfy it', () => {
+    // The permanent form of M6. The hazard is not "two rule names look alike",
+    // it is "the assertion for rule A passes on a report that names only rule
+    // B" -- so that is what is asserted, over every ordered pair, against real
+    // depcruise output. Green with `reportsRule`; replacing it with
+    // `output.includes(name)` fails on the render/render-libs pair, which is
+    // the mutation that proves this is not decorative.
+    //
+    // Note what this does NOT say: it does not forbid one rule name being a
+    // substring of another. That is `.dependency-cruiser.cjs`'s business. It
+    // forbids the MATCHER from confusing them.
+    for (const name of PINNED_RULE_NAMES) {
+      // `reportsRule` interpolates the name into a RegExp without escaping it.
+      // Asserted, not assumed: a rule named `sim.*` would otherwise match
+      // anything at all and every pin in this file would go vacuously green.
+      expect(/^[a-z][a-z0-9-]*$/.test(name), name).toBe(true)
+      for (const other of PINNED_RULE_NAMES) {
+        if (other === name) continue
+        expect(reportsRule(reportLine(other), name), `'${name}' matched a report of '${other}'`).toBe(false)
+      }
+      // ...and each name still matches its OWN report, so the loop above
+      // cannot be satisfied by a matcher that matches nothing at all.
+      expect(reportsRule(reportLine(name), name), name).toBe(true)
+    }
+  })
+
   it('passes on the real source tree', () => {
     // The one case that must cruise the REAL tree, because it is the claim
     // `npm run depcruise` makes. It writes nothing, and nothing can race with it
@@ -147,7 +223,7 @@ describe('architecture boundary (spec §3)', () => {
       [CYCLE_B]: "import { a } from './__cycle_a__.js'\nexport const b = a\n",
     })
     expect(code).not.toBe(0)
-    expect(output).toContain('sim-must-not-import-node-core')
+    expect(reportsRule(output, 'sim-must-not-import-node-core'), output).toBe(true)
     for (const probe of PROBE_FILES) expect(existsSync(join(REPO_ROOT, probe)), probe).toBe(false)
     // And the real tree still cruises clean immediately afterward, which is the
     // property the flake broke.
@@ -186,7 +262,7 @@ describe('architecture boundary (spec §3)', () => {
       [PROBE]: "import { Vector3 } from 'three'\nexport const probe = Vector3\n",
     })
     expect(code).not.toBe(0)
-    expect(output).toContain('sim-must-not-import-render-libs')
+    expect(reportsRule(output, 'sim-must-not-import-render-libs'), output).toBe(true)
   })
 
   it('fails on a circular import', () => {
@@ -197,13 +273,13 @@ describe('architecture boundary (spec §3)', () => {
       [CYCLE_B]: "import { a } from './__cycle_a__.js'\nexport const b = a\n",
     })
     expect(code).not.toBe(0)
-    expect(output).toContain('no-circular')
+    expect(reportsRule(output, 'no-circular'), output).toBe(true)
   })
 
   it('fails when sim/ imports render/', () => {
     const { code, output } = cruiseWithProbes({ [PROBE]: "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n" })
     expect(code).not.toBe(0)
-    expect(output).toContain('sim-must-not-import-render')
+    expect(reportsRule(output, 'sim-must-not-import-render'), output).toBe(true)
   })
 
   // Finding I1: `src/sim` must also load in a browser, so a Node core import
@@ -216,7 +292,7 @@ describe('architecture boundary (spec §3)', () => {
   it('fails when sim/ imports a Node core module', () => {
     const { code, output } = cruiseWithProbes({ [PROBE]: "import { readFileSync } from 'node:fs'\nexport const probe = readFileSync\n" })
     expect(code).not.toBe(0)
-    expect(output).toContain('sim-must-not-import-node-core')
+    expect(reportsRule(output, 'sim-must-not-import-node-core'), output).toBe(true)
   })
 
   it('fails when sim/ imports assists/', () => {
@@ -235,7 +311,7 @@ describe('architecture boundary (spec §3)', () => {
     // wrong reason.
     const { code, output } = cruiseWithProbes({ [PROBE]: "import { applyAssists } from '../assists/index.js'\nexport const probe = applyAssists\n" })
     expect(code).not.toBe(0)
-    expect(output).toContain('sim-must-not-import-assists')
+    expect(reportsRule(output, 'sim-must-not-import-assists'), output).toBe(true)
   })
 
   it('fails when assists/ imports render/', () => {
@@ -249,7 +325,7 @@ describe('architecture boundary (spec §3)', () => {
     // copy-paste of the sim/ rule.
     const { code, output } = cruiseWithProbes({ [ASSISTS_PROBE]: "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n" })
     expect(code).not.toBe(0)
-    expect(output).toContain('assists-must-not-import-render')
+    expect(reportsRule(output, 'assists-must-not-import-render'), output).toBe(true)
   })
 
   it('fails when sim/ imports input/', () => {
@@ -258,7 +334,7 @@ describe('architecture boundary (spec §3)', () => {
     // against a not-yet-written module passes for the wrong reason.
     const { code, output } = cruiseWithProbes({ [PROBE]: "import { BINDINGS } from '../input/bindings.js'\nexport const probe = BINDINGS\n" })
     expect(code).not.toBe(0)
-    expect(output).toContain('sim-must-not-import-input')
+    expect(reportsRule(output, 'sim-must-not-import-input'), output).toBe(true)
   })
 })
 

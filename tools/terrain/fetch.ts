@@ -11,8 +11,8 @@ import { tileFileName, tileUrl, tilesCovering, type TileId } from './tiles.js'
 export type TileFetcher = (url: string) => Promise<Uint8Array>
 
 // tools/terrain/cache, resolved relative to this file (not process.cwd())
-// so `ensureTile`/`ensureAllTiles` behave the same regardless of the
-// directory `tsx` is invoked from.
+// so `ensureAllTiles` behaves the same regardless of the directory `tsx` is
+// invoked from.
 export const CACHE_DIR = join(fileURLToPath(new URL('.', import.meta.url)), 'cache')
 
 /** The testable core: everything is an argument, nothing is ambient. */
@@ -69,10 +69,6 @@ const realFetch: TileFetcher = async (url) => {
   // interruption (the run is killed, the machine loses power); it does not,
   // and cannot, re-check the bytes fetch() already handed back as complete.
   return new Uint8Array(await res.arrayBuffer())
-}
-
-export async function ensureTile(id: TileId): Promise<string> {
-  return ensureTileInto(id, CACHE_DIR, realFetch)
 }
 
 /** The testable core of the batch fetch, parallel to ensureTileInto: dir and
