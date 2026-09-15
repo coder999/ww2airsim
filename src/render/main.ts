@@ -17,7 +17,8 @@ import {
 import { createOcean, recentreOcean } from './ocean/mesh.js'
 import { loadDepth } from './ocean/depth.js'
 import { DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from './ocean/weather.js'
-import { createOceanCompute } from './ocean/compute.js'
+import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
+import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tiers.js'
 import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createSky } from './scene/sky.js'
@@ -135,14 +136,17 @@ async function boot(): Promise<void> {
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
-  // Timestamp queries in DEV only: they are what makes `gpuFrameTimesMs`
-  // possible, and the same flag every other diagnostic here is gated on.
-  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV)
+  // Timestamp queries also support one automatic ocean quality decision.
+  // The external diagnostics hook remains development-only.
+  const { renderer, adapterVerdict } = await initRenderer(canvas, true)
 
   // Declared here, before the hook below installs, initialised to `null` --
   // not assigned a real `FrameState` until after `loadSpec` resolves, well
   // down this function. See the hook's own comment for why that ordering
   // matters and is not just tidiness.
+  let cascades: OceanCompute[] = []
+  const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
+  let oceanTier = forcedOceanTier ?? OCEAN_TIERS[0]
   let frame: FrameState | null = null
 
   // Tier 2 diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
@@ -178,6 +182,14 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
+      oceanTier: () => oceanTier.name,
+      oceanComputeTimesMs: () => cascades.map(c => c.computeTimesMs()),
+      oceanDisplacementSample: async (index) => {
+        const cascade = cascades[index]
+        if (!cascade || cascade.timeS === undefined) return null
+        const sample = await cascade.readDisplacement()
+        return {...sample, values:Array.from(sample.values), options:cascade.options, phaseSeed:cascade.phaseSeed}
+      },
       reversedDepthBuffer: renderer.reversedDepthBuffer,
       validationErrors,
       tick: () => frame?.world.aircraft.tick ?? 0,
@@ -213,6 +225,7 @@ async function boot(): Promise<void> {
       // same question cannot drift from what it actually did.
       gpuTimestampsSupported: renderer.hasFeature('timestamp-query'),
       resetFrameTimes: () => {
+        cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
         gpuFrameTimesMs.length = 0
       },
@@ -281,9 +294,36 @@ async function boot(): Promise<void> {
   const scene = new Scene()
   const terrain = createTerrainMesh(TERRAIN_HEADER)
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
-  const cascades = await Promise.all(cascadeOptions(beaufort, 256, 3).map(options => createOceanCompute(renderer, options)))
-  const water = createOcean(await loadDepth(), beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
+  cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
+  const oceanDepth = await loadDepth()
+  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
   scene.add(water)
+  let qualityChecked = false
+  const adaptOceanQuality = async (): Promise<void> => {
+    // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
+    // pipelines during flight; a DEV override holds the tier for comparison.
+    const p95 = (values: readonly number[]) => [...values].sort((a,b)=>a-b)[Math.floor(values.length * .95)] ?? 0
+    const timed = renderer.hasFeature('timestamp-query')
+    if (qualityChecked || forcedOceanTier || (timed ? gpuFrameTimesMs.length < 180 : frameTimesMs.length < 180)) return
+    qualityChecked = true
+    const cost = timed ? p95(gpuFrameTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
+      : p95(frameTimesMs.slice(60))
+    // Without GPU timestamps, frame intervals include refresh cadence. Keep
+    // high at 60 fps, medium below 30 fps, low otherwise.
+    const next = timed ? tierForFrameTimeMs(cost) : cost <= 18 ? OCEAN_TIERS[0] : cost <= 34 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
+    if (next === oceanTier) return
+    const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
+    const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
+    if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
+    const replacement = createOcean(oceanDepth,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL))
+    scene.remove(water)
+    water.userData.disposeOcean()
+    cascades.forEach(c=>c.dispose())
+    cascades = ready
+    water = replacement
+    scene.add(water)
+    oceanTier = next
+  }
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
@@ -462,7 +502,7 @@ async function boot(): Promise<void> {
     for (const cascade of cascades) cascade.dispatch(oceanTime ?? current.world.aircraft.tick * DT + current.world.accumulatorSeconds)
     renderer.render(scene, camera)
 
-    // One GPU timestamp sample per resolve, DEV only. Guarded on a pending
+    // One GPU timestamp sample per resolve; quality selection also uses it. Guarded on a pending
     // resolve rather than fired every frame because `resolveQueriesAsync`
     // hands back the SAME promise while one is outstanding
     // (WebGPUTimestampQueryPool, three@0.186.0), so an unguarded call would
@@ -483,7 +523,8 @@ async function boot(): Promise<void> {
     // platform makes resolves slow enough for that ratio to drop, this
     // guard's bias stops being theoretical and the percentiles want
     // re-deriving.
-    if (import.meta.env.DEV && !gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
+    void adaptOceanQuality()
+    if (!gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
       gpuResolvePending = true
       void renderer
         .resolveTimestampsAsync('render')

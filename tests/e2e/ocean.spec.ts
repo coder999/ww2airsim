@@ -1,3 +1,4 @@
+import { flySweep, snapshot, waitForTerrain } from './harness.js'
 import { test, expect } from '@playwright/test'
 import { referenceDisplacement, OCEAN_PHASE_SEED } from '../../src/render/ocean/reference.js'
 
@@ -44,4 +45,61 @@ for (const n of [64,128,256]) {
       expect(rms).toBeLessThan(1e-5)
     }
   })
+}
+
+for (const tier of ['high','medium','low']) {
+  test(`scene ocean ${tier}: actual texture readback and total GPU budget`, async ({page}) => {
+    await page.setViewportSize({width:2560,height:1440})
+    await page.goto(`/?spawnY=600&beaufort=6&oceanTime=17&oceanTier=${tier}`)
+    await page.waitForFunction(() => ((window as unknown as import('./harness.js').DiagWindow).__ww2?.tick() ?? 0) > 240)
+    const samples = await page.evaluate(async () => {
+      const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!
+      const samples = []
+      for(let i=0;i<d.oceanComputeTimesMs().length;i++) samples.push(await d.oceanDisplacementSample(i))
+      d.resetFrameTimes()
+      return samples
+    })
+    expect(samples).toHaveLength(tier === 'high' ? 3 : tier === 'medium' ? 2 : 1)
+    for (const sample of samples) {
+      expect(sample).not.toBeNull()
+      expect(sample!.timeS).toBe(17)
+      expect(sample!.phaseSeed).toBe((OCEAN_PHASE_SEED ^ sample!.options.cascade) >>> 0)
+      const reference = referenceDisplacement({...sample!.options,timeS:17})
+      const rms = Math.sqrt(sample!.values.reduce((sum,v,i)=>sum+(v-reference[i]!)**2,0)/reference.length)
+      expect(rms).toBeLessThan(1e-5)
+    }
+    await page.waitForFunction(() => {
+      const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!
+      return d.gpuFrameTimesMs().length >= 240 && d.oceanComputeTimesMs().every(s => s.length >= 120)
+    })
+    const timing = await page.evaluate(() => {
+      const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!
+      return {render:d.gpuFrameTimesMs(),compute:d.oceanComputeTimesMs(),errors:d.validationErrors}
+    })
+    const percentile = (a: readonly number[], p: number) => [...a].sort((x,y)=>x-y)[Math.floor((a.length-1)*p)]!
+    // Sum per-pass percentiles: conservative proxy, not paired frame latency.
+    const total = (p:number) => percentile(timing.render,p)+timing.compute.reduce((s,a)=>s+percentile(a,p),0)
+    console.log(`ocean ${tier}: render p50=${percentile(timing.render,.5)} p95=${percentile(timing.render,.95)}; compute p50=${timing.compute.map(a=>percentile(a,.5))}; total p50=${total(.5)} p95=${total(.95)} ms`)
+    expect(timing.errors).toEqual([])
+    expect(total(.95)).toBeLessThan(8.33)
+  })
+}
+
+for (const altitude of [100,600,3000,8000]) {
+  for (const coast of [false,true]) {
+    test(`ocean sweep ${altitude} m ${coast ? 'coast' : 'gulf'}`, async ({page}) => {
+      const errors: string[] = []
+      page.on('pageerror', e => errors.push(e.message))
+      await page.goto(`/?spawnY=${altitude}&spawnX=${coast ? -30000 : 0}&spawnZ=${coast ? 47605 : 0}&beaufort=6`)
+      await waitForTerrain(page)
+      const start = await snapshot(page)
+      expect(Math.abs(start.position.y-altitude)).toBeLessThan(80)
+      expect(Math.abs(start.position.x-(coast ? -30000 : 0))).toBeLessThan(1000)
+      await flySweep(page)
+      const end = await snapshot(page)
+      expect(end.errors).toEqual([])
+      expect(errors).toEqual([])
+      expect(end.tick).toBeGreaterThan(start.tick)
+    })
+  }
 }

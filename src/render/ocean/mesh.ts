@@ -1,6 +1,6 @@
 import { BufferAttribute, BufferGeometry, DataTexture, FloatType, Mesh, NearestFilter, RedFormat, Vector2, type Texture, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type Node, type UniformNode } from 'three/webgpu'
-import { clamp, color, fract, dFdx, dFdy, max, normalize, dot, pow, float, floor, int, ivec2, length, min, mix, positionLocal, smoothstep, textureLoad, uniform, varying, vec3 } from 'three/tsl'
+import { Fn, If, clamp, color, fract, dFdx, dFdy, max, normalize, dot, pow, float, floor, int, ivec2, length, min, mix, positionLocal, smoothstep, textureLoad, uniform, varying, vec3, vec4 } from 'three/tsl'
 import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
@@ -122,8 +122,14 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     // Fade wavelengths below the polar mesh's angular sampling distance.
     const weight = float(1).sub(smoothstep(shortestWavelengthM(cascade.options) / 4,
       shortestWavelengthM(cascade.options) / 2, distanceM.mul(2 * Math.PI / SECTORS)))
-    displacement = displacement.add(waveSample(cascade.displacement, vertexWorld,
-      cascade.options.n, cascade.options.patchM).xyz.mul(weight).mul(attenuation))
+    displacement = displacement.add(Fn(() => {
+      const contribution = vec3(0).toVar()
+      If(weight.greaterThan(0), () => {
+        contribution.assign(waveSample(cascade.displacement, vertexWorld,
+          cascade.options.n, cascade.options.patchM).xyz.mul(weight).mul(attenuation))
+      })
+      return contribution
+    })())
   }
   const displacedPosition = vec3(positionLocal.x, horizonSinkNode(distanceM).negate(), positionLocal.z).add(displacement)
   material.positionNode = displacedPosition
@@ -134,12 +140,20 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   let slopes: Node<'vec2'> = camera.mul(0)
   let foam: Node<'float'> = float(0)
   for (const cascade of cascades) {
-    const normal = waveSample(cascade.normal, worldXZ, cascade.options.n, cascade.options.patchM)
     const footprint = max(length(dFdx(worldXZ)), length(dFdy(worldXZ)))
     const wavelength = shortestWavelengthM(cascade.options)
     const weight = smoothstep(0, 100, depth.negate()).mul(float(1).sub(smoothstep(wavelength / 4, wavelength / 2, footprint)))
-    slopes = slopes.add(normal.xz.div(max(normal.y, 0.1)).mul(weight))
-    foam = max(foam, waveSample(cascade.foam, worldXZ, cascade.options.n, cascade.options.patchM).r.mul(weight))
+    const detail = Fn(() => {
+      const value = vec4(0).toVar()
+      If(weight.greaterThan(0), () => {
+        const sampledNormal = waveSample(cascade.normal, worldXZ, cascade.options.n, cascade.options.patchM)
+        value.assign(vec4(sampledNormal.xz.div(max(sampledNormal.y, 0.1)).mul(weight),
+          waveSample(cascade.foam, worldXZ, cascade.options.n, cascade.options.patchM).r.mul(weight), 0))
+      })
+      return value
+    })()
+    slopes = slopes.add(detail.xy)
+    foam = max(foam, detail.z)
   }
   const normal = normalize(vec3(slopes.x, 1, slopes.y))
   const fresnel = float(0.0204).add(pow(float(1).sub(clamp(dot(normal, normalize(vec3(0, eyeHeight, 0).sub(varying(displacedPosition)))), 0, 1)), 5).mul(0.9796))

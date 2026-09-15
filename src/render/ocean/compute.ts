@@ -1,3 +1,4 @@
+import { computeTimer } from './timing.js'
 import { FloatType, NearestFilter, type Texture } from 'three'
 import { StorageTexture, type WebGPURenderer } from 'three/webgpu'
 import { OCEAN_PHASE_SEED, stationarySpectrum, type ReferenceOptions } from './reference.js'
@@ -10,6 +11,9 @@ export type OceanCompute = {
   readonly foam: Texture
   readonly phaseSeed: number
   readonly options: OceanComputeOptions
+  readonly timeS: number | undefined
+  computeTimesMs(): number[]
+  resetTimings(): void
   dispatch(timeS: number): void
   readDisplacement(component?: 'height' | 'x' | 'z'): Promise<{ timeS: number; values: Float32Array }>
   dispose(): void
@@ -33,6 +37,7 @@ export async function createOceanCompute(renderer: WebGPURenderer, options: Ocea
   if (!device) throw new Error('ocean compute requires the native WebGPU backend')
   const fftSource = fftKernelSource(options.n)
   const spectrum = stationarySpectrum({ ...options, timeS: 0 })
+  const timer = computeTimer(device)
   const n = options.n
   const count = n*n
   const buffers: GPUBuffer[] = []
@@ -53,7 +58,7 @@ export async function createOceanCompute(renderer: WebGPURenderer, options: Ocea
     if (!gpu) throw new Error('ocean: storage texture was not allocated')
     return { texture: tex, view: gpu.createView(), gpu }
   }
-  const dispose = (): void => { buffers.forEach((b) => b.destroy()); textures.forEach((t) => t.dispose()) }
+  const dispose = (): void => { timer.dispose(); buffers.forEach((b) => b.destroy()); textures.forEach((t) => t.dispose()) }
   try {
     const initial = buffer(count*16, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
     const data = new Float32Array(count*4)
@@ -82,6 +87,8 @@ export async function createOceanCompute(renderer: WebGPURenderer, options: Ocea
     const deriveBind = bindings(derive,[{buffer:transformed},displacement.view,normal.view,foam.view,{buffer:history},{buffer:params}])
     let lastTime: number | undefined
     return {
+      get timeS() { return lastTime },
+      computeTimesMs: timer.samples, resetTimings: timer.reset,
       options, phaseSeed: (OCEAN_PHASE_SEED ^ options.cascade) >>> 0,
       displacement:displacement.texture, normal:normal.texture, foam:foam.texture,
       dispatch(timeS): void {
@@ -92,12 +99,16 @@ export async function createOceanCompute(renderer: WebGPURenderer, options: Ocea
         view.setFloat32(8,timeS,true);view.setFloat32(12,dt,true)
         device.queue.writeBuffer(params,0,bytes)
         const encoder = device.createCommandEncoder()
-        const pass = encoder.beginComputePass()
+        const descriptor = timer.begin()
+        const pass = encoder.beginComputePass(descriptor)
         pass.setPipeline(evolve);pass.setBindGroup(0,evolveBind);pass.dispatchWorkgroups(Math.ceil(count/64))
         pass.setPipeline(fft);pass.setBindGroup(0,rowBind);pass.dispatchWorkgroups(n,3)
         pass.setBindGroup(0,colBind);pass.dispatchWorkgroups(n,3)
         pass.setPipeline(derive);pass.setBindGroup(0,deriveBind);pass.dispatchWorkgroups(Math.ceil(n/8),Math.ceil(n/8))
-        pass.end();device.queue.submit([encoder.finish()])
+        pass.end()
+        const readTiming = timer.end(encoder, descriptor)
+        device.queue.submit([encoder.finish()])
+        readTiming?.()
         lastTime=timeS
       },
       async readDisplacement(component = 'height') {

@@ -121,7 +121,8 @@ export type Ww2Diagnostics = {
    * Read from WebGPU timestamp queries written around the render pass, so it
    * is the GPU's own clock and knows nothing about the cadence above, vsync,
    * the compositor or the present. It therefore EXCLUDES the simulation, the scene update and
-   * three's submission work -- it is the GPU half of a frame, not the whole
+   * three's submission work and native ocean compute (reported separately by
+   * `oceanComputeTimesMs`) -- it is the render pass, not the whole
    * of one. Empty if `gpuTimestampsSupported` is false.
    */
   readonly gpuFrameTimesMs: () => readonly number[]
@@ -134,6 +135,13 @@ export type Ww2Diagnostics = {
    *  collected and starts a fresh window. The only mutating member of this hook: it writes nothing the
    *  simulation or the renderer reads, unlike the `FrameState` setter
    *  `assists` above deliberately does not offer. */
+  readonly oceanTier: () => string
+  /** Separate GPU compute-pass costs, one sample list per active cascade. */
+  readonly oceanComputeTimesMs: () => readonly (readonly number[])[]
+  readonly oceanDisplacementSample: (cascade: number) => Promise<{
+    timeS: number; values: number[]; phaseSeed: number
+    options: import('./ocean/compute.js').OceanComputeOptions
+  } | null>
   readonly resetFrameTimes: () => void
 }
 
