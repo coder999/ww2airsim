@@ -435,13 +435,36 @@ curl -sS $R -o /dev/null -w 'status=%{http_code} tls=%{ssl_verify_result}\n' htt
 curl -sS $R -D- -o /dev/null https://ww2airsim.marktuttle.dev/robots.txt; echo "curl rc=$?"
 ```
 
-Expected: **`curl rc=0`** on both — check that FIRST, because `tls=0` is also
-printed when curl never connected at all, which would otherwise read as a pass.
-Then `tls=0` (the edge certificate verifies), and `/robots.txt` returning `200`
-with `Disallow: /` plus `X-Robots-Tag: noindex, nofollow`. That file is
-returned by nginx itself rather than read from disk, so it proves the vhost is
-live before a single byte of the game is deployed. The homepage's own status
-will be `403` or `404` until Task 5 — expected here, not a failure.
+Expected: **`curl rc=0`** — check that FIRST, because `tls=0` is also printed
+when curl never connected at all, which would otherwise read as a pass. Then
+`tls=0`, the edge certificate verifying.
+
+**Expect the site itself to be UNREACHABLE through the edge at this point, and
+do not treat that as a failure.** Traefik's Docker provider filters out any
+container reporting unhealthy (`keepContainer()`: `Filtering unhealthy or
+starting container`), so with `app/htdocs` empty there is no
+`ww2airsim@docker` router at all and the 404 comes from Traefik, not from
+nginx. The two facts are coupled: the empty web root that makes `/` a 403 is
+also what makes the container unhealthy, which is what removes the router.
+
+So at this step the edge proves only that DNS, Cloudflare and TLS are correct.
+To check the vhost CONFIG, assert against the origin instead — and state the
+result honestly, because `server_name _` is a catch-all, so this proves the
+config is right and says nothing about Host routing or the edge path:
+
+```bash
+ssh vps 'curl -sS -o /dev/null -w "robots=%{http_code}\n" http://172.30.0.19/robots.txt'
+ssh vps 'curl -sS -D- -o /dev/null http://172.30.0.19/robots.txt | grep -i "x-robots-tag\|content-type"'
+```
+
+Expected: `200`, one `Content-Type: text/plain`, and `X-Robots-Tag: noindex,
+nofollow`. Substitute the container's real address from
+`docker inspect ww2airsim-nginx`.
+
+**The edge assertions move to Task 5 Step 5**, after the first rsync puts an
+`index.html` in place. That makes `/` a 200, the healthcheck pass, and Traefik
+create the router — verified to happen on the health-status transition, within
+one healthcheck interval (120s).
 
 - [ ] **Step 10: Commit nothing on the VPS**
 
