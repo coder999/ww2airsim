@@ -1,6 +1,6 @@
 // tests/render/ocean/weather.test.ts
 import { describe, expect, it } from 'vitest'
-import { BEAUFORT_PARAM, DEFAULT_BEAUFORT, beaufortFromQuery } from '../../../src/render/ocean/weather.js'
+import { BEAUFORT_PARAM, DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from '../../../src/render/ocean/weather.js'
 
 describe('beaufortFromQuery', () => {
   it('defaults when the parameter is absent', () => {
@@ -22,4 +22,13 @@ describe('beaufortFromQuery', () => {
   it('names the parameter it parses', () => {
     expect(beaufortFromQuery(`?${BEAUFORT_PARAM}=3`)).toBe(3)
   })
+})
+
+it('freezes only an explicitly valid ocean phase time', () => {
+  expect(oceanTimeFromQuery('')).toBeUndefined()
+  expect(oceanTimeFromQuery('?oceanTime=0')).toBe(0)
+  expect(oceanTimeFromQuery('?oceanTime=17.25')).toBe(17.25)
+  for (const value of ['', '-1', 'NaN', 'Infinity', 'bad']) {
+    expect(() => oceanTimeFromQuery(`?oceanTime=${value}`)).toThrow('ocean weather:')
+  }
 })

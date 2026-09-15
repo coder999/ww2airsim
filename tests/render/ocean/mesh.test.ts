@@ -2,7 +2,7 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 // tests/render/ocean/mesh.test.ts
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
-import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ } from '../../../src/render/ocean/mesh.js'
+import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, attenuationFromDepth } from '../../../src/render/ocean/mesh.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
 describe('oceanRings', () => {
@@ -83,4 +83,19 @@ it('moves both geometry and the shader sampling origin when the camera moves', (
     expect(-567 - ocean.position.z + sampleOrigin.y).toBe(-567)
   }
   ocean.userData.disposeOcean()
+})
+
+it('attenuates waves smoothly to zero on shore and stays bounded', () => {
+  expect(attenuationFromDepth(0)).toBe(0)
+  expect(attenuationFromDepth(-200)).toBeCloseTo(1,2)
+  let previous=0
+  for (let depth=0;depth>=-300;depth-=5) {
+    const amplitude=attenuationFromDepth(depth)
+    expect(amplitude).toBeGreaterThanOrEqual(previous)
+    previous=amplitude
+  }
+  for (const depth of [5,0,-1,-1e9,NaN,-Infinity]) {
+    expect(attenuationFromDepth(depth)).toBeGreaterThanOrEqual(0)
+    expect(attenuationFromDepth(depth)).toBeLessThanOrEqual(1)
+  }
 })

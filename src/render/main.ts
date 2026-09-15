@@ -4,7 +4,7 @@ import { showFailure, type FailureKind } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { AIRCRAFT_CONTENT_URL } from './content.js'
+import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
 import {
   airframeVisibilityFor,
@@ -16,7 +16,9 @@ import {
 } from './frame.js'
 import { createOcean, recentreOcean } from './ocean/mesh.js'
 import { loadDepth } from './ocean/depth.js'
-import { DEFAULT_BEAUFORT, beaufortFromQuery } from './ocean/weather.js'
+import { DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from './ocean/weather.js'
+import { createOceanCompute } from './ocean/compute.js'
+import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
@@ -27,7 +29,7 @@ import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './t
 import { createPanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
-import { step } from '../sim/flight/model.js'
+import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { v3 } from '../sim/math/vec3.js'
 import { qIdentity } from '../sim/math/quat.js'
@@ -277,7 +279,10 @@ async function boot(): Promise<void> {
   }
 
   const scene = new Scene()
-  const water = createOcean(await loadDepth(), beaufort)
+  const terrain = createTerrainMesh(TERRAIN_HEADER)
+  const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
+  const cascades = await Promise.all(cascadeOptions(beaufort, 256, 3).map(options => createOceanCompute(renderer, options)))
+  const water = createOcean(await loadDepth(), beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
   scene.add(water)
   const sky = createSky()
   scene.add(sky)
@@ -302,7 +307,6 @@ async function boot(): Promise<void> {
   // it so it inherits the camera-relative translation applied below -- a
   // terrain mesh that missed it would jitter at 100 km exactly as master
   // spec §4 describes, and would be the only thing in the scene that did.
-  const terrain = createTerrainMesh(TERRAIN_HEADER)
   scene.add(terrain.object)
 
   const camera = new PerspectiveCamera(
@@ -441,7 +445,7 @@ async function boot(): Promise<void> {
     // review (I-1): left at the world origin it slid out from under the
     // aeroplane, and at the spawn's 120 m/s its old half-extent was spent in
     // under three minutes. Its depth lookup stays anchored in world space.
-    recentreOcean(water, current.eye.position.x, current.eye.position.z)
+    recentreOcean(water, current.eye.position.x, current.eye.position.z, current.eye.position.y)
     // Same treatment, and missed twice before this: the markers are the third
     // member of the sky/water family and the only one that carries a scale.
     recentreMarkers(markers, current.eye.position.x, current.eye.position.z)
@@ -455,6 +459,7 @@ async function boot(): Promise<void> {
 
     prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
 
+    for (const cascade of cascades) cascade.dispatch(oceanTime ?? current.world.aircraft.tick * DT + current.world.accumulatorSeconds)
     renderer.render(scene, camera)
 
     // One GPU timestamp sample per resolve, DEV only. Guarded on a pending

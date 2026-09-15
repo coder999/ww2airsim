@@ -14,3 +14,13 @@ export function beaufortFromQuery(search: string): number {
   windSpeedMps(value) // validates finite integer 0–12
   return value
 }
+
+export const OCEAN_TIME_PARAM = 'oceanTime'
+/** DEV-only phase freeze for comparisons against the CPU oracle. */
+export function oceanTimeFromQuery(search: string): number | undefined {
+  const raw = new URLSearchParams(search).get(OCEAN_TIME_PARAM)
+  if (raw === null) return undefined
+  const value = Number(raw)
+  if (raw.trim() === '' || !Number.isFinite(value) || value < 0) throw new Error('ocean weather: invalid phase time')
+  return value
+}
