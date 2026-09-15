@@ -34,10 +34,16 @@ jobs:
       # The committed terrain fallback is what a fresh visitor flies on. If it
       # is missing the world renders as empty sea, which reads as a broken
       # renderer rather than a broken deploy -- so fail here instead.
+      #
+      # index.html is checked for the same reason but a blunter one: the rsync
+      # below runs with --delete, so an empty or half-written dist/ does not
+      # merely deploy nothing, it WIPES the live document root. This one-line
+      # test is the cheapest insurance in the file.
       - name: Assert the build carries the terrain fallback
         shell: bash
         run: |
           set -euo pipefail
+          test -s dist/index.html
           test -s dist/content/terrain/L4.bin
           test ! -e dist/content/terrain/tiles
           echo "dist size: $(du -sh dist | cut -f1)"
@@ -68,11 +74,27 @@ jobs:
             -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
             dist/ ww2airsim-deploy@vps-4b80346f.vps.ovh.us:htdocs/
 
+      # Every request below carries a `?cb=` key unique to this run and to the
+      # check making it. Without one these assertions test CLOUDFLARE'S CACHE,
+      # not the deploy, and a stale edge answer is indistinguishable from a
+      # correct one. Measured against the live site 2026-09-15:
+      #
+      #   /content/terrain/tiles/L0.bin        -> 404, cf-cache-status: HIT, age: 129
+      #   /content/terrain/tiles/L0.bin?cb=... -> 404, cf-cache-status: MISS
+      #
+      # So the negative assertion -- the one that exists to catch the 178 MB of
+      # gitignored terrain tiles going public -- was the single most foolable
+      # check in this file: a deploy that really did publish them could have
+      # been answered 404 from cache and gone green.
+      #
+      # The key varies per request, not just per run, so no attempt can be
+      # served a response that an earlier attempt in the same run populated.
       - name: Verify the live site
         shell: bash
         run: |
           set -euo pipefail
           base=https://ww2airsim.marktuttle.dev
+          cb=${{ github.run_id }}
 
           # The container's healthcheck fetches `/`, which 403s while htdocs is
           # empty, and Traefik's Docker provider drops an unhealthy container's
@@ -80,29 +102,61 @@ jobs:
           # the hostname 404s from Traefik rather than answering from nginx.
           # The healthcheck interval is 120s, so the very first deploy has to
           # poll instead of asserting once. On an already-healthy site the
-          # first attempt wins and this costs nothing.
+          # first attempt wins and this costs one request.
+          #
+          # This loop in particular must not be answerable from cache: a
+          # cached 200 would end the wait while the router still did not exist.
+          started=$SECONDS
           deadline=$(( SECONDS + 300 ))
-          code=000
+          attempt=0
           while :; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/") || code=000
+            attempt=$(( attempt + 1 ))
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/?cb=$cb-home-$attempt") || code=000
             if [ "$code" = "200" ]; then break; fi
             if [ "$SECONDS" -ge "$deadline" ]; then
-              echo "::error::homepage returned $code after waiting for the router"
+              echo "::error::homepage returned $code after waiting ${SECONDS}s for the router"
               exit 1
             fi
             echo "waiting for the router to appear (got $code)"
             sleep 10
           done
-          echo "homepage 200"
+          # Printed on success so a deploy creeping from ~72s toward the 300s
+          # deadline is visible rather than silently green.
+          echo "homepage 200 after $(( SECONDS - started ))s, $attempt attempt(s)"
 
           # `$R` is deliberately absent: the hand-run version of these checks
           # pins --resolve because nexus caches this name as NXDOMAIN, but a
           # GitHub runner resolves it normally and an unset variable under
           # `set -u` would abort the step.
-          curl -sSI "$base/" | grep -qi 'x-robots-tag: *noindex' \
+
+          # One fetch, headers and body together, so the header assertions and
+          # the asset name below cannot come from two different responses.
+          hdrs=$(mktemp)
+          home=$(curl -sS -D "$hdrs" "$base/?cb=$cb-index") \
+            || { echo "::error::could not fetch the live homepage"; exit 1; }
+          grep -qi '^x-robots-tag: *noindex' "$hdrs" \
             || { echo "::error::noindex header missing"; exit 1; }
-          tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin")
+          grep -qi '^cache-control:.*no-cache' "$hdrs" \
+            || { echo "::error::homepage is not no-cache"; exit 1; }
+
+          # The check that actually distinguishes "deployed" from "still
+          # serving yesterday's bundle". The filename is read from the LIVE
+          # index.html rather than hardcoded, so a stale index.html paired with
+          # a working old asset -- which passes every other check here -- fails
+          # this one.
+          asset=$(printf '%s' "$home" | grep -oP 'assets/[^"]+\.js' | head -1) || true
+          test -n "$asset" \
+            || { echo "::error::the live index.html names no hashed asset"; exit 1; }
+          echo "live index.html names $asset"
+          acode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/$asset?cb=$cb-asset")
+          test "$acode" = "200" \
+            || { echo "::error::$asset, named by the live index.html, returned $acode"; exit 1; }
+
+          curl -sS "$base/robots.txt?cb=$cb-robots" | tr -d '\r' | grep -qx 'Disallow: /' \
+            || { echo "::error::robots.txt does not disallow everything"; exit 1; }
+
+          tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin?cb=$cb-l4")
           test "$tcode" = "200" || { echo "::error::terrain L4 returned $tcode"; exit 1; }
-          lcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/tiles/L0.bin")
+          lcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/tiles/L0.bin?cb=$cb-l0")
           test "$lcode" = "404" || { echo "::error::gitignored L0 is public ($lcode)"; exit 1; }
           echo "live site verified"
