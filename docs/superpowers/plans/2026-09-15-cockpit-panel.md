@@ -47,7 +47,23 @@ Settled here so the plan is executable. Mark can overrule any of them.
 
 ### Task 1: Gauge kinds — dial, column, tape
 
-Splits `GaugeSpec` so a non-dial instrument can sit in the same table, and adds the throttle entry. No rendering yet: the panel filters to dials, so the build is unchanged on screen.
+Splits `GaugeSpec` so a non-dial instrument can sit in the same table, and **finalises the
+table**: the throttle column is added and heading becomes a tape. No rendering yet — the
+panel filters to dials, so the only visible change is that the round heading dial
+disappears.
+
+> **Controller ruling R1 (pre-flight).** The table is finalised HERE, not spread across
+> Tasks 1/5/6. The original ordering left a window in which Task 3 allocated a slot for
+> `attitude` while `GAUGES` still held a round `heading` dial and no attitude — the panel
+> would not have built at all between Tasks 3 and 6.
+>
+> **The attitude ball is NOT a `GAUGES` entry.** It is panel geometry with a layout slot,
+> exactly as the horizon bar it replaces was. `GaugeBase` demands `min`, `max`,
+> `majorStep`, `minorStep`, `fromSI` and `decimals`; an attitude indicator has no scale
+> those describe, and it is driven by `attitudeAngles(state)` rather than a scalar
+> `gaugeValue`. So `GaugeKind` is `'dial' | 'column' | 'tape'` — there is no `'ball'`.
+>
+> After this task the lower row is **five dials plus the ball**, not six dials.
 
 **Files:**
 - Modify: `src/render/gauges.ts`
@@ -149,7 +165,9 @@ export type TapeSpec = GaugeBase & { readonly kind: 'tape'; readonly windowSpan:
 export type GaugeSpec = DialSpec | ColumnSpec | TapeSpec
 ```
 
-Add `kind: 'dial'` to all six existing entries, then append:
+Add `kind: 'dial'` to the five entries that stay dials — `airspeed`, `altimeter`,
+`verticalSpeed`, `fuel`, `slip`. Then append the column and CONVERT heading to a tape
+(ruling R1 — this is the only place either happens):
 
 ```ts
   {
@@ -157,7 +175,15 @@ Add `kind: 'dial'` to all six existing entries, then append:
     min: 0, max: 100, majorStep: 100, minorStep: 12.5,
     fromSI: 100, decimals: 0,
   },
+  {
+    id: 'heading', label: 'HEADING', unit: 'deg', kind: 'tape',
+    min: 0, max: 360, windowSpan: 90,
+    majorStep: 30, minorStep: 10, fromSI: 180 / Math.PI, decimals: 0,
+  },
 ```
+
+`heading` loses `sweepRad` and `circular`. Anything that read them for heading is now a
+type error — that is the union doing its job, and `fractionForValue` is the replacement.
 
 - [ ] **Step 4: Add `fractionForValue`, and give `TickMark` a fraction**
 
@@ -249,7 +275,12 @@ Expected: FAIL — `Cannot find module '../../src/render/scene/panelLayout.js'`.
 
 - [ ] **Step 3: Write the module**
 
-Move `PANEL_AHEAD_M` and `PANEL_BELOW_M` here from `panel.ts` and re-export them there so nothing else breaks. Measured 2026-09-15: the usable zone from 3° to 30° is 0.315 m, and this layout uses 0.280 m.
+Move `PANEL_AHEAD_M` here from `panel.ts` and re-export it there so nothing else breaks.
+
+> **Controller ruling R2 (pre-flight).** `PANEL_BELOW_M` STAYS in `panel.ts`. It places the
+> panel's origin, which is a rendering decision; this module owns band arithmetic measured
+> from the eye, and moving `PANEL_BELOW_M` would hand the pure module a constant nothing in
+> it uses. Measured 2026-09-15: the usable zone from 3° to 30° is 0.315 m, and this layout uses 0.280 m.
 
 ```ts
 export const PANEL_AHEAD_M = 0.6
@@ -326,8 +357,10 @@ describe('the two-band dashboard (2026-09-15)', () => {
     expect(named).not.toContain('armament')
   })
 
-  it('keeps six dials, heading having left for the tape and attitude arrived', () => {
-    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(6)
+  it('keeps five dials, heading having left for the tape', () => {
+    // Ruling R1: the ball is panel geometry, not a GAUGES row, so it is not a
+    // dial and does not appear here. Five dials plus the ball fill the row.
+    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(5)
   })
 })
 ```
@@ -348,13 +381,16 @@ const EDGE_W = 0.052          // throttle column / armament block
 
 export type Slot = { readonly id: string; readonly centreX: number; readonly widthM: number }
 
-const DIALS = ['airspeed', 'altimeter', 'verticalSpeed', 'attitude', 'fuel', 'slip'] as const
-const dialX = (i: number): number => (i - (DIALS.length - 1) / 2) * DIAL_GAP
-const edgeX = DIALS.length * DIAL_GAP / 2 + EDGE_W / 2
+// Six positions in the lower row: five dials and the attitude ball. The ball sits
+// fourth, where the round heading dial used to be, so the eye does not have to relearn
+// the row. Ruling R1: `attitude` is a SLOT only -- it has no GAUGES entry.
+const ROW = ['airspeed', 'altimeter', 'verticalSpeed', 'attitude', 'fuel', 'slip'] as const
+const dialX = (i: number): number => (i - (ROW.length - 1) / 2) * DIAL_GAP
+const edgeX = ROW.length * DIAL_GAP / 2 + EDGE_W / 2
 
 export const PANEL_SLOTS: readonly Slot[] = [
   { id: 'throttle', centreX: -edgeX, widthM: EDGE_W },
-  ...DIALS.map((id, i) => ({ id, centreX: dialX(i), widthM: DIAL_RADIUS * 2.18 })),
+  ...ROW.map((id, i) => ({ id, centreX: dialX(i), widthM: DIAL_RADIUS * 2.18 })),
   { id: 'armament', centreX: edgeX, widthM: EDGE_W },
   { id: 'radar', centreX: 0, widthM: 0.16 },
 ]
@@ -409,6 +445,7 @@ backing.position.set(0, PANEL_BELOW_M - (backingTop + backingBottom) / 2, BACKIN
 root.add(backing)
 
 const lowerCentre = (PANEL_BANDS.lower.top + PANEL_BANDS.lower.bottom) / 2
+// Five dials. The `attitude` slot stays empty until Task 6 puts the ball in it.
 for (const g of GAUGES.filter((x): x is DialSpec => x.kind === 'dial')) {
   const dial = buildDial(g, makeText)          // the existing per-dial body
   dial.name = `dial:${g.id}`
@@ -542,15 +579,10 @@ describe('the heading tape (2026-09-15)', () => {
 Run: `npx vitest run tests/render/gauges.test.ts -t tape`
 Expected: FAIL — `tapeOffsetFor` is not exported.
 
-- [ ] **Step 3: Convert the heading entry and add the helper**
+- [ ] **Step 3: Add the helper**
 
-```ts
-  {
-    id: 'heading', label: 'HEADING', unit: 'deg', kind: 'tape',
-    min: 0, max: 360, windowSpan: 90,
-    majorStep: 30, minorStep: 10, fromSI: 180 / Math.PI, decimals: 0,
-  },
-```
+The `heading` table entry is already a tape — Task 1 converted it (ruling R1). This task
+adds only the offset helper and the rendering.
 
 ```ts
 /** How far to slide the rose, in fractions of the full 360. Wrapped, so the
@@ -681,9 +713,10 @@ Expected: FAIL — `p.attitude` is undefined.
 
 - [ ] **Step 3: Build it**
 
-Add an `attitude` entry to `GAUGES` as a `dial` kind (it occupies the slot
-Task 3 allocated), then build the ball. The disc is drawn oversized and clipped
-by the bezel ring so it can translate with pitch without exposing an edge.
+Build the ball into the `attitude` slot Task 3 allocated. Ruling R1: there is **no
+`GAUGES` entry** for it — it is panel geometry driven by `attitudeAngles(state)`, exactly
+as the horizon bar it replaces was. The disc is drawn oversized and clipped by the bezel
+ring so it can translate with pitch without exposing an edge.
 
 ```ts
 // Sky over ground, split at the disc's centre line.
