@@ -357,9 +357,10 @@ the relief feel like ground rather than a texture, does anything pop.
    it chose anything. Full derivation beside the code, in `sampleField`'s doc
    comment in `src/render/terrain/mesh.ts`.
 
-2. **Where terrain data is served from** once there is a deployed build —
-   **CLOSED 2026-09-14 (Task 11): static files beside the build, no object
-   store.**
+2. **Where terrain data is served from** — **CLOSED 2026-09-14 (Task 11):
+   static files beside the build, no object store.** Confirmed against a real
+   deploy 2026-09-15; see the dated note at the end of this item, which the
+   phrase "once there is a deployed build" used to stand in for.
 
    The premise of this item was a 89 MB (in the event 134 MB) L0 fetch. That
    is not what the browser does. The loader fetches **L4 through L8 only** —
@@ -391,6 +392,32 @@ the relief feel like ground rather than a texture, does anything pop.
    that is 170.06 MiB, which `du -sh` rounds up and prints as `171M`.
    Everything in this plan now quotes decimal MB, or the byte count, and
    never `du`'s output.)
+
+   **A deploy now exists (2026-09-15), and the answer holds.** This item was
+   closed on reasoning about a build that had not happened yet; it has now
+   happened. Terrain is served from the same origin as everything else —
+   `https://ww2airsim.marktuttle.dev/content/terrain/`, plain static files
+   under nginx, the 703,306 bytes committed in this repo and nothing more.
+   Verified the same day against the live site: `L4.bin` is 200 and 526,338
+   bytes, `tiles/L0.bin` is 404, and the deploy workflow asserts both on every
+   run. No object store, still not worth one.
+
+   **One wrinkle the deploy exposed, and it argues for R2 or for hashing
+   later.** These filenames are stable across releases, so the vhost gives
+   them a short `max-age` and relies on revalidation. That is not what a
+   browser receives. Cloudflare's zone-level Browser Cache TTL rewrites the
+   origin's value: measured 2026-09-15, nginx served `max-age=300` on
+   `L4.bin` and the edge delivered `max-age=14400`. A terrain file replaced by
+   a rebuild is therefore stale in a browser for up to four hours, and the
+   vhost's own number cannot shorten it. Content-hashed terrain filenames
+   would make the question moot (as it already is for `/assets/`), and an
+   object store would move the decision somewhere it can actually be made.
+   Neither is needed while the pyramid is 703 KB that changes ~never; both
+   become live questions the moment terrain is regenerated often, or L0–L3
+   ship. Recorded so the next person reads it as a known property rather than
+   rediscovering it as a caching bug. The infra side, including why removing
+   nginx's `always` does not by itself close the equivalent window on 404s, is
+   commented in `vps-infra/sites/ww2airsim/nginx/conf.d/site.conf`.
 
 3. **Vertical exaggeration.** Still open, deliberately, and still for Mark at
    the controls: real relief at real scale can read as flat from 15,000 ft,
