@@ -20,6 +20,7 @@ import {
   type DialSpec,
 } from '../gauges.js'
 import { makeTextTexture, type TextTextureFactory } from './text.js'
+import { PANEL_AHEAD_M } from './panelLayout.js'
 import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 
@@ -76,8 +77,9 @@ const Z_MARKS = 0.0015
 const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
 
-/** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up). */
-const PANEL_AHEAD_M = 0.6
+/** Panel centre relative to the pilot's eye, body frame (+X forward, +Y up).
+ *  Re-exported from panelLayout.ts for backwards compatibility. */
+export { PANEL_AHEAD_M }
 /**
  * How far below the eye the dial row is centred.
  *
