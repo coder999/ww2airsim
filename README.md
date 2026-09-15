@@ -196,6 +196,21 @@ the nearest land, which is three minutes' flying. `?spawnX=&spawnY=&spawnZ=`
 moves it (`src/render/spawn.ts`); the parameters exist in DEV only and
 `tests/build/dist.test.ts` asserts they are absent from a production bundle.
 
+## Deployment
+
+Live at <https://ww2airsim.marktuttle.dev>, a public static site on the OVH
+VPS. `noindex`, because it is unfinished.
+
+Deploys are **manual**: `gh workflow run deploy.yml --repo coder999/ww2airsim`.
+Pushing `main` releases nothing. The workflow runs `npm run verify`, builds,
+rsyncs `dist/`, and then asserts the live site — including that the gitignored
+L0–L3 terrain tiles never became public (`content/terrain/tiles/L0.bin` must
+404).
+
+The design, the facts it rests on and how each was verified are in
+[`docs/superpowers/specs/2026-09-15-deployment-design.md`](docs/superpowers/specs/2026-09-15-deployment-design.md).
+The VPS side lives in `vps-infra/sites/ww2airsim/`.
+
 ## What this is, and is not
 
 This is a technical playground; the engineering is the point. Depth is
