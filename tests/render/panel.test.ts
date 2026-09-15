@@ -271,16 +271,26 @@ describe('panel', () => {
     // the sibling assertion below pins the plate bare so the hole cannot
     // reopen by something being parented there later.
     //
-    // Also excludes `p.tape.strip`, for the same reason as `p.backing` but on
-    // the horizontal axis: Task 5 (2026-09-15) deliberately draws the rose
-    // three copies wide (+/-1.5 * stripWidth) so sliding across the seam
-    // always has a neighbour rendered on both sides ("draws the rose three
-    // copies wide" below). Only the middle copy, within the camera's own
-    // frustum, is ever meant to be seen -- the outer two exist purely as
-    // off-screen buffer for the slide, not as READABLE content, which is
-    // exactly what this test's title is about. The tape's own fixed index
-    // and readout are NOT excluded: they are small, centred, and covered by
-    // this test like any other readout.
+    // Also excludes `p.tape.strip` from the HORIZONTAL (Z) check below, for
+    // the same reason as `p.backing`: Task 5 (2026-09-15) deliberately draws
+    // the rose three copies wide (+/-1.5 * stripWidth) so sliding across the
+    // seam always has a neighbour rendered on both sides ("draws the rose
+    // three copies wide" below). Even just copy 0 (a full 360-degree rose,
+    // `stripWidth()` wide) is on its own well past the horizontal budget
+    // below -- the tape is not clipped to its `TAPE_W` "visible window", so
+    // horizontally this is a known, accepted characteristic of the current
+    // design, not something this test is positioned to police. The tape's
+    // own fixed index and readout are NOT excluded: they are small, centred,
+    // and covered by this test like any other readout.
+    //
+    // Review round 1, Finding 2 (elevated): excluding the WHOLE strip also
+    // dropped copy 0's VERTICAL placement from direct coverage here, leaving
+    // it checked only transitively via the design-time upper-band budget
+    // ("keeps the whole tape assembly inside the upper band",
+    // `panelLayout.test.ts`'s own frustum check on that same budget). Copy 0
+    // -- tagged `userData.copy === 0` in `panel.ts`, distinguishing it from
+    // the two off-screen buffer copies -- is measured on the Y axis here
+    // like every other drawn instrument, via `tapeMiddleCopyBox` below.
     const p = createPanel(f6f, () => null)
     expect(p.backing.children).toHaveLength(0)
     p.root.updateMatrixWorld(true)
@@ -289,13 +299,18 @@ describe('panel', () => {
       if (child === p.backing || child === p.tape.strip) continue
       box.union(new Box3().setFromObject(child))
     }
+    const tapeMiddleCopyBox = new Box3()
+    for (const mark of p.tape.strip.children) {
+      if (mark.userData.copy !== 0) continue
+      tapeMiddleCopyBox.union(new Box3().setFromObject(mark))
+    }
     const [ex, ey, ez] = f6f.view.eyePointM
     const halfFovRad = ((CAMERA_VFOV_DEG / 2) * Math.PI) / 180
     // Body frame: +X forward. Worst case is the nearest slice of the panel,
     // where a given vertical offset subtends the largest angle.
     const nearestX = box.min.x - ex
     expect(nearestX).toBeGreaterThan(0)
-    for (const y of [box.min.y, box.max.y]) {
+    for (const y of [box.min.y, box.max.y, tapeMiddleCopyBox.min.y, tapeMiddleCopyBox.max.y]) {
       const angle = Math.atan2(Math.abs(y - ey), nearestX)
       expect(angle).toBeLessThan(halfFovRad)
     }
@@ -852,16 +867,40 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
     // either expose bare space at the edge of the visible window or -- if
     // the strip held only a single un-repeated copy -- have to leap the
     // entire width of the rose once per revolution. Proved by mutation: with
-    // the copy loop narrowed to `[0]`, this test's min/max bounds shrink from
-    // +/-1.5 * stripWidth to +/-0.5 * stripWidth and it fails (see the task
-    // report for the recorded run).
+    // the copy loop narrowed to `[0]`, this test's min/max bounds collapse to
+    // a single copy's own span and it fails (see the task report for the
+    // recorded run).
+    //
+    // Expected bounds are derived from `tickMarksFor`'s own fractions rather
+    // than hardcoded at +/-1.5 * stripWidth: review round 1, Finding 1 fixed
+    // `tickMarksFor` to drop the seam-doubling mark at `fraction === 1` for a
+    // tape (the same dedup a circular dial already gets), so the rendered
+    // range is asymmetric -- `fraction` 0 is kept (copy -1's copy of it is
+    // the leftmost mark) but `fraction` 1 is gone (so copy +1's rightmost
+    // mark is its own last MINOR step short of a full turn, not the seam
+    // duplicate).
     const p = createPanel(f6f, () => null)
+    const fractions = tickMarksFor(headingGauge()).map((m) => m.fraction)
+    const expectedMin = (Math.min(...fractions) - 1) * stripWidth() - stripWidth() / 2
+    const expectedMax = (Math.max(...fractions) + 1) * stripWidth() - stripWidth() / 2
     const xs = p.tape.strip.children
       .filter((c): c is Mesh => c instanceof Mesh)
       .map((c) => c.position.x)
     expect(xs.length).toBeGreaterThan(0)
-    expect(Math.min(...xs)).toBeCloseTo(-1.5 * stripWidth(), 6)
-    expect(Math.max(...xs)).toBeCloseTo(1.5 * stripWidth(), 6)
+    expect(Math.min(...xs)).toBeCloseTo(expectedMin, 6)
+    expect(Math.max(...xs)).toBeCloseTo(expectedMax, 6)
+  })
+
+  it('never lays two marks at the same seam position across copies', () => {
+    // Review round 1, Finding 1 (Important): before the `tickMarksFor` fix,
+    // copy 0's fraction-1 mark (value 360) and copy 1's fraction-0 mark
+    // (value 0) landed at the EXACT same (x, y) -- a doubled tick and two
+    // identical "000" numeral plates z-fighting at every seam.
+    const p = createPanel(f6f, () => null)
+    const positions = p.tape.strip.children.map(
+      (c) => `${c.position.x.toFixed(6)},${c.position.y.toFixed(6)}`,
+    )
+    expect(new Set(positions).size).toBe(positions.length)
   })
 
   it('keeps the fixed readout out of the sliding strip', () => {

@@ -43,6 +43,20 @@ describe('the heading tape (2026-09-15)', () => {
   it('shows a 90 degree window', () => {
     expect(tape().windowSpan).toBe(90)
   })
+
+  it('does not double the mark at the seam, the same hazard tickMarksFor already names for a circular dial', () => {
+    // Review round 1, Finding 1 (Important): `tickMarksFor`'s wrap-dedup
+    // short-circuit was `g.circular && g.kind === 'dial'`, so a tape (which
+    // has no `circular` field to be true) kept BOTH the 0 and 360 marks.
+    // Copied three times for the panel's slide, that put a tick AND a
+    // numeral at the exact same seam position twice over -- z-fighting ticks
+    // and two identical "000" plates blended on top of each other.
+    const marks = tickMarksFor(tape())
+    const fractions = marks.map((m) => m.fraction)
+    expect(fractions).toContain(0)
+    expect(fractions).not.toContain(1)
+    expect(new Set(fractions.map((f) => f.toFixed(9))).size).toBe(fractions.length)
+  })
 })
 
 describe('gaugeValue', () => {
@@ -221,7 +235,10 @@ describe('scale marks and readouts (I-2)', () => {
       const minMajors = g.id === 'throttle' ? 2 : 3
       expect(marks.filter((m) => m.major).length).toBeGreaterThanOrEqual(minMajors)
       expect(marks[0]!.value).toBeCloseTo(g.min, 9)
-      const wraps = g.kind === 'dial' && g.circular
+      // A tape wraps too, since review round 1 (Finding 1): `min` and `max`
+      // are the same seam mark on a tape's full turn, just as they are on a
+      // circular dial, so `tickMarksFor` now drops the top one for both.
+      const wraps = g.kind === 'tape' || (g.kind === 'dial' && g.circular)
       if (!wraps) expect(marks[marks.length - 1]!.value).toBeCloseTo(g.max, 9)
     }
   })

@@ -341,16 +341,21 @@ export type TickMark = {
  * dial's zero", and the dial had no zero -- six identical faces with six
  * indistinguishable pointers (whole-branch review, I-2).
  *
- * A circular DIAL stops one step short of `max`, because 0 and 2*pi are the
- * same mark on a compass rose and drawing both leaves a doubled tick at
- * north. No dial in `GAUGES` is circular today (heading moved to a tape,
- * 2026-09-15), so this is dead-by-absence rather than dead-by-divergence --
- * it becomes load-bearing again the moment a circular dial is added.
+ * A gauge that WRAPS stops one step short of `max`, because `min` and `max`
+ * are the same mark on a full turn and drawing both leaves a doubled mark at
+ * the seam. Review round 1 (2026-09-15), Finding 1: this used to be
+ * `g.kind === 'dial' && g.circular` only, so when `heading` moved to a
+ * `TapeSpec` (which has no `circular` field) it kept BOTH ends -- the tape's
+ * panel rendering then copies these marks three times to slide seamlessly
+ * (`panel.ts`), which put a tick AND a numeral at the exact same seam
+ * position twice over. Driven off `wrapsAndPads`, the same KIND-based test
+ * `formatDisplay`/`readoutTextFor` use for the readout's own wrap (F3) --
+ * one decision, not two copies that can drift apart again.
  */
 export function tickMarksFor(g: GaugeSpec): readonly TickMark[] {
   const marks: TickMark[] = []
   const steps = Math.round((g.max - g.min) / g.minorStep)
-  const wraps = g.kind === 'dial' && g.circular
+  const wraps = wrapsAndPads(g)
   const last = wraps ? steps - 1 : steps
   for (let i = 0; i <= last; i++) {
     const value = g.min + i * g.minorStep

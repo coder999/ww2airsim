@@ -486,10 +486,18 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
           new MeshBasicMaterial({ color: 0xe6ecf5 }),
         )
         tick.position.set(x, 0.006, Z_MARKS)
+        // Tagged with its own copy index (review round 1, Finding 2): the
+        // two OUTER copies exist purely as off-screen slide buffer, but copy
+        // 0 is the actual instrument and tests need to tell them apart --
+        // `panel.test.ts`'s "fits inside the field of view" measures copy 0's
+        // vertical placement directly rather than only transitively via the
+        // upper-band budget.
+        tick.userData.copy = copy
         strip.add(tick)
         if (mark.major) {
           const numeral = textPlate(mark.text, 0.022, 0.011, makeText)
           numeral.position.set(x, -0.006, Z_MARKS)
+          numeral.userData.copy = copy
           strip.add(numeral)
         }
       }
