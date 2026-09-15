@@ -375,7 +375,10 @@ Expected: FAIL — `p.backing` is undefined.
 In `panelLayout.ts`. Six dials at the existing `DIAL_GAP`, throttle at the left edge, armament mirrored right, radar centred in the upper band.
 
 ```ts
-export const DIAL_GAP = 0.155
+// 0.155 until 2026-09-15 (ruling R4): at that spacing the edge blocks sat 0.14 deg
+// inside the 3:2 frustum edge -- a 1.5 mm margin, and one pinned on slots that draw
+// nothing yet, so the first throttle bezel would have breached it with the test green.
+export const DIAL_GAP = 0.145
 export const DIAL_RADIUS = 0.06
 const EDGE_W = 0.052          // throttle column / armament block
 
