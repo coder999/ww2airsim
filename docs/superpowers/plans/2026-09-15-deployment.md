@@ -93,17 +93,35 @@ Replace the `location / { try_files $uri $uri/ =404; }` block in `sites/ww2airsi
     # An unfinished game should not accumulate search results. In nginx rather
     # than in the Vite build, so removing it later is a one-line infra change
     # with no rebuild. `always` so it is set on 404s and 304s too.
+    #
+    # This and /robots.txt's Disallow are ALTERNATIVES, not layers, and the
+    # combination is deliberately belt-and-braces rather than additive: a
+    # crawler that obeys Disallow never fetches the page and so never sees this
+    # header, which leaves a URL-only result possible for a link someone else
+    # publishes. The rigorous de-indexing recipe is the opposite -- allow
+    # crawling, serve noindex. Not worth it for a site with no inbound links.
     add_header X-Robots-Tag "noindex, nofollow" always;
 
     location = /robots.txt {
-        add_header Content-Type text/plain;
+        # No add_header here, deliberately. `return 200` already sets
+        # Content-Type: text/plain, so adding it yields the header TWICE
+        # (invalid per RFC 9110) -- and declaring any add_header at this level
+        # cancels inheritance of the server-level X-Robots-Tag above, so the
+        # one block that most obviously needs it would silently lose it.
         return 200 "User-agent: *\nDisallow: /\n";
     }
 
     # Vite emits content-hashed filenames under /assets/, so a given URL's
     # bytes can never change: cache them for a year and never revalidate.
     location /assets/ {
-        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        # NOT `always`. `always` would apply this to 404s too, and rsync is not
+        # atomic: during a deploy a browser can request a hashed asset in the
+        # window before it lands and cache the 404 as fresh for a year. The
+        # edge copy is purgeable, the users' browser copies are not, and
+        # re-deploying the identical filename does not fix it because nothing
+        # revalidates. 304 is already in nginx's default status list, so
+        # conditional requests still carry this header.
+        add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Robots-Tag "noindex, nofollow" always;
         try_files $uri =404;
     }
