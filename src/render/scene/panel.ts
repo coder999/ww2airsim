@@ -24,6 +24,9 @@ import type { AircraftSpec } from '../../sim/flight/schema.js'
 
 export type Panel = {
   readonly root: Object3D
+  /** The reflector gunsight's reticle. On the boresight, so it is where the
+   *  guns point rather than where the panel is. */
+  readonly reticle: Object3D
   readonly needles: Map<GaugeId, Object3D>
   /** The digital readout plate inside each dial, and the string it currently
    *  shows -- kept so `updatePanel` can skip re-rasterising an unchanged one. */
@@ -105,6 +108,21 @@ const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
  */
 const HORIZON_Z = -0.003
 const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
+/**
+ * The reflector sight, as an angle rather than a size.
+ *
+ * A gunsight is aimed, so what matters is how much sky it covers, not how many
+ * millimetres of glass it is drawn on. The cross spans 3 degrees with a 1
+ * degree gap at the middle -- wide enough to read against sea and cloud, open
+ * enough to leave the target visible, which is the whole point of the gap.
+ * Converted to metres at the sight's own distance below, so moving the panel
+ * cannot silently change how big the sight looks.
+ */
+const RETICLE_SPAN_DEG = 3
+const RETICLE_GAP_DEG = 1
+/** In front of the horizon bar, so the bar cannot cut across the sight. */
+const RETICLE_Z = -0.004
+
 /** The coaming: an opaque plate the horizon bar passes behind. */
 const BACKING_Z = -0.001
 const BACKING_TOP = 0.108
@@ -234,6 +252,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     dial.add(readoutMesh)
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
+    dial.name = `dial:${g.id}`
     dial.position.set(x, 0, 0)
     root.add(dial)
   })
@@ -264,6 +283,29 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   horizon.position.set(0, PANEL_BELOW_M, HORIZON_Z)
   root.add(horizon)
 
+  // The sight sits at local (0, PANEL_BELOW_M) -- the boresight -- NOT at the
+  // panel's own origin, which is PANEL_BELOW_M below the eye. `panel.test.ts`
+  // projects it and requires dead centre at five attitudes, which is the check
+  // that a sight drawn on the panel face would fail.
+  const reticle = new Group()
+  reticle.name = 'reticle'
+  const sightDistance = PANEL_AHEAD_M - RETICLE_Z
+  const armM = sightDistance * Math.tan((RETICLE_SPAN_DEG * Math.PI) / 360)
+  const gapM = sightDistance * Math.tan((RETICLE_GAP_DEG * Math.PI) / 360)
+  const strokeM = armM * 0.09
+  const reticleMat = new MeshBasicMaterial({ color: 0xffdf7a })
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+    const long = armM - gapM
+    const arm = new Mesh(
+      new PlaneGeometry(dx === 0 ? strokeM : long, dy === 0 ? strokeM : long),
+      reticleMat,
+    )
+    arm.position.set(dx * (gapM + long / 2), dy * (gapM + long / 2), 0)
+    reticle.add(arm)
+  }
+  reticle.position.set(0, PANEL_BELOW_M, RETICLE_Z)
+  root.add(reticle)
+
   // Positioned in the SAME body frame the cockpit group is posed in (sim
   // convention, +X forward, +Y up, +Z right -- see src/render/frame.ts's
   // `render` field doc: an Object3D, unlike a Three camera, has no hardcoded
@@ -280,7 +322,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, readouts, horizon }
+  return { root, needles, readouts, horizon, reticle }
 }
 
 export function updatePanel(

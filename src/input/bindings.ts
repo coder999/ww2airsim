@@ -40,6 +40,12 @@ export const BINDINGS = {
   toggleStallLimiter: ['KeyL'],
   toggleAutoRudder: ['KeyR'],
   toggleAltitudeHold: ['KeyH'],
+  // `/` because it is the conventional help key and, unlike F1, it is not a
+  // browser command -- F1 opens the browser's own help in several and
+  // `preventDefault` does not always stop it, which is the same trap
+  // `throttleDown` above documents for Ctrl+W. Firefox's quick-find IS
+  // preventable, and main.ts prevents it.
+  toggleLegend: ['Slash'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS

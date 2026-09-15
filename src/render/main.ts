@@ -6,6 +6,8 @@ import { CAMERA_VFOV_DEG } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
 import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
+import { createLegend } from './legend.js'
+import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
   initialFrameState,
@@ -371,8 +373,23 @@ async function boot(): Promise<void> {
 
   frame = initialFrameState(spec, initialAircraft)
 
+  // Ships in production, unlike `overlay` below: it is the pilot's only view
+  // of the key map. Mark asked for a throttle-down key on 2026-09-15 that had
+  // been bound since Plan 1 and written down nowhere.
+  const legend = createLegend(root)
+  let legendOpen = true
+
   const pressed = new Set<string>()
   window.addEventListener('keydown', (e) => {
+    // Toggled here rather than through `nextFrameState`: the legend is a piece
+    // of page furniture, and FrameState is the deterministic simulation state
+    // that the golden trajectory and the soak both replay. `e.repeat` is what
+    // keeps a held key from flipping it at the keyboard's repeat rate.
+    if (BINDINGS.toggleLegend.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      legendOpen = !legendOpen
+      legend.setOpen(legendOpen)
+    }
     pressed.add(e.code)
   })
   window.addEventListener('keyup', (e) => {

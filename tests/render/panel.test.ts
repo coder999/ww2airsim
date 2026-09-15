@@ -20,6 +20,17 @@ import { GAUGE_SAMPLES } from './gaugeSamples.js'
 const f6f = loadAircraftSpec('f6f-hellcat')
 const deg = (rad: number) => (rad * 180) / Math.PI
 
+/**
+ * The dial groups, selected by NAME rather than by "every Group child".
+ *
+ * The structural version was correct only while dials were the sole Group on
+ * the panel. Adding the gunsight reticle on 2026-09-15 made it silently count
+ * the sight as a seventh dial, so the selection is explicit now and a new
+ * group cannot quietly join the row again.
+ */
+const dialsOf = (p: Panel): Group[] =>
+  p.root.children.filter((c): c is Group => c instanceof Group && c.name.startsWith('dial:'))
+
 /** Roll about the nose, right wing down for a positive angle. */
 const banked = (bankDeg: number): AircraftState =>
   createState({
@@ -258,7 +269,7 @@ describe('panel', () => {
     // spacing, so every pair of neighbours overlapped by 20 mm and the row read
     // as one smear. Nothing measured the relation between the two constants.
     const p = createPanel(f6f, () => null)
-    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    const dials = dialsOf(p)
     const centres = dials.map((d) => d.position.x).sort((a, b) => a - b)
     const bezelOuter = Math.max(
       ...dials[0]!.children
@@ -275,7 +286,7 @@ describe('panel', () => {
     // each one speared its neighbour. Visible in the screenshot; measured by
     // nothing.
     const p = createPanel(f6f, () => null)
-    const dial = p.root.children.find((c): c is Group => c instanceof Group)!
+    const dial = dialsOf(p)[0]!
     const rim = Math.max(
       ...dial.children
         .filter((c): c is Mesh => c instanceof Mesh)
@@ -294,7 +305,7 @@ describe('panel', () => {
     // at 22.5, against a numeral plate more than twice the arc available. The
     // screenshot shows "-0.50.25" and "+15+8.0-5.0" as a result.
     const p = createPanel(f6f, () => null)
-    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    const dials = dialsOf(p)
     GAUGES.forEach((g, i) => {
       const numerals = dials[i]!.children.filter(
         (c): c is Mesh => c instanceof Mesh && c.geometry instanceof PlaneGeometry,
@@ -322,7 +333,7 @@ describe('panel', () => {
     // checked numeral-versus-numeral and readout-versus-numeral, and this
     // third pair was the one left out.
     const p = createPanel(f6f, () => null)
-    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    const dials = dialsOf(p)
     for (const dial of dials) {
       const meshes = dial.children.filter((c): c is Mesh => c instanceof Mesh)
       const numerals = meshes.filter((m) => m.geometry instanceof PlaneGeometry)
@@ -345,7 +356,7 @@ describe('panel', () => {
     // over its own 8000 and 6000 marks. A three-quarter sweep covers the
     // bottom of the face, so there is no clear window down there.
     const p = createPanel(f6f, () => null)
-    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    const dials = dialsOf(p)
     GAUGES.forEach((g, i) => {
       const readout = p.readouts.get(g.id)!.mesh
       const rBox = new Box3().setFromObject(readout)
@@ -519,7 +530,7 @@ describe('panel markings and readouts (I-2)', () => {
     // `angleForValue`. A transposed sin/cos or a sign slip in the placement
     // would pass every test in gauges.test.ts and still scatter the marks.
     const p = createPanel(f6f, recordingText().factory)
-    const dials = p.root.children.filter((c): c is Group => c instanceof Group)
+    const dials = dialsOf(p)
     expect(dials.length).toBe(GAUGES.length)
     GAUGES.forEach((g, i) => {
       const expected = tickMarksFor(g).map((m) => m.angleRad).sort((a, b) => a - b)
@@ -610,5 +621,38 @@ describe('panel markings and readouts (I-2)', () => {
     expect(p.needles.size).toBe(GAUGES.length)
     expect(p.readouts.size).toBe(GAUGES.length)
     expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }))).not.toThrow()
+  })
+})
+
+describe('the gunsight reticle (2026-09-15)', () => {
+  /** Where a point on the panel lands on screen, in tangent units: (0, 0) is
+   *  dead centre, and the quantity is projective so it ignores the lens. */
+  const screenOf = (object: { matrixWorld: Parameters<Vector3['setFromMatrixPosition']>[0] },
+                    state: AircraftState,
+                    worldToCamera: Quaternion,
+                    eye: Vector3) => {
+    const p = new Vector3().setFromMatrixPosition(object.matrixWorld).sub(eye).applyQuaternion(worldToCamera)
+    return { x: p.x / -p.z, y: p.y / -p.z }
+  }
+
+  it('sits on the boresight, at every attitude', () => {
+    // A reflector sight is aimed where the guns point, so the reticle has to
+    // land dead centre whatever the aeroplane is doing -- it is fixed to the
+    // airframe, not to the world like the horizon bar two tests above.
+    //
+    // This is the assertion that a reticle parented correctly but positioned
+    // on the PANEL FACE would fail: the panel sits PANEL_BELOW_M below the eye,
+    // so a sight built at local y = 0 projects well below centre rather than
+    // on it. Checked across attitudes so a pose bug cannot hide at level.
+    const attitudes = [[0, 0], [12, 0], [-20, 0], [0, 45], [8, -30]] as const
+    for (const [pitchDeg, bankDeg] of attitudes) {
+      const panel = createPanel(f6f)
+      const state = attitude(pitchDeg, bankDeg)
+      const { worldToCamera, eye } = pose(panel, state)
+      const at = screenOf(panel.reticle, state, worldToCamera, eye)
+
+      expect(at.x, `pitch ${pitchDeg} bank ${bankDeg}: horizontal`).toBeCloseTo(0, 6)
+      expect(at.y, `pitch ${pitchDeg} bank ${bankDeg}: vertical`).toBeCloseTo(0, 6)
+    }
   })
 })
