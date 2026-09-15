@@ -7,11 +7,12 @@ import {
   gaugeValue,
   labelTextFor,
   tickMarksFor,
+  type DialSpec,
 } from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
 import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
-import { createState, type AircraftState } from '../../src/sim/flight/state.js'
+import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -19,6 +20,20 @@ import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const deg = (rad: number) => (rad * 180) / Math.PI
+
+/** No input held. Every `updatePanel` call in later tasks uses this -- see
+ *  task-1-brief.md. */
+const NEUTRAL_CONTROLS: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+
+/**
+ * The gauges the panel actually builds as round dials.
+ *
+ * `GAUGES` gained a throttle column and a heading tape on 2026-09-15
+ * (controller ruling R1); `createPanel` filters to `kind === 'dial'` when
+ * building the row (panel.ts), so tests that check the BUILT geometry --
+ * dial count, needle count, readout count -- have to filter the same way.
+ */
+const DIAL_GAUGES = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
 
 /**
  * The dial groups, selected by NAME rather than by "every Group child".
@@ -161,8 +176,8 @@ describe('panel', () => {
     // A needle with no gauge behind it is the failure mode this plan is most
     // determined to avoid: an instrument that appears to mean something.
     const p = createPanel(f6f)
-    expect(p.needles.size).toBe(GAUGES.length)
-    for (const g of GAUGES) expect(p.needles.has(g.id)).toBe(true)
+    expect(p.needles.size).toBe(DIAL_GAUGES.length)
+    for (const g of DIAL_GAUGES) expect(p.needles.has(g.id)).toBe(true)
   })
 
   it('sits ahead of and below the eye point, where a panel actually is', () => {
@@ -292,7 +307,7 @@ describe('panel', () => {
         .filter((c): c is Mesh => c instanceof Mesh)
         .map((c) => new Box3().setFromObject(c).max.x),
     )
-    for (const g of GAUGES) {
+    for (const g of DIAL_GAUGES) {
       updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
       const needle = p.needles.get(g.id) as Mesh
       const reach = new Box3().setFromObject(needle).max.length()
@@ -306,7 +321,7 @@ describe('panel', () => {
     // screenshot shows "-0.50.25" and "+15+8.0-5.0" as a result.
     const p = createPanel(f6f, () => null)
     const dials = dialsOf(p)
-    GAUGES.forEach((g, i) => {
+    DIAL_GAUGES.forEach((g, i) => {
       const numerals = dials[i]!.children.filter(
         (c): c is Mesh => c instanceof Mesh && c.geometry instanceof PlaneGeometry,
       )
@@ -357,7 +372,7 @@ describe('panel', () => {
     // bottom of the face, so there is no clear window down there.
     const p = createPanel(f6f, () => null)
     const dials = dialsOf(p)
-    GAUGES.forEach((g, i) => {
+    DIAL_GAUGES.forEach((g, i) => {
       const readout = p.readouts.get(g.id)!.mesh
       const rBox = new Box3().setFromObject(readout)
       for (const numeral of dials[i]!.children) {
@@ -485,6 +500,18 @@ describe('panel', () => {
     updatePanel(p, f6f, createState({ velocity: v3(0, 0, 0) }))
     for (const n of p.needles.values()) expect(Number.isFinite(n.rotation.z)).toBe(true)
   })
+
+  it('accepts an explicit control vector without throwing (2026-09-15)', () => {
+    // main.ts now passes `current.controls` as a sixth argument, the same
+    // vector it already reads for the propeller spin, so the throttle gauge
+    // (a column, not yet drawn) can eventually read it too. This is a smoke
+    // test of that plumbing rather than a behavioural one: no dial reads
+    // `controls` today, so there is nothing visible to assert yet.
+    const p = createPanel(f6f)
+    expect(() =>
+      updatePanel(p, f6f, createState(), undefined, undefined, NEUTRAL_CONTROLS),
+    ).not.toThrow()
+  })
 })
 
 describe('panel markings and readouts (I-2)', () => {
@@ -507,16 +534,20 @@ describe('panel markings and readouts (I-2)', () => {
     }
   }
 
-  it('prints the name and unit of every gauge', () => {
+  it('prints the name and unit of every fitted dial', () => {
+    // Dial-only: createPanel only builds a label plate for a rendered dial.
+    // Throttle (a column) and heading (a tape, since 2026-09-15) are in
+    // GAUGES but not yet drawn at all -- see the file-level comment on
+    // DIAL_GAUGES.
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
-    for (const g of GAUGES) expect(drawn).toContain(labelTextFor(g))
+    for (const g of DIAL_GAUGES) expect(drawn).toContain(labelTextFor(g))
   })
 
-  it('prints a number beside every major scale mark', () => {
+  it('prints a number beside every major scale mark on a fitted dial', () => {
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
-    for (const g of GAUGES) {
+    for (const g of DIAL_GAUGES) {
       for (const m of tickMarksFor(g)) {
         if (m.major) expect(drawn).toContain(m.text)
       }
@@ -531,8 +562,8 @@ describe('panel markings and readouts (I-2)', () => {
     // would pass every test in gauges.test.ts and still scatter the marks.
     const p = createPanel(f6f, recordingText().factory)
     const dials = dialsOf(p)
-    expect(dials.length).toBe(GAUGES.length)
-    GAUGES.forEach((g, i) => {
+    expect(dials.length).toBe(DIAL_GAUGES.length)
+    DIAL_GAUGES.forEach((g, i) => {
       const expected = tickMarksFor(g).map((m) => m.angleRad).sort((a, b) => a - b)
       const placed = dials[i]!.children
         .filter((c) => c instanceof Mesh && c.geometry instanceof BoxGeometry)
@@ -562,7 +593,11 @@ describe('panel markings and readouts (I-2)', () => {
     // gauge the needle at its high sample must point at the same screen angle
     // as a tick mark placed at that same value.
     const p = createPanel(f6f, () => null)
+    // Dial-only since 2026-09-15: only a dial gets a needle (createPanel
+    // filters `GAUGES` to `kind === 'dial'`), and `angleForValue` is typed
+    // to `DialSpec` accordingly.
     for (const g of GAUGES) {
+      if (g.kind !== 'dial') continue
       updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, () => null)
       const needle = p.needles.get(g.id) as Mesh
       const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high)
@@ -609,8 +644,8 @@ describe('panel markings and readouts (I-2)', () => {
 
   it('has one readout per fitted gauge and none spare', () => {
     const p = createPanel(f6f, recordingText().factory)
-    expect(p.readouts.size).toBe(GAUGES.length)
-    for (const g of GAUGES) expect(p.readouts.has(g.id)).toBe(true)
+    expect(p.readouts.size).toBe(DIAL_GAUGES.length)
+    for (const g of DIAL_GAUGES) expect(p.readouts.has(g.id)).toBe(true)
   })
 
   it('builds without a canvas rather than throwing, which is how it is tested', () => {
@@ -618,8 +653,8 @@ describe('panel markings and readouts (I-2)', () => {
     // so it must return null and leave the geometry intact rather than throw.
     expect(typeof document).toBe('undefined')
     const p = createPanel(f6f)
-    expect(p.needles.size).toBe(GAUGES.length)
-    expect(p.readouts.size).toBe(GAUGES.length)
+    expect(p.needles.size).toBe(DIAL_GAUGES.length)
+    expect(p.readouts.size).toBe(DIAL_GAUGES.length)
     expect(() => updatePanel(p, f6f, createState({ position: v3(0, 500, 0) }))).not.toThrow()
   })
 })

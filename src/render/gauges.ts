@@ -1,7 +1,7 @@
 import { v3, length, dot, normalize } from '../sim/math/vec3.js'
 import { qRotate } from '../sim/math/quat.js'
 import { airspeed } from '../sim/flight/model.js'
-import type { AircraftState } from '../sim/flight/state.js'
+import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 
 /**
@@ -21,16 +21,25 @@ export type GaugeId =
   | 'heading'
   | 'fuel'
   | 'slip'
+  | 'throttle'
 
-export type GaugeSpec = {
+/**
+ * Which shape an instrument is drawn as.
+ *
+ * There is deliberately no `'ball'`: the attitude indicator is panel geometry
+ * with a layout slot (a later task), driven by `attitudeAngles(state)` rather
+ * than a scalar `gaugeValue`, and it has no `min`/`max`/step scale for
+ * `GaugeBase` to describe. Controller ruling R1, 2026-09-15.
+ */
+export type GaugeKind = 'dial' | 'column' | 'tape'
+
+type GaugeBase = {
   readonly id: GaugeId
   readonly label: string
   readonly unit: string
-  /** Dial ends, in the gauge's own unit. */
+  /** Scale ends, in the gauge's own unit. */
   readonly min: number
   readonly max: number
-  /** Needle sweep, radians, from `min` to `max`. */
-  readonly sweepRad: number
   /**
    * Spacing of labelled scale marks, in the gauge's own unit.
    *
@@ -45,7 +54,7 @@ export type GaugeSpec = {
   /** Spacing of unlabelled scale marks. Must divide `majorStep`. */
   readonly minorStep: number
   /**
-   * Multiply the SIMULATION's SI quantity by this to get the dial's own unit.
+   * Multiply the SIMULATION's SI quantity by this to get the gauge's own unit.
    *
    * Applied once, in `gaugeValue`, so everything downstream -- `min`, `max`,
    * both step sizes, the needle, the marks and the readout -- is already in
@@ -61,42 +70,71 @@ export type GaugeSpec = {
   readonly fromSI: number
   /** Decimal places in the digital readout. */
   readonly decimals: number
+}
+
+/** A round dial with a needle. `sweepRad` and `circular` mean nothing to the
+ *  other kinds, which is the whole reason this is a union. */
+export type DialSpec = GaugeBase & {
+  readonly kind: 'dial'
+  /** Needle sweep, radians, from `min` to `max`. */
+  readonly sweepRad: number
   /** Wraps rather than clamping (a compass rose). */
   readonly circular: boolean
 }
+/** A vertical bar that fills from the bottom. */
+export type ColumnSpec = GaugeBase & { readonly kind: 'column' }
+/** A sliding strip showing `windowSpan` of the scale either side of the index. */
+export type TapeSpec = GaugeBase & { readonly kind: 'tape'; readonly windowSpan: number }
+
+export type GaugeSpec = DialSpec | ColumnSpec | TapeSpec
+
+/** A control vector with no input held -- the fallback for callers (mostly
+ *  tests) that have no reason to care what the throttle gauge reads. */
+const NEUTRAL_CONTROLS: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 
 const TWO_PI = Math.PI * 2
 
 export const GAUGES: readonly GaugeSpec[] = [
   {
-    id: 'airspeed', label: 'AIRSPEED', unit: 'mph',
+    id: 'airspeed', label: 'AIRSPEED', unit: 'mph', kind: 'dial',
     min: 0, max: 500, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 100, minorStep: 25, fromSI: 1 / 0.44704, decimals: 0,
   },
   {
-    id: 'altimeter', label: 'ALTITUDE', unit: 'ft',
+    id: 'altimeter', label: 'ALTITUDE', unit: 'ft', kind: 'dial',
     min: 0, max: 40_000, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 10_000, minorStep: 2000, fromSI: 1 / 0.3048, decimals: 0,
   },
   {
-    id: 'verticalSpeed', label: 'CLIMB', unit: 'ft/min',
+    id: 'verticalSpeed', label: 'CLIMB', unit: 'ft/min', kind: 'dial',
     min: -5000, max: 5000, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 5000, minorStep: 1000, fromSI: 60 / 0.3048, decimals: 0,
   },
+  // Converted from a circular dial to a tape here -- the only place either
+  // happens (controller ruling R1, 2026-09-15). `sweepRad` and `circular`
+  // are gone; `fractionForValue` is the replacement for placement, and
+  // `windowSpan` is new, for the later task that renders the sliding strip.
   {
-    id: 'heading', label: 'HEADING', unit: 'deg',
-    min: 0, max: 360, sweepRad: TWO_PI, circular: true,
-    majorStep: 90, minorStep: 30, fromSI: 180 / Math.PI, decimals: 0,
+    id: 'heading', label: 'HEADING', unit: 'deg', kind: 'tape',
+    min: 0, max: 360, windowSpan: 90,
+    majorStep: 30, minorStep: 10, fromSI: 180 / Math.PI, decimals: 0,
   },
   {
-    id: 'fuel', label: 'FUEL', unit: 'US gal',
+    id: 'fuel', label: 'FUEL', unit: 'US gal', kind: 'dial',
     min: 0, max: 250, sweepRad: (TWO_PI * 3) / 4, circular: false,
     majorStep: 100, minorStep: 25, fromSI: 1 / (6 * 0.45359237), decimals: 0,
   },
   {
-    id: 'slip', label: 'SLIP', unit: '',
+    id: 'slip', label: 'SLIP', unit: '', kind: 'dial',
     min: -0.5, max: 0.5, sweepRad: Math.PI / 2, circular: false,
     majorStep: 0.5, minorStep: 0.125, fromSI: 1, decimals: 2,
+  },
+  // Appended here, per R1 -- the table is finalised in this task, not spread
+  // across later ones.
+  {
+    id: 'throttle', label: 'THROTTLE', unit: '%', kind: 'column',
+    min: 0, max: 100, majorStep: 100, minorStep: 12.5,
+    fromSI: 100, decimals: 0,
   },
 ]
 
@@ -133,14 +171,25 @@ export function attitudeAngles(state: AircraftState): {
   return { pitchRad, rollRad }
 }
 
-export function gaugeValue(id: GaugeId, spec: AircraftSpec, state: AircraftState): number {
+/**
+ * `controls` defaults to a neutral vector: every gauge except `throttle`
+ * reads the flight model's `state` alone, so almost every call site (and
+ * every existing test written before `throttle` existed) has no reason to
+ * supply one.
+ */
+export function gaugeValue(
+  id: GaugeId,
+  spec: AircraftSpec,
+  state: AircraftState,
+  controls: Controls = NEUTRAL_CONTROLS,
+): number {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
-  return siValueFor(id, spec, state) * g.fromSI
+  return siValueFor(id, spec, state, controls) * g.fromSI
 }
 
 /** The quantity the SIMULATION holds, in SI, before the dial's unit is applied. */
-function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState): number {
+function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState, controls: Controls): number {
   switch (id) {
     case 'airspeed':
       return airspeed(state)
@@ -150,6 +199,10 @@ function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState): num
       return state.velocity.y
     case 'fuel':
       return state.fuelKg
+    // Throttle lives in Controls, not AircraftState (state.ts:8) -- it is a
+    // pilot input, not something the flight model produces.
+    case 'throttle':
+      return controls.throttle
     case 'heading': {
       // Compass convention: clockwise seen from above, so a RIGHT turn increases
       // it -- deliberately OPPOSITE in sign to camera.ts's `headingOf`, which
@@ -197,6 +250,11 @@ export function needleAngleFor(
 ): number {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
+  // Dial-only: a column or a tape has no needle for this to be the angle of.
+  // The panel only ever calls this for a gauge it has built a needle for
+  // (panel.ts filters `GAUGES` to `kind === 'dial'`), so reaching here for
+  // another kind is a caller bug, not a value to degrade gracefully for.
+  if (g.kind !== 'dial') throw new Error(`needleAngleFor is dial-only, not for '${g.kind}': ${id}`)
 
   const value = gaugeValue(id, spec, state)
   if (!Number.isFinite(value)) return 0
@@ -213,7 +271,7 @@ export function needleAngleFor(
  * supposed to line up with, and it is the kind of error that is obvious in a
  * screenshot and invisible in a unit test written against either half alone.
  */
-export function angleForValue(g: GaugeSpec, value: number): number {
+export function angleForValue(g: DialSpec, value: number): number {
   // One mapping for both kinds of dial. The circular branch used to be
   // `value % TWO_PI`, which silently assumed the compass stored RADIANS --
   // true until 2026-09-15, when the table moved into display units and
@@ -224,11 +282,29 @@ export function angleForValue(g: GaugeSpec, value: number): number {
   return (t < 0 ? 0 : t > 1 ? 1 : t) * g.sweepRad
 }
 
+/**
+ * Where `value` sits along the gauge's span, 0..1.
+ *
+ * The linear equivalent of `angleForValue`, and the one every kind can use --
+ * a column's fill height and a tape's index position are both fractions of a
+ * span, not angles. Clamped for a linear gauge; wrapped for a circular dial,
+ * exactly as `angleForValue` does.
+ */
+export function fractionForValue(g: GaugeSpec, value: number): number {
+  const t = (value - g.min) / (g.max - g.min)
+  if (g.kind === 'dial' && g.circular) return (((t % 1) + 1) % 1)
+  return t < 0 ? 0 : t > 1 ? 1 : t
+}
+
 export type TickMark = {
   /** The value this mark stands for, in the gauge's own unit. */
   readonly value: number
-  /** Radians clockwise from the dial's zero -- `angleForValue(g, value)`. */
+  /** Radians clockwise from the dial's zero -- `angleForValue(g, value)`.
+   *  Zero for a non-dial gauge, which has no needle to angle. */
   readonly angleRad: number
+  /** Where the mark sits along the gauge's span, 0..1 -- `fractionForValue(g,
+   *  value)`. Meaningful for every kind, unlike `angleRad`. */
+  readonly fraction: number
   /** Longer, and the only kind that carries a printed number. */
   readonly major: boolean
   /** The number printed beside a major mark; empty for a minor one. */
@@ -236,7 +312,7 @@ export type TickMark = {
 }
 
 /**
- * The scale marks for a dial, minor and major, from `min` to `max`.
+ * The scale marks for a gauge, minor and major, from `min` to `max`.
  *
  * Design spec section 7 asks for gauges that are "oversized, high-contrast,
  * clearly labelled". Until this, a dial was a dark disc with a needle and no
@@ -244,13 +320,17 @@ export type TickMark = {
  * dial's zero", and the dial had no zero -- six identical faces with six
  * indistinguishable pointers (whole-branch review, I-2).
  *
- * A circular gauge stops one step short of `max`, because 0 and 2*pi are the
- * same mark on a compass rose and drawing both leaves a doubled tick at north.
+ * A circular DIAL stops one step short of `max`, because 0 and 2*pi are the
+ * same mark on a compass rose and drawing both leaves a doubled tick at
+ * north. No dial in `GAUGES` is circular today (heading moved to a tape,
+ * 2026-09-15), so this is dead-by-absence rather than dead-by-divergence --
+ * it becomes load-bearing again the moment a circular dial is added.
  */
 export function tickMarksFor(g: GaugeSpec): readonly TickMark[] {
   const marks: TickMark[] = []
   const steps = Math.round((g.max - g.min) / g.minorStep)
-  const last = g.circular ? steps - 1 : steps
+  const wraps = g.kind === 'dial' && g.circular
+  const last = wraps ? steps - 1 : steps
   for (let i = 0; i <= last; i++) {
     const value = g.min + i * g.minorStep
     // Integer arithmetic on the step index, not a float modulo of the value:
@@ -260,7 +340,8 @@ export function tickMarksFor(g: GaugeSpec): readonly TickMark[] {
     const major = i % perMajor === 0
     marks.push({
       value,
-      angleRad: angleForValue(g, value),
+      angleRad: g.kind === 'dial' ? angleForValue(g, value) : 0,
+      fraction: fractionForValue(g, value),
       major,
       text: major ? formatDisplay(g, value) : '',
     })
@@ -288,7 +369,12 @@ function formatDisplay(g: GaugeSpec, value: number): string {
   //
   // The `decimals > 0` padding width is dead-by-absence: no circular gauge has
   // decimals today. It is 3 integer digits plus the point plus the decimals.
-  if (g.circular) {
+  //
+  // Dial-only, like the field it reads: no dial in `GAUGES` is circular today
+  // (heading moved to a tape, 2026-09-15), so this whole branch is currently
+  // dead-by-absence too. A tape's own wrap-at-the-seam display is a rendering
+  // concern for the task that builds one -- see `windowSpan` on `TapeSpec`.
+  if (g.kind === 'dial' && g.circular) {
     const turn = g.max - g.min
     const wrapped = (((Number(body) % turn) + turn) % turn).toFixed(g.decimals)
     return wrapped.padStart(g.decimals > 0 ? g.decimals + 4 : 3, '0')
@@ -314,11 +400,16 @@ export function labelTextFor(g: GaugeSpec): string {
  * a readout that keeps counting while the needle is pegged tells the pilot
  * the instrument is fine when it is off its scale.
  */
-export function readoutTextFor(id: GaugeId, spec: AircraftSpec, state: AircraftState): string {
+export function readoutTextFor(
+  id: GaugeId,
+  spec: AircraftSpec,
+  state: AircraftState,
+  controls: Controls = NEUTRAL_CONTROLS,
+): string {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
-  const raw = gaugeValue(id, spec, state)
+  const raw = gaugeValue(id, spec, state, controls)
   if (!Number.isFinite(raw)) return '--'
-  const value = g.circular ? raw : Math.min(g.max, Math.max(g.min, raw))
+  const value = g.kind === 'dial' && g.circular ? raw : Math.min(g.max, Math.max(g.min, raw))
   return formatDisplay(g, value)
 }

@@ -17,9 +17,10 @@ import {
   labelTextFor,
   readoutTextFor,
   type GaugeId,
+  type DialSpec,
 } from '../gauges.js'
 import { makeTextTexture, type TextTextureFactory } from './text.js'
-import type { AircraftState } from '../../sim/flight/state.js'
+import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 
 export type Panel = {
@@ -174,9 +175,16 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const markMajorMat = new MeshBasicMaterial({ color: 0xf2f6f8 })
   const markMinorMat = new MeshBasicMaterial({ color: 0x8fa0ab })
 
-  GAUGES.forEach((g, i) => {
+  // Round dials only. A column or a tape is a different shape entirely --
+  // giving one a needle and a bezel here is exactly the bug this filter
+  // exists to prevent (controller ruling R1, 2026-09-15: the lower row is
+  // five dials plus the ball, not six dials). Rendering a column or a tape
+  // is a later task's; for now they exist only in `GAUGES` and are not drawn.
+  const dialGauges = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
+
+  dialGauges.forEach((g, i) => {
     const dial = new Group()
-    const x = (i - (GAUGES.length - 1) / 2) * DIAL_GAP
+    const x = (i - (dialGauges.length - 1) / 2) * DIAL_GAP
 
     const face = new Mesh(new CircleGeometry(DIAL_RADIUS, 32), faceMat)
     dial.add(face)
@@ -267,8 +275,11 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const backing = new Mesh(
     new PlaneGeometry(
       // Exactly the dial row's own span, bezels included, so it cannot leave
-      // a sliver of bar showing past the outermost dial.
-      (DIAL_GAP * (GAUGES.length - 1) + DIAL_RADIUS * 2.18) * 1.01,
+      // a sliver of bar showing past the outermost dial. `dialGauges.length`,
+      // not `GAUGES.length`: since 2026-09-15 GAUGES also carries the
+      // throttle column and the heading tape, neither of which is in this
+      // row.
+      (DIAL_GAP * (dialGauges.length - 1) + DIAL_RADIUS * 2.18) * 1.01,
       BACKING_TOP - BACKING_BOTTOM,
     ),
     new MeshBasicMaterial({ color: 0x0b0e11 }),
@@ -343,11 +354,19 @@ export function updatePanel(
    * them, so reading them a fraction of a tick early is invisible.
    */
   renderAttitude: AircraftState['attitude'] = state.attitude,
+  /**
+   * The pilot's control inputs, for the one gauge (`throttle`) that reads
+   * `Controls` rather than `AircraftState` (state.ts:8). Defaults to a
+   * neutral vector so every call site written before `throttle` existed --
+   * which is every one of them today, since a column has no readout box yet
+   * -- keeps compiling unchanged.
+   */
+  controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 },
 ): void {
   for (const g of GAUGES) {
     const readout = panel.readouts.get(g.id)
     if (readout) {
-      const text = readoutTextFor(g.id, spec, state)
+      const text = readoutTextFor(g.id, spec, state, controls)
       // Re-rasterise only on a real change. Measured over 600 ticks of the
       // real flight model: about 0.07 redraws per frame in gentle flight but
       // 1.44 per frame under active manoeuvring, driven mostly by the climb

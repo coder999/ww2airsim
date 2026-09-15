@@ -4,10 +4,12 @@ import {
   needleAngleFor,
   attitudeAngles,
   angleForValue,
+  fractionForValue,
   tickMarksFor,
   labelTextFor,
   readoutTextFor,
   GAUGES,
+  type DialSpec,
 } from '../../src/render/gauges.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -61,8 +63,10 @@ describe('gaugeValue', () => {
 })
 
 describe('needleAngleFor', () => {
-  it('is monotonic across each gauge range', () => {
+  it('is monotonic across each dial range', () => {
+    // Dial-only: needleAngleFor throws for a column or a tape.
     for (const g of GAUGES) {
+      if (g.kind !== 'dial') continue
       const lo = needleAngleFor(g.id, f6f, GAUGE_SAMPLES[g.id].low)
       const hi = needleAngleFor(g.id, f6f, GAUGE_SAMPLES[g.id].high)
       expect(hi).toBeGreaterThan(lo)
@@ -84,7 +88,10 @@ describe('needleAngleFor', () => {
 
   it('stays finite for a degenerate state', () => {
     const still = createState({ velocity: v3(0, 0, 0), attitude: qIdentity() })
-    for (const g of GAUGES) expect(Number.isFinite(needleAngleFor(g.id, f6f, still))).toBe(true)
+    for (const g of GAUGES) {
+      if (g.kind !== 'dial') continue
+      expect(Number.isFinite(needleAngleFor(g.id, f6f, still))).toBe(true)
+    }
   })
 
   it('clamps at BOTH ends of a two-sided gauge', () => {
@@ -105,30 +112,33 @@ describe('needleAngleFor', () => {
     expect(steeperClimb).toBeCloseTo(steepClimb, 9)
   })
 
-  it('reads headings across the 0/2pi seam as adjacent, not pegged at either end', () => {
-    // Despite sitting in the `needleAngleFor` describe block, this pins
-    // `gaugeValue`'s own `h < 0 ? h + TWO_PI : h` normalisation, not the
-    // `circular` modulo formula in `needleAngleFor` beside it -- gaugeValue
-    // already delivers headings inside [0, 2*pi), so that modulo is a no-op
-    // on every value this test can produce (see the doc-comment above
-    // `needleAngleFor`). A turn that swings just past due north to the left
-    // reads as just under 2pi, not as a value clamped down to 0 (wrong
-    // direction) or up to some pegged maximum (wrong instrument entirely --
-    // a compass has no "off the end of the dial"). Picked deliberately close
-    // to the seam (0.02 rad, about 1 degree) rather than the 0.3 rad already
-    // used elsewhere, so a clamp-shaped bug that only misbehaves very close
-    // to the boundary would still be caught here.
+})
+
+describe('gaugeValue at the heading seam', () => {
+  it('reads headings across the 0/360 seam as adjacent, not pegged at either end', () => {
+    // Moved out of the `needleAngleFor` describe block on 2026-09-15: heading
+    // became a tape (controller ruling R1) and has no needle any more, so
+    // this now pins `gaugeValue`'s own `h < 0 ? h + TWO_PI : h`
+    // normalisation directly rather than through `needleAngleFor`. A turn
+    // that swings just past due north to the left reads as just under 360,
+    // not as a value clamped down to 0 (wrong direction) or up to some
+    // pegged maximum (wrong instrument entirely -- a compass has no "off the
+    // end of the dial"). Picked deliberately close to the seam (0.02 rad,
+    // about 1 degree) rather than the 0.3 rad already used elsewhere, so a
+    // clamp-shaped bug that only misbehaves very close to the boundary would
+    // still be caught here.
     const justLeftOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.02) })
     const justRightOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.02) })
-    const left = needleAngleFor('heading', f6f, justLeftOfNorth)
-    const right = needleAngleFor('heading', f6f, justRightOfNorth)
-    expect(left).toBeCloseTo(Math.PI * 2 - 0.02, 6)
-    expect(right).toBeCloseTo(0.02, 6)
-    // The two needle positions sit on opposite numeric ends of the dial's
-    // scale yet are one degree apart on the actual compass rose -- exactly
-    // the case a pegged (non-wrapping) needle would get wrong by reading
-    // nearly a full turn apart instead of adjacent.
-    expect(Math.abs((left - right + Math.PI) % (Math.PI * 2) - Math.PI)).toBeLessThan(0.05)
+    const left = gaugeValue('heading', f6f, justLeftOfNorth)
+    const right = gaugeValue('heading', f6f, justRightOfNorth)
+    const deg = (rad: number) => (rad * 180) / Math.PI
+    expect(left).toBeCloseTo(360 - deg(0.02), 6)
+    expect(right).toBeCloseTo(deg(0.02), 6)
+    // The two readings sit on opposite numeric ends of the gauge's scale yet
+    // are one degree apart on the actual compass rose -- exactly the case a
+    // pegged (non-wrapping) reading would get wrong by reading nearly a full
+    // turn apart instead of adjacent.
+    expect(Math.abs((left - right + 180) % 360 - 180)).toBeLessThan(3)
   })
 })
 
@@ -162,20 +172,31 @@ describe('scale marks and readouts (I-2)', () => {
     // function and needle angles by another is how a needle ends up pointing
     // between the numbers it should line up with -- obvious in a screenshot,
     // invisible to a test written against either half alone.
+    //
+    // Dial-only since 2026-09-15: `angleRad` is meaningless for a column or a
+    // tape (`tickMarksFor` sets it to 0 for those kinds), and `angleForValue`
+    // is typed to `DialSpec` accordingly.
     for (const g of GAUGES) {
+      if (g.kind !== 'dial') continue
       for (const mark of tickMarksFor(g)) {
         expect(angleForValue(g, mark.value)).toBeCloseTo(mark.angleRad, 12)
       }
     }
   })
 
-  it('gives every dial marks at both ends of its scale', () => {
+  it('gives every gauge marks at both ends of its scale', () => {
     for (const g of GAUGES) {
       const marks = tickMarksFor(g)
       expect(marks.length).toBeGreaterThan(4)
-      expect(marks.filter((m) => m.major).length).toBeGreaterThanOrEqual(3)
+      // Every dial has a labelled mark somewhere between its two ends; the
+      // throttle column is deliberately the exception (2026-09-15), numbered
+      // "only at the ends, like the reference" -- gauges.test.ts's own
+      // throttle describe block pins exactly two majors for it.
+      const minMajors = g.id === 'throttle' ? 2 : 3
+      expect(marks.filter((m) => m.major).length).toBeGreaterThanOrEqual(minMajors)
       expect(marks[0]!.value).toBeCloseTo(g.min, 9)
-      if (!g.circular) expect(marks[marks.length - 1]!.value).toBeCloseTo(g.max, 9)
+      const wraps = g.kind === 'dial' && g.circular
+      if (!wraps) expect(marks[marks.length - 1]!.value).toBeCloseTo(g.max, 9)
     }
   })
 
@@ -202,11 +223,22 @@ describe('scale marks and readouts (I-2)', () => {
     expect(tickMarksFor(slip).length).toBe(9)
   })
 
-  it('does not draw north twice on the compass rose', () => {
+  it('does not draw north twice on a circular dial', () => {
     // 0 and 2*pi are the same mark. Drawing both leaves a doubled tick and a
     // doubled number at north.
-    const heading = GAUGES.find((g) => g.id === 'heading')!
-    const marks = tickMarksFor(heading)
+    //
+    // No gauge in the table is a circular dial today -- `heading` moved to a
+    // tape on 2026-09-15 (controller ruling R1), which has no needle and no
+    // seam to double at, so `tickMarksFor` sets its `angleRad` to 0 for every
+    // mark. The short-stop this pins is still live code (guarded by
+    // `g.kind === 'dial' && g.circular` in `tickMarksFor`), so it is tested
+    // against a synthetic dial rather than deleted with the last real one.
+    const compass: DialSpec = {
+      id: 'heading', label: 'HEADING', unit: 'deg', kind: 'dial',
+      min: 0, max: 360, sweepRad: Math.PI * 2, circular: true,
+      majorStep: 90, minorStep: 30, fromSI: 1, decimals: 0,
+    }
+    const marks = tickMarksFor(compass)
     const angles = marks.map((m) => m.angleRad)
     expect(new Set(angles.map((a) => a.toFixed(9))).size).toBe(angles.length)
     expect(Math.max(...angles)).toBeLessThan(Math.PI * 2)
@@ -228,10 +260,14 @@ describe('scale marks and readouts (I-2)', () => {
     // Heading is stored in radians and labelled "deg", so the readout must
     // convert. A raw-radian readout under a "deg" label is the kind of false
     // claim this project treats as a defect.
+    //
+    // Not zero-padded to three digits any more: that was `formatDisplay`'s
+    // `circular` branch, which only a `DialSpec` has, and heading moved to a
+    // tape on 2026-09-15 (R1). See "rounds to a bare number..." below.
     const east = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
-    expect(readoutTextFor('heading', spec, east)).toBe('090')
+    expect(readoutTextFor('heading', spec, east)).toBe('90')
     const north = createState({ attitude: qIdentity() })
-    expect(readoutTextFor('heading', spec, north)).toBe('000')
+    expect(readoutTextFor('heading', spec, north)).toBe('0')
     // 1234 m is 4048.6 ft and 512 kg of avgas is 188.1 US gal: the readout
     // converts, so neither prints the number the simulation stores.
     expect(readoutTextFor('altimeter', spec, createState({ position: v3(0, 1234, 0) }))).toBe('4049')
@@ -255,10 +291,9 @@ describe('scale marks and readouts (I-2)', () => {
     const spec = loadAircraftSpec('f6f-hellcat')
     const tooHigh = createState({ position: v3(0, 99_000, 0) })
     expect(readoutTextFor('altimeter', spec, tooHigh)).toBe('40000')
-    expect(needleAngleFor('altimeter', spec, tooHigh)).toBeCloseTo(
-      GAUGES.find((g) => g.id === 'altimeter')!.sweepRad,
-      9,
-    )
+    const altimeter = GAUGES.find((g) => g.id === 'altimeter')!
+    if (altimeter.kind !== 'dial') throw new Error('expected altimeter to stay a dial')
+    expect(needleAngleFor('altimeter', spec, tooHigh)).toBeCloseTo(altimeter.sweepRad, 9)
   })
 
   it('says so rather than printing a number when the state is degenerate', () => {
@@ -307,10 +342,21 @@ describe('attitudeAngles bank reference frame', () => {
 })
 
 describe('gauge scale integrity (review 2026-09-13)', () => {
-  it('never prints 360 on the compass, which is not a heading', () => {
-    // Rounding happened before padding and nothing re-wrapped, so every pass
-    // through north spent half a degree showing a number the rose does not
-    // contain: 358, 359, 360, 001.
+  it('rounds to a bare number now that heading is not a circular dial (2026-09-15)', () => {
+    // Until heading moved to a tape (controller ruling R1), this test pinned
+    // `formatDisplay`'s `circular` wrap-after-rounding fix: `toFixed(0)`
+    // rounds anything from 359.5 up to "360", which is not a compass heading,
+    // so the old circular branch wrapped it back to "000" and zero-padded to
+    // three digits.
+    //
+    // `TapeSpec` has no `circular` field (gauges.ts) -- only a `DialSpec`
+    // does -- so `readoutTextFor` no longer takes that branch for heading; it
+    // now prints a bare, unpadded, unwrapped number like any other linear
+    // gauge. That is not a visible regression today: `panel.ts` filters
+    // `GAUGES` to `kind === 'dial'` when it builds readout boxes, so nothing
+    // currently calls `readoutTextFor('heading', ...)` outside a test. It is
+    // a known gap for whichever later task gives the heading tape its own
+    // digital readout.
     const spec = loadAircraftSpec('f6f-hellcat')
     const at = (headingDeg: number) =>
       readoutTextFor(
@@ -318,11 +364,9 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
         spec,
         createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
       )
+    expect(at(0)).toBe('0')
+    expect(at(90)).toBe('90')
     expect(at(359.4)).toBe('359')
-    expect(at(359.5)).toBe('000')
-    expect(at(359.999)).toBe('000')
-    expect(at(0)).toBe('000')
-    for (let h = 0; h < 360; h += 0.37) expect(Number(at(h))).toBeLessThan(360)
   })
 
   it('pins every dial to its own sweep, not to one shared literal', () => {
@@ -332,16 +376,20 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
     // reads, so a wrongly computed sweep was undetectable. The slip dial is
     // specified at a quarter turn and would have been drawn over three
     // quarters with nothing red.
+    //
+    // Scoped to `kind === 'dial'` since 2026-09-15: heading moved to a tape
+    // (R1) and has no `sweepRad` to pin, and throttle (a column) never had
+    // one.
     const expected: Record<string, number> = {
       airspeed: (Math.PI * 2 * 3) / 4,
       altimeter: (Math.PI * 2 * 3) / 4,
       verticalSpeed: (Math.PI * 2 * 3) / 4,
-      heading: Math.PI * 2,
       fuel: (Math.PI * 2 * 3) / 4,
       slip: Math.PI / 2,
     }
-    expect(Object.keys(expected).sort()).toEqual(GAUGES.map((g) => g.id).sort())
-    for (const g of GAUGES) {
+    const dials = GAUGES.filter((g) => g.kind === 'dial')
+    expect(Object.keys(expected).sort()).toEqual(dials.map((g) => g.id).sort())
+    for (const g of dials) {
       expect(g.sweepRad).toBeCloseTo(expected[g.id]!, 12)
       expect(angleForValue(g, g.max)).toBeCloseTo(g.circular ? 0 : g.sweepRad, 9)
       expect(angleForValue(g, g.min)).toBeCloseTo(0, 9)
@@ -353,8 +401,13 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
     // `angleForValue` against `TickMark.angleRad`, which `tickMarksFor`
     // defines as that same call. Adding 0.3 rad to every needle left it
     // green. This one calls `needleAngleFor`, the function the panel uses.
+    //
+    // Dial-only: `needleAngleFor` throws for a column or a tape (neither has
+    // a needle), so this is scoped the same way the panel itself is scoped
+    // (panel.ts filters `GAUGES` to `kind === 'dial'` when it builds needles).
     const spec = loadAircraftSpec('f6f-hellcat')
     for (const g of GAUGES) {
+      if (g.kind !== 'dial') continue
       for (const sample of [GAUGE_SAMPLES[g.id].low, GAUGE_SAMPLES[g.id].high]) {
         const value = gaugeValue(g.id, spec, sample)
         expect(needleAngleFor(g.id, spec, sample)).toBeCloseTo(angleForValue(g, value), 12)
@@ -433,5 +486,40 @@ describe('imperial instrumentation (2026-09-15)', () => {
     expect(numerals('airspeed')).toEqual(['0', '100', '200', '300', '400', '500'])
     expect(numerals('altimeter')).toEqual(['0', '10000', '20000', '30000', '40000'])
     expect(numerals('verticalSpeed')).toEqual(['-5000', '+0', '+5000'])
+  })
+})
+
+const throttleSpec = () => {
+  const g = GAUGES.find((x) => x.id === 'throttle')
+  if (!g) throw new Error('no throttle gauge')
+  return g
+}
+
+describe('the throttle column (2026-09-15)', () => {
+  it('is a column, not a dial', () => {
+    expect(throttleSpec().kind).toBe('column')
+  })
+
+  it('maps the control vector 0..1 onto 0..100 percent of the column', () => {
+    const controls = (throttle: number) => ({ pitch: 0, roll: 0, yaw: 0, throttle })
+    const level = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    expect(gaugeValue('throttle', f6f, level, controls(0))).toBeCloseTo(0, 9)
+    expect(gaugeValue('throttle', f6f, level, controls(0.5))).toBeCloseTo(50, 9)
+    expect(gaugeValue('throttle', f6f, level, controls(1))).toBeCloseTo(100, 9)
+  })
+
+  it('places its fill fraction linearly, clamped at both ends', () => {
+    const g = throttleSpec()
+    expect(fractionForValue(g, 0)).toBeCloseTo(0, 9)
+    expect(fractionForValue(g, 50)).toBeCloseTo(0.5, 9)
+    expect(fractionForValue(g, 100)).toBeCloseTo(1, 9)
+    expect(fractionForValue(g, -10)).toBeCloseTo(0, 9)
+    expect(fractionForValue(g, 250)).toBeCloseTo(1, 9)
+  })
+
+  it('carries nine tick marks, numbered only at the ends, like the reference', () => {
+    const marks = tickMarksFor(throttleSpec())
+    expect(marks).toHaveLength(9)
+    expect(marks.filter((m) => m.major).map((m) => m.text)).toEqual(['0', '100'])
   })
 })
