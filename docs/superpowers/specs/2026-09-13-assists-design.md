@@ -171,7 +171,18 @@ substantial aeroplane and costs one constant per axis.
 
 ## 4. Switching and defaults
 
-All default on, per the master spec. Each independently switchable.
+The two protective assists default on, per the master spec. Each independently
+switchable.
+
+**Altitude hold defaults OFF since 2026-09-15** (Mark's call), which is a
+departure from the master-spec line quoted in §1 and from this document's
+original "all default on". The quote above is left as written because it
+records what the spec said when this design was drafted; the master spec's own
+§5 has been updated. The reason: altitude hold is not protective, and at zero
+thrust it traded speed for altitude while the stall limiter prevented the
+departure that would have ended it, so a page-load Hellcat with the engine off
+flew level indefinitely -- measured at 1.04 m lost in 30 s, against 81.65 m
+with the hold off. `H` still enables it.
 
 **OPEN (D): switchable by whom, and when?** There is no settings UI and no
 persistence yet, and the meta-game is far out in the spec's ordering. The

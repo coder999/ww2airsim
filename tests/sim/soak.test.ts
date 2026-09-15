@@ -1,9 +1,25 @@
 import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { runSoak, runTerrainSoak } from '../../tools/soak/run.js'
-import { DEFAULT_ASSIST_SETTINGS } from '../../src/assists/index.js'
+import { type AssistSettings } from '../../src/assists/index.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
+
+/**
+ * Every assist on, stated here rather than read from
+ * `DEFAULT_ASSIST_SETTINGS`.
+ *
+ * Both arms below are about what the three stages do when they INTERACT, which
+ * is a property of the stages, not of whichever subset currently ships. Reading
+ * the shipped default coupled them to it, and when `altitudeHold` defaulted off
+ * on 2026-09-15 that turned into silent coverage loss rather than a failure
+ * that says what it means.
+ */
+const ALL_ASSISTS_ON: AssistSettings = {
+  stallLimiter: true,
+  autoRudder: true,
+  altitudeHold: true,
+}
 
 describe('randomized soak (spec §11)', () => {
   it('survives 200 randomized flights with no invariant violations', () => {
@@ -86,18 +102,26 @@ describe('randomized soak (spec §11)', () => {
     // The assisted arm too: `createAssistRunner` carries a mutable cell (the
     // captured altitude), so determinism there is a claim about the harness
     // threading it per flight rather than a property inherited from the rng.
-    expect(runSoak(f6f, 20, 99, DEFAULT_ASSIST_SETTINGS)).toEqual(
-      runSoak(f6f, 20, 99, DEFAULT_ASSIST_SETTINGS),
-    )
+    expect(runSoak(f6f, 20, 99, ALL_ASSISTS_ON)).toEqual(runSoak(f6f, 20, 99, ALL_ASSISTS_ON))
   })
 
-  it('survives 200 randomized flights with the shipped assists ON', () => {
+  it('survives 200 randomized flights with every assist ON', () => {
     // WHY THIS ARM EXISTS. Every test of the assists flies one hand-picked
     // trajectory, and this harness drove the model with no assist at all -- so
-    // the configuration that actually ships, three interacting stages all
-    // switched on, had no randomised, long-horizon, invariant-checked coverage.
-    // The three Criticals Plan 3 produced were all interactions between two of
-    // those stages.
+    // three interacting stages all switched on had no randomised,
+    // long-horizon, invariant-checked coverage. The three Criticals Plan 3
+    // produced were all interactions between two of those stages.
+    //
+    // This arm pins all three ON EXPLICITLY rather than reading
+    // `DEFAULT_ASSIST_SETTINGS`, which it did until 2026-09-15. On that date
+    // `altitudeHold`'s default flipped to off, and following the default here
+    // would have quietly retired the coverage this arm exists for: altitude
+    // hold went from 145,140 engaged steps to 0, and pitch interventions from
+    // 159,224 to 21,073. Lowering the floors to match would have looked like a
+    // re-measure and been a deletion. The stage still ships -- `H` enables it
+    // -- so it still needs the long-horizon arm. The floors below are the
+    // 2026-09-13 numbers, unchanged, because this is the configuration they
+    // were measured on.
     //
     // It checks more than the unassisted arm does: `stepChecked`'s finiteness
     // and energy invariants as before, plus, on every one of the ~578,000 steps,
@@ -107,7 +131,7 @@ describe('randomized soak (spec §11)', () => {
     // `tests/assists/authoritySweep.test.ts` sweeps over CONSTRUCTED states;
     // here they are checked over states 60 Hz of `step()` actually produced,
     // with the altitude-hold memory threaded the way production threads it.
-    const result = runSoak(loadAircraftSpec('f6f-hellcat'), 200, 1337, DEFAULT_ASSIST_SETTINGS)
+    const result = runSoak(loadAircraftSpec('f6f-hellcat'), 200, 1337, ALL_ASSISTS_ON)
     expect(result.failures, result.failures.slice(0, 5).join('\n')).toHaveLength(0)
     expect(result.iterations).toBe(200)
 
@@ -117,7 +141,7 @@ describe('randomized soak (spec §11)', () => {
     // changes again.
     //
     // MEASURED 2026-09-13, node v22.22.1, seed 1337, 200 iterations,
-    // `DEFAULT_ASSIST_SETTINGS`, this aircraft's content: 577,980 steps, 92
+    // all three assists on, this aircraft's content: 577,980 steps, 92
     // flights completing the full 60 s, 32,793 stalled steps, 159,224 steps
     // where the stack moved the pitch axis away from the pilot's own command,
     // 145,140 steps with altitude hold engaged (both its gates open), 577,980

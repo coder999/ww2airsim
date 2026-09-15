@@ -19,9 +19,19 @@ import { qRotate } from '../sim/math/quat.js'
  * rate-command model and the thing worth adding is holding the flight PATH.
  * That leaves the three below.
  *
- * Every flag defaults to `true`: an assist a pilot has to remember to turn on
- * is one most pilots never do, and master spec's stated intent is a
+ * The protective assists default to `true`: one a pilot has to remember to
+ * turn on is one most pilots never do, and master spec's stated intent is a
  * beginner-friendly default with an expert opt-out, not the reverse.
+ *
+ * `altitudeHold` is the exception, off since 2026-09-15. It is not protective
+ * -- it flies the aeroplane somewhere -- and at zero thrust it trades speed
+ * for altitude while the stall limiter prevents the departure that would end
+ * it, so a page-load Hellcat with the engine off mushed along level for as
+ * long as you watched. Mark flew exactly that and reported an aeroplane that
+ * "seems like it would fly forever". Measured before the change: 1.04 m lost
+ * in 30 s from 2000 m. `tests/render/frameAssists.test.ts` now flies the
+ * page-load condition and requires a real descent, so this cannot silently
+ * return. `H` still turns it on, as it always did.
  */
 export type AssistSettings = {
   readonly stallLimiter: boolean
@@ -29,12 +39,11 @@ export type AssistSettings = {
   readonly altitudeHold: boolean
 }
 
-/** All three assists on -- see `AssistSettings` for why the default is "on"
- *  rather than "off". */
+/** Both protective assists on, `altitudeHold` off -- see `AssistSettings`. */
 export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
   stallLimiter: true,
   autoRudder: true,
-  altitudeHold: true,
+  altitudeHold: false,
 }
 
 /**

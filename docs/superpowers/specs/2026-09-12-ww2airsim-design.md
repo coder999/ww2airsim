@@ -293,7 +293,11 @@ out of the physics. There is no per-aircraft special-case code.
 
 Between `input/` and `sim/`, never inside either. Each independently
 switchable: rate damping, auto-rudder coordination, stall limiter, combat trim.
-All default on.
+The protective assists default on. Altitude hold (Plan 3's implementation of
+combat trim) defaults OFF since 2026-09-15: it does not protect the aeroplane,
+it flies it somewhere, and with the engine closed it held altitude instead of
+gliding. `src/assists/index.ts` carries the reasoning and
+`tests/render/frameAssists.test.ts` pins the behaviour.
 
 ## 6. Combat and damage
 

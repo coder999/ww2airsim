@@ -23,7 +23,9 @@ export const BINDINGS = {
   lookCentre: ['Numpad5'],
   lookBack: ['Numpad0'],
   // Plan 3 Task 5: one edge-triggered toggle per assist (`AssistSettings` in
-  // src/assists/index.ts), all three on by default. Mnemonic letters -- L for
+  // src/assists/index.ts). The two protective assists default on; altitude
+  // hold defaults off since 2026-09-15, so `H` turns it ON rather than off --
+  // see DEFAULT_ASSIST_SETTINGS. Mnemonic letters -- L for
   // limiter, R for rudder, H for hold -- on plain keys with no modifier, for
   // the reason `throttleDown` above documents: a Ctrl combination can be a
   // browser shortcut that `preventDefault` cannot stop.

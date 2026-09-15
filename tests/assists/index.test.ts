@@ -71,13 +71,19 @@ const ALL_SETTINGS_COMBOS: AssistSettings[] = (() => {
 })()
 
 describe('AssistSettings', () => {
-  it('defaults every assist on', () => {
+  it('defaults the protective assists on and altitude hold off', () => {
     // Plan 3's design draft: an assist a pilot has to remember to enable is
-    // one most never do, so the default has to be "on", not "off".
+    // one most never do, so a PROTECTIVE default has to be "on", not "off".
+    //
+    // `altitudeHold` was carved out on 2026-09-15 (Mark's call). It does not
+    // protect the aeroplane, it flies it somewhere, and with the engine off it
+    // held altitude indefinitely instead of gliding. The behaviour that
+    // decides this lives in `tests/render/frameAssists.test.ts`; this case
+    // only pins the shipped constant, so a revert has to fail both.
     expect(DEFAULT_ASSIST_SETTINGS).toEqual({
       stallLimiter: true,
       autoRudder: true,
-      altitudeHold: true,
+      altitudeHold: false,
     })
   })
 })
@@ -154,7 +160,12 @@ describe('each assist is independently switchable (Plan 3 Task 5)', () => {
     const level = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) })
     const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
     const memory = { heldAltitudeM: 1800 }
-    const on = applyAssists(level, f6f, centred, DT, DEFAULT_ASSIST_SETTINGS, memory).pitch
+    // Both arms are written out rather than leaning on DEFAULT_ASSIST_SETTINGS
+    // for the "on" side: altitude hold has defaulted OFF since 2026-09-15, so
+    // taking the default as the enabled arm would compare off against off and
+    // pass for the wrong reason.
+    const held: AssistSettings = { ...DEFAULT_ASSIST_SETTINGS, altitudeHold: true }
+    const on = applyAssists(level, f6f, centred, DT, held, memory).pitch
     expect(on).toBeLessThan(-0.2)
     expect(applyAssists(level, f6f, centred, DT, withoutOne('altitudeHold'), memory).pitch).toBe(0)
   })

@@ -31,6 +31,16 @@ const spec = loadAircraftSpec('f6f-hellcat')
 const CRIT_DEG = (alphaCritRad(spec) * 180) / Math.PI
 const NONE: AssistSettings = { stallLimiter: false, autoRudder: false, altitudeHold: false }
 const only = (assist: keyof AssistSettings): AssistSettings => ({ ...NONE, [assist]: true })
+/**
+ * Every assist on, stated explicitly.
+ *
+ * Cases about how a toggle or the hold's memory BEHAVES want a known starting
+ * state, not the shipped one -- they are true whatever ships. Two of them read
+ * `DEFAULT_ASSIST_SETTINGS` instead and so broke for an unrelated reason the
+ * moment `altitudeHold` was switched off on 2026-09-15. The default's own
+ * behaviour is pinned separately, at the bottom of this file.
+ */
+const ALL_ON: AssistSettings = { stallLimiter: true, autoRudder: true, altitudeHold: true }
 
 const keys = (...k: string[]) => new Set(k)
 
@@ -187,7 +197,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     ] as const
 
     for (const { key, assist } of cases) {
-      const held = fly(start(DEFAULT_ASSIST_SETTINGS), 1, keys(key))
+      const held = fly(start(ALL_ON), 1, keys(key))
       expect(held.assists[assist], `${key} held for a second`).toBe(false)
       for (const other of ['stallLimiter', 'autoRudder', 'altitudeHold'] as const) {
         if (other === assist) continue
@@ -222,7 +232,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     // climb command back to an altitude they deliberately left -- a stale
     // target reasserting itself, the same failure the "yield to pilot pitch
     // input" rule exists to prevent.
-    const captured = fly(start(DEFAULT_ASSIST_SETTINGS, 130), 2, keys('ShiftLeft'))
+    const captured = fly(start(ALL_ON, 130), 2, keys('ShiftLeft'))
     expect(captured.world.assistMemory.heldAltitudeM).toBe(2000)
 
     const switchedOff = tap(captured, 'KeyH')
@@ -245,5 +255,31 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     expect(Math.abs(held! - nowM)).toBeLessThan(20)
     const after = fly(switchedOn, 30, keys())
     expect(Math.abs(after.world.aircraft.position.y - held!)).toBeLessThan(15)
+  })
+})
+
+describe('the engine-off default (2026-09-15)', () => {
+  it('descends with the throttle closed, rather than holding altitude forever', () => {
+    // Mark flew the page-load state on 2026-09-15 and reported an aeroplane
+    // that "seems like it would fly forever" with the engine off. It was not a
+    // physics fault: `altitudeHold` defaulted ON, so the hold traded speed for
+    // altitude while the stall limiter kept it from departing, and the two
+    // together mushed along level indefinitely at zero thrust.
+    //
+    // This flies the ACTUAL page-load condition -- `DEFAULT_ASSIST_SETTINGS`,
+    // controls at NEUTRAL, so throttle 0 -- through the production frame path.
+    //
+    // Both arms were measured on 2026-09-15, from 2000 m at 130 m/s over 30 s:
+    // 1.04 m lost with the hold on, 81.65 m with it off. The bound sits
+    // between them at 50 m, a 48x margin over the held case and comfortably
+    // under the gliding one, so it reads as "descends at all" rather than as a
+    // tuned number that would need revisiting whenever drag changes. It is not
+    // a glide-performance assertion: the aeroplane is not trimmed for best
+    // glide and nothing here claims a lift-to-drag ratio.
+    const startAltitude = 2000
+    const after = fly(start(DEFAULT_ASSIST_SETTINGS, 130, startAltitude), 30, keys())
+    const lost = startAltitude - after.world.aircraft.position.y
+
+    expect(lost).toBeGreaterThan(50)
   })
 })
