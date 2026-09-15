@@ -40,7 +40,7 @@ import {
 import type { Node, UniformNode } from 'three/webgpu'
 import { EARTH_RADIUS_M } from '../../sim/world/projection.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
-import { LOD, selectNodes } from './lod.js'
+import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
 import { SKY_HAZE } from '../scene/sky.js'
 import { SUN_DIRECTION } from '../scene/lighting.js'
@@ -362,14 +362,13 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  * mesh's own bookkeeping depends on it and so does the Node test.
  */
 export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
-  // The coarsest level any ring can sample, which is not the top of the
-  // pyramid: ring `rings - 1` morphs toward mip `rings`, and the pyramid runs
-  // four levels past that (down to 3x3). Allocating textures to the top would
-  // reserve four that nothing can ever draw into -- and `load.ts` bounds its
-  // fetch loop by the same rule, so a level arriving for one of them would be
-  // a bug, which `levelTexture` below turns into a throw rather than a
+  // The coarsest level any ring can sample, for the header this particular
+  // mesh was handed. See `coarsestFetchedLevel`'s doc comment in `lod.ts` for
+  // the rule and why it is shared with `load.ts`'s fetch loop -- allocating a
+  // texture past this point would reserve one that nothing can ever draw
+  // into, which `levelTexture` below turns into a throw rather than a
   // silently ignored write.
-  const coarsestLevel = Math.min(LOD.rings, header.levels - 1)
+  const coarsestLevel = coarsestFetchedLevel(header.levels)
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
 

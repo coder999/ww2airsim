@@ -95,6 +95,36 @@ export const LOD: LodParams = {
   drawDistanceM: 100_000,
 }
 
+/**
+ * The coarsest pyramid level any LOD ring can ever sample.
+ *
+ * `ring k samples mip k` (mesh.ts's `sampleLevelsForRing`), and the coarsest
+ * ring is `LOD.rings - 1`, which morphs toward mip `LOD.rings`. A pyramid can
+ * (and does -- `tools/terrain/mips.ts` builds down to 3x3) have more levels
+ * than that: nothing above `LOD.rings` can ever be drawn, so it is also the
+ * coarsest level worth asking the network for, and the coarsest level the
+ * mesh should reserve a texture for.
+ *
+ * This is the single definition: `load.ts`'s fetch loop and
+ * `createTerrainMesh`'s texture allocation both call it instead of each
+ * re-deriving `Math.min(LOD.rings, pyramidLevels - 1)` -- before review round
+ * 2 they did, independently, and nothing would have caught the two moving
+ * apart if `LOD.rings` or the pyramid depth ever changed.
+ * `tests/render/terrainLoad.test.ts` asserts the set of levels `load.ts`
+ * fetches equals the set the rings sample, which is this function's contract
+ * from the outside.
+ *
+ * Takes the pyramid's level count rather than a header or `TerrainHeader`
+ * object: `load.ts` closes over the one committed `TERRAIN_HEADER`, while
+ * `createTerrainMesh` is handed whatever header its caller passes, and the
+ * level count is the only field either side needs -- forcing them onto one
+ * concrete header shape would couple two things that don't need to agree
+ * about anything else.
+ */
+export function coarsestFetchedLevel(pyramidLevels: number): number {
+  return Math.min(LOD.rings, pyramidLevels - 1)
+}
+
 /** Switch-distance for ring `ring`: the camera distance at or below which a
  *  ring-`ring` node subdivides into four ring-`(ring - 1)` children. Doubles
  *  with `ring` in lockstep with node size doubling with `ring`, which is

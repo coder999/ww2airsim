@@ -2,7 +2,7 @@ import terrainHeader from '../../../content/terrain/header.json' with { type: 'j
 import { FINEST_FETCHED_LEVEL, terrainLevelUrl } from '../content.js'
 import { parseTerrainHeader, samplesAtLevel } from '../../sim/world/schema.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
-import { LOD } from './lod.js'
+import { coarsestFetchedLevel } from './lod.js'
 
 /**
  * The browser side of `tools/terrain/load.ts`: the same bytes, fetched
@@ -57,21 +57,13 @@ export function decodeLevel(bytes: ArrayBuffer, expectedSamples: number): Int16A
 }
 
 /**
- * The coarsest level anything actually draws, and therefore the coarsest
- * level worth asking the network for.
- *
- * `ring k samples mip k` (mesh.ts's `sampleLevelsForRing`), and the coarsest
- * ring is `LOD.rings - 1 = 7`, which morphs toward mip 8. Levels 9-12 exist
- * in the pyramid -- `tools/terrain/mips.ts` builds down to 3x3 -- but no ring
- * can ever sample them, so fetching them cost four serial round-trips before
- * anything could appear and bought nothing (review 2026-09-14, M5).
- *
- * Derived from `LOD.rings` rather than written as an 8, and
- * tests/render/terrainLoad.test.ts asserts the set of levels fetched is
- * exactly the set of levels the rings sample -- so raising `rings` cannot
- * leave the renderer asking for a level it never fetched.
+ * The coarsest level worth asking the network for -- i.e. the coarsest level
+ * any ring can sample, for this one committed header. See
+ * `coarsestFetchedLevel`'s doc comment in `lod.ts` for the rule itself and
+ * why it lives there rather than here or in `mesh.ts` (review round 2: the
+ * two used to compute this independently).
  */
-const COARSEST_FETCHED_LEVEL = Math.min(LOD.rings, TERRAIN_HEADER.levels - 1)
+const COARSEST_FETCHED_LEVEL = coarsestFetchedLevel(TERRAIN_HEADER.levels)
 
 /**
  * The pyramid level the PHYSICS gets, out of the levels the renderer loads.

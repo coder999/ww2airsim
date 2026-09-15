@@ -297,6 +297,38 @@ describe('terrain mesh', () => {
   })
 })
 
+describe('load/mesh coupling', () => {
+  it('the loader and the mesh agree on the coarsest level a ring can reach', async () => {
+    // Until review round 2, `load.ts` and `mesh.ts` each wrote their own copy
+    // of `Math.min(LOD.rings, header.levels - 1)` -- the coarsest level any
+    // ring can sample -- with nothing tying the two together. Both now call
+    // one function, `coarsestFetchedLevel` in `lod.ts`, but this test does
+    // NOT call it: it observes each side's actual behaviour (the highest
+    // level the loader asks the network for, and the highest level the mesh
+    // holds a texture for) and checks they still agree. Calling the shared
+    // function from both sides of the assertion would make this pass no
+    // matter what the function returned; observing the two independently is
+    // what lets a future edit that reverts one call site to a hand-rolled,
+    // drifted copy of the rule fail here.
+    const { fetchImpl } = mockLevelFetch()
+    const seen: number[] = []
+    await loadTerrainProgressively((level) => seen.push(level), fetchImpl)
+    const maxFetched = Math.max(...seen)
+
+    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    let maxMeshLevel = -1
+    for (let level = 0; level < TERRAIN_HEADER.levels; level++) {
+      try {
+        mesh.levelTexture(level)
+        maxMeshLevel = level
+      } catch {
+        // no texture reserved at this level
+      }
+    }
+    expect(maxMeshLevel).toBe(maxFetched)
+  })
+})
+
 describe('terrain under the aeroplane', () => {
   const f6f = loadAircraftSpec('f6f-hellcat')
   const frameAt = (x: number, z: number) =>
