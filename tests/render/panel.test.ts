@@ -833,6 +833,50 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
     expect(at(90)).toBeLessThan(at(0))
   })
 
+  it('puts the mark for the CURRENT heading under the index, not its antipode (R9, round 3)', () => {
+    // Round 2 flagged, unfixed: the brief's own build formula, `x =
+    // (mark.fraction + copy) * stripW - stripW / 2`, centres the THREE-COPY
+    // BLOCK on the origin (cosmetic), which the slide formula --
+    // `strip.position.x = -tapeOffsetFor(...) * stripW`, which assumes
+    // fraction f sits at `f * stripW` with no such term -- does not account
+    // for. The two disagree by exactly `stripW / 2`, i.e. half a rose, i.e.
+    // 180 degrees: at heading 0 the old code centred value 180 under the
+    // index, not 0. The "slides the strip left..." test above cannot catch
+    // this: a rose displaced by ANY constant still slides left as heading
+    // increases.
+    //
+    // Recovers the value from the NEAREST-TO-INDEX mark's own stashed
+    // `userData.value` rather than hardcoding an expected x position, so
+    // this pins the actual built geometry, not a restated formula.
+    //
+    // Compares against `gaugeValue`'s own compass heading, NOT the
+    // `headingDeg` argument passed to `wingsLevel` directly: that argument
+    // is a yaw angle fed to `qFromAxisAngle`, and gauges.ts's heading
+    // convention is the opposite sign (a positive yaw there is a LEFT turn,
+    // decreasing compass heading) -- the same trap round 1's "slides by
+    // exactly the fraction..." test hit and fixed the same way.
+    const p = createPanel(f6f, () => null)
+    const minorStep = headingGauge().minorStep
+    for (const headingDeg of [0, 45, 90, 180, 270, 359]) {
+      const state = wingsLevel(headingDeg, 0)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const compassHeading = gaugeValue('heading', f6f, state, NEUTRAL_CONTROLS)
+      const stripX = p.tape.strip.position.x
+      let nearestValue = NaN
+      let nearestDist = Infinity
+      for (const mark of p.tape.strip.children) {
+        const dist = Math.abs(stripX + mark.position.x)
+        if (dist < nearestDist) {
+          nearestDist = dist
+          nearestValue = mark.userData.value as number
+        }
+      }
+      // Circular difference, so 359 vs 0 reads as 1 degree apart, not 359.
+      const circularDiff = Math.abs((((nearestValue - compassHeading + 180) % 360) + 360) % 360 - 180)
+      expect(circularDiff).toBeLessThanOrEqual(minorStep / 2 + 1e-6)
+    }
+  })
+
   it('slides by exactly the fraction tapeOffsetFor reports, scaled by the strip width', () => {
     // Ties the rendered geometry back to the pure helper `gauges.test.ts`
     // pins directly, so a placement bug in `panel.ts` (a sign flip, a wrong
@@ -867,18 +911,21 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
     // a single copy's own span and it fails (see the task report for the
     // recorded run).
     //
-    // Expected bounds are derived from `tickMarksFor`'s own fractions rather
-    // than hardcoded at +/-1.5 * stripWidth: review round 1, Finding 1 fixed
-    // `tickMarksFor` to drop the seam-doubling mark at `fraction === 1` for a
-    // tape (the same dedup a circular dial already gets), so the rendered
-    // range is asymmetric -- `fraction` 0 is kept (copy -1's copy of it is
-    // the leftmost mark) but `fraction` 1 is gone (so copy +1's rightmost
-    // mark is its own last MINOR step short of a full turn, not the seam
-    // duplicate).
+    // Expected bounds are derived from `tickMarksFor`'s own fractions and
+    // the build formula `x = (fraction + copy) * stripWidth()` (no `-
+    // stripWidth() / 2` term since review round 3's Ruling R9 -- that term
+    // centred the three-copy block cosmetically but disagreed with the
+    // slide formula by half a rose, a 180-degree placement bug). Review
+    // round 1, Finding 1 also fixed `tickMarksFor` to drop the seam-doubling
+    // mark at `fraction === 1` for a tape (the same dedup a circular dial
+    // already gets), so the rendered range is asymmetric within each copy --
+    // `fraction` 0 is kept (copy -1's copy of it is the leftmost mark) but
+    // `fraction` 1 is gone (so copy +1's rightmost mark is its own last
+    // MINOR step short of a full turn, not the seam duplicate).
     const p = createPanel(f6f, () => null)
     const fractions = tickMarksFor(headingGauge()).map((m) => m.fraction)
-    const expectedMin = (Math.min(...fractions) - 1) * stripWidth() - stripWidth() / 2
-    const expectedMax = (Math.max(...fractions) + 1) * stripWidth() - stripWidth() / 2
+    const expectedMin = (Math.min(...fractions) - 1) * stripWidth()
+    const expectedMax = (Math.max(...fractions) + 1) * stripWidth()
     const xs = p.tape.strip.children
       .filter((c): c is Mesh => c instanceof Mesh)
       .map((c) => c.position.x)

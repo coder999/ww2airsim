@@ -487,7 +487,17 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     strip.name = 'tape:strip'
     for (const copy of [-1, 0, 1]) {
       for (const mark of tickMarksFor(tapeGauge)) {
-        const x = (mark.fraction + copy) * stripW - stripW / 2
+        // NOT `... - stripW / 2` (Ruling R9, review round 3): that term
+        // centred the three-copy BLOCK's own extent on the origin, which
+        // is cosmetic, but the slide below (`strip.position.x =
+        // -tapeOffsetFor(...) * stripW`) assumes fraction `f` sits at `f *
+        // stripW` with no such term. The two disagreed by exactly `stripW /
+        // 2` -- half a rose, i.e. 180 degrees -- so the mark under the
+        // index was always the heading's ANTIPODE, not the heading itself.
+        // The strip's own extent is now asymmetric (`[-stripW, 2*stripW)`
+        // rather than centred), which no longer matters: R8's per-frame
+        // culling is what decides visibility, not this offset.
+        const x = (mark.fraction + copy) * stripW
         const tick = new Mesh(
           new PlaneGeometry(0.002, mark.major ? 0.010 : 0.006),
           new MeshBasicMaterial({ color: 0xe6ecf5 }),
@@ -501,11 +511,19 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
         // `updatePanel` reads this back to decide `.visible` against the
         // `TAPE_W` window every tick, alongside the slide it already does.
         tick.userData.localX = x
+        // The VALUE this mark stands for, stashed alongside its position
+        // (Ruling R9, review round 3): tests recover "which heading is
+        // under the index" from the nearest mark's own stashed value rather
+        // than re-deriving it from a formula that could itself be wrong --
+        // which is exactly how a 180-degree placement error survived two
+        // review rounds.
+        tick.userData.value = mark.value
         strip.add(tick)
         if (mark.major) {
           const numeral = textPlate(mark.text, 0.022, 0.011, makeText)
           numeral.position.set(x, -0.006, Z_MARKS)
           numeral.userData.localX = x
+          numeral.userData.value = mark.value
           strip.add(numeral)
         }
       }
