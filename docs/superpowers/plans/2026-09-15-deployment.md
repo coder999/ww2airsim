@@ -18,6 +18,13 @@
 - **On the VPS, `git -C ~/projects/vps-infra pull --ff-only` BEFORE `deploy-infra.sh`.** That script fetches from the VPS's own intermediate checkout, not GitHub, so skipping the pull makes it report "Already up to date" and deploy nothing — a success-looking no-op (hit for real 2026-08-30). It syncs files only; it restarts nothing.
 - **Verification is assertions, not unit tests.** Most of this plan is infrastructure. Do not invent a test framework for DNS. Every task states the exact command and the exact expected output. A step that cannot be asserted must say so.
 - **Capture exit status directly** (`rc=$?` immediately after the command). Never read success through a pipe into `grep`.
+- **`curl -w '%{ssl_verify_result}'` prints `0` even when curl never connected.** Found for real on 2026-09-15: with DNS failing, `curl` returned `status=000 tls=0` and exit code 6. An assertion that checks only `tls=0` therefore PASSES on total DNS failure — the exact shape of defect this fleet keeps shipping. Every curl assertion below requires **curl's own exit code to be 0** and a real HTTP status, not just `tls=0`.
+- **nexus cannot resolve a just-created record for up to 30 minutes.** The LAN resolver is the router (192.168.0.1) and `marktuttle.dev`'s SOA negative TTL is 1800s, so a name queried before it existed stays NXDOMAIN locally long after Cloudflare serves it. `resolvectl flush-caches` does not help — the cache is upstream. Verify with a public resolver and pin curl to the answer:
+  ```bash
+  EDGE=$(dig +short @1.1.1.1 ww2airsim.marktuttle.dev | head -1)
+  curl -sS --resolve "ww2airsim.marktuttle.dev:443:$EDGE" https://ww2airsim.marktuttle.dev/...
+  ```
+  This is not a workaround to be embarrassed about: it tests the real edge over real TLS with the real SNI. It only bypasses a stale local cache.
 - **This site is PUBLIC by explicit decision (Mark, 2026-09-15).** It must NOT be added to `origin-ca-admin-marktuttle.yml` or any Cloudflare Access application.
 - Host: `vps-4b80346f.vps.ovh.us`, origin IP `15.204.123.196`, zone id `2d88836341051a77bb72c83f1fd245d2`.
 
@@ -422,12 +429,16 @@ about, and it would then be served to a real visitor.
 - [ ] **Step 9: Assert TLS and the vhost end to end, before any content exists**
 
 ```bash
-curl -sS -o /dev/null -w 'status=%{http_code} tls=%{ssl_verify_result}\n' https://ww2airsim.marktuttle.dev/
-curl -sS -D- -o /dev/null https://ww2airsim.marktuttle.dev/robots.txt
+EDGE=$(dig +short @1.1.1.1 ww2airsim.marktuttle.dev | head -1); echo "edge=$EDGE"
+R="--resolve ww2airsim.marktuttle.dev:443:$EDGE"
+curl -sS $R -o /dev/null -w 'status=%{http_code} tls=%{ssl_verify_result}\n' https://ww2airsim.marktuttle.dev/; echo "curl rc=$?"
+curl -sS $R -D- -o /dev/null https://ww2airsim.marktuttle.dev/robots.txt; echo "curl rc=$?"
 ```
 
-Expected: `tls=0` (the edge certificate verifies), and `/robots.txt` returns
-`200` with `Disallow: /` plus `X-Robots-Tag: noindex, nofollow`. That file is
+Expected: **`curl rc=0`** on both — check that FIRST, because `tls=0` is also
+printed when curl never connected at all, which would otherwise read as a pass.
+Then `tls=0` (the edge certificate verifies), and `/robots.txt` returning `200`
+with `Disallow: /` plus `X-Robots-Tag: noindex, nofollow`. That file is
 returned by nginx itself rather than read from disk, so it proves the vhost is
 live before a single byte of the game is deployed. The homepage's own status
 will be `403` or `404` until Task 5 — expected here, not a failure.
@@ -520,7 +531,7 @@ jobs:
           base=https://ww2airsim.marktuttle.dev
           code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/")
           test "$code" = "200" || { echo "::error::homepage returned $code"; exit 1; }
-          curl -sSI "$base/" | grep -qi 'x-robots-tag: *noindex' \
+          curl -sSI $R "$base/" | grep -qi 'x-robots-tag: *noindex' \
             || { echo "::error::noindex header missing"; exit 1; }
           tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin")
           test "$tcode" = "200" || { echo "::error::terrain L4 returned $tcode"; exit 1; }
@@ -574,11 +585,15 @@ The workflow asserting itself is necessary but not sufficient — a bug in the a
 
 ```bash
 base=https://ww2airsim.marktuttle.dev
-curl -sSI "$base/" | head -1
-curl -sSI "$base/" | grep -i 'x-robots-tag\|cache-control'
-curl -sS  "$base/robots.txt"
-curl -sSI "$base/content/terrain/L4.bin" | grep -i 'HTTP/\|content-length\|cache-control'
-curl -sSI "$base/content/terrain/tiles/L0.bin" | head -1
+EDGE=$(dig +short @1.1.1.1 ww2airsim.marktuttle.dev | head -1)
+R="--resolve ww2airsim.marktuttle.dev:443:$EDGE"   # nexus may still cache NXDOMAIN
+# Prove curl actually connected before trusting anything else it prints.
+curl -sS $R -o /dev/null -w 'status=%{http_code}\n' "$base/"; echo "curl rc=$?"
+curl -sSI $R "$base/" | head -1
+curl -sSI $R "$base/" | grep -i 'x-robots-tag\|cache-control'
+curl -sS  $R "$base/robots.txt"
+curl -sSI $R "$base/content/terrain/L4.bin" | grep -i 'HTTP/\|content-length\|cache-control'
+curl -sSI $R "$base/content/terrain/tiles/L0.bin" | head -1
 curl -sSI "$base/$(curl -sS "$base/" | grep -oP 'assets/[^"]+\.js' | head -1)" | grep -i 'HTTP/\|cache-control'
 ```
 
