@@ -38,7 +38,7 @@ import {
   vec3,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
-import { EARTH_RADIUS_M } from '../../sim/world/projection.js'
+import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
@@ -300,10 +300,10 @@ function createRingMaterial(
   const heightM = field.x
 
   const distanceM = length(worldXZ.sub(cameraXZ))
-  // Horizon sink (master spec §4): the Earth drops d^2/2R below the tangent
-  // plane through the camera -- 780 m at 100 km, 20 m at 16 km. Without it
-  // the far field stands up like the inside of a bowl.
-  const sinkM = distanceM.mul(distanceM).div(2 * EARTH_RADIUS_M)
+  // Horizon sink (master spec §4). The expression lives in `horizon.ts` and
+  // only there -- see its doc comment for why a second copy is how the hidden
+  // beach comes back.
+  const sinkM = horizonSinkNode(distanceM)
   material.positionNode = vec3(worldXZ.x, heightM.sub(sinkM), worldXZ.y)
 
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))

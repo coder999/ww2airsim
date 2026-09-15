@@ -1,8 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, cpSync, existsSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
 
@@ -35,6 +45,35 @@ function isGitIgnored(path: string): boolean {
   } catch {
     return false
   }
+}
+
+/** `path`, relative to `REPO_ROOT`, read as UTF-8 -- the one place this file
+ *  touches the real source tree by content rather than by cruising it. */
+function readSource(relPath: string): string {
+  return readFileSync(join(REPO_ROOT, relPath), 'utf8')
+}
+
+/**
+ * Every `.ts` file under `relDir` (itself relative to `REPO_ROOT`), read once,
+ * as `{ path, text }` with `path` POSIX-separated and relative to the repo
+ * root regardless of platform -- so a test's regex or `===` against a literal
+ * `'src/render/horizon.ts'` is not itself platform-dependent.
+ *
+ * Reads the REAL tree directly, unlike `cruiseWithProbes` above: the check
+ * this feeds is a plain string search, not a dependency graph, so there is no
+ * probe to race and nothing written for it to leave behind.
+ */
+function sourceFilesUnder(relDir: string): { path: string; text: string }[] {
+  const out: { path: string; text: string }[] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(join(REPO_ROOT, dir), { withFileTypes: true })) {
+      const entryRelPath = join(dir, entry.name)
+      if (entry.isDirectory()) walk(entryRelPath)
+      else if (entry.name.endsWith('.ts')) out.push({ path: entryRelPath.split(sep).join('/'), text: readSource(entryRelPath) })
+    }
+  }
+  walk(relDir)
+  return out
 }
 
 /**
@@ -398,4 +437,23 @@ describe('assists/ forbids browser globals and nondeterminism, same as sim/ (Pla
     // --max-warnings 0`, green).
     for (const m of messages) expect(m.severity, m.ruleId ?? '').toBe(2)
   })
+})
+
+describe('the Earth-curvature sink has exactly one home (Plan 5 Task 1)', () => {
+  // Source-level, in the style of this file's existing import rules, because
+  // the failure it guards is not a type error or a runtime throw: it is one
+  // surface sinking and another not, which renders as geography. Plan 4
+  // shipped exactly that and it took a human at the controls to see it.
+  it('no file outside src/render/horizon.ts computes the d^2/2R expression', () => {
+    const offenders = sourceFilesUnder('src')
+      .filter((f) => f.path !== 'src/render/horizon.ts')
+      .filter((f) => /2\s*\*\s*EARTH_RADIUS_M/.test(f.text))
+      .map((f) => f.path)
+    expect(offenders).toEqual([])
+  })
+
+  // `src/render/ocean/mesh.ts` does not exist until Task 7 creates it -- this
+  // is `it.todo` on purpose, not an oversight, so that nobody forgets it.
+  // Task 7's final step converts it to `it`.
+  it.todo('every surface that is drawn to the horizon imports the sink')
 })
