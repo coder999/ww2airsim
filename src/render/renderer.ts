@@ -35,7 +35,24 @@ export function normalizeGpuError(info: string | { message?: string }): string {
  * Tier 2 treats the same verdict as fatal, because that is where a silent
  * fallback would corrupt frame budgets and goldens (master spec §11).
  */
-export async function initRenderer(canvas: HTMLCanvasElement): Promise<RendererBundle> {
+export async function initRenderer(
+  canvas: HTMLCanvasElement,
+  // Whether the WebGPU backend should write a timestamp pair around each
+  // render pass, which is what makes `renderer.resolveTimestampsAsync()`
+  // return a real GPU duration. A PARAMETER rather than an
+  // `import.meta.env.DEV` read in this file, for the reason the `stepper`
+  // choice in main.ts already states: the build flag is decided once, at the
+  // edge, so every module below it is a plain function of its arguments.
+  //
+  // Off by default because it is not free: three requests the
+  // `timestamp-query` device feature regardless (it asks for every feature
+  // the adapter advertises), but this flag is what adds the two
+  // `timestampWrites` per pass and allocates a 2,048-entry query set
+  // (WebGPUTimestampQueryPool, three@0.186.0). Task 11 turns it on in DEV so
+  // Tier 2 can measure a frame budget that vsync cannot flatten; see
+  // `diagnostics.ts`'s `gpuFrameTimesMs`.
+  trackTimestamp = false,
+): Promise<RendererBundle> {
   if (!('gpu' in navigator)) throw new Error('no-webgpu')
 
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
@@ -55,7 +72,7 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<RendererB
     isFallbackAdapter: info.isFallbackAdapter,
   })
 
-  const renderer = new WebGPURenderer({ canvas, antialias: true })
+  const renderer = new WebGPURenderer({ canvas, antialias: true, trackTimestamp })
   await renderer.init()
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight)

@@ -34,8 +34,9 @@ import { heightAt } from '../sim/world/terrain.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
+import { DEFAULT_SPAWN_POSITION, spawnPositionFromQuery } from './spawn.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
-import type { Ww2Diagnostics } from './diagnostics.js'
+import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
 // loaded from, so this assertion is safe at the entry point.
@@ -60,6 +61,34 @@ const root = document.getElementById('app')!
 // here -- but it is real, so it is named rather than left for someone else
 // to rediscover.
 const validationErrors: string[] = []
+
+/**
+ * Frame intervals, milliseconds, since the last `window.__ww2.resetFrameTimes()`
+ * -- the same `now - last` the dev overlay already shows, collected so Tier 2's
+ * frame-budget test can take a percentile over a fixed window instead of
+ * reading one number off a screenshot. Stops at `FRAME_TIME_CAPACITY` rather
+ * than dropping the oldest sample; `diagnostics.ts` says why.
+ *
+ * Module scope, beside `validationErrors` and for the same reason: the
+ * diagnostics hook is installed near the top of `boot` and the producer is
+ * `frameFn`, far below it.
+ */
+const frameTimesMs: number[] = []
+
+/**
+ * GPU render-pass durations, milliseconds, since the last
+ * `window.__ww2.resetFrameTimes()` -- one sample per resolved frame, from the
+ * WebGPU timestamp queries `initRenderer`'s `trackTimestamp` turns on in DEV.
+ *
+ * Separate from `frameTimesMs` above because they measure different things
+ * and only one of them is measurable on this platform: the frame INTERVAL is
+ * pinned to the display's 100 Hz refresh no matter what Chromium is launched
+ * with (measured 2026-09-14, playwright.config.ts's CHROMIUM_ARGS comment),
+ * so it can say "we made the deadline" and nothing more. This one is the
+ * GPU's own clock around the render pass and does not know the display
+ * exists.
+ */
+const gpuFrameTimesMs: number[] = []
 
 /** Purely visual: gauges.ts explains why no tachometer is fitted -- there is
  *  no modeled engine RPM to drive it honestly. This spins the prop mesh at an
@@ -87,10 +116,21 @@ async function loadSpec(): Promise<AircraftSpec> {
 }
 
 async function boot(): Promise<void> {
+  // Read before anything expensive, so a malformed `?spawnY=` fails on the
+  // failure screen rather than after a renderer and 702 KB of terrain have
+  // been set up around a silently wrong number. `import.meta.env.DEV` is the
+  // literal `false` in a production build, so esbuild drops the call and the
+  // query string is inert in anything that ships (spawn.ts).
+  const spawnPosition = import.meta.env.DEV
+    ? spawnPositionFromQuery(window.location.search)
+    : DEFAULT_SPAWN_POSITION
+
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
-  const { renderer, adapterVerdict } = await initRenderer(canvas)
+  // Timestamp queries in DEV only: they are what makes `gpuFrameTimesMs`
+  // possible, and the same flag every other diagnostic here is gated on.
+  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV)
 
   // Declared here, before the hook below installs, initialised to `null` --
   // not assigned a real `FrameState` until after `loadSpec` resolves, well
@@ -153,6 +193,21 @@ async function boot(): Promise<void> {
         frame?.world.terrain
           ? heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
           : null,
+      // Same `??`-guard as the rest: before `loadSpec` resolves there is no
+      // frame, and the spawn is where the aeroplane will be, so that is the
+      // honest answer for the gap rather than the origin.
+      aircraftPositionM: () => frame?.world.aircraft.position ?? spawnPosition,
+      frameTimesMs: () => frameTimesMs.slice(),
+      gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
+      // `hasFeature`, not a stored flag: three decides at device creation
+      // whether to honour `trackTimestamp` by testing exactly this feature
+      // (WebGPUBackend.js:298, three@0.186.0), so asking the renderer the
+      // same question cannot drift from what it actually did.
+      gpuTimestampsSupported: renderer.hasFeature('timestamp-query'),
+      resetFrameTimes: () => {
+        frameTimesMs.length = 0
+        gpuFrameTimesMs.length = 0
+      },
     }
   }
 
@@ -279,12 +334,12 @@ async function boot(): Promise<void> {
     LOD.drawDistanceM,
   )
 
-  // Spawn over open water, comfortably above the clean, power-off stall
-  // (content/aircraft/f6f-hellcat.json's reference.stallSpeedMps, 43.8 m/s)
-  // so the first frame is already flying rather than falling: 120 m/s, 600 m
-  // up, wings level.
+  // 120 m/s, wings level, heading east (+x; the body frame's nose is +X and
+  // this attitude is identity). The POSITION is `DEFAULT_SPAWN_POSITION`
+  // unless a DEV build was handed `?spawnX/Y/Z` -- see `spawn.ts` for why a
+  // URL may move the aeroplane and why it cannot in anything that ships.
   const initialAircraft = createState({
-    position: v3(0, 600, 0),
+    position: spawnPosition,
     velocity: v3(120, 0, 0),
     attitude: qIdentity(),
   })
@@ -318,9 +373,17 @@ async function boot(): Promise<void> {
   // game. Cross-task drift between Task 11 and Task 15's own convention.
   const overlay = import.meta.env.DEV ? createOverlay(root) : null
   let last = performance.now()
+  // Whether a timestamp resolve is outstanding; see the call site below.
+  let gpuResolvePending = false
   const frameFn = (now: number): void => {
     const frameMs = now - last
     last = now
+
+    // Collected for `window.__ww2.frameTimesMs()`; see that member's comment
+    // in diagnostics.ts for what this quantity is and is not. Recorded at the
+    // TOP of the frame, so a sample is the interval that ENDED here rather
+    // than one that includes part of this frame's own work twice.
+    if (frameTimesMs.length < FRAME_TIME_CAPACITY) frameTimesMs.push(frameMs)
 
     // `frame` is assigned a real `FrameState` just above, before this
     // function is ever scheduled, and reassigned at the end of every call to
@@ -415,6 +478,29 @@ async function boot(): Promise<void> {
 
     renderer.render(scene, camera)
 
+    // One GPU timestamp sample per resolve, DEV only. Guarded on a pending
+    // resolve rather than fired every frame because `resolveQueriesAsync`
+    // hands back the SAME promise while one is outstanding
+    // (WebGPUTimestampQueryPool, three@0.186.0), so an unguarded call would
+    // record one frame's duration several times and bias the percentile
+    // toward whatever frame happened to be slow enough to still be resolving.
+    // The resolve itself is a separate command buffer submitted after the
+    // pass, so it cannot inflate the duration it is reading -- it makes the
+    // frame slightly heavier without making the measurement wrong.
+    if (import.meta.env.DEV && !gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
+      gpuResolvePending = true
+      void renderer
+        .resolveTimestampsAsync('render')
+        .then((ms: number | undefined) => {
+          // `undefined` when tracking is off (three warns once and returns
+          // nothing); 0 when the pool had nothing pending. Neither is a frame.
+          if (typeof ms === 'number' && ms > 0) gpuFrameTimesMs.push(ms)
+        })
+        .finally(() => {
+          gpuResolvePending = false
+        })
+    }
+
     overlay?.update({
       frameMs,
       fps: 1000 / Math.max(frameMs, 0.001),
@@ -431,14 +517,17 @@ async function boot(): Promise<void> {
   loop = createRafLoop(frameFn)
   loop.start()
 
-  // Deliberately NOT awaited: the pyramid is 703 KB over nine requests, and
+  // Deliberately NOT awaited: the pyramid is 702 KB over FIVE requests --
+  // L8 down to L4, the only levels any ring can sample (`coarsestFetchedLevel`
+  // in lod.ts; it said "nine" until 2026-09-14, left over from before review
+  // round 1 stopped fetching L9-L12 that nothing could draw) -- and
   // the aeroplane is flyable before any of it lands (the mesh draws nothing
   // until a level arrives -- mesh.ts). Each level lands in its own texture,
   // coarsest first.
   //
   // One consequence worth knowing when watching it load: the rings are drawn
   // from the level they match, and the near rings all read L4, which is 526
-  // of those 703 KB and lands LAST. So the far field appears first and the
+  // of those 702 KB and lands LAST. So the far field appears first and the
   // ground under the aeroplane fills in at the end -- the opposite order to
   // what "coarse first" suggests, and correct: there is no coarser level a
   // near ring could legitimately draw that its neighbours would agree with.

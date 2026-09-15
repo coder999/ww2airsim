@@ -273,11 +273,64 @@ the relief feel like ground rather than a texture, does anything pop.
 
 ## 9. Open items
 
-1. **`r32float` versus `r16float`** for the height texture — decided on a
-   measured vertex-fetch cost during implementation, not now (§2).
-2. **Where terrain data is served from** once there is a deployed build. Local
-   generated files are sufficient for development and for Tier 2; R2 is the
-   master spec's eventual answer and needs no decision until a deploy exists.
-3. **Vertical exaggeration.** Real relief at real scale can read as flat from
-   15,000 ft. Whether a modest exaggeration is wanted is a question for Mark at
-   the controls, not one to settle here — and it is a single constant.
+1. **`r32float` versus `r16float`** for the height texture — **CLOSED
+   2026-09-14 (Task 11): `r32float`.**
+
+   This item asked for a measured vertex-fetch cost, so one was measured, on
+   the reference GPU at 1440p, as WebGPU timestamp-query durations over
+   ~515-frame windows with every level swapped to half-float and nothing else
+   changed. The two formats reported **identical** medians at all three test
+   altitudes — 2.032 / 2.097 / 1.769 ms at 100 m, 3,000 m and 8,000 m — and
+   the instrument quantises to 65.54 µs, so the difference is below 0.066 ms,
+   under 3% of a 2.1 ms frame.
+
+   **The measurement therefore did not decide it, and the decision does not
+   rest on the measurement.** `r16float` is rejected on correctness, which
+   Task 10 established independently: half-float quantises to 1 m above
+   1024 m, which is ~20% noise in the analytic gradient on exactly the peaks
+   slope shading exists for. The number is recorded because this item asked
+   for it and because "the wide format must be slower" is the kind of
+   unexamined belief this project keeps finding in old comments — not because
+   it chose anything. Full derivation beside the code, in `sampleField`'s doc
+   comment in `src/render/terrain/mesh.ts`.
+
+2. **Where terrain data is served from** once there is a deployed build —
+   **CLOSED 2026-09-14 (Task 11): static files beside the build, no object
+   store.**
+
+   The premise of this item was a 89 MB (in the event 134 MB) L0 fetch. That
+   is not what the browser does. The loader fetches **L4 through L8 only** —
+   702,346 bytes over five requests, of which L4 is 526,338 — because `LOD.rings` is
+   8 and nothing coarser than mip 8 can be sampled by any ring
+   (`coarsestFetchedLevel`, `src/render/terrain/lod.ts`). L0–L3 are 178 MB,
+   are gitignored, and exist only on the machine that ran the pipeline; the
+   browser has never been able to fetch them and `FINEST_FETCHED_LEVEL = 4`
+   says so in code.
+
+   700 KB of immutable content beside `index.html` needs no object store and
+   no decision. R2 becomes a question again only if L0–L3 are ever shipped —
+   and that has a second consequence, recorded beside `finestRangeM` in
+   `lod.ts`: the LOD tuning is currently measured against a pyramid whose
+   finest available level is 390 m, and shipping finer levels invalidates half
+   of that argument.
+
+   **Not closed by this:** `npm run build` still copies all thirteen levels,
+   including the 171 MB of gitignored tiles, into `dist/` — a one-line filter
+   in `vite.config.ts`'s `copyContent`, carried as a concern since Task 10 and
+   still outside any task's file list.
+
+3. **Vertical exaggeration.** Still open, deliberately, and still for Mark at
+   the controls: real relief at real scale can read as flat from 15,000 ft,
+   and whether a modest exaggeration is wanted is a judgement nobody can make
+   from a test. Leyte's highest committed sample is 1,236.6 m over a 200 km
+   box, so the case for it is real.
+
+   It is one constant, with one caveat worth knowing before reaching for it:
+   applied only in `mesh.ts`'s ring material (a multiplier on `field.x` before
+   the curvature sink) it would exaggerate the surface you SEE and not the one
+   you HIT, which §6 above already warns is the hazard class this plan is most
+   exposed to. To stay honest it has to scale the physics field too — one
+   place, the four `/ 10` decimetre-to-metre conversions inside `heightAt` in
+   `src/sim/world/terrain.ts`, which is the single point where a sample
+   becomes a height the simulation uses. Two call sites, one number, and a
+   test that they are the same number.

@@ -3,6 +3,7 @@ import type { CameraMode } from './camera.js'
 import type { Controls } from '../sim/flight/state.js'
 import type { LookOffset } from '../input/lookAround.js'
 import type { AssistSettings } from '../assists/index.js'
+import type { Vec3 } from '../sim/math/vec3.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -60,4 +61,84 @@ export type Ww2Diagnostics = {
    * mountain and observing that nothing happens either way.
    */
   readonly groundHeightM: () => number | null
+  /**
+   * The aeroplane's simulated world position, metres (+x east, +y up,
+   * +z north). Added in Task 11, and it does two jobs no other member here
+   * can:
+   *
+   * - **Proves the spawn landed.** Tier 2's terrain tests start the aeroplane
+   *   over Leyte with `?spawnX/Y/Z` (see `spawn.ts`). If that never took
+   *   effect the aeroplane is over open water, every terrain test reports an
+   *   empty `validationErrors` list, and it passes for the wrong reason.
+   * - **Proves the aeroplane moved.** `tick()` advances whenever the fixed
+   *   step runs, which it does whether or not the aeroplane is going
+   *   anywhere; `groundHeightM()` is flat over a coastal plain. Neither can
+   *   stand in for a position that changed.
+   *
+   * Deliberately the SIMULATED position (`world.aircraft`), not the
+   * interpolated render pose: the render pose is the thing under test in a
+   * different sense, and a test that read it could pass on a frame that
+   * happened to interpolate while the simulation was stalled.
+   */
+  readonly aircraftPositionM: () => Vec3
+  /**
+   * Frame intervals in milliseconds since the last `resetFrameTimes()`, in
+   * order, capped at `FRAME_TIME_CAPACITY` samples.
+   *
+   * This is the `now - last` that `main.ts`'s render loop already computes
+   * and hands to the dev overlay -- the interval between successive
+   * `requestAnimationFrame` callbacks, i.e. wall-clock frame time including
+   * the simulation, the scene update, three's draw submission and the
+   * present. It is NOT a GPU pass duration.
+   *
+   * On the reference platform it is pinned to the display's refresh interval
+   * and CANNOT carry the frame budget -- see `gpuFrameTimesMs` below, which
+   * can. What it is still good for is the complementary question: whether the
+   * frame made its deadline at all. An interval that has doubled is a missed
+   * vsync, which no GPU-side pass duration reports.
+   *
+   * Recording STOPS at capacity rather than dropping the oldest sample, so
+   * "the first N frames after the reset" is exactly what a caller gets and
+   * the window is not silently redefined by how long the caller waited.
+   */
+  readonly frameTimesMs: () => readonly number[]
+  /**
+   * GPU render-pass durations in milliseconds since the last
+   * `resetFrameTimes()`, one sample per resolved frame, capped the same way.
+   *
+   * This is the frame-time number Task 11's budget is written against, and it
+   * exists because `frameTimesMs` above CANNOT carry one on this platform:
+   * `requestAnimationFrame` fires at the display's 100 Hz on the reference
+   * desktop whatever Chromium is launched with -- proven 2026-09-14 against a
+   * blank page with no WebGPU on it at all, which reported the same 10.0 ms
+   * as the game (task-11-report.md). A frame-interval "budget" there is a
+   * statement about the monitor.
+   *
+   * Read from WebGPU timestamp queries written around the render pass, so it
+   * is the GPU's own clock and knows nothing about vsync, the compositor or
+   * the present. It therefore EXCLUDES the simulation, the scene update and
+   * three's submission work -- it is the GPU half of a frame, not the whole
+   * of one. Empty if `gpuTimestampsSupported` is false.
+   */
+  readonly gpuFrameTimesMs: () => readonly number[]
+  /** Whether the adapter advertises `timestamp-query`, i.e. whether
+   *  `gpuFrameTimesMs()` can ever be non-empty. Distinguishes "this GPU
+   *  cannot be timed" from "nothing has been sampled yet", which an empty
+   *  array alone cannot. */
+  readonly gpuTimestampsSupported: boolean
+  /** Discards everything `frameTimesMs()` and `gpuFrameTimesMs()` have
+   *  collected and starts a fresh window. The only mutating member of this hook: it writes nothing the
+   *  simulation or the renderer reads, unlike the `FrameState` setter
+   *  `assists` above deliberately does not offer. */
+  readonly resetFrameTimes: () => void
 }
+
+/**
+ * How many samples `frameTimesMs` and `gpuFrameTimesMs` each hold after a
+ * reset.
+ *
+ * 4,096 is ~41 s at the reference platform's 100 Hz, comfortably more than
+ * the budget test's window, and bounds each array to 32 KB for a session that
+ * never resets at all.
+ */
+export const FRAME_TIME_CAPACITY = 4096

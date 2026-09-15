@@ -177,6 +177,29 @@ const AMBIENT = 0.35
  * Half-float would filter in hardware but quantises to 1 m above 1024 m,
  * which is 20% noise in the gradient on exactly the peaks the slope shading
  * is for.
+ *
+ * **`r32float` versus `r16float` -- design spec section 9, item 1, closed
+ * 2026-09-14.** That item asked for the decision to rest on "a measured
+ * vertex-fetch cost", so it was measured, on the reference GPU (RX 6700 XT,
+ * Chromium 153, Dawn/D3D12) at 2560x1440, as WebGPU timestamp-query durations
+ * over ~515-frame windows. Every level swapped to `HalfFloatType` +
+ * `Uint16Array` + `DataUtils.toHalfFloat`, everything else identical:
+ *
+ *              100 m over Leyte   3,000 m    8,000 m   (GPU ms, p50)
+ *   r32float   2.032              2.097      1.769
+ *   r16float   2.032              2.097      1.769
+ *
+ * Identical to the digit, at all three altitudes, in a paired run. The
+ * instrument quantises to 65.54 us, so the honest statement is that the
+ * vertex-fetch difference is below 0.066 ms -- under 3% of a 2.1 ms frame,
+ * and 0.7% of the display's 10 ms. `r16float` would halve the ~700 KB of
+ * height textures, which is not a constraint anything here has.
+ *
+ * So the measurement did not decide it, and **the choice is `r32float` on the
+ * quantisation argument above, not on speed**. Recording the number anyway
+ * because section 9 asked for it and because "we assumed the wide format was
+ * slower" is exactly the kind of belief this project keeps finding in old
+ * comments.
  */
 function sampleField(
   tex: DataTexture,

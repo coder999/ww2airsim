@@ -61,14 +61,54 @@ const RINGS = 8
 const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
 
 /**
- * `finestRangeM` is the distance at which ring 0 gives way to ring 1. Set to
- * `2 * nodeSize` (the standard CDLOD ratio, which is also what keeps
- * `rangeAtRing` doubling in step with `nodeSizeAtRing` doubling -- the
- * property the "neighbouring nodes within one ring" test depends on).
+ * `finestRangeM` is the distance at which ring 0 gives way to ring 1: `2 *
+ * nodeSize`, the standard CDLOD ratio, which is also what keeps `rangeAtRing`
+ * doubling in step with `nodeSizeAtRing` doubling -- the property the
+ * "neighbouring nodes within one ring" test depends on.
  *
- * This value is PROVISIONAL: nothing has yet measured actual frame time
- * against it. Task 11 can measure that; until then this is a geometrically
- * reasonable default, not a tuned one.
+ * **No longer provisional. Measured 2026-09-14** on the reference GPU (RX
+ * 6700 XT, Chromium 153, Dawn/D3D12) at 2560x1440, 3,000 m over Leyte, as
+ * WebGPU timestamp-query durations over a 5-second window
+ * (`tests/e2e/terrain.spec.ts`; the raw runs are in task-11-report.md). The
+ * multiplier here is the only thing that changed between rows:
+ *
+ *   finestRangeM        selected nodes   vertices   GPU p50   GPU p95
+ *   0.5x =    781.25 m             121      0.51 M    1.442*    2.032*
+ *   1x   =  1,562.5  m             127      0.54 M    2.032     2.228
+ *   2x   =  3,125    m (this)      151      0.64 M    2.097     2.359
+ *   4x   =  6,250    m             316      1.34 M    2.949     3.211
+ *
+ *   (* 0.5x is below the CDLOD ratio and reported a bimodal, under-sampled
+ *   distribution -- 356 samples where the others gave ~515, with a floor at
+ *   0.393 ms. It is quoted as a bracket, not as a candidate; whatever it is
+ *   doing was not chased, because nothing here wants to go below 1x.)
+ *
+ * Node counts and vertices are `selectNodes` at the same camera, computed in
+ * Node; the GPU column is the same camera on the reference platform.
+ *
+ * **What the measurement says, and it is not "go finer".** Between 1x and 2x
+ * the whole GPU frame moves by 0.065 ms -- exactly one step of the timestamp
+ * query's 65.54 us quantisation, i.e. at the floor of what the instrument can
+ * resolve. Against the platform's 10 ms frame interval that is 0.7%. Frame
+ * time therefore does not choose between 1x and 2x, and 2x is kept because it
+ * is the ratio the rest of this file's geometry is written for and it puts
+ * the ring-0 -> ring-1 transition further from the eye, where a transition is
+ * smaller in screen space.
+ *
+ * 4x is the first setting frame time has an opinion about (+0.85 ms, 40% of
+ * the frame) and it is rejected on both counts: it costs real time AND buys
+ * no detail, because rings 0-3 all clamp both mip taps to L4 (`content.ts`'s
+ * `FINEST_FETCHED_LEVEL`; L0-L3 are 178 MB and are not shipped). A ring-0
+ * patch already tessellates at 24.4 m against L4's 390 m sample spacing --
+ * sixteen times finer than the data can express -- so widening ring 0 adds
+ * triangles to a surface that is already the bilinear interpolant of samples
+ * it has all of.
+ *
+ * That last fact is also the honest caveat on this whole constant: it is
+ * being tuned against the pyramid a browser can actually fetch. If L0-L3 ever
+ * ship (or move to R2 -- design spec section 9 item 2), the "buys no detail"
+ * half of the argument stops holding and this wants re-measuring. The
+ * frame-time half would not change.
  */
 const FINEST_RANGE_M = 2 * FINEST_NODE_SIZE_M
 
