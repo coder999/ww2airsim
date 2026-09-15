@@ -10,7 +10,7 @@ mission text. `ww2airsim` is a working title.
 
 ## Status
 
-**Plans 1–4 of 7 complete (2026-09-14).** A deterministic F6F Hellcat flight
+**Plans 1–4 complete (2026-09-14).** A deterministic F6F Hellcat flight
 model runs headlessly in Node under `src/sim/`, graded against cited
 historical trial figures by the test-card harness in `tools/testcards/`, with
 a golden-trajectory regression, a randomised soak, and CI (Plan 1). It is
@@ -20,8 +20,15 @@ limiter, auto-rudder and altitude hold — sit between the keyboard and the
 simulation, each switchable in flight (Plan 3). And the water it flies over is
 no longer empty: real Leyte Gulf is under it (Plan 4, below).
 
-The ocean, weapons, damage, AI, carrier operations and the meta-game are the
-remaining plans and do not exist yet.
+The ocean, weapons, damage, AI, carrier operations and the meta-game do not
+exist yet. **How they divide into plans after Plan 4 is not settled**, and this
+line used to say "of 7" as though it were: the design docs disagree, because
+the assists plan was inserted into the slot the roadmap had given terrain and
+every later number shifted by one without anything being updated. The renderer
+design's deferral table still says terrain is Plan 3 and the FFT ocean Plan 4;
+the terrain design says the ocean is Plan 6 and deck operations Plan 8.
+Whichever is right, it is a decision nobody has taken, so no count is asserted
+here.
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)

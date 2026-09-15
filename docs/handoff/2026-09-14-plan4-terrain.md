@@ -56,8 +56,12 @@ Two things in those frames that are not defects:
 
 - **`dropped 12 <-- replay invalid`** in the dev overlay counts fixed
   simulation steps skipped while the page was loading. It is cumulative and
-  does not advance in steady flight — measured 2026-09-14: 6 after load, still
-  6 after a further 20 s and 1,200 ticks.
+  does not advance in steady flight. The two figures below are from two
+  different captures on 2026-09-14 and that is the whole point: the two frames
+  above each read **12** at ~1.5 s, and a separate longer run read **6** after
+  load and still **6** after a further 20 s and 1,200 ticks. How many steps
+  the load costs varies; that it stops accruing once the load is over does
+  not.
 - **The sea's near edge, where it meets land, is not the real beach.** See
   "Already ruled on" below.
 
@@ -65,9 +69,12 @@ Two things in those frames that are not defects:
 
 ## The frame cost
 
-**2.097 ms p50, 2.16–2.36 ms p95** over ~515-frame windows at 2560 × 1440 over
-Leyte at 3,000 m, asserted at **≤ 3.5 ms** in `tests/e2e/terrain.spec.ts`. By
-altitude:
+**2.097 ms p50, 2.359 ms p95** over a ~515-frame window at 2560 × 1440 over
+Leyte at 3,000 m, asserted at **≤ 3.5 ms** in `tests/e2e/terrain.spec.ts`. The
+p50 has been **2.097 ms on every one of five runs** on 2026-09-14; the p95 has
+wandered between 2.163 and 2.359 ms across the same five, which is three steps
+of a 65.54 µs instrument in the tail of a ~515-sample distribution. By
+altitude, one run each:
 
 | altitude | GPU p50 | GPU p95 |
 | --- | --- | --- |
@@ -98,9 +105,13 @@ are in
 where to argue with the budget rather than here.
 
 One incidental result worth knowing before you read a number off the overlay:
-**open water is more expensive than Leyte** (2.228 / 2.490 ms). The terrain is
-discarded fragment-side at or below sea level, which disables early-z over the
-65% of the world that is ocean.
+**open water is more expensive than Leyte** (2.228 / 2.490 ms). That much is
+measured. The *explanation* is not: the terrain is discarded fragment-side at
+or below sea level, and a fragment discard is the classic way to forfeit
+early-z over what is 65% of the world (`mesh.ts:325` sources the 65%). Nobody
+has confirmed that is what this GPU is doing. Testing it costs one run —
+replace the discard with an alpha of zero, or move the sea-level cull to the
+vertex stage, and see whether the open-water number falls.
 
 ---
 
@@ -112,7 +123,13 @@ fully-built checkout do not draw the same thing.
 
 **With the full pyramid on disk** (after `npm run terrain:build`), ring *k*
 draws mip *k*. Worst height error against mip 0, camera at `(99000, -99000)`,
-pinned in `tests/render/terrainLod.test.ts`:
+pinned in `tests/render/terrainLod.test.ts`.
+
+The distance column is measured at that same camera and **is not a constant of
+the LOD scheme**: the quadtree is anchored to the world, not to the eye, so how
+far the nearest ring-*k* node sits depends on where the camera stands inside
+its own node. Ring 4 is 49.0 km away here and 27.4 km away at the Tier 2 spawn
+(−45000, 47605). Both measured 2026-09-14; neither is "the" ring-4 distance.
 
 | ring | nearest that ring gets to the camera | worst error vs mip 0 |
 | --- | --- | --- |

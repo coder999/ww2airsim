@@ -24,7 +24,7 @@ depth is allocated unevenly on purpose:
 
 | Area | Depth | Rationale |
 | --- | --- | --- |
-| World and terrain | Deep | Real DEM/bathymetry, LOD streaming, 60–100 km view |
+| World and terrain | Deep | Real DEM/bathymetry, CDLOD, 100 km view |
 | Graphics fidelity | Deep | WebGPU, FFT ocean, volumetric cloud, PBR |
 | Flight physics | Good enough | Arcade-sim: readable and fun, not study-level |
 | Combat AI | Basic | Pursuit, energy awareness, a small maneuver set |

@@ -8,6 +8,7 @@ import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
+import { samplesAtLevel } from '../../src/sim/world/schema.js'
 
 /**
  * The two Copernicus licence strings that must accompany the derived terrain
@@ -20,13 +21,31 @@ import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
  * checking would assert nothing. Line breaks are normalised away below because
  * NOTICE.md wraps them as a Markdown blockquote.
  */
-const COPERNICUS_ADAPTED_ATTRIBUTION =
-  'produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus ' +
-  'Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European ' +
-  'Union and ESA; all rights reserved.'
-const COPERNICUS_NO_LIABILITY =
-  'The organisations in charge of the Copernicus programme by law or by ' +
-  'delegation do not incur any liability for any use of the Copernicus WorldDEM-30.'
+const COPERNICUS_LICENCE_STRINGS = {
+  // 6(a) -- the data as distributed. Pinned even though these files are
+  // adapted and therefore governed by 6(b): `ASSETS.md`'s "Discharged
+  // 2026-09-14" claims all THREE strings are in NOTICE.md, and a claim with
+  // only two of them asserted is a claim that can go false in silence
+  // (review 2026-09-14, finding 5).
+  //
+  // **6(a) is a literal suffix of 6(b)**, so a whole-document `toContain` for
+  // it passes whenever 6(b) is present and asserts nothing. Found by running
+  // the mutation rather than by reading the strings: deleting the entire 6(a)
+  // block from NOTICE.md left this test green. That is why the assertion
+  // below is per-SECTION -- each string has to appear under a heading that
+  // names its own article, which is also what "the notice accompanies the
+  // data" actually means.
+  '6(a) attribution, data as distributed':
+    '© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 ' +
+    'provided under COPERNICUS by the European Union and ESA; all rights reserved.',
+  '6(b) attribution, data as adapted':
+    'produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus ' +
+    'Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European ' +
+    'Union and ESA; all rights reserved.',
+  '6(c) no-liability notice':
+    'The organisations in charge of the Copernicus programme by law or by ' +
+    'delegation do not incur any liability for any use of the Copernicus WorldDEM-30.',
+} as const
 const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
 
 /**
@@ -59,10 +78,20 @@ describe('the built artifact', () => {
       // as five names -- a change to either bound has to move this set too.
       // Without this, a missing terrain level is a 404 at runtime and the
       // aeroplane flies over an empty sea, which looks like the game working.
+      //
+      // The EXACT byte length, not `> 0` (review 2026-09-14, finding 5). A
+      // truncated copy -- a partial write, a `cp` that ran while the build was
+      // still writing -- is a 200 with the wrong number of samples in it, and
+      // `decodeLevel`'s own length guard would then reject it at runtime, i.e.
+      // exactly the failure this assertion is here to catch before shipping.
+      // The expected size is one call away (`samplesAtLevel`, the same
+      // function the decoder sizes its buffer with), so accepting "non-empty"
+      // was choosing a weaker check over a free stronger one.
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       for (let level = FINEST_FETCHED_LEVEL; level <= coarsest; level++) {
+        const samples = samplesAtLevel(TERRAIN_HEADER, level)
         const bytes = readFileSync(join(outDir, terrainLevelPath(level)))
-        expect(bytes.byteLength, `${terrainLevelPath(level)} is empty`).toBeGreaterThan(0)
+        expect(bytes.byteLength, `${terrainLevelPath(level)} is the wrong size`).toBe(samples ** 2 * 2)
       }
 
       // Copernicus Article 6(b)/6(c): the attribution and the no-liability
@@ -74,9 +103,16 @@ describe('the built artifact', () => {
       // edited to say something else fails here rather than in a lawyer's
       // letter.
       const notice = readFileSync(join(outDir, TERRAIN_NOTICE_PATH), 'utf8')
-      const flattened = notice.replace(/^>\s?/gm, '').replace(/\s+/g, ' ')
-      expect(flattened, 'Copernicus Article 6(b) attribution').toContain(COPERNICUS_ADAPTED_ATTRIBUTION)
-      expect(flattened, 'Copernicus Article 6(c) no-liability notice').toContain(COPERNICUS_NO_LIABILITY)
+      const flatten = (md: string): string => md.replace(/^>\s?/gm, '').replace(/\s+/g, ' ')
+      // Split on the `## ` headings, so each licence string is looked for
+      // only inside the section that announces it.
+      const sections = notice.split(/^## /m).slice(1)
+      for (const [article, text] of Object.entries(COPERNICUS_LICENCE_STRINGS)) {
+        const label = article.slice(0, 4) // '6(a)' / '6(b)' / '6(c)'
+        const section = sections.find((sec) => sec.split('\n', 1)[0]!.includes(label))
+        expect(section, `NOTICE.md has no section headed for Article ${article}`).toBeDefined()
+        expect(flatten(section!), `Copernicus Article ${article}`).toContain(text)
+      }
     } finally {
       rmSync(outDir, { recursive: true, force: true })
     }

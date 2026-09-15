@@ -36,9 +36,12 @@ Stated explicitly, because each is a plausible place to drift:
 
 ## 2. The deviation from master spec §4, and why
 
-§4 specifies a "CDLOD quadtree clipmap: heightmap tiles as textures" with "the
-terrain tile cache" holding "a large resident set". That wording assumes the
-world is bigger than the card. **It is not, by two orders of magnitude.**
+§4 originally specified a "CDLOD quadtree clipmap: heightmap tiles as
+textures" with "the terrain tile cache" holding "a large resident set". That
+wording assumed the world is bigger than the card. **It is not, by two orders
+of magnitude.** (§4 was amended in place on 2026-09-14, once this plan had
+built the thing; the quoted phrases above are the retired wording, kept so
+this section's argument still has its subject.)
 
 Measured 2026-09-13:
 
@@ -71,8 +74,8 @@ count survivable. A fixed grid mesh per quadtree node samples an explicit mip
 level of the one texture, and morphs between levels in the vertex stage.
 
 "Coarse first, then everything resident" (Mark's call, 2026-09-13) therefore
-needs no streaming system at all. The mip chain is thirteen files (L0..L12),
-fetched smallest first:
+needs no streaming system at all. The mip chain is thirteen files (L0..L12);
+the five the browser fetches arrive smallest first:
 
 ```
 L0  8193^2  134.2 MB   24 m      L5   257^2   132 KB    781 m
@@ -111,17 +114,27 @@ failure, not a silent wrap.
 - **Raw** because it is byte-for-byte deterministic, needs no decoder in either
   Node or the browser, and gzips on the wire like anything else.
 
-### GPU format: `r32float`, with `r16float` as the measured fallback
+### GPU format: `r32float` — settled, see §9 item 1
 
 Measured on the card, 2026-09-13: `r16float` and `r32float` both create and
 filter; **`r16unorm` throws** without the optional `texture-formats-tier1`
 feature, so it is off the table.
 
-Default is `r32float` (358 MB with mips): exact, filterable, and 2% of the
-card. `r16float` halves that but has only an 11-bit mantissa, so above 1024 m
-it cannot represent decimetres at all and steps by 1 m — acceptable but not
-free. The switch is a one-line change and is to be made on a measured
-vertex-fetch cost, not on a guess.
+`r32float` (358 MB with mips) is exact, filterable, and 2% of the card.
+`r16float` would halve that, but has only an 11-bit mantissa, so above 1024 m
+it cannot represent decimetres at all and steps by 1 m.
+
+[Amended 2026-09-14 (Task 12). This heading called `r16float` "the measured
+fallback", called its 1 m step "acceptable but not free", and said the switch
+"is to be made on a measured vertex-fetch cost, not on a guess". **§9 item 1
+closed all three on 2026-09-14 and this paragraph did not follow.** The
+vertex-fetch cost was measured and came in *below the instrument's 65.54 µs
+quantum* — identical p50 at all three altitudes — so it decided nothing.
+`r16float` is rejected on **correctness**: the same 1 m step called "acceptable"
+above is ~20% noise in the analytic gradient on exactly the peaks slope shading
+exists for. It is not a fallback that is waiting on a number; it is closed. §9
+item 1 has the table, and `sampleField`'s doc comment in
+`src/render/terrain/mesh.ts` has the derivation beside the code.]
 
 ## 3. Coordinate frame
 
@@ -238,9 +251,17 @@ consequences, neither of which this section anticipated:
 
 - In the shipped browser build the near field is **drawn from the level the
   physics queries**, so the disagreement this section is about does not begin
-  until ring 4 — roughly 27 km out at the Tier 2 camera. It begins at ring 1 in
-  a checkout that has run `npm run terrain:build`, which is the configuration
-  the pinned mip-0 error table in `tests/render/terrainLod.test.ts` measures.
+  until ring 4. It begins at ring 1 in a checkout that has run
+  `npm run terrain:build`, which is the configuration the pinned mip-0 error
+  table in `tests/render/terrainLod.test.ts` measures.
+
+  **How far out "ring 4" is depends on where the camera stands**, and quoting
+  one number without saying so reads as a contradiction of the other. The
+  quadtree is anchored to the world, not to the eye, so a camera's distance to
+  the nearest ring-4 node varies with its position inside its own node:
+  measured 2026-09-14, **27.4 km** at the Tier 2 spawn (−45000, 47605) and
+  **49.0 km** at (99000, −99000), the camera the mip-0 table uses. Both are
+  correct for their camera; neither is "the" ring-4 distance.
 - What both are wrong about instead is the **whole surface against the source
   grid**: worst |L0 − L4| over every one of L0's 8193² samples is **220.9 m**,
   at (−78,027, 80,664), measured 2026-09-14. A fresh clone flies a Leyte whose
@@ -302,7 +323,7 @@ the relief feel like ground rather than a texture, does anything pop.
 | --- | --- |
 | Pipeline correctness is invisible until it is rendered | Cross-checked against independent coordinates (§7), not against itself |
 | The drawn surface disagrees with the flown one | Guarded on LOD selection with a measured error bound (§6) |
-| 89 MB L0 fetch is slow on first load | Coarse levels first; the aeroplane flies over recognisable terrain within ~100 KB |
+| ~~89 MB L0 fetch is slow on first load~~ — **retired 2026-09-14, §9 item 2**: L0 is never fetched. The browser fetches L8..L4, 702,346 bytes | Moot. The mitigation shipped anyway: coarse levels first, and the aeroplane flies over recognisable terrain within 43,910 bytes (L8..L6) |
 | Licence contamination in a public repo | Copernicus attribution into `ASSETS.md` in the same commit as the first fetched byte (master spec §10) |
 | CDLOD morph tuning is subjective | Frame-time budget and the LOD-error number make most of it objective; the rest is Tier 3 |
 
