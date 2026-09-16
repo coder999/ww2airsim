@@ -554,11 +554,16 @@ async function boot(): Promise<void> {
     const hit = current.world.impact
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
-      impactEffect.object.position.set(
-        hit.position.x + worldOffset.x,
-        hit.position.y + worldOffset.y,
-        hit.position.z + worldOffset.z,
-      )
+      // Raw world metres, NOT `+ worldOffset`: `impactEffect.object` is a
+      // child of `scene`, and `scene.position` is set to `worldOffset` every
+      // frame just above, which already applies the camera-relative shift
+      // once for every child -- the airframe, the sky and the terrain mesh
+      // all set their positions the same way. Adding `worldOffset` here too
+      // would apply it twice. The position is deliberately set once, at fire
+      // time, and never refreshed: the effect is anchored at a fixed world
+      // point, and `scene.position` moving each frame is what keeps it there
+      // as the camera flies away.
+      impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
       impactEffect.fire(hit.surface)
       debrief.show(debriefModel(hit, current.world.aircraft))
     }
