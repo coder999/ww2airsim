@@ -196,6 +196,28 @@ function ballChordEndpoints(panel: Panel): readonly [Vector3, Vector3] {
   return [from, to]
 }
 
+/**
+ * The pitch deflection `attitudeBallGeometry` bakes into the chord, read
+ * directly off the sky mesh's own (pre-`matrixWorld`) geometry rather than
+ * the world-space chord above.
+ *
+ * At `rollRad = 0` (every caller below uses `attitude(pitchDeg, 0)`) both
+ * chord endpoints share the same LOCAL y, equal to `attitudeBallGeometry`'s
+ * own `d` (its `t`, unclamped): `-(pitchRad / (pi/6)) * DIAL_RADIUS * 0.8`.
+ * Reading it locally, rather than through `ballScreenHeight`'s world/camera
+ * projection, isolates the MAGNITUDE of the deflection from the panel's own
+ * placement and the camera's -- exactly the quantity a halved, doubled or
+ * saturating scale factor would change and the existing screen-space checks
+ * (an ordering check and a slot-containment bound) do not pin.
+ */
+function ballLocalPitchOffset(panel: Panel): number {
+  const sky = panel.attitude.ball.children[0] as Mesh
+  const position = sky.geometry.attributes.position as BufferAttribute
+  const from = new Vector3().fromBufferAttribute(position, 0)
+  const to = new Vector3().fromBufferAttribute(position, position.count - 1)
+  return (from.y + to.y) / 2
+}
+
 function ballScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Quaternion): number {
   const eye = cameraTransformFor('cockpit', f6f, {
     position: state.position,
@@ -607,6 +629,43 @@ describe('the attitude ball (2026-09-15)', () => {
       }
     }
   })
+
+  it('scales its pitch deflection linearly below the clamp', () => {
+    // Fix round 1 (2026-09-15): "puts the horizon bar ON the true horizon"
+    // had no ball equivalent because the ball's pitch term isn't a literal
+    // projection of the true horizon -- but that left the deflection's
+    // MAGNITUDE pinned by nothing except an ordering check ("drops its
+    // horizon as the nose comes up") and a containment bound, both of which
+    // a halved, doubled, or saturating scale factor would still pass.
+    //
+    // What IS true of `attitudeBallGeometry`'s actual term,
+    // `-(pitchRad / (pi/6)) * DIAL_RADIUS * 0.8`, is that it is LINEAR in
+    // pitch below where the clamp engages (~37.5 degrees at zero bank, per
+    // the per-slot containment suite's own pitch sweep comment) -- doubling
+    // the pitch doubles the deflection, exactly, with no fitted constant
+    // this test has to know.
+    const p = createPanel(f6f, () => null)
+    const offsetAt = (pitchDeg: number): number => {
+      updatePanel(p, f6f, attitude(pitchDeg, 0), NEUTRAL_CONTROLS, () => null)
+      return ballLocalPitchOffset(p)
+    }
+    expect(offsetAt(20)).toBeCloseTo(2 * offsetAt(10), 6)
+  })
+
+  it('deflects by exactly 0.8 of DIAL_RADIUS at 30 degrees nose-up', () => {
+    // The linearity check above passes for ANY scale factor -- half, double,
+    // or the real 0.8 -- since it only pins the SHAPE of the response, not
+    // its size. This pins the size itself, at a pitch (30 degrees) still
+    // safely below the ~37.5-degree clamp, so a halved or doubled
+    // `attitudeBallGeometry` scale constant fails here even though it would
+    // pass every other test in this file.
+    const p = createPanel(f6f, () => null)
+    updatePanel(p, f6f, attitude(30, 0), NEUTRAL_CONTROLS, () => null)
+    // Negative: nose-up pitch deflects the chord toward -y in this local
+    // frame, the same direction "drops its horizon as the nose comes up"
+    // (above) checks the ordering of.
+    expect(ballLocalPitchOffset(p)).toBeCloseTo(-0.8 * DIAL_RADIUS, 6)
+  })
 })
 
 describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
@@ -894,6 +953,27 @@ describe('the two-band dashboard (2026-09-15)', () => {
     const box = new Box3().setFromObject(p.backing)
     const lowestBelowEye = PANEL_BELOW_M - box.min.y
     expect(degreesBelowEye(lowestBelowEye)).toBeGreaterThan(CAMERA_VFOV_DEG / 2)
+
+    // The coaming must actually cover the row it backs, not just clip past
+    // the bottom of the frame -- a deleted horizon-bar test (Task 7,
+    // 2026-09-15) checked this as a side effect of its own bar-specific
+    // z-ordering assertion; restored here on its own terms, since the
+    // property itself was never about the bar. This file's own WORLD Z axis
+    // is the panel's horizontal spread (the panel root is turned -90 degrees
+    // about Y, sending local x to world z), so comparing `backing`'s own box
+    // against every other instrument's on that axis is "wide enough to back
+    // the row it's behind". `p.tape.strip` is excluded the same way the FOV
+    // test above excludes it: its off-screen buffer copies are not content
+    // the coaming needs to cover.
+    p.root.updateMatrixWorld(true)
+    const rowBox = new Box3()
+    for (const child of p.root.children) {
+      if (child === p.backing || child === p.tape.strip) continue
+      rowBox.union(new Box3().setFromObject(child))
+    }
+    const backingBox = new Box3().setFromObject(p.backing)
+    expect(backingBox.min.z).toBeLessThanOrEqual(rowBox.min.z)
+    expect(backingBox.max.z).toBeGreaterThanOrEqual(rowBox.max.z)
   })
 
   it('draws nothing in the reserved radar and armament slots', () => {
@@ -926,7 +1006,7 @@ describe('the gunsight reticle (2026-09-15)', () => {
   it('sits on the boresight, at every attitude', () => {
     // A reflector sight is aimed where the guns point, so the reticle has to
     // land dead centre whatever the aeroplane is doing -- it is fixed to the
-    // airframe, not to the world like the horizon bar two tests above.
+    // airframe, not to the world like the attitude ball's own horizon chord.
     //
     // This is the assertion that a reticle parented correctly but positioned
     // on the PANEL FACE would fail: the panel sits PANEL_BELOW_M below the eye,

@@ -267,9 +267,17 @@ export const PANEL_BELOW_M = 0.19
  */
 const RETICLE_SPAN_DEG = 3
 const RETICLE_GAP_DEG = 1
-/** Nudged off the panel's z=0 datum (the dial faces' own plane) so it does
- *  not z-fight with them; `panel.test.ts` pins the sight's own screen
- *  position independently of this value, at every attitude. */
+/** At -0.004, this is FARTHER from the pilot than the dial faces (z = 0) and
+ *  the backing plate (`BACKING_Z` = -0.001), by this file's own "local +Z
+ *  points at the pilot" convention -- not "in front of" either, which is
+ *  what this comment used to claim back when it was framed around the
+ *  now-retired horizon bar. That ordering turns out to be moot: the reticle
+ *  spans only about 1.51 degrees either side of the eye line, and the
+ *  backing plate starts about 3.00 degrees below it (`HORIZON_KEEP_DEG`,
+ *  panelLayout.ts), so the two never share the same screen position and
+ *  which one is nominally "in front" never gets exercised. `panel.test.ts`
+ *  pins the sight's own screen position independently of this value, at
+ *  every attitude. */
 const RETICLE_Z = -0.004
 
 /** The coaming: an opaque plate giving the dashboard a hard lower edge
@@ -831,7 +839,7 @@ export function updatePanel(
   // about Y, sending local +Z to body -X), so a POSITIVE rotation about Z is
   // anticlockwise on screen; and in a right bank the true horizon appears
   // rotated anticlockwise. Both signs therefore go the same way, which is why
-  // `attitudeBallGeometry` below is built directly from `rollRad`, not
+  // the `attitudeBallGeometry` call below is given `rollRad` directly, not
   // `-rollRad`.
   //
   // Measured 2026-09-13, before this ball existed, on this same codebase's
