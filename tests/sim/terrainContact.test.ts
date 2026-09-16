@@ -106,3 +106,44 @@ describe('a recorded impact says what it was', () => {
     expect(w.impact!.surface).toBe(surfaceAt(w.impact!.groundHeightM))
   })
 })
+
+describe('the flight ends at the contact', () => {
+  it('stops stepping on the step that hits, not at the end of the frame', () => {
+    // Five steps are owed in one call; the plateau is one step away. Without
+    // the break, `advance` runs the remaining four and the airplane ends the
+    // frame buried far below the ground it hit.
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      level,
+    )
+    const result = advance({ ...start, terrain: plateau }, DT * 5)
+    expect(result.world.impact).not.toBeNull()
+    expect(result.stepsRun).toBeLessThan(5)
+    expect(result.world.aircraft.tick).toBe(result.world.impact!.tick)
+    expect(result.world.aircraft.position).toEqual(result.world.impact!.position)
+  })
+
+  it('renders exactly at the point of contact, at any interpolation factor', () => {
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      level,
+    )
+    const result = advance({ ...start, terrain: plateau }, DT * 5)
+    expect(result.world.previous).toEqual(result.world.aircraft)
+  })
+
+  it('runs no further steps once the flight has ended', () => {
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      level,
+    )
+    const ended = advance({ ...start, terrain: plateau }, DT * 5).world
+    const after = advance(ended, DT * 10)
+    expect(after.stepsRun).toBe(0)
+    expect(after.world.aircraft).toEqual(ended.aircraft)
+    expect(after.world.impact).toBe(ended.impact)
+  })
+})

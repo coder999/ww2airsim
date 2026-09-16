@@ -342,10 +342,19 @@ export function advance<M>(
       ? Math.min(elapsedSeconds, MAX_ELAPSED_SECONDS)
       : 0
 
+  // The flight is over: no further simulated time is owed, and nothing about
+  // this world can change again. Returning here rather than letting the loop
+  // below run zero times keeps `accumulatorSeconds` exactly as the ending
+  // frame left it, so a frozen world handed a thousand frames is bit-identical
+  // to one handed a single frame.
+  if (world.impact !== null) {
+    return { world, stepsRun: 0, droppedSteps: 0, alpha: world.accumulatorSeconds / DT }
+  }
+
   let banked = world.accumulatorSeconds + elapsed
   const owed = Math.floor(banked / DT + STEP_EPSILON)
-  const stepsRun = Math.min(owed, MAX_STEPS_PER_FRAME)
-  const droppedSteps = owed - stepsRun
+  const owedSteps = Math.min(owed, MAX_STEPS_PER_FRAME)
+  const droppedSteps = owed - owedSteps
 
   let current = world.aircraft
   let previous = world.previous
@@ -361,8 +370,12 @@ export function advance<M>(
   // `world.impact` inside the loop below, so the loop's own "impact === null"
   // check is testing this call's progress and not silently re-reading a
   // field that never changes underneath it.
-  let impact = world.impact
-  for (let i = 0; i < stepsRun; i++) {
+  let impact: Impact | null = world.impact
+  // Steps actually executed, as opposed to `owedSteps` above -- the two
+  // diverge exactly when the break below fires partway through the loop, and
+  // `AdvanceResult.stepsRun` documents itself as steps run, not steps owed.
+  let ran = 0
+  for (let i = 0; i < owedSteps; i++) {
     previous = current
     // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
     // once per `advance` call and not on `world.controls` directly. Hoisting
@@ -376,6 +389,7 @@ export function advance<M>(
     const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
     assistMemory = assisted.memory
     current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1 })
+    ran++
 
     // Checked after EVERY step in a multi-step frame, not just the loop's
     // last iteration -- a frame that owes several steps (a stalled tab,
@@ -407,6 +421,14 @@ export function advance<M>(
           surface,
           kind: contactOutcome(world.spec, current, surface),
         }
+        // Stop the frame here. Without this the loop runs its remaining owed
+        // steps and the airplane ends up well below the ground it just hit --
+        // the impact TICK would be right and the resting position wrong.
+        // `previous` follows `current` so the renderer interpolates to exactly
+        // the point of contact whatever `alpha` is, the same convention
+        // `createWorld` uses before any step has run.
+        previous = current
+        break
       }
     }
   }
@@ -427,7 +449,7 @@ export function advance<M>(
       impact,
       accumulatorSeconds: banked,
     },
-    stepsRun,
+    stepsRun: ran,
     droppedSteps,
     alpha: banked / DT,
   }
