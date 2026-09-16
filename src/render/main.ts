@@ -223,6 +223,10 @@ async function boot(): Promise<void> {
       // frame, and the spawn is where the airplane will be, so that is the
       // honest answer for the gap rather than the origin.
       aircraftPositionM: () => frame?.world.aircraft.position ?? spawnPosition,
+      // Same `??`-guard as the rest: before the first frame exists there is
+      // no impact to report, which is also the honest answer once a restart
+      // has cleared one.
+      impact: () => frame?.world.impact ?? null,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation

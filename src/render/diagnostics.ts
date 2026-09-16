@@ -4,6 +4,7 @@ import type { Controls } from '../sim/flight/state.js'
 import type { LookOffset } from '../input/lookAround.js'
 import type { AssistSettings } from '../assists/index.js'
 import type { Vec3 } from '../sim/math/vec3.js'
+import type { Impact } from '../sim/loop.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -82,6 +83,22 @@ export type Ww2Diagnostics = {
    * happened to interpolate while the simulation was stalled.
    */
   readonly aircraftPositionM: () => Vec3
+  /**
+   * `World.impact` for the current frame, or `null` if the flight has not
+   * ended yet. Added in Task 11 for the ground-contact plan's Tier 2
+   * coverage, which has to prove the whole production path -- `advance`
+   * classifying and freezing the world, `main.ts` noticing and raising the
+   * debrief -- rather than construct an `Impact` and skip most of it.
+   *
+   * A single granular getter, deliberately NOT `frame: () => FrameState`:
+   * every other member here reads one field (or a small derived one) off the
+   * current frame, never the frame itself, and a `frame()` getter would
+   * widen the whole Tier 2 surface to every field `FrameState` will ever
+   * carry for the sake of this one (binding ruling, Task 11). If a later
+   * task needs another field, it gets another getter here, the same way
+   * `groundHeightM` and `aircraftPositionM` did.
+   */
+  readonly impact: () => Impact | null
   /**
    * Frame intervals in milliseconds since the last `resetFrameTimes()`, in
    * order, capped at `FRAME_TIME_CAPACITY` samples.
