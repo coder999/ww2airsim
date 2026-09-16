@@ -694,7 +694,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 5 | 5 | Ocean | §4 | Complete |
 | 6a | 6 | Cockpit panel | §4 | Complete; [original handoff](../../handoff/2026-09-15-cockpit-panel.md), [cockpit/follow-view feedback](../../handoff/2026-09-15-cockpit-feedback.md) |
 | 10 | 7 — next | Ground and water contact, and crash response | §4, §5 | [Design](2026-09-16-ground-contact-design.md) written 2026-09-16; not started |
-| 11 | 8 | Gear, flaps and ground handling; take-off and landing ashore | §5 | Not started |
+| 11 | 8 | Gear, flaps and ground handling; take-off and landing ashore, **including the one runway to land on** | §4, §5 | Not started |
 | 12 | 9 | Entities, ships and airfields | §4 | Not started |
 | 14 | 10 | Mission map | §4, §8 | Not started |
 | 8 | 11 | Carrier and airfield operations | §4, §8 | Not started |
@@ -727,6 +727,29 @@ for it:
    touchdown, roll-out and brakes against something that is not itself
    moving, so that a landing defect in Plan 8 has one candidate cause and not
    two.
+
+**Plan 11 owns its own runway** (amended 2026-09-16, after Mark asked why
+landing waits for Plan 11 at all). As first written, Plan 11 landed "ashore"
+at order 8 while airfields sat in Plan 12 at order 9 — there was nowhere to
+land. A static prepared strip is not an entity: it does not move, carries no
+AI and needs nothing the entity system provides, so it has no business waiting
+on the plan that builds those. Plan 11 therefore lands one minimal runway on
+real ground, and Plan 12 keeps the full airfield content and the moving ships.
+Tacloban and Dulag were both real October 1944 Leyte airfields and both fall
+inside the committed terrain box — checked 2026-09-16 against
+`content/terrain/header.json`: Tacloban at local x −29,743 m, z +47,645 m and
+Dulag at x −29,524 m, z +16,698 m, against a 100,000 m half-extent. So the
+strip can sit where one historically did rather than somewhere invented.
+
+**Plans 10 and 11 are a pair, delivered back to back.** Plan 10 ends a flight;
+Plan 11 is what lets one continue. Between them the game can kill you and let
+you ditch, but not let you land and go again. That trough is accepted
+deliberately rather than closed by merging the two: a crash is a state
+transition and pure, while landing is a second physics regime — contact forces
+in `step`, terrain in `SimContext`, `assertNoEnergyGain` taught about contact,
+and the graded test cards revisited. Merged they would be one plan of 25-plus
+tasks, where a ground-reaction problem blocks a DOM dialog and the reverse;
+every completed plan here has run 6 to 15.
 
 Plan 14, the mission map, is deferred to here rather than built early
 (2026-09-16, Mark's suggestion and my recommendation to wait). Its entire
