@@ -694,13 +694,14 @@ happens next, and the **Plan** column for what a document means when it says
 | 5 | 5 | Ocean | §4 | Complete |
 | 6a | 6 | Cockpit panel | §4 | Complete; [original handoff](../../handoff/2026-09-15-cockpit-panel.md), [cockpit/follow-view feedback](../../handoff/2026-09-15-cockpit-feedback.md) |
 | 10 | 7 | Ground and water contact, and crash response | §4, §5 | Complete; [handoff](../../handoff/2026-09-16-plan10-contact.md) |
-| 11 | 8 — next | Gear, flaps and ground handling; take-off and landing ashore, **including the one runway to land on** | §4, §5 | Not started |
-| 12 | 9 | Entities, ships and airfields | §4 | Not started |
-| 14 | 10 | Mission map | §4, §8 | Not started |
-| 8 | 11 | Carrier and airfield operations | §4, §8 | Not started |
-| 6 | 12 | Combat and damage | §6 | Not started |
-| 7 | 13 | AI | §7 | Not started |
-| 9 | 14 | Meta-game | §8 | Not started |
+| 11a | 8 — next | Ground handling, gear and take-off; the runway to do it from | §4, §5 | Not started |
+| 11b | 9 | Flaps, approach and landing ashore | §5 | Not started |
+| 12 | 10 | Entities, ships and airfields | §4 | Not started |
+| 14 | 11 | Mission map | §4, §8 | Not started |
+| 8 | 12 | Carrier and airfield operations | §4, §8 | Not started |
+| 6 | 13 | Combat and damage | §6 | Not started |
+| 7 | 14 | AI | §7 | Not started |
+| 9 | 15 | Meta-game | §8 | Not started |
 | 13 | any | Terrain surface detail | §4 | Not started; render-only |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
@@ -744,6 +745,16 @@ re-derive it**: an equirectangular back-of-envelope lands about 80 m away, and
 two nearly-equal coordinates for one airfield is precisely the drift this
 document exists to prevent. So the strip can sit where one historically did
 rather than somewhere invented.
+
+**Plan 11 was split in two on 2026-09-16**, following Plan 6a's precedent, when
+its scope was read out in full: gear, flaps, ground physics, brakes, steering, a
+runway, take-off, landing and the touchdown-severity extension are several
+subsystems, not one. **11a gets the airplane off the ground; 11b gets it back
+on.** 11a is independently flyable and has an unusually good acceptance test
+waiting for it — `measureTakeoffRun` in `tools/testcards/measure.ts` currently
+FAKES the ground, pinning `position.y` and `velocity.y` to zero after every step
+because the model has none, so 11a can delete that fake and let the graded
+historical take-off card measure real ground physics.
 
 **Plans 10 and 11 are a pair, delivered back to back.** Plan 10 ends a flight;
 Plan 11 is what lets one continue. Between them the game can kill you and let
