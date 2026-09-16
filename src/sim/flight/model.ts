@@ -2,6 +2,7 @@ import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
+import { gearDragN } from '../ground.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -213,7 +214,9 @@ export function step(
   const cd = dragCoefficient(spec, cl, alpha)
 
   const liftN = q * spec.geometry.wingAreaM2 * cl
-  const dragN = q * spec.geometry.wingAreaM2 * cd
+  // Gear drag is parasitic and acts along the same direction as the rest of
+  // drag, so it is folded into this one scalar rather than a fourth force.
+  const dragN = q * spec.geometry.wingAreaM2 * cd + gearDragN(spec, state.gearFraction, q)
   const thrustN = thrustMagnitude(spec, state, controls.throttle)
 
   const vdir = v > 1e-6 ? normalize(state.velocity) : forward

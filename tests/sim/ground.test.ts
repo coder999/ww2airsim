@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gearAfter } from '../../src/sim/ground.js'
+import { gearAfter, gearDragN } from '../../src/sim/ground.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
@@ -39,5 +39,22 @@ describe('landing gear', () => {
     // Every other dt consumer in this codebase guards this; a NaN reaching
     // gearFraction would reach drag and from there the integrator.
     expect(gearAfter(f6f, 0.5, true, Number.NaN)).toBe(0.5)
+  })
+})
+
+describe('gear drag', () => {
+  it('is nothing with the gear up', () => {
+    expect(gearDragN(f6f, 0, 5000)).toBe(0)
+  })
+
+  it('scales with how far the gear has travelled', () => {
+    const half = gearDragN(f6f, 0.5, 5000)
+    const full = gearDragN(f6f, 1, 5000)
+    expect(half).toBeCloseTo(full / 2, 9)
+    expect(full).toBeGreaterThan(0)
+  })
+
+  it('scales with dynamic pressure, like every other drag term here', () => {
+    expect(gearDragN(f6f, 1, 10000)).toBeCloseTo(2 * gearDragN(f6f, 1, 5000), 9)
   })
 })
