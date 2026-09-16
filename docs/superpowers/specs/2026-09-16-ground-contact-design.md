@@ -119,7 +119,7 @@ too easy or impossible; it does not make anything incorrect.
 
 | Gate | Starting value | Why |
 | --- | --- | --- |
-| Bank | `|roll| <= 10°` | A wing tip in the water cartwheels; this is the gate that matters most |
+| Bank | `abs(roll) <= 10°` | A wing tip in the water cartwheels; this is the gate that matters most |
 | Sink rate | `velocity.y >= -3.0 m/s` | ~590 ft/min, a firm but survivable arrival |
 | Pitch | `-2° <= pitch <= +12°` | Tail-first, nose above the water |
 | Speed | `<= 1.2 * reference.stallSpeedMps` (52.6 m/s for the F6F) | Fast for a ditching, and honest: no flaps means no slower approach exists |
