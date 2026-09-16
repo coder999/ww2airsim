@@ -1,5 +1,5 @@
 /**
- * Where the aeroplane's content lives, as a path and as the URL the browser
+ * Where the airplane's content lives, as a path and as the URL the browser
  * fetches.
  *
  * One constant rather than two literals because `main.ts` fetches it at

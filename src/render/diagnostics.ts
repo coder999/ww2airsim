@@ -49,7 +49,7 @@ export type Ww2Diagnostics = {
    */
   readonly assists: () => AssistSettings
   /**
-   * Metres of ground under the aeroplane, or `null` if no terrain field has
+   * Metres of ground under the airplane, or `null` if no terrain field has
    * reached `World.terrain` yet.
    *
    * Added in Task 10 for one reason: that task loads a heightfield the
@@ -63,16 +63,16 @@ export type Ww2Diagnostics = {
    */
   readonly groundHeightM: () => number | null
   /**
-   * The aeroplane's simulated world position, metres (+x east, +y up,
+   * The airplane's simulated world position, metres (+x east, +y up,
    * +z north). Added in Task 11, and it does two jobs no other member here
    * can:
    *
-   * - **Proves the spawn landed.** Tier 2's terrain tests start the aeroplane
+   * - **Proves the spawn landed.** Tier 2's terrain tests start the airplane
    *   over Leyte with `?spawnX/Y/Z` (see `spawn.ts`). If that never took
-   *   effect the aeroplane is over open water, every terrain test reports an
+   *   effect the airplane is over open water, every terrain test reports an
    *   empty `validationErrors` list, and it passes for the wrong reason.
-   * - **Proves the aeroplane moved.** `tick()` advances whenever the fixed
-   *   step runs, which it does whether or not the aeroplane is going
+   * - **Proves the airplane moved.** `tick()` advances whenever the fixed
+   *   step runs, which it does whether or not the airplane is going
    *   anywhere; `groundHeightM()` is flat over a coastal plain. Neither can
    *   stand in for a position that changed.
    *

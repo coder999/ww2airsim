@@ -83,7 +83,7 @@ describe('AircraftSpec validation (spec §9)', () => {
 
   /**
    * Finding I6: Zod strips unknown keys by default, so before `.strict()` a
-   * misspelled key was silently dropped and the aeroplane flew on the value
+   * misspelled key was silently dropped and the airplane flew on the value
    * the author thought they had overridden. `"cdO"` next to a present `cd0`
    * is the exact case found -- it validated clean and vanished.
    */

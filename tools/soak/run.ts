@@ -148,7 +148,7 @@ function sameControls(a: Controls, b: Controls): boolean {
  * The pitch-authority invariant, checked on every step of the assisted arm --
  * the same claim `tests/assists/authoritySweep.test.ts` sweeps over constructed
  * states, checked here over states 60 Hz of `step()` actually produced. Neither
- * subsumes the other: the sweep can put the aeroplane anywhere, including
+ * subsumes the other: the sweep can put the airplane anywhere, including
  * places the flight model never reaches, while this only ever sees reachable
  * states but reaches them through minutes of real integration with the memory
  * threaded the way production threads it.
@@ -208,7 +208,7 @@ function assertAuthorityHolds(
 }
 
 /**
- * Randomized soak: throws the aeroplane around with violent, rapidly-changing
+ * Randomized soak: throws the airplane around with violent, rapidly-changing
  * control input across the full flight envelope this content file declares
  * (altitude 200 m-9,200 m, speed 30-230 m/s, an initial climb/sink rate up to
  * +-20 m/s and an initial sideslip up to +-20 m/s, and now a random spawn
@@ -223,7 +223,7 @@ function assertAuthorityHolds(
  * the brief's `60 * 60` -- that was a transcription error that would have run
  * 43.2M steps per flight (2,160M total) and blown the 30s vitest default
  * timeout by orders of magnitude. 60 outer iterations x 60 inner steps gives
- * 3,600 steps (one minute of simulated flight) per aeroplane, 720,000 steps
+ * 3,600 steps (one minute of simulated flight) per airplane, 720,000 steps
  * total across 200 iterations, before any early water landings.
  *
  * Ruling R29: no wind is passed to `stepChecked` -- it takes no wind
@@ -319,7 +319,7 @@ export function runSoak(
     try {
       let completedFull = true
       // The MEMORY is per flight, which is what matters and is now structural:
-      // a captured altitude belongs to one aeroplane, so carrying one across
+      // a captured altitude belongs to one airplane, so carrying one across
       // 200 spawns would drag a held altitude out of a dead flight into a
       // fresh one. The assist FUNCTION itself is stateless and could be built
       // once for the whole soak; it is built here only to keep the two
@@ -386,7 +386,7 @@ export type TerrainSoakResult = {
   /**
    * Flights that recorded an impact before their 60 simulated seconds ran
    * out. Reported separately from `failures` because "zero failures" is
-   * ambiguous on its own: a soak that never puts an aeroplane within reach of
+   * ambiguous on its own: a soak that never puts an airplane within reach of
    * the ground also reports zero failures, and would keep doing so forever
    * even if the impact check were silently broken (`tests/sim/soak.test.ts`'s
    * floor on this field is what tells the two apart).
@@ -420,7 +420,7 @@ export type TerrainSoakResult = {
  *
  * Per-tick, after `advance`, the invariant is checked from OUTSIDE `advance`'s
  * own state: `heightAt(terrain, ...)` is recomputed independently against the
- * position `advance` just produced, and if that says the aeroplane is at or
+ * position `advance` just produced, and if that says the airplane is at or
  * below the ground, `world.impact` must already be non-null (`advance` runs
  * its own identical check first, in the same call, so a correct
  * implementation can never observe otherwise -- this is the same

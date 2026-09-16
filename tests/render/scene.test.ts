@@ -77,13 +77,13 @@ describe('markers', () => {
   it('follows the eye, snapped to its own spacing so the pattern stays world-locked', () => {
     // The sky was re-centred from Task 12 and the water from I-1; the markers
     // are the third member of that family and were missed both times. At the
-    // spawn's 120 m/s the aeroplane left the old fixed patch sideways in 17
+    // spawn's 120 m/s the airplane left the old fixed patch sideways in 17
     // seconds, after which there was no scale reference at all -- invisible
     // over featureless water, which is why flying it did not catch this.
     const m = createMarkers()
     recentreMarkers(m, 4400, -1600)
     // Snapped, not tracked: an unsnapped translation would drag every marker
-    // along with the aeroplane and remove the parallax they exist to give.
+    // along with the airplane and remove the parallax they exist to give.
     expect(m.position.x).toBe(4000)
     expect(m.position.z).toBe(-2000)
     expect(m.position.y).toBe(0)
@@ -188,7 +188,7 @@ describe('lighting', () => {
   it('parents the sun target with the sun, so camera-relative translation cannot bend it', () => {
     // A DirectionalLight points from its position to its target. The frame
     // loop translates the whole scene by -eye; a target left at the world
-    // origin would then swing the sun around as the aeroplane moves.
+    // origin would then swing the sun around as the airplane moves.
     const l = createLighting()
     const sun = l.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
     expect(sun).toBeDefined()
@@ -198,7 +198,7 @@ describe('lighting', () => {
   it('includes a hemisphere light as bounce fill', () => {
     // Every material in the scene (water.ts, markers.ts, hellcat.ts) is a lit
     // MeshStandardMaterial: with only the directional sun, the shadowed side
-    // of the aeroplane renders flat black and nothing headless would ever
+    // of the airplane renders flat black and nothing headless would ever
     // show that. Without this assertion, deleting the HemisphereLight left
     // every other test in this suite green (Task 12 review finding).
     const l = createLighting()

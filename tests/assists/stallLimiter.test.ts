@@ -180,7 +180,7 @@ describe('stall limiter (Plan 3 Task 3)', () => {
     // An implementation that divided by `maxPitchRateDegPerSec` alone -- a
     // plausible wrong one, and conservative rather than dangerous, so nothing
     // else in this file catches it -- would report 11.0 at both speeds and
-    // make the aeroplane blunt exactly where the wing needs to be used.
+    // make the airplane blunt exactly where the wing needs to be used.
     const slow = fly(70, 10, true, FULL_BACK)
     const fast = fly(130, 10, true, FULL_BACK)
     expect(slow.firstLimitedAtDeg).toBeCloseTo(13.74, 1)
@@ -197,7 +197,7 @@ describe('stall limiter (Plan 3 Task 3)', () => {
     //
     // The COMMAND REVERSAL is what this test is really pinning, not the
     // recovery: this model drops the nose at the stall by itself (the wing-drop
-    // and the lift-curve collapse), so an unassisted aeroplane recovers from
+    // and the lift-curve collapse), so an unassisted airplane recovers from
     // this entry too, only later. A test that asserted recovery alone would
     // pass with the limiter deleted.
     const stalled = createState({

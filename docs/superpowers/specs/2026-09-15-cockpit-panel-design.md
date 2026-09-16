@@ -5,7 +5,7 @@ for final decisions, verification, and screenshots. The design discussion below
 is retained as history; its open questions are resolved in the handoff.
 
 **Goal:** Turn the instrument panel from a strip floating in the middle of the
-frame into a dashboard that reads as part of the aeroplane, carrying the
+frame into a dashboard that reads as part of the airplane, carrying the
 instruments the flight model can honestly drive — and holding space for the
 ones Plan 6 will earn.
 

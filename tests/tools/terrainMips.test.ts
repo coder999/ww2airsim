@@ -56,7 +56,7 @@ describe('the terrain header', () => {
   it('rejects a header whose level count disagrees with its grid', () => {
     // Schema validation at the boundary is a correctness requirement here, not
     // hygiene: master spec S9's point is that malformed content does not
-    // throw, it produces a NaN that teleports the aeroplane.
+    // throw, it produces a NaN that teleports the airplane.
     expect(() =>
       parseTerrainHeader({
         centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,

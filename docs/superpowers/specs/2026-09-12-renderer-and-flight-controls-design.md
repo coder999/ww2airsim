@@ -21,7 +21,7 @@ during design and are called out where they appear: procedural water detail
 
 Plan 1 validated the flight model against cited trial figures and never once
 flew it. Every number agrees with a 1944 Patuxent River report; nobody knows
-whether it *feels* like an aeroplane. That is the question this plan answers,
+whether it *feels* like an airplane. That is the question this plan answers,
 and it is why the deliverable is flyable rather than a watch-only demo.
 
 ### Non-goals
@@ -45,7 +45,7 @@ version of this table by one and leaving it silently wrong for two days.
 | Continuous mouse-look | later — see §6 (deferred 2026-09-12) |
 | Input assists (rate damping, auto-rudder, stall limiter, combat trim) | **Built** — shipped as Plan 3, 2026-09-13; see `2026-09-13-assists-design.md` |
 | Screenshot goldens | later — see §8 |
-| Sim on a worker thread | Combat, when many aeroplanes make it pay — master spec §15; see §9 |
+| Sim on a worker thread | Combat, when many airplanes make it pay — master spec §15; see §9 |
 
 ## 2. Spike findings, 2026-09-12
 
@@ -385,7 +385,7 @@ emitting validation errors — which are exactly the ones a human would never
 notice.
 
 **Tier 3 is you, once**, answering a question no assertion can: does it feel
-like an aeroplane.
+like an airplane.
 
 ## 9. Failure modes
 
@@ -425,7 +425,7 @@ a rewrite. Plan 5 is the plan that should revisit it.
    not represent. Actual GPU textures agree with the CPU oracle at N=64,
    128 and 256; see the ocean compute follow-up below.
 2. **Keyboard ramp time constant** — a named value, expected to change once the
-   aeroplane has been flown.
+   airplane has been flown.
 3. **Eye point** — needs a plausible value for the F6F; no primary source is
    required for a number that exists to make a camera sit somewhere sensible.
 4. **Gauge legibility at 1440p** — the first thing to check in Tier 3, and the
@@ -504,7 +504,7 @@ a rewrite. Plan 5 is the plan that should revisit it.
    was wrong.
 
    Left open in a narrower form as item 10, which is what a reader chasing
-   "sideslip makes the aeroplane stall early" should read next.
+   "sideslip makes the airplane stall early" should read next.
 
 9. **`weathercockSeconds = 1.5` is a guess, and a primary source exists that
    probably contradicts it** — found 2026-09-13, an hour after the constant was

@@ -105,7 +105,7 @@ const gpuFrameTimesMs: number[] = []
  *  is a separate mesh); it confirms throttle reaches the frame state, not
  *  that it reaches the simulation -- a bug that stopped `frame.controls` from
  *  reaching `advance` would leave the prop spinning at the correct rate with
- *  nothing driving the aeroplane (Task 13 review, measured 2026-09-13). It is
+ *  nothing driving the airplane (Task 13 review, measured 2026-09-13). It is
  *  not a claim about real RPM and never appears on the instrument panel. */
 const PROP_MAX_RAD_PER_SEC = 40
 
@@ -207,9 +207,9 @@ async function boot(): Promise<void> {
       // from outside: the heightfield the physics can hit arrives over the
       // network and changes nothing on screen -- the terrain is drawn from
       // the mesh's own textures either way, so a `World.terrain` left null
-      // looks identical and merely means the aeroplane flies through the
+      // looks identical and merely means the airplane flies through the
       // mountains it can see. `null` here means no field has arrived (or
-      // none was wired); a number is the ground under the aeroplane right
+      // none was wired); a number is the ground under the airplane right
       // now, which should read 0 over open water and hundreds of metres over
       // Leyte.
       groundHeightM: () =>
@@ -217,7 +217,7 @@ async function boot(): Promise<void> {
           ? heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
           : null,
       // Same `??`-guard as the rest: before `loadSpec` resolves there is no
-      // frame, and the spawn is where the aeroplane will be, so that is the
+      // frame, and the spawn is where the airplane will be, so that is the
       // honest answer for the gap rather than the origin.
       aircraftPositionM: () => frame?.world.aircraft.position ?? spawnPosition,
       frameTimesMs: () => frameTimesMs.slice(),
@@ -364,7 +364,7 @@ async function boot(): Promise<void> {
   // 120 m/s, wings level, heading east (+x; the body frame's nose is +X and
   // this attitude is identity). The POSITION is `DEFAULT_SPAWN_POSITION`
   // unless a DEV build was handed `?spawnX/Y/Z` -- see `spawn.ts` for why a
-  // URL may move the aeroplane and why it cannot in anything that ships.
+  // URL may move the airplane and why it cannot in anything that ships.
   const initialAircraft = createState({
     position: spawnPosition,
     velocity: v3(120, 0, 0),
@@ -416,7 +416,7 @@ async function boot(): Promise<void> {
   })
   // A keyup that fires while the tab is unfocused is never delivered to this
   // page, so a key held at the moment focus is lost would otherwise stay
-  // "down" forever -- the aeroplane keeps pitching after the window loses focus.
+  // "down" forever -- the airplane keeps pitching after the window loses focus.
   window.addEventListener('blur', () => {
     pressed.clear()
     pendingCameraCycle = false
@@ -424,7 +424,7 @@ async function boot(): Promise<void> {
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
   // stepChecked runs Plan 1's invariants every tick in development, turning
-  // "the aeroplane teleported" into "a NaN entered at tick 4,102"; step is
+  // "the airplane teleported" into "a NaN entered at tick 4,102"; step is
   // the production path with no per-step assertion cost.
   const stepper = import.meta.env.DEV ? stepChecked : step
 
@@ -541,7 +541,7 @@ async function boot(): Promise<void> {
 
     // The water gets the same treatment, and did not until the whole-branch
     // review (I-1): left at the world origin it slid out from under the
-    // aeroplane, and at the spawn's 120 m/s its old half-extent was spent in
+    // airplane, and at the spawn's 120 m/s its old half-extent was spent in
     // under three minutes. Its depth lookup stays anchored in world space.
     recentreOcean(water, current.eye.position.x, current.eye.position.z, current.eye.position.y)
 
@@ -613,14 +613,14 @@ async function boot(): Promise<void> {
   // L8 down to L4, the only levels any ring can sample (`coarsestFetchedLevel`
   // in lod.ts; it said "nine" until 2026-09-14, left over from before review
   // round 1 stopped fetching L9-L12 that nothing could draw) -- and
-  // the aeroplane is flyable before any of it lands (the mesh draws nothing
+  // the airplane is flyable before any of it lands (the mesh draws nothing
   // until a level arrives -- mesh.ts). Each level lands in its own texture,
   // coarsest first.
   //
   // One consequence worth knowing when watching it load: the rings are drawn
   // from the level they match, and the near rings all read L4, which is 526
   // of those 702 KB and lands LAST. So the far field appears first and the
-  // ground under the aeroplane fills in at the end -- the opposite order to
+  // ground under the airplane fills in at the end -- the opposite order to
   // what "coarse first" suggests, and correct: there is no coarser level a
   // near ring could legitimately draw that its neighbours would agree with.
   //

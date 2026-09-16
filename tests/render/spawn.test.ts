@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { DEFAULT_SPAWN_POSITION, SPAWN_PARAMS, spawnPositionFromQuery } from '../../src/render/spawn.js'
 
 /**
- * `spawn.ts` exists only so Tier 2 can start the aeroplane over Leyte (see
+ * `spawn.ts` exists only so Tier 2 can start the airplane over Leyte (see
  * that file's doc comment). It is tested here rather than only on the GPU for
  * the obvious reason -- it is pure -- and for a less obvious one: a bug here
  * does not make the Tier 2 terrain tests FAIL, it makes them pass while flying
@@ -52,7 +52,7 @@ describe('spawnPositionFromQuery', () => {
   })
 
   it('throws on a present-but-unparseable coordinate rather than falling back', () => {
-    // The whole point: a silent fallback puts the aeroplane back over open
+    // The whole point: a silent fallback puts the airplane back over open
     // water, where a terrain test reports zero validation errors because it
     // never saw any terrain.
     for (const bad of ['', ' ', 'abc', 'NaN', 'Infinity', '1,5']) {

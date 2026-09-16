@@ -61,7 +61,7 @@ describe('the local tangent plane', () => {
 
   it('never returns NaN, including at the antipode and for junk input', () => {
     // A NaN here becomes a NaN height, which master spec S9 says silently
-    // teleports the aeroplane out of the world.
+    // teleports the airplane out of the world.
     for (const [lat, lon] of [[-WORLD_CENTRE.latDeg, WORLD_CENTRE.lonDeg + 180], [90, 0], [-90, 0]] as const) {
       const p = toLocal(lat, lon)
       expect(Number.isFinite(p.x) && Number.isFinite(p.z)).toBe(true)

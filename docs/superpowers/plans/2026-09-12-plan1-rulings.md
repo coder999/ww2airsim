@@ -374,7 +374,7 @@ Ruling R35 (brief-text deviations, the spec ❌): All stand. holdLevelFlight,
 stepChecked over step, the 0-40 degree sweep, the 0.001 convergence cutoff and the
 1 s climb window each deviate from the brief and each is disclosed and backed by a
 measurement. The decisive one is the altitude pin: the brief pins position.y in the
-top-speed and stall cards, which does not stop the aeroplane descending, it stops
+top-speed and stall cards, which does not stop the airplane descending, it stops
 the descent costing anything — measured, that fabricates 5.7% of top speed
 (182.34 vs 172.46 m/s), larger than the model's whole error on the card. A brief
 that produces a knowingly wrong measurement does not outrank a harness that

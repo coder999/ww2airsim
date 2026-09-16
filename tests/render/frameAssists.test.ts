@@ -126,8 +126,8 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     // defects: no assist passed to `advance` at all, and an assist memory
     // that is not threaded from frame to frame. The second one matters -- a
     // world rebuilt each frame from `NOT_HOLDING`
-    // re-captures the aeroplane's current altitude every frame, so the target
-    // can never disagree with where the aeroplane already is and the hold is
+    // re-captures the airplane's current altitude every frame, so the target
+    // can never disagree with where the airplane already is and the hold is
     // silently a no-op (`nextAltitudeHoldMemory`'s own doc comment names this
     // failure). Measured 2026-09-13: 81.1 m of drift with the assist off, 3.3 m
     // with it on, over the same 60 s at full throttle from 2000 m.
@@ -150,7 +150,7 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     expect(on.worst, 'with the assist on it must hold').toBeLessThan(15)
 
     // The memory is pinned at the altitude captured on the FIRST centred step,
-    // not re-captured as the aeroplane moves: the aeroplane has flown 62 s and
+    // not re-captured as the airplane moves: the airplane has flown 62 s and
     // over 8 km by here, so a re-capturing implementation would show its
     // current altitude instead of the spawn's exact 2000.
     expect(on.final.world.assistMemory.heldAltitudeM).toBe(2000)
@@ -214,7 +214,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     // The flag test above would pass if `assists` were a decoration nothing
     // read. This flies the identical 8 s of full back stick from the shipped
     // defaults, once as-is and once after a single tap of KeyL, and requires
-    // the aeroplane to behave differently: 12.42 degrees of peak alpha with
+    // the airplane to behave differently: 12.42 degrees of peak alpha with
     // the limiter on, 15.93 -- past the 15.5-degree boundary -- with it toggled
     // off (measured 2026-09-13). Same spawn, same keys, same duration; the tap
     // is the only difference.
@@ -225,7 +225,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     expect(toggledOff, 'KeyL did not reach the simulation').toBeGreaterThan(CRIT_DEG)
   })
 
-  it('turning altitude hold off forgets the captured altitude; turning it back on captures where the aeroplane is now', () => {
+  it('turning altitude hold off forgets the captured altitude; turning it back on captures where the airplane is now', () => {
     // Switched off has to mean forgotten. Otherwise a pilot who turns the
     // assist off at 2000 m, descends a kilometre with the stick centred (so
     // nothing ever clears the memory) and turns it back on gets an immediate
@@ -249,7 +249,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     expect(switchedOn.assists.altitudeHold).toBe(true)
     const held = switchedOn.world.assistMemory.heldAltitudeM
     expect(held, 're-enabling must capture, not resume').not.toBeNull()
-    // Within a few metres of where the aeroplane actually is, and nowhere near
+    // Within a few metres of where the airplane actually is, and nowhere near
     // the 2000 m it left -- and it must then HOLD that new altitude, which is
     // what tells a real re-capture from a memory that merely got zeroed.
     expect(Math.abs(held! - nowM)).toBeLessThan(20)
@@ -260,7 +260,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
 
 describe('the engine-off default (2026-09-15)', () => {
   it('descends with the throttle closed, rather than holding altitude forever', () => {
-    // Mark flew the page-load state on 2026-09-15 and reported an aeroplane
+    // Mark flew the page-load state on 2026-09-15 and reported an airplane
     // that "seems like it would fly forever" with the engine off. It was not a
     // physics fault: `altitudeHold` defaulted ON, so the hold traded speed for
     // altitude while the stall limiter kept it from departing, and the two
@@ -274,7 +274,7 @@ describe('the engine-off default (2026-09-15)', () => {
     // between them at 50 m, a 48x margin over the held case and comfortably
     // under the gliding one, so it reads as "descends at all" rather than as a
     // tuned number that would need revisiting whenever drag changes. It is not
-    // a glide-performance assertion: the aeroplane is not trimmed for best
+    // a glide-performance assertion: the airplane is not trimmed for best
     // glide and nothing here claims a lift-to-drag ratio.
     const startAltitude = 2000
     const after = fly(start(DEFAULT_ASSIST_SETTINGS, 130, startAltitude), 30, keys())

@@ -27,7 +27,7 @@ visual comparisons and the remaining art-direction questions.
 
 Ground contact, take-off and landing, ships and airfields, combat, AI and the
 meta-game all remain ahead. Mark reordered them on 2026-09-16 so that the
-ground under the aeroplane comes before there is anybody to shoot at; plan
+ground under the airplane comes before there is anybody to shoot at; plan
 numbers were deliberately NOT reused, for the reason the next paragraph
 records. **Master spec §15 holds the order and the argument for it**, and this
 paragraph does not restate either.
@@ -240,7 +240,7 @@ the adapter test fails, read its printed summary before anything else — it is
 almost always telling you the browser fell back to a software rasterizer, not
 that anything else is wrong.
 
-**Flying somewhere specific.** The aeroplane spawns over open water 23 km from
+**Flying somewhere specific.** The airplane spawns over open water 23 km from
 the nearest land, which is three minutes' flying. `?spawnX=&spawnY=&spawnZ=`
 moves it (`src/render/spawn.ts`); the parameters exist in DEV only and
 `tests/build/dist.test.ts` asserts they are absent from a production bundle.

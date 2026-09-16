@@ -82,7 +82,7 @@ const COARSEST_FETCHED_LEVEL = coarsestFetchedLevel(TERRAIN_HEADER.levels)
  * blurry, it is a heightfield whose peaks have been averaged DOWN and whose
  * valleys have been averaged UP. `advance` records the first impact and never
  * overwrites it (loop.ts's `impact` field), so a coarse field that puts
- * ground above the aeroplane for half a second would stick a crash on the
+ * ground above the airplane for half a second would stick a crash on the
  * flight permanently. The mesh can afford a wrong-but-improving surface; the
  * physics cannot. It is also the level `tests/sim/soak.test.ts` and
  * `tests/sim/terrainContact.test.ts` already exercise
@@ -106,7 +106,7 @@ export function physicsFieldFor(level: number, data: Int16Array): TerrainField |
  * This is three lines and it lives here rather than inline in `main.ts`
  * because of what those three lines are. Until 2026-09-14 the physics half was
  * simply missing -- `World.terrain` stayed null for the life of the process
- * and the aeroplane flew through the mountains it could see. Reverting the fix
+ * and the airplane flew through the mountains it could see. Reverting the fix
  * left all 536 tests green, because the call site was inside a callback inside
  * `boot()`, which nothing headless can reach; the only thing that caught it was
  * `groundHeightM()` read off a real GPU. A regression hole that can only be
@@ -139,10 +139,10 @@ export function applyTerrainLevel(
  * Coarsest first is the whole point: the coarse levels are tiny (L8 is 2,178
  * bytes, L7 8,450) so the far field has its shape almost immediately, and
  * each finer level lands in its own texture for the rings that read it
- * (design §10, "the aeroplane flies over recognisable terrain within ~100
+ * (design §10, "the airplane flies over recognisable terrain within ~100
  * KB" -- L8..L6 together are 43,910 bytes). L4, the finest, is 526,338 of the
  * 702,346 bytes fetched and arrives last, which is why the ground near the
- * aeroplane fills in after the horizon does.
+ * airplane fills in after the horizon does.
  *
  * Sequentially rather than in parallel, awaiting each: the ordering above is
  * the requirement, and five concurrent fetches resolving in arrival order
@@ -150,7 +150,7 @@ export function applyTerrainLevel(
  * coarse level would win, permanently, and look exactly like a mip selection
  * bug. The cost is five round-trips instead of one.
  *
- * A level that will not load throws. Carrying on would leave the aeroplane
+ * A level that will not load throws. Carrying on would leave the airplane
  * over a sea with no islands in it, which is indistinguishable from the
  * game working (spec §9).
  */

@@ -27,7 +27,7 @@ http://localhost:5173/?spawnX=-73000&spawnY=3000&spawnZ=23828
 
 `?spawnX/spawnY/spawnZ` are world metres and exist in DEV builds only
 (`src/render/spawn.ts`; `tests/build/dist.test.ts` asserts they are absent from
-a production bundle). Without them the aeroplane starts over open water 23 km
+a production bundle). Without them the airplane starts over open water 23 km
 from the nearest land, which is three minutes of flying before you see
 anything.
 
@@ -153,7 +153,7 @@ haze.)
 
 **In the browser, the first table does not apply to rings 0–3.** L0–L3 are not
 shipped, so those rings clamp both mip taps to L4 — and the physics is handed
-L4 as well. Near the aeroplane, what you see and what you hit are the same
+L4 as well. Near the airplane, what you see and what you hit are the same
 level; the two only part company from ring 4 outward. What they are *jointly*
 wrong about is the source data: worst |L0 − L4| over all 8193² samples is
 **220.862 m**, at `(-78027, 80664)`, measured 2026-09-14 and pinned in
@@ -200,7 +200,7 @@ constant applied in **two** places, and applying it in one is the hazard design
   inside `heightAt`, i.e. the surface you *hit*.
 
 Two call sites, one number, and a test that they are the same number. An
-exaggeration applied only to the mesh would draw mountains the aeroplane flies
+exaggeration applied only to the mesh would draw mountains the airplane flies
 straight through.
 
 ---

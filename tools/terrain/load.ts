@@ -72,7 +72,7 @@ export function loadTerrainHeader(): TerrainHeader {
  * The file's length is checked against the header rather than trusted: a
  * truncated or stale level would otherwise be read as a valid grid of the
  * wrong size and silently misindexed, which is spec §9's "fail loudly"
- * case -- the terrain equivalent of the NaN that teleports the aeroplane.
+ * case -- the terrain equivalent of the NaN that teleports the airplane.
  */
 export function loadTerrainLevel(level: number, header: TerrainHeader = loadTerrainHeader()): Int16Array {
   if (!Number.isInteger(level) || level < 0 || level >= header.levels) {

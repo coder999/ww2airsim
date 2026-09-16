@@ -294,7 +294,7 @@ out of the physics. There is no per-aircraft special-case code.
 Between `input/` and `sim/`, never inside either. Each independently
 switchable: rate damping, auto-rudder coordination, stall limiter, combat trim.
 The protective assists default on. Altitude hold (Plan 3's implementation of
-combat trim) defaults OFF since 2026-09-15: it does not protect the aeroplane,
+combat trim) defaults OFF since 2026-09-15: it does not protect the airplane,
 it flies it somewhere, and with the engine closed it held altitude instead of
 gliding. `src/assists/index.ts` carries the reasoning and
 `tests/render/frameAssists.test.ts` pins the behaviour.
@@ -679,7 +679,7 @@ plans are actually numbered.
 
 A plan number is an **identity, not a position**. Numbers 1-9 were handed out
 in the order anyone then expected to build them, and on 2026-09-16 Mark changed
-that order: the ground under the aeroplane, and getting off and back onto it,
+that order: the ground under the airplane, and getting off and back onto it,
 come before there is anybody to shoot at. Nothing was renumbered, because the
 paragraphs above are what renumbering costs. Read the **Order** column for what
 happens next, and the **Plan** column for what a document means when it says
@@ -704,7 +704,7 @@ happens next, and the **Plan** column for what a document means when it says
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
 `Impact` and deliberately stops there, and the sea is a picture rather than a
-surface, so the aeroplane presently flies through both (`src/sim/loop.ts`).
+surface, so the airplane presently flies through both (`src/sim/loop.ts`).
 Landing, ditching, damage and strafing all read that outcome.
 
 Three couplings decide the rest of the order, and they are the whole argument
@@ -714,14 +714,14 @@ for it:
    Plan 11 adds gear, flaps, rolling friction and ground effect, which the
    aircraft spec records as absent today (`src/sim/flight/schema.ts`, the
    comment on `takeoffDistanceM`). Gunnery, energy tactics and AI are all
-   tuned against how the aeroplane flies, so building them first buys a
+   tuned against how the airplane flies, so building them first buys a
    re-tune and a fresh golden trajectory.
 2. **The single-entity `World` has three consumers, not one.** Enemy
    aircraft, projectiles and a sailing carrier all need it. `World.controls`
    in `src/sim/loop.ts` currently assigns that generalisation to the combat
-   plan; Plan 12 takes it instead, because a shape derived from aeroplanes
+   plan; Plan 12 takes it instead, because a shape derived from airplanes
    alone would have to be bent afterwards to carry a moving deck, which is a
-   reference frame rather than another aeroplane.
+   reference frame rather than another airplane.
 3. **A fixed runway precedes a moving deck.** Plan 11 settles flare,
    touchdown, roll-out and brakes against something that is not itself
    moving, so that a landing defect in Plan 8 has one candidate cause and not

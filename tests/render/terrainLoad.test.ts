@@ -112,7 +112,7 @@ describe('terrain decoding', () => {
 
   it('treats a level that will not load as a failure, not as flat ground', async () => {
     const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, statusText: 'Not Found' }) as Response)
-    // Silently carrying on leaves the aeroplane over an empty sea that looks
+    // Silently carrying on leaves the airplane over an empty sea that looks
     // exactly like the game working -- spec §9's "fail loudly" case.
     await expect(
       loadTerrainProgressively(() => {}, fetchImpl as unknown as typeof fetch),
@@ -198,7 +198,7 @@ describe('terrain mesh', () => {
 
   it('winds its triangles to face up, so the ground is not inside out', () => {
     // Backface culling is on (FrontSide is three's default), and a grid wound
-    // the other way renders nothing at all from an aeroplane. Nothing else in
+    // the other way renders nothing at all from an airplane. Nothing else in
     // this task can see that headless.
     const mesh = createTerrainMesh(TERRAIN_HEADER)
     const geometry = (mesh.object.children[0] as Mesh).geometry as BufferGeometry
@@ -269,7 +269,7 @@ describe('terrain mesh', () => {
   it('tells the shader where the camera is', () => {
     // The sink and the fog are both distances FROM THE CAMERA, so a uniform
     // left unwritten bowls and hazes the world around (0, 0) forever no
-    // matter where the aeroplane goes -- and every other test here stays
+    // matter where the airplane goes -- and every other test here stays
     // green (review 2026-09-14, I3). `shaderCameraXZ` returns the uniform's
     // own value object, so this cannot pass against a mesh that updates a
     // copy.
@@ -282,7 +282,7 @@ describe('terrain mesh', () => {
   it('reads the finest level it has for any ring finer than that level', () => {
     // Rings 0-3 want mips 0-3, which no clone has (see the fetch test above).
     // Clamping BOTH taps to the finest level held makes the morph blend a
-    // no-op there rather than blending the ground under the aeroplane toward
+    // no-op there rather than blending the ground under the airplane toward
     // a coarser level than the one it could have had.
     const coarsest = TERRAIN_HEADER.levels - 1
     expect(sampleLevelsForRing(0, FINEST_FETCHED_LEVEL, coarsest)).toEqual({
@@ -347,7 +347,7 @@ describe('load/mesh coupling', () => {
   })
 })
 
-describe('terrain under the aeroplane', () => {
+describe('terrain under the airplane', () => {
   const f6f = loadAircraftSpec('f6f-hellcat')
   const frameAt = (x: number, z: number) =>
     initialFrameState(f6f, createState({ position: v3(x, 3000, z), velocity: v3(120, 0, 0) }))
@@ -355,7 +355,7 @@ describe('terrain under the aeroplane', () => {
   it('hands the physics the finest level, and only that one', () => {
     // Levels land coarsest-first and a coarse level is not merely blurry:
     // `mips.ts` averages peaks DOWN and valleys UP, so it can put ground
-    // above an aeroplane that is genuinely in clear air -- and `advance`
+    // above an airplane that is genuinely in clear air -- and `advance`
     // never overwrites the first impact it records. The mesh can afford a
     // wrong-but-improving surface; the physics cannot.
     const coarse = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL + 1)
@@ -367,7 +367,7 @@ describe('terrain under the aeroplane', () => {
     expect(field?.samples).toBe(n)
   })
 
-  it('puts the ground the browser decoded under the aeroplane, at the height Node reads', () => {
+  it('puts the ground the browser decoded under the airplane, at the height Node reads', () => {
     // End to end over the REAL committed bytes: fetch-and-decode (the browser
     // path) must produce the same ground as `tools/terrain/load.ts` (the path
     // every sim test measures against). A wrong level, a byte-order slip or a
@@ -375,7 +375,7 @@ describe('terrain under the aeroplane', () => {
     //
     // Until 2026-09-14 `World.terrain` was null for the life of the app: the
     // decoded levels went to the mesh and nowhere else, so master spec §11's
-    // impact invariant was vacuous in the thing that ships and the aeroplane
+    // impact invariant was vacuous in the thing that ships and the airplane
     // flew through the mountains it could see (review, promoted to I4).
     const level = FINEST_FETCHED_LEVEL
     const n = samplesAtLevel(TERRAIN_HEADER, level)
@@ -401,7 +401,7 @@ describe('terrain under the aeroplane', () => {
     // `main.ts`'s terrain callback, with the renderer taken out of it. The
     // body used to live inline inside `boot()`, where nothing headless could
     // reach it: deleting the physics half left all 536 tests green and the
-    // aeroplane flying through the mountains it could see, and only
+    // airplane flying through the mountains it could see, and only
     // `groundHeightM()` on a real GPU noticed. This is that call site, as a
     // function, asserted.
     const seen: Array<{ level: number; data: Int16Array }> = []

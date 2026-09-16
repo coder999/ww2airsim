@@ -88,7 +88,7 @@ describe('nextAltitudeHoldMemory', () => {
     // centred tick. A wrong implementation that captures unconditionally
     // (`{ heldAltitudeM: state.position.y }` every time, regardless of
     // whether something is already held) would make the target silently
-    // track the aeroplane and this assertion would fail at the second call.
+    // track the airplane and this assertion would fail at the second call.
     const raw: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
     const first = nextAltitudeHoldMemory(level(2500, 130), raw, NOT_HOLDING)
     const second = nextAltitudeHoldMemory(level(2600, 130), raw, first)
@@ -101,7 +101,7 @@ describe('nextAltitudeHoldMemory', () => {
     expect(cleared).toEqual(NOT_HOLDING)
   })
 
-  it('re-captures wherever the aeroplane ends up after a manoeuvre, not the pre-manoeuvre altitude', () => {
+  it('re-captures wherever the airplane ends up after a manoeuvre, not the pre-manoeuvre altitude', () => {
     const raw: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
     const captured = nextAltitudeHoldMemory(level(2000, 130), raw, NOT_HOLDING)
     expect(captured).toEqual({ heldAltitudeM: 2000 })
@@ -130,7 +130,7 @@ describe('altitudeHold (Plan 3 Task 4)', () => {
   it('yields instantly to pilot pitch input, even with an altitude already captured', () => {
     // The direct proof that "yield" is this function's OWN guarantee, not
     // something that only holds if a caller's memory bookkeeping happens to
-    // be consistent: hand it a captured altitude nowhere near the aeroplane's
+    // be consistent: hand it a captured altitude nowhere near the airplane's
     // actual one (so a wrong implementation that ignored `raw` would produce
     // a large, easily-detected correction) alongside a non-zero raw pitch.
     const s = level(1500, 130) // 500 m below a captured 2000 m
@@ -183,12 +183,12 @@ describe('altitudeHold (Plan 3 Task 4)', () => {
     // re-captured and its "must not be near 2000" assertion was true by
     // construction (2000 never appeared in that test at all). This version
     // performs the actual manoeuvre the brief describes: hold a real pitch
-    // input long enough to leave the aeroplane at a different altitude WITH
+    // input long enough to leave the airplane at a different altitude WITH
     // real vertical speed in progress, release, and watch it converge.
     //
     // Measured 2026-09-13 (`/tmp/real_maneuver_probe.ts`, matching the
     // reviewer's own re-measurement to within a few percent): 0.3 pitch for
-    // 3 s at 130 m/s / 80% throttle leaves the aeroplane climbing at ~46 m/s
+    // 3 s at 130 m/s / 80% throttle leaves the airplane climbing at ~46 m/s
     // vertical speed, roughly 60 m above the start. Releasing there gives a
     // transient of ~107 m over the following 60 s and converges to within a
     // few centimetres of the release altitude by the end -- consistent with,
@@ -200,7 +200,7 @@ describe('altitudeHold (Plan 3 Task 4)', () => {
     expect(pulled.final.velocity.y, 'sanity: a real climb must be in progress at release').toBeGreaterThan(20)
 
     const releaseAltM = pulled.final.position.y
-    expect(releaseAltM, 'sanity: the climb must have actually moved the aeroplane').toBeGreaterThan(2040)
+    expect(releaseAltM, 'sanity: the climb must have actually moved the airplane').toBeGreaterThan(2040)
 
     const result = fly(pulled.final, 60, 0, 0.8, ONLY_ALTITUDE_HOLD(true), pulled.memory)
     expect(result.capturedAltM).toBeCloseTo(releaseAltM, 0)
@@ -218,7 +218,7 @@ describe('altitudeHold (Plan 3 Task 4)', () => {
   it('cannot hold altitude at zero throttle -- stated honestly, not claimed away', () => {
     // Mirrors `sim/autopilot.ts`'s `holdLevelFlight`'s own documented limit:
     // past the point where the wing can deliver the demanded angle of
-    // attack, the command saturates and the aeroplane sinks. This is a
+    // attack, the command saturates and the airplane sinks. This is a
     // property of the airframe, not a bug in the assist, and the test says
     // so rather than silently asserting a tight band that would fail here.
     const result = fly(level(2000, 70), 120, 0, 0, ONLY_ALTITUDE_HOLD(true))
@@ -245,7 +245,7 @@ describe('altitudeHold (Plan 3 Task 4)', () => {
 
   it('applies a genuinely bounded, non-zero correction when there IS an altitude error', () => {
     // Fix round 1, Important 2: the test this replaces (`heldAltitudeM` equal
-    // to the aeroplane's own altitude, i.e. zero error) could not tell "adds
+    // to the airplane's own altitude, i.e. zero error) could not tell "adds
     // a small correction" from "does nothing" -- its assertions bounded the
     // delta above but not below, so a stage reduced to `return controls`
     // passed it. This one uses a deliberate, non-zero error in each
@@ -307,7 +307,7 @@ describe('altitude hold stands down when the stall limiter is engaged (fix round
     // The reviewer's own reproduction, reproduced independently here and
     // matched to the reported figures before the fix: limiter alone
     // commands -0.7085; the broken code added a correction that turned this
-    // into -0.2694 with a held altitude of 2100 m (above the aeroplane) and
+    // into -0.2694 with a held altitude of 2100 m (above the airplane) and
     // +0.2915 with 2500 m -- a full sign reversal of the recovery command.
     // The fix must reproduce the FIRST number exactly in both cases, not
     // merely "something still negative".
@@ -391,7 +391,7 @@ describe('altitude hold stands down when the stall limiter is engaged (fix round
  * a LEGAL value inside that bound, so the limiter changes nothing and
  * `limiterEngaged` is false. Round 1's fix alone left altitude hold free to
  * command whatever its own altitude error implied -- with a held altitude
- * below the aeroplane, full nose-down (-1), landing outside `[0, 1]` in the
+ * below the airplane, full nose-down (-1), landing outside `[0, 1]` in the
  * dangerous direction. Fixed by clamping altitude hold's output into the
  * limiter's own bound unconditionally, not just when `limiterEngaged` -- and
  * that clamp is now the one the whole stack shares (`PitchAuthority`), which
@@ -400,7 +400,7 @@ describe('altitude hold stands down when the stall limiter is engaged (fix round
  * is the point of the refactor: they were never two rules.
  */
 describe('altitude hold cannot leave the limiter\'s bound even when the limiter is not engaged (fix round 2)', () => {
-  it('stays inside [0, 1] at alpha = -alphaCritRad with a held altitude below the aeroplane', () => {
+  it('stays inside [0, 1] at alpha = -alphaCritRad with a held altitude below the airplane', () => {
     const critRad = alphaCritRad(spec)
     const speed = 90
     // Nose BELOW the velocity vector by critRad (negative alpha), the mirror
@@ -418,7 +418,7 @@ describe('altitude hold cannot leave the limiter\'s bound even when the limiter 
     // genuinely the "not engaged" case, not a re-run of the Critical fix.
     expect(limiterOnly.pitch, 'sanity: the limiter must not have changed anything').toBe(0)
 
-    // Held well below the aeroplane: altitude hold wants a strong descent,
+    // Held well below the airplane: altitude hold wants a strong descent,
     // i.e. full nose-down, which is exactly outside the limiter's [0, 1].
     const memory: AltitudeHoldMemory = { heldAltitudeM: 1500 }
     const both = applyAssists(s, spec, raw, DT, { stallLimiter: true, autoRudder: false, altitudeHold: true }, memory)

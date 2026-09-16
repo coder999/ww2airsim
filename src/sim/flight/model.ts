@@ -28,7 +28,7 @@ export const airspeed = (state: AircraftState): number => length(state.velocity)
  *  both need exactly this quantity to trim lift against weight, so it is
  *  exported rather than duplicated -- a payload term added here later would
  *  otherwise have to be found and added in two places to keep the autopilot
- *  trimming for the aeroplane's actual weight. */
+ *  trimming for the airplane's actual weight. */
 export const massKg = (spec: AircraftSpec, state: AircraftState): number =>
   spec.mass.emptyKg + state.fuelKg
 
@@ -43,7 +43,7 @@ const bodyAxes = (state: AircraftState) => ({
 /**
  * Angle of attack, radians, positive when the airflow comes from below the
  * wing. This is the standard flight-dynamics definition -- the angle, measured
- * in the aeroplane's plane of symmetry, between the body forward axis and the
+ * in the airplane's plane of symmetry, between the body forward axis and the
  * velocity projected into that plane.
  *
  * It IS already measured in the plane of symmetry, and open item 8 in
@@ -238,7 +238,7 @@ export function step(
   // Weathercock: the fin swings the nose into the relative wind.
   //
   // Added 2026-09-13 after Mark flew it twice and reported the same thing both
-  // times -- roll into a turn, level out, and the aeroplane keeps travelling
+  // times -- roll into a turn, level out, and the airplane keeps travelling
   // diagonally instead of straightening. Correct: master spec section 5's
   // rate-command model states it carries no damping derivatives, and
   // directional stability is one, so nothing here produced a yaw moment from
@@ -256,7 +256,7 @@ export function step(
   // Saturated at the fin's own commanded maximum: a large sideslip cannot
   // produce a yaw rate the pilot could not command with full rudder, which
   // keeps a violent entry from snapping the nose round faster than the
-  // aeroplane can physically yaw.
+  // airplane can physically yaw.
   const weathercockY = (() => {
     if (v < 1e-6) return 0
     const right = qRotate(state.attitude, v3(0, 0, 1))

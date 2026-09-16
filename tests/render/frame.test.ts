@@ -70,7 +70,7 @@ describe('nextFrameState', () => {
   it('exposes the interpolated pose strictly between the two most recent ticks', () => {
     // Task 13 review, round 1: `frame.ts` computed this pose and handed it to
     // `cameraTransformFor` but never exposed it, so main.ts had nothing to
-    // pose the airframe mesh with and the aeroplane was never drawn. This
+    // pose the airframe mesh with and the airplane was never drawn. This
     // pins the fix: `render` must be the genuine interpolated midpoint, not
     // a pass-through of either endpoint.
     let f = start()

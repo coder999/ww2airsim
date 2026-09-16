@@ -41,7 +41,7 @@ describe('cockpit camera', () => {
     })
     // Banked 90 degrees, "look left" must swing the view about the
     // aircraft's own up axis, not the world's -- otherwise the head turns the
-    // wrong way whenever the aeroplane is not level.
+    // wrong way whenever the airplane is not level.
     const straightFwd = qRotate(straight.attitude, v3(1, 0, 0))
     const leftFwd = qRotate(left.attitude, v3(1, 0, 0))
     expect(Math.abs(leftFwd.y - straightFwd.y)).toBeGreaterThan(0.5)
@@ -79,7 +79,7 @@ describe('chase camera', () => {
     }
   })
 
-  it('points roughly at the aeroplane, not off into open sky', () => {
+  it('points roughly at the airplane, not off into open sky', () => {
     // Weaker than it looks: the offset and the returned attitude are both
     // built from the same `heading`, so this dot product is geometrically
     // guaranteed positive (it reduces to a constant, independent of heading)
@@ -168,7 +168,7 @@ describe('chase offset sign (review 2026-09-13)', () => {
     // The existing rigid-attachment test compares the eye distance against
     // `length(CHASE_OFFSET_M)`, which is invariant under any permutation or
     // sign flip of the components. Flipping the vertical to [-22,-6,0] put the
-    // camera below the aeroplane looking up through the sea, and moving it to
+    // camera below the airplane looking up through the sea, and moving it to
     // [-22,0,6] put it on the right wingtip; both left the whole suite green.
     const [x, y, z] = CHASE_OFFSET_M
     expect(x).toBeLessThan(0) // behind: the nose is body +X
@@ -177,7 +177,7 @@ describe('chase offset sign (review 2026-09-13)', () => {
     expect(Math.abs(x)).toBeGreaterThan(y) // further back than up, or it is a top-down view
   })
 
-  it('places the eye behind and above the aeroplane in the world, wings level', () => {
+  it('places the eye behind and above the airplane in the world, wings level', () => {
     // The component check above is on the constant; this one is on the
     // transform, so a sign lost between the two still fails.
     const pose = at(v3(0, 600, 0), qIdentity())

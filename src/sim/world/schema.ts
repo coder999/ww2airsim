@@ -79,7 +79,7 @@ export type TerrainHeader = {
 
 /** Parse and validate a terrain header, throwing on anything malformed
  *  (spec §9: malformed content must fail loudly, not produce a NaN that
- *  teleports the aeroplane). */
+ *  teleports the airplane). */
 export function parseTerrainHeader(raw: unknown): TerrainHeader {
   return terrainHeaderSchema.parse(raw)
 }

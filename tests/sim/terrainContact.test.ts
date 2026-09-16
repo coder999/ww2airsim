@@ -17,7 +17,7 @@ const plateau = createTerrainField(header, 12, new Int16Array(9).fill(10000))
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
 
 describe('terrain contact', () => {
-  it('records an impact when the aeroplane reaches the ground', () => {
+  it('records an impact when the airplane reaches the ground', () => {
     const start = createWorld(spec, createState({ position: v3(0, 1005, 0), velocity: v3(60, -30, 0) }), level)
     let w: World<undefined> = { ...start, terrain: plateau }
     for (let i = 0; i < 60 && w.impact === null; i++) w = advance(w, DT, undefined).world
@@ -32,7 +32,7 @@ describe('terrain contact', () => {
     // unnoticed (confirmed: `sed -i 's/<= groundHeightM/< groundHeightM/'`
     // against src/sim/loop.ts left all four of the brief's tests green). This
     // test targets the boundary directly with a stub stepper that holds the
-    // aeroplane's position fixed rather than integrating it, so "exactly at
+    // airplane's position fixed rather than integrating it, so "exactly at
     // ground level" is constructed on purpose instead of relying on a real
     // physics step happening to land there by chance.
     //
@@ -50,7 +50,7 @@ describe('terrain contact', () => {
     expect(result.world.impact!.groundHeightM).toBe(1000)
   })
 
-  it('does not record one for an aeroplane flying above the same ground', () => {
+  it('does not record one for an airplane flying above the same ground', () => {
     const start = createWorld(spec, createState({ position: v3(0, 3000, 0), velocity: v3(130, 0, 0) }), level)
     let w: World<undefined> = { ...start, terrain: plateau }
     for (let i = 0; i < 600; i++) w = advance(w, DT).world

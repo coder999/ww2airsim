@@ -18,7 +18,7 @@ none is load-bearing on the others.
   be judged until Mark can fly it. Deferred, still open item 9.
 - **(C) Rate damping is DROPPED from this plan, not converted.** It is a no-op
   against a rate-command model, as argued below. The rotational-inertia idea
-  that would make it meaningful is a `sim/` change that alters how the aeroplane
+  that would make it meaningful is a `sim/` change that alters how the airplane
   feels, and Mark cannot fly it today, so shipping it now would be untestable by
   the only person who can test it. Recorded as a separate proposal instead.
 - **(D) Switchable by keyboard, plus the Tier 2 diagnostics hook.** No options
@@ -44,7 +44,7 @@ Plan 2's design deferred it, and gave a precondition rather than a date:
 
 That precondition is now met. Mark flew the merged branch on the reference
 platform on 2026-09-13 and reported two things: it "feels pretty good", and
-levelling out after a bank leaves the aeroplane travelling diagonally rather
+levelling out after a bank leaves the airplane travelling diagonally rather
 than straight. He also said explicitly that strict fidelity to the historical
 data is not the goal, and should be dropped where it becomes a foot-gun. The
 master spec agrees: "Arcade-sim: readable and fun, not study-level."
@@ -97,7 +97,7 @@ things and must not be conflated. The weathercock is aerodynamics, inside
 `sim/`: the fin's restoring moment, which the model genuinely lacked. The
 auto-rudder is a pilot aid, outside it: a controller moving a control surface.
 Both may be on at once, and the design intent is a weak honest fin with the
-assist doing the rest, so switching the assist off leaves an aeroplane that
+assist doing the rest, so switching the assist off leaves an airplane that
 still flies rather than one that cannot.
 
 **OPEN (B): does the weathercock constant move?** It is currently 1.5 s and
@@ -129,9 +129,9 @@ numbers, is item 8 in the Plan 2 design doc.
 
 ### Combat trim
 
-Holds the aeroplane where it is pointed with the stick centred. In a
+Holds the airplane where it is pointed with the stick centred. In a
 rate-command model, hands-off already holds ATTITUDE, because a released stick
-commands zero rate. What it does not hold is the flight path: the aeroplane
+commands zero rate. What it does not hold is the flight path: the airplane
 still climbs or sinks as speed changes. So this is an altitude or flight-path
 hold, not a trim in the classical sense, and calling it "trim" would be the
 kind of name-versus-behaviour mismatch this project has corrected repeatedly.
@@ -167,7 +167,7 @@ assist.
 would not build the assist as specified. I would either drop it, or replace it
 with a first-order lag on body rates inside `sim/`, with the time constant in
 content beside `weathercockSeconds`. The second gives a noticeably more
-substantial aeroplane and costs one constant per axis.
+substantial airplane and costs one constant per axis.
 
 ## 4. Switching and defaults
 
@@ -214,13 +214,13 @@ it holds (measured peak alpha 12.72 and 12.47 degrees against a 15.5 degree
 `alphaCritDeg`, where the unassisted pull reaches 15.87 and 15.58 with 109 and
 102 stalled ticks). At 70 m/s, level, full back stick, the same 30 seconds
 reaches **179.8 degrees of alpha with 1,049 stalled ticks even with the assist
-on** — the aeroplane loops, runs out of energy, and alpha rises because the
+on** — the airplane loops, runs out of energy, and alpha rises because the
 FLIGHT PATH falls away, which no pitch command opposes.
 
 So the row is restated as the guarantee that does hold and is asserted:
 `Controls.pitch` never asks for more than the remaining margin, and once the
 boundary is crossed the limiter commands recovery at every tick until the
-aeroplane is past 90 degrees of alpha and there is no authority left to ration.
+airplane is past 90 degrees of alpha and there is no authority left to ration.
 `tests/assists/stallLimiter.test.ts` proves it on the 70 m/s departure (133
 ticks inside that band, zero of them without a recovery command); Task 3's
 review reproduced it across 192 runs, 8,756 band ticks, zero exceptions.
@@ -248,7 +248,7 @@ is no player-facing settings to CHOOSE those values at runtime.
 
 Plan 3 shipped `advance(world, elapsed, stepper, assist)` taking ONE assist,
 whose memory lived in a closure (`createAssistRunner`) the caller held. The
-**combat** plan flies many aeroplanes, each needing its own altitude-hold
+**combat** plan flies many airplanes, each needing its own altitude-hold
 memory, so the shape had to be settled before terrain rather than during
 combat.
 
@@ -262,7 +262,7 @@ reducer generic in its memory type, and `advance` threads the memory through
 its step loop into `World.assistMemory`. `sim/` never inspects it, so the
 boundary argument that put the memory outside `sim/` in the first place is
 untouched; `advance`'s parameter list does not grow; and the combat plan's
-per-entity record carries its own memory field, making per-aeroplane isolation
+per-entity record carries its own memory field, making per-airplane isolation
 structural rather than a rule every caller has to remember.
 
 The argument that decided it was not N-aircraft but replay: a `World` with the
@@ -290,10 +290,10 @@ and none blocks merge.
    at exactly 90.
 
    That is the band real stalls live in, and it is where the ruling behind the
-   departed narrowing points hardest — an aeroplane near departure needs the
+   departed narrowing points hardest — an airplane near departure needs the
    nose down. The honest statement of today's behaviour is that the principle
    is enforced on one side of a cliff. The fix is for altitude hold to stand
-   down whenever the aeroplane is stalled, independent of the limiter's switch,
+   down whenever the airplane is stalled, independent of the limiter's switch,
    which is a behaviour question worth deciding at the controls rather than
    here.
 

@@ -42,7 +42,7 @@ describe('heightAt', () => {
 
   it('never returns NaN, for any input at all', () => {
     // Including the inputs a broken flight model can produce. Master spec S9:
-    // a NaN in the integrator teleports the aeroplane silently.
+    // a NaN in the integrator teleports the airplane silently.
     const f = field([0, 100, 200, 300, 400, 500, 600, 700, 800])
     for (const v of [NaN, Infinity, -Infinity, 0, -0, 1e308]) {
       expect(Number.isNaN(heightAt(f, v, 0))).toBe(false)

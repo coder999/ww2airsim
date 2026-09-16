@@ -6,10 +6,10 @@
 
 ## 1. What this plan builds
 
-Real Leyte Gulf under the aeroplane: Leyte, southern Samar, Dinagat and
+Real Leyte Gulf under the airplane: Leyte, southern Samar, Dinagat and
 Surigao Strait, rendered from Copernicus 30 m elevation data, with the
 simulation able to answer "how high is the ground here" and to notice when the
-aeroplane has stopped being above it.
+airplane has stopped being above it.
 
 Two halves, deliberately of unequal size:
 
@@ -241,7 +241,7 @@ Contact produces a crash event, which closes the master spec §11 invariant "no
 aircraft is below terrain without a crash event". Out of the world's bounds,
 `heightAt` returns sea level rather than throwing or returning `NaN`: master
 spec §9's warning is that a `NaN` entering the integrator silently teleports
-the aeroplane, and the edge of a 200 km box is somewhere an aeroplane can
+the airplane, and the edge of a 200 km box is somewhere an airplane can
 trivially reach.
 
 ## 6. The hazard this plan has to be honest about
@@ -321,7 +321,7 @@ position and needs no GPU:
   world edge and outside it.
 - LOD selection, per §6.
 - The crash invariant, added as an arm to the existing soak so randomised
-  flights hunt for an aeroplane that ended up under the ground without an
+  flights hunt for an airplane that ended up under the ground without an
   event.
 
 **Tier 2 — real GPU, reference platform.** Zero WebGPU validation errors on a
@@ -339,7 +339,7 @@ the relief feel like ground rather than a texture, does anything pop.
 | --- | --- |
 | Pipeline correctness is invisible until it is rendered | Cross-checked against independent coordinates (§7), not against itself |
 | The drawn surface disagrees with the flown one | Guarded on LOD selection with a measured error bound (§6) |
-| ~~89 MB L0 fetch is slow on first load~~ — **retired 2026-09-14, §9 item 2**: L0 is never fetched. The browser fetches L8..L4, 702,346 bytes | Moot. The mitigation shipped anyway: coarse levels first, and the aeroplane flies over recognisable terrain within 43,910 bytes (L8..L6) |
+| ~~89 MB L0 fetch is slow on first load~~ — **retired 2026-09-14, §9 item 2**: L0 is never fetched. The browser fetches L8..L4, 702,346 bytes | Moot. The mitigation shipped anyway: coarse levels first, and the airplane flies over recognisable terrain within 43,910 bytes (L8..L6) |
 | Licence contamination in a public repo | Copernicus attribution into `ASSETS.md` in the same commit as the first fetched byte (master spec §10) |
 | CDLOD morph tuning is subjective | Frame-time budget and the LOD-error number make most of it objective; the rest is Tier 3 |
 

@@ -31,7 +31,7 @@ Inherited from Plans 1–5, unchanged. Every task's requirements include these.
 
 Settled here so the plan is executable. Mark can overrule any of them.
 
-1. **Throttle column sits at the LEFT edge** of the dial row, full row height — where a throttle quadrant sits in the aeroplane. Armament reserves the mirrored right edge, so the panel stays symmetric.
+1. **Throttle column sits at the LEFT edge** of the dial row, full row height — where a throttle quadrant sits in the airplane. Armament reserves the mirrored right edge, so the panel stays symmetric.
 2. **The heading tape keeps a numeric readout**, printed above it, consistent with every dial printing its own.
 3. **The tape window spans 90°** of compass arc. Wide enough to see the next cardinal coming, tight enough to read.
 4. **The reticle gets bolder** — stroke from 0.09 to 0.14 of arm length. It is faint at 1600×1000 and the horizon bar it currently contrasts against is being removed.

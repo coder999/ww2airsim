@@ -356,9 +356,9 @@ describe('attitudeAngles bank reference frame', () => {
   it('reads zero bank whenever the wings are level, whatever the heading and pitch', () => {
     // The defect this replaced: `atan2(up.z, up.y)` is body-up's sideways
     // lean measured in the BODY frame, which is a bank angle only when the
-    // aeroplane points along world +X. Pitch tilts body up out of vertical
+    // airplane points along world +X. Pitch tilts body up out of vertical
     // and yaw swings that tilt into the lateral axis, so a wings-level
-    // aeroplane read a bank set purely by its heading.
+    // airplane read a bank set purely by its heading.
     for (const h of [0, 30, 45, 90, 135, 180, -60]) {
       for (const p of [0, 10, -15, 30]) {
         const state = createState({ attitude: qMul(yaw(h), pitchQ(p)) })
@@ -486,7 +486,7 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
 describe('imperial instrumentation (2026-09-15)', () => {
   const spec = loadAircraftSpec('f6f-hellcat')
 
-  // A WWII US aeroplane had no metric instruments, and the trial data this
+  // A WWII US airplane had no metric instruments, and the trial data this
   // model is graded against is itself imperial -- 391.0 mph, 2,660 ft/min,
   // 98.0 mph clean stall (content/aircraft/f6f-hellcat.json's `reference`).
   // These pin the CONVERSION, not the formatting: each expected value is the

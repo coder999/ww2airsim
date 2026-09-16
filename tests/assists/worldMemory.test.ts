@@ -24,7 +24,7 @@ const CENTRED: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
 
 /**
  * Descending hard when the memory is captured, which is what makes a lost
- * memory VISIBLE: by the time the snapshot is taken the aeroplane is far below
+ * memory VISIBLE: by the time the snapshot is taken the airplane is far below
  * the captured altitude, so anything that re-captures on resume holds a
  * different one from then on. Starting level would let a broken implementation
  * and a correct one agree -- the failure mode this project keeps shipping, and
@@ -102,8 +102,8 @@ describe('assist memory lives in the world', () => {
     expect(Math.abs(forgotten.aircraft.position.y - continuous.aircraft.position.y)).toBeGreaterThan(10)
   })
 
-  it('keeps two aeroplanes flying through one assist function on their own memories', () => {
-    // The combat plan flies many aeroplanes through one assist. Sharing a captured
+  it('keeps two airplanes flying through one assist function on their own memories', () => {
+    // The combat plan flies many airplanes through one assist. Sharing a captured
     // altitude between them is the failure this shape exists to make
     // impossible, so it gets a test rather than a comment: a `assistFor` that
     // cached the memory in its closure would pass every other test in this

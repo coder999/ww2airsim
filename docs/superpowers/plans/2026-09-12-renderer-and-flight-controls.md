@@ -96,7 +96,7 @@ export function parseAircraftSpec(raw: unknown): AircraftSpec   // pure, browser
 | `index.html`, `vite.config.ts` | **New.** App entry and dev server. |
 | `tests/e2e/adapter.spec.ts`, `playwright.config.ts` | **New.** Tier 2: adapter guard and validation-error sweep. |
 
-**Milestone:** Tasks 1–13 deliver a flyable aeroplane with chase and cockpit cameras. Tasks 14–15 add the instrument panel and the Tier 2 harness. If the plan has to stop early, stop after Task 13 — it is a coherent, shippable state, and it is the first point at which anyone has flown this flight model.
+**Milestone:** Tasks 1–13 deliver a flyable airplane with chase and cockpit cameras. Tasks 14–15 add the instrument panel and the Tier 2 harness. If the plan has to stop early, stop after Task 13 — it is a coherent, shippable state, and it is the first point at which anyone has flown this flight model.
 
 ---
 
@@ -519,7 +519,7 @@ const STEP_EPSILON = 1e-6
 export type Stepper = typeof step
 
 export interface World {
-  /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
+  /** The airplane's coefficient set. Here, not in `advance`'s parameter
    *  list: the design has later plans add fields to World precisely so
    *  that `advance`'s signature never grows. */
   readonly spec: AircraftSpec
@@ -712,7 +712,7 @@ import { type Vec3, v3 } from './math/vec3.js'
 import { type Quat } from './math/quat.js'
 import type { AircraftState } from './flight/state.js'
 
-/** What the renderer needs to place an aeroplane. Not a simulation state: it
+/** What the renderer needs to place an airplane. Not a simulation state: it
  *  belongs to no tick, because it is between two of them. */
 export type RenderState = {
   readonly position: Vec3
@@ -763,7 +763,7 @@ export function qSlerp(a: Quat, b: Quat, t: number): Quat {
 }
 
 /**
- * Places the aeroplane between two simulated ticks.
+ * Places the airplane between two simulated ticks.
  *
  * Alpha is clamped, not extrapolated: a frame that overran must not invent a
  * future the simulation has not computed. Standing still for one frame is a
@@ -1154,7 +1154,7 @@ export const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 /**
  * Seconds from centre to full deflection on a held key.
  *
- * This is the number that decides how the aeroplane feels, and it is a guess
+ * This is the number that decides how the airplane feels, and it is a guess
  * until somebody flies it. A key is binary and a stick is not: mapping held
  * straight to +-1 gives bang-bang control that would make a model validated
  * against 1944 trial figures feel like a toy. Expect to tune this.
@@ -1522,7 +1522,7 @@ describe('chase camera', () => {
     }
   })
 
-  it('follows heading, so the aeroplane stays in frame through a turn', () => {
+  it('follows heading, so the airplane stays in frame through a turn', () => {
     const yawed = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2)
     const eye = cameraTransformFor('chase', f6f, at(v3(0, 1000, 0), yawed))
     const fwd = qRotate(eye.attitude, v3(1, 0, 0))
@@ -1843,7 +1843,7 @@ export function cameraTransformFor(
 }
 ```
 
-Note the multiplication order: the look rotation is applied **after** the body attitude, so it is in body frame — turning your head is relative to the aeroplane, not to the world.
+Note the multiplication order: the look rotation is applied **after** the body attitude, so it is in body frame — turning your head is relative to the airplane, not to the world.
 
 Add a camera test asserting exactly that:
 
@@ -1856,7 +1856,7 @@ it('applies look-around in body frame, not world frame', () => {
   })
   // Inverted 90 degrees, "look left" must swing the view about the aircraft's
   // own up axis, not the world's -- otherwise the head turns the wrong way
-  // whenever the aeroplane is not level.
+  // whenever the airplane is not level.
   const straightFwd = qRotate(straight.attitude, v3(1, 0, 0))
   const leftFwd = qRotate(left.attitude, v3(1, 0, 0))
   expect(Math.abs(leftFwd.y - straightFwd.y)).toBeGreaterThan(0.5)
@@ -1881,8 +1881,8 @@ That is what makes looking around behave identically from the cockpit and from
 chase, and makes the snap views presets of one value instead of separate code.
 
 Applied after the body attitude so it is in body frame: turning your head is
-relative to the aeroplane, not the world, or the view swings the wrong way
-whenever the aeroplane is not level. There is a test for exactly that, taken
+relative to the airplane, not the world, or the view swings the wrong way
+whenever the airplane is not level. There is a test for exactly that, taken
 inverted where the two frames disagree most."
 ```
 
@@ -2590,7 +2590,7 @@ describe('lighting', () => {
   it('parents the sun target with the sun, so camera-relative translation cannot bend it', () => {
     // A DirectionalLight points from its position to its target. The frame
     // loop translates the whole scene by -eye; a target left at the world
-    // origin would then swing the sun around as the aeroplane moves.
+    // origin would then swing the sun around as the airplane moves.
     const l = createLighting()
     const sun = l.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
     expect(sun).toBeDefined()
@@ -2686,7 +2686,7 @@ import { DirectionalLight, Group, HemisphereLight, type Object3D } from 'three'
  * DirectionalLight points from its position to its target, and the frame
  * loop translates the whole scene by -eye for camera-relative rendering. A
  * target left at the default world origin would then swing the sun around
- * as the aeroplane moves.
+ * as the airplane moves.
  */
 export function createLighting(): Object3D {
   const group = new Group()
@@ -2797,7 +2797,7 @@ parallax, so at 170 m/s you cannot perceive speed, altitude or sink rate -- and
 this plan exists to answer how the model feels. Markers at a known 1 km spacing
 give absolute scale.
 
-The aeroplane is built from primitives in code, which master spec 10 permits
+The airplane is built from primitives in code, which master spec 10 permits
 outright, so there is no asset provenance to audit and no ASSETS.md row.
 Geometry is tested for scale and for pointing +X forward: a model built down -X
 flies backwards and every camera offset is 180 degrees wrong.
@@ -2812,7 +2812,7 @@ been invisible headless and found only on the reference platform."
 
 ### Task 13: Fly it
 
-Wires the pieces together. **This is the milestone** — after this task there is an aeroplane you can fly.
+Wires the pieces together. **This is the milestone** — after this task there is an airplane you can fly.
 
 **Files:**
 - Modify: `src/render/main.ts`
@@ -2998,14 +2998,14 @@ camera.position.set(0, 0, 0)
 camera.quaternion.set(frame.eye.attitude.x, frame.eye.attitude.y, frame.eye.attitude.z, frame.eye.attitude.w)
 ```
 
-Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` argument, which `advance` already accepts and tests (Task 3). Plan 1's invariants turn "the aeroplane teleported" into "a NaN entered at tick 4,102", and that is worth the per-step cost in development. The choice is made here, at the edge, so `sim/` carries no build flag; `import.meta.env` typechecks because Task 5 added `vite/client` to `types`.
+Pass `import.meta.env.DEV ? stepChecked : step` as `nextFrameState`'s `stepper` argument, which `advance` already accepts and tests (Task 3). Plan 1's invariants turn "the airplane teleported" into "a NaN entered at tick 4,102", and that is worth the per-step cost in development. The choice is made here, at the edge, so `sim/` carries no build flag; `import.meta.env` typechecks because Task 5 added `vite/client` to `types`.
 
 - [x] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: PASS, 5 tests.
 
-- [x] **Step 6: Fly it** — DONE 2026-09-13. Mark flew the merged branch on the reference platform and reported "flying feels pretty good", then after Plan 3's assists landed, "i tried it and i like it". `RAMP_SECONDS` is left where it is; nobody asked for it to move. Original note follows: Flown programmatically on the reference platform 2026-09-13 to capture screenshots, which is not the same thing: this step exists to judge how the aeroplane FEELS, particularly `RAMP_SECONDS`, and that cannot be delegated.
+- [x] **Step 6: Fly it** — DONE 2026-09-13. Mark flew the merged branch on the reference platform and reported "flying feels pretty good", then after Plan 3's assists landed, "i tried it and i like it". `RAMP_SECONDS` is left where it is; nobody asked for it to move. Original note follows: Flown programmatically on the reference platform 2026-09-13 to capture screenshots, which is not the same thing: this step exists to judge how the airplane FEELS, particularly `RAMP_SECONDS`, and that cannot be delegated.
 
 `npm run dev` on nexus, tunnel, open `http://localhost:5173`.
 Expected: an F6F over water, chase camera, arrow keys fly it, Shift opens the throttle, C switches to the cockpit, numpad looks around.
@@ -3142,7 +3142,7 @@ export type Panel = {
  *
  * Authenticity of APPEARANCE is traded away on purpose: faithful 1944 markings
  * that cannot be read at a realistic eye point would be accurate and useless,
- * and this plan exists to let a human judge how the aeroplane flies. What is
+ * and this plan exists to let a human judge how the airplane flies. What is
  * NOT traded away is the data -- every needle here is backed by a quantity the
  * flight model produces, which is why there is no tachometer.
  */
@@ -3203,7 +3203,7 @@ export function updatePanel(panel: Panel, spec: AircraftSpec, state: AircraftSta
     needle.rotation.z = -angle
   }
   const { rollRad, pitchRad } = attitudeAngles(state)
-  // A real artificial horizon stays level with the world while the aeroplane
+  // A real artificial horizon stays level with the world while the airplane
   // rolls around it, so the instrument rotates opposite the aircraft.
   panel.horizon.rotation.z = -rollRad
   panel.horizon.position.y = DIAL_GAP * 0.9 + Math.max(-0.05, Math.min(0.05, pitchRad * 0.08))
@@ -3433,7 +3433,7 @@ Checked after writing, per the writing-plans skill.
 
 **One gap found and closed:** the design's §9 dev overlay and `droppedSteps` had no home until it was folded into Task 11, and the `stepChecked`-in-dev flag into Task 13 Step 4.
 
-**Milestone numbering corrected.** The File Structure section originally said Tasks 1–11 deliver a flyable aeroplane; the real boundary is **Task 13**. Corrected in that section.
+**Milestone numbering corrected.** The File Structure section originally said Tasks 1–11 deliver a flyable airplane; the real boundary is **Task 13**. Corrected in that section.
 
 **Type consistency.** `SimContext`, `World`, `AdvanceResult`, `Stepper`, `RenderState`, `EyeTransform`, `LookOffset`, `FrameState`, `Panel`, `GaugeId` and `AdapterVerdict` are each defined once and referenced with the same names and shapes thereafter. `cameraTransformFor` gains its `look` parameter in Task 9 and every later call site passes it.
 
@@ -3466,7 +3466,7 @@ reintroduce a known bug:
 
 - the roll expression `Math.atan2(up.z, up.y)`, which is C-2: it is a body-frame
   quantity, not a bank angle, and reports up to 10 degrees of false bank on a
-  wings-level aeroplane purely as a function of heading.
+  wings-level airplane purely as a function of heading.
 - `panel.horizon.rotation.z = -rollRad` together with `pitchRad * 0.08`, which
   are C-1 and I-7: the bar read backwards, and its height was an invented scale
   that hung it 15.8 degrees below the eye line at zero pitch.

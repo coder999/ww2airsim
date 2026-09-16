@@ -172,9 +172,9 @@ export function attitudeAngles(state: AircraftState): {
   //
   // This was `atan2(up.z, up.y)` until 2026-09-13, which is body-up's
   // sideways lean expressed in the BODY frame -- not a bank angle at all once
-  // the aeroplane is pointing anywhere but along world +X. Pitch tilts body
+  // the airplane is pointing anywhere but along world +X. Pitch tilts body
   // up out of the vertical, and yaw then swings that tilt into the body's
-  // lateral axis, so a wings-level aeroplane read a bank that depended purely
+  // lateral axis, so a wings-level airplane read a bank that depended purely
   // on its heading: measured 0 at heading 0, 5.04 at 30, 7.11 at 45 and a
   // full 10.00 at 90, all at 10 degrees nose-up with the wings dead level.
   //

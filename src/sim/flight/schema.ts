@@ -5,7 +5,7 @@ import { z } from 'zod'
  *
  * Finding I6: Zod strips unknown keys by default, so a content typo was
  * silently dropped rather than reported -- `"cdO": 0.5` sitting next to a
- * present `cd0` validated clean and vanished, and the aeroplane flew on the
+ * present `cd0` validated clean and vanished, and the airplane flew on the
  * value the author thought they had overridden. Spec §9 requires malformed
  * content to fail loudly, and a key the schema has never heard of is
  * malformed content. Adding a field here therefore now has to be done in both
@@ -60,7 +60,7 @@ const AircraftSpecObject = z.object({
      * Added 2026-09-13. Master spec section 5's rate-command model says it
      * carries no damping derivatives, and directional stability is one, so
      * until now nothing in the model produced a yaw moment from sideslip at
-     * all: roll into a turn, level out, and the aeroplane kept flying crabbed
+     * all: roll into a turn, level out, and the airplane kept flying crabbed
      * for minutes. Measured before the fix, hands off at 120 m/s from 10
      * degrees of sideslip, the nose heading did not move at all in a full
      * minute and the slip decayed only to 5.15 degrees, purely because thrust
@@ -73,18 +73,18 @@ const AircraftSpecObject = z.object({
      * `src/assists/index.ts`'s `autoRudder` stage multiplies this by the
      * current sideslip angle and adds the result to the pilot's own yaw
      * command -- the fix Mark asked for after flying it twice: rolling into a
-     * turn and levelling out left the aeroplane travelling diagonally rather
+     * turn and levelling out left the airplane travelling diagonally rather
      * than straight, because nothing was pushing the nose back onto the
      * velocity vector for him.
      *
      * Unlike `weathercockSeconds` above, this is NOT a measured aircraft
      * characteristic -- it is a synthetic pilot aid layered on top of the
      * airframe's own (poor) directional stability, not a property of the
-     * real F6F. NACA Wartime Report L-716 measured the real aeroplane's
+     * real F6F. NACA Wartime Report L-716 measured the real airplane's
      * aileron yaw at about 18.5 degrees of sideslip in left rolls and 23.5
      * degrees in right rolls at roughly 100 mph, and judged its directional
      * stability "low" and the handling "objectionable" -- the report has no
-     * auto-rudder gain to cite, because the real aeroplane never had a
+     * auto-rudder gain to cite, because the real airplane never had a
      * rudder that moved by itself.
      *
      * 0.1 was chosen empirically against
@@ -125,7 +125,7 @@ const AircraftSpecObject = z.object({
      * sweep was a 36-condition grid -- 6 entry speeds (70 to 200 m/s) x 6
      * flight-path angles (-30 to +45 degrees), 15 s of full back stick, full
      * throttle, spawned at 3000 m -- scoring the highest alpha reached while
-     * the aeroplane was still flying (airspeed above 50 m/s, |alpha| under 90).
+     * the airplane was still flying (airspeed above 50 m/s, |alpha| under 90).
      * With the limiter OFF that grid reaches 16.86 degrees against this
      * aircraft's 15.5 degree alphaCrit. With it on, at every tau tried:
      *
@@ -158,7 +158,7 @@ const AircraftSpecObject = z.object({
      * decides it: limiting begins at `alphaCrit - tau * maxPitchRate` (times
      * the dynamic-pressure authority, so later than this when slow). 0.50
      * would start softening full back stick from half a degree of alpha, i.e.
-     * from level cruise, and make the aeroplane feel blunt everywhere. 0.017
+     * from level cruise, and make the airplane feel blunt everywhere. 0.017
      * gets within 0.23 degrees of the boundary with no margin for the one case
      * the bound cannot cover. 0.15 leaves the first 11 degrees of alpha --
      * over two-thirds of the usable range -- completely untouched while
@@ -171,13 +171,13 @@ const AircraftSpecObject = z.object({
      * completely. Re-measured 2026-09-13 at tau 0.017, 0.10, 0.15, 0.25 and
      * 0.50: every one of the five reaches a peak |alpha| of 180.0 degrees
      * (179.96, and the five differ by under 0.001) and an airspeed of 2.9
-     * m/s; the wing first stalls at 9.3 s and the aeroplane is past the
+     * m/s; the wing first stalls at 9.3 s and the airplane is past the
      * limiter's own 90-degree stand-down from 11.3 s onward. Of the 900 ticks
      * in that run the limiter commands full nose-down for 119, and for 780 it
      * has stood down and is handing the pilot's own command straight back.
      *
      * The figures this paragraph used to carry -- "peak alpha 89.6 degrees,
-     * airspeed down to 11 m/s" -- were not measurements of the aeroplane.
+     * airspeed down to 11 m/s" -- were not measurements of the airplane.
      * 89.6 is the ceiling of the SWEEP HARNESS's own |alpha| < 90 scoring
      * filter -- the same harness and the same scoring as the 36-condition
      * grid above -- carried out of it and printed as a physical result: the
@@ -212,7 +212,7 @@ const AircraftSpecObject = z.object({
      * 3 was chosen by measurement, 2026-09-13 (`/tmp/althold_probe.ts`,
      * `step()` end to end on this aircraft's content, not an idealised
      * model). Hands off with `pitch = 0` held for 60 s from level cruise, the
-     * unassisted aeroplane drifts by a wide margin: -236 m at 70 m/s / 50%
+     * unassisted airplane drifts by a wide margin: -236 m at 70 m/s / 50%
      * throttle, -167 m at 90 m/s / 70%, -77 m at 130 m/s full throttle, -19 m
      * at 180 m/s full throttle. With the assist engaged at tau = 3, the same
      * four conditions (plus 70 m/s / 100% and 130 m/s / 30% throttle) finish
@@ -245,12 +245,12 @@ const AircraftSpecObject = z.object({
      * exactly the same status `stallLimiterSeconds`'s own comment gives it.
      *
      * What no tau can fix, and no test should claim: at zero throttle the
-     * aeroplane cannot hold any altitude at all. Lift demand rises as speed
+     * airplane cannot hold any altitude at all. Lift demand rises as speed
      * bleeds off, which bleeds more speed, and the probe's idle-throttle case
      * departs (2277 m of drift in 120 s) exactly the way `holdLevelFlight`'s
      * own doc comment describes for the same underlying reason: past the
      * point where the wing can deliver the demanded angle of attack, the
-     * command saturates and the aeroplane sinks. That is correct behaviour,
+     * command saturates and the airplane sinks. That is correct behaviour,
      * not a defect in this constant, and `tests/assists/altitudeHold.test.ts`
      * asserts it honestly rather than claiming a guarantee that does not
      * hold.
@@ -289,7 +289,7 @@ const AircraftSpecObject = z.object({
 }).strict()
 
 /** Cross-field: the trial the reference block was measured at has to be a
- *  loading the aeroplane can actually fly, i.e. at or under its own
+ *  loading the airplane can actually fly, i.e. at or under its own
  *  documented maximum take-off weight. This is on the whole object, not the
  *  `reference` sub-schema, because it has to see `mass` too -- a mistyped or
  *  mis-sourced testMassKg would otherwise pass validation and only surface

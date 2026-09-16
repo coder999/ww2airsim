@@ -8,7 +8,7 @@ export const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 /**
  * Seconds from centre to full deflection on a held key.
  *
- * This is the number that decides how the aeroplane feels, and it is a guess
+ * This is the number that decides how the airplane feels, and it is a guess
  * until somebody flies it. A key is binary and a stick is not: mapping held
  * straight to +-1 gives bang-bang control that would make a model validated
  * against 1944 trial figures feel like a toy. Expect to tune this.

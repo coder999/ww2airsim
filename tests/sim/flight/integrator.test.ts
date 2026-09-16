@@ -110,7 +110,7 @@ describe('integrator convergence (recommendation 6)', () => {
 
   it('actually moves far enough for the comparison to mean anything', () => {
     // Guards the degenerate pass where every trajectory is identical because
-    // the aeroplane never went anywhere: d1/d2 = 0/0 is NaN, but a future
+    // the airplane never went anywhere: d1/d2 = 0/0 is NaN, but a future
     // scenario edit that shrank the manoeuvre could make both differences
     // tiny and the ratio meaningless while still passing.
     expect(d1).toBeGreaterThan(1e-3)

@@ -10,10 +10,10 @@ import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 export type DiagWindow = Window & { __ww2?: Ww2Diagnostics }
 
 /**
- * The URL that starts the aeroplane at a given world position, built from
+ * The URL that starts the airplane at a given world position, built from
  * `SPAWN_PARAMS` rather than from three string literals -- so renaming a
  * parameter in `src/render/spawn.ts` breaks `tsc`/this builder rather than
- * silently producing a URL the app ignores, which would put the aeroplane
+ * silently producing a URL the app ignores, which would put the airplane
  * back over open water with every terrain assertion still green.
  */
 export function spawnUrl(position: { x: number; y: number; z: number }): string {

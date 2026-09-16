@@ -15,12 +15,12 @@ import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 const DEG = Math.PI / 180
 
 /**
- * Disposable load that puts the aeroplane on the scales at exactly
+ * Disposable load that puts the airplane on the scales at exactly
  * `reference.testMassKg`.
  *
  * Ruling R31: every figure in the reference block was measured at one stated
  * gross weight, so a harness that spawns at any other weight is not measuring
- * the same aeroplane. `step()` computes mass as `mass.emptyKg + state.fuelKg`
+ * the same airplane. `step()` computes mass as `mass.emptyKg + state.fuelKg`
  * and has no separate payload term, so `fuelKg` has to carry the pilot, oil,
  * ammunition and pylon as well as the fuel -- it is over `mass.fuelCapacityKg`
  * on purpose and is not a fuel state any mission would start from.
@@ -47,12 +47,12 @@ const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): Aircraf
 /** Hold the weight at the trial weight. The reference figures are all quoted at
  *  one weight, so the measurement is taken at one weight. Measured 2026-09-12
  *  at propEfficiency 0.75, testMassKg 5633.62: a variant of the top-speed card
- *  with this pin removed left the aeroplane to burn fuel freely, and it took
+ *  with this pin removed left the airplane to burn fuel freely, and it took
  *  436 s (not the shipped card's 421 s) to lose 36.6 kg, 0.65% of gross weight,
  *  worth 0.11 m/s on the reading (172.56 m/s drifting, 172.46 m/s held). That
  *  436 s vs 421 s gap is NOT because burning fuel changes qRef as it goes --
  *  qRef (`0.5 * densityAt(0) * rateRefSpeedMps^2` in flight/model.ts) has no
- *  mass or fuel dependency at all. The real mechanism: a lighter aeroplane
+ *  mass or fuel dependency at all. The real mechanism: a lighter airplane
  *  trims to a lower clTrim (= massKg * G / (q * S)), which changes induced
  *  drag and hence the equilibrium speed the run is converging toward. Small,
  *  but it is free to remove and it would not stay small for a longer card. */
@@ -78,7 +78,7 @@ const holdMass = (spec: AircraftSpec, s: AircraftState): AircraftState =>
  *  - Level flight, pinned vs regulated. The top-speed card reads 172.46 m/s
  *    regulating the flight path and 182.34 m/s pinning the altitude under a
  *    pitch-attitude-level hold -- 5.7% fabricated, because with the attitude
- *    level and lift a little short of weight the aeroplane settles into a
+ *    level and lift a little short of weight the airplane settles into a
  *    permanent shallow descent whose altitude loss is being handed back.
  */
 const holdMassAndAltitude = (
@@ -137,12 +137,12 @@ export function measureTopSpeed(spec: AircraftSpec, altitudeM: number): number {
  *  speed, so the sweep has to run well past any plausible flight-path angle:
  *  measured 2026-09-12 at propEfficiency 0.75, testMassKg 5633.62, the F6F
  *  card peaks at 24 degrees of attitude, which is 15.8 m/s of climb at 58 m/s
- *  -- a flight-path angle of only 15.8 degrees. Past 32 degrees the aeroplane
+ *  -- a flight-path angle of only 15.8 degrees. Past 32 degrees the airplane
  *  departs and reads about -45 m/s, which is harmless because the sweep takes
  *  the maximum, but it is why the sweep does not simply run to 90. */
 const CLIMB_SWEEP_MAX_DEG = 40
 const CLIMB_SWEEP_STEP_DEG = 2
-/** Long enough for airspeed to settle at the commanded attitude: the aeroplane
+/** Long enough for airspeed to settle at the commanded attitude: the airplane
  *  is spawned at the rate-reference speed and has to decelerate ~45 m/s at well
  *  under 1 m/s^2. Measured 2026-09-12 at propEfficiency 0.75, testMassKg
  *  5633.62, at the best-rate (24-degree) attitude: spawn speed 103.000 m/s,

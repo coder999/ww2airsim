@@ -13,14 +13,14 @@ const MARKER_HALF_COUNT = 8
  * +/-2 km along Z, anchored at the world origin and never moved. The sky was
  * re-centred on the eye from Task 12 and the water from I-1; the markers were
  * the third member of that family and were missed both times. At the spawn's
- * 120 m/s the aeroplane left the patch sideways in 17 seconds and lengthways
+ * 120 m/s the airplane left the patch sideways in 17 seconds and lengthways
  * in 83, after which design spec section 5's "markers at a known spacing give
  * absolute scale" was simply not true any more -- and the absence is invisible
  * over featureless water, which is why nobody caught it by flying.
  *
  * `recentreMarkers` keeps the grid under the eye. It works because the markers
  * are identical and the grid SNAPS to multiples of `MARKER_SPACING_M`: every
- * marker sits on a world-grid point whichever way the aeroplane flies, so the
+ * marker sits on a world-grid point whichever way the airplane flies, so the
  * pattern is world-locked and no individual marker is ever seen to move. That
  * is what makes them a speed cue rather than decoration.
  */
@@ -42,7 +42,7 @@ export function createMarkers(): Object3D {
  * Slide the grid under the eye, snapped to its own spacing.
  *
  * Snapping is the whole trick: an unsnapped translation would drag every
- * marker along with the aeroplane and destroy the parallax they exist for,
+ * marker along with the airplane and destroy the parallax they exist for,
  * exactly as an unsnapped water plane would drag its surface detail.
  */
 export function recentreMarkers(markers: Object3D, eyeX: number, eyeZ: number): void {

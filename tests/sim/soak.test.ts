@@ -70,7 +70,7 @@ describe('randomized soak (spec §11)', () => {
     // not to this test. The reproducible ones, and what they imply for the
     // dynamic-pressure approximation, are in design open item 10.
     //
-    // The likely mechanism, NOT isolated: a crabbing aeroplane really is at a
+    // The likely mechanism, NOT isolated: a crabbing airplane really is at a
     // higher alpha for the same flight path, by 1/cos(sideslip) -- 34% at 42
     // degrees of slip -- so removing the crab removes that. Other effects
     // point the same way and were not separated out, notably that less
@@ -183,7 +183,7 @@ describe('randomized soak (spec §11)', () => {
   })
 })
 
-describe('terrain contact soak (spec §11, Task 8: the ground the aeroplane can hit)', () => {
+describe('terrain contact soak (spec §11, Task 8: the ground the airplane can hit)', () => {
   it('never ends a physics step below the ground with impact still null, over the committed L4 field', () => {
     // The committed field, the same one shipped for the offline fallback
     // (Task 6) -- loaded here, in the test, not inside `runTerrainSoak`
@@ -214,7 +214,7 @@ describe('terrain contact soak (spec §11, Task 8: the ground the aeroplane can 
     // gives 411,643 steps / 148 hits, both zero failures.
     expect(result.steps).toBeGreaterThan(300000)
     // The floor that matters most: without it, a soak that never put an
-    // aeroplane within reach of the ground would still report zero failures
+    // airplane within reach of the ground would still report zero failures
     // forever, indistinguishable from "the invariant held". 100 is comfortably
     // below every seed measured above (128-148) while being nowhere near 0.
     expect(result.terrainHits).toBeGreaterThan(100)

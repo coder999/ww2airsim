@@ -23,7 +23,7 @@ const G = 9.80665
  *  radian of bank. Both saturate the control well before the error is large:
  *  at gain 4 the pitch channel is hard over past 14 degrees of error. These
  *  are deliberately stiff -- the autopilot exists so a measurement harness can
- *  fly the aeroplane repeatably, not so it flies comfortably. */
+ *  fly the airplane repeatably, not so it flies comfortably. */
 const PITCH_GAIN = 4
 const ROLL_GAIN = 3
 
@@ -31,7 +31,7 @@ const ROLL_GAIN = 3
  * Proportional autopilot holding a wings-level BODY PITCH ATTITUDE.
  *
  * Ruling R6: this drives pitch attitude, not flight-path angle. The two differ
- * by the angle of attack, which for this aeroplane in a best-rate climb is
+ * by the angle of attack, which for this airplane in a best-rate climb is
  * around 8 degrees (measured 2026-09-12 at propEfficiency 0.75, testMassKg
  * 5633.62: the 24-degree best-rate attitude in `measure.ts` against its
  * ~15.8-degree flight-path angle) -- so commanding 15 degrees here does NOT
@@ -71,7 +71,7 @@ export const holdLevelHeading = (
 ): Controls => holdPitchAngle(spec, state, throttle, 0)
 
 /** Pitch-attitude authority is bounded, so bound the command too: past about
- *  30 degrees this aeroplane is not holding any flight path for long. */
+ *  30 degrees this airplane is not holding any flight path for long. */
 const MAX_PITCH_CMD_RAD = 0.55
 /** Vertical-speed error to extra pitch attitude, rad per (m/s). Small because
  *  the trim feed-forward below already does nearly all the work. */
@@ -94,7 +94,7 @@ const MAX_ALT_CORRECTION_MPS = 10
  *
  * Once the commanded angle of attack exceeds what the wing can deliver -- below
  * the stall speed, or at idle throttle on the way there -- the command
- * saturates and the aeroplane sinks. That is correct behaviour, and it is how
+ * saturates and the airplane sinks. That is correct behaviour, and it is how
  * `measureStallSpeed` arrives at a 1-g stall.
  */
 export function holdLevelFlight(

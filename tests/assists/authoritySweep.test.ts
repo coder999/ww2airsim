@@ -150,7 +150,7 @@ const ALPHA_GRID_DEG: number[] = (() => {
   return [...seen].sort((a, b) => a - b)
 })()
 
-/** One randomised draw: everything about the aeroplane and the pilot except
+/** One randomised draw: everything about the airplane and the pilot except
  *  the angle of attack, which the caller sweeps, and the settings, which are
  *  enumerated. */
 type Draw = {
@@ -197,7 +197,7 @@ function rollDraw(rng: () => number, illegalIndex: number): Draw {
   // and altitude hold stand down on their own guards.
   const speed = rng() < 0.125 ? rng() * 2 : 20 + rng() * 230
   const altitudeM = 50 + rng() * 9000
-  // Held either side of where the aeroplane is, and sometimes exactly at it:
+  // Held either side of where the airplane is, and sometimes exactly at it:
   // altitude hold wants nose-up in one case and nose-down in the other, and a
   // budget that only ever vetoes one direction would pass a one-sided sweep.
   const heldOffsetM = (rng() - 0.5) * 1200
@@ -339,7 +339,7 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
         // "Rolled" measured as the wings being out of the horizontal plane by
         // more than 30 degrees: body right is horizontal for any attitude
         // reachable by heading and pitch alone, so |right.y| isolates roll
-        // rather than counting a pitched-up aeroplane as a banked one.
+        // rather than counting a pitched-up airplane as a banked one.
         if (Math.abs(qRotate(d.attitude, v3(0, 0, 1)).y) > 0.5) rolledCases++
         if (!Number.isFinite(d.raw.pitch) || Math.abs(d.raw.pitch) > 1) {
           illegalPitchCases++
@@ -463,7 +463,7 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
   it('is the shipped configuration that is swept, not a configuration invented here', () => {
     // `DEFAULT_ASSIST_SETTINGS` must be one of the eight combinations above --
     // otherwise the sweep could be exhaustive over a space that does not
-    // contain the aeroplane anybody flies.
+    // contain the airplane anybody flies.
     expect(ALL_SETTINGS_COMBOS).toContainEqual(DEFAULT_ASSIST_SETTINGS)
     expect(ALL_SETTINGS_COMBOS).toHaveLength(8)
   })

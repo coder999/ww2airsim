@@ -80,7 +80,7 @@ function expectPinnedTable(actual: Record<number, number>, pinned: Readonly<Reco
 describe('CDLOD node selection', () => {
   it('always draws the ground under the camera at the finest ring', () => {
     // This is the guard that makes "what you hit is what you see" true near
-    // the aeroplane. A test comparing L0 with L0 would pass while proving
+    // the airplane. A test comparing L0 with L0 would pass while proving
     // nothing (design S6); this one fails the moment selection coarsens
     // underfoot.
     // Typed as tuples, not `number[][]`: with `noUncheckedIndexedAccess` a

@@ -55,7 +55,7 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
   // throttle reaches the frame state, not that it reaches the simulation --
   // a bug that stops `frame.controls` from reaching `advance` would leave
   // the prop spinning at the correct rate with nothing driving the
-  // aeroplane (Task 13 review, measured 2026-09-13).
+  // airplane (Task 13 review, measured 2026-09-13).
   const prop = new Mesh(new BoxGeometry(0.12, 3.9, 0.3), dark)
   prop.position.set(5.4, 0, 0)
   root.add(prop)

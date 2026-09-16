@@ -120,7 +120,7 @@ export type Readout = {
  *
  * Authenticity of APPEARANCE is traded away on purpose: faithful 1944 markings
  * that cannot be read at a realistic eye point would be accurate and useless,
- * and this plan exists to let a human judge how the aeroplane flies. What is
+ * and this plan exists to let a human judge how the airplane flies. What is
  * NOT traded away is the data -- every needle here is backed by a quantity the
  * flight model produces, which is why there is no tachometer (see gauges.ts's
  * doc comment on GaugeId).

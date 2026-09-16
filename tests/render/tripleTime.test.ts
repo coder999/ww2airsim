@@ -77,10 +77,10 @@ describe('triple time (T)', () => {
     expect(fast.world.aircraft.velocity).toEqual(real.world.aircraft.velocity)
   })
 
-  it('ramps the controls in simulated seconds, so the aeroplane does not feel sluggish', () => {
+  it('ramps the controls in simulated seconds, so the airplane does not feel sluggish', () => {
     // `controlsFromKeys` ramps toward full deflection over RAMP_SECONDS. Left
     // on real seconds, a compressed frame would fly three times as far for the
-    // same stick movement -- the aeroplane would answer a third as willingly
+    // same stick movement -- the airplane would answer a third as willingly
     // exactly when there is most sky going past. Scaling the ramp makes 3x a
     // faithful fast-forward: identical response per simulated second.
     let fast = nextFrameState(start(), FRAME, keys('KeyT'))

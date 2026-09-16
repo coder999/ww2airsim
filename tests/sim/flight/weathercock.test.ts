@@ -36,7 +36,7 @@ describe('weathercock stability', () => {
     // this, hands off at 120 m/s from 10 degrees of sideslip, the nose heading
     // did not move by a hundredth of a degree in a full minute -- the slip
     // decayed only because thrust has a lateral component while crabbed, which
-    // curves the TRACK. A fin turns the aeroplane; it does not steer it.
+    // curves the TRACK. A fin turns the airplane; it does not steer it.
     const start = crabbed(10)
     const heading = (s: AircraftState) => {
       const f = qRotate(s.attitude, v3(1, 0, 0))
@@ -68,9 +68,9 @@ describe('weathercock stability', () => {
     }
   })
 
-  it('does nothing at all when the aeroplane is already aligned', () => {
+  it('does nothing at all when the airplane is already aligned', () => {
     // A weathercock term that fires on zero sideslip would yaw a coordinated
-    // aeroplane off its heading for no reason.
+    // airplane off its heading for no reason.
     const straight = createState({ position: v3(0, 600, 0), velocity: v3(120, 0, 0) })
     const after = run(straight, 5)
     expect(Math.abs(deg(slipRad(after)))).toBeLessThan(0.02)
@@ -88,7 +88,7 @@ describe('weathercock stability', () => {
 
   it('cannot yaw faster than full rudder could', () => {
     // Saturated at the fin's own commanded maximum, so a violent entry cannot
-    // snap the nose round faster than the aeroplane can physically yaw.
+    // snap the nose round faster than the airplane can physically yaw.
     const violent = run(crabbed(60, 200), DT)
     const maxRad = spec.rates.maxYawRateDegPerSec * (Math.PI / 180)
     expect(Math.abs(violent.bodyRates.y)).toBeLessThanOrEqual(maxRad * 1.0001)

@@ -3,9 +3,9 @@ import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWind
 
 /**
  * Tier 2, terrain. Same platform and same caveats as `adapter.spec.ts`; this
- * file is the half that needs the aeroplane to be somewhere specific.
+ * file is the half that needs the airplane to be somewhere specific.
  *
- * **Where, and why there.** The aeroplane spawns over open water 23 km from
+ * **Where, and why there.** The airplane spawns over open water 23 km from
  * the nearest land, which is three minutes' flying -- so these tests move it
  * with `?spawnX/Y/Z` (see `src/render/spawn.ts` for why a URL is allowed to
  * and why it cannot in a build that ships). The point chosen is on Tacloban
@@ -20,7 +20,7 @@ import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWind
  * 2026-09-14. Measured over the committed L4 grid on 2026-09-14, the ground
  * along the corridor from the spawn eastward reads 18, 16, 15, 15, 16, 15 m
  * at 0..5 km and rises to 162 m at 10 km, and the highest ground within 30 km
- * is 1,196 m -- i.e. the aeroplane is genuinely over land, with real relief in
+ * is 1,196 m -- i.e. the airplane is genuinely over land, with real relief in
  * the frame, at every altitude below.
  */
 const SPAWN_X_M = -45000
@@ -31,7 +31,7 @@ const SPAWN_Z_M = 47605
  * of the frame; 3,000 m is the altitude the rest of the plan's arithmetic is
  * written at (the curvature sink, the fog); 8,000 m is near the altimeter's
  * useful top, where the coarse rings and the fog dominate and the finest ring
- * is a small disc under the aeroplane. Three different LOD compositions, one
+ * is a small disc under the airplane. Three different LOD compositions, one
  * sweep each.
  */
 const ALTITUDES_M = [100, 3000, 8000]
@@ -51,7 +51,7 @@ for (const altitudeM of ALTITUDES_M) {
     // parameter, production build served by mistake, a `spawn.ts` that fell
     // back silently) cannot satisfy this, and without it every assertion in
     // this file would pass over an empty sea. 5 km of slack because the
-    // aeroplane has been flying east at 120 m/s since the first frame, while
+    // airplane has been flying east at 120 m/s since the first frame, while
     // the FIVE level fetches (L8..L4) were still landing. [Fix round 1: this
     // said "nine", the exact stale figure the same commit hunted down in
     // main.ts and then reintroduced here.]
@@ -62,7 +62,7 @@ for (const altitudeM of ALTITUDES_M) {
     // the 600 m default spawn, i.e. at an altitude three LOD compositions away
     // from the one it names -- the assertion would have been satisfied by
     // exactly the bug it exists to catch (review fix round 1, m6). The band is
-    // +/-300 m because the aeroplane is flying, not parked: it trades a little
+    // +/-300 m because the airplane is flying, not parked: it trades a little
     // height for speed while the levels land.
     expect(start.position.y, 'spawn altitude did not land').toBeGreaterThan(altitudeM - 300)
     expect(start.position.y, 'spawn altitude did not land').toBeLessThan(altitudeM + 300)
@@ -71,13 +71,13 @@ for (const altitudeM of ALTITUDES_M) {
     // the heightfield reaches the simulation and exactly 0 over water, so a
     // positive number here is the one available proof that this test is
     // looking at Leyte rather than at the sea.
-    expect(start.groundHeightM, 'no terrain under the aeroplane').not.toBeNull()
-    expect(start.groundHeightM!, 'the aeroplane is over water, not over Leyte').toBeGreaterThan(0)
+    expect(start.groundHeightM, 'no terrain under the airplane').not.toBeNull()
+    expect(start.groundHeightM!, 'the airplane is over water, not over Leyte').toBeGreaterThan(0)
 
     await flySweep(page)
 
     const end = await snapshot(page)
-    // The aeroplane must have covered real ground during the sweep, not just
+    // The airplane must have covered real ground during the sweep, not just
     // ticked. `flySweep` proves the keys were delivered and the loop ran;
     // this proves the world moved under the camera, which is what puts new
     // LOD patches through selection, upload and draw. The sweep is ~6 s of
@@ -86,7 +86,7 @@ for (const altitudeM of ALTITUDES_M) {
     // target.
     expect(
       Math.hypot(end.position.x - start.position.x, end.position.z - start.position.z),
-      'the aeroplane did not move during the sweep',
+      'the airplane did not move during the sweep',
     ).toBeGreaterThan(200)
 
     expect(end.errors, `WebGPU validation errors:
@@ -223,7 +223,7 @@ test.describe('frame-time budget', () => {
       Math.hypot(over.position.x - SPAWN_X_M, over.position.z - SPAWN_Z_M),
       'spawn did not land -- this budget would be measured over open water',
     ).toBeLessThan(5000)
-    expect(over.groundHeightM ?? 0, 'the aeroplane is over water, not over Leyte').toBeGreaterThan(0)
+    expect(over.groundHeightM ?? 0, 'the airplane is over water, not over Leyte').toBeGreaterThan(0)
 
     await page.waitForTimeout(SETTLE_MS)
     await page.evaluate(() => {

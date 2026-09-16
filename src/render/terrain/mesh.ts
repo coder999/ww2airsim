@@ -82,7 +82,7 @@ export type TerrainMesh = {
  *   FINEST_FETCHED_LEVEL explains why L0-L3 are not fetched). Rings 0-3 ask
  *   for a level nobody has. Clamping BOTH taps to `finest` makes their morph
  *   blend a no-op, which is the point: clamping only the fine tap would
- *   blend the ground directly under the aeroplane toward level 5 by up to
+ *   blend the ground directly under the airplane toward level 5 by up to
  *   100% -- morph is clamped at 1 for about half of all nodes (lod.ts,
  *   measured) -- and would render the near field coarser than the data it
  *   already has.
@@ -342,7 +342,7 @@ function createRingMaterial(
  *  spanning [-0.5, 0.5] in x and z at y = 0, so a patch is `positionLocal *
  *  sizeM + centre`. Wound counter-clockwise seen from above, because
  *  three's default FrontSide culls the other way round and a grid wound
- *  backwards draws nothing at all from an aeroplane. */
+ *  backwards draws nothing at all from an airplane. */
 function createGridAttributes(): { position: BufferAttribute; index: BufferAttribute } {
   const quads = LOD.quadsPerNode
   const side = quads + 1

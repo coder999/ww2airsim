@@ -30,7 +30,7 @@ export type FrameState = {
   readonly look: LookOffset
   readonly cameraMode: CameraMode
   readonly eye: EyeTransform
-  /** The aeroplane's interpolated pose this frame -- the same quantity `eye`
+  /** The airplane's interpolated pose this frame -- the same quantity `eye`
    *  is built from, exposed separately so the renderer can pose the airframe
    *  mesh. Sim convention throughout (body +X forward): unlike `toThreeOrientation`
    *  below, this needs no basis fix, because the airframe mesh's own geometry
@@ -66,7 +66,7 @@ export type FrameState = {
   /**
    * Which assists are on. Here rather than in a module-level variable so the
    * whole frame remains one immutable value a test can construct, and so two
-   * sessions (two tests, two aeroplanes later) cannot share one set of flags.
+   * sessions (two tests, two airplanes later) cannot share one set of flags.
    * `DEFAULT_ASSIST_SETTINGS` (all three on) until a toggle key says otherwise
    * -- there is no options UI and no persistence, deliberately; see
    * `BINDINGS`' own comment on the toggle keys.
@@ -195,7 +195,7 @@ export function nextFrameState(
   // The simulation's clock. `controlsFromKeys` ramps toward full deflection
   // over RAMP_SECONDS and belongs on this one: the stick is part of the flight
   // being fast-forwarded, so leaving it on real seconds would make the
-  // aeroplane answer a third as willingly per metre flown, exactly when there
+  // airplane answer a third as willingly per metre flown, exactly when there
   // is most sky going past.
   const simElapsedSeconds = elapsedSeconds * timeScale
   const controls = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)

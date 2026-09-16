@@ -76,7 +76,7 @@ describe('AssistSettings', () => {
     // one most never do, so a PROTECTIVE default has to be "on", not "off".
     //
     // `altitudeHold` was carved out on 2026-09-15 (Mark's call). It does not
-    // protect the aeroplane, it flies it somewhere, and with the engine off it
+    // protect the airplane, it flies it somewhere, and with the engine off it
     // held altitude indefinitely instead of gliding. The behaviour that
     // decides this lives in `tests/render/frameAssists.test.ts`; this case
     // only pins the shipped constant, so a revert has to fail both.
@@ -93,7 +93,7 @@ describe('applyAssists (Plan 3 Task 1: the seam, no assist behaviour yet)', () =
     // Still true as of Task 3, but no longer because the stages are stubs:
     // `state` here is `createState({})`, i.e. stationary, and BOTH live stages
     // stand down on it by their own guards -- auto-rudder because a stationary
-    // aeroplane has no relative wind to be misaligned with, the stall limiter
+    // airplane has no relative wind to be misaligned with, the stall limiter
     // because zero airspeed means zero pitch authority to ration. So this
     // test says the seam does not invent behaviour of its own; it is NOT
     // evidence that the stages do nothing. That is
@@ -192,7 +192,7 @@ describe('the stack applies in a fixed, documented order (Plan 3 Task 5)', () =>
    */
   it("the limiter's pitch decision is final: altitude hold cannot restore what it took away", () => {
     // The three-way measurement, all at the same state (alpha 17.5 degrees at
-    // 90 m/s, stick centred, holding an altitude 500 m above the aeroplane) so
+    // 90 m/s, stick centred, holding an altitude 500 m above the airplane) so
     // that the two stages genuinely disagree, measured 2026-09-13:
     //   limiter alone:        -0.7085  (nose down, stall recovery)
     //   altitude hold alone:  +1.0000  (nose up, full authority, to climb)
@@ -224,7 +224,7 @@ describe('the stack applies in a fixed, documented order (Plan 3 Task 5)', () =>
   })
 
   it("is final in the other direction too: altitude hold cannot ADD to the limiter's recovery", () => {
-    // The same state as above with the held altitude BELOW the aeroplane, so
+    // The same state as above with the held altitude BELOW the airplane, so
     // altitude hold wants nose-down and the two stages agree on the sign. The
     // limiter still owns the number: measured 2026-09-13, altitude hold alone
     // commands -1.0000 and the shipped stack commands the limiter's own
@@ -338,7 +338,7 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
 
   it('gives altitude hold no vote on a departed wing, where both of Task 4 fixes went inert', () => {
     // The measured case, 2026-09-13, 90 m/s, stick centred, holding 500 m
-    // above the aeroplane -- shipped `DEFAULT_ASSIST_SETTINGS`:
+    // above the airplane -- shipped `DEFAULT_ASSIST_SETTINGS`:
     //
     //   alpha    limiter only    all three, before this fix    after
     //    89 deg    -1.0000            -1.0000                  -1.0000
@@ -419,7 +419,7 @@ describe('an illegal Controls.pitch is sanitised rather than published as a fals
    * illegal values escape the budget in the first, and the second's own
    * "must have been sanitised" precondition goes 5 against 1). The second is
    * not a duplicate of the first: it is what makes the fix safe to believe
-   * rather than merely tidy, by measuring that the clamp moved no aeroplane.
+   * rather than merely tidy, by measuring that the clamp moved no airplane.
    */
   const ILLEGAL = [5, -5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]
   const level = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0), attitude: qIdentity() })
@@ -449,7 +449,7 @@ describe('an illegal Controls.pitch is sanitised rather than published as a fals
     expect(escapes.length).toBe(0)
   })
 
-  it('flies identically to the unsanitised command, so the clamp moved no aeroplane', () => {
+  it('flies identically to the unsanitised command, so the clamp moved no airplane', () => {
     // The claim that makes the fix safe rather than merely tidy:
     // `commandedBodyRates` (src/sim/flight/model.ts) already put every channel
     // through the same `clampFinite(n, -1, 1)`, so +5 was flown as 1 and NaN as
@@ -540,7 +540,7 @@ describe('assistFor (Plan 3 Task 5, reshaped as a reducer 2026-09-13)', () => {
 
   it('keeps two flights apart even through one shared assist function', () => {
     // The reason this is a pure reducer and not a closure over a cell (see
-    // `AltitudeHoldMemory`'s doc comment): two test files, or two aeroplanes
+    // `AltitudeHoldMemory`'s doc comment): two test files, or two airplanes
     // once the combat plan exists, must not fight over one target -- and unlike the
     // factory this replaced, they may now safely share one function value.
     // Interleaved deliberately: a cell would be overwritten by whichever call

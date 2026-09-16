@@ -237,7 +237,7 @@ describe('advance', () => {
     // parameter at every call site. Two things have to hold for that move to
     // be behaviour-preserving, and neither was covered before: the stepper
     // must read the world's controls (a stale capture would leave the
-    // aeroplane flying the previous command forever), and the returned world
+    // airplane flying the previous command forever), and the returned world
     // must still carry them, or the next `advance` would fly neutral.
     const w = start()
     const pitchUp = advance({ ...w, controls: { ...level, pitch: 1 } }, DT * 5)

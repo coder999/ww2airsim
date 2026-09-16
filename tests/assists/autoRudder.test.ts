@@ -69,7 +69,7 @@ describe('auto-rudder coordination (Plan 3 Task 2)', () => {
     // Straight, wings-level, velocity exactly along the nose: the dot product
     // defining sideslip is exactly 0, so the correction must be exactly 0,
     // not merely small -- an assist that fires on zero sideslip would yaw a
-    // perfectly coordinated aeroplane off its heading for no reason.
+    // perfectly coordinated airplane off its heading for no reason.
     const straight = createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0), attitude: qIdentity() })
     const raw: Controls = { pitch: 0.2, roll: -0.3, yaw: 0.1, throttle: 0.8 }
     const result = applyAssists(straight, spec, raw, DT, ONLY_AUTO_RUDDER(true))

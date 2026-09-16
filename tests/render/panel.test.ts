@@ -79,7 +79,7 @@ const banked = (bankDeg: number): AircraftState =>
 
 /**
  * Heading and pitch with the wings held level: yaw about world up, then pitch
- * about the body's own lateral axis, which is how an aeroplane gets there.
+ * about the body's own lateral axis, which is how an airplane gets there.
  */
 const wingsLevel = (headingDeg: number, pitchDeg: number): AircraftState =>
   createState({
@@ -603,7 +603,7 @@ describe('the attitude ball (2026-09-15)', () => {
       .toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 1)
   })
 
-  it('holds level on a wings-level aeroplane, at any pitch and heading', () => {
+  it('holds level on a wings-level airplane, at any pitch and heading', () => {
     // The gap a pure-roll sweep leaves, found on the reference-class hardware
     // 2026-09-13 against the retired horizon bar: a cockpit screenshot showed
     // a dead-level true horizon, a level panel, and the bar tilted about 7
@@ -614,7 +614,7 @@ describe('the attitude ball (2026-09-15)', () => {
     // any heading and pitch is the case that actually exercises
     // `attitudeAngles`' own heading-independence fix, so this is the ball's
     // own version of the bar's "holds the bar level on a wings-level
-    // aeroplane" test.
+    // airplane" test.
     const p = createPanel(f6f)
     for (const headingDeg of [0, 30, 45, 90, 135, 180, -60]) {
       for (const pitchDeg of [0, 10, -15]) {
@@ -897,7 +897,7 @@ describe('panel markings and readouts (I-2)', () => {
     }
   })
 
-  it('shows the current value as digits, and updates them as the aeroplane moves', () => {
+  it('shows the current value as digits, and updates them as the airplane moves', () => {
     const { factory, drawn } = recordingText()
     const p = createPanel(f6f, factory)
     // Feet since 2026-09-15: 1234 m is 4048.6 ft and 2500 m is 8202.1 ft.
@@ -1017,7 +1017,7 @@ describe('the gunsight reticle (2026-09-15)', () => {
 
   it('sits on the boresight, at every attitude', () => {
     // A reflector sight is aimed where the guns point, so the reticle has to
-    // land dead centre whatever the aeroplane is doing -- it is fixed to the
+    // land dead centre whatever the airplane is doing -- it is fixed to the
     // airframe, not to the world like the attitude ball's own horizon chord.
     //
     // This is the assertion that a reticle parented correctly but positioned

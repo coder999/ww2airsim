@@ -25,7 +25,7 @@ export const CAMERA_VFOV_DEG = 60
 
 /** Behind and above, on the centreline (z = 0). Body frame. Whether it
  *  should sit off-centre instead -- some chase views do, so the tail doesn't
- *  mask the aeroplane -- is a question about how it feels to fly behind it,
+ *  mask the airplane -- is a question about how it feels to fly behind it,
  *  decided in Task 13 with a view out of the window, not guessed here. */
 export const CHASE_OFFSET_M: readonly [number, number, number] = [-22, 6, 0]
 
@@ -77,8 +77,8 @@ const LOOK_ZERO: LookOffset = { yawRad: 0, pitchRad: 0 }
  *
  * The offset is applied AFTER the mode's own attitude -- `qMul(attitude,
  * offset)`, not `qMul(offset, attitude)` -- so it composes in body frame:
- * turning your head is relative to the aeroplane, not the world. Get this
- * order backwards and the view swings the wrong way whenever the aeroplane
+ * turning your head is relative to the airplane, not the world. Get this
+ * order backwards and the view swings the wrong way whenever the airplane
  * isn't level, which in a fighter is most of the time. See
  * tests/render/camera.test.ts's "body frame, not world frame" case, taken
  * steeply banked, where the two orders visibly disagree.

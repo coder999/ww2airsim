@@ -2,7 +2,7 @@ import { type Vec3, v3 } from './math/vec3.js'
 import { type Quat } from './math/quat.js'
 import type { AircraftState } from './flight/state.js'
 
-/** What the renderer needs to place an aeroplane. Not a simulation state: it
+/** What the renderer needs to place an airplane. Not a simulation state: it
  *  belongs to no tick, because it is between two of them. */
 export type RenderState = {
   readonly position: Vec3
@@ -72,7 +72,7 @@ export function qSlerp(a: Quat, b: Quat, t: number): Quat {
 }
 
 /**
- * Places the aeroplane between two simulated ticks.
+ * Places the airplane between two simulated ticks.
  *
  * Alpha is clamped, not extrapolated: a frame that overran must not invent a
  * future the simulation has not computed. Standing still for one frame is a

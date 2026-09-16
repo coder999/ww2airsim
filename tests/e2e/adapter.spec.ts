@@ -11,7 +11,7 @@ import { flySweep, type DiagWindow } from './harness.js'
  * and they are the expensive half to maintain.
  *
  * The sweep below flies the DEFAULT spawn -- over open water, the world the
- * aeroplane actually starts in. `terrain.spec.ts` flies the same sweep over
+ * airplane actually starts in. `terrain.spec.ts` flies the same sweep over
  * Leyte at three altitudes; the two are not redundant, because open water and
  * terrain exercise different halves of the renderer and this one is also the
  * only Tier 2 test that covers the app with no query string at all.

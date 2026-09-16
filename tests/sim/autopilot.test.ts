@@ -47,8 +47,8 @@ describe('autopilot', () => {
     // not a real angle of attack. Without the MAX_PITCH_CMD_RAD clamp in
     // holdLevelFlight, the pitch-attitude error this drives into
     // holdPitchAngle would be so large that its own +-1 output clamp would
-    // saturate `pitch` to exactly 1 regardless of the aeroplane's current
-    // attitude. Starting the aeroplane already close to the 0.55 rad cap
+    // saturate `pitch` to exactly 1 regardless of the airplane's current
+    // attitude. Starting the airplane already close to the 0.55 rad cap
     // (at 0.5 rad, ~28.6 degrees nose-up) distinguishes the two: if
     // MAX_PITCH_CMD_RAD is doing its job, the resulting pitch-attitude error
     // is only (0.55 - 0.5) rad, which does NOT saturate holdPitchAngle's own

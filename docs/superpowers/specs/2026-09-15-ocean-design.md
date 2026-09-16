@@ -48,7 +48,7 @@ There is no simulation half. §8 says why, and what it costs.
 
 ### Not in this plan
 
-- **Wave height in `sim/`.** See §8. The aeroplane crashes at `y = 0` as it
+- **Wave height in `sim/`.** See §8. The airplane crashes at `y = 0` as it
   does today.
 - **Deck motion, ditching, spray.** Plan 8 has the deck; ditching has no
   mechanics yet to attach sea state to.
@@ -315,8 +315,8 @@ water. Nothing in `src/sim/` changes, so the golden trajectory,
 untouched by this plan, and a regression in any of them would be a real
 finding rather than expected churn.
 
-**What it costs: the aeroplane can clip a wave crest without crashing.** At
-Beaufort 4 that is roughly a metre of error, and only for an aeroplane already
+**What it costs: the airplane can clip a wave crest without crashing.** At
+Beaufort 4 that is roughly a metre of error, and only for an airplane already
 flying below wave height at 170 m/s.
 
 **Why the obvious fix is the wrong one.** Querying the FFT's displacement from

@@ -112,7 +112,7 @@ export type Stepper = typeof step
  *    rebuild it, carry on, and the trajectory is identical -- which a closure
  *    breaks silently, because the captured altitude is not in the object being
  *    saved. `tests/assists/worldMemory.test.ts` measures both halves.
- *  - N aeroplanes get N memories by construction rather than by every caller
+ *  - N airplanes get N memories by construction rather than by every caller
  *    remembering to build one runner each (the combat plan).
  */
 export type Assist<M> = (
@@ -142,33 +142,33 @@ const identityAssist = <M>(
 ): AssistResult<M> => ({ controls: raw, memory })
 
 /**
- * Recorded once, on the first step where the aeroplane is at or below the
+ * Recorded once, on the first step where the airplane is at or below the
  * ground under it. `advance` does not clear it on later steps and does not
  * react to it (no bounce, no stop, no invariant trip) -- this task only
- * records the event; what happens to the aeroplane after a crash is Plan 8's
+ * records the event; what happens to the airplane after a crash is Plan 8's
  * subject, so acting on `impact` here would be scope this task does not own.
  */
 export type Impact = {
   /** `SimContext.tick` of the step that first satisfied the impact test. */
   readonly tick: number
-  /** The aeroplane's position on that step, world metres, +Y up. */
+  /** The airplane's position on that step, world metres, +Y up. */
   readonly position: Vec3
   /** `velocity.y` on that step -- negative for a normal descent into terrain,
-   *  but not asserted to be: an aeroplane can be at or below the ground with
+   *  but not asserted to be: an airplane can be at or below the ground with
    *  a non-negative vertical speed (e.g. it spawned there), and recording the
    *  true value rather than clamping it is what lets a caller tell the two
    *  cases apart later. */
   readonly verticalSpeedMps: number
   /** `heightAt(terrain, position.x, position.z)` at the moment of impact --
    *  captured rather than left for the caller to recompute, since a later
-   *  step's ground height at the SAME (x, z) can differ once the aeroplane
+   *  step's ground height at the SAME (x, z) can differ once the airplane
    *  has moved on (a later task's field, not this one's, could even swap the
    *  field itself). */
   readonly groundHeightM: number
 }
 
 export interface World<M = undefined> {
-  /** The aeroplane's coefficient set. Here, not in `advance`'s parameter
+  /** The airplane's coefficient set. Here, not in `advance`'s parameter
    *  list: the design has later plans add fields to World precisely so
    *  that `advance`'s signature never grows. */
   readonly spec: AircraftSpec
@@ -187,7 +187,7 @@ export interface World<M = undefined> {
    * world (see `nextFrameState` in src/render/frame.ts), which keeps `World`
    * immutable and `advance` a pure function of one object.
    *
-   * Deliberately still ONE control vector for ONE aeroplane: generalising
+   * Deliberately still ONE control vector for ONE airplane: generalising
    * `World` to N entities belongs to the combat plan, not this branch.
    */
   readonly controls: Controls
@@ -200,8 +200,8 @@ export interface World<M = undefined> {
    * replaced here) so that this object is the WHOLE flight: a world written
    * to disk and read back flies on identically, where a closure's contents
    * would be silently missing from the save. It also settles the combat plan in
-   * advance -- N aeroplanes are N worlds, or N entity records, each with its
-   * own memory field, so two aeroplanes cannot share one captured altitude
+   * advance -- N airplanes are N worlds, or N entity records, each with its
+   * own memory field, so two airplanes cannot share one captured altitude
    * even if they share an assist function.
    *
    * "Written to disk and read back" means under a serialiser that preserves
@@ -221,7 +221,7 @@ export interface World<M = undefined> {
    */
   readonly assistMemory: M
   /**
-   * The ground this world's aeroplane can hit, or `null` for "no terrain
+   * The ground this world's airplane can hit, or `null` for "no terrain
    * loaded". `sim/` may not import `tools/terrain/load.ts` (Node-only, and a
    * `src/sim/` file must load in a browser -- `.dependency-cruiser.cjs`,
    * `tests/architecture/boundary.test.ts`), so this arrives the same way
@@ -240,7 +240,7 @@ export interface World<M = undefined> {
    */
   readonly terrain: TerrainField | null
   /**
-   * Set once `advance` finds the aeroplane at or below `terrain`'s height
+   * Set once `advance` finds the airplane at or below `terrain`'s height
    * under it, and never overwritten afterward -- seeded from `world.impact`
    * at the top of `advance`.
    *
@@ -364,7 +364,7 @@ export function advance<M>(
     // step, at the frame's dt rather than DT, reproducing exactly the
     // frame-rate dependence `AdvanceResult.droppedSteps`'s doc already flags
     // as open item 5's defect for the input ramp. Running it inside means an
-    // assist reacting to the aeroplane's stall margin sees the STATE that
+    // assist reacting to the airplane's stall margin sees the STATE that
     // margin actually applied to on this tick (`current`, not `world.aircraft`,
     // which is stale from the second step of a multi-step frame onward).
     const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
@@ -382,7 +382,7 @@ export function advance<M>(
     // permanent for the rest of this call, matching `World.impact`'s "never
     // overwritten afterward". `<=`, not `<`: `heightAt` is a real number for
     // any finite (x, z), including exactly on the ground, and a strict `<`
-    // would let the aeroplane sit buried at exactly ground level forever
+    // would let the airplane sit buried at exactly ground level forever
     // with no impact ever recorded (proved to bite in this task's commit).
     // `current.position.y` cannot be NaN here without `stepper` itself
     // already having produced one (spec §9's hazard, and this check does not

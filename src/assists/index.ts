@@ -24,10 +24,10 @@ import { qRotate } from '../sim/math/quat.js'
  * beginner-friendly default with an expert opt-out, not the reverse.
  *
  * `altitudeHold` is the exception, off since 2026-09-15. It is not protective
- * -- it flies the aeroplane somewhere -- and at zero thrust it trades speed
+ * -- it flies the airplane somewhere -- and at zero thrust it trades speed
  * for altitude while the stall limiter prevents the departure that would end
  * it, so a page-load Hellcat with the engine off mushed along level for as
- * long as you watched. Mark flew exactly that and reported an aeroplane that
+ * long as you watched. Mark flew exactly that and reported an airplane that
  * "seems like it would fly forever". Measured before the change: 1.04 m lost
  * in 30 s from 2000 m. `tests/render/frameAssists.test.ts` now flies the
  * page-load condition and requires a real descent, so this cannot silently
@@ -68,7 +68,7 @@ export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
  * That was sound on the boundary and wrong on two counts the boundary does not
  * cover. A `World` written to disk and read back was NOT the same flight: the
  * captured altitude was not in it, so a resumed replay re-captured at whatever
- * altitude it happened to be at and diverged, silently. And N aeroplanes
+ * altitude it happened to be at and diverged, silently. And N airplanes
  * (the combat plan) needed N runners, which every caller had to remember to build.
  *
  * So `advance` now carries it: `World.assistMemory`, opaque to `sim/`, typed
@@ -124,9 +124,9 @@ const isPitchCentred = (raw: Controls): boolean => raw.pitch === 0
  *  - Pitch centred: if nothing is currently held, capture THIS tick's
  *    altitude and start holding it -- this is the "re-capture on release"
  *    moment. If something is already held, leave it untouched: capturing
- *    every centred tick would make the target track the aeroplane's current
+ *    every centred tick would make the target track the airplane's current
  *    altitude in real time, which is a target that can never disagree with
- *    where the aeroplane already is -- i.e. a hold that can never do
+ *    where the airplane already is -- i.e. a hold that can never do
  *    anything. The target has to be pinned at the release moment and left
  *    alone so that later drift has something to be measured against.
  */
@@ -155,7 +155,7 @@ export function nextAltitudeHoldMemory(
  * changes.
  *
  * Closing over nothing mutable is the point, not incidental tidiness: two
- * aeroplanes may share one `assistFor` result and cannot thereby share a
+ * airplanes may share one `assistFor` result and cannot thereby share a
  * captured altitude, which `tests/assists/worldMemory.test.ts` asserts by
  * flying two of them through a single one.
  *
@@ -199,7 +199,7 @@ export const assistFor = (enabled: AssistSettings): Assist<AltitudeHoldMemory> =
  * (`limiterEngaged` false) and publishes no bound (`limiterBounds` null), and
  * altitude hold then ran with no bound at all. Measured 2026-09-13 with
  * shipped `DEFAULT_ASSIST_SETTINGS`, stick centred, 90 m/s, holding an
- * altitude 500 m above the aeroplane (`.superpowers/probes/c1_probe.ts`):
+ * altitude 500 m above the airplane (`.superpowers/probes/c1_probe.ts`):
  *
  *     alpha      limiter only     all three assists
  *      89 deg      -1.0000            -1.0000
@@ -234,7 +234,7 @@ const FULL_PITCH_AUTHORITY: PitchAuthority = { lower: -1, upper: 1 }
  * When they do not overlap there is no subset of both to return, so the
  * conflict has to be DECIDED rather than intersected, and the bound being
  * applied wins: it is the later and more specific of the two, computed from the
- * state the aeroplane is actually in, and in the shipped stack it is the stall
+ * state the airplane is actually in, and in the shipped stack it is the stall
  * limiter's -- the one keeping the wing attached. The result is the single point
  * of `[lower, upper]` NEAREST the budget it replaces.
  *
@@ -259,7 +259,7 @@ const FULL_PITCH_AUTHORITY: PitchAuthority = { lower: -1, upper: 1 }
  * depending on which side the value came from", which is simply untrue). The
  * real objection is that the answer would then come from the ORDER of a `min`
  * and a `max` inside a helper -- an implementation detail with no opinion about
- * aeroplanes -- rather than from a decision anybody wrote down, and that no
+ * airplanes -- rather than from a decision anybody wrote down, and that no
  * caller could state a true invariant about a budget that cannot contain
  * anything.
  *
@@ -345,7 +345,7 @@ const narrowToCommand = (a: PitchAuthority, pitch: number): PitchAuthority => {
  * no business voting on the pitch axis while it is. What changed at the third
  * fix is that this is no longer enforced by asking the limiter questions
  * ("did you engage?", "have you a bound?") whose answers go blank exactly
- * when the aeroplane is in the most trouble. Instead every stage narrows one
+ * when the airplane is in the most trouble. Instead every stage narrows one
  * budget, and the departed case narrows it to the pilot's own command before
  * any stage runs at all.
  */
@@ -433,7 +433,7 @@ function runStack(
   // This sits here, before any stage, rather than inside the stall limiter,
   // because departure is a fact about the STATE and not about that stage's
   // opinion: a pilot who has switched the limiter off has opted out of having
-  // their pull bounded, not into having altitude hold fly the aeroplane while
+  // their pull bounded, not into having altitude hold fly the airplane while
   // it tumbles. `isDeparted` is the same predicate `stallLimiterBounds` stands
   // down on, called rather than re-stated, so the two cannot disagree about
   // where the boundary is.
@@ -467,8 +467,8 @@ function runStack(
  * also where `sim/aero.ts`'s post-stall drag blend reaches the flat plate.
  *
  * The limiter's whole model -- "commanded pitch rate moves alpha, so bound the
- * rate by the remaining margin" -- is about an aeroplane still flying roughly
- * forwards. Past 90 degrees it is not: the aeroplane is departed, `alpha` is
+ * rate by the remaining margin" -- is about an airplane still flying roughly
+ * forwards. Past 90 degrees it is not: the airplane is departed, `alpha` is
  * an atan2 running to +/-180 (see `angleOfAttack`, and `sim/aero.ts`'s note
  * that 40.8% of soak steps sit past 90.5 degrees), and the margin term would
  * simply saturate at full nose-down and PIN it there -- taking pitch authority
@@ -677,7 +677,7 @@ function stallLimiterBounds(
  *  - A real bound. The budget narrows to it. And if the limiter had to CHANGE
  *    the pilot's value to respect it, the budget narrows further, to the
  *    single value the limiter chose: the axis is now spent on recovery, and
- *    an aeroplane near departure needs the nose down, so even the least-bad
+ *    an airplane near departure needs the nose down, so even the least-bad
  *    nose-up the bound would still permit is the wrong trade at that moment
  *    (Task 4's ruling, unchanged -- this is that stand-down, expressed as a
  *    budget instead of as a boolean handed to the stage that must honour it).
@@ -729,7 +729,7 @@ export function stallLimiter(
 
 /**
  * Plan 3 Task 2: the one Mark asked for after flying it. Roll into a turn,
- * level out, and the aeroplane keeps travelling diagonally instead of
+ * level out, and the airplane keeps travelling diagonally instead of
  * straight -- `sim/flight/model.ts`'s weathercock term eventually swings the
  * NOSE back onto the velocity vector (that is aerodynamics: the fin doing
  * what a fin does), but nothing was pushing the pilot's own RUDDER pedal to
@@ -758,9 +758,9 @@ export function stallLimiter(
  *  2. Sideslip here is `dot(normalize(velocity), bodyRight)`
  *     (`sim/flight/model.ts`'s weathercock term uses exactly this,
  *     `qRotate(state.attitude, v3(0, 0, 1))` for body right), positive when
- *     the airflow comes from the right, i.e. when the aeroplane is
+ *     the airflow comes from the right, i.e. when the airplane is
  *     travelling to the right of where its nose points.
- * Combine them directly: if the aeroplane is travelling to the right of
+ * Combine them directly: if the airplane is travelling to the right of
  * where it points, the nose has to go RIGHT to meet the relative wind --
  * and "nose right" in `Controls.yaw`'s own space is already POSITIVE, so the
  * correction carries the SAME sign as the sideslip, with no negation at all.
@@ -779,7 +779,7 @@ export function stallLimiter(
 function autoRudder(state: AircraftState, spec: AircraftSpec, controls: Controls, _dt: number): Controls {
   const speed = length(state.velocity)
   // No sideslip is defined without airflow -- same guard `weathercockY` uses,
-  // for the same reason: a stationary aeroplane has no relative wind to be
+  // for the same reason: a stationary airplane has no relative wind to be
   // misaligned with.
   if (speed < 1e-6) return controls
 
@@ -806,7 +806,7 @@ const G = 9.80665
  *
  * Stands down completely -- returns `controls` untouched -- unless
  * `memory.heldAltitudeM` is set AND the pilot's own pitch is centred. Two
- * gates about the PILOT's intent; everything about what the aeroplane's
+ * gates about the PILOT's intent; everything about what the airplane's
  * situation permits arrives instead as the `authority` budget, and the
  * correction this stage computes is put on the axis through it
  * (`withinAuthority`) rather than beside it.
@@ -860,7 +860,7 @@ const G = 9.80665
  *     stages and the pilot already decided.
  *  2. Its gains (`PITCH_GAIN`, `VS_GAIN`, `ALT_GAIN`) are that function's own
  *     doc comment's words: "deliberately stiff -- the autopilot exists so a
- *     measurement harness can fly the aeroplane repeatably, not so it flies
+ *     measurement harness can fly the airplane repeatably, not so it flies
  *     comfortably." A pilot-facing assist wants the opposite feel, and
  *     Global Constraints forbid inventing a tuning constant in code -- so
  *     this needs its OWN content-sourced knob, the same as
@@ -881,7 +881,7 @@ const G = 9.80665
  * `alphaTrim + gamma`, exactly `holdLevelFlight`'s `command` minus its
  * separate `VS_GAIN` rate-error term (folded away, not forgotten -- see
  * below). The SAME tau then closes the gap between that target attitude and
- * the aeroplane's actual one (`asin(forward.y)`, `bodyAxes`'s definition of
+ * the airplane's actual one (`asin(forward.y)`, `bodyAxes`'s definition of
  * pitch) into a desired pitch RATE, which is converted to a stick fraction by
  * dividing by the rate full back stick would actually command in this exact
  * state (`commandedBodyRates`, the same technique the stall limiter uses and
@@ -892,12 +892,12 @@ const G = 9.80665
  * Reusing one tau for both loops (instead of `holdLevelFlight`'s separate
  * `ALT_GAIN` and `VS_GAIN`) is what keeps this to a single content constant.
  * It is not a free simplification -- a pure position-error term feeding a
- * rate command has no term standing in for the aeroplane's OWN current
+ * rate command has no term standing in for the airplane's OWN current
  * attitude, and a triple-integrator plant (pitch rate -> pitch angle ->
  * vertical acceleration -> climb rate -> altitude) fed back on position and
  * climb rate alone, with no attitude term, is structurally unstable for any
  * gain (its closed-loop characteristic polynomial is missing its middle
- * term). Feeding back the aeroplane's actual pitch ATTITUDE (`pitchNowRad`
+ * term). Feeding back the airplane's actual pitch ATTITUDE (`pitchNowRad`
  * below) supplies exactly that missing term, which is why this bothers to
  * compute a target ATTITUDE rather than a target rate directly from the
  * altitude error.
@@ -926,11 +926,11 @@ const G = 9.80665
  * a slow phugoid, converging but not yet damped in that window. `schema.ts`'s
  * `altitudeHoldSeconds` doc comment carries the same corrected figures; see
  * that comment for how tau was chosen. What tau CANNOT do:
- * at zero throttle the aeroplane cannot hold any altitude at all -- lift
+ * at zero throttle the airplane cannot hold any altitude at all -- lift
  * demand rises as speed bleeds off, which bleeds more speed, and the probe's
  * idle-throttle case departs (2277 m of drift in 120 s) exactly the way
  * `holdLevelFlight`'s own doc comment says its command "saturates and the
- * aeroplane sinks" once the wing cannot deliver the demanded angle of
+ * airplane sinks" once the wing cannot deliver the demanded angle of
  * attack. That is correct behaviour, not a bug this assist could fix, and
  * `tests/assists/altitudeHold.test.ts` asserts it honestly rather than
  * claiming a guarantee that does not hold.

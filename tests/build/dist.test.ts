@@ -94,7 +94,7 @@ describe('the built artifact', () => {
       // same two functions the loader derives it from rather than written out
       // as five names -- a change to either bound has to move this set too.
       // Without this, a missing terrain level is a 404 at runtime and the
-      // aeroplane flies over an empty sea, which looks like the game working.
+      // airplane flies over an empty sea, which looks like the game working.
       //
       // The EXACT byte length, not `> 0` (review 2026-09-14, finding 5). A
       // truncated copy -- a partial write, a `cp` that ran while the build was
@@ -164,7 +164,7 @@ describe('the built artifact', () => {
    * one did not, and nothing but a person looking could tell them apart.
    *
    * Task 11 added a second thing worth keeping out of a release -- a query
-   * parameter that MOVES THE AEROPLANE (`src/render/spawn.ts`) -- and checked
+   * parameter that MOVES THE AIRPLANE (`src/render/spawn.ts`) -- and checked
    * it the same way that overlay was checked, by grepping `dist/` once by
    * hand. That is the check that already failed here. This is the assertion
    * that replaces it (review fix round 1, I5).

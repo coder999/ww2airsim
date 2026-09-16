@@ -39,7 +39,7 @@ describe('resampling onto the world grid', () => {
 
   it('turns a no-data sample into sea level rather than into NaN', () => {
     // A NaN here reaches the integrator, and master spec S9 is explicit about
-    // what a NaN does to an aeroplane.
+    // what a NaN does to an airplane.
     const out = resample(() => NaN, small)
     expect(out.every((v) => v === 0)).toBe(true)
   })
