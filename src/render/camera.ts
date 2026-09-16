@@ -29,6 +29,13 @@ export const CAMERA_VFOV_DEG = 60
  *  decided in Task 13 with a view out of the window, not guessed here. */
 export const CHASE_OFFSET_M: readonly [number, number, number] = [-22, 6, 0]
 
+/** A smooth, bounded distance cue: 17.6 m aft at low speed, 26.4 m at high.
+ * Scaling height with distance preserves framing as the aircraft gets smaller. */
+export function chaseDistanceScale(speedMps: number): number {
+  const t = Math.max(0, Math.min(1, (speedMps - 40) / 160))
+  return 0.8 + 0.4 * t * t * (3 - 2 * t)
+}
+
 /**
  * Fraction of the aircraft's pitch the chase camera follows. A little under
  * one, so a steep climb or dive keeps some horizon in frame.
@@ -100,6 +107,7 @@ export function cameraTransformFor(
   spec: AircraftSpec,
   render: RenderState,
   look: LookOffset = LOOK_ZERO,
+  speedMps = 120,
 ): EyeTransform {
   if (mode === 'cockpit') {
     const [ex, ey, ez] = spec.view.eyePointM
@@ -121,7 +129,8 @@ export function cameraTransformFor(
   )
 
   const [ox, oy, oz] = CHASE_OFFSET_M
-  const position = add(render.position, qRotate(attitude, v3(ox, oy, oz)))
+  const distanceScale = chaseDistanceScale(speedMps)
+  const position = add(render.position, qRotate(attitude, v3(ox * distanceScale, oy * distanceScale, oz)))
 
   return { position, attitude: withLook(attitude, look) }
 }

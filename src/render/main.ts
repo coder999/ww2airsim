@@ -7,6 +7,7 @@ import { makeTextTexture } from './scene/text.js'
 import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
+import { createFlightData } from './flightData.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
@@ -26,7 +27,6 @@ import { OCEAN_EXTENT_M } from './horizon.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
-import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
@@ -329,8 +329,6 @@ async function boot(): Promise<void> {
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
-  const markers = createMarkers()
-  scene.add(markers)
   const { root: hellcatRoot, prop } = createHellcat()
   scene.add(hellcatRoot)
 
@@ -378,10 +376,18 @@ async function boot(): Promise<void> {
   // of the key map. Mark asked for a throttle-down key on 2026-09-15 that had
   // been bound since Plan 1 and written down nowhere.
   const legend = createLegend(root)
+  const flightData = createFlightData(root)
   let legendOpen = true
 
   const pressed = new Set<string>()
+  // Preserve a camera tap even if keydown and keyup both fall between frames.
+  let pendingCameraCycle = false
   window.addEventListener('keydown', (e) => {
+    if (BINDINGS.cycleCamera.includes(e.code as never) && !e.repeat) pendingCameraCycle = true
+    if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      flightData.toggle()
+    }
     // Toggled here rather than through `nextFrameState`: the legend is a piece
     // of page furniture, and FrameState is the deterministic simulation state
     // that the golden trajectory and the soak both replay. `e.repeat` is what
@@ -401,6 +407,7 @@ async function boot(): Promise<void> {
   // "down" forever -- the aeroplane keeps pitching after the window loses focus.
   window.addEventListener('blur', () => {
     pressed.clear()
+    pendingCameraCycle = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -435,7 +442,10 @@ async function boot(): Promise<void> {
     // below reads `current` (typed `FrameState`, non-null), not the nullable
     // `frame` -- one assertion at the top of the hot path rather than one at
     // every read.
-    const current = nextFrameState(frame!, frameMs / 1000, pressed, stepper)
+    const frameKeys = pendingCameraCycle ? new Set([...pressed, BINDINGS.cycleCamera[0]]) : pressed
+    const inputFrame = pendingCameraCycle ? { ...frame!, cyclePressed: false } : frame!
+    const current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
+    pendingCameraCycle = false
     frame = current
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -488,6 +498,7 @@ async function boot(): Promise<void> {
     // which is why the throttle gauge needs it passed separately -- the same
     // vector the propeller spin below already reads.
     updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
+    flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
@@ -507,9 +518,6 @@ async function boot(): Promise<void> {
     // aeroplane, and at the spawn's 120 m/s its old half-extent was spent in
     // under three minutes. Its depth lookup stays anchored in world space.
     recentreOcean(water, current.eye.position.x, current.eye.position.z, current.eye.position.y)
-    // Same treatment, and missed twice before this: the markers are the third
-    // member of the sky/water family and the only one that carries a scale.
-    recentreMarkers(markers, current.eye.position.x, current.eye.position.z)
 
     // Reselects the patches to draw for this frame's eye position. Inside the
     // camera-relative block above only in the sense that it takes the same

@@ -12,7 +12,7 @@ import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.j
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
 import { cameraTransformFor, type CameraMode, type EyeTransform } from './camera.js'
 import { BINDINGS, type BindingName } from '../input/bindings.js'
-import { type Vec3, v3 } from '../sim/math/vec3.js'
+import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -199,7 +199,11 @@ export function nextFrameState(
     advanced.world.aircraft,
     advanced.alpha,
   )
-  const eye = cameraTransformFor(cameraMode, spec, render, look)
+  const before = advanced.world.previous.velocity
+  const after = advanced.world.aircraft.velocity
+  const a = advanced.alpha
+  const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
+  const eye = cameraTransformFor(cameraMode, spec, render, look, speed)
 
   return {
     world: advanced.world,

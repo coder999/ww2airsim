@@ -18,7 +18,7 @@ import {
   PANEL_SLOTS,
 } from '../../src/render/scene/panelLayout.js'
 import {
-  GAUGES,
+  COCKPIT_GAUGES as GAUGES,
   angleForValue,
   gaugeValue,
   labelTextFor,
@@ -991,19 +991,16 @@ describe('the two-band dashboard (2026-09-15)', () => {
     expect(backingBox.max.z).toBeGreaterThanOrEqual(rowBox.max.z)
   })
 
-  it('draws nothing in the reserved radar and armament slots', () => {
-    // An unlit bezel that never fills reads as a broken instrument. The slots
-    // exist in the arithmetic only, until Plan 6 has something to put in them.
+  it('makes the radar reservation visible and removes the slip dial', () => {
     const p = createPanel(f6f, () => null)
     const named = p.root.children.map((c) => c.name)
-    expect(named).not.toContain('radar')
+    expect(named).toContain('radar')
+    expect(named).not.toContain('dial:slip')
     expect(named).not.toContain('armament')
   })
 
-  it('keeps five dials, heading having left for the tape', () => {
-    // Ruling R1: the ball is panel geometry, not a GAUGES row, so it is not a
-    // dial and does not appear here. Five dials plus the ball fill the row.
-    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(5)
+  it('keeps airspeed, altitude and climb dials alongside the attitude ball', () => {
+    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(3)
   })
 })
 

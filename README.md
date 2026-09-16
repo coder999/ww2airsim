@@ -36,13 +36,20 @@ two different answers to "what comes after terrain" rather than three typos.
 **The table in master spec §15 is now the only authoritative copy**; every
 other document points at it.
 
-The cockpit now has a dashboard that reaches the bottom and sides of the
-window, a heading tape, a throttle column, five numeric dials, and an attitude
-ball. The ball replaces the floating horizon bar; the brighter gunsight stays
-on the boresight. Radar and armament space is reserved but intentionally empty.
-Use a window at least 3:2 for the full instrument row. See the
-[cockpit handoff](docs/handoff/2026-09-15-cockpit-panel.md) for screenshots,
-layout margins, and review evidence.
+The cockpit has a grey trapezoidal dashboard with a dark rim and raised centre,
+occupying about 30% of screen height,
+with smaller airspeed, altitude and climb dials, an attitude ball, a heading
+tape, throttle and fuel columns, and a central **RADAR / RESERVED** bay for
+the combat phase. Fuel has five marks from EMPTY to FULL. Slip remains a
+diagnostic quantity but has no dedicated cockpit dial. The gunsight stays on
+the boresight. Use a window at least 3:2 for the complete instrument row.
+
+Follow view shows a small white numeric flight-data strip by default; **I**
+or its Hide/Show button toggles it. The preference survives camera switches.
+It includes speed, altitude, climb, heading, fuel, throttle, pitch and bank.
+The follow camera eases farther behind the plane as speed increases and
+closer as it slows. **C** switches views, including quick taps. See the
+[cockpit feedback handoff](docs/handoff/2026-09-15-cockpit-feedback.md).
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
@@ -80,8 +87,9 @@ plan rather than to a to-do list:
 - **Bathymetry arrived in Plan 5.** A 513 × 513 GEBCO grid drives ocean colour
   and shallow-water attenuation. It stores signed metre depths in 526,338
   bytes; the terrain pyramid and collision surface retain their own encoding.
-- **No ground handling.** Contact produces a crash event, not a landing. No
-  runways, no gear, no deck operations.
+- **No crash response or ground handling.** Contact records an impact, but
+  does not yet stop the aircraft or present a crash/restart screen. Flying
+  through water or land remains possible. No runways, gear or deck operations.
 - **No trees, buildings or roads.** The surface is bare relief.
 
 **Three things you will see that have already been ruled on**, recorded here
@@ -91,9 +99,8 @@ so they are not re-reported as bugs:
   and ocean use the same curvature sink, with reversed floating-point depth
   preventing long-range interleaving. Coastline detail is still limited by
   the source grids; judge the visual result in the Plan 5 captures.
-- **Red/orange specks on the sea are not terrain's.** The pre-terrain checkout
-  `544bd7e`, served as a control on 2026-09-14, shows the identical specks in
-  the same places while drawing no terrain at all.
+- **Red/orange sea markers removed (2026-09-15).** These were an early
+  kilometre-spaced test grid for scale and speed cues, not terrain artifacts.
 - ~~**`main.ts`'s three-line physics-wiring call site is unasserted**~~ —
   closed 2026-09-14. The body moved to `applyTerrainLevel`
   (`src/render/terrain/load.ts`) and is driven by a test with a fake mesh;

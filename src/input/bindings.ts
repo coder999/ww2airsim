@@ -46,6 +46,7 @@ export const BINDINGS = {
   // `throttleDown` above documents for Ctrl+W. Firefox's quick-find IS
   // preventable, and main.ts prevents it.
   toggleLegend: ['Slash'],
+  toggleFlightData: ['KeyI'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS

@@ -35,6 +35,8 @@ export type GaugeId =
 export type GaugeKind = 'dial' | 'column' | 'tape'
 
 type GaugeBase = {
+  /** False for diagnostic quantities that do not need a cockpit instrument. */
+  readonly cockpit?: boolean
   readonly id: GaugeId
   readonly label: string
   readonly unit: string
@@ -130,12 +132,12 @@ export const GAUGES: readonly GaugeSpec[] = [
     majorStep: 30, minorStep: 10, fromSI: 180 / Math.PI, decimals: 0,
   },
   {
-    id: 'fuel', label: 'FUEL', unit: 'US gal', kind: 'dial',
-    min: 0, max: 250, sweepRad: (TWO_PI * 3) / 4, circular: false,
-    majorStep: 100, minorStep: 25, fromSI: 1 / (6 * 0.45359237), decimals: 0,
+    id: 'fuel', label: 'FUEL', unit: 'US gal', kind: 'column',
+    min: 0, max: 250,
+    majorStep: 125, minorStep: 62.5, fromSI: 1 / (6 * 0.45359237), decimals: 0,
   },
   {
-    id: 'slip', label: 'SLIP', unit: '', kind: 'dial',
+    id: 'slip', label: 'SLIP', unit: '', kind: 'dial', cockpit: false,
     min: -0.5, max: 0.5, sweepRad: Math.PI / 2, circular: false,
     majorStep: 0.5, minorStep: 0.125, fromSI: 1, decimals: 2,
   },
@@ -149,6 +151,12 @@ export const GAUGES: readonly GaugeSpec[] = [
 ]
 
 const byId = new Map(GAUGES.map((g) => [g.id, g]))
+
+export const COCKPIT_GAUGES = GAUGES.filter(g => g.cockpit !== false)
+
+/** Fuel bar reads actual tank capacity, not the rounded gallon dial scale. */
+export const fuelFraction = (spec: AircraftSpec, state: AircraftState): number =>
+  Math.max(0, Math.min(1, state.fuelKg / spec.mass.fuelCapacityKg))
 
 /** Pitch and roll as a human reads them off an attitude indicator. */
 export function attitudeAngles(state: AircraftState): {

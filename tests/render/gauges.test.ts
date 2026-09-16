@@ -439,7 +439,6 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
       airspeed: (Math.PI * 2 * 3) / 4,
       altimeter: (Math.PI * 2 * 3) / 4,
       verticalSpeed: (Math.PI * 2 * 3) / 4,
-      fuel: (Math.PI * 2 * 3) / 4,
       slip: Math.PI / 2,
     }
     const dials = GAUGES.filter((g) => g.kind === 'dial')
