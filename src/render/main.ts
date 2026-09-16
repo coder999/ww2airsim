@@ -29,7 +29,7 @@ import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
-import { createPanel, updatePanel } from './scene/panel.js'
+import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
 import { step, DT } from '../sim/flight/model.js'
@@ -341,6 +341,7 @@ async function boot(): Promise<void> {
   // swap below), not because they move differently -- both are posed from the
   // same `frame.render` pose each frame.
   const panel = createPanel(spec)
+  resizePanel(panel, window.innerWidth / window.innerHeight)
   const cockpit = new Group()
   cockpit.add(panel.root)
   scene.add(cockpit)
@@ -612,6 +613,7 @@ async function boot(): Promise<void> {
     if (!loop?.running) return
     renderer.setSize(window.innerWidth, window.innerHeight)
     camera.aspect = window.innerWidth / window.innerHeight
+    resizePanel(panel, camera.aspect)
     camera.updateProjectionMatrix()
   })
 }

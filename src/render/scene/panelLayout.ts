@@ -93,7 +93,7 @@ export const PANEL_BANDS: { readonly upper: Band; readonly lower: Band } = {
  */
 export const DIAL_GAP = 0.145
 export const DIAL_RADIUS = 0.06
-/** Throttle column / armament block half-width companion. */
+/** Full width of the throttle column / armament block. */
 const EDGE_W = 0.052
 
 export type Slot = { readonly id: string; readonly centreX: number; readonly widthM: number }

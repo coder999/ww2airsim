@@ -335,13 +335,13 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // Round dials only. A column or a tape is a different shape entirely --
   // giving one a needle and a bezel here is exactly the bug this filter
   // exists to prevent (controller ruling R1, 2026-09-15: the lower row is
-  // five dials plus the ball, not six dials). Rendering a column or a tape
-  // is a later task's; for now they exist only in `GAUGES` and are not drawn.
+  // five dials plus the ball, not six dials). Columns and the tape are built
+  // separately below.
   const dialGauges = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
 
   // Layout slots are keyed by id (panelLayout.ts's PANEL_SLOTS), not by
-  // position in this array -- the row has a hole where the attitude ball
-  // will go, so a dial's index here is not its index in the slot table.
+  // position in this array -- the ball occupies its own slot, so a dial's
+  // index here is not its index in the slot table.
   const slotX = (id: string): number => {
     const slot = PANEL_SLOTS.find((s) => s.id === id)
     if (!slot) throw new Error(`no layout slot for ${id}`)
@@ -522,8 +522,8 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     root.add(column)
   })
 
-  // Full width at the NARROWEST supported window, so a wider one still has
-  // the bezel reaching both edges rather than stopping short of them.
+  // Base width at the narrowest supported window. resizePanel expands only
+  // this backing for wider viewports; instruments keep their physical size.
   const halfV = Math.tan(((CAMERA_VFOV_DEG / 2) * Math.PI) / 180)
   const backingHalfW = PANEL_MIN_ASPECT * halfV * PANEL_AHEAD_M * 1.02
   // Past the frame edge, not up to it (Task 3, 2026-09-15): this is the clip
@@ -722,6 +722,11 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     backing,
     tape: tape!,
   }
+}
+
+/** Keep the coaming clipped at both screen edges as the viewport changes. */
+export function resizePanel(panel: Panel, aspect: number): void {
+  panel.backing.scale.x = Math.max(1, aspect / PANEL_MIN_ASPECT)
 }
 
 export function updatePanel(

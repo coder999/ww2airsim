@@ -123,7 +123,7 @@ export const GAUGES: readonly GaugeSpec[] = [
   // Converted from a circular dial to a tape here -- the only place either
   // happens (controller ruling R1, 2026-09-15). `sweepRad` and `circular`
   // are gone; `fractionForValue` is the replacement for placement, and
-  // `windowSpan` is new, for the later task that renders the sliding strip.
+  // `windowSpan` sets the angular range of the sliding strip.
   {
     id: 'heading', label: 'HEADING', unit: 'deg', kind: 'tape',
     min: 0, max: 360, windowSpan: 90,

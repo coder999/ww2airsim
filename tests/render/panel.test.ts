@@ -3,6 +3,8 @@ import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, PlaneGeometry, Quatern
 import {
   createPanel,
   updatePanel,
+  resizePanel,
+  PANEL_AHEAD_M,
   PANEL_MIN_ASPECT,
   PANEL_BELOW_M,
   TAPE_W,
@@ -490,7 +492,7 @@ describe('panel', () => {
   })
 
   it('turns every instrument face back toward the eye, not out through the nose', () => {
-    // Same shape as the horizon case: each face normal is read off the built
+    // Each face normal is read off the built
     // geometry and compared with the direction to the eye point that
     // cameraTransformFor computes independently. Measured 2026-09-13, the
     // worst (outermost) dial scores 0.79 -- the panel is 0.60 m ahead of and
@@ -521,12 +523,8 @@ describe('panel', () => {
   })
 
   it('accepts an explicit control vector without throwing (2026-09-15)', () => {
-    // main.ts now passes `current.controls` as the required fourth argument,
-    // the same vector it already reads for the propeller spin, so the
-    // throttle gauge (a column, not yet drawn) can eventually read it too.
-    // This is a smoke test of that plumbing rather than a behavioural one:
-    // no dial reads `controls` today, so there is nothing visible to assert
-    // yet.
+    // Smoke coverage for the required control vector; the throttle tests
+    // below measure the column's response to that vector.
     const p = createPanel(f6f)
     expect(() => updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS)).not.toThrow()
   })
@@ -683,7 +681,7 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
   // This checks each `PANEL_SLOTS` entry that has geometry against its OWN
   // declared budget, BOTH horizontally (`centreX +/- widthM/2` -- the
   // dimension the ball's actual defect was in) and vertically
-  // (`PANEL_BANDS.lower`), for every instrument: the five dials, the
+  // (`PANEL_BANDS.lower`), for every lower-band instrument: the five dials, the
   // throttle column, and the attitude ball. `radar` and `armament` are
   // excluded -- reserved slots with nothing drawn into them yet
   // (`createPanel`'s own comment: "nothing is added to `root` for them").
@@ -762,7 +760,7 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
   it('keeps the attitude ball inside its own slot, horizontally and vertically, at every attitude the model can reach', () => {
     // Pitch sweep includes +/-60 and +/-90 (review finding, fix round 3):
     // `attitudeBallGeometry`'s clamp on `d` only engages once
-    // `|pitch| >= 37.5 deg` (at zero bank; tighter still at a bank away from
+    // `|pitch| >= 37.5 deg` (at zero bank; farther out at a bank away from
     // zero, since `d` scales by `cos(rollRad)`), so a sweep that stopped at
     // +/-30 never exercised the saturated/degenerate-segment path at all.
     for (const bankDeg of [0, 45, -45, 90, -90]) {
@@ -822,9 +820,7 @@ describe('panel markings and readouts (I-2)', () => {
 
   it('prints the name and unit of every fitted dial', () => {
     // Dial-only: createPanel only builds a label plate for a rendered dial.
-    // Throttle (a column) and heading (a tape, since 2026-09-15) are in
-    // GAUGES but not yet drawn at all -- see the file-level comment on
-    // DIAL_GAUGES.
+    // Throttle and heading have their own column/tape markings.
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
     for (const g of DIAL_GAUGES) expect(drawn).toContain(labelTextFor(g))
@@ -946,6 +942,21 @@ describe('panel markings and readouts (I-2)', () => {
 })
 
 describe('the two-band dashboard (2026-09-15)', () => {
+  it('covers both viewport edges after resizing between supported aspect ratios', () => {
+    const p = createPanel(f6f, () => null)
+    p.root.position.set(0, 0, 0)
+    p.root.rotation.set(0, 0, 0)
+    for (const aspect of [1.5, 1.6, 16 / 9, 21 / 9, 1.5]) {
+      resizePanel(p, aspect)
+      p.root.updateMatrixWorld(true)
+      const box = new Box3().setFromObject(p.backing)
+      const halfWidth = (PANEL_AHEAD_M - box.min.z)
+        * Math.tan(CAMERA_VFOV_DEG * Math.PI / 360) * aspect
+      expect(box.min.x / halfWidth, `left edge at ${aspect}`).toBeLessThan(-1)
+      expect(box.max.x / halfWidth, `right edge at ${aspect}`).toBeGreaterThan(1)
+    }
+  })
+
   it('runs the bezel past the bottom of the frame, so it is clipped not floating', () => {
     // The complaint this fixes: sky was visible below the panel on both sides,
     // so it read as a strip hanging in the view rather than a dashboard.
@@ -962,14 +973,18 @@ describe('the two-band dashboard (2026-09-15)', () => {
     // is the panel's horizontal spread (the panel root is turned -90 degrees
     // about Y, sending local x to world z), so comparing `backing`'s own box
     // against every other instrument's on that axis is "wide enough to back
-    // the row it's behind". `p.tape.strip` is excluded the same way the FOV
-    // test above excludes it: its off-screen buffer copies are not content
-    // the coaming needs to cover.
+    // the row it's behind". Hidden tape buffer copies are excluded; visible
+    // marks are included, just as in the frustum guard.
+    updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
     p.root.updateMatrixWorld(true)
     const rowBox = new Box3()
     for (const child of p.root.children) {
-      if (child === p.backing || child === p.tape.strip) continue
-      rowBox.union(new Box3().setFromObject(child))
+      if (child === p.backing) continue
+      if (child === p.tape.strip) {
+        for (const mark of child.children) {
+          if (mark.visible) rowBox.union(new Box3().setFromObject(mark))
+        }
+      } else rowBox.union(new Box3().setFromObject(child))
     }
     const backingBox = new Box3().setFromObject(p.backing)
     expect(backingBox.min.z).toBeLessThanOrEqual(rowBox.min.z)
