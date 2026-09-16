@@ -29,7 +29,7 @@ import { createHellcat } from './scene/hellcat.js'
 import { createMarkers, recentreMarkers } from './scene/markers.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
-import { createPanel, updatePanel } from './scene/panel.js'
+import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import { createState } from '../sim/flight/state.js'
 import { step, DT } from '../sim/flight/model.js'
@@ -341,6 +341,7 @@ async function boot(): Promise<void> {
   // swap below), not because they move differently -- both are posed from the
   // same `frame.render` pose each frame.
   const panel = createPanel(spec)
+  resizePanel(panel, window.innerWidth / window.innerHeight)
   const cockpit = new Group()
   cockpit.add(panel.root)
   scene.add(cockpit)
@@ -480,7 +481,7 @@ async function boot(): Promise<void> {
     const visibility = airframeVisibilityFor(current.cameraMode)
     cockpit.visible = visibility.cockpitVisible
     hellcatRoot.visible = visibility.hellcatVisible
-    // Numeric gauges from the simulated tick; the horizon bar from the
+    // Numeric gauges from the simulated tick; the attitude ball from the
     // INTERPOLATED attitude, because it is the one instrument compared
     // against something visible in the same frame. `current.controls` is
     // also the pilot's raw input, not part of `AircraftState` (state.ts:8),
@@ -612,6 +613,7 @@ async function boot(): Promise<void> {
     if (!loop?.running) return
     renderer.setSize(window.innerWidth, window.innerHeight)
     camera.aspect = window.innerWidth / window.innerHeight
+    resizePanel(panel, camera.aspect)
     camera.updateProjectionMatrix()
   })
 }

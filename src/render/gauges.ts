@@ -27,9 +27,10 @@ export type GaugeId =
  * Which shape an instrument is drawn as.
  *
  * There is deliberately no `'ball'`: the attitude indicator is panel geometry
- * with a layout slot (a later task), driven by `attitudeAngles(state)` rather
- * than a scalar `gaugeValue`, and it has no `min`/`max`/step scale for
- * `GaugeBase` to describe. Controller ruling R1, 2026-09-15.
+ * with a layout slot, driven by `attitudeAngles(state)` rather than a scalar
+ * `gaugeValue`, and it has no `min`/`max`/step scale for `GaugeBase` to
+ * describe. Built in `panel.ts`'s `createPanel`/`updatePanel` (Task 6,
+ * 2026-09-15). Controller ruling R1, 2026-09-15.
  */
 export type GaugeKind = 'dial' | 'column' | 'tape'
 
@@ -122,7 +123,7 @@ export const GAUGES: readonly GaugeSpec[] = [
   // Converted from a circular dial to a tape here -- the only place either
   // happens (controller ruling R1, 2026-09-15). `sweepRad` and `circular`
   // are gone; `fractionForValue` is the replacement for placement, and
-  // `windowSpan` is new, for the later task that renders the sliding strip.
+  // `windowSpan` sets the angular range of the sliding strip.
   {
     id: 'heading', label: 'HEADING', unit: 'deg', kind: 'tape',
     min: 0, max: 360, windowSpan: 90,

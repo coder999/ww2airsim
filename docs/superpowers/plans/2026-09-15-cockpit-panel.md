@@ -1,5 +1,10 @@
 # Cockpit Panel Rebuild Implementation Plan
 
+**Completed 2026-09-15.** All eight tasks and final review are complete; see the
+[handoff](../../handoff/2026-09-15-cockpit-panel.md) and its archived decision ledger.
+The illustrative steps below are historical; the ledger records corrections
+to their clipping, tape placement, and layout assumptions.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rebuild the instrument panel as a bottom-anchored, full-width, two-band dashboard carrying a throttle column, a sliding heading tape and an attitude ball, with space reserved for radar and armament.

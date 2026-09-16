@@ -1,11 +1,14 @@
 import {
   BoxGeometry,
+  BufferGeometry,
   CircleGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
   RingGeometry,
+  Shape,
+  ShapeGeometry,
   type Object3D,
   type Texture,
 } from 'three'
@@ -49,7 +52,38 @@ export type Panel = {
   /** Column gauges (today: only `throttle`) -- the light bar `updatePanel`
    *  scales on Y to show how full the control's travel is. */
   readonly columns: Map<GaugeId, { readonly fill: Object3D }>
-  readonly horizon: Object3D
+  /**
+   * The artificial-horizon ball in the `attitude` slot (Task 6, 2026-09-15),
+   * fourth in the lower row where the round heading dial used to be.
+   *
+   * Not a `GAUGES` entry (controller ruling R1): it is panel geometry driven
+   * by `attitudeAngles(state)`. It replaced the horizon bar -- a cyan strip
+   * floating at eye level, positioned in 3D to trace the true horizon exactly
+   * -- which Task 7 (2026-09-15) then retired once this ball carried
+   * equivalent test coverage. Unlike the bar, the ball is a panel-mounted
+   * instrument like every other dial in the row: its BANK reading still
+   * matches the true horizon's screen angle exactly (verified below), but its
+   * PITCH reading is a scaled dial-face deflection (`attitudeBallGeometry`'s
+   * own doc comment has the derivation), not a literal projection of where
+   * the true horizon falls on screen -- the bar's own height-matching
+   * property does not carry over, by design, the same way a real panel
+   * attitude indicator does not track pixel-for-pixel with the windscreen.
+   *
+   * `ball` is a `Group` of two meshes (sky, ground) whose GEOMETRY
+   * `updatePanel` rebuilds every frame as circular segments of a circle of
+   * radius `DIAL_RADIUS`, cut by the horizon chord at the current roll and
+   * pitch (`attitudeBallGeometry`, this file) -- there is no per-frame
+   * `rotation`/`position` change on the group itself; it stays at local
+   * identity forever. `ring` is the dial-style bezel ring drawn in front of
+   * it, purely decorative: fix round 1 (2026-09-15) found nothing in this
+   * renderer actually clips anything (no `clippingPlanes`, no stencil), so
+   * the ball's geometry is now built to never exceed `DIAL_RADIUS` in the
+   * first place -- `ring` no longer does any clipping work of its own.
+   */
+  readonly attitude: {
+    readonly ball: Object3D
+    readonly ring: Object3D
+  }
   /** The full-width coaming plate. Runs past the bottom of the frame on
    *  purpose (see `createPanel`), so it reads as clipped rather than
    *  floating with sky visible beneath it. */
@@ -108,6 +142,84 @@ const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
 
 /**
+ * How far the readout (above) and label (below) sit from the dial's own
+ * centre. Was `0.088` for both until Ruling R12 (Task 6 fix round 3,
+ * 2026-09-15): that left a 30 mm gap beyond the bezel's own outer radius
+ * (`DIAL_RADIUS * 1.09` = 0.0654 m) on each side -- far more than either
+ * plate needs -- which is what forced `LOWER_H` (panelLayout.ts) to be wide
+ * enough to eat into the vertical frustum margin (down to 0.36 degrees,
+ * against the 1-degree minimum Ruling R4 already set for the horizontal
+ * axis). Narrowed to reclaim that slack from the dial's own layout instead
+ * of the frame: see `LOWER_H`'s own doc comment in panelLayout.ts for the
+ * joint derivation of this constant and that one.
+ */
+const DIAL_TEXT_OFFSET_M = 0.08
+
+/**
+ * The attitude ball's sky/ground split, rebuilt fresh every `updatePanel`
+ * call rather than moved as a rigid transform on an oversized mesh.
+ *
+ * Fix round 1 on Task 6 (2026-09-15): the brief called for "an oversized
+ * disc, clipped by the bezel ring" moved with `ball.rotation.z`/
+ * `ball.position.y`. Nothing in this renderer clips anything -- no
+ * `clippingPlanes`, no stencil -- so the disc drew exactly as big as its
+ * geometry, and at a 45-degree bank its corner reached 56 mm into the fuel
+ * dial's own face. The per-slot containment test this fix adds
+ * (`tests/render/panel.test.ts`) is what caught it; the whole-panel frustum
+ * test could not, because it unions every instrument into one combined
+ * envelope dominated by the throttle/armament edge blocks.
+ *
+ * This builds the sky and ground as actual circular SEGMENTS of a circle of
+ * radius `DIAL_RADIUS` -- the same radius every dial's own face uses --  so
+ * the ball can never draw outside that circle at any attitude, by
+ * construction rather than by masking. A segment is the region of a disc on
+ * one side of a chord, which is always convex (cutting a convex region with
+ * a straight line always yields two convex pieces), so a fan triangulated
+ * from one chord endpoint is always a valid, non-self-intersecting
+ * triangulation -- `ShapeGeometry` does exactly that.
+ *
+ * The chord's placement reproduces the same visual result the brief's
+ * rigid-body version would have produced, worked out from its own transform
+ * order (rotate the shape by `rollRad`, THEN translate the rotated shape by
+ * `position.y` in the UNROTATED parent frame): a point `Q` on the circle is
+ * on the sky side iff `dot(Q, up) > d`, where `up = (-sin(rollRad),
+ * cos(rollRad))` and `d = t * cos(rollRad)` for `t` the same
+ * `-(pitchRad / (Math.PI / 6)) * DIAL_RADIUS * 0.8` the brief specified.
+ * Clamped to `[-DIAL_RADIUS, DIAL_RADIUS]`: past that the whole face is
+ * legitimately all sky or all ground -- a saturation at extreme attitudes,
+ * not an edge running off the disc the way the unclipped version had.
+ */
+const ATTITUDE_BALL_SEGMENTS = 24
+
+function attitudeBallGeometry(
+  rollRad: number,
+  pitchRad: number,
+): { readonly sky: BufferGeometry; readonly ground: BufferGeometry } {
+  const r = DIAL_RADIUS
+  const t = -(pitchRad / (Math.PI / 6)) * r * 0.8
+  const d = Math.max(-r, Math.min(r, t * Math.cos(rollRad)))
+  const beta = Math.asin(d / r)
+  const skyFrom = rollRad + beta
+  const skyTo = rollRad + Math.PI - beta
+
+  // A single chord-to-chord arc, `from` to `to`, as a filled convex polygon:
+  // the straight edge closing the shape back from the last arc point to the
+  // first IS the chord, which is exactly the boundary a circular segment
+  // needs.
+  const segment = (from: number, to: number): ShapeGeometry => {
+    const shape = new Shape()
+    shape.moveTo(r * Math.cos(from), r * Math.sin(from))
+    for (let i = 1; i <= ATTITUDE_BALL_SEGMENTS; i++) {
+      const a = from + ((to - from) * i) / ATTITUDE_BALL_SEGMENTS
+      shape.lineTo(r * Math.cos(a), r * Math.sin(a))
+    }
+    return new ShapeGeometry(shape)
+  }
+
+  return { sky: segment(skyFrom, skyTo), ground: segment(skyTo, skyFrom + Math.PI * 2) }
+}
+
+/**
  * The heading tape's visible window, metres. Exported so tests can derive
  * the strip's own full-rose width (`TAPE_W * (360 / windowSpan)`) without
  * hardcoding it a second time -- gauges.ts's `tapeOffsetFor` reports the
@@ -143,19 +255,6 @@ export { PANEL_AHEAD_M }
  */
 export const PANEL_BELOW_M = 0.19
 
-/** Beyond this the horizon is well off screen and `tan` runs away. */
-const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
-/**
- * The horizon bar's depth within the panel, and its distance from the eye.
- *
- * The panel root is turned -90 degrees about Y, which sends local +Z to body
- * -X: a bar nudged forward off the panel face in local +Z is 2 mm CLOSER to
- * the pilot, not further. Small, but the bar's placement divides by this
- * distance, and using 0.6 instead of 0.598 left a 0.33% error that the
- * screen-position test caught.
- */
-const HORIZON_Z = -0.003
-const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
 /**
  * The reflector sight, as an angle rather than a size.
  *
@@ -168,10 +267,21 @@ const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
  */
 const RETICLE_SPAN_DEG = 3
 const RETICLE_GAP_DEG = 1
-/** In front of the horizon bar, so the bar cannot cut across the sight. */
+/** At -0.004, this is FARTHER from the pilot than the dial faces (z = 0) and
+ *  the backing plate (`BACKING_Z` = -0.001), by this file's own "local +Z
+ *  points at the pilot" convention -- not "in front of" either, which is
+ *  what this comment used to claim back when it was framed around the
+ *  now-retired horizon bar. That ordering turns out to be moot: the reticle
+ *  spans only about 1.51 degrees either side of the eye line, and the
+ *  backing plate starts about 3.00 degrees below it (`HORIZON_KEEP_DEG`,
+ *  panelLayout.ts), so the two never share the same screen position and
+ *  which one is nominally "in front" never gets exercised. `panel.test.ts`
+ *  pins the sight's own screen position independently of this value, at
+ *  every attitude. */
 const RETICLE_Z = -0.004
 
-/** The coaming: an opaque plate the horizon bar passes behind. */
+/** The coaming: an opaque plate giving the dashboard a hard lower edge
+ *  instead of reading as a strip with sky visible beneath it. */
 const BACKING_Z = -0.001
 
 /**
@@ -214,6 +324,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const needles = new Map<GaugeId, Object3D>()
   const readouts = new Map<GaugeId, Readout>()
   let tape: Panel['tape']
+  let attitude: Panel['attitude']
 
   const faceMat = new MeshBasicMaterial({ color: 0x101418 })
   const needleMat = new MeshBasicMaterial({ color: 0xffd24a })
@@ -224,13 +335,13 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // Round dials only. A column or a tape is a different shape entirely --
   // giving one a needle and a bezel here is exactly the bug this filter
   // exists to prevent (controller ruling R1, 2026-09-15: the lower row is
-  // five dials plus the ball, not six dials). Rendering a column or a tape
-  // is a later task's; for now they exist only in `GAUGES` and are not drawn.
+  // five dials plus the ball, not six dials). Columns and the tape are built
+  // separately below.
   const dialGauges = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
 
   // Layout slots are keyed by id (panelLayout.ts's PANEL_SLOTS), not by
-  // position in this array -- the row has a hole where the attitude ball
-  // will go, so a dial's index here is not its index in the slot table.
+  // position in this array -- the ball occupies its own slot, so a dial's
+  // index here is not its index in the slot table.
   const slotX = (id: string): number => {
     const slot = PANEL_SLOTS.find((s) => s.id === id)
     if (!slot) throw new Error(`no layout slot for ${id}`)
@@ -300,7 +411,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // rendering them -- zero non-definition hits across src, tests and tools
     // before this (whole-branch review, I-2).
     const label = textPlate(labelTextFor(g), DIAL_GAP * 0.86, 0.024, makeText)
-    label.position.set(0, -0.088, Z_MARKS)
+    label.position.set(0, -DIAL_TEXT_OFFSET_M, Z_MARKS)
     dial.add(label)
 
     // Digital readout, ABOVE the dial rather than inside it. Inside, it
@@ -312,7 +423,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // reading a needle to better than a few hundred metres or a few degrees is
     // exactly what the oversized-dial trade gave up.
     const readoutMesh = textPlate('', DIAL_RADIUS * 1.15, 0.022, makeText)
-    readoutMesh.position.set(0, 0.088, Z_READOUT)
+    readoutMesh.position.set(0, DIAL_TEXT_OFFSET_M, Z_READOUT)
     dial.add(readoutMesh)
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
@@ -411,16 +522,8 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     root.add(column)
   })
 
-  // The bar now sits BEHIND an opaque coaming rather than in front of the
-  // dials. I-7 replaced its clamped offset with exact geometry, which is
-  // right, but exact geometry means it keeps travelling: from 8 degrees
-  // nose-up it reached the dial faces and by 17.5 it crossed the centres of
-  // the two inner dials, drawn over their scale marks and under their
-  // needles -- a layering nobody chose. Letting the panel occlude it is what
-  // a real coaming does, and it needs no clamp to do it.
-  //
-  // Full width at the NARROWEST supported window, so a wider one still has
-  // the bezel reaching both edges rather than stopping short of them.
+  // Base width at the narrowest supported window. resizePanel expands only
+  // this backing for wider viewports; instruments keep their physical size.
   const halfV = Math.tan(((CAMERA_VFOV_DEG / 2) * Math.PI) / 180)
   const backingHalfW = PANEL_MIN_ASPECT * halfV * PANEL_AHEAD_M * 1.02
   // Past the frame edge, not up to it (Task 3, 2026-09-15): this is the clip
@@ -438,12 +541,54 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   backing.position.set(0, PANEL_BELOW_M - (backingTop + backingBottom) / 2, BACKING_Z)
   root.add(backing)
 
-  const horizon = new Mesh(
-    new BoxGeometry(DIAL_RADIUS * 1.6, 0.01, 0.004),
-    new MeshBasicMaterial({ color: 0x6fd3ff }),
-  )
-  horizon.position.set(0, PANEL_BELOW_M, HORIZON_Z)
-  root.add(horizon)
+  // The attitude ball: the `attitude` slot Task 3 allocated in the lower
+  // row, fourth position where the round heading dial used to sit. Ruling
+  // R1: this is panel geometry, not a `GAUGES` entry -- driven by
+  // `attitudeAngles(state)` in `updatePanel`, below.
+  //
+  // A wrapper carries the slot's fixed position (matching how a `dial`
+  // group carries its own slotX/row position while its needle inside moves
+  // in purely local coordinates), so the ball's own geometry can be built
+  // directly around the slot's own origin.
+  {
+    const attitudeSlot = PANEL_SLOTS.find((s) => s.id === 'attitude')
+    if (!attitudeSlot) throw new Error('no layout slot for attitude')
+    const attitudeGroup = new Group()
+    attitudeGroup.name = 'attitude'
+    attitudeGroup.position.set(attitudeSlot.centreX, PANEL_BELOW_M - lowerCentre, 0)
+    root.add(attitudeGroup)
+
+    // The ball: two meshes, sky over ground, whose GEOMETRY `updatePanel`
+    // replaces every frame (`attitudeBallGeometry`, above) rather than a
+    // rigid transform on a static, oversized mesh -- see that function's
+    // doc comment for why. Built here at a level attitude so the panel is
+    // never degenerate before the first `updatePanel` call -- the retired
+    // horizon bar made the same claim about itself, and `panel.test.ts`'s
+    // "starts level, before any update has run" (attitude ball describe
+    // block) is this ball's own version of that check.
+    const ball = new Group()
+    ball.name = 'attitude:ball'
+    const initial = attitudeBallGeometry(0, 0)
+    const sky = new Mesh(initial.sky, new MeshBasicMaterial({ color: 0x3f7fbf }))
+    const ground = new Mesh(initial.ground, new MeshBasicMaterial({ color: 0x6b4f2a }))
+    // Fixed order (sky then ground), relied on by `updatePanel` below --
+    // never reordered.
+    ball.add(sky, ground)
+    attitudeGroup.add(ball)
+
+    // The bezel ring, same shape as a dial's: it sits in FRONT of the ball
+    // (a larger local Z, closer to the pilot -- see Z_MARKS's doc comment
+    // on the dial bezel above), giving the row a uniform bezel look. It no
+    // longer does any clipping work itself -- the ball's own geometry now
+    // never exceeds `DIAL_RADIUS`, the ring's own inner radius -- so this is
+    // purely the same decorative rim every other dial has.
+    const ring = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.09, 32), bezelMat)
+    ring.name = 'attitude:ring'
+    ring.position.z = Z_MARKS
+    attitudeGroup.add(ring)
+
+    attitude = { ball, ring }
+  }
 
   // The sight sits at local (0, PANEL_BELOW_M) -- the boresight -- NOT at the
   // panel's own origin, which is PANEL_BELOW_M below the eye. `panel.test.ts`
@@ -454,7 +599,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const sightDistance = PANEL_AHEAD_M - RETICLE_Z
   const armM = sightDistance * Math.tan((RETICLE_SPAN_DEG * Math.PI) / 360)
   const gapM = sightDistance * Math.tan((RETICLE_GAP_DEG * Math.PI) / 360)
-  const strokeM = armM * 0.09
+  const strokeM = armM * 0.14
   const reticleMat = new MeshBasicMaterial({ color: 0xffdf7a })
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
     const long = armM - gapM
@@ -567,7 +712,21 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const [ex, ey, ez] = spec.view.eyePointM
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
-  return { root, needles, readouts, columns, horizon, reticle, backing, tape: tape! }
+  return {
+    root,
+    needles,
+    readouts,
+    columns,
+    attitude: attitude!,
+    reticle,
+    backing,
+    tape: tape!,
+  }
+}
+
+/** Keep the coaming clipped at both screen edges as the viewport changes. */
+export function resizePanel(panel: Panel, aspect: number): void {
+  panel.backing.scale.x = Math.max(1, aspect / PANEL_MIN_ASPECT)
 }
 
 export function updatePanel(
@@ -587,16 +746,20 @@ export function updatePanel(
   controls: Controls,
   makeText: TextTextureFactory = makeTextTexture,
   /**
-   * The attitude to lay the horizon bar against, when it differs from the
-   * simulated one.
+   * The attitude to lay the attitude ball's horizon against, when it differs
+   * from the simulated one.
    *
    * The camera and the airframe are posed from the INTERPOLATED tick, the
-   * numeric gauges from the simulated one. Until 2026-09-13 the bar took the
+   * numeric gauges from the simulated one. This parameter exists because of
+   * the horizon bar the ball replaced (Task 7, 2026-09-15 retired the bar
+   * itself, not this parameter): until 2026-09-13 that bar took the
    * simulated attitude too, so at 80 deg/s of roll it led the visible horizon
    * by up to a third of a tick -- 1.33 degrees of sawtooth against the one
    * thing it exists to agree with, worst on a display faster than the 60 Hz
-   * sim. The numbers on the dials are unaffected: nothing on screen contradicts
-   * them, so reading them a fraction of a tick early is invisible.
+   * sim. The ball uses it for the same reason (`updatePanel`'s own attitude-
+   * ball code below). The numbers on the dials are unaffected: nothing on
+   * screen contradicts them, so reading them a fraction of a tick early is
+   * invisible.
    */
   renderAttitude: AircraftState['attitude'] = state.attitude,
 ): void {
@@ -667,49 +830,47 @@ export function updatePanel(
     }
   }
   const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
-  // A real artificial horizon stays level with the WORLD, so the bar must sit
-  // at the angle the true horizon appears at in the pilot's view -- which is
-  // NOT the same as "rotate the bar opposite the aircraft's roll number".
+
+  // The attitude ball, from `rollRad`/`pitchRad` above -- via `renderAttitude`,
+  // not the simulated attitude, so it never lags the visible horizon under
+  // fast roll (see this function's `renderAttitude` doc comment).
+  //
+  // A real artificial horizon stays level with the WORLD, so the ball's own
+  // horizon chord must sit at the angle the true horizon appears at in the
+  // pilot's view -- which is NOT the same as "rotate the ball opposite the
+  // aircraft's roll number".
   //
   // This frame's +Z points back at the pilot (the panel root is turned -pi/2
-  // about Y, sending local +Z to body -X), so a POSITIVE rotation.z is
+  // about Y, sending local +Z to body -X), so a POSITIVE rotation about Z is
   // anticlockwise on screen; and in a right bank the true horizon appears
-  // rotated anticlockwise. Both signs therefore go the same way, and
-  // `rotation.z = rollRad` is what makes the bar match the horizon rather
-  // than mirror it.
+  // rotated anticlockwise. Both signs therefore go the same way, which is why
+  // the `attitudeBallGeometry` call below is given `rollRad` directly, not
+  // `-rollRad`.
   //
-  // Measured 2026-09-13 with this project's own createPanel/updatePanel/
-  // cameraTransformFor/toThreeOrientation, posed as main.ts poses them: at a
-  // 30-degree right bank the bar now reads +30.00 degrees (+ = right end up)
-  // against a true horizon of +30.00; the previous `-rollRad` read -30.00, a
-  // 60-degree error that scaled with bank. tests/render/panel.test.ts pins
-  // this against the camera-space projection of world-up, computed
-  // independently of this line -- the old test asserted `-rollRad` and so
-  // defended the bug through fifteen task reviews.
-  panel.horizon.rotation.z = rollRad
-
-  // Where the bar SITS, which nothing checked until 2026-09-13. C-1 and C-2
-  // both corrected its angle; its height was a fixed panel offset plus
-  // `pitchRad * 0.08`, an invented scale, so at zero pitch it hung 15.8
-  // degrees below the eye line and read as a permanent nose-up error against
-  // the visible horizon in level flight.
+  // Measured 2026-09-13, before this ball existed, on this same codebase's
+  // former horizon bar (createPanel/updatePanel/cameraTransformFor/
+  // toThreeOrientation, posed as main.ts poses them): at a 30-degree right
+  // bank `rotation.z = rollRad` read +30.00 degrees (+ = right end up)
+  // against a true horizon of +30.00; `-rollRad` read -30.00, a 60-degree
+  // error that scaled with bank and that the bar's own test had asserted for
+  // fifteen task reviews before being caught. Task 7 (2026-09-15) retired
+  // that bar once this ball carried equivalent coverage
+  // (tests/render/panel.test.ts's "the attitude ball" describe block), but
+  // the sign derivation above is exactly as load-bearing for the ball's own
+  // `rollRad` as it was for the bar's, which is why it moved here rather than
+  // being deleted with the code it used to describe.
   //
-  // It is now placed by geometry with no tuned constant at all. The bar's
-  // datum, `PANEL_BELOW_M` in this frame, is exactly eye height. The true
-  // horizon is depressed below the nose by the pitch angle, so at
-  // `PANEL_AHEAD_M` ahead it lies `PANEL_AHEAD_M * tan(pitch)` lower -- and
-  // that offset runs PERPENDICULAR TO THE BAR, along the projected world up,
-  // not along the panel's own up, which is why it is rotated by roll too.
-  // Offsetting along panel up instead would be right at zero bank and wrong
-  // everywhere else, the same shape of error as C-2.
-  //
-  // Clamped only to keep `tan` finite near the vertical; at that pitch the
-  // horizon is far off screen and its exact position stops mattering.
-  const clampedPitch = Math.max(-MAX_HORIZON_PITCH, Math.min(MAX_HORIZON_PITCH, pitchRad))
-  const drop = HORIZON_DISTANCE_M * Math.tan(clampedPitch)
-  panel.horizon.position.set(
-    drop * Math.sin(rollRad),
-    PANEL_BELOW_M - drop * Math.cos(rollRad),
-    HORIZON_Z,
-  )
+  // Rebuilt as fresh geometry (`attitudeBallGeometry`'s own doc comment has
+  // the fix's full history) rather than moved as a rigid transform: fix
+  // round 1 on Task 6 found the disc, moved by `rotation.z`/`position.y`
+  // alone, drew 56 mm into the fuel dial's face at a 45-degree bank, because
+  // nothing in this renderer actually clips anything. The two meshes' own
+  // old geometries are disposed -- the same "don't leak one GPU resource per
+  // change" rule `setPlateText` follows for readout textures above.
+  const [sky, ground] = panel.attitude.ball.children as [Mesh, Mesh]
+  const nextBall = attitudeBallGeometry(rollRad, pitchRad)
+  sky.geometry.dispose()
+  sky.geometry = nextBall.sky
+  ground.geometry.dispose()
+  ground.geometry = nextBall.ground
 }

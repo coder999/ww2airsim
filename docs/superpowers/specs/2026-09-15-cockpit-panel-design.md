@@ -1,7 +1,8 @@
 # Plan 6a — The cockpit panel: design
 
-**Status:** design, approved in conversation with Mark 2026-09-15. Not yet
-planned or implemented.
+**Status:** implemented 2026-09-15. See the [handoff](../../handoff/2026-09-15-cockpit-panel.md)
+for final decisions, verification, and screenshots. The design discussion below
+is retained as history; its open questions are resolved in the handoff.
 
 **Goal:** Turn the instrument panel from a strip floating in the middle of the
 frame into a dashboard that reads as part of the aeroplane, carrying the

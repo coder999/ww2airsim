@@ -684,6 +684,7 @@ plans are actually numbered.
 | 3 | Input assists | §5 | Complete |
 | 4 | Terrain and level of detail | §4 | Complete |
 | 5 | Ocean | §4 | Complete |
+| 6a | Cockpit panel | §4 | Complete; [handoff](../../handoff/2026-09-15-cockpit-panel.md) |
 | 6 | Combat and damage | §6 | Not started |
 | 7 | AI | §7 | Not started |
 | 8 | Carrier and airfield operations | §4, §8 | Not started |

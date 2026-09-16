@@ -1,15 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, BoxGeometry, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
+import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
 import {
   createPanel,
   updatePanel,
+  resizePanel,
+  PANEL_AHEAD_M,
   PANEL_MIN_ASPECT,
   PANEL_BELOW_M,
   TAPE_W,
   TAPE_CULL_MARGIN_M,
   type Panel,
 } from '../../src/render/scene/panel.js'
-import { degreesBelowEye, PANEL_BANDS } from '../../src/render/scene/panelLayout.js'
+import {
+  degreesBelowEye,
+  DIAL_RADIUS,
+  PANEL_BANDS,
+  PANEL_SLOTS,
+} from '../../src/render/scene/panelLayout.js'
 import {
   GAUGES,
   angleForValue,
@@ -128,48 +135,6 @@ const attitude = (pitchDeg: number, bankDeg: number): AircraftState =>
   })
 
 /**
- * How far the bar's centre sits above the middle of the screen, in tangent
- * units (the projective quantity, so it does not depend on the lens).
- */
-function barScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Quaternion): number {
-  const eye = cameraTransformFor('cockpit', f6f, {
-    position: state.position,
-    attitude: state.attitude,
-  })
-  const centre = new Vector3()
-    .setFromMatrixPosition(panel.horizon.matrixWorld)
-    .sub(new Vector3(eye.position.x, eye.position.y, eye.position.z))
-    .applyQuaternion(worldToCamera)
-  return centre.y / -centre.z
-}
-
-/**
- * The same quantity for the TRUE horizon, from world up alone.
- *
- * The horizontal direction straight ahead is the camera's own forward with
- * its vertical component removed; where that direction lands on screen is
- * where the horizon crosses the middle of the frame.
- */
-function trueHorizonScreenHeight(worldToCamera: Quaternion): number {
-  const cameraToWorld = worldToCamera.clone().invert()
-  const forward = new Vector3(0, 0, -1).applyQuaternion(cameraToWorld)
-  const horizontal = forward.clone().addScaledVector(new Vector3(0, 1, 0), -forward.y)
-  if (horizontal.lengthSq() < 1e-12) return 0
-  const h = horizontal.normalize().applyQuaternion(worldToCamera)
-  return h.y / -h.z
-}
-
-/** The angle, on screen, of the horizon bar's right-hand end: 0 is level,
- *  positive is right-end-up. Read off the built geometry, not off any
- *  constant in panel.ts. */
-function barScreenAngle(panel: Panel, worldToCamera: Quaternion): number {
-  const dir = new Vector3(1, 0, 0)
-    .transformDirection(panel.horizon.matrixWorld)
-    .applyQuaternion(worldToCamera)
-  return Math.atan2(dir.y, dir.x)
-}
-
-/**
  * The angle, on screen, of the TRUE horizon, in the same convention --
  * derived from world up (0,1,0) alone.
  *
@@ -180,6 +145,134 @@ function barScreenAngle(panel: Panel, worldToCamera: Quaternion): number {
 function trueHorizonScreenAngle(worldToCamera: Quaternion): number {
   const up = new Vector3(0, 1, 0).applyQuaternion(worldToCamera)
   return Math.atan2(-up.x, up.y)
+}
+
+/**
+ * The attitude ball's screen-projection helpers.
+ *
+ * Fix round 1 on Task 6 (2026-09-15) replaced the ball's rigid
+ * rotate-then-translate transform with fresh geometry rebuilt every frame
+ * (`attitudeBallGeometry` in panel.ts) after the transform-based version
+ * turned out to draw 56 mm into the fuel dial's face at a 45-degree bank.
+ * There is no `rotation.z`/`position.y` to read off `panel.attitude.ball` --
+ * the horizon is now the shared chord between the sky and ground segments,
+ * so these helpers read that chord's two endpoint vertices directly off the
+ * sky mesh's own `BufferGeometry`, in WORLD space, rather than a transform.
+ *
+ * Task 7 (2026-09-15) retired the horizon bar and its own equivalent
+ * helpers (`barScreenHeight`/`barScreenAngle`, which read `panel.horizon`'s
+ * transform directly) once this ball's coverage below stood in for them --
+ * with one deliberate exception: the bar's own `trueHorizonScreenHeight`
+ * comparison (its "puts the horizon bar ON the true horizon" test) has NO
+ * ball equivalent here, and did not get one. Measured directly (Task 7):
+ * the bar was positioned by exact 3D geometry to coincide with the true
+ * horizon's own screen height at any pitch, but the ball's pitch reading is
+ * `attitudeBallGeometry`'s fixed `0.8 * DIAL_RADIUS` per 30 degrees, a
+ * panel-instrument-scale deflection, not a literal projection -- the two
+ * diverge sharply past small pitches (e.g. roughly 0.66 vs -0.36 in tangent
+ * units at 20 degrees nose-up, bank 0) and a test asserting they match would
+ * fail correctly-behaving code. `ballScreenHeight` is still used below, but
+ * only to check the ball's height moves the expected DIRECTION with pitch
+ * ("drops its horizon as the nose comes up"), not that it matches a world
+ * quantity.
+ */
+/**
+ * The chord's two endpoint vertices, in WORLD space.
+ *
+ * `attitudeBallGeometry`'s `segment()` builds the sky shape starting with
+ * `moveTo` (the `skyFrom` end of the chord) and ending with a `lineTo` to
+ * `skyTo` -- but `ShapeGeometry` reverses its input point order whenever the
+ * given contour is not already clockwise (three.js's own front-face
+ * convention), so index 0 is NOT reliably the `skyFrom` end; it can be
+ * either, depending on the current roll and pitch. That reversal does not
+ * affect a MIDPOINT (order-independent, used by `ballScreenHeight`), only a
+ * DIRECTION (used by `ballScreenAngle`, which resolves it separately below).
+ */
+function ballChordEndpoints(panel: Panel): readonly [Vector3, Vector3] {
+  const sky = panel.attitude.ball.children[0] as Mesh
+  const position = sky.geometry.attributes.position as BufferAttribute
+  const from = new Vector3().fromBufferAttribute(position, 0).applyMatrix4(sky.matrixWorld)
+  const to = new Vector3()
+    .fromBufferAttribute(position, position.count - 1)
+    .applyMatrix4(sky.matrixWorld)
+  return [from, to]
+}
+
+/**
+ * The pitch deflection `attitudeBallGeometry` bakes into the chord, read
+ * directly off the sky mesh's own (pre-`matrixWorld`) geometry rather than
+ * the world-space chord above.
+ *
+ * At `rollRad = 0` (every caller below uses `attitude(pitchDeg, 0)`) both
+ * chord endpoints share the same LOCAL y, equal to `attitudeBallGeometry`'s
+ * own `d` (its `t`, unclamped): `-(pitchRad / (pi/6)) * DIAL_RADIUS * 0.8`.
+ * Reading it locally, rather than through `ballScreenHeight`'s world/camera
+ * projection, isolates the MAGNITUDE of the deflection from the panel's own
+ * placement and the camera's -- exactly the quantity a halved, doubled or
+ * saturating scale factor would change and the existing screen-space checks
+ * (an ordering check and a slot-containment bound) do not pin.
+ */
+function ballLocalPitchOffset(panel: Panel): number {
+  const sky = panel.attitude.ball.children[0] as Mesh
+  const position = sky.geometry.attributes.position as BufferAttribute
+  const from = new Vector3().fromBufferAttribute(position, 0)
+  const to = new Vector3().fromBufferAttribute(position, position.count - 1)
+  return (from.y + to.y) / 2
+}
+
+function ballScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Quaternion): number {
+  const eye = cameraTransformFor('cockpit', f6f, {
+    position: state.position,
+    attitude: state.attitude,
+  })
+  const [from, to] = ballChordEndpoints(panel)
+  const centre = from
+    .clone()
+    .add(to)
+    .multiplyScalar(0.5)
+    .sub(new Vector3(eye.position.x, eye.position.y, eye.position.z))
+    .applyQuaternion(worldToCamera)
+  return centre.y / -centre.z
+}
+
+/**
+ * The angle, on screen, of the attitude ball's horizon chord: 0 is level,
+ * positive is right-end-up. Read off the built geometry, not off any
+ * constant in panel.ts.
+ *
+ * Resolves the chord-endpoint-order ambiguity `ballChordEndpoints` documents
+ * using a THIRD vertex -- an interior point of the sky arc, which sits
+ * strictly between the two endpoints and so is unambiguously part of the
+ * sky, not a candidate for either end.
+ *
+ * Geometrically: `attitudeBallGeometry` enumerates the sky shape's points
+ * FROM `skyFrom` TO `skyTo` (increasing angle), and that walking direction
+ * (`skyTo`'s point minus `skyFrom`'s point) is a NEGATIVE multiple of
+ * `(cos(rollRad), sin(rollRad))` -- check it at `rollRad=0, d=0`: `(r,0) ->
+ * (-r,0)`. The sky side, `dot(Q, up) > d` with `up = (-sin(rollRad),
+ * cos(rollRad))`, is 90 degrees left of `(cos(rollRad), sin(rollRad))`
+ * itself, which puts it on the RIGHT of the `skyFrom -> skyTo` walk, not
+ * the left. The REVERSE direction -- `skyFrom`'s point minus `skyTo`'s
+ * point, i.e. `p0 - pLast` when index 0 genuinely is the `skyFrom` end --
+ * is the positive multiple, with sky on ITS left. That reverse direction is
+ * the candidate this code tests: whichever of `p0 - pLast` or its negation
+ * puts the interior sky vertex on its left is the correctly-oriented one --
+ * entirely in the mesh's own LOCAL space, since a rotation (the only kind
+ * of transform between here and world space) preserves left/right.
+ */
+function ballScreenAngle(panel: Panel, worldToCamera: Quaternion): number {
+  const sky = panel.attitude.ball.children[0] as Mesh
+  const position = sky.geometry.attributes.position as BufferAttribute
+  const p0 = new Vector3().fromBufferAttribute(position, 0)
+  const pLast = new Vector3().fromBufferAttribute(position, position.count - 1)
+  const pInterior = new Vector3().fromBufferAttribute(position, Math.floor(position.count / 2))
+  const mid = p0.clone().add(pLast).multiplyScalar(0.5)
+  const candidate = p0.clone().sub(pLast)
+  const toInterior = pInterior.clone().sub(mid)
+  const cross = candidate.x * toInterior.y - candidate.y * toInterior.x
+  const localDir = cross > 0 ? candidate : candidate.negate()
+  const dir = localDir.transformDirection(sky.matrixWorld).applyQuaternion(worldToCamera)
+  return Math.atan2(dir.y, dir.x)
 }
 
 describe('panel', () => {
@@ -212,35 +305,6 @@ describe('panel', () => {
     updatePanel(p, f6f, fast, NEUTRAL_CONTROLS)
     const b = p.needles.get('airspeed')!.rotation.z
     expect(b).not.toBeCloseTo(a, 6)
-  })
-
-  it('lays the horizon bar along the true horizon, not mirrored about it', () => {
-    // THE test this file exists for, and the one the previous version got
-    // backwards: it asserted `horizon.rotation.z === -rollRad`, i.e. it
-    // restated the implementation's own convention, so it pinned the wrong
-    // value just as confidently as it would have pinned the right one. A
-    // 30-degree right bank read -30 degrees on screen against a true horizon
-    // of +30: a 60-degree error, scaling with bank, telling the pilot to roll
-    // the wrong way in every turn (measured 2026-09-13).
-    //
-    // This version never mentions rollRad. It projects the built bar into the
-    // cockpit camera's frame and compares it with the projection of WORLD UP
-    // through the same camera. The two agree exactly for a pure roll about
-    // the nose, which is what these attitudes are -- under combined pitch and
-    // roll an attitude indicator legitimately differs from the visible
-    // horizon, so the equality is only asserted where it is exactly true.
-    const p = createPanel(f6f)
-    for (const bankDeg of [0, 30, -45, 120]) {
-      const state = banked(bankDeg)
-      updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
-      const { worldToCamera } = pose(p, state)
-      const bar = barScreenAngle(p, worldToCamera)
-      const truth = trueHorizonScreenAngle(worldToCamera)
-      expect(deg(bar)).toBeCloseTo(deg(truth), 4)
-      // Not vacuous: at these banks the angle is genuinely away from level,
-      // so a bar stuck at zero (or mirrored) fails rather than matching.
-      expect(deg(bar)).toBeCloseTo(bankDeg, 4)
-    }
   })
 
   it('fits inside the field of view, labels and readouts included', () => {
@@ -320,18 +384,6 @@ describe('panel', () => {
     for (const z of [box.min.z, box.max.z]) {
       expect(Math.abs(z - ez)).toBeLessThan(halfWidthAllowed)
     }
-  })
-
-  it('starts the bar at eye level, before any update has run', () => {
-    // `updatePanel` overwrites this on the first frame, so it is easy to
-    // leave at whatever it was and never notice. It is still a claim: a panel
-    // that has been built but not yet updated must not show a horizon at an
-    // arbitrary height, because that is exactly the frame the pilot sees
-    // first.
-    const p = createPanel(f6f, () => null)
-    const [, ey] = f6f.view.eyePointM
-    p.root.updateMatrixWorld(true)
-    expect(new Vector3().setFromMatrixPosition(p.horizon.matrixWorld).y).toBeCloseTo(ey, 6)
   })
 
   it('leaves clear air between adjacent dials', () => {
@@ -439,113 +491,8 @@ describe('panel', () => {
     })
   })
 
-  it('hides the horizon bar behind the coaming rather than across the dials', () => {
-    // I-7 gave the bar exact geometry, which keeps it travelling: from about
-    // 8 degrees nose-up it reached the dial faces and by 17.5 it crossed the
-    // centres of the two inner dials. It is now behind an opaque backing
-    // plate, which is what a real coaming does, so no clamp is needed --
-    // but only if the layering is right, which is what this checks.
-    const p = createPanel(f6f, () => null)
-    const backing = p.root.children.find(
-      (c): c is Mesh => c instanceof Mesh && c.geometry instanceof PlaneGeometry,
-    )
-    expect(backing).toBeDefined()
-    // Local +Z points at the pilot, so "behind" is a SMALLER z.
-    expect(p.horizon.position.z).toBeLessThan(backing!.position.z)
-    const dialFaceZ = 0
-    expect(backing!.position.z).toBeLessThan(dialFaceZ)
-    // And the plate must actually cover the dials it is shielding.
-    //
-    // Excludes `p.tape.strip` (Task 5, 2026-09-15), the same way the FOV
-    // test below does and for the same reason: the rose is deliberately
-    // drawn three copies wide so sliding never runs out of neighbour, and
-    // the outer two copies are off-screen buffer, not readable content the
-    // coaming needs to shield.
-    //
-    // `updateMatrixWorld` first, matching the FOV test's own pattern below:
-    // `Box3.setFromObject` on a CHILD calls `updateWorldMatrix(false, false)`
-    // (three.js's Box3.js), which composes with whatever the parent's own
-    // `matrixWorld` already holds rather than recomputing it -- calling it on
-    // `p.root` directly (as this test did before excluding anything) happens
-    // to update root-then-children in the right order, but iterating root's
-    // children one at a time on an otherwise-untouched panel does not.
-    p.root.updateMatrixWorld(true)
-    const box = new Box3()
-    for (const child of p.root.children) {
-      if (child === p.tape.strip) continue
-      box.union(new Box3().setFromObject(child))
-    }
-    const bb = new Box3().setFromObject(backing!)
-    expect(bb.min.z).toBeLessThanOrEqual(box.min.z)
-    expect(bb.max.z).toBeGreaterThanOrEqual(box.max.z)
-  })
-
-  it('lays the bar against the attitude it is given, not the one in the state', () => {
-    // The camera and airframe are posed from the interpolated tick and the
-    // gauges from the simulated one. The bar took the simulated attitude too,
-    // so at 80 deg/s of roll it led the visible horizon by up to 1.33 degrees,
-    // sawtoothing at tick rate against the one thing it must agree with.
-    const p = createPanel(f6f, () => null)
-    const level = attitude(0, 0)
-    const rolled = attitude(0, 30)
-    updatePanel(p, f6f, level, NEUTRAL_CONTROLS, () => null, rolled.attitude)
-    expect(deg(p.horizon.rotation.z)).toBeCloseTo(30, 6)
-    updatePanel(p, f6f, rolled, NEUTRAL_CONTROLS, () => null, level.attitude)
-    expect(deg(p.horizon.rotation.z)).toBeCloseTo(0, 6)
-  })
-
-  it('puts the horizon bar ON the true horizon, not merely parallel to it', () => {
-    // The other half of what flying it found: the bar was pinned to the panel
-    // at a fixed height and sat 15.8 degrees below the eye line at ZERO
-    // pitch, so in level flight it hung well below the visible horizon and
-    // read as a permanent nose-up error. C-1 and C-2 both fixed its ANGLE;
-    // nothing had ever checked its POSITION.
-    //
-    // The screen position is computed here from world up alone, exactly as
-    // the angle checks above are, and never from anything in panel.ts.
-    const p = createPanel(f6f, () => null)
-    for (const pitchDeg of [0, 10, -10, 25, -20]) {
-      for (const bankDeg of [0, 30, -45]) {
-        const state = attitude(pitchDeg, bankDeg)
-        updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
-        const { worldToCamera } = pose(p, state)
-        expect(barScreenHeight(p, state, worldToCamera)).toBeCloseTo(
-          trueHorizonScreenHeight(worldToCamera),
-          3,
-        )
-      }
-    }
-  })
-
-  it('holds the bar level on a wings-level aeroplane, at any pitch and heading', () => {
-    // The gap the pure-roll cases above leave, found on the reference-class
-    // hardware 2026-09-13: a cockpit screenshot showed a dead-level true
-    // horizon, a level panel, and the bar tilted about 7 degrees.
-    //
-    // Wings level is the one combined-attitude case where the bar and the
-    // visible horizon must agree EXACTLY -- a level aeroplane shows a level
-    // horizon at any pitch and on any heading. So this asserts both: the bar
-    // matches the true horizon, and both are level.
-    //
-    // `banked()` above builds pure roll about the nose, under which the old
-    // roll formula happened to be right. That is why fifteen task reviews and
-    // C-1's own replacement test all passed while the instrument lied in
-    // ordinary flight.
-    const p = createPanel(f6f)
-    for (const headingDeg of [0, 30, 45, 90, 135, 180, -60]) {
-      for (const pitchDeg of [0, 10, -15]) {
-        const state = wingsLevel(headingDeg, pitchDeg)
-        updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
-        const { worldToCamera } = pose(p, state)
-        const bar = barScreenAngle(p, worldToCamera)
-        expect(deg(bar)).toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 4)
-        expect(deg(bar)).toBeCloseTo(0, 4)
-      }
-    }
-  })
-
   it('turns every instrument face back toward the eye, not out through the nose', () => {
-    // Same shape as the horizon case: each face normal is read off the built
+    // Each face normal is read off the built
     // geometry and compared with the direction to the eye point that
     // cameraTransformFor computes independently. Measured 2026-09-13, the
     // worst (outermost) dial scores 0.79 -- the panel is 0.60 m ahead of and
@@ -576,14 +523,278 @@ describe('panel', () => {
   })
 
   it('accepts an explicit control vector without throwing (2026-09-15)', () => {
-    // main.ts now passes `current.controls` as the required fourth argument,
-    // the same vector it already reads for the propeller spin, so the
-    // throttle gauge (a column, not yet drawn) can eventually read it too.
-    // This is a smoke test of that plumbing rather than a behavioural one:
-    // no dial reads `controls` today, so there is nothing visible to assert
-    // yet.
+    // Smoke coverage for the required control vector; the throttle tests
+    // below measure the column's response to that vector.
     const p = createPanel(f6f)
     expect(() => updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS)).not.toThrow()
+  })
+})
+
+describe('the attitude ball (2026-09-15)', () => {
+  it('lays its horizon at the true horizon angle, both bank directions', () => {
+    // The same failure mode the retired horizon bar's own angle test existed
+    // for (Task 7, 2026-09-15, retired the bar and that test once this one
+    // stood in for it): this compares the ball's projected screen angle
+    // against the WORLD quantity `trueHorizonScreenAngle`, never against
+    // `rollRad` itself -- a test that asserted `rotation.z === rollRad` would
+    // pass just as confidently with the sign flipped, which is exactly how
+    // the bar's own -30/+30 defect survived fifteen task reviews (panel.ts's
+    // own comment on the attitude-ball roll sign has the full history).
+    for (const bankDeg of [30, -30, 60, -60]) {
+      const p = createPanel(f6f, () => null)
+      const state = attitude(0, bankDeg)
+      // updatePanel BEFORE pose(): `ballScreenAngle` reads the ball's
+      // `matrixWorld`, which is only refreshed by `pose()`'s own
+      // `cockpit.updateMatrixWorld(true)` call -- calling pose() first would
+      // measure the ball's PRE-update (identity) transform instead.
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const { worldToCamera } = pose(p, state)
+      expect(ballScreenAngle(p, worldToCamera), `bank ${bankDeg}`)
+        .toBeCloseTo(trueHorizonScreenAngle(worldToCamera), 1)
+    }
+  })
+
+  it('drops its horizon as the nose comes up', () => {
+    const p = createPanel(f6f, () => null)
+    const heightAt = (pitchDeg: number): number => {
+      const state = attitude(pitchDeg, 0)
+      updatePanel(p, f6f, state, NEUTRAL_CONTROLS, () => null)
+      const { worldToCamera } = pose(p, state)
+      return ballScreenHeight(p, state, worldToCamera)
+    }
+    expect(heightAt(20)).toBeLessThan(heightAt(-20))
+  })
+
+  it('starts level, before any update has run', () => {
+    // The retired horizon bar made the same claim about itself ("starts the
+    // bar at eye level, before any update has run") -- `updatePanel`
+    // overwrites this on the first frame, so it is easy to leave degenerate
+    // and never notice, and it is still a claim: a panel that has been built
+    // but not yet updated must not show a horizon at an arbitrary tilt.
+    //
+    // Unlike the bar, the ball is positioned at the dial ROW's own height,
+    // not at eye level (it is a panel-mounted instrument, not a floating HUD
+    // element) -- so the claim worth pinning here is LEVELNESS, not eye
+    // height: `createPanel` builds the ball via `attitudeBallGeometry(0, 0)`,
+    // whose chord endpoints sit at local y = 0 on both ends by construction.
+    const p = createPanel(f6f, () => null)
+    p.root.updateMatrixWorld(true)
+    const [from, to] = ballChordEndpoints(p)
+    expect(from.y).toBeCloseTo(to.y, 6)
+  })
+
+  it('lays its horizon against the attitude it is given, not the one in the state', () => {
+    // The retired horizon bar's own parity test for this ("lays the bar
+    // against the attitude it is given..."): the camera and airframe are
+    // posed from the interpolated tick and the numeric gauges from the
+    // simulated one. The bar took the simulated attitude too until
+    // 2026-09-13, so at 80 deg/s of roll it led the visible horizon by up to
+    // 1.33 degrees. `updatePanel`'s own comment on the ball explains it uses
+    // `renderAttitude` for the same reason -- this is the check for that,
+    // posing the CAMERA at the rolled attitude (what the pilot actually
+    // sees) while `state` stays level, so a ball that read `state.attitude`
+    // instead would show a level horizon against a rolled camera and fail.
+    const p = createPanel(f6f, () => null)
+    const level = attitude(0, 0)
+    const rolled = attitude(0, 30)
+    updatePanel(p, f6f, level, NEUTRAL_CONTROLS, () => null, rolled.attitude)
+    const { worldToCamera } = pose(p, rolled)
+    expect(deg(ballScreenAngle(p, worldToCamera)))
+      .toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 1)
+  })
+
+  it('holds level on a wings-level aeroplane, at any pitch and heading', () => {
+    // The gap a pure-roll sweep leaves, found on the reference-class hardware
+    // 2026-09-13 against the retired horizon bar: a cockpit screenshot showed
+    // a dead-level true horizon, a level panel, and the bar tilted about 7
+    // degrees. `banked()`/`attitude()`-style pure roll about the nose is the
+    // one case under which the OLD, wrong roll formula happened to agree with
+    // the true horizon too, which is why fifteen task reviews passed while
+    // the instrument lied in ordinary (heading != 0) flight. Wings level at
+    // any heading and pitch is the case that actually exercises
+    // `attitudeAngles`' own heading-independence fix, so this is the ball's
+    // own version of the bar's "holds the bar level on a wings-level
+    // aeroplane" test.
+    const p = createPanel(f6f)
+    for (const headingDeg of [0, 30, 45, 90, 135, 180, -60]) {
+      for (const pitchDeg of [0, 10, -15]) {
+        const state = wingsLevel(headingDeg, pitchDeg)
+        updatePanel(p, f6f, state, NEUTRAL_CONTROLS)
+        const { worldToCamera } = pose(p, state)
+        const ball = ballScreenAngle(p, worldToCamera)
+        expect(deg(ball)).toBeCloseTo(deg(trueHorizonScreenAngle(worldToCamera)), 4)
+        expect(deg(ball)).toBeCloseTo(0, 4)
+      }
+    }
+  })
+
+  it('scales its pitch deflection linearly below the clamp', () => {
+    // Fix round 1 (2026-09-15): "puts the horizon bar ON the true horizon"
+    // had no ball equivalent because the ball's pitch term isn't a literal
+    // projection of the true horizon -- but that left the deflection's
+    // MAGNITUDE pinned by nothing except an ordering check ("drops its
+    // horizon as the nose comes up") and a containment bound, both of which
+    // a halved, doubled, or saturating scale factor would still pass.
+    //
+    // What IS true of `attitudeBallGeometry`'s actual term,
+    // `-(pitchRad / (pi/6)) * DIAL_RADIUS * 0.8`, is that it is LINEAR in
+    // pitch below where the clamp engages (~37.5 degrees at zero bank, per
+    // the per-slot containment suite's own pitch sweep comment) -- doubling
+    // the pitch doubles the deflection, exactly, with no fitted constant
+    // this test has to know.
+    const p = createPanel(f6f, () => null)
+    const offsetAt = (pitchDeg: number): number => {
+      updatePanel(p, f6f, attitude(pitchDeg, 0), NEUTRAL_CONTROLS, () => null)
+      return ballLocalPitchOffset(p)
+    }
+    expect(offsetAt(20)).toBeCloseTo(2 * offsetAt(10), 6)
+  })
+
+  it('deflects by exactly 0.8 of DIAL_RADIUS at 30 degrees nose-up', () => {
+    // The linearity check above passes for ANY scale factor -- half, double,
+    // or the real 0.8 -- since it only pins the SHAPE of the response, not
+    // its size. This pins the size itself, at a pitch (30 degrees) still
+    // safely below the ~37.5-degree clamp, so a halved or doubled
+    // `attitudeBallGeometry` scale constant fails here even though it would
+    // pass every other test in this file.
+    const p = createPanel(f6f, () => null)
+    updatePanel(p, f6f, attitude(30, 0), NEUTRAL_CONTROLS, () => null)
+    // Negative: nose-up pitch deflects the chord toward -y in this local
+    // frame, the same direction "drops its horizon as the nose comes up"
+    // (above) checks the ordering of.
+    expect(ballLocalPitchOffset(p)).toBeCloseTo(-0.8 * DIAL_RADIUS, 6)
+  })
+})
+
+describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
+  // The whole-panel frustum test above ("fits inside the field of view...")
+  // unions EVERY instrument into one combined envelope, dominated by the
+  // throttle/armament edge blocks -- an instrument overflowing into its own
+  // immediate NEIGHBOUR is completely invisible to it. That is exactly how
+  // the attitude ball's first cut (an oversized disc moved by a rigid
+  // `rotation.z`/`position.y` transform, per the original task-6 brief) drew
+  // 56 mm into the fuel dial's own face at a 45-degree bank without failing
+  // any existing test -- caught only by measuring it directly and reporting
+  // the finding rather than either inventing a fix or excluding it from an
+  // assertion.
+  //
+  // This checks each `PANEL_SLOTS` entry that has geometry against its OWN
+  // declared budget, BOTH horizontally (`centreX +/- widthM/2` -- the
+  // dimension the ball's actual defect was in) and vertically
+  // (`PANEL_BANDS.lower`), for every lower-band instrument: the five dials, the
+  // throttle column, and the attitude ball. `radar` and `armament` are
+  // excluded -- reserved slots with nothing drawn into them yet
+  // (`createPanel`'s own comment: "nothing is added to `root` for them").
+  //
+  // Fix round 1 (2026-09-15) shipped this with the dial check horizontal-only:
+  // measuring vertical containment for the five dials found every one of
+  // their readout+label pairs already ran past `PANEL_BANDS.lower`'s own
+  // top/bottom, which traced to `LOWER_H` in panelLayout.ts understating what
+  // a dial plus its readout and label actually occupy (a Task 2 bookkeeping
+  // error, not anything this plan touched). Ruling R11 (fix round 2) called
+  // that carve-out out directly: a horizontal-only assertion made to
+  // accommodate a wrong constant is the same shape as the test exclusions
+  // that hid two Criticals in the previous task -- fix the constant, not the
+  // assertion. `LOWER_H` was widened (see its own doc comment in
+  // panelLayout.ts for the exact derivation) and every dial now gets the
+  // same full containment check as the ball and the column.
+
+  const EPS = 1e-6
+
+  /**
+   * Builds a panel with the root's own eye-relative transform zeroed out, so
+   * a `Box3` measured from it lands directly in the same LOCAL frame
+   * `PANEL_SLOTS`/`PANEL_BANDS` are defined in: `centreX` is local x, and a
+   * band's local y is `PANEL_BELOW_M - band` (panelLayout.ts's own doc
+   * comment on `PANEL_BANDS`).
+   */
+  function localPanel(): Panel {
+    const p = createPanel(f6f, () => null)
+    p.root.position.set(0, 0, 0)
+    p.root.rotation.set(0, 0, 0)
+    return p
+  }
+
+  const yTop = PANEL_BELOW_M - PANEL_BANDS.lower.top
+  const yBottom = PANEL_BELOW_M - PANEL_BANDS.lower.bottom
+
+  function expectHorizontallyWithinSlot(slotId: string, box: Box3, label: string): void {
+    const slot = PANEL_SLOTS.find((s) => s.id === slotId)!
+    expect(box.min.x, `${label}: left edge inside ${slotId}'s slot width`)
+      .toBeGreaterThanOrEqual(slot.centreX - slot.widthM / 2 - EPS)
+    expect(box.max.x, `${label}: right edge inside ${slotId}'s slot width`)
+      .toBeLessThanOrEqual(slot.centreX + slot.widthM / 2 + EPS)
+  }
+
+  function expectWithinLowerBand(box: Box3, label: string): void {
+    expect(box.max.y, `${label}: top edge inside PANEL_BANDS.lower`)
+      .toBeLessThanOrEqual(yTop + EPS)
+    expect(box.min.y, `${label}: bottom edge inside PANEL_BANDS.lower`)
+      .toBeGreaterThanOrEqual(yBottom - EPS)
+  }
+
+  it('keeps every dial inside its own slot, horizontally and vertically', () => {
+    const p = localPanel()
+    updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
+    p.root.updateMatrixWorld(true)
+    for (const dial of dialsOf(p)) {
+      const id = dial.name.slice('dial:'.length)
+      const box = new Box3().setFromObject(dial)
+      expectHorizontallyWithinSlot(id, box, id)
+      expectWithinLowerBand(box, id)
+    }
+  })
+
+  it('keeps the throttle column inside its own slot, horizontally and vertically, at every setting', () => {
+    for (const throttle of [0, 0.5, 1]) {
+      const p = localPanel()
+      updatePanel(p, f6f, createState(), { ...NEUTRAL_CONTROLS, throttle }, () => null)
+      p.root.updateMatrixWorld(true)
+      const column = p.root.children.find((c) => c.name === 'column:throttle')!
+      const box = new Box3().setFromObject(column)
+      expectHorizontallyWithinSlot('throttle', box, `throttle=${throttle}`)
+      expectWithinLowerBand(box, `throttle=${throttle}`)
+    }
+  })
+
+  it('keeps the attitude ball inside its own slot, horizontally and vertically, at every attitude the model can reach', () => {
+    // Pitch sweep includes +/-60 and +/-90 (review finding, fix round 3):
+    // `attitudeBallGeometry`'s clamp on `d` only engages once
+    // `|pitch| >= 37.5 deg` (at zero bank; farther out at a bank away from
+    // zero, since `d` scales by `cos(rollRad)`), so a sweep that stopped at
+    // +/-30 never exercised the saturated/degenerate-segment path at all.
+    for (const bankDeg of [0, 45, -45, 90, -90]) {
+      for (const pitchDeg of [0, 30, -30, 60, -60, 90, -90]) {
+        const p = localPanel()
+        updatePanel(p, f6f, attitude(pitchDeg, bankDeg), NEUTRAL_CONTROLS, () => null)
+        p.root.updateMatrixWorld(true)
+        const label = `pitch=${pitchDeg} bank=${bankDeg}`
+
+        const box = new Box3()
+        box.union(new Box3().setFromObject(p.attitude.ball))
+        box.union(new Box3().setFromObject(p.attitude.ring))
+        expectHorizontallyWithinSlot('attitude', box, label)
+        expectWithinLowerBand(box, label)
+
+        // The ring ALONE already saturates the slot's declared box exactly
+        // (`DIAL_RADIUS * 1.09 * 2 === widthM`), so the union above cannot
+        // see the ball's own disc grow past its face -- review finding, fix
+        // round 3. Checked separately: the ball's own `Box3`, centred on
+        // wherever `updatePanel` actually placed it (read off its own
+        // `matrixWorld`, not assumed from `PANEL_SLOTS`), must stay within
+        // `DIAL_RADIUS` on every side.
+        const centre = new Vector3().setFromMatrixPosition(p.attitude.ball.matrixWorld)
+        const ballBox = new Box3().setFromObject(p.attitude.ball)
+        expect(ballBox.min.x, `${label}: ball left edge within DIAL_RADIUS`)
+          .toBeGreaterThanOrEqual(centre.x - DIAL_RADIUS - EPS)
+        expect(ballBox.max.x, `${label}: ball right edge within DIAL_RADIUS`)
+          .toBeLessThanOrEqual(centre.x + DIAL_RADIUS + EPS)
+        expect(ballBox.min.y, `${label}: ball bottom edge within DIAL_RADIUS`)
+          .toBeGreaterThanOrEqual(centre.y - DIAL_RADIUS - EPS)
+        expect(ballBox.max.y, `${label}: ball top edge within DIAL_RADIUS`)
+          .toBeLessThanOrEqual(centre.y + DIAL_RADIUS + EPS)
+      }
+    }
   })
 })
 
@@ -609,9 +820,7 @@ describe('panel markings and readouts (I-2)', () => {
 
   it('prints the name and unit of every fitted dial', () => {
     // Dial-only: createPanel only builds a label plate for a rendered dial.
-    // Throttle (a column) and heading (a tape, since 2026-09-15) are in
-    // GAUGES but not yet drawn at all -- see the file-level comment on
-    // DIAL_GAUGES.
+    // Throttle and heading have their own column/tape markings.
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
     for (const g of DIAL_GAUGES) expect(drawn).toContain(labelTextFor(g))
@@ -733,6 +942,21 @@ describe('panel markings and readouts (I-2)', () => {
 })
 
 describe('the two-band dashboard (2026-09-15)', () => {
+  it('covers both viewport edges after resizing between supported aspect ratios', () => {
+    const p = createPanel(f6f, () => null)
+    p.root.position.set(0, 0, 0)
+    p.root.rotation.set(0, 0, 0)
+    for (const aspect of [1.5, 1.6, 16 / 9, 21 / 9, 1.5]) {
+      resizePanel(p, aspect)
+      p.root.updateMatrixWorld(true)
+      const box = new Box3().setFromObject(p.backing)
+      const halfWidth = (PANEL_AHEAD_M - box.min.z)
+        * Math.tan(CAMERA_VFOV_DEG * Math.PI / 360) * aspect
+      expect(box.min.x / halfWidth, `left edge at ${aspect}`).toBeLessThan(-1)
+      expect(box.max.x / halfWidth, `right edge at ${aspect}`).toBeGreaterThan(1)
+    }
+  })
+
   it('runs the bezel past the bottom of the frame, so it is clipped not floating', () => {
     // The complaint this fixes: sky was visible below the panel on both sides,
     // so it read as a strip hanging in the view rather than a dashboard.
@@ -740,6 +964,31 @@ describe('the two-band dashboard (2026-09-15)', () => {
     const box = new Box3().setFromObject(p.backing)
     const lowestBelowEye = PANEL_BELOW_M - box.min.y
     expect(degreesBelowEye(lowestBelowEye)).toBeGreaterThan(CAMERA_VFOV_DEG / 2)
+
+    // The coaming must actually cover the row it backs, not just clip past
+    // the bottom of the frame -- a deleted horizon-bar test (Task 7,
+    // 2026-09-15) checked this as a side effect of its own bar-specific
+    // z-ordering assertion; restored here on its own terms, since the
+    // property itself was never about the bar. This file's own WORLD Z axis
+    // is the panel's horizontal spread (the panel root is turned -90 degrees
+    // about Y, sending local x to world z), so comparing `backing`'s own box
+    // against every other instrument's on that axis is "wide enough to back
+    // the row it's behind". Hidden tape buffer copies are excluded; visible
+    // marks are included, just as in the frustum guard.
+    updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
+    p.root.updateMatrixWorld(true)
+    const rowBox = new Box3()
+    for (const child of p.root.children) {
+      if (child === p.backing) continue
+      if (child === p.tape.strip) {
+        for (const mark of child.children) {
+          if (mark.visible) rowBox.union(new Box3().setFromObject(mark))
+        }
+      } else rowBox.union(new Box3().setFromObject(child))
+    }
+    const backingBox = new Box3().setFromObject(p.backing)
+    expect(backingBox.min.z).toBeLessThanOrEqual(rowBox.min.z)
+    expect(backingBox.max.z).toBeGreaterThanOrEqual(rowBox.max.z)
   })
 
   it('draws nothing in the reserved radar and armament slots', () => {
@@ -772,7 +1021,7 @@ describe('the gunsight reticle (2026-09-15)', () => {
   it('sits on the boresight, at every attitude', () => {
     // A reflector sight is aimed where the guns point, so the reticle has to
     // land dead centre whatever the aeroplane is doing -- it is fixed to the
-    // airframe, not to the world like the horizon bar two tests above.
+    // airframe, not to the world like the attitude ball's own horizon chord.
     //
     // This is the assertion that a reticle parented correctly but positioned
     // on the PANEL FACE would fail: the panel sits PANEL_BELOW_M below the eye,

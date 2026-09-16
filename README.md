@@ -36,6 +36,14 @@ two different answers to "what comes after terrain" rather than three typos.
 **The table in master spec §15 is now the only authoritative copy**; every
 other document points at it.
 
+The cockpit now has a dashboard that reaches the bottom and sides of the
+window, a heading tape, a throttle column, five numeric dials, and an attitude
+ball. The ball replaces the floating horizon bar; the brighter gunsight stays
+on the boresight. Radar and armament space is reserved but intentionally empty.
+Use a window at least 3:2 for the full instrument row. See the
+[cockpit handoff](docs/handoff/2026-09-15-cockpit-panel.md) for screenshots,
+layout margins, and review evidence.
+
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
 and remains the authoritative description of the project as a whole — read it

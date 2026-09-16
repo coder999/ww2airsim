@@ -12,7 +12,52 @@ export type Band = { readonly top: number; readonly bottom: number }
 const UPPER_TOP = metresBelowEye(HORIZON_KEEP_DEG)   // 0.0314 m
 const UPPER_H = 0.098                                 // tape strip + radar row
 const GUTTER = 0.010
-const LOWER_H = 0.172                                 // readout + dial + label
+/**
+ * Widened from 0.172, Ruling R11 (Task 6 fix round 2, 2026-09-15): 0.172 was
+ * a bookkeeping error from Task 2 that understated what a dial plus its
+ * readout and label actually occupy, caught once the per-slot containment
+ * test (`tests/render/panel.test.ts`) asserted FULL containment for dials
+ * instead of horizontal-only. Nothing was ever visually broken -- the worst
+ * band-bottom figure below is still comfortably inside the 30-degree frame
+ * edge -- this was purely the declared budget being smaller than the real
+ * content.
+ *
+ * R11 named 0.188 as the fix, reasoned from a bottom-only measurement
+ * (drawn bottom at 0.3254 m below eye against a declared 0.3114 m, "uniform
+ * 14.0 mm"). Verifying it against the BUILT geometry (this fix) found it
+ * still 5 mm short at the TOP: raising `LOWER_H` only pushes `band.bottom`
+ * down (`band.top` does not depend on it at all), which re-centres the row
+ * by HALF of that increase, not the full amount -- so the 0.016 m raise from
+ * 0.172 to 0.188 bought only 8 mm of headroom at the top edge, where 13 mm
+ * was owed. The readout above and the label below overshoot by close to the
+ * same amount (13 mm top, 14 mm bottom), so both edges bind almost equally;
+ * bottom is very slightly the tighter one once the halving is accounted for.
+ *
+ * Re-derived by measuring the built dial extent at several trial values of
+ * this constant (band bottom, degrees below eye, against the still-passing
+ * vertical budget assertion in `panelLayout.test.ts`; top/bottom margins are
+ * the built dial's own clearance against the declared band, positive = spare
+ * room):
+ *   0.172 -> 27.43 deg   top margin -13.0 mm   bottom margin -14.0 mm
+ *   0.188 -> 28.62 deg   top margin  -5.0 mm   bottom margin  -6.0 mm  (R11's own figure; still short both sides)
+ *   0.200 -> 29.50 deg   top margin  +1.0 mm   bottom margin  ~0    mm  (exact fit, bottom-bound)
+ *   0.202 -> 29.64 deg   top margin  +2.0 mm   bottom margin  +1.0 mm  (fix round 2's chosen value)
+ *
+ * Ruling R12 (Task 6 fix round 3, 2026-09-15) rejected 0.202's resulting
+ * frame margin -- 30 - 29.64 = 0.36 degrees -- as the same knife-edge shape
+ * ruling R4 already rejected on the HORIZONTAL axis (a 0.14-degree margin
+ * there, required to be a full 1 degree). The reviewer traced the real slack
+ * to the dial's own layout, not the frame: the readout/label sat 0.088 m
+ * from the dial's centre against a bezel outer radius of only 0.0654 m (see
+ * `DIAL_TEXT_OFFSET_M` in panel.ts), a 30 mm gap neither plate needs. That
+ * constant narrowed to 0.08 m, which shrinks the dial's own vertical reach
+ * enough to buy the margin back from `LOWER_H` instead of spending it on the
+ * frame edge:
+ *   0.202, DIAL_TEXT_OFFSET_M=0.088 -> 29.64 deg (0.36 deg margin)  top +2.0 mm   bottom +1.0 mm  (fix round 2)
+ *   0.202, DIAL_TEXT_OFFSET_M=0.08  -> 29.64 deg (0.36 deg margin)  top +10.0 mm  bottom +9.0 mm  (offset narrowed; frame margin unchanged, so still not enough)
+ *   0.190, DIAL_TEXT_OFFSET_M=0.08  -> 28.77 deg (1.23 deg margin)  top  +4.0 mm  bottom +3.0 mm  (chosen: clears R12's 1-degree minimum with the same kind of headroom R4 required, while every dial keeps a few mm of its own containment margin)
+ */
+const LOWER_H = 0.190                                 // readout + dial + label
 
 export const PANEL_BANDS: { readonly upper: Band; readonly lower: Band } = {
   upper: { top: UPPER_TOP, bottom: UPPER_TOP + UPPER_H },
@@ -48,7 +93,7 @@ export const PANEL_BANDS: { readonly upper: Band; readonly lower: Band } = {
  */
 export const DIAL_GAP = 0.145
 export const DIAL_RADIUS = 0.06
-/** Throttle column / armament block half-width companion. */
+/** Full width of the throttle column / armament block. */
 const EDGE_W = 0.052
 
 export type Slot = { readonly id: string; readonly centreX: number; readonly widthM: number }
