@@ -6,6 +6,7 @@ import { createState } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { surfaceAt } from '../../src/sim/contact.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const header = parseTerrainHeader({
@@ -74,5 +75,75 @@ describe('terrain contact', () => {
     const withoutField = advance(start, DT * 5).world
     expect(withNull.aircraft).toEqual(withoutField.aircraft)
     expect(withNull.impact).toBeNull()
+  })
+})
+
+describe('a recorded impact says what it was', () => {
+  it('records a high-speed dive into a 1000 m plateau as destroyed on land', () => {
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1005, 0), velocity: v3(60, -30, 0) }),
+      level,
+    )
+    let w: World<undefined> = { ...start, terrain: plateau }
+    for (let i = 0; i < 60 && w.impact === null; i++) w = advance(w, DT, undefined).world
+    expect(w.impact).not.toBeNull()
+    expect(w.impact!.surface).toBe('land')
+    expect(w.impact!.kind).toBe('destroyed')
+  })
+
+  it('agrees with surfaceAt on the height it captured', () => {
+    // Cross-check by recomputation, the shape the terrain soak already uses:
+    // the field on Impact must equal what the classifier says about the height
+    // stored beside it, so the two can never drift apart silently.
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1005, 0), velocity: v3(60, -30, 0) }),
+      level,
+    )
+    let w: World<undefined> = { ...start, terrain: plateau }
+    for (let i = 0; i < 60 && w.impact === null; i++) w = advance(w, DT, undefined).world
+    expect(w.impact!.surface).toBe(surfaceAt(w.impact!.groundHeightM))
+  })
+})
+
+describe('the flight ends at the contact', () => {
+  it('stops stepping on the step that hits, not at the end of the frame', () => {
+    // Five steps are owed in one call; the plateau is one step away. Without
+    // the break, `advance` runs the remaining four and the airplane ends the
+    // frame buried far below the ground it hit.
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      level,
+    )
+    const result = advance({ ...start, terrain: plateau }, DT * 5)
+    expect(result.world.impact).not.toBeNull()
+    expect(result.stepsRun).toBeLessThan(5)
+    expect(result.world.aircraft.tick).toBe(result.world.impact!.tick)
+    expect(result.world.aircraft.position).toEqual(result.world.impact!.position)
+  })
+
+  it('renders exactly at the point of contact, at any interpolation factor', () => {
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      level,
+    )
+    const result = advance({ ...start, terrain: plateau }, DT * 5)
+    expect(result.world.previous).toEqual(result.world.aircraft)
+  })
+
+  it('runs no further steps once the flight has ended', () => {
+    const start = createWorld(
+      spec,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      level,
+    )
+    const ended = advance({ ...start, terrain: plateau }, DT * 5).world
+    const after = advance(ended, DT * 10)
+    expect(after.stepsRun).toBe(0)
+    expect(after.world.aircraft).toEqual(ended.aircraft)
+    expect(after.world.impact).toBe(ended.impact)
   })
 })

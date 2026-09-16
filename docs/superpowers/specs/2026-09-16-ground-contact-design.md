@@ -158,8 +158,9 @@ What it settles:
 
 - A **System 7 modal over a still-visible scene** — not a separate screen. This
   is why §5 freezes the simulation rather than tearing the renderer down.
-- A header naming **rank and pilot name**. Neither exists; Plan 9 owns the
-  pilot roster (§8). Placeholder.
+- A header naming **rank and pilot name**. Neither exists yet; Plan 9 owns
+  the pilot roster (§8). **Not built here** — see below for why a placeholder
+  header is worse than no header.
 - A **"Targets Destroyed / Score" table** whose categories are Fighter, Bomber,
   AAA Battery, Carrier, Battleship, Cruiser and Runway. **This is master spec
   §8's scoring table.** The original's arithmetic agrees with it too — five
@@ -171,8 +172,19 @@ What it settles:
 The dialog is a thin DOM module in the same split `legend.ts` and `overlay.ts`
 already use: the layout is a pure function the node-environment suite asserts
 on, and the DOM around it is small enough to read. It shows what happened
-(destroyed or ditched, on water or land), §8's table at zero, and an empty
-awards box.
+(destroyed or ditched, on water or land) and §8's table at zero. It does
+**not** carry a header naming rank and pilot name, and it does **not** carry
+an awards box, empty or otherwise.
+
+Both are omissions, not oversights. A header needs a rank and a pilot name,
+neither of which exists before Plan 9's roster, so printing one now would
+mean printing a placeholder string in a real-looking field. An empty awards
+box is the identical defect one layer down: a box that can never hold
+anything yet is not a placeholder, it reads as broken. Both are exactly the
+"button that goes nowhere" problem this section already argues against for
+the "End Mission" button below — so they are left out here rather than
+shipped and noted as a followup. Plan 9 adds both once there is a roster and
+a real award to show.
 
 **The score comes from a single stub.** There are no kills, so every honest
 number is zero. Plan 9 replaces one function rather than a scattering of

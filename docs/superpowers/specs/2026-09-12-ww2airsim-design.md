@@ -693,8 +693,8 @@ happens next, and the **Plan** column for what a document means when it says
 | 4 | 4 | Terrain and level of detail | §4 | Complete |
 | 5 | 5 | Ocean | §4 | Complete |
 | 6a | 6 | Cockpit panel | §4 | Complete; [original handoff](../../handoff/2026-09-15-cockpit-panel.md), [cockpit/follow-view feedback](../../handoff/2026-09-15-cockpit-feedback.md) |
-| 10 | 7 — next | Ground and water contact, and crash response | §4, §5 | [Design](2026-09-16-ground-contact-design.md) written 2026-09-16; not started |
-| 11 | 8 | Gear, flaps and ground handling; take-off and landing ashore, **including the one runway to land on** | §4, §5 | Not started |
+| 10 | 7 | Ground and water contact, and crash response | §4, §5 | Complete; [handoff](../../handoff/2026-09-16-plan10-contact.md) |
+| 11 | 8 — next | Gear, flaps and ground handling; take-off and landing ashore, **including the one runway to land on** | §4, §5 | Not started |
 | 12 | 9 | Entities, ships and airfields | §4 | Not started |
 | 14 | 10 | Mission map | §4, §8 | Not started |
 | 8 | 11 | Carrier and airfield operations | §4, §8 | Not started |

@@ -9,12 +9,15 @@ import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
+import { createDebrief, debriefModel } from './debrief.js'
+import { createImpactEffect } from './scene/impactEffect.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
   initialFrameState,
   nextFrameState,
   toThreeOrientation,
+  withTerrain,
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
@@ -220,6 +223,10 @@ async function boot(): Promise<void> {
       // frame, and the spawn is where the airplane will be, so that is the
       // honest answer for the gap rather than the origin.
       aircraftPositionM: () => frame?.world.aircraft.position ?? spawnPosition,
+      // Same `??`-guard as the rest: before the first frame exists there is
+      // no impact to report, which is also the honest answer once a restart
+      // has cleared one.
+      impact: () => frame?.world.impact ?? null,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation
@@ -382,6 +389,51 @@ async function boot(): Promise<void> {
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
+  // Restart rebuilds the frame from the spawn point rather than tearing
+  // anything down: `initialFrameState` is pure, so the renderer, the terrain
+  // and the ocean cascades all survive untouched.
+  const debrief = createDebrief(root, () => {
+    // `frame!.world.terrain` rather than a stored field: the heightfield
+    // arrives over the network seconds after the first frame and is upgraded
+    // again as finer levels load (`applyTerrainLevel`, further down this
+    // file), so the CURRENT world holds the only up-to-date copy. Reading it
+    // back means a restart keeps whatever level has loaded so far instead of
+    // dropping back to none.
+    // `frame!.assists` is threaded through so Restart keeps whatever the
+    // pilot actually chose (altitude hold, stall limiter, ...) rather than
+    // silently reverting to `initialFrameState`'s `DEFAULT_ASSIST_SETTINGS`
+    // (whole-branch review I-2). `cameraMode` and `timeScale` are NOT
+    // threaded through -- unlike terrain and assists, resetting those is
+    // deliberate: a fresh airplane returns the pilot to chase view at real
+    // time rather than wherever a wrecked one left the camera and clock.
+    frame = withTerrain(
+      initialFrameState(spec, initialAircraft, frame!.assists),
+      frame!.world.terrain,
+    )
+    debrief.hide()
+    impactEffect.hide()
+    shownImpactTick = null
+    postImpactOceanSeconds = 0
+  })
+  const impactEffect = createImpactEffect()
+  scene.add(impactEffect.object)
+  /** The tick of the impact the debrief is currently showing, so the modal is
+   *  raised once rather than rebuilt sixty times a second. */
+  let shownImpactTick: number | null = null
+  /**
+   * Real elapsed seconds since the flight froze, 0 while still flying.
+   *
+   * Whole-branch review I-1: `advance` freezes `world.aircraft.tick` and
+   * `world.accumulatorSeconds` the instant there is an impact, so the ocean
+   * dispatch below -- which derives its time argument from exactly those two
+   * frozen quantities -- would otherwise go glass-still forever after a
+   * successful ditching, the feature's showpiece. This grows by real
+   * `frameMs` once `world.impact` is non-null and is added on top of the
+   * existing (unchanged) sim-time expression, so a live flight's ocean
+   * timing stays bit-identical to before this fix and only a frozen one
+   * keeps moving.
+   */
+  let postImpactOceanSeconds = 0
   let legendOpen = true
 
   const pressed = new Set<string>()
@@ -526,6 +578,28 @@ async function boot(): Promise<void> {
     flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
     timeBadge.setScale(current.timeScale)
 
+    // Raised once per contact -- `shownImpactTick` is the guard, since
+    // `current.world.impact` stays non-null every frame after the airplane
+    // stops, and this runs sixty times a second.
+    const hit = current.world.impact
+    if (hit !== null && shownImpactTick !== hit.tick) {
+      shownImpactTick = hit.tick
+      // Raw world metres, NOT `+ worldOffset`: `impactEffect.object` is a
+      // child of `scene`, and `scene.position` is set to `worldOffset` every
+      // frame just above, which already applies the camera-relative shift
+      // once for every child -- the airframe, the sky and the terrain mesh
+      // all set their positions the same way. Adding `worldOffset` here too
+      // would apply it twice. The position is deliberately set once, at fire
+      // time, and never refreshed: the effect is anchored at a fixed world
+      // point, and `scene.position` moving each frame is what keeps it there
+      // as the camera flies away.
+      impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
+      impactEffect.fire(hit.surface)
+      debrief.show(debriefModel(hit, current.world.aircraft))
+    }
+    impactEffect.object.quaternion.copy(camera.quaternion)
+    impactEffect.update(frameMs / 1000)
+
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
     // horizontal position each frame (the whole scene, sky included, is
@@ -552,9 +626,30 @@ async function boot(): Promise<void> {
     // as the water and markers do.
     terrain.update(current.eye.position.x, current.eye.position.z)
 
-    prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
+    // Gated on the flight still being live (whole-branch review I-1): once
+    // `world.impact` is set, `controlsFromKeys` keeps latching throttle and
+    // `nextFrameState` keeps producing controls from it every frame (loop.ts's
+    // `advance` early-return comment explains why), so an ungated spin would
+    // leave the propeller turning at full speed on a wreck sitting in its own
+    // fireball. The propeller belongs to the wrecked airplane; unlike the
+    // ocean below, it should stop.
+    if (current.world.impact === null) {
+      prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
+    }
 
-    for (const cascade of cascades) cascade.dispatch(oceanTime ?? current.world.aircraft.tick * DT + current.world.accumulatorSeconds)
+    // `oceanTime` (DEV-only, from `?oceanTime=`) is a fixed override for
+    // reproducing one ocean state on demand and stays exactly as fixed as it
+    // is today; the accumulator below is added only to the sim-time
+    // derivation it replaces, not to the override itself.
+    if (current.world.impact !== null) postImpactOceanSeconds += frameMs / 1000
+    for (const cascade of cascades) {
+      cascade.dispatch(
+        oceanTime ??
+          current.world.aircraft.tick * DT +
+            current.world.accumulatorSeconds +
+            postImpactOceanSeconds,
+      )
+    }
     renderer.render(scene, camera)
 
     // One GPU timestamp sample per resolve; quality selection also uses it. Guarded on a pending

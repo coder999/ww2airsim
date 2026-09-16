@@ -3,6 +3,7 @@ import type { AircraftState, Controls } from './flight/state.js'
 import { DT, step } from './flight/model.js'
 import { heightAt, type TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
+import { surfaceAt, contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -143,10 +144,12 @@ const identityAssist = <M>(
 
 /**
  * Recorded once, on the first step where the airplane is at or below the
- * ground under it. `advance` does not clear it on later steps and does not
- * react to it (no bounce, no stop, no invariant trip) -- this task only
- * records the event; what happens to the airplane after a crash is Plan 8's
- * subject, so acting on `impact` here would be scope this task does not own.
+ * ground under it, and never cleared on later steps. `advance` applies no
+ * bounce and no rest dynamics to the airplane's position or velocity once
+ * this is set -- but it DOES end the flight: the step loop below breaks as
+ * soon as this is assigned, and the early return at the top of `advance`
+ * means no world that already carries one ever runs another step. `surface`
+ * and `kind` below are what Plan 10 adds on top of that stop.
  */
 export type Impact = {
   /** `SimContext.tick` of the step that first satisfied the impact test. */
@@ -165,6 +168,11 @@ export type Impact = {
    *  has moved on (a later task's field, not this one's, could even swap the
    *  field itself). */
   readonly groundHeightM: number
+  /** Which surface this was, from `groundHeightM` — see `surfaceAt`. */
+  readonly surface: ContactSurface
+  /** Whether the airplane survived it. Land is always `'destroyed'`: there is
+   *  no landing gear yet. See `contactOutcome`. */
+  readonly kind: ContactKind
 }
 
 export interface World<M = undefined> {
@@ -336,10 +344,24 @@ export function advance<M>(
       ? Math.min(elapsedSeconds, MAX_ELAPSED_SECONDS)
       : 0
 
+  // The flight is over: no further simulated time is owed, so `advance`
+  // returns the world unchanged and runs no steps. That is not the same as
+  // saying nothing about the world can change again -- the caller
+  // (`nextFrameState` in src/render/frame.ts) still rebuilds `world` with
+  // fresh `controls` every frame and calls `advance` again on that, so
+  // `world.controls` keeps changing after the freeze even though `aircraft`,
+  // `impact` and `accumulatorSeconds` do not. Returning here rather than
+  // letting the loop below run zero times keeps `accumulatorSeconds` exactly
+  // as the ending frame left it, so a frozen world handed a thousand frames
+  // is bit-identical to one handed a single frame.
+  if (world.impact !== null) {
+    return { world, stepsRun: 0, droppedSteps: 0, alpha: world.accumulatorSeconds / DT }
+  }
+
   let banked = world.accumulatorSeconds + elapsed
   const owed = Math.floor(banked / DT + STEP_EPSILON)
-  const stepsRun = Math.min(owed, MAX_STEPS_PER_FRAME)
-  const droppedSteps = owed - stepsRun
+  const owedSteps = Math.min(owed, MAX_STEPS_PER_FRAME)
+  const droppedSteps = owed - owedSteps
 
   let current = world.aircraft
   let previous = world.previous
@@ -355,8 +377,12 @@ export function advance<M>(
   // `world.impact` inside the loop below, so the loop's own "impact === null"
   // check is testing this call's progress and not silently re-reading a
   // field that never changes underneath it.
-  let impact = world.impact
-  for (let i = 0; i < stepsRun; i++) {
+  let impact: Impact | null = world.impact
+  // Steps actually executed, as opposed to `owedSteps` above -- the two
+  // diverge exactly when the break below fires partway through the loop, and
+  // `AdvanceResult.stepsRun` documents itself as steps run, not steps owed.
+  let ran = 0
+  for (let i = 0; i < owedSteps; i++) {
     previous = current
     // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
     // once per `advance` call and not on `world.controls` directly. Hoisting
@@ -370,6 +396,7 @@ export function advance<M>(
     const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
     assistMemory = assisted.memory
     current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1 })
+    ran++
 
     // Checked after EVERY step in a multi-step frame, not just the loop's
     // last iteration -- a frame that owes several steps (a stalled tab,
@@ -392,12 +419,23 @@ export function advance<M>(
     if (impact === null && world.terrain !== null) {
       const groundHeightM = heightAt(world.terrain, current.position.x, current.position.z)
       if (current.position.y <= groundHeightM) {
+        const surface = surfaceAt(groundHeightM)
         impact = {
           tick: current.tick,
           position: current.position,
           verticalSpeedMps: current.velocity.y,
           groundHeightM,
+          surface,
+          kind: contactOutcome(world.spec, current, surface),
         }
+        // Stop the frame here. Without this the loop runs its remaining owed
+        // steps and the airplane ends up well below the ground it just hit --
+        // the impact TICK would be right and the resting position wrong.
+        // `previous` follows `current` so the renderer interpolates to exactly
+        // the point of contact whatever `alpha` is, the same convention
+        // `createWorld` uses before any step has run.
+        previous = current
+        break
       }
     }
   }
@@ -418,7 +456,7 @@ export function advance<M>(
       impact,
       accumulatorSeconds: banked,
     },
-    stepsRun,
+    stepsRun: ran,
     droppedSteps,
     alpha: banked / DT,
   }
