@@ -12,7 +12,38 @@ export type Band = { readonly top: number; readonly bottom: number }
 const UPPER_TOP = metresBelowEye(HORIZON_KEEP_DEG)   // 0.0314 m
 const UPPER_H = 0.098                                 // tape strip + radar row
 const GUTTER = 0.010
-const LOWER_H = 0.172                                 // readout + dial + label
+/**
+ * Widened from 0.172, Ruling R11 (Task 6 fix round 2, 2026-09-15): 0.172 was
+ * a bookkeeping error from Task 2 that understated what a dial plus its
+ * readout and label actually occupy, caught once the per-slot containment
+ * test (`tests/render/panel.test.ts`) asserted FULL containment for dials
+ * instead of horizontal-only. Nothing was ever visually broken -- the worst
+ * band-bottom figure below is still comfortably inside the 30-degree frame
+ * edge -- this was purely the declared budget being smaller than the real
+ * content.
+ *
+ * R11 named 0.188 as the fix, reasoned from a bottom-only measurement
+ * (drawn bottom at 0.3254 m below eye against a declared 0.3114 m, "uniform
+ * 14.0 mm"). Verifying it against the BUILT geometry (this fix) found it
+ * still 5 mm short at the TOP: raising `LOWER_H` only pushes `band.bottom`
+ * down (`band.top` does not depend on it at all), which re-centres the row
+ * by HALF of that increase, not the full amount -- so the 0.016 m raise from
+ * 0.172 to 0.188 bought only 8 mm of headroom at the top edge, where 13 mm
+ * was owed. The readout above and the label below overshoot by close to the
+ * same amount (13 mm top, 14 mm bottom), so both edges bind almost equally;
+ * bottom is very slightly the tighter one once the halving is accounted for.
+ *
+ * Re-derived by measuring the built dial extent at several trial values of
+ * this constant (band bottom, degrees below eye, against the still-passing
+ * vertical budget assertion in `panelLayout.test.ts`; top/bottom margins are
+ * the built dial's own clearance against the declared band, positive = spare
+ * room):
+ *   0.172 -> 27.43 deg   top margin -13.0 mm   bottom margin -14.0 mm
+ *   0.188 -> 28.62 deg   top margin  -5.0 mm   bottom margin  -6.0 mm  (R11's own figure; still short both sides)
+ *   0.200 -> 29.50 deg   top margin  +1.0 mm   bottom margin  ~0    mm  (exact fit, bottom-bound)
+ *   0.202 -> 29.64 deg   top margin  +2.0 mm   bottom margin  +1.0 mm  (chosen: 2 mm past the exact fit, mirroring R11's own "not a knife edge" margin)
+ */
+const LOWER_H = 0.202                                 // readout + dial + label
 
 export const PANEL_BANDS: { readonly upper: Band; readonly lower: Band } = {
   upper: { top: UPPER_TOP, bottom: UPPER_TOP + UPPER_H },

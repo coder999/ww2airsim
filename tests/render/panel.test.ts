@@ -725,25 +725,25 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
   // assertion.
   //
   // This checks each `PANEL_SLOTS` entry that has geometry against its OWN
-  // declared horizontal budget (`centreX +/- widthM/2`) -- the dimension the
-  // ball's actual defect was in, and the one nothing previously checked per
-  // slot. `radar` and `armament` are excluded -- reserved slots with nothing
-  // drawn into them yet (`createPanel`'s own comment: "nothing is added to
-  // `root` for them").
+  // declared budget, BOTH horizontally (`centreX +/- widthM/2` -- the
+  // dimension the ball's actual defect was in) and vertically
+  // (`PANEL_BANDS.lower`), for every instrument: the five dials, the
+  // throttle column, and the attitude ball. `radar` and `armament` are
+  // excluded -- reserved slots with nothing drawn into them yet
+  // (`createPanel`'s own comment: "nothing is added to `root` for them").
   //
-  // Vertical (`PANEL_BANDS.lower`) containment is asserted for the two
-  // instruments this round actually touches -- the ball, swept across
-  // attitude, and the throttle column, swept across setting -- both built
-  // directly from `PANEL_BANDS.lower`'s own numbers, so they pass by
-  // construction. It is NOT asserted for the five static dials: measuring
-  // them (2026-09-15, this fix) found every one of their readout+label pairs
-  // already runs about 13-14 mm above/below `PANEL_BANDS.lower`'s own
-  // top/bottom -- e.g. `dial:airspeed`'s built extent is `y ∈ [-0.1354,
-  // 0.0636]` against the band's `[-0.1214, 0.0506]`, uniformly across all
-  // five dials. That predates this task (the dial row and its readout/label
-  // placement are unchanged here) and is out of scope for a ball fix --
-  // flagged in this task's report for the controller rather than silently
-  // asserted around or quietly corrected.
+  // Fix round 1 (2026-09-15) shipped this with the dial check horizontal-only:
+  // measuring vertical containment for the five dials found every one of
+  // their readout+label pairs already ran past `PANEL_BANDS.lower`'s own
+  // top/bottom, which traced to `LOWER_H` in panelLayout.ts understating what
+  // a dial plus its readout and label actually occupy (a Task 2 bookkeeping
+  // error, not anything this plan touched). Ruling R11 (fix round 2) called
+  // that carve-out out directly: a horizontal-only assertion made to
+  // accommodate a wrong constant is the same shape as the test exclusions
+  // that hid two Criticals in the previous task -- fix the constant, not the
+  // assertion. `LOWER_H` was widened (see its own doc comment in
+  // panelLayout.ts for the exact derivation) and every dial now gets the
+  // same full containment check as the ball and the column.
 
   const EPS = 1e-6
 
@@ -779,13 +779,15 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
       .toBeGreaterThanOrEqual(yBottom - EPS)
   }
 
-  it('keeps every dial inside its own slot horizontally', () => {
+  it('keeps every dial inside its own slot, horizontally and vertically', () => {
     const p = localPanel()
     updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
     p.root.updateMatrixWorld(true)
     for (const dial of dialsOf(p)) {
       const id = dial.name.slice('dial:'.length)
-      expectHorizontallyWithinSlot(id, new Box3().setFromObject(dial), id)
+      const box = new Box3().setFromObject(dial)
+      expectHorizontallyWithinSlot(id, box, id)
+      expectWithinLowerBand(box, id)
     }
   })
 
