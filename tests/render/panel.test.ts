@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, BoxGeometry, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
+import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
 import {
   createPanel,
   updatePanel,
@@ -9,7 +9,7 @@ import {
   TAPE_CULL_MARGIN_M,
   type Panel,
 } from '../../src/render/scene/panel.js'
-import { degreesBelowEye, PANEL_BANDS } from '../../src/render/scene/panelLayout.js'
+import { degreesBelowEye, PANEL_BANDS, PANEL_SLOTS } from '../../src/render/scene/panelLayout.js'
 import {
   GAUGES,
   angleForValue,
@@ -184,33 +184,92 @@ function trueHorizonScreenAngle(worldToCamera: Quaternion): number {
 
 /**
  * The attitude ball's counterparts to `barScreenHeight`/`barScreenAngle`
- * above -- same maths, reading `panel.attitude.ball.matrixWorld` in place of
- * `panel.horizon.matrixWorld`.
+ * above -- same idea (project the built geometry, compare with a world
+ * quantity), but reading different geometry.
+ *
+ * Fix round 1 on Task 6 (2026-09-15) replaced the ball's rigid
+ * rotate-then-translate transform with fresh geometry rebuilt every frame
+ * (`attitudeBallGeometry` in panel.ts) after the transform-based version
+ * turned out to draw 56 mm into the fuel dial's face at a 45-degree bank.
+ * There is no `rotation.z`/`position.y` to read off `panel.attitude.ball`
+ * any more -- the horizon is now the shared chord between the sky and
+ * ground segments, so these helpers read that chord's two endpoint
+ * vertices directly off the sky mesh's own `BufferGeometry`, in WORLD
+ * space, rather than a transform.
  *
  * Added ALONGSIDE the bar's helpers rather than renaming them in place: the
  * horizon bar and its tests are still live in this file (the next task
  * retires them, once this ball's coverage exists) and renaming would break
  * every bar test still asserting against `barScreenAngle`/`barScreenHeight`.
  */
+/**
+ * The chord's two endpoint vertices, in WORLD space.
+ *
+ * `attitudeBallGeometry`'s `segment()` builds the sky shape starting with
+ * `moveTo` (the `skyFrom` end of the chord) and ending with a `lineTo` to
+ * `skyTo` -- but `ShapeGeometry` reverses its input point order whenever the
+ * given contour is not already clockwise (three.js's own front-face
+ * convention), so index 0 is NOT reliably the `skyFrom` end; it can be
+ * either, depending on the current roll and pitch. That reversal does not
+ * affect a MIDPOINT (order-independent, used by `ballScreenHeight`), only a
+ * DIRECTION (used by `ballScreenAngle`, which resolves it separately below).
+ */
+function ballChordEndpoints(panel: Panel): readonly [Vector3, Vector3] {
+  const sky = panel.attitude.ball.children[0] as Mesh
+  const position = sky.geometry.attributes.position as BufferAttribute
+  const from = new Vector3().fromBufferAttribute(position, 0).applyMatrix4(sky.matrixWorld)
+  const to = new Vector3()
+    .fromBufferAttribute(position, position.count - 1)
+    .applyMatrix4(sky.matrixWorld)
+  return [from, to]
+}
+
 function ballScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Quaternion): number {
   const eye = cameraTransformFor('cockpit', f6f, {
     position: state.position,
     attitude: state.attitude,
   })
-  const centre = new Vector3()
-    .setFromMatrixPosition(panel.attitude.ball.matrixWorld)
+  const [from, to] = ballChordEndpoints(panel)
+  const centre = from
+    .clone()
+    .add(to)
+    .multiplyScalar(0.5)
     .sub(new Vector3(eye.position.x, eye.position.y, eye.position.z))
     .applyQuaternion(worldToCamera)
   return centre.y / -centre.z
 }
 
-/** The angle, on screen, of the attitude ball's horizon line: 0 is level,
- *  positive is right-end-up. Read off the built geometry, not off any
- *  constant in panel.ts. */
+/**
+ * The angle, on screen, of the attitude ball's horizon chord: 0 is level,
+ * positive is right-end-up. Read off the built geometry, not off any
+ * constant in panel.ts.
+ *
+ * Resolves the chord-endpoint-order ambiguity `ballChordEndpoints` documents
+ * using a THIRD vertex -- an interior point of the sky arc, which sits
+ * strictly between the two endpoints and so is unambiguously part of the
+ * sky, not a candidate for either end. Geometrically: walking along the
+ * chord from `skyFrom` to `skyTo`, the sky region is on the LEFT (this falls
+ * straight out of `attitudeBallGeometry`'s own derivation -- that direction
+ * equals a positive multiple of `(cos(rollRad), sin(rollRad))`, and the sky
+ * side, `dot(Q, up) > d` with `up = (-sin(rollRad), cos(rollRad))`, is
+ * exactly `up`, which is 90 degrees left of that direction). So whichever
+ * candidate direction puts the interior sky vertex on its left is the
+ * correctly-oriented one -- entirely in the mesh's own LOCAL space, since a
+ * rotation (the only kind of transform between here and world space)
+ * preserves left/right.
+ */
 function ballScreenAngle(panel: Panel, worldToCamera: Quaternion): number {
-  const dir = new Vector3(1, 0, 0)
-    .transformDirection(panel.attitude.ball.matrixWorld)
-    .applyQuaternion(worldToCamera)
+  const sky = panel.attitude.ball.children[0] as Mesh
+  const position = sky.geometry.attributes.position as BufferAttribute
+  const p0 = new Vector3().fromBufferAttribute(position, 0)
+  const pLast = new Vector3().fromBufferAttribute(position, position.count - 1)
+  const pInterior = new Vector3().fromBufferAttribute(position, Math.floor(position.count / 2))
+  const mid = p0.clone().add(pLast).multiplyScalar(0.5)
+  const candidate = p0.clone().sub(pLast)
+  const toInterior = pInterior.clone().sub(mid)
+  const cross = candidate.x * toInterior.y - candidate.y * toInterior.x
+  const localDir = cross > 0 ? candidate : candidate.negate()
+  const dir = localDir.transformDirection(sky.matrixWorld).applyQuaternion(worldToCamera)
   return Math.atan2(dir.y, dir.x)
 }
 
@@ -650,6 +709,112 @@ describe('the attitude ball (2026-09-15)', () => {
       return ballScreenHeight(p, state, worldToCamera)
     }
     expect(heightAt(20)).toBeLessThan(heightAt(-20))
+  })
+})
+
+describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
+  // The whole-panel frustum test above ("fits inside the field of view...")
+  // unions EVERY instrument into one combined envelope, dominated by the
+  // throttle/armament edge blocks -- an instrument overflowing into its own
+  // immediate NEIGHBOUR is completely invisible to it. That is exactly how
+  // the attitude ball's first cut (an oversized disc moved by a rigid
+  // `rotation.z`/`position.y` transform, per the original task-6 brief) drew
+  // 56 mm into the fuel dial's own face at a 45-degree bank without failing
+  // any existing test -- caught only by measuring it directly and reporting
+  // the finding rather than either inventing a fix or excluding it from an
+  // assertion.
+  //
+  // This checks each `PANEL_SLOTS` entry that has geometry against its OWN
+  // declared horizontal budget (`centreX +/- widthM/2`) -- the dimension the
+  // ball's actual defect was in, and the one nothing previously checked per
+  // slot. `radar` and `armament` are excluded -- reserved slots with nothing
+  // drawn into them yet (`createPanel`'s own comment: "nothing is added to
+  // `root` for them").
+  //
+  // Vertical (`PANEL_BANDS.lower`) containment is asserted for the two
+  // instruments this round actually touches -- the ball, swept across
+  // attitude, and the throttle column, swept across setting -- both built
+  // directly from `PANEL_BANDS.lower`'s own numbers, so they pass by
+  // construction. It is NOT asserted for the five static dials: measuring
+  // them (2026-09-15, this fix) found every one of their readout+label pairs
+  // already runs about 13-14 mm above/below `PANEL_BANDS.lower`'s own
+  // top/bottom -- e.g. `dial:airspeed`'s built extent is `y ∈ [-0.1354,
+  // 0.0636]` against the band's `[-0.1214, 0.0506]`, uniformly across all
+  // five dials. That predates this task (the dial row and its readout/label
+  // placement are unchanged here) and is out of scope for a ball fix --
+  // flagged in this task's report for the controller rather than silently
+  // asserted around or quietly corrected.
+
+  const EPS = 1e-6
+
+  /**
+   * Builds a panel with the root's own eye-relative transform zeroed out, so
+   * a `Box3` measured from it lands directly in the same LOCAL frame
+   * `PANEL_SLOTS`/`PANEL_BANDS` are defined in: `centreX` is local x, and a
+   * band's local y is `PANEL_BELOW_M - band` (panelLayout.ts's own doc
+   * comment on `PANEL_BANDS`).
+   */
+  function localPanel(): Panel {
+    const p = createPanel(f6f, () => null)
+    p.root.position.set(0, 0, 0)
+    p.root.rotation.set(0, 0, 0)
+    return p
+  }
+
+  const yTop = PANEL_BELOW_M - PANEL_BANDS.lower.top
+  const yBottom = PANEL_BELOW_M - PANEL_BANDS.lower.bottom
+
+  function expectHorizontallyWithinSlot(slotId: string, box: Box3, label: string): void {
+    const slot = PANEL_SLOTS.find((s) => s.id === slotId)!
+    expect(box.min.x, `${label}: left edge inside ${slotId}'s slot width`)
+      .toBeGreaterThanOrEqual(slot.centreX - slot.widthM / 2 - EPS)
+    expect(box.max.x, `${label}: right edge inside ${slotId}'s slot width`)
+      .toBeLessThanOrEqual(slot.centreX + slot.widthM / 2 + EPS)
+  }
+
+  function expectWithinLowerBand(box: Box3, label: string): void {
+    expect(box.max.y, `${label}: top edge inside PANEL_BANDS.lower`)
+      .toBeLessThanOrEqual(yTop + EPS)
+    expect(box.min.y, `${label}: bottom edge inside PANEL_BANDS.lower`)
+      .toBeGreaterThanOrEqual(yBottom - EPS)
+  }
+
+  it('keeps every dial inside its own slot horizontally', () => {
+    const p = localPanel()
+    updatePanel(p, f6f, createState(), NEUTRAL_CONTROLS, () => null)
+    p.root.updateMatrixWorld(true)
+    for (const dial of dialsOf(p)) {
+      const id = dial.name.slice('dial:'.length)
+      expectHorizontallyWithinSlot(id, new Box3().setFromObject(dial), id)
+    }
+  })
+
+  it('keeps the throttle column inside its own slot, horizontally and vertically, at every setting', () => {
+    for (const throttle of [0, 0.5, 1]) {
+      const p = localPanel()
+      updatePanel(p, f6f, createState(), { ...NEUTRAL_CONTROLS, throttle }, () => null)
+      p.root.updateMatrixWorld(true)
+      const column = p.root.children.find((c) => c.name === 'column:throttle')!
+      const box = new Box3().setFromObject(column)
+      expectHorizontallyWithinSlot('throttle', box, `throttle=${throttle}`)
+      expectWithinLowerBand(box, `throttle=${throttle}`)
+    }
+  })
+
+  it('keeps the attitude ball inside its own slot, horizontally and vertically, at every attitude the model can reach', () => {
+    for (const bankDeg of [0, 45, -45, 90, -90]) {
+      for (const pitchDeg of [0, 30, -30]) {
+        const p = localPanel()
+        updatePanel(p, f6f, attitude(pitchDeg, bankDeg), NEUTRAL_CONTROLS, () => null)
+        p.root.updateMatrixWorld(true)
+        const box = new Box3()
+        box.union(new Box3().setFromObject(p.attitude.ball))
+        box.union(new Box3().setFromObject(p.attitude.ring))
+        const label = `pitch=${pitchDeg} bank=${bankDeg}`
+        expectHorizontallyWithinSlot('attitude', box, label)
+        expectWithinLowerBand(box, label)
+      }
+    }
   })
 })
 

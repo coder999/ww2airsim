@@ -1,11 +1,14 @@
 import {
   BoxGeometry,
+  BufferGeometry,
   CircleGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
   RingGeometry,
+  Shape,
+  ShapeGeometry,
   type Object3D,
   type Texture,
 } from 'three'
@@ -121,6 +124,70 @@ export const PANEL_MIN_ASPECT = 1.5
 const Z_MARKS = 0.0015
 const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
+
+/**
+ * The attitude ball's sky/ground split, rebuilt fresh every `updatePanel`
+ * call rather than moved as a rigid transform on an oversized mesh.
+ *
+ * Fix round 1 on Task 6 (2026-09-15): the brief called for "an oversized
+ * disc, clipped by the bezel ring" moved with `ball.rotation.z`/
+ * `ball.position.y`. Nothing in this renderer clips anything -- no
+ * `clippingPlanes`, no stencil -- so the disc drew exactly as big as its
+ * geometry, and at a 45-degree bank its corner reached 56 mm into the fuel
+ * dial's own face. The per-slot containment test this fix adds
+ * (`tests/render/panel.test.ts`) is what caught it; the whole-panel frustum
+ * test could not, because it unions every instrument into one combined
+ * envelope dominated by the throttle/armament edge blocks.
+ *
+ * This builds the sky and ground as actual circular SEGMENTS of a circle of
+ * radius `DIAL_RADIUS` -- the same radius every dial's own face uses --  so
+ * the ball can never draw outside that circle at any attitude, by
+ * construction rather than by masking. A segment is the region of a disc on
+ * one side of a chord, which is always convex (cutting a convex region with
+ * a straight line always yields two convex pieces), so a fan triangulated
+ * from one chord endpoint is always a valid, non-self-intersecting
+ * triangulation -- `ShapeGeometry` does exactly that.
+ *
+ * The chord's placement reproduces the same visual result the brief's
+ * rigid-body version would have produced, worked out from its own transform
+ * order (rotate the shape by `rollRad`, THEN translate the rotated shape by
+ * `position.y` in the UNROTATED parent frame): a point `Q` on the circle is
+ * on the sky side iff `dot(Q, up) > d`, where `up = (-sin(rollRad),
+ * cos(rollRad))` and `d = t * cos(rollRad)` for `t` the same
+ * `-(pitchRad / (Math.PI / 6)) * DIAL_RADIUS * 0.8` the brief specified.
+ * Clamped to `[-DIAL_RADIUS, DIAL_RADIUS]`: past that the whole face is
+ * legitimately all sky or all ground -- a saturation at extreme attitudes,
+ * not an edge running off the disc the way the unclipped version had.
+ */
+const ATTITUDE_BALL_SEGMENTS = 24
+
+function attitudeBallGeometry(
+  rollRad: number,
+  pitchRad: number,
+): { readonly sky: BufferGeometry; readonly ground: BufferGeometry } {
+  const r = DIAL_RADIUS
+  const t = -(pitchRad / (Math.PI / 6)) * r * 0.8
+  const d = Math.max(-r, Math.min(r, t * Math.cos(rollRad)))
+  const beta = Math.asin(d / r)
+  const skyFrom = rollRad + beta
+  const skyTo = rollRad + Math.PI - beta
+
+  // A single chord-to-chord arc, `from` to `to`, as a filled convex polygon:
+  // the straight edge closing the shape back from the last arc point to the
+  // first IS the chord, which is exactly the boundary a circular segment
+  // needs.
+  const segment = (from: number, to: number): ShapeGeometry => {
+    const shape = new Shape()
+    shape.moveTo(r * Math.cos(from), r * Math.sin(from))
+    for (let i = 1; i <= ATTITUDE_BALL_SEGMENTS; i++) {
+      const a = from + ((to - from) * i) / ATTITUDE_BALL_SEGMENTS
+      shape.lineTo(r * Math.cos(a), r * Math.sin(a))
+    }
+    return new ShapeGeometry(shape)
+  }
+
+  return { sky: segment(skyFrom, skyTo), ground: segment(skyTo, skyFrom + Math.PI * 2) }
+}
 
 /**
  * The heading tape's visible window, metres. Exported so tests can derive
@@ -468,8 +535,8 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   //
   // A wrapper carries the slot's fixed position (matching how a `dial`
   // group carries its own slotX/row position while its needle inside moves
-  // in purely local coordinates) so `updatePanel` can set `ball`'s rotation
-  // and position from the attitude alone, with no row offset folded in.
+  // in purely local coordinates), so the ball's own geometry can be built
+  // directly around the slot's own origin.
   {
     const attitudeSlot = PANEL_SLOTS.find((s) => s.id === 'attitude')
     if (!attitudeSlot) throw new Error('no layout slot for attitude')
@@ -478,27 +545,29 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     attitudeGroup.position.set(attitudeSlot.centreX, PANEL_BELOW_M - lowerCentre, 0)
     root.add(attitudeGroup)
 
-    // The ball itself: sky over ground, split at the disc's centre line,
-    // drawn oversized so it can translate with pitch and rotate with roll
-    // without ever exposing an edge inside the ring's window (below).
+    // The ball: two meshes, sky over ground, whose GEOMETRY `updatePanel`
+    // replaces every frame (`attitudeBallGeometry`, above) rather than a
+    // rigid transform on a static, oversized mesh -- see that function's
+    // doc comment for why. Built here at a level attitude so the panel is
+    // never degenerate before the first `updatePanel` call, matching how
+    // the horizon bar starts level (`panel.test.ts`'s "starts the bar at
+    // eye level, before any update has run").
     const ball = new Group()
     ball.name = 'attitude:ball'
-    const face = DIAL_RADIUS * 1.6 // oversized, so pitch never shows an edge
-    for (const [colour, sign] of [[0x3f7fbf, 1], [0x6b4f2a, -1]] as const) {
-      const half = new Mesh(
-        new PlaneGeometry(face * 2, face),
-        new MeshBasicMaterial({ color: colour }),
-      )
-      half.position.set(0, (sign * face) / 2, 0)
-      ball.add(half)
-    }
+    const initial = attitudeBallGeometry(0, 0)
+    const sky = new Mesh(initial.sky, new MeshBasicMaterial({ color: 0x3f7fbf }))
+    const ground = new Mesh(initial.ground, new MeshBasicMaterial({ color: 0x6b4f2a }))
+    // Fixed order (sky then ground), relied on by `updatePanel` below --
+    // never reordered.
+    ball.add(sky, ground)
     attitudeGroup.add(ball)
 
     // The bezel ring, same shape as a dial's: it sits in FRONT of the ball
     // (a larger local Z, closer to the pilot -- see Z_MARKS's doc comment
-    // on the dial bezel above) and clips the oversized disc to the same
-    // dial-sized window every other instrument in the row reads at, so the
-    // ball can move underneath it without the row looking uneven.
+    // on the dial bezel above), giving the row a uniform bezel look. It no
+    // longer does any clipping work itself -- the ball's own geometry now
+    // never exceeds `DIAL_RADIUS`, the ring's own inner radius -- so this is
+    // purely the same decorative rim every other dial has.
     const ring = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.09, 32), bezelMat)
     ring.name = 'attitude:ring'
     ring.position.z = Z_MARKS
@@ -796,9 +865,18 @@ export function updatePanel(
   // this codebase read -30.00 degrees against a true horizon of +30.00
   // (panel.ts, 2026-09-13, the bar's own history above) -- the ball is built
   // against the same proven convention rather than re-deriving it.
-  panel.attitude.ball.rotation.z = rollRad
-  // Nose up drops the horizon: pitch is subtracted, scaled so the dial's
-  // usable range covers about +/- 30 degrees (Math.PI / 6) before the disc
-  // runs out and the ball's own edge would show inside the ring.
-  panel.attitude.ball.position.y = -(pitchRad / (Math.PI / 6)) * DIAL_RADIUS * 0.8
+  //
+  // Rebuilt as fresh geometry (`attitudeBallGeometry`'s own doc comment has
+  // the fix's full history) rather than moved as a rigid transform: fix
+  // round 1 on Task 6 found the disc, moved by `rotation.z`/`position.y`
+  // alone, drew 56 mm into the fuel dial's face at a 45-degree bank, because
+  // nothing in this renderer actually clips anything. The two meshes' own
+  // old geometries are disposed -- the same "don't leak one GPU resource per
+  // change" rule `setPlateText` follows for readout textures above.
+  const [sky, ground] = panel.attitude.ball.children as [Mesh, Mesh]
+  const nextBall = attitudeBallGeometry(rollRad, pitchRad)
+  sky.geometry.dispose()
+  sky.geometry = nextBall.sky
+  ground.geometry.dispose()
+  ground.geometry = nextBall.ground
 }
