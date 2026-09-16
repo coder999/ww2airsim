@@ -677,18 +677,59 @@ Note that the list above is a *minimum honest ordering*, written before any
 plan existed, and the assists work has no entry in it. The table is what the
 plans are actually numbered.
 
-| Plan | Subject | Sections | Status |
-| --- | --- | --- | --- |
-| 1 | Scaffold and flight model | §5, §11 | Complete |
-| 2 | Renderer and flight controls | §3, §4 | Complete |
-| 3 | Input assists | §5 | Complete |
-| 4 | Terrain and level of detail | §4 | Complete |
-| 5 | Ocean | §4 | Complete |
-| 6a | Cockpit panel | §4 | Complete; [original handoff](../../handoff/2026-09-15-cockpit-panel.md), [cockpit/follow-view feedback](../../handoff/2026-09-15-cockpit-feedback.md) |
-| 6 | Combat and damage | §6 | Not started |
-| 7 | AI | §7 | Not started |
-| 8 | Carrier and airfield operations | §4, §8 | Not started |
-| 9 | Meta-game | §8 | Not started |
+A plan number is an **identity, not a position**. Numbers 1-9 were handed out
+in the order anyone then expected to build them, and on 2026-09-16 Mark changed
+that order: the ground under the aeroplane, and getting off and back onto it,
+come before there is anybody to shoot at. Nothing was renumbered, because the
+paragraphs above are what renumbering costs. Read the **Order** column for what
+happens next, and the **Plan** column for what a document means when it says
+"Plan 6".
+
+| Plan | Order | Subject | Sections | Status |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | Scaffold and flight model | §5, §11 | Complete |
+| 2 | 2 | Renderer and flight controls | §3, §4 | Complete |
+| 3 | 3 | Input assists | §5 | Complete |
+| 4 | 4 | Terrain and level of detail | §4 | Complete |
+| 5 | 5 | Ocean | §4 | Complete |
+| 6a | 6 | Cockpit panel | §4 | Complete; [original handoff](../../handoff/2026-09-15-cockpit-panel.md), [cockpit/follow-view feedback](../../handoff/2026-09-15-cockpit-feedback.md) |
+| 10 | 7 — next | Ground and water contact, and crash response | §4, §5 | Not started |
+| 11 | 8 | Gear, flaps and ground handling; take-off and landing ashore | §5 | Not started |
+| 12 | 9 | Entities, ships and airfields | §4 | Not started |
+| 8 | 10 | Carrier and airfield operations | §4, §8 | Not started |
+| 6 | 11 | Combat and damage | §6 | Not started |
+| 7 | 12 | AI | §7 | Not started |
+| 9 | 13 | Meta-game | §8 | Not started |
+| 13 | any | Terrain surface detail | §4 | Not started; render-only |
+
+Plan 10 is first because nothing acts on a crash today: `advance` records an
+`Impact` and deliberately stops there, and the sea is a picture rather than a
+surface, so the aeroplane presently flies through both (`src/sim/loop.ts`).
+Landing, ditching, damage and strafing all read that outcome.
+
+Three couplings decide the rest of the order, and they are the whole argument
+for it:
+
+1. **Flight-model changes precede anything tuned against the flight model.**
+   Plan 11 adds gear, flaps, rolling friction and ground effect, which the
+   aircraft spec records as absent today (`src/sim/flight/schema.ts`, the
+   comment on `takeoffDistanceM`). Gunnery, energy tactics and AI are all
+   tuned against how the aeroplane flies, so building them first buys a
+   re-tune and a fresh golden trajectory.
+2. **The single-entity `World` has three consumers, not one.** Enemy
+   aircraft, projectiles and a sailing carrier all need it. `World.controls`
+   in `src/sim/loop.ts` currently assigns that generalisation to the combat
+   plan; Plan 12 takes it instead, because a shape derived from aeroplanes
+   alone would have to be bent afterwards to carry a moving deck, which is a
+   reference frame rather than another aeroplane.
+3. **A fixed runway precedes a moving deck.** Plan 11 settles flare,
+   touchdown, roll-out and brakes against something that is not itself
+   moving, so that a landing defect in Plan 8 has one candidate cause and not
+   two.
+
+Plan 13 is render-only — beach and jungle surfacing, vegetation — and nothing
+in `sim/` reads it, so it can land whenever. Alongside Plan 11 is the natural
+moment: surface texture is how a pilot judges height in the flare.
 
 Deploying the game to a public URL (2026-09-15) is infrastructure and takes no
 plan number.

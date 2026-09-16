@@ -40,6 +40,10 @@ export const BINDINGS = {
   toggleStallLimiter: ['KeyL'],
   toggleAutoRudder: ['KeyR'],
   toggleAltitudeHold: ['KeyH'],
+  // `T` for triple time, as the 1991 original bound it. A bare letter for the
+  // reason `throttleDown` documents: Ctrl+T opens a browser tab and
+  // `preventDefault` does not stop it.
+  toggleTripleTime: ['KeyT'],
   // `/` because it is the conventional help key and, unlike F1, it is not a
   // browser command -- F1 opens the browser's own help in several and
   // `preventDefault` does not always stop it, which is the same trap

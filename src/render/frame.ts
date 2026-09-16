@@ -43,6 +43,27 @@ export type FrameState = {
   /** Whether the camera-cycle key was down last frame, for edge detection. */
   readonly cyclePressed: boolean
   /**
+   * How many simulated seconds one real second buys: 1, or `TRIPLE_TIME_SCALE`
+   * while compression is on.
+   *
+   * A number rather than a `tripleTime` boolean because it is what the code
+   * below actually multiplies by, and because the 1991 original's single
+   * 3x setting is not obviously the last one anybody will want -- a second
+   * rate is then a value, not a second flag with an ordering question.
+   *
+   * Compression is applied HERE, to the frame delta, rather than by shortening
+   * the fixed step: `DT` is the flight model's integration step and every
+   * graded test card, the golden trajectory and the soak are measured at it.
+   * Feeding the accumulator three times the elapsed time makes it run three
+   * ordinary steps instead of one, so a compressed flight is the same
+   * trajectory played faster -- pinned by tripleTime.test.ts, which requires
+   * the two to agree exactly rather than approximately.
+   */
+  readonly timeScale: number
+  /** Whether the triple-time key was down last frame, for edge detection --
+   *  the same reason `cyclePressed` exists. */
+  readonly tripleTimePressed: boolean
+  /**
    * Which assists are on. Here rather than in a module-level variable so the
    * whole frame remains one immutable value a test can construct, and so two
    * sessions (two tests, two aeroplanes later) cannot share one set of flags.
@@ -67,6 +88,16 @@ export type FrameState = {
 export type AssistTogglesDown = Readonly<Record<keyof AssistSettings, boolean>>
 
 const MODES: readonly CameraMode[] = ['chase', 'cockpit']
+
+/**
+ * Simulated seconds per real second while triple time is on.
+ *
+ * Three because the 1991 game this one is answering to bound exactly that to
+ * `T`, and because the reason it existed -- the Pacific is mostly empty and a
+ * transit to the target is long -- is unchanged. Exported so the badge, the
+ * tests and any later speed selector all read one number.
+ */
+export const TRIPLE_TIME_SCALE = 3
 
 /** Which key toggles which assist. The keys themselves live in
  *  `src/input/bindings.ts` with every other key in the game; this is only the
@@ -107,6 +138,8 @@ export function initialFrameState(
     stepsRun: 0,
     droppedSteps: 0,
     cyclePressed: false,
+    timeScale: 1,
+    tripleTimePressed: false,
     assists,
     assistTogglesDown: NO_TOGGLES_DOWN,
   }
@@ -146,7 +179,29 @@ export function nextFrameState(
   stepper?: Stepper,
 ): FrameState {
   const spec = prev.world.spec
-  const controls = controlsFromKeys(pressed, elapsedSeconds, prev.controls)
+
+  // Edge-triggered for the reason the camera cycle below is, and read before
+  // anything uses the scale so that the frame the key is pressed on is already
+  // compressed -- a scale that took effect one frame late would be a tick of
+  // simulated time that belongs to neither setting.
+  const tripleTimeDown = BINDINGS.toggleTripleTime.some((c) => pressed.has(c))
+  const timeScale =
+    tripleTimeDown && !prev.tripleTimePressed
+      ? prev.timeScale === 1
+        ? TRIPLE_TIME_SCALE
+        : 1
+      : prev.timeScale
+
+  // The simulation's clock. `controlsFromKeys` ramps toward full deflection
+  // over RAMP_SECONDS and belongs on this one: the stick is part of the flight
+  // being fast-forwarded, so leaving it on real seconds would make the
+  // aeroplane answer a third as willingly per metre flown, exactly when there
+  // is most sky going past.
+  const simElapsedSeconds = elapsedSeconds * timeScale
+  const controls = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+  // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
+  // their head, not part of the flight; a view that panned three times as fast
+  // in wall clock would be unusable precisely when it matters most.
   const look = lookOffsetFromKeys(pressed, elapsedSeconds, prev.look)
 
   // Edge-triggered: held for a second, a per-frame toggle would cycle 60 times.
@@ -193,7 +248,7 @@ export function nextFrameState(
   // adds a field here instead of a parameter at every call site. A new object
   // each frame, never a write into `prev.world` -- `advance`'s purity test
   // deep-freezes the world it is handed.
-  const advanced = advance({ ...prev.world, controls }, elapsedSeconds, stepper, assist)
+  const advanced = advance({ ...prev.world, controls }, simElapsedSeconds, stepper, assist)
   const render = interpolateAircraft(
     advanced.world.previous,
     advanced.world.aircraft,
@@ -215,6 +270,8 @@ export function nextFrameState(
     stepsRun: advanced.stepsRun,
     droppedSteps: advanced.droppedSteps,
     cyclePressed: cycleDown,
+    timeScale,
+    tripleTimePressed: tripleTimeDown,
     assists,
     assistTogglesDown,
   }

@@ -8,6 +8,7 @@ import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createFlightData } from './flightData.js'
+import { createTimeBadge } from './timeBadge.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
@@ -377,13 +378,24 @@ async function boot(): Promise<void> {
   // been bound since Plan 1 and written down nowhere.
   const legend = createLegend(root)
   const flightData = createFlightData(root)
+  // Ships in production for the same reason the legend does: compression is
+  // nearly invisible in a cruise, and a pilot who forgets it is on arrives
+  // somewhere unintended.
+  const timeBadge = createTimeBadge(root)
   let legendOpen = true
 
   const pressed = new Set<string>()
   // Preserve a camera tap even if keydown and keyup both fall between frames.
   let pendingCameraCycle = false
+  // The same latch for triple time, which is edge-triggered inside
+  // `nextFrameState` in exactly the way the camera cycle is and so loses a
+  // quick tap in exactly the same way. That defect was found on the camera key
+  // and fixed there alone (2026-09-15 cockpit feedback); this is the other half
+  // of it.
+  let pendingTripleTime = false
   window.addEventListener('keydown', (e) => {
     if (BINDINGS.cycleCamera.includes(e.code as never) && !e.repeat) pendingCameraCycle = true
+    if (BINDINGS.toggleTripleTime.includes(e.code as never) && !e.repeat) pendingTripleTime = true
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -442,10 +454,23 @@ async function boot(): Promise<void> {
     // below reads `current` (typed `FrameState`, non-null), not the nullable
     // `frame` -- one assertion at the top of the hot path rather than one at
     // every read.
-    const frameKeys = pendingCameraCycle ? new Set([...pressed, BINDINGS.cycleCamera[0]]) : pressed
-    const inputFrame = pendingCameraCycle ? { ...frame!, cyclePressed: false } : frame!
+    // A latched tap is injected as a held key for one frame, with that key's
+    // "was down last frame" flag cleared so the edge actually fires.
+    const latched: string[] = []
+    if (pendingCameraCycle) latched.push(BINDINGS.cycleCamera[0])
+    if (pendingTripleTime) latched.push(BINDINGS.toggleTripleTime[0])
+    const frameKeys = latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
+    const inputFrame =
+      latched.length === 0
+        ? frame!
+        : {
+            ...frame!,
+            cyclePressed: pendingCameraCycle ? false : frame!.cyclePressed,
+            tripleTimePressed: pendingTripleTime ? false : frame!.tripleTimePressed,
+          }
     const current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     pendingCameraCycle = false
+    pendingTripleTime = false
     frame = current
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -499,6 +524,7 @@ async function boot(): Promise<void> {
     // vector the propeller spin below already reads.
     updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
     flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
+    timeBadge.setScale(current.timeScale)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's

@@ -21,11 +21,16 @@ simulation, each switchable in flight (Plan 3). And the water it flies over is
 no longer empty: real Leyte Gulf is under it (Plan 4, below).
 
 The sea now has deterministic, Beaufort-driven FFT waves, depth colour,
-shallow-water attenuation and foam (Plan 5). Weapons, damage, AI, carrier
-operations and the meta-game remain ahead: 6 combat and damage, 7 AI,
-8 carrier and airfield operations, 9 meta-game. See the
+shallow-water attenuation and foam (Plan 5). See the
 [ocean handoff](docs/handoff/2026-09-15-plan5-ocean.md) for GPU measurements,
 visual comparisons and the remaining art-direction questions.
+
+Ground contact, take-off and landing, ships and airfields, combat, AI and the
+meta-game all remain ahead. Mark reordered them on 2026-09-16 so that the
+ground under the aeroplane comes before there is anybody to shoot at; plan
+numbers were deliberately NOT reused, for the reason the next paragraph
+records. **Master spec §15 holds the order and the argument for it**, and this
+paragraph does not restate either.
 
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
@@ -50,6 +55,14 @@ It includes speed, altitude, climb, heading, fuel, throttle, pitch and bank.
 The follow camera eases farther behind the plane as speed increases and
 closer as it slows. **C** switches views, including quick taps. See the
 [cockpit feedback handoff](docs/handoff/2026-09-15-cockpit-feedback.md).
+
+**T** runs the flight at triple time, as the 1991 original did, and **T**
+again returns it to real time. Both camera modes show a **3× TIME** badge
+while it is on. Compression multiplies the frame's elapsed time rather than
+shortening the fixed step, so a compressed flight is the same trajectory
+played faster and the waves speed up with it; the pilot's head still pans at
+real speed. A machine slow enough to owe more than `MAX_STEPS_PER_FRAME` gets
+less than 3x rather than a widening backlog.
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
