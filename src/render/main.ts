@@ -9,12 +9,15 @@ import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
+import { createDebrief, debriefModel } from './debrief.js'
+import { createImpactEffect } from './scene/impactEffect.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
   initialFrameState,
   nextFrameState,
   toThreeOrientation,
+  withTerrain,
   worldOffsetFor,
   type FrameState,
 } from './frame.js'
@@ -382,6 +385,25 @@ async function boot(): Promise<void> {
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
+  // Restart rebuilds the frame from the spawn point rather than tearing
+  // anything down: `initialFrameState` is pure, so the renderer, the terrain
+  // and the ocean cascades all survive untouched.
+  const debrief = createDebrief(root, () => {
+    // `frame!.world.terrain` rather than a stored field: the heightfield
+    // arrives over the network seconds after the first frame and is upgraded
+    // again as finer levels load (`applyTerrainLevel`, further down this
+    // file), so the CURRENT world holds the only up-to-date copy. Reading it
+    // back means a restart keeps whatever level has loaded so far instead of
+    // dropping back to none.
+    frame = withTerrain(initialFrameState(spec, initialAircraft), frame!.world.terrain)
+    debrief.hide()
+    shownImpactTick = null
+  })
+  const impactEffect = createImpactEffect()
+  scene.add(impactEffect.object)
+  /** The tick of the impact the debrief is currently showing, so the modal is
+   *  raised once rather than rebuilt sixty times a second. */
+  let shownImpactTick: number | null = null
   let legendOpen = true
 
   const pressed = new Set<string>()
@@ -525,6 +547,23 @@ async function boot(): Promise<void> {
     updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
     flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
     timeBadge.setScale(current.timeScale)
+
+    // Raised once per contact -- `shownImpactTick` is the guard, since
+    // `current.world.impact` stays non-null every frame after the airplane
+    // stops, and this runs sixty times a second.
+    const hit = current.world.impact
+    if (hit !== null && shownImpactTick !== hit.tick) {
+      shownImpactTick = hit.tick
+      impactEffect.object.position.set(
+        hit.position.x + worldOffset.x,
+        hit.position.y + worldOffset.y,
+        hit.position.z + worldOffset.z,
+      )
+      impactEffect.fire(hit.surface)
+      debrief.show(debriefModel(hit, current.world.aircraft))
+    }
+    impactEffect.object.quaternion.copy(camera.quaternion)
+    impactEffect.update(frameMs / 1000)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
