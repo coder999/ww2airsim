@@ -735,11 +735,15 @@ land. A static prepared strip is not an entity: it does not move, carries no
 AI and needs nothing the entity system provides, so it has no business waiting
 on the plan that builds those. Plan 11 therefore lands one minimal runway on
 real ground, and Plan 12 keeps the full airfield content and the moving ships.
-Tacloban and Dulag were both real October 1944 Leyte airfields and both fall
-inside the committed terrain box — checked 2026-09-16 against
-`content/terrain/header.json`: Tacloban at local x −29,743 m, z +47,645 m and
-Dulag at x −29,524 m, z +16,698 m, against a 100,000 m half-extent. So the
-strip can sit where one historically did rather than somewhere invented.
+Tacloban and Dulag were both real October 1944 Leyte airfields, and Tacloban
+is already in this repo at world **(-29666, 47605)** — sourced independently of
+the terrain pipeline and cross-checked against the Copernicus tiles on
+2026-09-14, carried by `tests/tools/terrainBuild.test.ts` and used by
+`tests/e2e/terrain.spec.ts`. **Plan 11 must take the coordinate from there, not
+re-derive it**: an equirectangular back-of-envelope lands about 80 m away, and
+two nearly-equal coordinates for one airfield is precisely the drift this
+document exists to prevent. So the strip can sit where one historically did
+rather than somewhere invented.
 
 **Plans 10 and 11 are a pair, delivered back to back.** Plan 10 ends a flight;
 Plan 11 is what lets one continue. Between them the game can kill you and let
