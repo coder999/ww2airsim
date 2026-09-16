@@ -46,6 +46,7 @@ export function createImpactEffect(): {
   readonly object: Object3D
   fire(surface: ContactSurface): void
   update(dtSeconds: number): void
+  hide(): void
 } {
   const material = new MeshBasicMaterial({ transparent: true, depthWrite: false })
   const mesh = new Mesh(new PlaneGeometry(2, 2), material)
@@ -73,6 +74,15 @@ export function createImpactEffect(): {
       mesh.scale.setScalar(radiusM)
       material.opacity = opacity
       if (opacity <= 0) mesh.visible = false
+    },
+    // Restart (whole-branch review I-7): a ditch near the world origin
+    // followed by a quick Restart would otherwise leave the old effect still
+    // expanding under the new airplane, which spawns at a fixed point that
+    // can coincide with it. `fire` already resets `age`, so simply hiding is
+    // enough -- the next `fire` starts clean regardless of when this was
+    // called.
+    hide(): void {
+      mesh.visible = false
     },
   }
 }

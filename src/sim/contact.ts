@@ -70,6 +70,17 @@ export function contactOutcome(
 
   const { pitchRad, rollRad } = attitudeAngles(state)
   const wingsLevel = Math.abs(rollRad) <= DITCH_MAX_BANK_RAD
+  // Bounds sink from below only -- a climbing state at contact would pass
+  // this gate too. Unreachable today, but not because "arriving at y <= 0
+  // from above implies velocity.y <= 0": that is a continuous-motion
+  // argument, and discrete sampling does not automatically preserve it. The
+  // real guarantee is `src/sim/flight/model.ts`'s integrator: it is
+  // semi-implicit (symplectic) Euler, so velocity is advanced from the force
+  // BEFORE position is advanced using that new velocity in the same step --
+  // a step that ends this tick climbing cannot have used a downward velocity
+  // to fall through the surface first. An explicit Euler or a midpoint/RK
+  // scheme would not give this for free, and this gate would need its own
+  // check if the integrator ever changes.
   const sinkingGently = state.velocity.y >= -DITCH_MAX_SINK_MPS
   const noseUp = pitchRad >= DITCH_MIN_PITCH_RAD && pitchRad <= DITCH_MAX_PITCH_RAD
   const slow =

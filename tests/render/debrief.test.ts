@@ -47,6 +47,19 @@ describe('the debrief', () => {
     expect(labels).toContain('Bank')
   })
 
+  it('shows sink rate as a positive number, not the signed velocity it comes from', () => {
+    // `verticalSpeedMps` is `velocity.y`, negative while descending (same
+    // convention `contact.ts`'s `sinkingGently` gate uses) -- a 40 m/s dive
+    // must read "40 m/s", not "-40 m/s" next to the positive Impact speed
+    // and Bank figures.
+    const m = debriefModel(
+      impact({ verticalSpeedMps: -40 }),
+      createState({ velocity: v3(150, -40, 0) }),
+    )
+    const sinkRate = m.figures.find((f) => f.label === 'Sink rate')
+    expect(sinkRate?.value).toBe('40 m/s')
+  })
+
   it('scores nothing, because nothing can be destroyed yet', () => {
     // Plan 9 owns scoring (master spec §8). This stub is the single place it
     // replaces; the categories below are §8's own, so the table's shape is

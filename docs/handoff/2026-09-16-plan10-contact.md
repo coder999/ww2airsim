@@ -126,11 +126,20 @@ silently dropped:
 
 - The sink-rate gate (`sinkingGently` in `src/sim/contact.ts`) bounds sink
   from below only, so a state that is climbing at the moment of contact would
-  pass that one gate. Moot in the flight model as it exists today — the gate
-  only runs on water, and reaching `y <= 0` from above already implies
-  `velocity.y <= 0` — but it is a latent gap if a future plan lets the
-  airplane approach a water contact from below (unlikely, but not
-  impossible on paper).
+  pass that one gate. Moot in the flight model as it exists today, but not
+  for the reason an earlier draft of this note gave — "reaching `y <= 0` from
+  above already implies `velocity.y <= 0`" is a continuous-motion argument
+  that discrete sampling does not automatically preserve; a climbing sample
+  could in principle straddle the ground in one discrete step. The real
+  guarantee is `src/sim/flight/model.ts`'s integrator: it is semi-implicit
+  (symplectic) Euler — velocity is advanced from the force first, then
+  position is advanced using that *new* velocity in the same step — so a
+  step that ends climbing cannot have used a downward velocity to get there,
+  and cannot land at or below ground from above while climbing. An explicit
+  Euler or a midpoint/RK integrator would not give this for free, and the
+  gate would need its own check if the project ever moves off semi-implicit
+  Euler. It is a latent gap if a future plan lets the airplane approach a
+  water contact from below (unlikely, but not impossible on paper).
 - `contactOutcome` and the impact effect's appearance/scale functions are
   verbatim transcriptions of the plan's own code. The green Tier 1 suite
   therefore validates that the plan's design does what the plan says, not

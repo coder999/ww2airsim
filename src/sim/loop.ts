@@ -344,11 +344,16 @@ export function advance<M>(
       ? Math.min(elapsedSeconds, MAX_ELAPSED_SECONDS)
       : 0
 
-  // The flight is over: no further simulated time is owed, and nothing about
-  // this world can change again. Returning here rather than letting the loop
-  // below run zero times keeps `accumulatorSeconds` exactly as the ending
-  // frame left it, so a frozen world handed a thousand frames is bit-identical
-  // to one handed a single frame.
+  // The flight is over: no further simulated time is owed, so `advance`
+  // returns the world unchanged and runs no steps. That is not the same as
+  // saying nothing about the world can change again -- the caller
+  // (`nextFrameState` in src/render/frame.ts) still rebuilds `world` with
+  // fresh `controls` every frame and calls `advance` again on that, so
+  // `world.controls` keeps changing after the freeze even though `aircraft`,
+  // `impact` and `accumulatorSeconds` do not. Returning here rather than
+  // letting the loop below run zero times keeps `accumulatorSeconds` exactly
+  // as the ending frame left it, so a frozen world handed a thousand frames
+  // is bit-identical to one handed a single frame.
   if (world.impact !== null) {
     return { world, stepsRun: 0, droppedSteps: 0, alpha: world.accumulatorSeconds / DT }
   }

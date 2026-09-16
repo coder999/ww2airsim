@@ -37,7 +37,11 @@ export function debriefModel(impact: Impact, state: AircraftState): DebriefModel
   const { rollRad } = attitudeAngles(state)
   const figures: DebriefFigure[] = [
     { label: 'Impact speed', value: `${Math.round(length(state.velocity))} m/s` },
-    { label: 'Sink rate', value: `${Math.round(impact.verticalSpeedMps)} m/s` },
+    // Sink is a negative `velocity.y` (same sign convention `contact.ts`'s
+    // `sinkingGently` gate checks); negated here so the figure reads as a
+    // positive sink rate instead of a confusing minus sign next to two
+    // positive figures.
+    { label: 'Sink rate', value: `${Math.round(-impact.verticalSpeedMps)} m/s` },
     { label: 'Bank', value: `${Math.round((rollRad * 180) / Math.PI)}°` },
   ]
 
@@ -137,7 +141,9 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         target.textContent = row.target
         const count = document.createElement('span')
         count.textContent = `${row.destroyed}`
-        line.append(target, count)
+        const score = document.createElement('span')
+        score.textContent = `${row.score}`
+        line.append(target, count, score)
         panel.appendChild(line)
       }
 
