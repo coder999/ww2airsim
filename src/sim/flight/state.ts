@@ -6,6 +6,11 @@ export type Controls = {
   readonly roll: number      // [-1, 1], positive = right roll
   readonly yaw: number       // [-1, 1], positive = nose right
   readonly throttle: number  // [0, 1]
+  /** What the pilot is asking the gear to do, not where it is. Optional for
+   *  the same reason `SimContext.terrain` is: `Controls` literals appear
+   *  throughout the suite, and `undefined` reads as "unchanged", which is what
+   *  every one of them means. */
+  readonly gearDown?: boolean
 }
 
 export type AircraftState = {
@@ -31,6 +36,11 @@ export type AircraftState = {
    *  stale-snapshot bug loud instead of silent: without it, yesterday's state
    *  and today's are indistinguishable whenever their values happen to agree. */
   readonly tick: number
+  /** Gear travel, 0 = fully retracted, 1 = fully extended. A fraction rather
+   *  than a boolean because a Hellcat's gear takes seconds to move and the
+   *  drag changes across that interval, not in one tick. Defaults to 0 so that
+   *  every flight predating Plan 11a is unchanged. */
+  readonly gearFraction: number
 }
 
 export const createState = (init: Partial<AircraftState> = {}): AircraftState => ({
@@ -40,4 +50,5 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
   bodyRates: init.bodyRates ?? v3(0, 0, 0),
   fuelKg: init.fuelKg ?? 400,
   tick: init.tick ?? 0,
+  gearFraction: init.gearFraction ?? 0,
 })

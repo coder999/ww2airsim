@@ -258,6 +258,17 @@ const AircraftSpecObject = z.object({
     altitudeHoldSeconds: positive,
   }).strict(),
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
+  /** Landing gear. Only the two fields Plan 11a's ground-handling tasks need
+   *  so far -- travel time and the drag it costs extended -- not the rolling
+   *  friction coefficient or tail-up speed that later ground-handling tasks
+   *  will add to this same block. */
+  gear: z.object({
+    /** Seconds for the gear to travel fully up-to-down or down-to-up. */
+    travelSeconds: positive,
+    /** Drag AREA (Cd·A) of the extended gear, m^2 -- multiplies dynamic
+     *  pressure directly, with the drag coefficient already folded in. */
+    dragAreaM2: positive,
+  }).strict(),
   reference: z.object({
     source: z.string().min(1),
     /** Gross weight the cited trial was flown at, kg. Every reference figure

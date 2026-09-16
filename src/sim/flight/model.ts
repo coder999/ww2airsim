@@ -277,5 +277,9 @@ export function step(
     : withWeathercock
   const attitude = qIntegrateBodyRates(state.attitude, ratesWithStall, dt)
 
-  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick }
+  // Gear position is not advanced here -- `gearAfter` (src/sim/ground.ts) is
+  // this plan's command for that, and wiring it to `controls.gearDown` is a
+  // later task's job. `step` only has to carry the current value forward so
+  // it is not lost between ticks.
+  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick, gearFraction: state.gearFraction }
 }
