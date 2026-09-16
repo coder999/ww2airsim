@@ -21,6 +21,7 @@ import {
 } from '../../src/assists/index.js'
 import { advance, createWorld } from '../../src/sim/loop.js'
 import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
+import { surfaceAt } from '../../src/sim/contact.js'
 
 export type SoakResult = {
   failures: string[]
@@ -480,7 +481,28 @@ export function runTerrainSoak(
           }
         }
       }
-      if (world.impact !== null) terrainHits++
+      if (world.impact !== null) {
+        terrainHits++
+        const hit = world.impact
+        // Recomputed from outside `advance`, the same way this soak already
+        // re-derives the ground height rather than trusting the one on the
+        // world. A field that agrees with itself proves nothing.
+        const expectedSurface = surfaceAt(hit.groundHeightM)
+        if (hit.surface !== expectedSurface) {
+          failures.push(
+            `iteration ${n} (seed ${seed}): impact surface ${hit.surface} but groundHeightM ` +
+              `${hit.groundHeightM} classifies as ${expectedSurface}`,
+          )
+        }
+        // Land has no survivable outcome until Plan 11 adds landing gear. This
+        // is the invariant most likely to be broken by accident when it does.
+        if (hit.surface === 'land' && hit.kind !== 'destroyed') {
+          failures.push(
+            `iteration ${n} (seed ${seed}): land contact recorded as ${hit.kind}, ` +
+              `but there is no landing gear to survive one with`,
+          )
+        }
+      }
     } catch (err) {
       failures.push(
         `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +

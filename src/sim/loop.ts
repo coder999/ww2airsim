@@ -144,10 +144,12 @@ const identityAssist = <M>(
 
 /**
  * Recorded once, on the first step where the airplane is at or below the
- * ground under it. `advance` does not clear it on later steps and does not
- * react to it (no bounce, no stop, no invariant trip) -- this task only
- * records the event; what happens to the airplane after a crash is Plan 10's
- * subject, and `surface`/`kind` below are exactly that.
+ * ground under it, and never cleared on later steps. `advance` applies no
+ * bounce and no rest dynamics to the airplane's position or velocity once
+ * this is set -- but it DOES end the flight: the step loop below breaks as
+ * soon as this is assigned, and the early return at the top of `advance`
+ * means no world that already carries one ever runs another step. `surface`
+ * and `kind` below are what Plan 10 adds on top of that stop.
  */
 export type Impact = {
   /** `SimContext.tick` of the step that first satisfied the impact test. */
