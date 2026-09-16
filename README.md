@@ -25,12 +25,12 @@ shallow-water attenuation and foam (Plan 5). See the
 [ocean handoff](docs/handoff/2026-09-15-plan5-ocean.md) for GPU measurements,
 visual comparisons and the remaining art-direction questions.
 
-Ground contact, take-off and landing, ships and airfields, combat, AI and the
-meta-game all remain ahead. Mark reordered them on 2026-09-16 so that the
-ground under the airplane comes before there is anybody to shoot at; plan
-numbers were deliberately NOT reused, for the reason the next paragraph
-records. **Master spec §15 holds the order and the argument for it**, and this
-paragraph does not restate either.
+Ground and water contact now ends the flight (Plan 10, below). Take-off and
+landing, ships and airfields, combat, AI and the meta-game all remain ahead.
+Mark reordered them on 2026-09-16 so that the ground under the airplane comes
+before there is anybody to shoot at; plan numbers were deliberately NOT
+reused, for the reason the next paragraph records. **Master spec §15 holds the
+order and the argument for it**, and this paragraph does not restate either.
 
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
@@ -63,6 +63,16 @@ shortening the fixed step, so a compressed flight is the same trajectory
 played faster and the waves speed up with it; the pilot's head still pans at
 real speed. A machine slow enough to owe more than `MAX_STEPS_PER_FRAME` gets
 less than 3x rather than a widening backlog.
+
+Touching the ground or the sea now ends the flight (Plan 10). A gentle,
+wings-level, near-stall arrival on water is a ditching the pilot survives;
+everything else — any land contact, or a hard, banked, or fast water contact —
+is a wreck. Water can be survived and land cannot because the F6F model has no
+landing gear, flaps, or rolling friction to land on land *with*; there is
+nothing to make a survivable land contact out of. Either way the simulation
+freezes at the moment of contact, a debrief dialog reports what happened, and
+the only control is a restart back to the spawn point. See master spec §15 for
+where this sits in the roadmap and what comes next.
 
 The full design lives in
 [`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
@@ -100,9 +110,9 @@ plan rather than to a to-do list:
 - **Bathymetry arrived in Plan 5.** A 513 × 513 GEBCO grid drives ocean colour
   and shallow-water attenuation. It stores signed metre depths in 526,338
   bytes; the terrain pyramid and collision surface retain their own encoding.
-- **No crash response or ground handling.** Contact records an impact, but
-  does not yet stop the aircraft or present a crash/restart screen. Flying
-  through water or land remains possible. No runways, gear or deck operations.
+- ~~**No crash response.**~~ Fixed by Plan 10, 2026-09-16 (above). Contact now
+  ends the flight and raises a debrief. **No ground handling yet**: no
+  runways, gear or deck operations. Those are Plan 11.
 - **No trees, buildings or roads.** The surface is bare relief.
 
 **Three things you will see that have already been ruled on**, recorded here
