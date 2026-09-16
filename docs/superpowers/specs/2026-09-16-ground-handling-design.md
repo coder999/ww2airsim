@@ -79,8 +79,16 @@ failure.
 ## 3. Weight on wheels
 
 One predicate, derived rather than stored: the airplane is on the ground when it
-is within a small height tolerance of the surface beneath it AND its gear is
-down. It is a function of state, not a flag that can disagree with the state.
+is within a small height tolerance of the surface beneath it. It is a function of
+state, not a flag that can disagree with the state.
+
+**Deliberately geometric, and not gated on the gear** (amended 2026-09-16, before
+implementation began; this section first said "AND its gear is down"). "Is it
+touching the ground" and "is it rolling on wheels" are different questions, and
+conflating them makes a geometric predicate depend on whether the airplane is
+flyable. A belly landing is still on the ground. The gear-down requirement
+belongs to the consumers that need it — rolling friction and the ground rate
+regime below — not to the predicate they share.
 
 Everything else in this plan reads it:
 
