@@ -158,36 +158,10 @@ export const COCKPIT_GAUGES = GAUGES.filter(g => g.cockpit !== false)
 export const fuelFraction = (spec: AircraftSpec, state: AircraftState): number =>
   Math.max(0, Math.min(1, state.fuelKg / spec.mass.fuelCapacityKg))
 
-/** Pitch and roll as a human reads them off an attitude indicator. */
-export function attitudeAngles(state: AircraftState): {
-  readonly pitchRad: number
-  readonly rollRad: number
-} {
-  const fwd = qRotate(state.attitude, v3(1, 0, 0))
-  const up = qRotate(state.attitude, v3(0, 1, 0))
-  const right = qRotate(state.attitude, v3(0, 0, 1))
-  const pitchRad = Math.asin(Math.max(-1, Math.min(1, fwd.y)))
-  // Bank angle: how far the wings are from horizontal, measured as world up
-  // resolved onto the body's own up and right axes.
-  //
-  // This was `atan2(up.z, up.y)` until 2026-09-13, which is body-up's
-  // sideways lean expressed in the BODY frame -- not a bank angle at all once
-  // the airplane is pointing anywhere but along world +X. Pitch tilts body
-  // up out of the vertical, and yaw then swings that tilt into the body's
-  // lateral axis, so a wings-level airplane read a bank that depended purely
-  // on its heading: measured 0 at heading 0, 5.04 at 30, 7.11 at 45 and a
-  // full 10.00 at 90, all at 10 degrees nose-up with the wings dead level.
-  //
-  // Found from a cockpit screenshot on Adreno hardware, 2026-09-13: a level
-  // true horizon, a level panel and the bar tilted about 7 degrees. Every
-  // test that existed used PURE ROLL about the nose, where the old expression
-  // is exactly right -- including C-1's own replacement test, written days
-  // earlier to stop precisely this instrument from lying. Getting the
-  // reference frame wrong survives a test suite that only ever visits the one
-  // attitude where the two frames coincide.
-  const rollRad = Math.atan2(-right.y, up.y)
-  return { pitchRad, rollRad }
-}
+// Moved to sim/ in Plan 10 so `src/sim/contact.ts` can reach it; re-exported
+// here because panel.ts, flightData.ts and tests/render/gauges.test.ts all
+// import it from this module, and the move should be invisible to them.
+export { attitudeAngles } from '../sim/flight/attitude.js'
 
 /**
  * `controls` is required, even though every gauge except `throttle` reads
