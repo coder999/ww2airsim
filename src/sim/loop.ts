@@ -25,6 +25,18 @@ export interface SimContext {
   readonly dt: number
   /** Monotonic simulation tick this step produces. Starts at 0. */
   readonly tick: number
+  /**
+   * The ground under the airplane this step, or `null` for "no ground".
+   *
+   * Added by Plan 11a, which is the consumer this field was waiting for: the
+   * ground constraint and the weight-on-wheels regime both live in `step`, and
+   * `step` cannot ask the world for anything it is not handed. Optional rather
+   * than required deliberately — there are 51 `SimContext` construction sites
+   * and exactly ONE of them is production (`advance`, below). A required field
+   * would have edited 50 test and tool sites to say "no ground" out loud, for
+   * no behavior. `undefined` and `null` both mean no ground.
+   */
+  readonly terrain?: TerrainField | null
 }
 
 /**
@@ -395,7 +407,7 @@ export function advance<M>(
     // which is stale from the second step of a multi-step frame onward).
     const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
     assistMemory = assisted.memory
-    current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1 })
+    current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1, terrain: world.terrain })
     ran++
 
     // Checked after EVERY step in a multi-step frame, not just the loop's
