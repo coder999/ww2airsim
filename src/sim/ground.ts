@@ -1,4 +1,5 @@
 import type { AircraftSpec } from './flight/schema.js'
+import type { AircraftState } from './flight/state.js'
 
 /**
  * Gear travel after one step.
@@ -33,4 +34,35 @@ export function gearAfter(
  */
 export function gearDragN(spec: AircraftSpec, gearFraction: number, q: number): number {
   return q * spec.gear.dragAreaM2 * gearFraction
+}
+
+/**
+ * How close to the surface counts as resting on it, metres.
+ *
+ * Wanted because the constraint below must not fight the integrator: an
+ * airplane rolling at 50 m/s over ground that rises 2.12% (measured at L0
+ * through Tacloban, 2026-09-16) climbs about 1.8 cm per step, and a tolerance
+ * tighter than that would have it flicker between airborne and grounded every
+ * tick. Loose enough to absorb that, tight enough that an airplane a wingspan
+ * up is unambiguously flying.
+ */
+export const GROUND_CONTACT_TOLERANCE_M = 0.25
+
+/**
+ * Whether the airplane is resting on the surface beneath it.
+ *
+ * Derived, never stored: five consumers read this, and a stored flag is one
+ * that can disagree with the state it claims to describe.
+ *
+ * Deliberately NOT gated on the gear being down -- a belly landing is still on
+ * the ground. Whether the airplane survives being there is
+ * `contactOutcome`'s judgment (Plan 10), and folding it in here would make
+ * "is it touching" depend on "is it flyable".
+ *
+ * Written as a positive comparison so a non-finite position comes back
+ * `false`: a broken state must not be handed to the constraint.
+ */
+export function onGround(state: AircraftState, groundHeightM: number): boolean {
+  return state.position.y - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
+    && state.position.y - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
 }

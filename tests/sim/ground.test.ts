@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { gearAfter, gearDragN } from '../../src/sim/ground.js'
+import { gearAfter, gearDragN, onGround, GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import { createState } from '../../src/sim/flight/state.js'
+import { v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -56,5 +57,37 @@ describe('gear drag', () => {
 
   it('scales with dynamic pressure, like every other drag term here', () => {
     expect(gearDragN(f6f, 1, 10000)).toBeCloseTo(2 * gearDragN(f6f, 1, 5000), 9)
+  })
+})
+
+describe('weight on wheels', () => {
+  const at = (y: number) => createState({ position: v3(0, y, 0) })
+
+  it('is false well above the ground', () => {
+    expect(onGround(at(500), 0)).toBe(false)
+  })
+
+  it('is true resting exactly on it', () => {
+    expect(onGround(at(0), 0)).toBe(true)
+  })
+
+  it('is true within the contact tolerance', () => {
+    expect(onGround(at(GROUND_CONTACT_TOLERANCE_M * 0.5), 0)).toBe(true)
+  })
+
+  it('is false just outside it', () => {
+    expect(onGround(at(GROUND_CONTACT_TOLERANCE_M * 2), 0)).toBe(false)
+  })
+
+  it('reads a hilltop as ground, not sea level', () => {
+    expect(onGround(at(1000), 1000)).toBe(true)
+    expect(onGround(at(1000), 0)).toBe(false)
+  })
+
+  it('is false for a non-finite position rather than true', () => {
+    // Written as a positive comparison so NaN fails it, the same posture
+    // `contactOutcome` takes: a broken state must not be reported as safely
+    // on the ground, where the constraint would then act on it.
+    expect(onGround(at(Number.NaN), 0)).toBe(false)
   })
 })
