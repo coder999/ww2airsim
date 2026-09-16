@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { gearAfter, gearDragN, onGround, restOnSurface, GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
-import { createState } from '../../src/sim/flight/state.js'
+import {
+  gearAfter,
+  gearDragN,
+  onGround,
+  restOnSurface,
+  supportedContact,
+  GROUND_CONTACT_TOLERANCE_M,
+  MAX_SUPPORTED_SINK_MPS,
+} from '../../src/sim/ground.js'
+import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
@@ -117,5 +125,31 @@ describe('the ground constraint', () => {
     // runway and it would never fly.
     const r = restOnSurface(createState({ position: v3(0, 0.1, 0), velocity: v3(60, 3, 0) }), 0)
     expect(r.velocity.y).toBe(3)
+  })
+})
+
+describe('supported contact (Task 5b)', () => {
+  const resting = (extra: Partial<AircraftState> = {}) =>
+    createState({ position: v3(0, 0, 0), velocity: v3(0, 0, 0), gearFraction: 1, ...extra })
+
+  it('is supported with the gear down, resting, at no sink rate', () => {
+    expect(supportedContact(f6f, resting(), 0)).toBe(true)
+  })
+
+  it('is NOT supported with the gear up, all else equal', () => {
+    expect(supportedContact(f6f, resting({ gearFraction: 0 }), 0)).toBe(false)
+  })
+
+  it('is NOT supported arriving faster than the sink-rate limit', () => {
+    const hard = resting({ velocity: v3(0, -MAX_SUPPORTED_SINK_MPS - 1, 0) })
+    expect(supportedContact(f6f, hard, 0)).toBe(false)
+  })
+
+  it('is NOT supported well above the ground', () => {
+    expect(supportedContact(f6f, resting({ position: v3(0, 500, 0) }), 0)).toBe(false)
+  })
+
+  it('is NOT supported for a non-finite state, the same posture contactOutcome takes', () => {
+    expect(supportedContact(f6f, resting({ position: v3(0, Number.NaN, 0) }), 0)).toBe(false)
   })
 })

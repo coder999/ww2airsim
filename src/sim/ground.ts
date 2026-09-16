@@ -93,3 +93,67 @@ export function restOnSurface(state: AircraftState, groundHeightM: number): Airc
     velocity: v3(state.velocity.x, vy, state.velocity.z),
   }
 }
+
+/**
+ * Gear travel counted as "down" for weight-bearing purposes.
+ *
+ * Not `=== 1`: gear that has travelled 95% of the way is carrying the
+ * airplane's weight exactly as surely as gear that finished the trip an
+ * instant earlier -- `gearAfter`'s travel time is a cosmetic animation
+ * duration, not a structural one, and requiring the exact endpoint would
+ * flicker a landing between supported and unsupported for no physical
+ * reason, purely because of where in its travel `gearFraction` happened to
+ * sample.
+ */
+export const GEAR_DOWN_FRACTION = 0.95
+
+/**
+ * Landing-gear sink-rate limit, m/s: how hard an arrival can hit before the
+ * gear is judged to have failed rather than carried the airplane.
+ *
+ * An UNTUNED GUESS, the same standing `DITCH_MAX_SINK_MPS` has in
+ * `src/sim/contact.ts` -- nobody has flown this yet, so getting it wrong
+ * makes a landing too easy or impossible; it does not make anything
+ * incorrect. Set a little above the ditching gate on the reasoning that a
+ * wheeled undercarriage is built to take a harder arrival than a hull
+ * ditching onto water is, not from any cited figure. This drags a sliver of
+ * Plan 11b (landing) into 11a on purpose -- an airplane has to not-crash
+ * while stationary before it can roll -- and 11b tunes it together with the
+ * rest of the landing-survivability gates it owns. Expect it to move.
+ */
+export const MAX_SUPPORTED_SINK_MPS = 4.0
+
+/**
+ * Whether ground contact is CARRIED rather than crashed into: the gear is
+ * down, the airplane is within `onGround`'s tolerance of the surface, and it
+ * arrived slowly enough to survive.
+ *
+ * The one predicate gating both sides of the Plan 10 / Plan 11a seam: `step`
+ * applies `restOnSurface` only for a supported contact, and `advance`
+ * (`src/sim/loop.ts`) records an impact only for an UNsupported one. Before
+ * this predicate existed the two disagreed -- `restOnSurface` clamped a
+ * resting airplane exactly onto the surface, and `advance`'s geometric
+ * `position.y <= groundHeightM` test then read that as a fresh crash on
+ * every following tick, which made sitting on a runway indistinguishable
+ * from hitting the ground and take-off impossible.
+ *
+ * All three conditions are POSITIVE comparisons, combined with `&&` -- the
+ * same posture `contactOutcome` (`src/sim/contact.ts`) already takes: a
+ * non-finite state fails every one of them and comes back `false`, i.e.
+ * unsupported, i.e. a crash. A broken state must fail toward "this is a
+ * crash", never toward "this is a normal landing".
+ *
+ * `spec` is unused today and named with a leading underscore for that reason
+ * -- carried in the signature so a future per-aircraft sink limit (11b, next
+ * to the ditching gates it will sit beside) does not need to change every
+ * call site to arrive.
+ */
+export function supportedContact(
+  _spec: AircraftSpec,
+  state: AircraftState,
+  groundHeightM: number,
+): boolean {
+  return onGround(state, groundHeightM)
+    && state.gearFraction >= GEAR_DOWN_FRACTION
+    && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
+}

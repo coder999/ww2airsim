@@ -2,7 +2,7 @@ import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
-import { gearAfter, gearDragN, onGround, restOnSurface } from '../ground.js'
+import { gearAfter, gearDragN, restOnSurface, supportedContact } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -230,6 +230,35 @@ export function step(
   force = add(force, scale(liftDir, liftN))
   force = add(force, v3(0, -mass * G, 0))
 
+  // Ground reaction (Task 5b, found while making a supported contact never
+  // read as a crash): while the airplane is ALREADY resting on its wheels at
+  // the START of this step, the ground supplies whatever upward force is
+  // needed to stop it falling through -- the normal force in any rigid-
+  // contact model, which only ever PUSHES. A force that is already lifting
+  // (e.g. once airspeed has built enough lift to fly) passes through
+  // untouched, so this never holds a genuinely take-off-capable airplane
+  // down.
+  //
+  // Without this, a supported airplane still integrates one tick of
+  // unopposed gravity before the POST-integration clamp below (gated on
+  // `supportedContact` too) catches it, and that clamp only ever pulls a
+  // sunk airplane back up to the surface when it arrived from ABOVE it
+  // (`restOnSurface` must not do so once it is already at-or-below --
+  // that direction is `assertNoEnergyGain`'s hazard). That one-tick sliver
+  // of unopposed fall compounds every following tick, because the
+  // post-integration clamp never restores it either, and silently walks the
+  // airplane through the ground over a couple of seconds: verified, an idle,
+  // gear-down, stationary airplane on this same plateau sank 0.25 m and was
+  // wrongly recorded as a crash 91 ticks (1.5 s) in, without this term.
+  // `ctx.terrain` being `null` short-circuits before `heightAt` is called,
+  // same as the block below.
+  if (ctx.terrain != null) {
+    const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
+    if (force.y < 0 && supportedContact(spec, state, startGroundHeightM)) {
+      force = v3(force.x, 0, force.z)
+    }
+  }
+
   const accel = scale(force, 1 / mass)
   let velocity = add(state.velocity, scale(accel, dt))
   let position = add(state.position, scale(velocity, dt))
@@ -241,10 +270,16 @@ export function step(
   // guard `advance`'s impact check (`src/sim/loop.ts`) applies for the same
   // reason: the overwhelmingly common, pre-Task-8 no-terrain path must not
   // pay for a terrain query it has nothing to query.
+  //
+  // Gated on `supportedContact`, not the bare `onGround`: a gear-up airplane
+  // or one arriving too hard must pass straight through untouched and be
+  // caught by `advance` as the crash it is, rather than have its sink rate
+  // quietly zeroed here first (Task 5b -- `supportedContact`'s own doc
+  // explains why the two checks have to agree on this).
   if (ctx.terrain != null) {
     const groundHeightM = heightAt(ctx.terrain, position.x, position.z)
     const integrated: AircraftState = { ...state, position, velocity }
-    if (onGround(integrated, groundHeightM)) {
+    if (supportedContact(spec, integrated, groundHeightM)) {
       const rested = restOnSurface(integrated, groundHeightM)
       position = rested.position
       velocity = rested.velocity

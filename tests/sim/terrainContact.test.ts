@@ -147,3 +147,17 @@ describe('the flight ends at the contact', () => {
     expect(after.world.impact).toBe(ended.impact)
   })
 })
+
+describe('supported contact does not read as a crash (Task 5b)', () => {
+  it('lets a gear-down airplane rest on the ground without recording a crash', () => {
+    // The precondition for take-off. Before supportedContact, the constraint
+    // clamped the airplane exactly onto the surface and `advance`'s geometric
+    // `y <= groundHeight` test then fired every tick, so sitting on a runway
+    // raised the crash debrief.
+    const parked = createState({ position: v3(0, 1000, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
+    let w: World<undefined> = { ...createWorld(spec, parked, level), terrain: plateau }
+    for (let i = 0; i < 120; i++) w = advance(w, DT).world
+    expect(w.impact).toBeNull()
+    expect(w.aircraft.position.y).toBeCloseTo(1000, 6)
+  })
+})
