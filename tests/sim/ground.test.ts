@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gearAfter, gearDragN, onGround, GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
+import { gearAfter, gearDragN, onGround, restOnSurface, GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -89,5 +89,33 @@ describe('weight on wheels', () => {
     // `contactOutcome` takes: a broken state must not be reported as safely
     // on the ground, where the constraint would then act on it.
     expect(onGround(at(Number.NaN), 0)).toBe(false)
+  })
+})
+
+describe('the ground constraint', () => {
+  it('kills the sink rate of an airplane settling onto the surface', () => {
+    const s = createState({ position: v3(0, 0.1, 0), velocity: v3(50, -2, 0) })
+    const r = restOnSurface(s, 0)
+    expect(r.velocity.y).toBe(0)
+    expect(r.velocity.x).toBe(50)
+  })
+
+  it('places it exactly on the surface', () => {
+    expect(restOnSurface(createState({ position: v3(0, 0.1, 0) }), 0).position.y).toBe(0)
+  })
+
+  it('NEVER lifts an airplane that is below the surface', () => {
+    // Raising it would add g*h and trip assertNoEnergyGain at idle throttle.
+    // Below the surface is Plan 10's business, not this function's.
+    const below = createState({ position: v3(0, -5, 0), velocity: v3(50, -2, 0) })
+    expect(restOnSurface(below, 0).position.y).toBe(-5)
+  })
+
+  it('leaves a climbing airplane alone, vertical velocity included', () => {
+    // On the take-off roll the airplane is within tolerance of the ground while
+    // rotating; clamping a positive climb rate to zero would pin it to the
+    // runway and it would never fly.
+    const r = restOnSurface(createState({ position: v3(0, 0.1, 0), velocity: v3(60, 3, 0) }), 0)
+    expect(r.velocity.y).toBe(3)
   })
 })

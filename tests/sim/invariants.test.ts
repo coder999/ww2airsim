@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { createState, DT, type Controls } from '../../src/sim/flight/model.js'
+import { restOnSurface, GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import {
   specificEnergyAirmass,
   assertFinite,
@@ -112,5 +113,20 @@ describe('isIdleThrottle', () => {
 
   it('is false for a positive throttle', () => {
     expect(isIdleThrottle({ pitch: 0, roll: 0, yaw: 0, throttle: 0.5 })).toBe(false)
+  })
+})
+
+describe('the ground constraint and spec §11', () => {
+  it('the ground constraint never increases specific energy', () => {
+    // The invariant this whole design is arranged around. Sweep the constraint
+    // across the tolerance band and assert energy is non-increasing every time.
+    for (let dy = -GROUND_CONTACT_TOLERANCE_M; dy <= GROUND_CONTACT_TOLERANCE_M; dy += 0.01) {
+      for (const vy of [-8, -2, -0.1, 0, 0.1, 2, 8]) {
+        const s = createState({ position: v3(0, dy, 0), velocity: v3(60, vy, 0) })
+        const before = specificEnergyAirmass(s)
+        const after = specificEnergyAirmass(restOnSurface(s, 0))
+        expect(after, `dy=${dy} vy=${vy}`).toBeLessThanOrEqual(before + 1e-9)
+      }
+    }
   })
 })

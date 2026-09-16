@@ -2,7 +2,8 @@ import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
-import { gearDragN } from '../ground.js'
+import { gearAfter, gearDragN, onGround, restOnSurface } from '../ground.js'
+import { heightAt } from '../world/terrain.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -230,8 +231,25 @@ export function step(
   force = add(force, v3(0, -mass * G, 0))
 
   const accel = scale(force, 1 / mass)
-  const velocity = add(state.velocity, scale(accel, dt))
-  const position = add(state.position, scale(velocity, dt))
+  let velocity = add(state.velocity, scale(accel, dt))
+  let position = add(state.position, scale(velocity, dt))
+
+  // The ground constraint: keeps the airplane from sinking through the
+  // surface without ever lifting it off (see `restOnSurface`'s doc comment
+  // for why that direction matters -- `assertNoEnergyGain`). `ctx.terrain`
+  // being `null` short-circuits before `heightAt` is ever called, the same
+  // guard `advance`'s impact check (`src/sim/loop.ts`) applies for the same
+  // reason: the overwhelmingly common, pre-Task-8 no-terrain path must not
+  // pay for a terrain query it has nothing to query.
+  if (ctx.terrain != null) {
+    const groundHeightM = heightAt(ctx.terrain, position.x, position.z)
+    const integrated: AircraftState = { ...state, position, velocity }
+    if (onGround(integrated, groundHeightM)) {
+      const rested = restOnSurface(integrated, groundHeightM)
+      position = rested.position
+      velocity = rested.velocity
+    }
+  }
 
   const workJ = thrustN * Math.max(v, 1) * dt
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
@@ -280,9 +298,11 @@ export function step(
     : withWeathercock
   const attitude = qIntegrateBodyRates(state.attitude, ratesWithStall, dt)
 
-  // Gear position is not advanced here -- `gearAfter` (src/sim/ground.ts) is
-  // this plan's command for that, and wiring it to `controls.gearDown` is a
-  // later task's job. `step` only has to carry the current value forward so
-  // it is not lost between ticks.
-  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick, gearFraction: state.gearFraction }
+  // `gearFraction` is state, and `step` is what produces the next state, so
+  // advancing it is `step`'s job, not a later task's -- `gearAfter`
+  // (src/sim/ground.ts) is this plan's command for that, driven by
+  // `controls.gearDown`.
+  const gearFraction = gearAfter(spec, state.gearFraction, controls.gearDown, dt)
+
+  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick, gearFraction }
 }

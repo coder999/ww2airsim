@@ -1,3 +1,4 @@
+import { v3 } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState } from './flight/state.js'
 
@@ -65,4 +66,30 @@ export const GROUND_CONTACT_TOLERANCE_M = 0.25
 export function onGround(state: AircraftState, groundHeightM: number): boolean {
   return state.position.y - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
     && state.position.y - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
+}
+
+/**
+ * Rests the airplane on the surface: stops it sinking through the ground
+ * without ever lifting it off the ground.
+ *
+ * One-directional in both components, and that is the whole design:
+ * `invariants.ts`'s `assertNoEnergyGain` asserts specific energy never rises
+ * at idle throttle, and raising `position.y` toward the surface from below
+ * adds `g * h` -- a real energy gain, not a rounding artefact. So this
+ * function clamps `position.y` DOWN to `groundHeightM` only when it is
+ * currently above that (an airplane already below the surface is left where
+ * it is -- that is Plan 10's `advance` impact check to handle, not this
+ * function's), and clamps `velocity.y` UP to 0 only when it is negative,
+ * which only ever removes kinetic energy. A climbing or level airplane
+ * within tolerance of the ground (e.g. rotating on the take-off roll) is
+ * left completely alone.
+ */
+export function restOnSurface(state: AircraftState, groundHeightM: number): AircraftState {
+  const y = state.position.y > groundHeightM ? groundHeightM : state.position.y
+  const vy = state.velocity.y < 0 ? 0 : state.velocity.y
+  return {
+    ...state,
+    position: v3(state.position.x, y, state.position.z),
+    velocity: v3(state.velocity.x, vy, state.velocity.z),
+  }
 }

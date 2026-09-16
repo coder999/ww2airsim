@@ -101,7 +101,7 @@ describe('AircraftSpec validation (spec §9)', () => {
       expect(() => parseAircraftSpec(bad)).toThrow(/aerodynamics/)
     })
 
-    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'reference', 'view'] as const)(
+    it.each(['geometry', 'mass', 'aero', 'engine', 'rates', 'limits', 'gear', 'reference', 'view'] as const)(
       'rejects an unknown key inside %s',
       (section) => {
         const bad = {

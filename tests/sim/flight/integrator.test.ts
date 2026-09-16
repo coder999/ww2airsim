@@ -157,3 +157,23 @@ describe('AircraftState.tick', () => {
     expect(b.tick - a.tick).toBe(1)
   })
 })
+
+describe('AircraftState.gearFraction is advanced by step', () => {
+  // `gearFraction` is state, and `step` produces the next state -- before
+  // this, `gearAfter` (src/sim/ground.ts) was fully tested in isolation but
+  // never called from `step`, so the gear would never actually move in the
+  // running simulation no matter what `Controls.gearDown` said.
+  const level: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
+
+  it('moves the gear across a step when gearDown is commanded', () => {
+    const s = createState({ velocity: v3(130, 0, 0), gearFraction: 0 })
+    const next = step(f6f, s, { ...level, gearDown: true }, { dt: DT, tick: 1 })
+    expect(next.gearFraction).toBeGreaterThan(0)
+  })
+
+  it('does not move the gear when gearDown is not commanded', () => {
+    const s = createState({ velocity: v3(130, 0, 0), gearFraction: 0.4 })
+    const next = step(f6f, s, level, { dt: DT, tick: 1 })
+    expect(next.gearFraction).toBe(0.4)
+  })
+})
