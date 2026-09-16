@@ -1,5 +1,8 @@
 # Plan 6a (cockpit panel) — resume snapshot, 2026-09-15
 
+> **Superseded:** continuation completed; see [final handoff](2026-09-15-cockpit-panel.md).
+> The snapshot below describes the earlier stopping point.
+
 Written mid-execution because the session ran low on usage. This is the
 durable record; the SDD ledger it summarises is **gitignored** and will not
 survive `git clean -fdx`.
