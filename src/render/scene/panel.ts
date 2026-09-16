@@ -52,13 +52,22 @@ export type Panel = {
   /** Column gauges (today: only `throttle`) -- the light bar `updatePanel`
    *  scales on Y to show how full the control's travel is. */
   readonly columns: Map<GaugeId, { readonly fill: Object3D }>
-  readonly horizon: Object3D
   /**
    * The artificial-horizon ball in the `attitude` slot (Task 6, 2026-09-15),
    * fourth in the lower row where the round heading dial used to be.
    *
    * Not a `GAUGES` entry (controller ruling R1): it is panel geometry driven
-   * by `attitudeAngles(state)`, exactly as the horizon bar it will replace.
+   * by `attitudeAngles(state)`. It replaced the horizon bar -- a cyan strip
+   * floating at eye level, positioned in 3D to trace the true horizon exactly
+   * -- which Task 7 (2026-09-15) then retired once this ball carried
+   * equivalent test coverage. Unlike the bar, the ball is a panel-mounted
+   * instrument like every other dial in the row: its BANK reading still
+   * matches the true horizon's screen angle exactly (verified below), but its
+   * PITCH reading is a scaled dial-face deflection (`attitudeBallGeometry`'s
+   * own doc comment has the derivation), not a literal projection of where
+   * the true horizon falls on screen -- the bar's own height-matching
+   * property does not carry over, by design, the same way a real panel
+   * attitude indicator does not track pixel-for-pixel with the windscreen.
    *
    * `ball` is a `Group` of two meshes (sky, ground) whose GEOMETRY
    * `updatePanel` rebuilds every frame as circular segments of a circle of
@@ -246,19 +255,6 @@ export { PANEL_AHEAD_M }
  */
 export const PANEL_BELOW_M = 0.19
 
-/** Beyond this the horizon is well off screen and `tan` runs away. */
-const MAX_HORIZON_PITCH = (75 * Math.PI) / 180
-/**
- * The horizon bar's depth within the panel, and its distance from the eye.
- *
- * The panel root is turned -90 degrees about Y, which sends local +Z to body
- * -X: a bar nudged forward off the panel face in local +Z is 2 mm CLOSER to
- * the pilot, not further. Small, but the bar's placement divides by this
- * distance, and using 0.6 instead of 0.598 left a 0.33% error that the
- * screen-position test caught.
- */
-const HORIZON_Z = -0.003
-const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
 /**
  * The reflector sight, as an angle rather than a size.
  *
@@ -271,10 +267,13 @@ const HORIZON_DISTANCE_M = PANEL_AHEAD_M - HORIZON_Z
  */
 const RETICLE_SPAN_DEG = 3
 const RETICLE_GAP_DEG = 1
-/** In front of the horizon bar, so the bar cannot cut across the sight. */
+/** Nudged off the panel's z=0 datum (the dial faces' own plane) so it does
+ *  not z-fight with them; `panel.test.ts` pins the sight's own screen
+ *  position independently of this value, at every attitude. */
 const RETICLE_Z = -0.004
 
-/** The coaming: an opaque plate the horizon bar passes behind. */
+/** The coaming: an opaque plate giving the dashboard a hard lower edge
+ *  instead of reading as a strip with sky visible beneath it. */
 const BACKING_Z = -0.001
 
 /**
@@ -515,14 +514,6 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     root.add(column)
   })
 
-  // The bar now sits BEHIND an opaque coaming rather than in front of the
-  // dials. I-7 replaced its clamped offset with exact geometry, which is
-  // right, but exact geometry means it keeps travelling: from 8 degrees
-  // nose-up it reached the dial faces and by 17.5 it crossed the centres of
-  // the two inner dials, drawn over their scale marks and under their
-  // needles -- a layering nobody chose. Letting the panel occlude it is what
-  // a real coaming does, and it needs no clamp to do it.
-  //
   // Full width at the NARROWEST supported window, so a wider one still has
   // the bezel reaching both edges rather than stopping short of them.
   const halfV = Math.tan(((CAMERA_VFOV_DEG / 2) * Math.PI) / 180)
@@ -541,13 +532,6 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   backing.name = 'backing'
   backing.position.set(0, PANEL_BELOW_M - (backingTop + backingBottom) / 2, BACKING_Z)
   root.add(backing)
-
-  const horizon = new Mesh(
-    new BoxGeometry(DIAL_RADIUS * 1.6, 0.01, 0.004),
-    new MeshBasicMaterial({ color: 0x6fd3ff }),
-  )
-  horizon.position.set(0, PANEL_BELOW_M, HORIZON_Z)
-  root.add(horizon)
 
   // The attitude ball: the `attitude` slot Task 3 allocated in the lower
   // row, fourth position where the round heading dial used to sit. Ruling
@@ -570,9 +554,10 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // replaces every frame (`attitudeBallGeometry`, above) rather than a
     // rigid transform on a static, oversized mesh -- see that function's
     // doc comment for why. Built here at a level attitude so the panel is
-    // never degenerate before the first `updatePanel` call, matching how
-    // the horizon bar starts level (`panel.test.ts`'s "starts the bar at
-    // eye level, before any update has run").
+    // never degenerate before the first `updatePanel` call -- the retired
+    // horizon bar made the same claim about itself, and `panel.test.ts`'s
+    // "starts level, before any update has run" (attitude ball describe
+    // block) is this ball's own version of that check.
     const ball = new Group()
     ball.name = 'attitude:ball'
     const initial = attitudeBallGeometry(0, 0)
@@ -606,7 +591,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const sightDistance = PANEL_AHEAD_M - RETICLE_Z
   const armM = sightDistance * Math.tan((RETICLE_SPAN_DEG * Math.PI) / 360)
   const gapM = sightDistance * Math.tan((RETICLE_GAP_DEG * Math.PI) / 360)
-  const strokeM = armM * 0.09
+  const strokeM = armM * 0.14
   const reticleMat = new MeshBasicMaterial({ color: 0xffdf7a })
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
     const long = armM - gapM
@@ -724,7 +709,6 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     needles,
     readouts,
     columns,
-    horizon,
     attitude: attitude!,
     reticle,
     backing,
@@ -749,16 +733,20 @@ export function updatePanel(
   controls: Controls,
   makeText: TextTextureFactory = makeTextTexture,
   /**
-   * The attitude to lay the horizon bar against, when it differs from the
-   * simulated one.
+   * The attitude to lay the attitude ball's horizon against, when it differs
+   * from the simulated one.
    *
    * The camera and the airframe are posed from the INTERPOLATED tick, the
-   * numeric gauges from the simulated one. Until 2026-09-13 the bar took the
+   * numeric gauges from the simulated one. This parameter exists because of
+   * the horizon bar the ball replaced (Task 7, 2026-09-15 retired the bar
+   * itself, not this parameter): until 2026-09-13 that bar took the
    * simulated attitude too, so at 80 deg/s of roll it led the visible horizon
    * by up to a third of a tick -- 1.33 degrees of sawtooth against the one
    * thing it exists to agree with, worst on a display faster than the 60 Hz
-   * sim. The numbers on the dials are unaffected: nothing on screen contradicts
-   * them, so reading them a fraction of a tick early is invisible.
+   * sim. The ball uses it for the same reason (`updatePanel`'s own attitude-
+   * ball code below). The numbers on the dials are unaffected: nothing on
+   * screen contradicts them, so reading them a fraction of a tick early is
+   * invisible.
    */
   renderAttitude: AircraftState['attitude'] = state.attitude,
 ): void {
@@ -829,63 +817,35 @@ export function updatePanel(
     }
   }
   const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
-  // A real artificial horizon stays level with the WORLD, so the bar must sit
-  // at the angle the true horizon appears at in the pilot's view -- which is
-  // NOT the same as "rotate the bar opposite the aircraft's roll number".
+
+  // The attitude ball, from `rollRad`/`pitchRad` above -- via `renderAttitude`,
+  // not the simulated attitude, so it never lags the visible horizon under
+  // fast roll (see this function's `renderAttitude` doc comment).
+  //
+  // A real artificial horizon stays level with the WORLD, so the ball's own
+  // horizon chord must sit at the angle the true horizon appears at in the
+  // pilot's view -- which is NOT the same as "rotate the ball opposite the
+  // aircraft's roll number".
   //
   // This frame's +Z points back at the pilot (the panel root is turned -pi/2
-  // about Y, sending local +Z to body -X), so a POSITIVE rotation.z is
+  // about Y, sending local +Z to body -X), so a POSITIVE rotation about Z is
   // anticlockwise on screen; and in a right bank the true horizon appears
-  // rotated anticlockwise. Both signs therefore go the same way, and
-  // `rotation.z = rollRad` is what makes the bar match the horizon rather
-  // than mirror it.
+  // rotated anticlockwise. Both signs therefore go the same way, which is why
+  // `attitudeBallGeometry` below is built directly from `rollRad`, not
+  // `-rollRad`.
   //
-  // Measured 2026-09-13 with this project's own createPanel/updatePanel/
-  // cameraTransformFor/toThreeOrientation, posed as main.ts poses them: at a
-  // 30-degree right bank the bar now reads +30.00 degrees (+ = right end up)
-  // against a true horizon of +30.00; the previous `-rollRad` read -30.00, a
-  // 60-degree error that scaled with bank. tests/render/panel.test.ts pins
-  // this against the camera-space projection of world-up, computed
-  // independently of this line -- the old test asserted `-rollRad` and so
-  // defended the bug through fifteen task reviews.
-  panel.horizon.rotation.z = rollRad
-
-  // Where the bar SITS, which nothing checked until 2026-09-13. C-1 and C-2
-  // both corrected its angle; its height was a fixed panel offset plus
-  // `pitchRad * 0.08`, an invented scale, so at zero pitch it hung 15.8
-  // degrees below the eye line and read as a permanent nose-up error against
-  // the visible horizon in level flight.
-  //
-  // It is now placed by geometry with no tuned constant at all. The bar's
-  // datum, `PANEL_BELOW_M` in this frame, is exactly eye height. The true
-  // horizon is depressed below the nose by the pitch angle, so at
-  // `PANEL_AHEAD_M` ahead it lies `PANEL_AHEAD_M * tan(pitch)` lower -- and
-  // that offset runs PERPENDICULAR TO THE BAR, along the projected world up,
-  // not along the panel's own up, which is why it is rotated by roll too.
-  // Offsetting along panel up instead would be right at zero bank and wrong
-  // everywhere else, the same shape of error as C-2.
-  //
-  // Clamped only to keep `tan` finite near the vertical; at that pitch the
-  // horizon is far off screen and its exact position stops mattering.
-  const clampedPitch = Math.max(-MAX_HORIZON_PITCH, Math.min(MAX_HORIZON_PITCH, pitchRad))
-  const drop = HORIZON_DISTANCE_M * Math.tan(clampedPitch)
-  panel.horizon.position.set(
-    drop * Math.sin(rollRad),
-    PANEL_BELOW_M - drop * Math.cos(rollRad),
-    HORIZON_Z,
-  )
-
-  // The attitude ball, from the SAME `rollRad`/`pitchRad` the bar above uses
-  // and for the same reason (renderAttitude, not the simulated one, so it
-  // never lags the visible horizon under fast roll -- see this function's
-  // `renderAttitude` doc comment).
-  //
-  // Same sign convention the bar uses, and the same reason: in a RIGHT bank
-  // the true horizon appears rotated ANTICLOCKWISE on screen, so the ball's
-  // horizon rotates WITH `rollRad`, not against it. An earlier `-rollRad` in
-  // this codebase read -30.00 degrees against a true horizon of +30.00
-  // (panel.ts, 2026-09-13, the bar's own history above) -- the ball is built
-  // against the same proven convention rather than re-deriving it.
+  // Measured 2026-09-13, before this ball existed, on this same codebase's
+  // former horizon bar (createPanel/updatePanel/cameraTransformFor/
+  // toThreeOrientation, posed as main.ts poses them): at a 30-degree right
+  // bank `rotation.z = rollRad` read +30.00 degrees (+ = right end up)
+  // against a true horizon of +30.00; `-rollRad` read -30.00, a 60-degree
+  // error that scaled with bank and that the bar's own test had asserted for
+  // fifteen task reviews before being caught. Task 7 (2026-09-15) retired
+  // that bar once this ball carried equivalent coverage
+  // (tests/render/panel.test.ts's "the attitude ball" describe block), but
+  // the sign derivation above is exactly as load-bearing for the ball's own
+  // `rollRad` as it was for the bar's, which is why it moved here rather than
+  // being deleted with the code it used to describe.
   //
   // Rebuilt as fresh geometry (`attitudeBallGeometry`'s own doc comment has
   // the fix's full history) rather than moved as a rigid transform: fix

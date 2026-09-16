@@ -480,7 +480,7 @@ async function boot(): Promise<void> {
     const visibility = airframeVisibilityFor(current.cameraMode)
     cockpit.visible = visibility.cockpitVisible
     hellcatRoot.visible = visibility.hellcatVisible
-    // Numeric gauges from the simulated tick; the horizon bar from the
+    // Numeric gauges from the simulated tick; the attitude ball from the
     // INTERPOLATED attitude, because it is the one instrument compared
     // against something visible in the same frame. `current.controls` is
     // also the pilot's raw input, not part of `AircraftState` (state.ts:8),
