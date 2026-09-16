@@ -3,6 +3,7 @@ import type { AircraftState, Controls } from './flight/state.js'
 import { DT, step } from './flight/model.js'
 import { heightAt, type TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
+import { surfaceAt, contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -145,8 +146,8 @@ const identityAssist = <M>(
  * Recorded once, on the first step where the airplane is at or below the
  * ground under it. `advance` does not clear it on later steps and does not
  * react to it (no bounce, no stop, no invariant trip) -- this task only
- * records the event; what happens to the airplane after a crash is Plan 8's
- * subject, so acting on `impact` here would be scope this task does not own.
+ * records the event; what happens to the airplane after a crash is Plan 10's
+ * subject, and `surface`/`kind` below are exactly that.
  */
 export type Impact = {
   /** `SimContext.tick` of the step that first satisfied the impact test. */
@@ -165,6 +166,11 @@ export type Impact = {
    *  has moved on (a later task's field, not this one's, could even swap the
    *  field itself). */
   readonly groundHeightM: number
+  /** Which surface this was, from `groundHeightM` — see `surfaceAt`. */
+  readonly surface: ContactSurface
+  /** Whether the airplane survived it. Land is always `'destroyed'`: there is
+   *  no landing gear yet. See `contactOutcome`. */
+  readonly kind: ContactKind
 }
 
 export interface World<M = undefined> {
@@ -392,11 +398,14 @@ export function advance<M>(
     if (impact === null && world.terrain !== null) {
       const groundHeightM = heightAt(world.terrain, current.position.x, current.position.z)
       if (current.position.y <= groundHeightM) {
+        const surface = surfaceAt(groundHeightM)
         impact = {
           tick: current.tick,
           position: current.position,
           verticalSpeedMps: current.velocity.y,
           groundHeightM,
+          surface,
+          kind: contactOutcome(world.spec, current, surface),
         }
       }
     }
