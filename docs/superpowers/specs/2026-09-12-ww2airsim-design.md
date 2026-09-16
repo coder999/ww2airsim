@@ -693,13 +693,14 @@ happens next, and the **Plan** column for what a document means when it says
 | 4 | 4 | Terrain and level of detail | §4 | Complete |
 | 5 | 5 | Ocean | §4 | Complete |
 | 6a | 6 | Cockpit panel | §4 | Complete; [original handoff](../../handoff/2026-09-15-cockpit-panel.md), [cockpit/follow-view feedback](../../handoff/2026-09-15-cockpit-feedback.md) |
-| 10 | 7 — next | Ground and water contact, and crash response | §4, §5 | Not started |
+| 10 | 7 — next | Ground and water contact, and crash response | §4, §5 | [Design](2026-09-16-ground-contact-design.md) written 2026-09-16; not started |
 | 11 | 8 | Gear, flaps and ground handling; take-off and landing ashore | §5 | Not started |
 | 12 | 9 | Entities, ships and airfields | §4 | Not started |
-| 8 | 10 | Carrier and airfield operations | §4, §8 | Not started |
-| 6 | 11 | Combat and damage | §6 | Not started |
-| 7 | 12 | AI | §7 | Not started |
-| 9 | 13 | Meta-game | §8 | Not started |
+| 14 | 10 | Mission map | §4, §8 | Not started |
+| 8 | 11 | Carrier and airfield operations | §4, §8 | Not started |
+| 6 | 12 | Combat and damage | §6 | Not started |
+| 7 | 13 | AI | §7 | Not started |
+| 9 | 14 | Meta-game | §8 | Not started |
 | 13 | any | Terrain surface detail | §4 | Not started; render-only |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
@@ -726,6 +727,17 @@ for it:
    touchdown, roll-out and brakes against something that is not itself
    moving, so that a landing defect in Plan 8 has one candidate cause and not
    two.
+
+Plan 14, the mission map, is deferred to here rather than built early
+(2026-09-16, Mark's suggestion and my recommendation to wait). Its entire
+substance is the points of interest — friendly base, carrier, enemy base,
+primary target — and five of the six entries in the 1991 original's map legend
+are entities. Built before Plan 12 it would show terrain, the player's own
+airplane, and a legend of things that do not exist, and the half that makes it
+useful (click a target, get a course line and a heading) *is* the entity logic.
+It does share a mechanism with Plan 10's debrief — a modal over a frozen
+simulation — which is why Plan 10's design puts the freeze in the frame rather
+than inside the debrief.
 
 Plan 13 is render-only — beach and jungle surfacing, vegetation — and nothing
 in `sim/` reads it, so it can land whenever. Alongside Plan 11 is the natural
