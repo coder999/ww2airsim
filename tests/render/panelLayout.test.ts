@@ -14,12 +14,22 @@ describe('the panel vertical budget (2026-09-15)', () => {
     // The defect this exists for: on 2026-09-13 PANEL_BELOW_M was 0.35, which
     // put every label and readout past the frustum edge -- only the top
     // slivers of six discs were ever visible. Nothing measured it.
+    //
+    // A full 1-degree margin on the bottom edge, matching ruling R4's own
+    // margin on the horizontal budget below -- Ruling R12 (Task 6 fix round
+    // 3, 2026-09-15) pointed out that accepting a bare `toBeLessThanOrEqual`
+    // here was the same knife-edge shape R4 already rejected on the other
+    // axis (a 0.14-degree horizontal margin, ruled insufficient there).
+    // `LOWER_H`'s own doc comment in panelLayout.ts records the real dial
+    // extent measured against several candidate values of this constant --
+    // see it for the derivation this margin guards.
+    const MARGIN_DEG = 1
     const bottomEdge = CAMERA_VFOV_DEG / 2
     for (const [name, band] of Object.entries(PANEL_BANDS)) {
       expect(degreesBelowEye(band.top), `${name} top clears the horizon`)
         .toBeGreaterThanOrEqual(HORIZON_KEEP_DEG)
-      expect(degreesBelowEye(band.bottom), `${name} bottom is on screen`)
-        .toBeLessThanOrEqual(bottomEdge)
+      expect(degreesBelowEye(band.bottom), `${name} bottom clears the frame edge by a full margin`)
+        .toBeLessThanOrEqual(bottomEdge - MARGIN_DEG)
     }
   })
 

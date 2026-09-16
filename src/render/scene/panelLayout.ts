@@ -41,9 +41,23 @@ const GUTTER = 0.010
  *   0.172 -> 27.43 deg   top margin -13.0 mm   bottom margin -14.0 mm
  *   0.188 -> 28.62 deg   top margin  -5.0 mm   bottom margin  -6.0 mm  (R11's own figure; still short both sides)
  *   0.200 -> 29.50 deg   top margin  +1.0 mm   bottom margin  ~0    mm  (exact fit, bottom-bound)
- *   0.202 -> 29.64 deg   top margin  +2.0 mm   bottom margin  +1.0 mm  (chosen: 2 mm past the exact fit, mirroring R11's own "not a knife edge" margin)
+ *   0.202 -> 29.64 deg   top margin  +2.0 mm   bottom margin  +1.0 mm  (fix round 2's chosen value)
+ *
+ * Ruling R12 (Task 6 fix round 3, 2026-09-15) rejected 0.202's resulting
+ * frame margin -- 30 - 29.64 = 0.36 degrees -- as the same knife-edge shape
+ * ruling R4 already rejected on the HORIZONTAL axis (a 0.14-degree margin
+ * there, required to be a full 1 degree). The reviewer traced the real slack
+ * to the dial's own layout, not the frame: the readout/label sat 0.088 m
+ * from the dial's centre against a bezel outer radius of only 0.0654 m (see
+ * `DIAL_TEXT_OFFSET_M` in panel.ts), a 30 mm gap neither plate needs. That
+ * constant narrowed to 0.08 m, which shrinks the dial's own vertical reach
+ * enough to buy the margin back from `LOWER_H` instead of spending it on the
+ * frame edge:
+ *   0.202, DIAL_TEXT_OFFSET_M=0.088 -> 29.64 deg (0.36 deg margin)  top +2.0 mm   bottom +1.0 mm  (fix round 2)
+ *   0.202, DIAL_TEXT_OFFSET_M=0.08  -> 29.64 deg (0.36 deg margin)  top +10.0 mm  bottom +9.0 mm  (offset narrowed; frame margin unchanged, so still not enough)
+ *   0.190, DIAL_TEXT_OFFSET_M=0.08  -> 28.77 deg (1.23 deg margin)  top  +4.0 mm  bottom +3.0 mm  (chosen: clears R12's 1-degree minimum with the same kind of headroom R4 required, while every dial keeps a few mm of its own containment margin)
  */
-const LOWER_H = 0.202                                 // readout + dial + label
+const LOWER_H = 0.190                                 // readout + dial + label
 
 export const PANEL_BANDS: { readonly upper: Band; readonly lower: Band } = {
   upper: { top: UPPER_TOP, bottom: UPPER_TOP + UPPER_H },

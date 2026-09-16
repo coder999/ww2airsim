@@ -9,7 +9,12 @@ import {
   TAPE_CULL_MARGIN_M,
   type Panel,
 } from '../../src/render/scene/panel.js'
-import { degreesBelowEye, PANEL_BANDS, PANEL_SLOTS } from '../../src/render/scene/panelLayout.js'
+import {
+  degreesBelowEye,
+  DIAL_RADIUS,
+  PANEL_BANDS,
+  PANEL_SLOTS,
+} from '../../src/render/scene/panelLayout.js'
 import {
   GAUGES,
   angleForValue,
@@ -247,16 +252,22 @@ function ballScreenHeight(panel: Panel, state: AircraftState, worldToCamera: Qua
  * Resolves the chord-endpoint-order ambiguity `ballChordEndpoints` documents
  * using a THIRD vertex -- an interior point of the sky arc, which sits
  * strictly between the two endpoints and so is unambiguously part of the
- * sky, not a candidate for either end. Geometrically: walking along the
- * chord from `skyFrom` to `skyTo`, the sky region is on the LEFT (this falls
- * straight out of `attitudeBallGeometry`'s own derivation -- that direction
- * equals a positive multiple of `(cos(rollRad), sin(rollRad))`, and the sky
- * side, `dot(Q, up) > d` with `up = (-sin(rollRad), cos(rollRad))`, is
- * exactly `up`, which is 90 degrees left of that direction). So whichever
- * candidate direction puts the interior sky vertex on its left is the
- * correctly-oriented one -- entirely in the mesh's own LOCAL space, since a
- * rotation (the only kind of transform between here and world space)
- * preserves left/right.
+ * sky, not a candidate for either end.
+ *
+ * Geometrically: `attitudeBallGeometry` enumerates the sky shape's points
+ * FROM `skyFrom` TO `skyTo` (increasing angle), and that walking direction
+ * (`skyTo`'s point minus `skyFrom`'s point) is a NEGATIVE multiple of
+ * `(cos(rollRad), sin(rollRad))` -- check it at `rollRad=0, d=0`: `(r,0) ->
+ * (-r,0)`. The sky side, `dot(Q, up) > d` with `up = (-sin(rollRad),
+ * cos(rollRad))`, is 90 degrees left of `(cos(rollRad), sin(rollRad))`
+ * itself, which puts it on the RIGHT of the `skyFrom -> skyTo` walk, not
+ * the left. The REVERSE direction -- `skyFrom`'s point minus `skyTo`'s
+ * point, i.e. `p0 - pLast` when index 0 genuinely is the `skyFrom` end --
+ * is the positive multiple, with sky on ITS left. That reverse direction is
+ * the candidate this code tests: whichever of `p0 - pLast` or its negation
+ * puts the interior sky vertex on its left is the correctly-oriented one --
+ * entirely in the mesh's own LOCAL space, since a rotation (the only kind
+ * of transform between here and world space) preserves left/right.
  */
 function ballScreenAngle(panel: Panel, worldToCamera: Quaternion): number {
   const sky = panel.attitude.ball.children[0] as Mesh
@@ -804,17 +815,41 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
   })
 
   it('keeps the attitude ball inside its own slot, horizontally and vertically, at every attitude the model can reach', () => {
+    // Pitch sweep includes +/-60 and +/-90 (review finding, fix round 3):
+    // `attitudeBallGeometry`'s clamp on `d` only engages once
+    // `|pitch| >= 37.5 deg` (at zero bank; tighter still at a bank away from
+    // zero, since `d` scales by `cos(rollRad)`), so a sweep that stopped at
+    // +/-30 never exercised the saturated/degenerate-segment path at all.
     for (const bankDeg of [0, 45, -45, 90, -90]) {
-      for (const pitchDeg of [0, 30, -30]) {
+      for (const pitchDeg of [0, 30, -30, 60, -60, 90, -90]) {
         const p = localPanel()
         updatePanel(p, f6f, attitude(pitchDeg, bankDeg), NEUTRAL_CONTROLS, () => null)
         p.root.updateMatrixWorld(true)
+        const label = `pitch=${pitchDeg} bank=${bankDeg}`
+
         const box = new Box3()
         box.union(new Box3().setFromObject(p.attitude.ball))
         box.union(new Box3().setFromObject(p.attitude.ring))
-        const label = `pitch=${pitchDeg} bank=${bankDeg}`
         expectHorizontallyWithinSlot('attitude', box, label)
         expectWithinLowerBand(box, label)
+
+        // The ring ALONE already saturates the slot's declared box exactly
+        // (`DIAL_RADIUS * 1.09 * 2 === widthM`), so the union above cannot
+        // see the ball's own disc grow past its face -- review finding, fix
+        // round 3. Checked separately: the ball's own `Box3`, centred on
+        // wherever `updatePanel` actually placed it (read off its own
+        // `matrixWorld`, not assumed from `PANEL_SLOTS`), must stay within
+        // `DIAL_RADIUS` on every side.
+        const centre = new Vector3().setFromMatrixPosition(p.attitude.ball.matrixWorld)
+        const ballBox = new Box3().setFromObject(p.attitude.ball)
+        expect(ballBox.min.x, `${label}: ball left edge within DIAL_RADIUS`)
+          .toBeGreaterThanOrEqual(centre.x - DIAL_RADIUS - EPS)
+        expect(ballBox.max.x, `${label}: ball right edge within DIAL_RADIUS`)
+          .toBeLessThanOrEqual(centre.x + DIAL_RADIUS + EPS)
+        expect(ballBox.min.y, `${label}: ball bottom edge within DIAL_RADIUS`)
+          .toBeGreaterThanOrEqual(centre.y - DIAL_RADIUS - EPS)
+        expect(ballBox.max.y, `${label}: ball top edge within DIAL_RADIUS`)
+          .toBeLessThanOrEqual(centre.y + DIAL_RADIUS + EPS)
       }
     }
   })

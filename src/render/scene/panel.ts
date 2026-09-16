@@ -59,10 +59,17 @@ export type Panel = {
    *
    * Not a `GAUGES` entry (controller ruling R1): it is panel geometry driven
    * by `attitudeAngles(state)`, exactly as the horizon bar it will replace.
-   * `ball` is the oversized sky/ground disc `updatePanel` rotates and
-   * translates each frame; `ring` is the static bezel that clips it to the
-   * dial-sized window so it can move under the ring without ever exposing an
-   * edge.
+   *
+   * `ball` is a `Group` of two meshes (sky, ground) whose GEOMETRY
+   * `updatePanel` rebuilds every frame as circular segments of a circle of
+   * radius `DIAL_RADIUS`, cut by the horizon chord at the current roll and
+   * pitch (`attitudeBallGeometry`, this file) -- there is no per-frame
+   * `rotation`/`position` change on the group itself; it stays at local
+   * identity forever. `ring` is the dial-style bezel ring drawn in front of
+   * it, purely decorative: fix round 1 (2026-09-15) found nothing in this
+   * renderer actually clips anything (no `clippingPlanes`, no stencil), so
+   * the ball's geometry is now built to never exceed `DIAL_RADIUS` in the
+   * first place -- `ring` no longer does any clipping work of its own.
    */
   readonly attitude: {
     readonly ball: Object3D
@@ -124,6 +131,20 @@ export const PANEL_MIN_ASPECT = 1.5
 const Z_MARKS = 0.0015
 const Z_READOUT = 0.0025
 const Z_NEEDLE = 0.005
+
+/**
+ * How far the readout (above) and label (below) sit from the dial's own
+ * centre. Was `0.088` for both until Ruling R12 (Task 6 fix round 3,
+ * 2026-09-15): that left a 30 mm gap beyond the bezel's own outer radius
+ * (`DIAL_RADIUS * 1.09` = 0.0654 m) on each side -- far more than either
+ * plate needs -- which is what forced `LOWER_H` (panelLayout.ts) to be wide
+ * enough to eat into the vertical frustum margin (down to 0.36 degrees,
+ * against the 1-degree minimum Ruling R4 already set for the horizontal
+ * axis). Narrowed to reclaim that slack from the dial's own layout instead
+ * of the frame: see `LOWER_H`'s own doc comment in panelLayout.ts for the
+ * joint derivation of this constant and that one.
+ */
+const DIAL_TEXT_OFFSET_M = 0.08
 
 /**
  * The attitude ball's sky/ground split, rebuilt fresh every `updatePanel`
@@ -383,7 +404,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // rendering them -- zero non-definition hits across src, tests and tools
     // before this (whole-branch review, I-2).
     const label = textPlate(labelTextFor(g), DIAL_GAP * 0.86, 0.024, makeText)
-    label.position.set(0, -0.088, Z_MARKS)
+    label.position.set(0, -DIAL_TEXT_OFFSET_M, Z_MARKS)
     dial.add(label)
 
     // Digital readout, ABOVE the dial rather than inside it. Inside, it
@@ -395,7 +416,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // reading a needle to better than a few hundred metres or a few degrees is
     // exactly what the oversized-dial trade gave up.
     const readoutMesh = textPlate('', DIAL_RADIUS * 1.15, 0.022, makeText)
-    readoutMesh.position.set(0, 0.088, Z_READOUT)
+    readoutMesh.position.set(0, DIAL_TEXT_OFFSET_M, Z_READOUT)
     dial.add(readoutMesh)
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
