@@ -11,6 +11,10 @@ export type Controls = {
    *  throughout the suite, and `undefined` reads as "unchanged", which is what
    *  every one of them means. */
   readonly gearDown?: boolean
+  /** Wheel brakes, [0, 1]. Optional for the same reason `gearDown` is:
+   *  `Controls` literals appear throughout the suite, and `undefined` reads
+   *  as "brakes off", which is what every one of them means. */
+  readonly brake?: number
 }
 
 export type AircraftState = {

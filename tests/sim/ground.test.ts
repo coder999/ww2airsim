@@ -5,6 +5,7 @@ import {
   onGround,
   restOnSurface,
   supportedContact,
+  rollingResistanceN,
   GROUND_CONTACT_TOLERANCE_M,
   MAX_SUPPORTED_SINK_MPS,
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
@@ -243,5 +244,24 @@ describe('supported contact (Task 5b)', () => {
       const descending = resting({ velocity: v3(capMps + 50, -ARRIVAL_SINK_THRESHOLD_MPS * 2, 0) })
       expect(supportedContact(f6f, descending, 0)).toBe(false)
     })
+  })
+})
+
+describe('rolling resistance', () => {
+  it('opposes the roll even with the brakes off', () => {
+    expect(rollingResistanceN(f6f, 5600, 0)).toBeGreaterThan(0)
+  })
+
+  it('grows with braking', () => {
+    expect(rollingResistanceN(f6f, 5600, 1)).toBeGreaterThan(rollingResistanceN(f6f, 5600, 0))
+  })
+
+  it('scales with weight, because it is a friction coefficient times weight', () => {
+    expect(rollingResistanceN(f6f, 11200, 0)).toBeCloseTo(2 * rollingResistanceN(f6f, 5600, 0), 6)
+  })
+
+  it('treats a missing or non-finite brake input as brakes off', () => {
+    expect(rollingResistanceN(f6f, 5600, undefined)).toBe(rollingResistanceN(f6f, 5600, 0))
+    expect(rollingResistanceN(f6f, 5600, Number.NaN)).toBe(rollingResistanceN(f6f, 5600, 0))
   })
 })

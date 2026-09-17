@@ -23,7 +23,12 @@ const valid = {
     altitudeHoldSeconds: 3,
   },
   limits: { diveSpeedMps: 216, gLimit: 7.5 },
-  gear: { travelSeconds: 7, dragAreaM2: 0.3 },
+  gear: {
+    travelSeconds: 7,
+    dragAreaM2: 0.3,
+    rollingResistanceCoeff: 0.02,
+    brakingResistanceCoeff: 0.4,
+  },
   reference: {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,
     climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80, takeoffDistanceM: 230,

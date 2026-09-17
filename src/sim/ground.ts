@@ -43,6 +43,33 @@ export function gearDragN(spec: AircraftSpec, gearFraction: number, q: number): 
 }
 
 /**
+ * Rolling-friction magnitude, newtons: the runway drags on the wheels
+ * whether or not the brakes are on, and the brakes drag harder.
+ *
+ * A friction coefficient times weight, blended linearly between
+ * `rollingResistanceCoeff` (brakes off) and `brakingResistanceCoeff` (brakes
+ * fully applied) by `brake`. `brake` is clamped to `[0, 1]`, and a
+ * non-finite value (missing control channel, `undefined`, NaN from a bad
+ * input event) is treated as 0 -- brakes off -- the same posture
+ * `clampFinite` takes for every other control channel in `step`: a broken
+ * input must fail toward the less aggressive behavior, not toward locking
+ * the wheels.
+ *
+ * Returns a magnitude only, not a direction -- `step` applies it opposing
+ * the ground track.
+ */
+export function rollingResistanceN(
+  spec: AircraftSpec,
+  massKg: number,
+  brake: number | undefined,
+): number {
+  const b = Number.isFinite(brake) ? Math.min(1, Math.max(0, brake as number)) : 0
+  const { rollingResistanceCoeff, brakingResistanceCoeff } = spec.gear
+  const coeff = rollingResistanceCoeff + b * (brakingResistanceCoeff - rollingResistanceCoeff)
+  return coeff * massKg * G
+}
+
+/**
  * How close to the surface counts as resting on it, meters.
  *
  * Wanted because the constraint below must not fight the integrator: an

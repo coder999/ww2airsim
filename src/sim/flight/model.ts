@@ -2,7 +2,7 @@ import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
-import { gearAfter, gearDragN, restOnSurface, supportedContact } from '../ground.js'
+import { gearAfter, gearDragN, restOnSurface, supportedContact, onGround, rollingResistanceN } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -255,8 +255,13 @@ export function step(
   // wrongly recorded as a crash 91 ticks (1.5 s) in, without this term.
   // `ctx.terrain` being `null` short-circuits before `heightAt` is called,
   // same as the block below.
+  // Whether the airplane was on the ground at the START of this step -- read
+  // by the rolling-resistance force below. Computed once here rather than
+  // re-querying `heightAt` a second time for the same position.
+  let onGroundStart = false
   if (ctx.terrain != null) {
     const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
+    onGroundStart = onGround(state, startGroundHeightM)
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
     // `supportedContact` bounds SINK but places no bound on CLIMB, so without
@@ -270,6 +275,23 @@ export function step(
     // still be recognized as supported once integrated.
     if (force.y < 0 && state.velocity.y <= 0 && supportedContact(spec, state, startGroundHeightM)) {
       force = v3(force.x, 0, force.z)
+    }
+
+    // Rolling resistance: the runway drags on the wheels, brakes off or on
+    // (Task 6). Opposes the GROUND TRACK -- the horizontal component of
+    // velocity, not `vdir`, which includes whatever vertical component the
+    // airplane has -- using the state at the START of this step, matching
+    // the ground-reaction block just above. Guarded exactly as `step`
+    // already guards `vdir`: a stationary airplane (or one with only
+    // vertical motion) gets zero resistance rather than a NaN direction.
+    if (onGroundStart) {
+      const track = v3(state.velocity.x, 0, state.velocity.z)
+      const trackSpeed = length(track)
+      if (trackSpeed > 1e-6) {
+        const trackDir = normalize(track)
+        const resistanceN = rollingResistanceN(spec, mass, controls.brake)
+        force = add(force, scale(trackDir, -resistanceN))
+      }
     }
   }
 
