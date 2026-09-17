@@ -159,14 +159,59 @@ describe('F6F-5 flight test card', () => {
   // this number in the same commit; 11b adding flaps is EXPECTED to move it,
   // not a regression to chase back to today's figure.
   //
-  // 2% leaves better than 3x headroom above the measured -0.605%, without
-  // absorbing an error the model does not actually have -- tightened from
-  // the prior 10%, which was sized for the old -6.73% fake-ground figure and
-  // would no longer catch a real regression at this model's current
-  // accuracy. Per this file's own rule, tighten (or re-measure) as the model
-  // changes; never widen to whatever passes.
-  it('rolls to its documented full-flaps take-off distance, at a tolerance that is honest about the model gaps', () => {
-    const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS), ref.takeoffDistanceM, 0.02)
+  // 2% left better than 3x headroom above the measured -0.605%, without
+  // absorbing an error the model did not actually have -- tightened from the
+  // prior 10%, which was sized for the old -6.73% fake-ground figure. Per this
+  // file's own rule, tighten (or re-measure) as the model changes; never widen
+  // to whatever passes.
+  //
+  // RE-MEASURED 2026-09-17 (Plan 11b, Tasks 3/5/6), which is the re-measure
+  // the paragraph above pre-authorised: "11b adding flaps is EXPECTED to move
+  // it, not a regression to chase back to today's figure." **This card is now
+  // LIKE-FOR-LIKE for the first time** -- the trial run was full flaps, and
+  // the model now has flaps, ground effect and rolling friction, so it is
+  // flown at `flapFraction` 1 below. Measured:
+  //
+  // | Flaps | Roll | vs the 230.124 m trial |
+  // | --- | --- | --- |
+  // | 0 (as graded until today) | 228.738 m | -0.602% |
+  // | 0.5 | 231.666 m | +0.670% |
+  // | 1 (as the trial flew) | 236.085 m | +2.590% |
+  //
+  // **`flap.dragAreaM2` was deliberately NOT tuned to close that gap.** It is
+  // 0.6 sq m on independent grounds -- twice the extended gear's drag area,
+  // and 92% of the airframe's own zero-lift drag area of 0.655 sq m, full
+  // flaps roughly doubling parasitic drag. Fitting one free parameter to one
+  // trial number would make this card tautological: it would then be
+  // guaranteed to agree and could no longer detect anything. 11a avoided
+  // exactly that by picking `gear.rollingResistanceCoeff` from generic
+  // tire-on-pavement figures and REPORTING the agreement rather than
+  // engineering it.
+  //
+  // WHY THE RESIDUAL RUNS THIS WAY, which is the part worth carrying forward:
+  // the model has ground effect's induced-drag reduction but deliberately NOT
+  // its lift increase (`groundEffectFactor`'s own comment says so). Extra lift
+  // near the surface would take weight off the wheels and so reduce rolling
+  // friction, shortening a real roll. A model missing it over-charges rolling
+  // friction for the whole roll and therefore rolls LONG -- which is the sign
+  // observed. So +2.590% is consistent with a known, named omission rather
+  // than being unexplained error.
+  //
+  // 4% is the re-measured tolerance: 1.5x headroom over the measured 2.590%.
+  // Tighter than the 10% this replaced two days ago and looser than the 2% it
+  // replaces today, for a model that now measures the right configuration.
+  it('rolls to its documented full-flaps take-off distance, flown as the trial was: full flaps', () => {
+    const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS, 1), ref.takeoffDistanceM, 0.04)
     expect(r.pass, `takeoff roll ${r.actual.toFixed(1)} m vs reference ${r.expected} (${(r.err * 100).toFixed(1)}% off)`).toBe(true)
+  })
+
+  it('rolls longer with full flaps than clean, which is the direction flap drag must push', () => {
+    // Cheap, and it closes the specific hole that the card above cannot see:
+    // if `flapDragN` were never wired into `step`'s drag sum -- the kind of
+    // thing a merge drops silently, which is why `step`'s parasitic-terms
+    // comment exists -- this card would simply read the clean figure and pass.
+    expect(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS, 1)).toBeGreaterThan(
+      measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS, 0),
+    )
   })
 })

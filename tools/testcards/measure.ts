@@ -342,7 +342,7 @@ const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
  */
 const TAKEOFF_MAX_S = 60
 
-export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): number {
+export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number, flapFraction = 0): number {
   // Task 15: `position.y` is the body origin, and a resting airplane's origin
   // sits `spec.gear.heightM` above the ground it is parked on
   // (`onGround`/`restOnSurface`, src/sim/ground.ts), not on the ground
@@ -350,7 +350,14 @@ export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): 
   // than `RUNWAY_HEIGHT_M`, is what keeps this card's datum shift invisible
   // -- the airplane starts exactly on its wheels over `FLAT_RUNWAY_FIELD`
   // either way, so the measured roll distance is unaffected by Task 15.
-  let s: AircraftState = { ...spawn(spec, RUNWAY_HEIGHT_M + spec.gear.heightM, 0), gearFraction: 1 }
+  // `flapFraction` defaults to 0 for callers predating Plan 11b. The trial
+  // figure this card grades against is a FULL-FLAPS run, so the card itself
+  // passes 1 -- see the card in f6f.test.ts.
+  let s: AircraftState = {
+    ...spawn(spec, RUNWAY_HEIGHT_M + spec.gear.heightM, 0),
+    gearFraction: 1,
+    flapFraction,
+  }
   const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
   let tick = 0
   for (let i = 0; i < 60 * TAKEOFF_MAX_S; i++) {
@@ -361,7 +368,8 @@ export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): 
   // Important 2's same reasoning applies here: a run that never reached
   // lift-off speed is not evidence of "whatever distance it had covered so far".
   throw new Error(
-    `measureTakeoffRun for "${spec.id}" did not reach ${liftoffSpeedMps.toFixed(3)} m/s within ` +
+    `measureTakeoffRun for "${spec.id}" with flaps at ${flapFraction} did not reach ` +
+      `${liftoffSpeedMps.toFixed(3)} m/s within ` +
       `${TAKEOFF_MAX_S} s of simulated time (airspeed ${airspeed(s).toFixed(3)} m/s, ` +
       `distance ${s.position.x.toFixed(1)} m at that point)`,
   )

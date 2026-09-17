@@ -695,7 +695,7 @@ git commit -m "Ground effect: less induced drag within a wingspan of the surface
 
 **What this task is really doing.** `reference.takeoffDistanceM` = 230.124 m is a **full-flaps** figure, and the model currently matches it to −0.605% with no flaps and no ground effect — `f6f-hellcat.json` says so itself: no flaps "pushes a simulated roll shorter", no ground effect "pushes it longer". Two errors of opposite sign, cancelling. 11a declared the re-measure pre-authorised. The distinction that matters: the tolerance is **recomputed from what the model now does**, never relaxed until it passes.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/sim/testcards/f6f.test.ts — modify the existing take-off card
@@ -715,16 +715,16 @@ it('matches the trial take-off run, flown as the trial was: full flaps', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/testcards/f6f.test.ts`
 Expected: FAIL — `measureTakeoffRun` takes two arguments, so the flap setting is ignored.
 
-- [ ] **Step 3: Thread flaps through the card, and give it real ground effect**
+- [x] **Step 3: Thread flaps through the card, and give it real ground effect**
 
 In `tools/testcards/measure.ts`, `measureTakeoffRun` gains a third parameter defaulting to 0 and sets `flapFraction` on its initial state, exactly as `measureStallSpeed` does in Task 4. Its synthetic flat field already reaches `step` through `SimContext.terrain` (11a), so `groundEffectFactor` applies with no further wiring — confirm that by asserting the roll changes when the flaps change, in the next step.
 
-- [ ] **Step 4: Characterise `flap.dragAreaM2` against the card**
+- [x] **Step 4: Characterise `flap.dragAreaM2` against the card**
 
 Run the card and read the printed figure. If it sits outside 2%, tune **`flap.dragAreaM2`** — it is the only unknown left, because the flap lift increment is derived (Task 1) and ground effect carries no fitted parameter (Task 5). Then:
 
@@ -732,7 +732,7 @@ Run the card and read the printed figure. If it sits outside 2%, tune **`flap.dr
 2. Add, in the same commit, the sentence that keeps this honest: the agreement is a **characterisation lock on `flap.dragAreaM2`**, not evidence of flap fidelity — the same status `gear.rollingResistanceCoeff` already has.
 3. Re-run the whole suite: `measureTakeoffRun` also feeds `tests/render/frame.test.ts`'s reported roll distance, which is not pinned but is printed.
 
-- [ ] **Step 5: Run the full suite and commit**
+- [x] **Step 5: Run the full suite and commit**
 
 Run: `npm run verify` — exit 0.
 
