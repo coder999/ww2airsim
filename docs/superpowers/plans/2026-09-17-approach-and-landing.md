@@ -1232,7 +1232,7 @@ git commit -m "An autopilot that can fly an approach, so Mark does not have to"
 
 **This is the deliverable of the whole plan.** It flies the autopilot into Tacloban over the real heightfield and asserts the airplane comes to rest on the strip — which is what Task 7 bought and what nothing currently checks.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/sim/landing.test.ts
@@ -1326,16 +1326,16 @@ describe('an approach flown into Tacloban', () => {
 
 Note the import of `RUNWAY_*` from `src/render/`: this is a TEST, so it may cross the boundary `src/sim/` may not. If `.dependency-cruiser.cjs` objects, move the three runway constants' assertions to comparing against the literal `(-29666, 47605)` with a comment pointing at `runway.ts`.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/landing.test.ts`
 Expected: FAIL. **Which way it fails is the information**: "never touched down" means the autopilot cannot fly the path; a crash means the gates or the flare are wrong; sliding off the strip means Task 7 is not applying.
 
-- [ ] **Step 3: Iterate on the autopilot until it lands**
+- [x] **Step 3: Iterate on the autopilot until it lands**
 
 Tune only `tools/autopilot/approach.ts` here — its gains, its Vref multiple, its flare height. **Do not touch the gates in `src/sim/ground.ts` in this task**; that is Task 11, and doing it here would hide a flying problem behind a widened gate. Record what each change bought in the commit message.
 
-- [ ] **Step 4: Run the full suite and commit**
+- [x] **Step 4: Run the full suite and commit**
 
 Run: `npm run verify` — exit 0.
 

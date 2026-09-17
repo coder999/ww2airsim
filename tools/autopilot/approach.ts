@@ -28,16 +28,29 @@ export type ApproachTarget = {
 export const VREF_STALL_MULTIPLE = 1.3
 /** Standard 3-degree approach path. Tuning value. */
 const GLIDE_PATH_RAD = (3 * Math.PI) / 180
-/** Height above the wheels' touchdown point at which the controller stops
- *  chasing the path and starts arresting the sink. Tuning value. */
-const FLARE_HEIGHT_M = 5
 /**
- * Nose-up held through the flare. **Bounded on purpose**: a full,
- * indefinitely-held deflection over-rotates into a stall and porpoises, which
- * `tests/render/frame.test.ts` records observing while it was written. Tuning
- * value.
+ * Height above the wheels' touchdown point at which the controller stops
+ * chasing the path and starts arresting the sink. Tuning value.
+ *
+ * **12 m, not the 5 m this started at, and the arithmetic is the reason.** At
+ * an approach speed near 49 m/s, 5 m of height is ONE TENTH OF A SECOND -- far
+ * too little to arrest a sink with a rate-commanded airplane, and the first
+ * flown approach drove the wheels 2.21 m underground at 5.16 m/s as a result.
  */
-const FLARE_PITCH = 0.35
+const FLARE_HEIGHT_M = 12
+/** Sink rate the flare aims to arrive at, m/s. Tuning value. */
+const FLARE_SINK_MPS = 0.6
+/**
+ * Ceiling on the nose-up the flare will command. **Bounded on purpose**: a
+ * full, indefinitely-held deflection over-rotates into a stall and porpoises,
+ * which `tests/render/frame.test.ts` records observing. Tuning value.
+ */
+const FLARE_PITCH_MAX = 0.5
+/** Ceiling on the sink rate the path loop will ask for, m/s, so a large height
+ *  error cannot command a dive. Tuning value, and deliberately below
+ *  `MAX_SUPPORTED_SINK_MPS` so the path loop can never itself demand an
+ *  arrival the gates would reject. */
+const MAX_APPROACH_SINK_MPS = 3.0
 /** Wheel braking during the roll-out. Tuning value. */
 const ROLLOUT_BRAKE = 0.6
 /** Throttle held on the path before the speed correction is added, so the
@@ -50,7 +63,15 @@ const APPROACH_THROTTLE = 0.3
  * rate-commanded airplane (master spec §5), and an integrator here would need
  * anti-windup to be honest about what it does at the control limits.
  */
-const PITCH_PER_PATH_ERROR_RAD = 3.0
+/** Commanded pitch per m/s of sink-rate error. */
+const PITCH_PER_SINK_ERROR = 0.25
+/** How much sink rate one metre of height error buys, per second. This is the
+ *  outer loop: height error sets a sink target, and the sink error sets pitch.
+ *  A cascade rather than pitch-from-height directly, because the first version
+ *  of this normalised the height error by the distance to the aim point and so
+ *  produced a gain that vanished at range -- `atan2(10, 5000)` is 0.002 rad,
+ *  which is no correction at all. */
+const SINK_PER_HEIGHT_ERROR = 0.04
 const THROTTLE_PER_MPS = 0.05
 const YAW_PER_OFFSET_M = 0.01
 
@@ -103,19 +124,43 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
     return { ...configured, pitch: 0, roll: 0, yaw, throttle: 0, brake: ROLLOUT_BRAKE }
   }
 
-  // Flare: stop chasing the path, close the throttle, hold a bounded nose-up.
+  const sinkMps = finite(-state.velocity.y)
+
+  // Flare: stop chasing the path and fly a sink rate instead, throttle closed.
+  // Pitch is clamped NON-NEGATIVE here -- the flare never pushes down, because
+  // the only thing below is the runway.
   if (wheelHeightM <= FLARE_HEIGHT_M) {
-    return { ...configured, pitch: FLARE_PITCH, roll: 0, yaw, throttle: 0, brake: 0 }
+    const sinkErrorMps = sinkMps - FLARE_SINK_MPS
+    return {
+      ...configured,
+      pitch: clamp(sinkErrorMps * PITCH_PER_SINK_ERROR, 0, FLARE_PITCH_MAX),
+      roll: 0,
+      yaw,
+      throttle: 0,
+      brake: 0,
+    }
   }
 
-  // On the path. Pitch corrects the path error and throttle holds Vref -- the
-  // conventional pairing, chosen because it keeps each loop readable, not
-  // because it is claimed to be optimal.
+  // On the path, as a cascade: the height error sets a sink-rate target, and
+  // the sink-rate error sets pitch. Throttle holds Vref -- the conventional
+  // pairing, chosen because it keeps each loop readable rather than because it
+  // is claimed to be optimal.
+  //
+  // Past the aim point `alongM` goes negative and the wanted height is zero, so
+  // the loop asks for the ceiling sink rate; the flare above is what actually
+  // catches that case, which is why the ceiling sits below the sink the landing
+  // gates will accept.
   const wantedHeightM = Math.max(0, alongM) * Math.tan(GLIDE_PATH_RAD)
-  const pathErrorRad = Math.atan2(wantedHeightM - wheelHeightM, Math.max(Math.abs(alongM), 1))
+  const heightErrorM = wheelHeightM - wantedHeightM
+  const nominalSinkMps = speedMps * Math.sin(GLIDE_PATH_RAD)
+  const wantedSinkMps = clamp(
+    nominalSinkMps + heightErrorM * SINK_PER_HEIGHT_ERROR,
+    0,
+    MAX_APPROACH_SINK_MPS,
+  )
   return {
     ...configured,
-    pitch: clamp(finite(pathErrorRad) * PITCH_PER_PATH_ERROR_RAD, -1, 1),
+    pitch: clamp((sinkMps - wantedSinkMps) * PITCH_PER_SINK_ERROR, -1, 1),
     roll: 0,
     yaw,
     throttle: clamp(APPROACH_THROTTLE + (vrefMps - speedMps) * THROTTLE_PER_MPS, 0, 1),
