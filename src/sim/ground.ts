@@ -1,6 +1,7 @@
 import { v3, length, scale, type Vec3 } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
+import { surfaceAt } from './contact.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -296,9 +297,25 @@ export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.6
 export const ARRIVAL_SINK_THRESHOLD_MPS = 0.1
 
 /**
- * Whether ground contact is CARRIED rather than crashed into: the gear is
- * down, the airplane is within `onGround`'s tolerance of the surface, and it
- * arrived slowly enough to survive.
+ * Whether ground contact is CARRIED rather than crashed into: the surface is
+ * LAND, the gear is down, the airplane is within `onGround`'s tolerance of
+ * the surface, and it arrived slowly enough to survive.
+ *
+ * **Requires land** (Task 16, found by Mark driving off the end of the
+ * Tacloban runway onto the ocean and rolling on top of it): every other gate
+ * here asks about the AIRPLANE -- gear, sink, speed -- and none of them ask
+ * what it is standing on, so a gear-down airplane rolling level at sea level
+ * satisfied all of them and got the ground constraint and rolling friction
+ * over open water. Wheels cannot roll on water. `surfaceAt` (`src/sim/
+ * contact.ts`) is Plan 10's own single source of truth for the land/water
+ * classification -- re-testing `groundHeightM <= SEA_LEVEL_M` here instead
+ * would be a second copy of that rule, free to drift from the first, so this
+ * imports `surfaceAt` rather than reimplementing it. Requiring land here
+ * makes `contactOutcome`'s existing "on land, never survivable"
+ * (`src/sim/contact.ts`) and this file's ground constraint agree on the same
+ * classification for the same reason `supportedContact` itself exists: two
+ * places judging the same thing by different rules is how the take-off/
+ * landing seam broke before Task 5b.
  *
  * The one predicate gating both sides of the Plan 10 / Plan 11a seam: `step`
  * applies `restOnSurface` only for a supported contact, and `advance`
@@ -338,7 +355,8 @@ export function supportedContact(
 ): boolean {
   const speed = length(state.velocity)
   const descending = state.velocity.y < -ARRIVAL_SINK_THRESHOLD_MPS
-  return onGround(spec, state, groundHeightM)
+  return surfaceAt(groundHeightM) === 'land'
+    && onGround(spec, state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)

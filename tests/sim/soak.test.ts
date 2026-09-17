@@ -250,9 +250,31 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
     // Task 10 assertions (sink-through, no-energy-gain-at-idle-throttle)
     // ever evaluated once they got there -- which, before the landing
     // cohort existed, they did not, at any of the three seeds measured
-    // above. 10,000 is comfortably below every seed's measured count
-    // (22,362-61,433) while being nowhere near the 0 this test shipped with
-    // for one full day.
-    expect(result.supportedContactTicks).toBeGreaterThan(10000)
+    // above.
+    //
+    // RE-MEASURED 2026-09-16 (Task 16): `supportedContact` now also requires
+    // LAND (Mark drove off the end of the Tacloban runway onto the ocean and
+    // kept rolling on top of it -- `src/sim/ground.ts`'s `surfaceAt` gate).
+    // Both gear-down cohorts spawn at a uniformly random (x, z) across the
+    // whole 200 km field, and a large share of that field is open ocean
+    // (Leyte Gulf, the Camotes Sea, the Pacific), so a large share of what
+    // used to count as "genuinely resting" no longer can -- correctly:
+    // wheels resting on water were never a real contact. Re-measured at the
+    // same three seeds: seed 1337 gives 393,334 steps / 144 hits / **4,716
+    // supportedContactTicks**, seed 4242 gives 386,096 / 138 / 7,194, seed 7
+    // gives 427,457 / 132 / 300 -- all zero failures. The floor moves down
+    // with the measurement, per this file's own rule (re-measure and move
+    // the floor, never the assertion) -- widening the tolerance to keep the
+    // OLD number would only be hiding that the input distribution changed,
+    // not evidence the new one is wrong. 2,000 is comfortably below the
+    // worst of the three re-measured seeds actually asserted here (seed
+    // 1337's 4,716) while staying nowhere near the 0 this field shipped with
+    // for one full day. (Seed 7's 300 is NOT the floor for this reason: only
+    // seed 1337 is the committed configuration below, and 300 would leave
+    // this floor uncomfortably close to a seed's ordinary run-to-run
+    // variance -- if a future content or terrain change makes seed 1337 look
+    // more like seed 7's unlucky draw, that is worth a human re-look, not a
+    // silently-passing floor at 300.)
+    expect(result.supportedContactTicks).toBeGreaterThan(2000)
   })
 })

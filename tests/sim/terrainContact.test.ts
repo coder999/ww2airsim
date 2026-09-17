@@ -170,3 +170,62 @@ describe('supported contact does not read as a crash (Task 5b)', () => {
     expect(w.aircraft.position.y).toBeCloseTo(parkedHeightM, 6)
   })
 })
+
+describe('supported contact requires land (Task 16, Mark drove off the runway onto the ocean)', () => {
+  // A small, bespoke field rather than reusing `plateau` (uniform everywhere,
+  // no coastline to drive off of): a 17x17 grid, 50 m spacing (finestSamples
+  // must be `(2^k)+1` with `levels === k`, `parseTerrainHeader`'s own
+  // validation), land (`LAND_M`) for x <= -50 and water (`WATER_M`,
+  // comfortably below `SEA_LEVEL_M`) for x >= 0, with a single 50 m cell of
+  // bilinear ramp between the two columns either side of x = 0 -- an 8%
+  // grade, gentle enough that this test is about the land/water gate, not
+  // the separate steep-terrain sink-through gap `tools/soak/run.ts`
+  // documents.
+  const coastHeader = parseTerrainHeader({
+    centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 400,
+    finestSamples: 17, levels: 4, encoding: 'int16-decimetres',
+  })
+  const LAND_M = 2
+  const WATER_M = -2
+  const COAST_SAMPLES = 17
+  const LAND_COLUMNS = 8 // columns 0..7 -> x = -400 .. -50
+  const coastHeights = new Int16Array(COAST_SAMPLES * COAST_SAMPLES)
+  for (let row = 0; row < COAST_SAMPLES; row++) {
+    for (let col = 0; col < COAST_SAMPLES; col++) {
+      coastHeights[row * COAST_SAMPLES + col] = (col < LAND_COLUMNS ? LAND_M : WATER_M) * 10
+    }
+  }
+  const coast = createTerrainField(coastHeader, 0, coastHeights)
+  const rollingLevel = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+
+  it('drives off the end of the runway onto the water and crashes, instead of rolling on', () => {
+    expect(heightAt(coast, -200, 0)).toBeCloseTo(LAND_M, 6)
+    expect(heightAt(coast, 200, 0)).toBeCloseTo(WATER_M, 6)
+    expect(surfaceAt(heightAt(coast, 200, 0))).toBe('water')
+
+    // Parked on the wheels, deep in the land zone, then rolled at speed
+    // toward the coastline -- the shape of a take-off run overshooting the
+    // runway, not a controlled water landing (that path is `contactOutcome`,
+    // untouched by this fix, and already covered by `tests/sim/contact.test.ts`).
+    const rollSpeedMps = 90
+    const rollingOffTheEnd = createState({
+      position: v3(-200, LAND_M + spec.gear.heightM, 0),
+      velocity: v3(rollSpeedMps, 0, 0),
+      gearFraction: 1,
+    })
+    let w: World<undefined> = { ...createWorld(spec, rollingOffTheEnd, rollingLevel), terrain: coast }
+
+    // Still over land, still rolling: no impact yet. (150 m at 90 m/s is
+    // about 100 ticks; stop comfortably short of the coastline at x = -50.)
+    for (let i = 0; i < 90 && w.impact === null; i++) w = advance(w, DT).world
+    expect(w.impact, 'crashed while still over land').toBeNull()
+    expect(w.aircraft.position.x).toBeLessThan(-50)
+
+    // Keep rolling across the coastline and onto the water.
+    for (let i = 0; i < 300 && w.impact === null; i++) w = advance(w, DT).world
+
+    expect(w.impact, 'kept rolling on top of the water instead of crashing').not.toBeNull()
+    expect(surfaceAt(w.impact!.groundHeightM)).toBe('water')
+    expect(w.impact!.kind).toBe('destroyed')
+  })
+})

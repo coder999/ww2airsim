@@ -409,6 +409,13 @@ export type TerrainSoakResult = {
    * constraint held" -- fix-round-1 review measured this at literally 0 for
    * both seed 1337 and seed 7 before the dedicated landing cohort below
    * existed, which is exactly the silent gap this field exists to make loud.
+   *
+   * Lower again after Task 16 (`supportedContact` also requires land -- a
+   * gear-down airplane resting on open water was never a real contact): a
+   * large share of this 200 km field is ocean, so a large share of what used
+   * to count here no longer does, correctly. See
+   * `tests/sim/soak.test.ts`'s floor on this field for the re-measured
+   * counts.
    */
   supportedContactTicks: number
 }

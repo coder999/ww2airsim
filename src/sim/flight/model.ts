@@ -13,6 +13,7 @@ import {
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
+import { surfaceAt } from '../contact.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -281,6 +282,17 @@ export function step(
   // regime that replaces `bodyRates`. Computed once here and reused rather
   // than re-querying `heightAt` a second time for the same position.
   let onGroundStart = false
+  // Whether the surface under the airplane at the START of this step is LAND
+  // (Task 16, found by Mark driving off the end of the Tacloban runway onto
+  // the ocean and rolling on top of it). Rolling resistance and the ground
+  // control regime are wheel-on-surface phenomena exactly as much as the
+  // gravity-cancelling reaction force just below is -- wheels cannot roll on
+  // water any more than they can hold an airplane up on it -- so this is
+  // read by the same two consumers `onGroundStart`'s own comment names.
+  // `supportedContact` already requires land for the gravity-cancelling
+  // force (`src/sim/ground.ts`), so only these other two needed a separate
+  // flag, computed once here for the same reason `onGroundStart` is.
+  let onLandStart = false
   // Fix round 1, Important 2: design §3 says the gear-down requirement
   // "belongs to the consumers that need it -- rolling friction and the
   // ground rate regime below", not to `onGround` itself (which is
@@ -294,6 +306,7 @@ export function step(
   if (ctx.terrain != null) {
     const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
     onGroundStart = onGround(spec, state, startGroundHeightM)
+    onLandStart = surfaceAt(startGroundHeightM) === 'land'
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
     // `supportedContact` bounds SINK but places no bound on CLIMB, so without
@@ -317,8 +330,10 @@ export function step(
     // already guards `vdir`: a stationary airplane (or one with only
     // vertical motion) gets zero resistance rather than a NaN direction.
     // Gated on `wheelsDownStart` too (fix round 1, Important 2): a retracted
-    // gear must not charge tire-on-runway drag to a belly.
-    if (onGroundStart && wheelsDownStart) {
+    // gear must not charge tire-on-runway drag to a belly. Gated on
+    // `onLandStart` too (Task 16): a wheel over open water gets no traction
+    // to roll against either.
+    if (onGroundStart && wheelsDownStart && onLandStart) {
       const track = v3(state.velocity.x, 0, state.velocity.z)
       const trackSpeed = length(track)
       if (trackSpeed > 1e-6) {
@@ -439,9 +454,14 @@ export function step(
   // `onGroundStart` and `wheelsDownStart` above: the rates command THIS
   // step's rotation, so using the integrated (end-of-step) state here would
   // apply a ground rate one half-step late -- a twitch at the moment of
-  // rotation, on the step the airplane actually leaves the ground.
+  // rotation, on the step the airplane actually leaves the ground. Gated on
+  // `onLandStart` too (Task 16): the tailwheel and the wheels' rigid roll
+  // constraint are both surface contact, and neither exists over water --
+  // without this, an airplane that drove off the end of a runway kept its
+  // wheels locked to zero roll and its tailwheel steering all the way across
+  // the ocean.
   const bodyRates =
-    ctx.terrain != null && onGroundStart && wheelsDownStart
+    ctx.terrain != null && onGroundStart && wheelsDownStart && onLandStart
       ? groundBodyRates(spec, state, controls, ratesWithStall)
       : ratesWithStall
   const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
