@@ -127,7 +127,29 @@ inflation to be corrected. So the limiter is built on the shipped
 boundary the wing does not have. The retraction, with the derivation and the
 numbers, is item 8 in the Plan 2 design doc.
 
-### Combat trim
+### Combat trim — IMPLEMENTED, THEN DELETED 2026-09-17
+
+**This assist no longer exists.** Everything below is left as written because
+it records the design that was built and the reasoning behind it; treat it as
+history, not as a description of the code.
+
+Deleted at Mark's request on 2026-09-17, when he asked what altitude hold was
+and established he had never asked for it. He had already defaulted it OFF on
+2026-09-15 (see below) for being unrealistic. The proximate reason for removal:
+its departure test — altitude hold must not lengthen a departure it cannot help
+with — was pinning `aero.cySlopePerRad`, the lateral aerodynamic force that
+makes the rudder turn the airplane, at a ninth of its physically plausible
+value. Widening that test to four entry conditions also showed the property was
+already false at one of them with no side force at all, so it was protecting one
+entry of a claim rather than the claim.
+
+Gone with it: `AltitudeHoldMemory`, `NOT_HOLDING`, `nextAltitudeHoldMemory`,
+`rates.altitudeHoldSeconds`, the `H` binding, and
+`tests/assists/worldMemory.test.ts` — which was the only test exercising
+`World.assistMemory`. That channel survives as an extension point; see
+`Assist`'s doc comment in `src/sim/loop.ts` for how to restore its test.
+
+
 
 Holds the airplane where it is pointed with the stick centred. In a
 rate-command model, hands-off already holds ATTITUDE, because a released stick

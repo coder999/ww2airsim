@@ -46,7 +46,6 @@ export const BINDINGS = {
   // the master spec's ordering.
   toggleStallLimiter: ['KeyL'],
   toggleAutoRudder: ['KeyR'],
-  toggleAltitudeHold: ['KeyH'],
   // `T` for triple time, as the 1991 original bound it. A bare letter for the
   // reason `throttleDown` documents: Ctrl+T opens a browser tab and
   // `preventDefault` does not stop it.

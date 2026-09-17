@@ -184,11 +184,24 @@ export function measureClimbRate(spec: AircraftSpec, altitudeM: number): number 
     }
     // Mean vertical velocity, not a position difference: position is pinned.
     let sum = 0
+    let stalledDuringSample = false
     for (let i = 0; i < 60 * CLIMB_SAMPLE_S; i++) {
       tick++
       s = holdMassAndAltitude(spec, stepChecked(spec, s, holdPitchAngle(spec, s, 1, angle), { dt: DT, tick }), altitudeM)
       sum += s.velocity.y
+      if (isStalled(spec, s)) stalledDuringSample = true
     }
+    // **A stalled sweep point is not a climb rate, and this card used to take
+    // one as its best.** Added 2026-09-17. The sweep runs the commanded pitch
+    // attitude up past the best-rate angle into attitudes that depart, and
+    // because the altitude is PINNED a departed airplane can report a large
+    // `velocity.y` while going nowhere. It stayed invisible while the model had
+    // no lateral force: the moment `sideForceN` was added, a departed state
+    // that the stall wing-drop had rolled acquired a vertical force component
+    // and won the sweep with 22.9 m/s against a 13.51 m/s reference -- 69% off.
+    // Rejecting stalled points is the fix, not a tolerance: the card grades a
+    // best RATE OF CLIMB, and a stalled airplane is not climbing.
+    if (stalledDuringSample) continue
     const rate = sum / (60 * CLIMB_SAMPLE_S)
     if (rate > best) best = rate
   }

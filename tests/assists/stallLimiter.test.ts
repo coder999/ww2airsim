@@ -22,7 +22,6 @@ const deg = (r: number) => (r * 180) / Math.PI
 const ONLY_LIMITER = (on: boolean): AssistSettings => ({
   stallLimiter: on,
   autoRudder: false,
-  altitudeHold: false,
 })
 
 type Flight = {

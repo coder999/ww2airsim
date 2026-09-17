@@ -18,7 +18,6 @@ import { createTerrainField } from '../../src/sim/world/terrain.js'
 const ALL_ASSISTS_ON: AssistSettings = {
   stallLimiter: true,
   autoRudder: true,
-  altitudeHold: true,
 }
 
 describe('randomized soak (spec §11)', () => {
@@ -158,16 +157,24 @@ describe('randomized soak (spec §11)', () => {
     // one and its numbers are not expected to match: the assists change the
     // trajectory, so which flights reach the water changes, which changes how
     // many rng draws each iteration consumes. It also draws a released pitch
-    // stick on 25% of seconds, which the unassisted arm does not (see
-    // `rollControls`: altitude hold's gate is an exact 0 and a continuous draw
-    // never produces one -- without it this arm engaged altitude hold on 0 of
-    // 550,320 steps). The unassisted arm's own figures are unchanged to the
-    // digit by all of this, which is asserted above rather than asserted here.
+    // stick on 25% of seconds -- `CENTRED_PITCH_CHANCE`, added for altitude
+    // hold's exact-zero gate, which a continuous draw never produces. That
+    // assist was deleted on 2026-09-17 and the centred draw is KEPT: a
+    // released stick is a real thing a pilot does, and it is now coverage for
+    // the two remaining assists rather than for the deleted one. The
+    // unassisted arm's own figures are unchanged to the digit by all of this,
+    // which is asserted above rather than here.
     expect(result.steps).toBeGreaterThan(400000)
     expect(result.flightsCompleted).toBeGreaterThan(60)
     expect(result.stalledSteps).toBeGreaterThan(18000)
-    expect(result.assistPitchInterventions).toBeGreaterThan(80000)
-    expect(result.assistHoldEngagedSteps).toBeGreaterThan(80000)
+    // RE-MEASURED 2026-09-17, down from 80,000. Altitude hold produced most of
+    // the pitch interventions -- it commanded the axis on every centred step --
+    // and it was deleted that day, leaving only the stall limiter voting on
+    // pitch. Measured 22,747 at this seed. The floor moves with the
+    // measurement, per this file's own rule; leaving it at 80,000 would assert
+    // that a deleted assist is still working, and lowering it to 1 would stop
+    // asserting anything.
+    expect(result.assistPitchInterventions).toBeGreaterThan(15000)
     expect(result.assistYawInterventions).toBeGreaterThan(300000)
 
     // PROVED TO FAIL, 2026-09-13, by the two mutations the authority check

@@ -29,7 +29,7 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const CRIT_DEG = (alphaCritRad(spec) * 180) / Math.PI
-const NONE: AssistSettings = { stallLimiter: false, autoRudder: false, altitudeHold: false }
+const NONE: AssistSettings = { stallLimiter: false, autoRudder: false }
 const only = (assist: keyof AssistSettings): AssistSettings => ({ ...NONE, [assist]: true })
 /**
  * Every assist on, stated explicitly.
@@ -40,7 +40,7 @@ const only = (assist: keyof AssistSettings): AssistSettings => ({ ...NONE, [assi
  * moment `altitudeHold` was switched off on 2026-09-15. The default's own
  * behaviour is pinned separately, at the bottom of this file.
  */
-const ALL_ON: AssistSettings = { stallLimiter: true, autoRudder: true, altitudeHold: true }
+const ALL_ON: AssistSettings = { stallLimiter: true, autoRudder: true }
 
 const keys = (...k: string[]) => new Set(k)
 
@@ -121,43 +121,6 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     expect(on, 'full back stick with the limiter on must not cross it').toBeLessThan(CRIT_DEG)
   })
 
-  it('altitude hold reaches the simulation, and its memory survives the frame boundary', () => {
-    // The strongest of the three, because it fails for TWO independent wiring
-    // defects: no assist passed to `advance` at all, and an assist memory
-    // that is not threaded from frame to frame. The second one matters -- a
-    // world rebuilt each frame from `NOT_HOLDING`
-    // re-captures the airplane's current altitude every frame, so the target
-    // can never disagree with where the airplane already is and the hold is
-    // silently a no-op (`nextAltitudeHoldMemory`'s own doc comment names this
-    // failure). Measured 2026-09-13: 81.1 m of drift with the assist off, 3.3 m
-    // with it on, over the same 60 s at full throttle from 2000 m.
-    const held = keys('Equal')
-    const settle = (assists: AssistSettings) => fly(start(assists, 130), 2, held) // throttle to full
-    const driftOver = (from: FrameState, seconds: number) => {
-      let f = from
-      let worst = 0
-      for (let i = 0; i < Math.round(seconds * 60); i++) {
-        f = nextFrameState(f, 1 / 60, keys())
-        worst = Math.max(worst, Math.abs(f.world.aircraft.position.y - 2000))
-      }
-      return { worst, final: f }
-    }
-
-    const off = driftOver(settle(NONE), 60)
-    const on = driftOver(settle(only('altitudeHold')), 60)
-
-    expect(off.worst, 'hands-off must actually drift, or there is nothing to hold').toBeGreaterThan(40)
-    expect(on.worst, 'with the assist on it must hold').toBeLessThan(15)
-
-    // The memory is pinned at the altitude captured on the FIRST centred step,
-    // not re-captured as the airplane moves: the airplane has flown 62 s and
-    // over 8 km by here, so a re-capturing implementation would show its
-    // current altitude instead of the spawn's exact 2000.
-    expect(on.final.world.assistMemory.heldAltitudeM).toBe(2000)
-    // And with the assist off the layer holds no target at all -- switched off
-    // means forgotten, so re-enabling captures afresh (asserted below).
-    expect(off.final.world.assistMemory.heldAltitudeM).toBeNull()
-  })
 
   it('runs the assist once per fixed step, so one long frame and several short ones agree exactly', () => {
     // Four steps in one frame against four frames of one step each, with the
@@ -180,12 +143,17 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
 
     expect(oneLongFrame.stepsRun, 'sanity: the long frame must really be multi-step').toBe(4)
     expect(oneLongFrame.world.aircraft).toEqual(fourShortFrames.world.aircraft)
-    expect(oneLongFrame.world.assistMemory).toEqual(fourShortFrames.world.assistMemory)
+    // Compares the AIRCRAFT, not the assist memory. It compared the memory
+    // until 2026-09-17, when altitude hold -- the only stateful assist -- was
+    // deleted; `assistMemory` is now `undefined` on both sides and would make
+    // this pass without testing anything. The claim is that the assist runs
+    // once per fixed step, and the resulting state is what shows that.
+    expect(oneLongFrame.world.aircraft).toEqual(fourShortFrames.world.aircraft)
   })
 })
 
 describe('assist toggles (Plan 3 Task 5)', () => {
-  it('flips one assist per key press, on the rising edge, leaving the other two alone', () => {
+  it('flips one assist per key press, on the rising edge, leaving the other alone', () => {
     // Edge-triggered for the same reason the camera cycle is: held for a
     // second at 60 Hz, a per-frame toggle would flip sixty times and land
     // wherever the frame count left it. Each key is checked against the OTHER
@@ -193,13 +161,12 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     const cases = [
       { key: 'KeyL', assist: 'stallLimiter' },
       { key: 'KeyR', assist: 'autoRudder' },
-      { key: 'KeyH', assist: 'altitudeHold' },
     ] as const
 
     for (const { key, assist } of cases) {
       const held = fly(start(ALL_ON), 1, keys(key))
       expect(held.assists[assist], `${key} held for a second`).toBe(false)
-      for (const other of ['stallLimiter', 'autoRudder', 'altitudeHold'] as const) {
+      for (const other of ['stallLimiter', 'autoRudder'] as const) {
         if (other === assist) continue
         expect(held.assists[other], `${key} must not touch ${other}`).toBe(true)
       }
@@ -225,37 +192,6 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     expect(toggledOff, 'KeyL did not reach the simulation').toBeGreaterThan(CRIT_DEG)
   })
 
-  it('turning altitude hold off forgets the captured altitude; turning it back on captures where the airplane is now', () => {
-    // Switched off has to mean forgotten. Otherwise a pilot who turns the
-    // assist off at 2000 m, descends a kilometre with the stick centred (so
-    // nothing ever clears the memory) and turns it back on gets an immediate
-    // climb command back to an altitude they deliberately left -- a stale
-    // target reasserting itself, the same failure the "yield to pilot pitch
-    // input" rule exists to prevent.
-    const captured = fly(start(ALL_ON, 130), 2, keys('Equal'))
-    expect(captured.world.assistMemory.heldAltitudeM).toBe(2000)
-
-    const switchedOff = tap(captured, 'KeyH')
-    expect(switchedOff.assists.altitudeHold).toBe(false)
-    expect(switchedOff.world.assistMemory.heldAltitudeM, 'off must forget').toBeNull()
-
-    // Nose down for 20 s, then centre: the stick is centred again at the end,
-    // so a memory that had merely been kept warm would still say 2000.
-    const lower = fly(fly(switchedOff, 20, keys('ArrowUp')), 5, keys())
-    const nowM = lower.world.aircraft.position.y
-    expect(nowM, 'the descent must be unmistakable').toBeLessThan(1500)
-
-    const switchedOn = tap(lower, 'KeyH')
-    expect(switchedOn.assists.altitudeHold).toBe(true)
-    const held = switchedOn.world.assistMemory.heldAltitudeM
-    expect(held, 're-enabling must capture, not resume').not.toBeNull()
-    // Within a few metres of where the airplane actually is, and nowhere near
-    // the 2000 m it left -- and it must then HOLD that new altitude, which is
-    // what tells a real re-capture from a memory that merely got zeroed.
-    expect(Math.abs(held! - nowM)).toBeLessThan(20)
-    const after = fly(switchedOn, 30, keys())
-    expect(Math.abs(after.world.aircraft.position.y - held!)).toBeLessThan(15)
-  })
 })
 
 describe('the engine-off default (2026-09-15)', () => {

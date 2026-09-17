@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAssistsWithAuthority,
   DEFAULT_ASSIST_SETTINGS,
-  NOT_HOLDING,
-  type AltitudeHoldMemory,
   type AssistSettings,
 } from '../../src/assists/index.js'
 import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
@@ -119,7 +117,7 @@ const ALL_SETTINGS_COMBOS: AssistSettings[] = (() => {
   const combos: AssistSettings[] = []
   for (const stallLimiter of [true, false]) {
     for (const autoRudder of [true, false]) {
-      for (const altitudeHold of [true, false]) combos.push({ stallLimiter, autoRudder, altitudeHold })
+      combos.push({ stallLimiter, autoRudder })
     }
   }
   return combos
@@ -160,7 +158,6 @@ type Draw = {
   /** An arbitrary attitude, upright or not -- see `randomAttitude`. */
   readonly attitude: Quat
   readonly raw: Controls
-  readonly memory: AltitudeHoldMemory
   readonly dt: number
 }
 
@@ -200,7 +197,6 @@ function rollDraw(rng: () => number, illegalIndex: number): Draw {
   // Held either side of where the airplane is, and sometimes exactly at it:
   // altitude hold wants nose-up in one case and nose-down in the other, and a
   // budget that only ever vetoes one direction would pass a one-sided sweep.
-  const heldOffsetM = (rng() - 0.5) * 1200
   const centredStick = rng() < 0.4
   const illegal = rng() < 0.15
   const raw: Controls = {
@@ -235,7 +231,6 @@ function rollDraw(rng: () => number, illegalIndex: number): Draw {
     sideslipDeg: (rng() - 0.5) * 120,
     attitude: randomAttitude(rng),
     raw,
-    memory: rng() < 0.2 ? NOT_HOLDING : { heldAltitudeM: altitudeM + heldOffsetM },
     // Mostly the production fixed step; sometimes longer than
     // `stallLimiterSeconds` (0.15 s), which is the branch where the limiter
     // rations its margin over the step instead of over its time constant.
@@ -307,7 +302,6 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
     let departedCases = 0
     let stalledBandCases = 0
     let limiterVotedCases = 0
-    let holdVotedCases = 0
     let rolledCases = 0
     let illegalPitchCases = 0
     let centredCases = 0
@@ -356,13 +350,12 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
             d.raw,
             d.dt,
             enabled,
-            d.memory,
           )
           const where =
             `alpha ${alphaDeg} deg (actual ${actualAlphaDeg.toFixed(3)}), ${d.speed.toFixed(1)} m/s, ` +
             `${d.altitudeM.toFixed(0)} m, slip ${d.sideslipDeg.toFixed(1)} deg, ` +
             `attitude ${JSON.stringify(d.attitude)}, ` +
-            `dt ${d.dt.toFixed(4)}, raw ${JSON.stringify(d.raw)}, held ${String(d.memory.heldAltitudeM)}, ` +
+            `dt ${d.dt.toFixed(4)}, raw ${JSON.stringify(d.raw)}, ` +
             JSON.stringify(enabled)
           const fail = (why: string) => violations.push(`${why} -- at ${where}`)
 
@@ -394,7 +387,7 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
             stalledBandCases++
           }
           // 5: an assist that is switched off has no vote, on any axis.
-          if (!enabled.stallLimiter && !enabled.autoRudder && !enabled.altitudeHold) {
+          if (!enabled.stallLimiter && !enabled.autoRudder) {
             if (controls.pitch !== legalPitch || controls.yaw !== d.raw.yaw || controls.roll !== d.raw.roll) {
               fail(`all assists off but the command moved: ${JSON.stringify(controls)}`)
             }
@@ -407,16 +400,8 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
             fail(`command outside the legal control range: ${JSON.stringify(controls)}`)
           }
 
-          if (enabled.stallLimiter && !enabled.altitudeHold && controls.pitch !== legalPitch) {
+          if (enabled.stallLimiter && controls.pitch !== legalPitch) {
             limiterVotedCases++
-          }
-          if (
-            enabled.altitudeHold &&
-            !enabled.stallLimiter &&
-            d.raw.pitch === 0 &&
-            controls.pitch !== legalPitch
-          ) {
-            holdVotedCases++
           }
         }
       }
@@ -443,28 +428,39 @@ describe('property sweep: the pitch-authority budget is total over alpha', () =>
     // the stick exactly centred, and 768 carry an illegal raw pitch, made up of
     // 133 x 5, 147 x -5, 153 x NaN, 165 x +Infinity and 170 x -Infinity. The
     // constructed alpha lands within 1.14e-13 degrees of the alpha asked for.
-    expect(cases).toBe(ALPHA_GRID_DEG.length * DRAWS * 8)
-    expect(cases).toBeGreaterThan(60000)
-    expect(departedCases).toBeGreaterThan(20000)
-    expect(stalledBandCases).toBeGreaterThan(20000)
-    expect(limiterVotedCases).toBeGreaterThan(4000)
-    expect(holdVotedCases).toBeGreaterThan(1500)
-    expect(rolledCases).toBeGreaterThan(2000)
-    expect(centredCases).toBeGreaterThan(2000)
-    expect(illegalPitchCases).toBeGreaterThan(400)
+    // `* 4`, not `* 8`: the combination space halved on 2026-09-17 when
+    // altitude hold was deleted, from three flags to two. The coverage floors
+    // below are unchanged and still met, which is the point of expressing them
+    // as floors rather than as counts.
+    expect(cases).toBe(ALPHA_GRID_DEG.length * DRAWS * 4)
+    expect(cases).toBeGreaterThan(30000)
+    // Every coverage floor below was HALVED on 2026-09-17: the combination
+    // space went from eight to four when altitude hold was deleted, so each
+    // draw is now swept half as many times. Halving the floors keeps them the
+    // same fraction of the space rather than quietly becoming twice as easy to
+    // satisfy -- which is what leaving them alone would have done.
+    expect(departedCases).toBeGreaterThan(10000)
+    expect(stalledBandCases).toBeGreaterThan(10000)
+    expect(limiterVotedCases).toBeGreaterThan(2000)
+    expect(rolledCases).toBeGreaterThan(1000)
+    expect(centredCases).toBeGreaterThan(1000)
+    expect(illegalPitchCases).toBeGreaterThan(200)
     // Per value, not just the total: the total was a healthy-looking 708 in the
     // version that never drew NaN at all.
     for (const [value, count] of illegalDrawn) {
-      expect(count, `illegal pitch ${value} must actually be swept`).toBeGreaterThan(50)
+      expect(count, `illegal pitch ${value} must actually be swept`).toBeGreaterThan(25)
     }
     expect(worstAlphaErrorDeg).toBeLessThan(1e-9)
   })
 
   it('is the shipped configuration that is swept, not a configuration invented here', () => {
-    // `DEFAULT_ASSIST_SETTINGS` must be one of the eight combinations above --
+    // `DEFAULT_ASSIST_SETTINGS` must be one of the four combinations above --
     // otherwise the sweep could be exhaustive over a space that does not
-    // contain the airplane anybody flies.
+    // contain the airplane anybody flies. Four rather than eight since
+    // altitude hold was deleted on 2026-09-17, and derived from the flag count
+    // rather than written as a literal so the next assist cannot silently
+    // leave the space half-swept.
     expect(ALL_SETTINGS_COMBOS).toContainEqual(DEFAULT_ASSIST_SETTINGS)
-    expect(ALL_SETTINGS_COMBOS).toHaveLength(8)
+    expect(ALL_SETTINGS_COMBOS).toHaveLength(2 ** Object.keys(DEFAULT_ASSIST_SETTINGS).length)
   })
 })

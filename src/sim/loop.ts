@@ -240,6 +240,23 @@ export interface World<M = undefined> {
    * `undefined` for a world flown with no assist, which is what the default
    * type parameter says.
    */
+  /**
+   * **Currently always `undefined`, and deliberately kept.** Altitude hold was
+   * the only assist with memory and was deleted on 2026-09-17 (Mark's call: he
+   * had never asked for it -- it arrived as the master spec's "combat trim" --
+   * and had already defaulted it off as unrealistic). So this channel, and
+   * `Assist<M>`'s generic, are an extension point with nothing using them.
+   *
+   * They stay because the next stateful assist will want them and because
+   * removing the generic would touch every `World` in the codebase for no
+   * behaviour. What went with altitude hold is the only test that ever
+   * exercised this: `tests/assists/worldMemory.test.ts`, which proved two
+   * airplanes sharing one `assistFor` result cannot share a captured value.
+   * **If a stateful assist is added, restore that file from git history rather
+   * than writing a new one** -- it was built around a 25 m/s descent
+   * specifically so a lost memory was visible, after a 6 m/s climb was tried
+   * and separated a correct implementation from a broken one by only 2 m.
+   */
   readonly assistMemory: M
   /**
    * The ground this world's airplane can hit, or `null` for "no terrain

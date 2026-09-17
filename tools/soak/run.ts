@@ -15,8 +15,6 @@ import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import {
   applyAssistsWithAuthority,
   assistFor,
-  NOT_HOLDING,
-  type AltitudeHoldMemory,
   type AssistSettings,
 } from '../../src/assists/index.js'
 import { advance, createWorld } from '../../src/sim/loop.js'
@@ -42,14 +40,7 @@ export type SoakResult = {
    *  [-1, 1], so `runStack`'s sanitising of an illegal input is not miscounted
    *  as an assist deciding something. Always 0 on the unassisted arm. */
   assistPitchInterventions: number
-  /** Steps on which altitude hold's own two gates were BOTH open -- a captured
-   *  altitude in the runner's memory and the pilot's pitch exactly centred --
-   *  i.e. steps where that stage was live rather than standing down. Counted
-   *  from the gates rather than inferred from the command, so it is unambiguous
-   *  coverage: it was 0 of 550,320 steps before `CENTRED_PITCH_CHANCE` existed,
-   *  which is how the gap was found. Always 0 on the unassisted arm. */
-  assistHoldEngagedSteps: number
-  /** Steps where the stack moved the YAW axis, i.e. where auto-rudder voted.
+    /** Steps where the stack moved the YAW axis, i.e. where auto-rudder voted.
    *  Separate from the pitch count on purpose: auto-rudder corrects on almost
    *  every step (any sideslip at all produces a correction), so a single
    *  combined counter would sit at 100% of steps and could not detect the two
@@ -174,9 +165,8 @@ function assertAuthorityHolds(
   raw: Controls,
   flown: Controls,
   assists: AssistSettings,
-  memory: AltitudeHoldMemory,
 ): void {
-  const { controls, pitchAuthority: a } = applyAssistsWithAuthority(state, spec, raw, DT, assists, memory)
+  const { controls, pitchAuthority: a } = applyAssistsWithAuthority(state, spec, raw, DT, assists)
   if (!sameControls(controls, flown)) {
     throw new Error(
       `assist budget could not be recovered: reconstruction ${JSON.stringify(controls)} ` +
@@ -306,7 +296,6 @@ export function runSoak(
   let stalledSteps = 0
   let assistPitchInterventions = 0
   let assistYawInterventions = 0
-  let assistHoldEngagedSteps = 0
 
   for (let n = 0; n < iterations; n++) {
     const altitude = 200 + rng() * 9000
@@ -329,7 +318,9 @@ export function runSoak(
       // pre-existing behaviour byte for byte -- no assist is constructed and
       // the raw command goes straight to `stepChecked`.
       const assist = assists === null ? null : assistFor(assists)
-      let assistMemory: AltitudeHoldMemory = NOT_HOLDING
+      // `undefined`: altitude hold was the only assist with memory and was
+      // deleted 2026-09-17, so `Assist<M>` is instantiated with nothing.
+      let assistMemory: undefined = undefined
       // Run-scoped to the whole flight, not the per-second outer loop below:
       // SimContext.tick's contract (src/sim/loop.ts) is monotonic for the
       // whole run it belongs to, and a flight -- from this spawn to this
@@ -348,8 +339,7 @@ export function runSoak(
             assistMemory = assisted.memory
             if (!Object.is(flown.pitch, clampFinite(controls.pitch, -1, 1))) assistPitchInterventions++
             if (!Object.is(flown.yaw, controls.yaw)) assistYawInterventions++
-            if (controls.pitch === 0 && assistMemory.heldAltitudeM !== null) assistHoldEngagedSteps++
-            assertAuthorityHolds(spec, s, controls, flown, assists, assistMemory)
+            assertAuthorityHolds(spec, s, controls, flown, assists)
           }
           s = stepChecked(spec, s, flown, { dt: DT, tick: flightTick })
           steps++
@@ -377,7 +367,6 @@ export function runSoak(
     stalledSteps,
     assistPitchInterventions,
     assistYawInterventions,
-    assistHoldEngagedSteps,
   }
 }
 

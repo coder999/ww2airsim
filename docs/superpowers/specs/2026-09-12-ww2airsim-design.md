@@ -105,7 +105,7 @@ src/
     hud/          Cockpit instruments, gunsight
 
   input/        Keyboard, mouse, gamepad to a normalized control vector
-    assists/      Rate damping, auto-rudder, stall limiter, combat trim
+    assists/      Rate damping, auto-rudder, stall limiter
 
   meta/         Pilot roster, persistence, mission selector, debrief
 
@@ -291,15 +291,20 @@ out of the physics. There is no per-aircraft special-case code.
 
 ### Assists
 
-Between `input/` and `sim/`, never inside either. Each independently
-switchable: rate damping, auto-rudder coordination, stall limiter, combat trim.
-The protective assists default on. Altitude hold (Plan 3's implementation of
-combat trim) defaults OFF since 2026-09-15: it does not protect the airplane,
-it flies it somewhere, and with the engine closed it held altitude instead of
-gliding. `src/assists/index.ts` carries the reasoning and
+Two, both protective, both on by default: auto-rudder and the stall limiter.
+`src/assists/index.ts` carries the reasoning and
 `tests/render/frameAssists.test.ts` pins the behaviour.
 
-## 6. Combat and damage
+**A third, altitude hold, was deleted on 2026-09-17** — Mark's call, on being
+asked what it was. It entered this document's own module list as "combat trim",
+Plan 3 implemented it and renamed it honestly (it holds the flight path, not
+attitude, which a rate-command model already holds), and he had already
+defaulted it OFF on 2026-09-15 for being unrealistic: at zero thrust it traded
+speed for altitude and a dead-stick Hellcat flew level indefinitely. It was
+never requested, and its departure test had become the thing pinning
+`aero.cySlopePerRad` — the lateral force that makes the rudder work — at a
+ninth of its physically plausible value. Deleting an unwanted feature was
+cheaper than fixing a test that protected it.
 
 ### Guns
 

@@ -25,7 +25,6 @@ const slipDeg = (s: AircraftState): number => {
 const ONLY_AUTO_RUDDER = (on: boolean): AssistSettings => ({
   stallLimiter: false,
   autoRudder: on,
-  altitudeHold: false,
 })
 
 /** One second of full-deflection aileron, wings-level entry, level flight,

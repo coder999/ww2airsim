@@ -3,8 +3,6 @@ import { heightAt, type TerrainField } from '../sim/world/terrain.js'
 import {
   assistFor,
   DEFAULT_ASSIST_SETTINGS,
-  NOT_HOLDING,
-  type AltitudeHoldMemory,
   type AssistSettings,
 } from '../assists/index.js'
 import { interpolateAircraft, type RenderState } from '../sim/interpolate.js'
@@ -18,11 +16,13 @@ import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 
 export type FrameState = {
-  /** Carries the altitude-hold memory in `assistMemory`, which is why this is
-   *  `World<AltitudeHoldMemory>` and not a bare `World`. It used to be a
+  /** `World<undefined>` since altitude hold was deleted on 2026-09-17: it was
+   *  the only assist with memory, so `assistMemory` now carries nothing. The
+   *  generic stays because `Assist<M>` is the extension point for a future
+   *  stateful assist, not because anything uses it today. It used to be a
    *  separate field on this type; see `assistFor` in src/assists/index.ts for
    *  why one copy inside the world beats two that can disagree. */
-  readonly world: World<AltitudeHoldMemory>
+  readonly world: World<undefined>
   /** This frame's commanded controls -- the identical object `world.controls`
    *  holds, kept here too because main.ts's prop spin and the Tier 2
    *  diagnostics hook read the frame, not the world inside it. */
@@ -153,13 +153,11 @@ export const TRIPLE_TIME_SCALE = 3
 const ASSIST_TOGGLES = {
   stallLimiter: 'toggleStallLimiter',
   autoRudder: 'toggleAutoRudder',
-  altitudeHold: 'toggleAltitudeHold',
 } as const satisfies Record<keyof AssistSettings, BindingName>
 
 const NO_TOGGLES_DOWN: AssistTogglesDown = {
   stallLimiter: false,
   autoRudder: false,
-  altitudeHold: false,
 }
 
 export function initialFrameState(
@@ -183,7 +181,7 @@ export function initialFrameState(
   groundSpawn: boolean = false,
 ): FrameState {
   return {
-    world: { ...createWorld(spec, aircraft, NEUTRAL, NOT_HOLDING), terrain },
+    world: { ...createWorld(spec, aircraft, NEUTRAL, undefined), terrain },
     controls: NEUTRAL,
     look: LOOK_CENTRE,
     cameraMode: 'chase',
@@ -358,12 +356,10 @@ export function nextFrameState(
   const assistTogglesDown: AssistTogglesDown = {
     stallLimiter: toggleDown('stallLimiter'),
     autoRudder: toggleDown('autoRudder'),
-    altitudeHold: toggleDown('altitudeHold'),
   }
   const assists: AssistSettings = {
     stallLimiter: flipped('stallLimiter'),
     autoRudder: flipped('autoRudder'),
-    altitudeHold: flipped('altitudeHold'),
   }
 
   // THE production assist path: without this argument the whole assists layer
