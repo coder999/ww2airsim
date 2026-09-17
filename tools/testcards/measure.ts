@@ -1,5 +1,5 @@
-import { v3 } from '../../src/sim/math/vec3.js'
-import { qIdentity } from '../../src/sim/math/quat.js'
+import { v3, dot, normalize } from '../../src/sim/math/vec3.js'
+import { qIdentity, qRotate } from '../../src/sim/math/quat.js'
 import {
   createState,
   airspeed,
@@ -139,9 +139,13 @@ export function measureTopSpeed(spec: AircraftSpec, altitudeM: number): number {
  *  speed, so the sweep has to run well past any plausible flight-path angle:
  *  measured 2026-09-12 at propEfficiency 0.75, testMassKg 5633.62, the F6F
  *  card peaks at 24 degrees of attitude, which is 15.8 m/s of climb at 58 m/s
- *  -- a flight-path angle of only 15.8 degrees. Past 32 degrees the airplane
- *  departs and reads about -45 m/s, which is harmless because the sweep takes
- *  the maximum, but it is why the sweep does not simply run to 90. */
+ *  -- a flight-path angle of only 15.8 degrees. From 32 degrees up the
+ *  airplane departs in the transient, and a departed sweep point does NOT
+ *  reliably read negative (this comment used to say "about -45 m/s, which is
+ *  harmless because the sweep takes the maximum" -- false, see
+ *  `STEADY_PITCH_ERR_RAD`'s block); it is rejected, not out-scored. The sweep stops at
+ *  40 rather than 90 only because every point past the departure boundary is
+ *  a wasted 121 s run. */
 const CLIMB_SWEEP_MAX_DEG = 40
 const CLIMB_SWEEP_STEP_DEG = 2
 /** Long enough for airspeed to settle at the commanded attitude: the airplane
@@ -164,11 +168,70 @@ const CLIMB_SETTLE_S = 120
 const CLIMB_SAMPLE_S = 1
 
 /**
+ * What the climb card is allowed to read: the defined condition a sweep point
+ * has to be in, throughout its sample window, for its mean vertical speed to
+ * count as a rate of climb (`measureClimbRate` applies these). All four bounds were measured 2026-09-17 at
+ * propEfficiency 0.75, testMassKg 5633.62, over the whole 0-40 degree sweep at
+ * `aero.cySlopePerRad` 0.1, 0.2, 0.5, 0.7 and 0.9, and each one separates the
+ * two populations by three orders of magnitude or more:
+ *
+ * | Over the 1 s window | Settled (0-30 deg) | Departed (32-40 deg) |
+ * | --- | --- | --- |
+ * | pitch error from the command | <= 4.2e-13 deg | >= 9.3 deg |
+ * | bank | exactly 0 | >= 12 deg |
+ * | sideslip | exactly 0 | >= 3.2 deg |
+ * | vertical-speed spread (max - min) | <= 1.6e-3 m/s | >= 2.6 m/s |
+ *
+ * **Why the stalled-sample check alone was not enough, which is the defect
+ * this replaces.** From 32 degrees of commanded attitude up, the airplane
+ * stalls in the pitch-up transient, the wing-drop rolls it through 180
+ * degrees, and 120 s later it is still tumbling -- flying sideways at 80-95
+ * m/s with the autopilot nowhere near the commanded attitude. A tumbling
+ * airplane passes through the unstalled band several times a second, so a
+ * window that happens to open in one of those gaps sees `isStalled` false for
+ * all 60 ticks and gets through. Its vertical speed is then whatever the
+ * tumble was doing that second: measured, anywhere from -29 to +23 m/s
+ * depending on the attitude and the lateral-force coefficient, against a
+ * best real climb of 15.8. That is why the card read 15.8 / 20.5 / 15.8 /
+ * 22.1 / 22.9 m/s across those five coefficients and looked non-monotonic --
+ * the settled points never moved at all; the winners were departed samples
+ * that happened to be sampled on an upswing. The handoff of 2026-09-17 first
+ * called this "path-dependent, with a fast and a slow settling branch at 24
+ * degrees"; it is not -- 24 degrees reads 15.775 m/s to the last digit at
+ * every coefficient.
+ *
+ * Four conditions rather than the one that would suffice (any row above
+ * would, on its own), because each names a different half of what "a climb
+ * rate at this attitude" means: at the commanded attitude, wings level, no
+ * sideslip, and steady. Someone loosening one for a future model change
+ * should have to argue with the other three. Bounds are set far inside the
+ * gap -- roughly 1e3 above the settled population and 1e1 below the departed
+ * -- so neither a slightly noisier settled state nor a slightly calmer
+ * departure changes the verdict.
+ */
+const STEADY_PITCH_ERR_RAD = 0.1 * DEG
+const STEADY_BANK_RAD = 0.1 * DEG
+const STEADY_SIDESLIP_RAD = 0.1 * DEG
+const STEADY_VY_SPREAD_MPS = 0.1
+
+const bodyPitchRad = (s: AircraftState): number => {
+  const fwd = qRotate(s.attitude, v3(1, 0, 0))
+  return Math.asin(Math.max(-1, Math.min(1, fwd.y)))
+}
+
+const sideslipRad = (s: AircraftState): number => {
+  const right = qRotate(s.attitude, v3(0, 0, 1))
+  return Math.asin(Math.max(-1, Math.min(1, dot(normalize(s.velocity), right))))
+}
+
+/**
  * Full throttle, best rate of climb approximated by sweeping the commanded
- * pitch attitude and taking the best settled climb rate. Returns m/s.
+ * pitch attitude and taking the best STEADY settled climb rate -- see
+ * `STEADY_PITCH_ERR_RAD`'s block for what steady means and why. Returns m/s.
  */
 export function measureClimbRate(spec: AircraftSpec, altitudeM: number): number {
   let best = -Infinity
+  const rejections: string[] = []
   for (let angleDeg = 0; angleDeg <= CLIMB_SWEEP_MAX_DEG; angleDeg += CLIMB_SWEEP_STEP_DEG) {
     const angle = angleDeg * DEG
     let s = spawn(spec, altitudeM, spec.rates.rateRefSpeedMps)
@@ -184,26 +247,53 @@ export function measureClimbRate(spec: AircraftSpec, altitudeM: number): number 
     }
     // Mean vertical velocity, not a position difference: position is pinned.
     let sum = 0
+    let vyMin = Infinity
+    let vyMax = -Infinity
+    let pitchErrMax = 0
+    let bankMax = 0
+    let sideslipMax = 0
     let stalledDuringSample = false
     for (let i = 0; i < 60 * CLIMB_SAMPLE_S; i++) {
       tick++
       s = holdMassAndAltitude(spec, stepChecked(spec, s, holdPitchAngle(spec, s, 1, angle), { dt: DT, tick }), altitudeM)
       sum += s.velocity.y
+      vyMin = Math.min(vyMin, s.velocity.y)
+      vyMax = Math.max(vyMax, s.velocity.y)
+      pitchErrMax = Math.max(pitchErrMax, Math.abs(bodyPitchRad(s) - angle))
+      bankMax = Math.max(bankMax, Math.abs(bankAngleRad(s)))
+      sideslipMax = Math.max(sideslipMax, Math.abs(sideslipRad(s)))
+      // A stalled airplane is not climbing, whatever its `velocity.y` says
+      // while the altitude is pinned. Kept as its own condition alongside the
+      // four steadiness bounds because it is the one that names the physics.
       if (isStalled(spec, s)) stalledDuringSample = true
     }
-    // **A stalled sweep point is not a climb rate, and this card used to take
-    // one as its best.** Added 2026-09-17. The sweep runs the commanded pitch
-    // attitude up past the best-rate angle into attitudes that depart, and
-    // because the altitude is PINNED a departed airplane can report a large
-    // `velocity.y` while going nowhere. It stayed invisible while the model had
-    // no lateral force: the moment `sideForceN` was added, a departed state
-    // that the stall wing-drop had rolled acquired a vertical force component
-    // and won the sweep with 22.9 m/s against a 13.51 m/s reference -- 69% off.
-    // Rejecting stalled points is the fix, not a tolerance: the card grades a
-    // best RATE OF CLIMB, and a stalled airplane is not climbing.
-    if (stalledDuringSample) continue
+    // The first condition the window failed, or null for a steady sample --
+    // named so the no-steady-point error below can say what went wrong.
+    const rejectedFor = stalledDuringSample
+      ? 'stalled'
+      : pitchErrMax > STEADY_PITCH_ERR_RAD
+        ? `pitch ${(pitchErrMax / DEG).toFixed(2)} deg off the command`
+        : bankMax > STEADY_BANK_RAD
+          ? `bank ${(bankMax / DEG).toFixed(2)} deg`
+          : sideslipMax > STEADY_SIDESLIP_RAD
+            ? `sideslip ${(sideslipMax / DEG).toFixed(2)} deg`
+            : vyMax - vyMin > STEADY_VY_SPREAD_MPS
+              ? `vertical speed varying by ${(vyMax - vyMin).toFixed(3)} m/s`
+              : null
+    if (rejectedFor !== null) {
+      rejections.push(`${angleDeg} deg: ${rejectedFor}`)
+      continue
+    }
     const rate = sum / (60 * CLIMB_SAMPLE_S)
     if (rate > best) best = rate
+  }
+  // Important 2, same as the other cards: a sweep with no steady point is not
+  // evidence of a climb rate of -Infinity, and must not be graded as one.
+  if (!Number.isFinite(best)) {
+    throw new Error(
+      `measureClimbRate for "${spec.id}" at altitude ${altitudeM} m found no steady sweep point ` +
+        `(every attitude rejected: ${rejections.join('; ')})`,
+    )
   }
   return best
 }

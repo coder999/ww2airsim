@@ -42,6 +42,21 @@ stick.
 
 ### What is blocking it: `measureClimbRate` is path-dependent
 
+> **Superseded later the same day.** Re-measured: the card is NOT
+> path-dependent. Every attitude from 0 to 30 degrees settles to one state,
+> wings level with zero sideslip, and reads identically at every
+> `cySlopePerRad` (15.775 m/s at 24 degrees, to the last digit). From 32
+> degrees up the airplane departs in the pitch-up transient, rolls through
+> 180 degrees and is still tumbling when the sample window opens; a tumbling
+> airplane is intermittently unstalled, so the stalled-sample filter let
+> those windows through and their vertical speed was random (-29 to +23
+> m/s). The "fast branch" was a departed sample on an upswing. Fixed by
+> accepting only a steady sample -- see `STEADY_PITCH_ERR_RAD` in
+> `tools/testcards/measure.ts` and the new "same climb rate at any
+> lateral-force coefficient" card in `tests/sim/testcards/f6f.test.ts`. The
+> section below is kept as the record of what was believed at hand-off.
+
+
 `tools/testcards/measure.ts`. At a held pitch attitude with the altitude
 **pinned**, the airplane has a fast and a slow settling branch. Each is
 genuinely converged — 20.5 m/s stable from 100 s through 400 s at the 24°
