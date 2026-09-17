@@ -51,6 +51,22 @@ describe('weathercock stability', () => {
     // against the old model's 0.00 is that ruling holding. It never said the
     // track must not curve; both happen in a real airplane, and having only
     // the track was the bug, not having both.
+    //
+    // RE-MEASURED AGAIN 2026-09-17 when `cySlopePerRad` went from 0.10 to
+    // 0.90, the same mechanism carried further: the more side force, the more
+    // of the slip the track removes and the less the nose has to swing. Hands
+    // off from 10 degrees at 120 m/s, nose swing after 10 s:
+    //
+    // | cySlopePerRad | nose swing | slip left |
+    // | --- | --- | --- |
+    // | 0.10 | 9.19 deg | 0.007 deg |
+    // | 0.50 | 7.32 deg | 0.001 deg |
+    // | 0.90 (shipped) | 6.08 deg | 0.000 deg |
+    //
+    // The floor is 5: below the shipped 6.08 by the same kind of margin the
+    // old 7 sat below 7.47, and still five degrees above the 0.00 the ruling
+    // was written against. A future coefficient above 0.9 will meet the
+    // one-tau lower bound in the next case before it meets this one.
     const start = crabbed(10)
     const heading = (s: AircraftState) => {
       const f = qRotate(s.attitude, v3(1, 0, 0))
@@ -58,7 +74,7 @@ describe('weathercock stability', () => {
     }
     const after = run(start, 10)
     expect(heading(start)).toBeCloseTo(0, 6)
-    expect(heading(after)).toBeGreaterThan(7)
+    expect(heading(after)).toBeGreaterThan(5)
     expect(Math.abs(deg(slipRad(after)))).toBeLessThan(0.5)
   })
 
@@ -80,6 +96,11 @@ describe('weathercock stability', () => {
     expect(deg(slipRad(after))).toBeLessThan(s0 / Math.E)
     // And not instantly, which would mean the decay is no longer a time
     // constant at all: still more than half of what the fin alone would leave.
+    // Measured 2026-09-17, slip after one tau from 10 degrees: 3.348 at
+    // cySlopePerRad 0.10, 2.525 at 0.50, 1.903 at the shipped 0.90 -- which
+    // clears this lower bound of 1.839 by 3%. This is the first assertion a
+    // coefficient above 0.9 will trip, and it is a real question when it
+    // does: at that point the side force is removing slip as fast as the fin.
     expect(deg(slipRad(after))).toBeGreaterThan((s0 / Math.E) * 0.5)
   })
 

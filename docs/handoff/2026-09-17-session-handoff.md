@@ -55,6 +55,9 @@ stick.
 > `tools/testcards/measure.ts` and the new "same climb rate at any
 > lateral-force coefficient" card in `tests/sim/testcards/f6f.test.ts`. The
 > section below is kept as the record of what was believed at hand-off.
+> With the card fixed, `aero.cySlopePerRad` was raised to **0.90** in the
+> commit after; the retention table above reproduced exactly (29 / 57 / 72%)
+> before the change was made. Mark has not yet flown it.
 
 
 `tools/testcards/measure.ts`. At a held pitch attitude with the altitude

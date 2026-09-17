@@ -43,11 +43,13 @@ describe('sustained rudder turns the airplane, not just its nose', () => {
   }
 
   it('keeps turning the flight path for as long as the rudder is held', () => {
-    // The whole point. Measured 2026-09-17 at the shipped cySlopePerRad of
-    // 0.10: heading 45.1 deg and TRACK 25.1 deg after 30 s. Before the term
-    // existed the track did not move at all, so any positive number here is
-    // the behaviour Mark asked for; the floor is set well below the measured
-    // value because the coefficient is expected to be retuned upward.
+    // The whole point. Measured 2026-09-17 at the first shipped cySlopePerRad
+    // of 0.10: heading 45.1 deg and TRACK 25.1 deg after 30 s. Re-measured the
+    // same day at the 0.90 it now ships at: heading 97.7 deg, track 85.5 deg,
+    // slip settled at -12.2 deg. Before the term existed the track did not
+    // move at all, so any positive number here is the behaviour Mark asked
+    // for; the floor is left well below both measurements because the
+    // coefficient is expected to be retuned again once he has flown it.
     const after30 = flyRudder(30)
     expect(trackDeg(after30)).toBeGreaterThan(15)
     expect(headingDeg(after30)).toBeGreaterThan(trackDeg(after30))
