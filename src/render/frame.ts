@@ -1,5 +1,5 @@
 import { advance, createWorld, type Stepper, type World } from '../sim/loop.js'
-import type { TerrainField } from '../sim/world/terrain.js'
+import { heightAt, type TerrainField } from '../sim/world/terrain.js'
 import {
   assistFor,
   DEFAULT_ASSIST_SETTINGS,
@@ -81,6 +81,46 @@ export type FrameState = {
    * would let a wrong field assignment typecheck.
    */
   readonly assistTogglesDown: AssistTogglesDown
+  /** Whether the pilot currently has the gear commanded down. Set in
+   *  `initialFrameState` from its `groundSpawn` argument -- the SAME argument
+   *  that sets `groundSpawn` below, not a second, independently-set flag --
+   *  so a caller cannot ask for the gear down without also getting the
+   *  terrain hold, or the reverse. Before Task 14 this was a hardcoded
+   *  `false`, justified by `DEFAULT_SPAWN_POSITION` (`src/render/spawn.ts`)
+   *  being airborne (600 m up, 23 km from land); Task 14 moved that spawn
+   *  onto a runway at Tacloban, which is exactly the drift this comment used
+   *  to warn about -- a spawn that changed out from under a constant that
+   *  did not track it. Measured cost of getting this wrong (gear that should
+   *  be down but is commanded up): by t=30 s an ordinary flight had lost
+   *  7.3 m/s and 8.3 m of altitude versus never commanding the gear, and the
+   *  gap widens forever, because the gear's 0.3 sq m drag area is 46% of the
+   *  airframe's own zero-lift drag area. Threaded into `Controls.gearDown`
+   *  every frame -- see the comment on `controls` below for why that step is
+   *  not optional. */
+  readonly gearDown: boolean
+  /** Whether the gear toggle key was down last frame, for edge detection --
+   *  the same reason `cyclePressed` exists: a lever that stays where it is
+   *  left, not a switch that flips 60 times while held for a second. */
+  readonly gearPressed: boolean
+  /**
+   * Whether this flight is a GROUND spawn -- parked, waiting for terrain --
+   * as opposed to an airborne one. Set once, in `initialFrameState`, from the
+   * same argument `gearDown` reads (see that field's comment), and carried
+   * unchanged by every `nextFrameState` call after that: it describes how the
+   * flight STARTED, not anything that changes mid-flight.
+   *
+   * The one thing it gates: `nextFrameState` feeds `advance` zero elapsed
+   * time -- instead of the real frame delta -- on every frame this is `true`
+   * and `world.terrain` is still `null`. Terrain arrives over the network,
+   * seconds after the first frame (`main.ts`'s `loadTerrainProgressively`);
+   * without this hold, a parked airplane free-falls from its spawn altitude
+   * in that gap, is metres underground by the time terrain lands, and
+   * `advance` records a crash before the pilot has touched a key. `false`
+   * (a DEV `?spawnX/Y/Z` override -- `spawn.ts`'s `hasSpawnOverride`) never
+   * holds: those spawns are already airborne, so there is no ground to wait
+   * for and the pre-Task-14 behavior is exactly preserved.
+   */
+  readonly groundSpawn: boolean
 }
 
 /** One "was this toggle key down last frame" flag per assist. See
@@ -127,6 +167,13 @@ export function initialFrameState(
   // initialAircraft)` call passes none, so this task changes no runtime
   // behaviour: `advance`'s impact check never runs while this stays `null`).
   terrain: TerrainField | null = null,
+  // `false` matches every caller that predates Task 14 -- every Tier 1 test
+  // and every DEV spawn override -- so this argument changes no existing
+  // behavior by default. A ground spawn passes `true` here and nowhere
+  // else: `gearDown` and `groundSpawn` below both read this ONE argument, so
+  // the two cannot drift apart the way `gearDown`'s own doc comment warns a
+  // hardcoded constant did.
+  groundSpawn: boolean = false,
 ): FrameState {
   return {
     world: { ...createWorld(spec, aircraft, NEUTRAL, NOT_HOLDING), terrain },
@@ -142,6 +189,9 @@ export function initialFrameState(
     tripleTimePressed: false,
     assists,
     assistTogglesDown: NO_TOGGLES_DOWN,
+    gearDown: groundSpawn,
+    gearPressed: false,
+    groundSpawn,
   }
 }
 
@@ -163,6 +213,41 @@ export function initialFrameState(
  */
 export function withTerrain(frame: FrameState, terrain: TerrainField | null): FrameState {
   return { ...frame, world: { ...frame.world, terrain } }
+}
+
+/**
+ * Snaps a ground spawn's altitude onto the REAL ground the instant real
+ * terrain data exists, replacing whatever placeholder `DEFAULT_SPAWN_POSITION`
+ * (`src/render/spawn.ts`) shipped with -- see that constant's doc comment for
+ * why its `y` cannot be the truth at module-load time.
+ *
+ * Meant to be called exactly once, at the transition where `world.terrain`
+ * goes from `null` to real (`main.ts`'s terrain-arrival callback): nothing has
+ * advanced before then for a ground spawn (`FrameState.groundSpawn`'s hold in
+ * `nextFrameState`), so `world.aircraft`, `world.previous`, `eye` and `render`
+ * are all still literally the spawn point -- correcting one of the four
+ * without the other three would show the airplane at the wrong height for
+ * exactly one frame. Velocity is untouched; only the vertical component of
+ * each position moves.
+ *
+ * Takes the terrain as a separate argument, rather than reading
+ * `frame.world.terrain`, so a caller cannot pass a `frame` whose terrain is
+ * still `null` and get a silently wrong `heightAt(null, ...)` -- there is no
+ * such overload, so that mistake is a type error, not a runtime one.
+ */
+export function settleOnTerrain(frame: FrameState, terrain: TerrainField): FrameState {
+  const groundHeightM = heightAt(terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
+  const atGroundHeight = (p: Vec3): Vec3 => v3(p.x, groundHeightM, p.z)
+  return {
+    ...frame,
+    world: {
+      ...frame.world,
+      aircraft: { ...frame.world.aircraft, position: atGroundHeight(frame.world.aircraft.position) },
+      previous: { ...frame.world.previous, position: atGroundHeight(frame.world.previous.position) },
+    },
+    eye: { ...frame.eye, position: atGroundHeight(frame.eye.position) },
+    render: { ...frame.render, position: atGroundHeight(frame.render.position) },
+  }
 }
 
 /**
@@ -198,7 +283,28 @@ export function nextFrameState(
   // airplane answer a third as willingly per metre flown, exactly when there
   // is most sky going past.
   const simElapsedSeconds = elapsedSeconds * timeScale
-  const controls = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+  const controlsAxes = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+
+  // Edge-triggered exactly like the camera cycle and the assist toggles
+  // above: the gear is a lever that stays where it is left, not a switch
+  // that flips 60 times while `G` is held for a second.
+  const gearKeyDown = BINDINGS.toggleGear.some((c) => pressed.has(c))
+  const gearDown =
+    gearKeyDown && !prev.gearPressed ? !prev.gearDown : prev.gearDown
+
+  // On/off from a keyboard: 1 while held, 0 the instant it is not.
+  // `Controls.brake` is [0, 1] (a pedal's travel, not a switch), so a later
+  // axis input -- a rudder pedal's toe-brake, say -- slots in with no type
+  // change here.
+  const brake = BINDINGS.brakes.some((c) => pressed.has(c)) ? 1 : 0
+
+  // `gearDown` and `brake` go into the SAME `Controls` object that reaches
+  // `world.controls` below, for the reason the assist comment on `assist`
+  // gives: the Plan 3 defect was a control that never reached the
+  // simulation, inert in the browser while its own unit tests passed
+  // because they called the module directly. `frame.test.ts` pins this by
+  // reading `f.world.controls.gearDown` back, not just `f.gearDown`.
+  const controls: Controls = { ...controlsAxes, gearDown, brake }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
   // in wall clock would be unusable precisely when it matters most.
@@ -248,7 +354,19 @@ export function nextFrameState(
   // adds a field here instead of a parameter at every call site. A new object
   // each frame, never a write into `prev.world` -- `advance`'s purity test
   // deep-freezes the world it is handed.
-  const advanced = advance({ ...prev.world, controls }, simElapsedSeconds, stepper, assist)
+  //
+  // A ground spawn holds here until its terrain exists (`groundSpawn`'s doc
+  // comment on `FrameState`): feeding `advance` zero elapsed time reuses its
+  // own "no time owed" path (loop.ts) rather than teaching this function a
+  // second way to freeze the airplane -- `stepsRun` and `droppedSteps` both
+  // read 0, `accumulatorSeconds` does not move, and `render`/`eye` below
+  // reinterpolate onto the same unchanged `previous`/`aircraft` pair, so the
+  // airplane visibly sits still rather than snapping to a placeholder pose.
+  // The moment `world.terrain` stops being `null` (`main.ts`'s
+  // `settleOnTerrain` call, the same frame it happens), this reads `false` on
+  // the very next call and the flight proceeds normally.
+  const holding = prev.groundSpawn && prev.world.terrain === null
+  const advanced = advance({ ...prev.world, controls }, holding ? 0 : simElapsedSeconds, stepper, assist)
   const render = interpolateAircraft(
     advanced.world.previous,
     advanced.world.aircraft,
@@ -274,6 +392,9 @@ export function nextFrameState(
     tripleTimePressed: tripleTimeDown,
     assists,
     assistTogglesDown,
+    gearDown,
+    gearPressed: gearKeyDown,
+    groundSpawn: prev.groundSpawn,
   }
 }
 

@@ -256,4 +256,14 @@ describe('flight integrator: forces', () => {
     // actually proves lift is doing anything here.
     expect(s.position.y).toBeGreaterThan(1500)
   })
+
+  it('flies slower with the gear down than with it up, all else equal', () => {
+    // The whole point of the drag term: it must actually reach the integrator.
+    // A term added to ground.ts but never called from step would pass every test
+    // above and change nothing about the airplane.
+    const base = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    const up = step(f6f, base, { pitch: 0, roll: 0, yaw: 0, throttle: 0 }, { dt: DT, tick: 1 })
+    const down = step(f6f, { ...base, gearFraction: 1 }, { pitch: 0, roll: 0, yaw: 0, throttle: 0 }, { dt: DT, tick: 1 })
+    expect(length(down.velocity)).toBeLessThan(length(up.velocity))
+  })
 })

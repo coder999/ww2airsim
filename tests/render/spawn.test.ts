@@ -1,14 +1,58 @@
 import { describe, it, expect } from 'vitest'
-import { DEFAULT_SPAWN_POSITION, SPAWN_PARAMS, spawnPositionFromQuery } from '../../src/render/spawn.js'
+import {
+  DEFAULT_SPAWN_IS_GROUND,
+  DEFAULT_SPAWN_POSITION,
+  SPAWN_PARAMS,
+  hasSpawnOverride,
+  spawnPositionFromQuery,
+} from '../../src/render/spawn.js'
 
 /**
- * `spawn.ts` exists only so Tier 2 can start the airplane over Leyte (see
- * that file's doc comment). It is tested here rather than only on the GPU for
- * the obvious reason -- it is pure -- and for a less obvious one: a bug here
- * does not make the Tier 2 terrain tests FAIL, it makes them pass while flying
- * over open water, which is the failure class this whole plan keeps guarding
- * against.
+ * `spawn.ts` carries two things: where the airplane starts by default (parked
+ * at Tacloban since Task 14), and the `?spawnX/Y/Z` override Tier 2 uses to
+ * put it somewhere else entirely -- over Leyte at altitude, or over open
+ * water. Tested here rather than only on the GPU for the obvious reason --
+ * it is pure -- and for a less obvious one: a bug here does not make the
+ * Tier 2 terrain tests FAIL, it makes them pass while flying over open water
+ * (or, since Task 14, while parked at the wrong point on land), which is the
+ * failure class this whole plan keeps guarding against.
  */
+describe('DEFAULT_SPAWN_POSITION and DEFAULT_SPAWN_IS_GROUND', () => {
+  it('is Tacloban -- (x, z) taken from tests/tools/terrainBuild.test.ts, not re-derived here', () => {
+    expect(DEFAULT_SPAWN_POSITION.x).toBe(-29666)
+    expect(DEFAULT_SPAWN_POSITION.z).toBe(47605)
+  })
+
+  it('is a ground spawn', () => {
+    expect(DEFAULT_SPAWN_IS_GROUND).toBe(true)
+  })
+})
+
+describe('hasSpawnOverride', () => {
+  it('is false for an empty query string or one with unrelated parameters', () => {
+    expect(hasSpawnOverride('')).toBe(false)
+    expect(hasSpawnOverride('?')).toBe(false)
+    expect(hasSpawnOverride('?debug=1&beaufort=6')).toBe(false)
+  })
+
+  it('is true if ANY of the three spawn parameters is present, even alone', () => {
+    // Deliberately "any", not "all three" -- `tests/e2e/ocean.spec.ts` moves
+    // only `spawnY` and still means "not the parked default".
+    expect(hasSpawnOverride('?spawnX=0')).toBe(true)
+    expect(hasSpawnOverride('?spawnY=600')).toBe(true)
+    expect(hasSpawnOverride('?spawnZ=0')).toBe(true)
+    expect(hasSpawnOverride('?spawnX=-45000&spawnY=100&spawnZ=47605')).toBe(true)
+  })
+
+  it('reads the same SPAWN_PARAMS names spawnPositionFromQuery does', () => {
+    // Guards the two functions' idea of "was this overridden" from drifting
+    // apart if a parameter is ever renamed.
+    for (const name of SPAWN_PARAMS) {
+      expect(hasSpawnOverride(`?${name}=1`), name).toBe(true)
+    }
+  })
+})
+
 describe('spawnPositionFromQuery', () => {
   it('is the default spawn when the query string is empty', () => {
     expect(spawnPositionFromQuery('')).toEqual(DEFAULT_SPAWN_POSITION)
@@ -52,9 +96,10 @@ describe('spawnPositionFromQuery', () => {
   })
 
   it('throws on a present-but-unparseable coordinate rather than falling back', () => {
-    // The whole point: a silent fallback puts the airplane back over open
-    // water, where a terrain test reports zero validation errors because it
-    // never saw any terrain.
+    // The whole point: a silent fallback puts the airplane back at
+    // `DEFAULT_SPAWN_POSITION` -- parked at Tacloban, not wherever the test
+    // asked for -- where a terrain test reports zero validation errors
+    // because it never saw the terrain it meant to fly over.
     for (const bad of ['', ' ', 'abc', 'NaN', 'Infinity', '1,5']) {
       expect(
         () => spawnPositionFromQuery(`?spawnY=${encodeURIComponent(bad)}`),

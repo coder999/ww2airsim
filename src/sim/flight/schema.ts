@@ -261,6 +261,32 @@ const AircraftSpecObject = z.object({
     altitudeHoldSeconds: positive,
   }).strict(),
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
+  /** Landing gear: travel time, the drag it costs extended, rolling and
+   *  braking friction, and the ground-handling speed/rate gates Task 7 adds. */
+  gear: z.object({
+    /** Seconds for the gear to travel fully up-to-down or down-to-up. */
+    travelSeconds: positive,
+    /** Drag AREA (Cd·A) of the extended gear, m^2 -- multiplies dynamic
+     *  pressure directly, with the drag coefficient already folded in. */
+    dragAreaM2: positive,
+    /** Rolling-friction coefficient, brakes off: force = coeff * weight,
+     *  opposing the ground track. Dimensionless. */
+    rollingResistanceCoeff: positive,
+    /** Rolling-friction coefficient, brakes fully applied. Must be read as
+     *  the upper end of the brake blend in `rollingResistanceN`, not
+     *  validated against `rollingResistanceCoeff` here -- a content author
+     *  is trusted to keep it the larger of the two. */
+    brakingResistanceCoeff: positive,
+    /** Ground speed, m/s, at or above which the tail is judged light enough
+     *  for full pitch authority. Below it, `groundBodyRates` commands no
+     *  pitch at all -- see that function's own doc comment for the ruling
+     *  behind a speed gate instead of an elevator-moment model. */
+    tailUpSpeedMps: positive,
+    /** Maximum tailwheel-steering yaw rate, deg/s, available at any ground
+     *  speed including zero -- distinct from `rates.maxYawRateDegPerSec`,
+     *  which is the RUDDER's authority in the air. */
+    tailwheelYawRateDegPerSec: positive,
+  }).strict(),
   reference: z.object({
     source: z.string().min(1),
     /** Gross weight the cited trial was flown at, kg. Every reference figure

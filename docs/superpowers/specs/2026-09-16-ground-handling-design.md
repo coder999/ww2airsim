@@ -70,17 +70,39 @@ with it in one direction only:
 - **Raising the airplane onto the surface from below adds potential energy.**
   Not safe — `g * h` goes up, and at idle throttle that trips the invariant.
 
-So the constraint must never lift. An airplane found below the surface is Plan
-10's business: `advance` records an impact and freezes. The constraint applies
-to an airplane resting ON the surface within a tolerance, and the plan must
-state that tolerance and test the boundary rather than discovering it in a soak
-failure.
+The rule this originally produced — *the constraint must never lift* — was
+**wrong, and was replaced on 2026-09-16 after it broke take-off**. A constraint
+that never lifts cannot follow rising ground: it holds a constant altitude
+instead, so the airplane buries itself in any upslope and is recorded as
+destroyed. Measured on this document's own Tacloban grades, it died after 81 m
+of roll at 0.30% and 11.8 m at 2.12% — it never reached rotation speed on the
+terrain this plan exists to take off from.
+
+**The constraint is a surface projection, and the real rule is "never gain
+energy".** It places the airplane on the surface, up or down, and pays for any
+rise out of kinetic energy: speed drops so that the kinetic energy lost equals
+the `g·dh` gained. That is what rolling up a hill physically is, and it
+satisfies `assertNoEnergyGain` for a reason rather than by refusing to move —
+the trade is exact and friction only ever subtracts. If the available kinetic
+energy is less than `g·dh`, the airplane cannot climb the slope and stops,
+which is also correct.
+
+An airplane found *below* the surface is still Plan 10's business: `advance`
+records an impact and freezes.
 
 ## 3. Weight on wheels
 
 One predicate, derived rather than stored: the airplane is on the ground when it
-is within a small height tolerance of the surface beneath it AND its gear is
-down. It is a function of state, not a flag that can disagree with the state.
+is within a small height tolerance of the surface beneath it. It is a function of
+state, not a flag that can disagree with the state.
+
+**Deliberately geometric, and not gated on the gear** (amended 2026-09-16, before
+implementation began; this section first said "AND its gear is down"). "Is it
+touching the ground" and "is it rolling on wheels" are different questions, and
+conflating them makes a geometric predicate depend on whether the airplane is
+flyable. A belly landing is still on the ground. The gear-down requirement
+belongs to the consumers that need it — rolling friction and the ground rate
+regime below — not to the predicate they share.
 
 Everything else in this plan reads it:
 

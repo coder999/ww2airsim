@@ -51,6 +51,16 @@ export const BINDINGS = {
   // preventable, and main.ts prevents it.
   toggleLegend: ['Slash'],
   toggleFlightData: ['KeyI'],
+  // Plan 11a Task 8. `G` for gear -- the mnemonic every flight sim before
+  // this one has used, and free: not one of A, C, D, E, H, I, L, Q, R, S, T,
+  // W or Z above. Edge-triggered like the assist toggles, not held: a lever
+  // that stays where it is left, not a switch you hold over.
+  toggleGear: ['KeyG'],
+  // `B` for brakes -- also free, and a plain key for the reason
+  // `throttleDown` documents: no modifier a browser can intercept. Unlike
+  // the gear, this is a hold: brakes bite while the key is down and release
+  // the moment it is not, the way a toe-brake pedal does.
+  brakes: ['KeyB'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS

@@ -4,6 +4,7 @@ import { DT, step } from './flight/model.js'
 import { heightAt, type TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
 import { surfaceAt, contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
+import { supportedContact } from './ground.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -25,6 +26,18 @@ export interface SimContext {
   readonly dt: number
   /** Monotonic simulation tick this step produces. Starts at 0. */
   readonly tick: number
+  /**
+   * The ground under the airplane this step, or `null` for "no ground".
+   *
+   * Added by Plan 11a, which is the consumer this field was waiting for: the
+   * ground constraint and the weight-on-wheels regime both live in `step`, and
+   * `step` cannot ask the world for anything it is not handed. Optional rather
+   * than required deliberately — there are 51 `SimContext` construction sites
+   * and exactly ONE of them is production (`advance`, below). A required field
+   * would have edited 50 test and tool sites to say "no ground" out loud, for
+   * no behavior. `undefined` and `null` both mean no ground.
+   */
+  readonly terrain?: TerrainField | null
 }
 
 /**
@@ -395,7 +408,7 @@ export function advance<M>(
     // which is stale from the second step of a multi-step frame onward).
     const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
     assistMemory = assisted.memory
-    current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1 })
+    current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1, terrain: world.terrain })
     ran++
 
     // Checked after EVERY step in a multi-step frame, not just the loop's
@@ -416,9 +429,16 @@ export function advance<M>(
     // introduce a new path to it: a NaN position makes this comparison false
     // by IEEE 754 rules, so it is read-only and skips silently rather than
     // fabricating an impact).
+    //
+    // `&& !supportedContact(...)` (Task 5b): an airplane resting on its
+    // wheels is on the ground on purpose, and this geometric `<=` test alone
+    // cannot tell that apart from a crash -- `step` had already clamped a
+    // supported airplane to exactly `groundHeightM`, so without this guard
+    // every tick of a normal landing or a parked take-off roll re-triggered
+    // this branch and froze the world, making take-off impossible.
     if (impact === null && world.terrain !== null) {
       const groundHeightM = heightAt(world.terrain, current.position.x, current.position.z)
-      if (current.position.y <= groundHeightM) {
+      if (current.position.y <= groundHeightM && !supportedContact(world.spec, current, groundHeightM)) {
         const surface = surfaceAt(groundHeightM)
         impact = {
           tick: current.tick,

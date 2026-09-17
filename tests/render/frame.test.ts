@@ -3,7 +3,9 @@ import { Quaternion, Vector3 } from 'three'
 import {
   nextFrameState,
   initialFrameState,
+  settleOnTerrain,
   toThreeOrientation,
+  withTerrain,
   worldOffsetFor,
   airframeVisibilityFor,
 } from '../../src/render/frame.js'
@@ -12,6 +14,11 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
+import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
+import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
+import { DEFAULT_SPAWN_POSITION } from '../../src/render/spawn.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const keys = (...k: string[]) => new Set(k)
@@ -160,4 +167,231 @@ it('hands the frame and the world the same controls object', () => {
     f = nextFrameState(f, 1 / 60, keys)
     expect(f.controls).toBe(f.world.controls)
   }
+})
+
+describe('gear and brakes', () => {
+  it('starts with the gear up when `initialFrameState` is not told this is a ground spawn', () => {
+    // `start()` calls `initialFrameState` with no fifth argument, so it takes
+    // the default `groundSpawn = false` -- matching every airborne spawn,
+    // `start()`'s own (0, 1000, 0) included.
+    expect(start().gearDown).toBe(false)
+  })
+
+  it('derives the gear default from the `groundSpawn` argument, not a literal', () => {
+    // Task 14: `DEFAULT_SPAWN_POSITION` (src/render/spawn.ts) moved onto a
+    // runway at Tacloban, which is exactly the failure mode the OLD hardcoded
+    // `false` here used to warn about -- a spawn that changed out from under a
+    // constant that did not track it. `gearDown` and `groundSpawn` now read
+    // the SAME argument, so they cannot independently drift the way that
+    // hardcoded literal did.
+    const f = initialFrameState(f6f, createState({ position: v3(0, 2, 0), gearFraction: 1 }), undefined, undefined, true)
+    expect(f.gearDown).toBe(true)
+    expect(f.groundSpawn).toBe(true)
+  })
+
+  it('toggles the gear on the key edge, not every frame it is held', () => {
+    let f = start()
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyG'))
+    expect(f.gearDown).toBe(true)
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyG'))
+    expect(f.gearDown).toBe(true)
+    f = nextFrameState(f, 1 / 60, keys())
+    f = nextFrameState(f, 1 / 60, keys('KeyG'))
+    expect(f.gearDown).toBe(false)
+  })
+
+  it('puts the gear command where the simulation reads it', () => {
+    // The Plan 3 defect: a control that never reaches `world.controls` is
+    // inert in the browser while every unit test of it still passes.
+    const f = nextFrameState(start(), 1 / 60, keys('KeyG'))
+    expect(f.world.controls.gearDown).toBe(f.gearDown)
+  })
+
+  it('brakes while the key is held and releases when it is not', () => {
+    const held = nextFrameState(start(), 1 / 60, keys('KeyB'))
+    expect(held.controls.brake).toBeGreaterThan(0)
+    expect(nextFrameState(held, 1 / 60, keys()).controls.brake).toBe(0)
+  })
+})
+
+/**
+ * A flat synthetic field, built the same way `tools/testcards/measure.ts`'s
+ * `FLAT_SEA_LEVEL_FIELD` is: one coarse LOD level, every sample identical.
+ * Good enough for the hold/settle mechanics below, which are about WHEN
+ * `nextFrameState` is allowed to integrate, not about real terrain shape --
+ * the take-off roll test further down uses the real committed field instead.
+ */
+const GROUND_HEIGHT_M = 2.0
+const FLAT_FIELD: TerrainField = createTerrainField(
+  parseTerrainHeader({
+    centreLatDeg: 10.8,
+    centreLonDeg: 125.3,
+    halfExtentM: 100000,
+    finestSamples: 8193,
+    levels: 13,
+    encoding: 'int16-decimetres',
+  }),
+  12,
+  new Int16Array(9).fill(GROUND_HEIGHT_M * 10),
+)
+
+const groundStart = () =>
+  initialFrameState(
+    f6f,
+    createState({ position: v3(0, GROUND_HEIGHT_M, 0), velocity: v3(0, 0, 0), gearFraction: 1 }),
+    undefined,
+    null,
+    true,
+  )
+
+describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
+  it('does not integrate while `groundSpawn` is true and `world.terrain` is null', () => {
+    // The whole point: without this hold, a parked airplane free-falls from
+    // its spawn altitude while terrain is still in flight over the network,
+    // is metres underground by the time it lands, and is recorded destroyed
+    // before the pilot has touched a key.
+    let f = groundStart()
+    for (let i = 0; i < 120; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(f.world.aircraft.tick).toBe(0)
+    expect(f.world.aircraft.position).toEqual(v3(0, GROUND_HEIGHT_M, 0))
+    expect(f.stepsRun).toBe(0)
+  })
+
+  it('resumes integrating, settled rather than falling or buried, the instant terrain arrives', () => {
+    let f = groundStart()
+    for (let i = 0; i < 30; i++) f = nextFrameState(f, 1 / 60, keys()) // still holding
+    expect(f.world.aircraft.tick).toBe(0)
+
+    // `main.ts`'s own sequence: `withTerrain` first (the field lands), then
+    // `settleOnTerrain` (correct the placeholder altitude). Settling alone
+    // must not advance the clock or move anything but the vertical position.
+    f = settleOnTerrain(withTerrain(f, FLAT_FIELD), FLAT_FIELD)
+    expect(f.world.aircraft.tick).toBe(0)
+    expect(f.world.aircraft.position.x).toBe(0)
+    expect(f.world.aircraft.position.z).toBe(0)
+    expect(f.world.aircraft.position.y).toBeCloseTo(GROUND_HEIGHT_M, 9)
+
+    // Several seconds of sitting there, idle throttle: no impact, and never
+    // more than a contact-tolerance width from the ground -- not falling
+    // through, not buried, not snapped back up.
+    for (let i = 0; i < 300; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(f.world.impact).toBeNull()
+    expect(Math.abs(f.world.aircraft.position.y - GROUND_HEIGHT_M)).toBeLessThanOrEqual(GROUND_CONTACT_TOLERANCE_M)
+    expect(f.world.aircraft.velocity.y).toBe(0)
+  })
+
+  it('never holds an airborne (non-ground) spawn, terrain or not', () => {
+    // `start()` is `groundSpawn = false` -- the pre-Task-14 default -- so it
+    // must integrate immediately even with no terrain at all, exactly as
+    // every flight before this task did.
+    const f = nextFrameState(start(), 1 / 60, keys())
+    expect(f.world.aircraft.tick).toBe(1)
+    expect(f.stepsRun).toBe(1)
+  })
+})
+
+describe('take-off from the real Tacloban ground spawn (Task 14 verification)', () => {
+  // 86.5 mph, the same trial take-off speed `tests/sim/testcards/f6f.test.ts`
+  // grades `measureTakeoffRun` against -- reused here only as "has the
+  // airplane built up flying speed", not as a second copy of that card.
+  const TAKEOFF_SPEED_MPS = 86.5 * 0.44704
+
+  it('holds, settles onto the real terrain, rolls and lifts off under full throttle', () => {
+    // The committed L4 field -- the one level `physicsFieldFor` ever hands to
+    // the physics (src/render/terrain/load.ts) -- loaded the same way
+    // `tests/sim/soak.test.ts`'s terrain-contact soak does: this is a test,
+    // not `src/sim/`, so pulling from `tools/terrain/load.ts` is fine here.
+    const header = loadTerrainHeader()
+    const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
+    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
+    const groundHeightM = heightAt(terrain, DEFAULT_SPAWN_POSITION.x, DEFAULT_SPAWN_POSITION.z)
+
+    // Real ground, well above sea level and well below "this is a mountain,
+    // the coordinate is wrong" -- Tacloban is a coastal airfield.
+    expect(groundHeightM).toBeGreaterThan(0)
+    expect(groundHeightM).toBeLessThan(50)
+
+    let f = initialFrameState(
+      f6f,
+      createState({
+        position: v3(DEFAULT_SPAWN_POSITION.x, groundHeightM, DEFAULT_SPAWN_POSITION.z),
+        velocity: v3(0, 0, 0),
+        gearFraction: 1,
+      }),
+      undefined,
+      null,
+      true,
+    )
+
+    // Held for a stretch with no terrain, exactly like the real boot
+    // sequence, before the field "arrives".
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(f.world.aircraft.tick).toBe(0)
+
+    f = settleOnTerrain(withTerrain(f, terrain), terrain)
+    expect(f.world.aircraft.position.y).toBeCloseTo(groundHeightM, 9)
+
+    const startX = f.world.aircraft.position.x
+    const startZ = f.world.aircraft.position.z
+
+    // Phase 1: full throttle, wheels level, pitch neutral -- exactly
+    // `measureTakeoffRun`'s (tools/testcards/measure.ts) own technique --
+    // until ground speed reaches the historical rotation speed. Unlike that
+    // card, "rotation speed" here is not the finish line: reaching it with no
+    // pitch input does not lift a level-attitude wing off real ground (the
+    // wing is at ~0 angle of attack the whole roll), which is exactly why a
+    // real pilot rotates at this speed rather than waiting for the runway to
+    // run out.
+    const ROLL_MAX_S = 30
+    let rolling = true
+    for (let i = 0; i < 60 * ROLL_MAX_S && rolling; i++) {
+      f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
+      expect(f.world.impact, `impact recorded during the ground roll, tick ${f.world.aircraft.tick}`).toBeNull()
+      rolling = airspeed(f.world.aircraft) < TAKEOFF_SPEED_MPS
+    }
+    expect(airspeed(f.world.aircraft), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)
+
+    const rollDistanceM = Math.hypot(f.world.aircraft.position.x - startX, f.world.aircraft.position.z - startZ)
+
+    // Phase 2: rotate -- hold nose-up for 1.5 s, matched to this airframe's
+    // `rates.maxPitchRateDegPerSec`-scale response, then release to neutral
+    // and let it fly itself off. A full, indefinitely-held deflection
+    // over-rotates into a climbing stall and porpoises back into the water
+    // (observed manually while building this test); a bounded rotation
+    // input, released once commanded, is what an actual pilot does and is
+    // what this asserts stays crash-free.
+    const ROTATE_TICKS = 90
+    for (let i = 0; i < ROTATE_TICKS; i++) {
+      f = nextFrameState(f, 1 / 60, keys('ShiftLeft', 'ArrowDown'))
+      expect(f.world.impact, `impact recorded while rotating, tick ${f.world.aircraft.tick}`).toBeNull()
+    }
+
+    // Phase 3: confirm genuine separation from the runway -- height above
+    // the real ground clears contact tolerance and STAYS clear for a
+    // sustained stretch, not one noisy tick -- within a further bounded
+    // window, still crash-free throughout.
+    const CLIMB_MAX_S = 15
+    const SUSTAINED_TICKS = 30
+    let clearTicks = 0
+    let airborneTick: number | null = null
+    for (let i = 0; i < 60 * CLIMB_MAX_S && airborneTick === null; i++) {
+      f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
+      expect(f.world.impact, `impact recorded during the climb-out, tick ${f.world.aircraft.tick}`).toBeNull()
+      const heightAboveGroundM = f.world.aircraft.position.y - heightAt(terrain, f.world.aircraft.position.x, f.world.aircraft.position.z)
+      clearTicks = heightAboveGroundM > GROUND_CONTACT_TOLERANCE_M ? clearTicks + 1 : 0
+      if (clearTicks >= SUSTAINED_TICKS) airborneTick = f.world.aircraft.tick
+    }
+
+    expect(airborneTick, 'did not get, and stay, airborne').not.toBeNull()
+    // Reported, not pinned to a tolerance: this is a sanity check that the
+    // real spawn, through the real render-layer wiring (hold, settle, gear
+    // derivation), can actually roll and take off -- the graded historical
+    // figure lives in f6f.test.ts, measured over synthetic flat ground on
+    // purpose (a real-terrain grade would make a historical number depend on
+    // which LOD level happened to load).
+    console.log(
+      `Task 14 verification: ground roll to rotation speed (${TAKEOFF_SPEED_MPS.toFixed(2)} m/s) was ${rollDistanceM.toFixed(1)} m from the Tacloban spawn`,
+    )
+    expect(rollDistanceM).toBeGreaterThan(0)
+  })
 })

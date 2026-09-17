@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { advance, createWorld, MAX_STEPS_PER_FRAME, type Assist } from '../../src/sim/loop.js'
+import { advance, createWorld, MAX_STEPS_PER_FRAME, type Assist, type Stepper } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { DT, step, airspeed } from '../../src/sim/flight/model.js'
 import type { Controls } from '../../src/sim/flight/state.js'
@@ -8,11 +8,17 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { ROLLING_DESCENT_CONTROLS, type GoldenTrajectory } from '../../tools/golden/record.js'
-import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
+import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const level = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
+const NEUTRAL = level
+const plateauHeader = parseTerrainHeader({
+  centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
+  finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
+})
+const plateau = createTerrainField(plateauHeader, 12, new Int16Array(9).fill(10000))
 const start = () =>
   createWorld(f6f, createState({ position: v3(0, 2000, 0), velocity: v3(130, 0, 0) }), level)
 
@@ -153,6 +159,28 @@ describe('advance', () => {
     const r = advance(start(), DT * 3, spy)
     expect(r.stepsRun).toBe(3)
     expect(spy).toHaveBeenCalledTimes(3)
+  })
+
+  it('threads the world terrain into the context every step, so step can see the ground', () => {
+    // Without this, the whole ground-handling layer is inert in production while
+    // every unit test of it still passes, because those call the ground functions
+    // directly. That is precisely how Plan 3's assists layer shipped unwired.
+    const seen: (TerrainField | null | undefined)[] = []
+    const spy: Stepper = (spec, state, controls, ctx) => {
+      seen.push(ctx.terrain)
+      return step(spec, state, controls, ctx)
+    }
+    const world = { ...createWorld(f6f, createState({ position: v3(0, 3000, 0), velocity: v3(120, 0, 0) }), NEUTRAL), terrain: plateau }
+    advance(world, DT * 3, spy)
+    expect(seen).toHaveLength(3)
+    expect(seen.every((t) => t === plateau)).toBe(true)
+  })
+
+  it('passes null terrain through rather than undefined, so "no ground" is explicit', () => {
+    const seen: (TerrainField | null | undefined)[] = []
+    const spy: Stepper = (spec, state, controls, ctx) => { seen.push(ctx.terrain); return step(spec, state, controls, ctx) }
+    advance(createWorld(f6f, createState({ position: v3(0, 3000, 0), velocity: v3(120, 0, 0) }), NEUTRAL), DT, spy)
+    expect(seen).toEqual([null])
   })
 
   describe('the injected assist (Plan 3 Task 1: the seam, no assist behaviour yet)', () => {

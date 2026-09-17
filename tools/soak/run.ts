@@ -9,7 +9,7 @@ import {
   type AircraftState,
   type Controls,
 } from '../../src/sim/flight/model.js'
-import { stepChecked } from '../../src/sim/invariants.js'
+import { isIdleThrottle, specificEnergyAirmass, stepChecked } from '../../src/sim/invariants.js'
 import { createRng } from '../../src/sim/rng.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import {
@@ -22,6 +22,7 @@ import {
 import { advance, createWorld } from '../../src/sim/loop.js'
 import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { surfaceAt } from '../../src/sim/contact.js'
+import { GROUND_CONTACT_TOLERANCE_M, onGround, supportedContact } from '../../src/sim/ground.js'
 
 export type SoakResult = {
   failures: string[]
@@ -393,7 +394,62 @@ export type TerrainSoakResult = {
    * floor on this field is what tells the two apart).
    */
   terrainHits: number
+  /**
+   * Ticks where the PREVIOUS tick left the airplane within `onGround`'s
+   * tolerance and `impact` was still null -- i.e. ticks where the two
+   * Task 10 assertions below actually evaluated, not merely ticks where the
+   * flight happened to be near the ground. Reported for exactly the reason
+   * `terrainHits` already is (see that field's own comment): "zero failures"
+   * is meaningless on its own, and a soak whose new assertions never once
+   * evaluate would report zero failures forever, indistinguishable from "the
+   * constraint held" -- fix-round-1 review measured this at literally 0 for
+   * both seed 1337 and seed 7 before the dedicated landing cohort below
+   * existed, which is exactly the silent gap this field exists to make loud.
+   */
+  supportedContactTicks: number
 }
+
+/** Same value and same purpose as `invariants.ts`'s own (unexported)
+ *  `ENERGY_EPS`: floating-point slack for the "did not rise" comparison, not
+ *  a physical tolerance. Kept as a separate constant rather than importing
+ *  that one because it is private to that module by design (`stepChecked`'s
+ *  own doc comment: the throw path is unit-tested directly with synthetic
+ *  numbers there, not shared as a public tuning knob). */
+const GROUND_CONTACT_ENERGY_EPS = 1e-3
+
+/**
+ * Fraction of flights that are a DELIBERATE, engineered landing: gear down,
+ * spawned a couple of metres over the ground, at a sink rate and speed
+ * comfortably inside `supportedContact`'s own gates (`src/sim/ground.ts`) --
+ * so the flight settles onto the ground within the first second or two and
+ * STAYS there for the rest of its simulated time, for the two Task 10
+ * assertions below to actually exercise.
+ *
+ * Needed because neither of the other two cohorts reliably produces one.
+ * Fix-round-1 review measured `supportedContact` holding on literally ZERO
+ * of 417,539 ticks at the shipped seed 1337 (and zero at seed 7) with only
+ * the `nearGround` cohort spawning gear down: that cohort's fully random
+ * attitude, forward speed (30-230 m/s) and vertical rate (+-20 m/s) is far
+ * more likely to crash outright -- exceeding `supportedContact`'s sink or
+ * speed cap -- than to arrive gently enough to be carried. `nearGround`
+ * still exists unchanged below, and still spawns gear down, but it is
+ * exploring "does an arbitrary near-ground arrival get classified right",
+ * not "does the resting/rolling constraint hold over time" -- this cohort is
+ * for the latter.
+ *
+ * `randomAttitude` is still used for the spawn orientation even here:
+ * `supportedContact` and `onGround` never look at attitude, only position,
+ * gear, sink rate and speed, so a random 3D orientation cannot prevent this
+ * cohort from registering as supported -- it just means the soak also
+ * explores the model's known simplification that "supported" does not
+ * require being upright (design doc §9, not solved by this plan).
+ */
+const LANDING_SPAWN_FRACTION = 0.1
+/** Fraction of flights in the pre-existing "arbitrary near-ground arrival"
+ *  cohort -- unchanged in width from before this fix round, just no longer
+ *  the only gear-down cohort. See `LANDING_SPAWN_FRACTION` above for why a
+ *  second, gentler cohort was added alongside it rather than in place of it. */
+const NEAR_GROUND_SPAWN_FRACTION = 0.3
 
 /**
  * Randomized soak for the master spec §11 invariant terrain contact closes:
@@ -409,15 +465,22 @@ export type TerrainSoakResult = {
  *
  * Each flight spawns at a random (x, z) within the terrain field's extent (so
  * the soak exercises the real committed elevation data across the whole
- * field, not always the same column), and at an altitude drawn relative to
- * the ground height there rather than sea level -- 30% of flights within 300
- * m of it (so a meaningful fraction are genuinely at risk of contact within
- * the 60 s flight budget) and the rest in the same 200-9,200 m-above-ground
- * band `runSoak` uses above sea level, so ordinary cruise over real terrain is
- * exercised too. `rollControls` (this file's existing input generator, with
- * `centredPitchChance` 0 -- there is no assist here to engage altitude hold)
- * supplies the same violent, occasionally chaotic control input `runSoak`
- * does, re-rolled once per simulated second.
+ * field, not always the same column), in one of three cohorts drawn by
+ * `LANDING_SPAWN_FRACTION` / `NEAR_GROUND_SPAWN_FRACTION` below: a small
+ * ENGINEERED landing (gear down, a couple of metres up, gentle sink and
+ * speed -- see that constant's own comment for why it exists), a larger
+ * arbitrary near-ground arrival (gear down, within 300 m of the ground,
+ * otherwise the same full-range random state as the far cohort -- so a
+ * meaningful fraction are genuinely at risk of contact within the 60 s
+ * flight budget, most of them fatally), and the rest in the same
+ * 200-9,200 m-above-ground band `runSoak` uses above sea level, gear up, so
+ * ordinary cruise over real terrain is exercised too. `rollControls` (this
+ * file's existing input generator, with `centredPitchChance` 0 -- there is
+ * no assist here to engage altitude hold) supplies the same violent,
+ * occasionally chaotic control input `runSoak` does, re-rolled once per
+ * simulated second, for every cohort once it is airborne -- including the
+ * landing cohort once it has settled, so the ground constraint is exercised
+ * under the same chaotic input the rest of the soak uses, not a scripted taxi.
  *
  * Per-tick, after `advance`, the invariant is checked from OUTSIDE `advance`'s
  * own state: `heightAt(terrain, ...)` is recomputed independently against the
@@ -432,6 +495,29 @@ export type TerrainSoakResult = {
  * function takes no `assists` parameter: coverage of the assist stack over
  * long flights is `runSoak`'s job, and adding it here would only double the
  * cost of this arm for no new coverage of the terrain path.
+ *
+ * Plan 11a (Task 10): `world.impact` staying `null` no longer means "still
+ * airborne" -- `supportedContact` (`src/sim/ground.ts`) now lets a flight
+ * legitimately arrive on its wheels and stay, without ever recording an
+ * impact. Both near-ground cohorts spawn gear DOWN (`gearFraction: 1`) for
+ * exactly this reason -- gear was never commanded down anywhere in this soak
+ * before this task, so the "arrives and stays" path was structurally
+ * unreachable -- while the far cohort keeps the pre-existing gear-up cruise
+ * spawn. Every tick the PREVIOUS tick left the airplane within `onGround`'s
+ * tolerance of the ground, two more things are checked, independently
+ * recomputed the same way the impact cross-check above is: the constraint
+ * never let the airplane sink through by more than
+ * `GROUND_CONTACT_TOLERANCE_M` since that resting tick, and -- gated on idle
+ * throttle, the same gate `stepChecked`'s own energy invariant uses, because
+ * a rolling airplane under thrust legitimately gains energy and an ungated
+ * check would fail every ordinary powered ground roll -- that airmass
+ * specific energy did not rise across the step. Both are properties
+ * `restOnSurface`'s own doc comment (`src/sim/ground.ts`) claims for itself;
+ * this is that claim checked over thousands of real, random trajectories
+ * rather than the hand-picked states `tests/sim/ground.test.ts` constructs.
+ * `TerrainSoakResult.supportedContactTicks` is what proves these two
+ * assertions are actually evaluating rather than sitting dead -- see that
+ * field's own comment.
  */
 export function runTerrainSoak(
   spec: AircraftSpec,
@@ -443,23 +529,43 @@ export function runTerrainSoak(
   const failures: string[] = []
   let steps = 0
   let terrainHits = 0
+  let supportedContactTicks = 0
 
   for (let n = 0; n < iterations; n++) {
     const half = terrain.header.halfExtentM
     const x = (rng() * 2 - 1) * half
     const z = (rng() * 2 - 1) * half
     const groundHeightM = heightAt(terrain, x, z)
-    const nearGround = rng() < 0.3
-    const altitude = nearGround ? groundHeightM + rng() * 300 : groundHeightM + 200 + rng() * 9000
-    const speed = 30 + rng() * 200
+    const cohortRoll = rng()
+    const landing = cohortRoll < LANDING_SPAWN_FRACTION
+    const nearGround = !landing && cohortRoll < LANDING_SPAWN_FRACTION + NEAR_GROUND_SPAWN_FRACTION
+    // See `LANDING_SPAWN_FRACTION`'s own comment: this cohort's altitude,
+    // speed and vertical rate are all deliberately narrow and inside
+    // `supportedContact`'s gates (`src/sim/ground.ts`), not a smaller version
+    // of `nearGround`'s wide-open ranges below.
+    const altitude = landing
+      ? groundHeightM + rng() * 2
+      : nearGround
+        ? groundHeightM + rng() * 300
+        : groundHeightM + 200 + rng() * 9000
+    const speed = landing ? spec.reference.stallSpeedMps * (1.05 + rng() * 0.35) : 30 + rng() * 200
+    const velocityY = landing ? -rng() * 2 : (rng() - 0.5) * 40
+    const velocityZ = landing ? (rng() - 0.5) * 4 : (rng() - 0.5) * 40
 
     let world = createWorld(
       spec,
       createState({
         position: v3(x, altitude, z),
-        velocity: v3(speed, (rng() - 0.5) * 40, (rng() - 0.5) * 40),
+        velocity: v3(speed, velocityY, velocityZ),
         attitude: randomAttitude(rng),
         fuelKg: rng() * spec.mass.fuelCapacityKg,
+        // Task 10: both near-ground cohorts spawn gear down -- otherwise
+        // `supportedContact` (which requires `gearFraction >=
+        // GEAR_DOWN_FRACTION`) could never hold and this soak would never
+        // reach the "arrives and stays" path it exists to cover. The far
+        // cohort is unaffected: `createState`'s own default (gear up) is
+        // unchanged for it.
+        gearFraction: landing || nearGround ? 1 : 0,
       }),
       { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 },
     )
@@ -472,12 +578,77 @@ export function runTerrainSoak(
           world = advance(world, DT, stepChecked).world
           steps++
           const gh = heightAt(terrain, world.aircraft.position.x, world.aircraft.position.z)
-          if (world.impact === null && world.aircraft.position.y <= gh) {
+          // Task 10: `position.y <= gh` with `impact` still null is no longer
+          // proof of a missed crash by itself -- `advance`'s own impact check
+          // (src/sim/loop.ts) exempts a `supportedContact` state on purpose
+          // (Task 5b), because an airplane resting or rolling on its wheels
+          // is meant to reach exactly `groundHeightM` and stay there without
+          // ever being flagged destroyed. This narrowing is NOT a pre-existing
+          // bug being fixed: with gear never commanded down anywhere in this
+          // soak before this task, `position.y <= gh && impact === null` was
+          // unreachable (measured 0 occurrences at seeds 1337, 4242 and 7
+          // under the old gear-up-only spawns) -- the gear-down cohorts this
+          // task adds are what exposed it. One real consequence of the
+          // narrowing: this check can no longer catch `supportedContact`
+          // itself being too permissive, since a permissive `supportedContact`
+          // exempts the very state this check would otherwise have flagged --
+          // exactly how the Step 2 `onGround` mutation escaped this check and
+          // was only caught by the sink-through assertion below instead.
+          if (world.impact === null && world.aircraft.position.y <= gh && !supportedContact(spec, world.aircraft, gh)) {
             failures.push(
               `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
-                `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} <= groundHeightM ${gh} but impact is null`,
+                `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} <= groundHeightM ${gh} but impact is null ` +
+                `and the contact is not a supported one`,
             )
             break
+          }
+          // Task 10: a crash-free airplane resting or rolling on its wheels
+          // (see the doc comment above `runTerrainSoak`) is a legitimate
+          // outcome now, and the ground constraint's two promises for it
+          // (src/sim/ground.ts's `restOnSurface` doc comment) are checked
+          // here, on every tick, not just once at the end of the flight --
+          // the same "check it every tick, not just the last" posture the
+          // crash check just above already takes.
+          //
+          // Gated on whether the PREVIOUS tick was resting (`world.previous`,
+          // recomputed against the ground height under IT, not under the
+          // state `advance` just produced), not on whether this tick's
+          // result still is. Gating on the current tick's own position
+          // instead would make the bound below tautological: reaching this
+          // branch would already require the current position to be within
+          // tolerance, which trivially satisfies the very inequality being
+          // checked. Gating on last tick's contact means a constraint that
+          // let the airplane punch through the ground is still caught even
+          // though the resulting position no longer looks anything like
+          // "near the ground".
+          const ghPrev = heightAt(terrain, world.previous.position.x, world.previous.position.z)
+          if (world.impact === null && onGround(world.previous, ghPrev)) {
+            supportedContactTicks++
+            if (!(world.aircraft.position.y >= gh - GROUND_CONTACT_TOLERANCE_M)) {
+              failures.push(
+                `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
+                  `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} sank through groundHeightM ${gh} ` +
+                  `by more than GROUND_CONTACT_TOLERANCE_M (${GROUND_CONTACT_TOLERANCE_M} m) since the previous tick's resting contact`,
+              )
+              break
+            }
+            // Idle-throttle gated, the same gate `stepChecked`'s own energy
+            // invariant uses (src/sim/invariants.ts): a rolling airplane
+            // under thrust legitimately gains energy overcoming drag and
+            // friction, and an ungated check would fail on every ordinary
+            // powered ground roll, not just a broken constraint.
+            if (isIdleThrottle(world.controls)) {
+              const before = specificEnergyAirmass(world.previous)
+              const after = specificEnergyAirmass(world.aircraft)
+              if (after > before + GROUND_CONTACT_ENERGY_EPS) {
+                failures.push(
+                  `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
+                    `tick ${world.aircraft.tick} specific energy rose from ${before} to ${after} J/kg across a ` +
+                    `ground-contact step at idle throttle`,
+                )
+                break
+              }
+            }
           }
         }
       }
@@ -511,5 +682,5 @@ export function runTerrainSoak(
     }
   }
 
-  return { failures, iterations, steps, terrainHits }
+  return { failures, iterations, steps, terrainHits, supportedContactTicks }
 }

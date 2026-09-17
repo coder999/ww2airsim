@@ -789,7 +789,7 @@ git commit -m "G for gear, B for brakes"
 The acceptance test for this whole plan.
 
 **Files:**
-- Modify: `tools/testcards/measure.ts`, and the F6F card's tolerance in `tests/sim/testcards/f6f.test.ts` (find its real path first)
+- Modify: `tools/testcards/measure.ts`, and the F6F card's tolerance in `tests/sim/testcards/f6f.test.ts`
 - Test: the existing card
 
 **Interfaces:**

@@ -4,8 +4,29 @@ import type { CameraMode } from './camera.js'
 import { attitudeAngles, COCKPIT_GAUGES, fuelFraction, gaugeValue } from './gauges.js'
 import { BINDINGS } from '../input/bindings.js'
 import { keyLabel } from './legend.js'
+import { GEAR_DOWN_FRACTION } from '../sim/ground.js'
 
 export type FlightDataItem = { readonly label: string; readonly value: string }
+
+/** The other end of `GEAR_DOWN_FRACTION`'s margin: gear that has traveled
+ *  95% of the way to retracted reads UP for the same "the last sliver of a
+ *  cosmetic travel animation isn't worth flickering over" reason that
+ *  constant's own comment gives for DOWN. */
+const GEAR_UP_FRACTION = 1 - GEAR_DOWN_FRACTION
+
+/**
+ * UP, DOWN, or the state in between while `gearAfter` is still moving it.
+ *
+ * A real third state, not a rounding of the other two: `gearAfter`'s travel
+ * takes `spec.gear.travelSeconds` (several seconds), so a pilot who just
+ * toggled the gear spends real time neither up nor down, and a strip that
+ * only ever said UP or DOWN would be lying to them for that whole stretch.
+ */
+export function gearDisplay(gearFraction: number): string {
+  if (gearFraction <= GEAR_UP_FRACTION) return 'UP'
+  if (gearFraction >= GEAR_DOWN_FRACTION) return 'DOWN'
+  return 'TRANSIT'
+}
 
 /** Full numeric values: unlike a dial, the strip has no end stop to peg at. */
 export function flightDataItems(spec: AircraftSpec, state: AircraftState, controls: Controls): FlightDataItem[] {
@@ -26,6 +47,7 @@ export function flightDataItems(spec: AircraftSpec, state: AircraftState, contro
   const attitude = attitudeAngles(state)
   items.push({ label: 'PITCH', value: `${number(attitude.pitchRad * 180 / Math.PI, true)}°` })
   items.push({ label: 'BANK', value: `${number(attitude.rollRad * 180 / Math.PI, true)}°` })
+  items.push({ label: 'GEAR', value: gearDisplay(state.gearFraction) })
   return items
 }
 
