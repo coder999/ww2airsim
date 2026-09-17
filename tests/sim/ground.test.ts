@@ -6,6 +6,7 @@ import {
   restOnSurface,
   supportedContact,
   rollingResistanceN,
+  groundBodyRates,
   GROUND_CONTACT_TOLERANCE_M,
   MAX_SUPPORTED_SINK_MPS,
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
@@ -263,5 +264,37 @@ describe('rolling resistance', () => {
   it('treats a missing or non-finite brake input as brakes off', () => {
     expect(rollingResistanceN(f6f, 5600, undefined)).toBe(rollingResistanceN(f6f, 5600, 0))
     expect(rollingResistanceN(f6f, 5600, Number.NaN)).toBe(rollingResistanceN(f6f, 5600, 0))
+  })
+})
+
+const airRates = v3(1.2, 0.4, 0.8) // roll, yaw, pitch -- arbitrary nonzero
+const rolling = (speed: number) => createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0) })
+const stick = { pitch: 1, roll: 1, yaw: 1, throttle: 1 }
+
+describe('the ground control regime', () => {
+  it('allows NO roll at all, however hard the stick is held', () => {
+    // Not reduced -- zero. The gear holds the airframe; the ailerons move and
+    // the airplane does not. This is the case that makes an airplane barrel-roll
+    // down the runway if it is got wrong.
+    expect(groundBodyRates(f6f, rolling(20), stick, airRates).x).toBe(0)
+  })
+
+  it('allows no pitch below the speed the tail can be lifted at', () => {
+    expect(groundBodyRates(f6f, rolling(1), stick, airRates).z).toBe(0)
+  })
+
+  it('allows the full commanded pitch rate once the tail is up', () => {
+    const fast = rolling(f6f.gear.tailUpSpeedMps * 1.5)
+    expect(groundBodyRates(f6f, fast, stick, airRates).z).toBeCloseTo(airRates.z, 9)
+  })
+
+  it('still yaws when stopped, because that is the tailwheel and not the rudder', () => {
+    expect(Math.abs(groundBodyRates(f6f, rolling(0), stick, airRates).y)).toBeGreaterThan(0)
+  })
+
+  it('yaws the way the pilot asked', () => {
+    const right = groundBodyRates(f6f, rolling(5), { ...stick, yaw: 1 }, airRates).y
+    const left = groundBodyRates(f6f, rolling(5), { ...stick, yaw: -1 }, airRates).y
+    expect(Math.sign(right)).toBe(-Math.sign(left))
   })
 })

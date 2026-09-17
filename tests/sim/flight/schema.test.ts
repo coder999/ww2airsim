@@ -28,6 +28,8 @@ const valid = {
     dragAreaM2: 0.3,
     rollingResistanceCoeff: 0.02,
     brakingResistanceCoeff: 0.4,
+    tailUpSpeedMps: 15,
+    tailwheelYawRateDegPerSec: 20,
   },
   reference: {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,

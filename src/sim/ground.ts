@@ -1,6 +1,6 @@
-import { v3, length, scale } from './math/vec3.js'
+import { v3, length, scale, type Vec3 } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
-import type { AircraftState } from './flight/state.js'
+import type { AircraftState, Controls } from './flight/state.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -324,4 +324,73 @@ export function supportedContact(
     && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)
     && (!descending || speed <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * spec.reference.stallSpeedMps)
+}
+
+const GROUND_DEG = Math.PI / 180
+
+/**
+ * What the airplane on its wheels actually does, given the rates the AIR
+ * would have commanded (`ratesFromDynamicPressure`, `src/sim/flight/model.ts`).
+ *
+ * The flight model commands body ROTATION RATES, not moments -- correct in
+ * the air, where the airframe is free to rotate about its own centre of
+ * mass, and simply wrong on the ground, where the wheels are a hinge the
+ * airframe cannot rotate through. Bolting ground reaction forces onto the
+ * unmodified air rate command barrel-rolls the airplane down the runway:
+ * full aileron still commands the air's full roll rate, and nothing on the
+ * ground opposes it, because this model has no moments of inertia for a
+ * ground-reaction TORQUE to act against in the first place.
+ *
+ * Each axis is answered on its own terms, because "on the ground" does not
+ * mean the same thing for all three:
+ *
+ * - **Roll: always zero, exactly, not reduced.** A wheeled airplane cannot
+ *   roll about its own axis while both mains are on the ground -- the gear
+ *   IS the roll constraint, full stop, at any speed and any stick
+ *   deflection. This is the case the whole-plan warning is about: leave it
+ *   nonzero and the ailerons move while the airplane does not, until they
+ *   pick up enough authority to become believable and the airplane snaps
+ *   into a roll it has no business doing on the runway.
+ * - **Pitch: gated on a SPEED, not an elevator moment.** Ruling taken here
+ *   rather than left open (spec §9 question 3): the tail comes up once
+ *   ground speed reaches `spec.gear.tailUpSpeedMps`, full stop, rather than
+ *   through an elevator-authority-against-a-moment-arm model. The
+ *   alternative reintroduces moments this model does not carry anywhere
+ *   else and would model the tail in more detail than the airframe it is
+ *   attached to. Whether a hard speed gate feels arbitrary next to a
+ *   progressive one is a Tier 3 question for whoever flies this next, not
+ *   settled here. Compared against GROUND speed -- the horizontal
+ *   component of velocity -- not `airspeed` (`src/sim/flight/model.ts`),
+ *   because the tail lifting off the runway is a mechanical event driven by
+ *   how fast the wheels are moving over the ground, not by the (identical,
+ *   absent wind) number the wing sees. Written as a POSITIVE comparison
+ *   (`groundSpeed >= tailUpSpeedMps`) so a non-finite ground speed -- a
+ *   broken state -- fails it and comes back with the tail down, the more
+ *   conservative of the two outcomes, the same posture `onGround` and
+ *   `supportedContact` already take.
+ * - **Yaw: the tailwheel, not the rudder, and available at ANY speed
+ *   including zero.** A stopped airplane has no rudder authority
+ *   (`ratesFromDynamicPressure`'s dynamic-pressure authority term is 0 at
+ *   v = 0) but can still be steered on the ground by the tailwheel linkage,
+ *   so this is a SEPARATE rate, proportional to `controls.yaw` and capped at
+ *   `spec.gear.tailwheelYawRateDegPerSec`, that does not go through
+ *   `ratesFromDynamicPressure` or its authority term at all. Negated for the
+ *   same reason that function negates yaw: a positive rotation about body
+ *   +Y (right-hand rule) turns +X (forward) toward -Z (left) in this
+ *   right-handed frame, but the documented convention is `Controls.yaw > 0`
+ *   = nose right.
+ */
+export function groundBodyRates(
+  spec: AircraftSpec,
+  state: AircraftState,
+  controls: Controls,
+  airRates: Vec3,
+): Vec3 {
+  const groundSpeed = length(v3(state.velocity.x, 0, state.velocity.z))
+  const pitch = groundSpeed >= spec.gear.tailUpSpeedMps ? airRates.z : 0
+
+  const yawInput = Number.isFinite(controls.yaw) ? Math.min(1, Math.max(-1, controls.yaw)) : 0
+  const yaw = -yawInput * spec.gear.tailwheelYawRateDegPerSec * GROUND_DEG
+
+  return v3(0, yaw, pitch)
 }

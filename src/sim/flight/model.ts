@@ -2,7 +2,15 @@ import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
-import { gearAfter, gearDragN, restOnSurface, supportedContact, onGround, rollingResistanceN } from '../ground.js'
+import {
+  gearAfter,
+  gearDragN,
+  restOnSurface,
+  supportedContact,
+  onGround,
+  rollingResistanceN,
+  groundBodyRates,
+} from '../ground.js'
 import { heightAt } from '../world/terrain.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -256,8 +264,9 @@ export function step(
   // `ctx.terrain` being `null` short-circuits before `heightAt` is called,
   // same as the block below.
   // Whether the airplane was on the ground at the START of this step -- read
-  // by the rolling-resistance force below. Computed once here rather than
-  // re-querying `heightAt` a second time for the same position.
+  // by the rolling-resistance force below and, later, by the ground control
+  // regime that replaces `bodyRates`. Computed once here and reused rather
+  // than re-querying `heightAt` a second time for the same position.
   let onGroundStart = false
   if (ctx.terrain != null) {
     const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
@@ -327,7 +336,7 @@ export function step(
   const workJ = thrustN * Math.max(v, 1) * dt
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
 
-  const bodyRates = ratesFromDynamicPressure(spec, q, controls)
+  const airRates = ratesFromDynamicPressure(spec, q, controls)
 
   // Weathercock: the fin swings the nose into the relative wind.
   //
@@ -365,11 +374,31 @@ export function step(
     return -Math.max(-maxRad, Math.min(maxRad, rate))
   })()
   const stalled = isStalled(spec, state)
-  const withWeathercock = v3(bodyRates.x, bodyRates.y + weathercockY, bodyRates.z)
+  const withWeathercock = v3(airRates.x, airRates.y + weathercockY, airRates.z)
   const ratesWithStall = stalled
     ? v3(withWeathercock.x + STALL_WING_DROP_RAD_PER_S, withWeathercock.y, withWeathercock.z)
     : withWeathercock
-  const attitude = qIntegrateBodyRates(state.attitude, ratesWithStall, dt)
+
+  // On the ground, the wheels are the rotation constraint, not the air --
+  // spec §5's rate command is right in the air and wrong on a runway, where
+  // an airplane cannot roll about its own axis and pitches about its main
+  // gear only once the tail can be lifted (Task 7; see `groundBodyRates`'s
+  // own doc comment). Applied LAST, after the weathercock and stall
+  // wing-drop terms, and not merely blended in: both of those can add a
+  // nonzero `x` (the wing-drop term unconditionally does, on a stalled
+  // airplane), and "roll must go to exactly zero" means exactly that, not
+  // "reduced by whatever came before it" -- so the ground override has to be
+  // the last word on every axis it governs, not one contributor among
+  // several. Gated on the state at the START of this step, matching
+  // `onGroundStart` above: the rates command THIS step's rotation, so using
+  // the integrated (end-of-step) state here would apply a ground rate one
+  // half-step late -- a twitch at the moment of rotation, on the step the
+  // airplane actually leaves the ground.
+  const bodyRates =
+    ctx.terrain != null && onGroundStart
+      ? groundBodyRates(spec, state, controls, ratesWithStall)
+      : ratesWithStall
+  const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
 
   // `gearFraction` is state, and `step` is what produces the next state, so
   // advancing it is `step`'s job, not a later task's -- `gearAfter`
@@ -377,5 +406,5 @@ export function step(
   // `controls.gearDown`.
   const gearFraction = gearAfter(spec, state.gearFraction, controls.gearDown, dt)
 
-  return { position, velocity, attitude, bodyRates: ratesWithStall, fuelKg, tick: ctx.tick, gearFraction }
+  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction }
 }
