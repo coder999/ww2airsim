@@ -113,7 +113,7 @@ export async function flySweep(page: Page): Promise<void> {
     await page.waitForTimeout(400)
     await page.keyboard.up(key)
   }
-  for (const key of ['ArrowDown', 'ArrowLeft', 'ShiftLeft']) {
+  for (const key of ['ArrowDown', 'ArrowLeft', 'Equal']) {
     await page.keyboard.down(key)
     await page.waitForTimeout(600)
     await page.keyboard.up(key)

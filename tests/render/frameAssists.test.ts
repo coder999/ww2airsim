@@ -93,8 +93,8 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     // `advance` gives the OFF number in both arms, which is why the off arm is
     // flown here rather than quoted.
     for (const rollKey of ['ArrowRight', 'ArrowLeft']) {
-      const off = fly(fly(start(NONE), 3, keys(rollKey, 'ShiftLeft')), 4, keys('ShiftLeft'))
-      const on = fly(fly(start(only('autoRudder')), 3, keys(rollKey, 'ShiftLeft')), 4, keys('ShiftLeft'))
+      const off = fly(fly(start(NONE), 3, keys(rollKey, 'Equal')), 4, keys('Equal'))
+      const on = fly(fly(start(only('autoRudder')), 3, keys(rollKey, 'Equal')), 4, keys('Equal'))
       const slipOff = Math.abs(sideslipDeg(off.world.aircraft))
       const slipOn = Math.abs(sideslipDeg(on.world.aircraft))
       // Bounded on both sides: an assist that ran but did nothing would leave
@@ -112,7 +112,7 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     // this test with the limiter dead. At 130 m/s unassisted reaches 15.85 --
     // past the boundary -- and 12.42 with the limiter on (measured
     // 2026-09-13 through this exact path).
-    const held = keys('ArrowDown', 'ShiftLeft')
+    const held = keys('ArrowDown', 'Equal')
     const off = maxAlphaDegOver(start(NONE, 130), 8, held)
     const on = maxAlphaDegOver(start(only('stallLimiter'), 130), 8, held)
     expect(off, 'the unassisted pull must cross the boundary, or this test proves nothing').toBeGreaterThan(
@@ -131,7 +131,7 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     // silently a no-op (`nextAltitudeHoldMemory`'s own doc comment names this
     // failure). Measured 2026-09-13: 81.1 m of drift with the assist off, 3.3 m
     // with it on, over the same 60 s at full throttle from 2000 m.
-    const held = keys('ShiftLeft')
+    const held = keys('Equal')
     const settle = (assists: AssistSettings) => fly(start(assists, 130), 2, held) // throttle to full
     const driftOver = (from: FrameState, seconds: number) => {
       let f = from
@@ -218,7 +218,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     // the limiter on, 15.93 -- past the 15.5-degree boundary -- with it toggled
     // off (measured 2026-09-13). Same spawn, same keys, same duration; the tap
     // is the only difference.
-    const held = keys('ArrowDown', 'ShiftLeft')
+    const held = keys('ArrowDown', 'Equal')
     const defaults = maxAlphaDegOver(start(DEFAULT_ASSIST_SETTINGS, 130), 8, held)
     const toggledOff = maxAlphaDegOver(tap(start(DEFAULT_ASSIST_SETTINGS, 130), 'KeyL'), 8, held)
     expect(defaults).toBeLessThan(CRIT_DEG)
@@ -232,7 +232,7 @@ describe('assist toggles (Plan 3 Task 5)', () => {
     // climb command back to an altitude they deliberately left -- a stale
     // target reasserting itself, the same failure the "yield to pilot pitch
     // input" rule exists to prevent.
-    const captured = fly(start(ALL_ON, 130), 2, keys('ShiftLeft'))
+    const captured = fly(start(ALL_ON, 130), 2, keys('Equal'))
     expect(captured.world.assistMemory.heldAltitudeM).toBe(2000)
 
     const switchedOff = tap(captured, 'KeyH')

@@ -8,13 +8,20 @@ export const BINDINGS = {
   pitchDown: ['ArrowUp', 'KeyW'],
   rollLeft: ['ArrowLeft', 'KeyA'],
   rollRight: ['ArrowRight', 'KeyD'],
-  yawLeft: ['KeyQ'],
-  yawRight: ['KeyE'],
-  throttleUp: ['ShiftLeft', 'ShiftRight', 'Equal'],
+  // Z and X, Mark's layout 2026-09-17. Z had to be taken off `throttleDown`
+  // for it, and he moved throttle to `=` and `-` exclusively at the same time.
+  yawLeft: ['KeyZ'],
+  yawRight: ['KeyX'],
+  // `=` and `-` exclusively (Mark, 2026-09-17). Shift was throttle-up and is
+  // now unbound -- every test and both Tier 2 specs drove the throttle with
+  // `ShiftLeft` and were updated in the same commit. `keyLabel('ShiftLeft')`
+  // stays in `legend.ts`: it is a label for any key code, not a claim that
+  // Shift is bound.
+  throttleUp: ['Equal'],
   // Not Ctrl, which the design first named: Ctrl+W closes the tab in Chrome
   // and preventDefault cannot stop it, so "nose down while throttling back"
   // on WASD would quit the game. Ctrl+T and Ctrl+N are the same.
-  throttleDown: ['KeyZ', 'Minus'],
+  throttleDown: ['Minus'],
   cycleCamera: ['KeyC'],
   lookUp: ['Numpad8'],
   lookDown: ['Numpad2'],

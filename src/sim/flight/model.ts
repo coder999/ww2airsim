@@ -1,7 +1,7 @@
 import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
-import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor } from '../aero.js'
+import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor, sideForceN, attachedFlowFraction } from '../aero.js'
 import {
   gearAfter,
   gearDragN,
@@ -274,10 +274,32 @@ export function step(
   // Lift acts perpendicular to the relative wind, in the plane of the body up axis.
   const liftDir = v > 1e-6 ? normalize(cross(cross(vdir, up), vdir)) : up
 
+  // Sideslip, and the lateral force it generates. **The model had neither
+  // until 2026-09-17**, which is why holding rudder crabbed the airplane
+  // without ever changing its heading: the nose reached the weathercock
+  // equilibrium below and the flight path never bent round to follow it.
+  // `sideForceN`'s doc comment carries the whole finding.
+  //
+  // `right` is the body +Z axis, the same one the weathercock further down
+  // resolves sideslip against -- deliberately the same convention, because two
+  // terms disagreeing about which way sideslip is positive would fight each
+  // other and look like a tuning problem.
+  const right = qRotate(state.attitude, v3(0, 0, 1))
+  const sideslipRad = v > 1e-6 ? Math.asin(Math.max(-1, Math.min(1, dot(vdir, right)))) : 0
+  // Along -right: positive sideslip means the velocity has a component toward
+  // the body's right, so the relative wind strikes the right side and pushes
+  // the airplane left -- opposing the sideways motion that created it, which is
+  // what makes this term remove energy rather than add it.
+  // Faded out past the stall: this is an attached-flow term, and in a departed
+  // airplane the separated-flow drag blend already dominates. See
+  // `attachedFlowFraction` for the measurement that forced this.
+  const sideN = sideForceN(spec, q, sideslipRad) * attachedFlowFraction(spec, alpha)
+
   let force: Vec3 = ZERO
   force = add(force, scale(forward, thrustN))
   force = add(force, scale(vdir, -dragN))
   force = add(force, scale(liftDir, liftN))
+  force = add(force, scale(right, -sideN))
   force = add(force, v3(0, -mass * G, 0))
 
   // Ground reaction (Task 5b, found while making a supported contact never

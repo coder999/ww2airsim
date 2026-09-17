@@ -49,7 +49,7 @@ describe('controlsFromKeys', () => {
 
   it('holds throttle where it is left rather than springing back', () => {
     // Throttle is a lever, not a stick: releasing the key must not close it.
-    const open = hold(['ShiftLeft'], RAMP_SECONDS / 2)
+    const open = hold(['Equal'], RAMP_SECONDS / 2)
     expect(open.throttle).toBeGreaterThan(0)
     let c = open
     for (let t = 0; t < RAMP_SECONDS; t += DT) c = controlsFromKeys(keys(), DT, c)
@@ -59,10 +59,12 @@ describe('controlsFromKeys', () => {
   it('clamps throttle to [0,1]', () => {
     // Held past the full SWEEP time, not the stick ramp time: the constants
     // differ, and five ramp times is only 88% of the sweep.
-    const full = hold(['ShiftLeft'], THROTTLE_SECONDS * 1.5)
+    const full = hold(['Equal'], THROTTLE_SECONDS * 1.5)
     expect(full.throttle).toBe(1)
-    expect(hold(['KeyZ'], THROTTLE_SECONDS * 1.5).throttle).toBe(0)
-    expect(hold(['KeyZ'], THROTTLE_SECONDS * 1.5, full).throttle).toBe(0)
+    // `Minus`, not `KeyZ`: Z became yaw-left on 2026-09-17 when throttle moved
+    // to `=` and `-` exclusively.
+    expect(hold(['Minus'], THROTTLE_SECONDS * 1.5).throttle).toBe(0)
+    expect(hold(['Minus'], THROTTLE_SECONDS * 1.5, full).throttle).toBe(0)
   })
 
   it('produces finite output for a nonsense dt', () => {
@@ -94,8 +96,8 @@ describe('control sign conventions (review 2026-09-13)', () => {
   })
 
   it('yaws the nose right on E and left on Q', () => {
-    expect(held('KeyE').yaw).toBeGreaterThan(0)
-    expect(held('KeyQ').yaw).toBeLessThan(0)
+    expect(held('KeyX').yaw).toBeGreaterThan(0)
+    expect(held('KeyZ').yaw).toBeLessThan(0)
   })
 
   it('pitches the nose up on the back-stick keys', () => {

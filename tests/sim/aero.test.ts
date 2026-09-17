@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor, alphaCritRad, groundEffectFactor }
+import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor, alphaCritRad, groundEffectFactor, sideForceN, SIDESLIP_CRIT_DEG, attachedFlowFraction }
   from '../../src/sim/aero.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
@@ -316,5 +316,132 @@ describe('drag coefficient with an induced-drag scale', () => {
   it('is unchanged when the scale is omitted', () => {
     expect(dragCoefficient(f6f, 0.8, deg(6))).toBe(dragCoefficient(f6f, 0.8, deg(6), 1))
     expect(dragCoefficient(f6f, 0.8, deg(40))).toBe(dragCoefficient(f6f, 0.8, deg(40), 1))
+  })
+})
+
+/**
+ * The force that was missing, and the reason the rudder could not turn the
+ * airplane.
+ *
+ * Mark reported 2026-09-17 that holding rudder swings the nose to about 15-20
+ * degrees off centre and then stops changing heading. The nose behaviour is
+ * correct and designed: sideslip builds until the weathercock's restoring yaw
+ * rate cancels the rudder's commanded one, an equilibrium at
+ * `maxYawRateDegPerSec * weathercockSeconds` = 22.5 degrees, independent of
+ * speed because both terms scale by the same authority.
+ *
+ * What was wrong is that the HEADING then never changed, because the model had
+ * **no lateral aerodynamic force at all**. Nothing converted sideslip into a
+ * sideways push, so the flight path never bent round to follow the nose and
+ * the airplane crabbed forever, flying dead straight. This is the airborne
+ * twin of `lateralGripAfter`'s tire force (`src/sim/ground.ts`), added the
+ * same day for the same reason on the ground.
+ */
+describe('side force from sideslip', () => {
+  it('is zero with no sideslip, whatever the speed', () => {
+    expect(sideForceN(f6f, 50_000, 0)).toBe(0)
+  })
+
+  it('grows with sideslip and with dynamic pressure', () => {
+    expect(sideForceN(f6f, 1000, deg(10))).toBeGreaterThan(sideForceN(f6f, 1000, deg(5)))
+    expect(sideForceN(f6f, 2000, deg(10))).toBeCloseTo(2 * sideForceN(f6f, 1000, deg(10)), 9)
+  })
+
+  it('takes the sign of the sideslip, so it always opposes the sideways motion', () => {
+    // Positive sideslip means the velocity has a component toward the body's
+    // right, so the relative wind strikes the right side and the force on the
+    // airplane is to the LEFT -- opposing the motion that created it. `step`
+    // applies it along -right, so this function returns the magnitude with the
+    // sideslip's own sign and the direction is the caller's.
+    expect(sideForceN(f6f, 1000, deg(-10))).toBeCloseTo(-sideForceN(f6f, 1000, deg(10)), 9)
+  })
+
+  it('is the wing area times the coefficient slope times dynamic pressure', () => {
+    // Shaped exactly like the lift term -- q * S * C -- rather than as a drag
+    // AREA the way the gear and flaps are, because it has a per-radian slope
+    // and so mirrors `clSlopePerRad` instead of `dragAreaM2`.
+    const beta = deg(8)
+    expect(sideForceN(f6f, 1500, beta)).toBeCloseTo(
+      1500 * f6f.geometry.wingAreaM2 * f6f.aero.cySlopePerRad * beta,
+      9,
+    )
+  })
+
+  it('is big enough to matter at all, which is a weaker claim than it looks', () => {
+    // RE-BASED 2026-09-17. This asserted a lateral acceleration above
+    // 0.3 m/s^2, a threshold I invented; the shipped coefficient produces
+    // 0.19 and the useful question is not the acceleration but whether the
+    // FLIGHT PATH turns. `tests/sim/flight/sideForce.test.ts` measures that
+    // end to end -- 25.1 degrees of track in 30 s of full rudder, against
+    // 0.0 before this term existed -- and this case is left as a floor
+    // against the term being switched off by a retune to nearly zero.
+    const q = 0.5 * 1.225 * 40 * 40
+    const accel = sideForceN(f6f, q, deg(20)) / f6f.reference.testMassKg
+    expect(accel).toBeGreaterThan(0.1)
+    expect(accel).toBeLessThan(5)
+  })
+
+  it('never returns a non-finite force', () => {
+    for (const [q, beta] of [[NaN, 0.1], [1000, NaN], [Infinity, 0.1], [1000, Infinity]] as const) {
+      expect(Number.isFinite(sideForceN(f6f, q, beta)), `q=${q} beta=${beta}`).toBe(true)
+    }
+  })
+})
+
+describe('side force saturation past the fin stall', () => {
+  it('stops growing past the critical sideslip instead of running to 90 degrees', () => {
+    // **The defect this exists to prevent, found by the climb card 2026-09-17.**
+    // Written as an unbounded linear slope, this term reached 2886 N in a
+    // departed state where `asin(dot(vdir, right))` read -88.5 degrees -- a
+    // number that is not a sideslip in any useful sense -- and corrupted
+    // `measureClimbRate`'s pitch sweep by 33%. The lift curve peaks and falls
+    // for the same reason; a fin stalls too.
+    const peak = sideForceN(f6f, 1000, deg(SIDESLIP_CRIT_DEG))
+    expect(sideForceN(f6f, 1000, deg(45))).toBeCloseTo(peak, 9)
+    expect(sideForceN(f6f, 1000, deg(89))).toBeCloseTo(peak, 9)
+    expect(sideForceN(f6f, 1000, deg(-89))).toBeCloseTo(-peak, 9)
+  })
+
+  it('is still linear inside the critical sideslip, where approaches happen', () => {
+    // The whole useful range -- a rudder input on final reaches 15-20 degrees.
+    for (const d of [1, 5, 10, SIDESLIP_CRIT_DEG - 1]) {
+      expect(sideForceN(f6f, 1000, deg(d))).toBeCloseTo(
+        1000 * f6f.geometry.wingAreaM2 * f6f.aero.cySlopePerRad * deg(d),
+        9,
+      )
+    }
+  })
+
+  it('has a critical sideslip in the range a fin actually stalls at', () => {
+    expect(SIDESLIP_CRIT_DEG).toBeGreaterThanOrEqual(12)
+    expect(SIDESLIP_CRIT_DEG).toBeLessThanOrEqual(30)
+  })
+})
+
+describe('attachedFlowFraction', () => {
+  it('is 1 everywhere inside the stall and 0 at 90 degrees', () => {
+    for (const d of [0, 5, -10, 15]) expect(attachedFlowFraction(f6f, deg(d))).toBe(1)
+    expect(attachedFlowFraction(f6f, deg(90))).toBeCloseTo(0, 12)
+    expect(attachedFlowFraction(f6f, deg(-90))).toBeCloseTo(0, 12)
+  })
+
+  it('blends rather than stepping, so nothing snaps at the stall boundary', () => {
+    const crit = alphaCritRad(f6f)
+    expect(attachedFlowFraction(f6f, crit + 1e-9)).toBeCloseTo(1, 6)
+    expect(attachedFlowFraction(f6f, crit + deg(20))).toBeGreaterThan(0)
+    expect(attachedFlowFraction(f6f, crit + deg(20))).toBeLessThan(1)
+  })
+
+  it('stays 0 beyond 90 degrees, which `angleOfAttack` routinely reaches', () => {
+    // `angleOfAttack` is an atan2 spanning the full +/-180 degrees, and the
+    // soak measured 40.8% of steps past 90.5 degrees.
+    for (const d of [95, 140, 180, -140]) {
+      expect(attachedFlowFraction(f6f, deg(d)), `${d} deg`).toBe(0)
+    }
+  })
+
+  it('is 0 for a non-finite alpha rather than 1', () => {
+    // It multiplies a force. "I do not know" must not mean "full force".
+    expect(attachedFlowFraction(f6f, NaN)).toBe(0)
   })
 })

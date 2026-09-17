@@ -28,6 +28,16 @@ const AircraftSpecObject = z.object({
     clMax: positive,
     alphaCritDeg: positive,
     clAtZeroAlpha: finite,
+    /**
+     * Side-force coefficient per radian of sideslip, referenced to wing area.
+     * Positive; the DIRECTION is applied by `step` (along the body's -right
+     * axis), so this is a magnitude slope and mirrors `clSlopePerRad`.
+     *
+     * Added 2026-09-17 because the model had no lateral aerodynamic force at
+     * all, which is why holding rudder crabbed the airplane without turning
+     * it -- see `sideForceN` in `src/sim/aero.ts`.
+     */
+    cySlopePerRad: positive,
     cd0: positive,
     oswaldE: fraction,
   }).strict(),

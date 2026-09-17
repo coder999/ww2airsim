@@ -17,9 +17,14 @@ describe('the control legend (2026-09-15)', () => {
   })
 
   it('shows the throttle-down keys, the ones that were invisible', () => {
+    // The point of this case is that throttle DOWN is legible at all -- it
+    // shipped invisible once. The key it names changed on 2026-09-17 (Z became
+    // yaw-left, throttle moved to `=` and `-` exclusively), so it asserts the
+    // current down key rather than being deleted along with the old one.
     const throttle = legendLines().find((l) => l.toLowerCase().includes('throttle'))
     expect(throttle).toBeDefined()
-    expect(throttle).toContain('Z')
+    expect(throttle).toContain('-')
+    expect(throttle).toContain('=')
   })
 
   it('never shows a bound key as its raw DOM code', () => {
@@ -54,4 +59,24 @@ it('binds F to the flaps, beside G for the gear', () => {
   // this pins the key itself, and that it is not shared with another control.
   expect(BINDINGS.toggleFlaps).toContain('KeyF')
   expect(BINDINGS.toggleGear).not.toContain('KeyF')
+})
+
+it('puts yaw on Z and X, and throttle exclusively on = and -', () => {
+  // Mark's layout, 2026-09-17: yaw left/right on Z/X, and "throttle up and
+  // down move completely to + and - exclusively". Z was throttle-down and had
+  // to give it up; Shift was throttle-up and gives it up too.
+  expect(BINDINGS.yawLeft).toEqual(['KeyZ'])
+  expect(BINDINGS.yawRight).toEqual(['KeyX'])
+  expect(BINDINGS.throttleUp).toEqual(['Equal'])
+  expect(BINDINGS.throttleDown).toEqual(['Minus'])
+  // Nothing else may claim a throttle or yaw key: a key that does two things
+  // is the conflict this layout change existed to remove.
+  const others = Object.entries(BINDINGS).filter(
+    ([name]) => !['yawLeft', 'yawRight', 'throttleUp', 'throttleDown'].includes(name),
+  )
+  for (const [name, codes] of others) {
+    for (const code of codes as readonly string[]) {
+      expect(['KeyZ', 'KeyX', 'Equal', 'Minus'], `${name} claims ${code}`).not.toContain(code)
+    }
+  }
 })

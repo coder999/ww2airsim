@@ -68,7 +68,7 @@ describe('nextFrameState', () => {
     let open = start()
     let idle = start()
     for (let i = 0; i < 300; i++) {
-      open = nextFrameState(open, 1 / 60, keys('ShiftLeft'))
+      open = nextFrameState(open, 1 / 60, keys('Equal'))
       idle = nextFrameState(idle, 1 / 60, keys())
     }
     expect(airspeed(open.world.aircraft)).toBeGreaterThan(airspeed(idle.world.aircraft) + 5)
@@ -163,7 +163,7 @@ it('hands the frame and the world the same controls object', () => {
   const f6f = loadAircraftSpec('f6f-hellcat')
   let f = initialFrameState(f6f, createState({ position: v3(0, 600, 0), velocity: v3(120, 0, 0) }))
   expect(f.controls).toBe(f.world.controls)
-  for (const keys of [new Set(['ArrowLeft']), new Set(['ShiftLeft']), new Set<string>()]) {
+  for (const keys of [new Set(['ArrowLeft']), new Set(['Equal']), new Set<string>()]) {
     f = nextFrameState(f, 1 / 60, keys)
     expect(f.controls).toBe(f.world.controls)
   }
@@ -354,7 +354,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const ROLL_MAX_S = 30
     let rolling = true
     for (let i = 0; i < 60 * ROLL_MAX_S && rolling; i++) {
-      f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
+      f = nextFrameState(f, 1 / 60, keys('Equal'))
       expect(f.world.impact, `impact recorded during the ground roll, tick ${f.world.aircraft.tick}`).toBeNull()
       rolling = airspeed(f.world.aircraft) < TAKEOFF_SPEED_MPS
     }
@@ -371,7 +371,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     // what this asserts stays crash-free.
     const ROTATE_TICKS = 90
     for (let i = 0; i < ROTATE_TICKS; i++) {
-      f = nextFrameState(f, 1 / 60, keys('ShiftLeft', 'ArrowDown'))
+      f = nextFrameState(f, 1 / 60, keys('Equal', 'ArrowDown'))
       expect(f.world.impact, `impact recorded while rotating, tick ${f.world.aircraft.tick}`).toBeNull()
     }
 
@@ -384,7 +384,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     let clearTicks = 0
     let airborneTick: number | null = null
     for (let i = 0; i < 60 * CLIMB_MAX_S && airborneTick === null; i++) {
-      f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
+      f = nextFrameState(f, 1 / 60, keys('Equal'))
       expect(f.world.impact, `impact recorded during the climb-out, tick ${f.world.aircraft.tick}`).toBeNull()
       // Task 15: the WHEELS' height above ground is what "airborne" means --
       // `position.y` is the body origin, which sits `f6f.gear.heightM` above
@@ -442,7 +442,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const startX = from.x
     const startZ = from.z
     for (let i = 0; i < 60 * 30 && airspeed(f.world.aircraft) < TAKEOFF_SPEED_MPS; i++) {
-      f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
+      f = nextFrameState(f, 1 / 60, keys('Equal'))
       expect(f.world.impact, `impact recorded during the ground roll, tick ${f.world.aircraft.tick}`).toBeNull()
     }
     expect(airspeed(f.world.aircraft), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)

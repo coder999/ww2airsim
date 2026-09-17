@@ -82,6 +82,89 @@ export const windmillDragCd0 = (spec: AircraftSpec, throttle: number): number =>
   return spec.engine.windmillCd0 * (1 - t)
 }
 
+/**
+ * Sideslip, in degrees, at which the fin and fuselage side force stops
+ * growing. An ESTIMATE: fin stall is commonly put in the 15-25 degree range
+ * and 20 is the middle of it. Not aircraft-specific content because no trial
+ * figure for it exists for this airframe either, and a shared constant is
+ * honest about that.
+ */
+export const SIDESLIP_CRIT_DEG = 20
+
+/**
+ * How much attached flow the wing still has: 1 inside `alphaCritDeg`, blending
+ * linearly to 0 at 90 degrees of angle of attack.
+ *
+ * The same blend `dragCoefficient` uses to reach `FLAT_PLATE_CD`, factored out
+ * so the side force can share it rather than restating the arithmetic.
+ *
+ * **Why the side force needs it.** `sideForceN` is an attached-flow term. In a
+ * fully departed airplane the flow is separated, the flat-plate drag blend
+ * already dominates, and a saturated side force there is worth ~33 kN at
+ * 100 m/s -- 5.9 m/s^2 of lateral acceleration, enough to rewrite a departure.
+ * Measured 2026-09-17: applying it unfaded made altitude hold extend time past
+ * 90 degrees of alpha from 131 ticks to 1190, which
+ * `tests/assists/index.test.ts` caught. Fading it out leaves every departure
+ * exactly as it was before this term existed, which is the conservative
+ * posture for a force added late.
+ */
+export const attachedFlowFraction = (spec: AircraftSpec, alphaRad: number): number => {
+  if (!Number.isFinite(alphaRad)) return 0
+  const alphaCrit = alphaCritRad(spec)
+  const a = Math.abs(alphaRad)
+  if (a <= alphaCrit) return 1
+  const ninety = Math.PI / 2
+  const t = Math.max(0, Math.min(1, (a - alphaCrit) / (ninety - alphaCrit)))
+  return 1 - t
+}
+
+/**
+ * Lateral aerodynamic force from sideslip, newtons, signed with the sideslip.
+ *
+ * **This is the force the model did not have**, and its absence is why the
+ * rudder could not turn the airplane. Mark reported 2026-09-17 that holding
+ * rudder swings the nose 15-20 degrees off centre and then the heading stops
+ * changing. The nose behaviour was correct and designed -- sideslip builds
+ * until the weathercock's restoring yaw rate cancels the rudder's commanded
+ * one, an equilibrium at `maxYawRateDegPerSec * weathercockSeconds` = 22.5
+ * degrees, independent of speed because both terms carry the same authority
+ * factor. But with no side force, nothing converted that sideslip into a
+ * sideways push, so the flight path never bent round to follow the nose: the
+ * airplane crabbed forever and flew dead straight.
+ *
+ * The airborne twin of `lateralGripAfter` (`src/sim/ground.ts`), added the
+ * same day for the same reason on the ground.
+ *
+ * Shaped like the LIFT term -- `q * S * C` -- and not like a drag AREA the way
+ * the gear and flaps are, because `cySlopePerRad` is a per-radian slope and so
+ * mirrors `clSlopePerRad` rather than `dragAreaM2`.
+ *
+ * Returns the MAGNITUDE carrying the sideslip's sign; the direction is the
+ * caller's, and `step` applies it along the body's -right axis. Positive
+ * sideslip means the velocity has a component toward the body's right, so the
+ * relative wind strikes the right side and the force on the airplane is to the
+ * left -- opposing the motion that created it, which is what makes this
+ * energy-removing rather than energy-adding.
+ */
+export const sideForceN = (spec: AircraftSpec, q: number, sideslipRad: number): number => {
+  if (!Number.isFinite(q) || !Number.isFinite(sideslipRad)) return 0
+  // Saturated at the fin stall. Without this the term is an unbounded linear
+  // slope all the way to 90 degrees, and `angleOfAttack`'s lateral twin --
+  // `asin(dot(vdir, right))` -- genuinely reaches -88.5 degrees in a departed
+  // airplane, where it is not a sideslip in any useful sense. Measured
+  // 2026-09-17: the unsaturated version produced 2886 N there and corrupted
+  // `measureClimbRate`'s pitch sweep by 33%, which is how the defect was
+  // caught. `liftCoefficient` peaks and falls for exactly this reason; a fin
+  // stalls too.
+  //
+  // Held at the peak rather than decaying past it, unlike the lift curve: a
+  // decay would need a second shape nobody has a figure for, and holding is
+  // the conservative choice for a term that did not exist yesterday.
+  const crit = SIDESLIP_CRIT_DEG * (Math.PI / 180)
+  const beta = sideslipRad < -crit ? -crit : sideslipRad > crit ? crit : sideslipRad
+  return q * spec.geometry.wingAreaM2 * spec.aero.cySlopePerRad * beta
+}
+
 /** Post-stall decay floor, as a fraction of the peak Cl the attached-flow
  *  branch reaches at alphaCrit. It does not bind anywhere between the stall
  *  and 90 degrees on the shipped F6F curve -- the decay factor at exactly 90

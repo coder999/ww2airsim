@@ -139,13 +139,23 @@ describe('stall limiter (Plan 3 Task 3)', () => {
 
   it('leaves an aggressive pull that stays inside the limit byte-for-byte alone', () => {
     // "Does not interfere below the limit" has to be tested somewhere that
-    // could plausibly have been interfered with: this run reaches 11.71
-    // degrees of alpha, 76% of alphaCrit, on a 0.8 pitch command at 130 m/s
-    // (measured 2026-09-13). A version of this test flown at 2.96 degrees of
-    // alpha would pass against almost any limiter, including one that clamps
-    // absurdly early, which is exactly the "the input never reaches the case"
-    // failure this project has already shipped once.
-    const raw: Controls = { pitch: 0.8, roll: 0.2, yaw: 0, throttle: 0.8 }
+    // could plausibly have been interfered with: a version of this test flown
+    // at 2.96 degrees of alpha would pass against almost any limiter,
+    // including one that clamps absurdly early -- exactly the "the input never
+    // reaches the case" failure this project has already shipped once.
+    //
+    // RE-MEASURED 2026-09-17: the pitch command backs off 0.8 -> 0.78. The
+    // side force from sideslip (`sideForceN`, added that day) bends the flight
+    // path under this run's 0.2 of roll, so the same input now reaches more
+    // alpha and 0.8 crossed into the limiter's anticipation margin -- 13
+    // limited ticks, with alpha still BELOW alphaCrit, so the limiter was
+    // right and the test's premise was what broke. Measured across the range:
+    //
+    //   pitch 0.70 -> 10.38 deg, 0 limited     pitch 0.78 -> 11.60 deg, 0 limited
+    //   pitch 0.75 -> 11.14 deg, 0 limited     pitch 0.80 -> 11.90 deg, 13 limited
+    //
+    // 0.78 keeps the premise: 11.60 degrees, 75% of alphaCrit, limiter silent.
+    const raw: Controls = { pitch: 0.78, roll: 0.2, yaw: 0, throttle: 0.8 }
     const on = fly(130, 6, true, raw)
     const off = fly(130, 6, false, raw)
 

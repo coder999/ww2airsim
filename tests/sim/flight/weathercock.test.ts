@@ -37,6 +37,20 @@ describe('weathercock stability', () => {
     // did not move by a hundredth of a degree in a full minute -- the slip
     // decayed only because thrust has a lateral component while crabbed, which
     // curves the TRACK. A fin turns the airplane; it does not steer it.
+    //
+    // RE-MEASURED 2026-09-17, and the threshold moved for a legitimate reason
+    // rather than a regression. `sideForceN` added the lateral aerodynamic
+    // force the model never had, so the slip is now removed by BOTH mechanisms
+    // -- the fin swinging the nose and the side force bending the track -- and
+    // the nose therefore has less distance to travel before the slip is gone.
+    // Hands off from 10 degrees: the heading swings **7.47 degrees** where it
+    // used to swing more than 8, and the slip ends at 0.002 degrees.
+    //
+    // **The ruling this case exists to protect is intact.** It says the nose
+    // must move rather than sit still waiting for the track, and 7.47 degrees
+    // against the old model's 0.00 is that ruling holding. It never said the
+    // track must not curve; both happen in a real airplane, and having only
+    // the track was the bug, not having both.
     const start = crabbed(10)
     const heading = (s: AircraftState) => {
       const f = qRotate(s.attitude, v3(1, 0, 0))
@@ -44,18 +58,29 @@ describe('weathercock stability', () => {
     }
     const after = run(start, 10)
     expect(heading(start)).toBeCloseTo(0, 6)
-    expect(heading(after)).toBeGreaterThan(8)
+    expect(heading(after)).toBeGreaterThan(7)
     expect(Math.abs(deg(slipRad(after)))).toBeLessThan(0.5)
   })
 
-  it('decays sideslip on the time constant the content declares', () => {
+  it('decays sideslip at least as fast as the time constant the content declares', () => {
+    // **This case changed meaning on 2026-09-17, and the rename says so.**
+    // `weathercockSeconds` used to describe the decay of the whole sideslip,
+    // because the fin was the only thing removing it. `sideForceN` added the
+    // lateral aerodynamic force the model never had, so the track now bends
+    // toward the nose as well and the slip goes faster than the declared
+    // constant: measured 2.588 degrees after one tau from 10, against the
+    // 3.679 that 10/e predicts.
+    //
+    // So the constant now describes the FIN's half only, and the assertion is
+    // a bound rather than a band. Asserting the old band would be asserting
+    // that the side force does not exist.
     const tau = spec.rates.weathercockSeconds
     const s0 = 10
     const after = run(crabbed(s0), tau)
-    // One time constant leaves 1/e of the initial slip, within the error the
-    // changing track introduces.
-    expect(deg(slipRad(after))).toBeGreaterThan((s0 / Math.E) * 0.8)
-    expect(deg(slipRad(after))).toBeLessThan((s0 / Math.E) * 1.2)
+    expect(deg(slipRad(after))).toBeLessThan(s0 / Math.E)
+    // And not instantly, which would mean the decay is no longer a time
+    // constant at all: still more than half of what the fin alone would leave.
+    expect(deg(slipRad(after))).toBeGreaterThan((s0 / Math.E) * 0.5)
   })
 
   it('works both ways round, and does not overshoot into the opposite slip', () => {

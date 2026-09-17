@@ -74,7 +74,7 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   // rotate. `ShiftLeft` integrates the throttle and holds it after release
   // (`controlsFromKeys`, src/input/keyboard.ts), so it stays down for the
   // whole flight from here.
-  await page.keyboard.down('ShiftLeft')
+  await page.keyboard.down('Equal')
   await page.waitForFunction(
     ([sx, sz, needM]) => {
       const p = (window as DiagWindow).__ww2!.aircraftPositionM()
@@ -147,5 +147,5 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   // indistinguishable from a passing run.
   expect(settled.errors).toEqual([])
 
-  await page.keyboard.up('ShiftLeft')
+  await page.keyboard.up('Equal')
 })
