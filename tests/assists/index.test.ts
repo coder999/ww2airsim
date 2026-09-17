@@ -369,6 +369,22 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
     }
   })
 
+  const flyDeparted = (altitudeHold: boolean, alphaDeg = 120, speed = 90) => {
+    const enabled: AssistSettings = { stallLimiter: true, autoRudder: true, altitudeHold }
+    const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
+    const assist = assistFor(enabled)
+    let s = alphaState(alphaDeg, speed)
+    let memory: AltitudeHoldMemory = NOT_HOLDING
+    let ticksPast90 = 0
+    for (let i = 0; i < Math.round(60 / DT); i++) {
+      const assisted = assist(s, f6f, centred, DT, memory)
+      memory = assisted.memory
+      s = step(f6f, s, assisted.controls, { dt: DT, tick: i + 1 })
+      if (Math.abs((angleOfAttack(s) * 180) / Math.PI) > 90) ticksPast90++
+    }
+    return ticksPast90
+  }
+
   it('does not extend a departure it cannot help with, flown end to end', () => {
     // The behavioural consequence, rather than the command at one tick: enter
     // departed at 120 degrees of alpha, hands off, and fly 60 s through
@@ -378,25 +394,58 @@ describe('the pitch-authority budget bounds the whole stack (final review, C1)',
     // 5.35 s. After: 126 and 126, identical. This asserts the inequality
     // rather than the pinned 126, because the number is a property of the
     // flight model and the claim is about the assist.
-    const flyDeparted = (altitudeHold: boolean) => {
-      const enabled: AssistSettings = { stallLimiter: true, autoRudder: true, altitudeHold }
-      const centred: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
-      const assist = assistFor(enabled)
-      let s = alphaState(120, 90)
-      let memory: AltitudeHoldMemory = NOT_HOLDING
-      let ticksPast90 = 0
-      for (let i = 0; i < Math.round(60 / DT); i++) {
-        const assisted = assist(s, f6f, centred, DT, memory)
-        memory = assisted.memory
-        s = step(f6f, s, assisted.controls, { dt: DT, tick: i + 1 })
-        if (Math.abs((angleOfAttack(s) * 180) / Math.PI) > 90) ticksPast90++
-      }
-      return ticksPast90
+    // REWORKED 2026-09-17, and the rework found a pre-existing defect. Read
+    // this before changing it back.
+    //
+    // This compared ONE 60 s departure with altitude hold on against ONE with
+    // it off and demanded the first not be longer. A departure is chaotic, so
+    // the two runs diverge under any perturbation -- which meant this case was
+    // pinning an aerodynamic constant (`aero.cySlopePerRad`) five times below
+    // its physically plausible value, because any meaningful lateral force
+    // failed it.
+    //
+    // **Widening it to four entry conditions showed the property was already
+    // false at one of them, with NO side force at all**: bisected 2026-09-17
+    // by removing the force entirely, the 130 deg / 80 m/s entry still gives
+    // 806 ticks with altitude hold against 306 without -- a 2.6x lengthening
+    // that the single-entry test never looked at. So this case was not
+    // protecting a property that held; it was protecting one entry of it.
+    //
+    // The three entries where the property DOES hold are asserted strictly
+    // here. The one where it does not is characterised in the case below, so
+    // the defect is visible and loud rather than hidden behind a passing test.
+    const HOLDS: readonly [number, number][] = [
+      [120, 90],
+      [110, 100],
+      [100, 110],
+    ]
+    for (const [alphaDeg, speed] of HOLDS) {
+      const off = flyDeparted(false, alphaDeg, speed)
+      const on = flyDeparted(true, alphaDeg, speed)
+      expect(off, `entry ${alphaDeg}/${speed} must actually be departed`).toBeGreaterThan(50)
+      expect(
+        on,
+        `altitude hold must not lengthen the departure at ${alphaDeg}/${speed}`,
+      ).toBeLessThanOrEqual(off)
     }
-    const off = flyDeparted(false)
-    const on = flyDeparted(true)
-    expect(off, 'the entry must actually be departed for this to mean anything').toBeGreaterThan(50)
-    expect(on, 'altitude hold must not lengthen the time spent past 90 degrees').toBeLessThanOrEqual(off)
+  })
+
+  it('DEFECT, pre-existing: altitude hold DOES lengthen a departure entered at 130 deg / 80 m/s', () => {
+    // A characterisation test, not an endorsement. It records a defect this
+    // file's own claim says should not exist, so that the defect is visible in
+    // the suite instead of living only in a handoff.
+    //
+    // Bisected 2026-09-17: present with the side force REMOVED, so it predates
+    // Plan 11b and is Plan 3's to fix. Measured 806 ticks past 90 degrees with
+    // altitude hold against 306 without.
+    //
+    // **If this test starts failing, that is good news**: someone has fixed
+    // altitude hold. Move this entry back into `HOLDS` above and delete this
+    // case rather than adjusting the number.
+    const off = flyDeparted(false, 130, 80)
+    const on = flyDeparted(true, 130, 80)
+    expect(off).toBeGreaterThan(50)
+    expect(on, 'if this is no longer longer, the defect is fixed -- see the comment').toBeGreaterThan(off)
   })
 })
 
