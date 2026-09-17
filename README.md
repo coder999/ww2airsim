@@ -192,17 +192,30 @@ reference GPU, not a software rasterizer), camera sweeps that assert zero
 WebGPU validation errors, and the frame-time budget. Deliberately no
 screenshot goldens — see `tests/e2e/adapter.spec.ts`'s doc comment for why.
 
-The dev server binds loopback-only (`vite.config.ts`), because WebGPU needs a
-secure context and a plain-HTTP LAN address is not one — so the loop is a dev
-server on nexus, reached over an SSH tunnel, with the Playwright runner itself
-on a machine with a real GPU:
+WebGPU is exposed only in a secure context, and a plain-HTTP LAN address is
+not one, so the dev server is never simply browsed at `http://<nexus>:5173`.
+Two loops satisfy that; `vite.config.ts` is authoritative for both, and the
+Playwright runner is separate from either — it has to be on a machine with a
+real GPU.
 
 ```sh
-# on nexus
-npm run dev
+# on nexus — real HTTPS, no tunnel (added 2026-09-16)
+npm run dev:lan
+# then open https://ww2airsim.windomlane.org on the Windows desktop
+```
 
-# on the Windows desktop, in another terminal
-ssh -L 5173:localhost:5173 nexus
+That hostname answers twice over: on the LAN a router record sends it straight
+to nexus with a Let's Encrypt certificate, and from anywhere else it goes out
+through Cloudflare behind an Access login. Plain `npm run dev` binds loopback
+and this hostname then returns 502 — the same 502 as no server at all, which
+is exactly why the `dev:lan` script exists. How it is wired, and what breaks
+it, live in `vps-local/shared/traefik/dynamic/ww2airsim-dev.yml`.
+
+```sh
+# or the original loop — loopback plus an SSH tunnel, because
+# http://localhost IS itself a secure context
+npm run dev                              # on nexus
+ssh -L 5173:localhost:5173 nexus         # on the Windows desktop
 ```
 
 **Or drive the whole thing from nexus** (verified 2026-09-14: 6 passed, real
