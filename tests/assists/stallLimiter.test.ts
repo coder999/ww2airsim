@@ -179,12 +179,20 @@ describe('stall limiter (Plan 3 Task 3)', () => {
 
   it('rations the margin against the pitch rate actually available, not a fixed one', () => {
     // The limiter converts its rad/s bound into stick units with
-    // `commandedBodyRates`, whose authority scales with dynamic pressure. So
-    // full back stick commands 30 deg/s at 130 m/s but only ~11 deg/s at 70,
-    // and the same margin therefore buys a bigger stick fraction when slow:
-    // limiting starts LATER, at a higher alpha. Measured 2026-09-13, the alpha
-    // at which the command is first reduced: 13.74 degrees at 70 m/s against
-    // 11.02 at 130 (predicted `alphaCrit - tau * rate`: 13.79 and 11.00).
+    // `commandedBodyRates`, whose authority scales with airspeed. So full back
+    // stick commands 30 deg/s at 130 m/s but only ~18 deg/s at 70, and the
+    // same margin therefore buys a bigger stick fraction when slow: limiting
+    // starts LATER, at a higher alpha. Measured 2026-09-13, the alpha at which
+    // the command is first reduced: 13.74 degrees at 70 m/s against 11.02 at
+    // 130 (predicted `alphaCrit - tau * rate`: 13.79 and 11.00).
+    //
+    // RE-MEASURED 2026-09-17 when authority became proportional to speed
+    // rather than dynamic pressure (`rateAuthority`, model.ts): at 70 m/s and
+    // 2000 m the authority is sqrt(0.3795) = 0.616 instead of 0.3795, so the
+    // rate is 18.5 deg/s and the prediction is 15.5 - 0.15 * 18.5 = 12.73;
+    // measured 12.76. 130 m/s is above the reference speed under either law
+    // (authority 1), so 11.02 is unchanged -- which is itself a check that
+    // only the law moved.
     //
     // An implementation that divided by `maxPitchRateDegPerSec` alone -- a
     // plausible wrong one, and conservative rather than dangerous, so nothing
@@ -192,7 +200,7 @@ describe('stall limiter (Plan 3 Task 3)', () => {
     // make the airplane blunt exactly where the wing needs to be used.
     const slow = fly(70, 10, true, FULL_BACK)
     const fast = fly(130, 10, true, FULL_BACK)
-    expect(slow.firstLimitedAtDeg).toBeCloseTo(13.74, 1)
+    expect(slow.firstLimitedAtDeg).toBeCloseTo(12.76, 1)
     expect(fast.firstLimitedAtDeg).toBeCloseTo(11.02, 1)
     expect(slow.firstLimitedAtDeg).toBeGreaterThan(fast.firstLimitedAtDeg + 1)
   })
@@ -368,8 +376,11 @@ describe('the stall limiter bounds the step it is given, not a step of length ta
     // The change must be invisible where it matters most. `DT` is 1/60 s
     // against a 0.15 s tau, so `max(tau, dt)` is tau, and a single
     // hand-computed reference value pins that: at 90 m/s, alpha 2 degrees past
-    // critical, the limiter commands -0.7084896352614817 -- the same figure
-    // Task 4's own fix-round-1 tests match against. Also checked at a dt of
+    // critical, the limiter commands -0.5611455090602047 -- the same figure
+    // `tests/assists/index.test.ts` matches to four places. (It was
+    // -0.7084896352614817 until 2026-09-17; rate authority became
+    // proportional to speed, and at this point authority went from 0.627 to
+    // 0.792, the ratio 1.263 between the two figures.) Also checked at a dt of
     // exactly tau, the boundary of the `max`, and at a nonsense dt, which must
     // fall back to tau rather than poisoning the bound with a NaN.
     const alphaRad = CRIT + (2 * Math.PI) / 180
@@ -379,7 +390,7 @@ describe('the stall limiter bounds the step it is given, not a step of length ta
       attitude: qIdentity(),
     })
     const raw: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.8 }
-    const expected = -0.7084896352614817
+    const expected = -0.5611455090602047
     for (const dt of [DT, DT / 10, spec.rates.stallLimiterSeconds, Number.NaN, -1, 0]) {
       expect(applyAssists(s, spec, raw, dt, ONLY_LIMITER(true)).pitch, `dt=${dt}`).toBe(expected)
     }

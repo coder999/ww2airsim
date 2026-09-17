@@ -44,8 +44,19 @@ const FLARE_SINK_MPS = 0.6
  * Ceiling on the nose-up the flare will command. **Bounded on purpose**: a
  * full, indefinitely-held deflection over-rotates into a stall and porpoises,
  * which `tests/render/frame.test.ts` records observing. Tuning value.
+ *
+ * Halved from 0.5 on 2026-09-17 with `PITCH_PER_SINK_ERROR`, when rate
+ * authority became proportional to speed (`rateAuthority`, model.ts): at
+ * the 49 m/s approach speed the pitch rate behind a given stick fraction
+ * roughly doubled, and the unchanged 0.5 arrested the sink so hard the
+ * airplane ballooned, floated eight seconds at 10 m bleeding from 50 to 35
+ * m/s, stalled, and the wing-drop rolled it 20 degrees before the wheels
+ * touched -- measured, it then left the strip 269 m to the side. Halving
+ * both gains restores the rate the flare was tuned for: touchdown 1.35 m/s
+ * at 37.7 m/s, at rest 0.0 m off the centreline, within a metre of the
+ * figures recorded before the law changed.
  */
-const FLARE_PITCH_MAX = 0.5
+const FLARE_PITCH_MAX = 0.25
 /** Ceiling on the sink rate the path loop will ask for, m/s, so a large height
  *  error cannot command a dive. Tuning value, and deliberately below
  *  `MAX_SUPPORTED_SINK_MPS` so the path loop can never itself demand an
@@ -63,8 +74,9 @@ const APPROACH_THROTTLE = 0.3
  * rate-commanded airplane (master spec §5), and an integrator here would need
  * anti-windup to be honest about what it does at the control limits.
  */
-/** Commanded pitch per m/s of sink-rate error. */
-const PITCH_PER_SINK_ERROR = 0.25
+/** Commanded pitch per m/s of sink-rate error. Halved from 0.25 on
+ *  2026-09-17 -- see `FLARE_PITCH_MAX`. */
+const PITCH_PER_SINK_ERROR = 0.125
 /** How much sink rate one metre of height error buys, per second. This is the
  *  outer loop: height error sets a sink target, and the sink error sets pitch.
  *  A cascade rather than pitch-from-height directly, because the first version

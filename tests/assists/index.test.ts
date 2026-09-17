@@ -135,11 +135,15 @@ describe('each assist is independently switchable (Plan 3 Task 5)', () => {
 
   it('the stall-limiter flag alone decides whether an illegal pull is bounded', () => {
     // Alpha 2 degrees past critical at 90 m/s with full back stick held: the
-    // limiter reverses it to -0.7085, and altitude hold (on in both arms) is
-    // standing down here because the pilot's pitch is not centred.
+    // limiter reverses it to -0.5611. (It was -0.7085 until 2026-09-17, when
+    // rate authority became proportional to speed instead of dynamic
+    // pressure: at 90 m/s and 2000 m the authority rose from 0.627 to 0.792,
+    // and the limiter's stick command scales inversely with it -- 0.7085 x
+    // 0.627 / 0.792 = 0.5610, the same figure `stallLimiter.test.ts` pins to
+    // full precision.)
     const stalled = pastCritical(2, 90)
     const fullBack: Controls = { pitch: 1, roll: 0, yaw: 0, throttle: 0.8 }
-    expect(applyAssists(stalled, f6f, fullBack, DT, DEFAULT_ASSIST_SETTINGS).pitch).toBeCloseTo(-0.7085, 4)
+    expect(applyAssists(stalled, f6f, fullBack, DT, DEFAULT_ASSIST_SETTINGS).pitch).toBeCloseTo(-0.5611, 4)
     expect(applyAssists(stalled, f6f, fullBack, DT, withoutOne('stallLimiter')).pitch).toBe(1)
   })
 

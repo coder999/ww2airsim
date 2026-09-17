@@ -29,10 +29,27 @@ describe('stall behaviour (spec §5)', () => {
   })
 
   it('is recoverable: unloading reduces alpha below critical', () => {
+    // Asserts the RECOVERY, not the state after 15 s of held full forward
+    // stick. Re-written 2026-09-17 when rate authority became proportional to
+    // speed rather than dynamic pressure: at this entry (43 m/s at 4000 m)
+    // pitch authority went from 0.12 to 0.34, so full forward now unstalls
+    // the wing in 1.08 s -- and then, held for 15 s, keeps pushing over
+    // through 60 degrees nose-down into a NEGATIVE-alpha stall at 5.5 s,
+    // which is the correct outcome of that input and what the old assertion
+    // was inadvertently failing on. Under the old law the same 15 s never got
+    // that far, which is the only reason the end-state check used to pass.
     let s = createState({ position: v3(0, 4000, 0), velocity: v3(35, -25, 0), attitude: qIdentity() })
+    expect(isStalled(f6f, s)).toBe(true)
     const unload: Controls = { pitch: -1, roll: 0, yaw: 0, throttle: 1 }
-    for (let i = 0; i < 60 * 15; i++) s = step(f6f, s, unload, { dt: DT, tick: i + 1 })
-    expect(isStalled(f6f, s)).toBe(false)
+    let recoveredAtTick: number | null = null
+    for (let i = 0; i < 60 * 15 && recoveredAtTick === null; i++) {
+      s = step(f6f, s, unload, { dt: DT, tick: i + 1 })
+      if (!isStalled(f6f, s)) recoveredAtTick = i + 1
+    }
+    expect(recoveredAtTick, 'never unstalled in 15 s of unloading').not.toBeNull()
+    // Measured 2026-09-17: tick 65. A generous ceiling, because the claim is
+    // that unloading works, not how fast the elevator is.
+    expect(recoveredAtTick!).toBeLessThan(60 * 5)
   })
 
   it('loses altitude in a sustained stall', () => {

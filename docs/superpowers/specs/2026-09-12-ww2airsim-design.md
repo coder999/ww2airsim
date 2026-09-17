@@ -272,9 +272,14 @@ energy, and climb rate degrades with altitude.
 ### Moments — the deliberate simplification
 
 Control input commands a **body rotation rate** rather than applying torque
-against moments of inertia. The commanded rate scales with dynamic pressure,
-which produces the single most important authentic cue — controls going mushy
-near the stall and stiffening at speed — at a fraction of the complexity.
+against moments of inertia. The commanded rate scales with airspeed up to a
+reference speed (the square root of the dynamic-pressure ratio — see
+`rateAuthority` in `src/sim/flight/model.ts`), which produces the single most
+important authentic cue — controls going mushy near the stall and stiffening
+at speed — at a fraction of the complexity. *Amended 2026-09-17: this said
+"scales with dynamic pressure" and was implemented as speed squared, which
+left 12–23 deg/s of roll at approach speeds; Mark chose the speed-proportional
+law on all three axes, accepting that it re-tunes the rudder.*
 
 Additional behaviours:
 

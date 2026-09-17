@@ -54,6 +54,15 @@ const RUNWAY_WIDTH_M = 45
  * The 0.0 m of lateral deviation is the lateral tire force (Task 7) doing its
  * job -- before it, a taxi turn reached 113.6 degrees of sideslip.
  *
+ * RE-MEASURED 2026-09-17 after rate authority became proportional to speed
+ * (`rateAuthority`, model.ts) and the approach autopilot's two pitch gains
+ * were halved to match (`tools/autopilot/approach.ts`, `FLARE_PITCH_MAX`
+ * says why): touchdown sink 1.35 m/s at 37.7 m/s, 583 m in, worst sink on
+ * the approach 3.96 m/s, at rest 65 m past the strip centre and 0.0 m off
+ * the centreline. With the gains left alone this case failed with the
+ * airplane 269 m off the strip, which is exactly the kind of thing it exists
+ * to catch.
+ *
  * The worst sink figure is worth watching rather than asserting: 3.95 m/s is
  * the transient while the path is being established at 262 m, not an arrival
  * rate, and it sits just under `MAX_SUPPORTED_SINK_MPS`. It exceeds the

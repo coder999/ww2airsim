@@ -142,13 +142,42 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: 
 
 const DEG = Math.PI / 180
 
+/**
+ * Fraction of the maximum commanded rate available at dynamic pressure `q`:
+ * `min(1, sqrt(q / qRef))`, with `qRef` the sea-level dynamic pressure at
+ * `rates.rateRefSpeedMps`. At one air density that is the airspeed as a
+ * fraction of the reference speed, capped at 1. Every commanded rate and the
+ * weathercock share it, so the controls and the fin go mushy together.
+ *
+ * **Proportional to speed, not to dynamic pressure -- changed 2026-09-17 at
+ * Mark's decision.** The master spec's section 5 said "scales with dynamic
+ * pressure", which this implemented literally as `q / qRef`, i.e. speed
+ * SQUARED. Measured at the shipped 80 deg/s reference roll rate: 12 deg/s at
+ * 40 m/s, 15 at 45, 23 at 55 -- the approach speeds flaps put the airplane
+ * at -- which Mark reported as the airplane refusing to bank with the flaps
+ * down. Flaps were never the cause (they reach only lift and drag); the
+ * square law was. Aileron roll rate in a real airplane scales with speed
+ * (constant helix angle pb/2V), so the square root is also the better
+ * physics for roll. It was applied to all three axes and the fin, not roll
+ * alone, because Mark chose consistency over keeping the rudder tuning
+ * untouched: at 50 m/s the rudder and fin rates roughly double and the
+ * heading retention he had just tuned drops from 88% -- he accepted about
+ * 80%. Under the new law the same roll figures read 31, 35 and 43 deg/s.
+ *
+ * `qRef` is always > 0: schema.ts validates rateRefSpeedMps as positive.
+ * `q` is clamped at 0 before the root so a non-physical negative input
+ * cannot produce NaN.
+ */
+export function rateAuthority(spec: AircraftSpec, q: number): number {
+  const qRef = 0.5 * densityAt(0) * spec.rates.rateRefSpeedMps * spec.rates.rateRefSpeedMps
+  return Math.min(1, Math.sqrt(Math.max(0, q) / qRef))
+}
+
 /** Shared by `commandedBodyRates` and `step`, which both need it but must not
  *  recompute rho/v/q a second time when `step` already has them in hand
  *  (this is the hottest function in the project). */
 function ratesFromDynamicPressure(spec: AircraftSpec, q: number, controls: Controls): Vec3 {
-  const qRef = 0.5 * densityAt(0) * spec.rates.rateRefSpeedMps * spec.rates.rateRefSpeedMps
-  // qRef is always > 0: schema.ts validates rateRefSpeedMps as positive.
-  const authority = Math.min(1, q / qRef)
+  const authority = rateAuthority(spec, q)
 
   const clamp = (n: number) => clampFinite(n, -1, 1)
   return v3(
@@ -163,10 +192,11 @@ function ratesFromDynamicPressure(spec: AircraftSpec, q: number, controls: Contr
 
 /**
  * Spec §5: control input commands a body rotation rate, not a torque. The
- * achievable fraction of the maximum rate scales with dynamic pressure
- * normalised against sea-level dynamic pressure at the reference speed. This
- * is what makes controls mushy near the stall and stiff at speed, without
- * modelling moments of inertia or damping derivatives.
+ * achievable fraction of the maximum rate is `rateAuthority` -- proportional
+ * to airspeed up to the reference speed (see that function for why it is no
+ * longer proportional to dynamic pressure). This is what makes controls mushy
+ * near the stall and stiff at speed, without modelling moments of inertia or
+ * damping derivatives.
  */
 export function commandedBodyRates(
   spec: AircraftSpec,
@@ -469,7 +499,7 @@ export function step(
     if (v < 1e-6) return 0
     const right = qRotate(state.attitude, v3(0, 0, 1))
     const sideslipRad = Math.asin(Math.max(-1, Math.min(1, dot(vdir, right))))
-    const authority = Math.min(1, q / (0.5 * densityAt(0) * spec.rates.rateRefSpeedMps ** 2))
+    const authority = rateAuthority(spec, q)
     const maxRad = spec.rates.maxYawRateDegPerSec * DEG
     const rate = (sideslipRad / spec.rates.weathercockSeconds) * authority
     // Negated for the same reason `ratesFromDynamicPressure` negates yaw: a

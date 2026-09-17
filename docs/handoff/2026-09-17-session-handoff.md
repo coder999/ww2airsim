@@ -61,7 +61,13 @@ stick.
 > movement, asked for **1.00**, then for ~90% heading retention and chose
 > **2.00** from a measured grid (88%). That is what ships. The trade (about
 > 5 g lateral at full rudder at 200 m/s, no cap applied) is recorded in the
-> content file's `cySlopePerRad` note.
+> content file's `cySlopePerRad` note. Then he reported the airplane would
+> not bank with the flaps down; flaps were not the cause, the spec's
+> rate-authority law (proportional to dynamic pressure, i.e. speed squared)
+> was, and he chose a speed-proportional law on all three axes
+> (`rateAuthority`, model.ts). Roll at 45 m/s went from 15 to 35 deg/s;
+> retention re-measured at 85%; the approach autopilot's pitch gains were
+> halved to match the new plant.
 
 
 `tools/testcards/measure.ts`. At a held pitch attitude with the altitude
