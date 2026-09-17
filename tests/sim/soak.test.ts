@@ -275,6 +275,24 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
     // variance -- if a future content or terrain change makes seed 1337 look
     // more like seed 7's unlucky draw, that is worth a human re-look, not a
     // silently-passing floor at 300.)
+    // RE-MEASURED 2026-09-17 (Plan 11b). The lateral tire force keeps a rolling
+    // airplane tracking straight instead of skidding off, so flights now stay
+    // in supported contact far longer -- seed 1337 gives 393,984 steps / 138
+    // hits / **3,109 supportedContactTicks**, seed 4242 gives 401,529 / 135 /
+    // 7,194, and seed 7 goes from 300 ticks to **16,438**, a 55x increase.
+    //
+    // **Seed 7 also reports 1 failure at that coverage, and it is recorded
+    // rather than hidden**: iteration 62, tick 1777, wheels 0.253 m below a
+    // 0.25 m tolerance. Bisected the same day by disabling the lateral grip
+    // alone: seed 7 then returns to exactly 11a's 300 ticks / 0 failures. So
+    // the grip added no vertical mechanism -- it made a pre-existing marginal
+    // case in `restOnSurface` REACHABLE, at 1 tick in 16,438. Seed 1337, the
+    // committed configuration asserted here, is clean. Plan 11b's handoff
+    // carries the repro.
+    //
+    // The floor stays at 2,000: seed 1337's 3,109 is above it, and per this
+    // file's rule the floor moves with the measurement rather than the
+    // assertion moving to fit.
     expect(result.supportedContactTicks).toBeGreaterThan(2000)
   })
 })

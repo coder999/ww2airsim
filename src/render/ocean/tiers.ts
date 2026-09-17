@@ -11,6 +11,15 @@ export type OceanTier = typeof OCEAN_TIERS[number]
  * Keep high through 8 ms (below 8.33 ms at 120 Hz). Medium's measured
  * 0.741 cost ratio puts an 11 ms high frame near 8.15 ms; slower goes low.
  * This is a one-time downward selection, not a promise for every adapter.
+ *
+ * **RE-MEASURED 2026-09-17, and the budget holds.** `radialSteps`' floor went
+ * 64 -> 128 that day to close the 391 m ring seam, doubling the ocean mesh from
+ * 266,760 to 529,416 vertices, and `mesh.ts` recorded a re-measurement as owed
+ * because these figures predate it. Measured on the reference desktop through
+ * `tests/e2e/terrain.spec.ts`'s frame-time budget at 1440p over Leyte: **gpu
+ * p50 3.211 ms, p95 3.277 ms over 491 samples**, against the 3.277/3.539 ms
+ * above. The extra vertices cost nothing measurable -- these numbers are about
+ * the compute passes, and doubling a vertex count does not touch them.
  */
 export function tierForFrameTimeMs(ms: number): OceanTier {
   return ms <= 8 ? OCEAN_TIERS[0] : ms <= 11 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]

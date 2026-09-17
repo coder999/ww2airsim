@@ -36,8 +36,20 @@ graded historical take-off card measures that real ground now instead of a
 pinned state, inside a tolerance tightened from 10% to 2%; read the
 [handoff](docs/handoff/2026-09-16-plan11a-ground-handling.md) before trusting
 that agreement, because it records exactly which of its inputs are guesses.
-Landing ashore is Plan 11b and is **not yet achievable in practice**. Ships
-and airfields, combat, AI and the meta-game all remain ahead.
+**And it lands again (Plan 11b).** Flaps, ground effect, and a lateral tire
+force so the wheels go where they point rather than skidding — a taxi turn used
+to reach 113.6° of sideslip and now reaches 2.7°. The flap lift increment is
+*derived* from two figures in the same trial table rather than estimated, and
+it is graded against the 84.5 mph landing-configuration stall that
+`f6f-hellcat.json` carried for two plans flagged as unreachable. A scripted
+approach autopilot (`tools/autopilot/approach.ts`) flies an approach into
+Tacloban every commit and asserts the airplane comes to rest on the strip, so
+the landing envelope is a number in CI rather than an impression: touchdown at
+1.47 m/s and 38.4 m/s, 0.0 m off the centreline. Read the
+[handoff](docs/handoff/2026-09-17-plan11b-landing.md) for every figure that is
+still an estimate.
+
+Ships and airfields, combat, AI and the meta-game all remain ahead.
 Mark reordered them on 2026-09-16 so that the ground under the airplane comes
 before there is anybody to shoot at; plan numbers were deliberately NOT
 reused, for the reason the next paragraph records. **Master spec §15 holds the

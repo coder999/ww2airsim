@@ -1439,23 +1439,23 @@ git commit -m "Tune the landing gates against a flown approach"
 - Modify: `tools/soak/run.ts`, `tests/sim/soak.test.ts`, `README.md`, `docs/superpowers/specs/2026-09-12-ww2airsim-design.md`
 - Create: `tests/e2e/approach.spec.ts`, `docs/handoff/2026-09-17-plan11b-landing.md`
 
-- [ ] **Step 1: Add landing cohorts to the soak, with a floor on how often they fire**
+- [x] **Step 1: Add landing cohorts to the soak, with a floor on how often they fire**
 
 11a's own lesson applies directly and is the reason this step exists: its new soak assertions shipped covering `supportedContact` on **0 of 417,539 ticks**, and breaking the ground constraint left the suite green. Add a cohort that flies `approachControls` at a spread of seeds, and assert a floor on the number of ticks that reached a roll-out — the same medicine the existing `terrainHits > 100` floor applies for the same reason.
 
-- [ ] **Step 2: Write the Tier 2 spec**
+- [x] **Step 2: Write the Tier 2 spec**
 
 `tests/e2e/approach.spec.ts`, following `tests/e2e/takeoff.spec.ts`'s shape: spawn airborne on approach with `?spawnX/Y/Z`, drive it with keyboard input, and assert through the granular `__ww2` getters that the airplane ends up supported and stopped. Add a getter only if one is genuinely missing, never a whole-frame getter.
 
-- [ ] **Step 3: Do NOT run Playwright unless it is actually available, and say which**
+- [x] **Step 3: Do NOT run Playwright unless it is actually available, and say which**
 
 Tier 2 needs the Windows reference desktop. **As of this plan's writing a Playwright server IS reachable** — the loop is in `README.md`'s Tier 2 section (`npm run dev:lan`, `ssh -N -L 39001:127.0.0.1:3000 ryzen`, then `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npx playwright test`). If it answers, run the spec and record the result. If it does not, record Tier 2 as outstanding with the exact command. **Do not fabricate a run** — and note that 11a's `takeoff.spec.ts` is still unexecuted, so check that too while the server is up.
 
-- [ ] **Step 4: Update spec §15 and the README**
+- [x] **Step 4: Update spec §15 and the README**
 
 11b's row to Complete with a handoff link, the `— next` marker to Plan 12, and a README paragraph on what landing now does, pointing at §15 rather than restating it.
 
-- [ ] **Step 5: Write the handoff**
+- [x] **Step 5: Write the handoff**
 
 Follow `docs/handoff/2026-09-16-plan11a-ground-handling.md`'s shape. It must record, accurately:
 
@@ -1467,7 +1467,7 @@ Follow `docs/handoff/2026-09-16-plan11a-ground-handling.md`'s shape. It must rec
 - Tier 2's status, honestly, for both this plan and 11a's outstanding take-off spec.
 - Anything left undone, with what it would cost.
 
-- [ ] **Step 6: `npm run verify` exits 0; commit**
+- [x] **Step 6: `npm run verify` exits 0; commit**
 
 ```bash
 git add tools/soak/run.ts tests/sim/soak.test.ts tests/e2e/approach.spec.ts README.md docs/
