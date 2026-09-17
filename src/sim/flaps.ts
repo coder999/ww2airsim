@@ -42,3 +42,22 @@ export function flapClIncrement(spec: AircraftSpec, flapFraction: number): numbe
   const f = flapFraction < 0 ? 0 : flapFraction > 1 ? 1 : flapFraction
   return spec.flap.clIncrement * f
 }
+
+/**
+ * Parasitic drag from extended flaps, newtons.
+ *
+ * `dragAreaM2` is a drag AREA (Cd·A), so it multiplies dynamic pressure
+ * directly with the coefficient already folded in -- the same shape
+ * `gearDragN` takes, and the reason both are added OUTSIDE the wing-area
+ * product in `step` rather than folded into `cd` the way `windmillDragCd0`
+ * is.
+ *
+ * Non-finite inputs return 0 rather than a NaN force: this is summed into
+ * `dragN` and integrated, so one bad value would poison the whole trajectory.
+ */
+export function flapDragN(spec: AircraftSpec, flapFraction: number, q: number): number {
+  if (!Number.isFinite(q)) return 0
+  if (Number.isNaN(flapFraction)) return 0
+  const f = flapFraction < 0 ? 0 : flapFraction > 1 ? 1 : flapFraction
+  return q * spec.flap.dragAreaM2 * f
+}

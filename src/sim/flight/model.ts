@@ -13,7 +13,7 @@ import {
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
-import { flapAfter, flapClIncrement } from '../flaps.js'
+import { flapAfter, flapClIncrement, flapDragN } from '../flaps.js'
 import { surfaceAt } from '../contact.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -236,14 +236,17 @@ export function step(
   //  - a propeller that is not pulling (`windmillDragCd0`), a Cd0 increment, so
   //    it joins `cd` inside the wing-area product;
   //  - extended gear (`gearDragN`), already a force from its own drag AREA, so
-  //    it is added outside that product.
+  //    it is added outside that product;
+  //  - extended flaps (`flapDragN`, Plan 11b), the same shape as the gear and
+  //    added the same way.
   //
   // Merged from two branches on 2026-09-16 and worth stating plainly, because a
   // conflict resolution that kept only one side would silently delete a whole
   // drag term and look entirely reasonable while doing it.
   const dragN =
     q * spec.geometry.wingAreaM2 * (cd + windmillDragCd0(spec, controls.throttle)) +
-    gearDragN(spec, state.gearFraction, q)
+    gearDragN(spec, state.gearFraction, q) +
+    flapDragN(spec, state.flapFraction, q)
   const thrustN = thrustMagnitude(spec, state, controls.throttle)
 
   const vdir = v > 1e-6 ? normalize(state.velocity) : forward

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { flapAfter, flapClIncrement } from '../../src/sim/flaps.js'
+import { flapAfter, flapClIncrement, flapDragN } from '../../src/sim/flaps.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -61,5 +61,34 @@ describe('flapClIncrement', () => {
     expect(flapClIncrement(f6f, Infinity)).toBeCloseTo(f6f.flap.clIncrement, 9)
     expect(flapClIncrement(f6f, -1)).toBe(0)
     expect(flapClIncrement(f6f, 2)).toBeCloseTo(f6f.flap.clIncrement, 9)
+  })
+})
+
+describe('flapDragN', () => {
+  it('is the drag area times dynamic pressure at full extension', () => {
+    // `dragAreaM2` is a drag AREA (Cd*A) with the coefficient already folded
+    // in, the same shape `gear.dragAreaM2` takes -- which is why `step` adds
+    // it OUTSIDE the wing-area product rather than inside `cd`.
+    expect(flapDragN(f6f, 1, 1000)).toBeCloseTo(1000 * f6f.flap.dragAreaM2, 9)
+  })
+
+  it('is nothing retracted, whatever the speed', () => {
+    expect(flapDragN(f6f, 0, 50_000)).toBe(0)
+  })
+
+  it('is linear across travel', () => {
+    expect(flapDragN(f6f, 0.5, 1000)).toBeCloseTo(500 * f6f.flap.dragAreaM2, 9)
+  })
+
+  it('costs more than the gear does, which is the point of the estimate', () => {
+    // Full flaps are the draggier device; if this ever inverts, one of the two
+    // drag areas has been retuned without the other being reconsidered.
+    expect(flapDragN(f6f, 1, 1000)).toBeGreaterThan(1000 * f6f.gear.dragAreaM2)
+  })
+
+  it('never returns a non-finite force', () => {
+    for (const [f, q] of [[NaN, 1000], [0.5, NaN], [Infinity, 1000], [0.5, Infinity]] as const) {
+      expect(Number.isFinite(flapDragN(f6f, f, q)), `f=${f} q=${q}`).toBe(true)
+    }
   })
 })

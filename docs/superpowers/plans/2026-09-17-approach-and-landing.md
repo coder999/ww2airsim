@@ -376,7 +376,7 @@ git commit -m "Flap lift as a camber shift, carried into the post-stall peak"
 **Interfaces:**
 - Produces: `flapDragN(spec: AircraftSpec, flapFraction: number, q: number): number`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/flaps.test.ts — append
@@ -403,12 +403,12 @@ describe('flapDragN', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/flaps.test.ts`
 Expected: FAIL — `flapDragN is not a function`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```typescript
 /**
@@ -427,7 +427,7 @@ export function flapDragN(spec: AircraftSpec, flapFraction: number, q: number): 
 }
 ```
 
-- [ ] **Step 4: Apply it in `step`**
+- [x] **Step 4: Apply it in `step`**
 
 Add to the `dragN` sum in `src/sim/flight/model.ts`, extending the comment above it that already enumerates the parasitic terms:
 
@@ -438,11 +438,11 @@ Add to the `dragN` sum in `src/sim/flight/model.ts`, extending the comment above
     flapDragN(spec, state.flapFraction, q)
 ```
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify` — exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/flaps.ts src/sim/flight/model.ts tests/sim/flaps.test.ts
