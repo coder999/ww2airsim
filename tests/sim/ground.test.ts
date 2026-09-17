@@ -8,6 +8,7 @@ import {
   GROUND_CONTACT_TOLERANCE_M,
   MAX_SUPPORTED_SINK_MPS,
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
+  ARRIVAL_SINK_THRESHOLD_MPS,
 } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3, length } from '../../src/sim/math/vec3.js'
@@ -155,15 +156,23 @@ describe('the ground constraint', () => {
       expect(after).toBeLessThanOrEqual(before + 1e-9)
     })
 
-    it('does not push an airplane up a rise it does not have the speed to climb', () => {
+    it('does not push an airplane up a rise it does not have the speed to climb, and does not confiscate its speed either', () => {
       // g*dh at the tolerance's own edge is ~2.45 J/kg, which needs about
       // 2.2 m/s of speed to pay for -- well below a rolling airplane's normal
       // speed but easily above a nearly-stopped one.
+      //
+      // Regression for fix-wave round 2: an earlier version zeroed velocity
+      // in this branch, which -- since restOnSurface runs every tick a
+      // buried airplane is here -- confiscated each tick's thrust increment
+      // before it could ever accumulate toward g*dh. Measured: buried 1 cm
+      // below flat ground at full throttle, speed stayed 0.0000 m/s for
+      // 300 s. The state must come back completely unchanged instead, so
+      // thrust applied between ticks (outside this function) can keep
+      // building speed until there is enough to pay for the climb.
       const dh = GROUND_CONTACT_TOLERANCE_M
       const s = createState({ position: v3(0, -dh, 0), velocity: v3(0.5, 0, 0) })
       const r = restOnSurface(s, 0)
-      expect(r.position.y).toBeLessThan(0)
-      expect(length(r.velocity)).toBe(0)
+      expect(r).toEqual(s)
     })
   })
 })
@@ -199,15 +208,40 @@ describe('supported contact (Task 5b)', () => {
     expect(supportedContact(f6f, resting({ velocity: v3(0, Number.POSITIVE_INFINITY, 0) }), 0)).toBe(false)
   })
 
-  it('is NOT supported for a fast gear-down arrival, even with a gentle sink (Finding 4)', () => {
+  it('is NOT supported for a fast, meaningfully descending arrival, even with a gentle sink (Finding 4)', () => {
     const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
-    const fast = resting({ velocity: v3(capMps + 10, -0.1, 0) })
+    // Clearly past ARRIVAL_SINK_THRESHOLD_MPS (a "gentle" sink, not the
+    // MAX_SUPPORTED_SINK_MPS hard limit), so this is an arrival, not a roll.
+    const fast = resting({ velocity: v3(capMps + 10, -0.5, 0) })
     expect(supportedContact(f6f, fast, 0)).toBe(false)
   })
 
-  it('is supported just under the speed cap', () => {
+  it('is supported just under the speed cap while descending', () => {
     const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
-    const underCap = resting({ velocity: v3(capMps - 1, 0, 0) })
+    const underCap = resting({ velocity: v3(capMps - 1, -0.5, 0) })
     expect(supportedContact(f6f, underCap, 0)).toBe(true)
+  })
+
+  describe('the speed cap only applies to a genuine arrival (fix-wave round 2, New Important 1)', () => {
+    it('stays supported at high speed while rolling level -- a normal take-off roll', () => {
+      // Without gating on descending, crossing the speed cap mid-roll on flat
+      // ground with vy = 0 read as unsupported and `advance` recorded the
+      // airplane destroyed, at 70.13 m/s with nothing wrong.
+      const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+      const rolling = resting({ velocity: v3(capMps + 50, 0, 0) })
+      expect(supportedContact(f6f, rolling, 0)).toBe(true)
+    })
+
+    it('stays supported at high speed within the arrival sink threshold (floating-point noise)', () => {
+      const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+      const noisy = resting({ velocity: v3(capMps + 50, -ARRIVAL_SINK_THRESHOLD_MPS * 0.5, 0) })
+      expect(supportedContact(f6f, noisy, 0)).toBe(true)
+    })
+
+    it('is NOT supported once past the arrival sink threshold, at the same speed', () => {
+      const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+      const descending = resting({ velocity: v3(capMps + 50, -ARRIVAL_SINK_THRESHOLD_MPS * 2, 0) })
+      expect(supportedContact(f6f, descending, 0)).toBe(false)
+    })
   })
 })

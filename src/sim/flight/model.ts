@@ -267,7 +267,7 @@ export function step(
     // rather than folded into it, because the post-integration clamp below
     // needs the un-narrowed predicate: an airplane that starts a step
     // sinking and ends it climbing (this same force removing the sink) must
-    // still be recognised as supported once integrated.
+    // still be recognized as supported once integrated.
     if (force.y < 0 && state.velocity.y <= 0 && supportedContact(spec, state, startGroundHeightM)) {
       force = v3(force.x, 0, force.z)
     }

@@ -1,4 +1,4 @@
-import { v3, length, scale, ZERO } from './math/vec3.js'
+import { v3, length, scale } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState } from './flight/state.js'
 
@@ -110,10 +110,34 @@ export function onGround(state: AircraftState, groundHeightM: number): boolean {
  * trade is exact regardless of heading, and the resulting `after` energy is
  * `before - g * dh` to within floating-point error --
  * `tests/sim/invariants.test.ts`'s sweep and `tests/sim/ground.test.ts` both
- * pin this. If the available kinetic energy is less than `g * dh`, the
- * airplane cannot climb the rise: it stops (velocity zeroed) rather than
- * being dragged up a slope it does not have the speed for, and is left below
- * the surface exactly as the too-far-below case is.
+ * pin this.
+ *
+ * If the available kinetic energy is less than `g * dh`, the airplane cannot
+ * climb the rise this tick: the state is left EXACTLY as it came in, velocity
+ * included. Fix-wave round 2 caught a bug here: an earlier version zeroed the
+ * whole velocity vector in this branch, which -- since this function runs
+ * every tick a still-buried airplane is here -- confiscated each tick's
+ * thrust increment before it could ever accumulate toward `g * dh`. Measured:
+ * buried 1 cm below flat ground at full throttle, speed stayed 0.0000 m/s for
+ * 300 s of simulated time. Leaving the state untouched instead lets `step`'s
+ * normal thrust/drag integration keep building speed tick over tick (the
+ * pre-integration ground-reaction force, gated on `supportedContact`,
+ * prevents it sinking any further in the meantime) until there is enough
+ * kinetic energy to pay for the climb, at which point the branch above this
+ * one fires and it lifts out. Never gains energy either way: doing nothing
+ * cannot raise `before`.
+ *
+ * This function does not itself re-validate `state` for finiteness -- it
+ * trusts its two callers in `step` (`src/sim/flight/model.ts`) to have
+ * already gated on `supportedContact`, which rejects a non-finite state
+ * before this is ever reached. A NaN `position.y` handed to this function
+ * directly would produce a NaN `dh` that satisfies neither `dh <= 0` nor
+ * `dh > GROUND_CONTACT_TOLERANCE_M`, falling through into the climb-payment
+ * branch below and returning a fabricated on-surface position paired with a
+ * NaN velocity, rather than being left alone the way every other non-finite
+ * case in this file is. Flagged rather than guarded here: unreachable
+ * through the only call sites that exist today, and out of scope for this
+ * fix wave to change behavior on.
  */
 export function restOnSurface(state: AircraftState, groundHeightM: number): AircraftState {
   const dh = groundHeightM - state.position.y
@@ -136,14 +160,12 @@ export function restOnSurface(state: AircraftState, groundHeightM: number): Airc
   }
 
   // Below the surface, within tolerance: the ground rose under the airplane.
-  // Follow it up and pay for the climb out of kinetic energy.
+  // Follow it up and pay for the climb out of kinetic energy -- but only if
+  // there is enough of it yet (see the doc comment's fix-wave-round-2 note).
   const speed = length(state.velocity)
   const keJPerKg = 0.5 * speed * speed
   const climbCostJPerKg = G * dh
-  if (keJPerKg < climbCostJPerKg) {
-    // Not enough speed to climb this rise: it stops rather than climbing it.
-    return { ...state, velocity: ZERO }
-  }
+  if (keJPerKg < climbCostJPerKg) return state
   const newSpeed = Math.sqrt(2 * (keJPerKg - climbCostJPerKg))
   const factor = speed > 1e-9 ? newSpeed / speed : 0
   return {
@@ -183,7 +205,7 @@ export const GEAR_DOWN_FRACTION = 0.95
 export const MAX_SUPPORTED_SINK_MPS = 4.0
 
 /**
- * Landing-gear approach-speed limit, m/s: how fast an arrival can be and
+ * Landing-gear approach-speed limit, m/s: how fast an ARRIVAL can be and
  * still be judged carried rather than crashed into, whatever its sink rate.
  *
  * An UNTUNED GUESS, the same standing `DITCH_MAX_SPEED_STALL_MULTIPLE` has in
@@ -198,8 +220,34 @@ export const MAX_SUPPORTED_SINK_MPS = 4.0
  * arrival at 150 m/s with a gentle sink recorded no impact and rolled away
  * from what should have been a wreck. Expect this to move once 11b tunes the
  * rest of the landing-survivability gates it owns.
+ *
+ * Only applies to a genuine ARRIVAL -- see `ARRIVAL_SINK_THRESHOLD_MPS`.
+ * Fix-wave round 2 caught this cap firing on a normal, level take-off roll:
+ * `supportedContact` is read every tick of a ground roll, not once on
+ * arrival, so an airplane accelerating straight down the runway crossed
+ * 70.1 m/s and was instantly judged unsupported -- gravity stopped being
+ * cancelled and `advance` recorded it destroyed, on FLAT ground, at `vy = 0`,
+ * with nothing wrong. A cap meant to catch "flew into the jungle at 291
+ * knots" must not also catch "rolling fast because take-off is imminent".
  */
 export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.6
+
+/**
+ * Sink rate beyond which an airplane counts as ARRIVING rather than rolling
+ * level, m/s: what tells the two apart for `MAX_SUPPORTED_SPEED_STALL_MULTIPLE`
+ * above.
+ *
+ * An UNTUNED GUESS, the same standing every other threshold in this file has.
+ * `restOnSurface` holds a non-climbing airplane's `velocity.y` at EXACTLY 0
+ * every tick it is not climbing (both the plain clamp and the rising-ground
+ * projection leave a zero vertical component zero, since scaling zero by any
+ * finite factor is still zero) -- so a real ground roll never carries any
+ * sink at all, and this threshold only has to clear floating-point noise, not
+ * a genuine slow descent. Set well below even a gentle touchdown sink so the
+ * speed cap still catches Finding 4's original case -- a fast arrival with a
+ * gentle sink must still read as descending, not as a roll.
+ */
+export const ARRIVAL_SINK_THRESHOLD_MPS = 0.1
 
 /**
  * Whether ground contact is CARRIED rather than crashed into: the gear is
@@ -224,15 +272,29 @@ export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.6
  * because `+Infinity >= -MAX_SUPPORTED_SINK_MPS` is true -- a bare positive
  * comparison against a NEGATIVE bound lets an infinite climb rate straight
  * through it, which is exactly the non-finite state this predicate's posture
- * is supposed to catch.
+ * is supposed to catch. `Number.isFinite(speed)` guards the same posture for
+ * the speed cap below: a non-finite value anywhere in `velocity` (not just
+ * its `y` component) propagates into `length`, and a broken state must not
+ * silently skip the cap because the one arithmetic comparison against it
+ * happens to be false for a NaN or an Infinity.
+ *
+ * `MAX_SUPPORTED_SPEED_STALL_MULTIPLE`'s cap is gated on `descending`
+ * (`velocity.y` below `-ARRIVAL_SINK_THRESHOLD_MPS`), not applied
+ * unconditionally -- fix-wave round 2's fix for the cap firing on a normal
+ * take-off roll (see that constant's comment). A level or climbing airplane
+ * is supported at any speed; only a genuine descent onto the surface is
+ * speed-limited.
  */
 export function supportedContact(
   spec: AircraftSpec,
   state: AircraftState,
   groundHeightM: number,
 ): boolean {
+  const speed = length(state.velocity)
+  const descending = state.velocity.y < -ARRIVAL_SINK_THRESHOLD_MPS
   return onGround(state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
-    && length(state.velocity) <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * spec.reference.stallSpeedMps
+    && Number.isFinite(speed)
+    && (!descending || speed <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * spec.reference.stallSpeedMps)
 }
