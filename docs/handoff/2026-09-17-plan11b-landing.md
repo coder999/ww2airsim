@@ -132,16 +132,18 @@ taxi turn at 12 m/s: **113.6° before, 2.7° after.**
 | `VREF_STALL_MULTIPLE` | 1.3 | Conventional Vref multiple |
 | Ground effect | — | **No fitted constant at all.** McCormick's φ |
 
-### The two gates Mark decided, and one question left open
+### The three gates Mark decided
 
 **The speed gate is 120 mph, his figure.** Stored as a multiple (1.42) of the
 configuration's stall speed rather than as a speed, so the rule generalises to
-aircraft with different stall speeds. **What the multiple form hides, and what
-is genuinely unresolved:** with the flaps out the cap is exactly 120.0 mph, but
-CLEAN it is 139.2 mph, because a clean wing stalls at 98 mph against 84.5 and
-the same multiple is a higher absolute speed. If 120 mph should be absolute
-regardless of configuration, this needs to become a speed rather than a
-multiple. **Ask Mark before changing it.**
+aircraft with different stall speeds.
+
+**The stall-relative form was put to him and accepted, 2026-09-17.** It means a
+CLEAN touchdown is allowed up to 139.2 mph rather than 120, because a clean wing
+stalls at 98 mph against 84.5 and the same multiple is a higher absolute speed.
+His answer: "no i like 139.2 mph - close enough." So this is **settled, not an
+open question** -- the gate stays a stall multiple, and a clean arrival is
+judged against the speed a clean wing actually needs to fly.
 
 **The sink gate stays at 4.0 m/s**, and the reason it needed documenting is
 that the question was asked badly. Mark read 4 m/s as a forward speed — "just
@@ -199,8 +201,6 @@ at Mark's request.
   code that 11b never touched. Seed 1337, the committed configuration, is clean.
   The likely mechanism is ground rising faster than `GROUND_CONTACT_TOLERANCE_M`
   in one tick under a resting airplane, on terrain steeper than Tacloban's.
-- **A clean-configuration touchdown is allowed up to 139.2 mph**, per the gate
-  question above.
 - **Ground-effect lift** and **flap-induced stall-angle reduction** are both
   deliberately unmodeled; each is named at its own definition.
 - **Downhill rolling still costs energy** — 11a's finding, pre-existing,
