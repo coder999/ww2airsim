@@ -1030,7 +1030,7 @@ git commit -m "F for flaps, and say where they are"
 
 This is a controller, not a script of timed inputs: it reads the state and returns a `Controls` every tick, so it can be dropped into any harness that already drives `step`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/tools/approach.test.ts
@@ -1105,12 +1105,12 @@ describe('approachControls', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/tools/approach.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```typescript
 // tools/autopilot/approach.ts
@@ -1208,11 +1208,11 @@ do not read that field's sign off `Controls.yaw`. The `yaw` term above assumes
 a northbound runway; Task 10 flies exactly that, and generalising it to
 `target.runwayHeadingRad` is work for whoever lands on a second strip.
 
-- [ ] **Step 4: Run the tests to verify they pass, then the full suite**
+- [x] **Step 4: Run the tests to verify they pass, then the full suite**
 
 Run: `npx vitest run tests/tools/approach.test.ts` then `npm run verify` — both exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/autopilot/approach.ts tests/tools/approach.test.ts
