@@ -11,6 +11,7 @@ import {
   MAX_SUPPORTED_SINK_MPS,
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
   ARRIVAL_SINK_THRESHOLD_MPS,
+  lateralGripAfter,
 } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { step } from '../../src/sim/flight/model.js'
@@ -18,6 +19,7 @@ import type { SimContext } from '../../src/sim/loop.js'
 import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { v3, length } from '../../src/sim/math/vec3.js'
+import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { specificEnergyAirmass } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
@@ -495,5 +497,74 @@ describe('step(): ground consumers are gated on the gear being down (fix round 1
     s = step(f6f, s, controls, ctx(flat, 300))
     // Settled, not buzzing to the opposite sign every tick.
     expect(Math.abs(s.velocity.x - settledVx)).toBeLessThan(0.01)
+  })
+})
+
+/**
+ * The wheels resist going sideways.
+ *
+ * 11a measured a taxi turn reaching **113.6 degrees of sideslip** because
+ * nothing made the airplane travel where its wheels pointed, and its handoff
+ * rejected the cheap fix and said why: restoring the fin's weathercock term
+ * models the wrong SIGN of the right effect, since a real taildragger is
+ * directionally unstable on the ground and the term would fight the tailwheel.
+ *
+ * A first-order DECAY rather than outright removal. Removing the sideways
+ * component would put the airplane on rails and make a ground loop
+ * impossible -- and a ground loop is the characteristic taildragger hazard,
+ * not an edge case.
+ */
+describe('lateral tire grip', () => {
+  /** Nose pointing +z (north), which is the Tacloban strip's axis. */
+  const rollingNorth = qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2)
+
+  it('leaves a roll straight down the wheels alone', () => {
+    const s = createState({ velocity: v3(0, 0, 40), attitude: rollingNorth })
+    const after = lateralGripAfter(f6f, s, DT)
+    expect(after.z).toBeCloseTo(40, 9)
+    expect(after.x).toBeCloseTo(0, 9)
+  })
+
+  it('bleeds a sideways component away on the specified time constant', () => {
+    const s = createState({ velocity: v3(10, 0, 40), attitude: rollingNorth })
+    let v = s.velocity
+    for (let i = 0; i < 60 * f6f.gear.lateralGripSeconds; i++) {
+      v = lateralGripAfter(f6f, { ...s, velocity: v }, DT)
+    }
+    // One time constant: about 1/e of the sideways speed is left.
+    expect(v.x).toBeCloseTo(10 / Math.E, 1)
+    // The along-track component is untouched by it.
+    expect(v.z).toBeCloseTo(40, 6)
+  })
+
+  it('never gains speed, which is what keeps the energy invariant structurally true', () => {
+    for (const vel of [v3(10, 0, 40), v3(-30, 0, 5), v3(0, -3, 0), v3(25, 2, -25), v3(40, 0, 0)]) {
+      const s = createState({ velocity: vel, attitude: rollingNorth })
+      expect(length(lateralGripAfter(f6f, s, DT))).toBeLessThanOrEqual(length(vel) + 1e-9)
+    }
+  })
+
+  it('leaves the vertical component completely alone', () => {
+    // It is a TIRE force. Sink and climb are the ground constraint's business.
+    const s = createState({ velocity: v3(10, -2.5, 40), attitude: rollingNorth })
+    expect(lateralGripAfter(f6f, s, DT).y).toBe(-2.5)
+  })
+
+  it('still permits a ground loop rather than putting the airplane on rails', () => {
+    // A rail would zero the sideways component in one step. After a single
+    // tick most of a big skid must survive, or a mishandled touchdown cannot
+    // swap ends and the characteristic taildragger hazard stops existing.
+    const s = createState({ velocity: v3(30, 0, 30), attitude: rollingNorth })
+    expect(lateralGripAfter(f6f, s, DT).x).toBeGreaterThan(30 * 0.9)
+  })
+
+  it('holds the velocity unchanged for a non-finite step or a vertical nose', () => {
+    const s = createState({ velocity: v3(10, 0, 40), attitude: rollingNorth })
+    expect(lateralGripAfter(f6f, s, Number.NaN)).toEqual(s.velocity)
+    expect(lateralGripAfter(f6f, s, 0)).toEqual(s.velocity)
+    // Nose straight up: no rolling direction exists to resolve against, so the
+    // honest answer is to change nothing rather than to pick an axis.
+    const noseUp = createState({ velocity: v3(10, 0, 40), attitude: qFromAxisAngle(v3(0, 0, 1), Math.PI / 2) })
+    expect(lateralGripAfter(f6f, noseUp, DT)).toEqual(noseUp.velocity)
   })
 })

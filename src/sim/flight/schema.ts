@@ -287,6 +287,17 @@ const AircraftSpecObject = z.object({
      *  which is the RUDDER's authority in the air. */
     tailwheelYawRateDegPerSec: positive,
     /**
+     * Seconds for the wheels to bleed away a sideways velocity component, as a
+     * first-order time constant.
+     *
+     * A DECAY and not a removal on purpose: removing the sideways component
+     * would put the airplane on rails and make a **ground loop impossible**,
+     * and a ground loop is the characteristic hazard of a taildragger rather
+     * than an edge case. The form follows `rates.weathercockSeconds`, which is
+     * already a seconds-valued time constant in this spec.
+     */
+    lateralGripSeconds: positive,
+    /**
      * Gear height, metres: how far the wheels' contact point sits BELOW the
      * body origin `position` names -- equivalently, how high the thrust line
      * sits when parked. Added by Task 15 after Mark flew the merged Plan 11a

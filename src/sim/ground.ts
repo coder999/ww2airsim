@@ -1,4 +1,5 @@
-import { v3, length, scale, type Vec3 } from './math/vec3.js'
+import { v3, length, scale, dot, sub, type Vec3 } from './math/vec3.js'
+import { qRotate } from './math/quat.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { surfaceAt } from './contact.js'
@@ -464,4 +465,52 @@ export function groundBodyRates(
   const tailwheelYaw = -yawInput * spec.gear.tailwheelYawRateDegPerSec * GROUND_DEG * fade
 
   return v3(0, tailwheelYaw + airRates.y, pitch)
+}
+
+/**
+ * The velocity after one step of tire grip: the component ACROSS the wheels
+ * decays toward zero; the component along them, and the vertical, are
+ * untouched.
+ *
+ * 11a measured a taxi turn reaching **113.6 degrees of sideslip** because
+ * nothing made the airplane travel where its wheels pointed. Its handoff also
+ * rejected the cheap fix and said why, and that ruling stands: restoring the
+ * fin's weathercock term models the wrong SIGN of the right effect, because a
+ * real taildragger is directionally UNSTABLE on the ground and the term would
+ * fight the tailwheel.
+ *
+ * A projection rather than a spring, for the same reason `restOnSurface` is
+ * one: a spring-damper tire model would be more physically detailed than an
+ * airframe that carries no moments of inertia. And a first-order DECAY rather
+ * than outright removal, so that a mishandled touchdown can still skid and
+ * swap ends -- a ground loop is the characteristic taildragger hazard, not an
+ * edge case, and a rail would abolish it.
+ *
+ * **Structurally cannot add energy**, which is what keeps `assertNoEnergyGain`
+ * (`src/sim/invariants.ts`) true across it: `keep` is in (0, 1], so this only
+ * ever scales one component down.
+ *
+ * Measured 2026-09-17, worst sideslip during a 20 s full-rudder taxi turn at
+ * 12 m/s: **113.6 degrees before, 2.7 degrees after.** That is the whole
+ * acceptance evidence for this function, and the figure to re-measure if
+ * `lateralGripSeconds` is ever retuned.
+ */
+export function lateralGripAfter(spec: AircraftSpec, state: AircraftState, dt: number): Vec3 {
+  if (!Number.isFinite(dt) || dt <= 0) return state.velocity
+  // The wheels roll along the body's nose, projected flat onto the ground.
+  const nose = qRotate(state.attitude, v3(1, 0, 0))
+  const flat = v3(nose.x, 0, nose.z)
+  const flatLen = length(flat)
+  // A vertical nose has no rolling direction to resolve against, so the honest
+  // answer is to change nothing rather than to pick an axis.
+  if (!Number.isFinite(flatLen) || flatLen < 1e-6) return state.velocity
+  const dir = scale(flat, 1 / flatLen)
+
+  const horizontal = v3(state.velocity.x, 0, state.velocity.z)
+  const along = scale(dir, dot(horizontal, dir))
+  const across = sub(horizontal, along)
+
+  const keep = Math.exp(-dt / spec.gear.lateralGripSeconds)
+  const damped = scale(across, keep)
+  return v3(along.x + damped.x, state.velocity.y, along.z + damped.z)
 }

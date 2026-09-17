@@ -6,6 +6,7 @@ import {
   gearAfter,
   gearDragN,
   restOnSurface,
+  lateralGripAfter,
   supportedContact,
   onGround,
   rollingResistanceN,
@@ -406,7 +407,12 @@ export function step(
     if (supportedContact(spec, integrated, groundHeightM)) {
       const rested = restOnSurface(spec, integrated, groundHeightM)
       position = rested.position
-      velocity = rested.velocity
+      // Tire grip, applied ONLY while the wheels are carrying the airplane.
+      // An airplane in the air has no tires on anything, and one arriving too
+      // hard has not landed yet -- `supportedContact`'s own gates are what
+      // decide both, which is why this sits inside this branch rather than
+      // beside the rolling friction above.
+      velocity = lateralGripAfter(spec, { ...rested, velocity: rested.velocity }, dt)
     }
   }
 

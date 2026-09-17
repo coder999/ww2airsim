@@ -756,7 +756,7 @@ git commit -m "The take-off card flies the configuration the trial flew"
 
 **Why it cannot break the energy invariant:** it only ever scales a velocity component down. `assertNoEnergyGain` (`src/sim/invariants.ts`) is the check, and Task 11's soak is where it gets proven rather than argued.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -809,12 +809,12 @@ describe('lateralGripAfter', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts`
 Expected: FAIL — `lateralGripAfter is not a function`.
 
-- [ ] **Step 3: Add the constant**
+- [x] **Step 3: Add the constant**
 
 In `src/sim/flight/schema.ts`, inside the `gear` block:
 
@@ -833,7 +833,7 @@ In `content/aircraft/f6f-hellcat.json`'s `gear` block: `"lateralGripSeconds": 1.
 gear.lateralGripSeconds = 1.5 is an ESTIMATE of the same status as the other gear figures -- no trial in this source measures how quickly a tire kills sideways motion. It is a placeholder for Mark to retune once he has flown roll-outs; 11a measured a taxi turn reaching 113.6 degrees of sideslip with no lateral force at all, which is the behaviour this replaces.
 ```
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 ```typescript
 /**
@@ -877,7 +877,7 @@ export function lateralGripAfter(spec: AircraftSpec, state: AircraftState, dt: n
 
 Add `dot`, `sub` and `qRotate` to `ground.ts`'s imports.
 
-- [ ] **Step 5: Apply it in `step`, on supported contact only**
+- [x] **Step 5: Apply it in `step`, on supported contact only**
 
 In `src/sim/flight/model.ts`, inside the branch that already runs when `supportedContact` holds — the wheels only grip when they are carrying the airplane:
 
@@ -888,7 +888,7 @@ In `src/sim/flight/model.ts`, inside the branch that already runs when `supporte
     velocity = lateralGripAfter(spec, { ...state, velocity }, ctx.dt)
 ```
 
-- [ ] **Step 6: Run the full suite and commit**
+- [x] **Step 6: Run the full suite and commit**
 
 Run: `npm run verify` — exit 0. `tests/sim/invariants.test.ts` and the soak must both stay green; if `assertNoEnergyGain` fires, the bug is in the branch placement, not in this function.
 
