@@ -335,6 +335,25 @@ study-level aerodynamics, mobile, or VR.
 A WebGPU-capable Chromium. There is no WebGL2 fallback in v1, though the
 renderer boundary keeps one possible without touching the simulation.
 
+**It also renders on Android Chrome** — observed on Mark's tablet 2026-09-17
+against the live site, and the first non-AMD adapter this has ever run on.
+Recorded as an observation, **not as a supported platform**: mobile is
+explicitly out of scope above, and that has not changed.
+
+Two things it happens to demonstrate, both by design rather than by luck:
+
+- **It is view-only.** `src/input/` is `bindings.ts`, `keyboard.ts` and
+  `lookAround.ts` — there is no touch, pointer or gamepad handling anywhere in
+  the codebase, so nothing on a tablet can fly it. A paired Bluetooth keyboard
+  would.
+- **The player is told nothing about the unfamiliar GPU, and should not be.**
+  `judgeAdapter` (`src/render/adapterGuard.ts`) returns `warn` for a real GPU
+  that is not the RX 6700 XT, and a `warn` reaches only the DEV overlay, which
+  `main.ts` builds as `null` in a production build. `warn` exists to stop
+  *measurements* being trusted off the reference platform, which is a
+  developer's problem and not a pilot's. Only `fail` — an actual software
+  rasterizer — reaches the screen, through `showFailure`.
+
 ## Architecture in one line
 
 `sim/` never imports `render/` and never touches a browser global. That single
