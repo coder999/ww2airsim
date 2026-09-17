@@ -9,7 +9,8 @@ const valid = {
   mass: { emptyKg: 4000, fuelCapacityKg: 600, maxTakeoffKg: 6000 },
   aero: { clSlopePerRad: 4.6, clMax: 1.4, alphaCritDeg: 15.5, clAtZeroAlpha: 0.1, cd0: 0.021, oswaldE: 0.85 },
   engine: {
-    maxPowerW: 1_491_000, propEfficiency: 0.8, staticThrustN: 20_000,
+    maxPowerW: 1_491_000, propEfficiency: 0.8,
+    windmillCd0: 0.0422, staticThrustN: 20_000,
     powerFractionByAltitudeM: [[0, 1], [7132, 1], [11400, 0.6]],
   },
   rates: {

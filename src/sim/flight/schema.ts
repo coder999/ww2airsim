@@ -35,6 +35,9 @@ const AircraftSpecObject = z.object({
     maxPowerW: positive,
     propEfficiency: fraction,
     staticThrustN: positive,
+    /** Cd0 increment from a propeller that is not pulling, applied in full at
+     *  closed throttle. See `windmillDragCd0` in src/sim/aero.ts. */
+    windmillCd0: positive,
     powerFractionByAltitudeM: z
       .array(z.tuple([finite, fraction]))
       .min(2)

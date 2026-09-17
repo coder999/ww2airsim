@@ -17,6 +17,40 @@ export const aspectRatio = (spec: AircraftSpec): number =>
 export const inducedDragFactor = (spec: AircraftSpec): number =>
   1 / (Math.PI * aspectRatio(spec) * spec.aero.oswaldE)
 
+/**
+ * Parasitic drag added by a propeller that is not pulling, as a Cd0 increment.
+ *
+ * Exists because the model had NO engine-state drag at all: `thrustMagnitude`
+ * returns zero at closed throttle and `cd0` never learned the engine stopped,
+ * so a dead-stick Hellcat glided like one with the propeller feathered. Mark
+ * flew it on 2026-09-16 and reported the deceleration as unrealistic; measured
+ * at the time, altitude pinned so drag was the only loss, 250 mph bled to
+ * 100 mph in 79.3 s over 6.01 km.
+ *
+ * The airframe was NOT the problem and is deliberately untouched. `cd0` is
+ * 0.0211, the published clean F6F figure, and `maxPowerW` is the R-2800-10W's
+ * real 2000 hp -- checked together on 2026-09-16 precisely because a `cd0`
+ * bent to hit the graded 391 mph top speed would have needed a compensating
+ * engine error to hide it, and neither is bent. The clean max L/D of 13.2:1
+ * is what those two published numbers imply, and is left alone.
+ *
+ * What was missing is that an airplane with its engine off is not clean. A
+ * 13 ft constant-speed disc in flat pitch is a flat-plate brake comparable to
+ * the whole clean airframe, which is why heavy fighters are described as
+ * gliding like bricks despite a paper L/D in the teens.
+ *
+ * Linear in throttle rather than modeling blade pitch, disc solidity or engine
+ * braking: this model commands rates rather than moments and carries no
+ * propeller state, so anything finer would be more detailed than the airframe
+ * it attaches to. Full penalty at closed throttle, nothing at full power, and
+ * a non-finite throttle reads as idle -- the draggier end, which fails toward
+ * an airplane that slows down rather than one that does not.
+ */
+export const windmillDragCd0 = (spec: AircraftSpec, throttle: number): number => {
+  const t = Number.isFinite(throttle) ? (throttle < 0 ? 0 : throttle > 1 ? 1 : throttle) : 0
+  return spec.engine.windmillCd0 * (1 - t)
+}
+
 /** Post-stall decay floor, as a fraction of the peak Cl the attached-flow
  *  branch reaches at alphaCrit. It does not bind anywhere between the stall
  *  and 90 degrees on the shipped F6F curve -- the decay factor at exactly 90
