@@ -285,10 +285,19 @@ frame-time budget. If the adapter test fails, read its printed summary before
 anything else — it is almost always telling you the browser fell back to a
 software rasterizer, not that anything else is wrong.
 
-**Flying somewhere specific.** The airplane spawns over open water 23 km from
-the nearest land, which is three minutes' flying. `?spawnX=&spawnY=&spawnZ=`
-moves it (`src/render/spawn.ts`); the parameters exist in DEV only and
-`tests/build/dist.test.ts` asserts they are absent from a production bundle.
+**Flying somewhere specific.** The airplane spawns **parked on the runway at
+Tacloban** and faces north, down the strip (`DEFAULT_SPAWN_POSITION` and
+`DEFAULT_SPAWN_ATTITUDE`, `src/render/spawn.ts`). This paragraph said it
+spawned over open water 23 km from land until 2026-09-17, which had been false
+since Task 14 moved the spawn ashore — the exact doc rot `~/projects/CLAUDE.md`
+warns about, found while deploying.
+
+`?spawnX=&spawnY=&spawnZ=` moves it, and any of the three turns the ground
+spawn OFF — an override means an airborne airplane at 120 m/s heading east
+with its gear up, which is what Tier 2's terrain and ocean specs want and is
+the opposite of what a take-off test wants (`hasSpawnOverride`). The
+parameters exist in DEV only and `tests/build/dist.test.ts` asserts they are
+absent from a production bundle.
 
 ## Deployment
 
