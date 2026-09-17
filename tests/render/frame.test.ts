@@ -14,11 +14,11 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
-import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
+import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
-import { DEFAULT_SPAWN_POSITION } from '../../src/render/spawn.js'
+import { DEFAULT_SPAWN_POSITION, initialAircraftState } from '../../src/render/spawn.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const keys = (...k: string[]) => new Set(k)
@@ -409,5 +409,76 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
       `Task 14 verification: ground roll to rotation speed (${TAKEOFF_SPEED_MPS.toFixed(2)} m/s) was ${rollDistanceM.toFixed(1)} m from the Tacloban spawn`,
     )
     expect(rollDistanceM).toBeGreaterThan(0)
+  })
+
+  /**
+   * Task 11: the spawn heading and the runway's axis are one decision, and
+   * these two are its test from the physics end. `tests/render/spawn.test.ts`
+   * asserts the quaternion; `tests/render/runway.test.ts` asserts the strip's
+   * geometry; neither can see whether the airplane actually ROLLS down it.
+   *
+   * Both of these fail on the `qIdentity()` spawn attitude that shipped
+   * before 2026-09-17, and they fail differently: the first because the roll
+   * goes east, the second because east of Tacloban is San Pedro Bay.
+   */
+  const rollFromTheSpawn = (terrain: TerrainField) => {
+    const groundHeightM = heightAt(terrain, DEFAULT_SPAWN_POSITION.x, DEFAULT_SPAWN_POSITION.z)
+    let f = settleOnTerrain(
+      withTerrain(
+        initialFrameState(
+          f6f,
+          // The boot path's own constructor, not a hand-built state: the
+          // heading under test is the one `main.ts` actually spawns with.
+          initialAircraftState(v3(DEFAULT_SPAWN_POSITION.x, groundHeightM, DEFAULT_SPAWN_POSITION.z), true),
+          undefined,
+          terrain,
+          true,
+        ),
+        terrain,
+      ),
+      terrain,
+    )
+    const from = f.world.aircraft.position
+    const startX = from.x
+    const startZ = from.z
+    for (let i = 0; i < 60 * 30 && airspeed(f.world.aircraft) < TAKEOFF_SPEED_MPS; i++) {
+      f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
+      expect(f.world.impact, `impact recorded during the ground roll, tick ${f.world.aircraft.tick}`).toBeNull()
+    }
+    expect(airspeed(f.world.aircraft), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)
+    return { f, startX, startZ }
+  }
+
+  it('rolls north, down the strip, rather than east across it', () => {
+    const header = loadTerrainHeader()
+    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const { f, startX, startZ } = rollFromTheSpawn(terrain)
+
+    const alongM = f.world.aircraft.position.z - startZ
+    const acrossM = Math.abs(f.world.aircraft.position.x - startX)
+
+    // North is +z. The roll must be overwhelmingly along that axis: the
+    // airplane has no directional stability on the ground yet (Plan 11a's
+    // handoff records a taxi turn reaching 113.6 deg of sideslip), so this is
+    // deliberately a ratio rather than a tight bound on `acrossM`.
+    expect(alongM).toBeGreaterThan(100)
+    expect(acrossM).toBeLessThan(alongM / 10)
+  })
+
+  it('has land, not San Pedro Bay, off the departure end', () => {
+    const header = loadTerrainHeader()
+    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const { f } = rollFromTheSpawn(terrain)
+    const at = f.world.aircraft.position
+
+    // 900 m beyond the rotation point, sampled every 30 m. Measured
+    // 2026-09-17 on this field: going north there is no sea-level sample
+    // within 900 m of the spawn at all, while going east the first one is at
+    // exactly 900 m -- and the roll to rotation is only ~450 m, so an
+    // east-facing take-off cleared the coast by about half its own roll.
+    for (let aheadM = 0; aheadM <= 900; aheadM += 30) {
+      const h = heightAt(terrain, at.x, at.z + aheadM)
+      expect(h, `sea ${aheadM} m beyond rotation`).toBeGreaterThan(SEA_LEVEL_M)
+    }
   })
 })

@@ -867,7 +867,7 @@ Render-only. Nothing in `src/sim/` knows it exists; the physics reads `heightAt`
 
 **Facts to use, not re-derive:** Tacloban is at world `(-29666, 47605)`, from `tests/tools/terrainBuild.test.ts`. The strip runs **north–south** — east–west through the airfield has 3.1 m of spread because the coastline falls to the sea, while north–south has 0.49 m at L4 and 1.74 m at L0.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Pure geometry only, in the node environment, following how `tests/render/terrainLod.test.ts` and the panel tests assert on geometry without a GPU:
 
@@ -902,11 +902,11 @@ describe('the runway at Tacloban', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail, then implement**
+- [x] **Step 2: Run to verify they fail, then implement**
 
 Expected: FAIL — module not found. Then build the strip: a geometry following the terrain height along its length so it does not float or bury, in a surface treatment distinct from the terrain shading. Add it to the scene in `main.ts` in raw world coordinates — **`scene.position` applies the camera-relative shift; do not add `worldOffset` yourself.** That mistake was a Critical finding on Plan 10 and the comment on the impact effect in `main.ts` explains it.
 
-- [ ] **Step 3: Run the full suite, build, and commit**
+- [x] **Step 3: Run the full suite, build, and commit**
 
 Run: `npm run verify` (exit 0) and `npm run build` (exit 0, only the pre-existing chunk-size warning).
 
