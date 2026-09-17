@@ -82,10 +82,17 @@ export type FrameState = {
    */
   readonly assistTogglesDown: AssistTogglesDown
   /** Whether the pilot currently has the gear commanded down. Defaults
-   *  **true** in `initialFrameState`: the airplane starts on a runway, not
-   *  hanging in the air with its wheels retracted. Threaded into
-   *  `Controls.gearDown` every frame -- see the comment on `controls` below
-   *  for why that step is not optional. */
+   *  **false** in `initialFrameState`: `DEFAULT_SPAWN_POSITION`
+   *  (`src/render/spawn.ts`) is `(0, 600, 0)`, 600 m up and 23 km from land,
+   *  not a runway -- so the default spawn is airborne, and the gear starts
+   *  up to match. A later plan that spawns on a runway should derive this
+   *  from the spawn (on the ground => gear down) rather than hardcoding a
+   *  constant here; measured cost of getting this wrong the other way: by
+   *  t=30 s an ordinary flight had lost 7.3 m/s and 8.3 m of altitude versus
+   *  never commanding the gear, and the gap widens forever, because the
+   *  gear's 0.3 sq m drag area is 46% of the airframe's own zero-lift drag
+   *  area. Threaded into `Controls.gearDown` every frame -- see the comment
+   *  on `controls` below for why that step is not optional. */
   readonly gearDown: boolean
   /** Whether the gear toggle key was down last frame, for edge detection --
    *  the same reason `cyclePressed` exists: a lever that stays where it is
@@ -152,7 +159,7 @@ export function initialFrameState(
     tripleTimePressed: false,
     assists,
     assistTogglesDown: NO_TOGGLES_DOWN,
-    gearDown: true,
+    gearDown: false,
     gearPressed: false,
   }
 }

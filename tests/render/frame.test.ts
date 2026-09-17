@@ -163,19 +163,22 @@ it('hands the frame and the world the same controls object', () => {
 })
 
 describe('gear and brakes', () => {
-  it('starts with the gear down, because the airplane starts on a runway', () => {
-    expect(start().gearDown).toBe(true)
+  it('starts with the gear up, because the default spawn is airborne', () => {
+    // `start()` spawns at (0, 1000, 0) -- nowhere near a runway -- and
+    // `DEFAULT_SPAWN_POSITION` (src/render/spawn.ts) is likewise 600 m up
+    // and 23 km from land, so `initialFrameState` defaults gear UP to match.
+    expect(start().gearDown).toBe(false)
   })
 
   it('toggles the gear on the key edge, not every frame it is held', () => {
     let f = start()
     for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyG'))
-    expect(f.gearDown).toBe(false)
+    expect(f.gearDown).toBe(true)
     for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyG'))
-    expect(f.gearDown).toBe(false)
+    expect(f.gearDown).toBe(true)
     f = nextFrameState(f, 1 / 60, keys())
     f = nextFrameState(f, 1 / 60, keys('KeyG'))
-    expect(f.gearDown).toBe(true)
+    expect(f.gearDown).toBe(false)
   })
 
   it('puts the gear command where the simulation reads it', () => {
