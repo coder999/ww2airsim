@@ -293,12 +293,17 @@ const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
  * Ground-roll distance from a standstill to a stated lift-off speed, metres.
  * Controls held at zero (level, no aileron, no rudder) and full throttle, so
  * the commanded body rates are all zero and the attitude never leaves level
- * -- no autopilot is needed to hold it there; `groundBodyRates`
- * (`src/sim/ground.ts`) forces roll to exactly zero and gates pitch on a
- * speed the airplane never reaches a rotation command for here (`airRates.z`
- * is itself zero with `controls.pitch` held at zero throughout), so the
- * airplane rolls level all the way to lift-off speed by construction, not by
- * a position pin.
+ * -- no autopilot is needed to hold it there. `groundBodyRates`
+ * (`src/sim/ground.ts`) forces roll to exactly zero throughout, and gates
+ * pitch on ground speed reaching `spec.gear.tailUpSpeedMps` -- which this run
+ * DOES pass (measured 2026-09-16: at x = 33.8 m of the roll's 228.7 m total,
+ * about 15% of the way down it), but that gate only ever passes through
+ * `airRates.z`, the AIR-commanded pitch rate, and `airRates.z` is itself zero
+ * the whole time because `controls.pitch` is held at zero throughout. So the
+ * airplane still never rotates here, not because the speed gate never opens
+ * but because there is no rotation command for it to let through -- and it
+ * rolls level all the way to lift-off speed by construction, not by a
+ * position pin.
  *
  * The airplane is spawned with `gearFraction: 1` -- on its wheels -- over
  * `FLAT_SEA_LEVEL_FIELD`, and the real ground constraint (`restOnSurface`,

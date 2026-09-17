@@ -221,13 +221,38 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
     // the crash check gained a `supportedContact` exemption for a
     // legitimately resting airplane: seed 1337 gives 417,539 steps / 134
     // hits, seed 4242 gives 432,579 / 133, seed 7 gives 430,355 / 146, all
-    // zero failures. The floors below are unchanged -- both remeasurements
-    // clear them comfortably -- so only the comment needed updating.
+    // zero failures.
+    //
+    // RE-MEASURED AGAIN 2026-09-16 (fix round 1): that first re-measurement
+    // was not enough. Instrumented, `supportedContact` held on literally ZERO
+    // of seed 1337's 417,539 ticks and zero of seed 7's -- the `nearGround`
+    // cohort's fully random attitude/speed/vertical-rate arrives too hard or
+    // too fast to ever be classified supported, so the two Task 10
+    // assertions above were never once evaluating, and a regression to
+    // `restOnSurface`'s own clamp would have passed this test silently
+    // (confirmed: re-running the Step 2 `onGround` mutation against the
+    // ORIGINAL nearGround-only cohort left this test green, 4/4). A second,
+    // deliberately gentle `LANDING_SPAWN_FRACTION` cohort was added
+    // (`tools/soak/run.ts`) specifically to produce genuine supported
+    // contacts. With it: seed 1337 gives 401,828 steps / 133 hits / **61,433
+    // supportedContactTicks**, seed 4242 gives 404,023 / 137 / 41,287, seed 7
+    // gives 414,909 / 145 / 22,362, all zero failures. Re-running the same
+    // Step 2 mutation against this version fails immediately (48 failures at
+    // seed 1337, first at iteration 167 tick 768).
     expect(result.steps).toBeGreaterThan(300000)
     // The floor that matters most: without it, a soak that never put an
     // airplane within reach of the ground would still report zero failures
     // forever, indistinguishable from "the invariant held". 100 is comfortably
     // below every seed measured above (128-148) while being nowhere near 0.
     expect(result.terrainHits).toBeGreaterThan(100)
+    // Fix round 1's floor, guarding the coverage `terrainHits` above cannot:
+    // that field only proves flights REACHED the ground, not that the
+    // Task 10 assertions (sink-through, no-energy-gain-at-idle-throttle)
+    // ever evaluated once they got there -- which, before the landing
+    // cohort existed, they did not, at any of the three seeds measured
+    // above. 10,000 is comfortably below every seed's measured count
+    // (22,362-61,433) while being nowhere near the 0 this test shipped with
+    // for one full day.
+    expect(result.supportedContactTicks).toBeGreaterThan(10000)
   })
 })
