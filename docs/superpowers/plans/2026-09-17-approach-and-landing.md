@@ -243,7 +243,7 @@ git commit -m "Flaps as state and a command, with a derived lift increment"
 
 **The subtlety that makes or breaks this task:** the increment must go into the `attached` line *inside* `liftCoefficient`, not be added to its result. The post-stall branch takes its peak from `attached(sign * alphaCrit)` — that is what makes the two branches meet, and Plan 1's finding C1 was a 1.17 g discontinuity at exactly that join. Adding the increment outside would lift the attached branch and leave the post-stall peak behind, re-opening that discontinuity with flaps down.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/aero.test.ts — append
@@ -296,12 +296,12 @@ describe('flapClIncrement', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/sim/aero.test.ts tests/sim/flaps.test.ts`
 Expected: FAIL — `flapClIncrement is not a function`, and the increment tests return 0 difference because `liftCoefficient` ignores a third argument.
 
-- [ ] **Step 3: Write both**
+- [x] **Step 3: Write both**
 
 In `src/sim/flaps.ts`:
 
@@ -354,11 +354,11 @@ and thread flap travel where gear travel is already threaded, beside the `gearAf
 
 carrying `flapFraction` into the returned state exactly as `gearFraction` is.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `npm run verify` — exit 0. The golden trajectory must be untouched: it flies with `flapFraction` 0, so `flapClIncrement` returns 0 and `liftCoefficient` takes its default.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/aero.ts src/sim/flaps.ts src/sim/flight/model.ts tests/sim/aero.test.ts tests/sim/flaps.test.ts

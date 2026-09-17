@@ -13,7 +13,7 @@ import {
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
-import { flapAfter } from '../flaps.js'
+import { flapAfter, flapClIncrement } from '../flaps.js'
 import { surfaceAt } from '../contact.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -222,7 +222,10 @@ export function step(
   const { forward, up } = bodyAxes(state)
 
   const alpha = angleOfAttack(state)
-  const cl = liftCoefficient(spec, alpha)
+  // Flaps raise the whole lift curve, so they enter the coefficient rather
+  // than being added to the force -- see `liftCoefficient`'s attached-flow
+  // comment for why the increment has to go inside it.
+  const cl = liftCoefficient(spec, alpha, flapClIncrement(spec, state.flapFraction))
   const cd = dragCoefficient(spec, cl, alpha)
 
   const liftN = q * spec.geometry.wingAreaM2 * cl

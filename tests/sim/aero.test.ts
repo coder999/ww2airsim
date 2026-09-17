@@ -209,3 +209,53 @@ describe('geometry derived values', () => {
     expect(inducedDragFactor(f6f)).toBeCloseTo(1 / (Math.PI * aspectRatio(f6f) * f6f.aero.oswaldE), 9)
   })
 })
+
+/**
+ * Flaps are a camber shift: they move the whole attached-flow line up at
+ * constant angle of attack. The increment has to go INSIDE `liftCoefficient`'s
+ * attached closure, not onto its result, because the post-stall branch takes
+ * its peak from that same closure -- which is what makes the two branches
+ * meet. Plan 1's finding C1 was a 0.2007 step at exactly that join, worth
+ * 1.17 g in the direction of MORE lift past the stall.
+ */
+describe('lift coefficient with a flap increment', () => {
+  it('shifts the whole attached branch up by the increment', () => {
+    for (const alphaDeg of [-15, -8, 0, 5, 15]) {
+      expect(liftCoefficient(f6f, deg(alphaDeg), 0.4831) - liftCoefficient(f6f, deg(alphaDeg), 0)).toBeCloseTo(
+        0.4831,
+        9,
+      )
+    }
+  })
+
+  it('carries the increment into the post-stall peak, so the branches still meet', () => {
+    const crit = alphaCritRad(f6f)
+    for (const sign of [1, -1]) {
+      const inside = liftCoefficient(f6f, sign * (crit - 1e-9), 0.4831)
+      const outside = liftCoefficient(f6f, sign * (crit + 1e-9), 0.4831)
+      expect(Math.abs(outside - inside), `sign ${sign}`).toBeLessThan(1e-6)
+    }
+  })
+
+  it('still peaks and falls with the flaps down, which is what makes a stall an event', () => {
+    const crit = alphaCritRad(f6f)
+    const peak = liftCoefficient(f6f, crit, 0.4831)
+    expect(peak).toBeGreaterThan(liftCoefficient(f6f, crit + deg(5), 0.4831))
+    expect(peak).toBeGreaterThan(liftCoefficient(f6f, crit - deg(5), 0.4831))
+  })
+
+  it('raises the peak by the derived ratio, which is the whole point of the number', () => {
+    const crit = alphaCritRad(f6f)
+    const clean = liftCoefficient(f6f, crit, 0)
+    const flapped = liftCoefficient(f6f, crit, f6f.flap.clIncrement)
+    // (43.81 / 37.7749)^2, the two sourced stall speeds. Task 4 grades the
+    // stall speed itself; this asserts the curve the card depends on.
+    expect(flapped / clean).toBeCloseTo(1.3451, 3)
+  })
+
+  it('is unchanged from the no-flap curve when the increment is zero or omitted', () => {
+    for (const alphaDeg of [-180, -90, -15.5, 0, 15.5, 90, 180]) {
+      expect(liftCoefficient(f6f, deg(alphaDeg), 0)).toBe(liftCoefficient(f6f, deg(alphaDeg)))
+    }
+  })
+})

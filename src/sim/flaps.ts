@@ -24,3 +24,21 @@ export function flapAfter(
   const next = flapDown ? flapFraction + step : flapFraction - step
   return next < 0 ? 0 : next > 1 ? 1 : next
 }
+
+/**
+ * Lift-coefficient increment from the flaps at their current travel.
+ *
+ * Linear in travel -- the same simplification `gearDragN` makes and for the
+ * same reason: a partially extended flap is treated as a fraction of a fully
+ * extended one, which is not worth more than that at this model's fidelity.
+ *
+ * A NaN fraction reads as RETRACTED, because "I do not know" must not put
+ * lift on the wing; an out-of-range fraction clamps, so Infinity reads as
+ * fully extended. Both matter because this value reaches the lift curve and
+ * from there the integrator, which is master spec §9's named hazard.
+ */
+export function flapClIncrement(spec: AircraftSpec, flapFraction: number): number {
+  if (Number.isNaN(flapFraction)) return 0
+  const f = flapFraction < 0 ? 0 : flapFraction > 1 ? 1 : flapFraction
+  return spec.flap.clIncrement * f
+}

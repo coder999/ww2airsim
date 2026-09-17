@@ -97,11 +97,23 @@ const POST_STALL_DECAY_PER_QUARTER_TURN = 0.9
  * +/-180 deg is 8.39e-5, which is just the attached branch's own slope (it
  * was 0.19997, the jump, before this fix).
  */
-export function liftCoefficient(spec: AircraftSpec, alphaRad: number): number {
+export function liftCoefficient(spec: AircraftSpec, alphaRad: number, clIncrement = 0): number {
   const { clSlopePerRad, clAtZeroAlpha } = spec.aero
   const alphaCrit = alphaCritRad(spec)
-  /** The attached-flow line, valid for signed alpha in [-alphaCrit, alphaCrit]. */
-  const attached = (a: number) => clAtZeroAlpha + clSlopePerRad * a
+  /**
+   * The attached-flow line, valid for signed alpha in [-alphaCrit, alphaCrit].
+   *
+   * `clIncrement` is the flaps (`flapClIncrement`, src/sim/flaps.ts) and
+   * belongs HERE rather than on this function's result. The post-stall branch
+   * below takes its peak from this same closure, which is what makes the two
+   * branches meet; adding the increment outside would lift the attached branch
+   * and leave the peak behind, re-opening finding C1's discontinuity -- a
+   * 0.2007 step worth 1.17 g in the direction of MORE lift past the stall --
+   * but only with the flaps down, which is where nobody would look for it.
+   *
+   * Defaults to 0, so every caller predating Plan 11b is unchanged.
+   */
+  const attached = (a: number) => clAtZeroAlpha + clIncrement + clSlopePerRad * a
   const a = Math.abs(alphaRad)
 
   if (a <= alphaCrit) return attached(alphaRad)

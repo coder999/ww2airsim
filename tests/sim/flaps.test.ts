@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { flapAfter } from '../../src/sim/flaps.js'
+import { flapAfter, flapClIncrement } from '../../src/sim/flaps.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -41,5 +41,25 @@ describe('flapAfter', () => {
     expect(flapAfter(f6f, 0.5, true, NaN)).toBe(0.5)
     expect(flapAfter(f6f, 0.5, true, Infinity)).toBe(0.5)
     expect(flapAfter(f6f, 0.5, true, -1)).toBe(0.5)
+  })
+})
+
+describe('flapClIncrement', () => {
+  it('is the full increment at full extension and nothing retracted', () => {
+    expect(flapClIncrement(f6f, 1)).toBeCloseTo(f6f.flap.clIncrement, 9)
+    expect(flapClIncrement(f6f, 0)).toBe(0)
+  })
+
+  it('is linear across travel, the same simplification the gear drag makes', () => {
+    expect(flapClIncrement(f6f, 0.5)).toBeCloseTo(f6f.flap.clIncrement / 2, 9)
+  })
+
+  it('reads a non-finite or out-of-range fraction as safe rather than propagating it', () => {
+    // This feeds the lift curve and from there the integrator, so a NaN here
+    // is master spec section 9's named hazard.
+    expect(flapClIncrement(f6f, NaN)).toBe(0)
+    expect(flapClIncrement(f6f, Infinity)).toBeCloseTo(f6f.flap.clIncrement, 9)
+    expect(flapClIncrement(f6f, -1)).toBe(0)
+    expect(flapClIncrement(f6f, 2)).toBeCloseTo(f6f.flap.clIncrement, 9)
   })
 })
