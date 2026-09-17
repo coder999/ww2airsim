@@ -11,6 +11,8 @@ import {
 import { stepChecked } from '../../src/sim/invariants.js'
 import { holdPitchAngle, holdLevelFlight, bankAngleRad } from '../../src/sim/autopilot.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
+import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 
 const DEG = Math.PI / 180
 
@@ -260,33 +262,68 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
 }
 
 /**
+ * A flat synthetic terrain field at sea level, built the same way
+ * `tests/sim/terrainContact.test.ts` builds its `plateau` (same header shape,
+ * a single LOD level, every sample identical) -- just at height 0 instead of
+ * 1000 m.
+ *
+ * Deliberately NOT the real, committed Tacloban field. Task 9's binding
+ * decision (planning measurements, 2026-09-16): this card grades the flight
+ * model against a Patuxent River trial figure measured on a flat airfield, so
+ * running it over real Leyte terrain would make a historical grading number
+ * depend on which terrain LOD level the test happened to load -- L0 and L4
+ * are measurably different runways (2.12% vs 0.30% worst local grade, north-
+ * south through Tacloban). A flat field at sea level has no such dependency:
+ * every level of it is the same runway.
+ */
+const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
+  parseTerrainHeader({
+    centreLatDeg: 10.8,
+    centreLonDeg: 125.3,
+    halfExtentM: 100000,
+    finestSamples: 8193,
+    levels: 13,
+    encoding: 'int16-decimetres',
+  }),
+  12,
+  new Int16Array(9).fill(0),
+)
+
+/**
  * Ground-roll distance from a standstill to a stated lift-off speed, metres.
  * Controls held at zero (level, no aileron, no rudder) and full throttle, so
- * the commanded body rates are all zero and the attitude never leaves level --
- * no autopilot is needed to hold it there. Altitude and vertical velocity are
- * pinned to zero every step to stand in for "wheels still on the runway",
- * because the model has no ground-reaction / undercarriage force of its own.
+ * the commanded body rates are all zero and the attitude never leaves level
+ * -- no autopilot is needed to hold it there; `groundBodyRates`
+ * (`src/sim/ground.ts`) forces roll to exactly zero and gates pitch on a
+ * speed the airplane never reaches a rotation command for here (`airRates.z`
+ * is itself zero with `controls.pitch` held at zero throughout), so the
+ * airplane rolls level all the way to lift-off speed by construction, not by
+ * a position pin.
+ *
+ * The airplane is spawned with `gearFraction: 1` -- on its wheels -- over
+ * `FLAT_SEA_LEVEL_FIELD`, and the real ground constraint (`restOnSurface`,
+ * gated on `supportedContact`) is what keeps it on the runway now, the same
+ * mechanism `tests/sim/ground.test.ts` and the terrain soak
+ * (`tools/soak/run.ts`) exercise elsewhere. There is no more position/
+ * velocity pin to fake "wheels still on the runway" -- that fake is exactly
+ * what Task 9 deletes.
  *
  * NOT a like-for-like measurement against a full-flaps trial figure: the
- * model has no flaps, no rolling friction and no ground effect. All three
- * push a simulated roll shorter than a flapped, friction-and-effect trial
- * roll would be -- see the take-off card in f6f.test.ts for the tolerance
- * this is graded at and the number that tolerance is built from.
+ * model has no flaps and no ground effect, and -- unlike when this comment
+ * was first written -- DOES now have rolling friction (this plan), which
+ * makes the roll longer than it was. See the take-off card in f6f.test.ts
+ * for the tolerance this is graded at, the evidence it is built from, and
+ * which way the remaining gap runs.
  */
 const TAKEOFF_MAX_S = 60
 
 export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): number {
-  let s = spawn(spec, 0, 0)
+  let s: AircraftState = { ...spawn(spec, 0, 0), gearFraction: 1 }
   const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
   let tick = 0
   for (let i = 0; i < 60 * TAKEOFF_MAX_S; i++) {
     tick++
-    const next = holdMass(spec, stepChecked(spec, s, controls, { dt: DT, tick }))
-    s = {
-      ...next,
-      position: v3(next.position.x, 0, next.position.z),
-      velocity: v3(next.velocity.x, 0, next.velocity.z),
-    }
+    s = holdMass(spec, stepChecked(spec, s, controls, { dt: DT, tick, terrain: FLAT_SEA_LEVEL_FIELD }))
     if (airspeed(s) >= liftoffSpeedMps) return s.position.x
   }
   // Important 2's same reasoning applies here: a run that never reached

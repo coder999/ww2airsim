@@ -65,17 +65,34 @@ describe('F6F-5 flight test card', () => {
   // makes that argument reproducible from the checkout.
   //
   // NOT like-for-like: `reference.takeoffDistanceM` is a full-flaps trial
-  // figure and this model has no flaps, no rolling friction and no ground
-  // effect, all three of which push a simulated roll shorter than the trial's.
+  // figure and this model has no flaps and no ground effect, both of which
+  // push a simulated roll shorter than the trial's.
+  //
   // Measured 2026-09-12 at the shipped propEfficiency 0.75 / staticThrustN
-  // 20,000 N / testMassKg 5633.62: the model reads 214.632 m against the
-  // trial's 230.124 m, a -6.73% under-estimate -- consistent in direction and
-  // size with "missing flap drag and ground-roll friction make the model roll
-  // a bit short", not a coincidence needing a tighter or wider band picked
-  // after the fact. 10% leaves headroom above that -6.73% without absorbing an
-  // error the model does not actually have.
+  // 20,000 N / testMassKg 5633.62, with the ground faked (position.y and
+  // velocity.y pinned to zero every step, no rolling friction): the model
+  // read 214.632 m against the trial's 230.124 m, a -6.73% under-estimate.
+  //
+  // RE-MEASURED 2026-09-16 (Task 9): the fake ground pin is gone -- the card
+  // now spawns gear-down over a real, synthetic flat field at sea level (see
+  // `measureTakeoffRun`'s own doc comment for why synthetic and not Tacloban)
+  // and rolling friction (this plan) now applies. The model reads 228.733 m
+  // against the same 230.124 m trial figure, a -0.605% under-estimate --
+  // MUCH closer than before, and moved in the expected direction: rolling
+  // friction is a new deceleration source, so adding it lengthens the roll,
+  // and it now accounts for nearly all of the previous gap. What still does
+  // NOT apply is flaps and ground effect (both 11b); the remaining -0.605% is
+  // consistent with what's left of "missing flap drag makes the model roll a
+  // touch short," not a coincidence needing a band picked after the fact.
+  //
+  // 2% leaves better than 3x headroom above the measured -0.605%, without
+  // absorbing an error the model does not actually have -- tightened from
+  // the prior 10%, which was sized for the old -6.73% fake-ground figure and
+  // would no longer catch a real regression at this model's current accuracy.
+  // Per this file's own rule, tighten as the model matures; never widen to
+  // whatever passes.
   it('rolls to its documented full-flaps take-off distance, at a tolerance that is honest about the model gaps', () => {
-    const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS), ref.takeoffDistanceM, 0.10)
+    const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS), ref.takeoffDistanceM, 0.02)
     expect(r.pass, `takeoff roll ${r.actual.toFixed(1)} m vs reference ${r.expected} (${(r.err * 100).toFixed(1)}% off)`).toBe(true)
   })
 })
