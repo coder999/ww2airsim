@@ -1,6 +1,6 @@
 import { BufferAttribute, BufferGeometry, DataTexture, FloatType, Mesh, NearestFilter, RedFormat, Vector2, type Texture, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type Node, type UniformNode } from 'three/webgpu'
-import { Fn, If, clamp, color, fract, dFdx, dFdy, max, normalize, dot, pow, float, floor, int, ivec2, length, min, mix, positionLocal, smoothstep, textureLoad, uniform, varying, vec3, vec4 } from 'three/tsl'
+import { Fn, If, clamp, color, fract, max, normalize, dot, pow, float, floor, int, ivec2, length, min, mix, positionLocal, smoothstep, textureLoad, uniform, varying, vec3, vec4 } from 'three/tsl'
 import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
@@ -200,6 +200,46 @@ export function landWeightFromTerrain(terrainHeightM: number): number {
   return 1 - t * t * (3 - 2 * t)
 }
 
+/**
+ * World metres covered by one pixel on the water, at horizontal distance
+ * `distanceM` from an eye `eyeHeightM` up, with `pixelAngleRad` of view angle
+ * per pixel.
+ *
+ * **Why this replaced two different criteria.** The wave field is drawn by two
+ * shader stages, and until 2026-09-17 each measured its own thing: the vertex
+ * stage compared a cascade's wavelength to the mesh's angular sample spacing
+ * (`angularSampleSpacingM`), while the fragment stage compared it to
+ * `max(length(dFdx(worldXZ)), length(dFdy(worldXZ)))`. Those are different
+ * quantities, so every cascade had TWO transitions at different distances --
+ * geometry displacing where nothing shaded it, or the reverse. Measured for
+ * the 32 m swell from a chase camera 10 m up: geometry to 1304 m, shading gone
+ * by 406 m.
+ *
+ * `dFdx` is a fragment-stage derivative and cannot be read while displacing a
+ * vertex, which is why the two ever differed. This is the same measurement
+ * written analytically from quantities BOTH stages have -- distance, eye
+ * height and the per-pixel view angle -- so the two can use one expression and
+ * one threshold, and a cascade either contributes to both or neither.
+ *
+ * Two terms, and the second dominates at any distance worth caring about:
+ * across the view a pixel covers `d * pixelAngle`, but along it the surface is
+ * seen at a grazing angle and one pixel covers `d^2/eyeHeight * pixelAngle`.
+ * That is why a low eye height loses wave detail so much closer in -- from 2 m
+ * up, a pixel covers ~390 m of sea at 900 m out.
+ */
+export function pixelFootprintM(distanceM: number, eyeHeightM: number, pixelAngleRad: number): number {
+  if (!(distanceM > 0) || !(pixelAngleRad > 0)) return 0
+  const across = distanceM * pixelAngleRad
+  const along = ((distanceM * distanceM) / Math.max(eyeHeightM, MIN_EYE_HEIGHT_M)) * pixelAngleRad
+  const worst = Math.max(across, along)
+  return Number.isFinite(worst) ? worst : 0
+}
+
+/** Floor on eye height in `pixelFootprintM`, so sitting exactly on the surface
+ *  does not divide by zero. Well below the 2.2 m the parked airplane's wheels
+ *  put the camera above the ground. */
+const MIN_EYE_HEIGHT_M = 0.5
+
 /** Metres between neighbouring azimuth samples of the polar mesh at a given
  *  distance from the eye. This is the resolution limit the wave fade exists
  *  to respect. */
@@ -238,6 +278,7 @@ function waveSample(tex: Texture, world: Node<'vec2'>, n: number, patchM: number
 }
 
 const eyeHeights = new WeakMap<Object3D, UniformNode<'float', number>>()
+const pixelAngles = new WeakMap<Object3D, UniformNode<'float', number>>()
 const cameras = new WeakMap<Object3D, UniformNode<'vec2', Vector2>>()
 /** Exposes the actual sampling uniform so recentering can be tested. */
 export function oceanCameraXZ(ocean: Object3D): Vector2 {
@@ -251,6 +292,10 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   windSpeedMps(beaufort)
   const camera = uniform(new Vector2())
   const eyeHeight = uniform(1000)
+  // Radians of view per pixel. Defaulted to a 60 deg vertical field over 1080
+  // rows -- what `CAMERA_VFOV_DEG` and a common viewport give -- so a caller
+  // that never calls `recentreOcean` still gets a sane fade rather than none.
+  const pixelAngle = uniform(((60 * Math.PI) / 180) / 1080)
   const tex = new DataTexture(Float32Array.from(field.samples), field.header.samples, field.header.samples, RedFormat, FloatType)
   tex.minFilter = tex.magFilter = NearestFilter
   tex.needsUpdate = true
@@ -267,6 +312,12 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     : float(1)
   // Positive metres of water under this vertex.
   const waterM = depthNode(field, tex, vertexWorld).negate()
+  // `pixelFootprintM` above, as nodes. ONE expression, evaluated in both the
+  // vertex and the fragment stage, so a cascade's two transitions become one.
+  const footprintM = max(
+    distanceM.mul(pixelAngle),
+    distanceM.mul(distanceM).div(max(eyeHeight, MIN_EYE_HEIGHT_M)).mul(pixelAngle),
+  )
   // The raw sum of the bands, before anything about the water they are in.
   let raw: Node<'vec3'> = vec3(0)
   for (const cascade of cascades) {
@@ -275,7 +326,7 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     // wavelength -- and asserted on the CPU through `angularFadeWeight`,
     // which reads the same function rather than restating the arithmetic.
     const { fadeFromM, goneAtM } = angularFadeSpacingM(shortestWavelengthM(cascade.options))
-    const weight = float(1).sub(smoothstep(fadeFromM, goneAtM, distanceM.mul(2 * Math.PI / OCEAN_SECTORS)))
+    const weight = float(1).sub(smoothstep(fadeFromM, goneAtM, footprintM))
     raw = raw.add(Fn(() => {
       const contribution = vec3(0).toVar()
       If(weight.greaterThan(0), () => {
@@ -305,7 +356,6 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   let slopes: Node<'vec2'> = camera.mul(0)
   let foam: Node<'float'> = float(0)
   for (const cascade of cascades) {
-    const footprint = max(length(dFdx(worldXZ)), length(dFdy(worldXZ)))
     const wavelength = shortestWavelengthM(cascade.options)
     // Was `smoothstep(0, 100, depth)` -- a SECOND, independent copy of the
     // 100 m depth ramp that made the displacement path flat, which is why
@@ -324,7 +374,10 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     // spacing there) because the two stages know different things; the
     // threshold must not.
     const { fadeFromM, goneAtM } = angularFadeSpacingM(wavelength)
-    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(fadeFromM, goneAtM, footprint)))
+    // `footprintM`, the SAME node the displacement above fades on -- not
+    // `dFdx`/`dFdy`, which the vertex stage cannot read and which is why the
+    // two stages used to disagree about where a cascade ends.
+    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(fadeFromM, goneAtM, footprintM)))
     const detail = Fn(() => {
       const value = vec4(0).toVar()
       If(weight.greaterThan(0), () => {
@@ -346,12 +399,15 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   mesh.userData.disposeOcean = () => { mesh.geometry.dispose(); material.dispose(); tex.dispose() }
   cameras.set(mesh, camera)
   eyeHeights.set(mesh, eyeHeight)
+  pixelAngles.set(mesh, pixelAngle)
   return mesh
 }
 
-export function recentreOcean(ocean: Object3D, cameraX: number, cameraZ: number, eyeHeightM = 1000): void {
+export function recentreOcean(ocean: Object3D, cameraX: number, cameraZ: number, eyeHeightM = 1000, pixelAngleRad?: number): void {
   const height = eyeHeights.get(ocean)
   if (height) height.value = eyeHeightM
+  const angle = pixelAngles.get(ocean)
+  if (angle && pixelAngleRad !== undefined && pixelAngleRad > 0) angle.value = pixelAngleRad
   ocean.position.set(cameraX, 0, cameraZ)
   oceanCameraXZ(ocean).set(cameraX, cameraZ)
 }

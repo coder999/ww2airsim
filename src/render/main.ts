@@ -653,7 +653,15 @@ async function boot(): Promise<void> {
     // review (I-1): left at the world origin it slid out from under the
     // airplane, and at the spawn's 120 m/s its old half-extent was spent in
     // under three minutes. Its depth lookup stays anchored in world space.
-    recentreOcean(water, current.eye.position.x, current.eye.position.z, current.eye.position.y)
+    // The wave fade is a screen-space criterion, so it needs the real viewport
+    // and field of view rather than the nominal ones the uniform defaults to.
+    recentreOcean(
+      water,
+      current.eye.position.x,
+      current.eye.position.z,
+      current.eye.position.y,
+      ((camera.fov * Math.PI) / 180) / Math.max(window.innerHeight, 1),
+    )
 
     // Reselects the patches to draw for this frame's eye position. Inside the
     // camera-relative block above only in the sense that it takes the same

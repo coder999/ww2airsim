@@ -2,7 +2,7 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 // tests/render/ocean/mesh.test.ts
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
-import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, landWeightFromTerrain, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
+import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, landWeightFromTerrain, pixelFootprintM, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
 import { ANGULAR_FADE_SAMPLES_PER_WAVELENGTH, angularFadeSpacingM, cascadeOptions, shortestWavelengthM } from '../../../src/render/ocean/bands.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
@@ -316,5 +316,55 @@ describe('the ocean mesh resolves every wave it is asked to draw', () => {
     const { fadeFromM, goneAtM } = angularFadeSpacingM(32)
     expect(fadeFromM).toBe(32 / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH)
     expect(goneAtM).toBe(2 * fadeFromM)
+  })
+})
+
+/**
+ * Written AFTER the implementation, unlike everything else here -- recorded
+ * because the repo's TDD rule is not decorative and the exception should be
+ * visible rather than silent.
+ *
+ * This is the one criterion both shader stages now fade on. Before 2026-09-17
+ * the vertex stage used the mesh's angular spacing and the fragment stage used
+ * `dFdx`/`dFdy`, so every cascade had two transitions at different distances.
+ */
+describe('pixelFootprintM', () => {
+  it('is dominated by the grazing term at any distance worth caring about', () => {
+    // Across the view a pixel covers d*angle; along it, d^2/h*angle. The
+    // second overtakes the first as soon as d > h, which is almost always.
+    const angle = ((60 * Math.PI) / 180) / 1080
+    expect(pixelFootprintM(900, 2, angle)).toBeCloseTo((900 * 900 / 2) * angle, 6)
+    // Very close in and high up, the across-view term is the larger one.
+    expect(pixelFootprintM(5, 500, angle)).toBeCloseTo(5 * angle, 9)
+  })
+
+  it('explains why a low eye loses wave detail so much closer in', () => {
+    const angle = ((60 * Math.PI) / 180) / 1080
+    // From the runway at 2 m, one pixel covers hundreds of metres of sea at
+    // the 900 m coastline -- no 32 m swell is resolvable there at all.
+    expect(pixelFootprintM(900, 2, angle)).toBeGreaterThan(300)
+    // From 600 m up, the same water is far better resolved.
+    expect(pixelFootprintM(900, 600, angle)).toBeLessThan(2)
+  })
+
+  it('grows as the square of distance and inversely with eye height', () => {
+    const angle = 1e-3
+    expect(pixelFootprintM(200, 10, angle) / pixelFootprintM(100, 10, angle)).toBeCloseTo(4, 6)
+    expect(pixelFootprintM(100, 40, angle) / pixelFootprintM(100, 10, angle)).toBeCloseTo(0.25, 6)
+  })
+
+  it('returns a finite zero rather than a NaN for degenerate input', () => {
+    // Runs per-vertex and per-fragment; a NaN here reaches a vertex position,
+    // which is master spec section 9's named hazard.
+    for (const args of [[0, 10, 1e-3], [-5, 10, 1e-3], [100, 0, 0], [NaN, 10, 1e-3], [100, NaN, 1e-3], [Infinity, 10, 1e-3]]) {
+      const v = pixelFootprintM(args[0]!, args[1]!, args[2]!)
+      expect(Number.isFinite(v), `args=${JSON.stringify(args)}`).toBe(true)
+      expect(v).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('never divides by zero when the eye sits on the surface', () => {
+    expect(Number.isFinite(pixelFootprintM(100, 0, 1e-3))).toBe(true)
+    expect(pixelFootprintM(100, 0, 1e-3)).toBeGreaterThan(0)
   })
 })
