@@ -18,6 +18,37 @@ export const inducedDragFactor = (spec: AircraftSpec): number =>
   1 / (Math.PI * aspectRatio(spec) * spec.aero.oswaldE)
 
 /**
+ * Induced-drag multiplier in ground effect: McCormick's
+ * `phi = (16h/b)^2 / (1 + (16h/b)^2)`, with `h` the WING's height above the
+ * surface and `b` the span.
+ *
+ * Within about a wingspan of the ground the trailing vortex system is
+ * constrained and induced drag falls. Measured on this airplane 2026-09-17:
+ * x0.600 at 1 m, x0.857 at 2 m, x0.931 at 3 m, x0.996 at one span.
+ *
+ * **No fitted constant, and that is load-bearing rather than tidy.** It is
+ * what leaves `flap.dragAreaM2` as the only unknown entering the graded
+ * full-flaps take-off card, so that card characterises flap drag rather than
+ * characterising two guesses against each other.
+ *
+ * The lift INCREASE in ground effect is deliberately not modeled: the
+ * induced-drag reduction is the dominant and best-published half, and the
+ * published forms of the lift half disagree more. Stated so a later reader
+ * knows it was a decision.
+ *
+ * Returns 0 at or below the surface -- the formula's own limit -- and is
+ * clamped into [0, 1] for any non-finite input, because this multiplies a drag
+ * term that reaches the integrator.
+ */
+export const groundEffectFactor = (spec: AircraftSpec, wingHeightM: number): number => {
+  if (!Number.isFinite(wingHeightM) || wingHeightM <= 0) return 0
+  const ratio = (16 * wingHeightM) / spec.geometry.wingSpanM
+  const x = ratio * ratio
+  const phi = x / (1 + x)
+  return phi < 0 ? 0 : phi > 1 ? 1 : phi
+}
+
+/**
  * Parasitic drag added by a propeller that is not pulling, as a Cd0 increment.
  *
  * Exists because the model had NO engine-state drag at all: `thrustMagnitude`
@@ -147,8 +178,17 @@ const FLAT_PLATE_CD = 1.1
  * working unchanged -- 0 is always within the attached-flow region since
  * alphaCritDeg is validated positive.
  */
-export function dragCoefficient(spec: AircraftSpec, cl: number, alphaRad = 0): number {
-  const cdAttached = spec.aero.cd0 + inducedDragFactor(spec) * cl * cl
+export function dragCoefficient(
+  spec: AircraftSpec,
+  cl: number,
+  alphaRad = 0,
+  inducedFactorScale = 1,
+): number {
+  // `inducedFactorScale` is ground effect (`groundEffectFactor`) and defaults
+  // to 1, so every caller predating Plan 11b is unchanged. It scales the
+  // INDUCED term alone: ground effect constrains the trailing vortex system
+  // and has no business touching `cd0`.
+  const cdAttached = spec.aero.cd0 + inducedDragFactor(spec) * inducedFactorScale * cl * cl
   const alphaCrit = alphaCritRad(spec)
   const a = Math.abs(alphaRad)
   if (a <= alphaCrit) return cdAttached

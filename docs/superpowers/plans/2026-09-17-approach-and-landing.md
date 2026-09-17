@@ -557,7 +557,7 @@ git commit -m "Grade the flaps against the trial landing-configuration stall"
 
 **Which height feeds this, stated so the implementer does not have to choose:** the WING's height above the terrain, which is `state.position.y - groundHeightM`. `position.y` is the body origin and the wing sits essentially at it (`src/render/scene/hellcat.ts` puts the wing at -0.25 m of a 1.5 m fuselage); the wheels are `gear.heightM` = 2.2 m BELOW that. Using the wheel height instead is a 2.2 m error, which is a factor of 1.4 on induced drag in the flare — where it matters most — and would read as a tuning problem rather than a bug.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/aero.test.ts — append
@@ -603,12 +603,12 @@ describe('dragCoefficient with an induced-drag scale', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/aero.test.ts`
 Expected: FAIL — `groundEffectFactor is not a function`, and `dragCoefficient` ignores a fourth argument so `full - halved` is 0.
 
-- [ ] **Step 3: Implement both**
+- [x] **Step 3: Implement both**
 
 ```typescript
 /**
@@ -654,7 +654,7 @@ export function dragCoefficient(
   // ... rest unchanged
 ```
 
-- [ ] **Step 4: Apply it in `step`**
+- [x] **Step 4: Apply it in `step`**
 
 In `src/sim/flight/model.ts`, where `ctx.terrain` is already consulted (11a added the field and the short-circuit; follow the existing guard so a null terrain costs nothing):
 
@@ -670,11 +670,11 @@ In `src/sim/flight/model.ts`, where `ctx.terrain` is already consulted (11a adde
   const cd = dragCoefficient(spec, cl, alpha, groundEffect)
 ```
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify` — exit 0. Note the golden trajectory flies with no terrain field, so `groundEffect` is 1 and it cannot move.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/aero.ts src/sim/flight/model.ts tests/sim/aero.test.ts

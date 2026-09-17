@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor, alphaCritRad }
+import { liftCoefficient, dragCoefficient, aspectRatio, inducedDragFactor, alphaCritRad, groundEffectFactor }
   from '../../src/sim/aero.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
@@ -257,5 +257,64 @@ describe('lift coefficient with a flap increment', () => {
     for (const alphaDeg of [-180, -90, -15.5, 0, 15.5, 90, 180]) {
       expect(liftCoefficient(f6f, deg(alphaDeg), 0)).toBe(liftCoefficient(f6f, deg(alphaDeg)))
     }
+  })
+})
+
+/**
+ * Within about a wingspan of the surface the trailing vortex system is
+ * constrained by the ground and induced drag falls. McCormick's factor, which
+ * has **no fitted constant** -- a property that is load-bearing rather than
+ * tidy: it is what leaves `flap.dragAreaM2` as the only unknown entering the
+ * graded take-off card, so that card characterises flap drag instead of
+ * characterising two guesses against each other.
+ */
+describe('groundEffectFactor', () => {
+  it('matches McCormick at the heights that matter, on this airplane', () => {
+    // phi = (16h/b)^2 / (1 + (16h/b)^2), b = geometry.wingSpanM = 13.06 m.
+    // Computed 2026-09-17; these are the numbers the design doc tabulates.
+    expect(groundEffectFactor(f6f, 1)).toBeCloseTo(0.600, 3)
+    expect(groundEffectFactor(f6f, 2)).toBeCloseTo(0.857, 3)
+    expect(groundEffectFactor(f6f, 3)).toBeCloseTo(0.931, 3)
+  })
+
+  it('is effectively absent a wingspan up, so it cannot reach cruise', () => {
+    expect(groundEffectFactor(f6f, f6f.geometry.wingSpanM)).toBeGreaterThan(0.99)
+    expect(groundEffectFactor(f6f, 10 * f6f.geometry.wingSpanM)).toBeGreaterThan(0.999)
+  })
+
+  it('never leaves [0, 1], including below the surface and on junk input', () => {
+    // This multiplies a drag term that reaches the integrator.
+    for (const h of [-100, -1, 0, NaN, Infinity, -Infinity, 1e9]) {
+      const phi = groundEffectFactor(f6f, h)
+      expect(Number.isFinite(phi), `h=${h}`).toBe(true)
+      expect(phi).toBeGreaterThanOrEqual(0)
+      expect(phi).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('increases monotonically with height, so there is no local trap', () => {
+    let previous = -1
+    for (let h = 0; h <= 30; h += 0.25) {
+      const phi = groundEffectFactor(f6f, h)
+      expect(phi).toBeGreaterThanOrEqual(previous)
+      previous = phi
+    }
+  })
+})
+
+describe('drag coefficient with an induced-drag scale', () => {
+  it('scales only the induced term, never the parasitic one', () => {
+    const cl = 1.0
+    const full = dragCoefficient(f6f, cl, 0, 1)
+    const halved = dragCoefficient(f6f, cl, 0, 0.5)
+    expect(full - halved).toBeCloseTo(0.5 * inducedDragFactor(f6f) * cl * cl, 12)
+    // At zero lift there is no induced drag to scale, so the two agree --
+    // which is what "only the induced term" means.
+    expect(dragCoefficient(f6f, 0, 0, 1)).toBeCloseTo(dragCoefficient(f6f, 0, 0, 0.1), 12)
+  })
+
+  it('is unchanged when the scale is omitted', () => {
+    expect(dragCoefficient(f6f, 0.8, deg(6))).toBe(dragCoefficient(f6f, 0.8, deg(6), 1))
+    expect(dragCoefficient(f6f, 0.8, deg(40))).toBe(dragCoefficient(f6f, 0.8, deg(40), 1))
   })
 })

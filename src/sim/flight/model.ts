@@ -1,7 +1,7 @@
 import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
-import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0 } from '../aero.js'
+import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor } from '../aero.js'
 import {
   gearAfter,
   gearDragN,
@@ -216,6 +216,15 @@ export function step(
   assertUsableDt(ctx.dt)
   const dt = ctx.dt
   const mass = massKg(spec, state)
+  // Ground height under the airplane at the START of this step, or null when
+  // no terrain field was supplied (50 of the 51 `SimContext` construction
+  // sites pass none). Hoisted ABOVE the aerodynamics because ground effect
+  // needs it here, and computed ONCE for every consumer below -- the comment
+  // on `onGroundStart` further down states that principle, and this now
+  // serves one more reader rather than adding a second `heightAt` call for
+  // the same position.
+  const startGroundHeightM =
+    ctx.terrain != null ? heightAt(ctx.terrain, state.position.x, state.position.z) : null
   const rho = densityAt(state.position.y)
   const v = airspeed(state)
   const q = 0.5 * rho * v * v
@@ -226,7 +235,18 @@ export function step(
   // than being added to the force -- see `liftCoefficient`'s attached-flow
   // comment for why the increment has to go inside it.
   const cl = liftCoefficient(spec, alpha, flapClIncrement(spec, state.flapFraction))
-  const cd = dragCoefficient(spec, cl, alpha)
+  // Ground effect: less induced drag within a wingspan of the surface. The
+  // height fed in is the WING's above the terrain, which is `position.y` minus
+  // the ground -- `position` names the body origin and the wing sits
+  // essentially at it (src/render/scene/hellcat.ts puts it at -0.25 m of a
+  // 1.5 m fuselage). It is NOT the wheels' height: those are `gear.heightM`
+  // = 2.2 m lower, and using them would be a 2.2 m error, a factor of 1.4 on
+  // induced drag in the flare, which would read as a tuning problem.
+  const groundEffect =
+    startGroundHeightM !== null
+      ? groundEffectFactor(spec, state.position.y - startGroundHeightM)
+      : 1
+  const cd = dragCoefficient(spec, cl, alpha, groundEffect)
 
   const liftN = q * spec.geometry.wingAreaM2 * cl
   // Two parasitic terms beyond the wing's own drag, both folded into this one
@@ -310,8 +330,7 @@ export function step(
   // threshold `supportedContact` already uses, rather than inventing a
   // second one.
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
-  if (ctx.terrain != null) {
-    const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
+  if (startGroundHeightM !== null) {
     onGroundStart = onGround(spec, state, startGroundHeightM)
     onLandStart = surfaceAt(startGroundHeightM) === 'land'
     // `state.velocity.y <= 0`: a unilateral contact force may act only while

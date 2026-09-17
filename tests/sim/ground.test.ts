@@ -412,19 +412,58 @@ describe('step(): ground consumers are gated on the gear being down (fix round 1
   const ctx = (terrain: TerrainField | null, tick = 0): SimContext => ({ dt: DT, tick, terrain })
 
   it('does not steer with a retracted tailwheel or charge rolling friction to a belly', () => {
-    // Design §3: the gear-down requirement belongs to these two consumers,
-    // not to `onGround` itself. With the gear fully retracted, every
-    // terrain-dependent branch in `step` should be a no-op: the ground
-    // reaction force and `restOnSurface` are already gated on
-    // `supportedContact` (which requires `GEAR_DOWN_FRACTION`), and rolling
-    // friction and the ground rate regime now are too. So a gear-up airplane
-    // sitting at ground level should step IDENTICALLY whether or not terrain
-    // is even present.
-    const rollingGearUp = createState({ position: v3(0, 0, 0), velocity: v3(20, 0, 0), gearFraction: 0 })
+    // Design §3: the gear-down requirement belongs to these two consumers, not
+    // to `onGround` itself. With the gear fully retracted, the WHEEL-dependent
+    // branches of `step` must all be no-ops: the ground reaction force and
+    // `restOnSurface` are gated on `supportedContact` (which requires
+    // `GEAR_DOWN_FRACTION`), and rolling friction and the ground rate regime
+    // are too.
+    //
+    // **This used to assert whole-state identity against a null terrain, and
+    // Plan 11b made that claim false for a good reason.** Ground effect is a
+    // terrain-dependent branch that is deliberately GEAR-AGNOSTIC -- it is
+    // about the wing's proximity to the surface, and a belly-landing airplane
+    // gets it just as much as one on its wheels. So the two mechanisms are now
+    // asserted separately: no steering here, and identity only out of ground
+    // effect below, where the original claim still holds exactly.
+    const rollingGearUp = createState({ position: v3(0, LAND_M + 0.5, 0), velocity: v3(20, 0, 0), gearFraction: 0 })
     const controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0, brake: 1 }
     const withTerrain = step(f6f, rollingGearUp, controls, ctx(flat))
     const withoutTerrain = step(f6f, rollingGearUp, controls, ctx(null))
-    expect(withTerrain).toEqual(withoutTerrain)
+    // Steering is rate-commanded, so the tailwheel not being down shows up
+    // here -- and ground effect cannot touch it, because it only scales drag.
+    expect(withTerrain.bodyRates).toEqual(withoutTerrain.bodyRates)
+    expect(withTerrain.attitude).toEqual(withoutTerrain.attitude)
+  })
+
+  it('applies ground effect to a gear-up airplane, because it is about the wing not the wheels', () => {
+    // The exception the test above documents, asserted rather than implied.
+    const lowGearUp = createState({ position: v3(0, LAND_M + 0.5, 0), velocity: v3(60, 0, 0), gearFraction: 0 })
+    const controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: 0 }
+    const low = step(f6f, lowGearUp, controls, ctx(flat))
+    const noTerrain = step(f6f, lowGearUp, controls, ctx(null))
+    // Less induced drag near the surface means it decelerates LESS.
+    expect(low.velocity.x).toBeGreaterThan(noTerrain.velocity.x)
+  })
+
+  it('steps indistinguishably from no terrain once the wing is clear of ground effect', () => {
+    // **Not exact equality, and the reason is worth knowing**: McCormick's
+    // phi approaches 1 only asymptotically -- at 40 wingspans it is 0.9999976,
+    // never 1 -- so a step with any terrain present can never be bit-identical
+    // to one without. What can be asserted is that the difference is far below
+    // anything that could matter, which bounds the exception the two tests
+    // above document rather than leaving it open-ended.
+    const highGearUp = createState({
+      position: v3(0, LAND_M + 40 * f6f.geometry.wingSpanM, 0),
+      velocity: v3(60, 0, 0),
+      gearFraction: 0,
+    })
+    const controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0, brake: 1 }
+    const withTerrain = step(f6f, highGearUp, controls, ctx(flat))
+    const withoutTerrain = step(f6f, highGearUp, controls, ctx(null))
+    expect(withTerrain.bodyRates).toEqual(withoutTerrain.bodyRates)
+    expect(withTerrain.velocity.x - withoutTerrain.velocity.x).toBeLessThan(1e-6)
+    expect(withTerrain.position.y - withoutTerrain.position.y).toBeLessThan(1e-6)
   })
 
   it('does steer and does drag once the gear is down, for contrast', () => {
