@@ -13,13 +13,45 @@ export const DEEP_WATER_COLOUR = SEA_COLOUR
 export const SHALLOW_WATER_COLOUR = 0x397d83
 /** Reach the deep colour by 100 m, just shallower than the -125 m gulf centre. */
 export const DEEP_COLOUR_DEPTH_M = 100
-export type Ring = { readonly innerM: number; readonly outerM: number; readonly quadM: number }
+export type Ring = {
+  readonly innerM: number
+  readonly outerM: number
+  /** The coarser of the two spacings in this ring -- what its cells look like. */
+  readonly quadM: number
+  /** Radial spacing alone. Separate from `quadM` because it is the one that
+   *  JUMPS at a ring boundary while the angular spacing runs continuously, so
+   *  it is the one a seam test has to be able to see. Added 2026-09-17 with
+   *  the 391 m seam fix. */
+  readonly radialM: number
+}
 
 // 512 azimuth segments give 4.91 km outer edges at 400 km; radial edges are
 // <=5 km. Their d²/R curvature second difference remains below 5 m. Radial
 // growth by four gives sub-metre cells near the camera with eight rings.
 export const OCEAN_SECTORS = 512
-const radialSteps = (inner: number, outer: number): number => Math.max(64, Math.ceil((outer - inner) / 5000))
+/**
+ * Radial rows in a ring.
+ *
+ * **The floor was 64 until 2026-09-17, and it was a visible seam.** The rings
+ * grow by 4x, so a flat row count means the radial spacing jumps 4x at every
+ * boundary while the angular spacing (`angularSampleSpacingM`) stays
+ * continuous. Measured: 4.58 m in the 98-391 m ring against 18.31 m in the
+ * 391-1563 m ring, and 18.31 m cannot represent the 32 m swell, which needs
+ * 16 m. So the swell was drawn inside 391 m and vanished immediately outside
+ * it -- a hard circle centred on the camera, which is what Mark outlined on
+ * 2026-09-17.
+ *
+ * 128 puts that ring at 9.16 m, fine enough for the swell, so the only limit
+ * left anywhere is the continuous angular one. The cost is 266,760 -> 529,416
+ * mesh vertices. `tests/render/ocean/mesh.test.ts` asserts the invariant this
+ * exists to hold: the mesh must resolve any wavelength the fade still draws.
+ *
+ * **The measured GPU tier budgets in `tiers.ts` predate this** and were taken
+ * on the RX 6700 XT at 266,760 vertices. Doubling the vertex count did not
+ * change the compute cost those numbers are about, but it is not free either,
+ * and re-measuring on the reference desktop is outstanding.
+ */
+const radialSteps = (inner: number, outer: number): number => Math.max(128, Math.ceil((outer - inner) / 5000))
 export function oceanRings(extentM: number, rings: number): readonly Ring[] {
   if (!Number.isFinite(extentM) || extentM <= 0 || !Number.isInteger(rings) || rings < 1 || rings > 16) {
     throw new Error('ocean: expected positive extent and 1–16 rings')
@@ -27,7 +59,8 @@ export function oceanRings(extentM: number, rings: number): readonly Ring[] {
   return Array.from({ length: rings }, (_, i) => {
     const outerM = extentM / 4 ** (rings - 1 - i)
     const innerM = i === 0 ? 0 : outerM / 4
-    return { innerM, outerM, quadM: Math.max((outerM - innerM) / radialSteps(innerM, outerM), 2 * Math.PI * outerM / OCEAN_SECTORS) }
+    const radialM = (outerM - innerM) / radialSteps(innerM, outerM)
+    return { innerM, outerM, radialM, quadM: Math.max(radialM, 2 * Math.PI * outerM / OCEAN_SECTORS) }
   })
 }
 
@@ -284,7 +317,14 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     // it is a SCREEN-space criterion (dFdx/dFdy of world position per pixel),
     // not the mesh's angular sampling, and relaxing it is a separate
     // shimmer judgement from the one taken for the geometry.
-    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(wavelength / 4, wavelength / 2, footprint)))
+    // Thresholds from `angularFadeSpacingM`, the SAME function the vertex
+    // stage reads -- see `ANGULAR_FADE_SAMPLES_PER_WAVELENGTH` (bands.ts) for
+    // why one shared constant rather than the literals that used to sit here.
+    // The measured quantity differs (pixel footprint here, mesh angular
+    // spacing there) because the two stages know different things; the
+    // threshold must not.
+    const { fadeFromM, goneAtM } = angularFadeSpacingM(wavelength)
+    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(fadeFromM, goneAtM, footprint)))
     const detail = Fn(() => {
       const value = vec4(0).toVar()
       If(weight.greaterThan(0), () => {

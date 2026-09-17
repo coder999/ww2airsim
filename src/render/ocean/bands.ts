@@ -23,38 +23,45 @@ export function shortestWavelengthM(options: OceanComputeOptions): number {
 }
 
 /**
- * Samples the polar mesh needs across a wavelength before it will draw it.
+ * Samples needed across a wavelength before a cascade is drawn at all.
  *
- * **Two, which is Nyquist.** It was effectively four until 2026-09-17, and
- * that cost Mark the entire sea surface: the fade thresholds were
- * `(L/4, L/2)` of the mesh's angular sample spacing, so a wavelength was
- * fully gone once the mesh had four samples across it -- twice as
- * conservative as the sampling theorem requires. From 600 m over open water
- * nobody noticed, because the water directly below the airplane is at zero
- * horizontal distance and every band was at full weight. From a runway at 2 m
- * of eye height every piece of visible water is far away, and the nearest sea
- * off Tacloban -- 900 m east, where the mesh samples every 11.0 m -- was being
- * faded to 0.68 for a 32 m swell it could represent perfectly well.
+ * **Four, and the reason is not the sampling theorem.** Two would be Nyquist,
+ * and on 2026-09-17 this was briefly set to two on exactly that argument. That
+ * change was correct about the geometry in isolation and wrong about the
+ * surface, because the wave field is drawn by TWO stages with different
+ * information:
  *
- * Raising this is the knob for shimmer: if the swell aliases between 1.3 and
- * 2.6 km, this number is why, and it is a Tier 3 judgement rather than
- * something the headless suite can see.
+ * - the **vertex** stage displaces, and can only measure the mesh's own
+ *   angular sample spacing (`angularSampleSpacingM`, mesh.ts);
+ * - the **fragment** stage shades, and measures the screen-space footprint per
+ *   pixel (`dFdx`/`dFdy` of world position), which at a grazing angle grows as
+ *   d^2/eye-height and therefore runs out far sooner.
+ *
+ * Widening only the vertex stage left the swell displacing to 2,608 m while
+ * its shading gave up at 406 m from a chase camera — about 2.2 km of rolling
+ * geometry with flat paint on it, which Mark saw as a band. Measured
+ * 2026-09-17 at 60 deg vfov and 1080 px.
+ *
+ * So this number is not "how finely must a wave be sampled to exist"; it is
+ * **the coarsest limit either stage can follow, and both stages must read it
+ * from here.** `createOcean` uses `angularFadeSpacingM` for the vertex fade
+ * and again for the fragment fade; before 2026-09-17 the fragment stage
+ * carried `wavelength / 4, wavelength / 2` as its own literals, and two copies
+ * of one threshold is what let them drift apart in the first place.
  */
-export const ANGULAR_FADE_SAMPLES_PER_WAVELENGTH = 2
+export const ANGULAR_FADE_SAMPLES_PER_WAVELENGTH = 4
 
 /**
- * Angular sample spacings, in metres, between which a wavelength fades out.
+ * Sample spacings, in metres, between which a wavelength fades out.
  *
- * Below `fadeFromM` the mesh resolves the wave and it is drawn at full
- * amplitude; above `goneAtM` there is less than one sample per wavelength and
- * it is dropped entirely. One source of truth for both the CPU reference
- * (`angularFadeWeight`, mesh.ts) and the shader's own `smoothstep` -- the
- * thresholds are plain numbers there because the wavelength is known on the
- * CPU, so unlike `heightAt` there is no mirrored implementation to drift.
+ * Below `fadeFromM` the wave is drawn at full amplitude; above `goneAtM` it is
+ * dropped. Applied by the vertex stage to the mesh's angular spacing and by
+ * the fragment stage to the pixel footprint — the same pair of numbers for
+ * both, which is the point. See `ANGULAR_FADE_SAMPLES_PER_WAVELENGTH`.
  */
 export function angularFadeSpacingM(wavelengthM: number): { readonly fadeFromM: number; readonly goneAtM: number } {
   return {
     fadeFromM: wavelengthM / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH,
-    goneAtM: wavelengthM,
+    goneAtM: (2 * wavelengthM) / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH,
   }
 }

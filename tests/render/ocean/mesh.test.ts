@@ -3,6 +3,7 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
 import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, landWeightFromTerrain, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
+import { ANGULAR_FADE_SAMPLES_PER_WAVELENGTH, angularFadeSpacingM, cascadeOptions, shortestWavelengthM } from '../../../src/render/ocean/bands.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
 describe('oceanRings', () => {
@@ -160,21 +161,23 @@ describe('angularFadeWeight', () => {
     expect(angularSampleSpacingM(0)).toBe(0)
   })
 
-  it('keeps the 32 m swell at full weight over the water Tacloban looks at', () => {
-    // The nearest sea from the runway is 900 m east, where the mesh samples
-    // every 11.0 m -- comfortably inside Nyquist for a 32 m wave. Under the
-    // old 4-samples-per-wavelength thresholds this returned 0.68.
-    expect(angularFadeWeight(32, 900)).toBe(1)
+  it('still carries most of the swell over the water Tacloban looks at', () => {
+    // 900 m east of the runway, where the mesh samples every 11.05 m against a
+    // fade that starts at 8 m and ends at 16 m. Deliberately NOT 1.0: this was
+    // briefly widened to Nyquist so it would be, and that opened a 2.2 km band
+    // where the geometry displaced and the shading did not -- see
+    // ANGULAR_FADE_SAMPLES_PER_WAVELENGTH. What actually restored these waves
+    // was the `landWeightFromTerrain` fix below, not this.
+    expect(angularFadeWeight(32, 900)).toBeCloseTo(0.676, 3)
   })
 
-  it('does not begin fading until the mesh has fewer than two samples per wavelength', () => {
+  it('holds full weight until the spacing reaches the shared threshold, then reaches zero at it', () => {
     const L = 32
-    // Nyquist: exactly two samples across the wavelength.
-    const nyquistDistanceM = ((L / 2) * OCEAN_SECTORS) / (2 * Math.PI)
-    expect(angularFadeWeight(L, nyquistDistanceM * 0.99)).toBe(1)
-    expect(angularFadeWeight(L, nyquistDistanceM * 1.01)).toBeLessThan(1)
-    // Gone once there is less than one sample per wavelength.
-    expect(angularFadeWeight(L, (L * OCEAN_SECTORS) / (2 * Math.PI))).toBe(0)
+    const { fadeFromM, goneAtM } = angularFadeSpacingM(L)
+    const distanceAt = (spacingM: number) => (spacingM * OCEAN_SECTORS) / (2 * Math.PI)
+    expect(angularFadeWeight(L, distanceAt(fadeFromM) * 0.99)).toBe(1)
+    expect(angularFadeWeight(L, distanceAt(fadeFromM) * 1.01)).toBeLessThan(1)
+    expect(angularFadeWeight(L, distanceAt(goneAtM))).toBe(0)
   })
 
   it('never increases with distance, and stays in [0, 1]', () => {
@@ -267,5 +270,51 @@ describe('landWeightFromTerrain', () => {
       expect(w).toBeGreaterThanOrEqual(0)
       expect(w).toBeLessThanOrEqual(1)
     }
+  })
+})
+
+/**
+ * The invariant that the 391 m seam violated, and the one worth keeping.
+ *
+ * **The mesh must be able to resolve any wavelength the fade still draws.** If
+ * the fade says a cascade contributes at some distance but the mesh cannot
+ * sample it there, the wave is not smoothly attenuated -- it is aliased or
+ * simply absent, and the boundary where that begins is a hard circle centred
+ * on the camera. Mark outlined exactly that on 2026-09-17.
+ *
+ * The cause was `radialSteps`' flat floor of 64 rows per ring against rings
+ * that grow 4x: radial spacing jumped 4.58 m -> 18.31 m at 391 m while the
+ * angular spacing ran continuously through it, and 18.31 m cannot carry a
+ * 32 m wave.
+ */
+describe('the ocean mesh resolves every wave it is asked to draw', () => {
+  it('has radial spacing fine enough wherever a cascade still contributes', () => {
+    const rings = oceanRings(OCEAN_EXTENT_M, 8)
+    // The coarsest cascade is the one that reaches furthest out, so it sets
+    // how far the mesh has to stay fine.
+    const cascades = cascadeOptions(4, 256, 3)
+    const longest = Math.max(...cascades.map((c) => shortestWavelengthM(c)))
+    const { goneAtM } = angularFadeSpacingM(longest)
+    const drawnToM = (goneAtM * OCEAN_SECTORS) / (2 * Math.PI)
+
+    for (const r of rings) {
+      // Only rings the fade still draws this wavelength in.
+      if (r.innerM >= drawnToM) continue
+      expect(
+        r.radialM,
+        `ring ${r.innerM.toFixed(0)}-${r.outerM.toFixed(0)} m draws a ${longest} m wave at ` +
+          `${r.radialM.toFixed(2)} m radial spacing, which cannot represent it`,
+      ).toBeLessThanOrEqual(goneAtM)
+    }
+  })
+
+  it('reads its fade threshold from one place, so the two stages cannot drift', () => {
+    // The fragment stage carried `wavelength / 4, wavelength / 2` as its own
+    // literals until 2026-09-17, and the vertex stage was changed without it.
+    // Both now call `angularFadeSpacingM`; this asserts the shape that makes
+    // that possible rather than the call sites, which a test cannot see.
+    const { fadeFromM, goneAtM } = angularFadeSpacingM(32)
+    expect(fadeFromM).toBe(32 / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH)
+    expect(goneAtM).toBe(2 * fadeFromM)
   })
 })
