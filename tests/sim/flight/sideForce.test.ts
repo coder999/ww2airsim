@@ -45,8 +45,9 @@ describe('sustained rudder turns the airplane, not just its nose', () => {
   it('keeps turning the flight path for as long as the rudder is held', () => {
     // The whole point. Measured 2026-09-17 at the first shipped cySlopePerRad
     // of 0.10: heading 45.1 deg and TRACK 25.1 deg after 30 s. Re-measured the
-    // same day at the 0.90 it now ships at: heading 97.7 deg, track 85.5 deg,
-    // slip settled at -12.2 deg. Before the term existed the track did not
+    // same day at 0.90 (heading 97.7, track 85.5, slip -12.2) and at the 1.00
+    // it now ships at, Mark's number after flying 0.90: heading 101.8 deg,
+    // track 90.1 deg, slip settled at -11.7 deg. Before the term existed the track did not
     // move at all, so any positive number here is the behaviour Mark asked
     // for; the floor is left well below both measurements because the
     // coefficient is expected to be retuned again once he has flown it.

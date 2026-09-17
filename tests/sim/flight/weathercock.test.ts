@@ -61,12 +61,13 @@ describe('weathercock stability', () => {
     // | --- | --- | --- |
     // | 0.10 | 9.19 deg | 0.007 deg |
     // | 0.50 | 7.32 deg | 0.001 deg |
-    // | 0.90 (shipped) | 6.08 deg | 0.000 deg |
+    // | 0.90 | 6.08 deg | 0.000 deg |
+    // | 1.00 (shipped) | 5.84 deg | 0.000 deg |
     //
-    // The floor is 5: below the shipped 6.08 by the same kind of margin the
+    // The floor is 5: below the shipped 5.84 by the same kind of margin the
     // old 7 sat below 7.47, and still five degrees above the 0.00 the ruling
-    // was written against. A future coefficient above 0.9 will meet the
-    // one-tau lower bound in the next case before it meets this one.
+    // was written against. 1.00 is Mark's number -- he flew 0.90 on
+    // 2026-09-17, liked the lateral movement and asked for 1.0.
     const start = crabbed(10)
     const heading = (s: AircraftState) => {
       const f = qRotate(s.attitude, v3(1, 0, 0))
@@ -97,11 +98,18 @@ describe('weathercock stability', () => {
     // And not instantly, which would mean the decay is no longer a time
     // constant at all: still more than half of what the fin alone would leave.
     // Measured 2026-09-17, slip after one tau from 10 degrees: 3.348 at
-    // cySlopePerRad 0.10, 2.525 at 0.50, 1.903 at the shipped 0.90 -- which
-    // clears this lower bound of 1.839 by 3%. This is the first assertion a
-    // coefficient above 0.9 will trip, and it is a real question when it
-    // does: at that point the side force is removing slip as fast as the fin.
-    expect(deg(slipRad(after))).toBeGreaterThan((s0 / Math.E) * 0.5)
+    // cySlopePerRad 0.10, 2.525 at 0.50, 1.903 at 0.90, 1.773 at the shipped
+    // 1.00. The floor was half of the fin-alone figure (1.839) and 1.00
+    // tripped it by 4% -- which answers the question the previous version of
+    // this comment raised: yes, at Mark's chosen value the side force removes
+    // slip about as fast as the fin does, and he wants it that way (he asked
+    // for MORE heading retention, not less). The floor is now a quarter,
+    // 0.920: still a finite time constant, still not instantaneous, and 1.773
+    // clears it by 93%. Going for ~90% heading retention (see the content
+    // file's cySlopePerRad note) would trip this again at any setting that
+    // achieves it; at that point this case should assert monotonic decay and
+    // no overshoot rather than a share of the slip left to the fin.
+    expect(deg(slipRad(after))).toBeGreaterThan((s0 / Math.E) * 0.25)
   })
 
   it('works both ways round, and does not overshoot into the opposite slip', () => {
