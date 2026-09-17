@@ -120,11 +120,19 @@ describe('the ground constraint and spec §11', () => {
   it('the ground constraint never increases specific energy', () => {
     // The invariant this whole design is arranged around. Sweep the constraint
     // across the tolerance band and assert energy is non-increasing every time.
+    //
+    // Task 15: `restOnSurface` now takes `spec` and projects onto
+    // `groundHeightM + spec.gear.heightM`, not `groundHeightM` directly --
+    // only the DATUM moved, not the energy trade itself. Passing
+    // `-f6f.gear.heightM` as `groundHeightM` here cancels that offset
+    // (`groundHeightM + spec.gear.heightM === 0`), so `dy` still means
+    // exactly what it meant before Task 15: `position.y`'s raw distance from
+    // the contact target, with the sweep unchanged in substance.
     for (let dy = -GROUND_CONTACT_TOLERANCE_M; dy <= GROUND_CONTACT_TOLERANCE_M; dy += 0.01) {
       for (const vy of [-8, -2, -0.1, 0, 0.1, 2, 8]) {
         const s = createState({ position: v3(0, dy, 0), velocity: v3(60, vy, 0) })
         const before = specificEnergyAirmass(s)
-        const after = specificEnergyAirmass(restOnSurface(s, 0))
+        const after = specificEnergyAirmass(restOnSurface(f6f, s, -f6f.gear.heightM))
         expect(after, `dy=${dy} vy=${vy}`).toBeLessThanOrEqual(before + 1e-9)
       }
     }

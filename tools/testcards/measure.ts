@@ -323,7 +323,14 @@ const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
 const TAKEOFF_MAX_S = 60
 
 export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): number {
-  let s: AircraftState = { ...spawn(spec, 0, 0), gearFraction: 1 }
+  // Task 15: `position.y` is the body origin, and a resting airplane's origin
+  // sits `spec.gear.heightM` above the ground it is parked on
+  // (`onGround`/`restOnSurface`, src/sim/ground.ts), not on the ground
+  // itself. Spawning at `spec.gear.heightM` here, rather than `0`, is what
+  // keeps this card's datum shift invisible -- the airplane starts exactly on
+  // its wheels over `FLAT_SEA_LEVEL_FIELD` (ground height 0) either way, so
+  // the measured roll distance is unaffected by Task 15.
+  let s: AircraftState = { ...spawn(spec, spec.gear.heightM, 0), gearFraction: 1 }
   const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
   let tick = 0
   for (let i = 0; i < 60 * TAKEOFF_MAX_S; i++) {

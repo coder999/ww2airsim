@@ -286,6 +286,30 @@ const AircraftSpecObject = z.object({
      *  speed including zero -- distinct from `rates.maxYawRateDegPerSec`,
      *  which is the RUDDER's authority in the air. */
     tailwheelYawRateDegPerSec: positive,
+    /**
+     * Gear height, metres: how far the wheels' contact point sits BELOW the
+     * body origin `position` names -- equivalently, how high the thrust line
+     * sits when parked. Added by Task 15 after Mark flew the merged Plan 11a
+     * and found the airplane spawning buried to the wing root: every ground
+     * consumer (`onGround`, `restOnSurface`, the runway spawn) had been
+     * comparing `position.y` directly to `groundHeightM`, treating the body
+     * origin as though it were the wheels. It is not -- `view.eyePointM`'s
+     * `[1.2, 0.9, 0]` in this same content file is measured from that origin,
+     * which fixes the convention -- so the airframe below it (a 1.5 m
+     * fuselage, a wing at -0.25, and a propeller disc reaching -1.95 m,
+     * `src/render/scene/hellcat.ts`) needs a real offset to sit on the
+     * runway rather than in it.
+     *
+     * Load-bearing everywhere a position is compared to a terrain height FOR
+     * CONTACT (`onGround`, `restOnSurface`, `supportedContact`, the runway
+     * spawn in `src/render/frame.ts`'s `settleOnTerrain`) -- see `heightM`'s
+     * own content-file comment for the F6F's specific derivation. Deliberately
+     * NOT read by `advance`'s impact check (`src/sim/loop.ts`): that check is
+     * about the body origin itself passing through the terrain, which is a
+     * crash whatever the gear is doing, so it stays a raw `position.y`
+     * comparison on purpose (see the comment on that check).
+     */
+    heightM: positive,
   }).strict(),
   reference: z.object({
     source: z.string().min(1),

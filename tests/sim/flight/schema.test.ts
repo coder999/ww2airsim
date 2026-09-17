@@ -31,6 +31,7 @@ const valid = {
     brakingResistanceCoeff: 0.4,
     tailUpSpeedMps: 15,
     tailwheelYawRateDegPerSec: 20,
+    heightM: 2.2,
   },
   reference: {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,

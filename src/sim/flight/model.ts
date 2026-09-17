@@ -293,7 +293,7 @@ export function step(
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
   if (ctx.terrain != null) {
     const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
-    onGroundStart = onGround(state, startGroundHeightM)
+    onGroundStart = onGround(spec, state, startGroundHeightM)
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
     // `supportedContact` bounds SINK but places no bound on CLIMB, so without
@@ -363,7 +363,7 @@ export function step(
     const groundHeightM = heightAt(ctx.terrain, position.x, position.z)
     const integrated: AircraftState = { ...state, position, velocity }
     if (supportedContact(spec, integrated, groundHeightM)) {
-      const rested = restOnSurface(integrated, groundHeightM)
+      const rested = restOnSurface(spec, integrated, groundHeightM)
       position = rested.position
       velocity = rested.velocity
     }

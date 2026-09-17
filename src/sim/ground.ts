@@ -94,10 +94,19 @@ export const GROUND_CONTACT_TOLERANCE_M = 0.25
  *
  * Written as a positive comparison so a non-finite position comes back
  * `false`: a broken state must not be handed to the constraint.
+ *
+ * Takes `spec` as of Task 15: `state.position.y` is the airplane's BODY
+ * ORIGIN, not its wheel contact point (`view.eyePointM` in the content file
+ * is measured from that same origin, which fixes the convention), so what
+ * touches the ground is `position.y - spec.gear.heightM`, not `position.y`
+ * itself. Before this, a parked airplane's origin sat exactly on the
+ * surface and the whole airframe below it -- fuselage, wing, a 3.9 m
+ * propeller disc -- was underground (Mark's screenshot, 2026-09-16).
  */
-export function onGround(state: AircraftState, groundHeightM: number): boolean {
-  return state.position.y - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
-    && state.position.y - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
+export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM: number): boolean {
+  const contactHeightM = state.position.y - spec.gear.heightM
+  return contactHeightM - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
+    && contactHeightM - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
 }
 
 /**
@@ -165,9 +174,19 @@ export function onGround(state: AircraftState, groundHeightM: number): boolean {
  * case in this file is. Flagged rather than guarded here: unreachable
  * through the only call sites that exist today, and out of scope for this
  * fix wave to change behavior on.
+ *
+ * Takes `spec` as of Task 15, for the same reason `onGround` now does: the
+ * surface this projects the airplane onto is `groundHeightM + spec.gear.heightM`
+ * -- the wheels' contact point -- not `groundHeightM` itself, which is where
+ * the body origin `position` names would otherwise be pinned, burying the
+ * airframe below it. Only the DATUM moves: every comparison and the `g * dh`
+ * energy trade below are unchanged in substance, now measured against
+ * `groundHeightM + spec.gear.heightM` rather than `groundHeightM` directly --
+ * `tests/sim/invariants.test.ts`'s sweep re-verifies this after the move.
  */
-export function restOnSurface(state: AircraftState, groundHeightM: number): AircraftState {
-  const dh = groundHeightM - state.position.y
+export function restOnSurface(spec: AircraftSpec, state: AircraftState, groundHeightM: number): AircraftState {
+  const contactTargetM = groundHeightM + spec.gear.heightM
+  const dh = contactTargetM - state.position.y
 
   if (dh <= 0) {
     // At or above the surface. A separating (climbing) airplane is left
@@ -176,7 +195,7 @@ export function restOnSurface(state: AircraftState, groundHeightM: number): Airc
     // Sinking or level: stop the sink, no more.
     return {
       ...state,
-      position: v3(state.position.x, groundHeightM, state.position.z),
+      position: v3(state.position.x, contactTargetM, state.position.z),
       velocity: v3(state.velocity.x, 0, state.velocity.z),
     }
   }
@@ -197,7 +216,7 @@ export function restOnSurface(state: AircraftState, groundHeightM: number): Airc
   const factor = speed > 1e-9 ? newSpeed / speed : 0
   return {
     ...state,
-    position: v3(state.position.x, groundHeightM, state.position.z),
+    position: v3(state.position.x, contactTargetM, state.position.z),
     velocity: scale(state.velocity, factor),
   }
 }
@@ -319,7 +338,7 @@ export function supportedContact(
 ): boolean {
   const speed = length(state.velocity)
   const descending = state.velocity.y < -ARRIVAL_SINK_THRESHOLD_MPS
-  return onGround(state, groundHeightM)
+  return onGround(spec, state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)

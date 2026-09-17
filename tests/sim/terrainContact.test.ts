@@ -154,10 +154,19 @@ describe('supported contact does not read as a crash (Task 5b)', () => {
     // clamped the airplane exactly onto the surface and `advance`'s geometric
     // `y <= groundHeight` test then fired every tick, so sitting on a runway
     // raised the crash debrief.
-    const parked = createState({ position: v3(0, 1000, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
+    //
+    // Position `1000 + spec.gear.heightM`, not `1000` (Task 15): the body
+    // origin of an airplane actually parked on the 1000 m plateau sits
+    // `spec.gear.heightM` above it, not on it -- spawning at exactly `1000`
+    // would put the origin `spec.gear.heightM` BELOW the surface, which
+    // `advance`'s raw `position.y <= groundHeightM` check (deliberately
+    // gear-agnostic, see that check's own comment in src/sim/loop.ts) reads
+    // as a crash on the very first step.
+    const parkedHeightM = 1000 + spec.gear.heightM
+    const parked = createState({ position: v3(0, parkedHeightM, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
     let w: World<undefined> = { ...createWorld(spec, parked, level), terrain: plateau }
     for (let i = 0; i < 120; i++) w = advance(w, DT).world
     expect(w.impact).toBeNull()
-    expect(w.aircraft.position.y).toBeCloseTo(1000, 6)
+    expect(w.aircraft.position.y).toBeCloseTo(parkedHeightM, 6)
   })
 })
