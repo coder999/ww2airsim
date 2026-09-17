@@ -5,7 +5,7 @@ import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
 import type { OceanCompute } from './compute.js'
-import { shortestWavelengthM } from './bands.js'
+import { angularFadeSpacingM, shortestWavelengthM } from './bands.js'
 import { windSpeedMps } from './beaufort.js'
 
 export const DEEP_WATER_COLOUR = SEA_COLOUR
@@ -18,7 +18,7 @@ export type Ring = { readonly innerM: number; readonly outerM: number; readonly 
 // 512 azimuth segments give 4.91 km outer edges at 400 km; radial edges are
 // <=5 km. Their d²/R curvature second difference remains below 5 m. Radial
 // growth by four gives sub-metre cells near the camera with eight rings.
-const SECTORS = 512
+export const OCEAN_SECTORS = 512
 const radialSteps = (inner: number, outer: number): number => Math.max(64, Math.ceil((outer - inner) / 5000))
 export function oceanRings(extentM: number, rings: number): readonly Ring[] {
   if (!Number.isFinite(extentM) || extentM <= 0 || !Number.isInteger(rings) || rings < 1 || rings > 16) {
@@ -27,7 +27,7 @@ export function oceanRings(extentM: number, rings: number): readonly Ring[] {
   return Array.from({ length: rings }, (_, i) => {
     const outerM = extentM / 4 ** (rings - 1 - i)
     const innerM = i === 0 ? 0 : outerM / 4
-    return { innerM, outerM, quadM: Math.max((outerM - innerM) / radialSteps(innerM, outerM), 2 * Math.PI * outerM / SECTORS) }
+    return { innerM, outerM, quadM: Math.max((outerM - innerM) / radialSteps(innerM, outerM), 2 * Math.PI * outerM / OCEAN_SECTORS) }
   })
 }
 
@@ -41,14 +41,14 @@ export function oceanGeometry(rings: readonly Ring[]): BufferGeometry {
     const steps = radialSteps(innerM, outerM)
     for (let row = 0; row <= steps; row++) {
       const radius = innerM + (outerM - innerM) * row / steps
-      for (let col = 0; col <= SECTORS; col++) {
-        const angle = 2 * Math.PI * (col % SECTORS) / SECTORS
+      for (let col = 0; col <= OCEAN_SECTORS; col++) {
+        const angle = 2 * Math.PI * (col % OCEAN_SECTORS) / OCEAN_SECTORS
         positions.push(radius * Math.cos(angle), 0, radius * Math.sin(angle))
       }
     }
-    for (let row = 0; row < steps; row++) for (let col = 0; col < SECTORS; col++) {
-      const a = base + row * (SECTORS + 1) + col
-      const b = a + SECTORS + 1
+    for (let row = 0; row < steps; row++) for (let col = 0; col < OCEAN_SECTORS; col++) {
+      const a = base + row * (OCEAN_SECTORS + 1) + col
+      const b = a + OCEAN_SECTORS + 1
       // Positive-Y winding. The centre row contributes a fan, not a second
       // degenerate triangle with two coincident centre vertices.
       if (innerM !== 0 || row !== 0) indices.push(a, a + 1, b + 1)
@@ -76,10 +76,79 @@ function depthNode(field: DepthField, tex: DataTexture, worldXZ: Node<'vec2'>, s
   return inside.select(value, float(OUTSIDE_DEPTH_M))
 }
 
-/** Visual attenuation over the first 100 m of water depth. */
-export function attenuationFromDepth(depthM: number): number {
-  const t = Number.isNaN(depthM) ? 0 : Math.min(1, Math.max(0, -depthM / 100))
-  return t * t * (3 - 2 * t)
+/**
+ * Fraction of the local water depth a wave may reach before it breaks.
+ *
+ * 0.4 is the conventional depth-limited breaking criterion -- a wave whose
+ * height passes roughly 0.4 of the depth it is in breaks rather than growing.
+ * **An estimate in the sense this project means it**: the right order and the
+ * right shape, not a figure taken from a specific reference, and the number to
+ * turn if shallow water looks wrong.
+ */
+export const BREAKING_HEIGHT_RATIO = 0.4
+
+/** Floor on the divisor in `shoalingScale`, so a flat-calm vertex does not
+ *  divide by zero. Far below any wave height that could be seen. */
+const SHOALING_EPSILON_M = 1e-4
+
+/**
+ * How much to scale a wave of local height `elevationM` sitting in water of
+ * depth `depthM` (NEGATIVE below sea level, matching `depthAt`).
+ *
+ * **This replaced `attenuationFromDepth` on 2026-09-17, and the difference is
+ * a cap versus a ramp.** That function returned `smoothstep(0, 100, depth)`,
+ * so **full wave amplitude required 100 m of water** -- and Leyte Gulf is 2 to
+ * 6 m deep for tens of kilometres off Tacloban. It went unnoticed while the
+ * default spawn was 600 m above 125 m of open water (multiplier 1.000); the
+ * moment Plan 11a parked the airplane on a runway beside San Pedro Bay, every
+ * wave in view was multiplied by about 0.001 and Mark reported the sea as flat
+ * colour.
+ *
+ * A cap does nothing to a wave that already fits, which is the whole point: a
+ * 10 cm ripple in 2 m of water is left alone here and was cut to 0.001 before.
+ * Deep water is untouched because the cap never binds there.
+ *
+ * Returns a finite value in [0, 1] for every input, including NaN -- this runs
+ * per-vertex per-frame and a non-finite vertex position is master spec §9's
+ * named hazard. A NaN in either argument yields 0, i.e. no wave, because
+ * "draw nothing" is the safe reading of "I do not know".
+ */
+export function shoalingScale(elevationM: number, depthM: number): number {
+  if (Number.isNaN(elevationM) || Number.isNaN(depthM)) return 0
+  const waterM = depthM < 0 ? -depthM : 0
+  const capM = BREAKING_HEIGHT_RATIO * waterM
+  if (!(capM > 0)) return 0
+  const heightM = Math.abs(elevationM)
+  // Negated rather than `heightM <= capM`, so two infinities read as "it
+  // fits" instead of producing Infinity/Infinity = NaN.
+  if (!(heightM > capM)) return 1
+  return capM / heightM
+}
+
+/** Metres between neighbouring azimuth samples of the polar mesh at a given
+ *  distance from the eye. This is the resolution limit the wave fade exists
+ *  to respect. */
+export function angularSampleSpacingM(distanceM: number): number {
+  if (!(distanceM > 0)) return 0
+  return (distanceM * 2 * Math.PI) / OCEAN_SECTORS
+}
+
+/**
+ * CPU reference for the shader's per-cascade wave fade: 1 where the mesh
+ * resolves `wavelengthM` at `distanceM`, 0 where it cannot, smooth between.
+ *
+ * The thresholds come from `angularFadeSpacingM` (bands.ts), which the shader
+ * reads too -- the wavelength is known on the CPU, so the `smoothstep` there
+ * takes these same plain numbers and there is no second implementation to
+ * drift. This function exists to be asserted against, not to be mirrored.
+ */
+export function angularFadeWeight(wavelengthM: number, distanceM: number): number {
+  if (!(wavelengthM > 0) || !Number.isFinite(wavelengthM)) return 0
+  const { fadeFromM, goneAtM } = angularFadeSpacingM(wavelengthM)
+  if (!(goneAtM > fadeFromM)) return 0
+  const spacingM = angularSampleSpacingM(distanceM)
+  const t = Math.min(1, Math.max(0, (spacingM - fadeFromM) / (goneAtM - fadeFromM)))
+  return 1 - t * t * (3 - 2 * t)
 }
 
 /** Explicit periodic bilinear sampling also works on unfilterable float textures. */
@@ -116,21 +185,37 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   // GEBCO and the terrain coastline have different resolutions. Suppress
   // waves on rendered land as well as at the bathymetric shoreline.
   const landWeight = terrainTexture ? smoothstep(0, 2, depthNode(field, terrainTexture, vertexWorld, true).negate()) : float(1)
-  const attenuation = landWeight.mul(smoothstep(0, 100, depthNode(field, tex, vertexWorld).negate()))
-  let displacement: Node<'vec3'> = vec3(0)
+  // Positive metres of water under this vertex.
+  const waterM = depthNode(field, tex, vertexWorld).negate()
+  // The raw sum of the bands, before anything about the water they are in.
+  let raw: Node<'vec3'> = vec3(0)
   for (const cascade of cascades) {
-    // Fade wavelengths below the polar mesh's angular sampling distance.
-    const weight = float(1).sub(smoothstep(shortestWavelengthM(cascade.options) / 4,
-      shortestWavelengthM(cascade.options) / 2, distanceM.mul(2 * Math.PI / SECTORS)))
-    displacement = displacement.add(Fn(() => {
+    // Fade wavelengths the polar mesh cannot sample. Thresholds from
+    // `angularFadeSpacingM` (bands.ts) -- Nyquist, two samples across the
+    // wavelength -- and asserted on the CPU through `angularFadeWeight`,
+    // which reads the same function rather than restating the arithmetic.
+    const { fadeFromM, goneAtM } = angularFadeSpacingM(shortestWavelengthM(cascade.options))
+    const weight = float(1).sub(smoothstep(fadeFromM, goneAtM, distanceM.mul(2 * Math.PI / OCEAN_SECTORS)))
+    raw = raw.add(Fn(() => {
       const contribution = vec3(0).toVar()
       If(weight.greaterThan(0), () => {
         contribution.assign(waveSample(cascade.displacement, vertexWorld,
-          cascade.options.n, cascade.options.patchM).xyz.mul(weight).mul(attenuation))
+          cascade.options.n, cascade.options.patchM).xyz.mul(weight))
       })
       return contribution
     })())
   }
+  // Depth-limited breaking, applied to the SUM and not per cascade: the wave
+  // that has to fit in the water is the one actually there, which is all three
+  // bands together. Capping each band separately would let their total exceed
+  // the limit every one of them individually respected.
+  //
+  // `shoalingScale` (above) is the CPU statement of these three lines and is
+  // what the unit tests asserted; read them against each other. On land
+  // `waterM` is negative, so the cap is negative, so `clamp` returns 0 and
+  // there are no waves -- the behaviour the old depth ramp also had, kept.
+  const shoal = clamp(waterM.mul(BREAKING_HEIGHT_RATIO).div(max(raw.y.abs(), SHOALING_EPSILON_M)), 0, 1)
+  const displacement: Node<'vec3'> = raw.mul(landWeight).mul(shoal)
   const displacedPosition = vec3(positionLocal.x, horizonSinkNode(distanceM).negate(), positionLocal.z).add(displacement)
   material.positionNode = displacedPosition
   // Geometry follows the eye, but the texture samples fixed world positions.

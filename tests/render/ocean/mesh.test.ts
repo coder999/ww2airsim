@@ -2,7 +2,7 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 // tests/render/ocean/mesh.test.ts
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
-import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, attenuationFromDepth } from '../../../src/render/ocean/mesh.js'
+import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
 describe('oceanRings', () => {
@@ -85,17 +85,117 @@ it('moves both geometry and the shader sampling origin when the camera moves', (
   ocean.userData.disposeOcean()
 })
 
-it('attenuates waves smoothly to zero on shore and stays bounded', () => {
-  expect(attenuationFromDepth(0)).toBe(0)
-  expect(attenuationFromDepth(-200)).toBeCloseTo(1,2)
-  let previous=0
-  for (let depth=0;depth>=-300;depth-=5) {
-    const amplitude=attenuationFromDepth(depth)
-    expect(amplitude).toBeGreaterThanOrEqual(previous)
-    previous=amplitude
-  }
-  for (const depth of [5,0,-1,-1e9,NaN,-Infinity]) {
-    expect(attenuationFromDepth(depth)).toBeGreaterThanOrEqual(0)
-    expect(attenuationFromDepth(depth)).toBeLessThanOrEqual(1)
-  }
+/**
+ * Replaced `attenuationFromDepth` on 2026-09-17. That function ramped wave
+ * amplitude linearly-ish over the first 100 m of depth, which meant **full
+ * waves required 100 m of water** -- and Leyte Gulf is 2 to 6 m deep for tens
+ * of kilometres off Tacloban. When Plan 11a moved the default spawn from 600 m
+ * above 125 m of open water to a runway beside a 2 m bay, every wave Mark could
+ * see was being multiplied by about 0.001 and the sea read as flat colour.
+ *
+ * The replacement caps wave HEIGHT at a fraction of the local depth -- the
+ * breaking limit -- rather than scaling it toward zero. The difference that
+ * matters: a cap does nothing to a wave that already fits.
+ */
+describe('shoalingScale', () => {
+  it('leaves deep-water waves completely alone', () => {
+    // 1.5 m of swell in 125 m of water is nowhere near breaking, so the cap
+    // must not touch it. The old ramp returned ~1.0 here too; this is the case
+    // both agree on.
+    expect(shoalingScale(1.5, -125)).toBe(1)
+  })
+
+  it('caps a wave that will not fit in the water it is in', () => {
+    // 1.5 m of swell in 2 m of water: the breaking limit is 0.4 * 2 = 0.8 m,
+    // so the wave is scaled to 0.8/1.5 of its height. Visible chop, which is
+    // what a shallow bay actually looks like -- against the old ramp's 0.001.
+    expect(shoalingScale(1.5, -2)).toBeCloseTo(0.8 / 1.5, 9)
+  })
+
+  it('does NOT touch a small wave just because the water is shallow', () => {
+    // The whole point of a cap over a ramp. A 10 cm ripple fits inside 2 m of
+    // water with room to spare, so it passes through untouched -- where the
+    // old ramp cut it to 0.001 for no reason but the depth.
+    expect(shoalingScale(0.1, -2)).toBe(1)
+  })
+
+  it('still puts no waves on land or at the waterline', () => {
+    expect(shoalingScale(1.5, 0)).toBe(0)
+    expect(shoalingScale(1.5, 5)).toBe(0)
+  })
+
+  it('never decreases as the water gets deeper', () => {
+    let previous = 0
+    for (let depth = 0; depth >= -300; depth -= 5) {
+      const scale = shoalingScale(1.5, depth)
+      expect(scale).toBeGreaterThanOrEqual(previous)
+      previous = scale
+    }
+  })
+
+  it('stays in [0, 1] for every degenerate input', () => {
+    // A NaN or Infinity reaching a vertex position is master spec section 9's
+    // named hazard, and this runs per-vertex per-frame.
+    for (const depth of [5, 0, -1, -1e9, NaN, -Infinity, Infinity]) {
+      for (const elevation of [0, 1e-12, 1.5, 1e9, NaN, Infinity, -Infinity]) {
+        const scale = shoalingScale(elevation, depth)
+        expect(Number.isFinite(scale), `elevation=${elevation} depth=${depth}`).toBe(true)
+        expect(scale).toBeGreaterThanOrEqual(0)
+        expect(scale).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+})
+
+/**
+ * The second half of the same regression, and much the smaller half. The fade
+ * exists to stop the polar mesh drawing wavelengths it cannot sample, but it
+ * was set at FOUR samples per wavelength where Nyquist needs two, so it threw
+ * away waves that were still resolvable -- and from a 2 m eye height every
+ * piece of visible water is far away.
+ */
+describe('angularFadeWeight', () => {
+  it('samples the mesh at the spacing the sector count implies', () => {
+    expect(angularSampleSpacingM(900)).toBeCloseTo((900 * 2 * Math.PI) / OCEAN_SECTORS, 9)
+    expect(angularSampleSpacingM(0)).toBe(0)
+  })
+
+  it('keeps the 32 m swell at full weight over the water Tacloban looks at', () => {
+    // The nearest sea from the runway is 900 m east, where the mesh samples
+    // every 11.0 m -- comfortably inside Nyquist for a 32 m wave. Under the
+    // old 4-samples-per-wavelength thresholds this returned 0.68.
+    expect(angularFadeWeight(32, 900)).toBe(1)
+  })
+
+  it('does not begin fading until the mesh has fewer than two samples per wavelength', () => {
+    const L = 32
+    // Nyquist: exactly two samples across the wavelength.
+    const nyquistDistanceM = ((L / 2) * OCEAN_SECTORS) / (2 * Math.PI)
+    expect(angularFadeWeight(L, nyquistDistanceM * 0.99)).toBe(1)
+    expect(angularFadeWeight(L, nyquistDistanceM * 1.01)).toBeLessThan(1)
+    // Gone once there is less than one sample per wavelength.
+    expect(angularFadeWeight(L, (L * OCEAN_SECTORS) / (2 * Math.PI))).toBe(0)
+  })
+
+  it('never increases with distance, and stays in [0, 1]', () => {
+    let previous = 1
+    for (let d = 0; d <= 5000; d += 25) {
+      const w = angularFadeWeight(32, d)
+      expect(w).toBeLessThanOrEqual(previous + 1e-12)
+      expect(w).toBeGreaterThanOrEqual(0)
+      expect(w).toBeLessThanOrEqual(1)
+      previous = w
+    }
+  })
+
+  it('stays in [0, 1] for degenerate inputs', () => {
+    for (const L of [0, -1, NaN, Infinity]) {
+      for (const d of [0, -1, 1e9, NaN, Infinity]) {
+        const w = angularFadeWeight(L, d)
+        expect(Number.isFinite(w), `L=${L} d=${d}`).toBe(true)
+        expect(w).toBeGreaterThanOrEqual(0)
+        expect(w).toBeLessThanOrEqual(1)
+      }
+    }
+  })
 })
