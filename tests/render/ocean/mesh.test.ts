@@ -2,7 +2,7 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 // tests/render/ocean/mesh.test.ts
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
-import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
+import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, landWeightFromTerrain, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
 describe('oceanRings', () => {
@@ -196,6 +196,76 @@ describe('angularFadeWeight', () => {
         expect(w).toBeGreaterThanOrEqual(0)
         expect(w).toBeLessThanOrEqual(1)
       }
+    }
+  })
+})
+
+/**
+ * The bug that actually made the sea flat, found 2026-09-17 after Mark
+ * reported no waves on a dev build that already carried the shoaling fix.
+ *
+ * `landWeight` multiplies the whole wave displacement, and it was
+ * `smoothstep(0, 2, -terrainHeightM)` -- i.e. it demanded the TERRAIN grid
+ * read 2 m BELOW sea level before allowing waves. That assumed the terrain
+ * pyramid carries bathymetry. **It does not**: the terrain pipeline stores land
+ * heights with the sea at zero, and the bathymetry lives in the separate GEBCO
+ * depth field. Measured over the whole 200 km box on the committed L4 field,
+ * 40,000 samples: **not one is below -2 m**, and 63.6% read exactly 0.
+ *
+ * So the term was a hard zero over every square metre of water in the world,
+ * from `b6a3929` -- Plan 5's last ocean commit, the one that started passing
+ * the terrain texture -- onward. The GPU tests never caught it because they
+ * assert the FFT compute output, not the rendered displacement.
+ *
+ * The predicate it wanted is "is the rendered terrain above sea level here",
+ * which is this function.
+ */
+describe('landWeightFromTerrain', () => {
+  it('allows full waves where the terrain grid reads sea level', () => {
+    // 63.6% of the box, and every point of open water in it. The old
+    // expression returned 0 here, which is the whole bug.
+    expect(landWeightFromTerrain(0)).toBe(1)
+  })
+
+  it('allows full waves outside the terrain grid', () => {
+    // `depthNode` returns OUTSIDE_DEPTH_M (-8000) beyond the 200 km box, and
+    // the ocean mesh reaches 400 km. Open sea past the DEM must have waves.
+    expect(landWeightFromTerrain(-8000)).toBe(1)
+  })
+
+  it('suppresses waves entirely on land', () => {
+    // 2.479 m, measured 16 km east of the Tacloban spawn -- the far shore.
+    expect(landWeightFromTerrain(2.479)).toBe(0)
+    expect(landWeightFromTerrain(74.459)).toBe(0)
+  })
+
+  it('fades across the rendered shoreline rather than stepping', () => {
+    // Tacloban's own runway reads 1.673 m: mostly suppressed, not fully.
+    // A step here would draw a hard line of waves across the beach where the
+    // GEBCO shoreline and the DEM shoreline disagree, which is the whole
+    // reason this term exists.
+    const atRunway = landWeightFromTerrain(1.673)
+    expect(atRunway).toBeGreaterThan(0)
+    expect(atRunway).toBeLessThan(0.2)
+  })
+
+  it('never increases as the land rises, and stays in [0, 1]', () => {
+    let previous = 1
+    for (let h = -20; h <= 20; h += 0.25) {
+      const w = landWeightFromTerrain(h)
+      expect(w).toBeLessThanOrEqual(previous + 1e-12)
+      expect(w).toBeGreaterThanOrEqual(0)
+      expect(w).toBeLessThanOrEqual(1)
+      previous = w
+    }
+  })
+
+  it('stays in [0, 1] for degenerate inputs', () => {
+    for (const h of [NaN, Infinity, -Infinity, 1e9, -1e9]) {
+      const w = landWeightFromTerrain(h)
+      expect(Number.isFinite(w), `h=${h}`).toBe(true)
+      expect(w).toBeGreaterThanOrEqual(0)
+      expect(w).toBeLessThanOrEqual(1)
     }
   })
 })

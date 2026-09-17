@@ -125,6 +125,48 @@ export function shoalingScale(elevationM: number, depthM: number): number {
   return capM / heightM
 }
 
+/**
+ * Metres of rendered land above sea level over which waves are suppressed.
+ *
+ * Small on purpose: the term exists to hide the disagreement between the GEBCO
+ * shoreline and the terrain DEM's shoreline, which is metres, not tens of them.
+ */
+export const SHORELINE_FADE_M = 2
+
+/**
+ * How much of the wave field survives at a point whose TERRAIN height is
+ * `terrainHeightM` (positive above sea level).
+ *
+ * **This is the bug that made the sea flat, and it is worth reading twice.**
+ * The expression here was `smoothstep(0, 2, -terrainHeightM)` -- it demanded
+ * the terrain grid read 2 m BELOW sea level before allowing any waves at all.
+ * That assumes the terrain pyramid carries bathymetry. It does not: the
+ * pipeline stores land heights with the sea at zero, and the bathymetry lives
+ * in the separate GEBCO field this module also samples. Measured 2026-09-17
+ * over the whole 200 km box on the committed L4 field, 40,000 samples: **not
+ * one reads below -2 m**, and 63.6% read exactly 0.
+ *
+ * So it evaluated to zero over every square metre of water in the world, and
+ * it multiplies the entire displacement sum. Live from `b6a3929` -- Plan 5's
+ * last ocean commit, which started passing the terrain texture -- until
+ * 2026-09-17. Nothing caught it: the ocean's GPU tests assert the FFT compute
+ * output rather than the rendered displacement, and the depth-attenuation unit
+ * test asserted a DIFFERENT term (`attenuationFromDepth`) that was also
+ * suppressing waves for its own unrelated reason, so the sea looked explicably
+ * flat.
+ *
+ * `OUTSIDE_DEPTH_M` (-8000) comes back from `depthNode` beyond the 200 km box
+ * and the ocean mesh reaches 400 km, so open sea past the DEM reads 1 here.
+ *
+ * Non-finite reads as open water rather than land: a NaN must not paint a
+ * silent flat patch on the sea, which is the failure this whole function is.
+ */
+export function landWeightFromTerrain(terrainHeightM: number): number {
+  if (!Number.isFinite(terrainHeightM)) return 1
+  const t = Math.min(1, Math.max(0, terrainHeightM / SHORELINE_FADE_M))
+  return 1 - t * t * (3 - 2 * t)
+}
+
 /** Metres between neighbouring azimuth samples of the polar mesh at a given
  *  distance from the eye. This is the resolution limit the wave fade exists
  *  to respect. */
@@ -184,7 +226,12 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   const vertexWorld = positionLocal.xz.add(camera)
   // GEBCO and the terrain coastline have different resolutions. Suppress
   // waves on rendered land as well as at the bathymetric shoreline.
-  const landWeight = terrainTexture ? smoothstep(0, 2, depthNode(field, terrainTexture, vertexWorld, true).negate()) : float(1)
+  // `1 - smoothstep(0, SHORELINE_FADE_M, height)`, NOT `smoothstep(0, 2,
+  // -height)` -- see `landWeightFromTerrain` above, which is the CPU statement
+  // of this line and carries why the old form was zero over all water.
+  const landWeight = terrainTexture
+    ? float(1).sub(smoothstep(0, SHORELINE_FADE_M, depthNode(field, terrainTexture, vertexWorld, true)))
+    : float(1)
   // Positive metres of water under this vertex.
   const waterM = depthNode(field, tex, vertexWorld).negate()
   // The raw sum of the bands, before anything about the water they are in.
@@ -227,7 +274,17 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   for (const cascade of cascades) {
     const footprint = max(length(dFdx(worldXZ)), length(dFdy(worldXZ)))
     const wavelength = shortestWavelengthM(cascade.options)
-    const weight = smoothstep(0, 100, depth.negate()).mul(float(1).sub(smoothstep(wavelength / 4, wavelength / 2, footprint)))
+    // Was `smoothstep(0, 100, depth)` -- a SECOND, independent copy of the
+    // 100 m depth ramp that made the displacement path flat, which is why
+    // fixing only the geometry left the sea still looking like paint. The
+    // shading now reads the same `shoal` and `landWeight` the geometry does,
+    // so the two cannot disagree about where there are waves.
+    //
+    // The footprint fade is deliberately left at wavelength/4..wavelength/2:
+    // it is a SCREEN-space criterion (dFdx/dFdy of world position per pixel),
+    // not the mesh's angular sampling, and relaxing it is a separate
+    // shimmer judgement from the one taken for the geometry.
+    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(wavelength / 4, wavelength / 2, footprint)))
     const detail = Fn(() => {
       const value = vec4(0).toVar()
       If(weight.greaterThan(0), () => {
