@@ -491,6 +491,13 @@ async function boot(): Promise<void> {
   // `nextFrameState` the same way.
   let pendingPause = false
   let pendingThrottleCut = false
+  // And the gear and flap levers. Found 2026-09-17 by a Tier 2 screenshot:
+  // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
+  // and the flap light never lit because `nextFrameState` never saw the key
+  // in the held set. A human tap is several frames, so nobody had noticed --
+  // but at a display running past 100 Hz a quick tap gets short too.
+  let pendingGear = false
+  let pendingFlaps = false
   window.addEventListener('keydown', (e) => {
     if (BINDINGS.cycleCamera.includes(e.code as never) && !e.repeat) pendingCameraCycle = true
     if (BINDINGS.toggleTripleTime.includes(e.code as never) && !e.repeat) pendingTripleTime = true
@@ -499,6 +506,8 @@ async function boot(): Promise<void> {
       pendingPause = true
     }
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
+    if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
+    if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -525,6 +534,8 @@ async function boot(): Promise<void> {
     pendingCameraCycle = false
     pendingPause = false
     pendingThrottleCut = false
+    pendingGear = false
+    pendingFlaps = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -566,6 +577,8 @@ async function boot(): Promise<void> {
     if (pendingTripleTime) latched.push(BINDINGS.toggleTripleTime[0])
     if (pendingPause) latched.push(BINDINGS.pause[0])
     if (pendingThrottleCut) latched.push(BINDINGS.throttleCut[0])
+    if (pendingGear) latched.push(BINDINGS.toggleGear[0])
+    if (pendingFlaps) latched.push(BINDINGS.toggleFlaps[0])
     const frameKeys = latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
     const inputFrame =
       latched.length === 0
@@ -576,12 +589,16 @@ async function boot(): Promise<void> {
             tripleTimePressed: pendingTripleTime ? false : frame!.tripleTimePressed,
             pausePressed: pendingPause ? false : frame!.pausePressed,
             throttleCutPressed: pendingThrottleCut ? false : frame!.throttleCutPressed,
+            gearPressed: pendingGear ? false : frame!.gearPressed,
+            flapPressed: pendingFlaps ? false : frame!.flapPressed,
           }
     const current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     pendingCameraCycle = false
     pendingTripleTime = false
     pendingPause = false
     pendingThrottleCut = false
+    pendingGear = false
+    pendingFlaps = false
     frame = current
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
