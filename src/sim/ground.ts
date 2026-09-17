@@ -333,7 +333,7 @@ const GROUND_DEG = Math.PI / 180
  * would have commanded (`ratesFromDynamicPressure`, `src/sim/flight/model.ts`).
  *
  * The flight model commands body ROTATION RATES, not moments -- correct in
- * the air, where the airframe is free to rotate about its own centre of
+ * the air, where the airframe is free to rotate about its own center of
  * mass, and simply wrong on the ground, where the wheels are a hinge the
  * airframe cannot rotate through. Bolting ground reaction forces onto the
  * unmodified air rate command barrel-rolls the airplane down the runway:
@@ -363,22 +363,54 @@ const GROUND_DEG = Math.PI / 180
  *   component of velocity -- not `airspeed` (`src/sim/flight/model.ts`),
  *   because the tail lifting off the runway is a mechanical event driven by
  *   how fast the wheels are moving over the ground, not by the (identical,
- *   absent wind) number the wing sees. Written as a POSITIVE comparison
- *   (`groundSpeed >= tailUpSpeedMps`) so a non-finite ground speed -- a
- *   broken state -- fails it and comes back with the tail down, the more
- *   conservative of the two outcomes, the same posture `onGround` and
- *   `supportedContact` already take.
- * - **Yaw: the tailwheel, not the rudder, and available at ANY speed
- *   including zero.** A stopped airplane has no rudder authority
- *   (`ratesFromDynamicPressure`'s dynamic-pressure authority term is 0 at
- *   v = 0) but can still be steered on the ground by the tailwheel linkage,
- *   so this is a SEPARATE rate, proportional to `controls.yaw` and capped at
- *   `spec.gear.tailwheelYawRateDegPerSec`, that does not go through
- *   `ratesFromDynamicPressure` or its authority term at all. Negated for the
- *   same reason that function negates yaw: a positive rotation about body
- *   +Y (right-hand rule) turns +X (forward) toward -Z (left) in this
- *   right-handed frame, but the documented convention is `Controls.yaw > 0`
- *   = nose right.
+ *   absent wind) number the wing sees. Guarded on `Number.isFinite(groundSpeed)`
+ *   rather than a bare comparison -- fix round 1, Minor 3: `+Infinity >=
+ *   tailUpSpeedMps` is true, so an unguarded comparison would let a broken
+ *   (infinite) ground speed buy full pitch authority, the LEAST conservative
+ *   of the two outcomes for a state that cannot be trusted at all. Guarded,
+ *   a non-finite ground speed comes back with the tail down, matching the
+ *   posture `onGround` and `supportedContact` already take.
+ * - **Yaw: the tailwheel AND the rudder, blended by speed, available at ANY
+ *   speed including zero.** Design §3: tailwheel/differential-braking
+ *   steering is "blended into rudder authority as speed builds", not a
+ *   switch between the two. `airRates.y` already carries whatever the
+ *   rudder (and the weathercock term ahead of this function in `step`) is
+ *   commanding, scaled by `ratesFromDynamicPressure`'s own dynamic-pressure
+ *   authority -- that term is summed with a SEPARATE tailwheel rate,
+ *   proportional to `controls.yaw` and capped at
+ *   `spec.gear.tailwheelYawRateDegPerSec`, that fades from full authority at
+ *   rest to zero at `tailUpSpeedMps`, the same speed pitch gates on: the
+ *   tailwheel is what leaves the ground there, so its authority has to be
+ *   gone by the moment it does.
+ *
+ *   Fix round 1, Important 1: an earlier revision DISCARDED `airRates.y` and
+ *   substituted a constant tailwheel rate at every ground speed, which is
+ *   wrong on both ends -- no rudder authority at all while rolling, and a
+ *   step discontinuity at liftoff (measured: 20.00 deg/s on the runway,
+ *   1.95 deg/s the very next tick once airborne, because the constant
+ *   tailwheel term vanishes at exactly the tick `onGroundStart` goes false
+ *   while the rudder term it replaced was never restored). Summing instead
+ *   of switching makes the total continuous by construction: at
+ *   `tailUpSpeedMps` the tailwheel term is already 0 by the fade, so the
+ *   total is `airRates.y` on both sides of that speed, and `airRates.y`
+ *   again the instant the airplane leaves the ground (`step` stops calling
+ *   this function at all once `onGroundStart` is false) -- no seam to jump
+ *   across. A blend against dynamic-pressure authority ALONE (the same
+ *   authority `ratesFromDynamicPressure` itself uses) was considered and
+ *   rejected instead of this speed-based fade: that authority is only 0.15
+ *   at 40 m/s for this airframe, so it would still be granting the
+ *   tailwheel 85% of its steering rate one tick before a typical rotation,
+ *   which is not what "the tailwheel lifts off with the tail" means.
+ *
+ *   Negated for the same reason `ratesFromDynamicPressure` negates yaw: a
+ *   positive rotation about body +Y (right-hand rule) turns +X (forward)
+ *   toward -Z (left) in this right-handed frame, but the documented
+ *   convention is `Controls.yaw > 0` = nose right. The fade uses the same
+ *   `Number.isFinite` guard as the pitch gate above -- a non-finite ground
+ *   speed reads as "still on the tailwheel", i.e. full fade (1), which
+ *   together with the pitch gate's own guard keeps a broken state pinned to
+ *   the tail-down, wheels-steering case rather than handing it any new
+ *   authority.
  */
 export function groundBodyRates(
   spec: AircraftSpec,
@@ -387,10 +419,12 @@ export function groundBodyRates(
   airRates: Vec3,
 ): Vec3 {
   const groundSpeed = length(v3(state.velocity.x, 0, state.velocity.z))
-  const pitch = groundSpeed >= spec.gear.tailUpSpeedMps ? airRates.z : 0
+  const validSpeed = Number.isFinite(groundSpeed)
+  const pitch = validSpeed && groundSpeed >= spec.gear.tailUpSpeedMps ? airRates.z : 0
 
+  const fade = validSpeed ? Math.min(1, Math.max(0, 1 - groundSpeed / spec.gear.tailUpSpeedMps)) : 1
   const yawInput = Number.isFinite(controls.yaw) ? Math.min(1, Math.max(-1, controls.yaw)) : 0
-  const yaw = -yawInput * spec.gear.tailwheelYawRateDegPerSec * GROUND_DEG
+  const tailwheelYaw = -yawInput * spec.gear.tailwheelYawRateDegPerSec * GROUND_DEG * fade
 
-  return v3(0, yaw, pitch)
+  return v3(0, tailwheelYaw + airRates.y, pitch)
 }

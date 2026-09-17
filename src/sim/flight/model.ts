@@ -10,6 +10,7 @@ import {
   onGround,
   rollingResistanceN,
   groundBodyRates,
+  GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
 import type { AircraftSpec } from './schema.js'
@@ -268,6 +269,16 @@ export function step(
   // regime that replaces `bodyRates`. Computed once here and reused rather
   // than re-querying `heightAt` a second time for the same position.
   let onGroundStart = false
+  // Fix round 1, Important 2: design §3 says the gear-down requirement
+  // "belongs to the consumers that need it -- rolling friction and the
+  // ground rate regime below", not to `onGround` itself (which is
+  // deliberately gear-agnostic -- a belly landing is still on the ground,
+  // see that function's own doc comment). Without this, a retracted
+  // tailwheel still steers at full rate and rolling friction still charges
+  // tire-on-runway drag to a belly. Reuses `GEAR_DOWN_FRACTION`, the same
+  // threshold `supportedContact` already uses, rather than inventing a
+  // second one.
+  const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
   if (ctx.terrain != null) {
     const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
     onGroundStart = onGround(state, startGroundHeightM)
@@ -293,13 +304,26 @@ export function step(
     // the ground-reaction block just above. Guarded exactly as `step`
     // already guards `vdir`: a stationary airplane (or one with only
     // vertical motion) gets zero resistance rather than a NaN direction.
-    if (onGroundStart) {
+    // Gated on `wheelsDownStart` too (fix round 1, Important 2): a retracted
+    // gear must not charge tire-on-runway drag to a belly.
+    if (onGroundStart && wheelsDownStart) {
       const track = v3(state.velocity.x, 0, state.velocity.z)
       const trackSpeed = length(track)
       if (trackSpeed > 1e-6) {
         const trackDir = normalize(track)
         const resistanceN = rollingResistanceN(spec, mass, controls.brake)
-        force = add(force, scale(trackDir, -resistanceN))
+        // Clamped to at most the force that would exactly null the ground
+        // track this step -- fix round 1, Minor 4: unclamped, a resistance
+        // force below this bound overshoots past zero and reverses the
+        // track direction, and since a reversed track immediately draws an
+        // equal and opposite resistance force next tick, it never settles --
+        // measured, braking from 5 m/s and holding, `vx` buzzed between
+        // -0.0353 and +0.0300 m/s forever instead of coming to rest. A real
+        // wheel stops decelerating once the ground track reaches zero; it
+        // does not run the airplane backward.
+        const maxResistanceN = (trackSpeed * mass) / dt
+        const clampedResistanceN = Math.min(resistanceN, maxResistanceN)
+        force = add(force, scale(trackDir, -clampedResistanceN))
       }
     }
   }
@@ -384,18 +408,28 @@ export function step(
   // an airplane cannot roll about its own axis and pitches about its main
   // gear only once the tail can be lifted (Task 7; see `groundBodyRates`'s
   // own doc comment). Applied LAST, after the weathercock and stall
-  // wing-drop terms, and not merely blended in: both of those can add a
-  // nonzero `x` (the wing-drop term unconditionally does, on a stalled
-  // airplane), and "roll must go to exactly zero" means exactly that, not
-  // "reduced by whatever came before it" -- so the ground override has to be
-  // the last word on every axis it governs, not one contributor among
-  // several. Gated on the state at the START of this step, matching
-  // `onGroundStart` above: the rates command THIS step's rotation, so using
-  // the integrated (end-of-step) state here would apply a ground rate one
-  // half-step late -- a twitch at the moment of rotation, on the step the
-  // airplane actually leaves the ground.
+  // wing-drop terms, and not merely blended in, because of a case that
+  // actually occurs, not a hypothetical one: a hard rotation. Measured, full
+  // back stick from a standing start gives 38 consecutive ticks (0.63 s) of
+  // `isStalled` true while still on the ground, starting at 42.3 m/s -- the
+  // stall wing-drop term unconditionally adds `STALL_WING_DROP_RAD_PER_S` to
+  // `x` whenever that is true, and left unordered (blended with, rather than
+  // overridden by, the ground regime) that alone rolled the airplane to
+  // 23.47 degrees of bank before it ever left the runway. "Roll must go to
+  // exactly zero" means exactly that, not "reduced by whatever came before
+  // it" -- so the ground override has to be the last word on every axis it
+  // governs, not one contributor among several. (A parked, nose-up
+  // three-point attitude is NOT the case this guards: measured, that alpha
+  // is under the stall angle for a realistic sit, and `groundBodyRates`
+  // already refuses any pitch command below `tailUpSpeedMps` regardless of
+  // ordering, so it could not command the nose up into a stall from rest
+  // even if it were.) Gated on the state at the START of this step, matching
+  // `onGroundStart` and `wheelsDownStart` above: the rates command THIS
+  // step's rotation, so using the integrated (end-of-step) state here would
+  // apply a ground rate one half-step late -- a twitch at the moment of
+  // rotation, on the step the airplane actually leaves the ground.
   const bodyRates =
-    ctx.terrain != null && onGroundStart
+    ctx.terrain != null && onGroundStart && wheelsDownStart
       ? groundBodyRates(spec, state, controls, ratesWithStall)
       : ratesWithStall
   const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)

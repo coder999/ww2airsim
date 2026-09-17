@@ -13,6 +13,10 @@ import {
   ARRIVAL_SINK_THRESHOLD_MPS,
 } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
+import { step } from '../../src/sim/flight/model.js'
+import type { SimContext } from '../../src/sim/loop.js'
+import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { v3, length } from '../../src/sim/math/vec3.js'
 import { specificEnergyAirmass } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -288,13 +292,112 @@ describe('the ground control regime', () => {
     expect(groundBodyRates(f6f, fast, stick, airRates).z).toBeCloseTo(airRates.z, 9)
   })
 
-  it('still yaws when stopped, because that is the tailwheel and not the rudder', () => {
-    expect(Math.abs(groundBodyRates(f6f, rolling(0), stick, airRates).y)).toBeGreaterThan(0)
+  it('treats a non-finite ground speed as tail-down, not tail-up (fix round 1, Minor 3)', () => {
+    // +Infinity satisfies `groundSpeed >= tailUpSpeedMps` as a bare
+    // comparison, which would buy full pitch authority for a broken state --
+    // the least conservative of the two outcomes.
+    const infiniteSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.POSITIVE_INFINITY, 0, 0) })
+    expect(groundBodyRates(f6f, infiniteSpeed, stick, airRates).z).toBe(0)
+    const nanSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.NaN, 0, 0) })
+    expect(groundBodyRates(f6f, nanSpeed, stick, airRates).z).toBe(0)
   })
 
-  it('yaws the way the pilot asked', () => {
-    const right = groundBodyRates(f6f, rolling(5), { ...stick, yaw: 1 }, airRates).y
-    const left = groundBodyRates(f6f, rolling(5), { ...stick, yaw: -1 }, airRates).y
-    expect(Math.sign(right)).toBe(-Math.sign(left))
+  describe('yaw: tailwheel and rudder, blended by speed (fix round 1, Important 1)', () => {
+    // Isolate the tailwheel term from the arbitrary shared `airRates` fixture
+    // by zeroing its yaw component -- these tests are about the tailwheel
+    // specifically, not the sum.
+    const noRudder = v3(airRates.x, 0, airRates.z)
+
+    it('still yaws when stopped, because that is the tailwheel and not the rudder', () => {
+      expect(Math.abs(groundBodyRates(f6f, rolling(0), stick, noRudder).y)).toBeGreaterThan(0)
+    })
+
+    it('yaws the way the pilot asked', () => {
+      const right = groundBodyRates(f6f, rolling(5), { ...stick, yaw: 1 }, noRudder).y
+      const left = groundBodyRates(f6f, rolling(5), { ...stick, yaw: -1 }, noRudder).y
+      expect(Math.sign(right)).toBe(-Math.sign(left))
+    })
+
+    it('is at full authority at rest, summed with whatever the rudder/weathercock term already commands', () => {
+      const tailUp = f6f.gear.tailwheelYawRateDegPerSec * (Math.PI / 180)
+      // yaw: 1 negates, matching `ratesFromDynamicPressure`'s own convention.
+      const expected = -tailUp + airRates.y
+      expect(groundBodyRates(f6f, rolling(0), stick, airRates).y).toBeCloseTo(expected, 9)
+    })
+
+    it('fades to zero at tailUpSpeedMps, leaving only the rudder/weathercock term', () => {
+      const atTailUp = rolling(f6f.gear.tailUpSpeedMps)
+      expect(groundBodyRates(f6f, atTailUp, stick, airRates).y).toBeCloseTo(airRates.y, 9)
+    })
+
+    it('is continuous across the speed the tail lifts -- not the order-of-magnitude jump a switched (not summed) term produced', () => {
+      const justBelow = groundBodyRates(f6f, rolling(f6f.gear.tailUpSpeedMps - 0.01), stick, airRates).y
+      const justAbove = groundBodyRates(f6f, rolling(f6f.gear.tailUpSpeedMps + 0.01), stick, airRates).y
+      // The fade itself moves only a hair over this tiny speed step; this
+      // bound is far tighter than the 10x jump fix round 1 measured (20.00
+      // deg/s on the runway to 1.95 deg/s the next tick) and still comfortably
+      // clears floating-point noise.
+      expect(Math.abs(justAbove - justBelow)).toBeLessThan(0.01)
+    })
+
+    it('treats a non-finite ground speed as full tailwheel authority, not zero (fix round 1, Minor 3)', () => {
+      // Symmetric with the pitch guard above: a broken state stays pinned to
+      // the tail-down case on every axis, never granted new authority.
+      const infiniteSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.POSITIVE_INFINITY, 0, 0) })
+      const tailUp = f6f.gear.tailwheelYawRateDegPerSec * (Math.PI / 180)
+      expect(groundBodyRates(f6f, infiniteSpeed, stick, noRudder).y).toBeCloseTo(-tailUp, 9)
+    })
+  })
+})
+
+describe('step(): ground consumers are gated on the gear being down (fix round 1, Important 2)', () => {
+  // A flat field at sea level, the same shape `tests/sim/terrainContact.test.ts`
+  // builds its plateau with -- only flat here because the point is gear
+  // gating, not terrain following.
+  const header = parseTerrainHeader({
+    centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
+    finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
+  })
+  const flat = createTerrainField(header, 12, new Int16Array(9).fill(0))
+  const ctx = (terrain: TerrainField | null, tick = 0): SimContext => ({ dt: DT, tick, terrain })
+
+  it('does not steer with a retracted tailwheel or charge rolling friction to a belly', () => {
+    // Design §3: the gear-down requirement belongs to these two consumers,
+    // not to `onGround` itself. With the gear fully retracted, every
+    // terrain-dependent branch in `step` should be a no-op: the ground
+    // reaction force and `restOnSurface` are already gated on
+    // `supportedContact` (which requires `GEAR_DOWN_FRACTION`), and rolling
+    // friction and the ground rate regime now are too. So a gear-up airplane
+    // sitting at ground level should step IDENTICALLY whether or not terrain
+    // is even present.
+    const rollingGearUp = createState({ position: v3(0, 0, 0), velocity: v3(20, 0, 0), gearFraction: 0 })
+    const controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0, brake: 1 }
+    const withTerrain = step(f6f, rollingGearUp, controls, ctx(flat))
+    const withoutTerrain = step(f6f, rollingGearUp, controls, ctx(null))
+    expect(withTerrain).toEqual(withoutTerrain)
+  })
+
+  it('does steer and does drag once the gear is down, for contrast', () => {
+    const rollingGearDown = createState({ position: v3(0, 0, 0), velocity: v3(20, 0, 0), gearFraction: 1 })
+    const controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0, brake: 1 }
+    const withTerrain = step(f6f, rollingGearDown, controls, ctx(flat))
+    const withoutTerrain = step(f6f, rollingGearDown, controls, ctx(null))
+    expect(withTerrain).not.toEqual(withoutTerrain)
+  })
+
+  it('brings a braking ground roll to rest without buzzing across zero (fix round 1, Minor 4)', () => {
+    // Regression for the unclamped-force bug: braking from 5 m/s and
+    // holding, an earlier revision had `vx` oscillate between -0.0353 and
+    // +0.0300 m/s forever instead of settling, because the resistance force
+    // below `resistanceN * dt / m` overshot zero and reversed the track
+    // every tick.
+    let s = createState({ position: v3(0, 0, 0), velocity: v3(5, 0, 0), gearFraction: 1 })
+    const controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: 1 }
+    for (let i = 0; i < 300; i++) s = step(f6f, s, controls, ctx(flat, i))
+    expect(Math.abs(s.velocity.x)).toBeLessThan(0.01)
+    const settledVx = s.velocity.x
+    s = step(f6f, s, controls, ctx(flat, 300))
+    // Settled, not buzzing to the opposite sign every tick.
+    expect(Math.abs(s.velocity.x - settledVx)).toBeLessThan(0.01)
   })
 })
