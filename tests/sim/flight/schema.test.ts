@@ -33,9 +33,11 @@ const valid = {
     tailwheelYawRateDegPerSec: 20,
     heightM: 2.2,
   },
+  flap: { travelSeconds: 5, dragAreaM2: 0.6, clIncrement: 0.4831 },
   reference: {
     source: 'test', testMassKg: 5600, topSpeedMps: 170, topSpeedAltitudeM: 7132,
-    climbRateMps: 17, stallSpeedMps: 38, rollRateDegPerSec: 80, takeoffDistanceM: 230,
+    climbRateMps: 17, stallSpeedMps: 38, stallSpeedFlapMps: 33, rollRateDegPerSec: 80,
+    takeoffDistanceM: 230,
   },
   view: { eyePointM: [1.2, 0.9, 0] },
 }

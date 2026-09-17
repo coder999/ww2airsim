@@ -311,6 +311,35 @@ const AircraftSpecObject = z.object({
      */
     heightM: positive,
   }).strict(),
+  /**
+   * Trailing-edge flaps: travel time, the drag they cost, and the lift they
+   * buy. Separate from `gear` because they are a separate device with a
+   * separate lever, even though both are actuators with travel time.
+   */
+  flap: z.object({
+    /** Seconds for the flaps to travel fully up-to-down or down-to-up. */
+    travelSeconds: positive,
+    /** Drag AREA (Cd·A) of fully extended flaps, m^2 -- multiplies dynamic
+     *  pressure directly, the same shape `gear.dragAreaM2` takes. */
+    dragAreaM2: positive,
+    /**
+     * Lift-coefficient increment at full extension, added to
+     * `aero.clAtZeroAlpha` -- a camber shift, which is what flaps physically
+     * are.
+     *
+     * **NOT applied to `aero.clMax`**, which `liftCoefficient` has not read
+     * since Plan 1's finding C1 rebuilt the lift curve. Raising that field
+     * does nothing at all, and it agrees with the curve's actual peak to
+     * 1.3e-4 by coincidence, which is exactly what would make the mistake
+     * look right.
+     *
+     * DERIVED rather than estimated: stall speed goes as 1/sqrt(CLmax) at
+     * fixed weight, and this airplane's own `reference.source` carries both
+     * the clean power-off stall and the landing-condition one from the same
+     * trial table. See `reference.stallSpeedFlapMps`.
+     */
+    clIncrement: positive,
+  }).strict(),
   reference: z.object({
     source: z.string().min(1),
     /** Gross weight the cited trial was flown at, kg. Every reference figure
@@ -324,6 +353,16 @@ const AircraftSpecObject = z.object({
     topSpeedAltitudeM: positive,
     climbRateMps: positive,
     stallSpeedMps: positive,
+    /**
+     * Power-off stall speed in the LANDING configuration, m/s. Graded by
+     * `tests/sim/testcards/f6f.test.ts` with the flaps set.
+     *
+     * Promoted out of `reference.source`'s prose on 2026-09-17, because a
+     * graded card cannot read prose: the figure sat inside that string for two
+     * plans, flagged as "unreachable for a model with no high-lift devices",
+     * which it was until Plan 11b gave the wing flaps.
+     */
+    stallSpeedFlapMps: positive,
     rollRateDegPerSec: positive,
     /** Ground-roll distance the cited trial measured for take-off, metres.
      *  The model has no flaps, no rolling friction and no ground effect, so

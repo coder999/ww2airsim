@@ -13,6 +13,7 @@ import {
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { heightAt } from '../world/terrain.js'
+import { flapAfter } from '../flaps.js'
 import { surfaceAt } from '../contact.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -471,6 +472,8 @@ export function step(
   // (src/sim/ground.ts) is this plan's command for that, driven by
   // `controls.gearDown`.
   const gearFraction = gearAfter(spec, state.gearFraction, controls.gearDown, dt)
+  // Flap travel, for the same reason and driven by `controls.flapDown`.
+  const flapFraction = flapAfter(spec, state.flapFraction, controls.flapDown, dt)
 
-  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction }
+  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction, flapFraction }
 }

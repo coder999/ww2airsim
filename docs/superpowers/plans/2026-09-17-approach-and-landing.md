@@ -57,7 +57,7 @@
 
 Deliberately a copy of `gearAfter`'s shape rather than a shared generic "actuator": two call sites do not justify an abstraction, and the gear's own doc comment explains the `undefined`-means-hold rule this follows.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/sim/flaps.test.ts
@@ -92,12 +92,12 @@ describe('flapAfter', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/sim/flaps.test.ts`
 Expected: FAIL — `Cannot find module '../../src/sim/flaps.js'`.
 
-- [ ] **Step 3: Add the schema block and the content values**
+- [x] **Step 3: Add the schema block and the content values**
 
 In `src/sim/flight/schema.ts`, beside the `gear` block:
 
@@ -162,7 +162,7 @@ Append to `reference.source`, replacing the sentence that says the landing stall
 The same table's landing-condition power-off stall is 84.5 mph = 37.7749 m/s, now carried as reference.stallSpeedFlapMps and graded with the flaps set (Plan 11b, 2026-09-17) -- it was unreachable while the model had no high-lift devices, which is what that figure's earlier note in this string recorded. flap.clIncrement = 0.4831 is DERIVED from those two stall speeds rather than estimated: stall speed goes as 1/sqrt(CLmax) at fixed weight, so (43.81/37.7749)^2 = 1.3451 is the CLmax ratio full flaps must produce, the shipped lift curve peaks at 1.400013 (measured, at +15.5 deg), and 1.400013 * 1.3451 - 1.400013 = 0.4831 is the increment on clAtZeroAlpha that gets there. flap.travelSeconds = 5 and flap.dragAreaM2 = 0.6 are NOT corroborated by this source and are estimates of the same status as gear.travelSeconds and gear.dragAreaM2 -- 5 s is a round figure for a hydraulic flap cycle on a fighter of this class, and 0.6 sq m is twice the extended gear's drag area, full flaps being the draggier device. dragAreaM2 is additionally CHARACTERISED by the take-off card, which grades against this table's own FULL-FLAPS 755 ft figure: with the flap lift increment derived and ground effect carrying no fitted parameter, flap drag area is the only unknown entering that measurement -- exactly the role gear.rollingResistanceCoeff already plays. Read the agreement as a characterisation lock, not as evidence of flap fidelity.
 ```
 
-- [ ] **Step 4: Add the state fields**
+- [x] **Step 4: Add the state fields**
 
 In `src/sim/flight/state.ts`, on `AircraftState`:
 
@@ -189,7 +189,7 @@ and in `createState`:
   flapFraction: init.flapFraction ?? 0,
 ```
 
-- [ ] **Step 5: Write `flapAfter`**
+- [x] **Step 5: Write `flapAfter`**
 
 ```typescript
 // src/sim/flaps.ts
@@ -218,11 +218,11 @@ export function flapAfter(
 }
 ```
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `npm run verify` — exit 0. Every existing test must still pass: `flapFraction` defaults to 0 and `flapDown` is optional, so nothing else changes.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim/flaps.ts src/sim/flight/state.ts src/sim/flight/schema.ts content/aircraft/f6f-hellcat.json tests/sim/flaps.test.ts docs/superpowers/plans/2026-09-17-approach-and-landing.md

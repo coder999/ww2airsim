@@ -15,6 +15,10 @@ export type Controls = {
    *  `Controls` literals appear throughout the suite, and `undefined` reads
    *  as "brakes off", which is what every one of them means. */
   readonly brake?: number
+  /** What the pilot is asking the FLAPS to do, not where they are. Optional
+   *  for the same reason `gearDown` and `brake` are: `Controls` literals
+   *  appear throughout the suite and `undefined` reads as "unchanged". */
+  readonly flapDown?: boolean
 }
 
 export type AircraftState = {
@@ -45,6 +49,11 @@ export type AircraftState = {
    *  drag changes across that interval, not in one tick. Defaults to 0 so that
    *  every flight predating Plan 11a is unchanged. */
   readonly gearFraction: number
+  /** Flap travel, 0 = fully retracted, 1 = fully extended. A fraction rather
+   *  than a boolean for the same reason `gearFraction` is one: the travel
+   *  takes seconds and both the lift and the drag change across it. Defaults
+   *  to 0 so every flight predating Plan 11b is unchanged. */
+  readonly flapFraction: number
 }
 
 export const createState = (init: Partial<AircraftState> = {}): AircraftState => ({
@@ -55,4 +64,5 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
   fuelKg: init.fuelKg ?? 400,
   tick: init.tick ?? 0,
   gearFraction: init.gearFraction ?? 0,
+  flapFraction: init.flapFraction ?? 0,
 })
