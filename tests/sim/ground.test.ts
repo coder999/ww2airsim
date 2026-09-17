@@ -12,6 +12,7 @@ import {
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
   ARRIVAL_SINK_THRESHOLD_MPS,
   lateralGripAfter,
+  effectiveStallSpeedMps,
 } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { step } from '../../src/sim/flight/model.js'
@@ -566,5 +567,80 @@ describe('lateral tire grip', () => {
     // honest answer is to change nothing rather than to pick an axis.
     const noseUp = createState({ velocity: v3(10, 0, 40), attitude: qFromAxisAngle(v3(0, 0, 1), Math.PI / 2) })
     expect(lateralGripAfter(f6f, noseUp, DT)).toEqual(noseUp.velocity)
+  })
+})
+
+/**
+ * The speed cap in `supportedContact` is a MULTIPLE of the stall speed, and
+ * Plan 11b lowered the effective stall speed 34.5% with the flaps out. **A
+ * constant expressed as a multiple of a number this plan changed has already
+ * changed**, whether or not anyone edited it -- so which stall speed it
+ * multiplies has to be decided rather than inherited.
+ *
+ * It now multiplies the CONFIGURATION'S stall speed, interpolated between the
+ * two sourced figures. Both come from the same Patuxent table, so this is not
+ * an invented number: it is the one the airplane actually stalls at in the
+ * configuration it is in.
+ */
+describe('effectiveStallSpeedMps', () => {
+  it('is the clean figure with the flaps up and the landing figure with them down', () => {
+    expect(effectiveStallSpeedMps(f6f, 0)).toBeCloseTo(f6f.reference.stallSpeedMps, 9)
+    expect(effectiveStallSpeedMps(f6f, 1)).toBeCloseTo(f6f.reference.stallSpeedFlapMps, 9)
+  })
+
+  it('interpolates across the travel, because the flaps spend seconds in between', () => {
+    const half = effectiveStallSpeedMps(f6f, 0.5)
+    expect(half).toBeLessThan(f6f.reference.stallSpeedMps)
+    expect(half).toBeGreaterThan(f6f.reference.stallSpeedFlapMps)
+  })
+
+  it('reads a non-finite fraction as clean, matching the rest of the model', () => {
+    // `flapClIncrement` already treats a NaN fraction as retracted, so this
+    // agrees with it rather than inventing a second reading of "unknown". The
+    // whole model saying the same thing about a broken flap fraction matters
+    // more here than which end is nominally safer.
+    expect(effectiveStallSpeedMps(f6f, Number.NaN)).toBeCloseTo(f6f.reference.stallSpeedMps, 9)
+  })
+})
+
+describe('the landing gates, tuned against a flown approach (Plan 11b Task 11)', () => {
+  const H = f6f.gear.heightM
+  const arriving = (sinkMps: number, speedMps: number, flapFraction = 1) =>
+    createState({
+      position: v3(0, 10 + H, 0),
+      velocity: v3(0, -sinkMps, speedMps),
+      attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2),
+      gearFraction: 1,
+      flapFraction,
+    })
+
+  it('accepts the arrival a flown approach actually produces', () => {
+    // 1.47 m/s at 38.4 m/s, measured in tests/sim/landing.test.ts. A gate that
+    // rejected a competently flown approach would be the defect.
+    expect(supportedContact(f6f, arriving(1.47, 38.4), 10)).toBe(true)
+  })
+
+  it('still rejects an arrival nobody would call a landing', () => {
+    // A gate that accepts everything is worse than no gate, for the reason 11a
+    // recorded when its soak assertions shipped covering zero ticks.
+    expect(supportedContact(f6f, arriving(25, 38.4), 10)).toBe(false)
+  })
+
+  it('scales the speed cap to the FLAPPED stall when the flaps are out', () => {
+    // With flaps the airplane stalls at 37.77 m/s, so the cap is 1.6 * that =
+    // 60.4 m/s; clean it is 1.6 * 43.81 = 70.1. A descending arrival BETWEEN
+    // those two is the one case that distinguishes the two readings, and it
+    // has to come out differently in the two configurations or the change did
+    // nothing.
+    const flappedCap = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedFlapMps
+    const cleanCap = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+    const between = (flappedCap + cleanCap) / 2
+    expect(between).toBeGreaterThan(flappedCap)
+    expect(between).toBeLessThan(cleanCap)
+    // Flaps out: above the configuration's cap, so this is an arrival too fast
+    // to be a landing.
+    expect(supportedContact(f6f, arriving(1.5, between, 1), 10)).toBe(false)
+    // Clean: inside it, because a clean wing genuinely needs more speed to fly.
+    expect(supportedContact(f6f, arriving(1.5, between, 0), 10)).toBe(true)
   })
 })

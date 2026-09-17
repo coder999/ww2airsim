@@ -349,6 +349,34 @@ export const ARRIVAL_SINK_THRESHOLD_MPS = 0.1
  * is supported at any speed; only a genuine descent onto the surface is
  * speed-limited.
  */
+/**
+ * The stall speed for the configuration the airplane is actually in, m/s,
+ * interpolated across flap travel between the two SOURCED figures in
+ * `reference` -- the clean power-off stall and the landing-configuration one,
+ * both from the same Patuxent table.
+ *
+ * Added by Plan 11b because `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` is a MULTIPLE
+ * of the stall speed, and Plan 11b lowered the effective stall speed by 34.5%
+ * with the flaps out. **A constant expressed as a multiple of a number this
+ * plan changed has already changed**, whether or not anyone edits it -- so
+ * which stall speed it multiplies had to be decided rather than inherited. It
+ * multiplies this one: the speed the airplane genuinely quits flying at in the
+ * configuration it is in.
+ *
+ * Interpolated rather than switched at a threshold, because flap travel takes
+ * seconds and an airplane mid-travel has a stall speed between the two.
+ *
+ * A non-finite fraction reads as CLEAN, agreeing with `flapClIncrement`'s own
+ * NaN-reads-as-retracted rule rather than inventing a second reading of
+ * "unknown configuration".
+ */
+export function effectiveStallSpeedMps(spec: AircraftSpec, flapFraction: number): number {
+  const clean = spec.reference.stallSpeedMps
+  if (Number.isNaN(flapFraction)) return clean
+  const f = flapFraction < 0 ? 0 : flapFraction > 1 ? 1 : flapFraction
+  return clean + (spec.reference.stallSpeedFlapMps - clean) * f
+}
+
 export function supportedContact(
   spec: AircraftSpec,
   state: AircraftState,
@@ -356,12 +384,13 @@ export function supportedContact(
 ): boolean {
   const speed = length(state.velocity)
   const descending = state.velocity.y < -ARRIVAL_SINK_THRESHOLD_MPS
+  const stallMps = effectiveStallSpeedMps(spec, state.flapFraction)
   return surfaceAt(groundHeightM) === 'land'
     && onGround(spec, state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)
-    && (!descending || speed <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * spec.reference.stallSpeedMps)
+    && (!descending || speed <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * stallMps)
 }
 
 const GROUND_DEG = Math.PI / 180
