@@ -63,23 +63,59 @@ function copyContent(): Plugin {
 }
 
 /**
- * Loopback-only on purpose. `navigator.gpu` is exposed only in a secure
- * context, and a plain-HTTP LAN address is not one (master spec §2) -- so
- * serving on 0.0.0.0 and browsing by IP would make WebGPU unavailable before
- * anything else could be debugged. The dev loop is an SSH tunnel from the
- * Windows desktop:
+ * Two dev loops, both of which exist for the same reason: `navigator.gpu` is
+ * exposed only in a secure context, and a plain-HTTP LAN address is not one
+ * (master spec §2) -- so serving on 0.0.0.0 and browsing by IP would make
+ * WebGPU unavailable before anything else could be debugged.
+ *
+ * DEFAULT -- loopback plus an SSH tunnel from the Windows desktop, because
+ * http://localhost IS a secure context:
  *
  *     ssh -L 5173:localhost:5173 nexus
  *     # then open http://localhost:5173 on Windows
  *
  * Verified working on the reference platform 2026-09-12 (day-0 spike).
  *
+ * WW2AIRSIM_TUNNEL=1 -- no SSH tunnel; real HTTPS at
+ * https://ww2airsim.windomlane.org, terminated at Cloudflare's edge and
+ * carried to this host by the nexus cloudflared tunnel. Added 2026-09-16.
+ *
+ *     WW2AIRSIM_TUNNEL=1 npm run dev
+ *
+ * 172.17.0.1 is the docker bridge gateway: nexus's Traefik runs in a
+ * container and cannot reach this host's loopback. The routing, the Access
+ * gate in front of it and what does NOT need configuring in Cloudflare are
+ * documented once, in vps-local/shared/traefik/dynamic/ww2airsim-dev.yml --
+ * do not restate any of it here. That hostname is dev-only; production
+ * remains ww2airsim.marktuttle.dev and is unaffected by this file.
+ *
+ * `hmr` has to be spelled out for that path because the browser reaches the
+ * page on :443 over TLS while Vite listens on plain :5173, so the client's
+ * default guess (ws://<page host>:5173) connects to nothing.
+ *
+ * `allowedHosts` is what makes Vite answer for a Host header that is not a
+ * loopback name; without it the tunnel gets a 403 that reads like a routing
+ * bug.
+ *
  * The dev server needs no content copy: it serves `content/` from the project
  * root as-is, which is why the gap only ever existed in a build and why
  * Task 15's Playwright harness, which runs against dev, could not see it.
  */
+const TUNNEL_HOST = 'ww2airsim.windomlane.org'
+const viaTunnel = process.env.WW2AIRSIM_TUNNEL === '1'
+
 export default defineConfig({
   plugins: [copyContent()],
-  server: { host: '127.0.0.1', port: 5173, strictPort: true },
+  server: {
+    host: viaTunnel ? '172.17.0.1' : '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    ...(viaTunnel
+      ? {
+          allowedHosts: [TUNNEL_HOST],
+          hmr: { protocol: 'wss', host: TUNNEL_HOST, clientPort: 443 },
+        }
+      : {}),
+  },
   build: { target: 'esnext' },
 })
