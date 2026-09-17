@@ -5,12 +5,15 @@ import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWind
  * Tier 2, terrain. Same platform and same caveats as `adapter.spec.ts`; this
  * file is the half that needs the airplane to be somewhere specific.
  *
- * **Where, and why there.** The airplane spawns over open water 23 km from
- * the nearest land, which is three minutes' flying -- so these tests move it
- * with `?spawnX/Y/Z` (see `src/render/spawn.ts` for why a URL is allowed to
- * and why it cannot in a build that ships). The point chosen is on Tacloban
- * airfield's own latitude line, 15.3 km due west of it, so the eastbound
- * spawn heading flies the Leyte coastal plain back toward the airfield:
+ * **Where, and why there.** These tests need a specific altitude over real
+ * relief, not a parked start, so they move the airplane with `?spawnX/Y/Z`
+ * (see `src/render/spawn.ts` for why a URL is allowed to and why it cannot in
+ * a build that ships) regardless of what the unqueried default happens to be
+ * -- Task 14 moved that default from Plan 11a's airborne `(0, 600, 0)` to a
+ * ground spawn parked at Tacloban itself. The point these tests choose is on
+ * Tacloban airfield's own latitude line, 15.3 km due west of it, so the
+ * eastbound spawn heading flies the Leyte coastal plain back toward the
+ * airfield:
  *
  *   Tacloban airfield  11.228 N 125.028 E  ->  (-29666, 47605) world metres
  *
@@ -46,22 +49,28 @@ for (const altitudeM of ALTITUDES_M) {
     const start = await snapshot(page)
 
     // Prove the spawn landed BEFORE trusting anything downstream. The default
-    // spawn is (0, 600, 0), which is 65.5 km from this one horizontally and
-    // over open water -- so a `spawnX/Y/Z` that never took effect (renamed
-    // parameter, production build served by mistake, a `spawn.ts` that fell
-    // back silently) cannot satisfy this, and without it every assertion in
-    // this file would pass over an empty sea. 5 km of slack because the
-    // airplane has been flying east at 120 m/s since the first frame, while
-    // the FIVE level fetches (L8..L4) were still landing. [Fix round 1: this
-    // said "nine", the exact stale figure the same commit hunted down in
-    // main.ts and then reintroduced here.]
+    // spawn (`DEFAULT_SPAWN_POSITION`, src/render/spawn.ts) is Tacloban itself,
+    // `(-29666, 47605)` -- 15.3 km from this one horizontally -- since Task 14
+    // moved it there from Plan 11a's airborne `(0, 600, 0)`. Either way a
+    // `spawnX/Y/Z` that never took effect (renamed parameter, production build
+    // served by mistake, a `spawn.ts` that fell back silently) cannot satisfy
+    // this: the fallback is a different point on land now rather than open
+    // water, but it is still 15.3 km away and, per the second assertion below,
+    // at the wrong altitude too (a ground spawn's few metres, not 100/3,000/
+    // 8,000). 5 km of slack because the airplane has been flying east at
+    // 120 m/s since the first frame, while the FIVE level fetches (L8..L4)
+    // were still landing. [Fix round 1: this said "nine", the exact stale
+    // figure the same commit hunted down in main.ts and then reintroduced
+    // here.]
     expect(Math.hypot(start.position.x - SPAWN_X_M, start.position.z - SPAWN_Z_M), 'spawn did not land').toBeLessThan(
       5000,
     )
-    // Two-sided. One-sided (`> altitudeM - 300`) let the 100 m case pass at
-    // the 600 m default spawn, i.e. at an altitude three LOD compositions away
-    // from the one it names -- the assertion would have been satisfied by
-    // exactly the bug it exists to catch (review fix round 1, m6). The band is
+    // Two-sided. One-sided (`> altitudeM - 300`) used to let the 100 m case
+    // pass at Plan 11a's 600 m default spawn, i.e. at an altitude three LOD
+    // compositions away from the one it names -- the assertion would have
+    // been satisfied by exactly the bug it exists to catch (review fix
+    // round 1, m6); the default is a ground spawn now, a few metres up, which
+    // fails this bound just as hard. The band is
     // +/-300 m because the airplane is flying, not parked: it trades a little
     // height for speed while the levels land.
     expect(start.position.y, 'spawn altitude did not land').toBeGreaterThan(altitudeM - 300)

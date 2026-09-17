@@ -50,7 +50,15 @@ for (const n of [64,128,256]) {
 for (const tier of ['high','medium','low']) {
   test(`scene ocean ${tier}: actual texture readback and total GPU budget`, async ({page}) => {
     await page.setViewportSize({width:2560,height:1440})
-    await page.goto(`/?spawnY=600&beaufort=6&oceanTime=17&oceanTier=${tier}`)
+    // `spawnX`/`spawnZ` pinned to the open-water origin explicitly: this test
+    // wants the ocean surface, not Tacloban, and used to get it for free by
+    // leaving them unset while `DEFAULT_SPAWN_POSITION` (spawn.ts) was itself
+    // `(0, 600, 0)`. Since that default moved to a ground spawn at Tacloban
+    // (Task 14), an unset spawnX/spawnZ here would silently fly this test
+    // over land instead -- still airborne (spawnY alone makes this a DEV
+    // override, so `groundSpawn` is false and nothing here holds for
+    // terrain), but not the open-water scene the test is about.
+    await page.goto(`/?spawnY=600&spawnX=0&spawnZ=0&beaufort=6&oceanTime=17&oceanTier=${tier}`)
     await page.waitForFunction(() => ((window as unknown as import('./harness.js').DiagWindow).__ww2?.tick() ?? 0) > 240)
     const samples = await page.evaluate(async () => {
       const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!

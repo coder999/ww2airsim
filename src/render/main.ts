@@ -16,6 +16,7 @@ import {
   airframeVisibilityFor,
   initialFrameState,
   nextFrameState,
+  settleOnTerrain,
   toThreeOrientation,
   withTerrain,
   worldOffsetFor,
@@ -44,7 +45,7 @@ import { heightAt } from '../sim/world/terrain.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
-import { DEFAULT_SPAWN_POSITION, spawnPositionFromQuery } from './spawn.js'
+import { DEFAULT_SPAWN_IS_GROUND, DEFAULT_SPAWN_POSITION, hasSpawnOverride, spawnPositionFromQuery } from './spawn.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 
@@ -136,6 +137,16 @@ async function boot(): Promise<void> {
   const spawnPosition = import.meta.env.DEV
     ? spawnPositionFromQuery(window.location.search)
     : DEFAULT_SPAWN_POSITION
+
+  // Whether this flight is parked at Tacloban -- `DEFAULT_SPAWN_POSITION`
+  // unless a DEV `?spawnX/Y/Z` moved it (`spawn.ts`'s `hasSpawnOverride`),
+  // which is never a ground spawn: those overrides exist so Tier 2 can put
+  // the airplane over Leyte at altitude or over open water, both airborne.
+  // This ONE boolean is what `initialFrameState` derives both `gearDown` and
+  // the terrain hold from below, and what decides the initial velocity and
+  // gear position just below that -- see `spawn.ts`'s `DEFAULT_SPAWN_IS_GROUND`
+  // for why one flag rather than three independently-set ones.
+  const groundSpawn = DEFAULT_SPAWN_IS_GROUND && !(import.meta.env.DEV && hasSpawnOverride(window.location.search))
 
   const beaufort = import.meta.env.DEV ? beaufortFromQuery(window.location.search) : DEFAULT_BEAUFORT
 
@@ -368,17 +379,22 @@ async function boot(): Promise<void> {
     OCEAN_EXTENT_M * 1.1,
   )
 
-  // 120 m/s, wings level, heading east (+x; the body frame's nose is +X and
-  // this attitude is identity). The POSITION is `DEFAULT_SPAWN_POSITION`
-  // unless a DEV build was handed `?spawnX/Y/Z` -- see `spawn.ts` for why a
-  // URL may move the airplane and why it cannot in anything that ships.
+  // Wings level (attitude identity; the body frame's nose is +X) either way.
+  // A ground spawn is parked -- zero velocity, gear already extended so
+  // `supportedContact` (src/sim/ground.ts) reads it as carried the instant
+  // real terrain lands, rather than mid-extension -- otherwise 120 m/s
+  // heading east, gear retracted, matching every spawn before Task 14. The
+  // POSITION is `DEFAULT_SPAWN_POSITION` unless a DEV build was handed
+  // `?spawnX/Y/Z` -- see `spawn.ts` for why a URL may move the airplane and
+  // why it cannot in anything that ships.
   const initialAircraft = createState({
     position: spawnPosition,
-    velocity: v3(120, 0, 0),
+    velocity: groundSpawn ? v3(0, 0, 0) : v3(120, 0, 0),
     attitude: qIdentity(),
+    gearFraction: groundSpawn ? 1 : 0,
   })
 
-  frame = initialFrameState(spec, initialAircraft)
+  frame = initialFrameState(spec, initialAircraft, undefined, undefined, groundSpawn)
 
   // Ships in production, unlike `overlay` below: it is the pilot's only view
   // of the key map. Mark asked for a throttle-down key on 2026-09-15 that had
@@ -406,10 +422,18 @@ async function boot(): Promise<void> {
     // threaded through -- unlike terrain and assists, resetting those is
     // deliberate: a fresh airplane returns the pilot to chase view at real
     // time rather than wherever a wrecked one left the camera and clock.
-    frame = withTerrain(
-      initialFrameState(spec, initialAircraft, frame!.assists),
+    // A restarted ground spawn is settled onto its terrain immediately
+    // (rather than re-entering the hold above) exactly when `withTerrain`
+    // just below actually gave it one -- restart never needs to wait a
+    // second time for a heightfield that is already cached in `frame!`.
+    const restarted = withTerrain(
+      initialFrameState(spec, initialAircraft, frame!.assists, undefined, groundSpawn),
       frame!.world.terrain,
     )
+    frame =
+      groundSpawn && restarted.world.terrain !== null
+        ? settleOnTerrain(restarted, restarted.world.terrain)
+        : restarted
     debrief.hide()
     impactEffect.hide()
     shownImpactTick = null
@@ -606,11 +630,12 @@ async function boot(): Promise<void> {
     // translated by -eye above) keeps the horizon centred under the camera
     // horizontally. It is deliberately NOT re-centred vertically (y stays 0),
     // so the horizon sits very slightly below eye level at any nonzero
-    // altitude -- about 0.76 degrees at this spawn's 600 m against the dome's
-    // 45,000 m radius (atan(600/45000)) -- rather than exactly at it. Fixing
-    // the horizontal drift is what matters: left unfixed, it is unbounded
-    // over a long flight and eventually carries the camera outside the dome;
-    // the vertical offset is bounded by altitude and stays negligible.
+    // altitude -- e.g. about 0.76 degrees at a Tier 2 spawn 600 m up against
+    // the dome's 45,000 m radius (atan(600/45000); negligible at the parked
+    // default's few metres) -- rather than exactly at it. Fixing the
+    // horizontal drift is what matters: left unfixed, it is unbounded over a
+    // long flight and eventually carries the camera outside the dome; the
+    // vertical offset is bounded by altitude and stays negligible.
     sky.position.set(current.eye.position.x, 0, current.eye.position.z)
 
     // The water gets the same treatment, and did not until the whole-branch
@@ -707,10 +732,12 @@ async function boot(): Promise<void> {
   // Deliberately NOT awaited: the pyramid is 702 KB over FIVE requests --
   // L8 down to L4, the only levels any ring can sample (`coarsestFetchedLevel`
   // in lod.ts; it said "nine" until 2026-09-14, left over from before review
-  // round 1 stopped fetching L9-L12 that nothing could draw) -- and
-  // the airplane is flyable before any of it lands (the mesh draws nothing
-  // until a level arrives -- mesh.ts). Each level lands in its own texture,
-  // coarsest first.
+  // round 1 stopped fetching L9-L12 that nothing could draw). An AIRBORNE
+  // spawn is flyable before any of it lands (the mesh draws nothing until a
+  // level arrives -- mesh.ts); a GROUND spawn is held at zero elapsed time
+  // until this loop hands the physics its field (`FrameState.groundSpawn`'s
+  // hold, frame.ts) -- either way the scene keeps rendering while this runs.
+  // Each level lands in its own texture, coarsest first.
   //
   // One consequence worth knowing when watching it load: the rings are drawn
   // from the level they match, and the near rings all read L4, which is 526
@@ -730,8 +757,22 @@ async function boot(): Promise<void> {
   // suite stayed green (that comment is on the function). `frame` is non-null
   // here -- it is assigned well above and the loop is already running, the
   // same guarantee `frameFn`'s single `!` rests on.
+  //
+  // `settleOnTerrain` (frame.ts) runs exactly once, on the transition where
+  // `applyTerrainLevel` first gives a ground spawn a real physics field (L4,
+  // the only level `physicsFieldFor` ever returns non-null for) -- correcting
+  // `DEFAULT_SPAWN_POSITION`'s placeholder altitude (spawn.ts) to the real
+  // ground height under the airplane. Without this the hold above buys
+  // nothing: the flight would resume from underground or a tolerance-width
+  // above it the instant terrain arrived, exactly the race Task 14 exists to
+  // close.
   void loadTerrainProgressively((level, data) => {
-    frame = applyTerrainLevel(terrain, frame!, level, data)
+    const before = frame!
+    const next = applyTerrainLevel(terrain, before, level, data)
+    frame =
+      groundSpawn && before.world.terrain === null && next.world.terrain !== null
+        ? settleOnTerrain(next, next.world.terrain)
+        : next
   }).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
