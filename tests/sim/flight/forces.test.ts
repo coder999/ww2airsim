@@ -6,7 +6,7 @@ import { createState, step, airspeed, angleOfAttack, isStalled, DT, type Control
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { densityAt } from '../../../src/sim/atmosphere.js'
 import { assertFinite } from '../../../src/sim/invariants.js'
-import { liftCoefficient, dragCoefficient } from '../../../src/sim/aero.js'
+import { liftCoefficient, dragCoefficient, windmillDragCd0 } from '../../../src/sim/aero.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
@@ -82,12 +82,17 @@ describe('flight integrator: forces', () => {
     const mass = f6f.mass.emptyKg + 400 // default fuelKg; idle throttle burns none
     const rho = densityAt(4000)
     const cl0 = liftCoefficient(f6f, 0)
-    const cd0Attached = dragCoefficient(f6f, cl0, 0)
+    // Includes the windmilling-propeller term: this dive is flown at NEUTRAL,
+    // i.e. closed throttle, where that term is at its full value. Derived from
+    // the model rather than restated, so the two cannot drift apart -- which is
+    // the whole point of this test computing its own equilibrium speed.
+    const cd0Attached = dragCoefficient(f6f, cl0, 0) + windmillDragCd0(f6f, NEUTRAL.throttle)
     const vt4000 = Math.sqrt((2 * mass * 9.80665) / (rho * f6f.geometry.wingAreaM2 * cd0Attached))
-    // Measured at this commit: mass=4590, rho(4000m)=0.819129, cl(0)=0.1,
-    // Cd(0)=0.021781, giving vt4000=403.2486164201407 m/s via the formula
-    // above (Vt = sqrt(2*m*g / (rho*A*Cd))) -- computed by the test itself
-    // at run time, so it can't drift out of sync with the content file.
+    // Computed by the test at run time, so it cannot drift out of sync with the
+    // content file. The closed-throttle Cd is now the clean 0.021781 plus the
+    // windmilling propeller's 0.0422, which roughly triples the total and so
+    // drops this equilibrium speed well below the 403.2 m/s it was before
+    // 2026-09-16 -- the airplane in this dive has its engine off.
 
     const s0 = createState({ position: v3(0, 4000, 0), velocity: v3(0, -vt4000, 0), attitude: noseDownAttitude() })
     expect(isStalled(f6f, s0)).toBe(false)

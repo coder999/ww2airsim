@@ -1,7 +1,7 @@
 import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
-import { liftCoefficient, dragCoefficient, alphaCritRad } from '../aero.js'
+import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0 } from '../aero.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -213,7 +213,10 @@ export function step(
   const cd = dragCoefficient(spec, cl, alpha)
 
   const liftN = q * spec.geometry.wingAreaM2 * cl
-  const dragN = q * spec.geometry.wingAreaM2 * cd
+  // Parasitic drag from a propeller that is not pulling, added to the wing's
+  // own drag rather than as a fourth force: it acts along the relative wind
+  // exactly as drag does, so one direction is enough. See `windmillDragCd0`.
+  const dragN = q * spec.geometry.wingAreaM2 * (cd + windmillDragCd0(spec, controls.throttle))
   const thrustN = thrustMagnitude(spec, state, controls.throttle)
 
   const vdir = v > 1e-6 ? normalize(state.velocity) : forward
