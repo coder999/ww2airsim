@@ -81,6 +81,16 @@ export type FrameState = {
    * would let a wrong field assignment typecheck.
    */
   readonly assistTogglesDown: AssistTogglesDown
+  /** Whether the pilot currently has the gear commanded down. Defaults
+   *  **true** in `initialFrameState`: the airplane starts on a runway, not
+   *  hanging in the air with its wheels retracted. Threaded into
+   *  `Controls.gearDown` every frame -- see the comment on `controls` below
+   *  for why that step is not optional. */
+  readonly gearDown: boolean
+  /** Whether the gear toggle key was down last frame, for edge detection --
+   *  the same reason `cyclePressed` exists: a lever that stays where it is
+   *  left, not a switch that flips 60 times while held for a second. */
+  readonly gearPressed: boolean
 }
 
 /** One "was this toggle key down last frame" flag per assist. See
@@ -142,6 +152,8 @@ export function initialFrameState(
     tripleTimePressed: false,
     assists,
     assistTogglesDown: NO_TOGGLES_DOWN,
+    gearDown: true,
+    gearPressed: false,
   }
 }
 
@@ -198,7 +210,28 @@ export function nextFrameState(
   // airplane answer a third as willingly per metre flown, exactly when there
   // is most sky going past.
   const simElapsedSeconds = elapsedSeconds * timeScale
-  const controls = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+  const controlsAxes = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+
+  // Edge-triggered exactly like the camera cycle and the assist toggles
+  // above: the gear is a lever that stays where it is left, not a switch
+  // that flips 60 times while `G` is held for a second.
+  const gearKeyDown = BINDINGS.toggleGear.some((c) => pressed.has(c))
+  const gearDown =
+    gearKeyDown && !prev.gearPressed ? !prev.gearDown : prev.gearDown
+
+  // On/off from a keyboard: 1 while held, 0 the instant it is not.
+  // `Controls.brake` is [0, 1] (a pedal's travel, not a switch), so a later
+  // axis input -- a rudder pedal's toe-brake, say -- slots in with no type
+  // change here.
+  const brake = BINDINGS.brakes.some((c) => pressed.has(c)) ? 1 : 0
+
+  // `gearDown` and `brake` go into the SAME `Controls` object that reaches
+  // `world.controls` below, for the reason the assist comment on `assist`
+  // gives: the Plan 3 defect was a control that never reached the
+  // simulation, inert in the browser while its own unit tests passed
+  // because they called the module directly. `frame.test.ts` pins this by
+  // reading `f.world.controls.gearDown` back, not just `f.gearDown`.
+  const controls: Controls = { ...controlsAxes, gearDown, brake }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
   // in wall clock would be unusable precisely when it matters most.
@@ -274,6 +307,8 @@ export function nextFrameState(
     tripleTimePressed: tripleTimeDown,
     assists,
     assistTogglesDown,
+    gearDown,
+    gearPressed: gearKeyDown,
   }
 }
 

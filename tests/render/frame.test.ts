@@ -161,3 +161,33 @@ it('hands the frame and the world the same controls object', () => {
     expect(f.controls).toBe(f.world.controls)
   }
 })
+
+describe('gear and brakes', () => {
+  it('starts with the gear down, because the airplane starts on a runway', () => {
+    expect(start().gearDown).toBe(true)
+  })
+
+  it('toggles the gear on the key edge, not every frame it is held', () => {
+    let f = start()
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyG'))
+    expect(f.gearDown).toBe(false)
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys('KeyG'))
+    expect(f.gearDown).toBe(false)
+    f = nextFrameState(f, 1 / 60, keys())
+    f = nextFrameState(f, 1 / 60, keys('KeyG'))
+    expect(f.gearDown).toBe(true)
+  })
+
+  it('puts the gear command where the simulation reads it', () => {
+    // The Plan 3 defect: a control that never reaches `world.controls` is
+    // inert in the browser while every unit test of it still passes.
+    const f = nextFrameState(start(), 1 / 60, keys('KeyG'))
+    expect(f.world.controls.gearDown).toBe(f.gearDown)
+  })
+
+  it('brakes while the key is held and releases when it is not', () => {
+    const held = nextFrameState(start(), 1 / 60, keys('KeyB'))
+    expect(held.controls.brake).toBeGreaterThan(0)
+    expect(nextFrameState(held, 1 / 60, keys()).controls.brake).toBe(0)
+  })
+})

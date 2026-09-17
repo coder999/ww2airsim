@@ -37,6 +37,8 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Auto-rudder', bindings: ['toggleAutoRudder'] },
   { label: 'Altitude hold', bindings: ['toggleAltitudeHold'] },
   { label: 'Triple time', bindings: ['toggleTripleTime'] },
+  { label: 'Gear', bindings: ['toggleGear'] },
+  { label: 'Brakes', bindings: ['brakes'] },
   { label: 'Controls', bindings: ['toggleLegend'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
 ]
