@@ -29,6 +29,7 @@ import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
 import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tiers.js'
 import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
+import { createRunway } from './scene/runway.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
@@ -36,16 +37,20 @@ import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { parseAircraftSpec } from '../sim/content.js'
-import { createState } from '../sim/flight/state.js'
 import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
-import { v3 } from '../sim/math/vec3.js'
-import { qIdentity } from '../sim/math/quat.js'
 import { heightAt } from '../sim/world/terrain.js'
+import { supportedContact } from '../sim/ground.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
-import { DEFAULT_SPAWN_IS_GROUND, DEFAULT_SPAWN_POSITION, hasSpawnOverride, spawnPositionFromQuery } from './spawn.js'
+import {
+  DEFAULT_SPAWN_IS_GROUND,
+  DEFAULT_SPAWN_POSITION,
+  hasSpawnOverride,
+  initialAircraftState,
+  spawnPositionFromQuery,
+} from './spawn.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 
@@ -238,6 +243,18 @@ async function boot(): Promise<void> {
       // no impact to report, which is also the honest answer once a restart
       // has cleared one.
       impact: () => frame?.world.impact ?? null,
+      // Task 13: the take-off spec's only way to tell "left the ground" from
+      // "was never on it". Recomputed from the live frame rather than stored,
+      // because `supportedContact` is a pure predicate and `World` does not
+      // carry its result -- see the comment on this member in diagnostics.ts.
+      supportedContact: () =>
+        frame?.world.terrain
+          ? supportedContact(
+              frame.world.spec,
+              frame.world.aircraft,
+              heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z),
+            )
+          : false,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation
@@ -379,20 +396,14 @@ async function boot(): Promise<void> {
     OCEAN_EXTENT_M * 1.1,
   )
 
-  // Wings level (attitude identity; the body frame's nose is +X) either way.
-  // A ground spawn is parked -- zero velocity, gear already extended so
-  // `supportedContact` (src/sim/ground.ts) reads it as carried the instant
-  // real terrain lands, rather than mid-extension -- otherwise 120 m/s
-  // heading east, gear retracted, matching every spawn before Task 14. The
-  // POSITION is `DEFAULT_SPAWN_POSITION` unless a DEV build was handed
-  // `?spawnX/Y/Z` -- see `spawn.ts` for why a URL may move the airplane and
-  // why it cannot in anything that ships.
-  const initialAircraft = createState({
-    position: spawnPosition,
-    velocity: groundSpawn ? v3(0, 0, 0) : v3(120, 0, 0),
-    attitude: qIdentity(),
-    gearFraction: groundSpawn ? 1 : 0,
-  })
+  // A ground spawn is parked and faces north, down the Tacloban strip;
+  // otherwise 120 m/s heading east, gear retracted, matching every spawn
+  // before Task 14. All three of those differences live in
+  // `initialAircraftState` (spawn.ts) rather than as ternaries here, because
+  // this file has no Tier 1 test and the attitude among them had already gone
+  // stale once -- that function's doc comment has the argument. The POSITION
+  // is `DEFAULT_SPAWN_POSITION` unless a DEV build was handed `?spawnX/Y/Z`.
+  const initialAircraft = initialAircraftState(spawnPosition, groundSpawn)
 
   frame = initialFrameState(spec, initialAircraft, undefined, undefined, groundSpawn)
 
@@ -769,10 +780,19 @@ async function boot(): Promise<void> {
   void loadTerrainProgressively((level, data) => {
     const before = frame!
     const next = applyTerrainLevel(terrain, before, level, data)
-    frame =
-      groundSpawn && before.world.terrain === null && next.world.terrain !== null
-        ? settleOnTerrain(next, next.world.terrain)
-        : next
+    // The field, on the one transition where it first exists, or `null` on
+    // every other callback. Written this way rather than as a boolean so the
+    // narrowing survives both uses below -- and so the runway and
+    // `settleOnTerrain` cannot end up keyed off two separately-written
+    // conditions that could drift apart.
+    const arrived = before.world.terrain === null ? next.world.terrain : null
+    // Task 11: the strip is draped over the real heightfield, so it cannot be
+    // built until there is one. `physicsFieldFor` returns non-null for L4
+    // alone, so this runs exactly once per page load -- and unconditionally,
+    // not only for a ground spawn: the runway is a place in the world, and a
+    // DEV `?spawnX/Y/Z` flight should be able to see it too.
+    if (arrived !== null) scene.add(createRunway(arrived))
+    frame = groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
   }).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))

@@ -1,3 +1,5 @@
+import { createState, type AircraftState } from '../sim/flight/state.js'
+import { qFromAxisAngle, qIdentity, type Quat } from '../sim/math/quat.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
 
 /**
@@ -50,6 +52,41 @@ export const DEFAULT_SPAWN_POSITION: Vec3 = v3(-29666, 1.9, 47605)
  * can never disagree about whether a flight started parked.
  */
 export const DEFAULT_SPAWN_IS_GROUND = true
+
+/**
+ * Which way the airplane is pointing when parked: north, down the runway.
+ *
+ * Mark's decision, 2026-09-17, taken during Task 11. The body frame's nose is
+ * +X and the world's +x is EAST (the axes are on
+ * `spawnPositionFromQuery` below), so the `qIdentity()` this replaces in
+ * `main.ts` pointed a parked airplane due east -- across the north-south
+ * strip Task 11 builds, and at the water.
+ *
+ * The strip's axis is not a taste call; it is the ground. Measured on the
+ * committed L4 field -- the one level `physicsFieldFor` ever hands the
+ * physics -- from `DEFAULT_SPAWN_POSITION`, sampling every 30 m:
+ *
+ * | Direction | Height spread over +/-900 m | Sea ahead of the nose |
+ * | --- | --- | --- |
+ * | east, the old identity nose | 3.23 m | 900 m |
+ * | north | 0.49 m | none within 900 m |
+ *
+ * East is worse on both counts, and the second one had already bitten: the
+ * roll to liftoff over real terrain is 410-453 m (Plan 11a's handoff), which
+ * left about 450 m of margin and is why `tests/sim/soak.test.ts` carries a
+ * case for Mark driving off the end of the runway onto the ocean.
+ *
+ * **Nothing graded moves when this changes**, which is what made it cheap:
+ * `tests/render/frame.test.ts`'s Task 14 check REPORTS its roll distance and
+ * only asserts it is positive, and the 2%-tolerance historical take-off card
+ * runs over synthetic flat ground in `tests/sim/testcards/f6f.test.ts` on
+ * purpose, precisely so a real-terrain grade cannot reach it.
+ *
+ * Yaw only -- see `tests/render/spawn.test.ts`, which asserts the body's up
+ * is still the world's up. A wrong rotation axis here gives an airplane that
+ * points north while lying on its side.
+ */
+export const DEFAULT_SPAWN_ATTITUDE: Quat = qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2)
 
 /** The three query parameters this reads, in x/y/z order. Exported so the
  *  test can assert the names it builds URLs from are the names that are
@@ -123,4 +160,42 @@ export function spawnPositionFromQuery(search: string): Vec3 {
 export function hasSpawnOverride(search: string): boolean {
   const params = new URLSearchParams(search)
   return SPAWN_PARAMS.some((name) => params.has(name))
+}
+
+/**
+ * The airplane `main.ts` boots with: parked at `position` facing down the
+ * runway, or already flying, according to the one `groundSpawn` boolean.
+ *
+ * **Why this is a function and not three ternaries at the call site.** Until
+ * 2026-09-17 it was three -- `velocity: groundSpawn ? v3(0,0,0) : v3(120,0,0)`,
+ * `gearFraction: groundSpawn ? 1 : 0`, and a flat `attitude: qIdentity()` --
+ * inline in `main.ts`'s `createState` call, which no Tier 1 test can reach.
+ * The attitude was the one that rotted: it predates Task 14 moving the spawn
+ * onto a runway, and it was still correct for the airborne spawn it was
+ * written for, which is why nothing flagged it. Three copies of a condition
+ * are three chances to update two of them. `frame.ts` owns the
+ * camera-relative arithmetic for the same reason.
+ *
+ * An AIRBORNE spawn is deliberately left byte-for-byte as it was: 120 m/s due
+ * east, gear retracted, wings level. Tier 2's terrain and ocean specs fly
+ * `?spawnX/Y/Z` paths chosen against that heading (`tests/e2e/terrain.spec.ts`
+ * picks a point due west of Tacloban), so turning those north along with the
+ * parked one would move every Tier 2 flight path without any test saying so.
+ *
+ * `bodyRates` is not set here on purpose: since Task 8 it is a pure output of
+ * `step`, recomputed every frame, and anything passed in is overwritten on
+ * the first tick (see `AircraftState.bodyRates`).
+ */
+export function initialAircraftState(position: Vec3, groundSpawn: boolean): AircraftState {
+  return createState({
+    position,
+    velocity: groundSpawn ? v3(0, 0, 0) : v3(120, 0, 0),
+    // Parked: pointing down the strip. Flying: the pre-Task-14 identity, whose
+    // nose is +X, i.e. east -- which is the direction the 120 m/s above is in.
+    attitude: groundSpawn ? DEFAULT_SPAWN_ATTITUDE : qIdentity(),
+    // Gear already extended rather than mid-travel, so `supportedContact`
+    // (src/sim/ground.ts) reads the wheels as carrying the airplane the
+    // instant real terrain lands.
+    gearFraction: groundSpawn ? 1 : 0,
+  })
 }

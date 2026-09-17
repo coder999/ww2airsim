@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest'
+import { qRotate } from '../../src/sim/math/quat.js'
+import { v3 } from '../../src/sim/math/vec3.js'
+import { qIdentity } from '../../src/sim/math/quat.js'
 import {
+  DEFAULT_SPAWN_ATTITUDE,
   DEFAULT_SPAWN_IS_GROUND,
   DEFAULT_SPAWN_POSITION,
   SPAWN_PARAMS,
   hasSpawnOverride,
+  initialAircraftState,
   spawnPositionFromQuery,
 } from '../../src/render/spawn.js'
 
@@ -25,6 +30,44 @@ describe('DEFAULT_SPAWN_POSITION and DEFAULT_SPAWN_IS_GROUND', () => {
 
   it('is a ground spawn', () => {
     expect(DEFAULT_SPAWN_IS_GROUND).toBe(true)
+  })
+})
+
+describe('DEFAULT_SPAWN_ATTITUDE', () => {
+  /**
+   * The body frame's nose is +X and the world's +x is EAST
+   * (`spawnPositionFromQuery`'s doc comment carries the axes), so the
+   * identity attitude this was until 2026-09-17 parked the airplane
+   * CROSSWISE on the strip Task 11 builds, and pointed it at the sea.
+   *
+   * Measured on the committed L4 field -- the one level the physics ever
+   * gets -- from `DEFAULT_SPAWN_POSITION`, sampling every 30 m:
+   *
+   * | Direction | Height spread over +/-900 m | Sea ahead of the nose |
+   * | --- | --- | --- |
+   * | east (the old identity nose) | 3.23 m | 900 m |
+   * | north | 0.49 m | none within 900 m |
+   *
+   * That is the whole argument for both this constant and the strip's
+   * north-south axis, and it is why `runway.ts` asserts the same axis from
+   * the other end.
+   */
+  it('points the nose north, down the runway rather than across it', () => {
+    const nose = qRotate(DEFAULT_SPAWN_ATTITUDE, v3(1, 0, 0))
+    expect(nose.x).toBeCloseTo(0, 12)
+    expect(nose.y).toBeCloseTo(0, 12)
+    expect(nose.z).toBeCloseTo(1, 12)
+  })
+
+  it('is parked wings level, not banked', () => {
+    // A yaw-only attitude: the body's "up" must still be the world's up.
+    // Getting the rotation axis wrong yields a nose that happens to point
+    // north while the airplane lies on its side, which the nose assertion
+    // above cannot see on its own.
+    const up = qRotate(DEFAULT_SPAWN_ATTITUDE, v3(0, 1, 0))
+    expect(up.x).toBeCloseTo(0, 12)
+    expect(up.y).toBeCloseTo(1, 12)
+    expect(up.z).toBeCloseTo(0, 12)
   })
 })
 
@@ -115,6 +158,56 @@ describe('spawnPositionFromQuery', () => {
     expect(SPAWN_PARAMS).toEqual(['spawnX', 'spawnY', 'spawnZ'])
     for (const name of SPAWN_PARAMS) {
       expect(() => spawnPositionFromQuery(`?${name}=nonsense`), name).toThrow(new RegExp(name))
+    }
+  })
+})
+
+/**
+ * The three fields a spawn's KIND decides -- velocity, attitude and gear --
+ * used to sit as three separate `groundSpawn ? ... : ...` ternaries inline in
+ * `main.ts`'s `createState` call, where nothing could test them. They are one
+ * decision, and three copies of a condition is three chances to update two of
+ * them: the identity attitude among them was exactly that, left behind when
+ * Task 14 moved the spawn onto a runway.
+ *
+ * Extracted here for the reason `frame.ts` gives for owning the
+ * camera-relative arithmetic: coordinate and attitude logic in `main.ts` has
+ * no tests, and both bugs the Plan 2 review found were of that shape.
+ */
+describe('initialAircraftState', () => {
+  const at = v3(-29666, 1.673, 47605)
+
+  it('parks a ground spawn: stopped, gear down, nose north', () => {
+    const s = initialAircraftState(at, true)
+    expect(s.position).toEqual(at)
+    expect(s.velocity).toEqual(v3(0, 0, 0))
+    expect(s.gearFraction).toBe(1)
+    // The runway runs north-south, so a parked airplane faces along it. See
+    // DEFAULT_SPAWN_ATTITUDE for the measurements that settle the axis.
+    expect(s.attitude).toEqual(DEFAULT_SPAWN_ATTITUDE)
+    const nose = qRotate(s.attitude, v3(1, 0, 0))
+    expect(nose.z).toBeCloseTo(1, 12)
+  })
+
+  it('leaves an airborne override exactly as it was before Task 14', () => {
+    // A DEV `?spawnX/Y/Z` spawn is already flying, and Tier 2's terrain and
+    // ocean specs are written against this behavior: 120 m/s due EAST, gear
+    // retracted, wings level. Turning those spawns north with the parked one
+    // would silently move every Tier 2 flight path.
+    const s = initialAircraftState(at, false)
+    expect(s.velocity).toEqual(v3(120, 0, 0))
+    expect(s.gearFraction).toBe(0)
+    expect(s.attitude).toEqual(qIdentity())
+  })
+
+  it('never hands out a parked airplane with its gear up, or a flying one with it down', () => {
+    // The property the three inline ternaries could violate and this cannot:
+    // gear and velocity both read the ONE boolean.
+    for (const groundSpawn of [true, false]) {
+      const s = initialAircraftState(at, groundSpawn)
+      const stopped = s.velocity.x === 0 && s.velocity.y === 0 && s.velocity.z === 0
+      expect(stopped, `groundSpawn=${groundSpawn}`).toBe(groundSpawn)
+      expect(s.gearFraction === 1, `groundSpawn=${groundSpawn}`).toBe(groundSpawn)
     }
   })
 })
