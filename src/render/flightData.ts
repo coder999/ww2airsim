@@ -22,6 +22,19 @@ const GEAR_UP_FRACTION = 1 - GEAR_DOWN_FRACTION
  * toggled the gear spends real time neither up nor down, and a strip that
  * only ever said UP or DOWN would be lying to them for that whole stretch.
  */
+export function flapDisplay(flapFraction: number): string {
+  // Same three states and the same thresholds as the gear, and a real third
+  // state for the same reason: `flapAfter`'s travel takes
+  // `spec.flap.travelSeconds`, so a pilot who just moved the lever spends real
+  // seconds neither up nor down, and a strip that only said UP or DOWN would
+  // be lying to them for that whole stretch. A pilot who cannot see the flap
+  // position cannot fly a repeatable approach, which is why this is not
+  // cosmetic.
+  if (flapFraction <= GEAR_UP_FRACTION) return 'UP'
+  if (flapFraction >= GEAR_DOWN_FRACTION) return 'DOWN'
+  return 'TRANSIT'
+}
+
 export function gearDisplay(gearFraction: number): string {
   if (gearFraction <= GEAR_UP_FRACTION) return 'UP'
   if (gearFraction >= GEAR_DOWN_FRACTION) return 'DOWN'
@@ -48,6 +61,7 @@ export function flightDataItems(spec: AircraftSpec, state: AircraftState, contro
   items.push({ label: 'PITCH', value: `${number(attitude.pitchRad * 180 / Math.PI, true)}°` })
   items.push({ label: 'BANK', value: `${number(attitude.rollRad * 180 / Math.PI, true)}°` })
   items.push({ label: 'GEAR', value: gearDisplay(state.gearFraction) })
+  items.push({ label: 'FLAP', value: flapDisplay(state.flapFraction) })
   return items
 }
 

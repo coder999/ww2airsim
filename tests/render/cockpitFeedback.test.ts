@@ -103,7 +103,7 @@ describe('follow camera and numeric data', () => {
     expect(items.find(i => i.label === 'ALT')?.value).toBe('50000 ft')
     expect(items.find(i => i.label === 'THR')?.value).toBe('75 %')
     expect(items.find(i => i.label === 'FUEL')?.value).toBe('50% (125 gal)')
-    expect(items.map(i => i.label)).toEqual(['SPD', 'ALT', 'V/S', 'HDG', 'FUEL', 'THR', 'PITCH', 'BANK', 'GEAR'])
+    expect(items.map(i => i.label)).toEqual(['SPD', 'ALT', 'V/S', 'HDG', 'FUEL', 'THR', 'PITCH', 'BANK', 'GEAR', 'FLAP'])
   })
 
   it('shows three gear states, not two: up, down, and traveling in between', () => {
@@ -116,5 +116,16 @@ describe('follow camera and numeric data', () => {
     expect(gearValue(0)).toBe('UP')
     expect(gearValue(1)).toBe('DOWN')
     expect(gearValue(0.5)).toBe('TRANSIT')
+  })
+
+  it('shows three flap states too, for the same reason and on the same thresholds', () => {
+    // Plan 11a's Task 12 recorded that a flaps indicator was 11b's debt. A
+    // pilot who cannot see the flap position cannot fly a repeatable approach,
+    // so this is not cosmetic.
+    const flapValue = (flapFraction: number): string | undefined =>
+      flightDataItems(spec, createState({ flapFraction }), NEUTRAL).find(i => i.label === 'FLAP')?.value
+    expect(flapValue(0)).toBe('UP')
+    expect(flapValue(1)).toBe('DOWN')
+    expect(flapValue(0.5)).toBe('TRANSIT')
   })
 })

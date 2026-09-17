@@ -482,3 +482,38 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     }
   })
 })
+
+describe('the flap lever (Plan 11b Task 8)', () => {
+  it('latches on an F press rather than flipping while it is held', () => {
+    // Same edge-triggered shape as the gear: a lever that stays where it is
+    // left, not a switch that flips 60 times a second.
+    let f = start()
+    expect(f.flapDown).toBe(false)
+    for (let i = 0; i < 10; i++) f = nextFrameState(f, 1 / 60, keys('KeyF'))
+    expect(f.flapDown).toBe(true)
+    for (let i = 0; i < 10; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(f.flapDown).toBe(true)
+    for (let i = 0; i < 10; i++) f = nextFrameState(f, 1 / 60, keys('KeyF'))
+    expect(f.flapDown).toBe(false)
+  })
+
+  it('actually reaches the simulation, which is the Plan 3 defect this guards', () => {
+    // Plan 3 shipped an assist that never reached `step` while its own unit
+    // tests passed, because they called the module directly. A flap lever that
+    // moved a `FrameState` field and nothing else would look identical.
+    let f = start()
+    for (let i = 0; i < 10; i++) f = nextFrameState(f, 1 / 60, keys('KeyF'))
+    expect(f.controls.flapDown).toBe(true)
+    const early = f.world.aircraft.flapFraction
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(f.world.aircraft.flapFraction).toBeGreaterThan(early)
+    expect(f.world.aircraft.flapFraction).toBeLessThanOrEqual(1)
+  })
+
+  it('starts with the flaps up, including on a parked spawn', () => {
+    // A real airplane is not left with its flaps hanging out, and unlike the
+    // gear there is no reason a parked spawn should differ.
+    expect(initialFrameState(f6f, createState({}), undefined, null, true).flapDown).toBe(false)
+    expect(initialFrameState(f6f, createState({})).flapDown).toBe(false)
+  })
+})

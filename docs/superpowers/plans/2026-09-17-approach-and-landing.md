@@ -911,7 +911,7 @@ git commit -m "The wheels go where they point: lateral tire grip on the ground"
 
 11a bound `G` for gear and `B` for brakes and recorded that "a cockpit annunciator is 11b's, with the flaps indicator beside it". This is that debt. A pilot who cannot see the flap position cannot fly a repeatable approach, so it is not cosmetic.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/input/bindings.test.ts — append
@@ -955,12 +955,12 @@ it('says where the flaps are, in all three states', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/input/bindings.test.ts tests/render/frame.test.ts`
 Expected: FAIL — no `toggleFlaps` binding, `f.flapDown` undefined, no `FLAP` item.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/input/bindings.ts`, beside `toggleGear`:
 
@@ -1005,7 +1005,7 @@ and `flapDown` into the controls the world is stepped with, exactly as `gearDown
   },
 ```
 
-- [ ] **Step 4: Run the full suite and commit**
+- [x] **Step 4: Run the full suite and commit**
 
 Run: `npm run verify` — exit 0.
 

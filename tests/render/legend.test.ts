@@ -48,3 +48,10 @@ describe('the control legend (2026-09-15)', () => {
     expect(keyLabel('Equal')).toBe('=')
   })
 })
+
+it('binds F to the flaps, beside G for the gear', () => {
+  // The legend exhaustiveness test above is what forces a row to exist for it;
+  // this pins the key itself, and that it is not shared with another control.
+  expect(BINDINGS.toggleFlaps).toContain('KeyF')
+  expect(BINDINGS.toggleGear).not.toContain('KeyF')
+})

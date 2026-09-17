@@ -56,6 +56,7 @@ export const BINDINGS = {
   // W or Z above. Edge-triggered like the assist toggles, not held: a lever
   // that stays where it is left, not a switch you hold over.
   toggleGear: ['KeyG'],
+  toggleFlaps: ['KeyF'],
   // `B` for brakes -- also free, and a plain key for the reason
   // `throttleDown` documents: no modifier a browser can intercept. Unlike
   // the gear, this is a hold: brakes bite while the key is down and release

@@ -102,6 +102,13 @@ export type FrameState = {
    *  the same reason `cyclePressed` exists: a lever that stays where it is
    *  left, not a switch that flips 60 times while held for a second. */
   readonly gearPressed: boolean
+  /** Where the flap lever is. Threaded into `Controls.flapDown` every frame,
+   *  for the reason `gearDown`'s own comment gives: a control the simulation
+   *  is not told about every step does not move. */
+  readonly flapDown: boolean
+  /** Whether the flap key was down last frame, for edge detection -- the same
+   *  reason `gearPressed` exists. */
+  readonly flapPressed: boolean
   /**
    * Whether this flight is a GROUND spawn -- parked, waiting for terrain --
    * as opposed to an airborne one. Set once, in `initialFrameState`, from the
@@ -191,6 +198,10 @@ export function initialFrameState(
     assistTogglesDown: NO_TOGGLES_DOWN,
     gearDown: groundSpawn,
     gearPressed: false,
+    // Flaps UP on every spawn, parked included: unlike the gear, there is no
+    // configuration in which an airplane is left with its flaps hanging out.
+    flapDown: false,
+    flapPressed: false,
     groundSpawn,
   }
 }
@@ -302,6 +313,11 @@ export function nextFrameState(
   const gearDown =
     gearKeyDown && !prev.gearPressed ? !prev.gearDown : prev.gearDown
 
+  // The flap lever, edge-triggered identically.
+  const flapKeyDown = BINDINGS.toggleFlaps.some((c) => pressed.has(c))
+  const flapDown =
+    flapKeyDown && !prev.flapPressed ? !prev.flapDown : prev.flapDown
+
   // On/off from a keyboard: 1 while held, 0 the instant it is not.
   // `Controls.brake` is [0, 1] (a pedal's travel, not a switch), so a later
   // axis input -- a rudder pedal's toe-brake, say -- slots in with no type
@@ -314,7 +330,7 @@ export function nextFrameState(
   // simulation, inert in the browser while its own unit tests passed
   // because they called the module directly. `frame.test.ts` pins this by
   // reading `f.world.controls.gearDown` back, not just `f.gearDown`.
-  const controls: Controls = { ...controlsAxes, gearDown, brake }
+  const controls: Controls = { ...controlsAxes, gearDown, flapDown, brake }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
   // in wall clock would be unusable precisely when it matters most.
@@ -404,6 +420,8 @@ export function nextFrameState(
     assistTogglesDown,
     gearDown,
     gearPressed: gearKeyDown,
+    flapDown,
+    flapPressed: flapKeyDown,
     groundSpawn: prev.groundSpawn,
   }
 }
