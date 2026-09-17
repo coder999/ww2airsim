@@ -17,11 +17,22 @@ export const BINDINGS = {
   // `ShiftLeft` and were updated in the same commit. `keyLabel('ShiftLeft')`
   // stays in `legend.ts`: it is a label for any key code, not a claim that
   // Shift is bound.
-  throttleUp: ['Equal'],
+  // The keypad's + and - too (Mark, 2026-09-17): the same lever from either
+  // side of the keyboard, where a keypad exists.
+  throttleUp: ['Equal', 'NumpadAdd'],
   // Not Ctrl, which the design first named: Ctrl+W closes the tab in Chrome
   // and preventDefault cannot stop it, so "nose down while throttling back"
   // on WASD would quit the game. Ctrl+T and Ctrl+N are the same.
-  throttleDown: ['Minus'],
+  throttleDown: ['Minus', 'NumpadSubtract'],
+  // `M` chops the throttle to zero in one press (Mark, 2026-09-17: "kill the
+  // engine -- ie immediately go to zero"). A one-shot on the ramped lever,
+  // not an engine state: `=` ramps it back up from zero afterwards. Free
+  // letter; plain key for the reason `throttleDown` documents.
+  throttleCut: ['KeyM'],
+  // Esc pauses (Mark, 2026-09-17). Esc is the one key browsers reserve for
+  // leaving fullscreen and pointer lock, neither of which this game uses, so
+  // it is free here; edge-triggered like every other toggle.
+  pause: ['Escape'],
   cycleCamera: ['KeyC'],
   lookUp: ['Numpad8'],
   lookDown: ['Numpad2'],

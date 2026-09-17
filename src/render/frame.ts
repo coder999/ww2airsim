@@ -14,6 +14,7 @@ import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
+import { nextLandingTracking, NO_LANDING, type LandingTracking } from './landing.js'
 
 export type FrameState = {
   /** `World<undefined>` since altitude hold was deleted on 2026-09-17: it was
@@ -109,6 +110,32 @@ export type FrameState = {
   /** Whether the flap key was down last frame, for edge detection -- the same
    *  reason `gearPressed` exists. */
   readonly flapPressed: boolean
+  /** Whether the throttle-cut key was down last frame, for edge detection:
+   *  the chop fires once per press, and a held `M` must not keep re-zeroing
+   *  a throttle the pilot is trying to open again. */
+  readonly throttleCutPressed: boolean
+  /**
+   * Whether the simulation is paused (Mark, 2026-09-17: "esc key pauses
+   * game"). Applied the same way triple time is, to the frame delta: a paused
+   * frame feeds `advance` zero elapsed seconds, so the accumulator does not
+   * fill and resuming owes no burst of catch-up steps. The renderer keeps
+   * drawing -- the world is held, not hidden -- and `look` still reads the
+   * real delta, so the pilot can look around a frozen scene. The controls
+   * ramp on the same zero delta and therefore hold too, which is what makes
+   * this a pause rather than a stall: a key held through it does not wind
+   * the stick up for the moment it lifts.
+   *
+   * Toggled on the `pause` key's edge, and settable directly (`withPaused`)
+   * so a modal that wants the world held -- the landing debrief -- reuses
+   * this one mechanism rather than growing a second freeze beside
+   * `World.impact`.
+   */
+  readonly paused: boolean
+  /** Whether the pause key was down last frame, for edge detection. */
+  readonly pausePressed: boolean
+  /** The landing in progress, if any -- see `LandingTracking`. Updated every
+   *  frame from the world on either side of this frame's steps. */
+  readonly landing: LandingTracking
   /**
    * Whether this flight is a GROUND spawn -- parked, waiting for terrain --
    * as opposed to an airborne one. Set once, in `initialFrameState`, from the
@@ -200,8 +227,25 @@ export function initialFrameState(
     // configuration in which an airplane is left with its flaps hanging out.
     flapDown: false,
     flapPressed: false,
+    throttleCutPressed: false,
+    paused: false,
+    pausePressed: false,
+    landing: NO_LANDING,
     groundSpawn,
   }
+}
+
+/** After the landing debrief's Continue: forget the landing so the next
+ *  flight from here can report its own, and release the pause the modal
+ *  held. Restart does not need this -- `initialFrameState` starts clean. */
+export function acknowledgeLanding(frame: FrameState): FrameState {
+  return { ...frame, landing: NO_LANDING, paused: false }
+}
+
+/** The same `FrameState`, paused or not. For the landing debrief, which holds
+ *  the world while it is up and releases it on Continue -- see `paused`. */
+export function withPaused(frame: FrameState, paused: boolean): FrameState {
+  return { ...frame, paused }
 }
 
 /**
@@ -296,13 +340,24 @@ export function nextFrameState(
         : 1
       : prev.timeScale
 
+  // Pause, edge-triggered and read before the delta for the same reason
+  // triple time is: the frame the key is pressed on is already held.
+  const pauseDown = BINDINGS.pause.some((c) => pressed.has(c))
+  const paused = pauseDown && !prev.pausePressed ? !prev.paused : prev.paused
+
   // The simulation's clock. `controlsFromKeys` ramps toward full deflection
   // over RAMP_SECONDS and belongs on this one: the stick is part of the flight
   // being fast-forwarded, so leaving it on real seconds would make the
   // airplane answer a third as willingly per metre flown, exactly when there
-  // is most sky going past.
-  const simElapsedSeconds = elapsedSeconds * timeScale
-  const controlsAxes = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+  // is most sky going past. Zero while paused -- see `FrameState.paused`.
+  const simElapsedSeconds = paused ? 0 : elapsedSeconds * timeScale
+  const ramped = controlsFromKeys(pressed, simElapsedSeconds, prev.controls)
+  // The throttle cut: one press zeroes the lever, and because the next
+  // frame's `prev.controls.throttle` is then 0, the ramp continues from
+  // there. Edge-triggered so a held key cannot pin the throttle shut.
+  const throttleCutDown = BINDINGS.throttleCut.some((c) => pressed.has(c))
+  const controlsAxes =
+    throttleCutDown && !prev.throttleCutPressed ? { ...ramped, throttle: 0 } : ramped
 
   // Edge-triggered exactly like the camera cycle and the assist toggles
   // above: the gear is a lever that stays where it is left, not a switch
@@ -400,6 +455,18 @@ export function nextFrameState(
   const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
   const eye = cameraTransformFor(cameraMode, spec, render, look, speed)
 
+  // Landing bookkeeping reads the airplane on both sides of this frame's
+  // steps: `prev.world.aircraft` is the state before them, `advanced.world
+  // .aircraft` after. A frame that ran no steps (paused, holding) compares a
+  // state with itself and changes nothing.
+  const landing = nextLandingTracking(
+    spec,
+    prev.landing,
+    prev.world.aircraft,
+    advanced.world.aircraft,
+    advanced.world.terrain,
+  )
+
   return {
     world: advanced.world,
     controls,
@@ -418,6 +485,10 @@ export function nextFrameState(
     gearPressed: gearKeyDown,
     flapDown,
     flapPressed: flapKeyDown,
+    throttleCutPressed: throttleCutDown,
+    paused,
+    pausePressed: pauseDown,
+    landing,
     groundSpawn: prev.groundSpawn,
   }
 }

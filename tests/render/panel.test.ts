@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, PlaneGeometry, Quaternion, Vector3 } from 'three'
+import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from 'three'
 import {
   createPanel,
   updatePanel,
@@ -9,6 +9,9 @@ import {
   PANEL_BELOW_M,
   TAPE_W,
   TAPE_CULL_MARGIN_M,
+  LIGHT_OFF,
+  LIGHT_TRANSIT,
+  LIGHT_DOWN,
   type Panel,
 } from '../../src/render/scene/panel.js'
 import {
@@ -28,6 +31,7 @@ import {
   type TapeSpec,
 } from '../../src/render/gauges.js'
 import type { TextTextureFactory } from '../../src/render/scene/text.js'
+import { gearDisplay } from '../../src/render/flightData.js'
 import { cameraTransformFor, CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
 import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
@@ -1262,5 +1266,51 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
     }
     expect(readoutBox.max.y).toBeLessThanOrEqual(upperTopY + 1e-6)
     expect(readoutBox.min.y).toBeGreaterThanOrEqual(upperBottomY - 1e-6)
+  })
+})
+
+describe('gear and flap lights (Mark, 2026-09-17)', () => {
+  // "flaps and landing gear should somehow be indicated in the cockpit
+  // instruments. right now they are only in the follow view bar". The
+  // cockpit design reserved indicator lights for exactly this.
+  const colourOf = (m: Mesh): number => (m.material as MeshBasicMaterial).color.getHex()
+  const at = (gearFraction: number, flapFraction: number) => {
+    const p = createPanel(f6f)
+    const s = createState({ position: v3(0, 1000, 0), velocity: v3(100, 0, 0), gearFraction, flapFraction })
+    updatePanel(p, f6f, s, NEUTRAL_CONTROLS)
+    return p
+  }
+
+  it('shows dark when up, amber in transit, and green when down, for both', () => {
+    expect(colourOf(at(0, 0).lights.gear)).toBe(LIGHT_OFF)
+    expect(colourOf(at(0, 0).lights.flap)).toBe(LIGHT_OFF)
+    expect(colourOf(at(0.5, 0.5).lights.gear)).toBe(LIGHT_TRANSIT)
+    expect(colourOf(at(0.5, 0.5).lights.flap)).toBe(LIGHT_TRANSIT)
+    expect(colourOf(at(1, 1).lights.gear)).toBe(LIGHT_DOWN)
+    expect(colourOf(at(1, 1).lights.flap)).toBe(LIGHT_DOWN)
+  })
+
+  it('reads the same three states the follow-view strip prints', () => {
+    // One source of truth for "what does 0.97 mean": the strip's own
+    // thresholds. A light that disagreed with the strip would be worse than
+    // no light.
+    for (const f of [0, 0.04, 0.05, 0.5, 0.95, 0.96, 1]) {
+      const p = at(f, f)
+      const want = gearDisplay(f) === 'DOWN' ? LIGHT_DOWN : gearDisplay(f) === 'UP' ? LIGHT_OFF : LIGHT_TRANSIT
+      expect(colourOf(p.lights.gear), `gear ${f}`).toBe(want)
+      expect(colourOf(p.lights.flap), `flap ${f}`).toBe(want)
+    }
+  })
+
+  it('sits in the upper band beside the heading tape, clear of its window', () => {
+    const p = createPanel(f6f)
+    const upperTop = PANEL_BELOW_M - PANEL_BANDS.upper.top
+    const upperBottom = PANEL_BELOW_M - PANEL_BANDS.upper.bottom
+    for (const light of [p.lights.gear, p.lights.flap]) {
+      expect(light.position.y).toBeLessThan(upperTop)
+      expect(light.position.y).toBeGreaterThan(upperBottom)
+      expect(Math.abs(light.position.x)).toBeGreaterThan(TAPE_W / 2 + TAPE_CULL_MARGIN_M)
+    }
+    expect(p.lights.gear.position.x).not.toBeCloseTo(p.lights.flap.position.x, 3)
   })
 })

@@ -107,3 +107,11 @@ describe('control sign conventions (review 2026-09-13)', () => {
     for (const code of ['ArrowUp', 'KeyW']) expect(held(code).pitch).toBeLessThan(0)
   })
 })
+
+describe('keypad throttle (Mark, 2026-09-17)', () => {
+  it('raises and lowers the throttle from the keypad + and - as well as = and -', () => {
+    const open = hold(['NumpadAdd'], THROTTLE_SECONDS * 1.5)
+    expect(open.throttle).toBe(1)
+    expect(hold(['NumpadSubtract'], THROTTLE_SECONDS * 1.5, open).throttle).toBe(0)
+  })
+})

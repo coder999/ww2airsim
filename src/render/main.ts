@@ -9,7 +9,8 @@ import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
-import { createDebrief, debriefModel } from './debrief.js'
+import { createPauseBadge } from './pauseBadge.js'
+import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
@@ -20,7 +21,7 @@ import {
   toThreeOrientation,
   withTerrain,
   worldOffsetFor,
-  type FrameState,
+  type FrameState, withPaused, acknowledgeLanding,
 } from './frame.js'
 import { createOcean, recentreOcean } from './ocean/mesh.js'
 import { loadDepth } from './ocean/depth.js'
@@ -416,6 +417,7 @@ async function boot(): Promise<void> {
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
+  const pauseBadge = createPauseBadge(root)
   // Restart rebuilds the frame from the spawn point rather than tearing
   // anything down: `initialFrameState` is pure, so the renderer, the terrain
   // and the ocean cascades all survive untouched.
@@ -448,8 +450,13 @@ async function boot(): Promise<void> {
     debrief.hide()
     impactEffect.hide()
     shownImpactTick = null
+    landingShown = false
     postImpactOceanSeconds = 0
   })
+  /** Whether the landing debrief is up for the landing `frame.landing.report`
+   *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
+   *  Restart. */
+  let landingShown = false
   const impactEffect = createImpactEffect()
   scene.add(impactEffect.object)
   /** The tick of the impact the debrief is currently showing, so the modal is
@@ -480,9 +487,18 @@ async function boot(): Promise<void> {
   // and fixed there alone (2026-09-15 cockpit feedback); this is the other half
   // of it.
   let pendingTripleTime = false
+  // And for the pause and the throttle cut, both edge-triggered inside
+  // `nextFrameState` the same way.
+  let pendingPause = false
+  let pendingThrottleCut = false
   window.addEventListener('keydown', (e) => {
     if (BINDINGS.cycleCamera.includes(e.code as never) && !e.repeat) pendingCameraCycle = true
     if (BINDINGS.toggleTripleTime.includes(e.code as never) && !e.repeat) pendingTripleTime = true
+    if (BINDINGS.pause.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      pendingPause = true
+    }
+    if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -507,6 +523,8 @@ async function boot(): Promise<void> {
   window.addEventListener('blur', () => {
     pressed.clear()
     pendingCameraCycle = false
+    pendingPause = false
+    pendingThrottleCut = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -546,6 +564,8 @@ async function boot(): Promise<void> {
     const latched: string[] = []
     if (pendingCameraCycle) latched.push(BINDINGS.cycleCamera[0])
     if (pendingTripleTime) latched.push(BINDINGS.toggleTripleTime[0])
+    if (pendingPause) latched.push(BINDINGS.pause[0])
+    if (pendingThrottleCut) latched.push(BINDINGS.throttleCut[0])
     const frameKeys = latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
     const inputFrame =
       latched.length === 0
@@ -554,10 +574,14 @@ async function boot(): Promise<void> {
             ...frame!,
             cyclePressed: pendingCameraCycle ? false : frame!.cyclePressed,
             tripleTimePressed: pendingTripleTime ? false : frame!.tripleTimePressed,
+            pausePressed: pendingPause ? false : frame!.pausePressed,
+            throttleCutPressed: pendingThrottleCut ? false : frame!.throttleCutPressed,
           }
     const current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     pendingCameraCycle = false
     pendingTripleTime = false
+    pendingPause = false
+    pendingThrottleCut = false
     frame = current
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -612,6 +636,7 @@ async function boot(): Promise<void> {
     updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
     flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
     timeBadge.setScale(current.timeScale)
+    pauseBadge.setPaused(current.paused)
 
     // Raised once per contact -- `shownImpactTick` is the guard, since
     // `current.world.impact` stays non-null every frame after the airplane
@@ -631,6 +656,18 @@ async function boot(): Promise<void> {
       impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
       impactEffect.fire(hit.surface)
       debrief.show(debriefModel(hit, current.world.aircraft))
+    }
+    // A landing, raised once and holding the world under the dialog through
+    // the pause rather than through a second freeze (frame.ts's `paused`).
+    // Continue releases both; Restart goes through the handler above.
+    if (current.landing.report !== null && !landingShown) {
+      landingShown = true
+      frame = withPaused(current, true)
+      debrief.show(landingModel(current.landing.report), () => {
+        frame = acknowledgeLanding(frame!)
+        landingShown = false
+        debrief.hide()
+      })
     }
     impactEffect.object.quaternion.copy(camera.quaternion)
     impactEffect.update(frameMs / 1000)

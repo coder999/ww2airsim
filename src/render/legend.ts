@@ -28,6 +28,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Roll', bindings: ['rollLeft', 'rollRight'], pair: true },
   { label: 'Yaw', bindings: ['yawLeft', 'yawRight'], pair: true },
   { label: 'Throttle', bindings: ['throttleUp', 'throttleDown'], pair: true },
+  { label: 'Throttle cut', bindings: ['throttleCut'] },
   { label: 'Camera', bindings: ['cycleCamera'] },
   {
     label: 'Look',
@@ -41,6 +42,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Brakes', bindings: ['brakes'] },
   { label: 'Controls', bindings: ['toggleLegend'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
+  { label: 'Pause', bindings: ['pause'] },
 ]
 
 const NAMED: Readonly<Record<string, string>> = {
@@ -67,6 +69,10 @@ const NAMED: Readonly<Record<string, string>> = {
   Backquote: '`',
   Space: 'Space',
   Escape: 'Esc',
+  // The keypad's operator keys: the generic `Numpad` rule below would print
+  // "Num Add", which is not what is on the keycap.
+  NumpadAdd: 'Num +',
+  NumpadSubtract: 'Num -',
 }
 
 /**

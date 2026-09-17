@@ -61,14 +61,17 @@ it('binds F to the flaps, beside G for the gear', () => {
   expect(BINDINGS.toggleGear).not.toContain('KeyF')
 })
 
-it('puts yaw on Z and X, and throttle exclusively on = and -', () => {
+it('puts yaw on Z and X, and throttle on = and - plus their keypad twins, nothing else', () => {
   // Mark's layout, 2026-09-17: yaw left/right on Z/X, and "throttle up and
   // down move completely to + and - exclusively". Z was throttle-down and had
-  // to give it up; Shift was throttle-up and gives it up too.
+  // to give it up; Shift was throttle-up and gives it up too. Later the same
+  // day he added the keypad's + and - ("where available"): the same two
+  // levers from the other side of the keyboard, and still nothing else --
+  // Shift in particular stays unbound.
   expect(BINDINGS.yawLeft).toEqual(['KeyZ'])
   expect(BINDINGS.yawRight).toEqual(['KeyX'])
-  expect(BINDINGS.throttleUp).toEqual(['Equal'])
-  expect(BINDINGS.throttleDown).toEqual(['Minus'])
+  expect(BINDINGS.throttleUp).toEqual(['Equal', 'NumpadAdd'])
+  expect(BINDINGS.throttleDown).toEqual(['Minus', 'NumpadSubtract'])
   // Nothing else may claim a throttle or yaw key: a key that does two things
   // is the conflict this layout change existed to remove.
   const others = Object.entries(BINDINGS).filter(

@@ -74,6 +74,23 @@ describe('nextFrameState', () => {
     expect(airspeed(open.world.aircraft)).toBeGreaterThan(airspeed(idle.world.aircraft) + 5)
   })
 
+  it('M cuts the throttle to zero at once, and the lever stays there until raised again', () => {
+    // Mark, 2026-09-17: "add a key 'm' to kill the engine -- ie immediately go
+    // to zero". A one-shot chop of the ramped lever, not a latched engine
+    // state: `=` afterwards ramps it back up from zero as usual.
+    let f = start()
+    for (let i = 0; i < 180; i++) f = nextFrameState(f, 1 / 60, keys('Equal'))
+    expect(f.controls.throttle).toBe(1)
+    f = nextFrameState(f, 1 / 60, keys('KeyM'))
+    expect(f.controls.throttle).toBe(0)
+    expect(f.world.controls.throttle).toBe(0)
+    for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(f.controls.throttle).toBe(0)
+    for (let i = 0; i < 30; i++) f = nextFrameState(f, 1 / 60, keys('Equal'))
+    expect(f.controls.throttle).toBeGreaterThan(0.2)
+    expect(f.controls.throttle).toBeLessThan(0.3)
+  })
+
   it('exposes the interpolated pose strictly between the two most recent ticks', () => {
     // Task 13 review, round 1: `frame.ts` computed this pose and handed it to
     // `cameraTransformFor` but never exposed it, so main.ts had nothing to

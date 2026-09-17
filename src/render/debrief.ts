@@ -2,6 +2,7 @@ import type { Impact } from '../sim/loop.js'
 import type { AircraftState } from '../sim/flight/state.js'
 import { attitudeAngles } from '../sim/flight/attitude.js'
 import { length } from '../sim/math/vec3.js'
+import type { LandingReport } from './landing.js'
 
 export type ScoreRow = {
   readonly target: string
@@ -29,6 +30,36 @@ export type DebriefModel = {
   readonly detail: string
   readonly figures: readonly DebriefFigure[]
   readonly score: ReturnType<typeof missionScore>
+  /**
+   * Present only when the flight can go on: the label of a second button
+   * that dismisses the dialog without restarting. A crash has none -- see
+   * `createDebrief`'s ONE-button reasoning -- a landing has one, because the
+   * airplane is intact and the pilot may want to taxi, take off again, or
+   * just look at the view.
+   */
+  readonly continueLabel?: string
+}
+
+const MPH_PER_MPS = 2.23694
+
+/** What the debrief says about a landing (Mark, 2026-09-17: "successful
+ *  landing - nice job! (or similar)"). Pure, like `debriefModel`. */
+export function landingModel(report: LandingReport): DebriefModel {
+  const mph = (mps: number) => Math.round(mps * MPH_PER_MPS)
+  return {
+    headline: 'LANDED',
+    detail: 'Nice job. You brought her back in one piece.',
+    figures: [
+      { label: 'Touchdown sink', value: `${report.touchdownSinkMps.toFixed(1)} m/s` },
+      {
+        label: 'Touchdown speed',
+        value: `${report.touchdownSpeedMps.toFixed(1)} m/s (${mph(report.touchdownSpeedMps)} mph)`,
+      },
+      { label: 'Roll-out', value: `${Math.round(report.rollOutM)} m` },
+    ],
+    score: missionScore(),
+    continueLabel: 'Continue',
+  }
 }
 
 /** What the debrief says about how a flight ended. Pure, so the node-environment
@@ -65,7 +96,9 @@ export function debriefModel(impact: Impact, state: AircraftState): DebriefModel
 }
 
 export type DebriefHandle = {
-  show(model: DebriefModel): void
+  /** `onContinue` is called when the model's `continueLabel` button is
+   *  pressed; a model without one shows no such button and never calls it. */
+  show(model: DebriefModel, onContinue?: () => void): void
   hide(): void
 }
 
@@ -77,10 +110,13 @@ export type DebriefHandle = {
  * will want the same frozen-modal behavior without going through a debrief.
  * This module only renders.
  *
- * ONE button. "Resume" is meaningless after a death, and the 1991 original's
- * "End Mission" returns to a mission selector this game does not have -- a
- * button that goes nowhere is how a stale document starts. Plan 9 adds the
- * menu and the button that reaches it.
+ * ONE button for a crash. "Resume" is meaningless after a death, and the 1991
+ * original's "End Mission" returns to a mission selector this game does not
+ * have -- a button that goes nowhere is how a stale document starts. Plan 9
+ * adds the menu and the button that reaches it. A LANDING (2026-09-17) is the
+ * one outcome the flight survives, so its model carries a `continueLabel`
+ * and this renders a second button for it; the caller decides what
+ * continuing means (releasing the pause it took when it showed the dialog).
  */
 export function createDebrief(root: HTMLElement, onRestart: () => void): DebriefHandle {
   const backdrop = document.createElement('div')
@@ -107,8 +143,17 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
     onRestart()
   })
 
+  const cont = document.createElement('button')
+  cont.style.cssText = restart.style.cssText + ';margin-right:10px'
+  let onContinue: (() => void) | undefined
+  cont.addEventListener('click', () => {
+    cont.blur()
+    onContinue?.()
+  })
+
   return {
-    show(model: DebriefModel): void {
+    show(model: DebriefModel, continueHandler?: () => void): void {
+      onContinue = continueHandler
       panel.textContent = ''
       const headline = document.createElement('div')
       headline.style.cssText = 'font-size:20px;font-weight:700;letter-spacing:.1em'
@@ -147,9 +192,14 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         panel.appendChild(line)
       }
 
+      if (model.continueLabel !== undefined) {
+        cont.textContent = model.continueLabel
+        panel.appendChild(cont)
+      }
       panel.appendChild(restart)
       backdrop.style.display = 'flex'
-      restart.focus()
+      if (model.continueLabel !== undefined) cont.focus()
+      else restart.focus()
     },
     hide(): void {
       backdrop.style.display = 'none'

@@ -40,6 +40,7 @@ import {
   metresBelowEye,
 } from './panelLayout.js'
 import { CAMERA_VFOV_DEG } from '../camera.js'
+import { gearDisplay, flapDisplay } from '../flightData.js'
 import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 
@@ -108,7 +109,31 @@ export type Panel = {
     readonly strip: Object3D
     readonly readout: Mesh
   }
+  /**
+   * Gear and flap indicator lights (Mark, 2026-09-17: "flaps and landing gear
+   * should somehow be indicated in the cockpit instruments"). The cockpit
+   * design reserved indicator lights for these; they sit in the upper band
+   * to the left of the heading tape, where the band has room and the lower
+   * row does not. Three colours, driven by the SAME three states the
+   * follow-view strip prints (`gearDisplay`/`flapDisplay`): dark up, amber
+   * in transit, green down -- a real gear light's convention, and the reason
+   * a pilot glances at it before the flare.
+   */
+  readonly lights: {
+    readonly gear: Mesh
+    readonly flap: Mesh
+  }
 }
+
+/** Indicator light colours. Exported so the test asserts the state each one
+ *  means rather than a hex it would have to copy. */
+export const LIGHT_OFF = 0x1a1f24
+export const LIGHT_TRANSIT = 0xffb020
+export const LIGHT_DOWN = 0x3ddc84
+/** Where the two lights sit: upper band, left of the tape window, x in
+ *  panel metres. The tape window is `TAPE_W` wide about 0. */
+const LIGHT_X = { gear: -0.19, flap: -0.145 } as const
+const LIGHT_RADIUS = 0.009
 
 export type Readout = {
   readonly mesh: Mesh
@@ -735,6 +760,27 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     tape = { strip, readout: tapeReadout }
   }
 
+  // Gear and flap lights, in the upper band beside the tape -- see
+  // `Panel.lights`. Each is a bezel ring, a lit disc and a label plate.
+  const lightMeshes = {} as { gear: Mesh; flap: Mesh }
+  {
+    const upperCentreY = (PANEL_BANDS.upper.top + PANEL_BANDS.upper.bottom) / 2
+    const lightY = PANEL_BELOW_M - upperCentreY + 0.006 * S
+    for (const [id, label] of [['gear', 'GEAR'], ['flap', 'FLAP']] as const) {
+      const bezel = new Mesh(new CircleGeometry(LIGHT_RADIUS * 1.35, 24), bezelMat)
+      bezel.position.set(LIGHT_X[id], lightY, 0)
+      root.add(bezel)
+      const light = new Mesh(new CircleGeometry(LIGHT_RADIUS, 24), new MeshBasicMaterial({ color: LIGHT_OFF }))
+      light.name = `light:${id}`
+      light.position.set(LIGHT_X[id], lightY, Z_MARKS)
+      root.add(light)
+      const plate = textPlate(label, 0.036 * S, 0.012 * S, makeText)
+      plate.position.set(LIGHT_X[id], lightY - LIGHT_RADIUS - 0.010 * S, Z_MARKS)
+      root.add(plate)
+      lightMeshes[id] = light
+    }
+  }
+
   // Positioned in the SAME body frame the cockpit group is posed in (sim
   // convention, +X forward, +Y up, +Z right -- see src/render/frame.ts's
   // `render` field doc: an Object3D, unlike a Three camera, has no hardcoded
@@ -760,6 +806,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     reticle,
     backing,
     tape: tape!,
+    lights: lightMeshes,
   }
 }
 
@@ -870,6 +917,13 @@ export function updatePanel(
       panel.tape.readout.userData.text = text
     }
   }
+  // The gear and flap lights, from the strip's own three-state reading so
+  // the two can never disagree about what a fraction means.
+  const lightColour = (display: string): number =>
+    display === 'DOWN' ? LIGHT_DOWN : display === 'UP' ? LIGHT_OFF : LIGHT_TRANSIT
+  ;(panel.lights.gear.material as MeshBasicMaterial).color.setHex(lightColour(gearDisplay(state.gearFraction)))
+  ;(panel.lights.flap.material as MeshBasicMaterial).color.setHex(lightColour(flapDisplay(state.flapFraction)))
+
   const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
 
   // The attitude ball, from `rollRad`/`pitchRad` above -- via `renderAttitude`,
