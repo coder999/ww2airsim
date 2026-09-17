@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests tools spike --max-warnings 0",
     "dev": "vite",
+    "dev:lan": "WW2AIRSIM_TUNNEL=1 vite",
     "build": "vite build",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",

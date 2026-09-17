@@ -80,7 +80,13 @@ function copyContent(): Plugin {
  * https://ww2airsim.windomlane.org, terminated at Cloudflare's edge and
  * carried to this host by the nexus cloudflared tunnel. Added 2026-09-16.
  *
- *     WW2AIRSIM_TUNNEL=1 npm run dev
+ *     npm run dev:lan          # = WW2AIRSIM_TUNNEL=1 vite
+ *
+ * The script exists because forgetting the variable fails WORSE than not
+ * starting the server at all: plain `npm run dev` binds loopback, Traefik
+ * cannot reach it, and the browser gets the same "Bad Gateway" it gets when
+ * nothing is running — one symptom, two unrelated causes. Hit for real
+ * 2026-09-16.
  *
  * 172.17.0.1 is the docker bridge gateway: nexus's Traefik runs in a
  * container and cannot reach this host's loopback. The routing, the Access
