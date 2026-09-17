@@ -218,19 +218,28 @@ npm run dev                              # on nexus
 ssh -L 5173:localhost:5173 nexus         # on the Windows desktop
 ```
 
-**Or drive the whole thing from nexus** (verified 2026-09-14: 6 passed, real
-RX 6700 XT). The tunnels simply run the other way, and Playwright connects to
-a server on the Windows box rather than being started there:
+**Or drive the whole thing from nexus.** Playwright connects to a server on
+the Windows box rather than being started there, and the desktop's browser
+loads the app over the LAN from the hostname above — so only ONE tunnel is
+needed, for Playwright's control channel:
 
 ```sh
-# on nexus, both backgrounded
-ssh -N -R 5173:localhost:5173 ryzen     # ryzen's localhost:5173 -> this dev server
+# on nexus: dev server, then the control tunnel (backgrounded)
+npm run dev:lan
 ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 
-PW_REMOTE=ws://localhost:39001/ npm run test:tier2
-# An isolated worktree may use another forwarded port:
-# PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=http://localhost:5183 npm run test:tier2
+PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
 ```
+
+Verified 2026-09-16: whole suite green against that URL, adapter guard
+included, so the desktop really was on its own GPU and really did reach nexus
+directly. This replaced a second, reverse tunnel
+(`ssh -N -R 5173:localhost:5173 ryzen`) that existed only to make nexus's
+loopback dev server visible to the desktop; if the LAN path is ever
+unavailable, that reverse tunnel plus plain `npm run dev` is still the
+fallback, with `PW_BASE_URL` left unset. An isolated worktree on another port
+needs `PW_BASE_URL=http://localhost:5183` and the reverse tunnel, since only
+5173 is routed.
 
 The one thing this cannot do for itself: **the `playwright run-server` it
 connects to must already be running in the Windows console session** (started
@@ -257,11 +266,13 @@ Then, with the tunnel open and `npm run dev` running on nexus:
 npm run test:tier2
 ```
 
-Expected: 6 passed — the adapter guard, the original camera sweep, three
-sweeps over Leyte at 100 m / 3,000 m / 8,000 m, and the frame-time budget. If
-the adapter test fails, read its printed summary before anything else — it is
-almost always telling you the browser fell back to a software rasterizer, not
-that anything else is wrong.
+Expect every test to pass; the count is deliberately not written down here,
+because it grows with each plan and a stale number reads as a failure. What
+the suite covers is the adapter guard, camera sweeps that assert zero WebGPU
+validation errors, the ocean's GPU-vs-CPU FFT and budget checks, and the
+frame-time budget. If the adapter test fails, read its printed summary before
+anything else — it is almost always telling you the browser fell back to a
+software rasterizer, not that anything else is wrong.
 
 **Flying somewhere specific.** The airplane spawns over open water 23 km from
 the nearest land, which is three minutes' flying. `?spawnX=&spawnY=&spawnZ=`
