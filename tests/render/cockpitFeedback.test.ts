@@ -103,6 +103,18 @@ describe('follow camera and numeric data', () => {
     expect(items.find(i => i.label === 'ALT')?.value).toBe('50000 ft')
     expect(items.find(i => i.label === 'THR')?.value).toBe('75 %')
     expect(items.find(i => i.label === 'FUEL')?.value).toBe('50% (125 gal)')
-    expect(items.map(i => i.label)).toEqual(['SPD', 'ALT', 'V/S', 'HDG', 'FUEL', 'THR', 'PITCH', 'BANK'])
+    expect(items.map(i => i.label)).toEqual(['SPD', 'ALT', 'V/S', 'HDG', 'FUEL', 'THR', 'PITCH', 'BANK', 'GEAR'])
+  })
+
+  it('shows three gear states, not two: up, down, and traveling in between', () => {
+    // gearAfter takes several seconds (spec.gear.travelSeconds), so a pilot
+    // who just toggled the gear spends real time in a state that is neither
+    // UP nor DOWN -- this must be a genuine third value, not a rounding of
+    // one of the other two.
+    const gearValue = (gearFraction: number): string | undefined =>
+      flightDataItems(spec, createState({ gearFraction }), NEUTRAL).find(i => i.label === 'GEAR')?.value
+    expect(gearValue(0)).toBe('UP')
+    expect(gearValue(1)).toBe('DOWN')
+    expect(gearValue(0.5)).toBe('TRANSIT')
   })
 })
