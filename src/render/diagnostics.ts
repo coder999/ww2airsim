@@ -100,6 +100,31 @@ export type Ww2Diagnostics = {
    */
   readonly impact: () => Impact | null
   /**
+   * Whether the wheels are currently carrying the airplane -- `supportedContact`
+   * (`src/sim/ground.ts`) evaluated against the live frame.
+   *
+   * Added in Task 13 for the take-off spec, and it is the one member that can
+   * tell "left the ground" from "was never on it". Height above the terrain
+   * cannot: `position.y` is the body origin, which sits `gear.heightM` above
+   * the wheels even while parked, so a spec comparing it to `groundHeightM()`
+   * reads as airborne from the instant the page loads.
+   *
+   * It is also the only outside view of the gate chain Plan 11a got wrong four
+   * separate times -- gear down, not arriving too fast, not descending above
+   * the speed cap, and the surface being LAND. Those are unit-tested
+   * individually; nothing proved the production frame satisfies them while
+   * parked on the actual runway.
+   *
+   * `false` before any terrain field has arrived, which is honest rather than
+   * convenient: with `World.terrain` still null there is no ground for the
+   * wheels to be on, and a ground spawn is held at zero elapsed time anyway
+   * (`FrameState.groundSpawn`). Callers should `waitForTerrain` first.
+   *
+   * A granular getter, not `frame: () => FrameState` -- the binding ruling on
+   * `impact` above applies unchanged.
+   */
+  readonly supportedContact: () => boolean
+  /**
    * Frame intervals in milliseconds since the last `resetFrameTimes()`, in
    * order, capped at `FRAME_TIME_CAPACITY` samples.
    *

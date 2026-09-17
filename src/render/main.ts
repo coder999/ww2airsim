@@ -40,6 +40,7 @@ import { parseAircraftSpec } from '../sim/content.js'
 import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { heightAt } from '../sim/world/terrain.js'
+import { supportedContact } from '../sim/ground.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
@@ -242,6 +243,18 @@ async function boot(): Promise<void> {
       // no impact to report, which is also the honest answer once a restart
       // has cleared one.
       impact: () => frame?.world.impact ?? null,
+      // Task 13: the take-off spec's only way to tell "left the ground" from
+      // "was never on it". Recomputed from the live frame rather than stored,
+      // because `supportedContact` is a pure predicate and `World` does not
+      // carry its result -- see the comment on this member in diagnostics.ts.
+      supportedContact: () =>
+        frame?.world.terrain
+          ? supportedContact(
+              frame.world.spec,
+              frame.world.aircraft,
+              heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z),
+            )
+          : false,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation

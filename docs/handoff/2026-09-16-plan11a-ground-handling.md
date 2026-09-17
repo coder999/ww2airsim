@@ -4,9 +4,10 @@ The F6F starts parked on the runway at Tacloban and takes off. The ground is a
 surface it rolls on rather than one it falls through.
 
 Merged to `main` as `de85b54` **before the plan finished**, at Mark's request, so
-he could fly it over the HTTPS dev loop. Two planned tasks and several findings
-from flying it remain — see "What is not done" at the bottom, which is the
-section to read if you are picking this up.
+he could fly it over the HTTPS dev loop. The remaining two tasks — the runway
+strip and the Tier 2 spec — landed on 2026-09-17, along with the two defects
+Mark found flying it. **Tier 2 has still never been executed**; "What is not
+done" at the bottom is the section to read if you are picking this up.
 
 Master spec §15 has the plan numbering and ordering; this document does not
 restate it.
@@ -98,6 +99,9 @@ has flown them.
 | `MAX_SUPPORTED_SINK_MPS` | 4.0 | A landing criterion that had to arrive early — an airplane must not-crash while stationary before it can roll. **11b tunes it** |
 | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` | 1.6 | |
 | `ARRIVAL_SINK_THRESHOLD_MPS` | 0.1 | Separates an arrival from a roll |
+| `RUNWAY_LENGTH_M` | 1500 | About 5,000 ft, reported as what the Tacloban strip was extended to after the October 1944 landings. Uncorroborated. Chosen against two measured things: it fits inside the 1.8 km of flat north-south ground, and it contains the 410-453 m roll about 1.6 times over from a centre start |
+| `RUNWAY_WIDTH_M` | 45 | The modern field's width. A 1944 Marston-mat strip was nearer 30 m, so this is generous — deliberately, since nothing yet makes the airplane track straight on the ground |
+| `RUNWAY_SURFACE_OFFSET_M` | 0.05 | Anti-z-fighting only, and therefore a 5 cm lie: the physics reads `heightAt` and knows nothing about the mesh. **Whether 5 cm is enough at a grazing angle a kilometre down the strip is unverified** — it cannot be checked headless |
 
 ## What "on the ground" turned out to mean
 
@@ -137,24 +141,51 @@ crashed whatever its wheels are doing. There is a comment saying so.
   and the same mutation now fails immediately. **An assertion that never fires is
   worse than none**, because it reports "zero failures" indistinguishably from a
   working check.
-- **Tier 2 (Playwright, real GPU): NOT executed.** Run on the Windows desktop:
-  `npx playwright test tests/e2e/takeoff.spec.ts` — but note Task 13 never ran,
-  so that spec does not exist yet.
+- **Tier 2 (Playwright, real GPU): written 2026-09-17, NOT executed.** Run it on
+  the Windows reference desktop:
+  `npx playwright test tests/e2e/takeoff.spec.ts`. It flies the DEFAULT spawn
+  with no query string — deliberately not the `?spawnX/Y/Z` the plan's brief
+  suggested, because `hasSpawnOverride` turns `groundSpawn` OFF for any
+  override and would hand the test an airborne airplane with its gear up. It
+  asserts `supportedContact()` is true while parked (the only outside view of
+  the gate chain this plan got wrong four times), that the roll goes north
+  rather than east, and that the airplane leaves the ground and is still clear
+  of it two seconds later. Its timeout is raised to 150 s because the roll
+  happens in real time.
 - **Tier 3: partially done.** Mark took off successfully on 2026-09-16 and found
   two defects doing it, both since fixed: the airplane spawned buried to its wing
   root, and it could drive across the ocean instead of crashing.
 
 ## What is not done
 
-**Planned but never executed:**
+**Planned, and now done (2026-09-17):**
 
-- **Task 11, the visual runway strip.** You take off from ordinary terrain at the
-  real airfield location. Tacloban's ground there is essentially a table —
-  measured 1.2 m to 1.7 m over 1.8 km north-south — so it flies correctly; it
-  just does not look like an airfield. The strip must run **north-south**: east-
-  west has 3.1 m of spread because the coastline falls to the sea.
-- **Task 13, docs and Tier 2.** This document is the docs half, written early and
-  by hand. The Tier 2 spec does not exist.
+- **Task 11, the visual runway strip** — `src/render/scene/runway.ts`, 1500 m by
+  45 m, north-south, draped over the real heightfield.
+- **Task 13, docs and Tier 2** — the spec exists; it has not been run.
+
+**The one decision Task 11 forced, which the plan did not anticipate.** The
+strip had to run north-south, but the airplane was parked facing **east**, on a
+`qIdentity()` attitude left over from the airborne spawn Task 14 replaced. Built
+as specified, the strip would have gone in crossways under an airplane taking
+off across it and out to sea. Measured on the committed L4 field from
+`DEFAULT_SPAWN_POSITION`, sampling every 30 m:
+
+| Direction | Height spread over ±900 m | Sea ahead of the nose |
+| --- | --- | --- |
+| east — the old identity nose | 3.23 m | 900 m |
+| north | 0.49 m | none within 900 m |
+
+The roll to liftoff is 410-453 m, so an east-facing take-off cleared the coast
+by about half its own roll — which is why `tests/sim/soak.test.ts` already
+carried a case for Mark driving off the end of the runway onto the ocean. Mark's
+decision, 2026-09-17: turn the spawn north. Nothing graded moved, and that is
+why it was cheap — `tests/render/frame.test.ts`'s Task 14 check REPORTS its roll
+distance and only asserts it is positive, and the graded card runs over
+synthetic flat ground on purpose. The three fields a spawn's kind decides
+(velocity, attitude, gear) were three separate ternaries inline in `main.ts`
+where no Tier 1 test could reach them, and the attitude was the one that had
+rotted; they are now `initialAircraftState` in `spawn.ts`, with tests.
 
 **Known gaps, deliberately left:**
 
@@ -178,6 +209,30 @@ crashed whatever its wheels are doing. There is a comment saying so.
 - **The runway is bumpier in the main checkout than in a fresh clone.** The fine
   L0 tiles are gitignored and optional: 2.12% worst local grade at L0 against
   0.30% at L4, through the same line at Tacloban.
+- **Moving the spawn ashore made the sea look flat, and that is this plan's
+  doing.** Reported by Mark on 2026-09-17 as "the ocean waves completely
+  disappeared". Nothing in `src/render/ocean/` has changed since `b6a3929`,
+  well before this plan. The cause is that the ocean shader multiplies all wave
+  displacement by `smoothstep(0, 100, depth)` (`src/render/ocean/mesh.ts`) —
+  **full wave amplitude requires 100 m of water** — and the old default spawn
+  sat over 125 m of it while the new one looks out over San Pedro Bay:
+
+  | Viewpoint | Depth | Wave amplitude multiplier |
+  | --- | --- | --- |
+  | old spawn `(0, 600, 0)` | 125.0 m | **1.000** |
+  | from the runway, sea 900 m east | 2.0 m | **0.001** |
+  | 4 km east | 5.7 m | 0.009 |
+  | 16 km east | 0.0 m | 0.000 |
+
+  A second, much smaller term compounds it: the polar mesh's angular fade kills
+  wavelengths it cannot sample, so from a 2 m eye height the 0.24 m ripples are
+  gone beyond 10 m, the 4 m chop beyond 163 m, and the 32 m swell starts fading
+  at 652 m and is gone past 1,304 m. At the 900 m coastline that swell still
+  retains 68% weight, so **the depth term dominates by roughly a factor of
+  1,000** — fix that one first. Mark's call, 2026-09-17: fix both, the depth
+  ramp and an eye-height-aware angular fade. The latter touches the measured
+  GPU tier budgets in `src/render/ocean/tiers.ts` and will need re-measuring on
+  the reference desktop.
 
 ## The record
 

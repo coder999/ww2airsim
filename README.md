@@ -25,8 +25,19 @@ shallow-water attenuation and foam (Plan 5). See the
 [ocean handoff](docs/handoff/2026-09-15-plan5-ocean.md) for GPU measurements,
 visual comparisons and the remaining art-direction questions.
 
-Ground and water contact now ends the flight (Plan 10, below). Take-off and
-landing, ships and airfields, combat, AI and the meta-game all remain ahead.
+Ground and water contact now ends the flight (Plan 10, below). And the
+airplane now starts **parked on a runway at Tacloban and takes off from it**
+(Plan 11a): the ground is a surface it rolls on rather than one it falls
+through. Gear that takes seconds to move and costs drag while it hangs out,
+rolling friction and wheel brakes, a tailwheel that steers until the tail
+comes up, and a visual strip draped over the real heightfield — running
+north-south, because east-west through the airfield runs into the sea. The
+graded historical take-off card measures that real ground now instead of a
+pinned state, inside a tolerance tightened from 10% to 2%; read the
+[handoff](docs/handoff/2026-09-16-plan11a-ground-handling.md) before trusting
+that agreement, because it records exactly which of its inputs are guesses.
+Landing ashore is Plan 11b and is **not yet achievable in practice**. Ships
+and airfields, combat, AI and the meta-game all remain ahead.
 Mark reordered them on 2026-09-16 so that the ground under the airplane comes
 before there is anybody to shoot at; plan numbers were deliberately NOT
 reused, for the reason the next paragraph records. **Master spec §15 holds the

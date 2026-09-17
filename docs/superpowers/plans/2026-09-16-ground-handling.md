@@ -945,15 +945,15 @@ git commit -m "Say whether the gear is down"
 - Create: `tests/e2e/takeoff.spec.ts`, `docs/handoff/2026-09-16-plan11a-ground-handling.md`
 - Modify: `README.md`, `docs/superpowers/specs/2026-09-12-ww2airsim-design.md`
 
-- [ ] **Step 1: Write the Tier 2 spec**
+- [x] **Step 1: Write the Tier 2 spec**
 
 Spawn on the runway with `?spawnX/Y/Z` at Tacloban's coordinate, hold full throttle, and assert the airplane leaves the ground: altitude climbs above the contact tolerance and stays there. Read state through the granular `__ww2` getters — Plan 10 added `impact()`; add a gear or on-ground getter the same way if needed, **never a whole-frame getter**, and keep it inside the `import.meta.env.DEV` guard so `tests/build/dist.test.ts` keeps passing.
 
-- [ ] **Step 2: Do NOT run Playwright; say so**
+- [x] **Step 2: Do NOT run Playwright; say so**
 
 Tier 2 needs the Windows reference desktop with a Playwright server in Mark's console session. Verify everything you can — typecheck, lint, `npm run verify`, `npm run build` — and record Tier 2 as outstanding with the exact command. Do not fabricate a run.
 
-- [ ] **Step 3: Update §15 and the README**
+- [x] **Step 3: Update §15 and the README**
 
 Plan 11a's row to Complete with a handoff link; the `— next` marker to 11b. README paragraph on what take-off now does, pointing at §15 rather than restating it.
 
@@ -966,7 +966,7 @@ Follow `docs/handoff/2026-09-16-plan10-contact.md`'s shape. It must record, accu
 - That the runway is **bumpier in the main checkout than in a fresh clone** — 2.12% worst local grade at L0 against 0.30% at L4 — because the fine tiles are optional and gitignored.
 - Tier 2 and Tier 3 both outstanding, with the Tier 2 command.
 
-- [ ] **Step 5: `npm run verify` exits 0; commit**
+- [x] **Step 5: `npm run verify` exits 0; commit**
 
 ---
 
