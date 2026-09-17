@@ -463,7 +463,7 @@ git commit -m "Flaps cost drag while they are hanging out"
 
 **This is the acceptance test for Tasks 1–3, and it is a sourced historical figure rather than a self-consistency check.** It reuses `measureStallSpeed` rather than adding a second stall measurement — that function already carries the hard-won part, including its refusal to report "whatever the airspeed happened to be" when the wing never stalls inside the run.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/sim/testcards/f6f.test.ts — append
@@ -494,12 +494,12 @@ it('stalls slower with the flaps down than clean, by about the derived ratio', (
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/testcards/f6f.test.ts`
 Expected: FAIL — `measureStallSpeed` takes two arguments, so the flap setting is ignored and both stall speeds come out equal.
 
-- [ ] **Step 3: Thread a flap setting through the card**
+- [x] **Step 3: Thread a flap setting through the card**
 
 In `tools/testcards/measure.ts`:
 
@@ -533,11 +533,11 @@ export function measureStallSpeed(spec: AircraftSpec, altitudeM: number, flapFra
 
 **If the measured figure misses 2%:** the lever is `flap.clIncrement`, and it is re-derived rather than nudged — recompute it from the two sourced stall speeds and the curve's actual peak, and record the new arithmetic in `reference.source`. Do NOT widen the tolerance; the whole value of this card is that it grades against a number nobody in this project chose.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `npm run verify` — exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/testcards/measure.ts tests/sim/testcards/f6f.test.ts

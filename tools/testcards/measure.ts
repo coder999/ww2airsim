@@ -200,11 +200,20 @@ export function measureClimbRate(spec: AircraftSpec, altitudeM: number): number 
  * airspeed at that moment. This is a 1-g stall: the autopilot demands level
  * flight all the way down, so the angle of attack rises as the speed decays
  * and `isStalled` fires when the wing can no longer carry the weight.
+ *
+ * `flapFraction` defaults to 0 -- the clean configuration every caller before
+ * Plan 11b measured, and the one `reference.stallSpeedMps` is a figure for.
+ * Pass 1 for the landing-configuration card graded against
+ * `reference.stallSpeedFlapMps`.
  */
 const STALL_MAX_S = 300
 
-export function measureStallSpeed(spec: AircraftSpec, altitudeM: number): number {
-  let s = spawn(spec, altitudeM, spec.rates.rateRefSpeedMps)
+export function measureStallSpeed(spec: AircraftSpec, altitudeM: number, flapFraction = 0): number {
+  // Held at the configuration this card measures, not lowered during the run:
+  // the card grades a CONFIGURATION, not a transition. `flapDown` is left
+  // undefined in the controls below so `flapAfter` holds the travel where this
+  // line put it -- see its doc comment on the hold rule.
+  let s: AircraftState = { ...spawn(spec, altitudeM, spec.rates.rateRefSpeedMps), flapFraction }
   let tick = 0
   for (let i = 0; i < 60 * STALL_MAX_S; i++) {
     tick++
@@ -215,8 +224,9 @@ export function measureStallSpeed(spec: AircraftSpec, altitudeM: number): number
   // stall speed of "whatever the airspeed happened to be" -- it means the
   // decelerating glide never got there, and that has to be loud.
   throw new Error(
-    `measureStallSpeed for "${spec.id}" at altitude ${altitudeM} m never stalled within ` +
-      `${STALL_MAX_S} s of simulated time (airspeed ${airspeed(s).toFixed(3)} m/s at that point)`,
+    `measureStallSpeed for "${spec.id}" at altitude ${altitudeM} m with flaps at ${flapFraction} ` +
+      `never stalled within ${STALL_MAX_S} s of simulated time ` +
+      `(airspeed ${airspeed(s).toFixed(3)} m/s at that point)`,
   )
 }
 

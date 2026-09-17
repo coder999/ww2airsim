@@ -45,6 +45,60 @@ describe('F6F-5 flight test card', () => {
     expect(r.pass, `stall ${r.actual.toFixed(1)} m/s vs reference ${r.expected} (${(r.err * 100).toFixed(1)}% off)`).toBe(true)
   })
 
+  /**
+   * Plan 11b's acceptance test for the flap model, and a SOURCED figure rather
+   * than a self-consistency check: 84.5 mph is the landing-condition power-off
+   * stall from the same Patuxent table that gives the clean 98.0 mph one
+   * above. `f6f-hellcat.json` carried it in prose for two plans, flagged as
+   * "unreachable for a model with no high-lift devices".
+   *
+   * Tolerance matches the clean card's 20% deliberately -- it is the same
+   * measurement through the same `measureStallSpeed` harness, so it carries the
+   * same noise, and inventing a tighter one for the new card would be claiming
+   * a precision the old one does not have.
+   *
+   * Measured 2026-09-17, and the comparison between the two cards is the real
+   * evidence that the derived increment is right:
+   *
+   * | Card | Measured | Trial | Error |
+   * | --- | --- | --- | --- |
+   * | clean stall | 45.38 m/s | 43.81 | +3.6% |
+   * | full-flap stall | 38.96 m/s | 37.775 | +3.1% |
+   *
+   * The flap figure is no worse than the clean one and is biased the same way,
+   * so the flap model is inheriting this model's existing stall bias rather
+   * than adding error of its own. A flap model that was wrong would show up as
+   * a DIVERGENCE between these two rows, which is why both are recorded here
+   * rather than only the new one.
+   */
+  it('stalls near its documented LANDING-configuration stall speed with the flaps down', () => {
+    const r = within(measureStallSpeed(f6f, 0, 1), ref.stallSpeedFlapMps, 0.2)
+    expect(
+      r.pass,
+      `flap stall ${r.actual.toFixed(2)} m/s vs reference ${r.expected} (${(r.err * 100).toFixed(2)}% off)`,
+    ).toBe(true)
+  })
+
+  it('stalls slower with the flaps down than clean, by about the derived ratio', () => {
+    // The DIRECTION is the point. If `flap.clIncrement` were wired to
+    // `aero.clMax` -- the obvious mistake, since that field exists and looks
+    // load-bearing but has been inert since Plan 1's finding C1 -- both numbers
+    // would come out identical and the card above would fail without saying
+    // why. 1.3451 is (43.81 / 37.7749)^2, the two sourced stall speeds.
+    const clean = measureStallSpeed(f6f, 0, 0)
+    const flapped = measureStallSpeed(f6f, 0, 1)
+    console.log(
+      `stall clean ${clean.toFixed(2)} m/s, full flap ${flapped.toFixed(2)} m/s, ` +
+        `CLmax ratio ${((clean / flapped) ** 2).toFixed(4)} against the derived 1.3451`,
+    )
+    expect(flapped).toBeLessThan(clean)
+    // Measured 2026-09-17: 1.3566, which is 0.85% off the derived target. The
+    // tolerance is one decimal place because the target is derived from two
+    // trial figures and reached through a 300 s simulated deceleration, not
+    // because a tighter agreement was unavailable.
+    expect((clean / flapped) ** 2).toBeCloseTo(1.3451, 1)
+  })
+
   // Ruling R4: measured at altitude 0, not the brief's 1000 m. Rate authority
   // scales dynamic pressure against SEA-LEVEL dynamic pressure at the
   // reference speed, so only altitude 0 gives authority exactly 1.0. Measuring
