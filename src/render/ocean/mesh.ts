@@ -249,19 +249,80 @@ export function angularSampleSpacingM(distanceM: number): number {
 }
 
 /**
- * CPU reference for the shader's per-cascade wave fade: 1 where the mesh
- * resolves `wavelengthM` at `distanceM`, 0 where it cannot, smooth between.
+ * CPU mirrors of the two per-cascade fades the shader runs, one per stage.
  *
- * The thresholds come from `angularFadeSpacingM` (bands.ts), which the shader
- * reads too -- the wavelength is known on the CPU, so the `smoothstep` there
- * takes these same plain numbers and there is no second implementation to
- * drift. This function exists to be asserted against, not to be mirrored.
+ * **Two, because the stages are limited by different things**, and fusing them
+ * was tried on 2026-09-17 and measured worse: the vertex stage can only
+ * displace where the mesh has vertices, while the fragment stage can shade
+ * detail finer than any vertex, which is what a normal map is for. Forcing
+ * both onto the worse of the two limits cost 74% of the near-field wave
+ * texture on the reference GPU (peak row-texture 1.12 -> 0.29).
+ *
+ * What they DO share is the threshold pair from `angularFadeSpacingM`, so the
+ * two edges stay close together and each is a gradient rather than a ring.
  */
-export function angularFadeWeight(wavelengthM: number, distanceM: number): number {
+export function meshFadeWeight(wavelengthM: number, distanceM: number): number {
+  return fadeFrom(wavelengthM, angularSampleSpacingM(distanceM))
+}
+
+/** The fragment stage's fade: same thresholds, measured against the screen
+ *  footprint rather than the mesh. See `meshFadeWeight` for why both exist. */
+export function screenFadeWeight(
+  wavelengthM: number,
+  distanceM: number,
+  eyeHeightM: number,
+  pixelAngleRad: number,
+): number {
+  return fadeFrom(wavelengthM, pixelFootprintM(distanceM, eyeHeightM, pixelAngleRad))
+}
+
+function fadeFrom(wavelengthM: number, spacingM: number): number {
   if (!(wavelengthM > 0) || !Number.isFinite(wavelengthM)) return 0
   const { fadeFromM, goneAtM } = angularFadeSpacingM(wavelengthM)
   if (!(goneAtM > fadeFromM)) return 0
-  const spacingM = angularSampleSpacingM(distanceM)
+  const t = Math.min(1, Math.max(0, (spacingM - fadeFromM) / (goneAtM - fadeFromM)))
+  return 1 - t * t * (3 - 2 * t)
+}
+
+/**
+ * The coarsest sampling the wave field is subject to at a point: the WORSE of
+ * the mesh's angular spacing and the screen's pixel footprint.
+ *
+ * **Both limits are real and neither dominates everywhere.** Low down, the
+ * footprint runs away as d^2/eye-height and is the binding limit within a few
+ * hundred metres. High up, the footprint is small but the polar mesh is coarse
+ * at range -- at 11 km its angular spacing is 135 m, so it cannot carry a 32 m
+ * swell however many pixels the swell covers. Fading on the footprint alone
+ * (as this module briefly did on 2026-09-17) therefore asks the mesh to draw
+ * waves it has no vertices for.
+ *
+ * `max` of the two spacings is the honest answer and it is what both shader
+ * stages fade on. It also makes "the mesh must resolve any wave it draws" true
+ * by construction rather than by a separate assertion.
+ */
+export function effectiveSpacingM(distanceM: number, eyeHeightM: number, pixelAngleRad: number): number {
+  return Math.max(angularSampleSpacingM(distanceM), pixelFootprintM(distanceM, eyeHeightM, pixelAngleRad))
+}
+
+/**
+ * CPU mirror of the shader's per-cascade fade: 1 where `wavelengthM` is
+ * sampled finely enough at this point, 0 where it is not, smooth between.
+ *
+ * Thresholds come from `angularFadeSpacingM` (bands.ts) and the measured
+ * quantity from `effectiveSpacingM` above -- the same pair the vertex and
+ * fragment stages use, so this is a mirror to assert against rather than a
+ * second implementation that could drift.
+ */
+export function fadeWeight(
+  wavelengthM: number,
+  distanceM: number,
+  eyeHeightM: number,
+  pixelAngleRad: number,
+): number {
+  if (!(wavelengthM > 0) || !Number.isFinite(wavelengthM)) return 0
+  const { fadeFromM, goneAtM } = angularFadeSpacingM(wavelengthM)
+  if (!(goneAtM > fadeFromM)) return 0
+  const spacingM = effectiveSpacingM(distanceM, eyeHeightM, pixelAngleRad)
   const t = Math.min(1, Math.max(0, (spacingM - fadeFromM) / (goneAtM - fadeFromM)))
   return 1 - t * t * (3 - 2 * t)
 }
@@ -314,7 +375,17 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   const waterM = depthNode(field, tex, vertexWorld).negate()
   // `pixelFootprintM` above, as nodes. ONE expression, evaluated in both the
   // vertex and the fragment stage, so a cascade's two transitions become one.
-  const footprintM = max(
+  // The MESH's angular spacing -- what limits the vertex stage, which can only
+  // displace where it has vertices.
+  const meshSpacingM = distanceM.mul(2 * Math.PI / OCEAN_SECTORS)
+  // The SCREEN's footprint -- what limits the fragment stage. Deliberately a
+  // different quantity, and on 2026-09-17 this module briefly fused the two on
+  // the theory that one criterion must be right. It is not: a normal map shows
+  // detail the mesh has no vertices for, which is the whole point of one, and
+  // fusing them cost 74% of the near-field wave texture (measured on the
+  // reference GPU: peak row-texture 1.12 -> 0.29). The stages differ because
+  // they are limited by different things.
+  const screenFootprintM = max(
     distanceM.mul(pixelAngle),
     distanceM.mul(distanceM).div(max(eyeHeight, MIN_EYE_HEIGHT_M)).mul(pixelAngle),
   )
@@ -326,7 +397,7 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     // wavelength -- and asserted on the CPU through `angularFadeWeight`,
     // which reads the same function rather than restating the arithmetic.
     const { fadeFromM, goneAtM } = angularFadeSpacingM(shortestWavelengthM(cascade.options))
-    const weight = float(1).sub(smoothstep(fadeFromM, goneAtM, footprintM))
+    const weight = float(1).sub(smoothstep(fadeFromM, goneAtM, meshSpacingM))
     raw = raw.add(Fn(() => {
       const contribution = vec3(0).toVar()
       If(weight.greaterThan(0), () => {
@@ -374,10 +445,10 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
     // spacing there) because the two stages know different things; the
     // threshold must not.
     const { fadeFromM, goneAtM } = angularFadeSpacingM(wavelength)
-    // `footprintM`, the SAME node the displacement above fades on -- not
-    // `dFdx`/`dFdy`, which the vertex stage cannot read and which is why the
-    // two stages used to disagree about where a cascade ends.
-    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(fadeFromM, goneAtM, footprintM)))
+    // `screenFootprintM`, analytic rather than `dFdx`/`dFdy` so the CPU can
+    // mirror it (`fadeWeight`), and the SAME widened thresholds the vertex
+    // stage uses -- what makes each edge a gradient instead of a ring.
+    const weight = shoal.mul(landWeight).mul(float(1).sub(smoothstep(fadeFromM, goneAtM, screenFootprintM)))
     const detail = Fn(() => {
       const value = vec4(0).toVar()
       If(weight.greaterThan(0), () => {

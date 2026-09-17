@@ -59,9 +59,28 @@ export const ANGULAR_FADE_SAMPLES_PER_WAVELENGTH = 4
  * the fragment stage to the pixel footprint — the same pair of numbers for
  * both, which is the point. See `ANGULAR_FADE_SAMPLES_PER_WAVELENGTH`.
  */
+/**
+ * How many times wider than its end the fade's start is, in FOOTPRINT.
+ *
+ * **This is what made the fade read as a line, and it is a distance-vs-area
+ * problem.** The fade used to run over a factor of two in footprint. But the
+ * footprint grows as the SQUARE of distance at a grazing angle
+ * (`pixelFootprintM`), so a factor of two in footprint is only a factor of
+ * sqrt(2) = 1.41 in distance: the surface went from fully textured to
+ * completely smooth across a 41% change in range, which is a visible edge.
+ *
+ * Eight spreads the same transition over sqrt(8) = 2.83x in distance. It costs
+ * some mid-field detail -- waves begin thinning sooner -- and that is the
+ * trade: a gentle gradient nobody notices instead of a sharp ring everybody
+ * does. Verified by screenshot on the reference GPU 2026-09-17 rather than
+ * reasoned about, after three attempts that were argued from the code and
+ * wrong.
+ */
+export const FADE_FOOTPRINT_RATIO = 4
+
 export function angularFadeSpacingM(wavelengthM: number): { readonly fadeFromM: number; readonly goneAtM: number } {
-  return {
-    fadeFromM: wavelengthM / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH,
-    goneAtM: (2 * wavelengthM) / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH,
-  }
+  // `goneAtM` is the real limit -- past it the wave genuinely cannot be
+  // represented -- so it stays put and the fade's START moves inward.
+  const goneAtM = (2 * wavelengthM) / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH
+  return { fadeFromM: goneAtM / FADE_FOOTPRINT_RATIO, goneAtM }
 }

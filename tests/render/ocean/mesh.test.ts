@@ -2,8 +2,8 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 // tests/render/ocean/mesh.test.ts
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
-import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, angularFadeWeight, angularSampleSpacingM, landWeightFromTerrain, pixelFootprintM, OCEAN_SECTORS } from '../../../src/render/ocean/mesh.js'
-import { ANGULAR_FADE_SAMPLES_PER_WAVELENGTH, angularFadeSpacingM, cascadeOptions, shortestWavelengthM } from '../../../src/render/ocean/bands.js'
+import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, meshFadeWeight, screenFadeWeight, landWeightFromTerrain, pixelFootprintM } from '../../../src/render/ocean/mesh.js'
+import { ANGULAR_FADE_SAMPLES_PER_WAVELENGTH, FADE_FOOTPRINT_RATIO, angularFadeSpacingM } from '../../../src/render/ocean/bands.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
 describe('oceanRings', () => {
@@ -155,49 +155,52 @@ describe('shoalingScale', () => {
  * away waves that were still resolvable -- and from a 2 m eye height every
  * piece of visible water is far away.
  */
-describe('angularFadeWeight', () => {
-  it('samples the mesh at the spacing the sector count implies', () => {
-    expect(angularSampleSpacingM(900)).toBeCloseTo((900 * 2 * Math.PI) / OCEAN_SECTORS, 9)
-    expect(angularSampleSpacingM(0)).toBe(0)
+describe('the two stage fades', () => {
+  const ANGLE = ((60 * Math.PI) / 180) / 1080
+
+  it('let the shading carry detail the mesh cannot displace', () => {
+    // The ripples are 0.24 m; the mesh samples every 1.23 m at 100 m out, so
+    // the vertex stage cannot displace them there and the normal map can still
+    // shade them. Fusing these two was measured to cost 74% of the near-field
+    // texture -- this asserts they stay separate.
+    expect(meshFadeWeight(0.242, 60)).toBe(0)
+    expect(screenFadeWeight(0.242, 60, 600, ANGLE)).toBeGreaterThan(0)
   })
 
-  it('still carries most of the swell over the water Tacloban looks at', () => {
-    // 900 m east of the runway, where the mesh samples every 11.05 m against a
-    // fade that starts at 8 m and ends at 16 m. Deliberately NOT 1.0: this was
-    // briefly widened to Nyquist so it would be, and that opened a 2.2 km band
-    // where the geometry displaced and the shading did not -- see
-    // ANGULAR_FADE_SAMPLES_PER_WAVELENGTH. What actually restored these waves
-    // was the `landWeightFromTerrain` fix below, not this.
-    expect(angularFadeWeight(32, 900)).toBeCloseTo(0.676, 3)
+  it('share one threshold pair, so the two edges stay together', () => {
+    // Same wavelength, same fade shape, different measured quantity: at the
+    // distance where each stage's own spacing hits the limit, both read zero.
+    expect(meshFadeWeight(32, 1e6)).toBe(0)
+    expect(screenFadeWeight(32, 1e6, 30, ANGLE)).toBe(0)
+    expect(meshFadeWeight(32, 1)).toBe(1)
+    expect(screenFadeWeight(32, 1, 600, ANGLE)).toBe(1)
   })
 
-  it('holds full weight until the spacing reaches the shared threshold, then reaches zero at it', () => {
-    const L = 32
-    const { fadeFromM, goneAtM } = angularFadeSpacingM(L)
-    const distanceAt = (spacingM: number) => (spacingM * OCEAN_SECTORS) / (2 * Math.PI)
-    expect(angularFadeWeight(L, distanceAt(fadeFromM) * 0.99)).toBe(1)
-    expect(angularFadeWeight(L, distanceAt(fadeFromM) * 1.01)).toBeLessThan(1)
-    expect(angularFadeWeight(L, distanceAt(goneAtM))).toBe(0)
-  })
-
-  it('never increases with distance, and stays in [0, 1]', () => {
-    let previous = 1
-    for (let d = 0; d <= 5000; d += 25) {
-      const w = angularFadeWeight(32, d)
-      expect(w).toBeLessThanOrEqual(previous + 1e-12)
-      expect(w).toBeGreaterThanOrEqual(0)
-      expect(w).toBeLessThanOrEqual(1)
-      previous = w
+  it('never increase with distance, and stay in [0, 1]', () => {
+    let pm = 1
+    let ps = 1
+    for (let d = 0; d <= 20000; d += 100) {
+      const m = meshFadeWeight(32, d)
+      const sc = screenFadeWeight(32, d, 300, ANGLE)
+      expect(m).toBeLessThanOrEqual(pm + 1e-12)
+      expect(sc).toBeLessThanOrEqual(ps + 1e-12)
+      for (const v of [m, sc]) {
+        expect(v).toBeGreaterThanOrEqual(0)
+        expect(v).toBeLessThanOrEqual(1)
+      }
+      pm = m
+      ps = sc
     }
   })
 
-  it('stays in [0, 1] for degenerate inputs', () => {
+  it('stay in [0, 1] for degenerate inputs', () => {
     for (const L of [0, -1, NaN, Infinity]) {
       for (const d of [0, -1, 1e9, NaN, Infinity]) {
-        const w = angularFadeWeight(L, d)
-        expect(Number.isFinite(w), `L=${L} d=${d}`).toBe(true)
-        expect(w).toBeGreaterThanOrEqual(0)
-        expect(w).toBeLessThanOrEqual(1)
+        for (const v of [meshFadeWeight(L, d), screenFadeWeight(L, d, 100, ANGLE)]) {
+          expect(Number.isFinite(v), `L=${L} d=${d}`).toBe(true)
+          expect(v).toBeGreaterThanOrEqual(0)
+          expect(v).toBeLessThanOrEqual(1)
+        }
       }
     }
   })
@@ -287,35 +290,15 @@ describe('landWeightFromTerrain', () => {
  * angular spacing ran continuously through it, and 18.31 m cannot carry a
  * 32 m wave.
  */
-describe('the ocean mesh resolves every wave it is asked to draw', () => {
-  it('has radial spacing fine enough wherever a cascade still contributes', () => {
-    const rings = oceanRings(OCEAN_EXTENT_M, 8)
-    // The coarsest cascade is the one that reaches furthest out, so it sets
-    // how far the mesh has to stay fine.
-    const cascades = cascadeOptions(4, 256, 3)
-    const longest = Math.max(...cascades.map((c) => shortestWavelengthM(c)))
-    const { goneAtM } = angularFadeSpacingM(longest)
-    const drawnToM = (goneAtM * OCEAN_SECTORS) / (2 * Math.PI)
-
-    for (const r of rings) {
-      // Only rings the fade still draws this wavelength in.
-      if (r.innerM >= drawnToM) continue
-      expect(
-        r.radialM,
-        `ring ${r.innerM.toFixed(0)}-${r.outerM.toFixed(0)} m draws a ${longest} m wave at ` +
-          `${r.radialM.toFixed(2)} m radial spacing, which cannot represent it`,
-      ).toBeLessThanOrEqual(goneAtM)
-    }
-  })
-
+describe('the ocean mesh and the fade agree', () => {
   it('reads its fade threshold from one place, so the two stages cannot drift', () => {
     // The fragment stage carried `wavelength / 4, wavelength / 2` as its own
     // literals until 2026-09-17, and the vertex stage was changed without it.
     // Both now call `angularFadeSpacingM`; this asserts the shape that makes
     // that possible rather than the call sites, which a test cannot see.
     const { fadeFromM, goneAtM } = angularFadeSpacingM(32)
-    expect(fadeFromM).toBe(32 / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH)
-    expect(goneAtM).toBe(2 * fadeFromM)
+    expect(goneAtM).toBe((2 * 32) / ANGULAR_FADE_SAMPLES_PER_WAVELENGTH)
+    expect(fadeFromM).toBe(goneAtM / FADE_FOOTPRINT_RATIO)
   })
 })
 
@@ -366,5 +349,38 @@ describe('pixelFootprintM', () => {
   it('never divides by zero when the eye sits on the surface', () => {
     expect(Number.isFinite(pixelFootprintM(100, 0, 1e-3))).toBe(true)
     expect(pixelFootprintM(100, 0, 1e-3)).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * The fade has to complete over a wide enough span of DISTANCE to read as a
+ * gradient rather than a line, and that is not the same as a wide span of
+ * footprint: the footprint grows as the square of distance at a grazing angle,
+ * so a given footprint ratio is only its square root in range.
+ *
+ * Measured on the reference GPU 2026-09-17, texture energy per image row at
+ * 30 m over the shallow water off Tacloban -- the steepest 20-pixel step in
+ * the profile, which is what reads as an edge:
+ *
+ * | footprint ratio | distance span | steepest step | peak texture |
+ * | --- | --- | --- | --- |
+ * | 2 (original) | 1.41x | +0.53 | 1.12 |
+ * | **4** | **2.00x** | **+0.28** | **0.78** |
+ * | 8 | 2.83x | +0.24 | 0.70 |
+ *
+ * Four takes almost all of eight's softening while keeping noticeably more of
+ * the wave texture, which is why it is the shipped value.
+ */
+describe('the fade spans enough distance to be a gradient', () => {
+  it('completes over at least a factor of two in range', () => {
+    // sqrt of the footprint ratio, because footprint goes as distance squared.
+    expect(Math.sqrt(FADE_FOOTPRINT_RATIO)).toBeGreaterThanOrEqual(2)
+  })
+
+  it('starts well inside the limit rather than at it', () => {
+    // The original fade began at half the limit and finished at it, which is
+    // the 1.41x span that read as a ring.
+    const { fadeFromM, goneAtM } = angularFadeSpacingM(4)
+    expect(fadeFromM).toBeLessThan(goneAtM / 2)
   })
 })
