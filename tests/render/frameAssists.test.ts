@@ -92,6 +92,15 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     // between the two roll directions. A wiring that passed no assist to
     // `advance` gives the OFF number in both arms, which is why the off arm is
     // flown here rather than quoted.
+    //
+    // RE-MEASURED 2026-09-17 at aero.cySlopePerRad 2.00 (it was 0.10 when the
+    // numbers above were taken): 2.236 degrees off, 1.100 on, still mirrored.
+    // The side force now does part of what only the auto-rudder used to do --
+    // it bends the track toward the nose, so a roll-and-recover ends less
+    // slipped even unassisted -- which is why both bounds below moved: the
+    // "actually slipping" floor from 3 to 1.5, and the on/off ratio from a
+    // half to 0.6 (measured 0.49, which cleared the old half by 1.6% -- too
+    // thin for a bound whose job is to prove wiring, not tune a coefficient).
     for (const rollKey of ['ArrowRight', 'ArrowLeft']) {
       const off = fly(fly(start(NONE), 3, keys(rollKey, 'Equal')), 4, keys('Equal'))
       const on = fly(fly(start(only('autoRudder')), 3, keys(rollKey, 'Equal')), 4, keys('Equal'))
@@ -100,8 +109,8 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
       // Bounded on both sides: an assist that ran but did nothing would leave
       // these equal, and `toBeLessThan` alone would also accept a difference
       // too small to be the real correction.
-      expect(slipOff, `${rollKey}: the unassisted arm must actually be slipping`).toBeGreaterThan(3)
-      expect(slipOn, rollKey).toBeLessThan(slipOff / 2)
+      expect(slipOff, `${rollKey}: the unassisted arm must actually be slipping`).toBeGreaterThan(1.5)
+      expect(slipOn, rollKey).toBeLessThan(slipOff * 0.6)
     }
   })
 

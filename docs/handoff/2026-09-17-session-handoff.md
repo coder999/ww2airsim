@@ -58,9 +58,10 @@ stick.
 > With the card fixed, `aero.cySlopePerRad` was raised to **0.90** in the
 > commit after; the retention table above reproduced exactly (29 / 57 / 72%)
 > before the change was made. Mark flew it that evening, liked the lateral
-> movement, and asked for **1.00**, which is now shipped. He also asked for
-> ~90% heading retention; the grid that costs out is in the content file's
-> `cySlopePerRad` note, and the decision is his.
+> movement, asked for **1.00**, then for ~90% heading retention and chose
+> **2.00** from a measured grid (88%). That is what ships. The trade (about
+> 5 g lateral at full rudder at 200 m/s, no cap applied) is recorded in the
+> content file's `cySlopePerRad` note.
 
 
 `tools/testcards/measure.ts`. At a held pitch attitude with the altitude
