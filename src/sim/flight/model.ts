@@ -232,12 +232,15 @@ export function step(
 
   // Ground reaction (Task 5b, found while making a supported contact never
   // read as a crash): while the airplane is ALREADY resting on its wheels at
-  // the START of this step, the ground supplies whatever upward force is
-  // needed to stop it falling through -- the normal force in any rigid-
-  // contact model, which only ever PUSHES. A force that is already lifting
-  // (e.g. once airspeed has built enough lift to fly) passes through
-  // untouched, so this never holds a genuinely take-off-capable airplane
-  // down.
+  // the START of this step AND NOT ALREADY separating from it, the ground
+  // supplies whatever upward force is needed to stop it falling through --
+  // the normal force in any rigid-contact model, which only ever PUSHES and
+  // never PULLS (Finding 1, whole-branch review: the `state.velocity.y <= 0`
+  // half of the gate just below is what enforces "never pulls" -- a
+  // unilateral contact force may act only while the bodies are not
+  // separating). A force that is already lifting (e.g. once airspeed has
+  // built enough lift to fly) passes through untouched, so this never holds
+  // a genuinely take-off-capable airplane down.
   //
   // Without this, a supported airplane still integrates one tick of
   // unopposed gravity before the POST-integration clamp below (gated on
@@ -254,7 +257,18 @@ export function step(
   // same as the block below.
   if (ctx.terrain != null) {
     const startGroundHeightM = heightAt(ctx.terrain, state.position.x, state.position.z)
-    if (force.y < 0 && supportedContact(spec, state, startGroundHeightM)) {
+    // `state.velocity.y <= 0`: a unilateral contact force may act only while
+    // the bodies are not separating (Finding 1, whole-branch review).
+    // `supportedContact` bounds SINK but places no bound on CLIMB, so without
+    // this an airplane already moving away from the surface still had its
+    // gravity cancelled here, which does positive work on it -- measured, 434
+    // `assertNoEnergyGain` violations over a 400-run idle-throttle roll-out,
+    // worst +1.272 J/kg. Gated separately from `supportedContact` itself
+    // rather than folded into it, because the post-integration clamp below
+    // needs the un-narrowed predicate: an airplane that starts a step
+    // sinking and ends it climbing (this same force removing the sink) must
+    // still be recognised as supported once integrated.
+    if (force.y < 0 && state.velocity.y <= 0 && supportedContact(spec, state, startGroundHeightM)) {
       force = v3(force.x, 0, force.z)
     }
   }
@@ -263,10 +277,12 @@ export function step(
   let velocity = add(state.velocity, scale(accel, dt))
   let position = add(state.position, scale(velocity, dt))
 
-  // The ground constraint: keeps the airplane from sinking through the
-  // surface without ever lifting it off (see `restOnSurface`'s doc comment
-  // for why that direction matters -- `assertNoEnergyGain`). `ctx.terrain`
-  // being `null` short-circuits before `heightAt` is ever called, the same
+  // The ground constraint: a surface projection, not a one-sided clamp --
+  // see `restOnSurface`'s doc comment (amended 2026-09-16, design doc §2)
+  // for why it now follows rising ground within tolerance, paying for the
+  // climb out of kinetic energy rather than refusing to lift at all
+  // (`assertNoEnergyGain` is what bounds which direction is safe).
+  // `ctx.terrain` being `null` short-circuits before `heightAt` is ever called, the same
   // guard `advance`'s impact check (`src/sim/loop.ts`) applies for the same
   // reason: the overwhelmingly common, pre-Task-8 no-terrain path must not
   // pay for a terrain query it has nothing to query.

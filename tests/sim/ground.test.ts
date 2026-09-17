@@ -7,13 +7,16 @@ import {
   supportedContact,
   GROUND_CONTACT_TOLERANCE_M,
   MAX_SUPPORTED_SINK_MPS,
+  MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
 } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
-import { v3 } from '../../src/sim/math/vec3.js'
+import { v3, length } from '../../src/sim/math/vec3.js'
+import { specificEnergyAirmass } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const DT = 1 / 60
+const G = 9.80665
 
 describe('landing gear', () => {
   it('starts up, so no existing flight gains drag it did not have', () => {
@@ -56,7 +59,7 @@ describe('gear drag', () => {
     expect(gearDragN(f6f, 0, 5000)).toBe(0)
   })
 
-  it('scales with how far the gear has travelled', () => {
+  it('scales with how far the gear has traveled', () => {
     const half = gearDragN(f6f, 0.5, 5000)
     const full = gearDragN(f6f, 1, 5000)
     expect(half).toBeCloseTo(full / 2, 9)
@@ -119,12 +122,49 @@ describe('the ground constraint', () => {
     expect(restOnSurface(below, 0).position.y).toBe(-5)
   })
 
-  it('leaves a climbing airplane alone, vertical velocity included', () => {
+  it('leaves a climbing airplane alone, position included (Finding 3)', () => {
     // On the take-off roll the airplane is within tolerance of the ground while
     // rotating; clamping a positive climb rate to zero would pin it to the
-    // runway and it would never fly.
+    // runway and it would never fly. Position must be left alone too, or the
+    // airplane is held at exactly ground level while vy builds up and then
+    // leaves in one fake leap once it crosses GROUND_CONTACT_TOLERANCE_M / DT
+    // -- the bug this finding describes.
     const r = restOnSurface(createState({ position: v3(0, 0.1, 0), velocity: v3(60, 3, 0) }), 0)
     expect(r.velocity.y).toBe(3)
+    expect(r.position.y).toBe(0.1)
+  })
+
+  describe('following rising ground (Finding 2, design doc §2 amendment)', () => {
+    it('follows the surface up and slows down when there is enough speed to climb it', () => {
+      const dh = 0.1
+      const s = createState({ position: v3(0, -dh, 0), velocity: v3(60, 0, 0) })
+      const r = restOnSurface(s, 0)
+      expect(r.position.y).toBe(0)
+      expect(length(r.velocity)).toBeLessThan(length(s.velocity))
+      // Exact energy trade: g*dh comes off the specific kinetic energy.
+      const speedBefore = length(s.velocity)
+      const expectedSpeed = Math.sqrt(speedBefore * speedBefore - 2 * G * dh)
+      expect(length(r.velocity)).toBeCloseTo(expectedSpeed, 9)
+    })
+
+    it('does not raise total specific energy across that step', () => {
+      const dh = 0.15
+      const s = createState({ position: v3(0, -dh, 0), velocity: v3(45, 0, 0) })
+      const before = specificEnergyAirmass(s)
+      const after = specificEnergyAirmass(restOnSurface(s, 0))
+      expect(after).toBeLessThanOrEqual(before + 1e-9)
+    })
+
+    it('does not push an airplane up a rise it does not have the speed to climb', () => {
+      // g*dh at the tolerance's own edge is ~2.45 J/kg, which needs about
+      // 2.2 m/s of speed to pay for -- well below a rolling airplane's normal
+      // speed but easily above a nearly-stopped one.
+      const dh = GROUND_CONTACT_TOLERANCE_M
+      const s = createState({ position: v3(0, -dh, 0), velocity: v3(0.5, 0, 0) })
+      const r = restOnSurface(s, 0)
+      expect(r.position.y).toBeLessThan(0)
+      expect(length(r.velocity)).toBe(0)
+    })
   })
 })
 
@@ -151,5 +191,23 @@ describe('supported contact (Task 5b)', () => {
 
   it('is NOT supported for a non-finite state, the same posture contactOutcome takes', () => {
     expect(supportedContact(f6f, resting({ position: v3(0, Number.NaN, 0) }), 0)).toBe(false)
+  })
+
+  it('is NOT supported for an infinite climb rate (Finding 5)', () => {
+    // +Infinity satisfies `velocity.y >= -MAX_SUPPORTED_SINK_MPS` as a bare
+    // comparison, which would let a non-finite state read as safely resting.
+    expect(supportedContact(f6f, resting({ velocity: v3(0, Number.POSITIVE_INFINITY, 0) }), 0)).toBe(false)
+  })
+
+  it('is NOT supported for a fast gear-down arrival, even with a gentle sink (Finding 4)', () => {
+    const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+    const fast = resting({ velocity: v3(capMps + 10, -0.1, 0) })
+    expect(supportedContact(f6f, fast, 0)).toBe(false)
+  })
+
+  it('is supported just under the speed cap', () => {
+    const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+    const underCap = resting({ velocity: v3(capMps - 1, 0, 0) })
+    expect(supportedContact(f6f, underCap, 0)).toBe(true)
   })
 })

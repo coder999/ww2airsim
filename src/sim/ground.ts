@@ -1,6 +1,11 @@
-import { v3 } from './math/vec3.js'
+import { v3, length, scale, ZERO } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState } from './flight/state.js'
+
+/** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
+ *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
+ *  `atmosphere.ts` already each carry their own copy. */
+const G = 9.80665
 
 /**
  * Gear travel after one step.
@@ -38,7 +43,7 @@ export function gearDragN(spec: AircraftSpec, gearFraction: number, q: number): 
 }
 
 /**
- * How close to the surface counts as resting on it, metres.
+ * How close to the surface counts as resting on it, meters.
  *
  * Wanted because the constraint below must not fight the integrator: an
  * airplane rolling at 50 m/s over ground that rises 2.12% (measured at L0
@@ -69,35 +74,89 @@ export function onGround(state: AircraftState, groundHeightM: number): boolean {
 }
 
 /**
- * Rests the airplane on the surface: stops it sinking through the ground
- * without ever lifting it off the ground.
+ * Rests the airplane on the surface: a surface PROJECTION, not a one-sided
+ * clamp.
  *
- * One-directional in both components, and that is the whole design:
- * `invariants.ts`'s `assertNoEnergyGain` asserts specific energy never rises
- * at idle throttle, and raising `position.y` toward the surface from below
- * adds `g * h` -- a real energy gain, not a rounding artefact. So this
- * function clamps `position.y` DOWN to `groundHeightM` only when it is
- * currently above that (an airplane already below the surface is left where
- * it is -- that is Plan 10's `advance` impact check to handle, not this
- * function's), and clamps `velocity.y` UP to 0 only when it is negative,
- * which only ever removes kinetic energy. A climbing or level airplane
- * within tolerance of the ground (e.g. rotating on the take-off roll) is
- * left completely alone.
+ * Amended 2026-09-16 (design doc §2) after the original one-sided rule --
+ * "never lift, whatever it costs" -- turned out to make take-off impossible:
+ * a constraint that can only push down holds a constant ALTITUDE on any
+ * upslope instead of following the ground, so the airplane buries itself and
+ * `advance` records it destroyed. The real rule is narrower and survives
+ * rising terrain: never GAIN ENERGY. `invariants.ts`'s `assertNoEnergyGain`
+ * asserts specific energy never rises at idle throttle, and that rule
+ * constrains this function in exactly two places:
+ *
+ * - **Separating (climbing) and not sinking into the surface:** left
+ *   completely alone, position included. Clamping position here anyway,
+ *   even while vertical velocity is left untouched, is what Finding 3 (the
+ *   whole-branch review) caught: it pinned a take-off roll to exactly ground
+ *   level while vy built up, then let go in a single tick once vy crossed
+ *   `GROUND_CONTACT_TOLERANCE_M / DT` -- a 15 m/s leap rather than a
+ *   rotation.
+ * - **At or sinking below the surface:** `position.y` is clamped DOWN to
+ *   `groundHeightM` and `velocity.y` clamped UP to 0 only when negative --
+ *   both only ever remove kinetic or potential energy, so they are always
+ *   safe.
+ *
+ * The remaining case is the one the amendment added: the airplane is BELOW
+ * the surface (ground has risen past it since the last step) but within
+ * `GROUND_CONTACT_TOLERANCE_M` of it. Farther below than that is still Plan
+ * 10's business -- `advance`'s impact check, not this function's -- and is
+ * left untouched exactly as before. Within tolerance, this now projects the
+ * airplane UP onto the surface and pays for the rise out of kinetic energy:
+ * `g * dh` joules per kilogram come off the specific kinetic energy, which is
+ * what rolling a real vehicle up a real hill does to its speed. The whole
+ * velocity vector is scaled down (not just its vertical component) so the
+ * trade is exact regardless of heading, and the resulting `after` energy is
+ * `before - g * dh` to within floating-point error --
+ * `tests/sim/invariants.test.ts`'s sweep and `tests/sim/ground.test.ts` both
+ * pin this. If the available kinetic energy is less than `g * dh`, the
+ * airplane cannot climb the rise: it stops (velocity zeroed) rather than
+ * being dragged up a slope it does not have the speed for, and is left below
+ * the surface exactly as the too-far-below case is.
  */
 export function restOnSurface(state: AircraftState, groundHeightM: number): AircraftState {
-  const y = state.position.y > groundHeightM ? groundHeightM : state.position.y
-  const vy = state.velocity.y < 0 ? 0 : state.velocity.y
+  const dh = groundHeightM - state.position.y
+
+  if (dh <= 0) {
+    // At or above the surface. A separating (climbing) airplane is left
+    // completely alone -- position included (Finding 3).
+    if (state.velocity.y > 0) return state
+    // Sinking or level: stop the sink, no more.
+    return {
+      ...state,
+      position: v3(state.position.x, groundHeightM, state.position.z),
+      velocity: v3(state.velocity.x, 0, state.velocity.z),
+    }
+  }
+
+  if (dh > GROUND_CONTACT_TOLERANCE_M) {
+    // Below the surface by more than contact tolerance: Plan 10's business.
+    return state
+  }
+
+  // Below the surface, within tolerance: the ground rose under the airplane.
+  // Follow it up and pay for the climb out of kinetic energy.
+  const speed = length(state.velocity)
+  const keJPerKg = 0.5 * speed * speed
+  const climbCostJPerKg = G * dh
+  if (keJPerKg < climbCostJPerKg) {
+    // Not enough speed to climb this rise: it stops rather than climbing it.
+    return { ...state, velocity: ZERO }
+  }
+  const newSpeed = Math.sqrt(2 * (keJPerKg - climbCostJPerKg))
+  const factor = speed > 1e-9 ? newSpeed / speed : 0
   return {
     ...state,
-    position: v3(state.position.x, y, state.position.z),
-    velocity: v3(state.velocity.x, vy, state.velocity.z),
+    position: v3(state.position.x, groundHeightM, state.position.z),
+    velocity: scale(state.velocity, factor),
   }
 }
 
 /**
  * Gear travel counted as "down" for weight-bearing purposes.
  *
- * Not `=== 1`: gear that has travelled 95% of the way is carrying the
+ * Not `=== 1`: gear that has traveled 95% of the way is carrying the
  * airplane's weight exactly as surely as gear that finished the trip an
  * instant earlier -- `gearAfter`'s travel time is a cosmetic animation
  * duration, not a structural one, and requiring the exact endpoint would
@@ -124,6 +183,25 @@ export const GEAR_DOWN_FRACTION = 0.95
 export const MAX_SUPPORTED_SINK_MPS = 4.0
 
 /**
+ * Landing-gear approach-speed limit, m/s: how fast an arrival can be and
+ * still be judged carried rather than crashed into, whatever its sink rate.
+ *
+ * An UNTUNED GUESS, the same standing `DITCH_MAX_SPEED_STALL_MULTIPLE` has in
+ * `src/sim/contact.ts` -- nobody has flown this yet, so getting it wrong
+ * makes a landing too easy or impossible; it does not make anything
+ * incorrect. Relative to the spec's stall speed, not absolute, for the same
+ * reason that constant is: a second airplane in the roster gets a sane
+ * judgment without a second constant. For the F6F this is 1.6 * 43.81 =
+ * 70.1 m/s -- comfortably above a rotation or approach speed and well below a
+ * low pass, which is the gap the multiple is picked to sit in. Before this
+ * existed, `supportedContact` had no speed limit at all, so a gear-down
+ * arrival at 150 m/s with a gentle sink recorded no impact and rolled away
+ * from what should have been a wreck. Expect this to move once 11b tunes the
+ * rest of the landing-survivability gates it owns.
+ */
+export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.6
+
+/**
  * Whether ground contact is CARRIED rather than crashed into: the gear is
  * down, the airplane is within `onGround`'s tolerance of the surface, and it
  * arrived slowly enough to survive.
@@ -137,23 +215,24 @@ export const MAX_SUPPORTED_SINK_MPS = 4.0
  * every following tick, which made sitting on a runway indistinguishable
  * from hitting the ground and take-off impossible.
  *
- * All three conditions are POSITIVE comparisons, combined with `&&` -- the
- * same posture `contactOutcome` (`src/sim/contact.ts`) already takes: a
- * non-finite state fails every one of them and comes back `false`, i.e.
- * unsupported, i.e. a crash. A broken state must fail toward "this is a
- * crash", never toward "this is a normal landing".
- *
- * `spec` is unused today and named with a leading underscore for that reason
- * -- carried in the signature so a future per-aircraft sink limit (11b, next
- * to the ditching gates it will sit beside) does not need to change every
- * call site to arrive.
+ * Every condition is a POSITIVE comparison, combined with `&&` -- the same
+ * posture `contactOutcome` (`src/sim/contact.ts`) already takes: a non-finite
+ * state fails every one of them and comes back `false`, i.e. unsupported,
+ * i.e. a crash. A broken state must fail toward "this is a crash", never
+ * toward "this is a normal landing". The sink-rate gate spells out
+ * `Number.isFinite` explicitly rather than relying on the comparison alone,
+ * because `+Infinity >= -MAX_SUPPORTED_SINK_MPS` is true -- a bare positive
+ * comparison against a NEGATIVE bound lets an infinite climb rate straight
+ * through it, which is exactly the non-finite state this predicate's posture
+ * is supposed to catch.
  */
 export function supportedContact(
-  _spec: AircraftSpec,
+  spec: AircraftSpec,
   state: AircraftState,
   groundHeightM: number,
 ): boolean {
   return onGround(state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
-    && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
+    && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
+    && length(state.velocity) <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * spec.reference.stallSpeedMps
 }
