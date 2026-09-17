@@ -114,10 +114,34 @@ npx playwright test tests/e2e/contact.spec.ts
 Expected: 2 passed, no page errors, no WebGPU validation errors. This handoff
 does not claim it passed — it has not been run.
 
-**Tier 3 (human eyes): NOT executed.** Nobody has looked at the splash or the
-fireball on real hardware. Whether they read as a splash and a fireball, and
-whether the debrief dialog looks right, is entirely Mark's outstanding
-judgment call — see the impact-effect section above.
+**Tier 3 (human eyes): PARTIALLY executed 2026-09-16.** Mark flew it. What the
+flight settled, and what it did not:
+
+| Check | Result |
+| --- | --- |
+| Crash into the sea | Works |
+| Crash into Leyte | Works |
+| **Ditching** | **Achieved.** Failed on the first attempts, succeeded later the same day |
+| Splash and fireball appearance | **Still outstanding — reported as "not even remotely realistic"** |
+
+**The ditching gates are no longer only a paper claim.** They are still the
+untuned guesses recorded above, but a human has now hit them in flight, which is
+the evidence that matters: they are reachable, not merely arithmetically
+satisfiable. The analysis agrees — at the fastest speed the gate allows, level
+flight needs 8.8 degrees of angle of attack against a 15.5 degree stall, and
+descending gently lowers the pitch attitude further (measured 2026-09-16). An
+earlier claim in review that passing all four gates implied a stalled attitude
+was **wrong** and is recorded here so it is not repeated.
+
+The first attempts failed for a reason that was not the gates. The flight model
+had no engine-state drag at all, so a closed-throttle airplane glided as though
+its propeller were feathered and could not get slow enough to meet them. That was
+fixed separately the same day — see `windmillDragCd0` in `src/sim/aero.ts` — and
+the ditching succeeded afterwards.
+
+What remains Mark's is the appearance of the splash and the fireball, which he
+has now seen and rejected. They were shipped as explicitly provisional expanding
+billboards; see the impact-effect section above.
 
 ## Nonblocking follow-ups
 
