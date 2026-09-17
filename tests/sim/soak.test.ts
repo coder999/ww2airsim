@@ -212,6 +212,17 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
     // flights recording an impact, zero failures. Two other seeds, for a
     // sense of spread: seed 4242 gives 448,873 steps / 128 hits and seed 7
     // gives 411,643 steps / 148 hits, both zero failures.
+    //
+    // RE-MEASURED 2026-09-16 (Task 10), after `runTerrainSoak` started tying
+    // `gearFraction` to the near-ground spawn cohort (needed so
+    // `supportedContact`, src/sim/ground.ts, can ever hold at all -- gear was
+    // never commanded down before this task, so the "arrives and stays"
+    // path this task adds assertions for was structurally unreachable) and
+    // the crash check gained a `supportedContact` exemption for a
+    // legitimately resting airplane: seed 1337 gives 417,539 steps / 134
+    // hits, seed 4242 gives 432,579 / 133, seed 7 gives 430,355 / 146, all
+    // zero failures. The floors below are unchanged -- both remeasurements
+    // clear them comfortably -- so only the comment needed updating.
     expect(result.steps).toBeGreaterThan(300000)
     // The floor that matters most: without it, a soak that never put an
     // airplane within reach of the ground would still report zero failures

@@ -9,7 +9,7 @@ import {
   type AircraftState,
   type Controls,
 } from '../../src/sim/flight/model.js'
-import { stepChecked } from '../../src/sim/invariants.js'
+import { isIdleThrottle, specificEnergyAirmass, stepChecked } from '../../src/sim/invariants.js'
 import { createRng } from '../../src/sim/rng.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import {
@@ -22,6 +22,7 @@ import {
 import { advance, createWorld } from '../../src/sim/loop.js'
 import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { surfaceAt } from '../../src/sim/contact.js'
+import { GROUND_CONTACT_TOLERANCE_M, onGround, supportedContact } from '../../src/sim/ground.js'
 
 export type SoakResult = {
   failures: string[]
@@ -395,6 +396,14 @@ export type TerrainSoakResult = {
   terrainHits: number
 }
 
+/** Same value and same purpose as `invariants.ts`'s own (unexported)
+ *  `ENERGY_EPS`: floating-point slack for the "did not rise" comparison, not
+ *  a physical tolerance. Kept as a separate constant rather than importing
+ *  that one because it is private to that module by design (`stepChecked`'s
+ *  own doc comment: the throw path is unit-tested directly with synthetic
+ *  numbers there, not shared as a public tuning knob). */
+const GROUND_CONTACT_ENERGY_EPS = 1e-3
+
 /**
  * Randomized soak for the master spec §11 invariant terrain contact closes:
  * "no aircraft is below terrain without a crash event" (design doc
@@ -432,6 +441,26 @@ export type TerrainSoakResult = {
  * function takes no `assists` parameter: coverage of the assist stack over
  * long flights is `runSoak`'s job, and adding it here would only double the
  * cost of this arm for no new coverage of the terrain path.
+ *
+ * Plan 11a (Task 10): `world.impact` staying `null` no longer means "still
+ * airborne" -- `supportedContact` (`src/sim/ground.ts`) now lets a flight
+ * legitimately arrive on its wheels and stay, without ever recording an
+ * impact. The `nearGround` cohort spawns gear DOWN (`gearFraction: 1`) for
+ * exactly this reason: it is the cohort close enough to the ground to be
+ * approaching or already rolling on it, the scenario this task exists to
+ * cover, while the far cohort keeps the pre-existing gear-up cruise spawn.
+ * Every tick the PREVIOUS tick left the airplane within `onGround`'s
+ * tolerance of the ground, two more things are checked, independently
+ * recomputed the same way the impact cross-check above is: the constraint
+ * never let the airplane sink through by more than
+ * `GROUND_CONTACT_TOLERANCE_M` since that resting tick, and -- gated on idle
+ * throttle, the same gate `stepChecked`'s own energy invariant uses, because
+ * a rolling airplane under thrust legitimately gains energy and an ungated
+ * check would fail every ordinary powered ground roll -- that airmass
+ * specific energy did not rise across the step. Both are properties
+ * `restOnSurface`'s own doc comment (`src/sim/ground.ts`) claims for itself;
+ * this is that claim checked over thousands of real, random trajectories
+ * rather than the hand-picked states `tests/sim/ground.test.ts` constructs.
  */
 export function runTerrainSoak(
   spec: AircraftSpec,
@@ -460,6 +489,14 @@ export function runTerrainSoak(
         velocity: v3(speed, (rng() - 0.5) * 40, (rng() - 0.5) * 40),
         attitude: randomAttitude(rng),
         fuelKg: rng() * spec.mass.fuelCapacityKg,
+        // Task 10: the near-ground cohort is the one close enough to be
+        // approaching or already on the ground, so it spawns gear down --
+        // otherwise `supportedContact` (which requires `gearFraction >=
+        // GEAR_DOWN_FRACTION`) could never hold and this soak would never
+        // reach the "arrives and stays" path it exists to cover. The far
+        // cohort is unaffected: `createState`'s own default (gear up) is
+        // unchanged for it.
+        gearFraction: nearGround ? 1 : 0,
       }),
       { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 },
     )
@@ -472,12 +509,69 @@ export function runTerrainSoak(
           world = advance(world, DT, stepChecked).world
           steps++
           const gh = heightAt(terrain, world.aircraft.position.x, world.aircraft.position.z)
-          if (world.impact === null && world.aircraft.position.y <= gh) {
+          // Task 10: `position.y <= gh` with `impact` still null is no longer
+          // proof of a missed crash by itself -- `advance`'s own impact check
+          // (src/sim/loop.ts) exempts a `supportedContact` state on purpose
+          // (Task 5b), because an airplane resting or rolling on its wheels
+          // is meant to reach exactly `groundHeightM` and stay there without
+          // ever being flagged destroyed. So this only fails now when the
+          // SAME predicate `advance` used to grant the exemption says this
+          // state does not actually qualify for one -- recomputed here, not
+          // trusted, the same as `gh` itself.
+          if (world.impact === null && world.aircraft.position.y <= gh && !supportedContact(spec, world.aircraft, gh)) {
             failures.push(
               `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
-                `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} <= groundHeightM ${gh} but impact is null`,
+                `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} <= groundHeightM ${gh} but impact is null ` +
+                `and the contact is not a supported one`,
             )
             break
+          }
+          // Task 10: a crash-free airplane resting or rolling on its wheels
+          // (see the doc comment above `runTerrainSoak`) is a legitimate
+          // outcome now, and the ground constraint's two promises for it
+          // (src/sim/ground.ts's `restOnSurface` doc comment) are checked
+          // here, on every tick, not just once at the end of the flight --
+          // the same "check it every tick, not just the last" posture the
+          // crash check just above already takes.
+          //
+          // Gated on whether the PREVIOUS tick was resting (`world.previous`,
+          // recomputed against the ground height under IT, not under the
+          // state `advance` just produced), not on whether this tick's
+          // result still is. Gating on the current tick's own position
+          // instead would make the bound below tautological: reaching this
+          // branch would already require the current position to be within
+          // tolerance, which trivially satisfies the very inequality being
+          // checked. Gating on last tick's contact means a constraint that
+          // let the airplane punch through the ground is still caught even
+          // though the resulting position no longer looks anything like
+          // "near the ground".
+          const ghPrev = heightAt(terrain, world.previous.position.x, world.previous.position.z)
+          if (world.impact === null && onGround(world.previous, ghPrev)) {
+            if (!(world.aircraft.position.y >= gh - GROUND_CONTACT_TOLERANCE_M)) {
+              failures.push(
+                `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
+                  `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} sank through groundHeightM ${gh} ` +
+                  `by more than GROUND_CONTACT_TOLERANCE_M (${GROUND_CONTACT_TOLERANCE_M} m) since the previous tick's resting contact`,
+              )
+              break
+            }
+            // Idle-throttle gated, the same gate `stepChecked`'s own energy
+            // invariant uses (src/sim/invariants.ts): a rolling airplane
+            // under thrust legitimately gains energy overcoming drag and
+            // friction, and an ungated check would fail on every ordinary
+            // powered ground roll, not just a broken constraint.
+            if (isIdleThrottle(world.controls)) {
+              const before = specificEnergyAirmass(world.previous)
+              const after = specificEnergyAirmass(world.aircraft)
+              if (after > before + GROUND_CONTACT_ENERGY_EPS) {
+                failures.push(
+                  `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
+                    `tick ${world.aircraft.tick} specific energy rose from ${before} to ${after} J/kg across a ` +
+                    `ground-contact step at idle throttle`,
+                )
+                break
+              }
+            }
           }
         }
       }
