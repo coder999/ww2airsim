@@ -22,7 +22,7 @@ import {
 import { advance, createWorld } from '../../src/sim/loop.js'
 import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { surfaceAt } from '../../src/sim/contact.js'
-import { GROUND_CONTACT_TOLERANCE_M, onGround, supportedContact } from '../../src/sim/ground.js'
+import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from '../../src/sim/ground.js'
 
 export type SoakResult = {
   failures: string[]
@@ -395,16 +395,27 @@ export type TerrainSoakResult = {
    */
   terrainHits: number
   /**
-   * Ticks where the PREVIOUS tick left the airplane within `onGround`'s
-   * tolerance and `impact` was still null -- i.e. ticks where the two
-   * Task 10 assertions below actually evaluated, not merely ticks where the
-   * flight happened to be near the ground. Reported for exactly the reason
+   * Ticks where the PREVIOUS tick left the airplane `supportedContact`
+   * (Task 15: not merely `onGround` -- see the gate's own comment below for
+   * why a position-only test stopped being a safe proxy for "was genuinely
+   * resting" once the gear datum shift gave a too-fast arrival room to
+   * freefall through the tolerance band without crashing) and `impact` was
+   * still null -- i.e. ticks where the two Task 10 assertions below actually
+   * evaluated, not merely ticks where the flight happened to be near the
+   * ground. Reported for exactly the reason
    * `terrainHits` already is (see that field's own comment): "zero failures"
    * is meaningless on its own, and a soak whose new assertions never once
    * evaluate would report zero failures forever, indistinguishable from "the
    * constraint held" -- fix-round-1 review measured this at literally 0 for
    * both seed 1337 and seed 7 before the dedicated landing cohort below
    * existed, which is exactly the silent gap this field exists to make loud.
+   *
+   * Lower again after Task 16 (`supportedContact` also requires land -- a
+   * gear-down airplane resting on open water was never a real contact): a
+   * large share of this 200 km field is ocean, so a large share of what used
+   * to count here no longer does, correctly. See
+   * `tests/sim/soak.test.ts`'s floor on this field for the re-measured
+   * counts.
    */
   supportedContactTicks: number
 }
@@ -503,8 +514,10 @@ const NEAR_GROUND_SPAWN_FRACTION = 0.3
  * exactly this reason -- gear was never commanded down anywhere in this soak
  * before this task, so the "arrives and stays" path was structurally
  * unreachable -- while the far cohort keeps the pre-existing gear-up cruise
- * spawn. Every tick the PREVIOUS tick left the airplane within `onGround`'s
- * tolerance of the ground, two more things are checked, independently
+ * spawn. Every tick the PREVIOUS tick left the airplane `supportedContact`
+ * (Task 15's own gate; see `TerrainSoakResult.supportedContactTicks`'s
+ * comment for why a bare `onGround` stopped being enough), two more things
+ * are checked, independently
  * recomputed the same way the impact cross-check above is: the constraint
  * never let the airplane sink through by more than
  * `GROUND_CONTACT_TOLERANCE_M` since that resting tick, and -- gated on idle
@@ -543,8 +556,18 @@ export function runTerrainSoak(
     // speed and vertical rate are all deliberately narrow and inside
     // `supportedContact`'s gates (`src/sim/ground.ts`), not a smaller version
     // of `nearGround`'s wide-open ranges below.
+    // Task 15: `groundHeightM + spec.gear.heightM`, not bare `groundHeightM`,
+    // is now the height a RESTING airplane's body origin (`position.y`)
+    // actually sits at -- `onGround`/`restOnSurface` (src/sim/ground.ts)
+    // compare the gear-offset height for contact, not the raw one. The
+    // landing cohort's whole point is spawning a couple of metres over the
+    // spot it is meant to settle onto (see `LANDING_SPAWN_FRACTION`'s own
+    // comment), so that spot has to move with the datum or every one of
+    // these spawns starts already below the new contact surface by up to
+    // `spec.gear.heightM`, never getting close enough to trip
+    // `supportedContact` at all.
     const altitude = landing
-      ? groundHeightM + rng() * 2
+      ? groundHeightM + spec.gear.heightM + rng() * 2
       : nearGround
         ? groundHeightM + rng() * 300
         : groundHeightM + 200 + rng() * 9000
@@ -622,9 +645,34 @@ export function runTerrainSoak(
           // though the resulting position no longer looks anything like
           // "near the ground".
           const ghPrev = heightAt(terrain, world.previous.position.x, world.previous.position.z)
-          if (world.impact === null && onGround(world.previous, ghPrev)) {
+          // Task 15: gated on `supportedContact`, not the bare `onGround`.
+          // `onGround` alone is a POSITION-only test, which was an adequate
+          // proxy for "was genuinely resting" only because the pre-Task-15
+          // datum made the raw crash check (`advance`'s `position.y <=
+          // groundHeightM`) co-incide almost exactly with the tolerance band
+          // -- a too-fast arrival could not linger there, since one more tick
+          // of freefall put the body origin AT the ground and ended the
+          // flight. With `spec.gear.heightM` of clearance now between the
+          // body origin and the wheels, a too-fast arrival can freefall
+          // through the whole tolerance band -- and the ~2 m of gear
+          // clearance beyond it -- for many ticks, repeatedly satisfying
+          // `onGround` while never once being `supportedContact` (sink rate
+          // far past `MAX_SUPPORTED_SINK_MPS`), with no crash yet recorded to
+          // stop it. `supportedContact` is what `step()` itself gates
+          // `restOnSurface` on (`src/sim/flight/model.ts`), so it is the
+          // right predecessor state for THIS check's promise: if the
+          // airplane was genuinely carried last tick, it should not have
+          // sunk through this tick.
+          if (world.impact === null && supportedContact(spec, world.previous, ghPrev)) {
             supportedContactTicks++
-            if (!(world.aircraft.position.y >= gh - GROUND_CONTACT_TOLERANCE_M)) {
+            // Task 15: compared against the gear-offset height, not the raw
+            // one -- a resting airplane's body origin (`position.y`) sits
+            // `spec.gear.heightM` above the ground now, not on it, so the
+            // "did not sink through" bound has to follow that same offset or
+            // it is trivially true for any position above `gh -
+            // GROUND_CONTACT_TOLERANCE_M`, which every normally resting
+            // airplane already satisfies by a margin of `spec.gear.heightM`.
+            if (!(world.aircraft.position.y - spec.gear.heightM >= gh - GROUND_CONTACT_TOLERANCE_M)) {
               failures.push(
                 `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
                   `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} sank through groundHeightM ${gh} ` +

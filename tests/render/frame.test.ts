@@ -265,18 +265,24 @@ describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
     // `main.ts`'s own sequence: `withTerrain` first (the field lands), then
     // `settleOnTerrain` (correct the placeholder altitude). Settling alone
     // must not advance the clock or move anything but the vertical position.
+    //
+    // Task 15: `settleOnTerrain` now settles onto `GROUND_HEIGHT_M +
+    // f6f.gear.heightM`, the wheels' contact point, not `GROUND_HEIGHT_M`
+    // itself -- `position.y` is the body origin, which sits
+    // `f6f.gear.heightM` above the ground once parked.
     f = settleOnTerrain(withTerrain(f, FLAT_FIELD), FLAT_FIELD)
+    const contactHeightM = GROUND_HEIGHT_M + f6f.gear.heightM
     expect(f.world.aircraft.tick).toBe(0)
     expect(f.world.aircraft.position.x).toBe(0)
     expect(f.world.aircraft.position.z).toBe(0)
-    expect(f.world.aircraft.position.y).toBeCloseTo(GROUND_HEIGHT_M, 9)
+    expect(f.world.aircraft.position.y).toBeCloseTo(contactHeightM, 9)
 
     // Several seconds of sitting there, idle throttle: no impact, and never
     // more than a contact-tolerance width from the ground -- not falling
     // through, not buried, not snapped back up.
     for (let i = 0; i < 300; i++) f = nextFrameState(f, 1 / 60, keys())
     expect(f.world.impact).toBeNull()
-    expect(Math.abs(f.world.aircraft.position.y - GROUND_HEIGHT_M)).toBeLessThanOrEqual(GROUND_CONTACT_TOLERANCE_M)
+    expect(Math.abs(f.world.aircraft.position.y - contactHeightM)).toBeLessThanOrEqual(GROUND_CONTACT_TOLERANCE_M)
     expect(f.world.aircraft.velocity.y).toBe(0)
   })
 
@@ -329,7 +335,10 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     expect(f.world.aircraft.tick).toBe(0)
 
     f = settleOnTerrain(withTerrain(f, terrain), terrain)
-    expect(f.world.aircraft.position.y).toBeCloseTo(groundHeightM, 9)
+    // Task 15: settles onto the wheels' contact point, `groundHeightM +
+    // f6f.gear.heightM`, not `groundHeightM` itself.
+    const contactHeightM = groundHeightM + f6f.gear.heightM
+    expect(f.world.aircraft.position.y).toBeCloseTo(contactHeightM, 9)
 
     const startX = f.world.aircraft.position.x
     const startZ = f.world.aircraft.position.z
@@ -377,7 +386,14 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     for (let i = 0; i < 60 * CLIMB_MAX_S && airborneTick === null; i++) {
       f = nextFrameState(f, 1 / 60, keys('ShiftLeft'))
       expect(f.world.impact, `impact recorded during the climb-out, tick ${f.world.aircraft.tick}`).toBeNull()
-      const heightAboveGroundM = f.world.aircraft.position.y - heightAt(terrain, f.world.aircraft.position.x, f.world.aircraft.position.z)
+      // Task 15: the WHEELS' height above ground is what "airborne" means --
+      // `position.y` is the body origin, which sits `f6f.gear.heightM` above
+      // the wheels even while parked, so that raw difference alone would read
+      // as "airborne" from the very start of the roll.
+      const heightAboveGroundM =
+        f.world.aircraft.position.y -
+        f6f.gear.heightM -
+        heightAt(terrain, f.world.aircraft.position.x, f.world.aircraft.position.z)
       clearTicks = heightAboveGroundM > GROUND_CONTACT_TOLERANCE_M ? clearTicks + 1 : 0
       if (clearTicks >= SUSTAINED_TICKS) airborneTick = f.world.aircraft.tick
     }

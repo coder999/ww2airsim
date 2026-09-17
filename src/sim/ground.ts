@@ -1,6 +1,7 @@
 import { v3, length, scale, type Vec3 } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
+import { surfaceAt } from './contact.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -94,10 +95,19 @@ export const GROUND_CONTACT_TOLERANCE_M = 0.25
  *
  * Written as a positive comparison so a non-finite position comes back
  * `false`: a broken state must not be handed to the constraint.
+ *
+ * Takes `spec` as of Task 15: `state.position.y` is the airplane's BODY
+ * ORIGIN, not its wheel contact point (`view.eyePointM` in the content file
+ * is measured from that same origin, which fixes the convention), so what
+ * touches the ground is `position.y - spec.gear.heightM`, not `position.y`
+ * itself. Before this, a parked airplane's origin sat exactly on the
+ * surface and the whole airframe below it -- fuselage, wing, a 3.9 m
+ * propeller disc -- was underground (Mark's screenshot, 2026-09-16).
  */
-export function onGround(state: AircraftState, groundHeightM: number): boolean {
-  return state.position.y - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
-    && state.position.y - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
+export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM: number): boolean {
+  const contactHeightM = state.position.y - spec.gear.heightM
+  return contactHeightM - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
+    && contactHeightM - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
 }
 
 /**
@@ -165,9 +175,19 @@ export function onGround(state: AircraftState, groundHeightM: number): boolean {
  * case in this file is. Flagged rather than guarded here: unreachable
  * through the only call sites that exist today, and out of scope for this
  * fix wave to change behavior on.
+ *
+ * Takes `spec` as of Task 15, for the same reason `onGround` now does: the
+ * surface this projects the airplane onto is `groundHeightM + spec.gear.heightM`
+ * -- the wheels' contact point -- not `groundHeightM` itself, which is where
+ * the body origin `position` names would otherwise be pinned, burying the
+ * airframe below it. Only the DATUM moves: every comparison and the `g * dh`
+ * energy trade below are unchanged in substance, now measured against
+ * `groundHeightM + spec.gear.heightM` rather than `groundHeightM` directly --
+ * `tests/sim/invariants.test.ts`'s sweep re-verifies this after the move.
  */
-export function restOnSurface(state: AircraftState, groundHeightM: number): AircraftState {
-  const dh = groundHeightM - state.position.y
+export function restOnSurface(spec: AircraftSpec, state: AircraftState, groundHeightM: number): AircraftState {
+  const contactTargetM = groundHeightM + spec.gear.heightM
+  const dh = contactTargetM - state.position.y
 
   if (dh <= 0) {
     // At or above the surface. A separating (climbing) airplane is left
@@ -176,7 +196,7 @@ export function restOnSurface(state: AircraftState, groundHeightM: number): Airc
     // Sinking or level: stop the sink, no more.
     return {
       ...state,
-      position: v3(state.position.x, groundHeightM, state.position.z),
+      position: v3(state.position.x, contactTargetM, state.position.z),
       velocity: v3(state.velocity.x, 0, state.velocity.z),
     }
   }
@@ -197,7 +217,7 @@ export function restOnSurface(state: AircraftState, groundHeightM: number): Airc
   const factor = speed > 1e-9 ? newSpeed / speed : 0
   return {
     ...state,
-    position: v3(state.position.x, groundHeightM, state.position.z),
+    position: v3(state.position.x, contactTargetM, state.position.z),
     velocity: scale(state.velocity, factor),
   }
 }
@@ -277,9 +297,25 @@ export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.6
 export const ARRIVAL_SINK_THRESHOLD_MPS = 0.1
 
 /**
- * Whether ground contact is CARRIED rather than crashed into: the gear is
- * down, the airplane is within `onGround`'s tolerance of the surface, and it
- * arrived slowly enough to survive.
+ * Whether ground contact is CARRIED rather than crashed into: the surface is
+ * LAND, the gear is down, the airplane is within `onGround`'s tolerance of
+ * the surface, and it arrived slowly enough to survive.
+ *
+ * **Requires land** (Task 16, found by Mark driving off the end of the
+ * Tacloban runway onto the ocean and rolling on top of it): every other gate
+ * here asks about the AIRPLANE -- gear, sink, speed -- and none of them ask
+ * what it is standing on, so a gear-down airplane rolling level at sea level
+ * satisfied all of them and got the ground constraint and rolling friction
+ * over open water. Wheels cannot roll on water. `surfaceAt` (`src/sim/
+ * contact.ts`) is Plan 10's own single source of truth for the land/water
+ * classification -- re-testing `groundHeightM <= SEA_LEVEL_M` here instead
+ * would be a second copy of that rule, free to drift from the first, so this
+ * imports `surfaceAt` rather than reimplementing it. Requiring land here
+ * makes `contactOutcome`'s existing "on land, never survivable"
+ * (`src/sim/contact.ts`) and this file's ground constraint agree on the same
+ * classification for the same reason `supportedContact` itself exists: two
+ * places judging the same thing by different rules is how the take-off/
+ * landing seam broke before Task 5b.
  *
  * The one predicate gating both sides of the Plan 10 / Plan 11a seam: `step`
  * applies `restOnSurface` only for a supported contact, and `advance`
@@ -319,7 +355,8 @@ export function supportedContact(
 ): boolean {
   const speed = length(state.velocity)
   const descending = state.velocity.y < -ARRIVAL_SINK_THRESHOLD_MPS
-  return onGround(state, groundHeightM)
+  return surfaceAt(groundHeightM) === 'land'
+    && onGround(spec, state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)

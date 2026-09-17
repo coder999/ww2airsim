@@ -436,6 +436,20 @@ export function advance<M>(
     // supported airplane to exactly `groundHeightM`, so without this guard
     // every tick of a normal landing or a parked take-off roll re-triggered
     // this branch and froze the world, making take-off impossible.
+    //
+    // `current.position.y` DELIBERATELY, not `current.position.y -
+    // spec.gear.heightM` (Task 15): `position.y` is the airplane's BODY
+    // ORIGIN, and `restOnSurface`/`onGround`/`supportedContact` all now
+    // compare the GEAR-OFFSET height for CONTACT purposes (a resting
+    // airplane's origin sits `spec.gear.heightM` above the ground it is
+    // parked on). This check answers a different question -- has the
+    // airframe itself, the thing `position` actually names, passed through
+    // the terrain -- and the answer to that does not depend on where the
+    // wheels are: an origin below the ground is a crash whatever the gear is
+    // doing (Plan 10's geometric test, unchanged by Task 15). Do not "fix"
+    // this asymmetry by subtracting the gear offset here; that would let an
+    // airplane belly-flop into the runway with its wheels still notionally
+    // above ground and have it read as a normal landing.
     if (impact === null && world.terrain !== null) {
       const groundHeightM = heightAt(world.terrain, current.position.x, current.position.z)
       if (current.position.y <= groundHeightM && !supportedContact(world.spec, current, groundHeightM)) {

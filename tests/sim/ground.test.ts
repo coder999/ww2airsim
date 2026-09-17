@@ -24,6 +24,11 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 const f6f = loadAircraftSpec('f6f-hellcat')
 const DT = 1 / 60
 const G = 9.80665
+/** The airplane's body origin sits this far above the wheels' contact point
+ *  (Task 15) -- every fixture below that means "resting on the ground" has
+ *  to say `groundHeightM + H`, not `groundHeightM`, or it is testing a state
+ *  that is `H` metres underground. */
+const H = f6f.gear.heightM
 
 describe('landing gear', () => {
   it('starts up, so no existing flight gains drag it did not have', () => {
@@ -82,51 +87,56 @@ describe('weight on wheels', () => {
   const at = (y: number) => createState({ position: v3(0, y, 0) })
 
   it('is false well above the ground', () => {
-    expect(onGround(at(500), 0)).toBe(false)
+    expect(onGround(f6f, at(500), 0)).toBe(false)
   })
 
   it('is true resting exactly on it', () => {
-    expect(onGround(at(0), 0)).toBe(true)
+    // "On it" means the wheels, at `groundHeightM + H` -- not `position.y ===
+    // groundHeightM`, which is `H` metres of body origin buried underground
+    // (Task 15).
+    expect(onGround(f6f, at(H), 0)).toBe(true)
   })
 
   it('is true within the contact tolerance', () => {
-    expect(onGround(at(GROUND_CONTACT_TOLERANCE_M * 0.5), 0)).toBe(true)
+    expect(onGround(f6f, at(H + GROUND_CONTACT_TOLERANCE_M * 0.5), 0)).toBe(true)
   })
 
   it('is false just outside it', () => {
-    expect(onGround(at(GROUND_CONTACT_TOLERANCE_M * 2), 0)).toBe(false)
+    expect(onGround(f6f, at(H + GROUND_CONTACT_TOLERANCE_M * 2), 0)).toBe(false)
   })
 
   it('reads a hilltop as ground, not sea level', () => {
-    expect(onGround(at(1000), 1000)).toBe(true)
-    expect(onGround(at(1000), 0)).toBe(false)
+    expect(onGround(f6f, at(1000 + H), 1000)).toBe(true)
+    expect(onGround(f6f, at(1000 + H), 0)).toBe(false)
   })
 
   it('is false for a non-finite position rather than true', () => {
     // Written as a positive comparison so NaN fails it, the same posture
     // `contactOutcome` takes: a broken state must not be reported as safely
     // on the ground, where the constraint would then act on it.
-    expect(onGround(at(Number.NaN), 0)).toBe(false)
+    expect(onGround(f6f, at(Number.NaN), 0)).toBe(false)
   })
 })
 
 describe('the ground constraint', () => {
   it('kills the sink rate of an airplane settling onto the surface', () => {
-    const s = createState({ position: v3(0, 0.1, 0), velocity: v3(50, -2, 0) })
-    const r = restOnSurface(s, 0)
+    const s = createState({ position: v3(0, H + 0.1, 0), velocity: v3(50, -2, 0) })
+    const r = restOnSurface(f6f, s, 0)
     expect(r.velocity.y).toBe(0)
     expect(r.velocity.x).toBe(50)
   })
 
   it('places it exactly on the surface', () => {
-    expect(restOnSurface(createState({ position: v3(0, 0.1, 0) }), 0).position.y).toBe(0)
+    // "The surface" is the wheels' contact point, `groundHeightM + H`, not
+    // `groundHeightM` itself (Task 15).
+    expect(restOnSurface(f6f, createState({ position: v3(0, H + 0.1, 0) }), 0).position.y).toBe(H)
   })
 
   it('NEVER lifts an airplane that is below the surface', () => {
     // Raising it would add g*h and trip assertNoEnergyGain at idle throttle.
     // Below the surface is Plan 10's business, not this function's.
     const below = createState({ position: v3(0, -5, 0), velocity: v3(50, -2, 0) })
-    expect(restOnSurface(below, 0).position.y).toBe(-5)
+    expect(restOnSurface(f6f, below, 0).position.y).toBe(-5)
   })
 
   it('leaves a climbing airplane alone, position included (Finding 3)', () => {
@@ -136,17 +146,17 @@ describe('the ground constraint', () => {
     // airplane is held at exactly ground level while vy builds up and then
     // leaves in one fake leap once it crosses GROUND_CONTACT_TOLERANCE_M / DT
     // -- the bug this finding describes.
-    const r = restOnSurface(createState({ position: v3(0, 0.1, 0), velocity: v3(60, 3, 0) }), 0)
+    const r = restOnSurface(f6f, createState({ position: v3(0, H + 0.1, 0), velocity: v3(60, 3, 0) }), 0)
     expect(r.velocity.y).toBe(3)
-    expect(r.position.y).toBe(0.1)
+    expect(r.position.y).toBe(H + 0.1)
   })
 
   describe('following rising ground (Finding 2, design doc §2 amendment)', () => {
     it('follows the surface up and slows down when there is enough speed to climb it', () => {
       const dh = 0.1
-      const s = createState({ position: v3(0, -dh, 0), velocity: v3(60, 0, 0) })
-      const r = restOnSurface(s, 0)
-      expect(r.position.y).toBe(0)
+      const s = createState({ position: v3(0, H - dh, 0), velocity: v3(60, 0, 0) })
+      const r = restOnSurface(f6f, s, 0)
+      expect(r.position.y).toBe(H)
       expect(length(r.velocity)).toBeLessThan(length(s.velocity))
       // Exact energy trade: g*dh comes off the specific kinetic energy.
       const speedBefore = length(s.velocity)
@@ -156,9 +166,9 @@ describe('the ground constraint', () => {
 
     it('does not raise total specific energy across that step', () => {
       const dh = 0.15
-      const s = createState({ position: v3(0, -dh, 0), velocity: v3(45, 0, 0) })
+      const s = createState({ position: v3(0, H - dh, 0), velocity: v3(45, 0, 0) })
       const before = specificEnergyAirmass(s)
-      const after = specificEnergyAirmass(restOnSurface(s, 0))
+      const after = specificEnergyAirmass(restOnSurface(f6f, s, 0))
       expect(after).toBeLessThanOrEqual(before + 1e-9)
     })
 
@@ -176,42 +186,52 @@ describe('the ground constraint', () => {
       // thrust applied between ticks (outside this function) can keep
       // building speed until there is enough to pay for the climb.
       const dh = GROUND_CONTACT_TOLERANCE_M
-      const s = createState({ position: v3(0, -dh, 0), velocity: v3(0.5, 0, 0) })
-      const r = restOnSurface(s, 0)
+      const s = createState({ position: v3(0, H - dh, 0), velocity: v3(0.5, 0, 0) })
+      const r = restOnSurface(f6f, s, 0)
       expect(r).toEqual(s)
     })
   })
 })
 
 describe('supported contact (Task 5b)', () => {
+  // A LAND height, not `0` (Task 16): `surfaceAt` (src/sim/contact.ts) reads
+  // `groundHeightM <= SEA_LEVEL_M` (0) as water, and `supportedContact` now
+  // requires land -- so `0` here would make every "supported" case in this
+  // block false for the wrong reason (water, not whatever the test is
+  // actually isolating). `LAND_M` is comfortably above sea level and
+  // otherwise arbitrary.
+  const LAND_M = 1
+  // Position `LAND_M + H`, not `H` (Task 15): the body origin of an airplane
+  // actually resting on the ground sits `H` metres above the ground itself
+  // (`LAND_M` here), not above sea level.
   const resting = (extra: Partial<AircraftState> = {}) =>
-    createState({ position: v3(0, 0, 0), velocity: v3(0, 0, 0), gearFraction: 1, ...extra })
+    createState({ position: v3(0, LAND_M + H, 0), velocity: v3(0, 0, 0), gearFraction: 1, ...extra })
 
   it('is supported with the gear down, resting, at no sink rate', () => {
-    expect(supportedContact(f6f, resting(), 0)).toBe(true)
+    expect(supportedContact(f6f, resting(), LAND_M)).toBe(true)
   })
 
   it('is NOT supported with the gear up, all else equal', () => {
-    expect(supportedContact(f6f, resting({ gearFraction: 0 }), 0)).toBe(false)
+    expect(supportedContact(f6f, resting({ gearFraction: 0 }), LAND_M)).toBe(false)
   })
 
   it('is NOT supported arriving faster than the sink-rate limit', () => {
     const hard = resting({ velocity: v3(0, -MAX_SUPPORTED_SINK_MPS - 1, 0) })
-    expect(supportedContact(f6f, hard, 0)).toBe(false)
+    expect(supportedContact(f6f, hard, LAND_M)).toBe(false)
   })
 
   it('is NOT supported well above the ground', () => {
-    expect(supportedContact(f6f, resting({ position: v3(0, 500, 0) }), 0)).toBe(false)
+    expect(supportedContact(f6f, resting({ position: v3(0, 500, 0) }), LAND_M)).toBe(false)
   })
 
   it('is NOT supported for a non-finite state, the same posture contactOutcome takes', () => {
-    expect(supportedContact(f6f, resting({ position: v3(0, Number.NaN, 0) }), 0)).toBe(false)
+    expect(supportedContact(f6f, resting({ position: v3(0, Number.NaN, 0) }), LAND_M)).toBe(false)
   })
 
   it('is NOT supported for an infinite climb rate (Finding 5)', () => {
     // +Infinity satisfies `velocity.y >= -MAX_SUPPORTED_SINK_MPS` as a bare
     // comparison, which would let a non-finite state read as safely resting.
-    expect(supportedContact(f6f, resting({ velocity: v3(0, Number.POSITIVE_INFINITY, 0) }), 0)).toBe(false)
+    expect(supportedContact(f6f, resting({ velocity: v3(0, Number.POSITIVE_INFINITY, 0) }), LAND_M)).toBe(false)
   })
 
   it('is NOT supported for a fast, meaningfully descending arrival, even with a gentle sink (Finding 4)', () => {
@@ -219,13 +239,13 @@ describe('supported contact (Task 5b)', () => {
     // Clearly past ARRIVAL_SINK_THRESHOLD_MPS (a "gentle" sink, not the
     // MAX_SUPPORTED_SINK_MPS hard limit), so this is an arrival, not a roll.
     const fast = resting({ velocity: v3(capMps + 10, -0.5, 0) })
-    expect(supportedContact(f6f, fast, 0)).toBe(false)
+    expect(supportedContact(f6f, fast, LAND_M)).toBe(false)
   })
 
   it('is supported just under the speed cap while descending', () => {
     const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
     const underCap = resting({ velocity: v3(capMps - 1, -0.5, 0) })
-    expect(supportedContact(f6f, underCap, 0)).toBe(true)
+    expect(supportedContact(f6f, underCap, LAND_M)).toBe(true)
   })
 
   describe('the speed cap only applies to a genuine arrival (fix-wave round 2, New Important 1)', () => {
@@ -235,19 +255,43 @@ describe('supported contact (Task 5b)', () => {
       // airplane destroyed, at 70.13 m/s with nothing wrong.
       const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
       const rolling = resting({ velocity: v3(capMps + 50, 0, 0) })
-      expect(supportedContact(f6f, rolling, 0)).toBe(true)
+      expect(supportedContact(f6f, rolling, LAND_M)).toBe(true)
     })
 
     it('stays supported at high speed within the arrival sink threshold (floating-point noise)', () => {
       const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
       const noisy = resting({ velocity: v3(capMps + 50, -ARRIVAL_SINK_THRESHOLD_MPS * 0.5, 0) })
-      expect(supportedContact(f6f, noisy, 0)).toBe(true)
+      expect(supportedContact(f6f, noisy, LAND_M)).toBe(true)
     })
 
     it('is NOT supported once past the arrival sink threshold, at the same speed', () => {
       const capMps = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
       const descending = resting({ velocity: v3(capMps + 50, -ARRIVAL_SINK_THRESHOLD_MPS * 2, 0) })
-      expect(supportedContact(f6f, descending, 0)).toBe(false)
+      expect(supportedContact(f6f, descending, LAND_M)).toBe(false)
+    })
+  })
+
+  describe('requires land (Task 16, Mark drove off the runway onto the ocean)', () => {
+    it('is NOT supported resting gently at sea level, all else identical to the supported case above', () => {
+      // Every other gate here is about the AIRPLANE (gear, sink, speed), not
+      // what it is standing on -- before this fix, a gear-down airplane
+      // resting gently at or below SEA_LEVEL_M satisfied all of them.
+      const atSea = createState({ position: v3(0, H, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
+      expect(supportedContact(f6f, atSea, 0)).toBe(false)
+    })
+
+    it('is NOT supported for any groundHeightM at or below SEA_LEVEL_M, however gently it arrives', () => {
+      const belowSea = createState({ position: v3(0, -5 + H, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
+      expect(supportedContact(f6f, belowSea, -5)).toBe(false)
+    })
+
+    it('is supported the instant groundHeightM crosses above sea level, all else equal (boundary check)', () => {
+      const justAboveSea = resting()
+      expect(supportedContact(f6f, justAboveSea, LAND_M)).toBe(true)
+      // And confirm the boundary is exactly `surfaceAt`'s own: exactly at
+      // SEA_LEVEL_M is still water, not land.
+      const atSeaLevelExactly = createState({ position: v3(0, H, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
+      expect(supportedContact(f6f, atSeaLevelExactly, 0)).toBe(false)
     })
   })
 })
@@ -358,7 +402,13 @@ describe('step(): ground consumers are gated on the gear being down (fix round 1
     centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
     finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
   })
-  const flat = createTerrainField(header, 12, new Int16Array(9).fill(0))
+  // `.fill(10)`, not `.fill(0)` (Task 16): decimetre encoding, so this is a
+  // flat 1.0 m field -- LAND. `supportedContact` (and, as of Task 16, rolling
+  // resistance and the ground control regime too) now requires land, and
+  // `SEA_LEVEL_M` (0) reads as water, which would make every gear-down test
+  // below fail for a reason unrelated to what it is actually testing.
+  const LAND_M = 1
+  const flat = createTerrainField(header, 12, new Int16Array(9).fill(LAND_M * 10))
   const ctx = (terrain: TerrainField | null, tick = 0): SimContext => ({ dt: DT, tick, terrain })
 
   it('does not steer with a retracted tailwheel or charge rolling friction to a belly', () => {
@@ -378,7 +428,11 @@ describe('step(): ground consumers are gated on the gear being down (fix round 1
   })
 
   it('does steer and does drag once the gear is down, for contrast', () => {
-    const rollingGearDown = createState({ position: v3(0, 0, 0), velocity: v3(20, 0, 0), gearFraction: 1 })
+    // Position `LAND_M + H`, not `H` (Task 15/16): with the gear down this
+    // airplane has to actually be resting on `flat`'s ground (height
+    // `LAND_M`, and land, not water) for the terrain-dependent branches to
+    // fire at all.
+    const rollingGearDown = createState({ position: v3(0, LAND_M + H, 0), velocity: v3(20, 0, 0), gearFraction: 1 })
     const controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0, brake: 1 }
     const withTerrain = step(f6f, rollingGearDown, controls, ctx(flat))
     const withoutTerrain = step(f6f, rollingGearDown, controls, ctx(null))
@@ -391,7 +445,10 @@ describe('step(): ground consumers are gated on the gear being down (fix round 1
     // +0.0300 m/s forever instead of settling, because the resistance force
     // below `resistanceN * dt / m` overshot zero and reversed the track
     // every tick.
-    let s = createState({ position: v3(0, 0, 0), velocity: v3(5, 0, 0), gearFraction: 1 })
+    // Position `LAND_M + H`, not `H` (Task 15/16) -- same reason as the test
+    // above: this has to start resting on `flat`'s (land) ground for rolling
+    // resistance to apply at all.
+    let s = createState({ position: v3(0, LAND_M + H, 0), velocity: v3(5, 0, 0), gearFraction: 1 })
     const controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: 1 }
     for (let i = 0; i < 300; i++) s = step(f6f, s, controls, ctx(flat, i))
     expect(Math.abs(s.velocity.x)).toBeLessThan(0.01)

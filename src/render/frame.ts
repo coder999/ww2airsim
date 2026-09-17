@@ -234,10 +234,20 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  * `frame.world.terrain`, so a caller cannot pass a `frame` whose terrain is
  * still `null` and get a silently wrong `heightAt(null, ...)` -- there is no
  * such overload, so that mistake is a type error, not a runtime one.
+ *
+ * Settles onto `groundHeightM + spec.gear.heightM`, not `groundHeightM`
+ * itself (Task 15): `aircraft.position.y` is the body origin, which sits
+ * `spec.gear.heightM` above the wheels' contact point, the same convention
+ * `onGround`/`restOnSurface` (`src/sim/ground.ts`) now use. Settling onto
+ * the bare `groundHeightM` here would put the body origin back at ground
+ * level -- the exact bug Task 15 fixes -- for the one frame between this call
+ * and the first `advance` after it, which is also the frame the player is
+ * most likely to be looking at the runway.
  */
 export function settleOnTerrain(frame: FrameState, terrain: TerrainField): FrameState {
   const groundHeightM = heightAt(terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
-  const atGroundHeight = (p: Vec3): Vec3 => v3(p.x, groundHeightM, p.z)
+  const contactHeightM = groundHeightM + frame.world.spec.gear.heightM
+  const atGroundHeight = (p: Vec3): Vec3 => v3(p.x, contactHeightM, p.z)
   return {
     ...frame,
     world: {

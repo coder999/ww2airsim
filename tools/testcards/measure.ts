@@ -262,10 +262,10 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
 }
 
 /**
- * A flat synthetic terrain field at sea level, built the same way
+ * A flat synthetic runway, built the same way
  * `tests/sim/terrainContact.test.ts` builds its `plateau` (same header shape,
- * a single LOD level, every sample identical) -- just at height 0 instead of
- * 1000 m.
+ * a single LOD level, every sample identical) -- just at a nominal
+ * `RUNWAY_HEIGHT_M` instead of 1000 m.
  *
  * Deliberately NOT the real, committed Tacloban field. Task 9's binding
  * decision (planning measurements, 2026-09-16): this card grades the flight
@@ -273,10 +273,20 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
  * running it over real Leyte terrain would make a historical grading number
  * depend on which terrain LOD level the test happened to load -- L0 and L4
  * are measurably different runways (2.12% vs 0.30% worst local grade, north-
- * south through Tacloban). A flat field at sea level has no such dependency:
- * every level of it is the same runway.
+ * south through Tacloban). A flat field has no such dependency: every level
+ * of it is the same runway.
+ *
+ * `RUNWAY_HEIGHT_M`, not literally sea level (Task 16): `supportedContact`
+ * now requires LAND (`surfaceAt`, `src/sim/contact.ts`, reads at-or-below
+ * `SEA_LEVEL_M` as water), so a field at height 0 would make this card's
+ * airplane read as driving on the ocean, not rolling down a runway -- no
+ * ground constraint, no rolling friction, no steering, and a take-off roll
+ * that measures nothing like the real one. `RUNWAY_HEIGHT_M` only has to
+ * clear `SEA_LEVEL_M`; its exact value does not otherwise matter to a flat
+ * field.
  */
-const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
+const RUNWAY_HEIGHT_M = 1
+const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
   parseTerrainHeader({
     centreLatDeg: 10.8,
     centreLonDeg: 125.3,
@@ -286,7 +296,7 @@ const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
     encoding: 'int16-decimetres',
   }),
   12,
-  new Int16Array(9).fill(0),
+  new Int16Array(9).fill(RUNWAY_HEIGHT_M * 10),
 )
 
 /**
@@ -306,7 +316,7 @@ const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
  * position pin.
  *
  * The airplane is spawned with `gearFraction: 1` -- on its wheels -- over
- * `FLAT_SEA_LEVEL_FIELD`, and the real ground constraint (`restOnSurface`,
+ * `FLAT_RUNWAY_FIELD`, and the real ground constraint (`restOnSurface`,
  * gated on `supportedContact`) is what keeps it on the runway now, the same
  * mechanism `tests/sim/ground.test.ts` and the terrain soak
  * (`tools/soak/run.ts`) exercise elsewhere. There is no more position/
@@ -323,12 +333,19 @@ const FLAT_SEA_LEVEL_FIELD: TerrainField = createTerrainField(
 const TAKEOFF_MAX_S = 60
 
 export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number): number {
-  let s: AircraftState = { ...spawn(spec, 0, 0), gearFraction: 1 }
+  // Task 15: `position.y` is the body origin, and a resting airplane's origin
+  // sits `spec.gear.heightM` above the ground it is parked on
+  // (`onGround`/`restOnSurface`, src/sim/ground.ts), not on the ground
+  // itself. Spawning at `RUNWAY_HEIGHT_M + spec.gear.heightM` here, rather
+  // than `RUNWAY_HEIGHT_M`, is what keeps this card's datum shift invisible
+  // -- the airplane starts exactly on its wheels over `FLAT_RUNWAY_FIELD`
+  // either way, so the measured roll distance is unaffected by Task 15.
+  let s: AircraftState = { ...spawn(spec, RUNWAY_HEIGHT_M + spec.gear.heightM, 0), gearFraction: 1 }
   const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
   let tick = 0
   for (let i = 0; i < 60 * TAKEOFF_MAX_S; i++) {
     tick++
-    s = holdMass(spec, stepChecked(spec, s, controls, { dt: DT, tick, terrain: FLAT_SEA_LEVEL_FIELD }))
+    s = holdMass(spec, stepChecked(spec, s, controls, { dt: DT, tick, terrain: FLAT_RUNWAY_FIELD }))
     if (airspeed(s) >= liftoffSpeedMps) return s.position.x
   }
   // Important 2's same reasoning applies here: a run that never reached

@@ -76,7 +76,7 @@ The spec's open question 1. Plan 10 refused to add this field speculatively, on 
 
 **Why optional:** there are 51 `{ dt:, tick: }` sites and exactly one is production. Verified during planning: `src/sim/loop.ts:398` is the only construction site under `src/`. A required field would edit 50 test and tool call sites to say "no ground" explicitly, for no behavior.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/sim/loop.test.ts — append inside the existing describe for advance
@@ -105,12 +105,12 @@ it('passes null terrain through rather than undefined, so "no ground" is explici
 
 Use whatever `f6f`, `plateau` and `NEUTRAL` bindings that file already has; if it has no flat synthetic field, build one the way `tests/sim/terrainContact.test.ts` builds `plateau` and say so in the test.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/sim/loop.test.ts`
 Expected: FAIL — `Property 'terrain' does not exist on type 'SimContext'` at typecheck.
 
-- [ ] **Step 3: Add the field**
+- [x] **Step 3: Add the field**
 
 ```typescript
   /**
@@ -127,16 +127,16 @@ Expected: FAIL — `Property 'terrain' does not exist on type 'SimContext'` at t
   readonly terrain?: TerrainField | null
 ```
 
-- [ ] **Step 4: Thread it in `advance`**
+- [x] **Step 4: Thread it in `advance`**
 
 At the single production construction site, change `{ dt: DT, tick: current.tick + 1 }` to `{ dt: DT, tick: current.tick + 1, terrain: world.terrain }`.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **726 passed, 1 skipped**. Nothing else moves: `step` does not read the field yet.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/loop.ts tests/sim/loop.test.ts
@@ -157,7 +157,7 @@ git commit -m "Hand step the ground, now that something needs it"
 
 **Gear defaults to UP.** `createState` with no argument must produce exactly the airplane every existing test has. Down-by-default would add parasitic drag to the golden trajectory and every graded card.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts
@@ -206,12 +206,12 @@ describe('landing gear', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts`
 Expected: FAIL — `Cannot find module '../../src/sim/ground.js'`, and `spec.gear` does not exist.
 
-- [ ] **Step 3: Add the state and control fields**
+- [x] **Step 3: Add the state and control fields**
 
 In `src/sim/flight/state.ts`, add to `AircraftState`:
 
@@ -235,7 +235,7 @@ and to `Controls`:
 
 Give `createState` a `gearFraction: init.gearFraction ?? 0` line.
 
-- [ ] **Step 4: Write `gearAfter`**
+- [x] **Step 4: Write `gearAfter`**
 
 ```typescript
 // src/sim/ground.ts
@@ -263,16 +263,16 @@ export function gearAfter(
 }
 ```
 
-- [ ] **Step 5: Add the spec block**
+- [x] **Step 5: Add the spec block**
 
 In `src/sim/flight/schema.ts`, add a `gear` object with `travelSeconds: positive` and `dragAreaM2: positive`, both `.strict()`. In `content/aircraft/f6f-hellcat.json` add the values with a comment in the `reference.source` string, or a sibling note, stating plainly whether each is sourced or estimated. **An estimate labeled as an estimate is fine; an estimate presented as a trial figure is not** — the existing `rollRateDegPerSec` entry is the precedent for how this file says so.
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **732 passed, 1 skipped**. If any existing test moves, STOP — gear defaulting to up means nothing should.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim/ground.ts src/sim/flight/state.ts src/sim/flight/schema.ts content/aircraft/f6f-hellcat.json tests/sim/ground.test.ts
@@ -291,7 +291,7 @@ git commit -m "Landing gear that takes time to move"
 - Consumes: `AircraftState.gearFraction`, `spec.gear.dragAreaM2`.
 - Produces: `gearDragN(spec, gearFraction, dynamicPressureQ): number` from `src/sim/ground.js`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -328,12 +328,12 @@ it('flies slower with the gear down than with it up, all else equal', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts tests/sim/flight/forces.test.ts`
 Expected: FAIL — `gearDragN is not a function`, and the forces case sees identical velocities.
 
-- [ ] **Step 3: Write the drag term**
+- [x] **Step 3: Write the drag term**
 
 ```typescript
 /**
@@ -351,16 +351,16 @@ export function gearDragN(spec: AircraftSpec, gearFraction: number, q: number): 
 }
 ```
 
-- [ ] **Step 4: Apply it in `step`**
+- [x] **Step 4: Apply it in `step`**
 
 In `src/sim/flight/model.ts`, after `dragN` is computed, add the gear term into the drag applied along `vdir`. Do not add a fourth force vector — fold it into the existing drag so there is one drag direction, and add a one-line comment saying gear drag is parasitic and acts with the rest of the drag.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **736 passed, 1 skipped**. The golden trajectory and every test card must be UNMOVED: they all fly with `gearFraction` 0, where this term is exactly zero. If any of them moves, the default is wrong — stop and report rather than re-baselining.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ground.ts src/sim/flight/model.ts tests/
@@ -382,7 +382,7 @@ A derived predicate, never a stored flag: a flag can disagree with the state it 
 
 **Deliberately not gated on gear.** A belly landing is still on the ground. Whether the airplane survives being there is Plan 10's `contactOutcome`, not this predicate's business, and conflating them would make "is it touching" depend on "is it flyable".
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -422,12 +422,12 @@ describe('weight on wheels', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts`
 Expected: FAIL — `onGround is not a function`.
 
-- [ ] **Step 3: Write it**
+- [x] **Step 3: Write it**
 
 ```typescript
 /**
@@ -462,12 +462,12 @@ export function onGround(state: AircraftState, groundHeightM: number): boolean {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run verify`
 Expected: exit 0, **742 passed, 1 skipped**.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/ground.ts tests/sim/ground.test.ts
@@ -487,7 +487,7 @@ git commit -m "Know when the wheels are carrying the weight"
 
 **The hazard, restated because it is the one thing that must not be got wrong:** the constraint must never LIFT. Killing vertical velocity removes energy; raising the airplane adds `g·h` and trips `assertNoEnergyGain` at idle throttle. An airplane below the surface is Plan 10's — `advance` records an impact and freezes — so this function clamps DOWN to the surface and never up.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -538,25 +538,25 @@ it('the ground constraint never increases specific energy', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts tests/sim/invariants.test.ts`
 Expected: FAIL — `restOnSurface is not a function`.
 
-- [ ] **Step 3: Write it**
+- [x] **Step 3: Write it**
 
 Clamp `position.y` DOWN to `groundHeightM` only when it is above it and within tolerance; clamp `velocity.y` up to 0 only when it is negative. Both one-directional, for the reason the tests state. Write the doc comment naming `assertNoEnergyGain` as the constraint that makes it one-directional.
 
-- [ ] **Step 4: Apply it in `step`**
+- [x] **Step 4: Apply it in `step`**
 
 After the integration produces `position` and `velocity`, if `ctx.terrain` is non-null and `onGround` holds for the integrated state, pass the state through `restOnSurface`. `ctx.terrain` being null must short-circuit before `heightAt` is called, exactly as `advance`'s impact check does.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **747 passed, 1 skipped**. The golden trajectory flies with `terrain: null` so it cannot be reached — confirm that rather than assume it, and if the golden moves, STOP and report: it means the null short-circuit is wrong.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ground.ts src/sim/flight/model.ts tests/
@@ -575,7 +575,7 @@ git commit -m "Rest on the ground instead of sinking through it"
 - Consumes: `onGround` (Task 4).
 - Produces: `Controls.brake?: number` (0–1); `rollingResistanceN(spec, massKg, brake): number` from `src/sim/ground.js`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -601,25 +601,25 @@ describe('rolling resistance', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts`
 Expected: FAIL — `rollingResistanceN is not a function`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add `readonly brake?: number` to `Controls` with the same "optional because literals are everywhere" comment `gearDown` carries. Add `spec.gear.rollingResistanceCoeff` and `spec.gear.brakingResistanceCoeff` to the schema and content file, labeled sourced or estimated. `rollingResistanceN` returns `(rolling + brake * (braking - rolling)) * massKg * G`, with brake clamped to `[0, 1]` and a non-finite brake treated as 0.
 
-- [ ] **Step 4: Apply in `step`**
+- [x] **Step 4: Apply in `step`**
 
 When `onGround` holds, add the resistance as a force opposing the **ground track** — the horizontal component of velocity — not along `vdir`, which includes any vertical component. A stationary airplane must get zero resistance rather than a NaN direction; guard the normalize exactly as `step` already guards `vdir` with `v > 1e-6`.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **751 passed, 1 skipped**.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ tests/sim/ content/aircraft/f6f-hellcat.json
@@ -641,7 +641,7 @@ git commit -m "The runway drags on the wheels, and the brakes drag harder"
 
 **Ruling taken here rather than left open (spec §9 question 3):** the tail comes up on a **speed gate**, `spec.gear.tailUpSpeedMps`. The alternative — elevator authority against a moment arm — reintroduces moments this model does not have and would be more detailed than the airframe it acts on. Whether the gate feels arbitrary is a Tier 3 question, and the handoff must say so.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -681,12 +681,12 @@ describe('the ground control regime', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/ground.test.ts`
 Expected: FAIL — `groundBodyRates is not a function`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Return a `Vec3` in the same `{ x: roll, y: yaw, z: pitch }` convention `ratesFromDynamicPressure` uses:
 - **x (roll): always 0.**
@@ -695,16 +695,16 @@ Return a `Vec3` in the same `{ x: roll, y: yaw, z: pitch }` convention `ratesFro
 
 Add `tailUpSpeedMps` and `tailwheelYawRateDegPerSec` to the schema's `gear` block and the content file, labeled sourced or estimated.
 
-- [ ] **Step 4: Apply in `step`**
+- [x] **Step 4: Apply in `step`**
 
 Where `step` currently assigns `bodyRates = ratesFromDynamicPressure(...)`, route it through `groundBodyRates` when `ctx.terrain` is non-null and `onGround` holds for the state at the START of the step. Use the start-of-step state, not the integrated one: the rates command this step's rotation, and rotating as though already airborne on the step you leave the ground is a half-step error that shows up as a twitch at rotation.
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **756 passed, 1 skipped**. The golden trajectory must not move — it has `terrain: null`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ src/sim/flight/ tests/sim/ content/aircraft/f6f-hellcat.json
@@ -724,7 +724,7 @@ git commit -m "On the wheels you cannot roll, and the tail comes up when it is r
 
 `G` and `B` are both free — verified during planning against `BINDINGS`, which currently binds A, C, D, E, H, I, L, Q, R, S, T, W and Z. `legend.test.ts` fails the build if a binding ships without a legend row, so both need rows.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```typescript
 // tests/render/frame.test.ts — append
@@ -759,23 +759,23 @@ describe('gear and brakes', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/render/frame.test.ts`
 Expected: FAIL — `gearDown` does not exist on `FrameState`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add `toggleGear: ['KeyG']` and `brakes: ['KeyB']` to `BINDINGS`, each with a comment in that file's voice saying why the letter was chosen; add a legend row for each. In `frame.ts`, add `gearDown` (defaulting **true** — the airplane starts on a runway) and `gearPressed` to `FrameState`, toggle on the rising edge exactly as `cyclePressed` and the assist toggles already do, and thread both `gearDown` and `brake` into the `Controls` object that goes into the world.
 
 Brakes are on/off from a keyboard: 1 while held, 0 otherwise. Note in a comment that the schema's `brake` is 0–1 so a future axis input needs no type change.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0, **760 passed, 1 skipped**.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/input/bindings.ts src/render/legend.ts src/render/frame.ts tests/render/frame.test.ts
@@ -799,27 +799,27 @@ The acceptance test for this whole plan.
 
 **Binding decision from the planning measurements:** the card runs on **synthetic flat ground at sea level**, NOT on Tacloban. It grades the flight model against a Patuxent River figure measured on a flat airfield; running it over real Leyte would make a historical grading number depend on which terrain level the test loaded, and L0 and L4 are measurably different runways (2.12% vs 0.30% worst local grade). Build the field the way `tests/sim/terrainContact.test.ts` builds its `plateau`.
 
-- [ ] **Step 1: Delete the fake and give the card real ground**
+- [x] **Step 1: Delete the fake and give the card real ground**
 
 Remove the `position: v3(next.position.x, 0, next.position.z)` / `velocity: v3(next.velocity.x, 0, next.velocity.z)` clamp. Spawn the airplane with `gearFraction: 1` — it is on its wheels — and pass a flat synthetic `TerrainField` at sea level through `SimContext`.
 
-- [ ] **Step 2: Run the card and RECORD what it now measures**
+- [x] **Step 2: Run the card and RECORD what it now measures**
 
 Run: `npx vitest run <the f6f test card file>`
 Expect it to FAIL against the current tolerance, and that is the point. Record the new roll distance to three decimal places. Do not change anything yet.
 
-- [ ] **Step 3: Restate the tolerance with evidence**
+- [x] **Step 3: Restate the tolerance with evidence**
 
 The cited figure is 755 ft = 230.124 m, and `content/aircraft/f6f-hellcat.json` already records that the model runs short of it because it has no flaps, no rolling friction and no ground effect. This plan adds rolling friction, which makes the roll **longer**; flaps and ground effect stay absent until 11b.
 
 Update the tolerance to the measured value with a comment that states: the measured distance, the date, that rolling friction now applies and flaps and ground effect still do not, and the direction the remaining gap runs. **Do not widen the tolerance to whatever passes.** If the roll has moved FURTHER from the trial figure than before, say so plainly — that is a real result about a full-flaps trial figure and a no-flaps airplane, and it belongs in the handoff.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `npm run verify`
 Expected: exit 0. Report the count; it should be unchanged from Task 8 unless you added a case.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/testcards/measure.ts tests/
@@ -836,15 +836,15 @@ git commit -m "The take-off card measures real ground now, not a pinned state"
 
 Today `runTerrainSoak` stops each flight at first contact. With a ground constraint, an airplane can now legitimately arrive and stay. Add an assertion over the existing 200-iteration run — **do not add a second soak run**, for the reason the Plan 10 ledger recorded: the existing test already asserts `failures` is empty and a second run triples cost for no coverage.
 
-- [ ] **Step 1: Add the assertion**
+- [x] **Step 1: Add the assertion**
 
 For any flight whose airplane ends within the contact tolerance of the ground, assert `position.y >= groundHeightM - GROUND_CONTACT_TOLERANCE_M` — i.e. the constraint never let it sink through — and that specific energy did not rise across the contact step. Push failures into the existing `failures` array with iteration and seed, matching the file's existing message shape.
 
-- [ ] **Step 2: Prove the check can fire**
+- [x] **Step 2: Prove the check can fire**
 
 Temporarily invert the constraint so it lifts instead of clamps, run `npx vitest run tests/sim/soak.test.ts`, confirm the soak FAILS with one of your new messages, record the message, then **revert completely** and confirm green. Verify with `git diff` before committing that only the intended change is staged.
 
-- [ ] **Step 3: Run the full suite and commit**
+- [x] **Step 3: Run the full suite and commit**
 
 Run: `npm run verify`
 Expected: exit 0.
@@ -927,10 +927,10 @@ git commit -m "A strip at Tacloban, on the ground that is already there"
 
 Add a gear field to the follow-view numeric strip: UP, DOWN, or a travelling state, derived from `state.gearFraction`. Follow the existing items' shape exactly. A cockpit annunciator is 11b's, with the flaps indicator beside it.
 
-- [ ] **Step 1: Write the failing test, covering all three states**
-- [ ] **Step 2: Run to verify it fails**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: `npm run verify` exits 0; commit**
+- [x] **Step 1: Write the failing test, covering all three states**
+- [x] **Step 2: Run to verify it fails**
+- [x] **Step 3: Implement**
+- [x] **Step 4: `npm run verify` exits 0; commit**
 
 ```bash
 git add src/render/flightData.ts tests/
@@ -957,7 +957,7 @@ Tier 2 needs the Windows reference desktop with a Playwright server in Mark's co
 
 Plan 11a's row to Complete with a handoff link; the `— next` marker to 11b. README paragraph on what take-off now does, pointing at §15 rather than restating it.
 
-- [ ] **Step 4: Write the handoff**
+- [x] **Step 4: Write the handoff**
 
 Follow `docs/handoff/2026-09-16-plan10-contact.md`'s shape. It must record, accurately:
 - The take-off card's new measured distance and restated tolerance, and which way the gap to the 755 ft trial figure runs.
