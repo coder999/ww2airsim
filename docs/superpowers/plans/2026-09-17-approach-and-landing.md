@@ -1366,7 +1366,7 @@ git commit -m "It lands: an approach flown into Tacloban, asserted end to end"
 
 > **Stop and ask Mark before changing `MAX_SUPPORTED_SINK_MPS`.** No source settles it. Task 10 can report what sink rate a flown approach *produces*; only Mark can say what should break the airplane. Report the measured touchdown sink and the worst sink on the approach, and propose a value — do not pick one silently.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/sim/ground.test.ts — append
@@ -1409,20 +1409,20 @@ describe('the landing gates admit a flown approach and reject an arrival that sh
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails, and read HOW**
+- [x] **Step 2: Run to verify it fails, and read HOW**
 
 Run: `npx vitest run tests/sim/ground.test.ts`
 Expected: at least the third case fails, because the speed cap currently reads the clean stall speed.
 
-- [ ] **Step 3: Report the measurements and get Mark's decision on the sink gate**
+- [x] **Step 3: Report the measurements and get Mark's decision on the sink gate**
 
 Run Task 10's landing test and collect its printed figures. Then stop and put them to Mark with a proposal.
 
-- [ ] **Step 4: Implement the agreed gates**
+- [x] **Step 4: Implement the agreed gates**
 
 Change only what was agreed, and put the measured evidence in the comment on each constant, dated — the values are then re-checkable rather than timeless.
 
-- [ ] **Step 5: Run the full suite and commit**
+- [x] **Step 5: Run the full suite and commit**
 
 Run: `npm run verify` — exit 0.
 

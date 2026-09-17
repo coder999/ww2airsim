@@ -644,3 +644,29 @@ describe('the landing gates, tuned against a flown approach (Plan 11b Task 11)',
     expect(supportedContact(f6f, arriving(1.5, between, 0), 10)).toBe(true)
   })
 })
+
+describe("Mark's 120 mph touchdown limit (2026-09-17)", () => {
+  const MPH = 0.44704
+  const H = f6f.gear.heightM
+  const arrivingAt = (mph: number) =>
+    createState({
+      position: v3(0, 10 + H, 0),
+      velocity: v3(0, -1.5, mph * MPH),
+      attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2),
+      gearFraction: 1,
+      flapFraction: 1,
+    })
+
+  it('accepts a touchdown just under 120 mph and rejects one just over, with the flaps out', () => {
+    // Mark's requirement, stated as a speed. It is stored as a multiple of the
+    // stall speed so the rule generalises to other aircraft, which means this
+    // test is what pins it to the figure he actually asked for.
+    expect(supportedContact(f6f, arrivingAt(119), 10)).toBe(true)
+    expect(supportedContact(f6f, arrivingAt(121), 10)).toBe(false)
+  })
+
+  it('leaves a flown approach well inside it', () => {
+    // 85.9 mph, measured in tests/sim/landing.test.ts.
+    expect(supportedContact(f6f, arrivingAt(85.9), 10)).toBe(true)
+  })
+})

@@ -250,6 +250,24 @@ export const GEAR_DOWN_FRACTION = 0.95
  * while stationary before it can roll -- and 11b tunes it together with the
  * rest of the landing-survivability gates it owns. Expect it to move.
  */
+/**
+ * Ceiling on SINK RATE -- the downward component of velocity, not ground speed
+ * -- for an arrival to count as a landing rather than a crash. Metres per
+ * second.
+ *
+ * **4.0 m/s is a FIRM landing, not a gentle one**, and the units invite
+ * exactly the opposite reading: 4 m/s is only 8.9 mph, which sounds trivial
+ * beside an approach speed of 85 mph. As a descent rate at the moment the
+ * wheels arrive it is about 790 ft/min, where a normal touchdown is 200-400
+ * ft/min. Measured 2026-09-17, a flown approach touches down at **1.47 m/s**
+ * (`tests/sim/landing.test.ts`), so this sits at 2.7 times a competent
+ * arrival.
+ *
+ * Kept at 4.0 through Plan 11b, on type grounds: the F6F was a CARRIER
+ * airplane, stressed for deck arrivals in the 3-6 m/s range, so 4.0 is if
+ * anything conservative for this airframe -- and Plan 8 needs that headroom
+ * for the deck. No source settles it; it remains a judgement.
+ */
 export const MAX_SUPPORTED_SINK_MPS = 4.0
 
 /**
@@ -278,7 +296,29 @@ export const MAX_SUPPORTED_SINK_MPS = 4.0
  * with nothing wrong. A cap meant to catch "flew into the jungle at 291
  * knots" must not also catch "rolling fast because take-off is imminent".
  */
-export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.6
+/**
+ * Ceiling on ground speed for a descending arrival to count as a landing, as a
+ * multiple of the configuration's stall speed (`effectiveStallSpeedMps`).
+ *
+ * **1.42 because Mark specified 120 mph, 2026-09-17.** He asked for "under
+ * 120 mph when it touches down or else it's a crash", and 120 mph is
+ * 53.645 m/s, which is 1.4201 times this airplane's 84.5 mph
+ * landing-configuration stall. Kept as a MULTIPLE rather than stored as
+ * 53.645 m/s so it generalises: a Zero or a torpedo bomber has a different
+ * stall speed and the same rule should mean the same thing for it. Was 1.6,
+ * which worked out at 135 mph with the flaps out.
+ *
+ * What it implies, stated because the multiple form hides it: with the flaps
+ * out the cap is exactly 120.0 mph, and CLEAN it is 139.2 mph. A clean wing
+ * needs more speed to fly at all -- it stalls at 98 mph against 84.5 -- so the
+ * same multiple is a higher absolute speed, which is the behaviour a
+ * stall-relative rule is for. If the 120 mph should be absolute regardless of
+ * configuration, this needs to become a speed rather than a multiple.
+ *
+ * A flown approach touches down at 85.9 mph (`tests/sim/landing.test.ts`), so
+ * this gate has 34 mph of headroom over a competently flown arrival.
+ */
+export const MAX_SUPPORTED_SPEED_STALL_MULTIPLE = 1.42
 
 /**
  * Sink rate beyond which an airplane counts as ARRIVING rather than rolling
