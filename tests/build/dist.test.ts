@@ -118,6 +118,27 @@ describe('the built artifact', () => {
       const rivers = JSON.parse(readFileSync(join(outDir, 'content/scenery/rivers.json'), 'utf8'))
       expect(rivers.length).toBe(8)
       expect(readFileSync(join(outDir, 'content/scenery/NOTICE.md'), 'utf8')).toContain('OpenStreetMap contributors')
+
+      // Plan 15. Exact byte counts for the same reason `cover.bin.gz` above
+      // has one: these are committed static assets `copyContent()` only
+      // copies, so the size is deterministic, and a truncated WAV is a
+      // successful fetch that `decodeAudioData` then rejects in the browser --
+      // the failure this assertion exists to catch before shipping. Until
+      // 2026-09-18 the six files sat in the repository ROOT, which
+      // `copyContent()` does not copy, so the build shipped none of them at
+      // all; that is the defect this case now pins closed.
+      const audioClips = [ // replaced by AUDIO_ASSETS in Task 2
+        { path: 'content/audio/bombs_away.wav', bytes: 192_770 },
+        { path: 'content/audio/explosion.wav', bytes: 749_570 },
+        { path: 'content/audio/landing_squeak.wav', bytes: 192_770 },
+        { path: 'content/audio/machinegun.wav', bytes: 250_370 },
+        { path: 'content/audio/propeller.wav', bytes: 1_536_770 },
+        { path: 'content/audio/water_crash.wav', bytes: 749_570 },
+      ]
+      for (const clip of audioClips) {
+        expect(readFileSync(join(outDir, clip.path)).length, clip.path).toBe(clip.bytes)
+      }
+      expect(readFileSync(join(outDir, 'content/audio/NOTICE.md'), 'utf8')).toContain('Adobe Firefly')
       // The ODbL attribution ships inside the controls panel (`legend.ts`),
       // so the URL must reach the JS bundle -- and must NOT be back on the
       // play screen as the fixed `map-credit` watermark Mark did not
