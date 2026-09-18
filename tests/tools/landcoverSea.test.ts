@@ -38,8 +38,20 @@ describe('floodSeaFromBoundary', () => {
   it('does not leak through a land isthmus', () => {
     const rows = ['wwgww', 'wwgww', 'ggggg', 'wwgww']
     const sea = floodSeaFromBoundary(raster(rows), 5, 4)
-    expect(sea[0]).toBe(1)              // north-west sea
-    expect(sea[3 * 5 + 0]).toBe(1)      // south-west sea, reached round the edge
-    expect(sea[2 * 5 + 2]).toBe(0)      // the isthmus itself
+    expect(sea[0]).toBe(1)              // north-west sea, boundary-seeded
+    expect(sea[3 * 5 + 0]).toBe(1)      // south-west sea, its own boundary seed -- not reached through the isthmus
+    expect(sea[2 * 5 + 2]).toBe(0)      // the isthmus row blocks the two regions from joining
+  })
+
+  it('does not leak into a lake through a diagonal-only neighbor', () => {
+    // (1,1) is real sea, reached orthogonally from the north and west
+    // boundary. It touches the lake at (2,2) only diagonally -- every
+    // orthogonal neighbor of the lake is land. An (incorrectly) 8-connected
+    // fill would leak in through that diagonal and flatten the lake to sea
+    // level; the correct 4-connected fill must leave it dry.
+    const rows = ['wwwww', 'wwggw', 'wgwgw', 'wgggw', 'wwwww']
+    const sea = floodSeaFromBoundary(raster(rows), 5, 5)
+    expect(sea[1 * 5 + 1]).toBe(1)      // real sea, reached orthogonally
+    expect(sea[2 * 5 + 2]).toBe(0)      // the lake stays dry despite touching it diagonally
   })
 })
