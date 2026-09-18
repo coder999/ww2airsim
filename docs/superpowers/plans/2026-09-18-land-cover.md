@@ -233,7 +233,7 @@ git commit -m "Name, address and cache the two ESA WorldCover tiles that cover t
 
 **Interfaces:**
 - Consumes: `tileFileName`, `LatLonBox`, `CACHE_DIR`, `COVER_BOX` from Task 1.
-- Produces: `CLASS` (WorldCover class numbers), `type Fractions = { tree: number; crop: number; mangrove: number; open: number; water: number }`, `channelOf(cls: number): keyof Fractions`, `type CoverSource = { fractions(box: LatLonBox): Fractions }`, `openCoverSource(paths: readonly string[], box: LatLonBox): Promise<CoverSource>`, `haveCoverSource(): boolean`.
+- Produces: `CLASS` (WorldCover class numbers), `type Fractions = { tree: number; crop: number; mangrove: number; open: number; water: number }`, `channelOf(cls: number): keyof Fractions`, `type CoverSource = { fractions(box: LatLonBox): Fractions }`, `openCoverSource(paths: readonly string[], box: LatLonBox): Promise<CoverSource>`. (A `haveCoverSource()` helper was listed here until 2026-09-18; no task consumes it, the tests check the cache inline as the terrain tests do, and it was struck.)
 
 - [ ] **Step 1: Write the failing test**
 
