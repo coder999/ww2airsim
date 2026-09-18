@@ -97,7 +97,7 @@ export function oceanGeometry(rings: readonly Ring[]): BufferGeometry {
 function depthNode(field: DepthField, tex: DataTexture, worldXZ: Node<'vec2'>, signed = false): Node<'float'> {
   const { samples: n, halfExtentM: h } = field.header
   const col = clamp(worldXZ.x.add(h).div(2 * h).mul(n - 1), 0, n - 1)
-  const row = clamp(float(h).sub(worldXZ.y).div(2 * h).mul(n - 1), 0, n - 1)
+  const row = clamp(worldXZ.y.add(h).div(2 * h).mul(n - 1), 0, n - 1)
   const x0 = floor(col), z0 = floor(row)
   const x1 = min(x0.add(1), n - 1), z1 = min(z0.add(1), n - 1)
   const read = (x: Node<'float'>, z: Node<'float'>): Node<'float'> => textureLoad(tex, ivec2(int(x), int(z))).r

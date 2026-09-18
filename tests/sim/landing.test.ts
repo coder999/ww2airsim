@@ -22,7 +22,7 @@ const f6f = loadAircraftSpec('f6f-hellcat')
  *  `DEFAULT_SPAWN_POSITION`, but `src/sim/` tests should not reach into
  *  `src/render/` for a number this file can state. */
 const TACLOBAN_X = -29666
-const TACLOBAN_Z = 47605
+const TACLOBAN_Z = -47605
 /** The strip is 1500 m by 45 m, north-south, centred on that coordinate
  *  (`src/render/scene/runway.ts`). Stated here rather than imported for the
  *  reason above; `tests/render/runway.test.ts` is what pins those numbers. */
@@ -78,7 +78,7 @@ describe('an approach flown into Tacloban', () => {
     // quarters of the strip to roll out on.
     const target = {
       aimX: TACLOBAN_X,
-      aimZ: TACLOBAN_Z - RUNWAY_LENGTH_M / 4,
+      aimZ: TACLOBAN_Z + RUNWAY_LENGTH_M / 4,
       runwayHeadingRad: 0,
       touchdownElevationM: elevationM,
     }
@@ -98,10 +98,10 @@ describe('an approach flown into Tacloban', () => {
           position: v3(
             TACLOBAN_X,
             elevationM + f6f.gear.heightM + APPROACH_LENGTH_M * Math.tan((3 * Math.PI) / 180),
-            target.aimZ - APPROACH_LENGTH_M,
+            target.aimZ + APPROACH_LENGTH_M,
           ),
-          velocity: v3(0, 0, vrefMps),
-          attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2),
+          velocity: v3(0, 0, -vrefMps),
+          attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2),
           gearFraction: 1,
           flapFraction: 1,
         }),
@@ -142,7 +142,7 @@ describe('an approach flown into Tacloban', () => {
     const rest = world.aircraft
     console.log(
       `landing: touchdown sink ${touchdownSinkMps?.toFixed(2)} m/s at ${touchdownSpeedMps?.toFixed(1)} m/s, ` +
-        `${touchdownZ === null ? 'n/a' : (touchdownZ - (TACLOBAN_Z - RUNWAY_LENGTH_M / 2)).toFixed(0)} m in from the ` +
+        `${touchdownZ === null ? 'n/a' : ((TACLOBAN_Z + RUNWAY_LENGTH_M / 2) - touchdownZ).toFixed(0)} m in from the ` +
         `approach end; worst sink on the approach ${worstSinkMps.toFixed(2)} m/s; ` +
         `came to rest ${(rest.position.z - TACLOBAN_Z).toFixed(0)} m from the strip centre, ` +
         `${(rest.position.x - TACLOBAN_X).toFixed(1)} m off the centreline`,

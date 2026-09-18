@@ -220,11 +220,11 @@ function sampleField(
   const last = samples - 1
 
   // Inverse of resample.ts's gridToLocal: x = -half + col*step,
-  // z = half - row*step. Clamped for the same reason heightAt clamps -- the
+  // z = -half + row*step. Clamped for the same reason heightAt clamps -- the
   // exact edge can compute fractionally past the last sample -- and because
   // a patch on the world edge has vertices exactly on it.
   const colF = clamp(worldXZ.x.add(halfExtentM).div(stepM), 0, last)
-  const rowF = clamp(float(halfExtentM).sub(worldXZ.y).div(stepM), 0, last)
+  const rowF = clamp(worldXZ.y.add(halfExtentM).div(stepM), 0, last)
   const col0 = floor(colF)
   const row0 = floor(rowF)
   const col1 = min(col0.add(1), last)
@@ -244,11 +244,11 @@ function sampleField(
   const southRow = mix(h01, h11, fx)
   const height = mix(northRow, southRow, fz)
   const dhdx = mix(h10.sub(h00), h11.sub(h01), fz).div(stepM)
-  // Row index grows as z SHRINKS, so the sign flips on the way back to world
+  // Row index grows with z (southward), so use south minus north for world
   // z. Getting this backwards lights every slope from the wrong side, which
   // reads as terrain rather than as a bug -- the same hazard the north-at-row-
   // zero convention carries everywhere else in this pipeline.
-  const dhdz = northRow.sub(southRow).div(stepM)
+  const dhdz = southRow.sub(northRow).div(stepM)
 
   return vec3(height, dhdx, dhdz)
 }

@@ -8,7 +8,7 @@ import { DEFAULT_SPAWN_POSITION } from '../spawn.js'
  * Derived from `DEFAULT_SPAWN_POSITION` rather than restating Tacloban's
  * coordinate, so "the airplane is parked on its own runway" is structural
  * instead of a coincidence that two files have to keep agreeing about. The
- * coordinate itself is `(-29666, 47605)`, cross-checked against the
+ * coordinate itself is `(-29666, -47605)`, cross-checked against the
  * Copernicus source tiles in `tests/tools/terrainBuild.test.ts` -- do not
  * re-derive it here either; an equirectangular back-of-envelope lands about
  * 80 m away. `tests/render/runway.test.ts` still asserts the literal, which

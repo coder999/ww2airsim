@@ -90,7 +90,7 @@ const wingsLevel = (headingDeg: number, pitchDeg: number): AircraftState =>
     position: v3(0, 600, 0),
     velocity: v3(120, 0, 0),
     attitude: qMul(
-      qFromAxisAngle(v3(0, 1, 0), (headingDeg * Math.PI) / 180),
+      qFromAxisAngle(v3(0, 1, 0), ((90 - headingDeg) * Math.PI) / 180),
       qFromAxisAngle(v3(0, 0, 1), (pitchDeg * Math.PI) / 180),
     ),
   })
@@ -1099,10 +1099,10 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
     // `userData.value` rather than hardcoding an expected x position, so
     // this pins the actual built geometry, not a restated formula.
     //
-    // Compares against `gaugeValue`'s own compass heading, NOT the
-    // `headingDeg` argument passed to `wingsLevel` directly: that argument
-    // is a yaw angle fed to `qFromAxisAngle`, and gauges.ts's heading
-    // convention is the opposite sign (a positive yaw there is a LEFT turn,
+    // Compares against the reported geographic compass heading. The
+    // `headingDeg` argument passed to `wingsLevel` is now a bearing; it
+    // converts to yaw about +Y as 90 degrees minus heading. The old
+    // helper treated that argument as yaw (a positive yaw is a LEFT turn,
     // decreasing compass heading) -- the same trap round 1's "slides by
     // exactly the fraction..." test hit and fixed the same way.
     const p = createPanel(f6f, () => null)
@@ -1133,10 +1133,10 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
     // scale) cannot hide behind a helper that is separately correct.
     //
     // Reads the actual COMPASS heading back out of `gaugeValue` rather than
-    // assuming it equals `wingsLevel`'s own `headingDeg` argument: that
-    // argument is a yaw angle fed into `qFromAxisAngle`, and gauges.ts's
-    // heading convention is the opposite sign (a positive yaw there is a
-    // LEFT turn, decreasing compass heading) -- exactly the trap
+    // duplicating the instrument calculation. The helper's heading
+    // argument is now a geographic bearing, converted to yaw as 90 minus
+    // heading. Positive yaw about +Y is a
+    // LEFT turn, decreasing compass heading -- exactly the trap
     // `gaugeValue`'s own "reports heading... and increases it turning right"
     // test exists to pin. Composing the two independently-correct pieces the
     // same way `updatePanel` does is the point of this test, not

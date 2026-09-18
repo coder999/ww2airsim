@@ -10,7 +10,7 @@ import { v3, type Vec3 } from '../sim/math/vec3.js'
  * take-off nobody could perform: production builds have no URL spawn
  * override, so every real flight started already flying.
  *
- * `(x, z) = (-29666, 47605)`. Taken verbatim from
+ * `(x, z) = (-29666, -47605)`. Taken verbatim from
  * `tests/tools/terrainBuild.test.ts`, sourced independently of this file and
  * cross-checked against the Copernicus source tiles on 2026-09-14 -- do not
  * re-derive it; an equirectangular back-of-envelope lands about 80 m away.
@@ -34,7 +34,7 @@ import { v3, type Vec3 } from '../sim/math/vec3.js'
  * file would be exactly the two-sources-of-truth problem
  * `coarsestFetchedLevel` was extracted to solve in `lod.ts`.
  */
-export const DEFAULT_SPAWN_POSITION: Vec3 = v3(-29666, 1.9, 47605)
+export const DEFAULT_SPAWN_POSITION: Vec3 = v3(-29666, 1.9, -47605)
 
 /**
  * Whether `DEFAULT_SPAWN_POSITION` is a GROUND spawn -- parked, wheels down,
@@ -86,7 +86,7 @@ export const DEFAULT_SPAWN_IS_GROUND = true
  * is still the world's up. A wrong rotation axis here gives an airplane that
  * points north while lying on its side.
  */
-export const DEFAULT_SPAWN_ATTITUDE: Quat = qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2)
+export const DEFAULT_SPAWN_ATTITUDE: Quat = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2)
 
 /** The three query parameters this reads, in x/y/z order. Exported so the
  *  test can assert the names it builds URLs from are the names that are
@@ -96,7 +96,7 @@ export const SPAWN_PARAMS = ['spawnX', 'spawnY', 'spawnZ'] as const
 /**
  * The spawn position for this page load: `DEFAULT_SPAWN_POSITION`, with any
  * of `?spawnX=`, `?spawnY=`, `?spawnZ=` (world metres, +x east, +y up,
- * +z north) overriding one component.
+ * +z south) overriding one component.
  *
  * **Why this exists, since a URL that moves the airplane is otherwise a
  * cheat.** Tier 2 has to fly over Leyte, and Leyte is not where the airplane

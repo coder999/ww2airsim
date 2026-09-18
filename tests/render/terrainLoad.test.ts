@@ -388,7 +388,7 @@ describe('terrain under the airplane', () => {
     // A point that is genuinely on land: the nearest land sample to the world
     // origin, 23.1 km to the south-west (measured over this grid 2026-09-14).
     const x = -19_921.875
-    const z = -11_718.75
+    const z = 11_718.75
     const framed = withTerrain(frameAt(x, z), field)
     expect(framed.world.terrain).not.toBeNull()
 

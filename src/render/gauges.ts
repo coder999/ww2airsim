@@ -199,16 +199,10 @@ function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState, cont
     case 'throttle':
       return controls.throttle
     case 'heading': {
-      // Compass convention: clockwise seen from above, so a RIGHT turn increases
-      // it -- deliberately OPPOSITE in sign to camera.ts's `headingOf`, which
-      // is a rotation angle for aiming the chase camera, not a compass. A
-      // +30-degree yaw about +Y reads 330.0 here and 30.0 there. See that
-      // function's comment; the pair had no cross-reference until 2026-09-13.
-      // it. Body +Z is right, so the nose swinging toward +Z must read as an
-      // increasing heading -- hence atan2(+z, x). A first draft had the sign
-      // reversed and read backwards; the test pins it with exact values.
+      // Geographic compass: north (-Z) is 000, east (+X) is 090.
+      // Body +Z is right; right turns increase this clockwise bearing.
       const fwd = qRotate(state.attitude, v3(1, 0, 0))
-      const h = Math.atan2(fwd.z, fwd.x)
+      const h = Math.atan2(fwd.x, -fwd.z)
       return h < 0 ? h + TWO_PI : h
     }
     case 'slip': {

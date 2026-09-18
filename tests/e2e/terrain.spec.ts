@@ -15,7 +15,7 @@ import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWind
  * eastbound spawn heading flies the Leyte coastal plain back toward the
  * airfield:
  *
- *   Tacloban airfield  11.228 N 125.028 E  ->  (-29666, 47605) world metres
+ *   Tacloban airfield  11.228 N 125.028 E  ->  (-29666, -47605) world metres
  *
  * That coordinate is not invented here. It is the one
  * `tests/tools/terrainBuild.test.ts` already carries, sourced independently of
@@ -27,7 +27,7 @@ import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWind
  * the frame, at every altitude below.
  */
 const SPAWN_X_M = -45000
-const SPAWN_Z_M = 47605
+const SPAWN_Z_M = -47605
 
 /**
  * 100 m is inside the finest LOD ring with the ground filling the lower half
@@ -50,7 +50,7 @@ for (const altitudeM of ALTITUDES_M) {
 
     // Prove the spawn landed BEFORE trusting anything downstream. The default
     // spawn (`DEFAULT_SPAWN_POSITION`, src/render/spawn.ts) is Tacloban itself,
-    // `(-29666, 47605)` -- 15.3 km from this one horizontally -- since Task 14
+    // `(-29666, -47605)` -- 15.3 km from this one horizontally -- since Task 14
     // moved it there from Plan 11a's airborne `(0, 600, 0)`. Either way a
     // `spawnX/Y/Z` that never took effect (renamed parameter, production build
     // served by mistake, a `spawn.ts` that fell back silently) cannot satisfy

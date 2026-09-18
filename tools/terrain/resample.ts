@@ -19,12 +19,12 @@ export const GRID: GridSpec = {
 export const DECIMETRE_LIMIT = 3276.7
 
 /** Convert grid column and row to local x, z coordinates.
- *  Row 0 = north edge (z = +half), row samples-1 = south edge (z = -half).
+ *  Row 0 = north edge (z = -half), row samples-1 = south edge (z = +half).
  *  Column 0 = west edge (x = -half), column samples-1 = east edge (x = +half). */
 export function gridToLocal(col: number, row: number, grid: GridSpec = GRID): { x: number; z: number } {
   const step = (2 * grid.halfExtentM) / (grid.samples - 1)
   const x = -grid.halfExtentM + col * step
-  const z = grid.halfExtentM - row * step
+  const z = -grid.halfExtentM + row * step
   return { x, z }
 }
 

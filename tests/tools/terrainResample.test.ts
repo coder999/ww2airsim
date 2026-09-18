@@ -9,8 +9,8 @@ describe('resampling onto the world grid', () => {
   it('lays row 0 along the north edge and column 0 along the west edge', () => {
     // Get this wrong and the world is mirrored -- which looks like plausible
     // terrain, not like a bug, until someone recognises the coastline.
-    expect(gridToLocal(0, 0, small)).toEqual({ x: -100e3, z: 100e3 })
-    expect(gridToLocal(256, 256, small)).toEqual({ x: 100e3, z: -100e3 })
+    expect(gridToLocal(0, 0, small)).toEqual({ x: -100e3, z: -100e3 })
+    expect(gridToLocal(256, 256, small)).toEqual({ x: 100e3, z: 100e3 })
     expect(gridToLocal(128, 128, small)).toEqual({ x: 0, z: 0 })
   })
 

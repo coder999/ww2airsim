@@ -22,12 +22,12 @@ describe('heightAt', () => {
     expect(heightAt(f, 50e3, 0)).toBeCloseTo(150, 6)
   })
 
-  it('reads north as +z, matching the grid the pipeline wrote', () => {
+  it('reads north as -z, matching the grid the pipeline wrote', () => {
     // Row 0 is the NORTH edge (Task 4). A field that reads it as south is
     // mirrored, and every other test here would still pass.
     const f = field([0, 5000, 0, 0, 0, 0, 0, 0, 0]) // 500 m at north-centre
-    expect(heightAt(f, 0, 100e3)).toBeCloseTo(500, 6)
-    expect(heightAt(f, 0, -100e3)).toBeCloseTo(0, 6)
+    expect(heightAt(f, 0, -100e3)).toBeCloseTo(500, 6)
+    expect(heightAt(f, 0, 100e3)).toBeCloseTo(0, 6)
   })
 
   it('returns sea level outside the world instead of NaN or a throw', () => {

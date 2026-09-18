@@ -471,10 +471,10 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
     const { f, startX, startZ } = rollFromTheSpawn(terrain)
 
-    const alongM = f.world.aircraft.position.z - startZ
+    const alongM = startZ - f.world.aircraft.position.z
     const acrossM = Math.abs(f.world.aircraft.position.x - startX)
 
-    // North is +z. The roll must be overwhelmingly along that axis: the
+    // North is -z. The roll must be overwhelmingly along that axis: the
     // airplane has no directional stability on the ground yet (Plan 11a's
     // handoff records a taxi turn reaching 113.6 deg of sideslip), so this is
     // deliberately a ratio rather than a tight bound on `acrossM`.

@@ -32,7 +32,7 @@ export function buildDepth(source: Subset, rawHeader: OceanHeader): Uint8Array {
   const view = new DataView(bytes.buffer)
   for (let row = 0; row < samples; row++) for (let col = 0; col < samples; col++) {
     const x = -halfExtentM + col * 2 * halfExtentM / (samples - 1)
-    const z = halfExtentM - row * 2 * halfExtentM / (samples - 1)
+    const z = -halfExtentM + row * 2 * halfExtentM / (samples - 1)
     const { latDeg, lonDeg } = toGeodetic(x, z)
     const metres = Math.round(sampleSubset(source, latDeg, lonDeg))
     if (!Number.isFinite(metres) || metres <= -32768 || metres >= 32767) {

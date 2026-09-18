@@ -15,10 +15,10 @@ import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 
 describe('the runway at Tacloban', () => {
   it('sits on the airfield coordinate this repo already carries', () => {
-    // (-29666, 47605) is cross-checked against the Copernicus tiles in
+    // (-29666, -47605) is cross-checked against the Copernicus tiles in
     // tests/tools/terrainBuild.test.ts. Re-deriving it lands ~80 m away.
     expect(RUNWAY_CENTRE.x).toBe(-29666)
-    expect(RUNWAY_CENTRE.z).toBe(47605)
+    expect(RUNWAY_CENTRE.z).toBe(-47605)
   })
 
   it('runs north-south, where the ground is flat', () => {

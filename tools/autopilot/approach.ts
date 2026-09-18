@@ -12,7 +12,7 @@ import { airspeed } from '../../src/sim/flight/model.js'
 export type ApproachTarget = {
   readonly aimX: number
   readonly aimZ: number
-  /** Radians, 0 = northbound (+z). Only used to document intent today -- the
+  /** Radians, 0 = northbound (-z). Only used to document intent today -- the
    *  lateral steering below assumes a northbound strip, which is the one this
    *  project has. Generalising it is work for whoever lands on a second. */
   readonly runwayHeadingRad: number
@@ -119,7 +119,7 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
   // origin, which sits `gear.heightM` above them. Getting this wrong by 2.2 m
   // would put the flare 2.2 m into the ground.
   const wheelHeightM = finite(state.position.y - spec.gear.heightM - target.touchdownElevationM)
-  const alongM = finite(target.aimZ - state.position.z)
+  const alongM = finite(state.position.z - target.aimZ)
   const acrossM = finite(state.position.x - target.aimX)
   const speedMps = finite(airspeed(state))
 

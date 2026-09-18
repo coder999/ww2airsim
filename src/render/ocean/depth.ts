@@ -32,7 +32,7 @@ export function depthAt(field: DepthField, x: number, z: number): number {
   const { halfExtentM: h, samples: n } = field.header
   if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > h || Math.abs(z) > h) return OUTSIDE_DEPTH_M
   const col = (x + h) / (2 * h) * (n - 1)
-  const row = (h - z) / (2 * h) * (n - 1)
+  const row = (z + h) / (2 * h) * (n - 1)
   const ix = Math.min(Math.floor(col), n - 2)
   const iz = Math.min(Math.floor(row), n - 2)
   const fx = col - ix

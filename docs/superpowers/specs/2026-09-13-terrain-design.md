@@ -147,10 +147,10 @@ item 1 has the table, and `sampleField`'s doc comment in
 
 ## 3. Coordinate frame
 
-A tangent plane centred on 10.8 N, 125.3 E, x east, z north, y up in metres —
+A tangent plane centred on 10.8 N, 125.3 E, x east, z south, y up in metres (right-handed; corrected 2026-09-17) —
 the frame `sim/` already uses.
 
-The naive mapping (`x = R·Δλ·cos(φ₀)`, `z = R·Δφ`) is wrong in a way worth one
+The naive mapping (`x = R·Δλ·cos(φ₀)`, `z = -R·Δφ`) is wrong in a way worth one
 paragraph: east–west scale drifts as `cos(φ)/cos(φ₀)`, which over this box is
 **0.31% at the northern edge — 312 m of stretch over 100 km** (computed
 2026-09-13). Internally consistent, but this project's stated appeal is that
@@ -268,7 +268,7 @@ consequences, neither of which this section anticipated:
   one number without saying so reads as a contradiction of the other. The
   quadtree is anchored to the world, not to the eye, so a camera's distance to
   the nearest ring-4 node varies with its position inside its own node:
-  measured 2026-09-14, **27.4 km** at the Tier 2 spawn (−45000, 47605) and
+  measured 2026-09-14, **27.4 km** at the Tier 2 spawn (−45000, −47605) and
   **49.0 km** at (99000, −99000), the camera the mip-0 table uses. Both are
   correct for their camera; neither is "the" ring-4 distance.
 - What both are wrong about instead is the **whole surface against the source

@@ -33,10 +33,10 @@ describe('the committed ocean depth grid', () => {
   it('has Leyte high ground to the west and deep water to the east', () => {
     const { view } = readBuilt()
     const at = (x: number, z: number) => view.getInt16(
-      (Math.round((100000 - z) / 200000 * 512) * 513 + Math.round((x + 100000) / 200000 * 512)) * 2, true)
-    expect(at(0, 80000)).toBeGreaterThan(0)
-    expect(at(0, -80000)).toBeLessThan(-1000)
-    expect(at(-53125, 23828)).toBeGreaterThan(500)
+      (Math.round((z + 100000) / 200000 * 512) * 513 + Math.round((x + 100000) / 200000 * 512)) * 2, true)
+    expect(at(0, -80000)).toBeGreaterThan(0)
+    expect(at(0, 80000)).toBeLessThan(-1000)
+    expect(at(-53125, -23828)).toBeGreaterThan(500)
     expect(at(90000, 0)).toBeLessThan(-4000)
   })
 })
@@ -55,7 +55,7 @@ it.skipIf(!cached)('matches independent geographic interpolation at spread grid 
   const source = parseSubset(readFileSync(await fetchSubset(CACHE_DIR), 'utf8'), subsetWindow(terrainBox(), 4))
   const { view } = readBuilt()
   for (const [row, col] of [[30, 70], [100, 400], [256, 256], [400, 100], [480, 480]]) {
-    const { latDeg, lonDeg } = toGeodetic(-100000 + col! * 200000 / 512, 100000 - row! * 200000 / 512)
+    const { latDeg, lonDeg } = toGeodetic(-100000 + col! * 200000 / 512, -100000 + row! * 200000 / 512)
     // Independent cell selection against the returned maps, not the build's
     // index formula. Compare the interpolation before its <=0 land clamp.
     const y = source.latitudes.findIndex((v) => v > latDeg) - 1

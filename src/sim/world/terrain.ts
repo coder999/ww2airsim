@@ -48,11 +48,11 @@ export function createTerrainField(header: TerrainHeader, level: number, heights
  * Metres above sea level at local (x, z). Sea level outside the world.
  *
  * Bilinear over the four grid samples surrounding (x, z). The grid is
- * row-major, row 0 = NORTH edge (z = +halfExtentM), column 0 = WEST edge
+ * row-major, row 0 = NORTH edge (z = -halfExtentM), column 0 = WEST edge
  * (x = -halfExtentM) -- `tools/terrain/resample.ts`'s `gridToLocal`, inverted.
  * Getting the row direction backwards mirrors north and south, which looks
  * like plausible terrain rather than an obvious bug -- see
- * tests/sim/world/terrain.test.ts's "reads north as +z" test.
+ * tests/sim/world/terrain.test.ts's "reads north as -z" test.
  *
  * Any non-finite coordinate, or a coordinate outside the world's
  * [-halfExtentM, +halfExtentM] square, returns SEA_LEVEL_M instead of
@@ -69,9 +69,9 @@ export function heightAt(field: TerrainField, x: number, z: number): number {
   const n = field.samples
   const step = field.spacingM
 
-  // Inverse of gridToLocal: x = -half + col*step, z = half - row*step.
+  // Inverse of gridToLocal: x = -half + col*step, z = -half + row*step.
   let colF = (x + half) / step
-  let rowF = (half - z) / step
+  let rowF = (z + half) / step
   // Clamp for floating-point safety at the exact edge (e.g. x === half can
   // compute colF fractionally above n-1), not because the bounds check above
   // can be beaten legitimately.

@@ -311,7 +311,7 @@ if (!haveFinestMip) {
 describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring', () => {
   it('matches the pinned worst-case error against mip 0, measured 2026-09-14', () => {
     // Design spec §6 asks "how wrong is the far field" to have a number in
-    // the repo, not just a plausibility argument. Camera (99000, -99000) is
+    // the repo, not just a plausibility argument. Camera (99000, 99000) is
     // not arbitrary: that corner puts real Leyte relief (not open ocean)
     // under every coarse ring, so these are the pipeline's actual worst
     // case, not a flat-sea zero -- an earlier choice of corner gave zero
@@ -319,7 +319,7 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
     // those rings. Values are exact multiples of 0.1 m because the on-disk
     // encoding is int16 decimetres (`schema.ts`'s `encoding`).
     const header = loadTerrainHeader()
-    const worstByRing = worstErrorByRing(header, 0, 99e3, -99e3)
+    const worstByRing = worstErrorByRing(header, 0, 99e3, 99e3)
     expectPinnedTable(worstByRing, {
       1: 4.6,
       2: 21.4,
@@ -356,7 +356,7 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
     let worstX = 0
     let worstZ = 0
     for (let row = 0; row < n; row++) {
-      const z = half - row * step
+      const z = -half + row * step
       for (let col = 0; col < n; col++) {
         const x = -half + col * step
         // Decimetres on disk (schema.ts's `encoding`), metres everywhere else.
@@ -371,7 +371,7 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
     expect(worst).toBeCloseTo(220.862, 3)
     // WHERE, not just how much: a measurement that moved to a different peak
     // is a different claim even if the magnitude happened to survive.
-    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-78027, 80664])
+    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-78027, -80664])
   })
 })
 
@@ -386,12 +386,12 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
 // reference level), because rings 0-3 need mips that are not on disk here.
 describe('far-field height error against mip 4, by ring (runs everywhere)', () => {
   it('matches the pinned worst-case error against mip 4, measured 2026-09-14', () => {
-    // Camera at the exact world corner (100000, -100000): the opposite
+    // Camera at the exact world corner (100000, 100000): the opposite
     // corner from it is far enough to stay at ring 6, which a moderate
-    // corner like (99000, -99000) above does not reach, giving two rings of
+    // corner like (99000, 99000) above does not reach, giving two rings of
     // data instead of one.
     const header = loadTerrainHeader()
-    const worstByRing = worstErrorByRing(header, FIRST_COMMITTED_LEVEL, 100e3, -100e3)
+    const worstByRing = worstErrorByRing(header, FIRST_COMMITTED_LEVEL, 100e3, 100e3)
     expectPinnedTable(worstByRing, {
       5: 94.7,
       6: 205.4,

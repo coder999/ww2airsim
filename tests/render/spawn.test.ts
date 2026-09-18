@@ -25,7 +25,7 @@ import {
 describe('DEFAULT_SPAWN_POSITION and DEFAULT_SPAWN_IS_GROUND', () => {
   it('is Tacloban -- (x, z) taken from tests/tools/terrainBuild.test.ts, not re-derived here', () => {
     expect(DEFAULT_SPAWN_POSITION.x).toBe(-29666)
-    expect(DEFAULT_SPAWN_POSITION.z).toBe(47605)
+    expect(DEFAULT_SPAWN_POSITION.z).toBe(-47605)
   })
 
   it('is a ground spawn', () => {
@@ -56,7 +56,7 @@ describe('DEFAULT_SPAWN_ATTITUDE', () => {
     const nose = qRotate(DEFAULT_SPAWN_ATTITUDE, v3(1, 0, 0))
     expect(nose.x).toBeCloseTo(0, 12)
     expect(nose.y).toBeCloseTo(0, 12)
-    expect(nose.z).toBeCloseTo(1, 12)
+    expect(nose.z).toBeCloseTo(-1, 12)
   })
 
   it('is parked wings level, not banked', () => {
@@ -84,7 +84,7 @@ describe('hasSpawnOverride', () => {
     expect(hasSpawnOverride('?spawnX=0')).toBe(true)
     expect(hasSpawnOverride('?spawnY=600')).toBe(true)
     expect(hasSpawnOverride('?spawnZ=0')).toBe(true)
-    expect(hasSpawnOverride('?spawnX=-45000&spawnY=100&spawnZ=47605')).toBe(true)
+    expect(hasSpawnOverride('?spawnX=-45000&spawnY=100&spawnZ=-47605')).toBe(true)
   })
 
   it('reads the same SPAWN_PARAMS names spawnPositionFromQuery does', () => {
@@ -119,21 +119,21 @@ describe('spawnPositionFromQuery', () => {
       y: 8000,
       z: DEFAULT_SPAWN_POSITION.z,
     })
-    expect(spawnPositionFromQuery('?spawnZ=47605')).toEqual({
+    expect(spawnPositionFromQuery('?spawnZ=-47605')).toEqual({
       x: DEFAULT_SPAWN_POSITION.x,
       y: DEFAULT_SPAWN_POSITION.y,
-      z: 47605,
+      z: -47605,
     })
   })
 
   it('reads all three together, in any order, with a leading ? or without', () => {
-    const expected = { x: -45000, y: 100, z: 47605 }
-    expect(spawnPositionFromQuery('?spawnX=-45000&spawnY=100&spawnZ=47605')).toEqual(expected)
-    expect(spawnPositionFromQuery('spawnZ=47605&spawnX=-45000&spawnY=100')).toEqual(expected)
+    const expected = { x: -45000, y: 100, z: -47605 }
+    expect(spawnPositionFromQuery('?spawnX=-45000&spawnY=100&spawnZ=-47605')).toEqual(expected)
+    expect(spawnPositionFromQuery('spawnZ=-47605&spawnX=-45000&spawnY=100')).toEqual(expected)
   })
 
   it('accepts a negative, fractional and exponent-form coordinate', () => {
-    // `-45000` and `47605` are the real Tier 2 spawn; the rest are here
+    // `-45000` and `-47605` are the real Tier 2 spawn; the rest are here
     // because `Number` accepts them and a hand-rolled parser might not.
     expect(spawnPositionFromQuery('?spawnX=-1.5&spawnY=1e3&spawnZ=+2')).toEqual({ x: -1.5, y: 1000, z: 2 })
   })
@@ -175,7 +175,7 @@ describe('spawnPositionFromQuery', () => {
  * no tests, and both bugs the Plan 2 review found were of that shape.
  */
 describe('initialAircraftState', () => {
-  const at = v3(-29666, 1.673, 47605)
+  const at = v3(-29666, 1.673, -47605)
 
   it('parks a ground spawn: stopped, gear down, nose north', () => {
     const s = initialAircraftState(at, true)
@@ -186,7 +186,7 @@ describe('initialAircraftState', () => {
     // DEFAULT_SPAWN_ATTITUDE for the measurements that settle the axis.
     expect(s.attitude).toEqual(DEFAULT_SPAWN_ATTITUDE)
     const nose = qRotate(s.attitude, v3(1, 0, 0))
-    expect(nose.z).toBeCloseTo(1, 12)
+    expect(nose.z).toBeCloseTo(-1, 12)
   })
 
   it('leaves an airborne override exactly as it was before Task 14', () => {

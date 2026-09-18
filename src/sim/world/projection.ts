@@ -6,6 +6,7 @@ export const EARTH_RADIUS_M = 6371008.8
 /** Leyte Gulf, master spec S4. */
 export const WORLD_CENTRE = { latDeg: 10.8, lonDeg: 125.3 } as const
 
+/** Right-handed world: +x east, +y up, +z south. North is -z. */
 export type LocalXZ = { readonly x: number; readonly z: number }
 export type Geodetic = { readonly latDeg: number; readonly lonDeg: number }
 
@@ -29,7 +30,7 @@ export function toLocal(latDeg: number, lonDeg: number): LocalXZ {
   const k = sinC === 0 ? 1 : c / sinC
   return {
     x: EARTH_RADIUS_M * k * Math.cos(lat) * Math.sin(dLon),
-    z: EARTH_RADIUS_M * k * (cosLat0 * Math.sin(lat) - sinLat0 * Math.cos(lat) * Math.cos(dLon)),
+    z: EARTH_RADIUS_M * k * (sinLat0 * Math.cos(lat) * Math.cos(dLon) - cosLat0 * Math.sin(lat)),
   }
 }
 
@@ -39,8 +40,8 @@ export function toGeodetic(x: number, z: number): Geodetic {
   const c = rho / EARTH_RADIUS_M
   const sinC = Math.sin(c)
   const cosC = Math.cos(c)
-  const lat = Math.asin(Math.min(1, Math.max(-1, cosC * sinLat0 + (z * sinC * cosLat0) / rho)))
+  const lat = Math.asin(Math.min(1, Math.max(-1, cosC * sinLat0 - (z * sinC * cosLat0) / rho)))
   const lon =
-    WORLD_CENTRE.lonDeg * RAD + Math.atan2(x * sinC, rho * cosLat0 * cosC - z * sinLat0 * sinC)
+    WORLD_CENTRE.lonDeg * RAD + Math.atan2(x * sinC, rho * cosLat0 * cosC + z * sinLat0 * sinC)
   return { latDeg: lat / RAD, lonDeg: lon / RAD }
 }

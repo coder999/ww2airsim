@@ -87,7 +87,7 @@ describe('the committed terrain fallback', () => {
       const n = samplesAtLevel(header, level)
       const step = (2 * header.halfExtentM) / (n - 1)
       const col = Math.round((x + header.halfExtentM) / step)
-      const row = Math.round((header.halfExtentM - z) / step)
+      const row = Math.round((z + header.halfExtentM) / step)
       return loadTerrainLevel(level, header)[row * n + col]! / 10
     }
     expect(sample(11.228, 125.028, 4)).toBeGreaterThan(-2)

@@ -64,9 +64,9 @@ it('preserves north/south orientation and interpolates both axes exactly', () =>
   const values = new Int16Array(25)
   for (let row = 0; row < 5; row++) for (let col = 0; col < 5; col++) values[row * 5 + col] = -10 - row * 20 - col * 2
   const field = createDepthField(HEADER, values)
-  expect(depthAt(field, -100000, 100000)).toBe(-10)
-  expect(depthAt(field, 100000, -100000)).toBe(-98)
-  expect(depthAt(field, -75000, 75000)).toBe(-21)
+  expect(depthAt(field, -100000, -100000)).toBe(-10)
+  expect(depthAt(field, 100000, 100000)).toBe(-98)
+  expect(depthAt(field, -75000, -75000)).toBe(-21)
   expect(() => createDepthField(HEADER, new Int16Array(24))).toThrow(/count/)
 })
 

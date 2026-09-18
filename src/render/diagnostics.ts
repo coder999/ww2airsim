@@ -65,7 +65,7 @@ export type Ww2Diagnostics = {
   readonly groundHeightM: () => number | null
   /**
    * The airplane's simulated world position, metres (+x east, +y up,
-   * +z north). Added in Task 11, and it does two jobs no other member here
+   * +z south). Added in Task 11, and it does two jobs no other member here
    * can:
    *
    * - **Proves the spawn landed.** Tier 2's terrain tests start the airplane

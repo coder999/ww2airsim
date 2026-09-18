@@ -98,7 +98,7 @@ for (const altitude of [100,600,3000,8000]) {
     test(`ocean sweep ${altitude} m ${coast ? 'coast' : 'gulf'}`, async ({page}) => {
       const errors: string[] = []
       page.on('pageerror', e => errors.push(e.message))
-      await page.goto(`/?spawnY=${altitude}&spawnX=${coast ? -30000 : 0}&spawnZ=${coast ? 47605 : 0}&beaufort=6`)
+      await page.goto(`/?spawnY=${altitude}&spawnX=${coast ? -30000 : 0}&spawnZ=${coast ? -47605 : 0}&beaufort=6`)
       await waitForTerrain(page)
       const start = await snapshot(page)
       expect(Math.abs(start.position.y-altitude)).toBeLessThan(80)

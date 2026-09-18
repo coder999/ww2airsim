@@ -92,7 +92,7 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
     const p = (window as DiagWindow).__ww2!.aircraftPositionM()
     return { x: p.x, z: p.z }
   })
-  const alongM = rolled.z - start.z
+  const alongM = start.z - rolled.z
   const acrossM = Math.abs(rolled.x - start.x)
   expect(alongM, 'the roll did not go north').toBeGreaterThan(ROTATE_AFTER_M / 2)
   expect(acrossM, 'the airplane wandered off the side of the strip').toBeLessThan(alongM / 10)

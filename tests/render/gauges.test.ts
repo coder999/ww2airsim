@@ -79,18 +79,18 @@ describe('gaugeValue', () => {
   })
 
   it('reports heading in [0, 360) degrees and increases it turning right', () => {
-    const north = createState({ velocity: v3(100, 0, 0) })
+    const north = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2) })
     expect(gaugeValue('heading', f6f, north, NEUTRAL_CONTROLS)).toBeCloseTo(0, 9)
     // A NEGATIVE rotation about body +Y swings the nose toward +Z, which is
     // right (see the sign note on Controls.yaw in state.ts). A compass reads
     // that as an increasing heading. Exact values, not not-equal: a
     // not-equal assertion here once let the gauge read backwards.
-    const right = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.3) })
+    const right = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - 0.3) })
     const deg = (rad: number) => (rad * 180) / Math.PI
     expect(gaugeValue('heading', f6f, right, NEUTRAL_CONTROLS)).toBeCloseTo(deg(0.3), 6)
-    const hardRight = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
+    const hardRight = createState({ attitude: qIdentity() })
     expect(gaugeValue('heading', f6f, hardRight, NEUTRAL_CONTROLS)).toBeCloseTo(90, 6)
-    const left = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.3) })
+    const left = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 + 0.3) })
     expect(gaugeValue('heading', f6f, left, NEUTRAL_CONTROLS)).toBeCloseTo(360 - deg(0.3), 6)
   })
 
@@ -167,8 +167,8 @@ describe('gaugeValue at the heading seam', () => {
     // about 1 degree) rather than the 0.3 rad already used elsewhere, so a
     // clamp-shaped bug that only misbehaves very close to the boundary would
     // still be caught here.
-    const justLeftOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), 0.02) })
-    const justRightOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -0.02) })
+    const justLeftOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 + 0.02) })
+    const justRightOfNorth = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - 0.02) })
     const left = gaugeValue('heading', f6f, justLeftOfNorth, NEUTRAL_CONTROLS)
     const right = gaugeValue('heading', f6f, justRightOfNorth, NEUTRAL_CONTROLS)
     const deg = (rad: number) => (rad * 180) / Math.PI
@@ -309,9 +309,9 @@ describe('scale marks and readouts (I-2)', () => {
     // number when heading moved from a circular `DialSpec` to a `TapeSpec`
     // (R1), which dropped the field `formatDisplay` used to key the padding
     // off; restored here keyed on `kind === 'tape'` instead.
-    const east = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), -Math.PI / 2) })
+    const east = createState({ attitude: qIdentity() })
     expect(readoutTextFor('heading', spec, east, NEUTRAL_CONTROLS)).toBe('090')
-    const north = createState({ attitude: qIdentity() })
+    const north = createState({ attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2) })
     expect(readoutTextFor('heading', spec, north, NEUTRAL_CONTROLS)).toBe('000')
     // 1234 m is 4048.6 ft and 512 kg of avgas is 188.1 US gal: the readout
     // converts, so neither prints the number the simulation stores.
@@ -400,7 +400,7 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
       readoutTextFor(
         'heading',
         spec,
-        createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
+        createState({ attitude: qFromAxisAngle(v3(0, 1, 0), ((90 - headingDeg) * Math.PI) / 180) }),
         NEUTRAL_CONTROLS,
       )
     expect(at(0)).toBe('000')
@@ -418,7 +418,7 @@ describe('gauge scale integrity (review 2026-09-13)', () => {
       readoutTextFor(
         'heading',
         spec,
-        createState({ attitude: qFromAxisAngle(v3(0, 1, 0), (-headingDeg * Math.PI) / 180) }),
+        createState({ attitude: qFromAxisAngle(v3(0, 1, 0), ((90 - headingDeg) * Math.PI) / 180) }),
         NEUTRAL_CONTROLS,
       )
     expect(at(359.6)).toBe('000')
