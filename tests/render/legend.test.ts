@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { BINDINGS, type BindingName } from '../../src/input/bindings.js'
-import { LEGEND_ROWS, keyLabel, legendLines } from '../../src/render/legend.js'
+import { LEGEND_ROWS, OSM_COPYRIGHT_URL, creditsLine, keyLabel, legendLines } from '../../src/render/legend.js'
 
 describe('the control legend (2026-09-15)', () => {
   it('names every binding exactly once, so a new key cannot ship undocumented', () => {
@@ -51,6 +51,17 @@ describe('the control legend (2026-09-15)', () => {
     expect(keyLabel('Numpad8')).toBe('Num 8')
     expect(keyLabel('Minus')).toBe('-')
     expect(keyLabel('Equal')).toBe('=')
+  })
+
+  it('ends with the ODbL credit for the rivers, linked to the OSM copyright page', () => {
+    // `content/scenery/rivers.json` is OpenStreetMap data, and the ODbL wants
+    // the attribution where a user of the produced work sees it. Codex put it
+    // on the play screen as a fixed watermark (daa1b39); Mark did not
+    // authorize that, so it lives here, as the panel's last line, and the
+    // panel is the only place it is allowed to be -- `dist.test.ts` refuses a
+    // `map-credit` element in the shipped `index.html`.
+    expect(creditsLine()).toContain('© OpenStreetMap contributors')
+    expect(OSM_COPYRIGHT_URL).toBe('https://www.openstreetmap.org/copyright')
   })
 })
 

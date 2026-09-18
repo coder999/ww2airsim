@@ -109,6 +109,35 @@ export function legendLines(): readonly string[] {
  *  that no longer toggles it. */
 const TOGGLE_KEYS = [...new Set(BINDINGS.toggleLegend.map(keyLabel))].join(' / ')
 
+/**
+ * The data credits, shown as the panel's last line.
+ *
+ * The rivers in `content/scenery/rivers.json` are OpenStreetMap data, and the
+ * ODbL requires the attribution to be visible to a user of the produced work
+ * (`content/scenery/NOTICE.md`). Codex's first pass (daa1b39) met that with a
+ * fixed watermark in the corner of the play screen; Mark did not authorize a
+ * watermark, so on 2026-09-17 it moved in here, behind the same key as the
+ * controls. `dist.test.ts` refuses the old `map-credit` element in the shipped
+ * `index.html`.
+ *
+ * Copernicus (licence Article 6(b)/6(c)) and GEBCO ask only that their notices
+ * ACCOMPANY the derived data, which `content/terrain/NOTICE.md` and
+ * `content/ocean/NOTICE.md` do; neither requires in-app display, so they get a
+ * short "Data:" mention rather than their full attribution strings.
+ */
+export const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright'
+export const CREDITS = {
+  /** Everything before the link. */
+  before: 'Data: Copernicus DEM, GEBCO · Rivers © ',
+  /** The link text; `createLegend` points it at `OSM_COPYRIGHT_URL`. */
+  link: 'OpenStreetMap contributors',
+} as const
+
+/** The credit line as plain text, which is all a `node` test can see. */
+export function creditsLine(): string {
+  return CREDITS.before + CREDITS.link
+}
+
 export type LegendHandle = {
   /** Collapsed to a single prompt line, or fully shown. */
   setOpen(open: boolean): void
@@ -134,11 +163,29 @@ export function createLegend(root: HTMLElement): LegendHandle {
     'pointer-events:none;white-space:pre;text-align:right'
   root.appendChild(el)
 
+  // The key lines are one text node; the credit is a separate element after
+  // them so its link can be an <a>. The link alone re-enables pointer events:
+  // the <pre> disables them so the panel never steals a click from the canvas.
+  const lines = document.createTextNode('')
+  el.appendChild(lines)
+  const credit = document.createElement('div')
+  credit.style.cssText = 'margin-top:8px;font-size:10px;opacity:.6'
+  credit.append(CREDITS.before)
+  const link = document.createElement('a')
+  link.href = OSM_COPYRIGHT_URL
+  link.target = '_blank'
+  link.rel = 'noopener'
+  link.textContent = CREDITS.link
+  link.style.cssText = 'color:inherit;pointer-events:auto'
+  credit.appendChild(link)
+  el.appendChild(credit)
+
   let open = true
   const render = (): void => {
-    el.textContent = open
+    lines.data = open
       ? [...legendLines(), '', `${TOGGLE_KEYS}  hide`].join('\n')
       : `${TOGGLE_KEYS}  controls`
+    credit.style.display = open ? '' : 'none'
   }
   render()
   return {

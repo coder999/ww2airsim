@@ -109,7 +109,17 @@ describe('the built artifact', () => {
       const rivers = JSON.parse(readFileSync(join(outDir, 'content/scenery/rivers.json'), 'utf8'))
       expect(rivers.length).toBe(8)
       expect(readFileSync(join(outDir, 'content/scenery/NOTICE.md'), 'utf8')).toContain('OpenStreetMap contributors')
-      expect(readFileSync(join(outDir, 'index.html'), 'utf8')).toContain('https://www.openstreetmap.org/copyright')
+      // The ODbL attribution ships inside the controls panel (`legend.ts`),
+      // so the URL must reach the JS bundle -- and must NOT be back on the
+      // play screen as the fixed `map-credit` watermark Mark did not
+      // authorize (removed 2026-09-17).
+      const assetsDir = join(outDir, 'assets')
+      const shippedJs = readdirSync(assetsDir)
+        .filter((f) => f.endsWith('.js'))
+        .map((f) => readFileSync(join(assetsDir, f), 'utf8'))
+        .join('\n')
+      expect(shippedJs).toContain('https://www.openstreetmap.org/copyright')
+      expect(readFileSync(join(outDir, 'index.html'), 'utf8')).not.toContain('map-credit')
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       for (let level = FINEST_FETCHED_LEVEL; level <= coarsest; level++) {
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
