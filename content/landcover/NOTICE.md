@@ -2,12 +2,12 @@
 
 `cover.bin.gz` is **derived** from ESA WorldCover 2021 v200 (10 m): the
 fraction of each 195 m cell covered by tree cover, cropland, mangroves and
-open ground, quantised to sixteenths. It is distributed publicly with the
+open ground, quantized to sixteenths. It is distributed publicly with the
 game, so this notice ships with it. Full provenance is in
 [`../../ASSETS.md`](../../ASSETS.md), which is authoritative; the strings
 below are quoted from it.
 
-## Attribution (CC BY 4.0)
+## Attribution ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))
 
 > © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel
 > data (2021) processed by ESA WorldCover consortium.

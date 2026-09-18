@@ -12,7 +12,7 @@ export { COVER_DIR, coverHeaderPath, coverPath, loadCover, loadCoverHeader } fro
 
 /**
  * One RGBA sample per grid cell: the fraction of the cell's 10 m pixels in
- * each of tree, crop, mangrove, open, quantised to sixteenths. A cell is
+ * each of tree, crop, mangrove, open, quantized to sixteenths. A cell is
  * the square of one grid step centred on its sample, so cells tile the box
  * with no gaps and no double counting. Row 0 is north, column 0 west.
  */

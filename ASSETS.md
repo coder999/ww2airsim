@@ -159,7 +159,7 @@ or safety at sea. The derived binary is accompanied by `content/ocean/NOTICE.md`
   from `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/`
   (public bucket, anonymous access, fetched 2026-09-17).
 - **Producer:** ESA WorldCover consortium, led by VITO.
-- **License:** Creative Commons Attribution 4.0 International (CC BY 4.0).
+- **License:** Creative Commons Attribution 4.0 International ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
 - **Attribution as required:**
 
   > © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium.
