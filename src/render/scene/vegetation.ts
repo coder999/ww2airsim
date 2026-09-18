@@ -6,6 +6,15 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { inAirfieldClearing } from './airfield.js'
 import { nearRiver } from '../terrain/rivers.js'
+import { coverFractionsAt, type CoverHeader } from '../landcover/cover.js'
+import { COVER_HEADER } from '../landcover/load.js'
+
+export type CoverLookup = { fractionsAt(x: number, z: number): { tree: number; crop: number; mangrove: number; open: number } }
+
+/** CPU twin of the shader's raster read: nearest sample, same bytes. */
+export function coverLookup(data: Uint8Array, header: CoverHeader = COVER_HEADER): CoverLookup {
+  return { fractionsAt: (x, z) => coverFractionsAt(data, header, x, z) }
+}
 
 export const TREE_CELL_M = 400
 export const TREE_CELL_RADIUS = 5
@@ -60,8 +69,13 @@ function packCell(sites: readonly TreeSite[]): PackedCell {
   return { count: sites.length, crowns, trunks, colors }
 }
 
-/** Stable per-cell placement. Camera motion never rerolls the forest. */
-export function treeSites(field: TerrainField, cellX: number, cellZ: number): TreeSite[] {
+/** Stable per-cell placement. Camera motion never rerolls the forest.
+ *  With a cover lookup (Plan 13b) a candidate survives with probability
+ *  equal to the local tree-plus-mangrove fraction, drawn from the same
+ *  per-cell stream so determinism holds; without one, every candidate
+ *  survives, which is the daa1b39 forest. Mangrove (fraction above 0.25)
+ *  lifts the 3 m shore exclusion to 0.5 m: that is where mangroves grow. */
+export function treeSites(field: TerrainField, cellX: number, cellZ: number, cover?: CoverLookup): TreeSite[] {
   let seed = (Math.imul(cellX, 73856093) ^ Math.imul(cellZ, 19349663) ^ 1944) >>> 0
   const random = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
@@ -71,8 +85,12 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number): Tr
   for (let i = 0; i < TREES_PER_CELL; i++) {
     const x = (cellX + random()) * TREE_CELL_M, z = (cellZ + random()) * TREE_CELL_M
     const height = 12 + random() * 15, radius = 6 + random() * 5, shade = random()
+    const roll = random()
+    const f = cover?.fractionsAt(x, z)
+    if (f && roll >= f.tree + f.mangrove) continue
+    const shoreM = f && f.mangrove > 0.25 ? 0.5 : 3
     const y = heightAt(field, x, z)
-    if (y < 3 || y > 1250 || inAirfieldClearing(x, z) || nearRiver(x, z)) continue
+    if (y < shoreM || y > 1250 || inAirfieldClearing(x, z) || nearRiver(x, z)) continue
     const slope = Math.hypot(heightAt(field, x + 10, z) - heightAt(field, x - 10, z),
       heightAt(field, x, z + 10) - heightAt(field, x, z - 10)) / 20
     if (slope > 0.65) continue
@@ -87,6 +105,9 @@ export function createVegetation(field: TerrainField): {
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
    *  for the eye's last position. */
   setTier(name: SceneryTierName): void
+  /** Apply the land-cover raster (Plan 13b) once it has loaded: the cache is
+   *  discarded and the forest is rebuilt at once for the eye's last position. */
+  setCover(cover: CoverLookup): void
   /** Cells generated so far: the crossing test reads it. */
   stats(): { generated: number }
 } {
@@ -135,6 +156,7 @@ export function createVegetation(field: TerrainField): {
   let generated = 0
   let offsets = residentCellOffsets()
   let lastX = 0, lastZ = 0
+  let cover: CoverLookup | undefined
   // Cells stay cached while resident. A crossing composes only the cells
   // that entered and copies the rest: the square window's full recompose of
   // every instance cost 4.7-7.2 ms per crossing in node (2026-09-17).
@@ -147,6 +169,12 @@ export function createVegetation(field: TerrainField): {
       fadeEnd.value = endM
       fadeStart.value = Math.max(0, endM - TREE_FADE_BAND_M)
       offsets = residentCellOffsets(endM)
+      previousKey = ''
+      this.update(lastX, lastZ)
+    },
+    setCover(next): void {
+      cover = next
+      cache = new Map()
       previousKey = ''
       this.update(lastX, lastZ)
     },
@@ -163,7 +191,7 @@ export function createVegetation(field: TerrainField): {
         const k = `${cx + dx},${cz + dz}`
         let cell = cache.get(k)
         if (!cell) {
-          cell = packCell(treeSites(field, cx + dx, cz + dz))
+          cell = packCell(treeSites(field, cx + dx, cz + dz, cover))
           generated++
         }
         nextCache.set(k, cell)

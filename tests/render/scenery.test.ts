@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { InstancedMesh, Mesh } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
-import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
+import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
 import { createDetailTexture } from '../../src/render/terrain/surface.js'
 import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
 import { COVER_HEADER } from '../../src/render/landcover/load.js'
-import { coverByteLength } from '../../src/render/landcover/cover.js'
+import { coverByteLength, quantize } from '../../src/render/landcover/cover.js'
 import { SCENERY_TIERS } from '../../src/render/scene/tiers.js'
 import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
 import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
@@ -215,5 +215,41 @@ describe('scenery placement on the real Leyte field', () => {
     // checked by the thing it actually does, not by reading the setter back.
     expect(mesh.cover.texture.version).toBeGreaterThan(versionBefore)
     expect(() => mesh.setCover(new Uint8Array(16))).toThrow(/16 bytes/)
+  })
+
+  it('plants by the tree fraction: dense jungle, bare paddies, mangroves at the waterline', () => {
+    const bytes = coverByteLength(COVER_HEADER)
+    const uniformCover = (tree: number, crop: number, mangrove: number, open: number) => {
+      const data = new Uint8Array(bytes)
+      for (let i = 0; i < bytes; i += 4) { data[i] = quantize(tree); data[i + 1] = quantize(crop); data[i + 2] = quantize(mangrove); data[i + 3] = quantize(open) }
+      return coverLookup(data)
+    }
+    // An inland cell with real relief (the same cell the crossing test uses).
+    const jungle = treeSites(field, -103, -77, uniformCover(1, 0, 0, 0)).length
+    const paddy = treeSites(field, -103, -77, uniformCover(0, 1, 0, 0)).length
+    const half = treeSites(field, -103, -77, uniformCover(0.5, 0.5, 0, 0)).length
+    const procedural = treeSites(field, -103, -77).length
+    expect(paddy).toBe(0)
+    expect(jungle).toBe(procedural)            // full tree cover keeps every site the old rule kept
+    expect(half).toBeGreaterThan(jungle * 0.3)
+    expect(half).toBeLessThan(jungle * 0.7)
+    // Determinism survives the raster: the same cell, the same forest.
+    expect(treeSites(field, -103, -77, uniformCover(0.5, 0.5, 0, 0))).toEqual(treeSites(field, -103, -77, uniformCover(0.5, 0.5, 0, 0)))
+    // Mangroves grow below the 3 m shore exclusion that keeps jungle off the beach.
+    const shoreCell = { x: Math.floor(-30000 / TREE_CELL_M), z: Math.floor(-46000 / TREE_CELL_M) }
+    const lowSites = (sites: ReturnType<typeof treeSites>) => sites.filter(t => t.y < 3).length
+    expect(lowSites(treeSites(field, shoreCell.x, shoreCell.z, uniformCover(1, 0, 0, 0)))).toBe(0)
+    expect(lowSites(treeSites(field, shoreCell.x, shoreCell.z, uniformCover(0, 0, 1, 0)))).toBeGreaterThan(0)
+  })
+
+  it('rebuilds the forest when the raster arrives', () => {
+    const vegetation = createVegetation(field)
+    vegetation.update(-40900, -30666)
+    const crowns = vegetation.object.children[0] as InstancedMesh
+    const before = crowns.count
+    const data = new Uint8Array(coverByteLength(COVER_HEADER))   // all zero: no tree cover anywhere
+    vegetation.setCover(coverLookup(data))
+    expect(crowns.count).toBe(0)
+    expect(before).toBeGreaterThan(0)
   })
 })
