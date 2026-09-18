@@ -49,7 +49,12 @@ the landing envelope is a number in CI rather than an impression: touchdown at
 [handoff](docs/handoff/2026-09-17-plan11b-landing.md) for every figure that is
 still an estimate.
 
-Ships and airfields, combat, AI and the meta-game all remain ahead.
+A first scenery pass now adds procedural beach, grass, jungle and rock
+materials, mapped Binahaan and Daguitan river surfaces, nearby trees, and
+Tacloban hangars, control tower, service apron and stores. These buildings
+and trees are visual only; entity collision and operational airfields remain
+ahead with ships, combat, AI and the meta-game. See the
+[scenery handoff](docs/handoff/2026-09-18-scenery.md) for coverage and limitations.
 Mark reordered them on 2026-09-16 so that the ground under the airplane comes
 before there is anybody to shoot at; plan numbers were deliberately NOT
 reused, for the reason the next paragraph records. **Master spec §15 holds the

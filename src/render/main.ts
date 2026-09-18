@@ -2,7 +2,7 @@ import { Group, PerspectiveCamera, Scene } from 'three'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
-import { CAMERA_VFOV_DEG } from './camera.js'
+import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
 import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
@@ -31,6 +31,8 @@ import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tie
 import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
+import { createAirfield } from './scene/airfield.js'
+import { createVegetation } from './scene/vegetation.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
@@ -386,6 +388,7 @@ async function boot(): Promise<void> {
   // terrain mesh that missed it would jitter at 100 km exactly as master
   // spec §4 describes, and would be the only thing in the scene that did.
   scene.add(terrain.object)
+  let vegetation: ReturnType<typeof createVegetation> | null = null
 
   const camera = new PerspectiveCamera(
     CAMERA_VFOV_DEG,
@@ -407,6 +410,10 @@ async function boot(): Promise<void> {
   const initialAircraft = initialAircraftState(spawnPosition, groundSpawn)
 
   frame = initialFrameState(spec, initialAircraft, undefined, undefined, groundSpawn)
+  // Repeatable scenery inspection with the existing DEV spawn overrides.
+  // Hold position and look down; absent from production builds.
+  const inspectScenery = import.meta.env.DEV && new URLSearchParams(location.search).get('sceneryView') === '1'
+  if (inspectScenery) frame = withPaused(frame, true)
 
   // Ships in production, unlike `overlay` below: it is the pilot's only view
   // of the key map. Mark asked for a throttle-down key on 2026-09-15 that had
@@ -592,7 +599,9 @@ async function boot(): Promise<void> {
             gearPressed: pendingGear ? false : frame!.gearPressed,
             flapPressed: pendingFlaps ? false : frame!.flapPressed,
           }
-    const current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
+    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
+    if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
+      { yawRad: 0, pitchRad: -Math.PI / 5 }) }
     pendingCameraCycle = false
     pendingTripleTime = false
     pendingPause = false
@@ -723,6 +732,7 @@ async function boot(): Promise<void> {
     // works in world metres and lets `scene.position` do the shift, exactly
     // as the water and markers do.
     terrain.update(current.eye.position.x, current.eye.position.z)
+    vegetation?.update(current.eye.position.x, current.eye.position.z)
 
     // Gated on the flight still being live (whole-branch review I-1): once
     // `world.impact` is set, `controlsFromKeys` keeps latching throttle and
@@ -853,7 +863,11 @@ async function boot(): Promise<void> {
     // alone, so this runs exactly once per page load -- and unconditionally,
     // not only for a ground spawn: the runway is a place in the world, and a
     // DEV `?spawnX/Y/Z` flight should be able to see it too.
-    if (arrived !== null) scene.add(createRunway(arrived))
+    if (arrived !== null) {
+      scene.add(createRunway(arrived), createAirfield(arrived))
+      vegetation = createVegetation(arrived)
+      scene.add(vegetation.object)
+    }
     frame = groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
   }).catch((err: unknown) => {
     loop?.stop()

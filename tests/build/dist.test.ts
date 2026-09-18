@@ -106,6 +106,10 @@ describe('the built artifact', () => {
       // was choosing a weaker check over a free stronger one.
       expect(readFileSync(join(outDir, 'content/ocean/depth.bin')).length).toBe(513 * 513 * 2)
       expect(readFileSync(join(outDir, 'content/ocean/NOTICE.md'), 'utf8')).toContain('GEBCO_2026')
+      const rivers = JSON.parse(readFileSync(join(outDir, 'content/scenery/rivers.json'), 'utf8'))
+      expect(rivers.length).toBe(8)
+      expect(readFileSync(join(outDir, 'content/scenery/NOTICE.md'), 'utf8')).toContain('OpenStreetMap contributors')
+      expect(readFileSync(join(outDir, 'index.html'), 'utf8')).toContain('https://www.openstreetmap.org/copyright')
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       for (let level = FINEST_FETCHED_LEVEL; level <= coarsest; level++) {
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
@@ -213,6 +217,7 @@ describe('the built artifact', () => {
       // in production as scenario weather will use it too.
       expect(bundle).not.toContain(JSON.stringify(BEAUFORT_PARAM))
       expect(bundle).not.toContain('ocean weather:')
+      expect(bundle).not.toContain('sceneryView')
       // The spawn override, by the parameter names the app actually parses
       // rather than by three literals -- renaming one in `spawn.ts` must not
       // quietly narrow what this test looks for.

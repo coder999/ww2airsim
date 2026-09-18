@@ -1,4 +1,7 @@
-import { BufferAttribute, BufferGeometry, Mesh, MeshStandardMaterial, type Object3D } from 'three'
+import { BufferAttribute, BufferGeometry, Mesh, type Object3D } from 'three'
+import { MeshStandardNodeMaterial } from 'three/webgpu'
+import { color, fract, mix, positionLocal, smoothstep, varying } from 'three/tsl'
+import { groundNoise } from '../terrain/surface.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { DEFAULT_SPAWN_POSITION } from '../spawn.js'
 
@@ -160,7 +163,11 @@ export function createRunway(field: TerrainField): Object3D {
   // Deliberately darker and smoother than the terrain shading around it, so
   // the strip reads as a made surface rather than a patch of ground. Coral
   // and pierced steel plank are what Tacloban was actually surfaced with in
-  // 1944; this is a flat approximation of the latter, not a texture.
-  const material = new MeshStandardMaterial({ color: 0x3b3b3d, roughness: 0.85, metalness: 0.05 })
+  // 1944; mottled material and panel seams suggest the latter at taxi height.
+  const material = new MeshStandardNodeMaterial({ roughness: 0.91, metalness: 0.08 })
+  const xz = varying(positionLocal.xz)
+  const grain = groundNoise(xz, 12).g
+  const seams = smoothstep(0.96, 0.995, fract(xz.y.div(3))).mul(0.14)
+  material.colorNode = mix(color(0x55544b), color(0x7c7868), grain).mul(seams.oneMinus())
   return new Mesh(geometry, material)
 }

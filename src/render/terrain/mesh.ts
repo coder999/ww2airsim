@@ -25,7 +25,6 @@ import {
   int,
   ivec2,
   length,
-  max,
   min,
   mix,
   normalize,
@@ -38,6 +37,7 @@ import {
   vec3,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
+import { terrainSurfaceNode } from './surface.js'
 import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
@@ -112,43 +112,6 @@ export function sampleLevelsForRing(
  */
 const INITIAL_RING_CAPACITY = 64
 
-/** Ground colours. Appearance, not tuning: nothing measures against these
- *  and no behaviour changes with them. Leyte is jungle to the ridgelines,
- *  so green dominates; the sand band exists so the coastline reads as a
- *  line at 30 km rather than as a green/blue tone change, which is the one
- *  thing the eye uses to recognise the place. */
-const SAND = 0xcbb894
-const JUNGLE = 0x2f4a2b
-const ROCK = 0x6d6559
-/**
- * Top of the sand band, in metres: above this the ground is vegetation.
- *
- * Measured, so it can be re-derived rather than taken on trust. Over the
- * committed L4 grid (2026-09-14) there are 4,846 samples that are above sea
- * level and orthogonally adjacent to a sample at exactly 0 -- the first land
- * sample inland, all the way round every coast in the world. Their heights:
- * median 0.9 m, 75th percentile 2.7 m, maximum 52.3 m. Rounding the 75th
- * percentile to 3 puts the top of the band at or before the first land
- * sample for three coastlines in four, i.e. the sand is about ONE level-4
- * cell wide (390 m) -- a shoreline, not a beach the width of a county.
- *
- * It is worth knowing what this does and does not buy: at 30 km a 390 m band
- * is well under a pixel, so the coastline at range reads from the sea-level
- * discard edge (`createRingMaterial`), not from this. The band is for the
- * near field.
- */
-const SAND_TOP_M = 3
-/** Where bare rock takes over from vegetation with height, in metres.
- *  Leyte's highest sample is 1236.6 m (measured over the committed L4
- *  grid), so this puts rock on the top few hundred metres of the tallest
- *  ridges and nowhere else. */
-const ROCK_FROM_M = 800
-const ROCK_FULL_M = 1100
-/** ...and with slope, as rise over run: 0.5 is 27 degrees, 0.9 is 42. A
- *  tropical hillside holds vegetation to roughly the first and almost never
- *  past the second. */
-const ROCK_FROM_SLOPE = 0.5
-const ROCK_FULL_SLOPE = 0.9
 /** Fraction of the terrain's lit colour that survives in shadow: sky and
  *  sea bounce, standing in for the HemisphereLight the rest of the scene
  *  gets (lighting.ts). Without it, every north face is black. */
@@ -256,11 +219,11 @@ function sampleField(
 /**
  * The material one ring draws with: a TSL vertex node that places the shared
  * grid, displaces it from the height textures, sinks it with the Earth's
- * curvature, and shades and fogs the result.
+ * curvature, and passes world coordinates to fragment material detail.
  *
  * `MeshBasicNodeMaterial` rather than a lit standard material: the terrain
- * does its own lambert against `SUN_DIRECTION` (lighting.ts) in one vertex
- * node it already has the normal in, and takes its ambient from a constant
+ * does its own lambert against `SUN_DIRECTION` (lighting.ts) using the
+ * interpolated terrain normal, and takes its ambient from a constant
  * instead of the scene's HemisphereLight. That keeps the whole surface --
  * displacement, normal, colour and fog -- in one graph that can be read in
  * one sitting, at the cost of not tracking the scene's lights if they ever
@@ -308,13 +271,9 @@ function createRingMaterial(
 
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
   const slope = length(vec2(field.y, field.z))
-  const bare = max(
-    smoothstep(ROCK_FROM_M, ROCK_FULL_M, heightM),
-    smoothstep(ROCK_FROM_SLOPE, ROCK_FULL_SLOPE, slope),
-  )
-  const albedo = mix(mix(color(SAND), color(JUNGLE), smoothstep(0, SAND_TOP_M, heightM)), color(ROCK), bare)
+  const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope))
   const sun = normalize(vec3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
-  const lit = albedo.mul(float(AMBIENT).add(clamp(dot(normal, sun), 0, 1).mul(1 - AMBIENT)))
+  const lit = albedo.mul(float(AMBIENT).add(clamp(dot(varying(normal), sun), 0, 1).mul(1 - AMBIENT)))
 
   // Aerial perspective, and the reason the far plane can sit exactly on the
   // draw distance (main.ts). `smoothstep` is exactly 1 at `drawDistanceM`,
@@ -324,7 +283,7 @@ function createRingMaterial(
   // extinction curve would be more physical and never reach 1, which is
   // exactly the property that would make the clip a visible edge.
   const fog = smoothstep(0, LOD.drawDistanceM, distanceM)
-  const shaded = varying(mix(lit, color(SKY_HAZE), fog))
+  const shaded = mix(lit, color(SKY_HAZE), varying(fog))
   const vertexHeightM = varying(heightM)
 
   // The ocean owns water fragments. Discard the DEM's zero-elevation sea
