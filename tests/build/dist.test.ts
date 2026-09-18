@@ -106,8 +106,13 @@ describe('the built artifact', () => {
       // was choosing a weaker check over a free stronger one.
       expect(readFileSync(join(outDir, 'content/ocean/depth.bin')).length).toBe(513 * 513 * 2)
       expect(readFileSync(join(outDir, 'content/ocean/NOTICE.md'), 'utf8')).toContain('GEBCO_2026')
-      expect(readFileSync(join(outDir, 'content/landcover/cover.bin.gz')).length).toBeGreaterThan(200_000)
-      expect(readFileSync(join(outDir, 'content/landcover/cover.bin.gz')).length).toBeLessThan(400_000)
+      // Exact, not a bound: this is a committed static asset that
+      // `copyContent()` only copies, never regenerates, so its size is
+      // deterministic. A loose bound would let a truncated, corrupted, or
+      // merely similarly-sized raster through undetected -- the same gap
+      // the `depth.bin` line above was tightened to close (review 2026-09-14,
+      // finding 5).
+      expect(readFileSync(join(outDir, 'content/landcover/cover.bin.gz')).length).toBe(253_532)
       expect(readFileSync(join(outDir, 'content/landcover/NOTICE.md'), 'utf8')).toContain('ESA WorldCover')
       expect(JSON.parse(readFileSync(join(outDir, 'content/landcover/header.json'), 'utf8')).samples).toBe(1025)
       const rivers = JSON.parse(readFileSync(join(outDir, 'content/scenery/rivers.json'), 'utf8'))
