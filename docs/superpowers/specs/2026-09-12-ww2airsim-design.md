@@ -715,7 +715,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 13 | any | Terrain surface detail | §4 | First pass landed 2026-09-17 in daa1b39 without a spec or plan (Codex, [handoff](../../handoff/2026-09-18-scenery.md)); split into 13a-13d the same day |
 | 13a | any | Harden and verify the first pass (Tier 2, GPU budget, quality tiering, tree streaming) | §4 | Complete 2026-09-17, bounded work, no plan document; [handoff](../../handoff/2026-09-17-plan13a-hardening.md) |
 | 13b | any | Land cover from ESA WorldCover as the material and vegetation guide | §4 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan13b-land-cover.md) |
-| 13c | any | Coastline and beaches | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
+| 13c | any | Coastline and beaches | §4 | **Abandoned as designed 2026-09-18**, and the problem it existed for is SOLVED by other means: the blocky coast was L4's 391 m grid, not the DEM, so shipping L2 at 98 m fixed it (`eef5b4d`, confirmed by eye). Moving the shoreline at 24 m and letting `buildPyramid` carry it down cannot work — `halve` is a [1,2,1] tent filter and does not preserve a binary land/sea boundary; measured net -203 land cells at L4, with before/after frames indistinguishable. Reshaping per level is worse (-6.6% land at L4, -88.9% at L12). `tools/landcover/sea.ts` and `tools/terrain/coast.ts` remain committed, reviewed and UNWIRED. |
 | 15 | any | Audio: engine loop and event cues | — | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan15-audio.md) |
 | 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
 
