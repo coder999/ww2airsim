@@ -16,6 +16,7 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 
 | Asset | Source | Author | License |
 | --- | --- | --- | --- |
+| `src/render/scene/ship.ts` | original procedural hulls, built from the class dimensions in `content/ships/` | authored for this project | AGPL-3.0-or-later |
 
 ## Textures and audio
 

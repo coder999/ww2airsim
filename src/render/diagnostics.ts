@@ -102,6 +102,34 @@ export type Ww2Diagnostics = {
    */
   readonly impact: () => Impact | null
   /**
+   * Every ship in the world, by id, with its position on the sea surface and
+   * its compass heading (Plan 12).
+   *
+   * Proving the wire, not the picture, exactly as `aircraftPositionM` does:
+   * ships are the first entities that MOVE without the pilot touching
+   * anything, and a `stepShip` that never ran, orders that never reached the
+   * world, or a hull mesh posed from the wrong index all look identical from
+   * a screenshot of an empty sea. A Tier 2 spec reads this twice and checks
+   * the task force actually sailed, and that its heading is the bearing it is
+   * sailing on.
+   *
+   * `y` is deliberately absent: it is `SEA_LEVEL_M` for every ship by
+   * construction (`ShipState.position`), so reporting it would be reporting a
+   * constant as if it were a measurement.
+   */
+  readonly ships: () => readonly { readonly id: string; readonly x: number; readonly z: number; readonly headingRad: number }[]
+  /**
+   * Every aircraft in the world, by id, with its simulated position.
+   *
+   * The N-entity view of `aircraftPositionM` above, which stays because it is
+   * the PLAYER's and half the Tier 2 suite reads it by that name. What this
+   * adds is the wingman: a second parked airplane that `settleOnTerrain` must
+   * drop onto the real ground along with the player's, and which -- being
+   * chocked and never touched by the pilot -- is also the one entity whose
+   * position must not change at all during a flight.
+   */
+  readonly aircraft: () => readonly { readonly id: string; readonly x: number; readonly y: number; readonly z: number }[]
+  /**
    * Whether the wheels are currently carrying the airplane -- `supportedContact`
    * (`src/sim/ground.ts`) evaluated against the live frame.
    *

@@ -8,26 +8,34 @@ import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
 import { COVER_HEADER } from '../../src/render/landcover/load.js'
 import { coverByteLength, quantize } from '../../src/render/landcover/cover.js'
 import { SCENERY_TIERS } from '../../src/render/scene/tiers.js'
-import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
+import { createRunway } from '../../src/render/scene/runway.js'
 import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { loadAirfield } from '../../tools/content/load.js'
 
 const header = loadTerrainHeader()
 const field = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
 
+/** The scenery is drawn from the airfield records now (Plan 12 Task 7), not
+ *  from a `RUNWAY_CENTRE` constant this file used to import. Both bases are
+ *  loaded because `inAirfieldClearing` takes the whole list: keeping trees
+ *  off Dulag's strip is the behaviour the list exists for. */
+const tacloban = loadAirfield('tacloban')
+const dulag = loadAirfield('dulag')
+
 describe('scenery placement on the real Leyte field', () => {
   it('keeps all building footprints on land and outside the runway', () => {
     for (const b of AIRFIELD_BUILDINGS) {
-      expect(b.x + b.width / 2).toBeLessThan(-RUNWAY_WIDTH_M / 2 - 10)
+      expect(b.x + b.width / 2).toBeLessThan(-tacloban.runway.widthM / 2 - 10)
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        const x = RUNWAY_CENTRE.x + b.x + sx * b.width / 2
-        const z = RUNWAY_CENTRE.z + b.z + sz * b.length / 2
+        const x = tacloban.runway.center.x + b.x + sx * b.width / 2
+        const z = tacloban.runway.center.z + b.z + sz * b.length / 2
         expect(heightAt(field, x, z)).toBeGreaterThan(0)
-        expect(inAirfieldClearing(x, z)).toBe(true)
+        expect(inAirfieldClearing([tacloban], x, z)).toBe(true)
       }
     }
-    const object = createAirfield(field)
+    const object = createAirfield(field, tacloban)
     expect(object.children.length).toBeLessThanOrEqual(10)
     for (const child of object.children) {
       expect(child).toBeInstanceOf(Mesh)
@@ -37,18 +45,74 @@ describe('scenery placement on the real Leyte field', () => {
     }
   })
 
+  it('the content clearing reproduces the pre-Plan-12 formula at Tacloban exactly', () => {
+    // `inAirfieldClearing` used to be two hardcoded boxes around
+    // `RUNWAY_CENTRE`; it is now the strip plus `airfield.clearing` read from
+    // `content/bases/tacloban.json`. That record was written to reproduce the
+    // old boxes, and this is the check that it does -- a forest that crept
+    // onto the apron, or a clearing that cut a hole in the jungle where none
+    // used to be, would otherwise be invisible until someone flew there.
+    const c = tacloban.runway.center
+    const old = (x: number, z: number): boolean => {
+      const dx = x - c.x, dz = z - c.z
+      return (Math.abs(dx) < 65 && Math.abs(dz) < 1500 / 2 + 220) || (dx > -270 && dx < -35 && dz > -330 && dz < 210)
+    }
+    // Sampled off the half-metre, so no sample lands exactly ON a boundary.
+    // The two forms genuinely differ there and only there: the old boxes
+    // compared strictly (`dx > -270`), `insideRect` compares inclusively
+    // (`<= widthM / 2`). Measured 2026-09-18: an aligned 5 m grid disagrees at
+    // exactly 191 points, which is exactly the count of grid points lying ON
+    // those lines (109 down the dx = -270 edge, plus 41 on each of the
+    // dz = -330 and dz = 210 edges outside the strip's own box) -- and at no
+    // other point, which is what this offset grid asserts. The brief's
+    // `< 40` was an estimate of that boundary count, not a tolerance; zero
+    // off-boundary disagreements is the stronger claim and the true one.
+    let disagreements = 0
+    for (let dx = -400.5; dx <= 400; dx += 5) for (let dz = -1100.5; dz <= 1100; dz += 5) {
+      if (old(c.x + dx, c.z + dz) !== inAirfieldClearing([tacloban], c.x + dx, c.z + dz)) disagreements++
+    }
+    expect(disagreements).toBe(0)
+  })
+
+  it('draws a base with no apron and no buildings as an empty group, not a transplanted Tacloban', () => {
+    // Dulag is a strip and nothing else until Plan 13d gives it its own
+    // building set (`AIRFIELD_BUILDINGS`' comment). The hazard this pins is
+    // the opposite of a crash: `createAirfield` reaching the Tacloban-only
+    // block for it would put Tacloban's three hangars, its tower and its
+    // windsock 31 km south of where they belong, and nothing else in the
+    // suite looks at Dulag's scenery.
+    const object = createAirfield(field, dulag)
+    expect(object.children).toHaveLength(0)
+    expect(object.name).toContain('Dulag')
+    // The strip itself is still drawn, and on real ground: Dulag is inland of
+    // the coast, so every vertex should be above sea level.
+    const strip = createRunway(field, dulag) as Mesh
+    const p = strip.geometry.getAttribute('position')
+    expect(p.count).toBeGreaterThan(8)
+    for (let i = 0; i < p.count; i++) expect(p.getY(i)).toBeGreaterThan(0)
+  })
+
+  it('keeps trees off the Dulag strip too', () => {
+    // The whole point of `inAirfieldClearing` taking a list: Dulag is a strip
+    // in `world.airfields` with no apron and no buildings, and before Plan 12
+    // the jungle grew straight down the middle of it.
+    const d = dulag.runway.center
+    expect(inAirfieldClearing([tacloban, dulag], d.x, d.z)).toBe(true)
+    expect(inAirfieldClearing([tacloban], d.x, d.z)).toBe(false)
+  })
+
   it('has stable trees while leaving shore, runway, service apron and river banks clear', () => {
     const sites = []
     for (let x = -78; x <= -73; x++) for (let z = -121; z <= -118; z++) {
-      sites.push(...treeSites(field, x, z))
+      sites.push(...treeSites(field, x, z, [tacloban]))
     }
     expect(sites.length).toBeGreaterThan(100)
     for (const t of sites) {
       expect(t.y).toBeGreaterThanOrEqual(3)
-      expect(inAirfieldClearing(t.x, t.z)).toBe(false)
+      expect(inAirfieldClearing([tacloban], t.x, t.z)).toBe(false)
       expect(nearRiver(t.x, t.z)).toBe(false)
     }
-    expect(treeSites(field, -78, -119)).toEqual(treeSites(field, -78, -119))
+    expect(treeSites(field, -78, -119, [tacloban])).toEqual(treeSites(field, -78, -119, [tacloban]))
   })
 
   it('fades trees without alphaHash, which this Chromium cannot compile', () => {
@@ -64,7 +128,7 @@ describe('scenery placement on the real Leyte field', () => {
     // derivatives, compiles fine. The fade is therefore a per-instance alpha
     // test on `hash(instanceIndex)` against the distance fade: no
     // derivatives, no blending, one opaque pipeline.
-    const vegetation = createVegetation(field)
+    const vegetation = createVegetation(field, [tacloban])
     for (const mesh of vegetation.object.children as InstancedMesh[]) {
       const material = mesh.material as MeshStandardNodeMaterial
       expect(material.alphaHash, `${mesh.name || 'tree mesh'} still sets alphaHash`).toBe(false)
@@ -115,7 +179,7 @@ describe('scenery placement on the real Leyte field', () => {
   })
 
   it('generates only the cells that entered on a crossing, and copies the rest', () => {
-    const vegetation = createVegetation(field)
+    const vegetation = createVegetation(field, [tacloban])
     vegetation.update(-40900, -30666)
     const before = vegetation.stats()
     vegetation.update(-40900 + TREE_CELL_M, -30666)
@@ -141,7 +205,7 @@ describe('scenery placement on the real Leyte field', () => {
     expect(SCENERY_TIERS.high.treeFadeEndM).toBe(TREE_FADE_END_M)
     expect(SCENERY_TIERS.medium.treeFadeEndM).toBeLessThan(SCENERY_TIERS.high.treeFadeEndM)
     expect(SCENERY_TIERS.low.treeFadeEndM).toBe(0)
-    const vegetation = createVegetation(field)
+    const vegetation = createVegetation(field, [tacloban])
     vegetation.update(-40900, -30666)
     const crowns = vegetation.object.children[0] as InstancedMesh
     const high = crowns.count
@@ -161,7 +225,7 @@ describe('scenery placement on the real Leyte field', () => {
   })
 
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {
-    const vegetation = createVegetation(field)
+    const vegetation = createVegetation(field, [tacloban])
     const crowns = vegetation.object.children[0] as InstancedMesh
     vegetation.update(-31000, -47000)
     const count = crowns.count
@@ -185,7 +249,7 @@ describe('scenery placement on the real Leyte field', () => {
       expect(nearRiver(p.x, p.z)).toBe(true)
       expect(nearRiver(p.x, -p.z)).toBe(false)
     }
-    expect(nearRiver(RUNWAY_CENTRE.x, RUNWAY_CENTRE.z)).toBe(false)
+    expect(nearRiver(tacloban.runway.center.x, tacloban.runway.center.z)).toBe(false)
   })
 
   it('takes the land-cover raster once it arrives, and paints procedurally until then', () => {
@@ -252,25 +316,25 @@ describe('scenery placement on the real Leyte field', () => {
       return coverLookup(data)
     }
     // An inland cell with real relief (the same cell the crossing test uses).
-    const jungle = treeSites(field, -103, -77, uniformCover(1, 0, 0, 0)).length
-    const paddy = treeSites(field, -103, -77, uniformCover(0, 1, 0, 0)).length
-    const half = treeSites(field, -103, -77, uniformCover(0.5, 0.5, 0, 0)).length
-    const procedural = treeSites(field, -103, -77).length
+    const jungle = treeSites(field, -103, -77, [tacloban], uniformCover(1, 0, 0, 0)).length
+    const paddy = treeSites(field, -103, -77, [tacloban], uniformCover(0, 1, 0, 0)).length
+    const half = treeSites(field, -103, -77, [tacloban], uniformCover(0.5, 0.5, 0, 0)).length
+    const procedural = treeSites(field, -103, -77, [tacloban]).length
     expect(paddy).toBe(0)
     expect(jungle).toBe(procedural)            // full tree cover keeps every site the old rule kept
     expect(half).toBeGreaterThan(jungle * 0.3)
     expect(half).toBeLessThan(jungle * 0.7)
     // Determinism survives the raster: the same cell, the same forest.
-    expect(treeSites(field, -103, -77, uniformCover(0.5, 0.5, 0, 0))).toEqual(treeSites(field, -103, -77, uniformCover(0.5, 0.5, 0, 0)))
+    expect(treeSites(field, -103, -77, [tacloban], uniformCover(0.5, 0.5, 0, 0))).toEqual(treeSites(field, -103, -77, [tacloban], uniformCover(0.5, 0.5, 0, 0)))
     // Mangroves grow below the 3 m shore exclusion that keeps jungle off the beach.
     const shoreCell = { x: Math.floor(-30000 / TREE_CELL_M), z: Math.floor(-46000 / TREE_CELL_M) }
     const lowSites = (sites: ReturnType<typeof treeSites>) => sites.filter(t => t.y < 3).length
-    expect(lowSites(treeSites(field, shoreCell.x, shoreCell.z, uniformCover(1, 0, 0, 0)))).toBe(0)
-    expect(lowSites(treeSites(field, shoreCell.x, shoreCell.z, uniformCover(0, 0, 1, 0)))).toBeGreaterThan(0)
+    expect(lowSites(treeSites(field, shoreCell.x, shoreCell.z, [tacloban], uniformCover(1, 0, 0, 0)))).toBe(0)
+    expect(lowSites(treeSites(field, shoreCell.x, shoreCell.z, [tacloban], uniformCover(0, 0, 1, 0)))).toBeGreaterThan(0)
   })
 
   it('rebuilds the forest when the raster arrives', () => {
-    const vegetation = createVegetation(field)
+    const vegetation = createVegetation(field, [tacloban])
     vegetation.update(-40900, -30666)
     const crowns = vegetation.object.children[0] as InstancedMesh
     const before = crowns.count

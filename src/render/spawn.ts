@@ -12,13 +12,14 @@ export const SPAWN_PARAMS = ['spawnX', 'spawnY', 'spawnZ'] as const
  * `?spawnX=`, `?spawnY=`, `?spawnZ=` (world metres, +x east, +y up, +z south)
  * overriding one component.
  *
- * `fallback` rather than a module constant (Plan 12, Task 5): where a flight
- * starts by default now lives in content (`content/bases/tacloban.json`), not
- * in this file. At THIS commit `main.ts` still passes a hard-coded temporary
- * literal (`PARKED_TACLOBAN`, `main.ts`'s own comment says so), the same way
- * the caller used to fall back to this module's own `DEFAULT_SPAWN_POSITION`;
- * Task 7 replaces that literal with the scenario's parked position, read
- * through `worldFromScenario`, without this function's signature changing.
+ * `fallback` rather than a module constant (Plan 12): where a flight starts
+ * by default lives in content (`content/scenarios/free-flight.json`, which
+ * parks the player at `content/bases/tacloban.json`'s runway center), not in
+ * this file. Since Task 7 `main.ts` passes exactly that -- the parked
+ * position of the player entity `worldFromScenario` built -- so this
+ * function's `fallback` is the real spawn, not a literal standing in for one,
+ * and there is no second place where "where a flight starts" is written
+ * down.
  *
  * **Why this exists, since a URL that moves the airplane is otherwise a
  * cheat.** Tier 2 has to fly over Leyte, and Leyte is not where the airplane
@@ -29,8 +30,9 @@ export const SPAWN_PARAMS = ['spawnX', 'spawnY', 'spawnZ'] as const
  * thing `diagnostics.ts` argues against for the assists, and there is no
  * keyboard path to fall back on here. A second HTML entry point would be a
  * second copy of `boot`. This is instead an INPUT to the one existing boot
- * path: `initialFrameState` already takes the airplane it is handed, and
- * nothing downstream can tell where the number came from.
+ * path: `main.ts` patches the player entity of the world the scenario built
+ * (`withAircraftState`, `buildWorld`), and nothing downstream can tell where
+ * the number came from.
  *
  * `main.ts` calls this behind `import.meta.env.DEV`, which Vite replaces with
  * the literal `false` in a production build, so the query string is inert in
@@ -65,11 +67,12 @@ export function spawnPositionFromQuery(search: string, fallback: Vec3): Vec3 {
  * Whether the query string carries any of `SPAWN_PARAMS` -- i.e. whether the
  * page was asked to start somewhere other than the default spawn.
  *
- * `main.ts` uses this to compute `groundSpawn` without re-parsing the query
- * string a second way that could disagree with `spawnPositionFromQuery`'s own
- * parsing -- reading `SPAWN_PARAMS` here, rather than three string literals,
- * is what keeps a future rename of one of them from silently splitting the
- * two functions' idea of "was this overridden" apart.
+ * `main.ts` uses this to decide whether to fly the override at all (its
+ * `override` const) without re-parsing the query string a second way that
+ * could disagree with `spawnPositionFromQuery`'s own parsing -- reading
+ * `SPAWN_PARAMS` here, rather than three string literals, is what keeps a
+ * future rename of one of them from silently splitting the two functions'
+ * idea of "was this overridden" apart.
  *
  * Deliberately "any of the three", not "all three": a partial override (e.g.
  * `?spawnY=600` alone, `tests/e2e/ocean.spec.ts`) still means the caller
@@ -108,15 +111,17 @@ export function hasSpawnOverride(search: string): boolean {
  * The parked attitude below is the literal `parkedAttitude(tacloban)` would
  * produce (`src/sim/world/airfields.ts`) -- north, down the strip, wings
  * level -- but cannot actually call it: that function takes an `Airfield`,
- * and this one has no airfield to hand it, only a bare position. At THIS
- * commit `main.ts` still calls this function for BOTH branches
- * (`src/render/main.ts`'s `initialAircraftState(spawnPosition, groundSpawn)`,
- * with `groundSpawn` true on every normal production boot) -- Task 5 did not
- * move `main.ts` off it. Task 7 is what moves `main.ts`'s boot path onto
- * `worldFromScenario`, which sets a parked entity's attitude from the real
- * airfield record; after that only the airborne branch (the DEV
- * `?spawnX/Y/Z` override) is still reached in production, and the parked one
- * is reached only by tests that call this function directly.
+ * and this one has no airfield to hand it, only a bare position.
+ *
+ * **Since Task 7, `main.ts` reaches only the `groundSpawn: false` branch**,
+ * and only for a DEV `?spawnX/Y/Z` override
+ * (`initialAircraftState(spawnPosition, false)` inside `buildWorld`). A
+ * normal production boot never calls this function at all: the parked
+ * airplane comes from `worldFromScenario`, which sets each parked entity's
+ * attitude from the real airfield record. The parked branch here is therefore
+ * reached only by tests that call this function directly, and it is kept
+ * because those tests are the one-airplane Tier 1 cases `initialFrameState`
+ * still serves -- not because anything that ships uses it.
  */
 export function initialAircraftState(position: Vec3, groundSpawn: boolean): AircraftState {
   return createState({

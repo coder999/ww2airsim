@@ -27,6 +27,13 @@ import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWind
  * the frame, at every altitude below.
  */
 const SPAWN_X_M = -45000
+/** Tacloban's own `z`, read off `content/bases/tacloban.json`'s
+ *  `runway.center` (`{ "x": -29666, "z": -47605 }`) and written out as a
+ *  literal here on purpose: this file is a Playwright spec that describes a
+ *  fixed corridor, and importing the record would make the corridor move
+ *  silently if the record ever did. The two are pinned together in Tier 1
+ *  (`tests/sim/world/airfields.test.ts`), which is where a change to the
+ *  coordinate would be caught. */
 const SPAWN_Z_M = -47605
 
 /**

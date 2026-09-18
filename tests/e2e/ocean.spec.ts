@@ -55,9 +55,17 @@ for (const tier of ['high','medium','low']) {
     // leaving them unset while the default spawn was itself `(0, 600, 0)`.
     // Since that default moved to a ground spawn at Tacloban
     // (Task 14), an unset spawnX/spawnZ here would silently fly this test
-    // over land instead -- still airborne (spawnY alone makes this a DEV
-    // override, so `groundSpawn` is false and nothing here holds for
-    // terrain), but not the open-water scene the test is about.
+    // over land instead -- still airborne, since `spawnY` alone makes this a
+    // DEV override and an override is never parked, but not the open-water
+    // scene the test is about.
+    //
+    // The tick wait below is NOT immediate, and that changed with Plan 12
+    // (Task 7, 2026-09-18): the frame's `groundSpawn` is now derived from the
+    // world's entities, and the scenario's CHOCKED WINGMAN stays parked at
+    // Tacloban whatever the override does -- so the world is held at zero
+    // elapsed time until the terrain heightfield lands, exactly as a parked
+    // flight is. The comment here used to assert the opposite. Nothing in
+    // this test depends on when the clock starts, only that it reaches 240.
     await page.goto(`/?spawnY=600&spawnX=0&spawnZ=0&beaufort=6&oceanTime=17&oceanTier=${tier}`)
     await page.waitForFunction(() => ((window as unknown as import('./harness.js').DiagWindow).__ww2?.tick() ?? 0) > 240)
     const samples = await page.evaluate(async () => {

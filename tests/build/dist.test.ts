@@ -91,6 +91,24 @@ describe('the built artifact', () => {
       // a slower route.
       expect(() => AircraftSpecSchema.parse(JSON.parse(shipped))).not.toThrow()
 
+      // Plan 12: the scenario, both airfield records and both ship classes.
+      // `main.ts` fetches all five at boot (src/render/scenarioLoad.ts) before
+      // it has a world to render, so any one of them missing from `dist/` is
+      // the bad-content failure screen -- exactly the R14 defect the aircraft
+      // assertion above exists for, now with five more files that can go
+      // missing. `copyContent()` (vite.config.ts) copies all of `content/`, so
+      // this needed no build change; that is the claim being pinned.
+      for (const path of [
+        'content/scenarios/free-flight.json',
+        'content/bases/tacloban.json',
+        'content/bases/dulag.json',
+        'content/ships/essex-cv.json',
+        'content/ships/fletcher-dd.json',
+      ]) {
+        const raw = readFileSync(join(outDir, path), 'utf8')
+        expect(() => JSON.parse(raw), path).not.toThrow()
+      }
+
       // Every terrain level the loader actually asks for, derived from the
       // same two functions the loader derives it from rather than written out
       // as five names -- a change to either bound has to move this set too.

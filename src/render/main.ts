@@ -4,7 +4,7 @@ import { showFailure, type FailureKind } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
+import { FINEST_FETCHED_LEVEL, SCENARIO_ID } from './content.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createAudioSystem } from '../audio/system.js'
@@ -18,11 +18,10 @@ import { createImpactEffect } from './scene/impactEffect.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
-  initialFrameState,
+  initialFrameStateFor,
   nextFrameState,
   settleOnTerrain,
   toThreeOrientation,
-  withTerrain,
   worldOffsetFor,
   type FrameState, withPaused, acknowledgeLanding,
 } from './frame.js'
@@ -39,15 +38,17 @@ import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetat
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
+import { createShipMesh } from './scene/ship.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
-import { parseAircraftSpec } from '../sim/content.js'
+import { loadScenarioBundle } from './scenarioLoad.js'
+import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
-import { heightAt } from '../sim/world/terrain.js'
+import { heightAt, type TerrainField } from '../sim/world/terrain.js'
 import { supportedContact } from '../sim/ground.js'
-import { playerAircraft } from '../sim/loop.js'
+import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
@@ -56,8 +57,8 @@ import {
   initialAircraftState,
   spawnPositionFromQuery,
 } from './spawn.js'
-import { v3 } from '../sim/math/vec3.js'
-import type { AircraftSpec } from '../sim/flight/schema.js'
+import { v3, type Vec3 } from '../sim/math/vec3.js'
+import { qFromAxisAngle } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 import { loadCover } from './landcover/load.js'
 
@@ -125,55 +126,19 @@ const gpuFrameTimesMs: number[] = []
  *  not a claim about real RPM and never appears on the instrument panel. */
 const PROP_MAX_RAD_PER_SEC = 40
 
-/**
- * Fetches and validates the F6F content over `fetch`, the browser-side
- * equivalent of `tools/content/load.ts`'s Node-only reader (see that file's
- * doc comment, Finding I1): `src/sim/content.ts`'s `parseAircraftSpec` is
- * platform-free, so only the byte-reading half differs between the two.
- */
-async function loadSpec(): Promise<AircraftSpec> {
-  const res = await fetch(AIRCRAFT_CONTENT_URL)
-  if (!res.ok) {
-    throw new Error(`Failed to fetch aircraft content: ${res.status} ${res.statusText}`)
-  }
-  const json: unknown = await res.json()
-  return parseAircraftSpec(json)
-}
-
-/**
- * Parked on the runway at Tacloban, Leyte -- the world projection of 11.228 N
- * 125.028 E, cross-checked against the Copernicus source tiles 2026-09-14 and
- * carried by `tests/tools/terrainBuild.test.ts`. `y` is a PLACEHOLDER, not
- * the truth (see `PARKED_PLACEHOLDER_Y_M`, `src/sim/scenario.ts`, for why):
- * `settleOnTerrain` overwrites it the instant real terrain data exists.
- *
- * TEMPORARY until Task 7 boots this file from the scenario
- * (`content/scenarios/free-flight.json`, `content/bases/tacloban.json`)
- * instead of a single hand-built aircraft: this is the same literal
- * `worldFromScenario` derives from the Tacloban record today, duplicated
- * here only because `boot()` has no scenario to read yet. Task 7 deletes
- * this constant and `src/render/scene/runway.ts`'s copy of it.
- */
-const PARKED_TACLOBAN = v3(-29666, 1.9, -47605)
-
 async function boot(): Promise<void> {
-  // Read before anything expensive, so a malformed `?spawnY=` fails on the
-  // failure screen rather than after a renderer and 702 KB of terrain have
-  // been set up around a silently wrong number. `import.meta.env.DEV` is the
-  // literal `false` in a production build, so esbuild drops the call and the
-  // query string is inert in anything that ships (spawn.ts).
-  const spawnPosition = import.meta.env.DEV
-    ? spawnPositionFromQuery(window.location.search, PARKED_TACLOBAN)
-    : PARKED_TACLOBAN
-
-  // Whether this flight is parked at Tacloban -- `PARKED_TACLOBAN` unless a
-  // DEV `?spawnX/Y/Z` moved it (`spawn.ts`'s `hasSpawnOverride`), which is
-  // never a ground spawn: those overrides exist so Tier 2 can put the
-  // airplane over Leyte at altitude or over open water, both airborne. This
-  // ONE boolean is what `initialFrameState` derives both `gearDown` and the
-  // terrain hold from below, and what decides the initial velocity and gear
-  // position just below that.
-  const groundSpawn = !(import.meta.env.DEV && hasSpawnOverride(window.location.search))
+  /**
+   * Where the player's airplane starts, once the scenario has been read --
+   * `null` until then, which is a real stretch of wall-clock time because the
+   * bundle is five fetches (`loadScenarioBundle`, below). `let` and nullable
+   * rather than a `const` declared here, because the DEV diagnostics hook is
+   * installed further down but BEFORE the bundle resolves and closes over
+   * this binding: a `const` declared after it would be read from its temporal
+   * dead zone, which optional chaining does not guard -- the exact fault the
+   * `vegetation` declaration a few dozen lines down carries a comment about,
+   * found live in the deployed bundle on 2026-09-18.
+   */
+  let spawnPosition: Vec3 | null = null
 
   const beaufort = import.meta.env.DEV ? beaufortFromQuery(window.location.search) : DEFAULT_BEAUFORT
 
@@ -185,8 +150,8 @@ async function boot(): Promise<void> {
   const { renderer, adapterVerdict } = await initRenderer(canvas, true)
 
   // Declared here, before the hook below installs, initialised to `null` --
-  // not assigned a real `FrameState` until after `loadSpec` resolves, well
-  // down this function. See the hook's own comment for why that ordering
+  // not assigned a real `FrameState` until after `loadScenarioBundle` resolves,
+  // well down this function. See the hook's own comment for why that ordering
   // matters and is not just tidiness.
   let cascades: OceanCompute[] = []
   const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
@@ -211,16 +176,17 @@ async function boot(): Promise<void> {
   // `??`-guard rather than closing over it directly, because installing the
   // hook this early means `frame` is genuinely `null` for a real stretch of
   // wall-clock time on the SUCCESS path too, not just before the `fail`
-  // return below: `await loadSpec()` further down is a real network
-  // round-trip, and the sweep spec's first call after `page.goto` invokes
-  // `.tick()` unconditionally as soon as `__ww2` exists. Round 1's comment
+  // return below: `await loadScenarioBundle()` further down is five real
+  // network round-trips, and the sweep spec's first call after `page.goto`
+  // invokes `.tick()` unconditionally as soon as `__ww2` exists. Round 1's
+  // comment
   // here claimed the closures were merely "lazy" and safe because nothing
   // calls them before the `fail` return -- that reasoned about the wrong
   // path and was false the moment the spec's own `waitForFunction` runs
   // (Task 15 review, round 2). The guard is what makes both paths work from
   // one hook: `fail` reads only `.adapter`, which needs no guard; success
   // reads the others before the first frame exists and gets exactly
-  // `initialFrameState`'s own defaults (0 / `'chase'` / `NEUTRAL` /
+  // `initialFrameStateFor`'s own defaults (0 / `'chase'` / `NEUTRAL` /
   // `LOOK_CENTRE`) -- a poll that keeps waiting, not a thrown
   // `ReferenceError` whose cause the test output would never show.
   // Ships in production, like the legend and unlike `overlay`: sound is part
@@ -254,7 +220,7 @@ async function boot(): Promise<void> {
       look: () => frame?.look ?? LOOK_CENTRE,
       // Same `??`-guard as the four above, for the same reason: the hook is
       // installed before `frame` exists. The fallback is the same value
-      // `initialFrameState` would have produced.
+      // `initialFrameStateFor` would have produced.
       assists: () => frame?.assists ?? DEFAULT_ASSIST_SETTINGS,
       // Added in Task 10, and the only way to confirm that task's last wire
       // from outside: the heightfield the physics can hit arrives over the
@@ -270,10 +236,30 @@ async function boot(): Promise<void> {
         const { position } = playerAircraft(frame.world).state
         return heightAt(frame.world.terrain, position.x, position.z)
       },
-      // Same `??`-guard as the rest: before `loadSpec` resolves there is no
-      // frame, and the spawn is where the airplane will be, so that is the
-      // honest answer for the gap rather than the origin.
-      aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition),
+      // Same `??`-guard as the rest: before the scenario resolves there is no
+      // frame, and the spawn is where the airplane WILL be, so that is the
+      // honest answer for the gap. The world origin is the answer for the
+      // narrower gap before the scenario itself has landed, because until
+      // then nothing in the process knows where the airplane starts -- the
+      // spawn is content now (Plan 12). Every Tier 2 caller reads this after
+      // `waitForTerrain`, i.e. long after both.
+      aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition ?? v3(0, 0, 0)),
+      // Plan 12: every entity, not just the player's airplane. See the two
+      // members' doc comments in diagnostics.ts for what each one proves.
+      ships: () =>
+        (frame?.world.ships ?? []).map((s) => ({
+          id: s.id,
+          x: s.state.position.x,
+          z: s.state.position.z,
+          headingRad: s.state.headingRad,
+        })),
+      aircraft: () =>
+        (frame?.world.aircraft ?? []).map((a) => ({
+          id: a.id,
+          x: a.state.position.x,
+          y: a.state.position.y,
+          z: a.state.position.z,
+        })),
       // Same `??`-guard as the rest: before the first frame exists there is
       // no impact to report, which is also the honest answer once a restart
       // has cleared one.
@@ -357,14 +343,73 @@ async function boot(): Promise<void> {
     validationErrors.push(normalizeGpuError(info))
   }
 
-  let spec: AircraftSpec
+  // The whole world, as content: the scenario, both airfield records, both
+  // ship classes and the one aircraft spec (`src/render/scenarioLoad.ts`).
+  // Any of the five failing to load or failing validation is the same fault
+  // and the same screen a missing `f6f-hellcat.json` was before Plan 12 --
+  // content the build was supposed to ship. The message names the file.
+  let bundle: ScenarioBundle
   try {
-    spec = await loadSpec()
+    bundle = await loadScenarioBundle(SCENARIO_ID)
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    showFailure(root, 'bad-content', message)
+    showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
   }
+
+  // The scenario says where the player is parked; a DEV `?spawnX/Y/Z` moves
+  // it into the air instead (spawn.ts). The airplane is then not `parked`, so
+  // it gets the airborne posture `initialAircraftState` has always given an
+  // override -- but the frame's own `groundSpawn` stays true, because the
+  // CHOCKED WINGMAN is still parked and still needs the terrain hold, which
+  // is what keeps it from being stepped off its placeholder altitude while
+  // the override flies. `settleOnTerrain` then settles the wingman alone,
+  // since it only touches entities with `parked` set.
+  //
+  // Read here rather than at the very top of `boot` as it was before Plan 12:
+  // the fallback is the scenario's parked position now, so a malformed
+  // `?spawnY=` cannot be rejected until the scenario has been read. It is
+  // still rejected before any terrain is fetched, and still reaches the
+  // failure screen (the throw leaves `boot` and `boot().catch` routes it).
+  const scenarioWorld = worldFromScenario(bundle, null)
+  const parkedAt = playerAircraft(scenarioWorld).state.position
+  const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
+  const spawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
+  // The nullable binding the diagnostics hook above closes over, now that
+  // there is an answer to put in it.
+  spawnPosition = spawnedAt
+
+  /**
+   * The world a flight starts from: the scenario's, with this page load's
+   * terrain and the DEV spawn override applied. Called once at boot with no
+   * terrain, and again by Restart with whatever level has loaded by then --
+   * which is why it rebuilds from `bundle` rather than closing over one
+   * world, exactly as the old restart path rebuilt from `initialFrameState`.
+   *
+   * `worldFromScenario` is handed `null` and the field injected afterwards,
+   * deliberately: with a real field it re-runs `assertLoopOverWater` over
+   * every ship's loop, which is a Tier 1 assertion on every commit
+   * (`tests/sim/scenario.test.ts`) and has no business throwing in a browser
+   * -- least of all out of the Restart button.
+   */
+  const buildWorld = (terrain: TerrainField | null): World<undefined> => {
+    const w = worldFromScenario(bundle, null)
+    const withTerrainField = { ...w, terrain }
+    return override
+      ? withAircraftState(
+          {
+            ...withTerrainField,
+            aircraft: withTerrainField.aircraft.map((a) => (a.id === w.player ? { ...a, parked: false } : a)),
+          },
+          w.player,
+          initialAircraftState(spawnedAt, false),
+        )
+      : withTerrainField
+  }
+
+  // The player's own airplane, for the panel, the gauges and the flight-data
+  // overlay. One aircraft spec is all any of those take; the wingman's is the
+  // same record anyway (both are `f6f-hellcat`).
+  const spec = playerAircraft(scenarioWorld).spec
 
   const scene = new Scene()
   const terrain = createTerrainMesh(TERRAIN_HEADER)
@@ -438,8 +483,30 @@ async function boot(): Promise<void> {
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
-  const { root: hellcatRoot, prop } = createHellcat()
-  scene.add(hellcatRoot)
+  // One airframe per aircraft entity, in world order, so `frame.poses[i]`
+  // poses `airframes[i]` with no lookup (Plan 12). The PLAYER's is picked out
+  // by id, not by assuming index 0: `world.player` names an id, and the
+  // scenario is free to list the wingman first.
+  //
+  // Read off `scenarioWorld` rather than off a frame, because the meshes are
+  // built before the first `FrameState` exists. That is safe for exactly one
+  // reason: every world `buildWorld` returns is built from the same `bundle`,
+  // so it lists the same entities under the same ids in the same order --
+  // including the one Restart builds. Nothing here is rebuilt on a restart,
+  // and nothing needs to be.
+  const airframes = scenarioWorld.aircraft.map(() => createHellcat())
+  for (const a of airframes) scene.add(a.root)
+  const playerIndex = scenarioWorld.aircraft.findIndex((a) => a.id === scenarioWorld.player)
+  const hellcatRoot = airframes[playerIndex]!.root
+  // The propeller the throttle spins is the player's alone -- the wingman is
+  // chocked with its engine off, and a parked airplane with a turning
+  // propeller is a worse lie than a still one.
+  const prop = airframes[playerIndex]!.prop
+  // Hulls, in world order for the same reason. Raw world metres like
+  // everything else under `scene`, which already carries the camera-relative
+  // offset once for every child.
+  const shipMeshes = scenarioWorld.ships.map((ship) => createShipMesh(ship.spec))
+  for (const m of shipMeshes) scene.add(m)
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -471,16 +538,11 @@ async function boot(): Promise<void> {
     OCEAN_EXTENT_M * 1.1,
   )
 
-  // A ground spawn is parked and faces north, down the Tacloban strip;
-  // otherwise 120 m/s heading east, gear retracted, matching every spawn
-  // before Task 14. All three of those differences live in
-  // `initialAircraftState` (spawn.ts) rather than as ternaries here, because
-  // this file has no Tier 1 test and the attitude among them had already gone
-  // stale once -- that function's doc comment has the argument. The POSITION
-  // is `PARKED_TACLOBAN` unless a DEV build was handed `?spawnX/Y/Z`.
-  const initialAircraft = initialAircraftState(spawnPosition, groundSpawn)
-
-  frame = initialFrameState(spec, initialAircraft, undefined, undefined, groundSpawn)
+  // Everything about the first frame -- the gear, the terrain hold, one pose
+  // per entity -- is derived from the world's own entities by
+  // `initialFrameStateFor` (frame.ts), which is why no boolean is passed here
+  // any more.
+  frame = initialFrameStateFor(buildWorld(null))
   // Repeatable scenery inspection with the existing DEV spawn overrides.
   // Hold position and look down; absent from production builds.
   const inspectScenery = import.meta.env.DEV && new URLSearchParams(location.search).get('sceneryView') === '1'
@@ -497,9 +559,11 @@ async function boot(): Promise<void> {
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
   const pauseBadge = createPauseBadge(root)
-  // Restart rebuilds the frame from the spawn point rather than tearing
-  // anything down: `initialFrameState` is pure, so the renderer, the terrain
-  // and the ocean cascades all survive untouched.
+  // Restart rebuilds the frame from the scenario rather than tearing anything
+  // down: `worldFromScenario` and `initialFrameStateFor` are both pure, so the
+  // renderer, the terrain and the ocean cascades all survive untouched -- and
+  // so does the wingman and the task force's position on its loop, which are
+  // rebuilt at their scenario start along with the player.
   const debrief = createDebrief(root, () => {
     // `frame!.world.terrain` rather than a stored field: the heightfield
     // arrives over the network seconds after the first frame and is upgraded
@@ -508,22 +572,19 @@ async function boot(): Promise<void> {
     // back means a restart keeps whatever level has loaded so far instead of
     // dropping back to none.
     // `frame!.assists` is threaded through so Restart keeps whatever the
-    // pilot actually chose (altitude hold, stall limiter, ...) rather than
-    // silently reverting to `initialFrameState`'s `DEFAULT_ASSIST_SETTINGS`
+    // pilot actually chose (stall limiter, auto-rudder) rather than silently
+    // reverting to `initialFrameStateFor`'s `DEFAULT_ASSIST_SETTINGS`
     // (whole-branch review I-2). `cameraMode` and `timeScale` are NOT
     // threaded through -- unlike terrain and assists, resetting those is
     // deliberate: a fresh airplane returns the pilot to chase view at real
     // time rather than wherever a wrecked one left the camera and clock.
     // A restarted ground spawn is settled onto its terrain immediately
-    // (rather than re-entering the hold above) exactly when `withTerrain`
-    // just below actually gave it one -- restart never needs to wait a
-    // second time for a heightfield that is already cached in `frame!`.
-    const restarted = withTerrain(
-      initialFrameState(spec, initialAircraft, frame!.assists, undefined, groundSpawn),
-      frame!.world.terrain,
-    )
+    // (rather than re-entering the hold above) exactly when `buildWorld` was
+    // handed one -- restart never needs to wait a second time for a
+    // heightfield that is already cached in `frame!`.
+    const restarted = initialFrameStateFor(buildWorld(frame!.world.terrain), frame!.assists)
     frame =
-      groundSpawn && restarted.world.terrain !== null
+      restarted.groundSpawn && restarted.world.terrain !== null
         ? settleOnTerrain(restarted, restarted.world.terrain)
         : restarted
     debrief.hide()
@@ -717,19 +778,34 @@ async function boot(): Promise<void> {
       cameraOrientation.w,
     )
 
-    // The airframe mesh's own geometry is built with +X as its nose
-    // (hellcat.ts), matching sim convention exactly, so unlike the camera
-    // above it needs no basis fix -- see frame.ts's `render` field doc. The
-    // cockpit group (the panel) shares this exact pose: panel.ts authors the
-    // panel in the same body frame, relative to the eye, so it needs no
-    // separate transform here.
-    hellcatRoot.position.set(current.render.position.x, current.render.position.y, current.render.position.z)
-    hellcatRoot.quaternion.set(
-      current.render.attitude.x,
-      current.render.attitude.y,
-      current.render.attitude.z,
-      current.render.attitude.w,
-    )
+    // Every airframe, in world order, from `frame.poses` (Plan 12). The
+    // airframe mesh's own geometry is built with +X as its nose (hellcat.ts),
+    // matching sim convention exactly, so unlike the camera above it needs no
+    // basis fix -- see frame.ts's `render` field doc.
+    //
+    // The player's is `poses[playerIndex]`, which is the SAME object as
+    // `current.render` by construction (`posesFor`, frame.ts) -- so this loop
+    // poses `hellcatRoot` too, and it did so twice until the duplicate
+    // `hellcatRoot.position.set(current.render...)` lines were deleted here.
+    current.poses.forEach((pose, i) => {
+      const a = airframes[i]!.root
+      a.position.set(pose.position.x, pose.position.y, pose.position.z)
+      a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
+    })
+    // The hulls. A ship has no attitude in this plan (`interpolateShip`), only
+    // a heading, and `createShipMesh` puts its bow along local +x -- so the
+    // yaw is the same `pi/2 - headingRad` about +y that `parkedAttitude` gives
+    // a parked airplane, from the same compass convention.
+    current.shipPoses.forEach((pose, i) => {
+      const m = shipMeshes[i]!
+      m.position.set(pose.position.x, pose.position.y, pose.position.z)
+      const q = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad)
+      m.quaternion.set(q.x, q.y, q.z, q.w)
+    })
+
+    // The cockpit group (the panel) shares the PLAYER's exact pose: panel.ts
+    // authors the panel in the same body frame, relative to the eye, so it
+    // needs no separate transform here.
     cockpit.position.copy(hellcatRoot.position)
     cockpit.quaternion.copy(hellcatRoot.quaternion)
 
@@ -952,13 +1028,15 @@ async function boot(): Promise<void> {
   // same guarantee `frameFn`'s single `!` rests on.
   //
   // `settleOnTerrain` (frame.ts) runs exactly once, on the transition where
-  // `applyTerrainLevel` first gives a ground spawn a real physics field (L4,
-  // the only level `physicsFieldFor` ever returns non-null for) -- correcting
-  // `PARKED_TACLOBAN`'s placeholder altitude (this file) to the real
-  // ground height under the airplane. Without this the hold above buys
-  // nothing: the flight would resume from underground or a tolerance-width
-  // above it the instant terrain arrived, exactly the race Task 14 exists to
-  // close.
+  // `applyTerrainLevel` first gives a parked world a real physics field
+  // (`FINEST_FETCHED_LEVEL`, L2 since `eef5b4d` on 2026-09-18 and L4 before
+  // it -- the only level `physicsFieldFor` ever returns non-null for) --
+  // correcting `PARKED_PLACEHOLDER_Y_M` (`src/sim/scenario.ts`, where a
+  // parked entity's altitude comes from) to the real ground height under
+  // EVERY parked airplane, the wingman included. Without this the hold above
+  // buys nothing: the flight would resume from underground or a
+  // tolerance-width above it the instant terrain arrived, exactly the race
+  // Task 14 exists to close.
   void loadTerrainProgressively((level, data) => {
     const before = frame!
     const next = applyTerrainLevel(terrain, before, level, data)
@@ -969,13 +1047,16 @@ async function boot(): Promise<void> {
     // conditions that could drift apart.
     const arrived = before.world.terrain === null ? next.world.terrain : null
     // Task 11: the strip is draped over the real heightfield, so it cannot be
-    // built until there is one. `physicsFieldFor` returns non-null for L4
-    // alone, so this runs exactly once per page load -- and unconditionally,
-    // not only for a ground spawn: the runway is a place in the world, and a
-    // DEV `?spawnX/Y/Z` flight should be able to see it too.
+    // built until there is one. `physicsFieldFor` returns non-null for
+    // `FINEST_FETCHED_LEVEL` alone, so this runs exactly once per page load --
+    // and unconditionally, not only for a ground spawn: an airfield is a
+    // place in the world, and a DEV `?spawnX/Y/Z` flight should be able to
+    // see it too.
     if (arrived !== null) {
-      scene.add(createRunway(arrived), createAirfield(arrived))
-      vegetation = createVegetation(arrived)
+      // One strip and one set of airfield scenery per airfield the world
+      // carries (Plan 12), not one hardcoded Tacloban.
+      scene.add(...next.world.airfields.flatMap((a) => [createRunway(arrived, a), createAirfield(arrived, a)]))
+      vegetation = createVegetation(arrived, next.world.airfields)
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --
@@ -989,7 +1070,7 @@ async function boot(): Promise<void> {
       if (cover !== null) vegetation.setCover(cover)
       scene.add(vegetation.object)
     }
-    frame = groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
+    frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
   }).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))

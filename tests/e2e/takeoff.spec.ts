@@ -41,12 +41,13 @@ const ROTATE_AFTER_M = 380
 
 test('rolls off the Tacloban runway under full throttle and stays airborne', async ({ page }) => {
   // No query string on purpose. This is the DEFAULT spawn -- parked on the
-  // runway, gear down, nose north. Deliberately NOT the `?spawnX/Y/Z` the
-  // plan's brief suggested: `hasSpawnOverride` (src/render/spawn.ts) turns
-  // `groundSpawn` OFF for any override, so that URL would hand this test an
-  // airborne airplane at 120 m/s with its gear retracted and no terrain hold.
-  // The override exists to move the airplane AWAY from the runway; a take-off
-  // test wants exactly what a pilot gets.
+  // runway, gear down, nose north, as the scenario says
+  // (`content/scenarios/free-flight.json`). Deliberately NOT the
+  // `?spawnX/Y/Z` the plan's brief suggested: `hasSpawnOverride`
+  // (src/render/spawn.ts) makes the player's entity un-parked, so that URL
+  // would hand this test an airborne airplane at 120 m/s with its gear
+  // retracted. The override exists to move the airplane AWAY from the
+  // runway; a take-off test wants exactly what a pilot gets.
   await page.goto('/')
   await waitForTerrain(page)
 

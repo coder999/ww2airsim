@@ -3,71 +3,7 @@ import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { color, fract, mix, positionLocal, smoothstep, varying } from 'three/tsl'
 import { groundNoise } from '../terrain/surface.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
-import { v3 } from '../../sim/math/vec3.js'
-
-/**
- * Parked on the runway at Tacloban, Leyte -- the world projection of 11.228 N
- * 125.028 E, cross-checked against the Copernicus source tiles 2026-09-14 and
- * carried by `tests/tools/terrainBuild.test.ts`. `y` is a PLACEHOLDER, not
- * the truth (see `PARKED_PLACEHOLDER_Y_M`, `src/sim/scenario.ts`).
- *
- * TEMPORARY until Task 7 boots from the scenario, and a verbatim duplicate of
- * `main.ts`'s own `PARKED_TACLOBAN` for exactly the reason that one's comment
- * gives -- this is the same literal `worldFromScenario` derives from the
- * Tacloban record today. Task 7 deletes both.
- */
-const PARKED_TACLOBAN = v3(-29666, 1.9, -47605)
-
-/**
- * Where the strip is centred, in world metres.
- *
- * Derived from `PARKED_TACLOBAN` rather than restating Tacloban's coordinate
- * a third time, so "the airplane is parked on its own runway" is structural
- * instead of a coincidence that two files have to keep agreeing about. The
- * coordinate itself is `(-29666, -47605)`, cross-checked against the
- * Copernicus source tiles in `tests/tools/terrainBuild.test.ts` -- do not
- * re-derive it here either; an equirectangular back-of-envelope lands about
- * 80 m away. `tests/render/runway.test.ts` still asserts the literal, which
- * is what stops someone un-deriving this later.
- *
- * There is no `y`. The strip has no single height: it follows the terrain
- * along its length (`createRunway`), and a `y` here would be a number that
- * looked authoritative while being wrong everywhere but one point -- the
- * exact trap `PARKED_TACLOBAN`'s own comment describes.
- */
-export const RUNWAY_CENTRE = { x: PARKED_TACLOBAN.x, z: PARKED_TACLOBAN.z } as const
-
-/**
- * 1,500 m, about 5,000 ft.
- *
- * **An estimate, not a sourced figure** -- labeled the same way Plan 11a's
- * gear constants are, and expected to be corrected by anyone with the real
- * 1944 dimensions. It is the length the Tacloban strip was reported to have
- * been extended to after the October 1944 landings, and it is chosen against
- * two things this repo has actually measured:
- *
- * - it fits inside the flat ground. North-south through the airfield the
- *   committed field runs 1.2 m to 1.7 m over 1.8 km; east-west has 3.1 m of
- *   spread because the coastline falls to the sea, which is why the strip
- *   runs north-south and why a parked airplane is pointed along it
- *   (`parkedAttitude`, `src/sim/world/airfields.ts`).
- * - it contains the roll. Rotation comes up 410-453 m into a full-throttle
- *   roll over real terrain (Plan 11a's handoff), and the airplane starts at
- *   the CENTRE of the strip, so it has 750 m ahead of it -- about 1.6 times
- *   the longest measured roll. Starting mid-field rather than at a threshold
- *   is not what a pilot does; it is what centring the strip on the airfield
- *   coordinate costs, and moving the spawn to a threshold would mean moving
- *   `PARKED_TACLOBAN` and re-measuring the ground height under it.
- */
-export const RUNWAY_LENGTH_M = 1500
-
-/** 45 m. **An estimate**: the modern field's width. A 1944 Marston-mat strip
- *  was nearer 30 m, so this is on the generous side -- it is wide enough that
- *  an airplane with no directional stability on the ground (Plan 11a's
- *  handoff measures a taxi turn reaching 113.6 deg of sideslip) does not
- *  wander off the edge during the roll before 11b gives it a lateral tire
- *  force. */
-export const RUNWAY_WIDTH_M = 45
+import { localToWorld, type Airfield } from '../../sim/world/airfields.js'
 
 /**
  * 5 cm. How far the strip's surface sits above the terrain it follows.
@@ -95,26 +31,12 @@ export const RUNWAY_SURFACE_OFFSET_M = 0.05
  * along the 1,500 m length, and 9 m across the 45 m width.
  *
  * 10 m is well finer than the terrain the strip is following -- the level the
- * physics gets (L4) samples at tens of metres, so the surface cannot carry
- * detail this mesh would miss. It yields 151 x 6 = 906 vertices for the whole
- * runway, which is nothing beside the terrain mesh.
+ * physics gets (L2 since `eef5b4d`, 2026-09-18; this said L4 until Plan 12
+ * Task 7) samples at tens of metres, so the surface cannot carry detail this
+ * mesh would miss. It yields 151 x 6 = 906 vertices for a 1,500 x 45 m strip,
+ * which is nothing beside the terrain mesh.
  */
 const RUNWAY_SEGMENT_M = 10
-
-/** The strip's four corners in world metres, north-south by construction:
- *  length along z, width along x. Exported because it is the cheapest
- *  statement of the strip's footprint to assert on, and because
- *  `runway.test.ts` uses it to check the parked airplane stands inside it. */
-export function runwayCorners(): readonly { readonly x: number; readonly z: number }[] {
-  const halfWidth = RUNWAY_WIDTH_M / 2
-  const halfLength = RUNWAY_LENGTH_M / 2
-  return [
-    { x: RUNWAY_CENTRE.x - halfWidth, z: RUNWAY_CENTRE.z - halfLength },
-    { x: RUNWAY_CENTRE.x + halfWidth, z: RUNWAY_CENTRE.z - halfLength },
-    { x: RUNWAY_CENTRE.x + halfWidth, z: RUNWAY_CENTRE.z + halfLength },
-    { x: RUNWAY_CENTRE.x - halfWidth, z: RUNWAY_CENTRE.z + halfLength },
-  ]
-}
 
 /**
  * The strip, as a mesh draped over the real ground.
@@ -135,18 +57,29 @@ export function runwayCorners(): readonly { readonly x: number; readonly z: numb
  * `worldOffsetFor(eye)` every frame and that applies to every child, so adding
  * the offset here as well would apply it twice -- a Critical finding on Plan
  * 10, whose comment lives on the impact effect in `main.ts`.
+ *
+ * **The strip comes from the record, not from this file** (Plan 12 Task 7).
+ * Where Tacloban is, how long and wide its strip is and which way it points
+ * are `content/bases/<id>.json`'s -- including the two ESTIMATES that used to
+ * be documented here at length, which moved verbatim into that file's
+ * `reference.source` rather than being restated in both places. The grid is
+ * built in the RUNWAY-LOCAL frame (`x` across, `z` along) and every vertex is
+ * mapped through `localToWorld`, so a base with a heading other than 0 needs
+ * no second code path -- `runway.test.ts` flies a heading-90 Tacloban past
+ * this, because every base that actually ships is north-south and a
+ * `createRunway` that ignored `headingDeg` would otherwise pass everything.
  */
-export function createRunway(field: TerrainField): Object3D {
-  const cols = Math.round(RUNWAY_WIDTH_M / RUNWAY_SEGMENT_M) + 1
-  const rows = Math.round(RUNWAY_LENGTH_M / RUNWAY_SEGMENT_M) + 1
-  const x0 = RUNWAY_CENTRE.x - RUNWAY_WIDTH_M / 2
-  const z0 = RUNWAY_CENTRE.z - RUNWAY_LENGTH_M / 2
+export function createRunway(field: TerrainField, airfield: Airfield): Object3D {
+  const { lengthM, widthM } = airfield.runway
+  const cols = Math.round(widthM / RUNWAY_SEGMENT_M) + 1
+  const rows = Math.round(lengthM / RUNWAY_SEGMENT_M) + 1
 
   const positions = new Float32Array(rows * cols * 3)
   for (let r = 0; r < rows; r++) {
-    const z = z0 + (r * RUNWAY_LENGTH_M) / (rows - 1)
+    const lz = -lengthM / 2 + (r * lengthM) / (rows - 1)
     for (let c = 0; c < cols; c++) {
-      const x = x0 + (c * RUNWAY_WIDTH_M) / (cols - 1)
+      const lx = -widthM / 2 + (c * widthM) / (cols - 1)
+      const { x, z } = localToWorld(airfield, lx, lz)
       const i = (r * cols + c) * 3
       positions[i] = x
       positions[i + 1] = heightAt(field, x, z) + RUNWAY_SURFACE_OFFSET_M

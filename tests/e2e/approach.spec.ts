@@ -21,7 +21,7 @@ import { waitForTerrain, type DiagWindow } from './harness.js'
  */
 test('the gear and flap levers reach the simulation in a real browser', async ({ page }) => {
   // No query string: the DEFAULT spawn, parked on the runway with the gear
-  // down. `?spawnX/Y/Z` would turn `groundSpawn` off and start the airplane
+  // down. `?spawnX/Y/Z` would un-park the player and start the airplane
   // airborne with its gear up (see `hasSpawnOverride`, src/render/spawn.ts).
   await page.goto('/')
   await waitForTerrain(page)

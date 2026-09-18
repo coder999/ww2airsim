@@ -5,6 +5,7 @@ import { SCENERY_TIERS, TREE_FADE_END_M, type SceneryTierName } from './tiers.js
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { inAirfieldClearing } from './airfield.js'
+import type { Airfield } from '../../sim/world/airfields.js'
 import { nearRiver } from '../terrain/rivers.js'
 import { coverFractionsAt, type CoverHeader } from '../landcover/cover.js'
 import { COVER_HEADER } from '../landcover/load.js'
@@ -78,8 +79,14 @@ function packCell(sites: readonly TreeSite[]): PackedCell {
  *  equal to the local tree-plus-mangrove fraction, drawn from the same
  *  per-cell stream so determinism holds; without one, every candidate
  *  survives, which is the daa1b39 forest. Mangrove (fraction above 0.25)
- *  lifts the 3 m shore exclusion to 0.5 m: that is where mangroves grow. */
-export function treeSites(field: TerrainField, cellX: number, cellZ: number, cover?: CoverLookup): TreeSite[] {
+ *  lifts the 3 m shore exclusion to 0.5 m: that is where mangroves grow.
+ *
+ *  `airfields` is the world's whole list, not one base (Plan 12 Task 7):
+ *  `inAirfieldClearing` is what keeps the jungle off a strip, and before the
+ *  list it only knew about Tacloban -- so Dulag had trees down the middle of
+ *  it. Ahead of `cover` in the parameter list because it is required and
+ *  `cover` is not. */
+export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup): TreeSite[] {
   let seed = (Math.imul(cellX, 73856093) ^ Math.imul(cellZ, 19349663) ^ 1944) >>> 0
   const random = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
@@ -94,7 +101,7 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, cov
     if (f && roll >= f.tree + f.mangrove) continue
     const shoreM = f && f.mangrove > 0.25 ? 0.5 : 3
     const y = heightAt(field, x, z)
-    if (y < shoreM || y > 1250 || inAirfieldClearing(x, z) || nearRiver(x, z)) continue
+    if (y < shoreM || y > 1250 || inAirfieldClearing(airfields, x, z) || nearRiver(x, z)) continue
     const slope = Math.hypot(heightAt(field, x + 10, z) - heightAt(field, x - 10, z),
       heightAt(field, x, z + 10) - heightAt(field, x, z - 10)) / 20
     if (slope > 0.65) continue
@@ -103,7 +110,7 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, cov
   return sites
 }
 
-export function createVegetation(field: TerrainField): {
+export function createVegetation(field: TerrainField, airfields: readonly Airfield[]): {
   object: Group
   update(x: number, z: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
@@ -195,7 +202,7 @@ export function createVegetation(field: TerrainField): {
         const k = `${cx + dx},${cz + dz}`
         let cell = cache.get(k)
         if (!cell) {
-          cell = packCell(treeSites(field, cx + dx, cz + dz, cover))
+          cell = packCell(treeSites(field, cx + dx, cz + dz, airfields, cover))
           generated++
         }
         nextCache.set(k, cell)

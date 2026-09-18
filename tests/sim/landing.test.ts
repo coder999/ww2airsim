@@ -17,18 +17,23 @@ import {
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 
-/** Tacloban, taken from `tests/tools/terrainBuild.test.ts` -- do not
- *  re-derive it; an equirectangular back-of-envelope lands ~80 m away. The
- *  render layer's `RUNWAY_CENTRE` is derived from the same coordinate
- *  (`content/bases/tacloban.json`'s `runway.center`), but `src/sim/` tests
- *  should not reach into `src/render/` for a number this file can state. */
-const TACLOBAN_X = -29666
-const TACLOBAN_Z = -47605
-/** The strip is 1500 m by 45 m, north-south, centred on that coordinate
- *  (`src/render/scene/runway.ts`). Stated here rather than imported for the
- *  reason above; `tests/render/runway.test.ts` is what pins those numbers. */
-const RUNWAY_LENGTH_M = 1500
-const RUNWAY_WIDTH_M = 45
+/**
+ * Tacloban's strip, read from the record every part of the game now reads
+ * (`content/bases/tacloban.json`) rather than restated as four literals here.
+ *
+ * It used to be four literals, with a comment saying `src/sim/` tests should
+ * not reach into `src/render/` for them -- true, and no longer the choice on
+ * offer: since Plan 12 the strip is content, and `tools/content/load.ts` is
+ * the Node reader this file already uses for the aircraft spec. The
+ * coordinate is still never re-derived (master spec §15; an equirectangular
+ * back-of-envelope lands ~80 m away), and `tests/sim/world/airfields.test.ts`
+ * is what pins it and the 1500 x 45 dimensions to their literals.
+ */
+const TACLOBAN = loadAirfield('tacloban')
+const TACLOBAN_X = TACLOBAN.runway.center.x
+const TACLOBAN_Z = TACLOBAN.runway.center.z
+const RUNWAY_LENGTH_M = TACLOBAN.runway.lengthM
+const RUNWAY_WIDTH_M = TACLOBAN.runway.widthM
 
 /**
  * **This is the deliverable of Plan 11b.** The autopilot flies an approach
@@ -125,7 +130,6 @@ describe('an approach flown into Tacloban', () => {
     // own tracking alongside the loop rather than reconstructing it from the
     // recorded states after the fact, so this is the SAME function the frame
     // calls in the browser, not a second implementation that could disagree.
-    const tacloban = loadAirfield('tacloban')
     let tracking = NO_LANDING
 
     for (let i = 0; i < 60 * MAX_S && !stopped; i++) {
@@ -136,7 +140,7 @@ describe('an approach flown into Tacloban', () => {
       // `AdvanceResult`.
       world = advance(withControls(world, world.player, approachControls(f6f, before, target)), DT).world
       const now = playerAircraft(world).state
-      tracking = nextLandingTracking(f6f, tracking, before, now, terrain, [tacloban])
+      tracking = nextLandingTracking(f6f, tracking, before, now, terrain, [TACLOBAN])
       const nowSupported = supportedContact(f6f, now, heightAt(terrain, now.position.x, now.position.z))
 
       if (!wasSupported && nowSupported && touchdownSinkMps === null) {
