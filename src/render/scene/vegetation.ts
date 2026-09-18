@@ -1,6 +1,7 @@
 import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { float, hash, instanceIndex, length, positionWorld, smoothstep } from 'three/tsl'
+import { float, hash, instanceIndex, length, positionWorld, smoothstep, uniform } from 'three/tsl'
+import { SCENERY_TIERS, TREE_FADE_END_M, type SceneryTierName } from './tiers.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { inAirfieldClearing } from './airfield.js'
@@ -9,10 +10,11 @@ import { nearRiver } from '../terrain/rivers.js'
 export const TREE_CELL_M = 400
 export const TREE_CELL_RADIUS = 5
 export const TREES_PER_CELL = 220
-/** The per-instance dissolve runs from START to END metres from the eye;
- *  beyond END every fragment of a tree is discarded. */
-export const TREE_FADE_START_M = 1400
-export const TREE_FADE_END_M = 1850
+/** The per-instance dissolve runs over the last TREE_FADE_BAND_M metres
+ *  before the tier's `treeFadeEndM` (scene/tiers.ts, at most
+ *  TREE_FADE_END_M); beyond it every fragment of a tree is discarded. */
+export const TREE_FADE_BAND_M = 450
+export { TREE_FADE_END_M }
 export type TreeSite = { x: number; y: number; z: number; height: number; radius: number; shade: number }
 
 /**
@@ -22,18 +24,18 @@ export type TreeSite = { x: number; y: number; z: number; height: number; radius
  * 1.8-2.3 km out and contributed only discarded fragments and matrix
  * rewrites (measured 2026-09-17, tests/render/scenery.test.ts).
  */
-export function residentCellOffsets(): readonly (readonly [number, number])[] {
+export function residentCellOffsets(fadeEndM = TREE_FADE_END_M): readonly (readonly [number, number])[] {
   const offsets: [number, number][] = []
+  if (fadeEndM <= 0) return offsets
   for (let dz = -TREE_CELL_RADIUS; dz <= TREE_CELL_RADIUS; dz++) {
     for (let dx = -TREE_CELL_RADIUS; dx <= TREE_CELL_RADIUS; dx++) {
       const nearest = Math.hypot(Math.max(0, Math.abs(dx) - 1), Math.max(0, Math.abs(dz) - 1)) * TREE_CELL_M
-      if (nearest <= TREE_FADE_END_M) offsets.push([dx, dz])
+      if (nearest <= fadeEndM) offsets.push([dx, dz])
     }
   }
   return offsets
 }
-const OFFSETS = residentCellOffsets()
-const CAPACITY = OFFSETS.length * TREES_PER_CELL
+const CAPACITY = residentCellOffsets().length * TREES_PER_CELL
 
 /** One cell's instances, composed once and copied on every later visit. */
 type PackedCell = { readonly count: number; readonly crowns: Float32Array; readonly trunks: Float32Array; readonly colors: Float32Array }
@@ -82,6 +84,9 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number): Tr
 export function createVegetation(field: TerrainField): {
   object: Group
   update(x: number, z: number): void
+  /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
+   *  for the eye's last position. */
+  setTier(name: SceneryTierName): void
   /** Cells generated so far: the crossing test reads it. */
   stats(): { generated: number }
 } {
@@ -91,7 +96,8 @@ export function createVegetation(field: TerrainField): {
   const bark = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1 })
   // positionWorld includes the scene's -eye translation: this is distance
   // from the camera, not distance from the geographic world origin.
-  const fade = float(1).sub(smoothstep(TREE_FADE_START_M, TREE_FADE_END_M, length(positionWorld)))
+  const fadeStart = uniform(TREE_FADE_END_M - TREE_FADE_BAND_M), fadeEnd = uniform(TREE_FADE_END_M)
+  const fade = float(1).sub(smoothstep(fadeStart, fadeEnd, length(positionWorld)))
   // A per-instance dissolve: tree i is drawn while fade > hash(i), so the
   // forest thins one whole tree at a time across the 1400-1850 m band and no
   // pixel is ever blended. NOT `alphaHash: true`: three r186's alpha hash
@@ -127,6 +133,8 @@ export function createVegetation(field: TerrainField): {
   const colorArray = crowns.instanceColor.array as Float32Array
   let previousKey = ''
   let generated = 0
+  let offsets = residentCellOffsets()
+  let lastX = 0, lastZ = 0
   // Cells stay cached while resident. A crossing composes only the cells
   // that entered and copies the rest: the square window's full recompose of
   // every instance cost 4.7-7.2 ms per crossing in node (2026-09-17).
@@ -134,14 +142,24 @@ export function createVegetation(field: TerrainField): {
   return {
     object,
     stats: () => ({ generated }),
+    setTier(name): void {
+      const endM = SCENERY_TIERS[name].treeFadeEndM
+      fadeEnd.value = endM
+      fadeStart.value = Math.max(0, endM - TREE_FADE_BAND_M)
+      offsets = residentCellOffsets(endM)
+      previousKey = ''
+      this.update(lastX, lastZ)
+    },
     update(x, z): void {
+      lastX = x
+      lastZ = z
       const cx = Math.floor(x / TREE_CELL_M), cz = Math.floor(z / TREE_CELL_M)
       const key = `${cx},${cz}`
       if (key === previousKey) return
       previousKey = key
       const nextCache = new Map<string, PackedCell>()
       let index = 0
-      for (const [dx, dz] of OFFSETS) {
+      for (const [dx, dz] of offsets) {
         const k = `${cx + dx},${cz + dz}`
         let cell = cache.get(k)
         if (!cell) {

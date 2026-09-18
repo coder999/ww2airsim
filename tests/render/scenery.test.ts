@@ -4,6 +4,7 @@ import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
 import { createDetailTexture } from '../../src/render/terrain/surface.js'
+import { SCENERY_TIERS } from '../../src/render/scene/tiers.js'
 import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
 import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
@@ -125,6 +126,35 @@ describe('scenery placement on the real Leyte field', () => {
     vegetation.update(-40900, -30666)
     vegetation.update(-40900 + TREE_CELL_M, -30666)
     expect(crowns.instanceMatrix.array.slice(0, crowns.count * 16)).toEqual(moved)
+  })
+
+  it('follows the quality tier: a shorter forest on medium, none on low, and back', () => {
+    // The ocean's one-time downgrade (main.ts adaptOceanQuality) is the only
+    // quality signal the app has, and the trees are the scenery's one
+    // GPU-scalable cost: 1.1 ms of a 4.9 ms frame at 1440p on the reference
+    // desktop (2026-09-17). Tiers cut the dissolve distance, and with it the
+    // disc of resident cells, rather than thinning cells: a forest that ends
+    // sooner reads as haze; a forest with gaps reads as a bug.
+    expect(SCENERY_TIERS.high.treeFadeEndM).toBe(TREE_FADE_END_M)
+    expect(SCENERY_TIERS.medium.treeFadeEndM).toBeLessThan(SCENERY_TIERS.high.treeFadeEndM)
+    expect(SCENERY_TIERS.low.treeFadeEndM).toBe(0)
+    const vegetation = createVegetation(field)
+    vegetation.update(-40900, -30666)
+    const crowns = vegetation.object.children[0] as InstancedMesh
+    const high = crowns.count
+    expect(high).toBeGreaterThan(1000)
+    vegetation.setTier('medium')
+    const medium = crowns.count
+    expect(medium).toBeGreaterThan(0)
+    expect(medium).toBeLessThan(high)
+    vegetation.setTier('low')
+    expect(crowns.count).toBe(0)
+    vegetation.update(-40900 + TREE_CELL_M, -30666)
+    expect(crowns.count).toBe(0)
+    vegetation.setTier('high')
+    vegetation.update(-40900, -30666)
+    expect(crowns.count).toBe(high)
+    expect(residentCellOffsets(SCENERY_TIERS.medium.treeFadeEndM).length).toBeLessThan(residentCellOffsets().length)
   })
 
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {

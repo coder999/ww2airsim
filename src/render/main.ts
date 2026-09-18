@@ -364,6 +364,7 @@ async function boot(): Promise<void> {
     water = replacement
     scene.add(water)
     oceanTier = next
+    vegetation?.setTier(next.name)
   }
   const sky = createSky()
   scene.add(sky)
@@ -886,6 +887,8 @@ async function boot(): Promise<void> {
     if (arrived !== null) {
       scene.add(createRunway(arrived), createAirfield(arrived))
       vegetation = createVegetation(arrived)
+      // The tier may already have been chosen by the time terrain arrives.
+      vegetation.setTier(oceanTier.name)
       scene.add(vegetation.object)
     }
     frame = groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
