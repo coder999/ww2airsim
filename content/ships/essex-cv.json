@@ -1,0 +1,14 @@
+{
+  "id": "essex-cv",
+  "name": "Essex-class fleet carrier",
+  "role": "carrier",
+  "lengthM": 265.8,
+  "beamM": 28.3,
+  "deckWidthM": 45.0,
+  "deckHeightM": 17,
+  "maxSpeedMps": 17.0,
+  "turnRateRadPerS": 0.01745,
+  "reference": {
+    "source": "lengthM (872 ft overall, short-hull group), beamM (93 ft waterline), deckWidthM (147 ft 6 in / 147.5 ft maximum beam at flight-deck level) and maxSpeedMps (33 kn) from the English Wikipedia article 'Essex-class aircraft carrier', read 2026-09-18. deckHeightM is an ESTIMATE of the flight deck above the waterline; Plan 8 needs it exactly and sources it then. turnRateRadPerS (1 deg/s, about a 440 m turning radius at 15 kn) is an ESTIMATE; Plan 8 tunes it against a sourced tactical diameter."
+  }
+}

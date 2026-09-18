@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { parseAircraftSpec } from '../../src/sim/content.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
+import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 
 /**
  * Node-only content loader, used by tests and tools. The browser build loads
- * content over fetch and calls `parseAircraftSpec` (in `src/sim/content.ts`)
- * directly.
+ * content over fetch and calls `parseAircraftSpec`/`parseShipSpec` directly.
  *
  * Finding I1: this lived in `src/sim/content.ts`, which made `node:fs` and
  * `import.meta.url` reachable from the one tree that must also load in a
@@ -16,24 +16,29 @@ import type { AircraftSpec } from '../../src/sim/flight/schema.js'
  * build if anything under `src/sim` imports a Node core module, and
  * `tests/architecture/boundary.test.ts` proves that rule bites.
  */
-export function loadAircraftSpec(id: string): AircraftSpec {
-  const path = new URL(`../../content/aircraft/${id}.json`, import.meta.url)
+function readContentJson(kind: string, dir: string, id: string): unknown {
+  const path = new URL(`../../content/${dir}/${id}.json`, import.meta.url)
 
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    throw new Error(`Failed to read aircraft content file for id "${id}" (${path.pathname}): ${message}`)
+    throw new Error(`Failed to read ${kind} content file for id "${id}" (${path.pathname}): ${message}`)
   }
 
-  let json: unknown
   try {
-    json = JSON.parse(raw)
+    return JSON.parse(raw) as unknown
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    throw new Error(`Failed to parse aircraft content file for id "${id}" (${path.pathname}) as JSON: ${message}`)
+    throw new Error(`Failed to parse ${kind} content file for id "${id}" (${path.pathname}) as JSON: ${message}`)
   }
+}
 
-  return parseAircraftSpec(json)
+export function loadAircraftSpec(id: string): AircraftSpec {
+  return parseAircraftSpec(readContentJson('aircraft', 'aircraft', id))
+}
+
+export function loadShipSpec(id: string): ShipSpec {
+  return parseShipSpec(readContentJson('ship', 'ships', id))
 }
