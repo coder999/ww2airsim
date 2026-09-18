@@ -192,6 +192,7 @@ test.describe('frame-time budget', () => {
    *    + per-fragment materials, river mask, airfield         3.80      3.87
    *    + trees (69-cell disc, cached cells)                   4.92      5.05
    *    (as Codex shipped it: anisotropy 8, 121-cell square    11.34     11.73)
+   *    + land cover raster (1 sample/fragment, Plan 13b)      4.98      5.18
    *
    *  6.0 ms is 1.2x the measured p95, 72% of the 8.33 ms a 120 Hz frame
    *  allows, and under the 8 ms at which the ocean's one-time tier choice

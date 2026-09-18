@@ -32,7 +32,7 @@ import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
-import { createVegetation } from './scene/vegetation.js'
+import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import { createSky } from './scene/sky.js'
 import { createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
@@ -56,6 +56,7 @@ import {
 } from './spawn.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
+import { loadCover } from './landcover/load.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
 // loaded from, so this assertion is safe at the entry point.
@@ -334,6 +335,18 @@ async function boot(): Promise<void> {
 
   const scene = new Scene()
   const terrain = createTerrainMesh(TERRAIN_HEADER)
+  // Plan 13b. The raster and the terrain levels race; whichever lands
+  // second finds the other ready. A failed fetch leaves the procedural
+  // paint (surface.ts's `ready` uniform) and the daa1b39 forest, logged,
+  // not fatal: land cover is a picture, terrain is the ground.
+  let cover: CoverLookup | null = null
+  void loadCover().then(data => {
+    terrain.setCover(data)
+    cover = coverLookup(data)
+    vegetation?.setCover(cover)
+  }).catch((err: unknown) => {
+    console.warn('land cover unavailable, painting procedurally:', err)
+  })
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
   const oceanDepth = await loadDepth()
@@ -889,6 +902,7 @@ async function boot(): Promise<void> {
       vegetation = createVegetation(arrived)
       // The tier may already have been chosen by the time terrain arrives.
       vegetation.setTier(oceanTier.name)
+      if (cover !== null) vegetation.setCover(cover)
       scene.add(vegetation.object)
     }
     frame = groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next

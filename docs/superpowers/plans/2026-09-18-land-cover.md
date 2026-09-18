@@ -54,7 +54,7 @@
 **Interfaces:**
 - Produces: `type TileId = { readonly lat: number; readonly lon: number }` (south-west corner, multiples of 3), `tileFileName(id): string`, `tileUrl(id): string`, `tileIdsFor(box: LatLonBox): TileId[]`, `type LatLonBox = { latMin, latMax, lonMin, lonMax }`, `COVER_BOX: LatLonBox`, `CACHE_DIR: string`, `type TileFetcher = (url: string) => Promise<Uint8Array>`, `ensureTileInto(id, dir, fetch): Promise<string>`, `ensureAllTilesInto(box, dir, fetch): Promise<readonly string[]>`, `ensureAllTiles(): Promise<readonly string[]>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // tests/tools/landcoverFetch.test.ts
@@ -104,12 +104,12 @@ describe('WorldCover tile ids', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/tools/landcoverFetch.test.ts`
 Expected: FAIL, "Cannot find module '../../tools/landcover/fetch.js'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // tools/landcover/fetch.ts
@@ -211,12 +211,12 @@ if (isMain) {
 }
 ```
 
-- [ ] **Step 4: Run the test and the type check**
+- [x] **Step 4: Run the test and the type check**
 
 Run: `npx vitest run tests/tools/landcoverFetch.test.ts && npx tsc --noEmit`
 Expected: 3 passed; tsc exit 0. If the `COVER_BOX` assertions fail by more than 0.02 degrees, print `COVER_BOX` and check `toGeodetic` was called with (x, z) in that order; do not loosen the test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/landcover/fetch.ts tests/tools/landcoverFetch.test.ts
@@ -235,7 +235,7 @@ git commit -m "Name, address and cache the two ESA WorldCover tiles that cover t
 - Consumes: `tileFileName`, `LatLonBox`, `CACHE_DIR`, `COVER_BOX` from Task 1.
 - Produces: `CLASS` (WorldCover class numbers), `type Fractions = { tree: number; crop: number; mangrove: number; open: number; water: number }`, `channelOf(cls: number): keyof Fractions`, `type CoverSource = { fractions(box: LatLonBox): Fractions }`, `openCoverSource(paths: readonly string[], box: LatLonBox): Promise<CoverSource>`. (A `haveCoverSource()` helper was listed here until 2026-09-18; no task consumes it, the tests check the cache inline as the terrain tests do, and it was struck.)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // tests/tools/landcoverSample.test.ts
@@ -297,12 +297,12 @@ describe.skipIf(!haveSource)('the sampler against the Earth', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/tools/landcoverSample.test.ts`
 Expected: FAIL on the missing module. (If the cache is absent on this machine, run `npx tsx tools/landcover/fetch.ts` first: 33 MB, anonymous.)
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // tools/landcover/sample.ts
@@ -407,12 +407,12 @@ export async function openCoverSource(paths: readonly string[], box: LatLonBox):
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/tools/landcoverSample.test.ts && npx tsc --noEmit`
 Expected: 3 passed (or 1 passed + 2 skipped without the cache, with the warning printed). If a landmark assertion fails, print the returned `Fractions` and compare with the Global Constraints table before touching anything: a row/column swap reads a different place entirely, and the fix is the indexing, never the threshold.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/landcover/sample.ts tests/tools/landcoverSample.test.ts
@@ -430,7 +430,7 @@ git commit -m "Read WorldCover at 10 m and answer class fractions for a rectangl
 **Interfaces:**
 - Produces: `COVER_CHANNELS = ['tree', 'crop', 'mangrove', 'open'] as const`, `COVER_SAMPLES = 1025`, `type CoverHeader = { centreLatDeg, centreLonDeg, halfExtentM, samples, channels, encoding: 'rgba8-sixteenths' }`, `parseCoverHeader(raw: unknown): CoverHeader`, `coverByteLength(header): number`, `coverIndex(header, x, z): number` (sample index, row 0 north, column 0 west, nearest), `coverFractionsAt(data, header, x, z): { tree, crop, mangrove, open }`, `quantize(fraction): number`, `dequantize(byte): number`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // tests/render/landcover.test.ts
@@ -481,12 +481,12 @@ describe('cover raster geometry', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/landcover.test.ts`
 Expected: FAIL on the missing module.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // src/render/landcover/cover.ts
@@ -547,12 +547,12 @@ export function coverFractionsAt(data: Uint8Array, header: CoverHeader, x: numbe
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/render/landcover.test.ts && npx tsc --noEmit && npm run depcruise`
 Expected: 4 passed; tsc and depcruise exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/landcover/cover.ts tests/render/landcover.test.ts
@@ -572,7 +572,7 @@ git commit -m "Define the land-cover raster: 1025 square, four fraction channels
 - Consumes: Task 1 (`ensureAllTiles`, `COVER_BOX`), Task 2 (`openCoverSource`, `CoverSource`), Task 3 (`COVER_SAMPLES`, `COVER_CHANNELS`, `quantize`, `CoverHeader`, `parseCoverHeader`, `coverByteLength`).
 - Produces: `buildCover(source: CoverSource, samples?: number): Uint8Array` (raw RGBA, row 0 north), `COVER_DIR`, `coverPath()`, `coverHeaderPath()`, `loadCoverHeader(): CoverHeader`, `loadCover(): Uint8Array` (gunzipped), `npm run landcover:build`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // tests/tools/landcoverBuild.test.ts
@@ -638,12 +638,12 @@ describe('the committed land cover', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/tools/landcoverBuild.test.ts`
 Expected: FAIL on the missing module.
 
-- [ ] **Step 3: Write the node-side loader**
+- [x] **Step 3: Write the node-side loader**
 
 ```ts
 // tools/landcover/load.ts
@@ -671,7 +671,7 @@ export function loadCover(header: CoverHeader = loadCoverHeader()): Uint8Array {
 }
 ```
 
-- [ ] **Step 4: Write the build tool**
+- [x] **Step 4: Write the build tool**
 
 ```ts
 // tools/landcover/build.ts
@@ -743,21 +743,21 @@ Add to `package.json` scripts, after `"terrain:build"`:
     "landcover:build": "tsx tools/landcover/build.ts",
 ```
 
-- [ ] **Step 5: Build the raster**
+- [x] **Step 5: Build the raster**
 
 Run: `npm run landcover:build`
 Expected: a line like `landcover: 1025^2 x 4 = 4202500 bytes raw, ~265000 bytes gzipped, N s`. The gzipped size must be within 20 % of the 259 KiB measured on 2026-09-17 (see the spec §4); if it is not, the quantisation or the channel order is wrong, not the number.
 
-- [ ] **Step 6: Pin the digests**
+- [x] **Step 6: Pin the digests**
 
 Run: `sha256sum content/landcover/header.json content/landcover/cover.bin.gz` and paste the two hashes into `COMMITTED_SHA256` in the test, replacing both `FILL-FROM-STEP-6` strings.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `npx vitest run tests/tools/landcoverBuild.test.ts && npx tsc --noEmit && npm run lint`
 Expected: 3 passed; exit 0 everywhere. If a landmark assertion fails, print the fractions and check `coverIndex` (row from z, column from x) against `gridToLocal` before anything else.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/landcover/build.ts tools/landcover/load.ts package.json content/landcover/cover.bin.gz content/landcover/header.json tests/tools/landcoverBuild.test.ts
@@ -777,7 +777,7 @@ git commit -m "Build and commit the land-cover raster: 1025 square, four fractio
 - Consumes: `CREDITS`, `creditsLine()` from `src/render/legend.ts`.
 - Produces: the same names, new text.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/render/legend.test.ts`, inside the existing `describe` that holds the ODbL credit test:
 
@@ -791,12 +791,12 @@ Add to `tests/render/legend.test.ts`, inside the existing `describe` that holds 
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/legend.test.ts`
 Expected: 1 failed, "expected 'Data: Copernicus DEM, GEBCO · Rivers © OpenStreetMap contributors' to contain 'ESA WorldCover'".
 
-- [ ] **Step 3: Update the credits and write the notices**
+- [x] **Step 3: Update the credits and write the notices**
 
 In `src/render/legend.ts`, change the `before` string:
 
@@ -867,12 +867,12 @@ and add, after the existing per-dataset provenance sections, following their `##
   and are not committed.
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/render/legend.test.ts && npm run lint`
 Expected: all passed; lint exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add content/landcover/NOTICE.md ASSETS.md src/render/legend.ts tests/render/legend.test.ts
@@ -892,7 +892,7 @@ git commit -m "Attribute ESA WorldCover: notice, provenance and the credits line
 - Consumes: Task 3's `parseCoverHeader`, `coverByteLength`, `CoverHeader`.
 - Produces: `COVER_PATH = 'content/landcover/cover.bin.gz'`, `COVER_URL`, `COVER_HEADER: CoverHeader` (parsed from the JSON import at module load), `loadCover(fetchImpl?: typeof fetch): Promise<Uint8Array>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/render/landcover.test.ts`:
 
@@ -936,12 +936,12 @@ And in `tests/build/dist.test.ts`, next to the `content/ocean/depth.bin` asserti
       expect(JSON.parse(readFileSync(join(outDir, 'content/landcover/header.json'), 'utf8')).samples).toBe(1025)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/landcover.test.ts`
 Expected: FAIL on the missing `load.js` module.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `src/render/content.ts`, after `OCEAN_DEPTH_URL`:
 
@@ -981,12 +981,12 @@ export async function loadCover(fetchImpl: typeof fetch = fetch): Promise<Uint8A
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/render/landcover.test.ts tests/build/dist.test.ts && npx tsc --noEmit && npm run depcruise`
 Expected: all passed; exit 0. The dist test builds into a temp dir and takes ~10 s. If `DecompressionStream` is reported undefined, the node version is below 18; this repo runs node 22.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/landcover/load.ts src/render/content.ts tests/render/landcover.test.ts tests/build/dist.test.ts
@@ -1005,7 +1005,7 @@ git commit -m "Fetch and inflate the land-cover raster in the browser, and ship 
 - Consumes: `COVER_HEADER` from Task 6, `coverByteLength` from Task 3.
 - Produces: `type CoverNodes = { texture: DataTexture; ready: UniformNode<number>; halfExtentM: number }`, `terrainSurfaceNode(xz, height, slope, cover: CoverNodes)`, `createCoverNodes(header: CoverHeader): CoverNodes`, `TerrainMesh.setCover(data: Uint8Array): void`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/render/scenery.test.ts`:
 
@@ -1034,12 +1034,12 @@ import { coverByteLength } from '../../src/render/landcover/cover.js'
 
 (`header` in that file is the terrain header fixture already at its top.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/scenery.test.ts`
 Expected: FAIL, "mesh.cover is undefined" or a type error on `setCover`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `src/render/terrain/surface.ts`, replace the imports and `terrainSurfaceNode`:
 
@@ -1145,12 +1145,12 @@ inside `createTerrainMesh`, before the material is built: `const cover = createC
     },
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/render && npx tsc --noEmit && npm run lint`
 Expected: all passed, including `terrainLod.test.ts` and `frame.test.ts`, which construct the mesh in node; exit 0 everywhere. If `UniformNode` is not exported from `three/webgpu` under that name, use `ReturnType<typeof uniform<number>>` and say so in a comment.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/terrain/surface.ts src/render/terrain/mesh.ts tests/render/scenery.test.ts
@@ -1169,7 +1169,7 @@ git commit -m "Paint the terrain's classes from the WorldCover raster, procedura
 - Consumes: `coverFractionsAt`, `CoverHeader` from Task 3; `COVER_HEADER` from Task 6.
 - Produces: `type CoverLookup = { fractionsAt(x: number, z: number): { tree: number; crop: number; mangrove: number; open: number } }`, `coverLookup(data: Uint8Array, header?: CoverHeader): CoverLookup`, `treeSites(field, cellX, cellZ, cover?: CoverLookup)`, vegetation object gains `setCover(cover: CoverLookup): void`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/render/scenery.test.ts`:
 
@@ -1215,12 +1215,12 @@ import { coverLookup } from '../../src/render/scene/vegetation.js'
 
 (`quantize` and `coverByteLength` are imported from `../../src/render/landcover/cover.js`; `COVER_HEADER` from `../../src/render/landcover/load.js`; if the shore cell has no site at any height, move it one cell east until `treeSites(...)` with full tree cover returns at least 20 sites, and record the cell you used in the test.)
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/render/scenery.test.ts`
 Expected: FAIL, `coverLookup` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `src/render/scene/vegetation.ts`, add after the imports:
 
@@ -1283,12 +1283,12 @@ In `createVegetation`: add `setCover(cover: CoverLookup): void` to the returned 
     },
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/render/scenery.test.ts && npx tsc --noEmit && npm run lint && npm run depcruise`
 Expected: all passed; exit 0. The existing "generates only the cells that entered" and "byte-identical on return" tests must still pass unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/scene/vegetation.ts tests/render/scenery.test.ts
@@ -1308,7 +1308,7 @@ git commit -m "Plant trees by the WorldCover tree fraction, and let mangroves re
 **Interfaces:**
 - Consumes: `loadCover` (Task 6), `coverLookup` (Task 8), `terrain.setCover` (Task 7), `vegetation.setCover` (Task 8).
 
-- [ ] **Step 1: Wire the load**
+- [x] **Step 1: Wire the load**
 
 In `src/render/main.ts`, add imports:
 
@@ -1340,12 +1340,12 @@ In the `arrived` block, after `vegetation.setTier(oceanTier.name)`:
       if (cover !== null) vegetation.setCover(cover)
 ```
 
-- [ ] **Step 2: Verify locally**
+- [x] **Step 2: Verify locally**
 
 Run: `npm run verify && npm run build`
 Expected: exit 0 for both. Check the exit codes, not the grep.
 
-- [ ] **Step 3: Tier 2 on the reference desktop**
+- [x] **Step 3: Tier 2 on the reference desktop**
 
 The Windows Playwright server must be running in Mark's console session (README, Tier 2 section). On nexus, with `npm run dev:lan` serving this checkout and the control tunnel up (`ss -ltn | grep 39001`, else `ssh -N -L 39001:127.0.0.1:3000 ryzen &`):
 
@@ -1356,7 +1356,7 @@ grep -E 'frame-time budget:|passed|failed' /tmp/tier2-13b.log
 
 Expected: 24 passed, or 23 with one `net::ERR_QUIC_PROTOCOL_ERROR` at `page.goto` that passes on re-run (`npx playwright test tests/e2e/ocean.spec.ts -g "<name>"`). Record the `frame-time budget:` line. It must stay under 6.0 ms p95; the raster is one filtered sample per fragment and the river mask's identical sample measured 0.1 ms, so expect about 5.1 ms p50. If it is over 6.0, do not widen: bisect as 13a's handoff describes (throwaway worktree on port 5183) and report.
 
-- [ ] **Step 4: Look at it**
+- [x] **Step 4: Look at it**
 
 Write a throwaway spec (delete it after; never commit it):
 
@@ -1381,11 +1381,11 @@ test('13b views', async ({ page }) => {
 
 Run it with the same `PW_REMOTE`/`PW_BASE_URL`, then read each PNG with the Read tool. What to check, in this order: the valley is pale field colour and nearly treeless; the shore has trees at the waterline and a dark green band; at cruise the island reads as forest hills with plains, not as one green. If a view is wrong, the fix is in Task 7's weights or Task 8's rule, never in a threshold in a test. Mark stays out of this loop; the screenshots go in the handoff by path only.
 
-- [ ] **Step 5: Hand off and close the roadmap row**
+- [x] **Step 5: Hand off and close the roadmap row**
 
 Create `docs/handoff/2026-09-18-plan13b-land-cover.md` with: the commits, the `npm run verify` totals, the Tier 2 result and the budget line, the three screenshot paths and one sentence on each, the raster's on-disk size, and anything left for 13c (the sampler's sea-connectivity is 13c's first task). In `docs/superpowers/specs/2026-09-12-ww2airsim-design.md`, change the 13b row's status to `Complete <date>; [handoff](../../handoff/2026-09-18-plan13b-land-cover.md)` and, in `docs/superpowers/plans/2026-09-18-land-cover.md` (this file), tick every box of every task.
 
-- [ ] **Step 6: Commit and push**
+- [x] **Step 6: Commit and push**
 
 ```bash
 git add src/render/main.ts docs/handoff/2026-09-18-plan13b-land-cover.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md docs/superpowers/plans/2026-09-18-land-cover.md
