@@ -716,6 +716,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 13a | any | Harden and verify the first pass (Tier 2, GPU budget, quality tiering, tree streaming) | §4 | Complete 2026-09-17, bounded work, no plan document; [handoff](../../handoff/2026-09-17-plan13a-hardening.md) |
 | 13b | any | Land cover from ESA WorldCover as the material and vegetation guide | §4 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan13b-land-cover.md) |
 | 13c | any | Coastline and beaches | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
+| 15 | any | Audio: engine loop and event cues | — | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan15-audio.md) |
 | 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
