@@ -9,7 +9,7 @@ import { engineGainFor, enginePlaybackRateFor } from './mix.js'
  * object, because `src/sim/loop.ts` never overwrites an impact once it is set.
  * So "play the explosion" cannot be a reaction to a value being present -- it
  * has to be a reaction to an EDGE, and an edge needs memory. Keeping that
- * memory here, in a function with no clock, no `AudioContext` and no I/O,
+ * memory here, in a function with no clock, no audio device and no I/O,
  * is what makes the fire-once behaviour testable at all. Design §6.2.
  */
 

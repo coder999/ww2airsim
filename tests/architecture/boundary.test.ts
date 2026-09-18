@@ -18,6 +18,7 @@ import { ESLint } from 'eslint'
 
 const PROBE = 'src/sim/__boundary_probe__.ts'
 const ASSISTS_PROBE = 'src/assists/__boundary_probe__.ts'
+const AUDIO_PROBE = 'src/audio/__boundary_probe__.ts'
 const CYCLE_A = 'src/sim/__cycle_a__.ts'
 const CYCLE_B = 'src/sim/__cycle_b__.ts'
 
@@ -27,7 +28,7 @@ const CYCLE_B = 'src/sim/__cycle_b__.ts'
  *  `__lint_probe__` paths elsewhere in this file are not here on purpose: they
  *  are passed to `ESLint.lintText` as a virtual filename and never touch any
  *  disk at all.) */
-const PROBE_FILES = [PROBE, ASSISTS_PROBE, CYCLE_A, CYCLE_B]
+const PROBE_FILES = [PROBE, ASSISTS_PROBE, AUDIO_PROBE, CYCLE_A, CYCLE_B]
 
 /** The repo, found from this file rather than from `process.cwd()`, so the temp
  *  root below is unambiguously OUTSIDE it whatever directory the runner was
@@ -107,6 +108,9 @@ const PINNED_RULE_NAMES = [
   'sim-must-not-import-input',
   'sim-must-not-import-assists',
   'assists-must-not-import-render',
+  'sim-must-not-import-audio',
+  'assists-must-not-import-audio',
+  'audio-must-not-import-render',
 ] as const
 
 /** Whether `output` reports rule `name` -- as a whole name, not as a prefix of
@@ -459,5 +463,60 @@ describe('the Earth-curvature sink has exactly one home (Plan 5 Task 1)', () => 
       expect(source).toMatch(/horizonSinkNode\(distanceM\)/)
       expect(source).toContain('material.positionNode =')
     }
+  })
+})
+
+describe('audio/ is presentation, and the physics cannot reach it (Plan 15)', () => {
+  // Each probe imports a VALUE from a module that EXISTS. This file documents
+  // both traps at the sim/input probe above: a type-only import produces no
+  // edge in this config, and an unresolvable import produces no violation at
+  // all -- so either kind of probe passes for the wrong reason and proves
+  // nothing about the rule.
+  it('fails when sim/ imports audio/', () => {
+    const { code, output } = cruiseWithProbes({ [PROBE]: "import { MASTER_GAIN } from '../audio/mix.js'\nexport const probe = MASTER_GAIN\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'sim-must-not-import-audio'), output).toBe(true)
+  })
+
+  it('fails when assists/ imports audio/', () => {
+    // Written under src/assists/, not src/sim/, so it also confirms the new
+    // rule's `from` path matches that directory rather than being a dead
+    // copy-paste of the sim/ one.
+    const { code, output } = cruiseWithProbes({ [ASSISTS_PROBE]: "import { MASTER_GAIN } from '../audio/mix.js'\nexport const probe = MASTER_GAIN\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'assists-must-not-import-audio'), output).toBe(true)
+  })
+
+  it('fails when audio/ imports render/', () => {
+    // The direction that keeps tests/audio/ free of three.js and the DOM.
+    // src/render/audio.ts adapts the other way round.
+    const { code, output } = cruiseWithProbes({ [AUDIO_PROBE]: "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'audio-must-not-import-render'), output).toBe(true)
+  })
+})
+
+describe('Web Audio has exactly one home (Plan 15 design §7.1)', () => {
+  it('names AudioContext in src/audio/webAudio.ts and nowhere else under src/', () => {
+    // A fake backend is only worth something if nothing can go round it.
+    // Without this, "audio is testable in node" is a convention somebody
+    // maintains; with it, it is a check. Same shape and same argument as the
+    // horizon-sink case above.
+    //
+    // This passes VACUOUSLY until Task 5 writes webAudio.ts -- stated here
+    // rather than hidden, because a green assertion over an empty set is
+    // exactly the shape of test this project has been bitten by before. Task 5
+    // re-runs it as a real check once there is a file to exempt.
+    //
+    // It is a TEXT search, so it catches these names in a comment too, and it
+    // caught two of its own doc comments the first time it ran (2026-09-18).
+    // That is the strict reading kept on purpose: every other file should be
+    // able to describe what it does without naming the API, and a check that
+    // parsed away comments would be a check with a hole in it.
+    const offenders = sourceFilesUnder('src')
+      .filter((f) => f.path !== 'src/audio/webAudio.ts')
+      .filter((f) => /\b(AudioContext|decodeAudioData|createBufferSource)\b/.test(f.text))
+      .map((f) => f.path)
+    expect(offenders).toEqual([])
   })
 })

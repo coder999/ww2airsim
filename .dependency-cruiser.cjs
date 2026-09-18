@@ -67,6 +67,42 @@ module.exports = {
       to: { path: '^src/render' },
     },
     {
+      name: 'sim-must-not-import-audio',
+      comment:
+        'Plan 15: the physics layer stays headless and deterministic, the same ' +
+        'reason sim-must-not-import-render exists. Audio is presentation: it ' +
+        'changes no trajectory, and the golden trajectory and the soak both ' +
+        'replay a World that must never have carried a sound. ' +
+        'tests/architecture/boundary.test.ts proves this rule bites.',
+      severity: 'error',
+      from: { path: '^src/sim' },
+      to: { path: '^src/audio' },
+    },
+    {
+      name: 'assists-must-not-import-audio',
+      comment:
+        'Plan 15: assists/ inherits sim/\'s constraints (see ' +
+        'assists-must-not-import-render). It does deterministic arithmetic on ' +
+        "the pilot's command and has no reason to make a noise.",
+      severity: 'error',
+      from: { path: '^src/assists' },
+      to: { path: '^src/audio' },
+    },
+    {
+      name: 'audio-must-not-import-render',
+      comment:
+        'Plan 15 design §6: audio/ consumes a plain AudioInputs value, never a ' +
+        'FrameState, so it needs no three.js, no DOM and no renderer type. ' +
+        'src/render/audio.ts adapts in the other direction. This is what keeps ' +
+        'the fake-backed tests in tests/audio/ free of the renderer -- and it ' +
+        'has to be a RUNTIME import to be visible at all: this config records no ' +
+        'edge for a type-only import (see no-circular\'s comment below), so ' +
+        'the design keeps even the types out rather than relying on this rule.',
+      severity: 'error',
+      from: { path: '^src/audio' },
+      to: { path: '^src/render' },
+    },
+    {
       name: 'no-circular',
       comment:
         'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +
