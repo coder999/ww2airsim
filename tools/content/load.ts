@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parseAircraftSpec } from '../../src/sim/content.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
+import { parseScenario, type Scenario, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 
@@ -46,4 +47,22 @@ export function loadShipSpec(id: string): ShipSpec {
 
 export function loadAirfield(id: string): Airfield {
   return parseAirfield(readContentJson('airfield', 'bases', id))
+}
+
+export function loadScenario(id: string): Scenario {
+  return parseScenario(readContentJson('scenario', 'scenarios', id))
+}
+
+/** Every content file a scenario names, loaded and validated. Node only;
+ *  `src/render/scenarioLoad.ts` is the browser twin. */
+export function loadScenarioBundle(id: string): ScenarioBundle {
+  const scenario = loadScenario(id)
+  const table = <T>(ids: readonly string[], load: (i: string) => T): Readonly<Record<string, T>> =>
+    Object.fromEntries([...new Set(ids)].map((i) => [i, load(i)]))
+  return {
+    scenario,
+    aircraftSpecs: table(scenario.aircraft.map((a) => a.spec), loadAircraftSpec),
+    shipSpecs: table(scenario.ships.map((s) => s.spec), loadShipSpec),
+    airfields: table([...scenario.airfields, ...scenario.aircraft.map((a) => a.parkedAt.airfield)], loadAirfield),
+  }
 }
