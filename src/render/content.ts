@@ -70,3 +70,8 @@ export const FINEST_FETCHED_LEVEL = 4
 
 /** Same-origin bathymetry, in int16 metres; header is bundled with the code. */
 export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.bin`
+
+/** Plan 13b's land-cover raster, gzipped on disk and inflated in the
+ *  browser (src/render/landcover/load.ts). No nginx dependency. */
+export const COVER_PATH = 'content/landcover/cover.bin.gz'
+export const COVER_URL = `${import.meta.env.BASE_URL}${COVER_PATH}`

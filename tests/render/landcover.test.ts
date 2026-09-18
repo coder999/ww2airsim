@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { gzipSync } from 'node:zlib'
 import {
   COVER_CHANNELS, COVER_SAMPLES, coverByteLength, coverFractionsAt, coverIndex, dequantize, parseCoverHeader, quantize,
 } from '../../src/render/landcover/cover.js'
+import { COVER_HEADER, loadCover } from '../../src/render/landcover/load.js'
+import { COVER_PATH, COVER_URL } from '../../src/render/content.js'
 
 const header = parseCoverHeader({
   centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000, samples: COVER_SAMPLES,
@@ -43,5 +46,30 @@ describe('cover raster geometry', () => {
     expect(() => parseCoverHeader({ ...header, channels: ['tree'] })).toThrow()
     expect(() => parseCoverHeader({ ...header, halfExtentM: Infinity })).toThrow()
     expect(() => parseCoverHeader({ ...header, extra: 1 })).toThrow()
+  })
+})
+
+describe('loadCover', () => {
+  it('inflates the gzipped raster and checks its length', async () => {
+    const raw = new Uint8Array(coverByteLength(COVER_HEADER))
+    raw[4] = 255
+    const gz = gzipSync(raw)
+    const served: typeof fetch = async () => new Response(gz, { status: 200 })
+    const data = await loadCover(served)
+    expect(data.length).toBe(raw.length)
+    expect(data[4]).toBe(255)
+  })
+
+  it('refuses a short body and a failed fetch', async () => {
+    const short: typeof fetch = async () => new Response(gzipSync(new Uint8Array(16)), { status: 200 })
+    await expect(loadCover(short)).rejects.toThrow(/inflates to 16 bytes/)
+    const missing: typeof fetch = async () => new Response(null, { status: 404, statusText: 'Not Found' })
+    await expect(loadCover(missing)).rejects.toThrow(/404/)
+  })
+
+  it('is addressed like the other content', () => {
+    expect(COVER_PATH).toBe('content/landcover/cover.bin.gz')
+    expect(COVER_URL.endsWith(COVER_PATH)).toBe(true)
+    expect(COVER_HEADER.samples).toBe(COVER_SAMPLES)
   })
 })
