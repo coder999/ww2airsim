@@ -1,4 +1,13 @@
-import { advance, createWorld, type Stepper, type World } from '../sim/loop.js'
+import {
+  advance,
+  createWorldOf,
+  playerAircraft,
+  withAircraftState,
+  withControls,
+  PLAYER_ID,
+  type Stepper,
+  type World,
+} from '../sim/loop.js'
 import { heightAt, type TerrainField } from '../sim/world/terrain.js'
 import {
   assistFor,
@@ -24,9 +33,9 @@ export type FrameState = {
    *  separate field on this type; see `assistFor` in src/assists/index.ts for
    *  why one copy inside the world beats two that can disagree. */
   readonly world: World<undefined>
-  /** This frame's commanded controls -- the identical object `world.controls`
-   *  holds, kept here too because main.ts's prop spin and the Tier 2
-   *  diagnostics hook read the frame, not the world inside it. */
+  /** This frame's commanded controls -- the identical object the player
+   *  entity's `controls` holds, kept here too because main.ts's prop spin and
+   *  the Tier 2 diagnostics hook read the frame, not the world inside it. */
   readonly controls: Controls
   readonly look: LookOffset
   readonly cameraMode: CameraMode
@@ -127,8 +136,8 @@ export type FrameState = {
    *
    * Toggled on the `pause` key's edge, and settable directly (`withPaused`)
    * so a modal that wants the world held -- the landing debrief -- reuses
-   * this one mechanism rather than growing a second freeze beside
-   * `World.impact`.
+   * this one mechanism rather than growing a second freeze beside the
+   * player's `impact` hold in `nextFrameState`.
    */
   readonly paused: boolean
   /** Whether the pause key was down last frame, for edge detection. */
@@ -191,9 +200,9 @@ export function initialFrameState(
   spec: AircraftSpec,
   aircraft: AircraftState,
   assists: AssistSettings = DEFAULT_ASSIST_SETTINGS,
-  // `null` (no terrain) by default, exactly `World.terrain`'s own default via
-  // `createWorld` -- see that field's comment. Threaded through here, rather
-  // than left for a caller to `{ ...frame.world, terrain }` after the fact,
+  // `null` (no terrain) by default, exactly `World.terrain`'s own default --
+  // see that field's comment. Threaded through here, rather than left for a
+  // caller to patch the world with a terrain after the fact,
   // so a `FrameState` is buildable with terrain already in place the moment
   // a later task has a field to hand it (main.ts's `initialFrameState(spec,
   // initialAircraft)` call passes none, so this task changes no runtime
@@ -208,7 +217,22 @@ export function initialFrameState(
   groundSpawn: boolean = false,
 ): FrameState {
   return {
-    world: { ...createWorld(spec, aircraft, NEUTRAL, undefined), terrain },
+    world: createWorldOf<undefined>({
+      aircraft: [
+        {
+          id: PLAYER_ID,
+          spec,
+          state: aircraft,
+          previous: aircraft,
+          controls: NEUTRAL,
+          assistMemory: undefined,
+          impact: null,
+          parked: groundSpawn,
+        },
+      ],
+      player: PLAYER_ID,
+      terrain,
+    }),
     controls: NEUTRAL,
     look: LOOK_CENTRE,
     cameraMode: 'chase',
@@ -277,9 +301,9 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  * Meant to be called exactly once, at the transition where `world.terrain`
  * goes from `null` to real (`main.ts`'s terrain-arrival callback): nothing has
  * advanced before then for a ground spawn (`FrameState.groundSpawn`'s hold in
- * `nextFrameState`), so `world.aircraft`, `world.previous`, `eye` and `render`
- * are all still literally the spawn point -- correcting one of the four
- * without the other three would show the airplane at the wrong height for
+ * `nextFrameState`), so the player's `state`, its `previous`, `eye` and
+ * `render` are all still literally the spawn point -- correcting one of the
+ * four without the other three would show the airplane at the wrong height for
  * exactly one frame. Velocity is untouched; only the vertical component of
  * each position moves.
  *
@@ -298,16 +322,16 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  * most likely to be looking at the runway.
  */
 export function settleOnTerrain(frame: FrameState, terrain: TerrainField): FrameState {
-  const groundHeightM = heightAt(terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
-  const contactHeightM = groundHeightM + frame.world.spec.gear.heightM
+  const player = playerAircraft(frame.world)
+  const groundHeightM = heightAt(terrain, player.state.position.x, player.state.position.z)
+  const contactHeightM = groundHeightM + player.spec.gear.heightM
   const atGroundHeight = (p: Vec3): Vec3 => v3(p.x, contactHeightM, p.z)
   return {
     ...frame,
-    world: {
-      ...frame.world,
-      aircraft: { ...frame.world.aircraft, position: atGroundHeight(frame.world.aircraft.position) },
-      previous: { ...frame.world.previous, position: atGroundHeight(frame.world.previous.position) },
-    },
+    world: withAircraftState(frame.world, frame.world.player, {
+      ...player.state,
+      position: atGroundHeight(player.state.position),
+    }),
     eye: { ...frame.eye, position: atGroundHeight(frame.eye.position) },
     render: { ...frame.render, position: atGroundHeight(frame.render.position) },
   }
@@ -326,7 +350,8 @@ export function nextFrameState(
   pressed: PressedKeys,
   stepper?: Stepper,
 ): FrameState {
-  const spec = prev.world.spec
+  const player = playerAircraft(prev.world)
+  const spec = player.spec
 
   // Edge-triggered for the reason the camera cycle below is, and read before
   // anything uses the scale so that the frame the key is pressed on is already
@@ -378,11 +403,12 @@ export function nextFrameState(
   const brake = BINDINGS.brakes.some((c) => pressed.has(c)) ? 1 : 0
 
   // `gearDown` and `brake` go into the SAME `Controls` object that reaches
-  // `world.controls` below, for the reason the assist comment on `assist`
-  // gives: the Plan 3 defect was a control that never reached the
-  // simulation, inert in the browser while its own unit tests passed
+  // the player entity's `controls` below, for the reason the assist comment
+  // on `assist` gives: the Plan 3 defect was a control that never reached
+  // the simulation, inert in the browser while its own unit tests passed
   // because they called the module directly. `frame.test.ts` pins this by
-  // reading `f.world.controls.gearDown` back, not just `f.gearDown`.
+  // reading `playerAircraft(f.world).controls.gearDown` back, not just
+  // `f.gearDown`.
   const controls: Controls = { ...controlsAxes, gearDown, flapDown, brake }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
@@ -427,43 +453,54 @@ export function nextFrameState(
   const assist = assistFor(assists)
 
   // This frame's controls go into the world rather than alongside it (see
-  // `World.controls`): `advance` takes one object, so the combat plan's N-entity AI
-  // adds a field here instead of a parameter at every call site. A new object
-  // each frame, never a write into `prev.world` -- `advance`'s purity test
-  // deep-freezes the world it is handed.
+  // `AircraftEntity.controls`): `advance` takes one object, so a Plan 7 AI
+  // sets another entity's controls instead of growing a parameter at every
+  // call site. `withControls` rebuilds the world around a new player entity,
+  // never a write into `prev.world` -- `advance`'s purity test deep-freezes
+  // the world it is handed.
   //
-  // A ground spawn holds here until its terrain exists (`groundSpawn`'s doc
-  // comment on `FrameState`): feeding `advance` zero elapsed time reuses its
-  // own "no time owed" path (loop.ts) rather than teaching this function a
-  // second way to freeze the airplane -- `stepsRun` and `droppedSteps` both
-  // read 0, `accumulatorSeconds` does not move, and `render`/`eye` below
-  // reinterpolate onto the same unchanged `previous`/`aircraft` pair, so the
-  // airplane visibly sits still rather than snapping to a placeholder pose.
-  // The moment `world.terrain` stops being `null` (`main.ts`'s
-  // `settleOnTerrain` call, the same frame it happens), this reads `false` on
-  // the very next call and the flight proceeds normally.
-  const holding = prev.groundSpawn && prev.world.terrain === null
-  const advanced = advance({ ...prev.world, controls }, holding ? 0 : simElapsedSeconds, stepper, assist)
-  const render = interpolateAircraft(
-    advanced.world.previous,
-    advanced.world.aircraft,
-    advanced.alpha,
+  // The world is HELD -- `advance` handed zero elapsed seconds -- while
+  // either of two things is true, and pause is a third on the same mechanism
+  // (`simElapsedSeconds` above). Feeding zero reuses `advance`'s own "no time
+  // owed" path (loop.ts), which returns the same world object, rather than
+  // teaching this function a second way to freeze the airplane: `stepsRun`
+  // and `droppedSteps` both read 0, `accumulatorSeconds` does not move, and
+  // `render`/`eye` below reinterpolate onto the same unchanged
+  // `previous`/`state` pair, so the airplane visibly sits still rather than
+  // snapping to a placeholder pose.
+  //
+  //  - A ground spawn, until its terrain exists (`groundSpawn`'s doc comment
+  //    on `FrameState`). The moment `world.terrain` stops being `null`
+  //    (`main.ts`'s `settleOnTerrain` call, the same frame it happens), this
+  //    reads `false` on the very next call and the flight proceeds normally.
+  //  - The PLAYER has hit something. `advance` itself stops nothing since
+  //    Plan 12 (spec §4) -- one airplane crashing must not stop the carrier
+  //    or an AI Zero -- so the end of the player's flight is this frame's
+  //    decision, here, on the same mechanism as the other two.
+  const holding = (prev.groundSpawn && prev.world.terrain === null) || player.impact !== null
+  const advanced = advance(
+    withControls(prev.world, prev.world.player, controls),
+    holding ? 0 : simElapsedSeconds,
+    stepper,
+    assist,
   )
-  const before = advanced.world.previous.velocity
-  const after = advanced.world.aircraft.velocity
+  const advancedPlayer = playerAircraft(advanced.world)
+  const render = interpolateAircraft(advancedPlayer.previous, advancedPlayer.state, advanced.alpha)
+  const before = advancedPlayer.previous.velocity
+  const after = advancedPlayer.state.velocity
   const a = advanced.alpha
   const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
   const eye = cameraTransformFor(cameraMode, spec, render, look, speed)
 
   // Landing bookkeeping reads the airplane on both sides of this frame's
-  // steps: `prev.world.aircraft` is the state before them, `advanced.world
-  // .aircraft` after. A frame that ran no steps (paused, holding) compares a
+  // steps: `player.state` is the state before them, `advancedPlayer.state`
+  // after. A frame that ran no steps (paused, holding) compares a
   // state with itself and changes nothing.
   const landing = nextLandingTracking(
     spec,
     prev.landing,
-    prev.world.aircraft,
-    advanced.world.aircraft,
+    player.state,
+    advancedPlayer.state,
     advanced.world.terrain,
   )
 

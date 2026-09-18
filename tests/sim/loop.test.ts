@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { advance, createWorld, MAX_STEPS_PER_FRAME, type Assist, type Stepper } from '../../src/sim/loop.js'
+import {
+  advance,
+  createWorld,
+  playerAircraft,
+  withControls,
+  MAX_STEPS_PER_FRAME,
+  type Assist,
+  type Stepper,
+} from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { DT, step, airspeed } from '../../src/sim/flight/model.js'
 import type { Controls } from '../../src/sim/flight/state.js'
@@ -41,13 +49,13 @@ describe('advance', () => {
     expect(r.stepsRun).toBe(0)
     expect(r.droppedSteps).toBe(0)
     expect(r.alpha).toBeCloseTo(0.5, 10)
-    expect(r.world.aircraft.tick).toBe(0)
+    expect(r.world.tick).toBe(0)
   })
 
   it('runs exactly one step for exactly one step of time', () => {
     const r = advance(start(), DT)
     expect(r.stepsRun).toBe(1)
-    expect(r.world.aircraft.tick).toBe(1)
+    expect(r.world.tick).toBe(1)
     expect(r.alpha).toBeCloseTo(0, 9)
   })
 
@@ -63,7 +71,7 @@ describe('advance', () => {
     // Feeding the remaining half a step now completes the third.
     const r2 = advance(r.world, DT * 0.5)
     expect(r2.stepsRun).toBe(1)
-    expect(r2.world.aircraft.tick).toBe(3)
+    expect(r2.world.tick).toBe(3)
   })
 
   it('keeps alpha in [0, 1) on the epsilon path with an adversarially short delta', () => {
@@ -85,18 +93,18 @@ describe('advance', () => {
     for (let i = 0; i < 10; i++) {
       const r = advance(w, DT)
       w = r.world
-      ticks.push(w.aircraft.tick)
+      ticks.push(w.tick)
     }
     expect(ticks).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   })
 
   it('exposes the previous tick for interpolation, and holds it on a no-step call', () => {
     const r = advance(start(), DT * 2)
-    expect(r.world.previous.tick).toBe(1)
-    expect(r.world.aircraft.tick).toBe(2)
+    expect(playerAircraft(r.world).previous.tick).toBe(1)
+    expect(playerAircraft(r.world).state.tick).toBe(2)
     const held = advance(r.world, DT / 4)
-    expect(held.world.previous.tick).toBe(1)
-    expect(held.world.aircraft.tick).toBe(2)
+    expect(playerAircraft(held.world).previous.tick).toBe(1)
+    expect(playerAircraft(held.world).state.tick).toBe(2)
   })
 
   it('caps the steps one call may run, and counts what it discarded', () => {
@@ -104,7 +112,7 @@ describe('advance', () => {
     const r = advance(start(), DT * 20)
     expect(r.stepsRun).toBe(MAX_STEPS_PER_FRAME)
     expect(r.droppedSteps).toBe(20 - MAX_STEPS_PER_FRAME)
-    expect(r.world.aircraft.tick).toBe(MAX_STEPS_PER_FRAME)
+    expect(r.world.tick).toBe(MAX_STEPS_PER_FRAME)
   })
 
   it('does not spiral: a persistently overlong frame never accumulates debt', () => {
@@ -191,7 +199,8 @@ describe('advance', () => {
     // existing "runs the stepper it is given, once per step" test's shape,
     // reused here for the assist. Proved to fail: temporarily hoisting the
     // `assist(...)` call in src/sim/loop.ts to above the `for` loop (so it
-    // runs once per `advance` call on `world.aircraft` instead of once per
+    // runs once per `advance` call on the entity's start-of-frame state
+    // instead of once per
     // step on `current`) makes this test's expectation of 3 calls see 1
     // instead, and it fails.
     it('runs once per fixed step, not once per advance() call', () => {
@@ -235,7 +244,8 @@ describe('advance', () => {
       // An elapsed time that is NOT a whole multiple of DT, so a bug that fed
       // the assist `elapsedSeconds` (or `elapsedSeconds / stepsRun`) instead
       // of the fixed step would show up as `dt !== DT` below.
-      advance({ ...start(), controls: pitchUp }, DT * 2.5, step, spy)
+      const world = start()
+      advance(withControls(world, world.player, pitchUp), DT * 2.5, step, spy)
       expect(calls).toHaveLength(2)
       expect(calls[0]!.tick).toBe(0) // state entering the first step: tick 0
       expect(calls[1]!.tick).toBe(1) // state entering the second step: tick 1
@@ -255,7 +265,7 @@ describe('advance', () => {
         controls: raw,
         memory,
       }))
-      expect(withDefault.world.aircraft).toEqual(withExplicitIdentity.world.aircraft)
+      expect(playerAircraft(withDefault.world).state).toEqual(playerAircraft(withExplicitIdentity.world).state)
     })
   })
 
@@ -268,13 +278,15 @@ describe('advance', () => {
     // airplane flying the previous command forever), and the returned world
     // must still carry them, or the next `advance` would fly neutral.
     const w = start()
-    const pitchUp = advance({ ...w, controls: { ...level, pitch: 1 } }, DT * 5)
+    const pitchUp = advance(withControls(w, w.player, { ...level, pitch: 1 }), DT * 5)
     const neutral = advance(w, DT * 5)
     const noseY = (s: { attitude: { x: number; y: number; z: number; w: number } }) =>
       qRotate(s.attitude, v3(1, 0, 0)).y
-    expect(noseY(pitchUp.world.aircraft)).toBeGreaterThan(noseY(neutral.world.aircraft))
-    expect(pitchUp.world.controls.pitch).toBe(1)
-    expect(neutral.world.controls).toEqual(level)
+    expect(noseY(playerAircraft(pitchUp.world).state)).toBeGreaterThan(
+      noseY(playerAircraft(neutral.world).state),
+    )
+    expect(playerAircraft(pitchUp.world).controls.pitch).toBe(1)
+    expect(playerAircraft(neutral.world).controls).toEqual(level)
   })
 
   it('is pure: the world passed in is not mutated', () => {
@@ -303,7 +315,7 @@ describe('advance with the default (identity) assist, driven through the golden 
   // checks the result against the same golden file.
   //
   // The comparison is EXACT equality, not a tolerance: calling
-  // `advance(world, DT)` with `world.controls` set to this tick's command
+  // `advance(world, DT)` with the player's `controls` set to this tick's command
   // runs `identityAssist` (which returns `raw` unchanged) and then `step`
   // with precisely the same arguments, in the same order, that
   // `recordTrajectory` passes to `step` directly -- the same floating-point
@@ -329,10 +341,10 @@ describe('advance with the default (identity) assist, driven through the golden 
     )
     const checkpoints: GoldenTrajectory['checkpoints'] = []
     for (let tick = 0; tick < steps; tick++) {
-      world = { ...world, controls: ROLLING_DESCENT_CONTROLS(tick) }
+      world = withControls(world, world.player, ROLLING_DESCENT_CONTROLS(tick))
       world = advance(world, DT).world
       if (tick % 300 === 0 || tick === steps - 1) {
-        const s = world.aircraft
+        const s = playerAircraft(world).state
         checkpoints.push({
           tick,
           position: [s.position.x, s.position.y, s.position.z],

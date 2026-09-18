@@ -5,8 +5,9 @@ import { engineGainFor, enginePlaybackRateFor } from './mix.js'
 /**
  * Every "fire once" decision the audio system makes, as a pure function.
  *
- * The renderer calls this 60+ times a second with the same `World.impact`
- * object, because `src/sim/loop.ts` never overwrites an impact once it is set.
+ * The renderer calls this 60+ times a second with the same `Impact` object
+ * (the player aircraft entity's, `src/sim/loop.ts`), because that entity's
+ * impact is never overwritten once it is set.
  * So "play the explosion" cannot be a reaction to a value being present -- it
  * has to be a reaction to an EDGE, and an edge needs memory. Keeping that
  * memory here, in a function with no clock, no audio device and no I/O,
@@ -98,7 +99,7 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     memory: { wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick },
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already
-    // gates the propeller MESH on `world.impact === null` for the same
+    // gates the propeller MESH on the player's `impact === null` for the same
     // reason: an ungated spin leaves the propeller turning at full speed on a
     // wreck in its own fireball.
     engine: {

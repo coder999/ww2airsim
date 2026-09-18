@@ -2,6 +2,7 @@ import type { AudioInputs } from '../audio/cues.js'
 import { surfaceAt } from '../sim/contact.js'
 import { onGround } from '../sim/ground.js'
 import { heightAt } from '../sim/world/terrain.js'
+import { playerAircraft } from '../sim/loop.js'
 import type { FrameState } from './frame.js'
 
 /**
@@ -19,14 +20,19 @@ import type { FrameState } from './frame.js'
  * neither. That is `audio-must-not-import-render` in .dependency-cruiser.cjs.
  */
 export function audioInputsFrom(frame: FrameState): AudioInputs {
-  const { terrain, aircraft, impact, spec } = frame.world
+  const { terrain } = frame.world
+  const { state: aircraft, impact, spec } = playerAircraft(frame.world)
   return {
-    // `frame.controls` is the identical object `world.controls` holds, so this
-    // is the throttle the simulation actually ran, not a copy that can drift.
+    // `frame.controls` is the identical object the player entity's `controls`
+    // holds, so this is the throttle the simulation actually ran, not a copy
+    // that can drift.
     throttle: frame.controls.throttle,
     engineRunning: impact === null,
     impact: impact === null ? null : { tick: impact.tick, kind: impact.kind, surface: impact.surface },
-    tick: aircraft.tick,
+    // The WORLD's clock, not the airplane's: they agree after every step, and
+    // the cue's "a tick that went backwards means a new flight" rule is about
+    // the flight, which is the world (spec §4).
+    tick: frame.world.tick,
     // `null`, not `false`, while there is no terrain: the airplane spawns
     // parked and the heightfield arrives seconds later, so calling that gap
     // "airborne" would make its arrival a landing.

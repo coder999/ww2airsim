@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { initialFrameState, nextFrameState, acknowledgeLanding, type FrameState } from '../../src/render/frame.js'
 import { nextLandingTracking, NO_LANDING, AIRBORNE_LATCH_M, LANDED_SPEED_MPS } from '../../src/render/landing.js'
 import { landingModel } from '../../src/render/debrief.js'
+import { playerAircraft, withAircraftState } from '../../src/sim/loop.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -118,15 +119,15 @@ describe('landing tracking', () => {
     // the sink grows on the way down, and from a metre it would arrive past
     // the 4 m/s gate and be a crash rather than a landing.
     const low = flying(0.4, 30, 2.0)
-    f = { ...f, world: { ...f.world, aircraft: low, previous: low } }
+    f = { ...f, world: withAircraftState(f.world, f.world.player, low) }
     for (let i = 0; i < 120 && f.landing.touchdown === null; i++) f = nextFrameState(f, FRAME, keys())
-    expect(f.world.impact, 'arrived too hard to be a landing').toBeNull()
+    expect(playerAircraft(f.world).impact, 'arrived too hard to be a landing').toBeNull()
     expect(f.landing.touchdown).not.toBeNull()
     expect(f.landing.report).toBeNull()
     // Then at rest on its wheels, which CAN be injected: the report needs
     // only the after-state to be supported and slow.
     const rest = onWheels(0, 500)
-    f = { ...f, world: { ...f.world, aircraft: rest, previous: rest } }
+    f = { ...f, world: withAircraftState(f.world, f.world.player, rest) }
     f = nextFrameState(f, FRAME, keys())
     expect(f.landing.report).not.toBeNull()
     expect(f.landing.report!.rollOutM).toBeGreaterThan(400)

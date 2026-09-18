@@ -208,7 +208,8 @@ const narrowToCommand = (a: PitchAuthority, pitch: number): PitchAuthority => {
  * (`sim/loop.ts`'s `advance` calls this once per fixed STEP, via an injected
  * parameter -- see that file for why `sim/` invokes it without importing it).
  *
- * `raw` is the pilot's held command for the whole frame (`World.controls`);
+ * `raw` is the pilot's held command for the whole frame (the aircraft
+ * entity's `controls`);
  * `state` is the aircraft as of the START of this step, i.e. what the pilot
  * was actually seeing when they gave that command. `dt` is always the fixed
  * step (`DT` in `src/sim/flight/model.ts`) in production; tests may vary it.

@@ -14,6 +14,7 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
+import { playerAircraft } from '../../src/sim/loop.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
@@ -28,7 +29,7 @@ const start = () =>
 describe('nextFrameState', () => {
   it('advances the simulation and produces an eye transform', () => {
     const f = nextFrameState(start(), 1 / 60, keys())
-    expect(f.world.aircraft.tick).toBe(1)
+    expect(playerAircraft(f.world).state.tick).toBe(1)
     expect(Number.isFinite(f.eye.position.x)).toBe(true)
   })
 
@@ -57,7 +58,7 @@ describe('nextFrameState', () => {
     let f = start()
     f = nextFrameState(f, 2.0, keys())
     expect(f.droppedSteps).toBeGreaterThan(0)
-    expect(Number.isFinite(f.world.aircraft.position.y)).toBe(true)
+    expect(Number.isFinite(playerAircraft(f.world).state.position.y)).toBe(true)
     const after = nextFrameState(f, 1 / 60, keys())
     expect(after.stepsRun).toBe(1)
   })
@@ -71,7 +72,7 @@ describe('nextFrameState', () => {
       open = nextFrameState(open, 1 / 60, keys('Equal'))
       idle = nextFrameState(idle, 1 / 60, keys())
     }
-    expect(airspeed(open.world.aircraft)).toBeGreaterThan(airspeed(idle.world.aircraft) + 5)
+    expect(airspeed(playerAircraft(open.world).state)).toBeGreaterThan(airspeed(playerAircraft(idle.world).state) + 5)
   })
 
   it('M cuts the throttle to zero at once, and the lever stays there until raised again', () => {
@@ -83,7 +84,7 @@ describe('nextFrameState', () => {
     expect(f.controls.throttle).toBe(1)
     f = nextFrameState(f, 1 / 60, keys('KeyM'))
     expect(f.controls.throttle).toBe(0)
-    expect(f.world.controls.throttle).toBe(0)
+    expect(playerAircraft(f.world).controls.throttle).toBe(0)
     for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys())
     expect(f.controls.throttle).toBe(0)
     for (let i = 0; i < 30; i++) f = nextFrameState(f, 1 / 60, keys('Equal'))
@@ -101,7 +102,7 @@ describe('nextFrameState', () => {
     f = nextFrameState(f, 1 / 60, keys()) // exactly one full step: alpha lands at 0
     f = nextFrameState(f, 1 / 60 / 2, keys()) // half a step banked: alpha = 0.5
 
-    const { previous, aircraft } = f.world
+    const { previous, state: aircraft } = playerAircraft(f.world)
     expect(previous.position.x).not.toBeCloseTo(aircraft.position.x, 3)
     const lo = Math.min(previous.position.x, aircraft.position.x)
     const hi = Math.max(previous.position.x, aircraft.position.x)
@@ -172,17 +173,18 @@ describe('airframeVisibilityFor', () => {
 })
 
 it('hands the frame and the world the same controls object', () => {
-  // frame.ts documents `FrameState.controls` as "the identical object
-  // `world.controls` holds". True, but untested: `nextFrameState` rebuilds
-  // `{...prev.world, controls}` from `prev.controls` and never reads
-  // `prev.world.controls`, so the render path would keep working while the
-  // comment quietly became false (review 2026-09-13).
+  // frame.ts documents `FrameState.controls` as "the identical object the
+  // player entity's `controls` holds". True, but untested: `nextFrameState`
+  // rebuilds the world with `withControls(prev.world, ..., controls)` from
+  // `prev.controls` and never reads the entity's own `controls`, so the
+  // render path would keep working while the comment quietly became false
+  // (review 2026-09-13).
   const f6f = loadAircraftSpec('f6f-hellcat')
   let f = initialFrameState(f6f, createState({ position: v3(0, 600, 0), velocity: v3(120, 0, 0) }))
-  expect(f.controls).toBe(f.world.controls)
+  expect(f.controls).toBe(playerAircraft(f.world).controls)
   for (const keys of [new Set(['ArrowLeft']), new Set(['Equal']), new Set<string>()]) {
     f = nextFrameState(f, 1 / 60, keys)
-    expect(f.controls).toBe(f.world.controls)
+    expect(f.controls).toBe(playerAircraft(f.world).controls)
   }
 })
 
@@ -218,10 +220,10 @@ describe('gear and brakes', () => {
   })
 
   it('puts the gear command where the simulation reads it', () => {
-    // The Plan 3 defect: a control that never reaches `world.controls` is
+    // The Plan 3 defect: a control that never reaches the entity's `controls` is
     // inert in the browser while every unit test of it still passes.
     const f = nextFrameState(start(), 1 / 60, keys('KeyG'))
-    expect(f.world.controls.gearDown).toBe(f.gearDown)
+    expect(playerAircraft(f.world).controls.gearDown).toBe(f.gearDown)
   })
 
   it('brakes while the key is held and releases when it is not', () => {
@@ -269,15 +271,15 @@ describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
     // before the pilot has touched a key.
     let f = groundStart()
     for (let i = 0; i < 120; i++) f = nextFrameState(f, 1 / 60, keys())
-    expect(f.world.aircraft.tick).toBe(0)
-    expect(f.world.aircraft.position).toEqual(v3(0, GROUND_HEIGHT_M, 0))
+    expect(playerAircraft(f.world).state.tick).toBe(0)
+    expect(playerAircraft(f.world).state.position).toEqual(v3(0, GROUND_HEIGHT_M, 0))
     expect(f.stepsRun).toBe(0)
   })
 
   it('resumes integrating, settled rather than falling or buried, the instant terrain arrives', () => {
     let f = groundStart()
     for (let i = 0; i < 30; i++) f = nextFrameState(f, 1 / 60, keys()) // still holding
-    expect(f.world.aircraft.tick).toBe(0)
+    expect(playerAircraft(f.world).state.tick).toBe(0)
 
     // `main.ts`'s own sequence: `withTerrain` first (the field lands), then
     // `settleOnTerrain` (correct the placeholder altitude). Settling alone
@@ -289,18 +291,18 @@ describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
     // `f6f.gear.heightM` above the ground once parked.
     f = settleOnTerrain(withTerrain(f, FLAT_FIELD), FLAT_FIELD)
     const contactHeightM = GROUND_HEIGHT_M + f6f.gear.heightM
-    expect(f.world.aircraft.tick).toBe(0)
-    expect(f.world.aircraft.position.x).toBe(0)
-    expect(f.world.aircraft.position.z).toBe(0)
-    expect(f.world.aircraft.position.y).toBeCloseTo(contactHeightM, 9)
+    expect(playerAircraft(f.world).state.tick).toBe(0)
+    expect(playerAircraft(f.world).state.position.x).toBe(0)
+    expect(playerAircraft(f.world).state.position.z).toBe(0)
+    expect(playerAircraft(f.world).state.position.y).toBeCloseTo(contactHeightM, 9)
 
     // Several seconds of sitting there, idle throttle: no impact, and never
     // more than a contact-tolerance width from the ground -- not falling
     // through, not buried, not snapped back up.
     for (let i = 0; i < 300; i++) f = nextFrameState(f, 1 / 60, keys())
-    expect(f.world.impact).toBeNull()
-    expect(Math.abs(f.world.aircraft.position.y - contactHeightM)).toBeLessThanOrEqual(GROUND_CONTACT_TOLERANCE_M)
-    expect(f.world.aircraft.velocity.y).toBe(0)
+    expect(playerAircraft(f.world).impact).toBeNull()
+    expect(Math.abs(playerAircraft(f.world).state.position.y - contactHeightM)).toBeLessThanOrEqual(GROUND_CONTACT_TOLERANCE_M)
+    expect(playerAircraft(f.world).state.velocity.y).toBe(0)
   })
 
   it('never holds an airborne (non-ground) spawn, terrain or not', () => {
@@ -308,7 +310,7 @@ describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
     // must integrate immediately even with no terrain at all, exactly as
     // every flight before this task did.
     const f = nextFrameState(start(), 1 / 60, keys())
-    expect(f.world.aircraft.tick).toBe(1)
+    expect(playerAircraft(f.world).state.tick).toBe(1)
     expect(f.stepsRun).toBe(1)
   })
 })
@@ -349,16 +351,16 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     // Held for a stretch with no terrain, exactly like the real boot
     // sequence, before the field "arrives".
     for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys())
-    expect(f.world.aircraft.tick).toBe(0)
+    expect(playerAircraft(f.world).state.tick).toBe(0)
 
     f = settleOnTerrain(withTerrain(f, terrain), terrain)
     // Task 15: settles onto the wheels' contact point, `groundHeightM +
     // f6f.gear.heightM`, not `groundHeightM` itself.
     const contactHeightM = groundHeightM + f6f.gear.heightM
-    expect(f.world.aircraft.position.y).toBeCloseTo(contactHeightM, 9)
+    expect(playerAircraft(f.world).state.position.y).toBeCloseTo(contactHeightM, 9)
 
-    const startX = f.world.aircraft.position.x
-    const startZ = f.world.aircraft.position.z
+    const startX = playerAircraft(f.world).state.position.x
+    const startZ = playerAircraft(f.world).state.position.z
 
     // Phase 1: full throttle, wheels level, pitch neutral -- exactly
     // `measureTakeoffRun`'s (tools/testcards/measure.ts) own technique --
@@ -372,12 +374,12 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     let rolling = true
     for (let i = 0; i < 60 * ROLL_MAX_S && rolling; i++) {
       f = nextFrameState(f, 1 / 60, keys('Equal'))
-      expect(f.world.impact, `impact recorded during the ground roll, tick ${f.world.aircraft.tick}`).toBeNull()
-      rolling = airspeed(f.world.aircraft) < TAKEOFF_SPEED_MPS
+      expect(playerAircraft(f.world).impact, `impact recorded during the ground roll, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
+      rolling = airspeed(playerAircraft(f.world).state) < TAKEOFF_SPEED_MPS
     }
-    expect(airspeed(f.world.aircraft), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)
+    expect(airspeed(playerAircraft(f.world).state), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)
 
-    const rollDistanceM = Math.hypot(f.world.aircraft.position.x - startX, f.world.aircraft.position.z - startZ)
+    const rollDistanceM = Math.hypot(playerAircraft(f.world).state.position.x - startX, playerAircraft(f.world).state.position.z - startZ)
 
     // Phase 2: rotate -- hold nose-up for 1.5 s, matched to this airframe's
     // `rates.maxPitchRateDegPerSec`-scale response, then release to neutral
@@ -389,7 +391,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const ROTATE_TICKS = 90
     for (let i = 0; i < ROTATE_TICKS; i++) {
       f = nextFrameState(f, 1 / 60, keys('Equal', 'ArrowDown'))
-      expect(f.world.impact, `impact recorded while rotating, tick ${f.world.aircraft.tick}`).toBeNull()
+      expect(playerAircraft(f.world).impact, `impact recorded while rotating, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
     }
 
     // Phase 3: confirm genuine separation from the runway -- height above
@@ -402,17 +404,17 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     let airborneTick: number | null = null
     for (let i = 0; i < 60 * CLIMB_MAX_S && airborneTick === null; i++) {
       f = nextFrameState(f, 1 / 60, keys('Equal'))
-      expect(f.world.impact, `impact recorded during the climb-out, tick ${f.world.aircraft.tick}`).toBeNull()
+      expect(playerAircraft(f.world).impact, `impact recorded during the climb-out, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
       // Task 15: the WHEELS' height above ground is what "airborne" means --
       // `position.y` is the body origin, which sits `f6f.gear.heightM` above
       // the wheels even while parked, so that raw difference alone would read
       // as "airborne" from the very start of the roll.
       const heightAboveGroundM =
-        f.world.aircraft.position.y -
+        playerAircraft(f.world).state.position.y -
         f6f.gear.heightM -
-        heightAt(terrain, f.world.aircraft.position.x, f.world.aircraft.position.z)
+        heightAt(terrain, playerAircraft(f.world).state.position.x, playerAircraft(f.world).state.position.z)
       clearTicks = heightAboveGroundM > GROUND_CONTACT_TOLERANCE_M ? clearTicks + 1 : 0
-      if (clearTicks >= SUSTAINED_TICKS) airborneTick = f.world.aircraft.tick
+      if (clearTicks >= SUSTAINED_TICKS) airborneTick = playerAircraft(f.world).state.tick
     }
 
     expect(airborneTick, 'did not get, and stay, airborne').not.toBeNull()
@@ -455,14 +457,14 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
       ),
       terrain,
     )
-    const from = f.world.aircraft.position
+    const from = playerAircraft(f.world).state.position
     const startX = from.x
     const startZ = from.z
-    for (let i = 0; i < 60 * 30 && airspeed(f.world.aircraft) < TAKEOFF_SPEED_MPS; i++) {
+    for (let i = 0; i < 60 * 30 && airspeed(playerAircraft(f.world).state) < TAKEOFF_SPEED_MPS; i++) {
       f = nextFrameState(f, 1 / 60, keys('Equal'))
-      expect(f.world.impact, `impact recorded during the ground roll, tick ${f.world.aircraft.tick}`).toBeNull()
+      expect(playerAircraft(f.world).impact, `impact recorded during the ground roll, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
     }
-    expect(airspeed(f.world.aircraft), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)
+    expect(airspeed(playerAircraft(f.world).state), 'never reached rotation speed').toBeGreaterThanOrEqual(TAKEOFF_SPEED_MPS)
     return { f, startX, startZ }
   }
 
@@ -471,8 +473,8 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
     const { f, startX, startZ } = rollFromTheSpawn(terrain)
 
-    const alongM = startZ - f.world.aircraft.position.z
-    const acrossM = Math.abs(f.world.aircraft.position.x - startX)
+    const alongM = startZ - playerAircraft(f.world).state.position.z
+    const acrossM = Math.abs(playerAircraft(f.world).state.position.x - startX)
 
     // North is -z. The roll must be overwhelmingly along that axis: the
     // airplane has no directional stability on the ground yet (Plan 11a's
@@ -486,7 +488,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const header = loadTerrainHeader()
     const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
     const { f } = rollFromTheSpawn(terrain)
-    const at = f.world.aircraft.position
+    const at = playerAircraft(f.world).state.position
 
     // 900 m beyond the rotation point, sampled every 30 m. Measured
     // 2026-09-17 on this field: going north there is no sea-level sample
@@ -521,10 +523,10 @@ describe('the flap lever (Plan 11b Task 8)', () => {
     let f = start()
     for (let i = 0; i < 10; i++) f = nextFrameState(f, 1 / 60, keys('KeyF'))
     expect(f.controls.flapDown).toBe(true)
-    const early = f.world.aircraft.flapFraction
+    const early = playerAircraft(f.world).state.flapFraction
     for (let i = 0; i < 60; i++) f = nextFrameState(f, 1 / 60, keys())
-    expect(f.world.aircraft.flapFraction).toBeGreaterThan(early)
-    expect(f.world.aircraft.flapFraction).toBeLessThanOrEqual(1)
+    expect(playerAircraft(f.world).state.flapFraction).toBeGreaterThan(early)
+    expect(playerAircraft(f.world).state.flapFraction).toBeLessThanOrEqual(1)
   })
 
   it('starts with the flaps up, including on a parked spawn', () => {

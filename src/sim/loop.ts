@@ -5,6 +5,9 @@ import { heightAt, type TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
 import { surfaceAt, contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 import { supportedContact } from './ground.js'
+import type { ShipOrders, ShipSpec, ShipState } from './world/ships.js'
+import { stepShip } from './world/ships.js'
+import type { Airfield } from './world/airfields.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -103,10 +106,10 @@ export type Stepper = typeof step
  * function; `sim/` only ever sees this shape.
  *
  * Takes `state`, not the World: `applyAssists`'s `state` parameter is the
- * aircraft AT THE START of the step being computed, which inside the loop is
- * `current`, not `world.aircraft` (those differ from the second step of a
- * multi-step frame onward). `raw` is `world.controls`, held constant for
- * every step in one `advance` call, and `dt` is always `DT` here -- an assist
+ * aircraft AT THE START of the step being computed, which is the entity's
+ * `state` on THIS step, not the one it had when the frame began (those differ
+ * from the second step of a multi-step frame onward). `raw` is the entity's
+ * `controls`, held constant for every step in one `advance` call, and `dt` is always `DT` here -- an assist
  * that needs to know how much time actually passed must be able to answer
  * that without depending on frame rate (open item 5's whole complaint), and
  * the fixed step is the only quantity in this loop that is not.
@@ -155,14 +158,19 @@ const identityAssist = <M>(
   memory: M,
 ): AssistResult<M> => ({ controls: raw, memory })
 
+
 /**
  * Recorded once, on the first step where the airplane is at or below the
  * ground under it, and never cleared on later steps. `advance` applies no
  * bounce and no rest dynamics to the airplane's position or velocity once
- * this is set -- but it DOES end the flight: the step loop below breaks as
- * soon as this is assigned, and the early return at the top of `advance`
- * means no world that already carries one ever runs another step. `surface`
- * and `kind` below are what Plan 10 adds on top of that stop.
+ * this is set -- and for THIS airplane it ends the flight: `advance` skips an
+ * aircraft entity that already carries one, so that entity's `state`,
+ * `previous` and `impact` pass through every later step untouched. It stops
+ * nothing else (spec §4): the other aircraft and the ships run on, and the
+ * PLAYER's flight ends because the frame (`nextFrameState` in
+ * src/render/frame.ts) holds the world at zero elapsed time while
+ * `playerAircraft(world).impact` is set. `surface` and `kind` below are what
+ * Plan 10 adds on top of that stop.
  */
 export type Impact = {
   /** `SimContext.tick` of the step that first satisfied the impact test. */
@@ -188,28 +196,37 @@ export type Impact = {
   readonly kind: ContactKind
 }
 
-export interface World<M = undefined> {
-  /** The airplane's coefficient set. Here, not in `advance`'s parameter
-   *  list: the design has later plans add fields to World precisely so
-   *  that `advance`'s signature never grows. */
+/** Unique within a World, assigned by the scenario, never an array index: an
+ *  index changes when an entity is removed (a shot-down aircraft, Plan 6), an
+ *  id does not. `createWorldOf` rejects duplicates. */
+export type EntityId = string
+
+/**
+ * One airplane. Everything `World` used to hold for its single airplane
+ * (spec §2's table) lives here now, for exactly the reasons those fields'
+ * comments gave: `controls` is held per `advance` call, `assistMemory` is
+ * per airplane by construction, `impact` survives serialization.
+ */
+export interface AircraftEntity<M = undefined> {
+  readonly id: EntityId
+  /** The airplane's coefficient set. On the entity, not in `advance`'s
+   *  parameter list: the design has later plans add fields to the world and
+   *  its entities precisely so that `advance`'s signature never grows. */
   readonly spec: AircraftSpec
-  readonly aircraft: AircraftState
-  /** The tick before `aircraft`. Equal to it until the first step runs. */
+  readonly state: AircraftState
+  /** The tick before `state`. Equal to it until the first step runs. */
   readonly previous: AircraftState
   /**
-   * What the pilot is commanding, held for every step this `advance` runs.
+   * What the pilot is commanding, held constant for every step of one
+   * `advance` call. The frame sets the player's (`withControls`); a Plan 7
+   * pilot will set the others'.
    *
-   * Here for the same reason `spec` is, and moved here (whole-branch review,
-   * finding I-5) from `advance`'s parameter list, where it was the one
-   * remaining counterexample to the rule above. The combat plan's N-entity AI is
+   * On the entity rather than in `advance`'s parameter list (whole-branch
+   * review, finding I-5) for the reason that finding gave: the N-entity AI is
    * exactly the change `SimContext` was introduced to avoid having to make at
-   * every call site, and it would have hit this parameter; it is ten lines to
-   * move now and a rewrite afterwards. The caller sets it by rebuilding the
-   * world (see `nextFrameState` in src/render/frame.ts), which keeps `World`
-   * immutable and `advance` a pure function of one object.
-   *
-   * Deliberately still ONE control vector for ONE airplane: generalising
-   * `World` to N entities belongs to the combat plan, not this branch.
+   * every call site, and it would have hit that parameter. The caller sets it
+   * by rebuilding the world (`withControls`), which keeps `World` immutable
+   * and `advance` a pure function of one object.
    */
   readonly controls: Controls
   /**
@@ -217,17 +234,18 @@ export interface World<M = undefined> {
    * step run. `sim/` treats this as opaque -- it is carried from step to step
    * and stored back here, never read.
    *
-   * In `World` rather than in a closure the caller holds (Plan 3's shape,
-   * replaced here) so that this object is the WHOLE flight: a world written
-   * to disk and read back flies on identically, where a closure's contents
-   * would be silently missing from the save. It also settles the combat plan in
-   * advance -- N airplanes are N worlds, or N entity records, each with its
-   * own memory field, so two airplanes cannot share one captured altitude
-   * even if they share an assist function.
+   * In the ENTITY rather than in a closure the caller holds (Plan 3's shape,
+   * replaced here) so that the `World` holding it is the WHOLE flight: a
+   * world written to disk and read back flies on identically, where a
+   * closure's contents would be silently missing from the save. This is also
+   * what that comment promised the combat plan and Plan 12 delivered -- N
+   * airplanes are N entity records, each with its own memory field, so two
+   * airplanes cannot share one captured altitude even if they share an
+   * assist function.
    *
    * "Written to disk and read back" means under a serialiser that preserves
    * this object's actual runtime types, not any serialiser -- `World.terrain`
-   * (below) is the field that makes the difference concrete: its
+   * is the field that makes the difference concrete: its
    * `heightsDm` is an `Int16Array`, which `structuredClone` reproduces
    * exactly (verified by `tests/sim/loop.test.ts`'s "survives
    * structuredClone" test -- the same algorithm IndexedDB and `postMessage`
@@ -259,6 +277,46 @@ export interface World<M = undefined> {
    */
   readonly assistMemory: M
   /**
+   * This airplane's first contact, never overwritten. Per entity: one
+   * airplane crashing does not stop the war (spec §4).
+   *
+   * In the entity, not a value `advance` merely returns alongside the world,
+   * for the same completeness reason `assistMemory` is here rather than in a
+   * caller's closure (see that field's comment): a world written to disk and
+   * read back must still remember that this flight already crashed, not
+   * silently re-open the possibility of a second "first" impact.
+   */
+  readonly impact: Impact | null
+  /** Spawned on its wheels, waiting for terrain -- `nextFrameState` holds the
+   *  world at zero elapsed time while any parked aircraft has no terrain, and
+   *  `settleOnTerrain` puts each parked one on the real ground when it lands. */
+  readonly parked: boolean
+}
+
+/** A ship: kinematics on a waypoint loop, no aerodynamics, no impact. Steps
+ *  BEFORE the aircraft within a tick (spec §3.4) so a future deck (Plan 8)
+ *  reads the pose the ship has at the END of the tick. */
+export interface ShipEntity {
+  readonly id: EntityId
+  readonly spec: ShipSpec
+  readonly state: ShipState
+  readonly previous: ShipState
+  readonly orders: ShipOrders
+}
+
+export interface World<M = undefined> {
+  /** The world's clock. Every entity's `state.tick` equals this after a
+   *  step; `SimContext.tick` is `tick + 1`. */
+  readonly tick: number
+  readonly aircraft: readonly AircraftEntity<M>[]
+  readonly ships: readonly ShipEntity[]
+  /** The airplane the frame's keys drive and the camera follows. An id, not
+   *  an index (see `EntityId`); present by construction. */
+  readonly player: EntityId
+  /** Static for the flight; in `World` because the landing report reads it
+   *  and a World is a complete description of the flight. */
+  readonly airfields: readonly Airfield[]
+  /**
    * The ground this world's airplane can hit, or `null` for "no terrain
    * loaded". `sim/` may not import `tools/terrain/load.ts` (Node-only, and a
    * `src/sim/` file must load in a browser -- `.dependency-cruiser.cjs`,
@@ -277,25 +335,16 @@ export interface World<M = undefined> {
    * assertion.
    */
   readonly terrain: TerrainField | null
-  /**
-   * Set once `advance` finds the airplane at or below `terrain`'s height
-   * under it, and never overwritten afterward -- seeded from `world.impact`
-   * at the top of `advance`.
-   *
-   * In `World`, not a value `advance` merely returns alongside it, for the
-   * same completeness reason `assistMemory` is here rather than in a
-   * caller's closure (see that field's comment): a world written to disk and
-   * read back must still remember that this flight already crashed, not
-   * silently re-open the possibility of a second "first" impact.
-   */
-  readonly impact: Impact | null
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
 
 export interface AdvanceResult<M = undefined> {
   readonly world: World<M>
-  /** Whole steps actually run, 0..MAX_STEPS_PER_FRAME. */
+  /** Whole steps run, 0..MAX_STEPS_PER_FRAME. Identical to the steps OWED
+   *  since Plan 12: an impact no longer breaks the loop partway through (an
+   *  impacted aircraft is skipped and everything else sails on, spec §4), so
+   *  there is no path left on which the two differ. */
   readonly stepsRun: number
   /**
    * Steps owed but discarded to break a spiral. Non-zero means simulated time
@@ -322,11 +371,19 @@ export interface AdvanceResult<M = undefined> {
   readonly alpha: number
 }
 
-/** Overloaded rather than given a defaulted generic parameter: `assistMemory`
- *  has no sensible value to invent for an arbitrary `M`, and writing one
- *  (`undefined as M`) would be a lie the type system then believes. Omitting
- *  it says exactly what it means -- this world is flown with no assist, so
- *  there is nothing to remember. */
+/** The id `createWorld` gives its one airplane, and the one the frame drives. */
+export const PLAYER_ID: EntityId = 'player'
+
+/**
+ * The one-airplane world every pre-Plan-12 test builds: id `PLAYER_ID`, no
+ * ships, no airfields, not parked.
+ *
+ * Overloaded rather than given a defaulted generic parameter: `assistMemory`
+ * has no sensible value to invent for an arbitrary `M`, and writing one
+ * (`undefined as M`) would be a lie the type system then believes. Omitting
+ * it says exactly what it means -- this world is flown with no assist, so
+ * there is nothing to remember.
+ */
 export function createWorld(
   spec: AircraftSpec,
   aircraft: AircraftState,
@@ -344,16 +401,182 @@ export function createWorld<M>(
   controls: Controls,
   assistMemory?: M,
 ): World<M | undefined> {
+  return createWorldOf<M | undefined>({
+    aircraft: [
+      {
+        id: PLAYER_ID,
+        spec,
+        state: aircraft,
+        previous: aircraft,
+        controls,
+        assistMemory,
+        impact: null,
+        parked: false,
+      },
+    ],
+    player: PLAYER_ID,
+  })
+}
+
+/**
+ * The general constructor: the scenario's, and the only way a world with more
+ * than one entity is built. Rejects a duplicate id and a `player` that names
+ * no aircraft, here rather than at the first lookup, so that
+ * `playerAircraft` is total and an id collision cannot silently shadow an
+ * entity for a whole flight.
+ */
+export function createWorldOf<M>(parts: {
+  readonly aircraft: readonly AircraftEntity<M>[]
+  readonly ships?: readonly ShipEntity[]
+  readonly player: EntityId
+  readonly airfields?: readonly Airfield[]
+  readonly terrain?: TerrainField | null
+}): World<M> {
+  const ships = parts.ships ?? []
+  const seen = new Set<EntityId>()
+  for (const e of [...parts.aircraft, ...ships]) {
+    if (seen.has(e.id)) throw new Error(`createWorldOf: duplicate entity id "${e.id}"`)
+    seen.add(e.id)
+  }
+  if (!parts.aircraft.some((a) => a.id === parts.player)) {
+    throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
+  }
   return {
-    spec,
-    aircraft,
-    previous: aircraft,
-    controls,
-    assistMemory,
-    terrain: null,
-    impact: null,
+    tick: 0,
+    aircraft: parts.aircraft,
+    ships,
+    player: parts.player,
+    airfields: parts.airfields ?? [],
+    terrain: parts.terrain ?? null,
     accumulatorSeconds: 0,
   }
+}
+
+export function aircraftById<M>(world: World<M>, id: EntityId): AircraftEntity<M> | undefined {
+  return world.aircraft.find((a) => a.id === id)
+}
+
+/** Present by construction: `createWorldOf` refuses a world without it. */
+export function playerAircraft<M>(world: World<M>): AircraftEntity<M> {
+  const p = aircraftById(world, world.player)
+  if (p === undefined) throw new Error(`world has no aircraft "${world.player}"`)
+  return p
+}
+
+/** Rebuilds the world with one aircraft entity patched and every other entity
+ *  the SAME object, so a consumer can tell what this call touched by identity. */
+function withAircraft<M>(
+  world: World<M>,
+  id: EntityId,
+  patch: (a: AircraftEntity<M>) => AircraftEntity<M>,
+): World<M> {
+  let found = false
+  const aircraft = world.aircraft.map((a) => {
+    if (a.id !== id) return a
+    found = true
+    return patch(a)
+  })
+  if (!found) throw new Error(`world has no aircraft "${id}"`)
+  return { ...world, aircraft }
+}
+
+/** What the frame does every frame: the pilot's new command, nothing else. */
+export const withControls = <M>(world: World<M>, id: EntityId, controls: Controls): World<M> =>
+  withAircraft(world, id, (a) => ({ ...a, controls }))
+
+/** Replaces `state` AND `previous`: this is a respawn or a DEV spawn
+ *  override, not a step, and the renderer must not interpolate from wherever
+ *  the airplane used to be. */
+export const withAircraftState = <M>(world: World<M>, id: EntityId, state: AircraftState): World<M> =>
+  withAircraft(world, id, (a) => ({ ...a, state, previous: state }))
+
+/**
+ * One aircraft, one tick. This is today's loop body, verbatim in call order:
+ * `assist` before `stepper`, then the impact test on the result. A crashed
+ * entity is returned unchanged -- `previous` was set to `state` on the tick
+ * it hit, so the renderer interpolates to the exact contact point.
+ */
+function stepAircraftEntity<M>(
+  entity: AircraftEntity<M>,
+  tick: number,
+  terrain: TerrainField | null,
+  stepper: Stepper,
+  assist: Assist<M>,
+): AircraftEntity<M> {
+  if (entity.impact !== null) return entity
+
+  // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
+  // once per `advance` call and not on the entity's `controls` directly.
+  // Hoisting it above the step loop would run it once per frame instead of
+  // once per step, at the frame's dt rather than DT, reproducing exactly the
+  // frame-rate dependence `AdvanceResult.droppedSteps`'s doc already flags
+  // as open item 5's defect for the input ramp. Running it inside means an
+  // assist reacting to the airplane's stall margin sees the STATE that
+  // margin actually applied to on this tick (`entity.state` as of THIS step,
+  // which is stale from the second step of a multi-step frame onward unless
+  // the entity is rebuilt each step -- and it is).
+  const assisted = assist(entity.state, entity.spec, entity.controls, DT, entity.assistMemory)
+  const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain })
+
+  // Checked after EVERY step in a multi-step frame, not just the last one --
+  // a frame that owes several steps (a stalled tab, `MAX_STEPS_PER_FRAME` up
+  // to 5) can cross the ground partway through, and checking only the final
+  // state would silently skip that tick's impact, moving `impact.tick` and
+  // `impact.position` to a later, already-through-the-ground state.
+  // `terrain !== null` short-circuits the `heightAt` call entirely on the
+  // (overwhelmingly common, pre-Task-8) no-terrain path, and the early return
+  // at the top of this function makes the first recorded impact permanent,
+  // matching `AircraftEntity.impact`'s "never overwritten". `<=`, not `<`: `heightAt` is a real number for
+  // any finite (x, z), including exactly on the ground, and a strict `<`
+  // would let the airplane sit buried at exactly ground level forever
+  // with no impact ever recorded (proved to bite in this task's commit).
+  // `current.position.y` cannot be NaN here without `stepper` itself
+  // already having produced one (spec §9's hazard, and this check does not
+  // introduce a new path to it: a NaN position makes this comparison false
+  // by IEEE 754 rules, so it is read-only and skips silently rather than
+  // fabricating an impact).
+  //
+  // `&& !supportedContact(...)` (Task 5b): an airplane resting on its
+  // wheels is on the ground on purpose, and this geometric `<=` test alone
+  // cannot tell that apart from a crash -- `step` had already clamped a
+  // supported airplane to exactly `groundHeightM`, so without this guard
+  // every tick of a normal landing or a parked take-off roll re-triggered
+  // this branch and ended the flight, making take-off impossible.
+  //
+  // `current.position.y` DELIBERATELY, not `current.position.y -
+  // spec.gear.heightM` (Task 15): `position.y` is the airplane's BODY
+  // ORIGIN, and `restOnSurface`/`onGround`/`supportedContact` all now
+  // compare the GEAR-OFFSET height for CONTACT purposes (a resting
+  // airplane's origin sits `spec.gear.heightM` above the ground it is
+  // parked on). This check answers a different question -- has the
+  // airframe itself, the thing `position` actually names, passed through
+  // the terrain -- and the answer to that does not depend on where the
+  // wheels are: an origin below the ground is a crash whatever the gear is
+  // doing (Plan 10's geometric test, unchanged by Task 15). Do not "fix"
+  // this asymmetry by subtracting the gear offset here; that would let an
+  // airplane belly-flop into the runway with its wheels still notionally
+  // above ground and have it read as a normal landing.
+  if (terrain !== null) {
+    const groundHeightM = heightAt(terrain, current.position.x, current.position.z)
+    if (current.position.y <= groundHeightM && !supportedContact(entity.spec, current, groundHeightM)) {
+      const surface = surfaceAt(groundHeightM)
+      const impact: Impact = {
+        tick: current.tick,
+        position: current.position,
+        verticalSpeedMps: current.velocity.y,
+        groundHeightM,
+        surface,
+        kind: contactOutcome(entity.spec, current, surface),
+      }
+      // `previous` follows `current` so the renderer interpolates to exactly
+      // the point of contact whatever `alpha` is, the same convention
+      // `createWorld` uses before any step has run. The entity is then
+      // skipped by every later step (the early return above), which is what
+      // stops it at the contact point now that the step loop no longer breaks.
+      return { ...entity, state: current, previous: current, assistMemory: assisted.memory, impact }
+    }
+  }
+  return { ...entity, state: current, previous: entity.state, assistMemory: assisted.memory }
 }
 
 export function advance<M>(
@@ -374,17 +597,15 @@ export function advance<M>(
       ? Math.min(elapsedSeconds, MAX_ELAPSED_SECONDS)
       : 0
 
-  // The flight is over: no further simulated time is owed, so `advance`
-  // returns the world unchanged and runs no steps. That is not the same as
-  // saying nothing about the world can change again -- the caller
-  // (`nextFrameState` in src/render/frame.ts) still rebuilds `world` with
-  // fresh `controls` every frame and calls `advance` again on that, so
-  // `world.controls` keeps changing after the freeze even though `aircraft`,
-  // `impact` and `accumulatorSeconds` do not. Returning here rather than
-  // letting the loop below run zero times keeps `accumulatorSeconds` exactly
-  // as the ending frame left it, so a frozen world handed a thousand frames
-  // is bit-identical to one handed a single frame.
-  if (world.impact !== null) {
+  // No time in, no steps out, and the SAME object back (spec §4). This is
+  // what makes a held world -- paused, waiting for terrain, or the player
+  // having crashed -- bit-identical whether it is handed one frame or a
+  // thousand: the accumulator cannot creep, and an accumulator within
+  // STEP_EPSILON of DT cannot round up into a step. It replaced the
+  // impact early-return that used to live here: with several aircraft, one
+  // crashing must not stop the others, so the hold is the frame's decision
+  // (`nextFrameState`) and this function stops nothing.
+  if (elapsed === 0) {
     return { world, stepsRun: 0, droppedSteps: 0, alpha: world.accumulatorSeconds / DT }
   }
 
@@ -393,102 +614,21 @@ export function advance<M>(
   const owedSteps = Math.min(owed, MAX_STEPS_PER_FRAME)
   const droppedSteps = owed - owedSteps
 
-  let current = world.aircraft
-  let previous = world.previous
-  // Advanced once per step alongside `current`, for the same reason the assist
-  // itself runs in here: a memory that reacted to `world.aircraft` would be
-  // reading a state from the start of the frame, which is stale from the
-  // second step onward. Never written back into `world` -- `advance` is pure
-  // and its purity is asserted by a deep-frozen world in tests/sim/loop.test.ts.
-  let assistMemory = world.assistMemory
-  // Seeded from the incoming world, not `null`: an impact already recorded on
-  // an earlier `advance` call must survive this one (`World.impact`'s "never
-  // overwritten afterward"). Read once, here, rather than through
-  // `world.impact` inside the loop below, so the loop's own "impact === null"
-  // check is testing this call's progress and not silently re-reading a
-  // field that never changes underneath it.
-  let impact: Impact | null = world.impact
-  // Steps actually executed, as opposed to `owedSteps` above -- the two
-  // diverge exactly when the break below fires partway through the loop, and
-  // `AdvanceResult.stepsRun` documents itself as steps run, not steps owed.
-  let ran = 0
+  let tick = world.tick
+  let aircraft = world.aircraft
+  let ships = world.ships
   for (let i = 0; i < owedSteps; i++) {
-    previous = current
-    // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
-    // once per `advance` call and not on `world.controls` directly. Hoisting
-    // it above this loop would run it once per frame instead of once per
-    // step, at the frame's dt rather than DT, reproducing exactly the
-    // frame-rate dependence `AdvanceResult.droppedSteps`'s doc already flags
-    // as open item 5's defect for the input ramp. Running it inside means an
-    // assist reacting to the airplane's stall margin sees the STATE that
-    // margin actually applied to on this tick (`current`, not `world.aircraft`,
-    // which is stale from the second step of a multi-step frame onward).
-    const assisted = assist(current, world.spec, world.controls, DT, assistMemory)
-    assistMemory = assisted.memory
-    current = stepper(world.spec, current, assisted.controls, { dt: DT, tick: current.tick + 1, terrain: world.terrain })
-    ran++
-
-    // Checked after EVERY step in a multi-step frame, not just the loop's
-    // last iteration -- a frame that owes several steps (a stalled tab,
-    // `MAX_STEPS_PER_FRAME` up to 5) can cross the ground partway through,
-    // and checking only the final `current` would silently skip that tick's
-    // impact, moving `impact.tick` and `impact.position` to a later,
-    // already-through-the-ground state. `terrain !== null` short-circuits the
-    // `heightAt` call entirely on the (overwhelmingly common, pre-Task-8)
-    // no-terrain path, and `impact === null` makes the first recorded impact
-    // permanent for the rest of this call, matching `World.impact`'s "never
-    // overwritten afterward". `<=`, not `<`: `heightAt` is a real number for
-    // any finite (x, z), including exactly on the ground, and a strict `<`
-    // would let the airplane sit buried at exactly ground level forever
-    // with no impact ever recorded (proved to bite in this task's commit).
-    // `current.position.y` cannot be NaN here without `stepper` itself
-    // already having produced one (spec §9's hazard, and this check does not
-    // introduce a new path to it: a NaN position makes this comparison false
-    // by IEEE 754 rules, so it is read-only and skips silently rather than
-    // fabricating an impact).
-    //
-    // `&& !supportedContact(...)` (Task 5b): an airplane resting on its
-    // wheels is on the ground on purpose, and this geometric `<=` test alone
-    // cannot tell that apart from a crash -- `step` had already clamped a
-    // supported airplane to exactly `groundHeightM`, so without this guard
-    // every tick of a normal landing or a parked take-off roll re-triggered
-    // this branch and froze the world, making take-off impossible.
-    //
-    // `current.position.y` DELIBERATELY, not `current.position.y -
-    // spec.gear.heightM` (Task 15): `position.y` is the airplane's BODY
-    // ORIGIN, and `restOnSurface`/`onGround`/`supportedContact` all now
-    // compare the GEAR-OFFSET height for CONTACT purposes (a resting
-    // airplane's origin sits `spec.gear.heightM` above the ground it is
-    // parked on). This check answers a different question -- has the
-    // airframe itself, the thing `position` actually names, passed through
-    // the terrain -- and the answer to that does not depend on where the
-    // wheels are: an origin below the ground is a crash whatever the gear is
-    // doing (Plan 10's geometric test, unchanged by Task 15). Do not "fix"
-    // this asymmetry by subtracting the gear offset here; that would let an
-    // airplane belly-flop into the runway with its wheels still notionally
-    // above ground and have it read as a normal landing.
-    if (impact === null && world.terrain !== null) {
-      const groundHeightM = heightAt(world.terrain, current.position.x, current.position.z)
-      if (current.position.y <= groundHeightM && !supportedContact(world.spec, current, groundHeightM)) {
-        const surface = surfaceAt(groundHeightM)
-        impact = {
-          tick: current.tick,
-          position: current.position,
-          verticalSpeedMps: current.velocity.y,
-          groundHeightM,
-          surface,
-          kind: contactOutcome(world.spec, current, surface),
-        }
-        // Stop the frame here. Without this the loop runs its remaining owed
-        // steps and the airplane ends up well below the ground it just hit --
-        // the impact TICK would be right and the resting position wrong.
-        // `previous` follows `current` so the renderer interpolates to exactly
-        // the point of contact whatever `alpha` is, the same convention
-        // `createWorld` uses before any step has run.
-        previous = current
-        break
-      }
-    }
+    tick += 1
+    // Ships first (spec §3.4): exogenous kinematics, reading nothing else.
+    ships = ships.map((s) => ({
+      ...s,
+      previous: s.state,
+      state: stepShip(s.spec, s.state, s.orders, { dt: DT, tick }),
+    }))
+    // Aircraft second, each from its own state. Nothing reads another
+    // entity yet; when Plan 8 adds decks they are derived from `ships` here,
+    // after the ships have moved.
+    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, stepper, assist))
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -497,17 +637,8 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: {
-      spec: world.spec,
-      aircraft: current,
-      previous,
-      controls: world.controls,
-      assistMemory,
-      terrain: world.terrain,
-      impact,
-      accumulatorSeconds: banked,
-    },
-    stepsRun: ran,
+    world: { ...world, tick, aircraft, ships, accumulatorSeconds: banked },
+    stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,
   }

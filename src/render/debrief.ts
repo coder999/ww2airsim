@@ -105,9 +105,10 @@ export type DebriefHandle = {
 /**
  * The end-of-flight modal, over a scene that is still being drawn.
  *
- * It does NOT stop the simulation and must not learn how to: `advance` freezes
- * a world that has an impact (`src/sim/loop.ts`), and Plan 14's mission map
- * will want the same frozen-modal behavior without going through a debrief.
+ * It does NOT stop the simulation and must not learn how to: the frame holds
+ * the world once the player has an impact (`nextFrameState`'s `holding`,
+ * src/render/frame.ts), and Plan 14's mission map will want the same
+ * held-modal behavior without going through a debrief.
  * This module only renders.
  *
  * ONE button for a crash. "Resume" is meaningless after a death, and the 1991

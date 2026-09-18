@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { approachControls, VREF_STALL_MULTIPLE } from '../../tools/autopilot/approach.js'
-import { advance, createWorld, type World } from '../../src/sim/loop.js'
+import { advance, createWorld, playerAircraft, withControls, type World } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { airspeed, DT } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -121,12 +121,13 @@ describe('an approach flown into Tacloban', () => {
     let stopped = false
 
     for (let i = 0; i < 60 * MAX_S && !stopped; i++) {
-      const before = world.aircraft
+      const before = playerAircraft(world).state
       const wasSupported = supportedContact(f6f, before, heightAt(terrain, before.position.x, before.position.z))
       // `advance(world, elapsed, stepper?, assist?)` takes NO controls -- they
-      // live on `World.controls` -- and returns an `AdvanceResult`.
-      world = advance({ ...world, controls: approachControls(f6f, before, target) }, DT).world
-      const now = world.aircraft
+      // live on the aircraft entity (`withControls`) -- and it returns an
+      // `AdvanceResult`.
+      world = advance(withControls(world, world.player, approachControls(f6f, before, target)), DT).world
+      const now = playerAircraft(world).state
       const nowSupported = supportedContact(f6f, now, heightAt(terrain, now.position.x, now.position.z))
 
       if (!wasSupported && nowSupported && touchdownSinkMps === null) {
@@ -135,11 +136,11 @@ describe('an approach flown into Tacloban', () => {
         touchdownZ = now.position.z
       }
       worstSinkMps = Math.max(worstSinkMps, -now.velocity.y)
-      expect(world.impact, `crashed at tick ${now.tick}`).toBeNull()
+      expect(playerAircraft(world).impact, `crashed at tick ${now.tick}`).toBeNull()
       stopped = nowSupported && airspeed(now) < 1
     }
 
-    const rest = world.aircraft
+    const rest = playerAircraft(world).state
     console.log(
       `landing: touchdown sink ${touchdownSinkMps?.toFixed(2)} m/s at ${touchdownSpeedMps?.toFixed(1)} m/s, ` +
         `${touchdownZ === null ? 'n/a' : ((TACLOBAN_Z + RUNWAY_LENGTH_M / 2) - touchdownZ).toFixed(0)} m in from the ` +

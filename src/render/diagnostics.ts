@@ -78,18 +78,19 @@ export type Ww2Diagnostics = {
    *   anywhere; `groundHeightM()` is flat over a coastal plain. Neither can
    *   stand in for a position that changed.
    *
-   * Deliberately the SIMULATED position (`world.aircraft`), not the
+   * Deliberately the SIMULATED position (the player entity's `state`), not the
    * interpolated render pose: the render pose is the thing under test in a
    * different sense, and a test that read it could pass on a frame that
    * happened to interpolate while the simulation was stalled.
    */
   readonly aircraftPositionM: () => Vec3
   /**
-   * `World.impact` for the current frame, or `null` if the flight has not
-   * ended yet. Added in Task 11 for the ground-contact plan's Tier 2
-   * coverage, which has to prove the whole production path -- `advance`
-   * classifying and freezing the world, `main.ts` noticing and raising the
-   * debrief -- rather than construct an `Impact` and skip most of it.
+   * The PLAYER aircraft's `impact` for the current frame, or `null` if the
+   * flight has not ended yet. Added in Task 11 for the ground-contact plan's
+   * Tier 2 coverage, which has to prove the whole production path --
+   * `advance` classifying it, the frame holding the world on it (frame.ts's
+   * `holding`) and `main.ts` noticing and raising the debrief -- rather than
+   * construct an `Impact` and skip most of it.
    *
    * A single granular getter, deliberately NOT `frame: () => FrameState`:
    * every other member here reads one field (or a small derived one) off the

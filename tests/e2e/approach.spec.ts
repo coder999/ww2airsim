@@ -14,7 +14,8 @@ import { waitForTerrain, type DiagWindow } from './harness.js'
  * commit -- that is the right tier for it.
  *
  * What only Tier 2 can prove is the WIRING: that the flap lever a pilot
- * actually presses reaches `world.controls` in a real browser. That is the
+ * actually presses reaches the player entity's `controls` in a real browser.
+ * That is the
  * Plan 3 defect class -- an assist that shipped inert while its own unit tests
  * passed, because they called the module directly -- and it is invisible to
  * every tier below this one.

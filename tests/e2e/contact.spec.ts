@@ -6,10 +6,10 @@ import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
  *
  * Both cases fly the airplane INTO something rather than constructing an
  * impact, because the thing under test is the whole production path --
- * `advance` classifying and freezing, `main.ts` raising the modal -- and a
- * constructed impact would skip most of it.
+ * `advance` classifying it, the frame holding the world on it, `main.ts`
+ * raising the modal -- and a constructed impact would skip most of it.
  *
- * Reads `window.__ww2.impact()`, not `frame().world.impact` (the brief's
+ * Reads `window.__ww2.impact()`, not the player entity's `impact` (the brief's
  * original wording): `Ww2Diagnostics` deliberately exposes granular getters
  * -- `tick()`, `cameraMode()`, `controls()`, `look()`, `assists()` and now
  * `impact()` -- never the whole `FrameState`, so a caller here proves exactly

@@ -47,6 +47,7 @@ import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { heightAt } from '../sim/world/terrain.js'
 import { supportedContact } from '../sim/ground.js'
+import { playerAircraft } from '../sim/loop.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
@@ -233,7 +234,7 @@ async function boot(): Promise<void> {
       },
       reversedDepthBuffer: renderer.reversedDepthBuffer,
       validationErrors,
-      tick: () => frame?.world.aircraft.tick ?? 0,
+      tick: () => frame?.world.tick ?? 0,
       cameraMode: () => frame?.cameraMode ?? 'chase',
       controls: () => frame?.controls ?? NEUTRAL,
       look: () => frame?.look ?? LOOK_CENTRE,
@@ -250,30 +251,32 @@ async function boot(): Promise<void> {
       // none was wired); a number is the ground under the airplane right
       // now, which should read 0 over open water and hundreds of metres over
       // Leyte.
-      groundHeightM: () =>
-        frame?.world.terrain
-          ? heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z)
-          : null,
+      groundHeightM: () => {
+        if (!frame?.world.terrain) return null
+        const { position } = playerAircraft(frame.world).state
+        return heightAt(frame.world.terrain, position.x, position.z)
+      },
       // Same `??`-guard as the rest: before `loadSpec` resolves there is no
       // frame, and the spawn is where the airplane will be, so that is the
       // honest answer for the gap rather than the origin.
-      aircraftPositionM: () => frame?.world.aircraft.position ?? spawnPosition,
+      aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition),
       // Same `??`-guard as the rest: before the first frame exists there is
       // no impact to report, which is also the honest answer once a restart
       // has cleared one.
-      impact: () => frame?.world.impact ?? null,
+      impact: () => (frame ? playerAircraft(frame.world).impact : null),
       // Task 13: the take-off spec's only way to tell "left the ground" from
       // "was never on it". Recomputed from the live frame rather than stored,
       // because `supportedContact` is a pure predicate and `World` does not
       // carry its result -- see the comment on this member in diagnostics.ts.
-      supportedContact: () =>
-        frame?.world.terrain
-          ? supportedContact(
-              frame.world.spec,
-              frame.world.aircraft,
-              heightAt(frame.world.terrain, frame.world.aircraft.position.x, frame.world.aircraft.position.z),
-            )
-          : false,
+      supportedContact: () => {
+        if (!frame?.world.terrain) return false
+        const { spec: playerSpec, state } = playerAircraft(frame.world)
+        return supportedContact(
+          playerSpec,
+          state,
+          heightAt(frame.world.terrain, state.position.x, state.position.z),
+        )
+      },
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation
@@ -527,15 +530,17 @@ async function boot(): Promise<void> {
   /**
    * Real elapsed seconds since the flight froze, 0 while still flying.
    *
-   * Whole-branch review I-1: `advance` freezes `world.aircraft.tick` and
-   * `world.accumulatorSeconds` the instant there is an impact, so the ocean
-   * dispatch below -- which derives its time argument from exactly those two
-   * frozen quantities -- would otherwise go glass-still forever after a
-   * successful ditching, the feature's showpiece. This grows by real
-   * `frameMs` once `world.impact` is non-null and is added on top of the
-   * existing (unchanged) sim-time expression, so a live flight's ocean
-   * timing stays bit-identical to before this fix and only a frozen one
-   * keeps moving.
+   * Whole-branch review I-1: `world.tick` and `world.accumulatorSeconds` both
+   * freeze the instant the PLAYER has an impact, so the ocean dispatch below
+   * -- which derives its time argument from exactly those two frozen
+   * quantities -- would otherwise go glass-still forever after a successful
+   * ditching, the feature's showpiece. What freezes them is the frame, not
+   * `advance`: `nextFrameState` hands `advance` zero elapsed seconds while
+   * `playerAircraft(world).impact` is set (frame.ts's `holding`), and
+   * `advance` itself stops nothing since Plan 12. This grows by real
+   * `frameMs` over the same condition and is added on top of the existing
+   * (unchanged) sim-time expression, so a live flight's ocean timing stays
+   * bit-identical to before this fix and only a held one keeps moving.
    */
   let postImpactOceanSeconds = 0
   let legendOpen = true
@@ -677,6 +682,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     frame = current
+    const player = playerAircraft(current.world)
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
     // loses precision at 100 km, which shows as geometry jitter -- master spec §4
@@ -727,16 +733,16 @@ async function boot(): Promise<void> {
     // also the pilot's raw input, not part of `AircraftState` (state.ts:8),
     // which is why the throttle gauge needs it passed separately -- the same
     // vector the propeller spin below already reads.
-    updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
+    updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude)
     audio.update(audioInputsFrom(current))
-    flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
+    flightData.update(current.cameraMode, spec, player.state, current.controls)
     timeBadge.setScale(current.timeScale)
     pauseBadge.setPaused(current.paused)
 
-    // Raised once per contact -- `shownImpactTick` is the guard, since
-    // `current.world.impact` stays non-null every frame after the airplane
-    // stops, and this runs sixty times a second.
-    const hit = current.world.impact
+    // Raised once per contact -- `shownImpactTick` is the guard, since the
+    // player's `impact` stays non-null every frame after the airplane stops,
+    // and this runs sixty times a second.
+    const hit = player.impact
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
       // Raw world metres, NOT `+ worldOffset`: `impactEffect.object` is a
@@ -750,7 +756,7 @@ async function boot(): Promise<void> {
       // as the camera flies away.
       impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
       impactEffect.fire(hit.surface)
-      debrief.show(debriefModel(hit, current.world.aircraft))
+      debrief.show(debriefModel(hit, player.state))
     }
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).
@@ -804,13 +810,14 @@ async function boot(): Promise<void> {
     vegetation?.update(current.eye.position.x, current.eye.position.z)
 
     // Gated on the flight still being live (whole-branch review I-1): once
-    // `world.impact` is set, `controlsFromKeys` keeps latching throttle and
-    // `nextFrameState` keeps producing controls from it every frame (loop.ts's
-    // `advance` early-return comment explains why), so an ungated spin would
-    // leave the propeller turning at full speed on a wreck sitting in its own
-    // fireball. The propeller belongs to the wrecked airplane; unlike the
-    // ocean below, it should stop.
-    if (current.world.impact === null) {
+    // the player's `impact` is set, `controlsFromKeys` keeps latching throttle
+    // and `nextFrameState` keeps producing controls from it every frame (it
+    // holds the world at zero elapsed time rather than stepping it -- see
+    // `holding` in frame.ts), so an ungated spin would leave the propeller
+    // turning at full speed on a wreck sitting in its own fireball. The
+    // propeller belongs to the wrecked airplane; unlike the ocean below, it
+    // should stop.
+    if (player.impact === null) {
       prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
     }
 
@@ -818,11 +825,11 @@ async function boot(): Promise<void> {
     // reproducing one ocean state on demand and stays exactly as fixed as it
     // is today; the accumulator below is added only to the sim-time
     // derivation it replaces, not to the override itself.
-    if (current.world.impact !== null) postImpactOceanSeconds += frameMs / 1000
+    if (player.impact !== null) postImpactOceanSeconds += frameMs / 1000
     for (const cascade of cascades) {
       cascade.dispatch(
         oceanTime ??
-          current.world.aircraft.tick * DT +
+          current.world.tick * DT +
             current.world.accumulatorSeconds +
             postImpactOceanSeconds,
       )
@@ -890,7 +897,7 @@ async function boot(): Promise<void> {
       fps: 1000 / Math.max(frameMs, 0.001),
       stepsRun: current.stepsRun,
       droppedSteps: current.droppedSteps,
-      tick: current.world.aircraft.tick,
+      tick: current.world.tick,
       adapter: adapterVerdict.summary,
     })
   }

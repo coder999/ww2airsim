@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { audioInputsFrom } from '../../src/render/audio.js'
 import { initialFrameState } from '../../src/render/frame.js'
+import { playerAircraft } from '../../src/sim/loop.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
@@ -26,26 +27,32 @@ describe('audioInputsFrom (design §6.1)', () => {
   })
 
   it('reads the throttle the SIMULATION was given, not a separate copy', () => {
-    // frame.controls is the identical object world.controls holds (frame.ts),
+    // frame.controls is the identical object the player entity's controls holds
+    // (frame.ts),
     // and reading it here is what makes a wire-not-connected bug visible.
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
-    expect(frame.controls).toBe(frame.world.controls)
-    expect(audioInputsFrom(frame).throttle).toBe(frame.world.controls.throttle)
+    expect(frame.controls).toBe(playerAircraft(frame.world).controls)
+    expect(audioInputsFrom(frame).throttle).toBe(playerAircraft(frame.world).controls.throttle)
   })
 
-  it('reports engineRunning false once world.impact is set, and carries the kind through', () => {
+  it("reports engineRunning false once the player's impact is set, and carries the kind through", () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     expect(audioInputsFrom(frame).engineRunning).toBe(true)
     expect(audioInputsFrom(frame).impact).toBeNull()
 
+    // On the player ENTITY since Plan 12: `World` itself no longer carries an
+    // impact, because one airplane crashing does not stop the war (spec §4).
     const ditched = {
       ...frame,
       world: {
         ...frame.world,
-        impact: {
-          tick: 77, kind: 'ditched' as const, position: v3(0, 0, 0), speedMps: 40,
-          verticalSpeedMps: -3, groundHeightM: 0, surface: 'water' as const,
-        },
+        aircraft: frame.world.aircraft.map((a) => ({
+          ...a,
+          impact: {
+            tick: 77, kind: 'ditched' as const, position: v3(0, 0, 0),
+            verticalSpeedMps: -3, groundHeightM: 0, surface: 'water' as const,
+          },
+        })),
       },
     }
     const inputs = audioInputsFrom(ditched)
@@ -84,6 +91,6 @@ describe('audioInputsFrom (design §6.1)', () => {
 
   it('carries the tick, which is how a restart is told from a landing', () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
-    expect(audioInputsFrom(frame).tick).toBe(frame.world.aircraft.tick)
+    expect(audioInputsFrom(frame).tick).toBe(frame.world.tick)
   })
 })

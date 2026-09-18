@@ -33,9 +33,9 @@ export type LandingReport = {
  * Lives in the render layer, not `sim/`, on purpose: the simulation already
  * says everything this needs (`supportedContact`, the state history) and a
  * landing is an OUTCOME the presentation reports, the way the debrief reports
- * a crash. `World.impact` is different -- the sim must know about a crash
- * because it freezes on one. Nothing in the sim changes because a landing was
- * noticed.
+ * a crash. An `AircraftEntity`'s `impact` is different -- the sim must know
+ * about a crash because that entity stops stepping on one. Nothing in the sim
+ * changes because a landing was noticed.
  *
  * - `airborne` latches once the wheels have been `AIRBORNE_LATCH_M` clear of
  *   the ground since spawn, and is what tells a landing from an airplane that

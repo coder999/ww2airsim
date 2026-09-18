@@ -1,6 +1,7 @@
 import { type Vec3, v3 } from './math/vec3.js'
 import { type Quat } from './math/quat.js'
 import type { AircraftState } from './flight/state.js'
+import { wrapPi, type ShipState } from './world/ships.js'
 
 /** What the renderer needs to place an airplane. Not a simulation state: it
  *  belongs to no tick, because it is between two of them. */
@@ -93,5 +94,26 @@ export function interpolateAircraft(
       prev.position.z + (curr.position.z - prev.position.z) * t,
     ),
     attitude: qSlerp(prev.attitude, curr.attitude, t),
+  }
+}
+
+/** Where the renderer puts a hull between two ticks. A ship has no attitude
+ *  in this plan -- no roll, no pitch, no waves -- so a heading is the whole
+ *  of it. */
+export type ShipPose = { readonly position: Vec3; readonly headingRad: number }
+
+/** Between two ship ticks: linear in position, shortest-arc in heading. The
+ *  same alpha clamp as `interpolateAircraft`, for the same reason. */
+export function interpolateShip(prev: ShipState, curr: ShipState, alpha: number): ShipPose {
+  const t = alpha <= 0 ? 0 : alpha >= 1 ? 1 : alpha
+  if (t === 0) return { position: prev.position, headingRad: prev.headingRad }
+  if (t === 1) return { position: curr.position, headingRad: curr.headingRad }
+  return {
+    position: v3(
+      prev.position.x + (curr.position.x - prev.position.x) * t,
+      prev.position.y + (curr.position.y - prev.position.y) * t,
+      prev.position.z + (curr.position.z - prev.position.z) * t,
+    ),
+    headingRad: wrapPi(prev.headingRad + wrapPi(curr.headingRad - prev.headingRad) * t),
   }
 }

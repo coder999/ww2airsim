@@ -17,7 +17,7 @@ import {
   assistFor,
   type AssistSettings,
 } from '../../src/assists/index.js'
-import { advance, createWorld } from '../../src/sim/loop.js'
+import { advance, createWorld, playerAircraft, withControls } from '../../src/sim/loop.js'
 import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { surfaceAt } from '../../src/sim/contact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from '../../src/sim/ground.js'
@@ -485,8 +485,8 @@ const NEAR_GROUND_SPAWN_FRACTION = 0.3
  * Per-tick, after `advance`, the invariant is checked from OUTSIDE `advance`'s
  * own state: `heightAt(terrain, ...)` is recomputed independently against the
  * position `advance` just produced, and if that says the airplane is at or
- * below the ground, `world.impact` must already be non-null (`advance` runs
- * its own identical check first, in the same call, so a correct
+ * below the ground, the player's `impact` must already be non-null
+ * (`advance` runs its own identical check first, in the same call, so a correct
  * implementation can never observe otherwise -- this is the same
  * cross-check-by-recomputation shape `assertAuthorityHolds` above uses for
  * the assist stack, not an independent oracle). A flight stops the instant it
@@ -496,8 +496,8 @@ const NEAR_GROUND_SPAWN_FRACTION = 0.3
  * long flights is `runSoak`'s job, and adding it here would only double the
  * cost of this arm for no new coverage of the terrain path.
  *
- * Plan 11a (Task 10): `world.impact` staying `null` no longer means "still
- * airborne" -- `supportedContact` (`src/sim/ground.ts`) now lets a flight
+ * Plan 11a (Task 10): the player's `impact` staying `null` no longer means
+ * "still airborne" -- `supportedContact` (`src/sim/ground.ts`) now lets a flight
  * legitimately arrive on its wheels and stay, without ever recording an
  * impact. Both near-ground cohorts spawn gear DOWN (`gearFraction: 1`) for
  * exactly this reason -- gear was never commanded down anywhere in this soak
@@ -584,12 +584,16 @@ export function runTerrainSoak(
     world = { ...world, terrain }
 
     try {
-      for (let second = 0; second < 60 && world.impact === null; second++) {
-        world = { ...world, controls: rollControls(rng, 0) }
-        for (let i = 0; i < 60 && world.impact === null; i++) {
+      for (let second = 0; second < 60 && playerAircraft(world).impact === null; second++) {
+        world = withControls(world, world.player, rollControls(rng, 0))
+        for (let i = 0; i < 60 && playerAircraft(world).impact === null; i++) {
           world = advance(world, DT, stepChecked).world
           steps++
-          const gh = heightAt(terrain, world.aircraft.position.x, world.aircraft.position.z)
+          // The one airplane this soak flies, re-read after every step: its
+          // `state`, `previous` and `impact` are what `World` itself carried
+          // before Plan 12 generalized it to N entities.
+          const player = playerAircraft(world)
+          const gh = heightAt(terrain, player.state.position.x, player.state.position.z)
           // Task 10: `position.y <= gh` with `impact` still null is no longer
           // proof of a missed crash by itself -- `advance`'s own impact check
           // (src/sim/loop.ts) exempts a `supportedContact` state on purpose
@@ -606,10 +610,10 @@ export function runTerrainSoak(
           // exempts the very state this check would otherwise have flagged --
           // exactly how the Step 2 `onGround` mutation escaped this check and
           // was only caught by the sink-through assertion below instead.
-          if (world.impact === null && world.aircraft.position.y <= gh && !supportedContact(spec, world.aircraft, gh)) {
+          if (player.impact === null && player.state.position.y <= gh && !supportedContact(spec, player.state, gh)) {
             failures.push(
               `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
-                `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} <= groundHeightM ${gh} but impact is null ` +
+                `tick ${world.tick} position.y ${player.state.position.y} <= groundHeightM ${gh} but impact is null ` +
                 `and the contact is not a supported one`,
             )
             break
@@ -622,7 +626,7 @@ export function runTerrainSoak(
           // the same "check it every tick, not just the last" posture the
           // crash check just above already takes.
           //
-          // Gated on whether the PREVIOUS tick was resting (`world.previous`,
+          // Gated on whether the PREVIOUS tick was resting (`player.previous`,
           // recomputed against the ground height under IT, not under the
           // state `advance` just produced), not on whether this tick's
           // result still is. Gating on the current tick's own position
@@ -633,7 +637,7 @@ export function runTerrainSoak(
           // let the airplane punch through the ground is still caught even
           // though the resulting position no longer looks anything like
           // "near the ground".
-          const ghPrev = heightAt(terrain, world.previous.position.x, world.previous.position.z)
+          const ghPrev = heightAt(terrain, player.previous.position.x, player.previous.position.z)
           // Task 15: gated on `supportedContact`, not the bare `onGround`.
           // `onGround` alone is a POSITION-only test, which was an adequate
           // proxy for "was genuinely resting" only because the pre-Task-15
@@ -652,7 +656,7 @@ export function runTerrainSoak(
           // right predecessor state for THIS check's promise: if the
           // airplane was genuinely carried last tick, it should not have
           // sunk through this tick.
-          if (world.impact === null && supportedContact(spec, world.previous, ghPrev)) {
+          if (player.impact === null && supportedContact(spec, player.previous, ghPrev)) {
             supportedContactTicks++
             // Task 15: compared against the gear-offset height, not the raw
             // one -- a resting airplane's body origin (`position.y`) sits
@@ -661,10 +665,10 @@ export function runTerrainSoak(
             // it is trivially true for any position above `gh -
             // GROUND_CONTACT_TOLERANCE_M`, which every normally resting
             // airplane already satisfies by a margin of `spec.gear.heightM`.
-            if (!(world.aircraft.position.y - spec.gear.heightM >= gh - GROUND_CONTACT_TOLERANCE_M)) {
+            if (!(player.state.position.y - spec.gear.heightM >= gh - GROUND_CONTACT_TOLERANCE_M)) {
               failures.push(
                 `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
-                  `tick ${world.aircraft.tick} position.y ${world.aircraft.position.y} sank through groundHeightM ${gh} ` +
+                  `tick ${world.tick} position.y ${player.state.position.y} sank through groundHeightM ${gh} ` +
                   `by more than GROUND_CONTACT_TOLERANCE_M (${GROUND_CONTACT_TOLERANCE_M} m) since the previous tick's resting contact`,
               )
               break
@@ -674,13 +678,13 @@ export function runTerrainSoak(
             // under thrust legitimately gains energy overcoming drag and
             // friction, and an ungated check would fail on every ordinary
             // powered ground roll, not just a broken constraint.
-            if (isIdleThrottle(world.controls)) {
-              const before = specificEnergyAirmass(world.previous)
-              const after = specificEnergyAirmass(world.aircraft)
+            if (isIdleThrottle(player.controls)) {
+              const before = specificEnergyAirmass(player.previous)
+              const after = specificEnergyAirmass(player.state)
               if (after > before + GROUND_CONTACT_ENERGY_EPS) {
                 failures.push(
                   `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
-                    `tick ${world.aircraft.tick} specific energy rose from ${before} to ${after} J/kg across a ` +
+                    `tick ${world.tick} specific energy rose from ${before} to ${after} J/kg across a ` +
                     `ground-contact step at idle throttle`,
                 )
                 break
@@ -689,9 +693,10 @@ export function runTerrainSoak(
           }
         }
       }
-      if (world.impact !== null) {
+      const finalImpact = playerAircraft(world).impact
+      if (finalImpact !== null) {
         terrainHits++
-        const hit = world.impact
+        const hit = finalImpact
         // Recomputed from outside `advance`, the same way this soak already
         // re-derives the ground height rather than trusting the one on the
         // world. A field that agrees with itself proves nothing.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { advance, createWorld, type Stepper, type World } from '../../src/sim/loop.js'
+import { advance, createWorld, playerAircraft, type Stepper, type World } from '../../src/sim/loop.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { createState } from '../../src/sim/flight/state.js'
@@ -21,10 +21,10 @@ describe('terrain contact', () => {
   it('records an impact when the airplane reaches the ground', () => {
     const start = createWorld(spec, createState({ position: v3(0, 1005, 0), velocity: v3(60, -30, 0) }), level)
     let w: World<undefined> = { ...start, terrain: plateau }
-    for (let i = 0; i < 60 && w.impact === null; i++) w = advance(w, DT, undefined).world
-    expect(w.impact).not.toBeNull()
-    expect(w.impact!.groundHeightM).toBeCloseTo(1000, 6)
-    expect(w.impact!.verticalSpeedMps).toBeLessThan(0)
+    for (let i = 0; i < 60 && playerAircraft(w).impact === null; i++) w = advance(w, DT, undefined).world
+    expect(playerAircraft(w).impact).not.toBeNull()
+    expect(playerAircraft(w).impact!.groundHeightM).toBeCloseTo(1000, 6)
+    expect(playerAircraft(w).impact!.verticalSpeedMps).toBeLessThan(0)
   })
 
   it('records an impact for a step that lands EXACTLY on the ground, not only below it', () => {
@@ -46,25 +46,26 @@ describe('terrain contact', () => {
     const start = createWorld(spec, createState({ position: v3(0, 1000, 0), velocity: v3(0, 0, 0) }), level)
     const w = { ...start, terrain: plateau }
     const result = advance(w, DT, holdPosition)
-    expect(result.world.aircraft.position.y).toBe(1000) // the stub really held it exactly, not approximately
-    expect(result.world.impact).not.toBeNull()
-    expect(result.world.impact!.groundHeightM).toBe(1000)
+    const hit = playerAircraft(result.world)
+    expect(hit.state.position.y).toBe(1000) // the stub really held it exactly, not approximately
+    expect(hit.impact).not.toBeNull()
+    expect(hit.impact!.groundHeightM).toBe(1000)
   })
 
   it('does not record one for an airplane flying above the same ground', () => {
     const start = createWorld(spec, createState({ position: v3(0, 3000, 0), velocity: v3(130, 0, 0) }), level)
     let w: World<undefined> = { ...start, terrain: plateau }
     for (let i = 0; i < 600; i++) w = advance(w, DT).world
-    expect(w.impact).toBeNull()
+    expect(playerAircraft(w).impact).toBeNull()
   })
 
   it('keeps the first impact rather than overwriting it every step', () => {
     const start = createWorld(spec, createState({ position: v3(0, 500, 0), velocity: v3(60, -10, 0) }), level)
     let w: World<undefined> = { ...start, terrain: plateau }   // already below the plateau
     w = advance(w, DT).world
-    const first = w.impact
+    const first = playerAircraft(w).impact
     w = advance(w, DT * 10).world
-    expect(w.impact).toBe(first)
+    expect(playerAircraft(w).impact).toBe(first)
   })
 
   it('changes nothing at all when no terrain is loaded', () => {
@@ -73,8 +74,8 @@ describe('terrain contact', () => {
     const start = createWorld(spec, createState({ position: v3(0, 100, 0), velocity: v3(130, -50, 0) }), level)
     const withNull = advance({ ...start, terrain: null }, DT * 5).world
     const withoutField = advance(start, DT * 5).world
-    expect(withNull.aircraft).toEqual(withoutField.aircraft)
-    expect(withNull.impact).toBeNull()
+    expect(playerAircraft(withNull).state).toEqual(playerAircraft(withoutField).state)
+    expect(playerAircraft(withNull).impact).toBeNull()
   })
 })
 
@@ -86,10 +87,10 @@ describe('a recorded impact says what it was', () => {
       level,
     )
     let w: World<undefined> = { ...start, terrain: plateau }
-    for (let i = 0; i < 60 && w.impact === null; i++) w = advance(w, DT, undefined).world
-    expect(w.impact).not.toBeNull()
-    expect(w.impact!.surface).toBe('land')
-    expect(w.impact!.kind).toBe('destroyed')
+    for (let i = 0; i < 60 && playerAircraft(w).impact === null; i++) w = advance(w, DT, undefined).world
+    expect(playerAircraft(w).impact).not.toBeNull()
+    expect(playerAircraft(w).impact!.surface).toBe('land')
+    expect(playerAircraft(w).impact!.kind).toBe('destroyed')
   })
 
   it('agrees with surfaceAt on the height it captured', () => {
@@ -102,26 +103,30 @@ describe('a recorded impact says what it was', () => {
       level,
     )
     let w: World<undefined> = { ...start, terrain: plateau }
-    for (let i = 0; i < 60 && w.impact === null; i++) w = advance(w, DT, undefined).world
-    expect(w.impact!.surface).toBe(surfaceAt(w.impact!.groundHeightM))
+    for (let i = 0; i < 60 && playerAircraft(w).impact === null; i++) w = advance(w, DT, undefined).world
+    expect(playerAircraft(w).impact!.surface).toBe(surfaceAt(playerAircraft(w).impact!.groundHeightM))
   })
 })
 
 describe('the flight ends at the contact', () => {
-  it('stops stepping on the step that hits, not at the end of the frame', () => {
+  it('stops stepping the airplane on the step that hits, not at the end of the frame', () => {
     // Five steps are owed in one call; the plateau is one step away. Without
-    // the break, `advance` runs the remaining four and the airplane ends the
-    // frame buried far below the ground it hit.
+    // the per-entity skip, `advance` runs the remaining four on this airplane
+    // and it ends the frame buried far below the ground it hit. The WORLD
+    // still runs all five (spec §4: one airplane crashing stops nothing
+    // else), which is why `stepsRun` is 5 and the airplane's own tick is not.
     const start = createWorld(
       spec,
       createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
       level,
     )
     const result = advance({ ...start, terrain: plateau }, DT * 5)
-    expect(result.world.impact).not.toBeNull()
-    expect(result.stepsRun).toBeLessThan(5)
-    expect(result.world.aircraft.tick).toBe(result.world.impact!.tick)
-    expect(result.world.aircraft.position).toEqual(result.world.impact!.position)
+    const hit = playerAircraft(result.world)
+    expect(hit.impact).not.toBeNull()
+    expect(result.stepsRun).toBe(5)
+    expect(hit.state.tick).toBeLessThan(result.world.tick)
+    expect(hit.state.tick).toBe(hit.impact!.tick)
+    expect(hit.state.position).toEqual(hit.impact!.position)
   })
 
   it('renders exactly at the point of contact, at any interpolation factor', () => {
@@ -131,10 +136,10 @@ describe('the flight ends at the contact', () => {
       level,
     )
     const result = advance({ ...start, terrain: plateau }, DT * 5)
-    expect(result.world.previous).toEqual(result.world.aircraft)
+    expect(playerAircraft(result.world).previous).toEqual(playerAircraft(result.world).state)
   })
 
-  it('runs no further steps once the flight has ended', () => {
+  it('leaves a crashed airplane exactly where it was while the world runs on', () => {
     const start = createWorld(
       spec,
       createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
@@ -142,9 +147,9 @@ describe('the flight ends at the contact', () => {
     )
     const ended = advance({ ...start, terrain: plateau }, DT * 5).world
     const after = advance(ended, DT * 10)
-    expect(after.stepsRun).toBe(0)
-    expect(after.world.aircraft).toEqual(ended.aircraft)
-    expect(after.world.impact).toBe(ended.impact)
+    expect(after.stepsRun).toBe(5)                                             // MAX_STEPS_PER_FRAME: the world ran on
+    expect(playerAircraft(after.world).state).toBe(playerAircraft(ended).state) // the crashed airplane did not
+    expect(playerAircraft(after.world).impact).toBe(playerAircraft(ended).impact)
   })
 })
 
@@ -166,8 +171,8 @@ describe('supported contact does not read as a crash (Task 5b)', () => {
     const parked = createState({ position: v3(0, parkedHeightM, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
     let w: World<undefined> = { ...createWorld(spec, parked, level), terrain: plateau }
     for (let i = 0; i < 120; i++) w = advance(w, DT).world
-    expect(w.impact).toBeNull()
-    expect(w.aircraft.position.y).toBeCloseTo(parkedHeightM, 6)
+    expect(playerAircraft(w).impact).toBeNull()
+    expect(playerAircraft(w).state.position.y).toBeCloseTo(parkedHeightM, 6)
   })
 })
 
@@ -217,15 +222,15 @@ describe('supported contact requires land (Task 16, Mark drove off the runway on
 
     // Still over land, still rolling: no impact yet. (150 m at 90 m/s is
     // about 100 ticks; stop comfortably short of the coastline at x = -50.)
-    for (let i = 0; i < 90 && w.impact === null; i++) w = advance(w, DT).world
-    expect(w.impact, 'crashed while still over land').toBeNull()
-    expect(w.aircraft.position.x).toBeLessThan(-50)
+    for (let i = 0; i < 90 && playerAircraft(w).impact === null; i++) w = advance(w, DT).world
+    expect(playerAircraft(w).impact, 'crashed while still over land').toBeNull()
+    expect(playerAircraft(w).state.position.x).toBeLessThan(-50)
 
     // Keep rolling across the coastline and onto the water.
-    for (let i = 0; i < 300 && w.impact === null; i++) w = advance(w, DT).world
+    for (let i = 0; i < 300 && playerAircraft(w).impact === null; i++) w = advance(w, DT).world
 
-    expect(w.impact, 'kept rolling on top of the water instead of crashing').not.toBeNull()
-    expect(surfaceAt(w.impact!.groundHeightM)).toBe('water')
-    expect(w.impact!.kind).toBe('destroyed')
+    expect(playerAircraft(w).impact, 'kept rolling on top of the water instead of crashing').not.toBeNull()
+    expect(surfaceAt(playerAircraft(w).impact!.groundHeightM)).toBe('water')
+    expect(playerAircraft(w).impact!.kind).toBe('destroyed')
   })
 })

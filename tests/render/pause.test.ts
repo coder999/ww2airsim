@@ -29,9 +29,9 @@ describe('pause (Esc)', () => {
   it('runs no simulation steps while paused, and picks up cleanly on resume', () => {
     let f = start()
     f = nextFrameState(f, FRAME, keys('Escape'))
-    const tick = f.world.aircraft.tick
+    const tick = f.world.tick
     for (let i = 0; i < 120; i++) f = nextFrameState(f, FRAME, keys())
-    expect(f.world.aircraft.tick).toBe(tick)
+    expect(f.world.tick).toBe(tick)
     expect(f.stepsRun).toBe(0)
     expect(f.droppedSteps).toBe(0)
     // No time is owed on resume: the accumulator did not fill while paused,

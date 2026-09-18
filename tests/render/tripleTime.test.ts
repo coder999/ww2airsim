@@ -5,7 +5,7 @@ import {
   TRIPLE_TIME_SCALE,
   type FrameState,
 } from '../../src/render/frame.js'
-import { MAX_STEPS_PER_FRAME } from '../../src/sim/loop.js'
+import { MAX_STEPS_PER_FRAME, playerAircraft } from '../../src/sim/loop.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -44,9 +44,9 @@ describe('triple time (T)', () => {
     // accumulator, not a multiplier sitting in the renderer.
     let f = start()
     f = nextFrameState(f, FRAME, keys('KeyT'))
-    const before = f.world.aircraft.tick
+    const before = f.world.tick
     f = nextFrameState(f, FRAME, keys())
-    expect(f.world.aircraft.tick - before).toBe(3)
+    expect(f.world.tick - before).toBe(3)
     expect(f.stepsRun).toBe(3)
   })
 
@@ -72,9 +72,9 @@ describe('triple time (T)', () => {
     let real = start()
     for (let i = 0; i < 3; i++) real = nextFrameState(real, FRAME, keys())
 
-    expect(fast.world.aircraft.tick).toBe(real.world.aircraft.tick)
-    expect(fast.world.aircraft.position).toEqual(real.world.aircraft.position)
-    expect(fast.world.aircraft.velocity).toEqual(real.world.aircraft.velocity)
+    expect(fast.world.tick).toBe(real.world.tick)
+    expect(playerAircraft(fast.world).state.position).toEqual(playerAircraft(real.world).state.position)
+    expect(playerAircraft(fast.world).state.velocity).toEqual(playerAircraft(real.world).state.velocity)
   })
 
   it('ramps the controls in simulated seconds, so the airplane does not feel sluggish', () => {

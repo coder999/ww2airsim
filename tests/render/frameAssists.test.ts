@@ -6,6 +6,7 @@ import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { alphaCritRad } from '../../src/sim/aero.js'
 import { v3, dot, length, normalize } from '../../src/sim/math/vec3.js'
 import { qIdentity, qRotate } from '../../src/sim/math/quat.js'
+import { playerAircraft } from '../../src/sim/loop.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 /**
@@ -77,7 +78,7 @@ const maxAlphaDegOver = (from: FrameState, seconds: number, held: ReadonlySet<st
   let worst = -Infinity
   for (let i = 0; i < Math.round(seconds * 60); i++) {
     f = nextFrameState(f, 1 / 60, held)
-    const a = (angleOfAttack(f.world.aircraft) * 180) / Math.PI
+    const a = (angleOfAttack(playerAircraft(f.world).state) * 180) / Math.PI
     if (a > worst) worst = a
   }
   return worst
@@ -104,8 +105,8 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     for (const rollKey of ['ArrowRight', 'ArrowLeft']) {
       const off = fly(fly(start(NONE), 3, keys(rollKey, 'Equal')), 4, keys('Equal'))
       const on = fly(fly(start(only('autoRudder')), 3, keys(rollKey, 'Equal')), 4, keys('Equal'))
-      const slipOff = Math.abs(sideslipDeg(off.world.aircraft))
-      const slipOn = Math.abs(sideslipDeg(on.world.aircraft))
+      const slipOff = Math.abs(sideslipDeg(playerAircraft(off.world).state))
+      const slipOn = Math.abs(sideslipDeg(playerAircraft(on.world).state))
       // Bounded on both sides: an assist that ran but did nothing would leave
       // these equal, and `toBeLessThan` alone would also accept a difference
       // too small to be the real correction.
@@ -151,13 +152,17 @@ describe('the assists layer runs in the application (Plan 3 Task 5)', () => {
     for (let i = 0; i < 4; i++) fourShortFrames = nextFrameState(fourShortFrames, DT, keys())
 
     expect(oneLongFrame.stepsRun, 'sanity: the long frame must really be multi-step').toBe(4)
-    expect(oneLongFrame.world.aircraft).toEqual(fourShortFrames.world.aircraft)
+    expect(playerAircraft(oneLongFrame.world).state).toEqual(
+      playerAircraft(fourShortFrames.world).state,
+    )
     // Compares the AIRCRAFT, not the assist memory. It compared the memory
     // until 2026-09-17, when altitude hold -- the only stateful assist -- was
     // deleted; `assistMemory` is now `undefined` on both sides and would make
     // this pass without testing anything. The claim is that the assist runs
     // once per fixed step, and the resulting state is what shows that.
-    expect(oneLongFrame.world.aircraft).toEqual(fourShortFrames.world.aircraft)
+    expect(playerAircraft(oneLongFrame.world).state).toEqual(
+      playerAircraft(fourShortFrames.world).state,
+    )
   })
 })
 
@@ -223,7 +228,7 @@ describe('the engine-off default (2026-09-15)', () => {
     // glide and nothing here claims a lift-to-drag ratio.
     const startAltitude = 2000
     const after = fly(start(DEFAULT_ASSIST_SETTINGS, 130, startAltitude), 30, keys())
-    const lost = startAltitude - after.world.aircraft.position.y
+    const lost = startAltitude - playerAircraft(after.world).state.position.y
 
     expect(lost).toBeGreaterThan(50)
   })
