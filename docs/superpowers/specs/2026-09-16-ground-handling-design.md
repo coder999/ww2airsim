@@ -143,11 +143,15 @@ committed heightfield: north-south through Tacloban the ground runs 1.2 m to
 nothing needs flattening and there is no second source of ground truth to keep
 in sync. The physics reads `heightAt` exactly as it does everywhere else.
 
-Tacloban's world coordinate is `(-29666, 47605)` and is **taken from
+Tacloban's world coordinate is `(-29666, -47605)` and is **taken from
 `tests/tools/terrainBuild.test.ts`, never re-derived** — it was sourced
 independently and cross-checked against the Copernicus tiles on 2026-09-14, and
 an equirectangular back-of-envelope lands about 80 m away. Two nearly-equal
 coordinates for one airfield is the drift this project keeps writing down.
+[Amended 2026-09-17: this said `(-29666, 47605)`; the z sign flipped in
+`29f5319`, which made the world right-handed with +z south — master spec §15
+carries the explanation beside the same coordinate, and the value now lives in
+`src/render/spawn.ts` as `DEFAULT_SPAWN_POSITION`.]
 
 Two facts the plan must confirm rather than assume:
 

@@ -712,7 +712,11 @@ happens next, and the **Plan** column for what a document means when it says
 | 6 | 13 | Combat and damage | §6 | Not started |
 | 7 | 14 | AI | §7 | Not started |
 | 9 | 15 | Meta-game | §8 | Not started |
-| 13 | any | Terrain surface detail | §4 | Not started; render-only |
+| 13 | any | Terrain surface detail | §4 | First pass landed 2026-09-17 in daa1b39 without a spec or plan (Codex, [handoff](../../handoff/2026-09-18-scenery.md)); split into 13a-13d the same day |
+| 13a | any | Harden and verify the first pass (Tier 2, GPU budget, quality tiering, tree streaming) | §4 | In progress, bounded work, no plan document |
+| 13b | any | Land cover from ESA WorldCover as the material and vegetation guide | §4 | Not started |
+| 13c | any | Coastline and beaches | §4 | Not started |
+| 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
 `Impact` and deliberately stops there, and the sea is a picture rather than a
@@ -747,7 +751,7 @@ AI and needs nothing the entity system provides, so it has no business waiting
 on the plan that builds those. Plan 11 therefore lands one minimal runway on
 real ground, and Plan 12 keeps the full airfield content and the moving ships.
 Tacloban and Dulag were both real October 1944 Leyte airfields, and Tacloban
-is already in this repo at world **(-29666, 47605)** — sourced independently of
+is already in this repo at world **(-29666, -47605)** — sourced independently of
 the terrain pipeline and cross-checked against the Copernicus tiles on
 2026-09-14, carried by `tests/tools/terrainBuild.test.ts` and used by
 `tests/e2e/terrain.spec.ts`. **Plan 11 must take the coordinate from there, not
@@ -755,6 +759,18 @@ re-derive it**: an equirectangular back-of-envelope lands about 80 m away, and
 two nearly-equal coordinates for one airfield is precisely the drift this
 document exists to prevent. So the strip can sit where one historically did
 rather than somewhere invented.
+
+**Amended 2026-09-17, after `29f5319` made the world right-handed.** This said
+**(-29666, 47605)**. That commit ("Fix geographic handedness and align compass
+with north", [handoff](../../handoff/2026-09-17-map-compass.md)) redefined world
+coordinates as +x east, +y up, **+z south** — north is -z — so the z sign
+flipped and nothing else moved. The world value is now carried by
+`DEFAULT_SPAWN_POSITION` in `src/render/spawn.ts` and asserted by
+`tests/render/spawn.test.ts` and `tests/e2e/terrain.spec.ts`;
+`tests/tools/terrainBuild.test.ts` holds the geographic point it was projected
+from (11.228 N 125.028 E), not the world metres (verified 2026-09-17 by reading
+those four files). Plans and handoffs dated before 2026-09-17 that quote a
+z of +47605 are records of the old frame, not errors to chase.
 
 **Plan 11 was split in two on 2026-09-16**, following Plan 6a's precedent, when
 its scope was read out in full: gear, flaps, ground physics, brakes, steering, a
@@ -790,6 +806,13 @@ than inside the debrief.
 Plan 13 is render-only — beach and jungle surfacing, vegetation — and nothing
 in `sim/` reads it, so it can land whenever. Alongside Plan 11 is the natural
 moment: surface texture is how a pilot judges height in the flare.
+**Amended 2026-09-17.** A first pass landed that day in `daa1b39` — procedural
+materials, streamed trees, Tacloban base buildings and two OSM rivers, still
+render-only — with no spec or plan document; the
+[scenery handoff](../../handoff/2026-09-18-scenery.md) is its only record.
+Mark chose the same day to split the remainder into 13a-13d (table above):
+13a is bounded hardening of what landed and gets no plan document; 13b-13d
+share one design document, which is authoritative for them once it exists.
 
 Deploying the game to a public URL (2026-09-15) is infrastructure and takes no
 plan number.

@@ -41,7 +41,13 @@ Stated explicitly, because each is a plausible place to drift:
 - **Ground handling.** Contact produces a crash event, not a landing. Runways,
   gear and deck operations belong to the deck-operations plan (master spec
   §15; this line said "Plan 8's", which the settled numbering confirms).
-- **Trees, buildings, roads.** None. The surface is bare relief.
+- **Trees, buildings, roads.** None. The surface is bare relief. [Amended
+  2026-09-17: true of Plan 4 as built, and untrue since `daa1b39` that day —
+  Plan 13's first pass, which added procedural materials, streamed trees,
+  Tacloban base buildings and two OSM rivers on top of this relief, render-only
+  and recorded only in its [handoff](../../handoff/2026-09-18-scenery.md). The
+  Plan 13 design document (master spec §15, 13b-13d) is authoritative for that
+  surface once it exists; this bullet stays as the record of what Plan 4 owned.]
 
 ## 2. The deviation from master spec §4, and why
 
@@ -269,7 +275,11 @@ consequences, neither of which this section anticipated:
   quadtree is anchored to the world, not to the eye, so a camera's distance to
   the nearest ring-4 node varies with its position inside its own node:
   measured 2026-09-14, **27.4 km** at the Tier 2 spawn (−45000, −47605) and
-  **49.0 km** at (99000, −99000), the camera the mip-0 table uses. Both are
+  **49.0 km** at (99000, 99000), the camera the mip-0 table uses [amended
+  2026-09-17: `29f5319` flipped world z, so this camera — (99000, −99000) in
+  the old frame — is now (99000, 99000), matching
+  `worstErrorByRing(header, 0, 99e3, 99e3)` in `tests/render/terrainLod.test.ts`;
+  the spawn on the line above was corrected in that commit]. Both are
   correct for their camera; neither is "the" ring-4 distance.
 - What both are wrong about instead is the **whole surface against the source
   grid**: worst |L0 − L4| over every one of L0's 8193² samples is **220.862 m**,
