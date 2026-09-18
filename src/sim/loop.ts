@@ -158,7 +158,6 @@ const identityAssist = <M>(
   memory: M,
 ): AssistResult<M> => ({ controls: raw, memory })
 
-
 /**
  * Recorded once, on the first step where the airplane is at or below the
  * ground under it, and never cleared on later steps. `advance` applies no
@@ -287,9 +286,19 @@ export interface AircraftEntity<M = undefined> {
    * silently re-open the possibility of a second "first" impact.
    */
   readonly impact: Impact | null
-  /** Spawned on its wheels, waiting for terrain -- `nextFrameState` holds the
-   *  world at zero elapsed time while any parked aircraft has no terrain, and
-   *  `settleOnTerrain` puts each parked one on the real ground when it lands. */
+  /**
+   * Spawned on its wheels rather than airborne, so this airplane's altitude is
+   * a placeholder until real terrain arrives.
+   *
+   * SET here and read by NOBODY at this commit: `initialFrameState` fills it
+   * from its `groundSpawn` argument, and the frame still gates both halves of
+   * the ground-spawn dance on the per-FRAME `FrameState.groundSpawn` --
+   * `nextFrameState`'s hold reads `prev.groundSpawn`, and `settleOnTerrain`
+   * settles the player alone. Task 5 is the consumer: it makes those two read
+   * this field instead, so a world with several parked aircraft settles every
+   * one of them. Until then a second parked aircraft would be left at its
+   * placeholder altitude.
+   */
   readonly parked: boolean
 }
 
@@ -305,8 +314,16 @@ export interface ShipEntity {
 }
 
 export interface World<M = undefined> {
-  /** The world's clock. Every entity's `state.tick` equals this after a
-   *  step; `SimContext.tick` is `tick + 1`. */
+  /**
+   * The world's clock. Every entity's `state.tick` equals this after a step;
+   * `SimContext.tick` is `tick + 1`.
+   *
+   * It is the ONLY clock: `advance` counts from here, not from the tick of
+   * whichever airplane it happens to be stepping. A world therefore starts at
+   * 0 and `createWorldOf` requires every entity handed to it to be at tick 0
+   * too -- it throws otherwise, because a world built at 0 from already-stepped
+   * states would rewind every one of them on its first step.
+   */
   readonly tick: number
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships: readonly ShipEntity[]
@@ -317,16 +334,17 @@ export interface World<M = undefined> {
    *  and a World is a complete description of the flight. */
   readonly airfields: readonly Airfield[]
   /**
-   * The ground this world's airplane can hit, or `null` for "no terrain
+   * The ground every aircraft in this world can hit, or `null` for "no terrain
    * loaded". `sim/` may not import `tools/terrain/load.ts` (Node-only, and a
    * `src/sim/` file must load in a browser -- `.dependency-cruiser.cjs`,
    * `tests/architecture/boundary.test.ts`), so this arrives the same way
    * `Assist` does: the caller injects the value, `sim/` never learns where it
-   * came from. `null` here on purpose -- Task 8 puts the FIELD on `World` and
-   * the impact CHECK in `advance`; nothing populates a real field yet, which
-   * is a later task's job (wiring the renderer). Every existing world and the
-   * whole pre-Task-8 test suite, including the golden trajectory, is
-   * unaffected: `heightAt` is never called when this is `null`.
+   * came from. In production that caller is the renderer, which has populated
+   * a real field since Plan 10 (`src/render/main.ts`'s terrain-arrival
+   * callback, through `withTerrain`); `null` is the pre-terrain state every
+   * world starts in and the state most of the test suite, including the golden
+   * trajectory, runs in throughout -- `heightAt` is never called when this is
+   * `null`, so those worlds are unaffected by the impact check entirely.
    *
    * Carries an `Int16Array` (`TerrainField.heightsDm`), which is exactly the
    * case `assistMemory`'s comment above now qualifies: this field round-trips
@@ -420,10 +438,11 @@ export function createWorld<M>(
 
 /**
  * The general constructor: the scenario's, and the only way a world with more
- * than one entity is built. Rejects a duplicate id and a `player` that names
- * no aircraft, here rather than at the first lookup, so that
- * `playerAircraft` is total and an id collision cannot silently shadow an
- * entity for a whole flight.
+ * than one entity is built. Rejects a duplicate id, a `player` that names no
+ * aircraft, and an entity that is not at tick 0 (`World.tick`) -- here rather
+ * than at the first lookup or the first step, so that `playerAircraft` is
+ * total, an id collision cannot silently shadow an entity for a whole flight,
+ * and no entity can be rewound by the world's own clock.
  */
 export function createWorldOf<M>(parts: {
   readonly aircraft: readonly AircraftEntity<M>[]
@@ -437,6 +456,16 @@ export function createWorldOf<M>(parts: {
   for (const e of [...parts.aircraft, ...ships]) {
     if (seen.has(e.id)) throw new Error(`createWorldOf: duplicate entity id "${e.id}"`)
     seen.add(e.id)
+    // A new world's clock is 0 (below), and `advance` steps every entity from
+    // THAT clock rather than from the entity's own tick -- so an entity handed
+    // in already stepped would silently have its tick rewound to 1 on the
+    // first step, and the world clock and `state.tick` would disagree from
+    // then on for that entity alone. Rejected here, where the scenario can be
+    // named, rather than surfacing later as a tick that went backwards (which
+    // the audio cue reads as a whole new flight).
+    if (e.state.tick !== 0) {
+      throw new Error(`createWorldOf: entity "${e.id}" is at tick ${e.state.tick}, but a new world starts at 0`)
+    }
   }
   if (!parts.aircraft.some((a) => a.id === parts.player)) {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)

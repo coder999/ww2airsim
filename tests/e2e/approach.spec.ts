@@ -15,10 +15,9 @@ import { waitForTerrain, type DiagWindow } from './harness.js'
  *
  * What only Tier 2 can prove is the WIRING: that the flap lever a pilot
  * actually presses reaches the player entity's `controls` in a real browser.
- * That is the
- * Plan 3 defect class -- an assist that shipped inert while its own unit tests
- * passed, because they called the module directly -- and it is invisible to
- * every tier below this one.
+ * That is the Plan 3 defect class -- an assist that shipped inert while its
+ * own unit tests passed, because they called the module directly -- and it is
+ * invisible to every tier below this one.
  */
 test('the gear and flap levers reach the simulation in a real browser', async ({ page }) => {
   // No query string: the DEFAULT spawn, parked on the runway with the gear

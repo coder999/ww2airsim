@@ -254,6 +254,21 @@ const FLAT_FIELD: TerrainField = createTerrainField(
   new Int16Array(9).fill(GROUND_HEIGHT_M * 10),
 )
 
+/** A 1000 m plateau, high enough that an airplane can be dropped onto it
+ *  from a known altitude in a fraction of a second. */
+const HIGH_PLATEAU: TerrainField = createTerrainField(
+  parseTerrainHeader({
+    centreLatDeg: 10.8,
+    centreLonDeg: 125.3,
+    halfExtentM: 100000,
+    finestSamples: 8193,
+    levels: 13,
+    encoding: 'int16-decimetres',
+  }),
+  12,
+  new Int16Array(9).fill(10000),
+)
+
 const groundStart = () =>
   initialFrameState(
     f6f,
@@ -312,6 +327,47 @@ describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
     const f = nextFrameState(start(), 1 / 60, keys())
     expect(playerAircraft(f.world).state.tick).toBe(1)
     expect(f.stepsRun).toBe(1)
+  })
+})
+
+describe("the player's crash holds the world (Plan 12)", () => {
+  it('holds the world once the player has crashed, through the same path pause uses', () => {
+    // THE test for the mechanism Plan 12 moved out of `advance` and into the
+    // frame. `advance` itself now stops nothing -- one airplane crashing must
+    // not stop the carrier or an AI Zero (spec §4) -- so the end of the
+    // PLAYER's flight is `nextFrameState`'s `holding`, alongside pause and the
+    // ground-spawn terrain wait. Deleting `|| player.impact !== null` from
+    // that expression leaves every other Tier 1 test in this repo green while
+    // the wreck flies on, which is exactly why this case exists.
+    let f = initialFrameState(
+      f6f,
+      createState({ position: v3(0, 1001, 0), velocity: v3(60, -60, 0) }),
+      undefined,
+      HIGH_PLATEAU,
+      false,
+    )
+    // Dive into the plateau. `ArrowUp` is nose-down; no key is needed, the
+    // -60 m/s vertical is what arrives.
+    for (let i = 0; i < 600 && playerAircraft(f.world).impact === null; i++) {
+      f = nextFrameState(f, 1 / 60, keys())
+    }
+    const hit = playerAircraft(f.world)
+    expect(hit.impact, 'never reached the plateau').not.toBeNull()
+
+    // A full second of frames after the contact: nothing moves. Identity on
+    // `state`, not equality -- a world that re-stepped to the same numbers
+    // would still be a world that ran.
+    const heldTick = f.world.tick
+    const heldAccumulator = f.world.accumulatorSeconds
+    for (let i = 0; i < 60; i++) {
+      f = nextFrameState(f, 1 / 60, keys('Equal'))
+      expect(f.stepsRun).toBe(0)
+      expect(f.droppedSteps).toBe(0)
+      expect(f.world.tick).toBe(heldTick)
+      expect(f.world.accumulatorSeconds).toBe(heldAccumulator)
+      expect(playerAircraft(f.world).state).toBe(hit.state)
+      expect(playerAircraft(f.world).impact).toBe(hit.impact)
+    }
   })
 })
 

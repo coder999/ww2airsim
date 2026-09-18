@@ -92,9 +92,10 @@ describe('the audio cue reducer (design §6.2)', () => {
     // spawn then reads as a false -> true transition. A tick that moves
     // backwards is a new flight, not a landing.
     // The wreck must be AIRBORNE for this to discriminate: the airplane stops
-    // where it hit, and flying into a hillside leaves it off the ground. An earlier version of this test settled the wreck onto the
-    // ground first, so `wasOnGround` was already true, no transition existed
-    // and it passed against the UNFIXED reducer -- guarding nothing.
+    // where it hit, and flying into a hillside leaves it off the ground. An
+    // earlier version of this test settled the wreck onto the ground first,
+    // so `wasOnGround` was already true, no transition existed and it passed
+    // against the UNFIXED reducer -- guarding nothing.
     let m = nextAudio(NO_AUDIO_MEMORY, flying).memory                     // airborne, tick 100
     m = nextAudio(m, hit('land', 'destroyed')).memory                     // still airborne, frozen
     expect(m.wasOnGround).toBe(false)

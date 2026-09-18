@@ -58,6 +58,20 @@ describe('createWorldOf', () => {
     expect(() => createWorldOf({ aircraft: [flying('a')], player: 'b' })).toThrow(/player.*"b"/)
   })
 
+  it('rejects an entity that is not at tick 0, which the world clock would rewind', () => {
+    // `advance` steps every entity from `world.tick`, not from the entity's
+    // own tick, so an already-stepped entity in a fresh (tick 0) world would
+    // be silently rewound on the first step.
+    const stepped = advance(createWorldOf({ aircraft: [flying('a')], ships: [sailing('s')], player: 'a' }), DT * 4)
+      .world
+    const a = playerAircraft(stepped)
+    expect(a.state.tick).toBe(4)
+    expect(() => createWorldOf({ aircraft: [a], player: 'a' })).toThrow(/"a" is at tick 4/)
+    expect(() => createWorldOf({ aircraft: [flying('a')], ships: stepped.ships, player: 'a' })).toThrow(
+      /"s" is at tick 4/,
+    )
+  })
+
   it('aircraftById and withControls address an entity by id, never by index', () => {
     const w = createWorldOf({ aircraft: [flying('a'), flying('b')], player: 'b' })
     expect(aircraftById(w, 'b')?.id).toBe('b')

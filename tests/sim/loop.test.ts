@@ -198,11 +198,11 @@ describe('advance', () => {
     // input ramp). A `vi.fn` counting calls against `stepsRun` is exactly the
     // existing "runs the stepper it is given, once per step" test's shape,
     // reused here for the assist. Proved to fail: temporarily hoisting the
-    // `assist(...)` call in src/sim/loop.ts to above the `for` loop (so it
-    // runs once per `advance` call on the entity's start-of-frame state
-    // instead of once per
-    // step on `current`) makes this test's expectation of 3 calls see 1
-    // instead, and it fails.
+    // `assist(...)` call in src/sim/loop.ts out of `stepAircraftEntity` and
+    // above `advance`'s step loop (so it runs once per `advance` call on the
+    // entity's start-of-frame state, instead of once per step on the
+    // `entity.state` entering that step) makes this test's expectation of 3
+    // calls see 1 instead, and it fails.
     it('runs once per fixed step, not once per advance() call', () => {
       const spy = vi.fn<Assist<undefined>>((_state, _spec, raw, _dt, memory) => ({
         controls: raw,
