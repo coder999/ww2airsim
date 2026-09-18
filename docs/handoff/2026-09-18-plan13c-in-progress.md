@@ -13,22 +13,17 @@ ledger at `.superpowers/sdd/2026-09-18-coast-rebuild/progress.md`, which a
 | Task | State |
 | --- | --- |
 | 1 — Sea connectivity (`tools/landcover/sea.ts`) | **Complete**, `0463e11..4f341da`, two fix rounds |
-| 2 — The coast rule (`tools/terrain/coast.ts`) | Code committed `70c0c82`; reviewed — rule correct, **one fix round in flight** (US spelling + two test gaps) |
+| 2 — The coast rule (`tools/terrain/coast.ts`) | **Complete**, `4f341da..467c758`, one fix round |
 | 3 — Wire into the build, rebuild, regenerate digests | Not started |
 | 4 — Re-record renderer numbers | Not started |
 | 5 — Re-run the flight cards | Not started |
 | 6 — Tier 2, look at it, hand off | Not started |
 
-Task 2's review returned: the rule, indexing, constants and every named risk
-(the `w >= 0.5` boundary, rounding at `w = 0.49`, the transpose guard, int16
-range) were hand-traced and confirmed correct and genuinely discriminating.
-It found one Important — a British "quantises" in a new doc comment, which
-came verbatim from the plan's own Step 3 block — and two test-quality gaps: a
-strongly-negative height that never actually reaches the shore-lift branch,
-and a rounding comment that derives from the wrong `w`. A fix round was
-dispatched for all three. **If the ledger records no verdict for that fix
-round, re-dispatch the scoped re-review against `70c0c82..HEAD`** rather than
-assuming it landed.
+**Resume at Task 3.** Tasks 1 and 2 are both closed with clean reviews.
+Task 3 was held deliberately rather than started: it is a multi-minute
+rebuild of nine committed terrain levels plus 171 MB of local tiles, and
+beginning it without the budget to verify the landmarks, the tripwire and the
+regenerated digests would leave the worst possible half-state.
 
 ## Nothing here is live yet
 
