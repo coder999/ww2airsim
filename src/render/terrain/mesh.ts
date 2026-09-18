@@ -37,13 +37,15 @@ import {
   vec3,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
-import { terrainSurfaceNode } from './surface.js'
+import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface.js'
 import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
 import { SKY_HAZE } from '../scene/sky.js'
 import { SUN_DIRECTION } from '../scene/lighting.js'
+import { COVER_HEADER } from '../landcover/load.js'
+import { coverByteLength } from '../landcover/cover.js'
 
 /**
  * The terrain, as three objects: a grid of quads shared by every patch, one
@@ -65,6 +67,9 @@ export type TerrainMesh = {
   update(cameraX: number, cameraZ: number): void
   levelTexture(level: number): DataTexture
   shaderCameraXZ(): Vector2
+  /** Plan 13b: the land-cover raster, once fetched. */
+  setCover(data: Uint8Array): void
+  readonly cover: CoverNodes
 }
 
 /**
@@ -237,6 +242,7 @@ function createRingMaterial(
   coarseSamples: number,
   halfExtentM: number,
   cameraXZ: UniformNode<'vec2', Vector2>,
+  cover: CoverNodes,
 ): MeshBasicNodeMaterial {
   const material = new MeshBasicNodeMaterial()
 
@@ -271,7 +277,7 @@ function createRingMaterial(
 
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
   const slope = length(vec2(field.y, field.z))
-  const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope))
+  const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope), cover)
   const sun = normalize(vec3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
   const lit = albedo.mul(float(AMBIENT).add(clamp(dot(varying(normal), sun), 0, 1).mul(1 - AMBIENT)))
 
@@ -373,6 +379,7 @@ export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
   const coarsestLevel = coarsestFetchedLevel(header.levels)
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
+  const cover = createCoverNodes(COVER_HEADER)
 
   const textures = new Map<number, DataTexture>()
   for (let level = FINEST_FETCHED_LEVEL; level <= coarsestLevel; level++) {
@@ -419,6 +426,7 @@ export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
         samplesAtLevel(header, coarse),
         header.halfExtentM,
         cameraXZ,
+        cover,
       ),
     )
     mesh.name = `terrain-ring-${ring}`
@@ -445,6 +453,15 @@ export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
     levelTexture,
 
     shaderCameraXZ: () => cameraXZ.value,
+
+    cover,
+    setCover(data: Uint8Array): void {
+      const expected = coverByteLength(COVER_HEADER)
+      if (data.length !== expected) throw new Error(`land cover is ${data.length} bytes; expected ${expected}`)
+      ;(cover.texture.image.data as Uint8Array).set(data)
+      cover.texture.needsUpdate = true
+      cover.ready.value = 1
+    },
 
     setLevel(level: number, data: Int16Array): void {
       const tex = levelTexture(level)

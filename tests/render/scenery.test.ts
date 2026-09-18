@@ -4,6 +4,9 @@ import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
 import { createDetailTexture } from '../../src/render/terrain/surface.js'
+import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
+import { COVER_HEADER } from '../../src/render/landcover/load.js'
+import { coverByteLength } from '../../src/render/landcover/cover.js'
 import { SCENERY_TIERS } from '../../src/render/scene/tiers.js'
 import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
 import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
@@ -183,5 +186,26 @@ describe('scenery placement on the real Leyte field', () => {
       expect(nearRiver(p.x, -p.z)).toBe(false)
     }
     expect(nearRiver(RUNWAY_CENTRE.x, RUNWAY_CENTRE.z)).toBe(false)
+  })
+
+  it('takes the land-cover raster once it arrives, and paints procedurally until then', () => {
+    const mesh = createTerrainMesh(header)
+    // Before the raster: the shader's `ready` uniform is 0, so the class
+    // weights come from Codex's noise-and-height rule and the picture is
+    // exactly what shipped in daa1b39. This is also the fallback if the
+    // fetch fails: an island, not a brown one.
+    expect(mesh.cover.ready.value).toBe(0)
+    expect(mesh.cover.texture.image.width).toBe(COVER_HEADER.samples)
+    const versionBefore = mesh.cover.texture.version
+    const data = new Uint8Array(coverByteLength(COVER_HEADER))
+    data[0] = 255
+    mesh.setCover(data)
+    expect(mesh.cover.ready.value).toBe(1)
+    expect((mesh.cover.texture.image.data as Uint8Array)[0]).toBe(255)
+    // `needsUpdate` is write-only in three (it bumps `version`), same as
+    // terrainLoad.test.ts's level-texture check -- so the re-upload is
+    // checked by the thing it actually does, not by reading the setter back.
+    expect(mesh.cover.texture.version).toBeGreaterThan(versionBefore)
+    expect(() => mesh.setCover(new Uint8Array(16))).toThrow(/16 bytes/)
   })
 })

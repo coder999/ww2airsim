@@ -1,7 +1,28 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat } from 'three'
-import { color, float, max, mix, smoothstep, texture, vec2 } from 'three/tsl'
-import type { Node } from 'three/webgpu'
+import { color, max, mix, smoothstep, texture, uniform, vec2 } from 'three/tsl'
+import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
+import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
+
+export type CoverNodes = {
+  readonly texture: DataTexture
+  /** 0 until `setCover` has data; the shader blends to the raster on 1. */
+  readonly ready: UniformNode<'float', number>
+  readonly halfExtentM: number
+}
+
+/** The raster texture, zero-filled until the fetch lands, as the terrain
+ *  height textures are (mesh.ts). Linear filtering is the whole reason the
+ *  raster carries fractions rather than a class index. */
+export function createCoverNodes(header: CoverHeader): CoverNodes {
+  const tex = new DataTexture(new Uint8Array(coverByteLength(header)), header.samples, header.samples, RGBAFormat)
+  tex.name = 'ESA-WorldCover-coverage-fractions'
+  tex.minFilter = LinearMipmapLinearFilter
+  tex.magFilter = LinearFilter
+  tex.generateMipmaps = true
+  tex.needsUpdate = true
+  return { texture: tex, ready: uniform(0), halfExtentM: header.halfExtentM }
+}
 
 /** Original, deterministic, seamless detail. Channels carry independent
  * scales of noise; this is material detail, not a land-cover dataset. */
@@ -54,7 +75,7 @@ export function groundNoise(xz: Node<'vec2'>, metres: number): Node<'vec4'> {
   return texture(detail, xz.div(metres))
 }
 
-export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>): Node<'vec3'> {
+export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {
   const macro = groundNoise(xz, 2800).r
   const patches = groundNoise(vec2(xz.y.negate(), xz.x).add(173), 610).g
   const canopy = groundNoise(xz, 180).g
@@ -64,10 +85,24 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   const grass = mix(color(0x626746), color(0x89915b), patches).mul(grain.mul(0.15).add(0.94))
   const forest = mix(color(0x294534), color(0x546847), canopy)
     .mul(macro.mul(0.4).add(0.8))
-  const forestWeight = max(smoothstep(0.38, 0.64, macro), smoothstep(70, 220, height))
+  // Row 0 of the raster is north (z = -half) and DataTexture row 0 sits at
+  // v = 0, so v grows with z and no flip is needed: the same convention the
+  // river mask uses (rivers.ts). Fractions filter linearly.
+  const uv = xz.add(cover.halfExtentM).div(2 * cover.halfExtentM)
+  const fractions = texture(cover.texture, uv)
+  // Before the raster arrives, or if it never does, the class weights are
+  // Codex's noise-and-height rule from daa1b39, unchanged.
+  const proceduralForest = max(smoothstep(0.38, 0.64, macro), smoothstep(70, 220, height))
+  const forestWeight = mix(proceduralForest, fractions.r.add(fractions.b), cover.ready)
+  const cropWeight = fractions.g.mul(cover.ready)
+  const mangroveWeight = fractions.b.mul(cover.ready)
   const soil = mix(color(0x655644), color(0x8b795b), groundNoise(xz, 150).g)
-  const land = mix(mix(grass, forest, forestWeight), soil,
-    smoothstep(0.74, 0.9, patches).mul(float(1).sub(forestWeight)).mul(0.45))
+  // Paddies: a pale yellow-green with the patch noise at field scale, so the
+  // Leyte Valley reads as fields from 3,000 m, which is the job (design §1).
+  const paddy = mix(color(0x8a9a4e), color(0xb8b56a), groundNoise(vec2(xz.y, xz.x.negate()), 240).g)
+  const mangrove = color(0x24402a)
+  const open = mix(grass, soil, smoothstep(0.74, 0.9, patches).mul(0.45))
+  const land = mix(mix(mix(open, forest, forestWeight), paddy, cropWeight), mangrove, mangroveWeight)
   const rock = mix(color(0x696c62), color(0x9a9585), groundNoise(xz, 220).g)
     .mul(groundNoise(xz, 26).g.mul(0.35).add(0.82))
   // Tropical summits remain vegetated; steep faces expose rock. No snow line.
