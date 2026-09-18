@@ -1,6 +1,6 @@
 # Plan 12: Entities, ships and airfields — design
 
-**Status:** draft for Mark's review, written 2026-09-18. Not yet approved.
+**Status:** approved by Mark 2026-09-18 (written the same day). His answers to §13: the parked Hellcat is fine; flying through ships until Plans 6 and 8 is fine; the task force, Dulag-as-strip and ships-at-sea-level stand as designed.
 Master spec §15's table is the authoritative plan numbering and order; this
 document takes the identity it already has there, **Plan 12, order 10, next**,
 and restates neither.
