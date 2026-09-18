@@ -3,13 +3,26 @@ import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { color, fract, mix, positionLocal, smoothstep, varying } from 'three/tsl'
 import { groundNoise } from '../terrain/surface.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
-import { DEFAULT_SPAWN_POSITION } from '../spawn.js'
+import { v3 } from '../../sim/math/vec3.js'
+
+/**
+ * Parked on the runway at Tacloban, Leyte -- the world projection of 11.228 N
+ * 125.028 E, cross-checked against the Copernicus source tiles 2026-09-14 and
+ * carried by `tests/tools/terrainBuild.test.ts`. `y` is a PLACEHOLDER, not
+ * the truth (see `PARKED_PLACEHOLDER_Y_M`, `src/sim/scenario.ts`).
+ *
+ * TEMPORARY until Task 7 boots from the scenario, and a verbatim duplicate of
+ * `main.ts`'s own `PARKED_TACLOBAN` for exactly the reason that one's comment
+ * gives -- this is the same literal `worldFromScenario` derives from the
+ * Tacloban record today. Task 7 deletes both.
+ */
+const PARKED_TACLOBAN = v3(-29666, 1.9, -47605)
 
 /**
  * Where the strip is centred, in world metres.
  *
- * Derived from `DEFAULT_SPAWN_POSITION` rather than restating Tacloban's
- * coordinate, so "the airplane is parked on its own runway" is structural
+ * Derived from `PARKED_TACLOBAN` rather than restating Tacloban's coordinate
+ * a third time, so "the airplane is parked on its own runway" is structural
  * instead of a coincidence that two files have to keep agreeing about. The
  * coordinate itself is `(-29666, -47605)`, cross-checked against the
  * Copernicus source tiles in `tests/tools/terrainBuild.test.ts` -- do not
@@ -20,9 +33,9 @@ import { DEFAULT_SPAWN_POSITION } from '../spawn.js'
  * There is no `y`. The strip has no single height: it follows the terrain
  * along its length (`createRunway`), and a `y` here would be a number that
  * looked authoritative while being wrong everywhere but one point -- the
- * exact trap `DEFAULT_SPAWN_POSITION.y`'s own comment describes.
+ * exact trap `PARKED_TACLOBAN`'s own comment describes.
  */
-export const RUNWAY_CENTRE = { x: DEFAULT_SPAWN_POSITION.x, z: DEFAULT_SPAWN_POSITION.z } as const
+export const RUNWAY_CENTRE = { x: PARKED_TACLOBAN.x, z: PARKED_TACLOBAN.z } as const
 
 /**
  * 1,500 m, about 5,000 ft.
@@ -36,15 +49,15 @@ export const RUNWAY_CENTRE = { x: DEFAULT_SPAWN_POSITION.x, z: DEFAULT_SPAWN_POS
  * - it fits inside the flat ground. North-south through the airfield the
  *   committed field runs 1.2 m to 1.7 m over 1.8 km; east-west has 3.1 m of
  *   spread because the coastline falls to the sea, which is why the strip
- *   runs north-south and why `DEFAULT_SPAWN_ATTITUDE` points the airplane
- *   along it.
+ *   runs north-south and why a parked airplane is pointed along it
+ *   (`parkedAttitude`, `src/sim/world/airfields.ts`).
  * - it contains the roll. Rotation comes up 410-453 m into a full-throttle
  *   roll over real terrain (Plan 11a's handoff), and the airplane starts at
  *   the CENTRE of the strip, so it has 750 m ahead of it -- about 1.6 times
  *   the longest measured roll. Starting mid-field rather than at a threshold
  *   is not what a pilot does; it is what centring the strip on the airfield
  *   coordinate costs, and moving the spawn to a threshold would mean moving
- *   `DEFAULT_SPAWN_POSITION` and re-measuring the ground height under it.
+ *   `PARKED_TACLOBAN` and re-measuring the ground height under it.
  */
 export const RUNWAY_LENGTH_M = 1500
 

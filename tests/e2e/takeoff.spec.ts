@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { waitForTerrain, type DiagWindow } from './harness.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
-import { DEFAULT_SPAWN_POSITION } from '../../src/render/spawn.js'
+
+const TACLOBAN_RUNWAY_CENTRE = loadAirfield('tacloban').runway.center
 
 /**
  * Tier 2, take-off. Same platform and caveats as `adapter.spec.ts`: a real
@@ -68,7 +69,7 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   // Confirms the spawn is where this test thinks it is before spending two
   // minutes rolling. A wrong spawn would otherwise show up as a mystifying
   // timeout, or worse, as a pass from somewhere else entirely.
-  expect(Math.hypot(start.x - DEFAULT_SPAWN_POSITION.x, start.z - DEFAULT_SPAWN_POSITION.z)).toBeLessThan(1)
+  expect(Math.hypot(start.x - TACLOBAN_RUNWAY_CENTRE.x, start.z - TACLOBAN_RUNWAY_CENTRE.z)).toBeLessThan(1)
 
   // Phase 1: full throttle, no pitch input, until it has rolled far enough to
   // rotate. `ShiftLeft` integrates the throttle and holds it after release
@@ -85,9 +86,10 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   )
 
   // The roll must have gone NORTH, down the strip, not east across it -- the
-  // whole reason `DEFAULT_SPAWN_ATTITUDE` exists. Asserted here and not only
-  // in Tier 1 because the spawn attitude reaches the simulation through
-  // `main.ts`, which no Tier 1 test can execute.
+  // whole reason a parked spawn's attitude is `parkedAttitude(tacloban)`
+  // (`src/sim/world/airfields.ts`) and not the identity. Asserted here and
+  // not only in Tier 1 because the spawn attitude reaches the simulation
+  // through `main.ts`, which no Tier 1 test can execute.
   const rolled = await page.evaluate(() => {
     const p = (window as DiagWindow).__ww2!.aircraftPositionM()
     return { x: p.x, z: p.z }

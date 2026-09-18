@@ -30,10 +30,10 @@ export type AudioInputs = {
    * `null` means "no terrain yet", NOT "airborne".
    *
    * `onGround` needs a ground height, and the heightfield arrives seconds
-   * after boot while the airplane sits parked on the Tacloban strip
-   * (`DEFAULT_SPAWN_IS_GROUND`). Modelling that gap as `false` would make the
-   * terrain's arrival a false -> true transition, and every flight would open
-   * with a landing squeak before the pilot touched a key.
+   * after boot while the airplane sits parked on the Tacloban strip (a
+   * ground spawn, `FrameState.groundSpawn`). Modelling that gap as `false`
+   * would make the terrain's arrival a false -> true transition, and every
+   * flight would open with a landing squeak before the pilot touched a key.
    */
   readonly onGround: boolean | null
   /** What is under the airplane, or `null` with no terrain. Wheels do not

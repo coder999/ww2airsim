@@ -17,10 +17,10 @@ const flatField = (): ReturnType<typeof createTerrainField> =>
 
 describe('audioInputsFrom (design §6.1)', () => {
   it('reports onGround as null until a terrain field has arrived', () => {
-    // NOT false. The default spawn is a GROUND spawn (DEFAULT_SPAWN_IS_GROUND,
-    // src/render/spawn.ts) held at zero elapsed time until the heightfield
-    // lands seconds later, so `false` here would make the arrival a
-    // false -> true transition and open every flight with a landing squeak.
+    // NOT false. A ground spawn is held at zero elapsed time until the
+    // heightfield lands seconds later (`FrameState.groundSpawn`), so `false`
+    // here would make the arrival a false -> true transition and open every
+    // flight with a landing squeak.
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     expect(frame.world.terrain).toBeNull()
     expect(audioInputsFrom(frame).onGround).toBeNull()

@@ -52,12 +52,11 @@ import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import {
-  DEFAULT_SPAWN_IS_GROUND,
-  DEFAULT_SPAWN_POSITION,
   hasSpawnOverride,
   initialAircraftState,
   spawnPositionFromQuery,
 } from './spawn.js'
+import { v3 } from '../sim/math/vec3.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 import { loadCover } from './landcover/load.js'
@@ -141,6 +140,22 @@ async function loadSpec(): Promise<AircraftSpec> {
   return parseAircraftSpec(json)
 }
 
+/**
+ * Parked on the runway at Tacloban, Leyte -- the world projection of 11.228 N
+ * 125.028 E, cross-checked against the Copernicus source tiles 2026-09-14 and
+ * carried by `tests/tools/terrainBuild.test.ts`. `y` is a PLACEHOLDER, not
+ * the truth (see `PARKED_PLACEHOLDER_Y_M`, `src/sim/scenario.ts`, for why):
+ * `settleOnTerrain` overwrites it the instant real terrain data exists.
+ *
+ * TEMPORARY until Task 7 boots this file from the scenario
+ * (`content/scenarios/free-flight.json`, `content/bases/tacloban.json`)
+ * instead of a single hand-built aircraft: this is the same literal
+ * `worldFromScenario` derives from the Tacloban record today, duplicated
+ * here only because `boot()` has no scenario to read yet. Task 7 deletes
+ * this constant and `src/render/scene/runway.ts`'s copy of it.
+ */
+const PARKED_TACLOBAN = v3(-29666, 1.9, -47605)
+
 async function boot(): Promise<void> {
   // Read before anything expensive, so a malformed `?spawnY=` fails on the
   // failure screen rather than after a renderer and 702 KB of terrain have
@@ -148,18 +163,17 @@ async function boot(): Promise<void> {
   // literal `false` in a production build, so esbuild drops the call and the
   // query string is inert in anything that ships (spawn.ts).
   const spawnPosition = import.meta.env.DEV
-    ? spawnPositionFromQuery(window.location.search)
-    : DEFAULT_SPAWN_POSITION
+    ? spawnPositionFromQuery(window.location.search, PARKED_TACLOBAN)
+    : PARKED_TACLOBAN
 
-  // Whether this flight is parked at Tacloban -- `DEFAULT_SPAWN_POSITION`
-  // unless a DEV `?spawnX/Y/Z` moved it (`spawn.ts`'s `hasSpawnOverride`),
-  // which is never a ground spawn: those overrides exist so Tier 2 can put
-  // the airplane over Leyte at altitude or over open water, both airborne.
-  // This ONE boolean is what `initialFrameState` derives both `gearDown` and
-  // the terrain hold from below, and what decides the initial velocity and
-  // gear position just below that -- see `spawn.ts`'s `DEFAULT_SPAWN_IS_GROUND`
-  // for why one flag rather than three independently-set ones.
-  const groundSpawn = DEFAULT_SPAWN_IS_GROUND && !(import.meta.env.DEV && hasSpawnOverride(window.location.search))
+  // Whether this flight is parked at Tacloban -- `PARKED_TACLOBAN` unless a
+  // DEV `?spawnX/Y/Z` moved it (`spawn.ts`'s `hasSpawnOverride`), which is
+  // never a ground spawn: those overrides exist so Tier 2 can put the
+  // airplane over Leyte at altitude or over open water, both airborne. This
+  // ONE boolean is what `initialFrameState` derives both `gearDown` and the
+  // terrain hold from below, and what decides the initial velocity and gear
+  // position just below that.
+  const groundSpawn = !(import.meta.env.DEV && hasSpawnOverride(window.location.search))
 
   const beaufort = import.meta.env.DEV ? beaufortFromQuery(window.location.search) : DEFAULT_BEAUFORT
 
@@ -463,7 +477,7 @@ async function boot(): Promise<void> {
   // `initialAircraftState` (spawn.ts) rather than as ternaries here, because
   // this file has no Tier 1 test and the attitude among them had already gone
   // stale once -- that function's doc comment has the argument. The POSITION
-  // is `DEFAULT_SPAWN_POSITION` unless a DEV build was handed `?spawnX/Y/Z`.
+  // is `PARKED_TACLOBAN` unless a DEV build was handed `?spawnX/Y/Z`.
   const initialAircraft = initialAircraftState(spawnPosition, groundSpawn)
 
   frame = initialFrameState(spec, initialAircraft, undefined, undefined, groundSpawn)
@@ -940,7 +954,7 @@ async function boot(): Promise<void> {
   // `settleOnTerrain` (frame.ts) runs exactly once, on the transition where
   // `applyTerrainLevel` first gives a ground spawn a real physics field (L4,
   // the only level `physicsFieldFor` ever returns non-null for) -- correcting
-  // `DEFAULT_SPAWN_POSITION`'s placeholder altitude (spawn.ts) to the real
+  // `PARKED_TACLOBAN`'s placeholder altitude (this file) to the real
   // ground height under the airplane. Without this the hold above buys
   // nothing: the flight would resume from underground or a tolerance-width
   // above it the instant terrain arrived, exactly the race Task 14 exists to

@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { qRotate } from '../../src/sim/math/quat.js'
+import { qFromAxisAngle, qIdentity, qRotate } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
-import { qIdentity } from '../../src/sim/math/quat.js'
 import {
-  DEFAULT_SPAWN_ATTITUDE,
-  DEFAULT_SPAWN_IS_GROUND,
-  DEFAULT_SPAWN_POSITION,
   SPAWN_PARAMS,
   hasSpawnOverride,
   initialAircraftState,
@@ -13,63 +9,18 @@ import {
 } from '../../src/render/spawn.js'
 
 /**
- * `spawn.ts` carries two things: where the airplane starts by default (parked
- * at Tacloban since Task 14), and the `?spawnX/Y/Z` override Tier 2 uses to
- * put it somewhere else entirely -- over Leyte at altitude, or over open
- * water. Tested here rather than only on the GPU for the obvious reason --
- * it is pure -- and for a less obvious one: a bug here does not make the
- * Tier 2 terrain tests FAIL, it makes them pass while flying over open water
- * (or, since Task 14, while parked at the wrong point on land), which is the
- * failure class this whole plan keeps guarding against.
+ * `spawn.ts` carries the `?spawnX/Y/Z` override Tier 2 uses to put the
+ * airplane somewhere else entirely -- over Leyte at altitude, or over open
+ * water -- and the pre-scenario spawn constructor `main.ts` still calls.
+ * Where the airplane starts by DEFAULT is content now (Plan 12, Task 5):
+ * `content/bases/tacloban.json`, tested in `tests/sim/world/airfields.test.ts`
+ * and `tests/sim/scenario.test.ts`, not here. Tested here rather than only on
+ * the GPU for the obvious reason -- it is pure -- and for a less obvious one:
+ * a bug here does not make the Tier 2 terrain tests FAIL, it makes them pass
+ * while flying over open water, which is the failure class this whole plan
+ * keeps guarding against.
  */
-describe('DEFAULT_SPAWN_POSITION and DEFAULT_SPAWN_IS_GROUND', () => {
-  it('is Tacloban -- (x, z) taken from tests/tools/terrainBuild.test.ts, not re-derived here', () => {
-    expect(DEFAULT_SPAWN_POSITION.x).toBe(-29666)
-    expect(DEFAULT_SPAWN_POSITION.z).toBe(-47605)
-  })
-
-  it('is a ground spawn', () => {
-    expect(DEFAULT_SPAWN_IS_GROUND).toBe(true)
-  })
-})
-
-describe('DEFAULT_SPAWN_ATTITUDE', () => {
-  /**
-   * The body frame's nose is +X and the world's +x is EAST
-   * (`spawnPositionFromQuery`'s doc comment carries the axes), so the
-   * identity attitude this was until 2026-09-17 parked the airplane
-   * CROSSWISE on the strip Task 11 builds, and pointed it at the sea.
-   *
-   * Measured on the committed L4 field -- the one level the physics ever
-   * gets -- from `DEFAULT_SPAWN_POSITION`, sampling every 30 m:
-   *
-   * | Direction | Height spread over +/-900 m | Sea ahead of the nose |
-   * | --- | --- | --- |
-   * | east (the old identity nose) | 3.23 m | 900 m |
-   * | north | 0.49 m | none within 900 m |
-   *
-   * That is the whole argument for both this constant and the strip's
-   * north-south axis, and it is why `runway.ts` asserts the same axis from
-   * the other end.
-   */
-  it('points the nose north, down the runway rather than across it', () => {
-    const nose = qRotate(DEFAULT_SPAWN_ATTITUDE, v3(1, 0, 0))
-    expect(nose.x).toBeCloseTo(0, 12)
-    expect(nose.y).toBeCloseTo(0, 12)
-    expect(nose.z).toBeCloseTo(-1, 12)
-  })
-
-  it('is parked wings level, not banked', () => {
-    // A yaw-only attitude: the body's "up" must still be the world's up.
-    // Getting the rotation axis wrong yields a nose that happens to point
-    // north while the airplane lies on its side, which the nose assertion
-    // above cannot see on its own.
-    const up = qRotate(DEFAULT_SPAWN_ATTITUDE, v3(0, 1, 0))
-    expect(up.x).toBeCloseTo(0, 12)
-    expect(up.y).toBeCloseTo(1, 12)
-    expect(up.z).toBeCloseTo(0, 12)
-  })
-})
+const FALLBACK = v3(-29666, 1.9, -47605)
 
 describe('hasSpawnOverride', () => {
   it('is false for an empty query string or one with unrelated parameters', () => {
@@ -97,55 +48,55 @@ describe('hasSpawnOverride', () => {
 })
 
 describe('spawnPositionFromQuery', () => {
-  it('is the default spawn when the query string is empty', () => {
-    expect(spawnPositionFromQuery('')).toEqual(DEFAULT_SPAWN_POSITION)
-    expect(spawnPositionFromQuery('?')).toEqual(DEFAULT_SPAWN_POSITION)
+  it('is the fallback when the query string is empty', () => {
+    expect(spawnPositionFromQuery('', FALLBACK)).toEqual(FALLBACK)
+    expect(spawnPositionFromQuery('?', FALLBACK)).toEqual(FALLBACK)
     // An unrelated parameter must not be read as a spawn coordinate.
-    expect(spawnPositionFromQuery('?debug=1')).toEqual(DEFAULT_SPAWN_POSITION)
+    expect(spawnPositionFromQuery('?debug=1', FALLBACK)).toEqual(FALLBACK)
   })
 
   it('overrides each component independently, by its own parameter name', () => {
     // One component at a time, and each asserted against the OTHER two still
-    // being the default: the bug this kills is an x/z transpose or a
+    // being the fallback: the bug this kills is an x/z transpose or a
     // copy-pasted `params.get('spawnX')` under the y branch, both of which
     // leave a test that only checks "all three at once" perfectly green.
-    expect(spawnPositionFromQuery('?spawnX=-45000')).toEqual({
+    expect(spawnPositionFromQuery('?spawnX=-45000', FALLBACK)).toEqual({
       x: -45000,
-      y: DEFAULT_SPAWN_POSITION.y,
-      z: DEFAULT_SPAWN_POSITION.z,
+      y: FALLBACK.y,
+      z: FALLBACK.z,
     })
-    expect(spawnPositionFromQuery('?spawnY=8000')).toEqual({
-      x: DEFAULT_SPAWN_POSITION.x,
+    expect(spawnPositionFromQuery('?spawnY=8000', FALLBACK)).toEqual({
+      x: FALLBACK.x,
       y: 8000,
-      z: DEFAULT_SPAWN_POSITION.z,
+      z: FALLBACK.z,
     })
-    expect(spawnPositionFromQuery('?spawnZ=-47605')).toEqual({
-      x: DEFAULT_SPAWN_POSITION.x,
-      y: DEFAULT_SPAWN_POSITION.y,
+    expect(spawnPositionFromQuery('?spawnZ=-47605', FALLBACK)).toEqual({
+      x: FALLBACK.x,
+      y: FALLBACK.y,
       z: -47605,
     })
   })
 
   it('reads all three together, in any order, with a leading ? or without', () => {
     const expected = { x: -45000, y: 100, z: -47605 }
-    expect(spawnPositionFromQuery('?spawnX=-45000&spawnY=100&spawnZ=-47605')).toEqual(expected)
-    expect(spawnPositionFromQuery('spawnZ=-47605&spawnX=-45000&spawnY=100')).toEqual(expected)
+    expect(spawnPositionFromQuery('?spawnX=-45000&spawnY=100&spawnZ=-47605', FALLBACK)).toEqual(expected)
+    expect(spawnPositionFromQuery('spawnZ=-47605&spawnX=-45000&spawnY=100', FALLBACK)).toEqual(expected)
   })
 
   it('accepts a negative, fractional and exponent-form coordinate', () => {
     // `-45000` and `-47605` are the real Tier 2 spawn; the rest are here
     // because `Number` accepts them and a hand-rolled parser might not.
-    expect(spawnPositionFromQuery('?spawnX=-1.5&spawnY=1e3&spawnZ=+2')).toEqual({ x: -1.5, y: 1000, z: 2 })
+    expect(spawnPositionFromQuery('?spawnX=-1.5&spawnY=1e3&spawnZ=+2', FALLBACK)).toEqual({ x: -1.5, y: 1000, z: 2 })
   })
 
   it('throws on a present-but-unparseable coordinate rather than falling back', () => {
-    // The whole point: a silent fallback puts the airplane back at
-    // `DEFAULT_SPAWN_POSITION` -- parked at Tacloban, not wherever the test
-    // asked for -- where a terrain test reports zero validation errors
-    // because it never saw the terrain it meant to fly over.
+    // The whole point: a silent fallback puts the airplane back at the
+    // fallback -- parked at Tacloban, not wherever the test asked for --
+    // where a terrain test reports zero validation errors because it never
+    // saw the terrain it meant to fly over.
     for (const bad of ['', ' ', 'abc', 'NaN', 'Infinity', '1,5']) {
       expect(
-        () => spawnPositionFromQuery(`?spawnY=${encodeURIComponent(bad)}`),
+        () => spawnPositionFromQuery(`?spawnY=${encodeURIComponent(bad)}`, FALLBACK),
         `spawnY=${JSON.stringify(bad)}`,
       ).toThrow(/spawnY/)
     }
@@ -157,7 +108,7 @@ describe('spawnPositionFromQuery', () => {
     // function reads.
     expect(SPAWN_PARAMS).toEqual(['spawnX', 'spawnY', 'spawnZ'])
     for (const name of SPAWN_PARAMS) {
-      expect(() => spawnPositionFromQuery(`?${name}=nonsense`), name).toThrow(new RegExp(name))
+      expect(() => spawnPositionFromQuery(`?${name}=nonsense`, FALLBACK), name).toThrow(new RegExp(name))
     }
   })
 })
@@ -182,9 +133,11 @@ describe('initialAircraftState', () => {
     expect(s.position).toEqual(at)
     expect(s.velocity).toEqual(v3(0, 0, 0))
     expect(s.gearFraction).toBe(1)
-    // The runway runs north-south, so a parked airplane faces along it. See
-    // DEFAULT_SPAWN_ATTITUDE for the measurements that settle the axis.
-    expect(s.attitude).toEqual(DEFAULT_SPAWN_ATTITUDE)
+    // The runway runs north-south, so a parked airplane faces along it --
+    // the same quaternion `parkedAttitude(tacloban)` produces
+    // (`tests/sim/world/airfields.test.ts` carries the measurements that
+    // settle the axis).
+    expect(s.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2))
     const nose = qRotate(s.attitude, v3(1, 0, 0))
     expect(nose.z).toBeCloseTo(-1, 12)
   })

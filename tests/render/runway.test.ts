@@ -10,8 +10,14 @@ import {
 } from '../../src/render/scene/runway.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
-import { DEFAULT_SPAWN_POSITION } from '../../src/render/spawn.js'
+import { loadAirfield } from '../../tools/content/load.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
+
+/** The content record `RUNWAY_CENTRE` (src/render/scene/runway.ts) is
+ *  supposed to agree with, until Task 7 makes `createRunway` take an
+ *  `Airfield` directly and this whole file's `RUNWAY_CENTRE` import goes
+ *  with it. */
+const tacloban = loadAirfield('tacloban')
 
 describe('the runway at Tacloban', () => {
   it('sits on the airfield coordinate this repo already carries', () => {
@@ -47,11 +53,11 @@ describe('the runway at Tacloban', () => {
   it('has the parked airplane standing on it', () => {
     const c = runwayCorners()
     const withinX =
-      DEFAULT_SPAWN_POSITION.x >= Math.min(...c.map((p) => p.x)) &&
-      DEFAULT_SPAWN_POSITION.x <= Math.max(...c.map((p) => p.x))
+      tacloban.runway.center.x >= Math.min(...c.map((p) => p.x)) &&
+      tacloban.runway.center.x <= Math.max(...c.map((p) => p.x))
     const withinZ =
-      DEFAULT_SPAWN_POSITION.z >= Math.min(...c.map((p) => p.z)) &&
-      DEFAULT_SPAWN_POSITION.z <= Math.max(...c.map((p) => p.z))
+      tacloban.runway.center.z >= Math.min(...c.map((p) => p.z)) &&
+      tacloban.runway.center.z <= Math.max(...c.map((p) => p.z))
     expect(withinX, 'spawn is off the side of the strip').toBe(true)
     expect(withinZ, 'spawn is off the end of the strip').toBe(true)
   })

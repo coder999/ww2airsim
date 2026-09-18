@@ -11,8 +11,8 @@ import { flySweep, waitForTerrain, type DiagWindow } from './harness.js'
  * and they are the expensive half to maintain.
  *
  * The sweep below flies the DEFAULT spawn -- parked on the runway at Tacloban
- * since Task 14 (`DEFAULT_SPAWN_POSITION`, src/render/spawn.ts), the world the
- * airplane actually starts in. `terrain.spec.ts` flies the same sweep over
+ * since Task 14 (`content/bases/tacloban.json`'s `runway.center`), the world
+ * the airplane actually starts in. `terrain.spec.ts` flies the same sweep over
  * Leyte at three altitudes, explicitly overridden away from that default; the
  * two are not redundant, because a parked start and airborne flight exercise
  * different halves of the renderer and this one is also the only Tier 2 test

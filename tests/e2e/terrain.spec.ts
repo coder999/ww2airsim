@@ -49,7 +49,7 @@ for (const altitudeM of ALTITUDES_M) {
     const start = await snapshot(page)
 
     // Prove the spawn landed BEFORE trusting anything downstream. The default
-    // spawn (`DEFAULT_SPAWN_POSITION`, src/render/spawn.ts) is Tacloban itself,
+    // spawn (`content/bases/tacloban.json`'s `runway.center`) is Tacloban itself,
     // `(-29666, -47605)` -- 15.3 km from this one horizontally -- since Task 14
     // moved it there from Plan 11a's airborne `(0, 600, 0)`. Either way a
     // `spawnX/Y/Z` that never took effect (renamed parameter, production build

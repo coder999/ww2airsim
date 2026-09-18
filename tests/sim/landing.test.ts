@@ -18,9 +18,9 @@ const f6f = loadAircraftSpec('f6f-hellcat')
 
 /** Tacloban, taken from `tests/tools/terrainBuild.test.ts` -- do not
  *  re-derive it; an equirectangular back-of-envelope lands ~80 m away. The
- *  render layer's `RUNWAY_CENTRE` is derived from the same coordinate via
- *  `DEFAULT_SPAWN_POSITION`, but `src/sim/` tests should not reach into
- *  `src/render/` for a number this file can state. */
+ *  render layer's `RUNWAY_CENTRE` is derived from the same coordinate
+ *  (`content/bases/tacloban.json`'s `runway.center`), but `src/sim/` tests
+ *  should not reach into `src/render/` for a number this file can state. */
 const TACLOBAN_X = -29666
 const TACLOBAN_Z = -47605
 /** The strip is 1500 m by 45 m, north-south, centred on that coordinate

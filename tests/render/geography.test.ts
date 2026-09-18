@@ -3,17 +3,19 @@ import { Quaternion, Vector3 } from 'three'
 import { cameraTransformFor } from '../../src/render/camera.js'
 import { toThreeOrientation } from '../../src/render/frame.js'
 import { gaugeValue, readoutTextFor } from '../../src/render/gauges.js'
-import { DEFAULT_SPAWN_POSITION, initialAircraftState } from '../../src/render/spawn.js'
+import { initialAircraftState } from '../../src/render/spawn.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { qFromAxisAngle, qRotate } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { PARKED_PLACEHOLDER_Y_M } from '../../src/sim/scenario.js'
 import { toGeodetic, toLocal, WORLD_CENTRE } from '../../src/sim/world/projection.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
 import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+const taclobanCentre = loadAirfield('tacloban').runway.center
 
 describe('geography, view and compass agree', () => {
   it('maps increasing latitude north (-Z) and increasing longitude east (+X)', () => {
@@ -38,7 +40,7 @@ describe('geography, view and compass agree', () => {
   })
 
   it.each(['chase', 'cockpit'] as const)('puts geographic east on screen right when looking north in %s view', mode => {
-    const aircraft = initialAircraftState(DEFAULT_SPAWN_POSITION, true)
+    const aircraft = initialAircraftState(v3(taclobanCentre.x, PARKED_PLACEHOLDER_Y_M, taclobanCentre.z), true)
     const eye = cameraTransformFor(mode, spec, aircraft)
     const orientation = toThreeOrientation(eye.attitude)
     const inverse = new Quaternion(orientation.x, orientation.y, orientation.z, orientation.w).invert()
@@ -56,7 +58,7 @@ describe('geography, view and compass agree', () => {
   })
 
   it('keeps the spawn at Tacloban and known geographic landmarks on their terrain', () => {
-    const spawn = toGeodetic(DEFAULT_SPAWN_POSITION.x, DEFAULT_SPAWN_POSITION.z)
+    const spawn = toGeodetic(taclobanCentre.x, taclobanCentre.z)
     expect(spawn.latDeg).toBeCloseTo(11.228, 4)
     expect(spawn.lonDeg).toBeCloseTo(125.028, 4)
     const header = loadTerrainHeader()

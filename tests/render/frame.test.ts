@@ -3,6 +3,7 @@ import { Quaternion, Vector3 } from 'three'
 import {
   nextFrameState,
   initialFrameState,
+  initialFrameStateFor,
   settleOnTerrain,
   toThreeOrientation,
   withTerrain,
@@ -10,18 +11,21 @@ import {
   airframeVisibilityFor,
 } from '../../src/render/frame.js'
 import { airspeed } from '../../src/sim/flight/model.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadAirfield, loadScenarioBundle } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
 import { playerAircraft } from '../../src/sim/loop.js'
+import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
-import { DEFAULT_SPAWN_POSITION, initialAircraftState } from '../../src/render/spawn.js'
+import { initialAircraftState } from '../../src/render/spawn.js'
+import { BINDINGS } from '../../src/input/bindings.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
+const tacloban = loadAirfield('tacloban')
 const keys = (...k: string[]) => new Set(k)
 const start = () =>
   initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
@@ -385,7 +389,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     const header = loadTerrainHeader()
     const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
     const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
-    const groundHeightM = heightAt(terrain, DEFAULT_SPAWN_POSITION.x, DEFAULT_SPAWN_POSITION.z)
+    const groundHeightM = heightAt(terrain, tacloban.runway.center.x, tacloban.runway.center.z)
 
     // Real ground, well above sea level and well below "this is a mountain,
     // the coordinate is wrong" -- Tacloban is a coastal airfield.
@@ -395,7 +399,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     let f = initialFrameState(
       f6f,
       createState({
-        position: v3(DEFAULT_SPAWN_POSITION.x, groundHeightM, DEFAULT_SPAWN_POSITION.z),
+        position: v3(tacloban.runway.center.x, groundHeightM, tacloban.runway.center.z),
         velocity: v3(0, 0, 0),
         gearFraction: 1,
       }),
@@ -497,14 +501,14 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
    * goes east, the second because east of Tacloban is San Pedro Bay.
    */
   const rollFromTheSpawn = (terrain: TerrainField) => {
-    const groundHeightM = heightAt(terrain, DEFAULT_SPAWN_POSITION.x, DEFAULT_SPAWN_POSITION.z)
+    const groundHeightM = heightAt(terrain, tacloban.runway.center.x, tacloban.runway.center.z)
     let f = settleOnTerrain(
       withTerrain(
         initialFrameState(
           f6f,
           // The boot path's own constructor, not a hand-built state: the
           // heading under test is the one `main.ts` actually spawns with.
-          initialAircraftState(v3(DEFAULT_SPAWN_POSITION.x, groundHeightM, DEFAULT_SPAWN_POSITION.z), true),
+          initialAircraftState(v3(tacloban.runway.center.x, groundHeightM, tacloban.runway.center.z), true),
           undefined,
           terrain,
           true,
@@ -590,5 +594,53 @@ describe('the flap lever (Plan 11b Task 8)', () => {
     // gear there is no reason a parked spawn should differ.
     expect(initialFrameState(f6f, createState({}), undefined, null, true).flapDown).toBe(false)
     expect(initialFrameState(f6f, createState({})).flapDown).toBe(false)
+  })
+})
+
+describe('a multi-entity frame (Plan 12)', () => {
+  const bundle = loadScenarioBundle('free-flight')
+  const header = loadTerrainHeader()
+  const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+
+  it('carries one pose per aircraft and per ship, and render IS the player pose', () => {
+    let f = initialFrameStateFor(worldFromScenario(bundle, terrain))
+    f = settleOnTerrain(f, terrain)
+    f = nextFrameState(f, 1 / 60, new Set())
+    expect(f.poses).toHaveLength(f.world.aircraft.length)
+    expect(f.shipPoses).toHaveLength(f.world.ships.length)
+    const playerIndex = f.world.aircraft.findIndex((a) => a.id === f.world.player)
+    expect(f.render).toBe(f.poses[playerIndex])
+    expect(f.shipPoses[0]!.position.y).toBe(0)
+  })
+
+  it('holds the whole world while any parked aircraft has no terrain, and settles all of them when it arrives', () => {
+    let f = initialFrameStateFor(worldFromScenario(bundle, null))
+    expect(f.groundSpawn).toBe(true)
+    expect(f.gearDown).toBe(true)
+    f = nextFrameState(f, 1 / 60, new Set())
+    expect(f.world.tick).toBe(0)
+    expect(f.world.ships[0]!.state.tick).toBe(0)
+    f = settleOnTerrain(withTerrain(f, terrain), terrain)
+    for (const a of f.world.aircraft) {
+      const ground = heightAt(terrain, a.state.position.x, a.state.position.z)
+      expect(a.state.position.y).toBeCloseTo(ground + a.spec.gear.heightM, 9)
+      expect(a.previous.position.y).toBe(a.state.position.y)
+    }
+    f = nextFrameState(f, 1 / 60, new Set())
+    expect(f.world.tick).toBe(1)
+  })
+
+  it('the chocked wingman stays put: under 0.5 m of drift after 60 s at full throttle from the player', () => {
+    let f = settleOnTerrain(initialFrameStateFor(worldFromScenario(bundle, terrain)), terrain)
+    const start = f.world.aircraft[1]!.state.position
+    const throttle = new Set(BINDINGS.throttleUp)
+    for (let i = 0; i < 60 * 60; i++) f = nextFrameState(f, 1 / 60, throttle)
+    const end = f.world.aircraft[1]!.state.position
+    const driftM = Math.hypot(end.x - start.x, end.z - start.z)
+    console.log(`chocked wingman drift over 60 s: ${driftM.toFixed(4)} m`)
+    expect(driftM).toBeLessThan(0.5)
+    expect(f.world.aircraft[1]!.impact).toBeNull()
+    // and the player rolled: full throttle from the strip center moves it
+    expect(Math.hypot(f.render.position.x - start.x, f.render.position.z - start.z)).toBeGreaterThan(100)
   })
 })

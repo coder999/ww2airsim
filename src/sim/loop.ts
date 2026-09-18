@@ -290,13 +290,14 @@ export interface AircraftEntity<M = undefined> {
    * Spawned on its wheels rather than airborne, so this airplane's altitude is
    * a placeholder until real terrain arrives.
    *
-   * SET here and read by NOBODY at this commit: `initialFrameState` fills it
-   * from its `groundSpawn` argument, and the frame still gates both halves of
-   * the ground-spawn dance on the per-FRAME `FrameState.groundSpawn` --
-   * `nextFrameState`'s hold reads `prev.groundSpawn`, and `settleOnTerrain`
-   * settles the player alone. Task 5 is the consumer: it makes those two read
-   * this field instead, so a world with several parked aircraft settles every
-   * one of them. Until then a second parked aircraft would be left at its
+   * Read by two places in `src/render/frame.ts` (Task 5): `initialFrameStateFor`
+   * derives `FrameState.groundSpawn` from `world.aircraft.some((a) => a.parked)`
+   * (any parked aircraft holds the whole world for terrain, not just the
+   * player) and `gearDown` from `playerAircraft(world).parked` alone; and
+   * `settleOnTerrain` iterates every entity with `parked` set, not the player
+   * only, so a scenario with several parked aircraft -- a chocked wingman
+   * beside the one the pilot flies -- settles all of them onto the real ground
+   * the instant it arrives, rather than leaving the others at their
    * placeholder altitude.
    */
   readonly parked: boolean

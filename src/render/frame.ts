@@ -14,7 +14,7 @@ import {
   DEFAULT_ASSIST_SETTINGS,
   type AssistSettings,
 } from '../assists/index.js'
-import { interpolateAircraft, type RenderState } from '../sim/interpolate.js'
+import { interpolateAircraft, interpolateShip, type RenderState, type ShipPose } from '../sim/interpolate.js'
 import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.js'
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
 import { cameraTransformFor, type CameraMode, type EyeTransform } from './camera.js'
@@ -40,14 +40,27 @@ export type FrameState = {
   readonly look: LookOffset
   readonly cameraMode: CameraMode
   readonly eye: EyeTransform
-  /** The airplane's interpolated pose this frame -- the same quantity `eye`
-   *  is built from, exposed separately so the renderer can pose the airframe
-   *  mesh. Sim convention throughout (body +X forward): unlike `toThreeOrientation`
-   *  below, this needs no basis fix, because the airframe mesh's own geometry
-   *  is built with +X as its nose (src/render/scene/hellcat.ts) -- a Three
-   *  Object3D has no built-in "forward" the way a Three camera does, so
-   *  setting its quaternion straight from sim convention orients it correctly. */
+  /** The PLAYER's interpolated pose this frame -- `poses[playerIndex]`, the
+   *  identical object, not a second computation of it (see `posesFor`). The
+   *  same quantity `eye` is built from, exposed separately so the renderer
+   *  can pose the airframe mesh. Sim convention throughout (body +X forward):
+   *  unlike `toThreeOrientation` below, this needs no basis fix, because the
+   *  airframe mesh's own geometry is built with +X as its nose
+   *  (src/render/scene/hellcat.ts) -- a Three Object3D has no built-in
+   *  "forward" the way a Three camera does, so setting its quaternion
+   *  straight from sim convention orients it correctly. */
   readonly render: RenderState
+  /** One interpolated pose per `world.aircraft`, same order -- Plan 12's
+   *  generalization of `render` to every airplane, not just the player's.
+   *  `render` stays a separate field (see its own comment) rather than
+   *  becoming `poses[playerIndex]` at every call site, because the eye, the
+   *  gauges, the cockpit group and the audio adapter all read it by that one
+   *  name today. */
+  readonly poses: readonly RenderState[]
+  /** One interpolated pose per `world.ships`, same order. A ship has no
+   *  attitude in this plan (`interpolateShip`'s own comment), so this is a
+   *  position and a heading rather than a `RenderState`. */
+  readonly shipPoses: readonly ShipPose[]
   readonly stepsRun: number
   readonly droppedSteps: number
   /** Whether the camera-cycle key was down last frame, for edge detection. */
@@ -91,22 +104,20 @@ export type FrameState = {
    * would let a wrong field assignment typecheck.
    */
   readonly assistTogglesDown: AssistTogglesDown
-  /** Whether the pilot currently has the gear commanded down. Set in
-   *  `initialFrameState` from its `groundSpawn` argument -- the SAME argument
-   *  that sets `groundSpawn` below, not a second, independently-set flag --
-   *  so a caller cannot ask for the gear down without also getting the
-   *  terrain hold, or the reverse. Before Task 14 this was a hardcoded
-   *  `false`, justified by `DEFAULT_SPAWN_POSITION` (`src/render/spawn.ts`)
-   *  being airborne (600 m up, 23 km from land); Task 14 moved that spawn
-   *  onto a runway at Tacloban, which is exactly the drift this comment used
-   *  to warn about -- a spawn that changed out from under a constant that
-   *  did not track it. Measured cost of getting this wrong (gear that should
-   *  be down but is commanded up): by t=30 s an ordinary flight had lost
-   *  7.3 m/s and 8.3 m of altitude versus never commanding the gear, and the
-   *  gap widens forever, because the gear's 0.3 sq m drag area is 46% of the
-   *  airframe's own zero-lift drag area. Threaded into `Controls.gearDown`
-   *  every frame -- see the comment on `controls` below for why that step is
-   *  not optional. */
+  /**
+   * Whether the pilot currently has the gear commanded down: the PLAYER's
+   * `parked` (Plan 12; `initialFrameStateFor` reads `playerAircraft(world).parked`).
+   * Before Task 14 this was a hardcoded `false`, justified by the old spawn
+   * being airborne (600 m up, 23 km from land); Task 14 moved that spawn onto
+   * a runway at Tacloban, which is exactly the drift this comment used to
+   * warn about -- a spawn that changed out from under a constant that did not
+   * track it. Measured cost of getting this wrong (gear that should be down
+   * but is commanded up): by t=30 s an ordinary flight had lost 7.3 m/s and
+   * 8.3 m of altitude versus never commanding the gear, and the gap widens
+   * forever, because the gear's 0.3 sq m drag area is 46% of the airframe's
+   * own zero-lift drag area. Threaded into `Controls.gearDown` every frame --
+   * see the comment on `controls` below for why that step is not optional.
+   */
   readonly gearDown: boolean
   /** Whether the gear toggle key was down last frame, for edge detection --
    *  the same reason `cyclePressed` exists: a lever that stays where it is
@@ -146,11 +157,11 @@ export type FrameState = {
    *  frame from the world on either side of this frame's steps. */
   readonly landing: LandingTracking
   /**
-   * Whether this flight is a GROUND spawn -- parked, waiting for terrain --
-   * as opposed to an airborne one. Set once, in `initialFrameState`, from the
-   * same argument `gearDown` reads (see that field's comment), and carried
-   * unchanged by every `nextFrameState` call after that: it describes how the
-   * flight STARTED, not anything that changes mid-flight.
+   * Whether ANY aircraft in this world spawned parked, waiting for terrain
+   * (Plan 12; `initialFrameStateFor` reads `world.aircraft.some((a) =>
+   * a.parked)`, not just the player's). Set once, when the frame is built,
+   * and carried unchanged by every `nextFrameState` call after that: it
+   * describes how the world STARTED, not anything that changes mid-flight.
    *
    * The one thing it gates: `nextFrameState` feeds `advance` zero elapsed
    * time -- instead of the real frame delta -- on every frame this is `true`
@@ -196,6 +207,74 @@ const NO_TOGGLES_DOWN: AssistTogglesDown = {
   autoRudder: false,
 }
 
+/**
+ * One interpolated pose per aircraft and per ship (Plan 12), plus the
+ * player's own pose picked out of `poses` BY IDENTITY -- `render` below is
+ * never a second `interpolateAircraft` call on the player's states, so there
+ * is exactly one computation of where the player is this frame, not two that
+ * could disagree.
+ */
+function posesFor(
+  world: World<undefined>,
+  alpha: number,
+): { poses: RenderState[]; shipPoses: ShipPose[]; render: RenderState } {
+  const poses = world.aircraft.map((a) => interpolateAircraft(a.previous, a.state, alpha))
+  const shipPoses = world.ships.map((s) => interpolateShip(s.previous, s.state, alpha))
+  const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
+  return { poses, shipPoses, render: poses[playerIndex]! }
+}
+
+/**
+ * The general entry point (Plan 12): a `FrameState` for a `World` that may
+ * carry any number of aircraft and ships. `groundSpawn` and `gearDown` are
+ * derived from the world's own entities rather than taken as a second,
+ * independently-set argument -- `groundSpawn`'s doc comment on `FrameState`
+ * explains why a world with several parked aircraft has to hold for ALL of
+ * them, and `gearDown`'s explains why the player's `parked` alone decides the
+ * gear.
+ */
+export function initialFrameStateFor(
+  world: World<undefined>,
+  assists: AssistSettings = DEFAULT_ASSIST_SETTINGS,
+): FrameState {
+  const player = playerAircraft(world)
+  const { poses, shipPoses, render } = posesFor(world, 0)
+  return {
+    world,
+    controls: player.controls,
+    look: LOOK_CENTRE,
+    cameraMode: 'chase',
+    eye: { position: render.position, attitude: render.attitude },
+    render,
+    poses,
+    shipPoses,
+    stepsRun: 0,
+    droppedSteps: 0,
+    cyclePressed: false,
+    timeScale: 1,
+    tripleTimePressed: false,
+    assists,
+    assistTogglesDown: NO_TOGGLES_DOWN,
+    gearDown: player.parked,
+    gearPressed: false,
+    // Flaps UP on every spawn, parked included: unlike the gear, there is no
+    // configuration in which an airplane is left with its flaps hanging out.
+    flapDown: false,
+    flapPressed: false,
+    throttleCutPressed: false,
+    paused: false,
+    pausePressed: false,
+    landing: NO_LANDING,
+    groundSpawn: world.aircraft.some((a) => a.parked),
+  }
+}
+
+/**
+ * The pre-Plan-12 entry point: builds the one-aircraft `World` every Tier 1
+ * test before this task constructs by hand, then delegates to
+ * `initialFrameStateFor`. Kept so a one-airplane test, and `main.ts` until
+ * Task 7 wires it to the scenario, still build a frame in one call.
+ */
 export function initialFrameState(
   spec: AircraftSpec,
   aircraft: AircraftState,
@@ -211,52 +290,28 @@ export function initialFrameState(
   // `false` matches every caller that predates Task 14 -- every Tier 1 test
   // and every DEV spawn override -- so this argument changes no existing
   // behavior by default. A ground spawn passes `true` here and nowhere
-  // else: `gearDown` and `groundSpawn` below both read this ONE argument, so
-  // the two cannot drift apart the way `gearDown`'s own doc comment warns a
-  // hardcoded constant did.
+  // else: `gearDown` and `groundSpawn` both derive from this one aircraft's
+  // `parked`, so the two cannot drift apart the way `gearDown`'s own doc
+  // comment warns a hardcoded constant did.
   groundSpawn: boolean = false,
 ): FrameState {
-  return {
-    world: createWorldOf<undefined>({
-      aircraft: [
-        {
-          id: PLAYER_ID,
-          spec,
-          state: aircraft,
-          previous: aircraft,
-          controls: NEUTRAL,
-          assistMemory: undefined,
-          impact: null,
-          parked: groundSpawn,
-        },
-      ],
-      player: PLAYER_ID,
-      terrain,
-    }),
-    controls: NEUTRAL,
-    look: LOOK_CENTRE,
-    cameraMode: 'chase',
-    eye: { position: aircraft.position, attitude: aircraft.attitude },
-    render: { position: aircraft.position, attitude: aircraft.attitude },
-    stepsRun: 0,
-    droppedSteps: 0,
-    cyclePressed: false,
-    timeScale: 1,
-    tripleTimePressed: false,
-    assists,
-    assistTogglesDown: NO_TOGGLES_DOWN,
-    gearDown: groundSpawn,
-    gearPressed: false,
-    // Flaps UP on every spawn, parked included: unlike the gear, there is no
-    // configuration in which an airplane is left with its flaps hanging out.
-    flapDown: false,
-    flapPressed: false,
-    throttleCutPressed: false,
-    paused: false,
-    pausePressed: false,
-    landing: NO_LANDING,
-    groundSpawn,
-  }
+  const world = createWorldOf<undefined>({
+    aircraft: [
+      {
+        id: PLAYER_ID,
+        spec,
+        state: aircraft,
+        previous: aircraft,
+        controls: NEUTRAL,
+        assistMemory: undefined,
+        impact: null,
+        parked: groundSpawn,
+      },
+    ],
+    player: PLAYER_ID,
+    terrain,
+  })
+  return initialFrameStateFor(world, assists)
 }
 
 /** After the landing debrief's Continue: forget the landing so the next
@@ -293,19 +348,22 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
 }
 
 /**
- * Snaps a ground spawn's altitude onto the REAL ground the instant real
- * terrain data exists, replacing whatever placeholder `DEFAULT_SPAWN_POSITION`
- * (`src/render/spawn.ts`) shipped with -- see that constant's doc comment for
- * why its `y` cannot be the truth at module-load time.
+ * Snaps EVERY parked aircraft's altitude onto the REAL ground the instant
+ * real terrain data exists (Plan 12; Task 14/15 settled only the player,
+ * which left a second parked aircraft at its placeholder altitude --
+ * `AircraftEntity.parked`'s doc comment named this function as the fix).
+ * Replaces whatever placeholder Y `worldFromScenario` (`src/sim/scenario.ts`)
+ * shipped a parked entity's `state` with -- see `PARKED_PLACEHOLDER_Y_M`'s
+ * doc comment there for why it cannot be the truth at world-build time.
  *
  * Meant to be called exactly once, at the transition where `world.terrain`
  * goes from `null` to real (`main.ts`'s terrain-arrival callback): nothing has
  * advanced before then for a ground spawn (`FrameState.groundSpawn`'s hold in
- * `nextFrameState`), so the player's `state`, its `previous`, `eye` and
- * `render` are all still literally the spawn point -- correcting one of the
- * four without the other three would show the airplane at the wrong height for
- * exactly one frame. Velocity is untouched; only the vertical component of
- * each position moves.
+ * `nextFrameState`), so every parked aircraft's `state`, its `previous`, and
+ * (for the player alone) `eye` and `render` are all still literally the spawn
+ * point -- correcting the state without the other three would show the
+ * airplane at the wrong height for exactly one frame. Velocity is untouched;
+ * only the vertical component of each position moves.
  *
  * Takes the terrain as a separate argument, rather than reading
  * `frame.world.terrain`, so a caller cannot pass a `frame` whose terrain is
@@ -322,18 +380,24 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  * most likely to be looking at the runway.
  */
 export function settleOnTerrain(frame: FrameState, terrain: TerrainField): FrameState {
-  const player = playerAircraft(frame.world)
-  const groundHeightM = heightAt(terrain, player.state.position.x, player.state.position.z)
-  const contactHeightM = groundHeightM + player.spec.gear.heightM
-  const atGroundHeight = (p: Vec3): Vec3 => v3(p.x, contactHeightM, p.z)
+  let world = frame.world
+  let playerDeltaY = 0
+  for (const a of frame.world.aircraft) {
+    if (!a.parked) continue
+    const groundHeightM = heightAt(terrain, a.state.position.x, a.state.position.z)
+    const contactHeightM = groundHeightM + a.spec.gear.heightM
+    if (a.id === world.player) playerDeltaY = contactHeightM - a.state.position.y
+    const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
+    world = withAircraftState(world, a.id, settled)
+  }
+  const { poses, shipPoses, render } = posesFor(world, 0)
   return {
     ...frame,
-    world: withAircraftState(frame.world, frame.world.player, {
-      ...player.state,
-      position: atGroundHeight(player.state.position),
-    }),
-    eye: { ...frame.eye, position: atGroundHeight(frame.eye.position) },
-    render: { ...frame.render, position: atGroundHeight(frame.render.position) },
+    world,
+    poses,
+    shipPoses,
+    render,
+    eye: { ...frame.eye, position: v3(frame.eye.position.x, frame.eye.position.y + playerDeltaY, frame.eye.position.z) },
   }
 }
 
@@ -485,7 +549,7 @@ export function nextFrameState(
     assist,
   )
   const advancedPlayer = playerAircraft(advanced.world)
-  const render = interpolateAircraft(advancedPlayer.previous, advancedPlayer.state, advanced.alpha)
+  const { poses, shipPoses, render } = posesFor(advanced.world, advanced.alpha)
   const before = advancedPlayer.previous.velocity
   const after = advancedPlayer.state.velocity
   const a = advanced.alpha
@@ -511,6 +575,8 @@ export function nextFrameState(
     cameraMode,
     eye,
     render,
+    poses,
+    shipPoses,
     stepsRun: advanced.stepsRun,
     droppedSteps: advanced.droppedSteps,
     cyclePressed: cycleDown,

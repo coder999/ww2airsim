@@ -52,8 +52,8 @@ for (const tier of ['high','medium','low']) {
     await page.setViewportSize({width:2560,height:1440})
     // `spawnX`/`spawnZ` pinned to the open-water origin explicitly: this test
     // wants the ocean surface, not Tacloban, and used to get it for free by
-    // leaving them unset while `DEFAULT_SPAWN_POSITION` (spawn.ts) was itself
-    // `(0, 600, 0)`. Since that default moved to a ground spawn at Tacloban
+    // leaving them unset while the default spawn was itself `(0, 600, 0)`.
+    // Since that default moved to a ground spawn at Tacloban
     // (Task 14), an unset spawnX/spawnZ here would silently fly this test
     // over land instead -- still airborne (spawnY alone makes this a DEV
     // override, so `groundSpawn` is false and nothing here holds for

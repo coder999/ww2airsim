@@ -101,6 +101,26 @@ export function airfieldAt(airfields: readonly Airfield[], x: number, z: number)
 /**
  * Parked, nose down the strip toward its heading, wings level. The body
  * nose is +x and world +x is east, so a heading h is a yaw of pi/2 - h about
- * +y: heading 0 gives the pi/2 that `DEFAULT_SPAWN_ATTITUDE` was.
+ * +y: heading 0 (Tacloban's) gives pi/2 -- north, down the strip -- which is
+ * what the pre-Plan-12 `DEFAULT_SPAWN_ATTITUDE` (`src/render/spawn.ts`,
+ * deleted Task 5) hardcoded for that one airfield.
+ *
+ * The strip's axis is not a taste call; it is the ground. Measured on the
+ * committed L4 field -- the one level `physicsFieldFor` ever hands the
+ * physics -- from Tacloban's `runway.center`, sampling every 30 m
+ * (2026-09-17, carried forward from the deleted `DEFAULT_SPAWN_ATTITUDE`
+ * comment when Task 5 moved the spawn onto content):
+ *
+ * | Direction | Height spread over +/-900 m | Sea ahead of the nose |
+ * | --- | --- | --- |
+ * | east, the old identity nose | 3.23 m | 900 m |
+ * | north | 0.49 m | none within 900 m |
+ *
+ * East is worse on both counts, and the second one had already bitten: the
+ * roll to liftoff over real terrain is 410-453 m (Plan 11a's handoff), which
+ * left about 450 m of margin and is why `tests/sim/soak.test.ts` carries a
+ * case for Mark driving off the end of the runway onto the ocean. Any later
+ * airfield's `headingDeg` gets the same reasoning for free through the
+ * formula above, rather than a second hand-measured table.
  */
 export const parkedAttitude = (a: Airfield): Quat => qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - runwayHeadingRad(a))
