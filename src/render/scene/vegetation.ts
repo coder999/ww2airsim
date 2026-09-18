@@ -1,6 +1,6 @@
 import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedMesh, Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { float, length, positionWorld, smoothstep } from 'three/tsl'
+import { float, hash, instanceIndex, length, positionWorld, smoothstep } from 'three/tsl'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { inAirfieldClearing } from './airfield.js'
@@ -36,13 +36,26 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number): Tr
 export function createVegetation(field: TerrainField): { object: Group; update(x: number, z: number): void } {
   const object = new Group()
   object.name = 'nearby jungle'
-  const leaves = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 1, alphaHash: true })
-  const bark = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1, alphaHash: true })
+  const leaves = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 1 })
+  const bark = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1 })
   // positionWorld includes the scene's -eye translation: this is distance
   // from the camera, not distance from the geographic world origin.
   const fade = float(1).sub(smoothstep(1400, 1850, length(positionWorld)))
-  leaves.opacityNode = fade
-  bark.opacityNode = fade
+  // A per-instance dissolve: tree i is drawn while fade > hash(i), so the
+  // forest thins one whole tree at a time across the 1400-1850 m band and no
+  // pixel is ever blended. NOT `alphaHash: true`: three r186's alpha hash
+  // takes dFdx/dFdy of the position and then discards, and on the reference
+  // desktop (2026-09-17, Playwright 1.63 Chromium, RX 6700 XT) that shader
+  // fails pipeline creation with "An error occurred while generating Tint
+  // IR" -- every command buffer touching the trees was rejected, the trees
+  // never drew, and the app's own error list showed only the downstream
+  // "invalid due to a previous error" entries. tests/render/scenery.test.ts
+  // guards it; the single-variable probe that found it is in the 13a notes.
+  const threshold = hash(instanceIndex)
+  for (const material of [leaves, bark]) {
+    material.opacityNode = fade
+    material.alphaTestNode = threshold
+  }
   const lobes = [new IcosahedronGeometry(1, 0),
     new IcosahedronGeometry(0.8, 0).translate(0.5, -0.2, 0.25),
     new IcosahedronGeometry(0.75, 0).translate(-0.45, -0.15, -0.35)]

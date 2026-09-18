@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { InstancedMesh, Mesh } from 'three'
+import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { createVegetation, treeSites } from '../../src/render/scene/vegetation.js'
 import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
@@ -43,6 +44,29 @@ describe('scenery placement on the real Leyte field', () => {
       expect(nearRiver(t.x, t.z)).toBe(false)
     }
     expect(treeSites(field, -78, -119)).toEqual(treeSites(field, -78, -119))
+  })
+
+  it('fades trees without alphaHash, which this Chromium cannot compile', () => {
+    // 2026-09-17, Tier 2 on daa1b39: both tree materials failed pipeline
+    // creation with "An error occurred while generating Tint IR", which
+    // three surfaces only on the console -- the app draws every frame
+    // minus the trees, and its own error list shows just the downstream
+    // "invalid due to a previous error" entries. Confirmed with a single-
+    // variable probe: removing `alphaHash: true` alone took the sweep from
+    // 8 validation errors to 0 on the reference desktop (Playwright 1.63
+    // Chromium, RX 6700 XT). three r186's hash takes dFdx/dFdy of the
+    // position and then discards; the terrain's own Discard, which takes no
+    // derivatives, compiles fine. The fade is therefore a per-instance alpha
+    // test on `hash(instanceIndex)` against the distance fade: no
+    // derivatives, no blending, one opaque pipeline.
+    const vegetation = createVegetation(field)
+    for (const mesh of vegetation.object.children as InstancedMesh[]) {
+      const material = mesh.material as MeshStandardNodeMaterial
+      expect(material.alphaHash, `${mesh.name || 'tree mesh'} still sets alphaHash`).toBe(false)
+      expect(material.transparent, 'the fade must not need a blended pipeline').toBe(false)
+      expect(material.alphaTestNode, 'per-instance dissolve threshold missing').not.toBeNull()
+      expect(material.opacityNode, 'distance fade missing').not.toBeNull()
+    }
   })
 
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {
