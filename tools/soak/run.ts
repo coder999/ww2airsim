@@ -17,10 +17,13 @@ import {
   assistFor,
   type AssistSettings,
 } from '../../src/assists/index.js'
-import { advance, createWorld, playerAircraft, withControls } from '../../src/sim/loop.js'
-import { heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
+import { advance, aircraftById, createWorld, playerAircraft, type World, withAircraftState, withControls } from '../../src/sim/loop.js'
+import { worldFromScenario, type ScenarioBundle } from '../../src/sim/scenario.js'
+import { heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { surfaceAt } from '../../src/sim/contact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from '../../src/sim/ground.js'
+
+export type EntitySoakResult = { failures: string[]; iterations: number; steps: number }
 
 export type SoakResult = {
   failures: string[]
@@ -725,4 +728,96 @@ export function runTerrainSoak(
   }
 
   return { failures, iterations, steps, terrainHits, supportedContactTicks }
+}
+
+/**
+ * The multi-entity invariants (Plan 12 spec section 10): every active
+ * entity shares the world's tick; ships stay at sea level and over water;
+ * chocked aircraft hold their spots; and a seed reproduces the whole world.
+ */
+export function runEntitySoak(
+  bundle: ScenarioBundle,
+  iterations: number,
+  seed: number,
+  terrain: TerrainField,
+): EntitySoakResult {
+  const failures: string[] = []
+  let steps = 0
+
+  const run = (iteration: number, rng: () => number): World<undefined> => {
+    let world = worldFromScenario(bundle, terrain)
+    // Same parked-aircraft settling the renderer performs when terrain lands,
+    // kept here rather than importing render code into the tool.
+    world = {
+      ...world,
+      aircraft: world.aircraft.map((aircraft) => {
+        if (!aircraft.parked) return aircraft
+        const y = heightAt(terrain, aircraft.state.position.x, aircraft.state.position.z) + aircraft.spec.gear.heightM
+        const state = { ...aircraft.state, position: v3(aircraft.state.position.x, y, aircraft.state.position.z) }
+        return { ...aircraft, state, previous: state }
+      }),
+    }
+    const half = terrain.header.halfExtentM
+    const spawn = createState({
+      position: v3((rng() * 2 - 1) * half, 500 + rng() * 5000, (rng() * 2 - 1) * half),
+      velocity: v3(60 + rng() * 100, 0, 0),
+      attitude: randomAttitude(rng),
+    })
+    world = withAircraftState(world, world.player, spawn)
+    world = {
+      ...world,
+      aircraft: world.aircraft.map((aircraft) => aircraft.id === world.player ? { ...aircraft, parked: false } : aircraft),
+    }
+    const chockedStart = world.aircraft
+      .filter((aircraft) => aircraft.parked)
+      .map((aircraft) => ({ id: aircraft.id, position: aircraft.state.position }))
+
+    for (let second = 0; second < 60; second++) {
+      world = withControls(world, world.player, rollControls(rng, 0))
+      for (let tick = 0; tick < 60; tick++) {
+        world = advance(world, DT, stepChecked).world
+        steps++
+        for (const aircraft of world.aircraft) {
+          if (aircraft.impact === null && aircraft.state.tick !== world.tick) {
+            failures.push(`iteration ${iteration}: aircraft ${aircraft.id} tick ${aircraft.state.tick} != world tick ${world.tick}`)
+          }
+        }
+        for (const ship of world.ships) {
+          if (ship.state.tick !== world.tick) {
+            failures.push(`iteration ${iteration}: ship ${ship.id} tick ${ship.state.tick} != world tick ${world.tick}`)
+          }
+          if (ship.state.position.y !== SEA_LEVEL_M) {
+            failures.push(`iteration ${iteration}: ship ${ship.id} left sea level: y ${ship.state.position.y}`)
+          }
+          const height = heightAt(terrain, ship.state.position.x, ship.state.position.z)
+          if (height > SEA_LEVEL_M) {
+            failures.push(`iteration ${iteration}: ship ${ship.id} on land at tick ${world.tick} (${height.toFixed(1)} m)`)
+          }
+        }
+        if (failures.length > 20) return world
+      }
+    }
+    for (const chock of chockedStart) {
+      const aircraft = aircraftById(world, chock.id)
+      if (aircraft === undefined) {
+        failures.push(`iteration ${iteration}: chocked aircraft ${chock.id} disappeared`)
+        continue
+      }
+      const drift = Math.hypot(aircraft.state.position.x - chock.position.x, aircraft.state.position.z - chock.position.z)
+      if (drift > 0.5) failures.push(`iteration ${iteration}: chocked ${chock.id} drifted ${drift.toFixed(3)} m in 60 s`)
+      if (aircraft.impact !== null) failures.push(`iteration ${iteration}: chocked ${chock.id} recorded an impact`)
+    }
+    return world
+  }
+
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    const first = run(iteration, createRng(seed + iteration))
+    if (iteration === 0) {
+      const second = run(iteration, createRng(seed + iteration))
+      if (JSON.stringify(first) !== JSON.stringify(second)) {
+        failures.push(`iteration ${iteration}: two runs of seed ${seed} differ -- the world is not a pure function of its seed`)
+      }
+    }
+  }
+  return { failures, iterations, steps }
 }

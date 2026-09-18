@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { loadAircraftSpec } from '../../tools/content/load.js'
-import { runSoak, runTerrainSoak } from '../../tools/soak/run.js'
+import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
+import { runEntitySoak, runSoak, runTerrainSoak } from '../../tools/soak/run.js'
 import { type AssistSettings } from '../../src/assists/index.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
@@ -301,5 +301,18 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
     // file's rule the floor moves with the measurement rather than the
     // assertion moving to fit.
     expect(result.supportedContactTicks).toBeGreaterThan(2000)
+  })
+})
+
+describe('entity soak (Plan 12)', () => {
+  it('ships stay at sea and in the water, ticks agree, the chocked airplane stays put, and two runs agree', () => {
+    const header = loadTerrainHeader()
+    const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
+    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
+    const result = runEntitySoak(loadScenarioBundle('free-flight'), 12, 1944, terrain)
+    expect(result.failures, result.failures.join('\\n')).toEqual([])
+    // Twelve one-minute simulations plus the first one repeated to prove
+    // seed determinism. A full run executes 13 * 3,600 steps.
+    expect(result.steps).toBeGreaterThan(12 * 3600 - 1)
   })
 })
