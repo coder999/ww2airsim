@@ -1,4 +1,4 @@
-import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedMesh, Object3D } from 'three'
+import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { float, hash, instanceIndex, length, positionWorld, smoothstep } from 'three/tsl'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
@@ -9,8 +9,54 @@ import { nearRiver } from '../terrain/rivers.js'
 export const TREE_CELL_M = 400
 export const TREE_CELL_RADIUS = 5
 export const TREES_PER_CELL = 220
-const CAPACITY = (TREE_CELL_RADIUS * 2 + 1) ** 2 * TREES_PER_CELL
+/** The per-instance dissolve runs from START to END metres from the eye;
+ *  beyond END every fragment of a tree is discarded. */
+export const TREE_FADE_START_M = 1400
+export const TREE_FADE_END_M = 1850
 export type TreeSite = { x: number; y: number; z: number; height: number; radius: number; shade: number }
+
+/**
+ * Cell offsets from the eye's cell that can still show a tree: those whose
+ * nearest point to any position inside the eye's cell is within the fade.
+ * A disc, not the 11x11 square Codex shipped, whose corner cells sit
+ * 1.8-2.3 km out and contributed only discarded fragments and matrix
+ * rewrites (measured 2026-09-17, tests/render/scenery.test.ts).
+ */
+export function residentCellOffsets(): readonly (readonly [number, number])[] {
+  const offsets: [number, number][] = []
+  for (let dz = -TREE_CELL_RADIUS; dz <= TREE_CELL_RADIUS; dz++) {
+    for (let dx = -TREE_CELL_RADIUS; dx <= TREE_CELL_RADIUS; dx++) {
+      const nearest = Math.hypot(Math.max(0, Math.abs(dx) - 1), Math.max(0, Math.abs(dz) - 1)) * TREE_CELL_M
+      if (nearest <= TREE_FADE_END_M) offsets.push([dx, dz])
+    }
+  }
+  return offsets
+}
+const OFFSETS = residentCellOffsets()
+const CAPACITY = OFFSETS.length * TREES_PER_CELL
+
+/** One cell's instances, composed once and copied on every later visit. */
+type PackedCell = { readonly count: number; readonly crowns: Float32Array; readonly trunks: Float32Array; readonly colors: Float32Array }
+
+function packCell(sites: readonly TreeSite[]): PackedCell {
+  const dummy = new Object3D(), tint = new Color()
+  const crowns = new Float32Array(sites.length * 16), trunks = new Float32Array(sites.length * 16), colors = new Float32Array(sites.length * 3)
+  sites.forEach((t, i) => {
+    dummy.position.set(t.x, t.y + t.height * 0.5, t.z)
+    dummy.scale.set(1, t.height, 1)
+    dummy.rotation.set(0, 0, 0)
+    dummy.updateMatrix()
+    dummy.matrix.toArray(trunks, i * 16)
+    dummy.position.y = t.y + t.height * 0.84
+    dummy.scale.set(t.radius, t.height * 0.32, t.radius * (0.85 + t.shade * 0.3))
+    dummy.rotation.y = t.shade * Math.PI
+    dummy.updateMatrix()
+    dummy.matrix.toArray(crowns, i * 16)
+    tint.setHSL(0.25 + t.shade * 0.08, 0.24 + t.shade * 0.14, 0.16 + t.shade * 0.07)
+    tint.toArray(colors, i * 3)
+  })
+  return { count: sites.length, crowns, trunks, colors }
+}
 
 /** Stable per-cell placement. Camera motion never rerolls the forest. */
 export function treeSites(field: TerrainField, cellX: number, cellZ: number): TreeSite[] {
@@ -33,14 +79,19 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number): Tr
   return sites
 }
 
-export function createVegetation(field: TerrainField): { object: Group; update(x: number, z: number): void } {
+export function createVegetation(field: TerrainField): {
+  object: Group
+  update(x: number, z: number): void
+  /** Cells generated so far: the crossing test reads it. */
+  stats(): { generated: number }
+} {
   const object = new Group()
   object.name = 'nearby jungle'
   const leaves = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 1 })
   const bark = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1 })
   // positionWorld includes the scene's -eye translation: this is distance
   // from the camera, not distance from the geographic world origin.
-  const fade = float(1).sub(smoothstep(1400, 1850, length(positionWorld)))
+  const fade = float(1).sub(smoothstep(TREE_FADE_START_M, TREE_FADE_END_M, length(positionWorld)))
   // A per-instance dissolve: tree i is drawn while fade > hash(i), so the
   // forest thins one whole tree at a time across the 1400-1850 m band and no
   // pixel is ever blended. NOT `alphaHash: true`: three r186's alpha hash
@@ -64,50 +115,49 @@ export function createVegetation(field: TerrainField): { object: Group; update(x
   crownGeometry.computeVertexNormals()
   const crowns = new InstancedMesh(crownGeometry, leaves, CAPACITY)
   const trunks = new InstancedMesh(new CylinderGeometry(0.4, 0.65, 1, 5), bark, CAPACITY)
+  crowns.instanceColor = new InstancedBufferAttribute(new Float32Array(CAPACITY * 3), 3)
   for (const mesh of [crowns, trunks]) {
     mesh.instanceMatrix.setUsage(DynamicDrawUsage)
     mesh.frustumCulled = false
     mesh.count = 0
     object.add(mesh)
   }
-  const dummy = new Object3D(), tint = new Color()
+  const crownArray = crowns.instanceMatrix.array as Float32Array
+  const trunkArray = trunks.instanceMatrix.array as Float32Array
+  const colorArray = crowns.instanceColor.array as Float32Array
   let previousKey = ''
-  let cache = new Map<string, TreeSite[]>()
+  let generated = 0
+  // Cells stay cached while resident. A crossing composes only the cells
+  // that entered and copies the rest: the square window's full recompose of
+  // every instance cost 4.7-7.2 ms per crossing in node (2026-09-17).
+  let cache = new Map<string, PackedCell>()
   return {
     object,
+    stats: () => ({ generated }),
     update(x, z): void {
       const cx = Math.floor(x / TREE_CELL_M), cz = Math.floor(z / TREE_CELL_M)
       const key = `${cx},${cz}`
       if (key === previousKey) return
       previousKey = key
-      const nextCache = new Map<string, TreeSite[]>()
+      const nextCache = new Map<string, PackedCell>()
       let index = 0
-      for (let dz = -TREE_CELL_RADIUS; dz <= TREE_CELL_RADIUS; dz++) {
-        for (let dx = -TREE_CELL_RADIUS; dx <= TREE_CELL_RADIUS; dx++) {
-          const k = `${cx + dx},${cz + dz}`
-          const sites = cache.get(k) ?? treeSites(field, cx + dx, cz + dz)
-          nextCache.set(k, sites)
-          for (const t of sites) {
-            dummy.position.set(t.x, t.y + t.height * 0.5, t.z)
-            dummy.scale.set(1, t.height, 1)
-            dummy.rotation.set(0, 0, 0)
-            dummy.updateMatrix()
-            trunks.setMatrixAt(index, dummy.matrix)
-            dummy.position.y = t.y + t.height * 0.84
-            dummy.scale.set(t.radius, t.height * 0.32, t.radius * (0.85 + t.shade * 0.3))
-            dummy.rotation.y = t.shade * Math.PI
-            dummy.updateMatrix()
-            crowns.setMatrixAt(index, dummy.matrix)
-            tint.setHSL(0.25 + t.shade * 0.08, 0.24 + t.shade * 0.14, 0.16 + t.shade * 0.07)
-            crowns.setColorAt(index, tint)
-            index++
-          }
+      for (const [dx, dz] of OFFSETS) {
+        const k = `${cx + dx},${cz + dz}`
+        let cell = cache.get(k)
+        if (!cell) {
+          cell = packCell(treeSites(field, cx + dx, cz + dz))
+          generated++
         }
+        nextCache.set(k, cell)
+        crownArray.set(cell.crowns, index * 16)
+        trunkArray.set(cell.trunks, index * 16)
+        colorArray.set(cell.colors, index * 3)
+        index += cell.count
       }
       cache = nextCache
       crowns.count = trunks.count = index
       crowns.instanceMatrix.needsUpdate = trunks.instanceMatrix.needsUpdate = true
-      if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true
+      crowns.instanceColor!.needsUpdate = true
     },
   }
 }

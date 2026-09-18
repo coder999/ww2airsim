@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { InstancedMesh, Mesh } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
-import { createVegetation, treeSites } from '../../src/render/scene/vegetation.js'
+import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
 import { createDetailTexture } from '../../src/render/terrain/surface.js'
 import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
 import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
@@ -85,6 +85,46 @@ describe('scenery placement on the real Leyte field', () => {
     // (the noise is 8- to 64-cell value noise on a 256-texel tile; there is
     // no fine structure for anisotropy to preserve). Keep it at 1.
     expect(createDetailTexture().anisotropy).toBe(1)
+  })
+
+  it('keeps only the cells that can still show a tree, a disc not a square', () => {
+    // The dissolve ends at TREE_FADE_END_M from the eye (vegetation.ts). A
+    // cell whose NEAREST point is beyond that draws nothing but discarded
+    // fragments, and as Codex shipped it the 11x11 square window carried
+    // 121 cells of which the corners lie 1.8-2.3 km out. Measured
+    // 2026-09-17: the square's 26,620-instance rewrite on every 400 m cell
+    // crossing cost 4.7-7.2 ms of main-thread time in node, about one
+    // 120 Hz frame each time.
+    const offsets = residentCellOffsets()
+    expect(offsets.length).toBeLessThan((TREE_CELL_RADIUS * 2 + 1) ** 2)
+    expect(offsets.length).toBeGreaterThan(60)
+    for (const [dx, dz] of offsets) {
+      // Nearest point of the offset cell to the eye's own cell, in cells.
+      const nearest = Math.hypot(Math.max(0, Math.abs(dx) - 1), Math.max(0, Math.abs(dz) - 1)) * TREE_CELL_M
+      expect(nearest).toBeLessThanOrEqual(TREE_FADE_END_M)
+    }
+    // And nothing inside the disc is missing: every cell within the fade is resident.
+    for (let dz = -TREE_CELL_RADIUS; dz <= TREE_CELL_RADIUS; dz++) for (let dx = -TREE_CELL_RADIUS; dx <= TREE_CELL_RADIUS; dx++) {
+      const nearest = Math.hypot(Math.max(0, Math.abs(dx) - 1), Math.max(0, Math.abs(dz) - 1)) * TREE_CELL_M
+      if (nearest <= TREE_FADE_END_M) expect(offsets.some(([x, z]) => x === dx && z === dz), `cell ${dx},${dz} missing`).toBe(true)
+    }
+  })
+
+  it('generates only the cells that entered on a crossing, and copies the rest', () => {
+    const vegetation = createVegetation(field)
+    vegetation.update(-40900, -30666)
+    const before = vegetation.stats()
+    vegetation.update(-40900 + TREE_CELL_M, -30666)
+    const after = vegetation.stats()
+    // One cell-column of the disc entered; the rest came from the cache.
+    expect(after.generated - before.generated).toBeLessThanOrEqual(2 * TREE_CELL_RADIUS + 1)
+    expect(after.generated - before.generated).toBeGreaterThan(0)
+    // Same eye, same forest: a crossing and its return are byte-identical.
+    const crowns = vegetation.object.children[0] as InstancedMesh
+    const moved = crowns.instanceMatrix.array.slice(0, crowns.count * 16)
+    vegetation.update(-40900, -30666)
+    vegetation.update(-40900 + TREE_CELL_M, -30666)
+    expect(crowns.instanceMatrix.array.slice(0, crowns.count * 16)).toEqual(moved)
   })
 
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {
