@@ -8,7 +8,7 @@ export const SHORE_RISE_DM = 15
 /**
  * Move the shoreline into the DEM, per design spec §6.
  *
- * Copernicus quantises coastal land to exactly 0, and the renderer discards
+ * Copernicus quantizes coastal land to exactly 0, and the renderer discards
  * `h <= 0` as sea (`src/render/terrain/mesh.ts`), so a 5-10 km run of real
  * beach is drawn as ocean — measured on the committed L4, 2026-09-18. This
  * rewrites those cells to a low shore INSIDE the existing 0.4-2.3 m beach
