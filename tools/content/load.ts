@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parseAircraftSpec } from '../../src/sim/content.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
+import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 
 /**
@@ -41,4 +42,8 @@ export function loadAircraftSpec(id: string): AircraftSpec {
 
 export function loadShipSpec(id: string): ShipSpec {
   return parseShipSpec(readContentJson('ship', 'ships', id))
+}
+
+export function loadAirfield(id: string): Airfield {
+  return parseAirfield(readContentJson('airfield', 'bases', id))
 }

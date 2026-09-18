@@ -1,0 +1,10 @@
+{
+  "id": "dulag",
+  "name": "Dulag",
+  "runway": { "center": { "x": -31629, "z": -16479 }, "headingDeg": 0, "lengthM": 1500, "widthM": 45 },
+  "apron": null,
+  "clearing": null,
+  "reference": {
+    "source": "runway.center is the world projection of 10.94806 N 125.01028 E from the English Wikipedia article 'Dulag Airfield' (read 2026-09-17, Plan 13b-13d design §7). headingDeg 0 is an ASSUMPTION: the article gives none; north-south along the coastal plain is used until a period photograph says otherwise. lengthM and widthM are ESTIMATES, Tacloban's carried over. Buildings are Plan 13d's."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "tacloban",
+  "name": "Tacloban",
+  "runway": { "center": { "x": -29666, "z": -47605 }, "headingDeg": 0, "lengthM": 1500, "widthM": 45 },
+  "apron": { "x": -116, "z": -60, "widthM": 158, "lengthM": 465 },
+  "clearing": { "x": -152.5, "z": -60, "widthM": 235, "lengthM": 540 },
+  "reference": {
+    "source": "runway.center is the world projection of 11.228 N 125.028 E, cross-checked against the Copernicus source tiles 2026-09-14 and carried by tests/tools/terrainBuild.test.ts; taken verbatim, never re-derived (master spec §15). headingDeg 0: the strip runs north-south because that is where the ground is flat (src/render/spawn.ts's measurement, 2026-09-17). lengthM 1500 and widthM 45 are ESTIMATES carried from Plan 11a (see the former runway.ts comments, 2026-09-16). apron and clearing reproduce the Codex scenery pass of 2026-09-17 (daa1b39) exactly."
+  }
+}
