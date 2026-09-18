@@ -3,7 +3,7 @@ import { initialFrameState, nextFrameState, acknowledgeLanding, type FrameState 
 import { nextLandingTracking, NO_LANDING, AIRBORNE_LATCH_M, LANDED_SPEED_MPS } from '../../src/render/landing.js'
 import { landingModel } from '../../src/render/debrief.js'
 import { playerAircraft, withAircraftState } from '../../src/sim/loop.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qIdentity } from '../../src/sim/math/quat.js'
@@ -53,16 +53,16 @@ const flying = (wheelHeight: number, speed = 45, sink = 0): AircraftState =>
  *  screen (like the crash screen) -- successful landing - nice job!". */
 describe('landing tracking', () => {
   it('latches airborne only once the wheels are clear of the ground by the margin', () => {
-    const low = nextLandingTracking(f6f, NO_LANDING, flying(0), flying(AIRBORNE_LATCH_M / 2), field)
+    const low = nextLandingTracking(f6f, NO_LANDING, flying(0), flying(AIRBORNE_LATCH_M / 2), field, [])
     expect(low.airborne).toBe(false)
-    const high = nextLandingTracking(f6f, low, flying(AIRBORNE_LATCH_M / 2), flying(AIRBORNE_LATCH_M + 1), field)
+    const high = nextLandingTracking(f6f, low, flying(AIRBORNE_LATCH_M / 2), flying(AIRBORNE_LATCH_M + 1), field, [])
     expect(high.airborne).toBe(true)
   })
 
   it('records the touchdown on the first supported contact after being airborne', () => {
-    const up = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), field)
+    const up = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), field, [])
     const settling = flying(0.5, 40, 1.2)
-    const t = nextLandingTracking(f6f, up, settling, onWheels(40), field)
+    const t = nextLandingTracking(f6f, up, settling, onWheels(40), field, [])
     expect(t.touchdown).not.toBeNull()
     expect(t.touchdown!.sinkMps).toBeCloseTo(1.2, 6)
     expect(t.touchdown!.speedMps).toBeCloseTo(Math.hypot(40, 1.2), 6)
@@ -70,11 +70,11 @@ describe('landing tracking', () => {
   })
 
   it('reports the landing once the airplane has come to rest on its wheels', () => {
-    let t = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), field)
-    t = nextLandingTracking(f6f, t, flying(0.5, 40, 1.0), onWheels(40), field)
-    t = nextLandingTracking(f6f, t, onWheels(40), onWheels(20, 300), field)
+    let t = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), field, [])
+    t = nextLandingTracking(f6f, t, flying(0.5, 40, 1.0), onWheels(40), field, [])
+    t = nextLandingTracking(f6f, t, onWheels(40), onWheels(20, 300), field, [])
     expect(t.report).toBeNull()
-    t = nextLandingTracking(f6f, t, onWheels(20, 300), onWheels(LANDED_SPEED_MPS / 2, 600), field)
+    t = nextLandingTracking(f6f, t, onWheels(20, 300), onWheels(LANDED_SPEED_MPS / 2, 600), field, [])
     expect(t.report).not.toBeNull()
     expect(t.report!.touchdownSinkMps).toBeCloseTo(1.0, 6)
     expect(t.report!.rollOutM).toBeCloseTo(600, 6)
@@ -82,24 +82,24 @@ describe('landing tracking', () => {
 
   it('never reports a landing for an airplane that was spawned parked and never flew', () => {
     let t = NO_LANDING
-    for (let i = 0; i < 10; i++) t = nextLandingTracking(f6f, t, onWheels(0), onWheels(0), field)
+    for (let i = 0; i < 10; i++) t = nextLandingTracking(f6f, t, onWheels(0), onWheels(0), field, [])
     expect(t.airborne).toBe(false)
     expect(t.report).toBeNull()
   })
 
   it('forgets a touchdown on a go-around, so the next landing is the one reported', () => {
-    let t = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), field)
-    t = nextLandingTracking(f6f, t, flying(0.5, 40, 3.0), onWheels(40), field)
+    let t = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), field, [])
+    t = nextLandingTracking(f6f, t, flying(0.5, 40, 3.0), onWheels(40), field, [])
     expect(t.touchdown).not.toBeNull()
-    t = nextLandingTracking(f6f, t, onWheels(40), flying(AIRBORNE_LATCH_M + 1), field)
+    t = nextLandingTracking(f6f, t, onWheels(40), flying(AIRBORNE_LATCH_M + 1), field, [])
     expect(t.touchdown).toBeNull()
     expect(t.airborne).toBe(true)
-    t = nextLandingTracking(f6f, t, flying(0.5, 40, 0.8), onWheels(40), field)
+    t = nextLandingTracking(f6f, t, flying(0.5, 40, 0.8), onWheels(40), field, [])
     expect(t.touchdown!.sinkMps).toBeCloseTo(0.8, 6)
   })
 
   it('does nothing without terrain', () => {
-    const t = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), null)
+    const t = nextLandingTracking(f6f, NO_LANDING, flying(50), flying(50), null, [])
     expect(t).toBe(NO_LANDING)
   })
 
@@ -135,11 +135,27 @@ describe('landing tracking', () => {
     expect(cleared.landing).toBe(NO_LANDING)
     expect(cleared.paused).toBe(false)
   })
+
+  it('names the airfield the touchdown point lies inside, or null off-field', () => {
+    const tacloban = loadAirfield('tacloban')
+    const c = tacloban.runway.center
+    const at = (x: number, z: number, h: number, vy = 0, vx = 30): AircraftState =>
+      createState({ position: v3(x, FIELD_M + f6f.gear.heightM + h, z), velocity: v3(vx, vy, 0), gearFraction: 1 })
+    const airborne = nextLandingTracking(f6f, NO_LANDING, at(c.x, c.z, 50), at(c.x, c.z, 50), field, [tacloban])
+    const touched = nextLandingTracking(f6f, airborne, at(c.x, c.z, 5, -1), at(c.x, c.z, 0, -1), field, [tacloban])
+    const stopped = nextLandingTracking(f6f, touched, at(c.x, c.z, 0, 0, 0.5), at(c.x, c.z, 0, 0, 0.5), field, [tacloban])
+    expect(stopped.report?.airfield).toBe('Tacloban')
+
+    const offAirborne = nextLandingTracking(f6f, NO_LANDING, at(0, 0, 50), at(0, 0, 50), field, [tacloban])
+    const offTouched = nextLandingTracking(f6f, offAirborne, at(0, 0, 5, -1), at(0, 0, 0, -1), field, [tacloban])
+    const offStopped = nextLandingTracking(f6f, offTouched, at(0, 0, 0, 0, 0.5), at(0, 0, 0, 0, 0.5), field, [tacloban])
+    expect(offStopped.report?.airfield).toBeNull()
+  })
 })
 
 describe('the landing debrief', () => {
   it('congratulates the pilot and shows the touchdown figures', () => {
-    const m = landingModel({ touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600 })
+    const m = landingModel({ touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, airfield: 'Tacloban' })
     expect(m.headline).toBe('LANDED')
     expect(m.detail.toLowerCase()).toContain('nice')
     const labels = m.figures.map((x) => x.label)

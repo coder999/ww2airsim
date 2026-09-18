@@ -50,6 +50,7 @@ export function landingModel(report: LandingReport): DebriefModel {
     headline: 'LANDED',
     detail: 'Nice job. You brought her back in one piece.',
     figures: [
+      { label: 'Landed at', value: report.airfield ?? 'off-field' },
       { label: 'Touchdown sink', value: `${report.touchdownSinkMps.toFixed(1)} m/s` },
       {
         label: 'Touchdown speed',

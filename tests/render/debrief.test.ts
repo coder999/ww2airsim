@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { debriefModel, missionScore } from '../../src/render/debrief.js'
+import { debriefModel, landingModel, missionScore } from '../../src/render/debrief.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import type { Impact } from '../../src/sim/loop.js'
@@ -58,6 +58,16 @@ describe('the debrief', () => {
     )
     const sinkRate = m.figures.find((f) => f.label === 'Sink rate')
     expect(sinkRate?.value).toBe('40 m/s')
+  })
+
+  it('names the airfield a landing was at', () => {
+    const m = landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, airfield: 'Tacloban' })
+    expect(m.figures).toContainEqual({ label: 'Landed at', value: 'Tacloban' })
+  })
+
+  it('reports an off-field landing when the touchdown was outside any runway', () => {
+    const m = landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, airfield: null })
+    expect(m.figures).toContainEqual({ label: 'Landed at', value: 'off-field' })
   })
 
   it('scores nothing, because nothing can be destroyed yet', () => {

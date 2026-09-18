@@ -3,6 +3,7 @@ import { supportedContact } from '../sim/ground.js'
 import { airspeed } from '../sim/flight/model.js'
 import type { AircraftState } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
+import { airfieldAt, type Airfield } from '../sim/world/airfields.js'
 
 /**
  * Where a flight touched down, and what it looked like at that instant.
@@ -23,6 +24,10 @@ export type LandingReport = {
   readonly touchdownSpeedMps: number
   readonly rollOutM: number
   readonly tick: number
+  /** The airfield whose runway the touchdown point lies inside, or `null`
+   *  for an off-field arrival. Master spec §8's recovery multiplier reads
+   *  this when Plan 9 arrives. */
+  readonly airfield: string | null
 }
 
 /**
@@ -82,6 +87,7 @@ export function nextLandingTracking(
   before: AircraftState,
   after: AircraftState,
   terrain: TerrainField | null,
+  airfields: readonly Airfield[],
 ): LandingTracking {
   if (terrain === null || prev.report !== null) return prev
 
@@ -109,6 +115,7 @@ export function nextLandingTracking(
           touchdownSpeedMps: touchdown.speedMps,
           rollOutM: Math.hypot(after.position.x - touchdown.x, after.position.z - touchdown.z),
           tick: after.tick,
+          airfield: airfieldAt(airfields, touchdown.x, touchdown.z)?.name ?? null,
         }
       : null
 

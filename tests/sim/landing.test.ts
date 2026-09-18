@@ -7,7 +7,8 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
+import { nextLandingTracking, NO_LANDING } from '../../src/render/landing.js'
 import {
   supportedContact,
   GROUND_CONTACT_TOLERANCE_M,
@@ -120,6 +121,13 @@ describe('an approach flown into Tacloban', () => {
     const MAX_S = 300
     let stopped = false
 
+    // The landing report's airfield name (Task 6): run the render layer's
+    // own tracking alongside the loop rather than reconstructing it from the
+    // recorded states after the fact, so this is the SAME function the frame
+    // calls in the browser, not a second implementation that could disagree.
+    const tacloban = loadAirfield('tacloban')
+    let tracking = NO_LANDING
+
     for (let i = 0; i < 60 * MAX_S && !stopped; i++) {
       const before = playerAircraft(world).state
       const wasSupported = supportedContact(f6f, before, heightAt(terrain, before.position.x, before.position.z))
@@ -128,6 +136,7 @@ describe('an approach flown into Tacloban', () => {
       // `AdvanceResult`.
       world = advance(withControls(world, world.player, approachControls(f6f, before, target)), DT).world
       const now = playerAircraft(world).state
+      tracking = nextLandingTracking(f6f, tracking, before, now, terrain, [tacloban])
       const nowSupported = supportedContact(f6f, now, heightAt(terrain, now.position.x, now.position.z))
 
       if (!wasSupported && nowSupported && touchdownSinkMps === null) {
@@ -160,5 +169,8 @@ describe('an approach flown into Tacloban', () => {
     // Still on its wheels at rest, not resting on something else.
     const restGroundM = heightAt(terrain, rest.position.x, rest.position.z)
     expect(rest.position.y - f6f.gear.heightM - restGroundM).toBeLessThan(GROUND_CONTACT_TOLERANCE_M)
+
+    expect(tracking.report, 'no landing report').not.toBeNull()
+    expect(tracking.report!.airfield).toBe('Tacloban')
   })
 })

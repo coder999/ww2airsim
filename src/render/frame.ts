@@ -566,6 +566,7 @@ export function nextFrameState(
     player.state,
     advancedPlayer.state,
     advanced.world.terrain,
+    advanced.world.airfields,
   )
 
   return {
