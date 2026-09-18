@@ -18,6 +18,7 @@
     "golden:regen": "tsx tools/golden/generate.ts",
     "bathy:build": "tsx tools/bathy/build.ts",
     "terrain:build": "tsx tools/terrain/build.ts",
+    "landcover:build": "tsx tools/landcover/build.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"
   },

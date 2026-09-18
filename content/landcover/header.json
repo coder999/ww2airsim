@@ -1,0 +1,13 @@
+{
+  "centreLatDeg": 10.8,
+  "centreLonDeg": 125.3,
+  "halfExtentM": 100000,
+  "samples": 1025,
+  "channels": [
+    "tree",
+    "crop",
+    "mangrove",
+    "open"
+  ],
+  "encoding": "rgba8-sixteenths"
+}
