@@ -1,3 +1,4 @@
+import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 import { describe, it, expect } from 'vitest'
 import { build } from 'vite'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
@@ -127,15 +128,7 @@ describe('the built artifact', () => {
       // 2026-09-18 the six files sat in the repository ROOT, which
       // `copyContent()` does not copy, so the build shipped none of them at
       // all; that is the defect this case now pins closed.
-      const audioClips = [ // replaced by AUDIO_ASSETS in Task 2
-        { path: 'content/audio/bombs_away.wav', bytes: 192_770 },
-        { path: 'content/audio/explosion.wav', bytes: 749_570 },
-        { path: 'content/audio/landing_squeak.wav', bytes: 192_770 },
-        { path: 'content/audio/machinegun.wav', bytes: 250_370 },
-        { path: 'content/audio/propeller.wav', bytes: 1_536_770 },
-        { path: 'content/audio/water_crash.wav', bytes: 749_570 },
-      ]
-      for (const clip of audioClips) {
+      for (const clip of AUDIO_ASSETS) {
         expect(readFileSync(join(outDir, clip.path)).length, clip.path).toBe(clip.bytes)
       }
       expect(readFileSync(join(outDir, 'content/audio/NOTICE.md'), 'utf8')).toContain('Adobe Firefly')
