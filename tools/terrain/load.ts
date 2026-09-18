@@ -20,14 +20,20 @@ export const TERRAIN_DIR = fileURLToPath(new URL('../../content/terrain/', impor
 export const TILES_DIR = fileURLToPath(new URL('../../content/terrain/tiles/', import.meta.url))
 
 /**
- * The coarsest level that is NOT committed. Levels 0-3 are 134 MB, 33.6 MB,
- * 8.4 MB and 2.1 MB respectively (n^2 * 2 bytes for n = 8193, 4097, 2049,
- * 1025); levels 4-12 together are 703,154 bytes, which is what a fresh clone
- * gets as its offline fallback (spec §10 / task-6-brief step 3's "~703 KB").
- * L3 at 2.1 MB is the first level that is an order of magnitude past that
- * budget, so the split sits here.
+ * The coarsest level that is NOT committed. Levels 0-1 are 134 MB and 33.6 MB
+ * (n^2 * 2 bytes for n = 8193, 4097); levels 2-12 together are 11,201,206
+ * bytes, dominated by L2's 8.4 MB and L3's 2.1 MB.
+ *
+ * Moved from 4 to 2 on 2026-09-18. L4's spacing is 391 m, and that number is
+ * the bug: the axis-aligned blocks and rectangular water strips along the
+ * shore ARE the L4 grid, so no rule applied at L4 can remove them. Plan 13c
+ * tried to move the shoreline into the DEM at 24 m and let `buildPyramid`
+ * carry it down; `halve` is a [1,2,1] tent filter and does not preserve a
+ * binary land/sea boundary, so the before and after frames on the reference
+ * GPU were indistinguishable (measured 2026-09-18, net -203 land cells at
+ * L4). Shipping L2 at 98 m cuts the visible step 4x instead.
  */
-export const FIRST_COMMITTED_LEVEL = 4
+export const FIRST_COMMITTED_LEVEL = 2
 
 /** Absolute path of a level's `.bin`. Levels below `FIRST_COMMITTED_LEVEL`
  *  live in the gitignored `tiles/` subdirectory; the rest are committed

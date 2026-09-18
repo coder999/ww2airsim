@@ -55,18 +55,18 @@ export function terrainLevelUrl(level: number): string {
  * The finest pyramid level the browser asks for: the finest one a clone
  * actually has.
  *
- * Levels 0-3 are 178 MB and are gitignored into `content/terrain/tiles/`
+ * Levels 0-1 are 168 MB and are gitignored into `content/terrain/tiles/`
  * (`tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL`, which states the size
  * budget behind the split), so fetching them 404s for everyone but the
  * machine that last ran `npm run terrain:build` -- and L0 alone is 134 MB,
  * which is the first row of the terrain design's own risk table. This is a
- * second literal 4 rather than an import because `tools/` is Node-only
+ * second literal rather than an import because `tools/` is Node-only
  * (`node:fs`, `import.meta.url`) and must not be reachable from a browser
  * bundle; `tests/render/terrainLoad.test.ts` asserts the level it names is
  * committed and that the next finer one is not, so the two cannot drift
  * without the suite noticing.
  */
-export const FINEST_FETCHED_LEVEL = 4
+export const FINEST_FETCHED_LEVEL = 2
 
 /** Same-origin bathymetry, in int16 metres; header is bundled with the code. */
 export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.bin`

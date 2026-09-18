@@ -329,10 +329,10 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
     })
   })
 
-  it('pins the worst |L0 - L4| error over the whole surface, measured 2026-09-14', () => {
+  it('pins the worst |L0 - L2| error over the whole surface, re-measured 2026-09-18', () => {
     // The table above is about LOD SELECTION -- how much coarser the far field
-    // is than the near field. This is the error both of them share: L4 is the
-    // finest level a clone has, the renderer clamps rings 0-3 to it and the
+    // is than the near field. This is the error both of them share: L2 is the
+    // finest level a clone has, the renderer clamps rings 0-1 to it and the
     // physics is handed it, so a fresh clone flies a Leyte that is this much
     // flatter than the Copernicus data EVERYWHERE, near field included.
     //
@@ -368,10 +368,10 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
         }
       }
     }
-    expect(worst).toBeCloseTo(220.862, 3)
+    expect(worst).toBeCloseTo(111.4875, 3) // re-measured 2026-09-18, shipping L2
     // WHERE, not just how much: a measurement that moved to a different peak
     // is a different claim even if the magnitude happened to survive.
-    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-78027, -80664])
+    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-57690, -7471]) // re-measured 2026-09-18, shipping L2
   })
 })
 
@@ -384,17 +384,23 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
 // that is expected, not a discrepancy), but it runs everywhere. It only
 // measures rings 5 and up (`worstErrorByRing` skips anything <= the
 // reference level), because rings 0-3 need mips that are not on disk here.
-describe('far-field height error against mip 4, by ring (runs everywhere)', () => {
-  it('matches the pinned worst-case error against mip 4, measured 2026-09-14', () => {
+describe('far-field height error against mip 2, by ring (runs everywhere)', () => {
+  it('matches the pinned worst-case error against mip 2, re-measured 2026-09-18', () => {
     // Camera at the exact world corner (100000, 100000): the opposite
     // corner from it is far enough to stay at ring 6, which a moderate
     // corner like (99000, 99000) above does not reach, giving two rings of
     // data instead of one.
     const header = loadTerrainHeader()
     const worstByRing = worstErrorByRing(header, FIRST_COMMITTED_LEVEL, 100e3, 100e3)
+    // Re-measured 2026-09-18 when FIRST_COMMITTED_LEVEL moved 4 -> 2. Rings 3
+    // and 4 appear because a finer reference level is now on disk for them to
+    // be measured against; rings 5 and 6 rise because the reference they are
+    // compared to is better, not because the far field got worse.
     expectPinnedTable(worstByRing, {
-      5: 94.7,
-      6: 205.4,
+      3: 25.7,
+      4: 70.3,
+      5: 193.6,
+      6: 246.7,
     })
   })
 })

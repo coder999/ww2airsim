@@ -386,9 +386,13 @@ describe('terrain under the airplane', () => {
     expect(field).not.toBeNull()
 
     // A point that is genuinely on land: the nearest land sample to the world
-    // origin, 23.1 km to the south-west (measured over this grid 2026-09-14).
-    const x = -19_921.875
-    const z = 11_718.75
+    // origin, 23.1 km to the south-west. Re-derived 2026-09-18 by the same
+    // rule when FIRST_COMMITTED_LEVEL moved 4 -> 2 -- the old pair was an
+    // exact L4 sample position (-19921.875 = -51 * 390.625 m) and is sea on
+    // the finer grid. This sample is 0.1 m, which is the quantized-coastal-
+    // land case the shore work is about, so it clears `> 0` by one decimetre.
+    const x = -20_019.53125
+    const z = 11_621.09375
     const framed = withTerrain(frameAt(x, z), field)
     expect(framed.world.terrain).not.toBeNull()
 
@@ -440,7 +444,10 @@ describe('terrain under the airplane', () => {
     // advancing -- dropping the pilot's controls or the camera mode on the
     // way through would be a live bug at an unpredictable moment.
     const before = frameAt(0, 0)
-    const after = withTerrain(before, physicsFieldFor(FINEST_FETCHED_LEVEL, new Int16Array(513 * 513)))
+    // Sized from the header rather than restated: a literal 513 here was an
+    // L4 edge and broke the moment FINEST_FETCHED_LEVEL moved (2026-09-18).
+    const edge = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
+    const after = withTerrain(before, physicsFieldFor(FINEST_FETCHED_LEVEL, new Int16Array(edge * edge)))
     expect(after.world.terrain).not.toBeNull()
     expect({ ...after, world: { ...after.world, terrain: null } }).toEqual(before)
   })

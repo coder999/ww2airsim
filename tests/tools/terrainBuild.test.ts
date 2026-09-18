@@ -18,9 +18,10 @@ import { tileFileName } from '../../tools/terrain/tiles.js'
 
 const header = loadTerrainHeader()
 
-/** Committed levels: L4 (513x513) through L12 (3x3). Everything finer is
+/** Committed levels: L2 (2049x2049) through L12 (3x3). Everything finer is
  *  gitignored (see `tools/terrain/load.ts`'s FIRST_COMMITTED_LEVEL), so a
- *  fresh clone has exactly these. */
+ *  fresh clone has exactly these. Moved from L4 on 2026-09-18: L4's 391 m
+ *  spacing was itself the blocky-coastline bug. */
 const COMMITTED_LEVELS = Array.from(
   { length: header.levels - FIRST_COMMITTED_LEVEL },
   (_v, i) => FIRST_COMMITTED_LEVEL + i,
@@ -28,7 +29,7 @@ const COMMITTED_LEVELS = Array.from(
 
 describe('the committed terrain fallback', () => {
   it('is present, parses, and has the level sizes its header claims', () => {
-    expect(COMMITTED_LEVELS).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect(COMMITTED_LEVELS).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     for (const level of COMMITTED_LEVELS) {
       const data = loadTerrainLevel(level, header)
       const n = samplesAtLevel(header, level)
@@ -126,6 +127,8 @@ describe('the committed terrain fallback', () => {
  */
 const COMMITTED_SHA256: Readonly<Record<string, string>> = {
   'header.json': 'd69644f904f4238f4bd78ac122b9a15ec5b405f809dbc7b94fb028cc4eae2aeb',
+  'L2.bin': '9d663dc8a29ec61d353e88ab84aa9bb31af30c4ff19cbe43e6becb12108aee59',
+  'L3.bin': 'c546da89a1349c9dadd8db643484bf35881c11caca0b67bbe08dde37c32125a2',
   'L4.bin': '37bf755bfec80c5bae409ff7fddf183507ec4a6f1a7c89b557ee9ae80ea5fe5a',
   'L5.bin': 'f33e0af56e770e9dc6fc376eb4e2f2b1aff26e43cc574dfe00f5269df5d785bd',
   'L6.bin': 'acc0c6fae99248551d8815f873d376d0e28d36c37acbbd7e074bdcc774d06719',
