@@ -132,8 +132,27 @@ byte-count guard).
 - 13c and 13d remain not started; see the roadmap table in
   `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` §15.
 
-## Not done, on purpose
+## Deployed, 2026-09-18
 
-- Production is still on `549e272` per the last handoff; nothing in this
-  task deploys. `main` is 15 commits ahead of `origin/main`, all local
-  and unpushed — pushing is the controller's call, not this task's.
+The 15 commits this handoff describes (`ef8b326..617a444`) were pushed to
+`origin/main` and deployed to production. Verified live against
+`ww2airsim.marktuttle.dev` on 2026-09-18:
+
+- `GET /content/landcover/cover.bin.gz` → 200, 253,532 bytes, sha256
+  `5b08d4b415be448a4d35de690fda9dbe91eb78ba7b3acf192e567943b7e7fbe1`, matching
+  `COMMITTED_SHA256['cover.bin.gz']` in
+  `tests/tools/landcoverBuild.test.ts` — and, deliberately checked, **no**
+  `Content-Encoding: gzip` response header, so `loadCover`'s
+  `DecompressionStream('gzip')` receives the raw gzip bytes rather than
+  double-decoding an already-decompressed response.
+- `GET /content/landcover/header.json` → 200; `GET
+  /content/landcover/NOTICE.md` → 200.
+- The deployed bundle (`assets/index-CetMmXbj.js`) contains the `loadCover`/
+  `DecompressionStream` loader path and the string `ESA WorldCover`, and the
+  served `index.html` has no `map-credit` element (the watermark
+  `dist.test.ts` refuses).
+
+This closes the "not done, on purpose" note this section used to carry: that
+note said production was still on `549e272` and that these commits were
+local and unpushed, which was true when Task 9 finished and is no longer
+true.

@@ -9,6 +9,11 @@ export type CoverNodes = {
   /** 0 until `setCover` has data; the shader blends to the raster on 1. */
   readonly ready: UniformNode<'float', number>
   readonly halfExtentM: number
+  /** Metres between adjacent samples: `(samples - 1)` cells span the full
+   *  `2 * halfExtentM` width, the same node-centred convention as the
+   *  terrain's own grid (`mesh.ts`'s `sampleField`). */
+  readonly step: number
+  readonly samples: number
 }
 
 /** The raster texture, zero-filled until the fetch lands, as the terrain
@@ -21,7 +26,13 @@ export function createCoverNodes(header: CoverHeader): CoverNodes {
   tex.magFilter = LinearFilter
   tex.generateMipmaps = true
   tex.needsUpdate = true
-  return { texture: tex, ready: uniform(0), halfExtentM: header.halfExtentM }
+  return {
+    texture: tex,
+    ready: uniform(0),
+    halfExtentM: header.halfExtentM,
+    step: (2 * header.halfExtentM) / (header.samples - 1),
+    samples: header.samples,
+  }
 }
 
 /** Original, deterministic, seamless detail. Channels carry independent
@@ -86,9 +97,21 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   const forest = mix(color(0x294534), color(0x546847), canopy)
     .mul(macro.mul(0.4).add(0.8))
   // Row 0 of the raster is north (z = -half) and DataTexture row 0 sits at
-  // v = 0, so v grows with z and no flip is needed: the same convention the
-  // river mask uses (rivers.ts). Fractions filter linearly.
-  const uv = xz.add(cover.halfExtentM).div(2 * cover.halfExtentM)
+  // v = 0, so v grows with z and no flip is needed. The raster is
+  // NODE-centred, not cell-centred: sample 0 sits exactly on the west/north
+  // edge and `step = 2*halfExtentM/(samples-1)` ((samples-1) cells span the
+  // full width) -- the terrain's own sample-aligned grid, handled correctly
+  // and explicitly at mesh.ts's `sampleField` ("(samples-1) cells span the
+  // full width"), and NOT the river mask's convention: `rivers.ts` builds a
+  // CELL-centred mask spanning `width` with `uv = (x-minX)/width`, which is
+  // right for that mask but wrong here. Sample i's texel centre is at
+  // `uv = (i + 0.5) / samples`, not `i / (samples - 1)` -- the latter is off
+  // by up to half a texel (up to 97.7 m of a 195.3 m cell), zero only at the
+  // dead centre of the box (whole-branch review, 2026-09-18; guarded by the
+  // node-centred relationship test beside `createTerrainMesh`'s cover test
+  // in scenery.test.ts, since no headless TSL/GPU evaluator exists here to
+  // check the expression itself). Fractions filter linearly.
+  const uv = xz.add(cover.halfExtentM).div(cover.step).add(0.5).div(cover.samples)
   const fractions = texture(cover.texture, uv)
   // Before the raster arrives, or if it never does, the class weights are
   // Codex's noise-and-height rule from daa1b39. `forestWeight` reads only

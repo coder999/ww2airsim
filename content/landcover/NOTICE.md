@@ -19,7 +19,7 @@ below are quoted from it.
 
 ## What was changed
 
-Built-up pixels are counted as cropland (a deliberate 1944 correction, master
-design spec §4); the eleven classes are collapsed to four land channels and
-water; the 10 m pixels are averaged over 195 m cells. Nothing here is a
+Built-up pixels are counted as cropland (a deliberate 1944 correction, the
+13b design spec §2); the eleven classes are collapsed to four land channels
+and water; the 10 m pixels are averaged over 195 m cells. Nothing here is a
 land-cover product; it is a game's paint guide.

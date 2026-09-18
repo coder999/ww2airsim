@@ -3,7 +3,7 @@ import { InstancedMesh, Mesh } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
-import { createDetailTexture } from '../../src/render/terrain/surface.js'
+import { createCoverNodes, createDetailTexture } from '../../src/render/terrain/surface.js'
 import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
 import { COVER_HEADER } from '../../src/render/landcover/load.js'
 import { coverByteLength, quantize } from '../../src/render/landcover/cover.js'
@@ -215,6 +215,33 @@ describe('scenery placement on the real Leyte field', () => {
     // checked by the thing it actually does, not by reading the setter back.
     expect(mesh.cover.texture.version).toBeGreaterThan(versionBefore)
     expect(() => mesh.setCover(new Uint8Array(16))).toThrow(/16 bytes/)
+  })
+
+  it('carries a node-centred UV mapping, not a cell-centred one (whole-branch review, 2026-09-18)', () => {
+    // The shader's `uv = xz.add(half).div(step).add(0.5).div(samples)`
+    // (surface.ts's `terrainSurfaceNode`) is a UV expression -- there is no
+    // headless TSL/GPU evaluator in this repo to run it, so this cannot pin
+    // the rendered texel. What it CAN pin is the arithmetic relationship the
+    // formula depends on: a node-centred grid where sample 0 sits exactly on
+    // the west/north edge and (samples - 1) cells span the full width. If a
+    // future edit reverts `step` to `2*half/samples` (a cell-centred step,
+    // which is what produced the half-texel bug in the first place), this
+    // fails even though nothing here touches the GPU.
+    const nodes = createCoverNodes(COVER_HEADER)
+    expect(nodes.samples).toBe(COVER_HEADER.samples)
+    // Exact, not `toBeCloseTo`: `step` is a simple division with no
+    // accumulated rounding, and the two known-wrong forms (dividing by
+    // `samples` instead of `samples - 1`, or by `2 * halfExtentM` with no
+    // division at all) are each off by a measurable amount at these real
+    // dimensions, so an exact check catches both.
+    const nodeCentredStep = (2 * nodes.halfExtentM) / (nodes.samples - 1)
+    const cellCentredStep = (2 * nodes.halfExtentM) / nodes.samples // the wrong, pre-fix shape
+    expect(nodes.step).toBe(nodeCentredStep)
+    expect(nodes.step).not.toBe(cellCentredStep)
+    // The relationship the node-centred convention promises: (samples - 1)
+    // steps span the full box exactly, so sample 0 and sample (samples - 1)
+    // land exactly on the west/north and east/south edges.
+    expect(nodes.step * (nodes.samples - 1)).toBe(2 * nodes.halfExtentM)
   })
 
   it('plants by the tree fraction: dense jungle, bare paddies, mangroves at the waterline', () => {

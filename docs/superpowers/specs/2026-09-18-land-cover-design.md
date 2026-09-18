@@ -109,7 +109,7 @@ column 0 west, `tools/terrain/resample.ts`'s `gridToLocal`):
 | Samples | 1025 × 1025 | 195 m per sample, the same grid as terrain L3 |
 | Channels | 4 × 8-bit: tree, cropland, mangrove, open ground | Fractions of the 10 m pixels in the cell; open ground is grassland + shrubland + bare; cropland includes the corrected built-up; water is the remainder |
 | Quantisation | 16 levels per channel | Compresses 3× better than 256 with no visible step at 195 m |
-| Wire | 259 KiB gzipped (measured); 4 MiB raw | Terrain's whole wire is 702 KiB; 2049² would be 823 KiB and was declined |
+| Wire | 247.6 KiB gzipped (measured 2026-09-18, the shipped `cover.bin.gz`: 253,532 bytes); 4 MiB raw | Terrain's whole wire is 702 KiB; 2049² would be 823 KiB and was declined |
 | Delivery | fetched like a terrain level (`src/render/content.ts`), inflated with `DecompressionStream('gzip')` | No nginx dependency; the served `.gz` is the committed file |
 
 Fractions rather than a class index because they filter linearly: one

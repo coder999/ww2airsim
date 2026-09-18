@@ -124,18 +124,42 @@ const TOGGLE_KEYS = [...new Set(BINDINGS.toggleLegend.map(keyLabel))].join(' / '
  * ACCOMPANY the derived data, which `content/terrain/NOTICE.md` and
  * `content/ocean/NOTICE.md` do; neither requires in-app display, so they get a
  * short "Data:" mention rather than their full attribution strings.
+ *
+ * ESA WorldCover does not fit that same argument (dated, checked 2026-09-18:
+ * an earlier pass appended "ESA WorldCover" to the plain-text mention above
+ * on the strength of it, without re-deriving it for a licence that actually
+ * differs). WorldCover ships under CC BY 4.0, and §3(a)(2) of that licence
+ * asks the licensee to retain, "in any reasonable manner", the creator
+ * credit, a licence notice, and "a URI or hyperlink to the licence... to the
+ * extent reasonably practicable". A hyperlink is reasonably practicable in
+ * this exact panel -- the OSM credit right beside it already is one -- so
+ * unlike Copernicus/GEBCO's "accompany, don't display" bar, a bare "Data:"
+ * mention does not clear §3(a)(2) on its own. "ESA WorldCover" is therefore a
+ * link to the CC BY 4.0 deed (`WORLDCOVER_LICENCE_URL`), the same way the
+ * rivers' own credit links to `OSM_COPYRIGHT_URL`. The creator credit and the
+ * full licence notice text this line does not carry inline live in
+ * `content/landcover/NOTICE.md`, which ships with the raster (verified live,
+ * 200, 2026-09-18) and is what `§3(a)(2)`'s "reasonable manner" is satisfied
+ * by together with this link -- the section does not require the notice
+ * itself to be in-app, only a way to reach the licence, which this panel now
+ * has. Nothing on the play screen either way: same rule as the rivers.
  */
 export const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright'
+export const WORLDCOVER_LICENCE_URL = 'https://creativecommons.org/licenses/by/4.0/'
 export const CREDITS = {
-  /** Everything before the link. */
-  before: 'Data: Copernicus DEM, GEBCO, ESA WorldCover · Rivers © ',
-  /** The link text; `createLegend` points it at `OSM_COPYRIGHT_URL`. */
+  /** Everything before the WorldCover link. */
+  before: 'Data: Copernicus DEM, GEBCO, ',
+  /** The WorldCover link text; `createLegend` points it at `WORLDCOVER_LICENCE_URL`. */
+  worldCover: 'ESA WorldCover',
+  /** Between the two links. */
+  between: ' · Rivers © ',
+  /** The OSM link text; `createLegend` points it at `OSM_COPYRIGHT_URL`. */
   link: 'OpenStreetMap contributors',
 } as const
 
 /** The credit line as plain text, which is all a `node` test can see. */
 export function creditsLine(): string {
-  return CREDITS.before + CREDITS.link
+  return CREDITS.before + CREDITS.worldCover + CREDITS.between + CREDITS.link
 }
 
 export type LegendHandle = {
@@ -164,20 +188,23 @@ export function createLegend(root: HTMLElement): LegendHandle {
   root.appendChild(el)
 
   // The key lines are one text node; the credit is a separate element after
-  // them so its link can be an <a>. The link alone re-enables pointer events:
+  // them so its links can be <a>s. A link alone re-enables pointer events:
   // the <pre> disables them so the panel never steals a click from the canvas.
   const lines = document.createTextNode('')
   el.appendChild(lines)
   const credit = document.createElement('div')
   credit.style.cssText = 'margin-top:8px;font-size:10px;opacity:.6'
-  credit.append(CREDITS.before)
-  const link = document.createElement('a')
-  link.href = OSM_COPYRIGHT_URL
-  link.target = '_blank'
-  link.rel = 'noopener'
-  link.textContent = CREDITS.link
-  link.style.cssText = 'color:inherit;pointer-events:auto'
-  credit.appendChild(link)
+  const makeLink = (text: string, href: string): HTMLAnchorElement => {
+    const a = document.createElement('a')
+    a.href = href
+    a.target = '_blank'
+    a.rel = 'noopener'
+    a.textContent = text
+    a.style.cssText = 'color:inherit;pointer-events:auto'
+    return a
+  }
+  credit.append(CREDITS.before, makeLink(CREDITS.worldCover, WORLDCOVER_LICENCE_URL), CREDITS.between,
+    makeLink(CREDITS.link, OSM_COPYRIGHT_URL))
   el.appendChild(credit)
 
   let open = true

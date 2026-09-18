@@ -11,7 +11,11 @@ import { COVER_HEADER } from '../landcover/load.js'
 
 export type CoverLookup = { fractionsAt(x: number, z: number): { tree: number; crop: number; mangrove: number; open: number } }
 
-/** CPU twin of the shader's raster read: nearest sample, same bytes. */
+/** CPU twin of the shader's raster read: same bytes, same index
+ *  (`coverIndex`'s nearest-sample rounding) -- the shader reads those same
+ *  bytes through `LinearFilter`, not nearest, so the two agree on which
+ *  sample a world position means but not on how a fragment between samples
+ *  blends. */
 export function coverLookup(data: Uint8Array, header: CoverHeader = COVER_HEADER): CoverLookup {
   return { fractionsAt: (x, z) => coverFractionsAt(data, header, x, z) }
 }

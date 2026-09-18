@@ -340,13 +340,36 @@ async function boot(): Promise<void> {
   // paint (surface.ts's `ready` uniform) and the daa1b39 forest, logged,
   // not fatal: land cover is a picture, terrain is the ground.
   let cover: CoverLookup | null = null
-  void loadCover().then(data => {
-    terrain.setCover(data)
-    cover = coverLookup(data)
-    vegetation?.setCover(cover)
-  }).catch((err: unknown) => {
-    console.warn('land cover unavailable, painting procedurally:', err)
-  })
+  // Declared here, not beside `scene.add(terrain.object)` below where it
+  // used to live: `loadCover()` can resolve before the `await`s between here
+  // and there finish (createOceanCompute/loadDepth), and the closure below
+  // closes over this binding by reference. With the declaration after the
+  // closure, a fast resolve read `vegetation` from its temporal dead zone --
+  // optional chaining does NOT guard a TDZ read, so `vegetation?.setCover`
+  // threw `ReferenceError`, and the `catch` below mislabelled that
+  // programming fault as "land cover unavailable" (whole-branch review,
+  // 2026-09-18 -- confirmed present in the deployed bundle). `let` still,
+  // not `const`: `vegetation` is created later, once terrain level 4 lands.
+  let vegetation: ReturnType<typeof createVegetation> | null = null
+  void loadCover().then(
+    data => {
+      // Anything thrown here is a bug in this block, not a bad or missing
+      // raster -- `loadCover()` already succeeded. Reported and rethrown
+      // rather than falling into the rejection branch below, so this class
+      // of fault can never again hide behind "land cover unavailable".
+      try {
+        terrain.setCover(data)
+        cover = coverLookup(data)
+        vegetation?.setCover(cover)
+      } catch (err) {
+        console.error('land cover setup failed after a successful fetch (a bug, not a data problem):', err)
+        throw err
+      }
+    },
+    (err: unknown) => {
+      console.warn('land cover unavailable, painting procedurally:', err)
+    },
+  )
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
   const oceanDepth = await loadDepth()
@@ -402,7 +425,8 @@ async function boot(): Promise<void> {
   // terrain mesh that missed it would jitter at 100 km exactly as master
   // spec §4 describes, and would be the only thing in the scene that did.
   scene.add(terrain.object)
-  let vegetation: ReturnType<typeof createVegetation> | null = null
+  // `vegetation` itself is declared above, beside `cover`, not here -- see
+  // that comment for why.
 
   const camera = new PerspectiveCamera(
     CAMERA_VFOV_DEG,
@@ -900,6 +924,14 @@ async function boot(): Promise<void> {
     if (arrived !== null) {
       scene.add(createRunway(arrived), createAirfield(arrived))
       vegetation = createVegetation(arrived)
+      // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
+      // which forces its own full recompose at `lastX/lastZ`: left at their
+      // (0, 0) default -- open sea, never where the airplane actually is --
+      // both recomposes would be thrown away the instant the next frame's
+      // `vegetation.update(current.eye...)` below finds a different cell and
+      // recomposes a third time. One wasted recompose is cheap; this was two
+      // (whole-branch review, 2026-09-18).
+      vegetation.update(next.eye.position.x, next.eye.position.z)
       // The tier may already have been chosen by the time terrain arrives.
       vegetation.setTier(oceanTier.name)
       if (cover !== null) vegetation.setCover(cover)

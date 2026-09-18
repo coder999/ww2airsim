@@ -10,11 +10,12 @@ export const CLASS = {
 export type Fractions = { tree: number; crop: number; mangrove: number; open: number; water: number }
 
 /**
- * The only place that knows class numbers. `built` becomes `crop`: master
- * spec section 4's known compromise, the one 1944 correction. Everything
- * that is not land cover a pilot can read from the air -- water, wetland,
- * snow, moss, no-data -- is `water`, which the shipped raster carries as
- * the remainder of the four land channels.
+ * The only place that knows class numbers. `built` becomes `crop`: the 13b
+ * design spec's known compromise (`docs/superpowers/specs/2026-09-18-land-
+ * cover-design.md` §2, "Built-up pixels count as cropland"), the one 1944
+ * correction. Everything that is not land cover a pilot can read from the
+ * air -- water, wetland, snow, moss, no-data -- is `water`, which the
+ * shipped raster carries as the remainder of the four land channels.
  */
 export function channelOf(cls: number): keyof Fractions {
   switch (cls) {

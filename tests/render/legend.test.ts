@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { BINDINGS, type BindingName } from '../../src/input/bindings.js'
-import { LEGEND_ROWS, OSM_COPYRIGHT_URL, creditsLine, keyLabel, legendLines } from '../../src/render/legend.js'
+import {
+  CREDITS, LEGEND_ROWS, OSM_COPYRIGHT_URL, WORLDCOVER_LICENCE_URL, creditsLine, keyLabel, legendLines,
+} from '../../src/render/legend.js'
 
 describe('the control legend (2026-09-15)', () => {
   it('names every binding exactly once, so a new key cannot ship undocumented', () => {
@@ -64,12 +66,22 @@ describe('the control legend (2026-09-15)', () => {
     expect(OSM_COPYRIGHT_URL).toBe('https://www.openstreetmap.org/copyright')
   })
 
-  it('credits ESA WorldCover alongside the other data sources', () => {
-    // CC BY 4.0 wants attribution in a reasonable manner; the panel's
-    // credits line is where every dataset is named. NOTICE.md and
-    // ASSETS.md carry the full strings.
+  it('credits ESA WorldCover alongside the other data sources, linked to its licence', () => {
+    // CC BY 4.0 §3(a)(2) wants a hyperlink to the licence where reasonably
+    // practicable, which the OSM credit right beside it already demonstrates
+    // is practicable in this exact panel -- legend.ts's dated argument,
+    // 2026-09-18, has the full reasoning for why that puts ESA WorldCover on
+    // a different footing than Copernicus/GEBCO's plain "Data:" mention.
+    // `createLegend` renders `CREDITS.worldCover` as an <a> to
+    // `WORLDCOVER_LICENCE_URL`, the same way it renders `CREDITS.link` to
+    // `OSM_COPYRIGHT_URL` -- DOM rendering itself is untested here by design
+    // (`createLegend`'s own comment: the vitest environment is `node`), so
+    // this pins the pure pieces the DOM wiring reads from, the same way the
+    // OSM link's URL is pinned below.
     expect(creditsLine()).toContain('ESA WorldCover')
     expect(creditsLine()).toContain('© OpenStreetMap contributors')
+    expect(CREDITS.worldCover).toBe('ESA WorldCover')
+    expect(WORLDCOVER_LICENCE_URL).toBe('https://creativecommons.org/licenses/by/4.0/')
   })
 })
 

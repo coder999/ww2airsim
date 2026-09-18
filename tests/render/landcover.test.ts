@@ -3,7 +3,8 @@ import { gzipSync } from 'node:zlib'
 import {
   COVER_CHANNELS, COVER_SAMPLES, coverByteLength, coverFractionsAt, coverIndex, dequantize, parseCoverHeader, quantize,
 } from '../../src/render/landcover/cover.js'
-import { COVER_HEADER, loadCover } from '../../src/render/landcover/load.js'
+import { assertSameBoxAsTerrain, COVER_HEADER, loadCover } from '../../src/render/landcover/load.js'
+import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { COVER_PATH, COVER_URL } from '../../src/render/content.js'
 
 const header = parseCoverHeader({
@@ -71,5 +72,26 @@ describe('loadCover', () => {
     expect(COVER_PATH).toBe('content/landcover/cover.bin.gz')
     expect(COVER_URL.endsWith(COVER_PATH)).toBe(true)
     expect(COVER_HEADER.samples).toBe(COVER_SAMPLES)
+  })
+})
+
+describe('assertSameBoxAsTerrain', () => {
+  it('accepts the committed cover header against the committed terrain header', () => {
+    // The two ship separately (`content/landcover/header.json` and
+    // `content/terrain/header.json`) but must describe the same box; this is
+    // the check that would have caught a raster built for a different centre
+    // or extent, which `parseCoverHeader` alone cannot (a header describing
+    // the wrong box is still a validly-shaped header). Also exercised simply
+    // by importing `load.js` at all, since the module calls this at load
+    // time against these same two headers -- if it were going to throw, the
+    // whole suite would already be red.
+    expect(() => assertSameBoxAsTerrain(COVER_HEADER, TERRAIN_HEADER)).not.toThrow()
+  })
+
+  it('refuses a cover header that describes a different box than the terrain', () => {
+    const wrongCentre = { ...COVER_HEADER, centreLatDeg: 0 }
+    expect(() => assertSameBoxAsTerrain(wrongCentre, TERRAIN_HEADER)).toThrow(/different box/)
+    const wrongExtent = { ...COVER_HEADER, halfExtentM: 50_000 }
+    expect(() => assertSameBoxAsTerrain(wrongExtent, TERRAIN_HEADER)).toThrow(/different box/)
   })
 })

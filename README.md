@@ -133,15 +133,23 @@ a crash event on contact (`src/sim/world/terrain.ts`). Design:
 **What it is not.** Each of these is deliberate, and each belongs to a later
 plan rather than to a to-do list:
 
-- **No surface materials.** The terrain is coloured by height and slope. The
-  ESA WorldCover splat guide is 400 MB and a subject of its own.
+- ~~**No surface materials.**~~ Fixed by Plan 13b, 2026-09-18: the terrain is
+  coloured by ESA WorldCover class fractions, not by height and slope alone,
+  and the shipped raster is 247.6 KiB, not the "400 MB splat guide" once
+  assumed here. Handoff:
+  [`2026-09-18-plan13b-land-cover.md`](docs/handoff/2026-09-18-plan13b-land-cover.md).
 - **Bathymetry arrived in Plan 5.** A 513 × 513 GEBCO grid drives ocean colour
   and shallow-water attenuation. It stores signed metre depths in 526,338
   bytes; the terrain pyramid and collision surface retain their own encoding.
 - ~~**No crash response.**~~ Fixed by Plan 10, 2026-09-16 (above). Contact now
   ends the flight and raises a debrief. **No ground handling yet**: no
   runways, gear or deck operations. Those are Plan 11.
-- **No trees, buildings or roads.** The surface is bare relief.
+- ~~**No trees, buildings or roads. The surface is bare relief.**~~ False
+  since `daa1b39`, 2026-09-17: trees (`src/render/scene/vegetation.ts`) and
+  the Tacloban airfield buildings (`scene/airfield.ts`) are drawn. Roads
+  remain future work (Plan 13d, not started; roadmap table in
+  [`2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
+  §15).
 
 **Three things you will see that have already been ruled on**, recorded here
 so they are not re-reported as bugs:
