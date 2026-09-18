@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { waitForTerrain, type DiagWindow } from './harness.js'
+import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
  * Tier 2 is `src/audio/webAudio.ts`'s only coverage, on purpose: the vitest
@@ -89,4 +89,28 @@ test('Q mutes by taking the master gain to zero, and unmutes', async ({ page }) 
   await expect
     .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().masterGain), { timeout: 15_000 })
     .toBeGreaterThan(0)
+})
+
+test('going into the sea fires ONE cue, and a restart fires none', async ({ page }) => {
+  // Both of Mark's 2026-09-18 reports, as a count. He heard a touchdown squeak
+  // AND an explosion on a water crash -- two cues where there should be one --
+  // and another squeak on respawn. `cuesFired` alone therefore discriminates
+  // both without needing to name the clip: 1 after the crash, still 1 after
+  // the restart.
+  const cues = () => page.evaluate(() => (window as DiagWindow).__ww2!.audio().cuesFired)
+  await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
+  await waitForTerrain(page)
+  expect(await cues(), 'nothing should have fired merely by spawning').toBe(0)
+
+  await page.keyboard.down('ArrowUp')
+  await page.waitForSelector('[role="dialog"]', { timeout: 20_000 })
+  await page.keyboard.up('ArrowUp')
+  await expect.poll(cues, { timeout: 10_000 }).toBe(1)
+
+  // Restart puts a fresh airplane on the ground. The previous flight ended
+  // AIRBORNE, so without the tick-backwards reset in cues.ts that parked spawn
+  // reads as a false -> true transition and squeaks.
+  await page.locator('[role="dialog"] button').first().click()
+  await page.waitForTimeout(4000)
+  expect(await cues(), 'a respawn is not a landing').toBe(1)
 })

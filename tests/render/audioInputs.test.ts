@@ -50,7 +50,9 @@ describe('audioInputsFrom (design §6.1)', () => {
     }
     const inputs = audioInputsFrom(ditched)
     expect(inputs.engineRunning).toBe(false)
-    expect(inputs.impact).toEqual({ tick: 77, kind: 'ditched' })
+    // `surface` travels with it: it, not `kind`, chooses the cue, because
+    // `contactOutcome` calls a hard arrival on water 'destroyed' too.
+    expect(inputs.impact).toEqual({ tick: 77, kind: 'ditched', surface: 'water' })
   })
 
   it("evaluates onGround at the airplane's own (x, z), gear offset included", () => {
@@ -65,5 +67,23 @@ describe('audioInputsFrom (design §6.1)', () => {
     const airborne = initialFrameState(
       f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }), undefined, flatField())
     expect(audioInputsFrom(airborne).onGround).toBe(false)
+  })
+
+  it('reports the surface under the airplane, so wheels never squeak on the sea', () => {
+    // A field of zeros IS open water by `surfaceAt`, and `onGround` is true
+    // over it at wheel height -- which is the whole trap: touching the sea
+    // reads as touching the ground, one or more frames before `advance`
+    // registers an impact.
+    const overSea = initialFrameState(
+      f6f, createState({ position: v3(0, f6f.gear.heightM, 0), gearFraction: 1 }), undefined, flatField(), true)
+    const inputs = audioInputsFrom(overSea)
+    expect(inputs.onGround).toBe(true)
+    expect(inputs.groundSurface).toBe('water')
+    expect(audioInputsFrom(initialFrameState(f6f, createState({ position: v3(0, 1000, 0) }))).groundSurface).toBeNull()
+  })
+
+  it('carries the tick, which is how a restart is told from a landing', () => {
+    const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+    expect(audioInputsFrom(frame).tick).toBe(frame.world.aircraft.tick)
   })
 })

@@ -1,4 +1,5 @@
 import type { AudioInputs } from '../audio/cues.js'
+import { surfaceAt } from '../sim/contact.js'
 import { onGround } from '../sim/ground.js'
 import { heightAt } from '../sim/world/terrain.js'
 import type { FrameState } from './frame.js'
@@ -24,7 +25,8 @@ export function audioInputsFrom(frame: FrameState): AudioInputs {
     // is the throttle the simulation actually ran, not a copy that can drift.
     throttle: frame.controls.throttle,
     engineRunning: impact === null,
-    impact: impact === null ? null : { tick: impact.tick, kind: impact.kind },
+    impact: impact === null ? null : { tick: impact.tick, kind: impact.kind, surface: impact.surface },
+    tick: aircraft.tick,
     // `null`, not `false`, while there is no terrain: the airplane spawns
     // parked and the heightfield arrives seconds later, so calling that gap
     // "airborne" would make its arrival a landing.
@@ -32,5 +34,11 @@ export function audioInputsFrom(frame: FrameState): AudioInputs {
       terrain === null
         ? null
         : onGround(spec, aircraft, heightAt(terrain, aircraft.position.x, aircraft.position.z)),
+    // `surfaceAt` on the SAME height `onGround` was judged against, so the two
+    // cannot disagree about what the airplane is over.
+    groundSurface:
+      terrain === null
+        ? null
+        : surfaceAt(heightAt(terrain, aircraft.position.x, aircraft.position.z)),
   }
 }

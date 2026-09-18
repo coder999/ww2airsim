@@ -4,7 +4,9 @@ import { createFakeBackend } from './fakeBackend.js'
 import type { AudioInputs } from '../../src/audio/cues.js'
 import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '../../src/audio/mix.js'
 
-const flying: AudioInputs = { throttle: 1, engineRunning: true, impact: null, onGround: false }
+const flying: AudioInputs = {
+  throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 10,
+}
 
 describe('the audio system, driven through a fake backend (design §7.1)', () => {
   it('starts the propeller loop at the committed loop points, once', async () => {
@@ -39,7 +41,7 @@ describe('the audio system, driven through a fake backend (design §7.1)', () =>
     const fake = createFakeBackend()
     const audio = createAudioSystem(fake)
     await audio.load()
-    const hit: AudioInputs = { throttle: 0, engineRunning: false, impact: { tick: 900, kind: 'ditched' }, onGround: false }
+    const hit: AudioInputs = { ...flying, throttle: 0, engineRunning: false, impact: { tick: 900, kind: 'ditched', surface: 'water' } }
     for (let i = 0; i < 100; i++) audio.update(hit)
     expect(fake.played.map((p) => p.id)).toEqual(['water_crash'])
   })
@@ -50,7 +52,7 @@ describe('the audio system, driven through a fake backend (design §7.1)', () =>
     const fake = createFakeBackend({ failToLoad: ['water_crash'] })
     const audio = createAudioSystem(fake)
     await expect(audio.load()).resolves.toBeUndefined()
-    audio.update({ throttle: 0, engineRunning: false, impact: { tick: 1, kind: 'ditched' }, onGround: false })
+    audio.update({ ...flying, throttle: 0, engineRunning: false, impact: { tick: 1, kind: 'ditched', surface: 'water' } })
     expect(fake.played).toEqual([])
   })
 
@@ -92,7 +94,7 @@ describe('the audio system, driven through a fake backend (design §7.1)', () =>
     const audio = createAudioSystem(fake)
     await audio.load()
     audio.setMuted(true)
-    const hit: AudioInputs = { throttle: 0, engineRunning: false, impact: { tick: 3, kind: 'destroyed' }, onGround: false }
+    const hit: AudioInputs = { ...flying, throttle: 0, engineRunning: false, impact: { tick: 3, kind: 'destroyed', surface: 'land' } }
     audio.update(hit); audio.update(hit)
     expect(fake.played.map((p) => p.id)).toEqual(['explosion'])
   })
