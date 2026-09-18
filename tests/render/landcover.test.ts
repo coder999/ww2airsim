@@ -41,5 +41,7 @@ describe('cover raster geometry', () => {
     expect(() => parseCoverHeader({ ...header, samples: 1024 })).toThrow()
     expect(() => parseCoverHeader({ ...header, encoding: 'png' })).toThrow()
     expect(() => parseCoverHeader({ ...header, channels: ['tree'] })).toThrow()
+    expect(() => parseCoverHeader({ ...header, halfExtentM: Infinity })).toThrow()
+    expect(() => parseCoverHeader({ ...header, extra: 1 })).toThrow()
   })
 })

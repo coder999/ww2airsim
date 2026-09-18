@@ -10,14 +10,17 @@ import { z } from 'zod'
 export const COVER_CHANNELS = ['tree', 'crop', 'mangrove', 'open'] as const
 export const COVER_SAMPLES = 1025
 
+const finite = z.number().refine(Number.isFinite, { message: 'must be finite' })
+const positive = finite.refine((v) => v > 0, { message: 'must be positive' })
+
 const HeaderSchema = z.object({
-  centreLatDeg: z.number(),
-  centreLonDeg: z.number(),
-  halfExtentM: z.number().positive(),
+  centreLatDeg: finite,
+  centreLonDeg: finite,
+  halfExtentM: positive,
   samples: z.literal(COVER_SAMPLES),
   channels: z.tuple([z.literal('tree'), z.literal('crop'), z.literal('mangrove'), z.literal('open')]),
   encoding: z.literal('rgba8-sixteenths'),
-})
+}).strict()
 export type CoverHeader = z.infer<typeof HeaderSchema>
 
 export function parseCoverHeader(raw: unknown): CoverHeader {
