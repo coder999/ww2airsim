@@ -9,10 +9,12 @@ const hit = (surface: 'water' | 'land', kind: 'ditched' | 'destroyed', over: Aud
 
 describe('the audio cue reducer (design §6.2)', () => {
   it('does not squeak on a parked spawn, which is the DEFAULT spawn', () => {
-    // DEFAULT_SPAWN_IS_GROUND is true (src/render/spawn.ts): the airplane is
-    // parked on the Tacloban strip and held at zero elapsed time until the
-    // heightfield arrives seconds later. `onGround` is null until then. A
-    // transition needs two KNOWN values; this is the assertion that says so.
+    // The scenario's player starts parked (`content/scenarios/free-flight.json`'s
+    // `parkedAt`, built into `AircraftEntity.parked: true` by `worldFromScenario`,
+    // `src/sim/scenario.ts`): the airplane is parked on the Tacloban strip and
+    // held at zero elapsed time until the heightfield arrives seconds later.
+    // `onGround` is null until then. A transition needs two KNOWN values;
+    // this is the assertion that says so.
     const parked = { ...flying, onGround: null }
     const first = nextAudio(NO_AUDIO_MEMORY, parked)
     expect(first.cues).toEqual([])

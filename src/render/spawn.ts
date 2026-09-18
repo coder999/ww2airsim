@@ -13,10 +13,12 @@ export const SPAWN_PARAMS = ['spawnX', 'spawnY', 'spawnZ'] as const
  * overriding one component.
  *
  * `fallback` rather than a module constant (Plan 12, Task 5): where a flight
- * starts by default now lives in content (`content/bases/tacloban.json`,
- * read through `worldFromScenario`), not in this file -- `main.ts` passes the
- * record it boots with, component by component, the same way the caller used
- * to fall back to the module's own `DEFAULT_SPAWN_POSITION`.
+ * starts by default now lives in content (`content/bases/tacloban.json`), not
+ * in this file. At THIS commit `main.ts` still passes a hard-coded temporary
+ * literal (`PARKED_TACLOBAN`, `main.ts`'s own comment says so), the same way
+ * the caller used to fall back to this module's own `DEFAULT_SPAWN_POSITION`;
+ * Task 7 replaces that literal with the scenario's parked position, read
+ * through `worldFromScenario`, without this function's signature changing.
  *
  * **Why this exists, since a URL that moves the airplane is otherwise a
  * cheat.** Tier 2 has to fly over Leyte, and Leyte is not where the airplane
@@ -106,11 +108,15 @@ export function hasSpawnOverride(search: string): boolean {
  * The parked attitude below is the literal `parkedAttitude(tacloban)` would
  * produce (`src/sim/world/airfields.ts`) -- north, down the strip, wings
  * level -- but cannot actually call it: that function takes an `Airfield`,
- * and this one has no airfield to hand it, only a bare position. `main.ts`
- * no longer reaches this branch (Task 5 moved its boot path onto
+ * and this one has no airfield to hand it, only a bare position. At THIS
+ * commit `main.ts` still calls this function for BOTH branches
+ * (`src/render/main.ts`'s `initialAircraftState(spawnPosition, groundSpawn)`,
+ * with `groundSpawn` true on every normal production boot) -- Task 5 did not
+ * move `main.ts` off it. Task 7 is what moves `main.ts`'s boot path onto
  * `worldFromScenario`, which sets a parked entity's attitude from the real
- * airfield record), so it is only reached by tests that still call this
- * function directly.
+ * airfield record; after that only the airborne branch (the DEV
+ * `?spawnX/Y/Z` override) is still reached in production, and the parked one
+ * is reached only by tests that call this function directly.
  */
 export function initialAircraftState(position: Vec3, groundSpawn: boolean): AircraftState {
   return createState({
