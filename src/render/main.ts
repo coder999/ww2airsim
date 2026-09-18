@@ -7,6 +7,9 @@ import { makeTextTexture } from './scene/text.js'
 import { AIRCRAFT_CONTENT_URL, FINEST_FETCHED_LEVEL } from './content.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
+import { createAudioSystem } from '../audio/system.js'
+import { createWebAudioBackend } from '../audio/webAudio.js'
+import { audioInputsFrom } from './audio.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
@@ -205,6 +208,18 @@ async function boot(): Promise<void> {
   // `initialFrameState`'s own defaults (0 / `'chase'` / `NEUTRAL` /
   // `LOOK_CENTRE`) -- a poll that keeps waiting, not a thrown
   // `ReferenceError` whose cause the test output would never show.
+  // Ships in production, like the legend and unlike `overlay`: sound is part
+  // of the game, not developer telemetry. The context starts suspended; the
+  // first keypress resumes it (see the keydown listener).
+  const audio = createAudioSystem(createWebAudioBackend())
+  // Deliberately not awaited, exactly like `loadTerrainProgressively` below.
+  // A sound that will not load must never reach `showFailure`: a flight sim
+  // with no sound is playable, and `system.ts` already degrades each clip to
+  // silence on its own (design §10.2).
+  void audio.load().catch((error: unknown) => {
+    if (import.meta.env.DEV) console.warn('audio failed to load', error)
+  })
+
   if (import.meta.env.DEV) {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
@@ -266,6 +281,7 @@ async function boot(): Promise<void> {
       // (WebGPUBackend.js:298, three@0.186.0), so asking the renderer the
       // same question cannot drift from what it actually did.
       gpuTimestampsSupported: renderer.hasFeature('timestamp-query'),
+      audio: () => audio.snapshot(),
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
@@ -457,6 +473,7 @@ async function boot(): Promise<void> {
   // of the key map. Mark asked for a throttle-down key on 2026-09-15 that had
   // been bound since Plan 1 and written down nowhere.
   const legend = createLegend(root)
+  let muted = false
   const flightData = createFlightData(root)
   // Ships in production for the same reason the legend does: compression is
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
@@ -566,6 +583,19 @@ async function boot(): Promise<void> {
       legendOpen = !legendOpen
       legend.setOpen(legendOpen)
     }
+    // Plan 15. Page furniture, toggled here for the same reason the legend is:
+    // FrameState is the deterministic simulation state the golden trajectory
+    // and the soak replay, and a mute belongs in neither.
+    if (BINDINGS.toggleMute.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      muted = !muted
+      audio.setMuted(muted)
+      legend.setMuted(muted)
+    }
+    // Unconditional, and synchronous inside the listener: the autoplay policy
+    // ties the gesture to the TASK, not to the promise chain, so awaiting
+    // anything before this point would spend the gesture.
+    void audio.resume()
     pressed.add(e.code)
   })
   window.addEventListener('keyup', (e) => {
@@ -698,6 +728,7 @@ async function boot(): Promise<void> {
     // which is why the throttle gauge needs it passed separately -- the same
     // vector the propeller spin below already reads.
     updatePanel(panel, spec, current.world.aircraft, current.controls, makeTextTexture, current.render.attitude)
+    audio.update(audioInputsFrom(current))
     flightData.update(current.cameraMode, spec, current.world.aircraft, current.controls)
     timeBadge.setScale(current.timeScale)
     pauseBadge.setPaused(current.paused)

@@ -40,6 +40,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Gear', bindings: ['toggleGear'] },
   { label: 'Flaps', bindings: ['toggleFlaps'] },
   { label: 'Brakes', bindings: ['brakes'] },
+  { label: 'Mute', bindings: ['toggleMute'] },
   { label: 'Controls', bindings: ['toggleLegend'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
   { label: 'Pause', bindings: ['pause'] },
@@ -96,12 +97,16 @@ const keysOf = (name: BindingName): string =>
   [...new Set(BINDINGS[name].map(keyLabel))].join(' / ')
 
 /** One display line per row: the label, then its keys. */
-export function legendLines(): readonly string[] {
+export function legendLines(muted = false): readonly string[] {
   return LEGEND_ROWS.map((row) => {
     const keys = row.pair
       ? row.bindings.map(keysOf).join('  /  ')
       : row.bindings.map(keysOf).join('  ')
-    return `${row.label}  ${keys}`
+    // A mute whose state is invisible is the same defect this panel exists to
+    // fix: the player has no other way to tell silence-by-choice from an
+    // audio system that failed to load.
+    const suffix = muted && row.bindings.includes('toggleMute') ? '  (muted)' : ''
+    return `${row.label}  ${keys}${suffix}`
   })
 }
 
@@ -165,6 +170,9 @@ export function creditsLine(): string {
 export type LegendHandle = {
   /** Collapsed to a single prompt line, or fully shown. */
   setOpen(open: boolean): void
+  /** Marks the Mute row, so silence-by-choice is distinguishable from audio
+   *  that failed to load. */
+  setMuted(muted: boolean): void
 }
 
 /**
@@ -208,9 +216,10 @@ export function createLegend(root: HTMLElement): LegendHandle {
   el.appendChild(credit)
 
   let open = true
+  let muted = false
   const render = (): void => {
     lines.data = open
-      ? [...legendLines(), '', `${TOGGLE_KEYS}  hide`].join('\n')
+      ? [...legendLines(muted), '', `${TOGGLE_KEYS}  hide`].join('\n')
       : `${TOGGLE_KEYS}  controls`
     credit.style.display = open ? '' : 'none'
   }
@@ -218,6 +227,10 @@ export function createLegend(root: HTMLElement): LegendHandle {
   return {
     setOpen(next: boolean): void {
       open = next
+      render()
+    },
+    setMuted(next: boolean): void {
+      muted = next
       render()
     },
   }

@@ -1,3 +1,4 @@
+import type { AudioSnapshot } from '../audio/system.js'
 import type { AdapterVerdict } from './adapterGuard.js'
 import type { CameraMode } from './camera.js'
 import type { Controls } from '../sim/flight/state.js'
@@ -184,6 +185,10 @@ export type Ww2Diagnostics = {
     timeS: number; values: number[]; phaseSeed: number
     options: import('./ocean/compute.js').OceanComputeOptions
   } | null>
+  /** What the audio system is doing, for Tier 2 (tests/e2e/audio.spec.ts).
+   *  A granular snapshot, not the system itself -- the binding ruling on
+   *  `impact` above applies unchanged. */
+  readonly audio: () => AudioSnapshot
   readonly resetFrameTimes: () => void
 }
 

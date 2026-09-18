@@ -69,8 +69,11 @@ export const BINDINGS = {
   toggleLegend: ['Slash'],
   toggleFlightData: ['KeyI'],
   // Plan 11a Task 8. `G` for gear -- the mnemonic every flight sim before
-  // this one has used, and free: not one of A, C, D, E, H, I, L, Q, R, S, T,
-  // W or Z above. Edge-triggered like the assist toggles, not held: a lever
+  // this one has used, and free: not one of A, B, C, D, F, I, L, M, R, S, T,
+  // W, X or Z. (Corrected 2026-09-18: this list used to name E, H and Q as
+  // taken and omit B, F, M and X. Nothing bound E or H -- most likely a
+  // leftover from the altitude-hold deletion on 2026-09-17 -- and reading it
+  // would have ruled out `Q` for Plan 15's mute, which was in fact free.) Edge-triggered like the assist toggles, not held: a lever
   // that stays where it is left, not a switch you hold over.
   toggleGear: ['KeyG'],
   toggleFlaps: ['KeyF'],
@@ -79,6 +82,11 @@ export const BINDINGS = {
   // the gear, this is a hold: brakes bite while the key is down and release
   // the moment it is not, the way a toe-brake pedal does.
   brakes: ['KeyB'],
+  // Plan 15. `Q` for quiet. `M` is the obvious mute key everywhere else and
+  // has been the THROTTLE CUT here since 2026-09-17, so it is not available.
+  // A bare letter for the reason `throttleDown` documents: no modifier a
+  // browser can intercept.
+  toggleMute: ['KeyQ'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS
