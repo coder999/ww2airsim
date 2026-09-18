@@ -240,6 +240,8 @@ function createRingMaterial(
   fineSamples: number,
   coarseTex: DataTexture,
   coarseSamples: number,
+  shoreTex: DataTexture,
+  shoreSamples: number,
   halfExtentM: number,
   cameraXZ: UniformNode<'vec2', Vector2>,
   cover: CoverNodes,
@@ -290,13 +292,44 @@ function createRingMaterial(
   // exactly the property that would make the clip a visible edge.
   const fog = smoothstep(0, LOD.drawDistanceM, distanceM)
   const shaded = mix(lit, color(SKY_HAZE), varying(fog))
-  const vertexHeightM = varying(heightM)
-
   // The ocean owns water fragments. Discard the DEM's zero-elevation sea
   // before shading so two overlapping surfaces never compete there. Both
   // materials apply the shared curvature sink; the contour stays at h=0.
+  //
+  // The test reads the FINEST fetched level per fragment, not this ring's
+  // own mip through `varying(heightM)`, and the difference is the whole
+  // reason the waterline used to be boxy and to crawl (reported 2026-09-18).
+  // Two separate errors came from the old form:
+  //
+  //  1. `varying` interpolates LINEARLY ACROSS A TRIANGLE, so the h=0 contour
+  //     was a polygon whose segments ran along quad edges and diagonals --
+  //     the 0/45/90-degree staircase in the report. Sampling the field here
+  //     gives its true bilinear contour, which is curved.
+  //  2. A ring's mip is as coarse as its tessellation: 24.4 m at ring 0 but
+  //     97.7 m by ring 2 and 195.3 m by ring 3 (`LOD.quadsPerNode` = 64, node
+  //     size doubling per ring). So the shoreline was drawn at a resolution
+  //     that depended on how far away it happened to be, and every time a
+  //     ring boundary swept over a stretch of coast the contour re-quantised
+  //     under it -- water patches that "vary in location and flicker" while
+  //     flying straight past. One texture at all distances cannot do that.
+  //
+  // Reading the finest level also makes this agree with the two consumers
+  // that already read it: the SIM's ground height (`createTerrainField` is
+  // built from `FINEST_FETCHED_LEVEL` in terrain/load.ts) and the OCEAN's
+  // land weight (`createOcean(..., terrain.levelTexture(FINEST_FETCHED_LEVEL))`
+  // in main.ts). The terrain was the only one of the three deciding where the
+  // water was from a coarser grid, which is the "picture the simulation does
+  // not share" hazard the 13c design names, in the renderer rather than the
+  // data. This does NOT move the shoreline -- same heights, same `h <= 0`
+  // rule -- it draws the one the data already had.
+  //
+  // The geometry still morphs through the ring mips, as CDLOD requires; only
+  // this test changes source. Cost is four `textureLoad`s per fragment,
+  // measured on the reference GPU rather than assumed -- see the budget line
+  // in the 13b handoff and `tests/e2e/terrain.spec.ts`.
+  const shore = sampleField(shoreTex, shoreSamples, halfExtentM, varying(worldXZ))
   material.colorNode = Fn(() => {
-    Discard(vertexHeightM.lessThanEqual(0))
+    Discard(shore.x.lessThanEqual(0))
     return shaded
   })()
 
@@ -424,6 +457,9 @@ export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
         samplesAtLevel(header, fine),
         levelTexture(coarse),
         samplesAtLevel(header, coarse),
+        // The shoreline source, the same for every ring on purpose.
+        levelTexture(FINEST_FETCHED_LEVEL),
+        samplesAtLevel(header, FINEST_FETCHED_LEVEL),
         header.halfExtentM,
         cameraXZ,
         cover,
