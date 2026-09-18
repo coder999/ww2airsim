@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { floodSeaFromBoundary } from '../../tools/landcover/sea.js'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { CACHE_DIR, COVER_BOX, tileFileName, tileIdsFor } from '../../tools/landcover/fetch.js'
+import { floodSeaFromBoundary, openSeaMask } from '../../tools/landcover/sea.js'
 
 const W = 80, C = 0, L = 30 // water, no-data, grass
 
@@ -54,4 +57,38 @@ describe('floodSeaFromBoundary', () => {
     expect(sea[1 * 5 + 1]).toBe(1)      // real sea, reached orthogonally
     expect(sea[2 * 5 + 2]).toBe(0)      // the lake stays dry despite touching it diagonally
   })
+})
+
+const paths = tileIdsFor(COVER_BOX).map(id => join(CACHE_DIR, tileFileName(id)))
+const haveSource = paths.every(p => existsSync(p))
+if (!haveSource) {
+  console.warn(`[landcoverSea.test.ts] ${CACHE_DIR} lacks the WorldCover tiles -- the source checks are SKIPPED. Run \`npx tsx tools/landcover/fetch.ts\` to enable them.`)
+}
+
+// Nothing else in the repo ever calls openSeaMask end to end -- that's how a
+// version that crashed on every real tile (the overview has no georeferencing
+// tags of its own; see sea.ts's comment on `base.getOrigin()`) sat behind a
+// fully green suite. This exercises the whole path: base-origin read, both
+// dimension assertions, the windowed overview read, the stitch, the flood.
+describe.skipIf(!haveSource)('openSeaMask against the Earth', () => {
+  it('tells sea from land from a lake, measured 2026-09-18 against the 20 m overview', async () => {
+    const mask = await openSeaMask(paths, COVER_BOX)
+    const around = (lat: number, lon: number, halfM = 100) => {
+      const d = halfM / 111000
+      return { latMin: lat - d, latMax: lat + d, lonMin: lon - d, lonMax: lon + d }
+    }
+    // Leyte Gulf, open water far from any coast: measured seaFraction 1.0.
+    expect(mask.seaFraction(around(10.75, 125.25))).toBeGreaterThan(0.99)
+    // Mt Nacolod, an inland peak (see landcoverSample.test.ts): measured
+    // seaFraction 0.
+    expect(mask.seaFraction(around(10.450846, 125.096068))).toBeLessThan(0.01)
+    // Lake Danao, Leyte: 11.07111 N 124.69389 E, a volcanogenic lake at
+    // 650 m (en.wikipedia.org/wiki/Lake_Danao_(Leyte), retrieved 2026-09-18)
+    // -- exactly the water-tagged-as-sea case this module exists to
+    // prevent. openCoverSource confirms the pixels here are 100 % water by
+    // class; measured seaFraction is 0 at this box and stayed 0 out to a
+    // 500 m half-width, so the flood is stopping at the lake's shore, not
+    // leaking past it by chance of box placement.
+    expect(mask.seaFraction(around(11.07111, 124.69389))).toBe(0)
+  }, 120_000)
 })
