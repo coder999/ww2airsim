@@ -3,6 +3,7 @@ import { InstancedMesh, Mesh } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { createVegetation, treeSites } from '../../src/render/scene/vegetation.js'
+import { createDetailTexture } from '../../src/render/terrain/surface.js'
 import { RUNWAY_CENTRE, RUNWAY_WIDTH_M } from '../../src/render/scene/runway.js'
 import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
@@ -67,6 +68,23 @@ describe('scenery placement on the real Leyte field', () => {
       expect(material.alphaTestNode, 'per-instance dissolve threshold missing').not.toBeNull()
       expect(material.opacityNode, 'distance fade missing').not.toBeNull()
     }
+  })
+
+  it('samples the ground detail texture without anisotropic filtering', () => {
+    // Measured 2026-09-17 on the reference desktop (RX 6700 XT, 2560x1440,
+    // 3,000 m over Leyte, trees off, GPU timestamps with rendering
+    // serialized on the resolve so every sample is one whole frame):
+    //   anisotropy 8   8.98 ms p50   (as Codex shipped it in daa1b39)
+    //   anisotropy 4   7.21
+    //   anisotropy 2   4.72
+    //   anisotropy 1   3.80
+    //   no detail texture at all   3.34;  pre-scenery main 801775f   3.15
+    // Nine detail lookups per fragment at 8x anisotropy were two thirds of
+    // the whole frame and over the 8.33 ms a 120 Hz frame allows, and two
+    // screenshots down the Tacloban strip at 8 and at 1 are indistinguishable
+    // (the noise is 8- to 64-cell value noise on a 256-texel tile; there is
+    // no fine structure for anisotropy to preserve). Keep it at 1.
+    expect(createDetailTexture().anisotropy).toBe(1)
   })
 
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {

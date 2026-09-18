@@ -758,7 +758,11 @@ async function boot(): Promise<void> {
             postImpactOceanSeconds,
       )
     }
-    renderer.render(scene, camera)
+    // While GPU samples are being collected, a frame is NOT rendered until the
+    // previous frame's timestamp resolve has landed. The paragraph after the
+    // next explains why the guard alone stopped being enough on 2026-09-17.
+    const sampling = renderer.hasFeature('timestamp-query') && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY
+    if (!(sampling && gpuResolvePending)) renderer.render(scene, camera)
 
     // One GPU timestamp sample per resolve; quality selection also uses it. Guarded on a pending
     // resolve rather than fired every frame because `resolveQueriesAsync`
@@ -775,14 +779,30 @@ async function boot(): Promise<void> {
     // outstanding preferentially skips frames during which the GPU was busy,
     // which is exactly when a resolve takes longer -- so in principle this can
     // under-sample the slow tail it is meant to measure. Measured 2026-09-14
-    // it does not, because it almost never skips: three 5-second windows at
+    // it did not, because it almost never skipped: three 5-second windows at
     // 100 m / 3,000 m / 8,000 m recorded 516 / 515 / 514 GPU samples against
-    // 517 / 515 / 514 frames, i.e. within one sample of 1:1. If a future
-    // platform makes resolves slow enough for that ratio to drop, this
-    // guard's bias stops being theoretical and the percentiles want
-    // re-deriving.
+    // 517 / 515 / 514 frames, i.e. within one sample of 1:1.
+    //
+    // **2026-09-17: that ratio dropped to 0.65 and the samples became
+    // garbage, which is why frames are now serialized on the resolve while
+    // sampling.** Plan 13's first pass made the frame heavy enough that a
+    // resolve outlives the frame. three's pool then hands the NEXT frame the
+    // same query slots (it resets `currentQueryIndex` when the resolve is
+    // snapshotted, not when it completes), so the resolve reads a begin
+    // stamp from one frame and an end stamp from another: a run over Leyte
+    // read a strict alternation of 6.0 and 1.6 ms while the same scene,
+    // rendered only after each resolve completed, read a flat 6.03 -- and a
+    // sample covering TWO pending frames read 2.0, which no sum of frames
+    // can. The one-time ocean tier choice below reads these percentiles, so
+    // it was choosing on noise too. Serializing costs nothing measurable when
+    // resolves keep up (pre-scenery main: 599 samples of 601 frames, and
+    // 1.84 ms either way) and halves the frame rate only while the GPU is
+    // heavy AND samples are still wanted: the first FRAME_TIME_CAPACITY
+    // frames after boot or a `resetFrameTimes()`, i.e. the tier choice and
+    // a Tier 2 budget window. Production never tracks timestamps
+    // (renderer.ts), so it never serializes.
     void adaptOceanQuality()
-    if (!gpuResolvePending && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY) {
+    if (sampling && !gpuResolvePending) {
       gpuResolvePending = true
       void renderer
         .resolveTimestampsAsync('render')

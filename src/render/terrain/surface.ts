@@ -34,7 +34,14 @@ export function createDetailTexture(size = 256): DataTexture {
   tex.minFilter = LinearMipmapLinearFilter
   tex.magFilter = LinearFilter
   tex.generateMipmaps = true
-  tex.anisotropy = 8
+  // Deliberately NO anisotropic filtering. Codex shipped `anisotropy = 8`
+  // here, and with nine lookups of this texture per fragment it was two
+  // thirds of the GPU frame at 1440p: 8.98 ms with it, 3.80 ms without, on a
+  // frame that was 3.15 ms before any of this existed (measured 2026-09-17,
+  // serialized GPU timestamps, the table is in tests/render/scenery.test.ts).
+  // Screenshots down the runway at 8 and at 1 are indistinguishable, because
+  // 8- to 64-cell value noise on a 256-texel tile has no fine structure for
+  // anisotropy to preserve. three's default is 1; the guard test pins it.
   tex.needsUpdate = true
   return tex
 }
