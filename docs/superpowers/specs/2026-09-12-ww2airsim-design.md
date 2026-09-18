@@ -714,9 +714,9 @@ happens next, and the **Plan** column for what a document means when it says
 | 9 | 15 | Meta-game | §8 | Not started |
 | 13 | any | Terrain surface detail | §4 | First pass landed 2026-09-17 in daa1b39 without a spec or plan (Codex, [handoff](../../handoff/2026-09-18-scenery.md)); split into 13a-13d the same day |
 | 13a | any | Harden and verify the first pass (Tier 2, GPU budget, quality tiering, tree streaming) | §4 | Complete 2026-09-17, bounded work, no plan document; [handoff](../../handoff/2026-09-17-plan13a-hardening.md) |
-| 13b | any | Land cover from ESA WorldCover as the material and vegetation guide | §4 | Not started |
-| 13c | any | Coastline and beaches | §4 | Not started |
-| 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started |
+| 13b | any | Land cover from ESA WorldCover as the material and vegetation guide | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
+| 13c | any | Coastline and beaches | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
+| 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
 `Impact` and deliberately stops there, and the sea is a picture rather than a

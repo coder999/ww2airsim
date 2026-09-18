@@ -46,8 +46,8 @@ Stated explicitly, because each is a plausible place to drift:
   Plan 13's first pass, which added procedural materials, streamed trees,
   Tacloban base buildings and two OSM rivers on top of this relief, render-only
   and recorded only in its [handoff](../../handoff/2026-09-18-scenery.md). The
-  Plan 13 design document (master spec §15, 13b-13d) is authoritative for that
-  surface once it exists; this bullet stays as the record of what Plan 4 owned.]
+  [Plan 13 design document](2026-09-18-land-cover-design.md) (master spec
+  §15, 13b-13d) is authoritative for that surface once it exists; this bullet stays as the record of what Plan 4 owned.]
 
 ## 2. The deviation from master spec §4, and why
 
