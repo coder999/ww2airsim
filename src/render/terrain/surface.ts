@@ -1,5 +1,5 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat } from 'three'
-import { color, max, mix, smoothstep, texture, uniform, vec2 } from 'three/tsl'
+import { color, float, max, mix, smoothstep, texture, uniform, vec2 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
 import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
@@ -91,9 +91,15 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   const uv = xz.add(cover.halfExtentM).div(2 * cover.halfExtentM)
   const fractions = texture(cover.texture, uv)
   // Before the raster arrives, or if it never does, the class weights are
-  // Codex's noise-and-height rule from daa1b39, unchanged.
+  // Codex's noise-and-height rule from daa1b39. `forestWeight` reads only
+  // `fractions.r` (tree) -- NOT `.r + .b` -- because mangrove has its own
+  // independent weight below (design spec §"land classes", forest = tree
+  // fraction, mangrove separately weighted); adding mangrove into
+  // forestWeight as well double-counted it into both layers (review
+  // 2026-09-18: tree=0.3/mangrove=0.3/open=0.4 landed at ~0.42 forest / 0.28
+  // open / 0.30 mangrove instead of 0.3 / 0.4 / 0.3).
   const proceduralForest = max(smoothstep(0.38, 0.64, macro), smoothstep(70, 220, height))
-  const forestWeight = mix(proceduralForest, fractions.r.add(fractions.b), cover.ready)
+  const forestWeight = mix(proceduralForest, fractions.r, cover.ready)
   const cropWeight = fractions.g.mul(cover.ready)
   const mangroveWeight = fractions.b.mul(cover.ready)
   const soil = mix(color(0x655644), color(0x8b795b), groundNoise(xz, 150).g)
@@ -101,8 +107,23 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   // Leyte Valley reads as fields from 3,000 m, which is the job (design §1).
   const paddy = mix(color(0x8a9a4e), color(0xb8b56a), groundNoise(vec2(xz.y, xz.x.negate()), 240).g)
   const mangrove = color(0x24402a)
-  const open = mix(grass, soil, smoothstep(0.74, 0.9, patches).mul(0.45))
-  const land = mix(mix(mix(open, forest, forestWeight), paddy, cropWeight), mangrove, mangroveWeight)
+  // Soil patches blend in AFTER the grass/forest mix, weighted by
+  // `1 - forestWeight`, exactly as daa1b39 did -- not before it, as an
+  // earlier version of this function had it (via a `mix(grass, soil, ...)`
+  // "open" term feeding into the forest mix). Blending the patches first
+  // lets them show at up to 11.25% strength through the forest canopy at
+  // forestWeight=0.5 (peak of forestWeight*(1-forestWeight)), which is a
+  // soil patch showing through leaves -- wrong on the merits, and it also
+  // broke the "identical to the pre-raster renderer" claim below, since
+  // that peak is zero only where forestWeight is exactly 0 or 1. Verified
+  // algebraically 2026-09-18, not on the GPU: no headless evaluator for TSL
+  // graphs exists in this repo, so this is a code-construction argument
+  // (same expression, same operand order as daa1b39), not a pinned pixel
+  // measurement -- see the covering-test note in scenery.test.ts.
+  const grassOrForest = mix(grass, forest, forestWeight)
+  const withSoilPatches = mix(grassOrForest, soil,
+    smoothstep(0.74, 0.9, patches).mul(float(1).sub(forestWeight)).mul(0.45))
+  const land = mix(mix(withSoilPatches, paddy, cropWeight), mangrove, mangroveWeight)
   const rock = mix(color(0x696c62), color(0x9a9585), groundNoise(xz, 220).g)
     .mul(groundNoise(xz, 26).g.mul(0.35).add(0.82))
   // Tropical summits remain vegetated; steep faces expose rock. No snow line.

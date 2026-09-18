@@ -191,9 +191,17 @@ describe('scenery placement on the real Leyte field', () => {
   it('takes the land-cover raster once it arrives, and paints procedurally until then', () => {
     const mesh = createTerrainMesh(header)
     // Before the raster: the shader's `ready` uniform is 0, so the class
-    // weights come from Codex's noise-and-height rule and the picture is
-    // exactly what shipped in daa1b39. This is also the fallback if the
-    // fetch fails: an island, not a brown one.
+    // weights come from Codex's noise-and-height rule -- the mangrove/crop
+    // terms multiply by `ready` and the forest term's `mix` selects the
+    // procedural branch at `ready = 0`, so the graph reduces to daa1b39's
+    // rule (surface.ts's `terrainSurfaceNode` comment has the full algebraic
+    // argument, checked 2026-09-18 after a review found and fixed a real
+    // drift here). This is also the fallback if the fetch fails: an island,
+    // not a brown one. Nothing below exercises the shader itself -- there is
+    // no headless TSL/GPU evaluator in this repo, so this test can only pin
+    // the mesh-side mechanics (`ready`, the texture, `setCover`), not the
+    // rendered pixels; a future edit to `terrainSurfaceNode` that reintroduces
+    // this class of bug would not fail anything here.
     expect(mesh.cover.ready.value).toBe(0)
     expect(mesh.cover.texture.image.width).toBe(COVER_HEADER.samples)
     const versionBefore = mesh.cover.texture.version
