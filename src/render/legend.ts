@@ -128,7 +128,7 @@ const TOGGLE_KEYS = [...new Set(BINDINGS.toggleLegend.map(keyLabel))].join(' / '
 export const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright'
 export const CREDITS = {
   /** Everything before the link. */
-  before: 'Data: Copernicus DEM, GEBCO · Rivers © ',
+  before: 'Data: Copernicus DEM, GEBCO, ESA WorldCover · Rivers © ',
   /** The link text; `createLegend` points it at `OSM_COPYRIGHT_URL`. */
   link: 'OpenStreetMap contributors',
 } as const

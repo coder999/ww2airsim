@@ -63,6 +63,14 @@ describe('the control legend (2026-09-15)', () => {
     expect(creditsLine()).toContain('© OpenStreetMap contributors')
     expect(OSM_COPYRIGHT_URL).toBe('https://www.openstreetmap.org/copyright')
   })
+
+  it('credits ESA WorldCover alongside the other data sources', () => {
+    // CC BY 4.0 wants attribution in a reasonable manner; the panel's
+    // credits line is where every dataset is named. NOTICE.md and
+    // ASSETS.md carry the full strings.
+    expect(creditsLine()).toContain('ESA WorldCover')
+    expect(creditsLine()).toContain('© OpenStreetMap contributors')
+  })
 })
 
 it('binds F to the flaps, beside G for the gear', () => {

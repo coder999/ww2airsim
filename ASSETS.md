@@ -43,7 +43,7 @@ source datasets:
 | --- | --- | --- |
 | Copernicus DEM GLO-30 | ESA / Copernicus Programme | Recorded below, fetched 2026-09-13 |
 | GEBCO_2026 bathymetry | GEBCO Bathymetric Compilation Group 2026 | Public domain with acknowledgement; derived game data, no official status or endorsement; not for navigation. See `content/ocean/NOTICE.md` and the provenance below. |
-| ESA WorldCover 10 m | ESA WorldCover project | To be recorded with the pipeline, before first use |
+| ESA WorldCover 10 m 2021 v200 | ESA WorldCover consortium (VITO, Brockmann Consult, CS, GAMMA, IIASA, WUR) | CC BY 4.0; attribution in `content/landcover/NOTICE.md` and the in-app credits line. Fetched 2026-09-17. |
 
 **The GEBCO row said "GEBCO 2024" until 2026-09-15.** GEBCO publishes annually
 and the current release is **GEBCO_2026** (April 2026, DOI
@@ -152,3 +152,20 @@ use permitted with acknowledgement. No implied official status or GEBCO/IHO/IOC
 endorsement, and no misrepresentation. Supplied as is without guaranteed
 accuracy or completeness or responsibility for consequences. Not for navigation
 or safety at sea. The derived binary is accompanied by `content/ocean/NOTICE.md`.
+
+### ESA WorldCover 10 m 2021 v200 — recorded 2026-09-18 (Plan 13b, land cover)
+
+- **Dataset:** ESA WorldCover 10 m 2021 v200, tiles `N09E123` and `N09E126`,
+  from `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/`
+  (public bucket, anonymous access, fetched 2026-09-17).
+- **Producer:** ESA WorldCover consortium, led by VITO.
+- **License:** Creative Commons Attribution 4.0 International (CC BY 4.0).
+- **Attribution as required:**
+
+  > © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium.
+
+- **What ships:** `content/landcover/cover.bin.gz`, a 1025² four-channel
+  coverage-fraction raster on the terrain grid, with the built-up class
+  counted as cropland (master spec §4). The build is `npm run landcover:build`
+  (`tools/landcover/`); the source tiles are cached under `tools/landcover/cache/`
+  and are not committed.
