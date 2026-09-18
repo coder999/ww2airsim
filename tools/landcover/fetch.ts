@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { toGeodetic } from '../../src/sim/world/projection.js'
@@ -59,7 +59,14 @@ export function tileIdsFor(box: LatLonBox): TileId[] {
 export async function ensureTileInto(id: TileId, dir: string, fetch: TileFetcher): Promise<string> {
   mkdirSync(dir, { recursive: true })
   const path = join(dir, tileFileName(id))
-  if (existsSync(path)) return path
+  // A zero-byte file is treated as absent: it is what an out-of-disk or a
+  // killed process leaves behind, and it is indistinguishable from a cached
+  // tile by existence alone.
+  try {
+    if (statSync(path).size > 0) return path
+  } catch {
+    // not cached; fall through
+  }
   const part = `${path}.part`
   try {
     writeFileSync(part, await fetch(tileUrl(id)))
@@ -80,7 +87,9 @@ export async function ensureAllTilesInto(box: LatLonBox, dir: string, fetch: Til
 const realFetch: TileFetcher = async (url) => {
   const res = await globalThis.fetch(url)
   if (!res.ok) throw new Error(`fetch ${url}: HTTP ${res.status} ${res.statusText}`)
-  return new Uint8Array(await res.arrayBuffer())
+  const bytes = new Uint8Array(await res.arrayBuffer())
+  if (bytes.byteLength === 0) throw new Error(`fetch ${url}: empty body`)
+  return bytes
 }
 
 export async function ensureAllTiles(): Promise<readonly string[]> {

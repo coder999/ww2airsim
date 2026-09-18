@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { COVER_BOX, ensureAllTilesInto, ensureTileInto, tileFileName, tileIdsFor, tileUrl } from '../../tools/landcover/fetch.js'
@@ -37,6 +37,25 @@ describe('WorldCover tile ids', () => {
       expect(existsSync(join(dir, tileFileName({ lat: 9, lon: 126 }) + '.part'))).toBe(false)
       const all = await ensureAllTilesInto(COVER_BOX, dir, fake)
       expect(all.map(p => p.split('/').pop())).toEqual([tileFileName({ lat: 9, lon: 123 }), tileFileName({ lat: 9, lon: 126 })])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('refetches a zero-byte file left by a killed process', async () => {
+    // realFetch is not exported and uses the network, so it is not unit-tested.
+    const dir = mkdtempSync(join(tmpdir(), 'ww2-landcover-'))
+    try {
+      const tileId = { lat: 9, lon: 123 }
+      const tilePath = join(dir, tileFileName(tileId))
+      // Pre-create a zero-byte file (simulating out-of-disk or process kill).
+      writeFileSync(tilePath, new Uint8Array())
+      const calls: string[] = []
+      const fake = async (url: string) => { calls.push(url); return new Uint8Array([9]) }
+      // Refetch should occur because size === 0.
+      const path = await ensureTileInto(tileId, dir, fake)
+      expect(calls).toHaveLength(1)
+      expect(readFileSync(path)).toEqual(Buffer.from([9]))
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
