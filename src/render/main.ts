@@ -18,7 +18,7 @@ import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen } from './titleScreen.js'
-import { CLOUD_TIERS, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
+import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { loadSkyNoise } from './sky/load.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -544,6 +544,7 @@ async function boot(): Promise<void> {
   cloudTier = forcedCloudTier ?? oceanTier.name
   const clouds = createClouds(cloudLayers, skyNoise)
   if (cloudTier !== 'off') clouds.setTier(cloudTier)
+  if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
   scene.add(water)
   let qualityChecked = false

@@ -81,6 +81,15 @@ the click that unlocks audio on a first visit. The pilot roster, mission
 select and a return to the title from the debrief remain Plan 9's;
 [handoff](docs/handoff/2026-09-19-title-screen.md).
 
+**Clouds landed 2026-09-19 (Plan 16a):** volumetric cloud layers raymarched
+from two committed noise volumes, declared per scenario in `weather.clouds`
+(`free-flight` has a cumulus deck at 1,500 m and a cirrus sheet at 7,000 m;
+the gunnery range stays clear). They drift with the wind, curve over the
+horizon, fog with the terrain, and going into one is a whiteout with the
+panel intact. Measured 2.10 ms of GPU time at the high tier at 1440p;
+[handoff](docs/handoff/2026-09-19-plan16a-clouds.md). Cloud shadows (16b)
+and a movable sun (16c) are designed next; master spec §15 holds the status.
+
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
 three design documents each shifted differently — the renderer design still
@@ -354,6 +363,12 @@ the player parked on the Essex's flight deck, 110 m aft of its center, with
 the task force making 15 kn into 15 kn of wind. `?beaufort=` overrides the
 sea state the scenario's wind would otherwise choose. Both are DEV-only and
 covered by the same production-bundle assertion.
+
+`?cloudTier=off|high|medium|low` fixes the cloud quality tier or removes the
+pass, for measuring one scene with and without it, and `?cloudDebug=` paints
+one link of the raymarch (`depth`, `layer`, `shape`, `density`, `slab`,
+`point`, `eye`, or `nodepth` to ignore the scene depth) -- the way the first
+GPU run of Plan 16a was diagnosed. Both are DEV-only.
 
 `?scenario=gunnery-range` parks the player on the Tacloban strip 300 m south
 of the runway center with a chocked training Hellcat at the center -- exactly

@@ -82,7 +82,14 @@ test('deck quals: a full-throttle deck run gets airborne off the bow and climbs 
     [f6f.gear.heightM, GROUND_CONTACT_TOLERANCE_M] as const,
     { timeout: 30_000 },
   )
-  await page.waitForTimeout(2000)
+  // Clearing the bow is polled, not sampled: two seconds after the wheels
+  // leave the deck the airplane is about 3 m past the bow (measured
+  // 2026-09-19, 134 m ahead of the ship's centre against a 131.35 m
+  // half-length), and a fixed wait tipped either way with the frame timing
+  // -- it failed twice in a row the day the clouds landed and passed in
+  // every replay that logged the numbers.
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.deck()), { timeout: 10_000 }).toBeNull()
+  await page.waitForTimeout(1000)
   const after = await page.evaluate(() => {
     const d = (window as DiagWindow).__ww2!
     return { supported: d.supportedContact(), impact: d.impact(), deck: d.deck(), errors: d.validationErrors, gpu: d.gpuFrameTimesMs() }
