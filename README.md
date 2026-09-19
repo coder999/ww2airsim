@@ -284,7 +284,11 @@ needs `PW_BASE_URL=http://localhost:5183` and the reverse tunnel, since only
 
 The one thing this cannot do for itself: **the `playwright run-server` it
 connects to must already be running in the Windows console session** (started
-there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1`).
+there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe`).
+`--unsafe` is not optional: without it the server silently discards the
+`args` this repo's `playwright.config.ts` sends it, so none of the Chromium
+flags in `CHROMIUM_ARGS` apply on the reference platform (measured 2026-09-18
+by reading `chrome://version` through a server started without it).
 Chromium launched over SSH gets no GPU at all -- `requestAdapter()` returns
 null, headless AND headed, because the SSH session is not the console session
 (measured 2026-09-13). That is a session problem, not a headless one, so

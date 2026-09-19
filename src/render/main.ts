@@ -642,6 +642,7 @@ async function boot(): Promise<void> {
   let pendingGear = false
   let pendingFlaps = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
+  const NO_KEYS: ReadonlySet<string> = new Set()
   const clearMapInput = (): void => {
     pressed.clear()
     pendingCameraCycle = false
@@ -765,14 +766,24 @@ async function boot(): Promise<void> {
     // every read.
     // A latched tap is injected as a held key for one frame, with that key's
     // "was down last frame" flag cleared so the edge actually fires.
+    // While the navigation chart is open no key reaches the frame at all:
+    // the hold zeroes the sim clock so axes cannot ramp, but the edge-triggered
+    // toggles (gear, flaps, throttle cut, camera, pause) fire on a keypress
+    // regardless of the clock, and a G pressed while reading the chart must
+    // not drop the gear (Plan 14 Task 4). `clearMapInput` drains the latches
+    // and `pressed` at both transitions; this keeps the frames in between
+    // deaf too.
+    const chartOpen = navigationMapState.open
     const latched: string[] = []
-    if (pendingCameraCycle) latched.push(BINDINGS.cycleCamera[0])
-    if (pendingTripleTime) latched.push(BINDINGS.toggleTripleTime[0])
-    if (pendingPause) latched.push(BINDINGS.pause[0])
-    if (pendingThrottleCut) latched.push(BINDINGS.throttleCut[0])
-    if (pendingGear) latched.push(BINDINGS.toggleGear[0])
-    if (pendingFlaps) latched.push(BINDINGS.toggleFlaps[0])
-    const frameKeys = latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
+    if (!chartOpen) {
+      if (pendingCameraCycle) latched.push(BINDINGS.cycleCamera[0])
+      if (pendingTripleTime) latched.push(BINDINGS.toggleTripleTime[0])
+      if (pendingPause) latched.push(BINDINGS.pause[0])
+      if (pendingThrottleCut) latched.push(BINDINGS.throttleCut[0])
+      if (pendingGear) latched.push(BINDINGS.toggleGear[0])
+      if (pendingFlaps) latched.push(BINDINGS.toggleFlaps[0])
+    }
+    const frameKeys = chartOpen ? NO_KEYS : latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
     const inputFrame =
       latched.length === 0
         ? frame!

@@ -707,8 +707,8 @@ happens next, and the **Plan** column for what a document means when it says
 | 11a | 8 | Ground handling, gear and take-off; the runway to do it from | §4, §5 | Complete, except Tier 2 has not been run; [handoff](../../handoff/2026-09-16-plan11a-ground-handling.md) |
 | 11b | 9 | Flaps, approach and landing ashore | §5 | Complete; [handoff](../../handoff/2026-09-17-plan11b-landing.md) |
 | 12 | 10 | Entities, ships and airfields | §4 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan12-entities.md) |
-| 14 | 11 — next | Mission map | §4, §8 | Not started |
-| 8 | 12 | Carrier and airfield operations | §4, §8 | Not started |
+| 14 | 11 | Mission map | §4, §8 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan14-mission-map.md) |
+| 8 | 12 — next | Carrier and airfield operations | §4, §8 | Not started |
 | 6 | 13 | Combat and damage | §6 | Not started |
 | 7 | 14 | AI | §7 | Not started |
 | 9 | 15 | Meta-game | §8 | Not started |

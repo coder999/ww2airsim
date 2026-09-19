@@ -65,12 +65,37 @@ import { defineConfig } from '@playwright/test'
  * `--enable-unsafe-webgpu` were in `launchOptions` only and therefore were
  * NOT in force on the machine the whole suite exists to run on; the adapter
  * test passing without them is evidence they were never load-bearing there.
+ *
+ * **And the header only carries `args` if the server was started with
+ * `--unsafe`.** playwright-core's `filterLaunchOptions` (1.63.0) drops
+ * `args`, `ignoreDefaultArgs`, `executablePath` and `chromiumSandbox` from
+ * the header otherwise; `channel`, `headless` and `proxy` survive. Measured
+ * 2026-09-18 by reading `chrome://version` through a `run-server` started
+ * without the flag: none of the args below were on the command line, and a
+ * marker arg added for the test was not either. README's Tier 2 section gives
+ * the `--unsafe` form; without it every entry in this list is a no-op on the
+ * reference platform, which the adapter test cannot tell you.
+ *
+ * The last two args are for the LAN path to `ww2airsim.windomlane.org`. The
+ * UniFi resolver overrides that name's A record to nexus but forwards
+ * Cloudflare's auto-generated HTTPS (type 65) record, which advertises h3 and
+ * an ECH config for Cloudflare's edge. Chromium then tries QUIC, and ECH,
+ * against nexus's Traefik, which has neither, and intermittently fails the
+ * navigation instead of falling back: `net::ERR_QUIC_PROTOCOL_ERROR`, or with
+ * QUIC off, `net::ERR_ECH_FALLBACK_CERTIFICATE_INVALID`. Measured 2026-09-18
+ * headless on the desktop, 30 fresh contexts each: 7/30 failed with no flags,
+ * 5/30 with `--disable-quic` alone, 0/30 with both flags below. Cloudflare's
+ * edge saw none of the failing loads and cloudflared on nexus logged nothing,
+ * so neither is in the path. The resolver-side fix is a LAN answer with no
+ * HTTPS record for that name; these flags make the harness independent of it.
  */
 const CHROMIUM_ARGS = [
   '--use-angle=d3d12',
   '--enable-unsafe-webgpu',
   '--disable-gpu-vsync',
   '--disable-frame-rate-limit',
+  '--disable-quic',
+  '--disable-features=UseDnsHttpsSvcb',
 ]
 
 export default defineConfig({
