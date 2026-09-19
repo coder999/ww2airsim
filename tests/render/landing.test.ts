@@ -144,18 +144,18 @@ describe('landing tracking', () => {
     const airborne = nextLandingTracking(f6f, NO_LANDING, at(c.x, c.z, 50), at(c.x, c.z, 50), field, [tacloban])
     const touched = nextLandingTracking(f6f, airborne, at(c.x, c.z, 5, -1), at(c.x, c.z, 0, -1), field, [tacloban])
     const stopped = nextLandingTracking(f6f, touched, at(c.x, c.z, 0, 0, 0.5), at(c.x, c.z, 0, 0, 0.5), field, [tacloban])
-    expect(stopped.report?.airfield).toBe('Tacloban')
+    expect(stopped.report?.at).toEqual({ kind: 'airfield', name: 'Tacloban' })
 
     const offAirborne = nextLandingTracking(f6f, NO_LANDING, at(0, 0, 50), at(0, 0, 50), field, [tacloban])
     const offTouched = nextLandingTracking(f6f, offAirborne, at(0, 0, 5, -1), at(0, 0, 0, -1), field, [tacloban])
     const offStopped = nextLandingTracking(f6f, offTouched, at(0, 0, 0, 0, 0.5), at(0, 0, 0, 0, 0.5), field, [tacloban])
-    expect(offStopped.report?.airfield).toBeNull()
+    expect(offStopped.report?.at).toBeNull()
   })
 })
 
 describe('the landing debrief', () => {
   it('congratulates the pilot and shows the touchdown figures', () => {
-    const m = landingModel({ touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, airfield: 'Tacloban' })
+    const m = landingModel({ touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, at: { kind: 'airfield', name: 'Tacloban' } })
     expect(m.headline).toBe('LANDED')
     expect(m.detail.toLowerCase()).toContain('nice')
     const labels = m.figures.map((x) => x.label)

@@ -649,6 +649,8 @@ async function boot(): Promise<void> {
   // but at a display running past 100 Hz a quick tap gets short too.
   let pendingGear = false
   let pendingFlaps = false
+  // And the hook lever (Plan 8), latched the same way for the same reason.
+  let pendingHook = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
   const NO_KEYS: ReadonlySet<string> = new Set()
   const clearMapInput = (): void => {
@@ -659,6 +661,7 @@ async function boot(): Promise<void> {
     pendingThrottleCut = false
     pendingGear = false
     pendingFlaps = false
+    pendingHook = false
   }
   const navigationMap = createMissionMap(root, {
     onClose: () => closeNavigationChart(),
@@ -697,6 +700,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
+    if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -734,10 +738,14 @@ async function boot(): Promise<void> {
   window.addEventListener('blur', () => {
     pressed.clear()
     pendingCameraCycle = false
+    // Omitted before Plan 8: this handler never cleared triple time's latch,
+    // unlike every other edge-triggered toggle here and in `clearMapInput`.
+    pendingTripleTime = false
     pendingPause = false
     pendingThrottleCut = false
     pendingGear = false
     pendingFlaps = false
+    pendingHook = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -790,6 +798,7 @@ async function boot(): Promise<void> {
       if (pendingThrottleCut) latched.push(BINDINGS.throttleCut[0])
       if (pendingGear) latched.push(BINDINGS.toggleGear[0])
       if (pendingFlaps) latched.push(BINDINGS.toggleFlaps[0])
+      if (pendingHook) latched.push(BINDINGS.toggleHook[0])
     }
     const frameKeys = chartOpen ? NO_KEYS : latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
     const inputFrame =
@@ -803,6 +812,7 @@ async function boot(): Promise<void> {
             throttleCutPressed: pendingThrottleCut ? false : frame!.throttleCutPressed,
             gearPressed: pendingGear ? false : frame!.gearPressed,
             flapPressed: pendingFlaps ? false : frame!.flapPressed,
+            hookPressed: pendingHook ? false : frame!.hookPressed,
           }
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
@@ -817,6 +827,7 @@ async function boot(): Promise<void> {
     pendingThrottleCut = false
     pendingGear = false
     pendingFlaps = false
+    pendingHook = false
     frame = current
     const player = playerAircraft(current.world)
 
@@ -915,11 +926,17 @@ async function boot(): Promise<void> {
     if (current.landing.report !== null && !landingShown) {
       landingShown = true
       frame = withPaused(current, true)
-      debrief.show(landingModel(current.landing.report), () => {
-        frame = acknowledgeLanding(frame!)
-        landingShown = false
-        debrief.hide()
-      })
+      debrief.show(
+        landingModel(
+          current.landing.report,
+          Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
+        ),
+        () => {
+          frame = acknowledgeLanding(frame!)
+          landingShown = false
+          debrief.hide()
+        },
+      )
     }
     impactEffect.object.quaternion.copy(camera.quaternion)
     impactEffect.update(frameMs / 1000)

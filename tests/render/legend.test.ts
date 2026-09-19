@@ -115,6 +115,14 @@ it('puts yaw on Z and X, and throttle on = and - plus their keypad twins, nothin
   }
 })
 
+it('binds H only to the hook (Plan 8)', () => {
+  expect(BINDINGS.toggleHook).toEqual(['KeyH'])
+  for (const [name, codes] of Object.entries(BINDINGS).filter(([name]) => name !== 'toggleHook')) {
+    expect(codes, `${name} claims KeyH`).not.toContain('KeyH')
+  }
+  expect(legendLines().find((line) => line.startsWith('Hook'))).toContain('H')
+})
+
 it('binds P only to the Plan 14 navigation chart', () => {
   expect(BINDINGS.toggleMissionMap).toEqual(['KeyP'])
   const otherBindings = Object.entries(BINDINGS).filter(([name]) => name !== 'toggleMissionMap')

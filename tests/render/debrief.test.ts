@@ -61,13 +61,18 @@ describe('the debrief', () => {
   })
 
   it('names the airfield a landing was at', () => {
-    const m = landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, airfield: 'Tacloban' })
+    const m = landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: { kind: 'airfield', name: 'Tacloban' } })
     expect(m.figures).toContainEqual({ label: 'Landed at', value: 'Tacloban' })
   })
 
   it('reports an off-field landing when the touchdown was outside any runway', () => {
-    const m = landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, airfield: null })
+    const m = landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: null })
     expect(m.figures).toContainEqual({ label: 'Landed at', value: 'off-field' })
+  })
+
+  it('names the carrier a trap was aboard, by the ship class name when it is known', () => {
+    const m = landingModel({ touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', name: 'cv-1' } }, { 'cv-1': 'Essex-class fleet carrier' })
+    expect(m.figures.find((f) => f.label === 'Landed at')!.value).toBe('Essex-class fleet carrier (carrier)')
   })
 
   it('scores nothing, because nothing can be destroyed yet', () => {

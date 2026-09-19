@@ -43,14 +43,19 @@ export type DebriefModel = {
 const MPH_PER_MPS = 2.23694
 
 /** What the debrief says about a landing (Mark, 2026-09-17: "successful
- *  landing - nice job! (or similar)"). Pure, like `debriefModel`. */
-export function landingModel(report: LandingReport): DebriefModel {
+ *  landing - nice job! (or similar)"). Pure, like `debriefModel`.
+ *  `shipNames` maps a carrier's ship id (`LandingReport.at.name`) to its
+ *  display name -- `landing.ts` names a carrier by id because that is what
+ *  `nextLandingTracking` has in hand; `main.ts` passes the world's ships. */
+export function landingModel(report: LandingReport, shipNames: Readonly<Record<string, string>> = {}): DebriefModel {
   const mph = (mps: number) => Math.round(mps * MPH_PER_MPS)
+  const landedAt =
+    report.at === null ? 'off-field' : report.at.kind === 'carrier' ? `${shipNames[report.at.name] ?? report.at.name} (carrier)` : report.at.name
   return {
     headline: 'LANDED',
     detail: 'Nice job. You brought her back in one piece.',
     figures: [
-      { label: 'Landed at', value: report.airfield ?? 'off-field' },
+      { label: 'Landed at', value: landedAt },
       { label: 'Touchdown sink', value: `${report.touchdownSinkMps.toFixed(1)} m/s` },
       {
         label: 'Touchdown speed',

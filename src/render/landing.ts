@@ -1,9 +1,12 @@
-import { heightAt, type TerrainField } from '../sim/world/terrain.js'
 import { supportedContact } from '../sim/ground.js'
 import { airspeed } from '../sim/flight/model.js'
 import type { AircraftState } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { airfieldAt, type Airfield } from '../sim/world/airfields.js'
+import { groundUnder, type GroundUnder } from '../sim/world/ground.js'
+import { deckLocal, type Deck } from '../sim/world/deck.js'
+import type { TerrainField } from '../sim/world/terrain.js'
+import { sub, length } from '../sim/math/vec3.js'
 
 /**
  * Where a flight touched down, and what it looked like at that instant.
@@ -16,6 +19,9 @@ export type Touchdown = {
   readonly x: number
   readonly z: number
   readonly tick: number
+  /** The deck under the wheels at touchdown, or `null` for an airfield or
+   *  open-water arrival. */
+  readonly deck: Deck | null
 }
 
 /** A completed landing: the touchdown, plus how far the roll-out ran. */
@@ -24,10 +30,10 @@ export type LandingReport = {
   readonly touchdownSpeedMps: number
   readonly rollOutM: number
   readonly tick: number
-  /** The airfield whose runway the touchdown point lies inside, or `null`
-   *  for an off-field arrival. Master spec §8's recovery multiplier reads
-   *  this when Plan 9 arrives. */
-  readonly airfield: string | null
+  /** Where the flight ended: the airfield whose runway the touchdown lies
+   *  inside, the carrier whose deck it was arrested on, or `null` off-field.
+   *  Master spec section 8's recovery multiplier reads this in Plan 9. */
+  readonly at: { readonly kind: 'airfield' | 'carrier'; readonly name: string } | null
 }
 
 /**
@@ -69,17 +75,20 @@ export const AIRBORNE_LATCH_M = 10
  *  figure `tests/sim/landing.test.ts` stops its roll-out at. */
 export const LANDED_SPEED_MPS = 1
 
-const wheelHeightM = (spec: AircraftSpec, s: AircraftState, terrain: TerrainField): number =>
-  s.position.y - spec.gear.heightM - heightAt(terrain, s.position.x, s.position.z)
+const groundFor = (terrain: TerrainField | null, decks: readonly Deck[], s: AircraftState) =>
+  groundUnder(terrain, decks, s.position.x, s.position.z)
 
-const supported = (spec: AircraftSpec, s: AircraftState, terrain: TerrainField): boolean =>
-  supportedContact(spec, s, heightAt(terrain, s.position.x, s.position.z))
+const wheelHeightM = (spec: AircraftSpec, s: AircraftState, g: GroundUnder): number =>
+  s.position.y - spec.gear.heightM - g.heightM
+
+const supported = (spec: AircraftSpec, s: AircraftState, g: GroundUnder | null): boolean =>
+  g !== null && supportedContact(spec, s, g.heightM, g.surface, g.velocity)
 
 /**
  * One frame of landing bookkeeping. Pure: `before` and `after` are the
  * airplane's state on either side of this frame's simulation steps, and the
  * result replaces `prev`. Returns `prev` itself (not a copy) when there is no
- * terrain to be on, so the no-terrain path costs nothing.
+ * ground under the airplane, so the no-ground path costs nothing.
  */
 export function nextLandingTracking(
   spec: AircraftSpec,
@@ -88,37 +97,60 @@ export function nextLandingTracking(
   after: AircraftState,
   terrain: TerrainField | null,
   airfields: readonly Airfield[],
+  decks: readonly Deck[] = [],
 ): LandingTracking {
-  if (terrain === null || prev.report !== null) return prev
+  if (prev.report !== null) return prev
+  const gAfter = groundFor(terrain, decks, after)
+  if (gAfter === null) return prev
 
-  const height = wheelHeightM(spec, after, terrain)
+  const height = wheelHeightM(spec, after, gAfter)
   const airborne = prev.airborne || height > AIRBORNE_LATCH_M
-  const onWheelsNow = supported(spec, after, terrain)
+  const onWheelsNow = supported(spec, after, gAfter)
 
   let touchdown = prev.touchdown
   if (height > AIRBORNE_LATCH_M) {
     touchdown = null
-  } else if (airborne && touchdown === null && onWheelsNow && !supported(spec, before, terrain)) {
+  } else if (airborne && touchdown === null && onWheelsNow && !supported(spec, before, groundFor(terrain, decks, before))) {
     touchdown = {
-      sinkMps: -before.velocity.y,
-      speedMps: airspeed(before),
+      sinkMps: -(before.velocity.y - gAfter.velocity.y),
+      speedMps: airspeed({ ...before, velocity: sub(before.velocity, gAfter.velocity) }),
       x: after.position.x,
       z: after.position.z,
       tick: after.tick,
+      deck: gAfter.deck,
     }
   }
 
+  // At rest RELATIVE to what it landed on: a trapped airplane sails at 15 kn.
+  const restSpeed = length(sub(after.velocity, gAfter.velocity))
   const report =
-    touchdown !== null && onWheelsNow && airspeed(after) < LANDED_SPEED_MPS
+    touchdown !== null && onWheelsNow && restSpeed < LANDED_SPEED_MPS
       ? {
           touchdownSinkMps: touchdown.sinkMps,
           touchdownSpeedMps: touchdown.speedMps,
-          rollOutM: Math.hypot(after.position.x - touchdown.x, after.position.z - touchdown.z),
+          rollOutM: rollOutM(touchdown, after, gAfter),
           tick: after.tick,
-          airfield: airfieldAt(airfields, touchdown.x, touchdown.z)?.name ?? null,
+          at: landedAt(touchdown, airfields, gAfter),
         }
       : null
 
   if (airborne === prev.airborne && touchdown === prev.touchdown && report === null) return prev
   return { airborne, touchdown, report }
+}
+
+/** Roll-out in the frame of the surface: on a deck, the deck-local distance,
+ *  so the ship's own travel is not counted. */
+function rollOutM(touchdown: Touchdown, after: AircraftState, g: GroundUnder): number {
+  if (touchdown.deck !== null && g.deck !== null && g.deck.shipId === touchdown.deck.shipId) {
+    const a = deckLocal(touchdown.deck, touchdown.x, touchdown.z)
+    const b = deckLocal(g.deck, after.position.x, after.position.z)
+    return Math.hypot(b.x - a.x, b.z - a.z)
+  }
+  return Math.hypot(after.position.x - touchdown.x, after.position.z - touchdown.z)
+}
+
+function landedAt(touchdown: Touchdown, airfields: readonly Airfield[], g: GroundUnder): LandingReport['at'] {
+  if (g.deck !== null && touchdown.deck !== null) return { kind: 'carrier', name: g.deck.shipId }
+  const field = airfieldAt(airfields, touchdown.x, touchdown.z)
+  return field === null ? null : { kind: 'airfield', name: field.name }
 }

@@ -175,6 +175,6 @@ describe('an approach flown into Tacloban', () => {
     expect(rest.position.y - f6f.gear.heightM - restGroundM).toBeLessThan(GROUND_CONTACT_TOLERANCE_M)
 
     expect(tracking.report, 'no landing report').not.toBeNull()
-    expect(tracking.report!.airfield).toBe('Tacloban')
+    expect(tracking.report!.at).toEqual({ kind: 'airfield', name: 'Tacloban' })
   })
 })

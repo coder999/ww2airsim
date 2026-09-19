@@ -82,6 +82,8 @@ export const BINDINGS = {
   // that stays where it is left, not a switch you hold over.
   toggleGear: ['KeyG'],
   toggleFlaps: ['KeyF'],
+  // Plan 8. `H` for hook; free as of 2026-09-18 (the corrected list above).
+  toggleHook: ['KeyH'],
   // `B` for brakes -- also free, and a plain key for the reason
   // `throttleDown` documents: no modifier a browser can intercept. Unlike
   // the gear, this is a hold: brakes bite while the key is down and release

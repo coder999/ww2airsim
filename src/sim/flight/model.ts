@@ -14,6 +14,7 @@ import {
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { groundUnder } from '../world/ground.js'
+import { insideTrapZone } from '../world/deck.js'
 import { flapAfter, flapClIncrement, flapDragN } from '../flaps.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -29,6 +30,11 @@ export type { AircraftState, Controls } from './state.js'
  *  and how a variable frame time is accumulated into 60 Hz ticks, is a
  *  deliberately deferred design decision for the next plan. */
 export const DT = 1 / 60
+/** Constant deceleration of an arrested airplane relative to the deck: 2.0 s
+ *  and 34 m of run-out from a 34 m/s arrival, about 1.7 g, in the range of a
+ *  real pendant run-out (design section 5, amended during planning to a
+ *  constant so the rule needs no memory of the arrival speed). */
+export const TRAP_DECEL_MPS2 = 17
 const G = 9.80665
 /** kg of fuel per joule of work, tuned so a full internal load lasts a
  *  realistic few hours at cruise. Refined when range matters. */
@@ -496,6 +502,27 @@ export function step(
     }
   }
 
+  // The arcade trap (Plan 8). Engages on the first step the wheels are
+  // supported on a deck inside its trap zone with the hook down; holds while
+  // the wheels stay on that deck; drops the instant they are not. While
+  // engaged the deck-relative horizontal velocity decays at a constant rate,
+  // whatever the throttle is doing -- a pendant does not care.
+  let arrested = false
+  if (ground !== null && ground.deck !== null) {
+    const integrated: AircraftState = { ...state, position, velocity }
+    const onDeckWheels = supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity)
+    const engages = controls.hookDown === true && onDeckWheels && insideTrapZone(ground.deck, position.x, position.z)
+    arrested = onDeckWheels && (state.arrested || engages)
+    if (arrested) {
+      const rel = sub(velocity, ground.velocity)
+      const relFlat = v3(rel.x, 0, rel.z)
+      const relSpeed = length(relFlat)
+      const drop = Math.min(relSpeed, TRAP_DECEL_MPS2 * dt)
+      const kept = relSpeed > 1e-9 ? scale(relFlat, (relSpeed - drop) / relSpeed) : ZERO
+      velocity = v3(ground.velocity.x + kept.x, velocity.y, ground.velocity.z + kept.z)
+    }
+  }
+
   const workJ = thrustN * Math.max(v, 1) * dt
   const fuelKg = Math.max(0, state.fuelKg - workJ * FUEL_KG_PER_JOULE)
 
@@ -586,5 +613,5 @@ export function step(
   // Flap travel, for the same reason and driven by `controls.flapDown`.
   const flapFraction = flapAfter(spec, state.flapFraction, controls.flapDown, dt)
 
-  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction, flapFraction }
+  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction, flapFraction, arrested }
 }

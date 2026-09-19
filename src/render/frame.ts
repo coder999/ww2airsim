@@ -132,6 +132,9 @@ export type FrameState = {
   /** Whether the flap key was down last frame, for edge detection -- the same
    *  reason `gearPressed` exists. */
   readonly flapPressed: boolean
+  /** The tailhook lever, edge-triggered exactly like the flap lever (Plan 8). */
+  readonly hookDown: boolean
+  readonly hookPressed: boolean
   /** Whether the throttle-cut key was down last frame, for edge detection:
    *  the chop fires once per press, and a held `M` must not keep re-zeroing
    *  a throttle the pilot is trying to open again. */
@@ -263,6 +266,8 @@ export function initialFrameStateFor(
     // configuration in which an airplane is left with its flaps hanging out.
     flapDown: false,
     flapPressed: false,
+    hookDown: false,
+    hookPressed: false,
     throttleCutPressed: false,
     paused: false,
     pausePressed: false,
@@ -468,6 +473,11 @@ export function nextFrameState(
   const flapDown =
     flapKeyDown && !prev.flapPressed ? !prev.flapDown : prev.flapDown
 
+  // The tailhook lever, edge-triggered identically (Plan 8).
+  const hookKeyDown = BINDINGS.toggleHook.some((c) => pressed.has(c))
+  const hookDown =
+    hookKeyDown && !prev.hookPressed ? !prev.hookDown : prev.hookDown
+
   // On/off from a keyboard: 1 while held, 0 the instant it is not.
   // `Controls.brake` is [0, 1] (a pedal's travel, not a switch), so a later
   // axis input -- a rudder pedal's toe-brake, say -- slots in with no type
@@ -481,7 +491,7 @@ export function nextFrameState(
   // because they called the module directly. `frame.test.ts` pins this by
   // reading `playerAircraft(f.world).controls.gearDown` back, not just
   // `f.gearDown`.
-  const controls: Controls = { ...controlsAxes, gearDown, flapDown, brake }
+  const controls: Controls = { ...controlsAxes, gearDown, flapDown, hookDown, brake }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
   // in wall clock would be unusable precisely when it matters most.
@@ -575,6 +585,7 @@ export function nextFrameState(
     advancedPlayer.state,
     advanced.world.terrain,
     advanced.world.airfields,
+    decksOf(advanced.world.ships),
   )
 
   return {
@@ -597,6 +608,8 @@ export function nextFrameState(
     gearPressed: gearKeyDown,
     flapDown,
     flapPressed: flapKeyDown,
+    hookDown,
+    hookPressed: hookKeyDown,
     throttleCutPressed: throttleCutDown,
     paused,
     pausePressed: pauseDown,

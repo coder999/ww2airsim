@@ -39,6 +39,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Triple time', bindings: ['toggleTripleTime'] },
   { label: 'Gear', bindings: ['toggleGear'] },
   { label: 'Flaps', bindings: ['toggleFlaps'] },
+  { label: 'Hook', bindings: ['toggleHook'] },
   { label: 'Brakes', bindings: ['brakes'] },
   { label: 'Mute', bindings: ['toggleMute'] },
   { label: 'Controls', bindings: ['toggleLegend'] },

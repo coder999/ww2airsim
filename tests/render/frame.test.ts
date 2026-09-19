@@ -231,6 +231,19 @@ describe('gear and brakes', () => {
     expect(playerAircraft(f.world).controls.gearDown).toBe(f.gearDown)
   })
 
+  it('H toggles the hook and the command reaches the player entity (Plan 8)', () => {
+    let f = start()
+    expect(f.hookDown).toBe(false)
+    f = nextFrameState(f, 1 / 60, new Set(BINDINGS.toggleHook))
+    expect(f.hookDown).toBe(true)
+    expect(playerAircraft(f.world).controls.hookDown).toBe(true)
+    f = nextFrameState(f, 1 / 60, new Set(BINDINGS.toggleHook))
+    expect(f.hookDown).toBe(true) // held, not re-toggled
+    f = nextFrameState(f, 1 / 60, new Set())
+    f = nextFrameState(f, 1 / 60, new Set(BINDINGS.toggleHook))
+    expect(f.hookDown).toBe(false)
+  })
+
   it('brakes while the key is held and releases when it is not', () => {
     const held = nextFrameState(start(), 1 / 60, keys('KeyB'))
     expect(held.controls.brake).toBeGreaterThan(0)
