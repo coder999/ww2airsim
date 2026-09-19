@@ -35,7 +35,7 @@ current state. Use explicit kinds and `targetable`, never a label heuristic.
 
 Create `tests/render/missionMap.test.ts` first. Construct a real
 `worldFromScenario(loadScenarioBundle('free-flight'), terrain)` and assert all
-six currently relevant entities/bases appear. Test cardinal and wraparound
+seven currently relevant entities/bases appear. Test cardinal and wraparound
 bearings, range, zero range, finite padded bounds, aspect-preserving
 projection, and a carrier's current rather than waypoint-zero position.
 
