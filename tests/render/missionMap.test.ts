@@ -4,6 +4,7 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import {
   chartBounds,
+  courseLabel,
   courseTo,
   mapPoints,
   projectPoint,
@@ -57,6 +58,11 @@ describe('the Plan 14 navigation chart model', () => {
 
   it('reports a horizontal zero-range course without a NaN', () => {
     expect(courseTo(point(4, -3), point(4, -3))).toEqual({ distanceM: 0, bearingDeg: 0 })
+  })
+
+  it('formats a padded true course with meters or kilometers', () => {
+    expect(courseLabel(point(0, 0), point(0, -12_500))).toBe('Course 000° · 12.5 km')
+    expect(courseLabel(point(4, -3), point(4, -3))).toBe('Course 000° · 0 m')
   })
 
   it('gives even one marker a finite padded chart', () => {
