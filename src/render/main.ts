@@ -14,6 +14,7 @@ import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createDebrief, debriefModel, landingModel } from './debrief.js'
+import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
@@ -640,7 +641,44 @@ async function boot(): Promise<void> {
   // but at a display running past 100 Hz a quick tap gets short too.
   let pendingGear = false
   let pendingFlaps = false
+  let navigationMapState = CLOSED_NAVIGATION_MAP
+  const clearMapInput = (): void => {
+    pressed.clear()
+    pendingCameraCycle = false
+    pendingTripleTime = false
+    pendingPause = false
+    pendingThrottleCut = false
+    pendingGear = false
+    pendingFlaps = false
+  }
+  const navigationMap = createMissionMap(root, {
+    onClose: () => closeNavigationChart(),
+    onSelect: (id) => {
+      navigationMapState = selectNavigationDestination(navigationMapState, id)
+    },
+  })
+  const closeNavigationChart = (): void => {
+    if (!navigationMapState.open) return
+    const closed = closeNavigationMap(navigationMapState)
+    navigationMapState = closed.state
+    frame = withPaused(frame!, closed.restorePaused)
+    clearMapInput()
+    navigationMap.hide()
+  }
+  const openNavigationChart = (): void => {
+    if (navigationMapState.open || playerAircraft(frame!.world).impact !== null || landingShown) return
+    navigationMapState = openNavigationMap(navigationMapState, frame!.paused)
+    frame = withPaused(frame!, true)
+    clearMapInput()
+    navigationMap.show(frame!.world, navigationMapState.selectedId)
+  }
+
   window.addEventListener('keydown', (e) => {
+    if (BINDINGS.toggleMissionMap.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      if (navigationMapState.open) closeNavigationChart()
+      else openNavigationChart()
+    }
     if (BINDINGS.cycleCamera.includes(e.code as never) && !e.repeat) pendingCameraCycle = true
     if (BINDINGS.toggleTripleTime.includes(e.code as never) && !e.repeat) pendingTripleTime = true
     if (BINDINGS.pause.includes(e.code as never) && !e.repeat) {
@@ -750,6 +788,10 @@ async function boot(): Promise<void> {
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
+    if (navigationMapState.open) {
+      current = withPaused(current, true)
+      navigationMap.show(current.world, navigationMapState.selectedId)
+    }
     pendingCameraCycle = false
     pendingTripleTime = false
     pendingPause = false

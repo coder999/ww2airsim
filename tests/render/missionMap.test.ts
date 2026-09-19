@@ -6,6 +6,11 @@ import {
   chartBounds,
   courseLabel,
   courseTo,
+  CLOSED_NAVIGATION_MAP,
+  closeNavigationMap,
+  openNavigationMap,
+  selectNavigationDestination,
+
   mapPoints,
   projectPoint,
   selectedPoint,
@@ -87,5 +92,17 @@ describe('the Plan 14 navigation chart model', () => {
     expect(selectedPoint(points, 'ship:dd-1')).toBeNull()
     expect(selectedPoint(points, 'gone')).toBeNull()
     expect(selectedPoint(points, null)).toBeNull()
+  })
+
+  it('preserves a running or manually paused frame state across a chart modal', () => {
+    const running = openNavigationMap(CLOSED_NAVIGATION_MAP, false)
+    expect(closeNavigationMap(running)).toEqual({
+      state: { open: false, selectedId: null, pausedBeforeOpen: false }, restorePaused: false,
+    })
+
+    const paused = selectNavigationDestination(openNavigationMap(CLOSED_NAVIGATION_MAP, true), 'airfield:tacloban')
+    expect(closeNavigationMap(paused)).toEqual({
+      state: { open: false, selectedId: 'airfield:tacloban', pausedBeforeOpen: false }, restorePaused: true,
+    })
   })
 })

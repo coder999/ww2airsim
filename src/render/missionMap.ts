@@ -333,3 +333,37 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     },
   }
 }
+
+/** Page-furniture state for the chart. It deliberately stays out of
+ * `FrameState`: no replay or simulation behavior depends on whether a pilot
+ * is reading a modal. */
+export type NavigationMapState = {
+  readonly open: boolean
+  readonly selectedId: string | null
+  /** The manual pause state to restore when a chart that forced a hold closes. */
+  readonly pausedBeforeOpen: boolean
+}
+
+export const CLOSED_NAVIGATION_MAP: NavigationMapState = {
+  open: false,
+  selectedId: null,
+  pausedBeforeOpen: false,
+}
+
+export function openNavigationMap(state: NavigationMapState, pausedBeforeOpen: boolean): NavigationMapState {
+  return { ...state, open: true, pausedBeforeOpen }
+}
+
+export function closeNavigationMap(state: NavigationMapState): {
+  readonly state: NavigationMapState
+  readonly restorePaused: boolean
+} {
+  return {
+    state: { ...state, open: false, pausedBeforeOpen: false },
+    restorePaused: state.pausedBeforeOpen,
+  }
+}
+
+export function selectNavigationDestination(state: NavigationMapState, id: string): NavigationMapState {
+  return { ...state, selectedId: id }
+}
