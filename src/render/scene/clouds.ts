@@ -1,16 +1,18 @@
-import { BackSide, Data3DTexture, LinearFilter, Mesh, RedFormat, RepeatWrapping, SphereGeometry, UnsignedByteType, Vector2, Vector3, Vector4, type Object3D } from 'three'
+import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
 import {
   Break, Fn, If, Loop, cameraFar, cameraNear, clamp, color, exp, float, fract, int, length, max, min, mix, normalize,
-  positionView, positionWorld, screenCoordinate, sin, smoothstep, sqrt, texture3D, uniform, uniformArray, vec3, vec4, viewportLinearDepth,
+  positionView, positionWorld, screenCoordinate, sqrt, texture3D, uniform, vec3, vec4, viewportLinearDepth,
 } from 'three/tsl'
-import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
+import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
-import { DETAIL_SIZE, SHAPE_SIZE } from '../sky/noise.js'
 import { FOG_DISTANCE_M, fogWeightNode, horizonSinkNode } from '../horizon.js'
 import { SKY_HAZE, SKY_RADIUS_M } from './sky.js'
 import { SUN_DIRECTION } from './lighting.js'
+import { CUMULUS_SIGMA, SHAPE_TILE_M, cloudDriftM, createCloudField, type CloudField } from './cloudField.js'
+
+export { cloudDriftM }
 
 /**
  * Volumetric cloud layers (design: docs/superpowers/specs/2026-09-19-clouds-design.md §4).
@@ -37,32 +39,15 @@ export function cloudTierFromQuery(search: string): CloudTierName | 'off' | unde
   throw new Error(`${CLOUD_TIER_PARAM}: ${JSON.stringify(raw)} is not a cloud tier`)
 }
 
-/** Where the noise has drifted to: the ground wind times simulated seconds. */
-export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z: number } {
-  return wind === null ? { x: 0, z: 0 } : { x: wind.x * seconds, z: wind.z * seconds }
-}
-
-/** Metres per repeat of the shape volume and of the detail volume. Gameplay
- *  estimates (design §9): a 128-texel tile over 6 km is 47 m per texel. */
-const SHAPE_TILE_M = 6000
-const DETAIL_TILE_M = 400
-/** Extinction per metre at full density; ~250 m to opaque for cumulus. */
-const CUMULUS_SIGMA = 0.012
 /** Bound cumulus sampling to 125 m at high, after finding the actual curved
  * layer entry. Capping the old widened flat slab marched empty foreground
  * air and erased distant clouds. Cirrus keeps its full thin-sheet span. */
 const MAX_MARCH_M = 6000
-/** The committed shape volume's value range, from `tests/tools/skyNoise.test.ts`'s
- *  measurement of the 128-cube (110..247 of 255). */
-const SHAPE_MIN = 110 / 255
-const SHAPE_MAX = 247 / 255
 /** The light march sees a softer extinction than the view ray: single
  *  scattering alone makes a cloud's core black, and the usual cheap stand-in
  *  for the multiple scattering that lights it is to under-count the shadow. */
 const LIGHT_EXTINCTION_SCALE = 0.35
 const CIRRUS_SIGMA = 0.0015
-const KIND_CUMULUS = 0
-const KIND_CIRRUS = 1
 
 /** DEV-only `?cloudDebug=`: `nodepth` marches to the fog distance ignoring the
  *  scene depth; `depth` paints the depth bound as grey (black near, white at
@@ -86,33 +71,15 @@ export type CloudsHandle = {
   dispose(): void
 }
 
-function volume(data: Uint8Array, size: number): Data3DTexture {
-  const t = new Data3DTexture(data, size, size, size)
-  t.format = RedFormat
-  t.type = UnsignedByteType
-  t.wrapS = t.wrapT = t.wrapR = RepeatWrapping
-  t.minFilter = t.magFilter = LinearFilter
-  t.unpackAlignment = 1
-  t.needsUpdate = true
-  return t
-}
+export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, field?: CloudField): CloudsHandle {
+  // Plan 16b: the field is shared with the shadow pass when main.ts passes
+  // one in; made (and owned, so disposed) here otherwise.
+  const ownsField = field === undefined
+  const f = field ?? createCloudField(layers, noise)
+  const { shape, layerData, layerCount, eyeWorld } = f
+  const sorted = f.layers
+  const density = f.density
 
-export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise): CloudsHandle {
-  const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
-  const shape = volume(noise.shape, SHAPE_SIZE)
-  const detail = volume(noise.detail, DETAIL_SIZE)
-
-  // Uniforms. Layers as [base, thickness, coverage, kind], padded to MAX.
-  const layerData = uniformArray(
-    Array.from({ length: MAX_CLOUD_LAYERS }, (_, i) => {
-      const l = sorted[i]
-      return l ? new Vector4(l.baseM, l.thicknessM, l.coverage, l.kind === 'cirrus' ? KIND_CIRRUS : KIND_CUMULUS) : new Vector4(0, 0, 0, 0)
-    }),
-    'vec4',
-  )
-  const layerCount = uniform(sorted.length, 'int')
-  const eyeWorld = uniform(new Vector3())
-  const drift = uniform(new Vector2())
   const cumulusSteps = uniform(CLOUD_TIERS.high.cumulusSteps, 'int')
   const cirrusSteps = uniform(CLOUD_TIERS.high.cirrusSteps, 'int')
   const lightSteps = uniform(CLOUD_TIERS.high.lightSteps, 'int')
@@ -124,51 +91,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise): Cl
   const ambientTop = color(SKY_HAZE).mul(1.0)
   const ambientBottom = color(SKY_HAZE).mul(0.6)
 
-  /** Density in [0, 1] at a world point for one layer; 0 outside the slab. */
-  const density = Fn(([p, base, thickness, coverage, kind]: [Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>]) => {
-    const h = p.y.sub(base).div(thickness)
-    const inside = h.greaterThan(0).and(h.lessThan(1))
-    const d = float(0).toVar()
-    If(inside, () => {
-      const drifted = vec3(p.x.add(drift.x), p.y, p.z.add(drift.y))
-      // The committed volume spans 110..247 of 255 (the Perlin-Worley remap
-      // lifts the low end on purpose); stretched back to 0..1 here so
-      // `coverage` means the fraction of sky it names.
-      const stretch = (v: Node<'float'>): Node<'float'> => clamp(v.sub(SHAPE_MIN).div(SHAPE_MAX - SHAPE_MIN), 0, 1)
-      // Coverage thresholds the shape: what survives above 1 - coverage is cloud.
-      const threshold = (shapeValue: Node<'float'>): Node<'float'> =>
-        clamp(shapeValue.sub(float(1).sub(coverage)).div(max(coverage, 0.001)), 0, 1)
-      // ONE branch samples, never both: a `mix` of the two kinds after
-      // sampling cost every cumulus step three volume reads instead of one
-      // (3.9 ms against the 2.5 ms budget, 2026-09-19).
-      If(kind.greaterThan(0.5), () => {
-        // Cirrus: the same volume stretched along the east axis over a tile
-        // three times wider, times a second coarser sample so the 1.5 km
-        // Worley cells cannot read as a grid from below. A thin band.
-        const streaks = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 9), 1 / SHAPE_TILE_M, 1 / (SHAPE_TILE_M * 3)))).r
-        const sheet = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 4), 1 / (SHAPE_TILE_M * 2), 1 / (SHAPE_TILE_M * 5))).add(0.37)).r
-        const gradient = smoothstep(0, 0.3, h).mul(smoothstep(1, 0.7, h))
-        d.assign(threshold(stretch(streaks.mul(0.6).add(sheet.mul(0.4)))).mul(gradient).mul(0.6))
-      }).Else(() => {
-        // Cumulus: flat-bottomed, rounded on top, edges eroded by the detail
-        // volume, strongest near the base and the edge (Schneider 2015).
-        // Slowly warp the horizontal coordinates at two unequal scales:
-        // the same 6 km volume must not line up in repeating distant rows.
-        const warped = vec3(
-          drifted.x.add(sin(drifted.z.div(7300).add(drifted.x.div(17000))).mul(1800)),
-          drifted.y,
-          drifted.z.add(sin(drifted.x.div(9100).sub(drifted.z.div(13000))).mul(1800)),
-        )
-        const shapeValue = stretch(texture3D(shape, warped.div(SHAPE_TILE_M)).r)
-        const gradient = smoothstep(0, 0.1, h).mul(smoothstep(1, 0.55, h))
-        const body = threshold(shapeValue).mul(gradient)
-        const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
-        const erode = e.mul(float(1).sub(h)).mul(0.3)
-        d.assign(clamp(body.sub(erode).div(max(float(1).sub(erode), 0.001)), 0, 1))
-      })
-    })
-    return d
-  })
 
   const material = new MeshBasicNodeMaterial({ side: BackSide, transparent: true, depthTest: false, depthWrite: false })
   const march = Fn(() => {
@@ -372,13 +294,10 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise): Cl
     update(eye: Vec3, driftSeconds: number, wind: Vec3 | null): void {
       // Centered on the eye: with the scene at -eye the dome's center is the camera.
       mesh.position.set(eye.x, eye.y, eye.z)
-      eyeWorld.value.set(eye.x, eye.y, eye.z)
-      const d = cloudDriftM(wind, driftSeconds)
-      drift.value.set(d.x, d.z)
+      f.update(eye, driftSeconds, wind)
     },
     dispose(): void {
-      shape.dispose()
-      detail.dispose()
+      if (ownsField) f.dispose()
       mesh.geometry.dispose()
       material.dispose()
     },

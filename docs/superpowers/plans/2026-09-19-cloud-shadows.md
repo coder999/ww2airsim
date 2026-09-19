@@ -62,7 +62,7 @@ The dome keeps its march, tiers, probes, handle and tests. The density Fn, the t
   `cloudDriftM` stays exported from `clouds.ts` (its test imports it there) and is re-exported from `cloudField.ts`, which is where it is now called.
 - `createClouds(layers, noise)` keeps its signature but gains an optional third parameter `field?: CloudField`; when absent it creates its own (so the existing test and any caller are unchanged), when present it shares it. `main.ts` passes the shared one in Task 5.
 
-- [ ] **Step 1: Write the failing test** `tests/render/cloudField.test.ts`:
+- [x] **Step 1: Write the failing test** `tests/render/cloudField.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -132,9 +132,9 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
 
 Add `import { readdirSync, readFileSync } from 'node:fs'`, `import { dirname, join } from 'node:path'` and `import { fileURLToPath } from 'node:url'` at the top. The filter makes the assertion pass in Task 1 (before `cloudShadow.ts` exists) and in Task 3 (after), and fail for any third importer.
 
-- [ ] **Step 2: Run** `npx vitest run tests/render/cloudField.test.ts` → FAIL (module not found).
+- [x] **Step 2: Run** `npx vitest run tests/render/cloudField.test.ts` → FAIL (module not found).
 
-- [ ] **Step 3: Create `src/render/scene/cloudField.ts`** by MOVING code out of `clouds.ts`. The file's content, with the moved pieces verbatim from `clouds.ts` (do not retype the density body; cut and paste it):
+- [x] **Step 3: Create `src/render/scene/cloudField.ts`** by MOVING code out of `clouds.ts`. The file's content, with the moved pieces verbatim from `clouds.ts` (do not retype the density body; cut and paste it):
 
 ```ts
 import { Data3DTexture, LinearFilter, RedFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
@@ -224,7 +224,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
 
 The `density` wrapper closure exists because a TSL `Fn` is callable but not typed as the method signature above; the closure gives the handle a plain function type. `UniformArrayNode` is exported from `three/webgpu` (the 16a code casts its elements; keep the cast at the call sites).
 
-- [ ] **Step 4: Edit `clouds.ts`** to consume the field:
+- [x] **Step 4: Edit `clouds.ts`** to consume the field:
   - Delete the moved pieces: `volume`, `SHAPE_TILE_M`, `DETAIL_TILE_M`, `CUMULUS_SIGMA`, `SHAPE_MIN`, `SHAPE_MAX`, `KIND_CUMULUS`, `KIND_CIRRUS`, the `cloudDriftM` body, the `layerData`/`layerCount`/`eyeWorld`/`drift` uniforms, the `density` Fn. Delete the now-unused imports (`Data3DTexture`, `LinearFilter`, `RedFormat`, `RepeatWrapping`, `UnsignedByteType`, `Vector2`, `Vector4`, `uniformArray`, `sin`, `smoothstep` if unused, `MAX_CLOUD_LAYERS`, `DETAIL_SIZE`, `SHAPE_SIZE`). `eslint --max-warnings 0` will list any you miss.
   - Add `import { createCloudField, cloudDriftM, CUMULUS_SIGMA, SHAPE_TILE_M, type CloudField } from './cloudField.js'` and `export { cloudDriftM }` so `clouds.test.ts` still imports it from here.
   - Signature: `export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, field: CloudField = createCloudField(layers, noise)): CloudsHandle`. Inside, `const { shape, layerData, layerCount, eyeWorld, drift } = field` and `const density = field.density`. Every existing use of those names then compiles unchanged. `sorted` is `field.layers`.
@@ -232,13 +232,13 @@ The `density` wrapper closure exists because a TSL `Fn` is callable but not type
   - `dispose()`: call `field.dispose()` ONLY if the field was created here. Keep a boolean `ownsField = arguments.length < 3` captured before the default applies: write the signature as `field?: CloudField` and `const ownsField = field === undefined; const f = field ?? createCloudField(layers, noise)`.
   - The debug probe `shape` (mode 4) reads `texture3D(shape, ...)` with `SHAPE_TILE_M` -- both still in scope via the destructure and the import.
 
-- [ ] **Step 5: Run** `npx vitest run tests/render/cloudField.test.ts tests/render/clouds.test.ts` → both PASS, `clouds.test.ts` untouched.
+- [x] **Step 5: Run** `npx vitest run tests/render/cloudField.test.ts tests/render/clouds.test.ts` → both PASS, `clouds.test.ts` untouched.
 
-- [ ] **Step 6: Assert the move was a move**: `grep -c 'texture3D(shape' src/render/scene/clouds.ts` prints `1` (the debug probe only) and `grep -c 'texture3D(shape' src/render/scene/cloudField.ts` prints `3` (cirrus streaks, cirrus sheet, cumulus shape). If `clouds.ts` prints more, a copy survived.
+- [x] **Step 6: Assert the move was a move**: `grep -c 'texture3D(shape' src/render/scene/clouds.ts` prints `1` (the debug probe only) and `grep -c 'texture3D(shape' src/render/scene/cloudField.ts` prints `3` (cirrus streaks, cirrus sheet, cumulus shape). If `clouds.ts` prints more, a copy survived.
 
-- [ ] **Step 7: Run** `npm run verify; echo rc=$?` → `rc=0`.
+- [x] **Step 7: Run** `npm run verify; echo rc=$?` → `rc=0`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/render/scene/cloudField.ts src/render/scene/clouds.ts tests/render/cloudField.test.ts docs/superpowers/plans/2026-09-19-cloud-shadows.md
