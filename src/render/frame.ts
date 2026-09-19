@@ -8,7 +8,9 @@ import {
   type Stepper,
   type World,
 } from '../sim/loop.js'
-import { heightAt, type TerrainField } from '../sim/world/terrain.js'
+import type { TerrainField } from '../sim/world/terrain.js'
+import { decksOf } from '../sim/world/deck.js'
+import { groundUnder } from '../sim/world/ground.js'
 import {
   assistFor,
   DEFAULT_ASSIST_SETTINGS,
@@ -367,25 +369,31 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  *
  * Takes the terrain as a separate argument, rather than reading
  * `frame.world.terrain`, so a caller cannot pass a `frame` whose terrain is
- * still `null` and get a silently wrong `heightAt(null, ...)` -- there is no
- * such overload, so that mistake is a type error, not a runtime one.
+ * still `null` and get a silently wrong `groundUnder(null, ...)` -- there is
+ * no such overload, so that mistake is a type error, not a runtime one.
  *
- * Settles onto `groundHeightM + spec.gear.heightM`, not `groundHeightM`
+ * Settles onto `ground.heightM + spec.gear.heightM`, not `ground.heightM`
  * itself (Task 15): `aircraft.position.y` is the body origin, which sits
  * `spec.gear.heightM` above the wheels' contact point, the same convention
  * `onGround`/`restOnSurface` (`src/sim/ground.ts`) now use. Settling onto
- * the bare `groundHeightM` here would put the body origin back at ground
+ * the bare `ground.heightM` here would put the body origin back at ground
  * level -- the exact bug Task 15 fixes -- for the one frame between this call
  * and the first `advance` after it, which is also the frame the player is
  * most likely to be looking at the runway.
+ *
+ * Reads `groundUnder` with `decksOf(world.ships)` rather than `heightAt`
+ * alone (Plan 8): a deck wins where there is one, so a deck-parked airplane
+ * settles onto steel, not onto the sea floor `heightAt` would have named for
+ * the same `(x, z)`. `groundUnder` with a real field never returns `null`.
  */
 export function settleOnTerrain(frame: FrameState, terrain: TerrainField): FrameState {
   let world = frame.world
   let playerDeltaY = 0
+  const decks = decksOf(world.ships)
   for (const a of frame.world.aircraft) {
     if (!a.parked) continue
-    const groundHeightM = heightAt(terrain, a.state.position.x, a.state.position.z)
-    const contactHeightM = groundHeightM + a.spec.gear.heightM
+    const ground = groundUnder(terrain, decks, a.state.position.x, a.state.position.z)!
+    const contactHeightM = ground.heightM + a.spec.gear.heightM
     if (a.id === world.player) playerDeltaY = contactHeightM - a.state.position.y
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
     world = withAircraftState(world, a.id, settled)

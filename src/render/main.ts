@@ -56,6 +56,7 @@ import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import {
   hasSpawnOverride,
   initialAircraftState,
+  scenarioIdFromQuery,
   spawnPositionFromQuery,
 } from './spawn.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
@@ -358,7 +359,7 @@ async function boot(): Promise<void> {
   // content the build was supposed to ship. The message names the file.
   let bundle: ScenarioBundle
   try {
-    bundle = await loadScenarioBundle(SCENARIO_ID)
+    bundle = await loadScenarioBundle(import.meta.env.DEV ? scenarioIdFromQuery(window.location.search, SCENARIO_ID) : SCENARIO_ID)
   } catch (err) {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return

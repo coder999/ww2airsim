@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { qFromAxisAngle, qIdentity, qRotate } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import {
+  SCENARIO_PARAM,
   SPAWN_PARAMS,
   hasSpawnOverride,
   initialAircraftState,
+  scenarioIdFromQuery,
   spawnPositionFromQuery,
 } from '../../src/render/spawn.js'
 
@@ -162,5 +164,14 @@ describe('initialAircraftState', () => {
       expect(stopped, `groundSpawn=${groundSpawn}`).toBe(groundSpawn)
       expect(s.gearFraction === 1, `groundSpawn=${groundSpawn}`).toBe(groundSpawn)
     }
+  })
+})
+
+describe('scenarioIdFromQuery (Plan 8)', () => {
+  it('falls back when absent, reads a present id, and throws on an empty one', () => {
+    expect(scenarioIdFromQuery('', 'free-flight')).toBe('free-flight')
+    expect(scenarioIdFromQuery(`?${SCENARIO_PARAM}=deck-quals`, 'free-flight')).toBe('deck-quals')
+    expect(() => scenarioIdFromQuery(`?${SCENARIO_PARAM}=`, 'free-flight')).toThrow(/scenario/)
+    expect(() => scenarioIdFromQuery(`?${SCENARIO_PARAM}=../x`, 'free-flight')).toThrow(/scenario/)
   })
 })

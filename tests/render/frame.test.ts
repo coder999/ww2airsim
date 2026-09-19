@@ -21,6 +21,7 @@ import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '..
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
+import { decksOf, deckLocal } from '../../src/sim/world/deck.js'
 import { initialAircraftState } from '../../src/render/spawn.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
@@ -642,5 +643,20 @@ describe('a multi-entity frame (Plan 12)', () => {
     expect(f.world.aircraft[1]!.impact).toBeNull()
     // and the player rolled: full throttle from the strip center moves it
     expect(Math.hypot(f.render.position.x - start.x, f.render.position.z - start.z)).toBeGreaterThan(100)
+  })
+
+  it('settles a deck-parked player onto the deck, not the sea floor, and it sails with the ship (Plan 8)', () => {
+    const quals = loadScenarioBundle('deck-quals')
+    let f = settleOnTerrain(initialFrameStateFor(worldFromScenario(quals, terrain)), terrain)
+    const deck = decksOf(f.world.ships)[0]!
+    expect(f.render.position.y).toBeCloseTo(deck.center.y + playerAircraft(f.world).spec.gear.heightM, 6)
+    const start = deckLocal(deck, f.render.position.x, f.render.position.z)
+    for (let i = 0; i < 60 * 10; i++) f = nextFrameState(f, 1 / 60, new Set())
+    const now = decksOf(f.world.ships)[0]!
+    const end = deckLocal(now, f.render.position.x, f.render.position.z)
+    expect(Math.hypot(end.x - start.x, end.z - start.z)).toBeLessThan(0.5)
+    // and the ship really moved
+    expect(Math.hypot(now.center.x - deck.center.x, now.center.z - deck.center.z)).toBeGreaterThan(60)
+    expect(playerAircraft(f.world).impact).toBeNull()
   })
 })

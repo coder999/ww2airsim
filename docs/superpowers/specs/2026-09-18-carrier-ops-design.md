@@ -247,7 +247,7 @@ deck plane and cue in view; the chart names the carrier as before.
 | Trap zone | 30–130 m from the stern | Estimate from "16 wires from the stern to just aft of the island". |
 | Arrest run-out | 17 m/s² constant | Choice, about 1.7 g; 2.0 s from approach speed. |
 | Paddles parameters | §7 values | Choices; tune by flying. |
-| Deck-quals wind | 15 kn from 018° | Content choice matching the racetrack legs. |
+| Deck-quals wind | 15 kn from 342° | Content choice matching the racetrack legs. |
 | Deck spot | 110 m aft of center | Choice; measured against the deck run. |
 | Essex turn rate | 1°/s | Plan 12 estimate, unchanged; no tactical diameter found. |
 

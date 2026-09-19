@@ -3,6 +3,9 @@ import { parseScenario, worldFromScenario, PARKED_PLACEHOLDER_Y_M, type Scenario
 import { playerAircraft } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
+import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
+import { qFromAxisAngle } from '../../src/sim/math/quat.js'
+import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
@@ -13,9 +16,9 @@ const bundle = loadScenarioBundle('free-flight')
 const header = loadTerrainHeader()
 const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
 
-const withScenario = (patch: Partial<typeof bundle.scenario>): ScenarioBundle => ({
-  ...bundle,
-  scenario: { ...bundle.scenario, ...patch },
+const withScenario = (patch: Partial<typeof bundle.scenario>, base: ScenarioBundle = bundle): ScenarioBundle => ({
+  ...base,
+  scenario: { ...base.scenario, ...patch },
 })
 
 describe('the free-flight scenario', () => {
@@ -131,5 +134,34 @@ describe('validation', () => {
     expect(() => parseScenario({ ...raw, ships: [{ id: 'x', spec: 'essex-cv', waypoints: [[0, 0]], speedMps: 5 }] })).toThrow(/waypoints/)
     expect(() => parseScenario({ ...raw, weather: { windFromDeg: 0, windMps: -1 } })).toThrow(/windMps/)
     expect(() => parseScenario({ ...raw, weather: { windFromDeg: 0 } })).toThrow(/windMps/)
+  })
+})
+
+describe('deck quals (Plan 8)', () => {
+  const quals = loadScenarioBundle('deck-quals')
+
+  it('parks the player on the carrier deck, sailing with the ship, nose along the deck', () => {
+    const world = worldFromScenario(quals, null)
+    const player = playerAircraft(world)
+    const deck = deckOf(world.ships.find((s) => s.id === 'cv-1')!)!
+    const local = deckLocal(deck, player.state.position.x, player.state.position.z)
+    expect(local.x).toBeCloseTo(0, 6)
+    expect(local.z).toBeCloseTo(-110, 6)
+    expect(player.state.position.y).toBeCloseTo(deck.center.y + player.spec.gear.heightM, 9)
+    expect(player.state.velocity).toEqual(deck.velocity)
+    expect(player.parked).toBe(true)
+    // Nose toward the bow: parkedAttitude's own rule against the ship's heading.
+    expect(player.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad))
+    // The wingman is still ashore at Tacloban.
+    const wingman = world.aircraft.find((a) => a.id === 'f6f-2')!
+    expect(Math.hypot(wingman.state.position.x - -29666, wingman.state.position.z - -47605)).toBeLessThan(300)
+    expect(world.wind).not.toBeNull()
+  })
+
+  it('rejects a deck spot off the deck, and a ship that has no flight deck', () => {
+    const off = withScenario({ ...quals.scenario, aircraft: [{ ...quals.scenario.aircraft[0]!, parkedAt: { ship: 'cv-1', spot: { x: 0, z: -200 } } }] }, quals)
+    expect(() => worldFromScenario(off, null)).toThrow(/off the deck/)
+    const escort = withScenario({ ...quals.scenario, aircraft: [{ ...quals.scenario.aircraft[0]!, parkedAt: { ship: 'dd-1', spot: { x: 0, z: 0 } } }] }, quals)
+    expect(() => worldFromScenario(escort, null)).toThrow(/dd-1.*flight deck/)
   })
 })

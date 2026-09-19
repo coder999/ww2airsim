@@ -136,3 +136,18 @@ export function initialAircraftState(position: Vec3, groundSpawn: boolean): Airc
     gearFraction: groundSpawn ? 1 : 0,
   })
 }
+
+/** `?scenario=<id>`: which `content/scenarios/<id>.json` to boot (Plan 8).
+ *  DEV only at the call site, like `SPAWN_PARAMS`; the mission picker that
+ *  replaces it is Plan 9's. */
+export const SCENARIO_PARAM = 'scenario'
+
+export function scenarioIdFromQuery(search: string, fallback: string): string {
+  const raw = new URLSearchParams(search).get(SCENARIO_PARAM)
+  if (raw === null) return fallback
+  // A present-but-bad value throws rather than falling back, for the reason
+  // `spawnPositionFromQuery` gives: a silent fallback passes for the wrong
+  // reason. Ids are file stems, so only the characters a stem may carry.
+  if (!/^[a-z0-9-]+$/.test(raw)) throw new Error(`scenario: ${JSON.stringify(raw)} is not a scenario id`)
+  return raw
+}

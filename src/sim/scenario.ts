@@ -4,6 +4,9 @@ import { createState, type Controls } from './flight/state.js'
 import { createWorldOf, type AircraftEntity, type ShipEntity, type World } from './loop.js'
 import { type Vec3, v3 } from './math/vec3.js'
 import { type Airfield, localToWorld, parkedAttitude } from './world/airfields.js'
+import { deckOf, deckWorld } from './world/deck.js'
+import { groundUnder } from './world/ground.js'
+import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 
@@ -25,11 +28,16 @@ const ScenarioObject = z.object({
   aircraft: z.array(z.object({
     id,
     spec: id,
-    parkedAt: z.object({
-      airfield: id,
-      /** `'runwayCenter'`, or a runway-local spot (meters, `x` across, `z` along). */
-      spot: z.union([z.literal('runwayCenter'), z.object({ x: finite, z: finite }).strict()]),
-    }).strict(),
+    parkedAt: z.union([
+      z.object({
+        airfield: id,
+        /** `'runwayCenter'`, or a runway-local spot (meters, `x` across, `z` along). */
+        spot: z.union([z.literal('runwayCenter'), z.object({ x: finite, z: finite }).strict()]),
+      }).strict(),
+      /** On a carrier's flight deck (Plan 8): deck-local meters, `x` across
+       *  to starboard, `z` along toward the bow, from the deck center. */
+      z.object({ ship: id, spot: z.object({ x: finite, z: finite }).strict() }).strict(),
+    ]),
     /** Wheel chocks: `brake: 1` in the held controls. The honest model of an
      *  airplane nobody is flying. */
     chocked: z.boolean(),
@@ -47,6 +55,8 @@ const ScenarioObject = z.object({
 }).strict()
 
 export type Scenario = z.infer<typeof ScenarioObject>
+
+export const isShipParked = (p: Scenario['aircraft'][number]['parkedAt']): p is { ship: string; spot: { x: number; z: number } } => 'ship' in p
 
 export function parseScenario(raw: unknown): Scenario {
   const result = ScenarioObject.safeParse(raw)
@@ -102,21 +112,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
   const s = bundle.scenario
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
 
-  const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => {
-    const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
-    const field = lookup(bundle.airfields, a.parkedAt.airfield, 'airfield')
-    const spot = a.parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : a.parkedAt.spot
-    const at = localToWorld(field, spot.x, spot.z)
-    const state = createState({
-      position: v3(at.x, PARKED_PLACEHOLDER_Y_M, at.z),
-      velocity: v3(0, 0, 0),
-      attitude: parkedAttitude(field),
-      gearFraction: 1,
-    })
-    const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true }
-  })
-
   const ships: ShipEntity[] = s.ships.map((sh) => {
     const spec = lookup(bundle.shipSpecs, sh.spec, 'ship spec')
     const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps }
@@ -130,6 +125,41 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       waypoint: 1,
     })
     return { id: sh.id, spec, state, previous: state, orders }
+  })
+
+  const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => {
+    const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
+    const parkedAt = a.parkedAt
+    if (isShipParked(parkedAt)) {
+      const ship = ships.find((sh) => sh.id === parkedAt.ship)
+      if (ship === undefined) throw new Error(`scenario parks "${a.id}" on ship "${parkedAt.ship}", which is not in the scenario`)
+      const deck = deckOf(ship)
+      if (deck === null) throw new Error(`scenario parks "${a.id}" on "${ship.id}", which has no flight deck`)
+      const { x, z } = parkedAt.spot
+      if (Math.abs(x) > deck.widthM / 2 || Math.abs(z) > deck.lengthM / 2) {
+        throw new Error(`scenario parks "${a.id}" off the deck of "${ship.id}": spot (${x}, ${z}) on a ${deck.widthM} x ${deck.lengthM} m deck`)
+      }
+      const at = deckWorld(deck, x, z)
+      const state = createState({
+        position: v3(at.x, deck.center.y + spec.gear.heightM, at.z),
+        velocity: groundUnder(null, [deck], at.x, at.z)!.velocity,
+        attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad),
+        gearFraction: 1,
+      })
+      const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
+      return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true }
+    }
+    const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
+    const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
+    const at = localToWorld(field, spot.x, spot.z)
+    const state = createState({
+      position: v3(at.x, PARKED_PLACEHOLDER_Y_M, at.z),
+      velocity: v3(0, 0, 0),
+      attitude: parkedAttitude(field),
+      gearFraction: 1,
+    })
+    const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true }
   })
 
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
