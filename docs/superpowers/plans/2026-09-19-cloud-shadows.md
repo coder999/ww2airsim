@@ -809,7 +809,7 @@ git commit -m "Plan 16b task 5: the shadow map renders each frame before the sce
 - Create: `tests/e2e/cloudShadow.spec.ts`, `docs/handoff/2026-09-19-plan16b-cloud-shadows.md`
 - Modify: `README.md` (lines 84-93), `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15 row 16, line 721), `src/render/scene/cloudShadow.ts` (constants, only if tuning is needed)
 
-- [ ] **Step 1: Write `tests/e2e/cloudShadow.spec.ts`**:
+- [x] **Step 1: Write `tests/e2e/cloudShadow.spec.ts`**:
 
 ```ts
 import { test, expect, type Page } from '@playwright/test'
@@ -969,24 +969,24 @@ test('deck run with shadows on stays under 6 ms', async ({ page }) => {
 
 The "pattern moved" assertion in the show probe is deliberately weak (a mean shift of half a gray level): its job is to fail on the exact bug of the pattern being glued to the airplane, where the two strips would be identical. If the first run shows the two means differ by less than 0.5 while the images visibly differ, widen the strip or compare `sd` instead, and record why in the ledger. READ both images before deciding.
 
-- [ ] **Step 2: Run on the reference GPU**: `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2 -- tests/e2e/cloudShadow.spec.ts 2>&1 | tee /tmp/shadow-tier2.log; echo rc=${PIPESTATUS[0]}`. Then READ every PNG in `test-results/cloud-shadow-*.png` with the Read tool. What to look for, per image:
+- [x] **Step 2: Run on the reference GPU**: `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2 -- tests/e2e/cloudShadow.spec.ts 2>&1 | tee /tmp/shadow-tier2.log; echo rc=${PIPESTATUS[0]}`. Then READ every PNG in `test-results/cloud-shadow-*.png` with the Read tool. What to look for, per image:
   - `above-on` vs `above-off`: dark patches on the water whose shapes match the cloud bases above them; the horizon line and the cirrus unchanged.
   - `show-chocks`: a gray pattern on the ground; the runway's gray continues the terrain's gray at the runway edge with no seam and no brightness step (the light-hook path and the terrain path agree). A seam here is the parallax or the frame argument being wrong for one of them.
   - `show-flight-a/b`: the same pattern, shifted along the ground track.
   - `range`: the gunnery range as it was, no gray, no darkening.
   - `deck-run`: the carrier deck with a shadow across it if a cloud is overhead, the sea beyond it patched.
 
-- [ ] **Step 3: If the pass costs more than 0.5 ms**: lever 1, `SHADOW_TIERS.high.taps` 4 → 3 (measure); lever 2, `MAP_TEXELS` 1024 → 768 (texel 104 m; measure). If the delta reads 0.000 or the alternating-noise pattern of the 2026-09-17 note, the pass is outside the timestamp pool or is disturbing it: switch to the compute fallback of spec §7 as a new task appended to this plan, and record the measurement that forced it. If the draw-call count check is wanted, `renderer.info.render.calls` is readable from a `page.evaluate` through a DEV hook -- add `calls: renderer.info.render.calls` to `__ww2.clouds().shadow` only if needed to diagnose.
+- [x] **Step 3: If the pass costs more than 0.5 ms**: lever 1, `SHADOW_TIERS.high.taps` 4 → 3 (measure); lever 2, `MAP_TEXELS` 1024 → 768 (texel 104 m; measure). If the delta reads 0.000 or the alternating-noise pattern of the 2026-09-17 note, the pass is outside the timestamp pool or is disturbing it: switch to the compute fallback of spec §7 as a new task appended to this plan, and record the measurement that forced it. If the draw-call count check is wanted, `renderer.info.render.calls` is readable from a `page.evaluate` through a DEV hook -- add `calls: renderer.info.render.calls` to `__ww2.clouds().shadow` only if needed to diagnose.
 
-- [ ] **Step 4: Re-run the neighbors**: `npm run test:tier2 -- tests/e2e/clouds.spec.ts tests/e2e/terrain.spec.ts tests/e2e/deckQuals.spec.ts tests/e2e/gunnery.spec.ts tests/e2e/ocean.spec.ts` (same env) → all pass; the clouds pixel-residual guard still under 3.
+- [x] **Step 4: Re-run the neighbors**: `npm run test:tier2 -- tests/e2e/clouds.spec.ts tests/e2e/terrain.spec.ts tests/e2e/deckQuals.spec.ts tests/e2e/gunnery.spec.ts tests/e2e/ocean.spec.ts` (same env) → all pass; the clouds pixel-residual guard still under 3.
 
-- [ ] **Step 5: Write `docs/handoff/2026-09-19-plan16b-cloud-shadows.md`** in the 16a handoff's shape: what shipped, the measured table (off/on p95 in the budget view, the delta, the deck run, the terrain view; the sea-strip means and sds; which tap count and map size shipped), the images inspected and what each showed, every trap hit (with the three r186 line that explains it), the contingency used if any, and the known limitations (the single-deck above-fade, the ocean floor constant untuned, no shadow on the cockpit panel, none from cirrus). Include a before/after PNG pair (the `above-off`/`above-on` screenshots, stacked, like `2026-09-19-clouds-distance.png`), read it before committing.
+- [x] **Step 5: Write `docs/handoff/2026-09-19-plan16b-cloud-shadows.md`** in the 16a handoff's shape: what shipped, the measured table (off/on p95 in the budget view, the delta, the deck run, the terrain view; the sea-strip means and sds; which tap count and map size shipped), the images inspected and what each showed, every trap hit (with the three r186 line that explains it), the contingency used if any, and the known limitations (the single-deck above-fade, the ocean floor constant untuned, no shadow on the cockpit panel, none from cirrus). Include a before/after PNG pair (the `above-off`/`above-on` screenshots, stacked, like `2026-09-19-clouds-distance.png`), read it before committing.
 
-- [ ] **Step 6: README and §15.** In `README.md` lines 84-93 replace the last sentence with: "**Cloud shadows landed 2026-09-19 (Plan 16b):** one sun-view transmittance map rendered each frame from the same field, carried by the sun's custom shadow node into every lit material; the terrain and the sea read it directly. Cost <measured> ms at high, 1440p. See the [handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md). A movable sun (16c) is designed next; master spec §15 holds the status." In the master spec's §15 row 16 (line 721) append "; 16b cloud shadows landed 2026-09-19 ([design](2026-09-19-cloud-shadows-design.md), [handoff](../../handoff/2026-09-19-plan16b-cloud-shadows.md)); 16c sun angle to be designed" replacing the existing "16b cloud shadows and 16c sun angle to be designed".
+- [x] **Step 6: README and §15.** In `README.md` lines 84-93 replace the last sentence with: "**Cloud shadows landed 2026-09-19 (Plan 16b):** one sun-view transmittance map rendered each frame from the same field, carried by the sun's custom shadow node into every lit material; the terrain and the sea read it directly. Cost <measured> ms at high, 1440p. See the [handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md). A movable sun (16c) is designed next; master spec §15 holds the status." In the master spec's §15 row 16 (line 721) append "; 16b cloud shadows landed 2026-09-19 ([design](2026-09-19-cloud-shadows-design.md), [handoff](../../handoff/2026-09-19-plan16b-cloud-shadows.md)); 16c sun angle to be designed" replacing the existing "16b cloud shadows and 16c sun angle to be designed".
 
-- [ ] **Step 7: Run** `npm run verify; echo rc=$?` → `rc=0`.
+- [x] **Step 7: Run** `npm run verify; echo rc=$?` → `rc=0`.
 
-- [ ] **Step 8: Commit, then email the handoff**
+- [x] **Step 8: Commit, then email the handoff**
 
 ```bash
 git add tests/e2e/cloudShadow.spec.ts docs/handoff/2026-09-19-plan16b-cloud-shadows.md docs/handoff/2026-09-19-plan16b-cloud-shadows.png README.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md src/render/scene/cloudShadow.ts docs/superpowers/plans/2026-09-19-cloud-shadows.md

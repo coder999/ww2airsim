@@ -89,8 +89,14 @@ horizon, fog with the terrain, and going into one is a whiteout with the
 panel intact. The [distant-cloud refinement](docs/handoff/2026-09-19-clouds-distance.md)
 reduces horizon stipple and repeating rows; its cloud-pass cost measured
 1.63 ms at high, 1440p (2026-09-19). See the
-[original handoff](docs/handoff/2026-09-19-plan16a-clouds.md). Cloud shadows (16b)
-and a movable sun (16c) are designed next; master spec §15 holds the status.
+[original handoff](docs/handoff/2026-09-19-plan16a-clouds.md).
+
+**Cloud shadows landed 2026-09-19 (Plan 16b):** one sun-view transmittance
+map rendered each frame from the same cloud field, carried by the sun's
+custom shadow node into every lit material; the terrain and the sea read it
+directly. The pass cost 0.16–0.40 ms at high, 1440p. See the
+[handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md). A movable sun
+(16c) is designed next; master spec §15 holds the status.
 
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
