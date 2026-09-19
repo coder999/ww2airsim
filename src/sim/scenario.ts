@@ -15,7 +15,8 @@ import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
  * Plan 14's map and Plan 9's mission selector read; it deliberately carries
  * NO flights, targets, objectives or loadout -- those are master spec §9's
  * fields and belong to the plans that consume them. `weather` is Plan 8's
- * (steady wind only; see `windVectorFrom`).
+ * (steady wind only; see `windVectorFrom`), clouds (16a) and time of day
+ * (16c).
  */
 
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
@@ -76,6 +77,10 @@ const ScenarioObject = z.object({
       const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
       return sorted.every((l, i) => i === 0 || sorted[i - 1]!.baseM + sorted[i - 1]!.thicknessM <= l.baseM)
     }, { message: 'cloud layers overlap' }).optional(),
+    /** Apparent solar time in decimal hours, 12 = the sun due south at its
+     *  highest (Plan 16c). Optional; the renderer treats absent as 12. Content
+     *  the RENDERER reads: `World` never sees it. */
+    timeOfDay: finite.refine((t) => t >= 0 && t < 24, { message: 'timeOfDay must be in [0, 24)' }).optional(),
   }).strict(),
 }).strict()
 

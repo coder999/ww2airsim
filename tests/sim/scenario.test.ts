@@ -187,3 +187,26 @@ describe('cloud layers (Plan 16a)', () => {
     expect(parseScenario(withClouds([cumulus, { kind: 'cirrus', baseM: 7000, thicknessM: 300, coverage: 0.35 }])).weather.clouds).toHaveLength(2)
   })
 })
+
+describe('time of day (Plan 16c)', () => {
+  const raw = () => JSON.parse(JSON.stringify(loadScenarioBundle('free-flight').scenario)) as Record<string, unknown> & { weather: Record<string, unknown> }
+  const withTime = (timeOfDay: unknown) => ({ ...raw(), weather: { ...raw().weather, timeOfDay } })
+
+  it('is apparent solar time in [0, 24): accepts 0 and 23.99, rejects 24, -1 and a string', () => {
+    expect(parseScenario(withTime(0)).weather.timeOfDay).toBe(0)
+    expect(parseScenario(withTime(23.99)).weather.timeOfDay).toBe(23.99)
+    expect(() => parseScenario(withTime(24))).toThrow(/timeOfDay/)
+    expect(() => parseScenario(withTime(-1))).toThrow(/timeOfDay/)
+    expect(() => parseScenario(withTime('noon'))).toThrow(/timeOfDay/)
+  })
+  it('is optional: absent parses, and the renderer treats absent as 12', () => {
+    const weather = { ...raw().weather }
+    delete weather.timeOfDay
+    expect(parseScenario({ ...raw(), weather }).weather.timeOfDay).toBeUndefined()
+  })
+  it('ships free flight at 10:00, deck quals at 16:30 and the range at noon', () => {
+    expect(loadScenario('free-flight').weather.timeOfDay).toBe(10)
+    expect(loadScenario('deck-quals').weather.timeOfDay).toBe(16.5)
+    expect(loadScenario('gunnery-range').weather.timeOfDay).toBe(12)
+  })
+})

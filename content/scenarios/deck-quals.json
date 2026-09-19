@@ -105,6 +105,7 @@
   "weather": {
     "windFromDeg": 342,
     "windMps": 7.717,
+    "timeOfDay": 16.5,
     "clouds": [
       {
         "kind": "cumulus",

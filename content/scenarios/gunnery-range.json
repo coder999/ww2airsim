@@ -45,6 +45,7 @@
   "ships": [],
   "weather": {
     "windFromDeg": 0,
-    "windMps": 0
+    "windMps": 0,
+    "timeOfDay": 12
   }
 }
