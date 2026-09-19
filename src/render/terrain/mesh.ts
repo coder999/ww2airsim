@@ -29,7 +29,6 @@ import {
   mix,
   normalize,
   positionLocal,
-  smoothstep,
   textureLoad,
   uniform,
   varying,
@@ -38,7 +37,7 @@ import {
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface.js'
-import { horizonSinkNode } from '../horizon.js'
+import { fogWeightNode, horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
@@ -288,7 +287,9 @@ function createRingMaterial(
   // the same colour, and the clip cannot be seen. A `1 - exp(-d/L)`
   // extinction curve would be more physical and never reach 1, which is
   // exactly the property that would make the clip a visible edge.
-  const fog = smoothstep(0, LOD.drawDistanceM, distanceM)
+  // The ramp itself lives in horizon.ts since 2026-09-19 (Plan 16a): the
+  // clouds fog on the same one, and `clouds.test.ts` pins it to LOD.drawDistanceM.
+  const fog = fogWeightNode(distanceM)
   const shaded = mix(lit, color(SKY_HAZE), varying(fog))
   const vertexHeightM = varying(heightM)
 
