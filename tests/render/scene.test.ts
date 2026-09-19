@@ -13,7 +13,7 @@ import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, recentreMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createSky, domeColourFor } from '../../src/render/scene/sky.js'
 import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
-import { createLighting } from '../../src/render/scene/lighting.js'
+import { createLighting, sunDirectionNode, SUN_DIRECTION } from '../../src/render/scene/lighting.js'
 
 /** 1440p, the resolution the legibility trade was made for. */
 const PIXELS_TALL = 1440
@@ -220,4 +220,13 @@ describe('lighting', () => {
     expect(fill!.intensity).toBeGreaterThan(0)
   })
 
+  it('lights from the one sun uniform, so 16c can move it and nothing can be lit from a second direction', () => {
+    // lighting.ts warned since Plan 5 that "two literals for one sun" would let
+    // the terrain be lit from a different direction than the airplane parked
+    // on it. Plan 16b made the direction a uniform; this pins the light to it.
+    const lights = createLighting()
+    const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
+    expect(sun.position.toArray()).toEqual(sunDirectionNode.value.toArray())
+    expect(sunDirectionNode.value.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
+  })
 })

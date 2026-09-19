@@ -1,4 +1,5 @@
-import { DirectionalLight, Group, HemisphereLight, type Object3D } from 'three'
+import { DirectionalLight, Group, HemisphereLight, Vector3, type Object3D } from 'three'
+import { uniform } from 'three/tsl'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -8,11 +9,20 @@ import { DirectionalLight, Group, HemisphereLight, type Object3D } from 'three'
  * Exported because `src/render/terrain/mesh.ts` shades the terrain itself --
  * it is a `MeshBasicNodeMaterial` running its own lambert term in a TSL node
  * rather than a lit material, so the scene's `DirectionalLight` below cannot
- * reach it. Two literals for one sun is how the terrain ends up lit from a
- * different direction than the airplane parked on it, with nothing headless
- * able to see the difference.
+ * reach it. Since Plan 16b every shader reads `sunDirectionNode` below, and
+ * `scene.test.ts` pins the light's position to it.
  */
 export const SUN_DIRECTION = { x: 0.4, y: 1, z: 0.3 } as const
+
+/**
+ * The same direction as a uniform (Plan 16b). The terrain's lambert, the
+ * cloud light march and the cloud-shadow projection all read THIS, and
+ * `createLighting` positions the DirectionalLight from the same constant;
+ * `scene.test.ts` pins the two together. 16c (movable sun) drives this
+ * value and the light's position from one clock and touches nothing else.
+ * Unnormalized, like the constant: readers normalize.
+ */
+export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
 
 /**
  * A sun and a sky/sea bounce. The sun's target is parented alongside it: a

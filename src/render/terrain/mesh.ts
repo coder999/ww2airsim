@@ -42,7 +42,7 @@ import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
 import { SKY_HAZE } from '../scene/sky.js'
-import { SUN_DIRECTION } from '../scene/lighting.js'
+import { sunDirectionNode } from '../scene/lighting.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
 
@@ -226,7 +226,7 @@ function sampleField(
  * curvature, and passes world coordinates to fragment material detail.
  *
  * `MeshBasicNodeMaterial` rather than a lit standard material: the terrain
- * does its own lambert against `SUN_DIRECTION` (lighting.ts) using the
+ * does its own lambert against `sunDirectionNode` (lighting.ts) using the
  * interpolated terrain normal, and takes its ambient from a constant
  * instead of the scene's HemisphereLight. That keeps the whole surface --
  * displacement, normal, colour and fog -- in one graph that can be read in
@@ -277,7 +277,7 @@ function createRingMaterial(
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
   const slope = length(vec2(field.y, field.z))
   const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope), cover)
-  const sun = normalize(vec3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
+  const sun = normalize(sunDirectionNode)
   const lit = albedo.mul(float(AMBIENT).add(clamp(dot(varying(normal), sun), 0, 1).mul(1 - AMBIENT)))
 
   // Aerial perspective, and the reason the far plane can sit exactly on the

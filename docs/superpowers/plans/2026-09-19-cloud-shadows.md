@@ -256,7 +256,7 @@ git commit -m "Plan 16b task 1: the cloud field (density, volumes, layers, drift
 **Interfaces:**
 - Produces: `export const sunDirectionNode: UniformNode<'vec3', Vector3>` in `lighting.ts`, initialized from `SUN_DIRECTION`, UNNORMALIZED like the constant (readers normalize, as they do today). `SUN_DIRECTION` stays exported and unchanged.
 
-- [ ] **Step 1: Write the failing test** (append inside `describe('lighting', ...)` in `tests/render/scene.test.ts`):
+- [x] **Step 1: Write the failing test** (append inside `describe('lighting', ...)` in `tests/render/scene.test.ts`):
 
 ```ts
   it('lights from the one sun uniform, so 16c can move it and nothing can be lit from a second direction', () => {
@@ -272,9 +272,9 @@ git commit -m "Plan 16b task 1: the cloud field (density, volumes, layers, drift
 
 Add `sunDirectionNode, SUN_DIRECTION` to the import from `../../src/render/scene/lighting.js`.
 
-- [ ] **Step 2: Run** `npx vitest run tests/render/scene.test.ts` → FAIL (`sunDirectionNode` not exported).
+- [x] **Step 2: Run** `npx vitest run tests/render/scene.test.ts` → FAIL (`sunDirectionNode` not exported).
 
-- [ ] **Step 3: Implement** in `lighting.ts`:
+- [x] **Step 3: Implement** in `lighting.ts`:
 
 ```ts
 import { DirectionalLight, Group, HemisphereLight, Vector3, type Object3D } from 'three'
@@ -297,11 +297,11 @@ export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTI
 
 In `terrain/mesh.ts:280` replace `const sun = normalize(vec3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))` with `const sun = normalize(sunDirectionNode)` and change the import to `import { sunDirectionNode } from '../scene/lighting.js'`. Update the comment at line 229 to name `sunDirectionNode`. In `clouds.ts` do the same for its `sun` const (line ~122) and its import.
 
-- [ ] **Step 4: Run** `npx vitest run tests/render/scene.test.ts tests/render/clouds.test.ts tests/render/scenery.test.ts` → PASS.
+- [x] **Step 4: Run** `npx vitest run tests/render/scene.test.ts tests/render/clouds.test.ts tests/render/scenery.test.ts` → PASS.
 
-- [ ] **Step 5: Run** `npm run verify; echo rc=$?` → `rc=0`.
+- [x] **Step 5: Run** `npm run verify; echo rc=$?` → `rc=0`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/render/scene/lighting.ts src/render/terrain/mesh.ts src/render/scene/clouds.ts tests/render/scene.test.ts docs/superpowers/plans/2026-09-19-cloud-shadows.md

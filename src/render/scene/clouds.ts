@@ -9,7 +9,7 @@ import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
 import { FOG_DISTANCE_M, fogWeightNode, horizonSinkNode } from '../horizon.js'
 import { SKY_HAZE, SKY_RADIUS_M } from './sky.js'
-import { SUN_DIRECTION } from './lighting.js'
+import { sunDirectionNode } from './lighting.js'
 import { CUMULUS_SIGMA, SHAPE_TILE_M, cloudDriftM, createCloudField, type CloudField } from './cloudField.js'
 
 export { cloudDriftM }
@@ -86,7 +86,7 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   /** 0 normal, 1 ignore depth, 2 paint the depth bound. */
   const debug = uniform(0, 'int')
 
-  const sun = normalize(vec3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
+  const sun = normalize(sunDirectionNode)
   const sunColor = color(0xfff2e0)
   const ambientTop = color(SKY_HAZE).mul(1.0)
   const ambientBottom = color(SKY_HAZE).mul(0.6)
