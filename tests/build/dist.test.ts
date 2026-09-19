@@ -1,11 +1,11 @@
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 import { describe, it, expect } from 'vitest'
 import { build } from 'vite'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath } from '../../src/render/content.js'
+import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
@@ -110,6 +110,11 @@ describe('the built artifact', () => {
         const raw = readFileSync(join(outDir, path), 'utf8')
         expect(() => JSON.parse(raw), path).not.toThrow()
       }
+
+      // The title art (2026-09-19). Shipped as supplied, never re-encoded:
+      // a byte count that moves means something re-encoded a committed
+      // asset, which content/art/NOTICE.md calls a defect.
+      expect(statSync(join(outDir, TITLE_ART_PATH)).size).toBe(TITLE_ART_BYTES)
 
       // Every terrain level the loader actually asks for, derived from the
       // same two functions the loader derives it from rather than written out

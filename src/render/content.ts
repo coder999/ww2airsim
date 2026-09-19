@@ -92,3 +92,10 @@ export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.b
  *  browser (src/render/landcover/load.ts). No nginx dependency. */
 export const COVER_PATH = 'content/landcover/cover.bin.gz'
 export const COVER_URL = `${import.meta.env.BASE_URL}${COVER_PATH}`
+
+/** Mark's Firefly title art (2026-09-19), drawn by `src/render/titleScreen.ts`.
+ *  Shipped byte-for-byte as supplied; `tests/build/dist.test.ts` pins the
+ *  size, so a re-encode fails the build rather than silently replacing it. */
+export const TITLE_ART_PATH = 'content/art/title.png'
+export const TITLE_ART_URL = `${import.meta.env.BASE_URL}${TITLE_ART_PATH}`
+export const TITLE_ART_BYTES = 2_077_706
