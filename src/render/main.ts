@@ -369,6 +369,9 @@ async function boot(): Promise<void> {
         // Plan 16b: what the shadow pass is doing, for the Tier 2 budget.
         shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
       }),
+      // Plan 16b: the shadow map read back at a world point, for the
+      // world-stability check a screenshot cannot make.
+      cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0

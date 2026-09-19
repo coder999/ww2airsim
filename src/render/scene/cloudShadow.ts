@@ -2,7 +2,7 @@ import {
   ClampToEdgeWrapping, LinearFilter, Mesh, OrthographicCamera, PlaneGeometry, RedFormat, RenderTarget, Scene,
   UnsignedByteType, Vector2,
 } from 'three'
-import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
+import { MeshBasicNodeMaterial, type Node, type WebGPURenderer } from 'three/webgpu'
 import { Fn, If, Loop, clamp, exp, float, int, max, min, normalize, smoothstep, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { CUMULUS_SIGMA, type CloudField } from './cloudField.js'
@@ -74,6 +74,11 @@ export type CloudShadowHandle = {
   setTier(name: CloudTierName): void
   /** Recenter on the eye (true world metres). Call before rendering the pass. */
   update(eye: Vec3): void
+  /** DEV diagnostic: the map's stored transmittance at a sea-level world point,
+   *  read back through the SAME texel convention the lookup node samples, so a
+   *  fixed world point must read the same value from any eye position. Null
+   *  outside the map or when the pass is disabled. */
+  readAt(renderer: WebGPURenderer, x: number, z: number): Promise<number | null>
   dispose(): void
 }
 
@@ -95,8 +100,15 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
   // ---- the pass: one quad, one fragment per texel -------------------------
   const material = new MeshBasicNodeMaterial()
   material.colorNode = Fn(() => {
-    // uv (0,0) is the map's minimum corner; the quad fills the clip square.
-    const ground = mapOrigin.add(uv().mul(MAP_SIDE_M)).toVar()
+    // The quad's uv.y = 1 edge is the TOP of clip space, which WebGPU stores
+    // as texture row 0, which `map.sample(st)` reads at st.y = 0 -- and the
+    // WGSL builder applies no Y flip to render-target samples
+    // (WGSLNodeBuilder.isFlipY() is false). So the texel written at uv.y is
+    // read back at 1 - uv.y: without this flip the map is MIRRORED in z
+    // about the eye's snapped center, and the shadows ride along with the
+    // airplane at twice its speed in 78 m steps (Mark: "choppy", 2026-09-19;
+    // five world points read different T from three eye positions).
+    const ground = mapOrigin.add(vec2(uv().x, float(1).sub(uv().y)).mul(MAP_SIDE_M)).toVar()
     const sun = normalize(sunDirectionNode).toVar()
     const tau = float(0).toVar()
     const tapsF = taps.toFloat().toVar()
@@ -167,6 +179,20 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
     get taps() { return taps.value },
     centerXZ: () => ({ ...center }),
     setTier(name: CloudTierName): void { taps.value = SHADOW_TIERS[name].taps },
+    async readAt(renderer: WebGPURenderer, x: number, z: number): Promise<number | null> {
+      if (!enabled) return null
+      const sx = (x - mapOrigin.value.x) / MAP_SIDE_M
+      const sy = (z - mapOrigin.value.y) / MAP_SIDE_M
+      if (sx < 0 || sx >= 1 || sy < 0 || sy >= 1) return null
+      // Sampler coordinates and the copy origin both count rows from the
+      // texture's first row, so this is the texel `map.sample(st)` reads.
+      // Four texels, not one: a 1-byte copy of an r8 texture fails WebGPU's
+      // mapAsync alignment ("Size (1) must be a multiple of 4", 2026-09-19).
+      const px = Math.min(MAP_TEXELS - 4, Math.floor(sx * MAP_TEXELS))
+      const py = Math.min(MAP_TEXELS - 1, Math.floor(sy * MAP_TEXELS))
+      const data = await renderer.readRenderTargetPixelsAsync(target, px, py, 4, 1)
+      return (data[0] ?? 0) / 255
+    },
     update(eye: Vec3): void {
       const c = snapToTexel(eye.x, eye.z)
       center.x = c.x

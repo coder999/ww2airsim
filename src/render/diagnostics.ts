@@ -245,6 +245,10 @@ export type Ww2Diagnostics = {
     /** Plan 16b: whether the shadow pass runs, its taps per layer, and the map's side. */
     readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number }
   }
+  /** Plan 16b: the shadow map's transmittance at a sea-level world point, or
+   *  null outside the map / with the pass off. A fixed point must read the
+   *  same from any eye position: the map is world-anchored, not eye-anchored. */
+  readonly cloudShadowAt: (x: number, z: number) => Promise<number | null>
   readonly resetFrameTimes: () => void
 }
 

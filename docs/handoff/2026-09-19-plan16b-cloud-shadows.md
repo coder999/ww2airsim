@@ -91,6 +91,38 @@ sea and land, shifted between the two frames); the deck-quals deck at tick
 clouds, terrain, deck-quals, gunnery and ocean specs were re-run with the
 pass on (31 passed; clouds pixel residual 1.34, deck quals 5.149 ms, terrain frame budget p95 3.245 ms).
 
+## The choppy-shadow bug, found and fixed the same afternoon
+
+Mark flew the close commit (`9911ae8`) and reported the shadows "move very
+choppy". In free flight the wind is zero, so a shadow should not move at
+all as the airplane flies. Root cause: the pass wrote each texel's ground
+position from the quad's `uv.y`, but WebGPU stores the quad's TOP edge
+(uv.y = 1) as texture row 0, which `map.sample(st)` reads at st.y = 0, and
+the WGSL node builder applies no Y flip to render-target samples
+(`WGSLNodeBuilder.isFlipY()` is false). The map was therefore MIRRORED in
+z about the eye's snapped center, so as the airplane flew north or south
+the pattern rode along at twice its speed in 78 m steps. Every acceptance
+case passed over this: the deck test sits near the center where a mirror
+is the identity, the darkening tests are means, and the "pattern moves"
+probe cannot tell 1× from 2×.
+
+Measured with a new DEV readback, `__ww2.cloudShadowAt(x, z)`, which reads
+the map texel through the lookup's own convention. Five fixed world points
+from three eye positions, before the fix:
+
+| Eye z | T at the five points |
+| --- | --- |
+| −55,605 | 1.000 0.027 0.537 0.565 0.047 |
+| −53,605 | 0.922 0.133 0.031 0.573 1.000 |
+| −59,105 | 0.024 0.706 0.059 1.000 1.000 |
+
+After a one-line flip in the pass (`ground.z` from `1 − uv.y`): identical
+rows, `1.000 1.000 0.031 1.000 0.639` from all three. The check is now a
+permanent Tier 2 case (eye moved in z AND in x, tolerance one gray level),
+because it is the one property no screenshot can measure. The readback
+needs a 4-texel-wide copy: a 1-byte copy fails WebGPU's `mapAsync`
+alignment.
+
 ## Rulings and traps
 
 1. **`main.ts` may import the field.** `cloudField.test.ts`'s importer

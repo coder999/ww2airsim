@@ -106,6 +106,30 @@ test('under the deck: the sea is darker and patchier with shadows than without',
   expect(await errors(page)).toEqual([])
 })
 
+test('the map is anchored to the world: a fixed point reads the same transmittance from any eye position', async ({ page }) => {
+  // The check no screenshot can make. Before 2026-09-19's flip fix the pass
+  // wrote row uv.y and the lookup read row 1 - uv.y, so the map was mirrored
+  // in z about the eye's snapped center: five world points read
+  // (1.000 0.027 0.537 0.565 0.047) from one eye and (0.922 0.133 0.031
+  // 0.573 1.000) from an eye 2 km south. Free flight has no wind, so the
+  // field is static and a texel read back through the lookup's own
+  // convention must not change when only the eye moves, in z OR in x.
+  await page.setViewportSize({ width: 1280, height: 720 })
+  const points = [0, 1500, 3000, -2200, 5100].map((d) => ({ x: OVER_GULF.x + d, z: OVER_GULF.z + d * 0.7 }))
+  const reads: number[][] = []
+  for (const eye of [{ dx: 0, dz: 0 }, { dx: 0, dz: 2000 }, { dx: 2500, dz: -3500 }]) {
+    await page.goto(spawnUrl({ x: OVER_GULF.x + eye.dx, y: 1300, z: OVER_GULF.z + eye.dz }))
+    await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
+    await page.waitForTimeout(800)
+    const vals = await page.evaluate(async (pts) => Promise.all(pts.map((p) => (window as DiagWindow).__ww2!.cloudShadowAt(p.x, p.z))), points)
+    console.log(`eye +${eye.dx}/${eye.dz}: T =`, vals.map((v) => (v === null ? 'null' : v.toFixed(3))).join(' '))
+    reads.push(vals.map((v) => { expect(v, 'point inside the map').not.toBeNull(); return v! }))
+  }
+  expect(Math.max(...reads[0]!) - Math.min(...reads[0]!), 'the points must span shadow and clear sky').toBeGreaterThan(0.3)
+  for (const r of reads.slice(1)) for (let i = 0; i < points.length; i++) expect(Math.abs(r[i]! - reads[0]![i]!)).toBeLessThanOrEqual(1 / 255)
+  expect(await errors(page)).toEqual([])
+})
+
 test('clear sky: the gunnery range is identical with and without the pass', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   const range = `/?${SCENARIO_PARAM}=gunnery-range`
