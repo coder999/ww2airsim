@@ -11,5 +11,8 @@
     { "id": "dd-1", "spec": "fletcher-dd", "waypoints": [[-19776, -44342], [-15419, -30996], [-8872, -28770], [-13232, -42115]], "speedMps": 7.717 },
     { "id": "dd-2", "spec": "fletcher-dd", "waypoints": [[-20200, -43918], [-15843, -30572], [-9296, -28346], [-13656, -41691]], "speedMps": 7.717 }
   ],
-  "weather": { "windFromDeg": 0, "windMps": 0 }
+  "weather": { "windFromDeg": 0, "windMps": 0, "clouds": [
+    { "kind": "cumulus", "baseM": 1500, "thicknessM": 900, "coverage": 0.45 },
+    { "kind": "cirrus",  "baseM": 7000, "thicknessM": 300, "coverage": 0.35 }
+  ] }
 }

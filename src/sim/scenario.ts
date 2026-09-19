@@ -21,6 +21,23 @@ import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
 const id = z.string().min(1)
 
+/** How many layers a sky may carry; the renderer's uniform array is sized to this. */
+export const MAX_CLOUD_LAYERS = 4
+
+/**
+ * One cloud layer (Plan 16a): a slab from `baseM` to `baseM + thicknessM`
+ * covering `coverage` of the sky. Content the RENDERER reads; `World` never
+ * carries it and nothing in sim/ samples it -- the goldens, the soak and the
+ * landing snapshots are exactly as blind to clouds as they were.
+ */
+const CloudLayerObject = z.object({
+  kind: z.enum(['cumulus', 'cirrus']),
+  baseM: finite.refine((n) => n >= 0, { message: 'baseM must not be negative' }),
+  thicknessM: finite.refine((n) => n > 0, { message: 'thicknessM must be greater than zero' }),
+  coverage: finite.refine((n) => n >= 0 && n <= 1, { message: 'coverage must be in [0, 1]' }),
+}).strict()
+export type CloudLayer = z.infer<typeof CloudLayerObject>
+
 const ScenarioObject = z.object({
   id,
   player: id,
@@ -51,7 +68,15 @@ const ScenarioObject = z.object({
   /** Steady wind, meteorological convention: the true bearing it blows FROM,
    *  and its speed. Plan 8. `windMps: 0` is calm, which `worldFromScenario`
    *  turns into a `null` world wind so the calm code path is selected. */
-  weather: z.object({ windFromDeg: finite, windMps: finite.refine((n) => n >= 0, { message: 'must not be negative' }) }).strict(),
+  weather: z.object({
+    windFromDeg: finite,
+    windMps: finite.refine((n) => n >= 0, { message: 'must not be negative' }),
+    /** Optional; absent is a clear sky (Plan 16a). Non-overlapping slabs. */
+    clouds: z.array(CloudLayerObject).max(MAX_CLOUD_LAYERS).refine((layers) => {
+      const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
+      return sorted.every((l, i) => i === 0 || sorted[i - 1]!.baseM + sorted[i - 1]!.thicknessM <= l.baseM)
+    }, { message: 'cloud layers overlap' }).optional(),
+  }).strict(),
 }).strict()
 
 export type Scenario = z.infer<typeof ScenarioObject>

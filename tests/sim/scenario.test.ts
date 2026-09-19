@@ -8,7 +8,7 @@ import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
-import { loadScenarioBundle } from '../../tools/content/load.js'
+import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_BUILDINGS } from '../../src/render/scene/airfield.js'
 
@@ -163,5 +163,27 @@ describe('deck quals (Plan 8)', () => {
     expect(() => worldFromScenario(off, null)).toThrow(/off the deck/)
     const escort = withScenario({ ...quals.scenario, aircraft: [{ ...quals.scenario.aircraft[0]!, parkedAt: { ship: 'dd-1', spot: { x: 0, z: 0 } } }] }, quals)
     expect(() => worldFromScenario(escort, null)).toThrow(/dd-1.*flight deck/)
+  })
+})
+
+describe('cloud layers (Plan 16a)', () => {
+  const raw = () => JSON.parse(JSON.stringify(bundle.scenario)) as Record<string, unknown> & { weather: Record<string, unknown> }
+  const withClouds = (clouds: unknown) => ({ ...raw(), weather: { ...raw().weather, clouds } })
+  const cumulus = { kind: 'cumulus', baseM: 1500, thicknessM: 900, coverage: 0.45 }
+
+  it('parses the shipped decks: free-flight has two layers, deck-quals two, the range none', () => {
+    expect(loadScenario('free-flight').weather.clouds?.map((c) => c.kind)).toEqual(['cumulus', 'cirrus'])
+    expect(loadScenario('deck-quals').weather.clouds?.map((c) => c.kind)).toEqual(['cumulus', 'cirrus'])
+    expect(loadScenario('gunnery-range').weather.clouds).toBeUndefined()
+  })
+
+  it('rejects an unknown key, a negative base, zero thickness, coverage outside [0, 1], five layers and overlap', () => {
+    expect(() => parseScenario(withClouds([{ ...cumulus, typo: 1 }]))).toThrow(/typo/)
+    expect(() => parseScenario(withClouds([{ ...cumulus, baseM: -1 }]))).toThrow(/baseM/)
+    expect(() => parseScenario(withClouds([{ ...cumulus, thicknessM: 0 }]))).toThrow(/thicknessM/)
+    expect(() => parseScenario(withClouds([{ ...cumulus, coverage: 1.2 }]))).toThrow(/coverage/)
+    expect(() => parseScenario(withClouds(Array(5).fill(cumulus).map((c, i) => ({ ...c, baseM: 1000 * (i + 1), thicknessM: 100 }))))).toThrow(/clouds/)
+    expect(() => parseScenario(withClouds([cumulus, { ...cumulus, baseM: 2000 }]))).toThrow(/overlap/)
+    expect(parseScenario(withClouds([cumulus, { kind: 'cirrus', baseM: 7000, thicknessM: 300, coverage: 0.35 }])).weather.clouds).toHaveLength(2)
   })
 })

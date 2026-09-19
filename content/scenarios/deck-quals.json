@@ -1,15 +1,123 @@
 {
   "id": "deck-quals",
   "player": "f6f-1",
-  "airfields": ["tacloban", "dulag"],
+  "airfields": [
+    "tacloban",
+    "dulag"
+  ],
   "aircraft": [
-    { "id": "f6f-1", "spec": "f6f-hellcat", "parkedAt": { "ship": "cv-1", "spot": { "x": 0, "z": -110 } }, "chocked": false },
-    { "id": "f6f-2", "spec": "f6f-hellcat", "parkedAt": { "airfield": "tacloban", "spot": { "x": -90, "z": 100 } }, "chocked": true }
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "ship": "cv-1",
+        "spot": {
+          "x": 0,
+          "z": -110
+        }
+      },
+      "chocked": false
+    },
+    {
+      "id": "f6f-2",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": -90,
+          "z": 100
+        }
+      },
+      "chocked": true
+    }
   ],
   "ships": [
-    { "id": "cv-1", "spec": "essex-cv",    "waypoints": [[-9084, -28558], [-13444, -41903], [-19988, -44130], [-15631, -30784]], "speedMps": 7.717 },
-    { "id": "dd-1", "spec": "fletcher-dd", "waypoints": [[-8872, -28770], [-13232, -42115], [-19776, -44342], [-15419, -30996]], "speedMps": 7.717 },
-    { "id": "dd-2", "spec": "fletcher-dd", "waypoints": [[-9296, -28346], [-13656, -41691], [-20200, -43918], [-15843, -30572]], "speedMps": 7.717 }
+    {
+      "id": "cv-1",
+      "spec": "essex-cv",
+      "waypoints": [
+        [
+          -9084,
+          -28558
+        ],
+        [
+          -13444,
+          -41903
+        ],
+        [
+          -19988,
+          -44130
+        ],
+        [
+          -15631,
+          -30784
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "dd-1",
+      "spec": "fletcher-dd",
+      "waypoints": [
+        [
+          -8872,
+          -28770
+        ],
+        [
+          -13232,
+          -42115
+        ],
+        [
+          -19776,
+          -44342
+        ],
+        [
+          -15419,
+          -30996
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "dd-2",
+      "spec": "fletcher-dd",
+      "waypoints": [
+        [
+          -9296,
+          -28346
+        ],
+        [
+          -13656,
+          -41691
+        ],
+        [
+          -20200,
+          -43918
+        ],
+        [
+          -15843,
+          -30572
+        ]
+      ],
+      "speedMps": 7.717
+    }
   ],
-  "weather": { "windFromDeg": 342, "windMps": 7.717 }
+  "weather": {
+    "windFromDeg": 342,
+    "windMps": 7.717,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1000,
+        "thicknessM": 800,
+        "coverage": 0.55
+      },
+      {
+        "kind": "cirrus",
+        "baseM": 7000,
+        "thicknessM": 300,
+        "coverage": 0.35
+      }
+    ]
+  }
 }
