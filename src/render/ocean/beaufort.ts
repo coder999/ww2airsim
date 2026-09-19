@@ -47,7 +47,8 @@ export function wmoWaveHeightM(beaufort: number): number {
 
 /** The force whose representative speed is nearest `mps` (Plan 8: scenario
  *  weather drives the sea). 15 kn (7.717 m/s) is force 4, which is also the
- *  development default, so deck quals' sea looks like free flight's. */
+ *  development default, so deck quals' sea is the force 4 every scenario
+ *  rendered before Plan 8. */
 export function beaufortFromWindMps(mps: number): number {
   if (!Number.isFinite(mps) || mps < 0) throw new Error(`beaufort: wind ${mps} m/s is not a speed`)
   let best = 0

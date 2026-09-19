@@ -1,6 +1,7 @@
 // tests/render/ocean/beaufort.test.ts
 import { describe, expect, it } from 'vitest'
 import { BEAUFORT_MAX, BEAUFORT_MIN, beaufortFromWindMps, windSpeedMps, wmoWaveHeightM } from '../../../src/render/ocean/beaufort.js'
+import { DEFAULT_BEAUFORT, seaStateFor } from '../../../src/render/ocean/weather.js'
 
 describe('the Beaufort scale', () => {
   it('is monotonic in wind speed across the whole scale', () => {
@@ -40,5 +41,14 @@ describe('beaufortFromWindMps (Plan 8)', () => {
     expect(beaufortFromWindMps(100)).toBe(12)
     expect(() => beaufortFromWindMps(NaN)).toThrow()
     expect(() => beaufortFromWindMps(-1)).toThrow()
+  })
+})
+
+describe('seaStateFor (Plan 8 fix round 1)', () => {
+  it('keeps the development sea for a calm scenario rather than going flat, but otherwise follows the wind, and an override always wins', () => {
+    expect(seaStateFor(0, undefined)).toBe(DEFAULT_BEAUFORT)
+    expect(seaStateFor(7.717, undefined)).toBe(4)
+    expect(seaStateFor(12.3, undefined)).toBe(6)
+    expect(seaStateFor(0, 6)).toBe(6)
   })
 })
