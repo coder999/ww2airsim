@@ -708,8 +708,8 @@ happens next, and the **Plan** column for what a document means when it says
 | 11b | 9 | Flaps, approach and landing ashore | §5 | Complete; [handoff](../../handoff/2026-09-17-plan11b-landing.md) |
 | 12 | 10 | Entities, ships and airfields | §4 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan12-entities.md) |
 | 14 | 11 | Mission map | §4, §8 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan14-mission-map.md) |
-| 8 | 12 — next | Carrier and airfield operations | §4, §8 | Not started |
-| 6 | 13 | Combat and damage | §6 | Not started |
+| 8 | 12 | Carrier and airfield operations | §4, §8 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan8-carrier-ops.md) |
+| 6 | 13 — next | Combat and damage | §6 | Not started |
 | 7 | 14 | AI | §7 | Not started |
 | 9 | 15 | Meta-game | §8 | Not started |
 | 13 | any | Terrain surface detail | §4 | First pass landed 2026-09-17 in daa1b39 without a spec or plan (Codex, [handoff](../../handoff/2026-09-18-scenery.md)); split into 13a-13d the same day |

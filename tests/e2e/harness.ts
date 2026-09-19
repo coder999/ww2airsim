@@ -148,10 +148,12 @@ export async function flySweep(page: Page): Promise<void> {
 
 /** The q-th percentile of `values`, nearest-rank, 0 <= q <= 1.
  *
- *  Used only by `terrain.spec.ts` today. It is here rather than there because
- *  this file is where the Tier 2 suites' shared vocabulary lives, not because
- *  two callers exist -- an earlier version of this comment claimed the latter,
- *  which was simply untrue (review fix round 1, m10). */
+ *  It is here because this file is where the Tier 2 suites' shared vocabulary
+ *  lives, not because any particular number of callers exists -- which is
+ *  also why this comment no longer counts them. It has named the wrong count
+ *  twice: "two callers" (review fix round 1, m10) and then "only
+ *  `terrain.spec.ts`", which was already false for `entities.spec.ts` and is
+ *  now false for `deckQuals.spec.ts` as well (2026-09-19). */
 export function percentile(values: readonly number[], q: number): number {
   const sorted = [...values].sort((a, b) => a - b)
   return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? NaN

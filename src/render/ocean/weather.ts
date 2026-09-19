@@ -1,9 +1,9 @@
 import { beaufortFromWindMps, windSpeedMps } from './beaufort.js'
 
 /** Moderate breeze: about 1 m significant wave height in the PM reference.
- * Kept for the tests that pin it and the `?beaufort=` doc; nothing in
- * production reads it now that a scenario's `weather.windMps` decides
- * (Plan 8) -- 7.717 m/s (deck quals) rounds to this same force 4. */
+ * `seaStateFor` below reads it for a CALM scenario (`windMps` 0, free
+ * flight); every non-zero wind derives its own force, and deck quals'
+ * 7.717 m/s rounds to this same force 4 anyway. */
 export const DEFAULT_BEAUFORT = 4
 export const BEAUFORT_PARAM = 'beaufort'
 

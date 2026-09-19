@@ -333,6 +333,12 @@ the opposite of what a take-off test wants (`hasSpawnOverride`). The
 parameters exist in DEV only and `tests/build/dist.test.ts` asserts they are
 absent from a production bundle.
 
+`?scenario=deck-quals` starts a different world instead of the default one:
+the player parked on the Essex's flight deck, 110 m aft of its center, with
+the task force making 15 kn into 15 kn of wind. `?beaufort=` overrides the
+sea state the scenario's wind would otherwise choose. Both are DEV-only and
+covered by the same production-bundle assertion.
+
 ## Deployment
 
 Live at <https://ww2airsim.marktuttle.dev>, a public static site on the OVH
