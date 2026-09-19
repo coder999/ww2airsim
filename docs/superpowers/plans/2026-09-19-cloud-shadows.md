@@ -357,7 +357,7 @@ The module, its pure geometry helpers, the pass material and the lookup node. No
   ```
 - Consumes: `CloudField` from Task 1, `sunDirectionNode` from Task 2, `CloudTierName` from `clouds.ts`.
 
-- [ ] **Step 1: Write the failing test** `tests/render/cloudShadow.test.ts`:
+- [x] **Step 1: Write the failing test** `tests/render/cloudShadow.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -432,9 +432,9 @@ describe('cloud shadow map (Plan 16b)', () => {
 })
 ```
 
-- [ ] **Step 2: Run** `npx vitest run tests/render/cloudShadow.test.ts` → FAIL (module not found).
+- [x] **Step 2: Run** `npx vitest run tests/render/cloudShadow.test.ts` → FAIL (module not found).
 
-- [ ] **Step 3: Implement `src/render/scene/cloudShadow.ts`**:
+- [x] **Step 3: Implement `src/render/scene/cloudShadow.ts`**:
 
 ```ts
 import {
@@ -608,11 +608,11 @@ Notes for the implementer, each a 16a trap or a three r186 fact:
 - `map.sample(st)` is TSL's explicit-UV sample on a `TextureNode`; `texture(target.texture, st)` is the equivalent form if `.sample` is not typed in @types/three 0.186 -- use whichever compiles, and record which in the ledger.
 - `+z is SOUTH` in this world (29f5319). The map's origin is the minimum-x, minimum-z corner; nothing here depends on which compass direction that is.
 
-- [ ] **Step 4: Run** `npx vitest run tests/render/cloudShadow.test.ts` → PASS.
+- [x] **Step 4: Run** `npx vitest run tests/render/cloudShadow.test.ts` → PASS.
 
-- [ ] **Step 5: Run** `npm run verify; echo rc=$?` → `rc=0`. If depcruise flags a cycle `clouds.ts -> cloudShadow.ts -> clouds.ts` (the `CloudTierName` type import): move `CLOUD_TIERS`/`CloudTierName` to `scene/tiers.ts`? NO -- `tiers.ts` is the scenery tiers. Instead import the type with `import type`, which depcruise's runtime-only view ignores (see `.dependency-cruiser.cjs` `no-circular` comment). If it still flags, declare `type CloudTierName = 'high' | 'medium' | 'low'` locally and add `expectTypeOf<CloudTierName>().toEqualTypeOf<keyof typeof CLOUD_TIERS>()` to the test.
+- [x] **Step 5: Run** `npm run verify; echo rc=$?` → `rc=0`. If depcruise flags a cycle `clouds.ts -> cloudShadow.ts -> clouds.ts` (the `CloudTierName` type import): move `CLOUD_TIERS`/`CloudTierName` to `scene/tiers.ts`? NO -- `tiers.ts` is the scenery tiers. Instead import the type with `import type`, which depcruise's runtime-only view ignores (see `.dependency-cruiser.cjs` `no-circular` comment). If it still flags, declare `type CloudTierName = 'high' | 'medium' | 'low'` locally and add `expectTypeOf<CloudTierName>().toEqualTypeOf<keyof typeof CLOUD_TIERS>()` to the test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/render/scene/cloudShadow.ts tests/render/cloudShadow.test.ts docs/superpowers/plans/2026-09-19-cloud-shadows.md
