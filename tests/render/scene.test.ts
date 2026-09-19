@@ -1,6 +1,7 @@
 import { DEEP_WATER_COLOUR } from '../../src/render/ocean/mesh.js'
 import { SEA_COLOUR } from '../../src/render/scene/water.js'
 import { describe, it, expect } from 'vitest'
+import { float } from 'three/tsl'
 import {
   Box3,
   DirectionalLight,
@@ -228,5 +229,14 @@ describe('lighting', () => {
     const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
     expect(sun.position.toArray()).toEqual(sunDirectionNode.value.toArray())
     expect(sunDirectionNode.value.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
+  })
+
+  it('casts only when given a cloud-shadow node, which it hands to the sun (Plan 16b)', () => {
+    const plain = createLighting().children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
+    expect(plain.castShadow).toBe(false)
+    const node = float(0.5)
+    const shadowed = createLighting(node).children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
+    expect(shadowed.castShadow).toBe(true)
+    expect((shadowed.shadow as unknown as { shadowNode: unknown }).shadowNode).toBe(node)
   })
 })

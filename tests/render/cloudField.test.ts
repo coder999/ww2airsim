@@ -60,7 +60,10 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
       }
     }
     walk(root)
-    expect(importers.sort()).toEqual(['cloudShadow.ts', 'clouds.ts'].filter((f) => importers.includes(f)))
+    // main.ts is the composition root: it CONSTRUCTS the field and hands it
+    // to both readers, but never samples the density. Anything else here is
+    // a third reader, which is the defect this test exists to catch.
+    expect(importers.sort()).toEqual(['cloudShadow.ts', 'clouds.ts', 'main.ts'].filter((f) => importers.includes(f)))
     expect(importers).toContain('clouds.ts')
   })
 })

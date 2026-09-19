@@ -745,7 +745,7 @@ git commit -m "Plan 16b task 4: the terrain scales its direct term and the ocean
 - Consumes: `createCloudField`, `createCloudShadow`, `cloudShadowFromQuery`, `SHADOW_TIERS`, `MAP_SIDE_M`.
 - Produces: `__ww2.clouds()` returns `{ layers, tier, steps, shadow: { enabled, taps, mapSideM } }`.
 
-- [ ] **Step 1: Reorder boot so the field exists before the terrain.** `loadSkyNoise()` (line 541) is an independent fetch; move it up: right before `const terrain = createTerrainMesh(TERRAIN_HEADER)` (line 498) add
+- [x] **Step 1: Reorder boot so the field exists before the terrain.** `loadSkyNoise()` (line 541) is an independent fetch; move it up: right before `const terrain = createTerrainMesh(TERRAIN_HEADER)` (line 498) add
 
 ```ts
   // Plan 16b: the shadow map's lookup node is baked into the terrain's and
@@ -765,11 +765,11 @@ git commit -m "Plan 16b task 4: the terrain scales its direct term and the ocean
 
 and delete the four lines that previously computed `skyNoise`, `forcedCloudTier`, `cloudLayers`, `cloudTier` at 541-544. Check that `bundle` and `oceanTier` are in scope at line 498 (both are declared earlier -- verify with a grep before moving; if `oceanTier` is chosen later, keep `cloudTier`'s assignment where it was and only move the field/shadow creation).
 
-- [ ] **Step 2: Create the dome from the shared field**: `const clouds = createClouds(cloudLayers, skyNoise, cloudField)`. Pass `shadow` into `createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL), shadow)` at BOTH call sites (548 and the `replacement` in `adaptOceanQuality`). In `adaptOceanQuality`, next to `clouds.setTier(next.name)`, add `shadow.setTier(next.name)`.
+- [x] **Step 2: Create the dome from the shared field**: `const clouds = createClouds(cloudLayers, skyNoise, cloudField)`. Pass `shadow` into `createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL), shadow)` at BOTH call sites (548 and the `replacement` in `adaptOceanQuality`). In `adaptOceanQuality`, next to `clouds.setTier(next.name)`, add `shadow.setTier(next.name)`.
 
-- [ ] **Step 3: Hand the node to the sun.** `createLighting()` gains an optional parameter: `export function createLighting(shadowNode?: Node<'float'>): Object3D`; when given, `sun.castShadow = true; sun.shadow.shadowNode = shadowNode` (cast: `(sun.shadow as unknown as { shadowNode: Node }).shadowNode = shadowNode` if @types/three lacks the field; record in the ledger). In `main.ts:583`: `scene.add(createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined))` with `positionWorld` imported from `three/tsl`. And right after `initRenderer` (line 180): `renderer.shadowMap.enabled = true` with the comment `// Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow); with a custom node three renders no shadow map.` Add a `scene.test.ts` case: `createLighting(float(0.5))` yields a sun with `castShadow === true` and `createLighting()` yields `castShadow === false`.
+- [x] **Step 3: Hand the node to the sun.** `createLighting()` gains an optional parameter: `export function createLighting(shadowNode?: Node<'float'>): Object3D`; when given, `sun.castShadow = true; sun.shadow.shadowNode = shadowNode` (cast: `(sun.shadow as unknown as { shadowNode: Node }).shadowNode = shadowNode` if @types/three lacks the field; record in the ledger). In `main.ts:583`: `scene.add(createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined))` with `positionWorld` imported from `three/tsl`. And right after `initRenderer` (line 180): `renderer.shadowMap.enabled = true` with the comment `// Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow); with a custom node three renders no shadow map.` Add a `scene.test.ts` case: `createLighting(float(0.5))` yields a sun with `castShadow === true` and `createLighting()` yields `castShadow === false`.
 
-- [ ] **Step 4: The frame.** Replace lines 1143-1151:
+- [x] **Step 4: The frame.** Replace lines 1143-1151:
 
 ```ts
     clouds.update(current.eye.position, skyTimeS, current.world.wind)
@@ -790,11 +790,11 @@ and delete the four lines that previously computed `skyNoise`, `forcedCloudTier`
     }
 ```
 
-- [ ] **Step 5: Diagnostics.** In `diagnostics.ts:243` extend the type: `readonly clouds: () => { readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly steps: number; readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number } }`. In `main.ts:361`: `clouds: () => ({ layers: cloudLayers, tier: cloudTier, steps: ..., shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M } })`.
+- [x] **Step 5: Diagnostics.** In `diagnostics.ts:243` extend the type: `readonly clouds: () => { readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly steps: number; readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number } }`. In `main.ts:361`: `clouds: () => ({ layers: cloudLayers, tier: cloudTier, steps: ..., shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M } })`.
 
-- [ ] **Step 6: Run** `npm run verify; echo rc=$?` → `rc=0`. Then a smoke run on the reference GPU BEFORE committing, because nothing headless can see this pass: with the dev server up, `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2 -- tests/e2e/clouds.spec.ts` must still pass 7/7 with zero console errors. If the screen is black with zero validation errors, a TSL Fn failed to build: check the browser console for `THREE.TSL` and apply 16a's traps.
+- [x] **Step 6: Run** `npm run verify; echo rc=$?` → `rc=0`. Then a smoke run on the reference GPU BEFORE committing, because nothing headless can see this pass: with the dev server up, `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2 -- tests/e2e/clouds.spec.ts` must still pass 7/7 with zero console errors. If the screen is black with zero validation errors, a TSL Fn failed to build: check the browser console for `THREE.TSL` and apply 16a's traps.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/render/main.ts src/render/diagnostics.ts src/render/scene/lighting.ts tests/render/scene.test.ts docs/superpowers/plans/2026-09-19-cloud-shadows.md

@@ -1,4 +1,5 @@
 import { Group, PerspectiveCamera, Scene } from 'three'
+import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
@@ -19,6 +20,8 @@ import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNaviga
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen } from './titleScreen.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
+import { createCloudField } from './scene/cloudField.js'
+import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
 import { loadSkyNoise } from './sky/load.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -178,6 +181,9 @@ async function boot(): Promise<void> {
   // Timestamp queries also support one automatic ocean quality decision.
   // The external diagnostics hook remains development-only.
   const { renderer, adapterVerdict } = await initRenderer(canvas, true)
+  // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
+  // three r186); with a custom node three renders no shadow map.
+  renderer.shadowMap.enabled = true
 
   // Declared here, before the hook below installs, initialised to `null` --
   // not assigned a real `FrameState` until after `loadScenarioBundle` resolves,
@@ -358,7 +364,11 @@ async function boot(): Promise<void> {
       // tests cover. `null` before the first frame, like `impact`.
       combat: () => (frame ? combatDiagnosticsFor(frame) : null),
       // Plan 16a: which deck is up and at what tier; `off` under `?cloudTier=off`.
-      clouds: () => ({ layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps }),
+      clouds: () => ({
+        layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
+        // Plan 16b: what the shadow pass is doing, for the Tier 2 budget.
+        shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
+      }),
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
@@ -495,7 +505,19 @@ async function boot(): Promise<void> {
   const spec = playerAircraft(scenarioWorld).spec
 
   const scene = new Scene()
-  const terrain = createTerrainMesh(TERRAIN_HEADER)
+  // Plan 16b: the shadow map's lookup node is baked into the terrain's and
+  // the ocean's materials, so the cloud field and the map exist before them.
+  // The noise is fetched here rather than beside the bathymetry (16a) for
+  // that reason; a clear-sky scenario still loads it (16a's reason stands).
+  const skyNoise = await loadSkyNoise()
+  const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
+  cloudLayers = forcedCloudTier === 'off' ? [] : bundle.scenario.weather.clouds ?? []
+  cloudTier = forcedCloudTier ?? oceanTier.name
+  const cloudField = createCloudField(cloudLayers, skyNoise)
+  const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
+  const shadow = createCloudShadow(cloudField, shadowMode)
+  if (cloudTier !== 'off') shadow.setTier(cloudTier)
+  const terrain = createTerrainMesh(TERRAIN_HEADER, shadow)
   // Plan 13b. The raster and the terrain levels race; whichever lands
   // second finds the other ready. A failed fetch leaves the procedural
   // paint (surface.ts's `ready` uniform) and the daa1b39 forest, logged,
@@ -534,18 +556,12 @@ async function boot(): Promise<void> {
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
   oceanDepth = await loadDepth()
-  // Plan 16a. The two noise volumes ride the same await as the bathymetry;
-  // a clear-sky scenario still loads them (1 MB gzipped, cached) so a later
-  // scenario switch needs no second fetch path. `?cloudTier=off` is the DEV
-  // control for measuring a scene with and without the pass.
-  const skyNoise = await loadSkyNoise()
-  const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
-  cloudLayers = forcedCloudTier === 'off' ? [] : bundle.scenario.weather.clouds ?? []
-  cloudTier = forcedCloudTier ?? oceanTier.name
-  const clouds = createClouds(cloudLayers, skyNoise)
+  // Plan 16a. `?cloudTier=off` is the DEV control for measuring a scene
+  // with and without the pass; the field itself was made above the terrain.
+  const clouds = createClouds(cloudLayers, skyNoise, cloudField)
   if (cloudTier !== 'off') clouds.setTier(cloudTier)
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
-  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
+  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL), shadow)
   scene.add(water)
   let qualityChecked = false
   const adaptOceanQuality = async (): Promise<void> => {
@@ -564,7 +580,7 @@ async function boot(): Promise<void> {
     const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
     const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
     if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
-    const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL))
+    const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL),shadow)
     scene.remove(water)
     water.userData.disposeOcean()
     cascades.forEach(c=>c.dispose())
@@ -576,11 +592,14 @@ async function boot(): Promise<void> {
     if (forcedCloudTier === undefined) {
       cloudTier = next.name
       clouds.setTier(next.name)
+      shadow.setTier(next.name)
     }
   }
   const sky = createSky()
   scene.add(sky)
-  scene.add(createLighting())
+  // Plan 16b: the sun carries the cloud-shadow lookup into every lit
+  // material. `positionWorld` is eye-relative here; the node adds the eye.
+  scene.add(createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined))
   // Drawn last (its own renderOrder), occluded per pixel by the scene depth.
   scene.add(clouds.object)
   // One airframe per aircraft entity, in world order, so `frame.poses[i]`
@@ -1148,7 +1167,17 @@ async function boot(): Promise<void> {
     // previous frame's timestamp resolve has landed. The paragraph after the
     // next explains why the guard alone stopped being enough on 2026-09-17.
     const sampling = renderer.hasFeature('timestamp-query') && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY
-    if (!(sampling && gpuResolvePending)) renderer.render(scene, camera)
+    if (!(sampling && gpuResolvePending)) {
+      // Plan 16b: the shadow map first, inside the same frame and the same
+      // timestamp pool ('render'), so the budget below includes it.
+      if (shadow.enabled) {
+        shadow.update(current.eye.position)
+        renderer.setRenderTarget(shadow.target)
+        renderer.render(shadow.scene, shadow.camera)
+        renderer.setRenderTarget(null)
+      }
+      renderer.render(scene, camera)
+    }
 
     // One GPU timestamp sample per resolve; quality selection also uses it. Guarded on a pending
     // resolve rather than fired every frame because `resolveQueriesAsync`

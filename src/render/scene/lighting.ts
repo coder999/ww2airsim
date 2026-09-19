@@ -1,5 +1,6 @@
 import { DirectionalLight, Group, HemisphereLight, Vector3, type Object3D } from 'three'
 import { uniform } from 'three/tsl'
+import type { Node } from 'three/webgpu'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -37,10 +38,18 @@ export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTI
  * headless, so this file's existence is what the review that required it
  * is actually checking for.
  */
-export function createLighting(): Object3D {
+export function createLighting(shadowNode?: Node<'float'>): Object3D {
   const group = new Group()
   const sun = new DirectionalLight(0xfff2e0, 2.5)
   sun.position.set(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z)
+  if (shadowNode !== undefined) {
+    // Plan 16b: three multiplies this light's direct term by the node on
+    // every receiver (AnalyticLightNode.setupShadow, r186) and, given a
+    // custom node, allocates no shadow map. `shadowNode` is read off
+    // `light.shadow` at runtime but is not in @types/three 0.186.
+    sun.castShadow = true
+    ;(sun.shadow as unknown as { shadowNode: Node<'float'> }).shadowNode = shadowNode
+  }
   sun.target.position.set(0, 0, 0)
   group.add(sun, sun.target)
   group.add(new HemisphereLight(0x9eb8cc, 0x18384f, 0.8))

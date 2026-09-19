@@ -240,7 +240,11 @@ export type Ww2Diagnostics = {
   readonly combat: () => CombatDiagnostics | null
   /** The cloud deck in force and its tier (Plan 16a); `off` under the DEV
    *  `?cloudTier=off`, `steps` the cumulus march count at that tier. */
-  readonly clouds: () => { readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly steps: number }
+  readonly clouds: () => {
+    readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly steps: number
+    /** Plan 16b: whether the shadow pass runs, its taps per layer, and the map's side. */
+    readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number }
+  }
   readonly resetFrameTimes: () => void
 }
 
