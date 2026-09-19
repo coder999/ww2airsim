@@ -41,6 +41,13 @@ export interface SimContext {
    * no behavior. `undefined` and `null` both mean no ground.
    */
   readonly terrain?: TerrainField | null
+  /**
+   * The velocity of the air, world frame, m/s -- Plan 8. `undefined` and
+   * `null` both mean calm and select the exact code path that existed before
+   * wind was coupled (the subtraction is skipped, not performed with zero).
+   * Optional for the reason `terrain` is: one production construction site.
+   */
+  readonly wind?: Vec3 | null
 }
 
 /**
@@ -354,6 +361,9 @@ export interface World<M = undefined> {
    * assertion.
    */
   readonly terrain: TerrainField | null
+  /** Scenario wind, the velocity of the air; `null` is calm. Static for the
+   *  flight, in `World` because `advance` builds every `SimContext` from it. */
+  readonly wind: Vec3 | null
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -451,6 +461,7 @@ export function createWorldOf<M>(parts: {
   readonly player: EntityId
   readonly airfields?: readonly Airfield[]
   readonly terrain?: TerrainField | null
+  readonly wind?: Vec3 | null
 }): World<M> {
   const ships = parts.ships ?? []
   const seen = new Set<EntityId>()
@@ -478,6 +489,7 @@ export function createWorldOf<M>(parts: {
     player: parts.player,
     airfields: parts.airfields ?? [],
     terrain: parts.terrain ?? null,
+    wind: parts.wind ?? null,
     accumulatorSeconds: 0,
   }
 }
@@ -530,6 +542,7 @@ function stepAircraftEntity<M>(
   entity: AircraftEntity<M>,
   tick: number,
   terrain: TerrainField | null,
+  wind: Vec3 | null,
   stepper: Stepper,
   assist: Assist<M>,
 ): AircraftEntity<M> {
@@ -546,7 +559,7 @@ function stepAircraftEntity<M>(
   // which is stale from the second step of a multi-step frame onward unless
   // the entity is rebuilt each step -- and it is).
   const assisted = assist(entity.state, entity.spec, entity.controls, DT, entity.assistMemory)
-  const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain })
+  const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain, wind })
 
   // Checked after EVERY step in a multi-step frame, not just the last one --
   // a frame that owes several steps (a stalled tab, `MAX_STEPS_PER_FRAME` up
@@ -658,7 +671,7 @@ export function advance<M>(
     // Aircraft second, each from its own state. Nothing reads another
     // entity yet; when Plan 8 adds decks they are derived from `ships` here,
     // after the ships have moved.
-    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, stepper, assist))
+    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, stepper, assist))
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt

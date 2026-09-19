@@ -127,7 +127,9 @@ describe('validation', () => {
 
   it('the schema rejects an unknown key and a one-point loop', () => {
     const raw = JSON.parse(JSON.stringify(bundle.scenario)) as Record<string, unknown>
-    expect(() => parseScenario({ ...raw, weather: {} })).toThrow(/weather/)
+    expect(() => parseScenario({ ...raw, loadout: {} })).toThrow(/loadout/)
     expect(() => parseScenario({ ...raw, ships: [{ id: 'x', spec: 'essex-cv', waypoints: [[0, 0]], speedMps: 5 }] })).toThrow(/waypoints/)
+    expect(() => parseScenario({ ...raw, weather: { windFromDeg: 0, windMps: -1 } })).toThrow(/windMps/)
+    expect(() => parseScenario({ ...raw, weather: { windFromDeg: 0 } })).toThrow(/windMps/)
   })
 })

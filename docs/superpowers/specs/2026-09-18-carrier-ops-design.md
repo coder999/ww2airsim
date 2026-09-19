@@ -37,7 +37,7 @@ has one candidate cause: the deck.
 | Essex length overall / max beam | 265.8 m / 45.0 m | `content/ships/essex-cv.json`, Wikipedia |
 | Essex flight-deck height above the waterline | **17 m, ESTIMATE** — no freeboard figure in Wikipedia, globalsecurity or naval-encyclopedia; only the hangar's 17 ft 6 in overhead is published | `essex-cv.json` (Plan 12's flag stands) |
 | Arresting gear | sixteen-wire Mk 4, "spaced from the stern to just aft of the island"; four cable barriers | globalsecurity.org CV-9 design page |
-| Task-force speed on its racetrack | 7.717 m/s (15 kn), loop legs bearing about 018° / 198° | `content/scenarios/free-flight.json` |
+| Task-force speed on its racetrack | 7.717 m/s (15 kn), loop legs bearing about 162° / 342° (bearingTo is atan2(Δx, −Δz); corrected 2026-09-18 during planning) | `content/scenarios/free-flight.json` |
 | F6F full-flap take-off roll, no wind | 236.1 m measured (755 ft = 230.1 m trial) | `content/aircraft/f6f-hellcat.json` reference note |
 | Touchdown gates | sink ≤ 4.0 m/s; speed ≤ 1.42 × flap stall; `ARRIVAL_SINK_THRESHOLD_MPS` 0.1 | `src/sim/ground.ts` |
 | Ship state | position, heading, speed; `stepShip` steps ships before aircraft | `src/sim/world/ships.ts`, `src/sim/loop.ts` |
@@ -65,8 +65,9 @@ Scenario content gains a `weather` block: `{ windFromDeg, windMps }`,
 meteorological convention (the direction the wind blows FROM, true).
 `worldFromScenario` converts it to the world-frame vector that `advance`
 passes into `SimContext`. Free flight carries `windMps: 0`. Deck quals
-carries about 15 kn from 018°, which is the bearing of the racetrack's long
-legs, so the ship recovers and launches into it on those legs. The ocean
+carries about 15 kn from 342°, so the ship steams into it on the north-westbound
+long leg (corrected 2026-09-18 during planning: the legs bear 162°/342°, not
+018°/198°). The ocean
 already takes a Beaufort number; the plan's renderer task derives that
 number from `windMps` so sea and air agree, with the `?beaufort=` DEV
 override still winning when present.
@@ -136,8 +137,9 @@ from; nothing is cached on an entity.
   island near the deck's midpoint; flagged in §10.
 - A touchdown on a `'deck'` surface, hook down, main gear inside the trap
   zone, inside the existing sink and speed gates, is an **arrest**: from that
-  step the airplane's deck-relative velocity decays linearly to zero over
-  `TRAP_DECEL_S = 2.0` s (about 1.7 g from 34 m/s, in the range of a real
+  step the airplane's deck-relative velocity decays at a constant
+  `TRAP_DECEL_MPS2 = 17` m/s², which is 2.0 s and 34 m of run-out from a 34 m/s
+  arrival (about 1.7 g, in the range of a real
   pendant run-out), the airplane rides the deck, and when deck-relative speed
   reaches zero the flight ends exactly as an ashore landing does today, with
   `landing.at = { kind: 'carrier', id }`. The landing report's existing
@@ -243,7 +245,7 @@ deck plane and cue in view; the chart names the carrier as before.
 | --- | --- | --- |
 | Flight-deck height above waterline | 17 m | Estimate; searched 2026-09-18, no primary figure found. Affects only where the surface is. |
 | Trap zone | 30–130 m from the stern | Estimate from "16 wires from the stern to just aft of the island". |
-| Arrest run-out | 2.0 s linear decay | Choice, about 1.7 g from approach speed. |
+| Arrest run-out | 17 m/s² constant | Choice, about 1.7 g; 2.0 s from approach speed. |
 | Paddles parameters | §7 values | Choices; tune by flying. |
 | Deck-quals wind | 15 kn from 018° | Content choice matching the racetrack legs. |
 | Deck spot | 110 m aft of center | Choice; measured against the deck run. |

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { AircraftSpec } from './flight/schema.js'
 import { createState, type Controls } from './flight/state.js'
 import { createWorldOf, type AircraftEntity, type ShipEntity, type World } from './loop.js'
-import { v3 } from './math/vec3.js'
+import { type Vec3, v3 } from './math/vec3.js'
 import { type Airfield, localToWorld, parkedAttitude } from './world/airfields.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
@@ -10,8 +10,9 @@ import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 /**
  * A scenario says where everything starts (spec §7). It is the data contract
  * Plan 14's map and Plan 9's mission selector read; it deliberately carries
- * NO flights, targets, objectives, weather or loadout -- those are master
- * spec §9's fields and belong to the plans that consume them.
+ * NO flights, targets, objectives or loadout -- those are master spec §9's
+ * fields and belong to the plans that consume them. `weather` is Plan 8's
+ * (steady wind only; see `windVectorFrom`).
  */
 
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
@@ -39,6 +40,10 @@ const ScenarioObject = z.object({
     waypoints: z.array(z.tuple([finite, finite])).min(2),
     speedMps: finite,
   }).strict()),
+  /** Steady wind, meteorological convention: the true bearing it blows FROM,
+   *  and its speed. Plan 8. `windMps: 0` is calm, which `worldFromScenario`
+   *  turns into a `null` world wind so the calm code path is selected. */
+  weather: z.object({ windFromDeg: finite, windMps: finite.refine((n) => n >= 0, { message: 'must not be negative' }) }).strict(),
 }).strict()
 
 export type Scenario = z.infer<typeof ScenarioObject>
@@ -70,6 +75,17 @@ export type ScenarioBundle = {
 export const PARKED_PLACEHOLDER_Y_M = 1.9
 
 const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+
+/**
+ * The velocity of the air for a wind blowing FROM `windFromDeg` (true, 0 =
+ * north, 90 = east) at `windMps`. Compass convention as `shipVelocity`:
+ * +x east, +z south, north is -z. A wind FROM the north moves the air
+ * TOWARD the south, +z.
+ */
+export function windVectorFrom(windFromDeg: number, windMps: number): Vec3 {
+  const rad = (windFromDeg * Math.PI) / 180
+  return v3(-Math.sin(rad) * windMps, 0, Math.cos(rad) * windMps)
+}
 
 function lookup<T>(table: Readonly<Record<string, T>>, key: string, kind: string): T {
   const v = table[key]
@@ -116,5 +132,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     return { id: sh.id, spec, state, previous: state, orders }
   })
 
-  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain })
+  const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
+  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind })
 }

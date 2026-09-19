@@ -1,4 +1,4 @@
-import { type Vec3, v3, add, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
+import { type Vec3, v3, add, sub, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor, sideForceN, attachedFlowFraction } from '../aero.js'
@@ -36,6 +36,17 @@ const G = 9.80665
 const FUEL_KG_PER_JOULE = 7.5e-8
 
 export const airspeed = (state: AircraftState): number => length(state.velocity)
+
+/**
+ * The airplane's velocity through the AIR, world frame: ground velocity minus
+ * the velocity of the air. With `wind` null the ground velocity is returned
+ * as the same object, so the calm path performs no arithmetic at all and
+ * stays bit-identical to the model before Plan 8 (the golden's exact-equality
+ * case pins this).
+ */
+export function airVelocity(state: AircraftState, wind: Vec3 | null): Vec3 {
+  return wind == null ? state.velocity : sub(state.velocity, wind)
+}
 
 /** The model's only mass expression: empty weight plus whatever fuel remains,
  *  no separate payload term. `step` and `autopilot.ts`'s `holdLevelFlight`
@@ -247,6 +258,10 @@ export function step(
   assertUsableDt(ctx.dt)
   const dt = ctx.dt
   const mass = massKg(spec, state)
+  // Every aerodynamic quantity below reads `air`, the state seen by the
+  // airflow; integration, the ground constraint, rolling and tire grip keep
+  // reading `state`, which is the ground frame. With no wind `air` IS `state`.
+  const air = ctx.wind == null ? state : { ...state, velocity: airVelocity(state, ctx.wind) }
   // Ground height under the airplane at the START of this step, or null when
   // no terrain field was supplied (50 of the 51 `SimContext` construction
   // sites pass none). Hoisted ABOVE the aerodynamics because ground effect
@@ -257,11 +272,11 @@ export function step(
   const startGroundHeightM =
     ctx.terrain != null ? heightAt(ctx.terrain, state.position.x, state.position.z) : null
   const rho = densityAt(state.position.y)
-  const v = airspeed(state)
+  const v = airspeed(air)
   const q = 0.5 * rho * v * v
   const { forward, up } = bodyAxes(state)
 
-  const alpha = angleOfAttack(state)
+  const alpha = angleOfAttack(air)
   // Flaps raise the whole lift curve, so they enter the coefficient rather
   // than being added to the force -- see `liftCoefficient`'s attached-flow
   // comment for why the increment has to go inside it.
@@ -298,9 +313,9 @@ export function step(
     q * spec.geometry.wingAreaM2 * (cd + windmillDragCd0(spec, controls.throttle)) +
     gearDragN(spec, state.gearFraction, q) +
     flapDragN(spec, state.flapFraction, q)
-  const thrustN = thrustMagnitude(spec, state, controls.throttle)
+  const thrustN = thrustMagnitude(spec, air, controls.throttle)
 
-  const vdir = v > 1e-6 ? normalize(state.velocity) : forward
+  const vdir = v > 1e-6 ? normalize(air.velocity) : forward
   // Lift acts perpendicular to the relative wind, in the plane of the body up axis.
   const liftDir = v > 1e-6 ? normalize(cross(cross(vdir, up), vdir)) : up
 
@@ -508,7 +523,7 @@ export function step(
     // the nose must go right to meet it.
     return -Math.max(-maxRad, Math.min(maxRad, rate))
   })()
-  const stalled = isStalled(spec, state)
+  const stalled = isStalled(spec, air)
   const withWeathercock = v3(airRates.x, airRates.y + weathercockY, airRates.z)
   const ratesWithStall = stalled
     ? v3(withWeathercock.x + STALL_WING_DROP_RAD_PER_S, withWeathercock.y, withWeathercock.z)

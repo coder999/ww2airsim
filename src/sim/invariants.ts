@@ -73,21 +73,11 @@ export function isIdleThrottle(controls: Controls): boolean {
  * step() with the spec §11 invariants asserted. Use this in tests and in the
  * soak harness; use the bare step() in the hot path of the running game.
  *
- * `step()` does not couple wind into the aerodynamics yet -- spec §9 scenario
- * weather is later-plan scope (Ruling R29) -- so in the model as it stands
- * today the airmass and ground frames are identical, and the energy invariant
- * below is checked in still air with no `windMps` parameter. Once wind is
- * coupled into `step()`, this should assert via
- * `specificEnergyAirmass(state, windMps)` instead: spec §11's airmass frame
- * is still the right target for that future system, because under a real
- * wind vector, ground-frame energy legitimately changes as the aircraft turns
- * relative to the wind, and a ground-frame assertion would flap in soak runs
- * for entirely correct physics. Passing a `windMps` here now, before `step()`
- * consumes one, would assert a quantity the physics does not produce --
- * measured: a 130 m/s wind on the shipped idle-throttle glide scenario trips
- * the check by +0.104 J/kg on the very first step, while the *ground-frame*
- * energy for that identical trajectory is strictly non-increasing for the
- * whole run.
+ * Plan 8 (2026-09-18) coupled wind into `step()`, so the airmass frame is now
+ * the frame the physics produces and this passes `ctx.wind` through. R29's
+ * measurement (a 130 m/s wind tripping the check by +0.104 J/kg) was of the
+ * OLD model; `tests/sim/wind.test.ts` runs 20 s at idle in a 12 m/s wind
+ * through this function.
  */
 export function stepChecked(
   spec: AircraftSpec,
@@ -95,11 +85,12 @@ export function stepChecked(
   controls: Controls,
   ctx: SimContext,
 ): AircraftState {
-  const before = specificEnergyAirmass(state)
+  const wind = ctx.wind ?? ZERO
+  const before = specificEnergyAirmass(state, wind)
   const next = step(spec, state, controls, ctx)
   assertFinite(next, 'stepChecked')
   if (isIdleThrottle(controls)) {
-    const after = specificEnergyAirmass(next)
+    const after = specificEnergyAirmass(next, wind)
     assertNoEnergyGain(before, after, 'stepChecked')
   }
   return next

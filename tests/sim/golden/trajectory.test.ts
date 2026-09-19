@@ -79,4 +79,13 @@ describe('golden trajectory regression', () => {
     const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as GoldenTrajectory
     expect(golden.engine).toMatch(/^node v\d+/)
   })
+
+  it('is bit-identical to the committed golden on this engine (Plan 8 wind gate)', () => {
+    // Plan 8 threads a wind through `step`. The null-wind path must be the
+    // exact code that recorded this file, not merely within tolerance of it.
+    // If this ever fails while the tolerance case above passes, a physics
+    // path changed under the flag that says it did not.
+    const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as GoldenTrajectory
+    expect(recordTrajectory(f6f).checkpoints).toEqual(golden.checkpoints)
+  })
 })
