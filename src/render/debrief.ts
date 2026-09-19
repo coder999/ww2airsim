@@ -128,6 +128,9 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
   const panel = document.createElement('div')
   panel.setAttribute('role', 'dialog')
   panel.setAttribute('aria-modal', 'true')
+  // Named so a test (or a screen reader) can tell this dialog from the Plan 14
+  // navigation chart, which is a second role="dialog" on the same page.
+  panel.setAttribute('aria-label', 'Debrief')
   panel.style.cssText =
     'min-width:340px;max-width:560px;padding:18px 20px;border:1px solid #2b3440;' +
     'border-radius:6px;background:#eceff3;color:#151b22;' +

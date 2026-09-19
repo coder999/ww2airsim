@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { Ww2Diagnostics } from '../../src/render/diagnostics.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 
@@ -34,6 +34,15 @@ export function spawnUrl(position: { x: number; y: number; z: number }): string 
  * and it is the only such signal the app exposes: `tick()` advances from the
  * first frame, seconds earlier.
  */
+/**
+ * The impact/landing debrief. Locate it by name: since Plan 14 the navigation
+ * chart is a second `role="dialog"` on the page, so a bare role selector is a
+ * strict-mode violation.
+ */
+export function debriefDialog(page: Page): Locator {
+  return page.getByRole('dialog', { name: 'Debrief' })
+}
+
 export async function waitForTerrain(page: Page): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,

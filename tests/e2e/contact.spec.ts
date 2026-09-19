@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
  * Tier 2, contact. Same platform and caveats as `adapter.spec.ts`.
@@ -22,10 +22,10 @@ test('going into the sea ends the flight and raises the debrief', async ({ page 
   // Nose down, throttle closed, and wait: 120 m over open water at a steep
   // dive arrives in a few seconds.
   await page.keyboard.down('ArrowUp')
-  await page.waitForSelector('[role="dialog"]', { timeout: 20000 })
+  await debriefDialog(page).waitFor({ timeout: 20000 })
   await page.keyboard.up('ArrowUp')
 
-  const text = await page.locator('[role="dialog"]').innerText()
+  const text = await debriefDialog(page).innerText()
   expect(text).toContain('KILLED')
   expect(text).toContain('sea')
 
@@ -38,11 +38,11 @@ test('restart puts a fresh airplane back in the air', async ({ page }) => {
   await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
   await waitForTerrain(page)
   await page.keyboard.down('ArrowUp')
-  await page.waitForSelector('[role="dialog"]', { timeout: 20000 })
+  await debriefDialog(page).waitFor({ timeout: 20000 })
   await page.keyboard.up('ArrowUp')
 
   await page.getByRole('button', { name: 'Restart' }).click()
-  await expect(page.locator('[role="dialog"]')).toBeHidden()
+  await expect(debriefDialog(page)).toBeHidden()
 
   const after = await page.evaluate(() => (window as DiagWindow).__ww2?.impact() ?? null)
   expect(after).toBeNull()

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
  * Tier 2 is `src/audio/webAudio.ts`'s only coverage, on purpose: the vitest
@@ -103,14 +103,14 @@ test('going into the sea fires ONE cue, and a restart fires none', async ({ page
   expect(await cues(), 'nothing should have fired merely by spawning').toBe(0)
 
   await page.keyboard.down('ArrowUp')
-  await page.waitForSelector('[role="dialog"]', { timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 20_000 })
   await page.keyboard.up('ArrowUp')
   await expect.poll(cues, { timeout: 10_000 }).toBe(1)
 
   // Restart puts a fresh airplane on the ground. The previous flight ended
   // AIRBORNE, so without the tick-backwards reset in cues.ts that parked spawn
   // reads as a false -> true transition and squeaks.
-  await page.locator('[role="dialog"] button').first().click()
+  await debriefDialog(page).getByRole('button', { name: 'Restart' }).click()
   await page.waitForTimeout(4000)
   expect(await cues(), 'a respawn is not a landing').toBe(1)
 })

@@ -6,11 +6,11 @@ import {
   chartBounds,
   courseLabel,
   courseTo,
+  labelPlacements,
   CLOSED_NAVIGATION_MAP,
   closeNavigationMap,
   openNavigationMap,
   selectNavigationDestination,
-
   mapPoints,
   projectPoint,
   selectedPoint,
@@ -92,6 +92,50 @@ describe('the Plan 14 navigation chart model', () => {
     expect(selectedPoint(points, 'ship:dd-1')).toBeNull()
     expect(selectedPoint(points, 'gone')).toBeNull()
     expect(selectedPoint(points, null)).toBeNull()
+  })
+
+  it('stacks captions only where they would overlap and keeps every caption inside the chart', () => {
+    const height = 520
+    const at = (x: number, y: number, label = 'label'): { x: number; y: number; label: string } => ({ x, y, label })
+    const apart = labelPlacements([at(100, 100), at(400, 300)], height)
+    expect(apart.map((caption) => caption.y)).toEqual([91, 291])
+
+    // A short caption beside a longer one to its right does not stack: no overlap.
+    const beside = labelPlacements([at(100, 100, 'YOU'), at(160, 104, 'Essex-class fleet carrier')], height)
+    expect(beside.map((caption) => caption.y)).toEqual([91, 95])
+
+    // Three spawns on one spot near the top edge: the free-flight parking case.
+    const top = labelPlacements([at(100, 30), at(100, 30), at(100, 30)], height)
+    const topYs = top.map((caption) => caption.y)
+    expect(new Set(topYs).size).toBe(3)
+    for (const y of topYs) expect(y).toBeGreaterThanOrEqual(12)
+    for (let i = 1; i < topYs.length; i++) expect(Math.abs(topYs[i]! - topYs[i - 1]!)).toBeGreaterThanOrEqual(18)
+
+    // The same cluster on the bottom edge steps upward instead of leaving the chart.
+    const bottom = labelPlacements([at(100, 512), at(100, 512), at(100, 512)], height)
+    for (const caption of bottom) {
+      expect(caption.y).toBeLessThanOrEqual(height - 4)
+      expect(caption.y).toBeGreaterThanOrEqual(12)
+    }
+    expect(new Set(bottom.map((caption) => caption.y)).size).toBe(3)
+
+    // The real world: every caption fits the chart, and the wingman, parked on
+    // the player's spot, is captioned within three lines of the player.
+    const points = mapPoints(world)
+    const bounds = chartBounds(points)
+    const live = labelPlacements(
+      points.map((point) => ({ ...projectPoint(point, bounds, 800, height), label: point.label })),
+      height,
+    )
+    expect(live).toHaveLength(points.length)
+    for (const caption of live) {
+      expect(caption.y).toBeGreaterThanOrEqual(12)
+      expect(caption.y).toBeLessThanOrEqual(height - 4)
+    }
+    const playerIndex = points.findIndex((point) => point.kind === 'player')
+    const wingmanIndex = points.findIndex((point) => point.kind === 'aircraft')
+    expect(wingmanIndex).toBeGreaterThan(-1)
+    expect(Math.abs(live[wingmanIndex]!.y - live[playerIndex]!.y)).toBeLessThanOrEqual(3 * 18)
   })
 
   it('preserves a running or manually paused frame state across a chart modal', () => {

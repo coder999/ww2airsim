@@ -175,6 +175,48 @@ export type MissionMapOptions = {
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const CHART_WIDTH = 800
 const CHART_HEIGHT = 520
+const LABEL_DX = 10
+const LABEL_FIRST_DY = -9
+const LABEL_LINE_PX = 18
+const LABEL_CHAR_PX = 9.5
+const LABEL_EDGE_PX = 4
+
+export type LabelPlacement = { readonly x: number; readonly y: number }
+
+/**
+ * Caption anchors for markers in draw order. Scenario spawns frequently share
+ * an exact start position (the player, its wingman and the airfield they sit
+ * on), so a caption whose estimated text box overlaps an already placed one
+ * steps down a line; if that would leave the chart it steps up instead.
+ * Width is estimated from the label length at the chart's 15 px monospace
+ * face, generously, so a caption only stacks when it would really overlap
+ * and otherwise stays beside its own marker. Marker positions never move.
+ */
+export function labelPlacements(
+  captions: readonly (ChartProjection & { readonly label: string })[],
+  height: number,
+): readonly LabelPlacement[] {
+  const placed: (LabelPlacement & { readonly width: number })[] = []
+  const collides = (x: number, y: number, width: number): boolean =>
+    placed.some(
+      (other) => x < other.x + other.width && other.x < x + width && Math.abs(other.y - y) < LABEL_LINE_PX,
+    )
+  for (const caption of captions) {
+    const x = caption.x + LABEL_DX
+    const width = caption.label.length * LABEL_CHAR_PX
+    const base = caption.y + LABEL_FIRST_DY
+    let y = base
+    let step = 0
+    while (collides(x, y, width) && y + LABEL_LINE_PX <= height - LABEL_EDGE_PX) y = base + LABEL_LINE_PX * ++step
+    if (y + LABEL_LINE_PX > height - LABEL_EDGE_PX || collides(x, y, width)) {
+      y = base
+      step = 0
+      while (collides(x, y, width)) y = base - LABEL_LINE_PX * ++step
+    }
+    placed.push({ x, y, width })
+  }
+  return placed
+}
 
 const svgElement = (name: string): SVGElement => document.createElementNS(SVG_NS, name)
 
@@ -232,9 +274,13 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
   instruction.textContent = 'Select an airfield or carrier for course and range. North is up.'
   panel.appendChild(instruction)
 
-  const drawMarker = <M>(world: World<M>, point: MapPoint, selectedId: string | null): void => {
-    const points = mapPoints(world)
-    const projection = projectPoint(point, chartBounds(points), CHART_WIDTH, CHART_HEIGHT)
+  const drawMarker = <M>(
+    world: World<M>,
+    point: MapPoint,
+    projection: ChartProjection,
+    caption: LabelPlacement,
+    selectedId: string | null,
+  ): void => {
     const marker = svgElement('g')
     const selected = point.id === selectedId
     const color =
@@ -258,6 +304,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       })
     } else {
       marker.setAttribute('aria-label', point.label)
+      marker.setAttribute('pointer-events', 'none')
     }
 
     const dot = svgElement(point.kind === 'airfield' ? 'rect' : 'circle')
@@ -277,14 +324,15 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     marker.appendChild(dot)
 
     const label = svgElement('text')
-    label.setAttribute('x', String(projection.x + 10))
-    label.setAttribute('y', String(projection.y - 9))
+    label.setAttribute('x', String(caption.x))
+    label.setAttribute('y', String(caption.y))
     label.setAttribute('fill', '#f2f7fb')
+    label.setAttribute('pointer-events', 'none')
     label.setAttribute('font-size', '15')
     label.setAttribute('font-weight', point.kind === 'player' || selected ? '700' : '400')
     label.textContent = point.label
-    marker.appendChild(label)
     svg.appendChild(marker)
+    svg.appendChild(label)
   }
 
   const draw = <M>(world: World<M>, selectedId: string | null): void => {
@@ -319,14 +367,26 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       detail.textContent = 'Select a friendly recovery point.'
     }
 
-    for (const point of points) drawMarker(world, point, selected?.id ?? null)
+    const projections = points.map((point) => projectPoint(point, bounds, CHART_WIDTH, CHART_HEIGHT))
+    const captions = labelPlacements(
+      projections.map((projection, index) => ({ ...projection, label: points[index]!.label })),
+      CHART_HEIGHT,
+    )
+    points.forEach((point, index) => drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null))
   }
+  let shownTick: number | null = null
+  let shownSelectedId: string | null = null
 
   return {
     show<M>(world: World<M>, selectedId: string | null): void {
-      draw(world, selectedId)
+      const wasHidden = backdrop.style.display === 'none'
+      if (shownTick !== world.tick || shownSelectedId !== selectedId) {
+        draw(world, selectedId)
+        shownTick = world.tick
+        shownSelectedId = selectedId
+      }
       backdrop.style.display = 'flex'
-      close.focus()
+      if (wasHidden) close.focus()
     },
     hide(): void {
       backdrop.style.display = 'none'
