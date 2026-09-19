@@ -2,7 +2,10 @@ import { createDepthField } from '../../../src/render/ocean/depth.js'
 // tests/render/ocean/mesh.test.ts
 import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
-import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, meshFadeWeight, screenFadeWeight, landWeightFromTerrain, pixelFootprintM } from '../../../src/render/ocean/mesh.js'
+import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, meshFadeWeight, screenFadeWeight, landWeightFromTerrain, landWeightAt, gridSampleAt, textureSamples, pixelFootprintM } from '../../../src/render/ocean/mesh.js'
+import { OUTSIDE_DEPTH_M } from '../../../src/render/ocean/depth.js'
+import { FINEST_FETCHED_LEVEL } from '../../../src/render/content.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../../tools/terrain/load.js'
 import { ANGULAR_FADE_SAMPLES_PER_WAVELENGTH, FADE_FOOTPRINT_RATIO, angularFadeSpacingM } from '../../../src/render/ocean/bands.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
 
@@ -382,5 +385,55 @@ describe('the fade spans enough distance to be a gradient', () => {
     // the 1.41x span that read as a ring.
     const { fadeFromM, goneAtM } = angularFadeSpacingM(4)
     expect(fadeFromM).toBeLessThan(goneAtM / 2)
+  })
+})
+
+describe('the land-weight grid sampler', () => {
+  // A synthetic field that any grid resolution can reproduce exactly: height
+  // is linear in x and z, so bilinear sampling of a 5-wide and a 17-wide grid
+  // over the same box must agree everywhere, not just at shared nodes.
+  const h = 1000
+  const linear = (n: number): Float32Array => {
+    const out = new Float32Array(n * n)
+    for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
+      const x = -h + (2 * h * ix) / (n - 1), z = -h + (2 * h * iz) / (n - 1)
+      out[iz * n + ix] = 0.01 * x + 0.002 * z
+    }
+    return out
+  }
+
+  it('reads the same world point from grids of different resolution', () => {
+    const coarse = linear(5), fine = linear(17)
+    for (const [x, z] of [[0, 0], [123, -456], [-999, 999], [1000, -1000]] as const) {
+      expect(gridSampleAt(fine, 17, h, x, z, true)).toBeCloseTo(gridSampleAt(coarse, 5, h, x, z, true), 6)
+      expect(gridSampleAt(fine, 17, h, x, z, true)).toBeCloseTo(0.01 * x + 0.002 * z, 6)
+    }
+  })
+
+  it('refuses a grid whose length does not match the sample count it is indexed by', () => {
+    // The 2026-09-18 regression in one line: a 17x17 grid indexed as 5 wide.
+    expect(() => gridSampleAt(linear(17), 5, h, 0, 0, true)).toThrow(/is not 5x5/)
+    expect(() => textureSamples({ image: { width: 2049, height: 513, data: new Int16Array(0) } } as never)).toThrow(/square/)
+  })
+
+  it('is outside beyond the box and clamps to water unless asked for the sign', () => {
+    expect(gridSampleAt(linear(5), 5, h, h + 1, 0)).toBe(OUTSIDE_DEPTH_M)
+    expect(gridSampleAt(linear(5), 5, h, 500, 0)).toBe(0)
+    expect(gridSampleAt(linear(5), 5, h, 500, 0, true)).toBeCloseTo(5, 6)
+  })
+
+  it('weights the real shipped terrain level: open gulf 1, Tacloban 0', () => {
+    // The level the ocean is actually handed (main.ts), read the way the
+    // texture would be built from it. This is the case that would have
+    // failed on 2026-09-18 had it existed: 2049 samples indexed as 513.
+    const header = loadTerrainHeader()
+    const level = loadTerrainLevel(FINEST_FETCHED_LEVEL, header)
+    const n = Math.sqrt(level.length)
+    expect(n).toBe(2049)
+    const texture = { image: { width: n, height: n, data: level } }
+    expect(landWeightAt(texture, header.halfExtentM, 0, 0)).toBe(1)
+    expect(landWeightAt(texture, header.halfExtentM, -29666, -47605)).toBe(0)
+    // Indexed by the GEBCO field's 513, the same lookups read the wrong place.
+    expect(() => gridSampleAt(level, 513, header.halfExtentM, 0, 0, true)).toThrow()
   })
 })

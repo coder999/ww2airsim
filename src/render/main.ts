@@ -26,8 +26,8 @@ import {
   worldOffsetFor,
   type FrameState, withPaused, acknowledgeLanding,
 } from './frame.js'
-import { createOcean, recentreOcean } from './ocean/mesh.js'
-import { loadDepth } from './ocean/depth.js'
+import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
+import { loadDepth, type DepthField } from './ocean/depth.js'
 import { DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from './ocean/weather.js'
 import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
 import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tiers.js'
@@ -155,6 +155,9 @@ async function boot(): Promise<void> {
   // well down this function. See the hook's own comment for why that ordering
   // matters and is not just tidiness.
   let cascades: OceanCompute[] = []
+  // `let` for the same temporal-dead-zone reason as `spawnPosition` above: the
+  // diagnostics hook's `oceanLandWeight` closes over it before `loadDepth` resolves.
+  let oceanDepth: DepthField | null = null
   const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
   let oceanTier = forcedOceanTier ?? OCEAN_TIERS[0]
   let frame: FrameState | null = null
@@ -206,6 +209,10 @@ async function boot(): Promise<void> {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
       oceanTier: () => oceanTier.name,
+      oceanLandWeight: (x, z) => {
+        if (!oceanDepth) return null
+        return landWeightAt(terrain.levelTexture(FINEST_FETCHED_LEVEL), oceanDepth.header.halfExtentM, x, z)
+      },
       oceanComputeTimesMs: () => cascades.map(c => c.computeTimesMs()),
       oceanDisplacementSample: async (index) => {
         const cascade = cascades[index]
@@ -451,7 +458,7 @@ async function boot(): Promise<void> {
   )
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
-  const oceanDepth = await loadDepth()
+  oceanDepth = await loadDepth()
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
   scene.add(water)
   let qualityChecked = false
@@ -471,7 +478,7 @@ async function boot(): Promise<void> {
     const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
     const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
     if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
-    const replacement = createOcean(oceanDepth,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL))
+    const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL))
     scene.remove(water)
     water.userData.disposeOcean()
     cascades.forEach(c=>c.dispose())

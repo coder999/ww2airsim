@@ -208,6 +208,12 @@ export type Ww2Diagnostics = {
    *  simulation or the renderer reads, unlike the `FrameState` setter
    *  `assists` above deliberately does not offer. */
   readonly oceanTier: () => string
+  /** `landWeightFromTerrain` at world (x, z), read on the CPU from the SAME
+   *  terrain texture the ocean mesh samples for its land weight. 1 over
+   *  open water, 0 on land, `null` before the ocean exists. Added
+   *  2026-09-18 after the waves vanished for a texture-size mismatch that no
+   *  test could see (ocean/mesh.ts `depthNode`). */
+  readonly oceanLandWeight: (x: number, z: number) => number | null
   /** Separate GPU compute-pass costs, one sample list per active cascade. */
   readonly oceanComputeTimesMs: () => readonly (readonly number[])[]
   readonly oceanDisplacementSample: (cascade: number) => Promise<{

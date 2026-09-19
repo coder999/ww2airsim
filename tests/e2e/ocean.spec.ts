@@ -76,6 +76,20 @@ for (const tier of ['high','medium','low']) {
       return samples
     })
     expect(samples).toHaveLength(tier === 'high' ? 3 : tier === 'medium' ? 2 : 1)
+    // The land weight the mesh multiplies its displacement by, read from the
+    // SAME terrain texture the ocean was handed. 1 over the open gulf; it
+    // read 0 there from 2026-09-18 11:00 (L2 shipped, `eef5b4d`) until the
+    // sampler took its size from the texture, and no test noticed the sea go
+    // flat because every other ocean assertion reads the FFT output, not the
+    // mesh. The Tacloban runway is the control: land, weight 0.
+    const landWeight = await page.evaluate(() => {
+      const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!
+      return { gulf: d.oceanLandWeight(0, 0), tacloban: d.oceanLandWeight(-29666, -47605) }
+    })
+    expect(landWeight.gulf).toBe(1)
+    // Not exactly 0: the render texture carries the runway flattening, so the
+    // strip reads about 1.85 m against the 2 m fade, i.e. a weight near 0.02.
+    expect(landWeight.tacloban).toBeLessThan(0.1)
     for (const sample of samples) {
       expect(sample).not.toBeNull()
       expect(sample!.timeS).toBe(17)

@@ -94,8 +94,23 @@ export function oceanGeometry(rings: readonly Ring[]): BufferGeometry {
   return geometry
 }
 
-function depthNode(field: DepthField, tex: DataTexture, worldXZ: Node<'vec2'>, signed = false): Node<'float'> {
-  const { samples: n, halfExtentM: h } = field.header
+/**
+ * Bilinear sample of a square, node-centred grid texture covering the
+ * `[-h, h]` box, at world `worldXZ`. The sample count is the TEXTURE'S OWN
+ * width, never a count carried in from somewhere else: until 2026-09-18 this
+ * read `field.header.samples` for every texture it was handed, which was
+ * right only while the terrain texture happened to be the same L4 grid as
+ * the GEBCO field. The day `FINEST_FETCHED_LEVEL` went 4 -> 2 (`eef5b4d`)
+ * the terrain texture became 2049 wide, this kept indexing it as 513, every
+ * land-weight lookup landed a quarter of the way across the box -- over Leyte
+ * for most of the gulf -- and the waves silently vanished. `gridSampleAt`
+ * below is the CPU statement of these lines; `oceanLandWeight` in the
+ * diagnostics hook reads it against the live texture, and the ocean Tier 2
+ * scene test asserts it over open water.
+ */
+function depthNode(halfExtentM: number, tex: DataTexture, worldXZ: Node<'vec2'>, signed = false): Node<'float'> {
+  const n = textureSamples(tex)
+  const h = halfExtentM
   const col = clamp(worldXZ.x.add(h).div(2 * h).mul(n - 1), 0, n - 1)
   const row = clamp(worldXZ.y.add(h).div(2 * h).mul(n - 1), 0, n - 1)
   const x0 = floor(col), z0 = floor(row)
@@ -107,6 +122,40 @@ function depthNode(field: DepthField, tex: DataTexture, worldXZ: Node<'vec2'>, s
   const value = signed ? interpolated : min(0, interpolated)
   const inside = worldXZ.x.abs().lessThanEqual(h).and(worldXZ.y.abs().lessThanEqual(h))
   return inside.select(value, float(OUTSIDE_DEPTH_M))
+}
+
+/** The side of a square grid texture, or a throw: a non-square texture has no single sample count to index by. */
+export function textureSamples(tex: Pick<DataTexture, 'image'>): number {
+  const { width, height } = tex.image
+  if (!(width > 0) || width !== height) throw new Error(`ocean: expected a square grid texture, got ${width}x${height}`)
+  return width
+}
+
+/**
+ * CPU statement of `depthNode`: the same bilinear sample of a square grid
+ * of `n` per side over `[-h, h]`, `OUTSIDE_DEPTH_M` beyond it. `signed`
+ * keeps positive (land) values, as the terrain lookup needs; the default
+ * clamps to water like the depth lookup does.
+ */
+export function gridSampleAt(values: ArrayLike<number>, n: number, halfExtentM: number, x: number, z: number, signed = false): number {
+  const h = halfExtentM
+  if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > h || Math.abs(z) > h) return OUTSIDE_DEPTH_M
+  if (values.length !== n * n) throw new Error(`ocean: grid of ${values.length} values is not ${n}x${n}`)
+  const col = Math.min(Math.max((x + h) / (2 * h) * (n - 1), 0), n - 1)
+  const row = Math.min(Math.max((z + h) / (2 * h) * (n - 1), 0), n - 1)
+  const x0 = Math.floor(col), z0 = Math.floor(row)
+  const x1 = Math.min(x0 + 1, n - 1), z1 = Math.min(z0 + 1, n - 1)
+  const at = (ix: number, iz: number): number => values[iz * n + ix]!
+  const north = at(x0, z0) + (at(x1, z0) - at(x0, z0)) * (col - x0)
+  const south = at(x0, z1) + (at(x1, z1) - at(x0, z1)) * (col - x0)
+  const value = north + (south - north) * (row - z0)
+  return signed ? value : Math.min(0, value)
+}
+
+/** `landWeightFromTerrain` at a world position, read from the terrain grid the ocean was given. */
+export function landWeightAt(terrain: Pick<DataTexture, 'image'>, halfExtentM: number, x: number, z: number): number {
+  const n = textureSamples(terrain)
+  return landWeightFromTerrain(gridSampleAt(terrain.image.data as ArrayLike<number>, n, halfExtentM, x, z, true))
 }
 
 /**
@@ -357,6 +406,7 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   // rows -- what `CAMERA_VFOV_DEG` and a common viewport give -- so a caller
   // that never calls `recentreOcean` still gets a sane fade rather than none.
   const pixelAngle = uniform(((60 * Math.PI) / 180) / 1080)
+  if (terrainTexture) textureSamples(terrainTexture)
   const tex = new DataTexture(Float32Array.from(field.samples), field.header.samples, field.header.samples, RedFormat, FloatType)
   tex.minFilter = tex.magFilter = NearestFilter
   tex.needsUpdate = true
@@ -369,10 +419,10 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   // -height)` -- see `landWeightFromTerrain` above, which is the CPU statement
   // of this line and carries why the old form was zero over all water.
   const landWeight = terrainTexture
-    ? float(1).sub(smoothstep(0, SHORELINE_FADE_M, depthNode(field, terrainTexture, vertexWorld, true)))
+    ? float(1).sub(smoothstep(0, SHORELINE_FADE_M, depthNode(field.header.halfExtentM, terrainTexture, vertexWorld, true)))
     : float(1)
   // Positive metres of water under this vertex.
-  const waterM = depthNode(field, tex, vertexWorld).negate()
+  const waterM = depthNode(field.header.halfExtentM, tex, vertexWorld).negate()
   // `pixelFootprintM` above, as nodes. ONE expression, evaluated in both the
   // vertex and the fragment stage, so a cascade's two transitions become one.
   // The MESH's angular spacing -- what limits the vertex stage, which can only
@@ -422,7 +472,7 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   material.positionNode = displacedPosition
   // Geometry follows the eye, but the texture samples fixed world positions.
   const worldXZ = varying(positionLocal.xz).add(camera)
-  const depth = depthNode(field, tex, worldXZ)
+  const depth = depthNode(field.header.halfExtentM, tex, worldXZ)
   const waterColour = mix(color(SHALLOW_WATER_COLOUR), color(DEEP_WATER_COLOUR), smoothstep(0, DEEP_COLOUR_DEPTH_M, depth.negate()))
   let slopes: Node<'vec2'> = camera.mul(0)
   let foam: Node<'float'> = float(0)
