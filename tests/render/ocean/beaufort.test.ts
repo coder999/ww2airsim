@@ -1,6 +1,6 @@
 // tests/render/ocean/beaufort.test.ts
 import { describe, expect, it } from 'vitest'
-import { BEAUFORT_MAX, BEAUFORT_MIN, windSpeedMps, wmoWaveHeightM } from '../../../src/render/ocean/beaufort.js'
+import { BEAUFORT_MAX, BEAUFORT_MIN, beaufortFromWindMps, windSpeedMps, wmoWaveHeightM } from '../../../src/render/ocean/beaufort.js'
 
 describe('the Beaufort scale', () => {
   it('is monotonic in wind speed across the whole scale', () => {
@@ -28,5 +28,17 @@ describe('the Beaufort scale', () => {
     expect(() => windSpeedMps(-1)).toThrow(/0 and 12/)
     expect(() => windSpeedMps(4.5)).toThrow(/integer/)
     expect(() => windSpeedMps(Number.NaN)).toThrow()
+  })
+})
+
+describe('beaufortFromWindMps (Plan 8)', () => {
+  it('picks the nearest force by representative speed, so 15 kn is force 4, the shipped default', () => {
+    expect(beaufortFromWindMps(0)).toBe(0)
+    expect(beaufortFromWindMps(7.717)).toBe(4)
+    expect(beaufortFromWindMps(9.4)).toBe(5)
+    expect(beaufortFromWindMps(12.3)).toBe(6)
+    expect(beaufortFromWindMps(100)).toBe(12)
+    expect(() => beaufortFromWindMps(NaN)).toThrow()
+    expect(() => beaufortFromWindMps(-1)).toThrow()
   })
 })

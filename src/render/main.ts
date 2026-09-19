@@ -29,7 +29,8 @@ import {
 } from './frame.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
-import { DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from './ocean/weather.js'
+import { beaufortFromQuery, oceanTimeFromQuery } from './ocean/weather.js'
+import { beaufortFromWindMps } from './ocean/beaufort.js'
 import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
 import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tiers.js'
 import { cascadeOptions } from './ocean/bands.js'
@@ -145,8 +146,6 @@ async function boot(): Promise<void> {
    * found live in the deployed bundle on 2026-09-18.
    */
   let spawnPosition: Vec3 | null = null
-
-  const beaufort = import.meta.env.DEV ? beaufortFromQuery(window.location.search) : DEFAULT_BEAUFORT
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
@@ -399,6 +398,13 @@ async function boot(): Promise<void> {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
   }
+
+  // Sea state from the scenario's wind (Plan 8), with the DEV `?beaufort=`
+  // override winning when present. Below the bundle on purpose: the wind is
+  // scenario content.
+  const beaufort =
+    (import.meta.env.DEV ? beaufortFromQuery(window.location.search) : undefined) ??
+    beaufortFromWindMps(bundle.scenario.weather.windMps)
 
   // The scenario says where the player is parked; a DEV `?spawnX/Y/Z` moves
   // it into the air instead (spawn.ts). The airplane is then not `parked`, so

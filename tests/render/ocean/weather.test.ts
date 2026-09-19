@@ -1,10 +1,10 @@
 // tests/render/ocean/weather.test.ts
 import { describe, expect, it } from 'vitest'
-import { BEAUFORT_PARAM, DEFAULT_BEAUFORT, beaufortFromQuery, oceanTimeFromQuery } from '../../../src/render/ocean/weather.js'
+import { BEAUFORT_PARAM, beaufortFromQuery, oceanTimeFromQuery } from '../../../src/render/ocean/weather.js'
 
 describe('beaufortFromQuery', () => {
-  it('defaults when the parameter is absent', () => {
-    expect(beaufortFromQuery('')).toBe(DEFAULT_BEAUFORT)
+  it('is undefined when the parameter is absent, so scenario weather can decide', () => {
+    expect(beaufortFromQuery('')).toBeUndefined()
   })
 
   it('reads an in-range force', () => {

@@ -28,4 +28,28 @@ describe('createShipMesh', () => {
       })
     })
   }
+
+  it('the carrier deck plane sits exactly at flightDeck.heightM with the flight deck dimensions, and carries a trap band (Plan 8)', () => {
+    const cv = loadShipSpec('essex-cv')
+    const mesh = createShipMesh(cv)
+    const plane = mesh.getObjectByName('flight deck') as Mesh
+    expect(plane).toBeDefined()
+    plane.geometry.computeBoundingBox()
+    const box = plane.geometry.boundingBox!
+    // Local: bow along +x, waterline at y = 0. The TOP of the slab is the deck height.
+    expect(box.max.y + plane.position.y).toBeCloseTo(cv.flightDeck!.heightM, 6)
+    // Precision 4, not 6: BoxGeometry stores vertices in a Float32Array, and
+    // at these magnitudes (131.35 m half-length) that alone rounds off by
+    // ~1.2e-5 m -- verified with Math.fround(262.7 / 2), independent of this
+    // module's implementation. Still 0.05 mm, far tighter than a real bug.
+    expect(box.max.x - box.min.x).toBeCloseTo(cv.flightDeck!.lengthM, 4)
+    expect(box.max.z - box.min.z).toBeCloseTo(cv.flightDeck!.widthM, 4)
+    const band = mesh.getObjectByName('trap zone') as Mesh
+    band.geometry.computeBoundingBox()
+    const bb = band.geometry.boundingBox!
+    // From the stern (-x) forward: fromSternM..toSternM.
+    expect(bb.min.x + band.position.x).toBeCloseTo(-cv.flightDeck!.lengthM / 2 + cv.trapZone!.fromSternM, 6)
+    expect(bb.max.x + band.position.x).toBeCloseTo(-cv.flightDeck!.lengthM / 2 + cv.trapZone!.toSternM, 6)
+    expect(bb.max.y + band.position.y).toBeGreaterThan(cv.flightDeck!.heightM)
+  })
 })
