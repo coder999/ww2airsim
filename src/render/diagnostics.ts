@@ -6,6 +6,7 @@ import type { LookOffset } from '../input/lookAround.js'
 import type { AssistSettings } from '../assists/index.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
+import type { PaddlesCue } from '../sim/paddles.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -214,6 +215,12 @@ export type Ww2Diagnostics = {
    *  2026-09-18 after the waves vanished for a texture-size mismatch that no
    *  test could see (ocean/mesh.ts `depthNode`). */
   readonly oceanLandWeight: (x: number, z: number) => number | null
+  /** The LSO cue for the player, or `null` when there is nothing to signal (Plan 8). */
+  readonly paddles: () => PaddlesCue | null
+  /** The deck under the player's wheels, or `null` (Plan 8). */
+  readonly deck: () => { readonly shipId: string; readonly heightM: number; readonly velocity: Vec3 } | null
+  /** The world wind, the velocity of the air; `null` is calm (Plan 8). */
+  readonly wind: () => Vec3 | null
   /** Separate GPU compute-pass costs, one sample list per active cascade. */
   readonly oceanComputeTimesMs: () => readonly (readonly number[])[]
   readonly oceanDisplacementSample: (cascade: number) => Promise<{

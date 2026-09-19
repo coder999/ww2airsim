@@ -13,6 +13,7 @@ import { audioInputsFrom } from './audio.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
+import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
@@ -47,8 +48,11 @@ import { loadScenarioBundle } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
-import { heightAt, type TerrainField } from '../sim/world/terrain.js'
+import type { TerrainField } from '../sim/world/terrain.js'
 import { supportedContact } from '../sim/ground.js'
+import { groundUnder } from '../sim/world/ground.js'
+import { deckOf, decksOf } from '../sim/world/deck.js'
+import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
 import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -163,6 +167,27 @@ async function boot(): Promise<void> {
   let oceanTier = forcedOceanTier ?? OCEAN_TIERS[0]
   let frame: FrameState | null = null
 
+  // Declared here rather than beside `frameFn` further down, for the same
+  // temporal-dead-zone reason as `spawnPosition` and `cascades` above: the
+  // diagnostics hook's `paddles` getter, installed a few lines below, closes
+  // over this `const` before `paddlesFor` -- not just `frame` -- would
+  // otherwise be defined, and a hoisted `const` read from its temporal dead
+  // zone is exactly the fault this file was shipped with once already
+  // (`vegetation`'s comment, 2026-09-18). It needs nothing this early: only
+  // the imports `playerAircraft`, `deckOf` and `paddlesCue`, plus whatever
+  // `FrameState` it is handed later.
+  /** The LSO's cue for the player this frame, from the first carrier with paddles parameters. */
+  const paddlesFor = (f: FrameState): PaddlesCue | null => {
+    const player = playerAircraft(f.world)
+    for (const ship of f.world.ships) {
+      if (ship.spec.paddles === undefined) continue
+      const deck = deckOf(ship)
+      if (deck === null) continue
+      return paddlesCue(player.spec, player.state, f.controls, deck, ship.spec.paddles, f.world.wind)
+    }
+    return null
+  }
+
   // Tier 2 diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
   // a production build: `import.meta.env.DEV` is replaced with the literal
   // `false` by Vite at build time, and esbuild's dead-code elimination drops
@@ -241,9 +266,10 @@ async function boot(): Promise<void> {
       // now, which should read 0 over open water and hundreds of metres over
       // Leyte.
       groundHeightM: () => {
-        if (!frame?.world.terrain) return null
+        if (!frame) return null
         const { position } = playerAircraft(frame.world).state
-        return heightAt(frame.world.terrain, position.x, position.z)
+        const g = groundUnder(frame.world.terrain, decksOf(frame.world.ships), position.x, position.z)
+        return g?.heightM ?? null
       },
       // Same `??`-guard as the rest: before the scenario resolves there is no
       // frame, and the spawn is where the airplane WILL be, so that is the
@@ -278,14 +304,23 @@ async function boot(): Promise<void> {
       // because `supportedContact` is a pure predicate and `World` does not
       // carry its result -- see the comment on this member in diagnostics.ts.
       supportedContact: () => {
-        if (!frame?.world.terrain) return false
+        if (!frame) return false
         const { spec: playerSpec, state } = playerAircraft(frame.world)
-        return supportedContact(
-          playerSpec,
-          state,
-          heightAt(frame.world.terrain, state.position.x, state.position.z),
-        )
+        const g = groundUnder(frame.world.terrain, decksOf(frame.world.ships), state.position.x, state.position.z)
+        if (g === null) return false
+        return supportedContact(playerSpec, state, g.heightM, g.surface, g.velocity)
       },
+      // The LSO cue for the player, or `null` when there is nothing to signal (Plan 8).
+      paddles: () => (frame ? paddlesFor(frame) : null),
+      // The deck under the player's wheels, or `null` (Plan 8).
+      deck: () => {
+        if (!frame) return null
+        const p = playerAircraft(frame.world).state
+        const g = groundUnder(frame.world.terrain, decksOf(frame.world.ships), p.position.x, p.position.z)
+        return g?.deck ? { shipId: g.deck.shipId, heightM: g.heightM, velocity: g.velocity } : null
+      },
+      // The world wind, the velocity of the air; `null` is calm (Plan 8).
+      wind: () => frame?.world.wind ?? null,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation
@@ -568,6 +603,7 @@ async function boot(): Promise<void> {
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
   const pauseBadge = createPauseBadge(root)
+  const paddlesBadge = createPaddlesBadge(root)
   // Restart rebuilds the frame from the scenario rather than tearing anything
   // down: `worldFromScenario` and `initialFrameStateFor` are both pure, so the
   // renderer, the terrain and the ocean cascades all survive untouched -- and
@@ -900,6 +936,7 @@ async function boot(): Promise<void> {
     flightData.update(current.cameraMode, spec, player.state, current.controls)
     timeBadge.setScale(current.timeScale)
     pauseBadge.setPaused(current.paused)
+    paddlesBadge.setCue(paddlesFor(current))
 
     // Raised once per contact -- `shownImpactTick` is the guard, since the
     // player's `impact` stays non-null every frame after the airplane stops,
