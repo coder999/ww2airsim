@@ -49,6 +49,15 @@ describe('ship content', () => {
     delete noBeam.beamM
     expect(() => parseShipSpec(noBeam)).toThrow(/beamM/)
   })
+
+  it('carries the sourced flight deck, trap zone and paddles blocks on the carrier and none on the escort', () => {
+    const raw = JSON.parse(JSON.stringify(cv)) as Record<string, unknown>
+    expect(cv.flightDeck).toEqual({ lengthM: 262.7, widthM: 32.9, heightM: 17 })
+    expect(cv.trapZone).toEqual({ fromSternM: 30, toSternM: 130 })
+    expect(cv.paddles).toBeDefined()
+    expect(dd.flightDeck).toBeUndefined()
+    expect(() => parseShipSpec({ ...raw, trapZone: { fromSternM: 130, toSternM: 30 } })).toThrow(/toSternM/)
+  })
 })
 
 describe('heading convention (spec §5.2)', () => {

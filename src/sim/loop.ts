@@ -1,13 +1,16 @@
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { DT, step } from './flight/model.js'
-import { heightAt, type TerrainField } from './world/terrain.js'
+import type { TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
-import { surfaceAt, contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
+import { contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 import { supportedContact } from './ground.js'
 import type { ShipOrders, ShipSpec, ShipState } from './world/ships.js'
 import { stepShip } from './world/ships.js'
 import type { Airfield } from './world/airfields.js'
+import type { Deck } from './world/deck.js'
+import { decksOf } from './world/deck.js'
+import { groundUnder } from './world/ground.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -48,6 +51,14 @@ export interface SimContext {
    * Optional for the reason `terrain` is: one production construction site.
    */
   readonly wind?: Vec3 | null
+  /**
+   * The carrier flight decks live this step, or `undefined`/an empty array
+   * for "no decks" -- Plan 8. Derived by `advance` from `world.ships` AFTER
+   * they step (see the comment on that call below), never stored on an
+   * entity. Optional for the reason `terrain` and `wind` are: one production
+   * construction site.
+   */
+  readonly decks?: readonly Deck[]
 }
 
 /**
@@ -543,6 +554,7 @@ function stepAircraftEntity<M>(
   tick: number,
   terrain: TerrainField | null,
   wind: Vec3 | null,
+  decks: readonly Deck[],
   stepper: Stepper,
   assist: Assist<M>,
 ): AircraftEntity<M> {
@@ -559,18 +571,19 @@ function stepAircraftEntity<M>(
   // which is stale from the second step of a multi-step frame onward unless
   // the entity is rebuilt each step -- and it is).
   const assisted = assist(entity.state, entity.spec, entity.controls, DT, entity.assistMemory)
-  const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain, wind })
+  const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
 
   // Checked after EVERY step in a multi-step frame, not just the last one --
   // a frame that owes several steps (a stalled tab, `MAX_STEPS_PER_FRAME` up
   // to 5) can cross the ground partway through, and checking only the final
   // state would silently skip that tick's impact, moving `impact.tick` and
   // `impact.position` to a later, already-through-the-ground state.
-  // `terrain !== null` short-circuits the `heightAt` call entirely on the
-  // (overwhelmingly common, pre-Task-8) no-terrain path, and the early return
-  // at the top of this function makes the first recorded impact permanent,
-  // matching `AircraftEntity.impact`'s "never overwritten". `<=`, not `<`: `heightAt` is a real number for
-  // any finite (x, z), including exactly on the ground, and a strict `<`
+  // `groundUnder` returning `null` ("no terrain and no deck here") short-
+  // circuits this block entirely on the (overwhelmingly common, pre-Task-8)
+  // no-terrain path, and the early return at the top of this function makes
+  // the first recorded impact permanent, matching `AircraftEntity.impact`'s
+  // "never overwritten". `<=`, not `<`: `ground.heightM` is a real number
+  // for any finite (x, z), including exactly on the ground, and a strict `<`
   // would let the airplane sit buried at exactly ground level forever
   // with no impact ever recorded (proved to bite in this task's commit).
   // `current.position.y` cannot be NaN here without `stepper` itself
@@ -582,9 +595,11 @@ function stepAircraftEntity<M>(
   // `&& !supportedContact(...)` (Task 5b): an airplane resting on its
   // wheels is on the ground on purpose, and this geometric `<=` test alone
   // cannot tell that apart from a crash -- `step` had already clamped a
-  // supported airplane to exactly `groundHeightM`, so without this guard
+  // supported airplane to exactly `ground.heightM`, so without this guard
   // every tick of a normal landing or a parked take-off roll re-triggered
-  // this branch and ended the flight, making take-off impossible.
+  // this branch and ended the flight, making take-off impossible. Plan 8
+  // passes `ground.surface`/`ground.velocity` through so a deck's own
+  // velocity is what a deck arrival is judged and rested relative to.
   //
   // `current.position.y` DELIBERATELY, not `current.position.y -
   // spec.gear.heightM` (Task 15): `position.y` is the airplane's BODY
@@ -599,17 +614,16 @@ function stepAircraftEntity<M>(
   // this asymmetry by subtracting the gear offset here; that would let an
   // airplane belly-flop into the runway with its wheels still notionally
   // above ground and have it read as a normal landing.
-  if (terrain !== null) {
-    const groundHeightM = heightAt(terrain, current.position.x, current.position.z)
-    if (current.position.y <= groundHeightM && !supportedContact(entity.spec, current, groundHeightM)) {
-      const surface = surfaceAt(groundHeightM)
+  const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
+  if (ground !== null) {
+    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity)) {
       const impact: Impact = {
         tick: current.tick,
         position: current.position,
         verticalSpeedMps: current.velocity.y,
-        groundHeightM,
-        surface,
-        kind: contactOutcome(entity.spec, current, surface),
+        groundHeightM: ground.heightM,
+        surface: ground.surface,
+        kind: contactOutcome(entity.spec, current, ground.surface),
       }
       // `previous` follows `current` so the renderer interpolates to exactly
       // the point of contact whatever `alpha` is, the same convention
@@ -668,10 +682,10 @@ export function advance<M>(
       previous: s.state,
       state: stepShip(s.spec, s.state, s.orders, { dt: DT, tick }),
     }))
-    // Aircraft second, each from its own state. Nothing reads another
-    // entity yet; when Plan 8 adds decks they are derived from `ships` here,
-    // after the ships have moved.
-    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, stepper, assist))
+    // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
+    // an airplane on deck reads the pose the ship has at the end of the tick.
+    const decks = decksOf(ships)
+    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist))
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt

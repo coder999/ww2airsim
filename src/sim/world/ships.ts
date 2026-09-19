@@ -21,6 +21,19 @@ import { heightAt, SEA_LEVEL_M, type TerrainField } from './terrain.js'
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
 const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
 
+/** LSO cue parameters; the function that reads them is `src/sim/paddles.ts`. */
+const PaddlesObject = z
+  .object({
+    glideslopeDeg: positive,
+    glideslopeToleranceDeg: positive,
+    speedBandMps: positive,
+    coneHalfAngleDeg: positive,
+    maxRangeM: positive,
+    cutRangeM: positive,
+    waveOffRangeM: positive,
+  })
+  .strict()
+
 const ShipSpecObject = z
   .object({
     id: z.string().min(1),
@@ -32,11 +45,22 @@ const ShipSpecObject = z
     deckHeightM: positive,
     maxSpeedMps: positive,
     turnRateRadPerS: positive,
+    /** The flight deck a Plan 8 `Deck` is derived from: a rectangle centered
+     *  on the ship's position, `heightM` above the waterline. Carriers only. */
+    flightDeck: z.object({ lengthM: positive, widthM: positive, heightM: positive }).strict().optional(),
+    /** The arcade trap zone, meters forward of the stern. */
+    trapZone: z
+      .object({ fromSternM: finite.refine((n) => n >= 0, { message: 'must not be negative' }), toSternM: positive })
+      .strict()
+      .refine((z) => z.toSternM > z.fromSternM, { message: 'toSternM must exceed fromSternM', path: ['toSternM'] })
+      .optional(),
+    paddles: PaddlesObject.optional(),
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()
 
 export type ShipSpec = z.infer<typeof ShipSpecObject>
+export type PaddlesParams = z.infer<typeof PaddlesObject>
 
 /** Spec §9 of the master design: malformed content fails loudly at load,
  *  with every offending field named, the same way `parseAircraftSpec` does. */

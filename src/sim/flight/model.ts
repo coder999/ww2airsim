@@ -13,9 +13,8 @@ import {
   groundBodyRates,
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
-import { heightAt } from '../world/terrain.js'
+import { groundUnder } from '../world/ground.js'
 import { flapAfter, flapClIncrement, flapDragN } from '../flaps.js'
-import { surfaceAt } from '../contact.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -262,15 +261,18 @@ export function step(
   // airflow; integration, the ground constraint, rolling and tire grip keep
   // reading `state`, which is the ground frame. With no wind `air` IS `state`.
   const air = ctx.wind == null ? state : { ...state, velocity: airVelocity(state, ctx.wind) }
-  // Ground height under the airplane at the START of this step, or null when
-  // no terrain field was supplied (50 of the 51 `SimContext` construction
-  // sites pass none). Hoisted ABOVE the aerodynamics because ground effect
-  // needs it here, and computed ONCE for every consumer below -- the comment
-  // on `onGroundStart` further down states that principle, and this now
-  // serves one more reader rather than adding a second `heightAt` call for
-  // the same position.
-  const startGroundHeightM =
-    ctx.terrain != null ? heightAt(ctx.terrain, state.position.x, state.position.z) : null
+  // Ground under the airplane at the START of this step, or null when there
+  // is neither a terrain field nor a deck here (50 of the pre-Plan-8
+  // `SimContext` construction sites pass neither). Hoisted ABOVE the
+  // aerodynamics because ground effect needs the height here, and computed
+  // ONCE for every consumer below -- the comment on `onGroundStart` further
+  // down states that principle, and this now serves one more reader rather
+  // than adding a second `groundUnder` call for the same position. A deck
+  // wins over the water beneath it (`groundUnder`'s own doc comment); a
+  // still deck's `velocity` is `ZERO`, so this is bit-identical to the
+  // pre-Plan-8 terrain-only lookup wherever no deck is present.
+  const startGround = groundUnder(ctx.terrain ?? null, ctx.decks ?? [], state.position.x, state.position.z)
+  const startGroundHeightM = startGround === null ? null : startGround.heightM
   const rho = densityAt(state.position.y)
   const v = airspeed(air)
   const q = 0.5 * rho * v * v
@@ -375,18 +377,18 @@ export function step(
   // Whether the airplane was on the ground at the START of this step -- read
   // by the rolling-resistance force below and, later, by the ground control
   // regime that replaces `bodyRates`. Computed once here and reused rather
-  // than re-querying `heightAt` a second time for the same position.
+  // than re-querying `groundUnder` a second time for the same position.
   let onGroundStart = false
   // Whether the surface under the airplane at the START of this step is LAND
-  // (Task 16, found by Mark driving off the end of the Tacloban runway onto
-  // the ocean and rolling on top of it). Rolling resistance and the ground
-  // control regime are wheel-on-surface phenomena exactly as much as the
-  // gravity-cancelling reaction force just below is -- wheels cannot roll on
-  // water any more than they can hold an airplane up on it -- so this is
-  // read by the same two consumers `onGroundStart`'s own comment names.
-  // `supportedContact` already requires land for the gravity-cancelling
-  // force (`src/sim/ground.ts`), so only these other two needed a separate
-  // flag, computed once here for the same reason `onGroundStart` is.
+  // OR A DECK (Task 16, extended by Plan 8): both carry weight the same way,
+  // and water does neither. Rolling resistance and the ground control regime
+  // are wheel-on-surface phenomena exactly as much as the gravity-cancelling
+  // reaction force just below is -- wheels cannot roll on water any more
+  // than they can hold an airplane up on it -- so this is read by the same
+  // two consumers `onGroundStart`'s own comment names. `supportedContact`
+  // already requires land or deck for the gravity-cancelling force
+  // (`src/sim/ground.ts`), so only these other two needed a separate flag,
+  // computed once here for the same reason `onGroundStart` is.
   let onLandStart = false
   // Fix round 1, Important 2: design §3 says the gear-down requirement
   // "belongs to the consumers that need it -- rolling friction and the
@@ -398,9 +400,9 @@ export function step(
   // threshold `supportedContact` already uses, rather than inventing a
   // second one.
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
-  if (startGroundHeightM !== null) {
-    onGroundStart = onGround(spec, state, startGroundHeightM)
-    onLandStart = surfaceAt(startGroundHeightM) === 'land'
+  if (startGround !== null) {
+    onGroundStart = onGround(spec, state, startGround.heightM)
+    onLandStart = startGround.surface === 'land' || startGround.surface === 'deck'
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
     // `supportedContact` bounds SINK but places no bound on CLIMB, so without
@@ -412,23 +414,30 @@ export function step(
     // needs the un-narrowed predicate: an airplane that starts a step
     // sinking and ends it climbing (this same force removing the sink) must
     // still be recognized as supported once integrated.
-    if (force.y < 0 && state.velocity.y <= 0 && supportedContact(spec, state, startGroundHeightM)) {
+    if (
+      force.y < 0 &&
+      state.velocity.y <= 0 &&
+      supportedContact(spec, state, startGround.heightM, startGround.surface, startGround.velocity)
+    ) {
       force = v3(force.x, 0, force.z)
     }
 
-    // Rolling resistance: the runway drags on the wheels, brakes off or on
-    // (Task 6). Opposes the GROUND TRACK -- the horizontal component of
-    // velocity, not `vdir`, which includes whatever vertical component the
-    // airplane has -- using the state at the START of this step, matching
-    // the ground-reaction block just above. Guarded exactly as `step`
-    // already guards `vdir`: a stationary airplane (or one with only
-    // vertical motion) gets zero resistance rather than a NaN direction.
-    // Gated on `wheelsDownStart` too (fix round 1, Important 2): a retracted
-    // gear must not charge tire-on-runway drag to a belly. Gated on
-    // `onLandStart` too (Task 16): a wheel over open water gets no traction
-    // to roll against either.
+    // Rolling resistance: the runway (or deck) drags on the wheels, brakes
+    // off or on (Task 6). Opposes the GROUND TRACK -- the horizontal
+    // component of velocity RELATIVE TO THE SURFACE (Plan 8: a deck's own
+    // velocity does not drag on wheels moving with it), not `vdir`, which
+    // includes whatever vertical component the airplane has -- using the
+    // state at the START of this step, matching the ground-reaction block
+    // just above. Guarded exactly as `step` already guards `vdir`: a
+    // stationary airplane (or one with only vertical motion, relative to the
+    // surface) gets zero resistance rather than a NaN direction. Gated on
+    // `wheelsDownStart` too (fix round 1, Important 2): a retracted gear
+    // must not charge tire-on-runway drag to a belly. Gated on `onLandStart`
+    // too (Task 16): a wheel over open water gets no traction to roll
+    // against either.
     if (onGroundStart && wheelsDownStart && onLandStart) {
-      const track = v3(state.velocity.x, 0, state.velocity.z)
+      const relStart = sub(state.velocity, startGround.velocity)
+      const track = v3(relStart.x, 0, relStart.z)
       const trackSpeed = length(track)
       if (trackSpeed > 1e-6) {
         const trackDir = normalize(track)
@@ -458,28 +467,32 @@ export function step(
   // for why it now follows rising ground within tolerance, paying for the
   // climb out of kinetic energy rather than refusing to lift at all
   // (`assertNoEnergyGain` is what bounds which direction is safe).
-  // `ctx.terrain` being `null` short-circuits before `heightAt` is ever called, the same
-  // guard `advance`'s impact check (`src/sim/loop.ts`) applies for the same
-  // reason: the overwhelmingly common, pre-Task-8 no-terrain path must not
-  // pay for a terrain query it has nothing to query.
+  // `groundUnder` returning `null` short-circuits this block entirely, the
+  // same guard `advance`'s impact check (`src/sim/loop.ts`) applies for the
+  // same reason: the overwhelmingly common, pre-Task-8 no-terrain,
+  // no-deck path must not pay for a ground query it has nothing to query.
   //
   // Gated on `supportedContact`, not the bare `onGround`: a gear-up airplane
   // or one arriving too hard must pass straight through untouched and be
   // caught by `advance` as the crash it is, rather than have its sink rate
   // quietly zeroed here first (Task 5b -- `supportedContact`'s own doc
-  // explains why the two checks have to agree on this).
-  if (ctx.terrain != null) {
-    const groundHeightM = heightAt(ctx.terrain, position.x, position.z)
+  // explains why the two checks have to agree on this). Task 2 (Plan 8):
+  // `ground.surface`/`ground.velocity` carry a deck's own velocity through,
+  // so a supported contact and the rest/grip below are judged and applied
+  // RELATIVE TO THE DECK -- a chocked airplane matching the ship's velocity
+  // reads as at rest, not as rolling at the ship's speed.
+  const ground = groundUnder(ctx.terrain ?? null, ctx.decks ?? [], position.x, position.z)
+  if (ground !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
-    if (supportedContact(spec, integrated, groundHeightM)) {
-      const rested = restOnSurface(spec, integrated, groundHeightM)
+    if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity)) {
+      const rested = restOnSurface(spec, integrated, ground.heightM, ground.velocity)
       position = rested.position
       // Tire grip, applied ONLY while the wheels are carrying the airplane.
       // An airplane in the air has no tires on anything, and one arriving too
       // hard has not landed yet -- `supportedContact`'s own gates are what
       // decide both, which is why this sits inside this branch rather than
       // beside the rolling friction above.
-      velocity = lateralGripAfter(spec, { ...rested, velocity: rested.velocity }, dt)
+      velocity = lateralGripAfter(spec, { ...rested, velocity: rested.velocity }, dt, ground.velocity)
     }
   }
 
@@ -560,8 +573,8 @@ export function step(
   // wheels locked to zero roll and its tailwheel steering all the way across
   // the ocean.
   const bodyRates =
-    ctx.terrain != null && onGroundStart && wheelsDownStart && onLandStart
-      ? groundBodyRates(spec, state, controls, ratesWithStall)
+    startGround !== null && onGroundStart && wheelsDownStart && onLandStart
+      ? groundBodyRates(spec, state, controls, ratesWithStall, startGround.velocity)
       : ratesWithStall
   const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
 

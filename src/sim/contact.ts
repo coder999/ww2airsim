@@ -4,11 +4,10 @@ import type { AircraftState } from './flight/state.js'
 import { attitudeAngles } from './flight/attitude.js'
 import { length } from './math/vec3.js'
 
-/** Which kind of surface a contact happened against. `'land'` and `'water'`
- * are the only two that exist. Airplanes, ships and buildings arrived as
- * entities in Plan 12; this union grows with `'deck'` in Plan 8, when an
- * airplane can actually touch a carrier. */
-export type ContactSurface = 'water' | 'land'
+/** Which kind of surface a contact happened against. Airplanes, ships and
+ * buildings arrived as entities in Plan 12; this union grew `'deck'` in
+ * Plan 8, when an airplane can actually touch a carrier. */
+export type ContactSurface = 'water' | 'land' | 'deck'
 
 /**
  * The surface at a contact, from the ground height already captured on
@@ -67,7 +66,8 @@ export function contactOutcome(
   state: AircraftState,
   surface: ContactSurface,
 ): ContactKind {
-  if (surface === 'land') return 'destroyed'
+  // A deck arrival that failed `supportedContact`'s gates hit steel, not water.
+  if (surface === 'land' || surface === 'deck') return 'destroyed'
 
   const { pitchRad, rollRad } = attitudeAngles(state)
   const wingsLevel = Math.abs(rollRad) <= DITCH_MAX_BANK_RAD

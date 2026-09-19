@@ -1,8 +1,8 @@
-import { v3, length, scale, dot, sub, type Vec3 } from './math/vec3.js'
+import { v3, length, scale, dot, sub, add, ZERO, type Vec3 } from './math/vec3.js'
 import { qRotate } from './math/quat.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
-import { surfaceAt } from './contact.js'
+import { surfaceAt, type ContactSurface } from './contact.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -186,19 +186,38 @@ export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM
  * `groundHeightM + spec.gear.heightM` rather than `groundHeightM` directly --
  * `tests/sim/invariants.test.ts`'s sweep re-verifies this after the move.
  */
-export function restOnSurface(spec: AircraftSpec, state: AircraftState, groundHeightM: number): AircraftState {
+/**
+ * `surfaceVelocity` (Plan 8): everything below is judged and moved RELATIVE
+ * to the surface, not the world -- a deck carries the airplane along with
+ * it, so "at rest" on a moving deck means matching the ship's velocity, not
+ * zero. `rel` is `state.velocity` minus `surfaceVelocity`; wherever this
+ * function used to write a velocity, `surfaceVelocity` is added back so the
+ * result is a WORLD-frame velocity again. Defaults to `ZERO`, which makes
+ * `rel` exactly `state.velocity` (subtracting an exact zero changes no bit)
+ * and every write add back an exact zero -- so a still surface is
+ * bit-identical to this function before `surfaceVelocity` existed;
+ * `tests/sim/ground.test.ts`'s "moving surface" describe pins this with
+ * `toEqual` against the old three-argument call.
+ */
+export function restOnSurface(
+  spec: AircraftSpec,
+  state: AircraftState,
+  groundHeightM: number,
+  surfaceVelocity: Vec3 = ZERO,
+): AircraftState {
   const contactTargetM = groundHeightM + spec.gear.heightM
   const dh = contactTargetM - state.position.y
+  const rel = sub(state.velocity, surfaceVelocity)
 
   if (dh <= 0) {
     // At or above the surface. A separating (climbing) airplane is left
     // completely alone -- position included (Finding 3).
-    if (state.velocity.y > 0) return state
+    if (rel.y > 0) return state
     // Sinking or level: stop the sink, no more.
     return {
       ...state,
       position: v3(state.position.x, contactTargetM, state.position.z),
-      velocity: v3(state.velocity.x, 0, state.velocity.z),
+      velocity: add(v3(rel.x, 0, rel.z), surfaceVelocity),
     }
   }
 
@@ -210,7 +229,7 @@ export function restOnSurface(spec: AircraftSpec, state: AircraftState, groundHe
   // Below the surface, within tolerance: the ground rose under the airplane.
   // Follow it up and pay for the climb out of kinetic energy -- but only if
   // there is enough of it yet (see the doc comment's fix-wave-round-2 note).
-  const speed = length(state.velocity)
+  const speed = length(rel)
   const keJPerKg = 0.5 * speed * speed
   const climbCostJPerKg = G * dh
   if (keJPerKg < climbCostJPerKg) return state
@@ -219,7 +238,7 @@ export function restOnSurface(spec: AircraftSpec, state: AircraftState, groundHe
   return {
     ...state,
     position: v3(state.position.x, contactTargetM, state.position.z),
-    velocity: scale(state.velocity, factor),
+    velocity: add(scale(rel, factor), surfaceVelocity),
   }
 }
 
@@ -417,18 +436,29 @@ export function effectiveStallSpeedMps(spec: AircraftSpec, flapFraction: number)
   return clean + (spec.reference.stallSpeedFlapMps - clean) * f
 }
 
+/**
+ * `surface`/`surfaceVelocity` (Plan 8): a deck is a supported surface exactly
+ * like land, and the sink/speed gates below are judged RELATIVE to the
+ * surface (`rel`) rather than the world -- an airplane matching the ship's
+ * velocity is at rest on it, not moving at the ship's speed. Both default to
+ * the still-land reading (`surfaceAt(groundHeightM)`, `ZERO`), which makes
+ * `rel` exactly `state.velocity` for every pre-Plan-8 call site.
+ */
 export function supportedContact(
   spec: AircraftSpec,
   state: AircraftState,
   groundHeightM: number,
+  surface: ContactSurface = surfaceAt(groundHeightM),
+  surfaceVelocity: Vec3 = ZERO,
 ): boolean {
-  const speed = length(state.velocity)
-  const descending = state.velocity.y < -ARRIVAL_SINK_THRESHOLD_MPS
+  const rel = sub(state.velocity, surfaceVelocity)
+  const speed = length(rel)
+  const descending = rel.y < -ARRIVAL_SINK_THRESHOLD_MPS
   const stallMps = effectiveStallSpeedMps(spec, state.flapFraction)
-  return surfaceAt(groundHeightM) === 'land'
+  return (surface === 'land' || surface === 'deck')
     && onGround(spec, state, groundHeightM)
     && state.gearFraction >= GEAR_DOWN_FRACTION
-    && Number.isFinite(state.velocity.y) && state.velocity.y >= -MAX_SUPPORTED_SINK_MPS
+    && Number.isFinite(rel.y) && rel.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)
     && (!descending || speed <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * stallMps)
 }
@@ -524,8 +554,14 @@ export function groundBodyRates(
   state: AircraftState,
   controls: Controls,
   airRates: Vec3,
+  surfaceVelocity: Vec3 = ZERO,
 ): Vec3 {
-  const groundSpeed = length(v3(state.velocity.x, 0, state.velocity.z))
+  // Plan 8: ground speed relative to the surface, not the world -- an
+  // airplane matching a moving deck's velocity is not rolling at all.
+  // `surfaceVelocity` defaults to `ZERO`, which makes `rel` exactly
+  // `state.velocity` for every pre-Plan-8 caller.
+  const rel = sub(state.velocity, surfaceVelocity)
+  const groundSpeed = length(v3(rel.x, 0, rel.z))
   const validSpeed = Number.isFinite(groundSpeed)
   const pitch = validSpeed && groundSpeed >= spec.gear.tailUpSpeedMps ? airRates.z : 0
 
@@ -564,7 +600,7 @@ export function groundBodyRates(
  * acceptance evidence for this function, and the figure to re-measure if
  * `lateralGripSeconds` is ever retuned.
  */
-export function lateralGripAfter(spec: AircraftSpec, state: AircraftState, dt: number): Vec3 {
+export function lateralGripAfter(spec: AircraftSpec, state: AircraftState, dt: number, surfaceVelocity: Vec3 = ZERO): Vec3 {
   if (!Number.isFinite(dt) || dt <= 0) return state.velocity
   // The wheels roll along the body's nose, projected flat onto the ground.
   const nose = qRotate(state.attitude, v3(1, 0, 0))
@@ -575,11 +611,20 @@ export function lateralGripAfter(spec: AircraftSpec, state: AircraftState, dt: n
   if (!Number.isFinite(flatLen) || flatLen < 1e-6) return state.velocity
   const dir = scale(flat, 1 / flatLen)
 
-  const horizontal = v3(state.velocity.x, 0, state.velocity.z)
+  // Plan 8: grip damps the velocity ACROSS the nose relative to the surface,
+  // not the world -- a wheel matching a moving deck's velocity is not
+  // skidding. `rel` is `state.velocity` minus `surfaceVelocity`, and
+  // `surfaceVelocity`'s horizontal components are added back into the
+  // result; the vertical component is untouched either way, exactly as
+  // before. Defaults to `ZERO`, so `rel` is exactly `state.velocity` and the
+  // result is bit-identical to this function before `surfaceVelocity`
+  // existed.
+  const rel = sub(state.velocity, surfaceVelocity)
+  const horizontal = v3(rel.x, 0, rel.z)
   const along = scale(dir, dot(horizontal, dir))
   const across = sub(horizontal, along)
 
   const keep = Math.exp(-dt / spec.gear.lateralGripSeconds)
   const damped = scale(across, keep)
-  return v3(along.x + damped.x, state.velocity.y, along.z + damped.z)
+  return v3(along.x + damped.x + surfaceVelocity.x, state.velocity.y, along.z + damped.z + surfaceVelocity.z)
 }

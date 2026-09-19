@@ -19,7 +19,7 @@ import { step } from '../../src/sim/flight/model.js'
 import type { SimContext } from '../../src/sim/loop.js'
 import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
-import { v3, length } from '../../src/sim/math/vec3.js'
+import { v3, length, ZERO } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { specificEnergyAirmass } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -668,5 +668,55 @@ describe("Mark's 120 mph touchdown limit (2026-09-17)", () => {
   it('leaves a flown approach well inside it', () => {
     // 85.9 mph, measured in tests/sim/landing.test.ts.
     expect(supportedContact(f6f, arrivingAt(85.9), 10)).toBe(true)
+  })
+})
+
+describe('a moving surface (Plan 8)', () => {
+  const DECK_M = 17
+  const shipV = v3(7.717, 0, 0)
+  const parkedOnDeck = createState({ position: v3(0, DECK_M + H, 0), velocity: shipV, gearFraction: 1 })
+
+  it('supportedContact judges sink and speed RELATIVE to the surface and accepts a deck', () => {
+    expect(supportedContact(f6f, parkedOnDeck, DECK_M, 'deck', shipV)).toBe(true)
+    // The same airplane judged against a still surface is moving at 7.7 m/s but still supported (below every gate).
+    expect(supportedContact(f6f, parkedOnDeck, DECK_M, 'land')).toBe(true)
+    // Water is never a supported contact, deck or not.
+    expect(supportedContact(f6f, parkedOnDeck, DECK_M, 'water', shipV)).toBe(false)
+    // A deck arrival at exactly the ship's speed plus 1.5 x stall is too fast; at the ship's speed plus 1.3 x stall it is not.
+    const stall = effectiveStallSpeedMps(f6f, 0)
+    const fast = createState({ position: v3(0, DECK_M + H, 0), velocity: v3(7.717 + 1.5 * stall, -1, 0), gearFraction: 1 })
+    const ok = createState({ position: v3(0, DECK_M + H, 0), velocity: v3(7.717 + 1.3 * stall, -1, 0), gearFraction: 1 })
+    expect(supportedContact(f6f, fast, DECK_M, 'deck', shipV)).toBe(false)
+    expect(supportedContact(f6f, ok, DECK_M, 'deck', shipV)).toBe(true)
+  })
+
+  it('restOnSurface stops the sink but keeps the surface velocity: a parked airplane sails with the ship', () => {
+    // `+ 0.1` (above the resting height), not `- 0.1`: the brief's fixture used
+    // `- 0.1`, which is BELOW the resting height and lands in restOnSurface's
+    // rising-ground/climb-cost branch, needing ~1.4 m/s of relative speed to
+    // pay for a 0.1 m climb (sqrt(2 * 9.80665 * 0.1)) -- more than this
+    // fixture's 0.5 m/s sink supplies, so it would correctly return the state
+    // unchanged rather than clamped. `+ 0.1` matches the sibling pre-Plan-8
+    // test ("kills the sink rate...", above) and lands in the "sinking or
+    // level" branch, which needs no energy payment -- the branch this test's
+    // own title and expected output actually describe.
+    const sinking = createState({ position: v3(0, DECK_M + H + 0.1, 0), velocity: v3(7.717, -0.5, 0), gearFraction: 1 })
+    const rested = restOnSurface(f6f, sinking, DECK_M, shipV)
+    expect(rested.position.y).toBe(DECK_M + H)
+    expect(rested.velocity).toEqual(v3(7.717, 0, 0))
+  })
+
+  it('the zero-velocity default is the old function exactly', () => {
+    const s = createState({ position: v3(0, 1 + H - 0.1, 0), velocity: v3(30, -0.5, 0), gearFraction: 1 })
+    expect(restOnSurface(f6f, s, 1, ZERO)).toEqual(restOnSurface(f6f, s, 1))
+    expect(lateralGripAfter(f6f, s, DT, ZERO)).toEqual(lateralGripAfter(f6f, s, DT))
+    expect(groundBodyRates(f6f, s, { pitch: 0, roll: 0, yaw: 0.5, throttle: 0 }, v3(0, 0, 0), ZERO))
+      .toEqual(groundBodyRates(f6f, s, { pitch: 0, roll: 0, yaw: 0.5, throttle: 0 }, v3(0, 0, 0)))
+  })
+
+  it('tire grip damps the velocity ACROSS the nose relative to the deck, not relative to the world', () => {
+    // Nose north, ship moving east at 7.7: relative to the deck the airplane is still, so grip changes nothing.
+    const still = createState({ position: v3(0, DECK_M + H, 0), velocity: shipV, attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2), gearFraction: 1 })
+    expect(lateralGripAfter(f6f, still, DT, shipV)).toEqual(shipV)
   })
 })
