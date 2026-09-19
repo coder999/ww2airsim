@@ -176,5 +176,19 @@ describe('an approach flown into Tacloban', () => {
 
     expect(tracking.report, 'no landing report').not.toBeNull()
     expect(tracking.report!.at).toEqual({ kind: 'airfield', name: 'Tacloban' })
+
+    // Plan 8 generalizes the autopilot to a heading frame and a moving target.
+    // Tacloban's heading is 0, and rotating by zero must be exact, so these
+    // figures are pinned EXACTLY, not within tolerance: any change means the
+    // northbound path is no longer the code that measured them. vitest fills
+    // the snapshot in on the first run and compares with `Object.is` after.
+    expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
+      {
+        "restX": -29666,
+        "restZ": -47670.18981410662,
+        "touchdownSinkMps": 1.3502298286023335,
+        "touchdownSpeedMps": 37.70385233292351,
+      }
+    `)
   })
 })

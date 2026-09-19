@@ -1,6 +1,6 @@
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import type { AircraftState, Controls } from '../../src/sim/flight/state.js'
-import { airspeed } from '../../src/sim/flight/model.js'
+import { sub, length, ZERO, type Vec3 } from '../../src/sim/math/vec3.js'
 
 /**
  * Where an approach is aiming.
@@ -12,11 +12,21 @@ import { airspeed } from '../../src/sim/flight/model.js'
 export type ApproachTarget = {
   readonly aimX: number
   readonly aimZ: number
-  /** Radians, 0 = northbound (-z). Only used to document intent today -- the
-   *  lateral steering below assumes a northbound strip, which is the one this
-   *  project has. Generalising it is work for whoever lands on a second. */
+  /** Radians, compass, 0 = northbound (-z). The approach is flown in this
+   *  frame: "along" is distance short of the aim point against the heading,
+   *  "across" is starboard of the centerline. Rotating by 0 is exact, so
+   *  the Tacloban landing is bit-identical to before Plan 8 (pinned in
+   *  `tests/sim/landing.test.ts` with an inline snapshot). */
   readonly runwayHeadingRad: number
   readonly touchdownElevationM: number
+  /** The surface's velocity (a deck's). The PATH is flown relative to it:
+   *  the closure, the sink and the roll-out test. Default still. */
+  readonly surfaceVelocity?: Vec3
+  /** The velocity of the air (`World.wind`). The SPEED is flown relative to
+   *  it, because Vref is an airspeed. Default calm. */
+  readonly windVelocity?: Vec3
+  /** Whether to fly with the hook down. Default up. */
+  readonly hookDown?: boolean
 }
 
 /**
@@ -119,24 +129,62 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
   // origin, which sits `gear.heightM` above them. Getting this wrong by 2.2 m
   // would put the flare 2.2 m into the ground.
   const wheelHeightM = finite(state.position.y - spec.gear.heightM - target.touchdownElevationM)
-  const alongM = finite(state.position.z - target.aimZ)
-  const acrossM = finite(state.position.x - target.aimX)
-  const speedMps = finite(airspeed(state))
+  // The approach is flown in the target's heading frame, so the same law
+  // serves a strip on any heading and a deck that is turning. `bow`/`starboard`
+  // are `deckAxes`' two directions (`src/sim/world/deck.ts`) -- one convention,
+  // so the autopilot and the deck geometry cannot disagree about which way is
+  // starboard.
+  //
+  // For `h = 0`: `bx = 0`, `bz = -1`, `sx = 1`, `sz = 0`, so `alongM` is
+  // `-(dx*0 + dz*-1) = dz` and `acrossM` is `dx` -- the pre-Plan-8 expressions,
+  // reached through products by an exact 0 and an exact 1 and the subtraction
+  // of an exact zero, all of which are exact in IEEE 754. That is why the
+  // northbound Tacloban landing is bit-identical, and the inline snapshot in
+  // `tests/sim/landing.test.ts` is what proves it stays that way.
+  const h = target.runwayHeadingRad
+  const bx = Math.sin(h), bz = -Math.cos(h)      // toward the far end of the runway
+  const sx = Math.cos(h), sz = Math.sin(h)       // starboard
+  const dx = state.position.x - target.aimX, dz = state.position.z - target.aimZ
+  const alongM = finite(-(dx * bx + dz * bz))    // positive short of the aim point
+  const acrossM = finite(dx * sx + dz * sz)
+  // TWO speeds, because an approach to a moving deck in a wind lives in two
+  // frames and one number cannot serve both. Measured 2026-09-19, flying this
+  // controller at the deck-quals carrier (15.4 m/s of wind over the deck: a
+  // 7.7 m/s ship steaming into a 7.7 m/s wind):
+  //
+  // | What one speed was used for | Where it put the airplane |
+  // | --- | --- |
+  // | closure only (surface-relative) | 320 m LONG -- held 49 m/s over the deck, so 64 m/s of airspeed, and the flare floated the length of the deck and past the bow |
+  // | airspeed only | 310 m SHORT -- a 2.57 m/s nominal sink is 3 degrees at 49 m/s of airspeed but 4.2 degrees at 34.7 m/s of closure, and it flew into the water astern |
+  //
+  // So: `closureMps` is over the SURFACE and drives the geometry -- the
+  // glide path, its nominal sink and the roll-out test are all in the
+  // deck's frame, where `alongM` and `wheelHeightM` already are.
+  // `speedMps` is over the AIR and drives the throttle, because Vref is an
+  // airspeed and the wing only knows the air.
+  //
+  // Both default to the world frame, and `sub(v, ZERO)` returns v's exact
+  // components, so ashore in calm air the two collapse back onto the single
+  // `length(state.velocity)` this used to compute -- bit-identically, which
+  // is what `tests/sim/landing.test.ts`'s inline snapshot holds them to.
+  const rel = sub(state.velocity, target.surfaceVelocity ?? ZERO)
+  const closureMps = finite(length(rel))
+  const speedMps = finite(length(sub(state.velocity, target.windVelocity ?? ZERO)))
 
   // Configured for landing throughout. The gear and flaps take seconds to
   // travel, so asking early is the whole point of asking at all.
-  const configured = { gearDown: true, flapDown: true }
+  const configured = { gearDown: true, flapDown: true, hookDown: target.hookDown === true }
   // Positive yaw is nose-right, and `acrossM` is positive when right of the
-  // centreline, so the correction is its negation.
+  // centerline, so the correction is its negation.
   const yaw = clamp(-acrossM * YAW_PER_OFFSET_M, -1, 1)
 
   // Rolling: on the wheels and slower than the approach speed, so this is a
   // roll-out and not a touch-and-go. Steer with the tailwheel and brake.
-  if (wheelHeightM <= 0.1 && speedMps < vrefMps) {
+  if (wheelHeightM <= 0.1 && closureMps < vrefMps) {
     return { ...configured, pitch: 0, roll: 0, yaw, throttle: 0, brake: ROLLOUT_BRAKE }
   }
 
-  const sinkMps = finite(-state.velocity.y)
+  const sinkMps = finite(-rel.y)
 
   // Flare: stop chasing the path and fly a sink rate instead, throttle closed.
   // Pitch is clamped NON-NEGATIVE here -- the flare never pushes down, because
@@ -164,7 +212,7 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
   // gates will accept.
   const wantedHeightM = Math.max(0, alongM) * Math.tan(GLIDE_PATH_RAD)
   const heightErrorM = wheelHeightM - wantedHeightM
-  const nominalSinkMps = speedMps * Math.sin(GLIDE_PATH_RAD)
+  const nominalSinkMps = closureMps * Math.sin(GLIDE_PATH_RAD)
   const wantedSinkMps = clamp(
     nominalSinkMps + heightErrorM * SINK_PER_HEIGHT_ERROR,
     0,
