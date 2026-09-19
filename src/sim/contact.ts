@@ -5,8 +5,9 @@ import { attitudeAngles } from './flight/attitude.js'
 import { length } from './math/vec3.js'
 
 /** Which kind of surface a contact happened against. `'land'` and `'water'`
- *  are the only two that exist; airplanes, ships and buildings are entities
- *  and arrive with Plan 12, which is when this type grows. */
+ * are the only two that exist. Airplanes, ships and buildings arrived as
+ * entities in Plan 12; this union grows with `'deck'` in Plan 8, when an
+ * airplane can actually touch a carrier. */
 export type ContactSurface = 'water' | 'land'
 
 /**

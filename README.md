@@ -52,9 +52,14 @@ still an estimate.
 A first scenery pass now adds procedural beach, grass, jungle and rock
 materials, mapped Binahaan and Daguitan river surfaces, nearby trees, and
 Tacloban hangars, control tower, service apron and stores. These buildings
-and trees are visual only; entity collision and operational airfields remain
-ahead with ships, combat, AI and the meta-game. See the
+and trees are visual only; collision, combat, AI and the meta-game remain ahead. See the
 [scenery handoff](docs/handoff/2026-09-18-scenery.md) for coverage and limitations.
+
+**Plan 12 is now complete:** the scenario holds one carrier and two escorts
+in San Pedro Bay, Tacloban and Dulag as airfield records, and a second,
+chocked Hellcat on the Tacloban apron. The renderer draws every one of those
+entities and the simulation advances them on one clock. The authoritative
+status and remaining order are in [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md).
 Mark reordered them on 2026-09-16 so that the ground under the airplane comes
 before there is anybody to shoot at; plan numbers were deliberately NOT
 reused, for the reason the next paragraph records. **Master spec §15 holds the
@@ -311,10 +316,10 @@ anything else — it is almost always telling you the browser fell back to a
 software rasterizer, not that anything else is wrong.
 
 **Flying somewhere specific.** The airplane spawns **parked on the runway at
-Tacloban** and faces north, down the strip (`DEFAULT_SPAWN_POSITION` and
-`DEFAULT_SPAWN_ATTITUDE`, `src/render/spawn.ts`). This paragraph said it
-spawned over open water 23 km from land until 2026-09-17, which had been false
-since Task 14 moved the spawn ashore — the exact doc rot `~/projects/CLAUDE.md`
+Tacloban** and faces north, down the strip from the `tacloban` airfield record
+in `content/bases/`. This paragraph said it spawned over open water 23 km from
+land until 2026-09-17, which had been false since Task 14 moved the spawn
+ashore — the exact doc rot `~/projects/CLAUDE.md`
 warns about, found while deploying.
 
 `?spawnX=&spawnY=&spawnZ=` moves it, and any of the three turns the ground

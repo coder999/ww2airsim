@@ -224,9 +224,14 @@ map will read:
 
 ```json
 { "towns": [{ "name": "…", "lat": 0, "lon": 0, "size": "town" | "village", "source": "https://www.openstreetmap.org/node/…" }],
-  "roads": [{ "name": "…", "widthM": 8, "coordinates": [[lon, lat], …], "source": "…" }],
-  "airfields": [{ "name": "Dulag", "lat": 10.94806, "lon": 125.01028, "headingDeg": 0, "source": "…" }] }
+  "roads": [{ "name": "…", "widthM": 8, "coordinates": [[lon, lat], …], "source": "…" }] }
 ```
+
+**Amended 2026-09-18 after Plan 12.** `places.json` deliberately has no
+`airfields` key. `content/bases/` is the sole source of airfield records, and
+the runway and airfield builders already take an `Airfield` record. Plan 13d
+may decorate those bases with roads and nearby places; it must not create a
+parallel base record or move Dulag's runway facts out of `content/bases/`.
 
 **Towns.** OSM `place=city|town|municipality` nodes inside the box. Leyte's
 municipalities are Spanish-era and predate the war; barangay villages are

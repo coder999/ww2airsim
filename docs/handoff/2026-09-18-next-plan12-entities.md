@@ -1,3 +1,8 @@
+> **Superseded 2026-09-18.** Plan 12 is complete; read the final
+> [Plan 12 handoff](2026-09-18-plan12-entities.md) for the implemented
+> world shape, measurements, assumptions and remaining seams. This note is
+> retained as the pre-implementation record.
+
 # Handoff — start here for Plan 12 (entities, ships and airfields)
 
 Written 2026-09-18 for the agent picking up next. Mark chose Plan 12 as the
