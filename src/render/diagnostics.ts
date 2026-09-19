@@ -8,6 +8,8 @@ import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
 import type { CombatDiagnostics } from './combatReadout.js'
+import type { CloudLayer } from '../sim/scenario.js'
+import type { CloudTierName } from './scene/clouds.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -236,6 +238,9 @@ export type Ww2Diagnostics = {
    *  count (Plan 6), from `World.combat` -- `combatDiagnosticsFor` in
    *  combatReadout.ts. `null` before the first frame exists. */
   readonly combat: () => CombatDiagnostics | null
+  /** The cloud deck in force and its tier (Plan 16a); `off` under the DEV
+   *  `?cloudTier=off`, `steps` the cumulus march count at that tier. */
+  readonly clouds: () => { readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly steps: number }
   readonly resetFrameTimes: () => void
 }
 

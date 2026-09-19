@@ -18,6 +18,9 @@ import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen } from './titleScreen.js'
+import { CLOUD_TIERS, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
+import { loadSkyNoise } from './sky/load.js'
+import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
 import { createEngineSmoke } from './scene/smoke.js'
@@ -150,6 +153,11 @@ async function boot(): Promise<void> {
    * found live in the deployed bundle on 2026-09-18.
    */
   let spawnPosition: Vec3 | null = null
+  // Plan 16a, read by the DEV hook's `clouds()` below, which is installed
+  // before the scenario resolves -- the same early-binding rule as
+  // `spawnPosition`. Assigned where the clouds are created.
+  let cloudLayers: readonly CloudLayer[] = []
+  let cloudTier: CloudTierName | 'off' = 'high'
 
   // The title screen (2026-09-19), created before ANYTHING that can take
   // time: the adapter, the ocean cascades and the terrain all load behind
@@ -349,6 +357,8 @@ async function boot(): Promise<void> {
       // current frame's `World.combat` by the same adapter the readout's
       // tests cover. `null` before the first frame, like `impact`.
       combat: () => (frame ? combatDiagnosticsFor(frame) : null),
+      // Plan 16a: which deck is up and at what tier; `off` under `?cloudTier=off`.
+      clouds: () => ({ layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps }),
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
@@ -524,6 +534,16 @@ async function boot(): Promise<void> {
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
   oceanDepth = await loadDepth()
+  // Plan 16a. The two noise volumes ride the same await as the bathymetry;
+  // a clear-sky scenario still loads them (1 MB gzipped, cached) so a later
+  // scenario switch needs no second fetch path. `?cloudTier=off` is the DEV
+  // control for measuring a scene with and without the pass.
+  const skyNoise = await loadSkyNoise()
+  const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
+  cloudLayers = forcedCloudTier === 'off' ? [] : bundle.scenario.weather.clouds ?? []
+  cloudTier = forcedCloudTier ?? oceanTier.name
+  const clouds = createClouds(cloudLayers, skyNoise)
+  if (cloudTier !== 'off') clouds.setTier(cloudTier)
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL))
   scene.add(water)
   let qualityChecked = false
@@ -552,10 +572,16 @@ async function boot(): Promise<void> {
     scene.add(water)
     oceanTier = next
     vegetation?.setTier(next.name)
+    if (forcedCloudTier === undefined) {
+      cloudTier = next.name
+      clouds.setTier(next.name)
+    }
   }
   const sky = createSky()
   scene.add(sky)
   scene.add(createLighting())
+  // Drawn last (its own renderOrder), occluded per pixel by the scene depth.
+  scene.add(clouds.object)
   // One airframe per aircraft entity, in world order, so `frame.poses[i]`
   // poses `airframes[i]` with no lookup (Plan 12). The PLAYER's is picked out
   // by id, not by assuming index 0: `world.player` names an id, and the
@@ -1110,13 +1136,12 @@ async function boot(): Promise<void> {
     // is today; the accumulator below is added only to the sim-time
     // derivation it replaces, not to the override itself.
     if (player.impact !== null) postImpactOceanSeconds += frameMs / 1000
+    // One clock for the sea and the sky (Plan 16a): the clouds drift on the
+    // same simulated seconds the ocean's waves evolve on.
+    const skyTimeS = oceanTime ?? current.world.tick * DT + current.world.accumulatorSeconds + postImpactOceanSeconds
+    clouds.update(current.eye.position, skyTimeS, current.world.wind)
     for (const cascade of cascades) {
-      cascade.dispatch(
-        oceanTime ??
-          current.world.tick * DT +
-            current.world.accumulatorSeconds +
-            postImpactOceanSeconds,
-      )
+      cascade.dispatch(skyTimeS)
     }
     // While GPU samples are being collected, a frame is NOT rendered until the
     // previous frame's timestamp resolve has landed. The paragraph after the
