@@ -74,6 +74,13 @@ read that state. Bombs, rockets, torpedoes, ship damage and AI remain; the
 [handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
 and master spec §15 holds the status.
 
+**A title screen landed 2026-09-19**, the first slice of Plan 9 ahead of the
+rest of it: Mark's title art with **New game** and **About project**. The
+world boots behind it and is held until New game (Enter also works), which is
+the click that unlocks audio on a first visit. The pilot roster, mission
+select and a return to the title from the debrief remain Plan 9's;
+[handoff](docs/handoff/2026-09-19-title-screen.md).
+
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
 three design documents each shifted differently — the renderer design still

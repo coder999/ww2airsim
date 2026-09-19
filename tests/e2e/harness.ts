@@ -47,6 +47,19 @@ export async function waitForTerrain(page: Page): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
+  await startGame(page)
+}
+
+/**
+ * Presses New game on the title screen (2026-09-19), which holds the world
+ * until it is pressed. `waitForTerrain` calls this, so every spec goes
+ * through the shipped title rather than a DEV bypass; a spec that waits on
+ * the tick directly instead (ocean.spec.ts) calls it itself. A no-op once
+ * the title is gone.
+ */
+export async function startGame(page: Page): Promise<void> {
+  const newGame = page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'New game' })
+  if (await newGame.isVisible()) await newGame.click()
 }
 
 /** Everything the assertions below need, in one round trip. */

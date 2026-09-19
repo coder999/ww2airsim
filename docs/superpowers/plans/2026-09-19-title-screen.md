@@ -31,7 +31,7 @@
 **Interfaces:**
 - Produces: `TITLE_ART_PATH = 'content/art/title.png'` and `TITLE_ART_URL` (string) in `src/render/content.ts`; `TITLE_ART_BYTES = 2077706` in the same file.
 
-- [ ] **Step 1: Write the failing build assertion** in `tests/build/dist.test.ts`, inside the block that checks the scenario files (after the `for (const path of [...])` loop):
+- [x] **Step 1: Write the failing build assertion** in `tests/build/dist.test.ts`, inside the block that checks the scenario files (after the `for (const path of [...])` loop):
 
 ```ts
       // The title art (2026-09-19). Shipped as supplied, never re-encoded:
@@ -42,9 +42,9 @@
 
 Add `statSync` to the `node:fs` import and `TITLE_ART_BYTES, TITLE_ART_PATH` to the import from `../../src/render/content.js`.
 
-- [ ] **Step 2: Run it to verify it fails**: `npx vitest run tests/build/dist.test.ts` → FAIL, `TITLE_ART_PATH` is not exported.
+- [x] **Step 2: Run it to verify it fails**: `npx vitest run tests/build/dist.test.ts` → FAIL, `TITLE_ART_PATH` is not exported.
 
-- [ ] **Step 3: Add the constants** to `src/render/content.ts`, beside `COVER_PATH`:
+- [x] **Step 3: Add the constants** to `src/render/content.ts`, beside `COVER_PATH`:
 
 ```ts
 /** Mark's Firefly title art (2026-09-19), drawn by `src/render/titleScreen.ts`.
@@ -55,7 +55,7 @@ export const TITLE_ART_URL = `${import.meta.env.BASE_URL}${TITLE_ART_PATH}`
 export const TITLE_ART_BYTES = 2_077_706
 ```
 
-- [ ] **Step 4: Write `content/art/NOTICE.md`**:
+- [x] **Step 4: Write `content/art/NOTICE.md`**:
 
 ```markdown
 # Title art
@@ -75,7 +75,7 @@ enforce; that limits what others owe us, not what we may ship.
 for the web is a deliberate later change, recorded here when it happens.
 ```
 
-- [ ] **Step 5: Add the `ASSETS.md` row** to the "Textures and audio" table:
+- [x] **Step 5: Add the `ASSETS.md` row** to the "Textures and audio" table:
 
 ```markdown
 | `content/art/title.png` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/art/NOTICE.md` |
@@ -83,9 +83,9 @@ for the web is a deliberate later change, recorded here when it happens.
 
 Also change that section's opening sentence "No external bitmap assets." to "The one bitmap asset is the title art below."
 
-- [ ] **Step 6: Run the build test**: `npx vitest run tests/build/dist.test.ts` → PASS.
+- [x] **Step 6: Run the build test**: `npx vitest run tests/build/dist.test.ts` → PASS.
 
-- [ ] **Step 7: `npm run verify`**, then commit:
+- [x] **Step 7: `npm run verify`**, then commit:
 
 ```bash
 git add content/art ASSETS.md src/render/content.ts tests/build/dist.test.ts docs/superpowers/specs/2026-09-19-title-screen-design.md docs/superpowers/plans/2026-09-19-title-screen.md
@@ -118,7 +118,7 @@ export type TitleScreenHandle = { readonly up: () => boolean; hide(): void }
 export function createTitleScreen(root: HTMLElement, onNewGame: () => void): TitleScreenHandle
 ```
 
-- [ ] **Step 1: Write the failing test** `tests/render/titleScreen.test.ts`:
+- [x] **Step 1: Write the failing test** `tests/render/titleScreen.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -147,9 +147,9 @@ describe('the title screen model (2026-09-19)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**: `npx vitest run tests/render/titleScreen.test.ts` → FAIL, module not found.
+- [x] **Step 2: Run it to verify it fails**: `npx vitest run tests/render/titleScreen.test.ts` → FAIL, module not found.
 
-- [ ] **Step 3: Write `src/render/titleScreen.ts`**:
+- [x] **Step 3: Write `src/render/titleScreen.ts`**:
 
 ```ts
 import { creditsLine } from './legend.js'
@@ -294,9 +294,9 @@ export function createTitleScreen(root: HTMLElement, onNewGame: () => void): Tit
 }
 ```
 
-- [ ] **Step 4: Run the test**: `npx vitest run tests/render/titleScreen.test.ts` → PASS.
+- [x] **Step 4: Run the test**: `npx vitest run tests/render/titleScreen.test.ts` → PASS.
 
-- [ ] **Step 5: `npm run verify`**, then commit:
+- [x] **Step 5: `npm run verify`**, then commit:
 
 ```bash
 git add src/render/titleScreen.ts tests/render/titleScreen.test.ts
@@ -314,7 +314,7 @@ git commit -m "Title screen module: a pure model and a full-viewport overlay wit
 **Interfaces:**
 - Consumes: `createTitleScreen`, `TitleScreenHandle` from Task 2; `withPaused` from `frame.ts`; `audio.resume()`.
 
-- [ ] **Step 1: Create the title first in `boot()`**, immediately after `let spawnPosition: Vec3 | null = null` and before the canvas is created:
+- [x] **Step 1: Create the title first in `boot()`**, immediately after `let spawnPosition: Vec3 | null = null` and before the canvas is created:
 
 ```ts
   // The title screen (2026-09-19), created before ANYTHING that can take
@@ -333,13 +333,13 @@ git commit -m "Title screen module: a pure model and a full-viewport overlay wit
 
 `audio` is declared with `const` further down and is read here only when the button is clicked, which is after `boot()` has reached the loop -- the same argument the debrief's `frame!` reads make. Import `createTitleScreen` from `./titleScreen.js`.
 
-- [ ] **Step 2: Ignore game keys while the title is up.** First line of the `keydown` listener:
+- [x] **Step 2: Ignore game keys while the title is up.** First line of the `keydown` listener:
 
 ```ts
     if (title.up()) return
 ```
 
-- [ ] **Step 3: Hold the world while the title is up.** In `frameFn`, change `const chartOpen = navigationMapState.open` to:
+- [x] **Step 3: Hold the world while the title is up.** In `frameFn`, change `const chartOpen = navigationMapState.open` to:
 
 ```ts
     // The open chart and the title screen hold the world the same way: no
@@ -358,7 +358,7 @@ and the block `if (navigationMapState.open) { current = withPaused(current, true
     }
 ```
 
-- [ ] **Step 4: Teach the harness.** In `tests/e2e/harness.ts`, `waitForTerrain` becomes:
+- [x] **Step 4: Teach the harness.** In `tests/e2e/harness.ts`, `waitForTerrain` becomes:
 
 ```ts
 export async function waitForTerrain(page: Page): Promise<void> {
@@ -373,7 +373,7 @@ export async function waitForTerrain(page: Page): Promise<void> {
 }
 ```
 
-- [ ] **Step 5: Write `tests/e2e/title.spec.ts`**:
+- [x] **Step 5: Write `tests/e2e/title.spec.ts`**:
 
 ```ts
 import { test, expect } from '@playwright/test'
@@ -415,7 +415,7 @@ test('the title is up on load with both options, holds the world, and New game r
 })
 ```
 
-- [ ] **Step 6: Run Tier 2**, the whole suite, from nexus with the tunnel up:
+- [x] **Step 6: Run Tier 2**, the whole suite, from nexus with the tunnel up:
 
 ```sh
 PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npx playwright test
@@ -423,9 +423,9 @@ PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npx
 
 Expected: every spec passes through the title; `title.spec.ts` passes; read `test-results/title-screen.png`.
 
-- [ ] **Step 7: Docs.** README: in the "Status" area after the Plan 6 paragraph, add one paragraph: the title screen landed 2026-09-19 as the first slice of Plan 9, boots behind, New game / About project, Enter is New game. §15 Plan 9 row: `Not started` → `Title screen landed 2026-09-19 ahead of the rest ([handoff](../../handoff/2026-09-19-title-screen.md)); roster, mission select and return-to-title remain`. Write `docs/handoff/2026-09-19-title-screen.md` with the Tier 2 counts and the screenshot description.
+- [x] **Step 7: Docs.** README: in the "Status" area after the Plan 6 paragraph, add one paragraph: the title screen landed 2026-09-19 as the first slice of Plan 9, boots behind, New game / About project, Enter is New game. §15 Plan 9 row: `Not started` → `Title screen landed 2026-09-19 ahead of the rest ([handoff](../../handoff/2026-09-19-title-screen.md)); roster, mission select and return-to-title remain`. Write `docs/handoff/2026-09-19-title-screen.md` with the Tier 2 counts and the screenshot description.
 
-- [ ] **Step 8: `npm run verify`**, then commit:
+- [x] **Step 8: `npm run verify`**, then commit:
 
 ```bash
 git add src/render/main.ts tests/e2e/harness.ts tests/e2e/title.spec.ts README.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md docs/handoff/2026-09-19-title-screen.md docs/superpowers/plans/2026-09-19-title-screen.md

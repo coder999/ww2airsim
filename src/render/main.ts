@@ -17,6 +17,7 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
+import { createTitleScreen } from './titleScreen.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
 import { createEngineSmoke } from './scene/smoke.js'
@@ -149,6 +150,19 @@ async function boot(): Promise<void> {
    * found live in the deployed bundle on 2026-09-18.
    */
   let spawnPosition: Vec3 | null = null
+
+  // The title screen (2026-09-19), created before ANYTHING that can take
+  // time: the adapter, the ocean cascades and the terrain all load behind
+  // it. `frame` and `audio` are declared below and read here only when the
+  // button is pressed, which cannot happen before the page has painted --
+  // the same argument the debrief's `frame!` reads make. A boot failure
+  // empties #app (failure.ts), which takes the overlay with it.
+  const title = createTitleScreen(root, () => {
+    // A click is the user gesture the autoplay policy wants; this is the
+    // first-visit resume the audio handoff left open.
+    void audio.resume()
+    if (frame) frame = withPaused(frame, false)
+  })
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
@@ -761,6 +775,8 @@ async function boot(): Promise<void> {
   }
 
   window.addEventListener('keydown', (e) => {
+    // Nothing reaches the game while the title is up; the title owns Enter.
+    if (title.up()) return
     if (BINDINGS.toggleMissionMap.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       if (navigationMapState.open) closeNavigationChart()
@@ -868,7 +884,10 @@ async function boot(): Promise<void> {
     // not drop the gear (Plan 14 Task 4). `clearMapInput` drains the latches
     // and `pressed` at both transitions; this keeps the frames in between
     // deaf too.
-    const chartOpen = navigationMapState.open
+    // The open chart and the title screen hold the world the same way: no
+    // keys reach the frame and the frame is paused (the chart's comment
+    // above). The title's release path is its New game handler in `boot`.
+    const chartOpen = navigationMapState.open || title.up()
     const latched: string[] = []
     if (!chartOpen) {
       if (pendingCameraCycle) latched.push(BINDINGS.cycleCamera[0])
@@ -896,6 +915,7 @@ async function boot(): Promise<void> {
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
+    if (title.up()) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
       navigationMap.show(current.world, navigationMapState.selectedId)

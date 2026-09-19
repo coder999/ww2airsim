@@ -1,4 +1,4 @@
-import { flySweep, snapshot, waitForTerrain } from './harness.js'
+import { flySweep, snapshot, waitForTerrain, startGame } from './harness.js'
 import { test, expect } from '@playwright/test'
 import { referenceDisplacement, OCEAN_PHASE_SEED } from '../../src/render/ocean/reference.js'
 
@@ -67,6 +67,9 @@ for (const tier of ['high','medium','low']) {
     // flight is. The comment here used to assert the opposite. Nothing in
     // this test depends on when the clock starts, only that it reaches 240.
     await page.goto(`/?spawnY=600&spawnX=0&spawnZ=0&beaufort=6&oceanTime=17&oceanTier=${tier}`)
+    // The title screen holds the world too (2026-09-19); this spec waits on
+    // the tick rather than `waitForTerrain`, so it presses New game itself.
+    await startGame(page)
     await page.waitForFunction(() => ((window as unknown as import('./harness.js').DiagWindow).__ww2?.tick() ?? 0) > 240)
     const samples = await page.evaluate(async () => {
       const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!

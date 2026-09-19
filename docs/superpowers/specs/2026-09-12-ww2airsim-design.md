@@ -711,7 +711,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 8 | 12 | Carrier and airfield operations | §4, §8 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan8-carrier-ops.md) |
 | 6 | 13 — in progress | Combat and damage | §6 | Playable gunnery slice landed 2026-09-19 (guns, ballistics, aircraft damage, `gunnery-range`); [design](2026-09-19-combat-design.md), [handoff](../../handoff/2026-09-19-plan6-gunnery.md). Bombs, rockets, torpedoes, stores and ship damage remain |
 | 7 | 14 | AI | §7 | Not started |
-| 9 | 15 | Meta-game | §8 | Not started |
+| 9 | 15 | Meta-game | §8 | Title screen landed 2026-09-19 ahead of the rest ([design](2026-09-19-title-screen-design.md), [handoff](../../handoff/2026-09-19-title-screen.md)); roster, mission select and return-to-title remain |
 | 13 | any | Terrain surface detail | §4 | First pass landed 2026-09-17 in daa1b39 without a spec or plan (Codex, [handoff](../../handoff/2026-09-18-scenery.md)); split into 13a-13d the same day |
 | 13a | any | Harden and verify the first pass (Tier 2, GPU budget, quality tiering, tree streaming) | §4 | Complete 2026-09-17, bounded work, no plan document; [handoff](../../handoff/2026-09-17-plan13a-hardening.md) |
 | 13b | any | Land cover from ESA WorldCover as the material and vegetation guide | §4 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan13b-land-cover.md) |
