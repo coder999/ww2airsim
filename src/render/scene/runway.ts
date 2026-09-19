@@ -115,5 +115,7 @@ export function createRunway(field: TerrainField, airfield: Airfield): Object3D 
   const grain = groundNoise(xz, 12).g
   const seams = smoothstep(0.96, 0.995, fract(xz.y.div(3))).mul(0.14)
   material.colorNode = mix(color(0x55544b), color(0x7c7868), grain).mul(seams.oneMinus())
-  return new Mesh(geometry, material)
+  const strip = new Mesh(geometry, material)
+  strip.receiveShadow = true // Plan 16b, see hellcat.ts
+  return strip
 }

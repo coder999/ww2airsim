@@ -3,6 +3,7 @@ import { MeshBasicNodeMaterial, type Node, type UniformNode } from 'three/webgpu
 import { Fn, If, clamp, color, fract, max, normalize, dot, pow, float, floor, int, ivec2, length, min, mix, positionLocal, smoothstep, textureLoad, uniform, varying, vec3, vec4 } from 'three/tsl'
 import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
+import { OCEAN_SHADOW_FLOOR, type CloudShadowHandle } from '../scene/cloudShadow.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
 import type { OceanCompute } from './compute.js'
 import { angularFadeSpacingM, shortestWavelengthM } from './bands.js'
@@ -398,7 +399,7 @@ export function oceanCameraXZ(ocean: Object3D): Vector2 {
 }
 
 /** Camera-centred curved water, with optional deterministic GPU wave bands. */
-export function createOcean(field: DepthField, beaufort: number, cascades: readonly OceanCompute[] = [], terrainTexture?: DataTexture): Object3D {
+export function createOcean(field: DepthField, beaufort: number, cascades: readonly OceanCompute[] = [], terrainTexture?: DataTexture, shadow?: CloudShadowHandle): Object3D {
   windSpeedMps(beaufort)
   const camera = uniform(new Vector2())
   const eyeHeight = uniform(1000)
@@ -513,8 +514,14 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   }
   const normal = normalize(vec3(slopes.x, 1, slopes.y))
   const fresnel = float(0.0204).add(pow(float(1).sub(clamp(dot(normal, normalize(vec3(0, eyeHeight, 0).sub(varying(displacedPosition)))), 0, 1)), 5).mul(0.9796))
-  material.colorNode = cascades.length === 0 ? waterColour : mix(
+  const unshadowed = cascades.length === 0 ? waterColour : mix(
     mix(waterColour.mul(max(normal.y, 0.3)), color(0x9abacb), fresnel), color(0xe4eff0), clamp(foam, 0, 1))
+  // Plan 16b: under cloud the sea loses glint and subsurface light but still
+  // reflects the sky, hence a floor rather than the terrain's direct-only
+  // scale. The sea is at y = 0, so `worldXZ` is the true world point and the
+  // parallax is zero.
+  const shadowT = shadow ? shadow.node(vec3(worldXZ.x, 0, worldXZ.y), 'world') : float(1)
+  material.colorNode = shadow?.showing ? vec3(shadowT, shadowT, shadowT) : unshadowed.mul(mix(float(OCEAN_SHADOW_FLOOR), float(1), shadowT))
   const mesh = new Mesh(oceanGeometry(oceanRings(OCEAN_EXTENT_M, 8)), material)
   mesh.frustumCulled = false // shader changes bounds; the disc always surrounds the eye
   mesh.userData.disposeOcean = () => { mesh.geometry.dispose(); material.dispose(); tex.dispose() }

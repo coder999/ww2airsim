@@ -43,6 +43,7 @@ import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
 import { SKY_HAZE } from '../scene/sky.js'
 import { sunDirectionNode } from '../scene/lighting.js'
+import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
 
@@ -242,6 +243,7 @@ function createRingMaterial(
   halfExtentM: number,
   cameraXZ: UniformNode<'vec2', Vector2>,
   cover: CoverNodes,
+  shadow?: CloudShadowHandle,
 ): MeshBasicNodeMaterial {
   const material = new MeshBasicNodeMaterial()
 
@@ -278,7 +280,14 @@ function createRingMaterial(
   const slope = length(vec2(field.y, field.z))
   const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope), cover)
   const sun = normalize(sunDirectionNode)
-  const lit = albedo.mul(float(AMBIENT).add(clamp(dot(varying(normal), sun), 0, 1).mul(1 - AMBIENT)))
+  const lambert = clamp(dot(varying(normal), sun), 0, 1)
+  // Plan 16b: cloud shadow scales the direct term only; ambient stays, so
+  // the ground under an opaque cloud keeps AMBIENT, like a north slope.
+  // The terrain already has TRUE world coordinates (`worldXZ` from
+  // `nodeSpec`, `heightM` from the field), so it passes 'world' and the
+  // node adds no eye offset. `varying` so the lookup is per fragment.
+  const shadowT = shadow ? shadow.node(varying(vec3(worldXZ.x, heightM, worldXZ.y)), 'world') : float(1)
+  const lit = albedo.mul(float(AMBIENT).add(lambert.mul(1 - AMBIENT).mul(shadowT)))
 
   // Aerial perspective, and the reason the far plane can sit exactly on the
   // draw distance (main.ts). `smoothstep` is exactly 1 at `drawDistanceM`,
@@ -296,9 +305,11 @@ function createRingMaterial(
   // The ocean owns water fragments. Discard the DEM's zero-elevation sea
   // before shading so two overlapping surfaces never compete there. Both
   // materials apply the shared curvature sink; the contour stays at h=0.
+  // `?cloudShadow=show` paints the transmittance instead of the ground.
+  const painted = shadow?.showing ? vec3(shadowT, shadowT, shadowT) : shaded
   material.colorNode = Fn(() => {
     Discard(vertexHeightM.lessThanEqual(0))
-    return shaded
+    return painted
   })()
 
   return material
@@ -354,7 +365,7 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  * `object.children[k]` is ring k, in order, and says so in its name -- the
  * mesh's own bookkeeping depends on it and so does the Node test.
  */
-export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
+export function createTerrainMesh(header: TerrainHeader, shadow?: CloudShadowHandle): TerrainMesh {
   // Two world extents would be two worlds. `header` decides the texture sizes
   // and `sampleField`'s world->grid mapping below, but `update` calls
   // `selectNodes` with the DEFAULT `LOD`, whose `halfExtentM` comes from the
@@ -428,6 +439,7 @@ export function createTerrainMesh(header: TerrainHeader): TerrainMesh {
         header.halfExtentM,
         cameraXZ,
         cover,
+        shadow,
       ),
     )
     mesh.name = `terrain-ring-${ring}`

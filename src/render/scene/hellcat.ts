@@ -60,5 +60,7 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
   prop.position.set(5.4, 0, 0)
   root.add(prop)
 
+  // Plan 16b: the sun's custom shadow node reaches only receivers (cloudShadow.ts).
+  root.traverse((o) => { o.receiveShadow = true })
   return { root, prop }
 }

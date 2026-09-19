@@ -217,7 +217,9 @@ function batched(root: Group, batches: Map<Material, BufferGeometry[]>): Group {
   for (const [material, geometries] of batches) {
     const geometry = mergeGeometries(geometries)
     if (!geometry) throw new Error('airfield: incompatible scenery geometry')
-    root.add(new Mesh(geometry, material))
+    const mesh = new Mesh(geometry, material)
+    mesh.receiveShadow = true // Plan 16b, see hellcat.ts
+    root.add(mesh)
     for (const g of geometries) g.dispose()
   }
   return root

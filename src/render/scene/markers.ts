@@ -32,6 +32,7 @@ export function createMarkers(): Object3D {
     for (let j = -MARKER_HALF_COUNT; j <= MARKER_HALF_COUNT; j++) {
       const m = new Mesh(geo, mat)
       m.position.set(i * MARKER_SPACING_M, 6, j * MARKER_SPACING_M)
+      m.receiveShadow = true // Plan 16b, see hellcat.ts
       group.add(m)
     }
   }

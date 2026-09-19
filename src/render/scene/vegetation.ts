@@ -157,6 +157,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   for (const mesh of [crowns, trunks]) {
     mesh.instanceMatrix.setUsage(DynamicDrawUsage)
     mesh.frustumCulled = false
+    mesh.receiveShadow = true // Plan 16b, see hellcat.ts
     mesh.count = 0
     object.add(mesh)
   }

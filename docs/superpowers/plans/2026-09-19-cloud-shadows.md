@@ -631,7 +631,7 @@ git commit -m "Plan 16b task 3: the sun-view transmittance map, its pass materia
 - Consumes: `CloudShadowHandle` from Task 3.
 - Produces: `createTerrainMesh(header, shadow?: CloudShadowHandle)` and `createOcean(field, beaufort, cascades?, terrainTexture?, shadow?: CloudShadowHandle)`. Every `Mesh`/`InstancedMesh` returned by the six scene creators has `receiveShadow === true`.
 
-- [ ] **Step 1: Write the failing tests** (append to `tests/render/cloudShadow.test.ts`):
+- [x] **Step 1: Write the failing tests** (append to `tests/render/cloudShadow.test.ts`):
 
 ```ts
 import { InstancedMesh, Mesh as ThreeMesh, type Object3D } from 'three'
@@ -686,9 +686,9 @@ describe('cloud shadow readers (Plan 16b)', () => {
 
 Check the exact names before running: `TERRAIN_HEADER` is what `main.ts:498` passes (grep its import there and use the same module); `loadShipSpec`'s name and the ship id come from `tools/content/load.ts` and `content/ships/` (grep `createShipMesh(` in `tests/render/ship.test.ts` and copy its fixture exactly); `createRunway`'s first parameter type is `TerrainField` from `src/render/terrain/field.ts` or wherever `tests/render/runway.test.ts` builds it -- copy that test's fixture instead of the `flat` stub above if one exists. The stub's shape is the only thing that may change; the assertions do not.
 
-- [ ] **Step 2: Run** `npx vitest run tests/render/cloudShadow.test.ts` → FAIL (`receiveShadow` false; `createTerrainMesh` takes one argument -- a type error surfaces at `verify`, vitest runs it anyway).
+- [x] **Step 2: Run** `npx vitest run tests/render/cloudShadow.test.ts` → FAIL (`receiveShadow` false; `createTerrainMesh` takes one argument -- a type error surfaces at `verify`, vitest runs it anyway).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `terrain/mesh.ts`:
 - `createRingMaterial(..., cover: CoverNodes, shadow?: CloudShadowHandle)` and, replacing line 281:
@@ -722,11 +722,11 @@ Check the exact names before running: `TERRAIN_HEADER` is what `main.ts:498` pas
 
 Six creators, one line each, on every `Mesh`/`InstancedMesh` they build (hellcat: after each `root.add(x)` write `x.receiveShadow = true`, or loop `root.traverse` once before `return`; ship: same on `root` before `return root`; markers: `m.receiveShadow = true` in the loop; runway: on the returned mesh; airfield: in `batched()` on each `new Mesh`; vegetation: inside `for (const mesh of [crowns, trunks])`). Add one comment at the first of them: `// Plan 16b: the sun's custom shadow node reaches only receivers (cloudShadow.ts).`
 
-- [ ] **Step 4: Run** `npx vitest run tests/render/cloudShadow.test.ts tests/render/scenery.test.ts tests/render/ocean tests/render/scene.test.ts tests/render/ship.test.ts tests/render/runway.test.ts` → PASS.
+- [x] **Step 4: Run** `npx vitest run tests/render/cloudShadow.test.ts tests/render/scenery.test.ts tests/render/ocean tests/render/scene.test.ts tests/render/ship.test.ts tests/render/runway.test.ts` → PASS.
 
-- [ ] **Step 5: Run** `npm run verify; echo rc=$?` → `rc=0`.
+- [x] **Step 5: Run** `npm run verify; echo rc=$?` → `rc=0`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/render/terrain/mesh.ts src/render/ocean/mesh.ts src/render/scene/hellcat.ts src/render/scene/ship.ts src/render/scene/vegetation.ts src/render/scene/runway.ts src/render/scene/airfield.ts src/render/scene/markers.ts src/render/scene/cloudShadow.ts tests/render/cloudShadow.test.ts docs/superpowers/plans/2026-09-19-cloud-shadows.md

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Mesh } from 'three'
+import { InstancedMesh, Mesh, type Object3D } from 'three'
 import {
   MAP_TEXELS, MAP_SIDE_M, MAP_TEXEL_M, SHADOW_TIERS, cloudShadowFromQuery, createCloudShadow, snapToTexel, sunParallaxXZ,
 } from '../../src/render/scene/cloudShadow.js'
@@ -8,6 +8,19 @@ import { SUN_DIRECTION } from '../../src/render/scene/lighting.js'
 import { loadScenario } from '../../tools/content/load.js'
 import { loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { createHellcat } from '../../src/render/scene/hellcat.js'
+import { createShipMesh } from '../../src/render/scene/ship.js'
+import { createMarkers } from '../../src/render/scene/markers.js'
+import { createRunway } from '../../src/render/scene/runway.js'
+import { createAirfield } from '../../src/render/scene/airfield.js'
+import { createVegetation } from '../../src/render/scene/vegetation.js'
+import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
+import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
+import { createOcean } from '../../src/render/ocean/mesh.js'
+import { createDepthField } from '../../src/render/ocean/depth.js'
+import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { loadAirfield, loadShipSpec } from '../../tools/content/load.js'
 
 const noise = { shape: loadShape(), detail: loadDetail() }
 const deck = () => createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
@@ -66,5 +79,42 @@ describe('cloud shadow map (Plan 16b)', () => {
     const show = createCloudShadow(deck(), 'show')
     expect(show.enabled).toBe(true)
     expect(show.showing).toBe(true)
+  })
+})
+
+describe('cloud shadow readers (Plan 16b)', () => {
+  const meshesUnder = (root: Object3D): (Mesh | InstancedMesh)[] => {
+    const out: (Mesh | InstancedMesh)[] = []
+    root.traverse((o) => { if (o instanceof Mesh || o instanceof InstancedMesh) out.push(o) })
+    return out
+  }
+  it("every lit mesh receives shadow, so the sun's custom shadow node reaches it", () => {
+    // three multiplies the sun's direct term by `light.shadow.shadowNode` ONLY
+    // on objects with `receiveShadow` (AnalyticLightNode.setup, r186). A mesh
+    // added without the flag is lit as if the sky were clear.
+    const header = loadTerrainHeader()
+    const terrainField = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const tacloban = loadAirfield('tacloban')
+    const roots: Object3D[] = [
+      createHellcat().root, createShipMesh(loadShipSpec('essex-cv')), createMarkers(),
+      createRunway(terrainField, tacloban), createAirfield(terrainField, tacloban), createVegetation(terrainField, [tacloban]).object,
+    ]
+    for (const root of roots) {
+      const meshes = meshesUnder(root)
+      expect(meshes.length).toBeGreaterThan(0)
+      for (const m of meshes) expect(m.receiveShadow, `${root.name || root.type} has an unshadowed mesh`).toBe(true)
+    }
+  })
+  it('the terrain and the ocean construct with a shadow handle, and without one', () => {
+    const field = deck()
+    const shadow = createCloudShadow(field)
+    const terrain = createTerrainMesh(TERRAIN_HEADER, shadow)
+    expect(terrain.object.children.length).toBeGreaterThan(0)
+    const depth = createDepthField({ centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000, samples: 3, encoding: 'int16-metres' }, new Int16Array(9).fill(-125))
+    const ocean = createOcean(depth, 4, [], undefined, shadow)
+    ocean.userData.disposeOcean()
+    createOcean(depth, 4).userData.disposeOcean()
+    shadow.dispose()
+    field.dispose()
   })
 })

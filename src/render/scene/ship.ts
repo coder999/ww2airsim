@@ -64,5 +64,6 @@ export function createShipMesh(spec: ShipSpec): Object3D {
     stack.position.set(-spec.lengthM * 0.05, spec.deckHeightM + 7 + 4, 0)
     root.add(stack)
   }
+  root.traverse((o) => { o.receiveShadow = true }) // Plan 16b, see hellcat.ts
   return root
 }
