@@ -1,6 +1,6 @@
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
-import { DT, step } from './flight/model.js'
+import { airVelocity, DT, step } from './flight/model.js'
 import type { TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
 import { contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
@@ -200,16 +200,19 @@ export type Impact = {
    *  true value rather than clamping it is what lets a caller tell the two
    *  cases apart later. */
   readonly verticalSpeedMps: number
-  /** `heightAt(terrain, position.x, position.z)` at the moment of impact --
-   *  captured rather than left for the caller to recompute, since a later
-   *  step's ground height at the SAME (x, z) can differ once the airplane
-   *  has moved on (a later task's field, not this one's, could even swap the
-   *  field itself). */
+  /** `groundUnder(terrain, decks, position.x, position.z)!.heightM` at the
+   *  moment of impact -- a DECK's height when the airplane hit one, not the
+   *  terrain's (Plan 8). Captured rather than left for the caller to
+   *  recompute, since a later step's ground at the SAME (x, z) can differ
+   *  once the airplane has moved on -- and a deck moves even when it has
+   *  not. */
   readonly groundHeightM: number
-  /** Which surface this was, from `groundHeightM` — see `surfaceAt`. */
+  /** Which surface this was: `groundUnder`'s own `surface`, which is 'deck'
+   *  for a carrier's flight deck and `surfaceAt(heightM)` elsewhere. */
   readonly surface: ContactSurface
-  /** Whether the airplane survived it. Land is always `'destroyed'`: there is
-   *  no landing gear yet. See `contactOutcome`. */
+  /** Whether the airplane survived it. See `contactOutcome`: the gear and the
+   *  sink rate both enter, so a gentle arrival on wheels is not an impact at
+   *  all and never reaches this type. */
   readonly kind: ContactKind
 }
 
@@ -362,8 +365,12 @@ export interface World<M = undefined> {
    * a real field since Plan 10 (`src/render/main.ts`'s terrain-arrival
    * callback, through `withTerrain`); `null` is the pre-terrain state every
    * world starts in and the state most of the test suite, including the golden
-   * trajectory, runs in throughout -- `heightAt` is never called when this is
-   * `null`, so those worlds are unaffected by the impact check entirely.
+   * trajectory, runs in throughout -- a world with neither a field NOR a
+   * carrier deck under the airplane gets `null` from `groundUnder` and is
+   * unaffected by the impact check entirely. `null` here alone is no longer
+   * enough for that (Plan 8): a world whose `ships` carry a flight deck has
+   * ground over the deck's rectangle whatever this field says, and the
+   * impact check runs there.
    *
    * Carries an `Int16Array` (`TerrainField.heightsDm`), which is exactly the
    * case `assistMemory`'s comment above now qualifies: this field round-trips
@@ -570,7 +577,21 @@ function stepAircraftEntity<M>(
   // margin actually applied to on this tick (`entity.state` as of THIS step,
   // which is stale from the second step of a multi-step frame onward unless
   // the entity is rebuilt each step -- and it is).
-  const assisted = assist(entity.state, entity.spec, entity.controls, DT, entity.assistMemory)
+  //
+  // The state handed to `assist` is the AIR-RELATIVE one (whole-branch review
+  // of Plan 8, 2026-09-19), for the same reason `step` builds `air` before
+  // touching an aerodynamic quantity: both assists read the airflow, not the
+  // ground track. `autoRudder` takes its sideslip from `state.velocity` and
+  // `stallLimiter` its angle of attack from `angleOfAttack(state)`, so in a
+  // crosswind a perfectly coordinated airplane read as sideslipping by the
+  // crosswind's own angle and the rudder assist fought it every tick. Only
+  // the VELOCITY differs: `position` and `attitude` are world-frame facts
+  // that the airmass does not move, and an assist returns controls and
+  // memory only, so nothing this state touches reaches the integration.
+  // With no wind this IS `entity.state`, the same object, so the calm path
+  // is bit-identical (`tests/assists/windFrame.test.ts` pins the identity).
+  const airState = wind == null ? entity.state : { ...entity.state, velocity: airVelocity(entity.state, wind) }
+  const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory)
   const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
 
   // Checked after EVERY step in a multi-step frame, not just the last one --

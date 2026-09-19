@@ -106,6 +106,19 @@ describe('follow camera and numeric data', () => {
     expect(items.map(i => i.label)).toEqual(['SPD', 'ALT', 'V/S', 'HDG', 'FUEL', 'THR', 'PITCH', 'BANK', 'GEAR', 'FLAP'])
   })
 
+  it('shows SPD as airspeed once there is wind, with ALT and V/S untouched (Plan 8 review)', () => {
+    // The strip's SPD is `gaugeValue('airspeed', ...)`, so it carried the same
+    // ground-speed reading the panel dial did until the wind was threaded in.
+    const state = createState({ position: v3(0, 1524, 0), velocity: v3(0, -5, -60) })
+    const calm = flightDataItems(spec, state, NEUTRAL)
+    // Air moving south (+z) is a headwind for an airplane tracking north.
+    const into = flightDataItems(spec, state, NEUTRAL, v3(0, 0, 15))
+    expect(calm.find(i => i.label === 'SPD')?.value).toBe(`${Math.round(length(v3(0, -5, -60)) / 0.44704)} mph`)
+    expect(into.find(i => i.label === 'SPD')?.value).toBe(`${Math.round(length(v3(0, -5, -75)) / 0.44704)} mph`)
+    expect(into.find(i => i.label === 'ALT')?.value).toBe(calm.find(i => i.label === 'ALT')?.value)
+    expect(into.find(i => i.label === 'V/S')?.value).toBe(calm.find(i => i.label === 'V/S')?.value)
+  })
+
   it('shows three gear states, not two: up, down, and traveling in between', () => {
     // gearAfter takes several seconds (spec.gear.travelSeconds), so a pilot
     // who just toggled the gear spends real time in a state that is neither

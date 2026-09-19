@@ -30,6 +30,19 @@ describe('the debrief', () => {
     expect(m.detail).toContain('Leyte')
   })
 
+  it('says the pilot went into the DECK, not into Leyte (Plan 8 review)', () => {
+    // `Impact.surface` has carried 'deck' since Plan 8's Task 2, and the
+    // headline arm for it fell through to the land sentence -- a pilot who
+    // flew into the round-down was told he had hit an island 60 km away.
+    const m = debriefModel(
+      impact({ surface: 'deck', kind: 'destroyed', groundHeightM: 17 }),
+      createState({ velocity: v3(60, -12, 0) }),
+    )
+    expect(m.headline).toBe('KILLED')
+    expect(m.detail).toContain('deck')
+    expect(m.detail).not.toContain('Leyte')
+  })
+
   it('says the pilot was killed going into the sea', () => {
     const m = debriefModel(
       impact({ kind: 'destroyed' }),
@@ -72,7 +85,15 @@ describe('the debrief', () => {
 
   it('names the carrier a trap was aboard, by the ship class name when it is known', () => {
     const m = landingModel({ touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', name: 'cv-1' } }, { 'cv-1': 'Essex-class fleet carrier' })
-    expect(m.figures.find((f) => f.label === 'Landed at')!.value).toBe('Essex-class fleet carrier (carrier)')
+    // Class name then hull id, with no "(carrier)" suffix: the class name
+    // already says what it is, and "Essex-class fleet carrier (carrier)" read
+    // as a placeholder (Plan 8 review, item 9).
+    expect(m.figures.find((f) => f.label === 'Landed at')!.value).toBe('Essex-class fleet carrier cv-1')
+  })
+
+  it('falls back to the ship id alone when no class name was passed', () => {
+    const m = landingModel({ touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', name: 'cv-1' } })
+    expect(m.figures.find((f) => f.label === 'Landed at')!.value).toBe('cv-1')
   })
 
   it('scores nothing, because nothing can be destroyed yet', () => {

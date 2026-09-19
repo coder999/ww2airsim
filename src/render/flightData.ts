@@ -1,7 +1,7 @@
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { CameraMode } from './camera.js'
-import { attitudeAngles, COCKPIT_GAUGES, fuelFraction, gaugeValue } from './gauges.js'
+import { attitudeAngles, COCKPIT_GAUGES, fuelFraction, gaugeValue, type Wind } from './gauges.js'
 import { BINDINGS } from '../input/bindings.js'
 import { keyLabel } from './legend.js'
 import { GEAR_DOWN_FRACTION } from '../sim/ground.js'
@@ -41,15 +41,16 @@ export function gearDisplay(gearFraction: number): string {
   return 'TRANSIT'
 }
 
-/** Full numeric values: unlike a dial, the strip has no end stop to peg at. */
-export function flightDataItems(spec: AircraftSpec, state: AircraftState, controls: Controls): FlightDataItem[] {
+/** Full numeric values: unlike a dial, the strip has no end stop to peg at.
+ *  `wind` reaches SPD alone -- see `Wind` in gauges.ts for why it defaults. */
+export function flightDataItems(spec: AircraftSpec, state: AircraftState, controls: Controls, wind: Wind = null): FlightDataItem[] {
   const number = (value: number, signed = false): string => {
     if (!Number.isFinite(value)) return '--'
     const rounded = Math.round(value)
     return `${signed && rounded >= 0 ? '+' : ''}${rounded}`
   }
   const items = COCKPIT_GAUGES.map(g => {
-    const value = gaugeValue(g.id, spec, state, controls)
+    const value = gaugeValue(g.id, spec, state, controls, wind)
     if (g.id === 'heading') return { label: 'HDG', value: Number.isFinite(value) ? `${((Math.round(value) % 360 + 360) % 360).toString().padStart(3, '0')}°` : '--' }
     if (g.id === 'fuel') return { label: 'FUEL', value: `${number(fuelFraction(spec, state) * 100)}% (${number(value)} gal)` }
     return {
@@ -67,7 +68,7 @@ export function flightDataItems(spec: AircraftSpec, state: AircraftState, contro
 
 export function createFlightData(root: HTMLElement): {
   toggle(): void
-  update(mode: CameraMode, spec: AircraftSpec, state: AircraftState, controls: Controls): void
+  update(mode: CameraMode, spec: AircraftSpec, state: AircraftState, controls: Controls, wind?: Wind): void
 } {
   const strip = document.createElement('div')
   strip.setAttribute('aria-label', 'Flight data')
@@ -99,10 +100,10 @@ export function createFlightData(root: HTMLElement): {
   show()
   return {
     toggle: flip,
-    update(mode, spec, state, controls) {
+    update(mode, spec, state, controls, wind = null) {
       if (mode !== cameraMode) { cameraMode = mode; show() }
       if (mode !== 'chase' || !enabled) return
-      const items = flightDataItems(spec, state, controls)
+      const items = flightDataItems(spec, state, controls, wind)
       for (const item of items) {
         const existing = values.get(item.label)
         if (existing) {

@@ -9,6 +9,7 @@ import { MAX_SUPPORTED_SINK_MPS } from '../../src/sim/ground.js'
 import { deckOf, deckWorld, deckLocal, decksOf } from '../../src/sim/world/deck.js'
 import { approachControls, VREF_STALL_MULTIPLE } from '../../tools/autopilot/approach.js'
 import { nextLandingTracking, NO_LANDING } from '../../src/render/landing.js'
+import { paddlesCue, type PaddlesCue } from '../../src/sim/paddles.js'
 import { v3, sub, length } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 
@@ -56,6 +57,12 @@ describe('an approach flown to the moving deck (Plan 8)', () => {
     world = { ...world, aircraft: world.aircraft.map((a) => (a.id === world.player ? { ...a, parked: false } : a)) }
 
     let tracking = NO_LANDING
+    // The LSO's cue, collected every tick from the state and controls the
+    // approach actually flew. Until this (Plan 8 review, item 4) `paddlesCue`
+    // was observed only by its own unit test's fixtures -- nothing at any
+    // tier ever ran it against a real approach, so a cue that never fired on
+    // one would have passed the whole plan.
+    const cues: PaddlesCue[] = []
     let touchdownSink: number | null = null
     let touchdownRel: number | null = null
     let stopped = false
@@ -71,6 +78,8 @@ describe('an approach flown to the moving deck (Plan 8)', () => {
         touchdownElevationM: deck.center.y, surfaceVelocity: deck.velocity,
         windVelocity: wind!, hookDown: true,
       })
+      const cue = paddlesCue(f6f, before, controls, deck, cv.spec.paddles!, wind)
+      if (cue !== null) cues.push(cue)
       world = advance(withControls(world, world.player, controls), DT).world
       const now = playerAircraft(world).state
       const deckNow = deckOf(world.ships.find((s) => s.id === 'cv-1')!)!
@@ -86,6 +95,8 @@ describe('an approach flown to the moving deck (Plan 8)', () => {
     const deckEnd = deckOf(world.ships.find((s) => s.id === 'cv-1')!)!
     const local = deckLocal(deckEnd, rest.position.x, rest.position.z)
     console.log(`carrier landing: touchdown sink ${touchdownSink?.toFixed(2)} m/s at ${touchdownRel?.toFixed(1)} m/s over the deck; at rest ${(local.z + deckEnd.lengthM / 2).toFixed(0)} m from the stern, ${local.x.toFixed(1)} m off the centerline`)
+    const tally = [...new Set(cues)].map((c) => `${c} x${cues.filter((x) => x === c).length}`).join(', ')
+    console.log(`paddles over the whole approach: ${tally}`)
     expect(touchdownSink, 'never touched down').not.toBeNull()
     expect(touchdownSink!).toBeLessThan(MAX_SUPPORTED_SINK_MPS)
     expect(stopped, 'never trapped').toBe(true)
@@ -94,5 +105,9 @@ describe('an approach flown to the moving deck (Plan 8)', () => {
     expect(tracking.report).not.toBeNull()
     expect(tracking.report!.at).toEqual({ kind: 'carrier', name: 'cv-1' })
     expect(tracking.report!.rollOutM).toBeLessThan(60)
+    // The paddles saw this approach and called the cut: an empty sequence
+    // would mean the cue is unreachable in flight whatever its unit test says.
+    expect(cues.length, 'the LSO never said anything on a complete approach').toBeGreaterThan(0)
+    expect(cues).toContain('cut')
   })
 })

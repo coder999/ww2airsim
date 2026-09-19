@@ -185,8 +185,7 @@ export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM
  * energy trade below are unchanged in substance, now measured against
  * `groundHeightM + spec.gear.heightM` rather than `groundHeightM` directly --
  * `tests/sim/invariants.test.ts`'s sweep re-verifies this after the move.
- */
-/**
+ *
  * `surfaceVelocity` (Plan 8): everything below is judged and moved RELATIVE
  * to the surface, not the world -- a deck carries the airplane along with
  * it, so "at rest" on a moving deck means matching the ship's velocity, not

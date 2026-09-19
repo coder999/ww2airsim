@@ -19,6 +19,9 @@ import type { ShipSpec } from '../../sim/world/ships.js'
  * plain material is what `hellcat.ts` already builds its airframe from.
  */
 export function createShipMesh(spec: ShipSpec): Object3D {
+  if (spec.role === 'carrier' && spec.flightDeck === undefined) {
+    throw new Error(`Carrier ${spec.id} is missing flightDeck`)
+  }
   const root = new Group()
   root.name = `${spec.name} hull`
   const grey = new MeshStandardMaterial({ color: 0x5c6670, roughness: 0.8 })
@@ -50,13 +53,9 @@ export function createShipMesh(spec: ShipSpec): Object3D {
       root.add(band)
     }
     const island = new Mesh(new BoxGeometry(spec.lengthM * 0.12, 14, 6), grey)
+    // Keep the island outboard of the usable 32.9 m flight deck.
     island.position.set(spec.lengthM * 0.05, heightM + 7, widthM / 2 + 3)
     root.add(island)
-  } else if (spec.role === 'carrier') {
-    // A carrier record without a flight deck block: the pre-Plan-8 slab.
-    const flightDeck = new Mesh(new BoxGeometry(spec.lengthM * 0.98, 1.2, spec.deckWidthM), deck)
-    flightDeck.position.set(0, spec.deckHeightM + 0.6, 0)
-    root.add(flightDeck)
   } else {
     const superstructure = new Mesh(new BoxGeometry(spec.lengthM * 0.3, 7, spec.beamM * 0.7), grey)
     superstructure.position.set(spec.lengthM * 0.1, spec.deckHeightM + 3.5, 0)

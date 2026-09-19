@@ -102,7 +102,7 @@ describe('an airplane on a moving deck', () => {
       expect(world.aircraft[0]!.impact, `impact at tick ${world.tick}`).toBeNull()
     }
     expect(Math.abs(world.ships[0]!.state.headingRad)).toBeGreaterThan(0.5)
-    expect(worstDriftM).toBeLessThan(1.0)
+    expect(worstDriftM).toBeLessThan(0.5)
     expect(world.aircraft[0]!.state.position.y).toBeCloseTo(deck.center.y + f6f.gear.heightM, 3)
   })
 })

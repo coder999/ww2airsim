@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { audioInputsFrom } from '../../src/render/audio.js'
-import { initialFrameState } from '../../src/render/frame.js'
-import { playerAircraft } from '../../src/sim/loop.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { initialFrameState, initialFrameStateFor } from '../../src/render/frame.js'
+import { createWorldOf, playerAircraft, type ShipEntity } from '../../src/sim/loop.js'
+import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
-import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { NEUTRAL } from '../../src/input/keyboard.js'
+import { deckOf, deckWorld } from '../../src/sim/world/deck.js'
+import { createShipState } from '../../src/sim/world/ships.js'
+import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader } from '../../tools/terrain/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
@@ -87,6 +90,37 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(inputs.onGround).toBe(true)
     expect(inputs.groundSurface).toBe('water')
     expect(audioInputsFrom(initialFrameState(f6f, createState({ position: v3(0, 1000, 0) }))).groundSurface).toBeNull()
+  })
+
+  it('reads a carrier DECK as hard ground under the airplane (Plan 8 review)', () => {
+    // One ground model. This adapter called `heightAt`/`surfaceAt` directly,
+    // which knows only terrain: an airplane chocked on a flight deck with no
+    // terrain loaded read `onGround: null` (no terrain -> "no ground yet"),
+    // so a trap could never squeak and a deck run opened airborne.
+    // `groundUnder(terrain, decksOf(ships), ...)` is the model `landing.ts`,
+    // `main.ts` and `step()` itself already share.
+    const cv = loadShipSpec('essex-cv')
+    const shipState = createShipState({ position: v3(0, SEA_LEVEL_M, 0), headingRad: 0, speedMps: 7.717 })
+    const carrier: ShipEntity = {
+      id: 'cv-1', spec: cv, state: shipState, previous: shipState,
+      orders: { waypoints: [{ x: 0, z: 0 }, { x: 0, z: -3000 }], speedMps: 7.717 },
+    }
+    const deck = deckOf(carrier)!
+    const spot = deckWorld(deck, 0, -110)
+    const parked = createState({
+      position: v3(spot.x, deck.center.y + f6f.gear.heightM, spot.z),
+      velocity: deck.velocity,
+      gearFraction: 1,
+    })
+    const world = createWorldOf<undefined>({
+      aircraft: [{ id: 'player', spec: f6f, state: parked, previous: parked, controls: NEUTRAL, assistMemory: undefined, impact: null, parked: true }],
+      ships: [carrier],
+      player: 'player',
+    })
+    const inputs = audioInputsFrom(initialFrameStateFor(world))
+    expect(world.terrain).toBeNull()
+    expect(inputs.onGround).toBe(true)
+    expect(inputs.groundSurface).toBe('deck')
   })
 
   it('carries the tick, which is how a restart is told from a landing', () => {

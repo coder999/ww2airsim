@@ -59,3 +59,16 @@ describe('autopilot', () => {
     expect(controls.pitch).toBeCloseTo(0.2, 2)
   })
 })
+
+
+it('trims for airspeed in wind while keeping the calm result unchanged', () => {
+  const state = createState({ position: v3(0, 1000, 0), velocity: v3(100, 0, 0) })
+  const calm = holdLevelFlight(spec, state, 0.7, 1000)
+  expect(holdLevelFlight(spec, state, 0.7, 1000, 0, null)).toEqual(calm)
+  const wind = v3(-15, 0, 0)
+  const headwind = holdLevelFlight(spec, state, 0.7, 1000, 0, wind)
+  expect(headwind).toEqual(holdLevelFlight(spec, { ...state, velocity: v3(115, 0, 0) }, 0.7, 1000))
+  expect(headwind.pitch).toBeLessThan(calm.pitch)
+  // Moving with the airmass has no dynamic pressure despite ground speed.
+  expect(holdLevelFlight(spec, state, 0.7, 5000, 20, state.velocity)).toEqual(holdLevelHeading(spec, state, 0.7))
+})

@@ -1,8 +1,8 @@
-import { v3, dot } from './math/vec3.js'
+import { v3, dot, length, type Vec3 } from './math/vec3.js'
 import { qRotate } from './math/quat.js'
 import { densityAt } from './atmosphere.js'
 import type { AircraftSpec } from './flight/schema.js'
-import { airspeed, clampFinite, massKg, type AircraftState, type Controls } from './flight/model.js'
+import { airVelocity, clampFinite, massKg, type AircraftState, type Controls } from './flight/model.js'
 
 /**
  * Bank angle of the body up axis around the velocity/forward axis, radians.
@@ -103,8 +103,9 @@ export function holdLevelFlight(
   throttle: number,
   targetAltitudeM: number,
   targetClimbMps = 0,
+  wind: Vec3 | null = null,
 ): Controls {
-  const v = airspeed(state)
+  const v = length(airVelocity(state, wind))
   // Below 1 m/s the trim inversion divides by a vanishing dynamic pressure and
   // the flight-path angle is not defined; hold the attitude level instead.
   if (v < 1) return holdLevelHeading(spec, state, throttle)

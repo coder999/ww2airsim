@@ -1,7 +1,7 @@
 import type { AudioInputs } from '../audio/cues.js'
-import { surfaceAt } from '../sim/contact.js'
 import { onGround } from '../sim/ground.js'
-import { heightAt } from '../sim/world/terrain.js'
+import { decksOf } from '../sim/world/deck.js'
+import { groundUnder } from '../sim/world/ground.js'
 import { playerAircraft } from '../sim/loop.js'
 import type { FrameState } from './frame.js'
 
@@ -20,8 +20,15 @@ import type { FrameState } from './frame.js'
  * neither. That is `audio-must-not-import-render` in .dependency-cruiser.cjs.
  */
 export function audioInputsFrom(frame: FrameState): AudioInputs {
-  const { terrain } = frame.world
+  const { terrain, ships } = frame.world
   const { state: aircraft, impact, spec } = playerAircraft(frame.world)
+  // ONE ground model (Plan 8 review, item 3): `groundUnder` is what
+  // `src/sim/flight/model.ts`, `src/render/landing.ts` and `main.ts` all read,
+  // and it knows about carrier decks as well as terrain. This adapter called
+  // `heightAt`/`surfaceAt` directly until 2026-09-19, so an airplane chocked
+  // on a flight deck before the heightfield arrived reported `onGround: null`
+  // -- "no terrain yet" -- and a trap on a deck could never squeak.
+  const ground = groundUnder(terrain, decksOf(ships), aircraft.position.x, aircraft.position.z)
   return {
     // `frame.controls` is the identical object the player entity's `controls`
     // holds, so this is the throttle the simulation actually ran, not a copy
@@ -33,18 +40,13 @@ export function audioInputsFrom(frame: FrameState): AudioInputs {
     // the cue's "a tick that went backwards means a new flight" rule is about
     // the flight, which is the world (spec §4).
     tick: frame.world.tick,
-    // `null`, not `false`, while there is no terrain: the airplane spawns
+    // `null`, not `false`, while there is no ground: the airplane spawns
     // parked and the heightfield arrives seconds later, so calling that gap
-    // "airborne" would make its arrival a landing.
-    onGround:
-      terrain === null
-        ? null
-        : onGround(spec, aircraft, heightAt(terrain, aircraft.position.x, aircraft.position.z)),
-    // `surfaceAt` on the SAME height `onGround` was judged against, so the two
-    // cannot disagree about what the airplane is over.
-    groundSurface:
-      terrain === null
-        ? null
-        : surfaceAt(heightAt(terrain, aircraft.position.x, aircraft.position.z)),
+    // "airborne" would make its arrival a landing. A deck-parked airplane has
+    // ground from tick 0 whatever the terrain is doing.
+    onGround: ground === null ? null : onGround(spec, aircraft, ground.heightM),
+    // The SAME lookup `onGround` was judged against, so the two cannot
+    // disagree about what the airplane is over.
+    groundSurface: ground === null ? null : ground.surface,
   }
 }

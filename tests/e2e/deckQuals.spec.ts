@@ -29,6 +29,7 @@ const URL = `/?${SCENARIO_PARAM}=deck-quals`
 test.setTimeout(180_000)
 
 test('deck quals: the player is parked on the moving deck and sails with the carrier', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(URL)
   await waitForTerrain(page)
   const read = () => page.evaluate(() => {
@@ -50,10 +51,16 @@ test('deck quals: the player is parked on the moving deck and sails with the car
   expect(Math.abs(meMoved - shipMoved)).toBeLessThan(1)
   expect(b.deck?.shipId).toBe('cv-1')
   expect(b.errors).toEqual([])
+  // 15 kn of ship speed into 15 kn of wind: 35 mph airspeed, not 17 mph ground speed.
+  await expect(page.getByLabel('Flight data', { exact: true })).toContainText('SPD 35 mph')
   await page.screenshot({ path: 'test-results/deck-quals-parked.png' })
 })
 
-test('deck quals: a full-throttle deck run gets airborne off the bow with the trap zone and cue in view', async ({ page }) => {
+// Renamed 2026-09-19 (Plan 8 review, item 4): this used to say "with the trap
+// zone and cue in view", which the screenshots it takes do not show -- the
+// chase camera looks FORWARD, so the carrier is behind the airplane by the
+// time this asserts. What it measures is the climb-out and the frame budget.
+test('deck quals: a full-throttle deck run gets airborne off the bow and climbs out over the water inside the frame budget', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(URL)
   await waitForTerrain(page)

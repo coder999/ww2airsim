@@ -25,6 +25,7 @@ import {
   fractionForValue,
   tapeOffsetFor,
   type GaugeId,
+  type Wind,
   type DialSpec,
   type ColumnSpec,
   type TapeSpec,
@@ -848,11 +849,14 @@ export function updatePanel(
    * invisible.
    */
   renderAttitude: AircraftState['attitude'] = state.attitude,
+  /** The velocity of the air, for the AIRSPEED dial: `World.wind`, threaded
+   *  from main.ts. See `Wind` in ../gauges.ts for why it is defaulted. */
+  wind: Wind = null,
 ): void {
   for (const g of GAUGES) {
     const readout = panel.readouts.get(g.id)
     if (readout) {
-      const text = readoutTextFor(g.id, spec, state, controls)
+      const text = readoutTextFor(g.id, spec, state, controls, wind)
       // Re-rasterise only on a real change. Measured over 600 ticks of the
       // real flight model: about 0.07 redraws per frame in gentle flight but
       // 1.44 per frame under active manoeuvring, driven mostly by the climb
@@ -870,14 +874,14 @@ export function updatePanel(
       // `gaugeValue`/`fractionForValue`, not `needleAngleFor`: a column has
       // no angle, and `throttle` is the one gauge that reads `controls`
       // rather than `state` (gauges.ts's `NEUTRAL_CONTROLS` doc comment).
-      const value = gaugeValue(g.id, spec, state, controls)
+      const value = gaugeValue(g.id, spec, state, controls, wind)
       const fraction = g.id === 'fuel' ? fuelFraction(spec, state) : fractionForValue(g, value)
       column.fill.scale.y = Math.max(1e-4, fraction)
       column.fill.visible = fraction > 0
     }
     const needle = panel.needles.get(g.id)
     if (!needle) continue
-    const angle = needleAngleFor(g.id, spec, state)
+    const angle = needleAngleFor(g.id, spec, state, wind)
     // Negative: needle angles are clockwise from the dial's zero (gauges.ts),
     // and a positive rotation about +Z in this frame is anticlockwise.
     needle.rotation.z = -angle
@@ -890,7 +894,7 @@ export function updatePanel(
   {
     const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
     const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
-    const headingDeg = gaugeValue('heading', spec, state, controls)
+    const headingDeg = gaugeValue('heading', spec, state, controls, wind)
     const stripX = -tapeOffsetFor(tapeGauge, headingDeg) * stripW
     panel.tape.strip.position.x = stripX
     // Cull to the visible window, per frame (Ruling R8, review round 2):
@@ -911,7 +915,7 @@ export function updatePanel(
     // dial readouts get from `panel.readouts`' own `Readout.text` field --
     // `Panel.tape.readout` is a bare `Mesh` (the interface this task was
     // handed), so there is no sibling wrapper to hold the last string.
-    const text = readoutTextFor('heading', spec, state, controls)
+    const text = readoutTextFor('heading', spec, state, controls, wind)
     if (panel.tape.readout.userData.text !== text) {
       setPlateText(panel.tape.readout, text, makeText)
       panel.tape.readout.userData.text = text

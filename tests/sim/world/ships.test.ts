@@ -184,3 +184,18 @@ describe('assertLoopOverWater', () => {
     ).toThrow(/dd-1.*leg 0/)
   })
 })
+
+
+describe('carrier content consistency', () => {
+  it('rejects inverted cue ranges and accepts equal boundaries', () => {
+    expect(() => parseShipSpec({ ...cv, paddles: { ...cv.paddles!, cutRangeM: cv.paddles!.waveOffRangeM + 1 } })).toThrow(/cutRangeM.*waveOffRangeM/)
+    expect(() => parseShipSpec({ ...cv, paddles: { ...cv.paddles!, waveOffRangeM: cv.paddles!.maxRangeM + 1 } })).toThrow(/waveOffRangeM.*maxRangeM/)
+    expect(() => parseShipSpec({ ...cv, paddles: { ...cv.paddles!, cutRangeM: 100, waveOffRangeM: 100, maxRangeM: 100 } })).not.toThrow()
+  })
+
+  it('requires the hull and flight deck to agree on height', () => {
+    expect(() => parseShipSpec({ ...cv, flightDeck: { ...cv.flightDeck!, heightM: cv.deckHeightM + 1 } })).toThrow(/flightDeck.heightM.*deckHeightM/)
+    expect(() => parseShipSpec(cv)).not.toThrow()
+    expect(() => parseShipSpec(dd)).not.toThrow()
+  })
+})

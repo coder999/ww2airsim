@@ -53,3 +53,9 @@ describe('createShipMesh', () => {
     expect(bb.max.y + band.position.y).toBeGreaterThan(cv.flightDeck!.heightM)
   })
 })
+
+
+it('names a carrier whose flight deck is missing', () => {
+  const cv = loadShipSpec('essex-cv')
+  expect(() => createShipMesh({ ...cv, flightDeck: undefined })).toThrow(/essex-cv.*flightDeck/)
+})

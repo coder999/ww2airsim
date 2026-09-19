@@ -236,8 +236,20 @@ Tier 1, headless, every commit:
 
 Tier 2, reference GPU, 1440p: deck quals loads with the player parked on a
 moving deck (position advances with `cv-1` across real time); a scripted
-deck run gets airborne with zero validation errors; the frame budget with the
-deck plane and cue in view; the chart names the carrier as before.
+deck run gets airborne with zero validation errors; the frame budget over that
+run, measured from the moment of the deck roll to a climb-out over the water;
+the chart names the carrier as before.
+
+> Corrected 2026-09-19 (whole-branch review, item 4). This paragraph said "the
+> frame budget with the deck plane and cue in view", and `tests/e2e/
+> deckQuals.spec.ts` was named to match. Neither was true: the chase camera
+> looks forward, so once the airplane is off the bow the carrier -- with the
+> deck plane, the trap band and the paddles badge's subject -- is BEHIND it,
+> and the run's own screenshot (`deck-quals-airborne.png`, read at 1440p
+> 2026-09-19) shows open water and Leyte on the horizon. The frame budget is
+> measured over the deck run and climb-out, which is what the test asserts.
+> The deck plane IS in view in the parked case above, which takes its own
+> screenshot.
 
 ## 10. Every number that is a guess
 

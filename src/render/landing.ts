@@ -150,7 +150,7 @@ function rollOutM(touchdown: Touchdown, after: AircraftState, g: GroundUnder): n
 }
 
 function landedAt(touchdown: Touchdown, airfields: readonly Airfield[], g: GroundUnder): LandingReport['at'] {
-  if (g.deck !== null && touchdown.deck !== null) return { kind: 'carrier', name: g.deck.shipId }
+  if (g.deck !== null && touchdown.deck !== null && g.deck.shipId === touchdown.deck.shipId) return { kind: 'carrier', name: g.deck.shipId }
   const field = airfieldAt(airfields, touchdown.x, touchdown.z)
   return field === null ? null : { kind: 'airfield', name: field.name }
 }

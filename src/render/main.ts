@@ -938,9 +938,11 @@ async function boot(): Promise<void> {
     // also the pilot's raw input, not part of `AircraftState` (state.ts:8),
     // which is why the throttle gauge needs it passed separately -- the same
     // vector the propeller spin below already reads.
-    updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude)
+    // `current.world.wind` reaches the AIRSPEED dial and the SPD field: both
+    // read the air over the wings, not the ground track (Plan 8 review).
+    updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude, current.world.wind)
     audio.update(audioInputsFrom(current))
-    flightData.update(current.cameraMode, spec, player.state, current.controls)
+    flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))

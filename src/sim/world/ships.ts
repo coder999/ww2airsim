@@ -33,6 +33,12 @@ const PaddlesObject = z
     waveOffRangeM: positive,
   })
   .strict()
+  .refine((p) => p.cutRangeM <= p.waveOffRangeM, {
+    message: 'cutRangeM must not exceed waveOffRangeM', path: ['cutRangeM'],
+  })
+  .refine((p) => p.waveOffRangeM <= p.maxRangeM, {
+    message: 'waveOffRangeM must not exceed maxRangeM', path: ['waveOffRangeM'],
+  })
 
 const ShipSpecObject = z
   .object({
@@ -58,6 +64,9 @@ const ShipSpecObject = z
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()
+  .refine((s) => s.flightDeck === undefined || s.flightDeck.heightM === s.deckHeightM, {
+    message: 'flightDeck.heightM must equal deckHeightM', path: ['flightDeck', 'heightM'],
+  })
 
 export type ShipSpec = z.infer<typeof ShipSpecObject>
 export type PaddlesParams = z.infer<typeof PaddlesObject>

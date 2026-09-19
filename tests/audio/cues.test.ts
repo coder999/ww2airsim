@@ -39,6 +39,15 @@ describe('the audio cue reducer (design §6.2)', () => {
     expect(c.cues).toEqual(['landing_squeak'])
   })
 
+  it('squeaks on a DECK, which carries wheels exactly as land does', () => {
+    // `ContactSurface` has had three members since Plan 8, and a trap is a
+    // landing: steel under the wheels is a hard surface wherever land is
+    // (Plan 8 review, item 3). Only water is not.
+    const m = nextAudio(NO_AUDIO_MEMORY, { ...flying, groundSurface: 'deck' }).memory
+    const touch = nextAudio(m, { ...flying, groundSurface: 'deck', onGround: true })
+    expect(touch.cues).toEqual(['landing_squeak'])
+  })
+
   it('NEVER squeaks over water, however the airplane arrives there', () => {
     // Mark, 2026-09-18: ditching produced a touchdown squeak AND an explosion.
     // `heightAt` returns SEA_LEVEL_M over open sea (src/sim/world/terrain.ts),

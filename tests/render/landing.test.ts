@@ -5,6 +5,7 @@ import { landingModel } from '../../src/render/debrief.js'
 import { playerAircraft, withAircraftState } from '../../src/sim/loop.js'
 import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
+import type { Deck } from '../../src/sim/world/deck.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qIdentity } from '../../src/sim/math/quat.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
@@ -165,4 +166,23 @@ describe('the landing debrief', () => {
     expect(m.figures.find((x) => x.label === 'Touchdown speed')!.value).toContain('mph')
     expect(m.continueLabel).toBeDefined()
   })
+})
+
+
+it('credits a carrier only when touchdown and rest belong to the same ship', () => {
+  const deck: Deck = {
+    shipId: 'cv-1', center: v3(0, FIELD_M, 0), headingRad: 0,
+    lengthM: 262.7, widthM: 32.9, velocity: v3(0, 0, 0),
+    yawRateRadPerS: 0, trapFromSternM: 30, trapToSternM: 130,
+  }
+  const tracking = {
+    airborne: true, report: null,
+    touchdown: { sinkMps: 1, speedMps: 30, x: 0, z: 0, tick: 1, deck },
+  }
+  const stopped = onWheels(0)
+  const same = nextLandingTracking(f6f, tracking, stopped, stopped, null, [], [deck])
+  expect(same.report!.at).toEqual({ kind: 'carrier', name: 'cv-1' })
+  const other = nextLandingTracking(f6f, tracking, stopped, stopped, null, [], [{ ...deck, shipId: 'cv-2' }])
+  expect(other.report).not.toBeNull()
+  expect(other.report!.at).toBeNull()
 })

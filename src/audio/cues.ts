@@ -36,12 +36,15 @@ export type AudioInputs = {
    * flight would open with a landing squeak before the pilot touched a key.
    */
   readonly onGround: boolean | null
-  /** What is under the airplane, or `null` with no terrain. Wheels do not
-   *  squeak on the sea, and `onGround` alone cannot say so: `heightAt`
-   *  returns SEA_LEVEL_M over open water, so `onGround` goes true the moment
-   *  the airplane reaches the surface -- one or more frames BEFORE `advance`
-   *  registers the impact. Suppressing on `impact !== null` therefore missed
-   *  it, which is the squeak Mark heard on every ditching. */
+  /** What is under the airplane, or `null` when there is no ground at all --
+   *  no terrain field and no deck here, which is `groundUnder` returning
+   *  `null` (src/render/audio.ts), not "no terrain" as such: a deck-parked
+   *  airplane has ground from tick 0. Wheels do not squeak on the sea, and
+   *  `onGround` alone cannot say so: the height over open water is
+   *  SEA_LEVEL_M, so `onGround` goes true the moment the airplane reaches the
+   *  surface -- one or more frames BEFORE `advance` registers the impact.
+   *  Suppressing on `impact !== null` therefore missed it, which is the
+   *  squeak Mark heard on every ditching. */
   readonly groundSurface: ContactSurface | null
   /** The simulation tick. Only ever compared with the previous one, to notice
    *  that it moved BACKWARDS -- see `nextAudio`. */
@@ -88,7 +91,10 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
   // as a bug even though each rule fired correctly on its own.
   if (
     inputs.impact === null
-    && inputs.groundSurface === 'land'
+    // Land OR a deck: both carry wheels, and only water does not (Plan 8
+    // review, item 3 -- `ContactSurface` gained 'deck' in Plan 8's Task 2 and
+    // this condition kept silencing every trap).
+    && (inputs.groundSurface === 'land' || inputs.groundSurface === 'deck')
     && wasOnGround === false
     && inputs.onGround === true
   ) {

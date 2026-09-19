@@ -14,7 +14,7 @@ import {
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
 import { groundUnder } from '../world/ground.js'
-import { insideTrapZone } from '../world/deck.js'
+import { insideTrapZone, type Deck } from '../world/deck.js'
 import { flapAfter, flapClIncrement, flapDragN } from '../flaps.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
@@ -35,6 +35,12 @@ export const DT = 1 / 60
  *  real pendant run-out (design section 5, amended during planning to a
  *  constant so the rule needs no memory of the arrival speed). */
 export const TRAP_DECEL_MPS2 = 17
+/** The "no decks in this world" argument for `groundUnder`, shared and frozen
+ *  rather than a fresh `[]` at each of `step`'s two ground lookups: `step`
+ *  runs 60 times a second per airplane, and nearly every world in the suite
+ *  and every pre-Plan-8 flight has no decks at all. Frozen so a caller cannot
+ *  push a deck into the constant every world shares. */
+const EMPTY_DECKS: readonly Deck[] = Object.freeze([])
 const G = 9.80665
 /** kg of fuel per joule of work, tuned so a full internal load lasts a
  *  realistic few hours at cruise. Refined when range matters. */
@@ -277,7 +283,8 @@ export function step(
   // wins over the water beneath it (`groundUnder`'s own doc comment); a
   // still deck's `velocity` is `ZERO`, so this is bit-identical to the
   // pre-Plan-8 terrain-only lookup wherever no deck is present.
-  const startGround = groundUnder(ctx.terrain ?? null, ctx.decks ?? [], state.position.x, state.position.z)
+  const decks = ctx.decks ?? EMPTY_DECKS
+  const startGround = groundUnder(ctx.terrain ?? null, decks, state.position.x, state.position.z)
   const startGroundHeightM = startGround === null ? null : startGround.heightM
   const rho = densityAt(state.position.y)
   const v = airspeed(air)
@@ -378,8 +385,10 @@ export function step(
   // airplane through the ground over a couple of seconds: verified, an idle,
   // gear-down, stationary airplane on this same plateau sank 0.25 m and was
   // wrongly recorded as a crash 91 ticks (1.5 s) in, without this term.
-  // `ctx.terrain` being `null` short-circuits before `heightAt` is called,
-  // same as the block below.
+  // Gated on `startGround` (above) being non-null -- "no terrain field AND no
+  // deck here" -- not on `ctx.terrain` alone, same as the block below: a
+  // world with a carrier in it has ground under the airplane whatever its
+  // terrain field is doing (Plan 8).
   // Whether the airplane was on the ground at the START of this step -- read
   // by the rolling-resistance force below and, later, by the ground control
   // regime that replaces `bodyRates`. Computed once here and reused rather
@@ -473,10 +482,8 @@ export function step(
   // for why it now follows rising ground within tolerance, paying for the
   // climb out of kinetic energy rather than refusing to lift at all
   // (`assertNoEnergyGain` is what bounds which direction is safe).
-  // `groundUnder` returning `null` short-circuits this block entirely, the
-  // same guard `advance`'s impact check (`src/sim/loop.ts`) applies for the
-  // same reason: the overwhelmingly common, pre-Task-8 no-terrain,
-  // no-deck path must not pay for a ground query it has nothing to query.
+  // With neither terrain nor a deck, `groundUnder` returns null and skips
+  // the constraint. EMPTY_DECKS avoids allocating an array for the lookup.
   //
   // Gated on `supportedContact`, not the bare `onGround`: a gear-up airplane
   // or one arriving too hard must pass straight through untouched and be
@@ -487,7 +494,7 @@ export function step(
   // so a supported contact and the rest/grip below are judged and applied
   // RELATIVE TO THE DECK -- a chocked airplane matching the ship's velocity
   // reads as at rest, not as rolling at the ship's speed.
-  const ground = groundUnder(ctx.terrain ?? null, ctx.decks ?? [], position.x, position.z)
+  const ground = groundUnder(ctx.terrain ?? null, decks, position.x, position.z)
   if (ground !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
     if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity)) {

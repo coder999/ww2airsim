@@ -94,6 +94,32 @@ describe('gaugeValue', () => {
     expect(gaugeValue('heading', f6f, left, NEUTRAL_CONTROLS)).toBeCloseTo(360 - deg(0.3), 6)
   })
 
+  it('reads AIRSPEED, not ground speed, once there is wind (Plan 8 review)', () => {
+    // The instrument is a pitot tube in the wing: it measures the air going
+    // past it. Found on the deck-quals parked screenshot 2026-09-18 -- 17 mph
+    // shown for a Hellcat chocked on a carrier steaming into a 15.4 m/s wind
+    // over the deck, which genuinely had 34.5 mph of air over its wings.
+    // The air moving south (+z) at 15 m/s is a HEADWIND for an airplane
+    // tracking north (-z): the wing sees 75 m/s where the ground sees 60.
+    const headwind = v3(0, 0, 15)
+    const level = createState({ position: v3(0, 1234, 0), velocity: v3(0, 0, -60) })
+    const calm = gaugeValue('airspeed', f6f, level, NEUTRAL_CONTROLS)
+    expect(calm).toBeCloseTo(60 / 0.44704, 9)
+    // Exactly 15 m/s of difference, in the dial's own mph.
+    expect(gaugeValue('airspeed', f6f, level, NEUTRAL_CONTROLS, headwind) - calm)
+      .toBeCloseTo(15 / 0.44704, 9)
+    // A null wind is exactly the calm path, by value as well as by intent.
+    expect(gaugeValue('airspeed', f6f, level, NEUTRAL_CONTROLS, null)).toBe(calm)
+    // No air-relative state was substituted for `state`: altitude is a
+    // world-frame fact and the climb gauge must not ride along with the wind,
+    // not even a (currently impossible) vertical component of one.
+    const descending = createState({ position: v3(0, 1234, 0), velocity: v3(0, -7.5, -60) })
+    expect(gaugeValue('altimeter', f6f, descending, NEUTRAL_CONTROLS, headwind))
+      .toBe(gaugeValue('altimeter', f6f, descending, NEUTRAL_CONTROLS))
+    expect(gaugeValue('verticalSpeed', f6f, descending, NEUTRAL_CONTROLS, v3(0, 5, 15)))
+      .toBe(gaugeValue('verticalSpeed', f6f, descending, NEUTRAL_CONTROLS))
+  })
+
   it('reads zero slip in coordinated flight and non-zero in a skid', () => {
     const straight = createState({ velocity: v3(100, 0, 0) })
     expect(Math.abs(gaugeValue('slip', f6f, straight, NEUTRAL_CONTROLS))).toBeLessThan(1e-9)

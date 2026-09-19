@@ -49,13 +49,22 @@ const MPH_PER_MPS = 2.23694
  *  `nextLandingTracking` has in hand; `main.ts` passes the world's ships. */
 export function landingModel(report: LandingReport, shipNames: Readonly<Record<string, string>> = {}): DebriefModel {
   const mph = (mps: number) => Math.round(mps * MPH_PER_MPS)
-  const landedAt =
-    report.at === null ? 'off-field' : report.at.kind === 'carrier' ? `${shipNames[report.at.name] ?? report.at.name} (carrier)` : report.at.name
+  const landedAt = (): string => {
+    if (report.at === null) return 'off-field'
+    if (report.at.kind !== 'carrier') return report.at.name
+    // Class name then hull id -- "Essex-class fleet carrier cv-1". No
+    // "(carrier)" suffix (Plan 8 review, item 9): the class name says it, and
+    // the doubled word read as an unfinished placeholder. With no class name
+    // known the id stands alone rather than being decorated with a word the
+    // rest of the line cannot support.
+    const className = shipNames[report.at.name]
+    return className === undefined ? report.at.name : `${className} ${report.at.name}`
+  }
   return {
     headline: 'LANDED',
     detail: 'Nice job. You brought her back in one piece.',
     figures: [
-      { label: 'Landed at', value: landedAt },
+      { label: 'Landed at', value: landedAt() },
       { label: 'Touchdown sink', value: `${report.touchdownSinkMps.toFixed(1)} m/s` },
       {
         label: 'Touchdown speed',
@@ -90,12 +99,22 @@ export function debriefModel(impact: Impact, state: AircraftState): DebriefModel
       score: missionScore(),
     }
   }
+  // Three surfaces, because `Impact.surface` has had three since Plan 8's
+  // Task 2 (`ContactSurface`): a deck arrival fell through to the land
+  // sentence, and told a pilot who had just flown into the round-down that he
+  // had hit an island 60 km away (Plan 8 review, item 3). The ship is not
+  // named: `Impact` carries a surface and a height, not a ship id, and
+  // recovering one from the world here would mean re-deriving the decks for
+  // the tick the airplane hit -- which the debrief no longer has.
+  const detail =
+    impact.surface === 'water'
+      ? 'You went into the sea. There was nothing left to recover.'
+      : impact.surface === 'deck'
+        ? 'You went into the deck.'
+        : 'You went into Leyte. There was nothing left to recover.'
   return {
     headline: 'KILLED',
-    detail:
-      impact.surface === 'water'
-        ? 'You went into the sea. There was nothing left to recover.'
-        : 'You went into Leyte. There was nothing left to recover.',
+    detail,
     figures,
     score: missionScore(),
   }

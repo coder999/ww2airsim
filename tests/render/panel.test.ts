@@ -1314,3 +1314,13 @@ describe('gear and flap lights (Mark, 2026-09-17)', () => {
     expect(p.lights.gear.position.x).not.toBeCloseTo(p.lights.flap.position.x, 3)
   })
 })
+
+it('keeps the airspeed needle and numeric readout together in wind', () => {
+  const panel = createPanel(f6f, () => null)
+  const state = createState({ velocity: v3(60, 0, 0) })
+  const wind = v3(-15, 0, 0)
+  updatePanel(panel, f6f, state, NEUTRAL_CONTROLS, () => null, state.attitude, wind)
+  const dial = GAUGES.find((g): g is DialSpec => g.id === 'airspeed' && g.kind === 'dial')!
+  expect(panel.needles.get('airspeed')!.rotation.z).toBeCloseTo(-angleForValue(dial, 75 / 0.44704), 12)
+  expect(panel.readouts.get('airspeed')!.text).toBe('168')
+})

@@ -16,6 +16,10 @@ hook; inside the trap zone a hook-down arrival is dragged to a stop at a
 constant 17 m/s². The LSO's **paddles** cue reads the approach and prints one
 line. `?scenario=deck-quals` starts the whole thing in a dev build.
 
+The interrupted final review fix wave was completed on 2026-09-19; see the
+[recovery handoff](2026-09-19-plan8-review-recovery.md) for the fixes and fresh
+verification, including the airspeed needle/readout regression.
+
 ## Commits
 
 | Commit | Task |
@@ -157,18 +161,13 @@ Both screenshots were read at 1440p before anything here was claimed:
 
 ## Known limitations
 
-- **The AIRSPEED gauge reads GROUND speed whenever there is wind.**
-  `src/render/gauges.ts` calls `airspeed(state)` on the raw state; `step()`
-  builds its air-relative state internally and the gauge never sees it. On the
-  parked deck-quals screenshot the panel reads **17 mph** while the airplane
-  genuinely has 15.4 m/s (34.5 mph) of air over the wings. Nothing in the
-  simulation is wrong — the instrument is. The fix is one argument
-  (`airVelocity(state, world.wind)`) and it was deliberately NOT made in the
-  closing task of a plan; it wants its own commit and a unit case.
+Two entries left this list on 2026-09-19, in the whole-branch review's fix
+wave: the AIRSPEED gauge reading ground speed in wind (`gaugeValue` now takes
+the wind and returns `length(airVelocity(state, wind))`), and the untested
+pre-Plan-8 carrier-without-`flightDeck` branch in `src/render/scene/ship.ts`
+(deleted; such a spec now throws by id).
+
 - The deck's yaw does not rotate a parked airplane (above).
-- `src/render/scene/ship.ts` keeps a pre-Plan-8 branch for a carrier with no
-  `flightDeck`, which draws no island and has no coverage. Nothing constructs
-  one today: `essex-cv.json` always carries `flightDeck`.
 - Nothing models the deck moving in a seaway, catapults, wire selection, a
   wave-off the pilot must obey, or deck traffic. Design §11 is the full list.
 

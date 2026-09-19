@@ -1,8 +1,29 @@
-import { v3, length, dot, normalize } from '../sim/math/vec3.js'
+import { v3, length, dot, normalize, type Vec3 } from '../sim/math/vec3.js'
 import { qRotate } from '../sim/math/quat.js'
-import { airspeed } from '../sim/flight/model.js'
+import { airVelocity } from '../sim/flight/model.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
+
+/**
+ * The velocity of the air, or `null` for calm: `World.wind`, threaded down to
+ * the one gauge that reads it (`airspeed`).
+ *
+ * DEFAULTED to `null` at every entry point below, which is the one place this
+ * file departs from controller ruling R3's "required, so a caller cannot
+ * forget to thread it" (see `gaugeValue`'s `controls`). The trade, made
+ * deliberately 2026-09-19: a required parameter would touch 70-odd call sites
+ * across four test files that have no wind and no opinion about one, and
+ * `null` is the honest value for all of them -- every world's wind is `null`
+ * until a scenario sets one. The residual risk is real and is the bug this
+ * parameter fixes: a NEW consumer that forgets it reads ground speed again.
+ * `src/render/main.ts` is the only production caller and passes
+ * `current.world.wind` to both `updatePanel` and `flightData.update`;
+ * `tests/render/gauges.test.ts` and `tests/render/cockpitFeedback.test.ts`
+ * pin the wind case itself, but main.ts has no Tier 1 test (see `audio.ts`'s
+ * header for why that gap exists), so the deck-quals Tier 2 test pins the displayed SPD in wind.
+ * The panel test also pins its needle and numeric readout together.
+ */
+export type Wind = Vec3 | null
 
 /**
  * Instruments fitted to the panel.
@@ -177,17 +198,28 @@ export function gaugeValue(
   spec: AircraftSpec,
   state: AircraftState,
   controls: Controls,
+  wind: Wind = null,
 ): number {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
-  return siValueFor(id, spec, state, controls) * g.fromSI
+  return siValueFor(id, spec, state, controls, wind) * g.fromSI
 }
 
 /** The quantity the SIMULATION holds, in SI, before the dial's unit is applied. */
-function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState, controls: Controls): number {
+function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState, controls: Controls, wind: Wind): number {
   switch (id) {
     case 'airspeed':
-      return airspeed(state)
+      // AIRSPEED, which is what the pitot tube in the wing measures and the
+      // only speed a pilot flies an approach on -- not the ground speed this
+      // read until the Plan 8 review (2026-09-19). Measured on the deck-quals
+      // scenario: a Hellcat chocked on a carrier steaming at 7.717 m/s into a
+      // 7.717 m/s headwind showed 17 mph while it genuinely had 34.5 mph of
+      // air over the wings. `airVelocity` and NOT an air-relative state
+      // substituted for `state` throughout: the altimeter and the vertical
+      // speed are world-frame facts that the airmass must not shift, and
+      // `verticalSpeed` reading `air.velocity.y` would ride along with any
+      // later vertical wind component.
+      return length(airVelocity(state, wind))
     case 'altimeter':
       return state.position.y
     case 'verticalSpeed':
@@ -236,6 +268,7 @@ export function needleAngleFor(
   id: GaugeId,
   spec: AircraftSpec,
   state: AircraftState,
+  wind: Wind = null,
 ): number {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
@@ -248,7 +281,7 @@ export function needleAngleFor(
   // NEUTRAL_CONTROLS, not a real vector: `g.kind === 'dial'` above rules out
   // `throttle`, the only gauge `gaugeValue` reads `controls` for, so nothing
   // here can ever be sensitive to which vector is passed.
-  const value = gaugeValue(id, spec, state, NEUTRAL_CONTROLS)
+  const value = gaugeValue(id, spec, state, NEUTRAL_CONTROLS, wind)
   if (!Number.isFinite(value)) return 0
 
   return angleForValue(g, value)
@@ -427,10 +460,11 @@ export function readoutTextFor(
   spec: AircraftSpec,
   state: AircraftState,
   controls: Controls,
+  wind: Wind = null,
 ): string {
   const g = byId.get(id)
   if (!g) throw new Error(`Unknown gauge: ${id}`)
-  const raw = gaugeValue(id, spec, state, controls)
+  const raw = gaugeValue(id, spec, state, controls, wind)
   if (!Number.isFinite(raw)) return '--'
   const value = wrapsAndPads(g) ? raw : Math.min(g.max, Math.max(g.min, raw))
   return formatDisplay(g, value)

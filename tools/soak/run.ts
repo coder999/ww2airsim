@@ -20,6 +20,7 @@ import {
 import { advance, aircraftById, createWorld, playerAircraft, type World, withAircraftState, withControls } from '../../src/sim/loop.js'
 import { worldFromScenario, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
+import { groundUnder } from '../../src/sim/world/ground.js'
 import { surfaceAt } from '../../src/sim/contact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from '../../src/sim/ground.js'
 
@@ -596,7 +597,7 @@ export function runTerrainSoak(
           // `state`, `previous` and `impact` are what `World` itself carried
           // before Plan 12 generalized it to N entities.
           const player = playerAircraft(world)
-          const gh = heightAt(terrain, player.state.position.x, player.state.position.z)
+          const gh = groundUnder(terrain, [], player.state.position.x, player.state.position.z)!.heightM
           // Task 10: `position.y <= gh` with `impact` still null is no longer
           // proof of a missed crash by itself -- `advance`'s own impact check
           // (src/sim/loop.ts) exempts a `supportedContact` state on purpose
@@ -640,7 +641,7 @@ export function runTerrainSoak(
           // let the airplane punch through the ground is still caught even
           // though the resulting position no longer looks anything like
           // "near the ground".
-          const ghPrev = heightAt(terrain, player.previous.position.x, player.previous.position.z)
+          const ghPrev = groundUnder(terrain, [], player.previous.position.x, player.previous.position.z)!.heightM
           // Task 15: gated on `supportedContact`, not the bare `onGround`.
           // `onGround` alone is a POSITION-only test, which was an adequate
           // proxy for "was genuinely resting" only because the pre-Task-15
