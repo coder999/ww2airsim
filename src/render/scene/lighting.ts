@@ -1,6 +1,8 @@
-import { DirectionalLight, Group, HemisphereLight, Vector3, type Object3D } from 'three'
+import { Color, DirectionalLight, Group, HemisphereLight, Vector3, type Object3D } from 'three'
 import { uniform } from 'three/tsl'
 import type { Node } from 'three/webgpu'
+import type { Vec3 } from '../../sim/math/vec3.js'
+import { paletteFor, type SkyPalette } from '../sky/palette.js'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -24,6 +26,39 @@ export const SUN_DIRECTION = { x: 0.4, y: 1, z: 0.3 } as const
  * Unnormalized, like the constant: readers normalize.
  */
 export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
+
+/**
+ * Plan 16c: the palette as uniforms. Written once per frame by `applySun`
+ * from `paletteFor(elevation)`; read by the sky dome, the terrain, the
+ * clouds and the ocean. Initialized to the HIGH key, i.e. today's look, so
+ * a consumer built before the first frame renders exactly as it did.
+ */
+const initial = paletteFor(90)
+export const sunTintNode = uniform(new Color(...initial.sunTint))
+export const skyZenithNode = uniform(new Color(...initial.zenith))
+export const skyHorizonNode = uniform(new Color(...initial.horizon))
+export const sunElevationNode = uniform(90)
+export const ambientScaleNode = uniform(initial.ambientScale)
+
+/** Drives the two lights and every sun/sky uniform from one palette and one
+ *  direction. `direction` is the unit vector toward the sun (sun.ts); it is
+ *  stored unnormalized-compatible, as `SUN_DIRECTION` always was. */
+export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3, elevationDeg: number): void {
+  const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
+  const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)
+  if (!sun || !fill) throw new Error('applySun: the lighting group must hold the sun and the fill')
+  sun.position.set(direction.x, direction.y, direction.z)
+  sun.color.setRGB(...palette.sunColor)
+  sun.intensity = palette.sunIntensity
+  fill.color.setRGB(...palette.fillSky)
+  fill.groundColor.setRGB(...palette.fillGround)
+  sunDirectionNode.value.set(direction.x, direction.y, direction.z)
+  sunTintNode.value.setRGB(...palette.sunTint)
+  skyZenithNode.value.setRGB(...palette.zenith)
+  skyHorizonNode.value.setRGB(...palette.horizon)
+  sunElevationNode.value = elevationDeg
+  ambientScaleNode.value = palette.ambientScale
+}
 
 /**
  * A sun and a sky/sea bounce. The sun's target is parented alongside it: a

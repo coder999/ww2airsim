@@ -14,7 +14,19 @@ import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createMarkers, recentreMarkers, MARKER_SPACING_M } from '../../src/render/scene/markers.js'
 import { createSky, domeColourFor } from '../../src/render/scene/sky.js'
 import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
-import { createLighting, sunDirectionNode, SUN_DIRECTION } from '../../src/render/scene/lighting.js'
+import {
+  ambientScaleNode,
+  applySun,
+  createLighting,
+  skyHorizonNode,
+  skyZenithNode,
+  sunDirectionNode,
+  sunElevationNode,
+  SUN_DIRECTION,
+  sunTintNode,
+} from '../../src/render/scene/lighting.js'
+import { paletteFor } from '../../src/render/sky/palette.js'
+import { v3 } from '../../src/sim/math/vec3.js'
 
 /** 1440p, the resolution the legibility trade was made for. */
 const PIXELS_TALL = 1440
@@ -229,6 +241,29 @@ describe('lighting', () => {
     const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
     expect(sun.position.toArray()).toEqual(sunDirectionNode.value.toArray())
     expect(sunDirectionNode.value.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
+  })
+
+  it('applySun drives both lights and the shared uniforms from the palette (Plan 16c)', () => {
+    const lights = createLighting()
+    const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
+    const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)!
+    const palette = paletteFor(0)
+    applySun(lights, palette, v3(-0.9, 0.05, 0.2), 0)
+    expect(sun.position.toArray()).toEqual([-0.9, 0.05, 0.2])
+    expect(sunDirectionNode.value.toArray()).toEqual([-0.9, 0.05, 0.2])
+    expect(sun.intensity).toBe(palette.sunIntensity)
+    expect(sun.color.r).toBeCloseTo(palette.sunColor[0], 6)
+    expect(fill.color.g).toBeCloseTo(palette.fillSky[1], 6)
+    expect(fill.groundColor.b).toBeCloseTo(palette.fillGround[2], 6)
+    expect(sunTintNode.value.r).toBeCloseTo(palette.sunTint[0], 6)
+    expect(skyHorizonNode.value.r).toBeCloseTo(palette.horizon[0], 6)
+    expect(skyZenithNode.value.b).toBeCloseTo(palette.zenith[2], 6)
+    expect(sunElevationNode.value).toBe(0)
+    expect(ambientScaleNode.value).toBe(palette.ambientScale)
+    // Back to the high key: the uniforms read exactly today's constants again.
+    applySun(lights, paletteFor(70), v3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z), 70)
+    expect(sunTintNode.value.toArray()).toEqual([1, 1, 1])
+    expect(sun.position.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
   })
 
   it('casts only when given a cloud-shadow node, which it hands to the sun (Plan 16b)', () => {

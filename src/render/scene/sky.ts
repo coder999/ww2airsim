@@ -1,6 +1,7 @@
 import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { clamp, color, mix, positionLocal, step } from 'three/tsl'
+import { SKY_HAZE, SKY_ZENITH } from '../sky/palette.js'
 import { SEA_COLOUR } from './water.js'
 
 export const SKY_RADIUS_M = 45_000
@@ -42,10 +43,9 @@ const SKY_WIDTH_SEGMENTS = 64
  *  that; the first pass raised it to 32 for no stated reason and no
  *  measurable gain, so it goes back too. */
 const SKY_HEIGHT_SEGMENTS = 16
-/** Haze at the horizon. */
-export const SKY_HAZE = 0x9eb8cc
-/** Deep blue overhead. */
-export const SKY_ZENITH = 0x29619f
+/** Moved to `sky/palette.ts` in Plan 16c: they are the palette's HIGH key.
+ *  Re-exported so every importer of "the" haze and zenith still resolves. */
+export { SKY_HAZE, SKY_ZENITH } from '../sky/palette.js'
 
 /**
  * Whether the dome is sea or sky at a given vertical component of the unit
