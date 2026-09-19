@@ -709,7 +709,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 12 | 10 | Entities, ships and airfields | §4 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan12-entities.md) |
 | 14 | 11 | Mission map | §4, §8 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan14-mission-map.md) |
 | 8 | 12 | Carrier and airfield operations | §4, §8 | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan8-carrier-ops.md) |
-| 6 | 13 — next | Combat and damage | §6 | Not started |
+| 6 | 13 — in progress | Combat and damage | §6 | Playable gunnery slice landed 2026-09-19 (guns, ballistics, aircraft damage, `gunnery-range`); [design](2026-09-19-combat-design.md), [handoff](../../handoff/2026-09-19-plan6-gunnery.md). Bombs, rockets, torpedoes, stores and ship damage remain |
 | 7 | 14 | AI | §7 | Not started |
 | 9 | 15 | Meta-game | §8 | Not started |
 | 13 | any | Terrain surface detail | §4 | First pass landed 2026-09-17 in daa1b39 without a spec or plan (Codex, [handoff](../../handoff/2026-09-18-scenery.md)); split into 13a-13d the same day |

@@ -65,6 +65,15 @@ before there is anybody to shoot at; plan numbers were deliberately NOT
 reused, for the reason the next paragraph records. **Master spec §15 holds the
 order and the argument for it**, and this paragraph does not restate either.
 
+**Plan 6 is in progress:** the playable gunnery slice landed 2026-09-19. Space
+fires the Hellcat's six guns with real flight time and finite ammunition,
+rounds hit other airplanes' hit zones and damage their structure and systems,
+and `?scenario=gunnery-range` parks two training targets downrange at
+Tacloban. Tracers, hit flashes, engine smoke, a combat readout and gun audio
+read that state. Bombs, rockets, torpedoes, ship damage and AI remain; the
+[handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
+and master spec §15 holds the status.
+
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
 three design documents each shifted differently — the renderer design still
@@ -338,6 +347,13 @@ the player parked on the Essex's flight deck, 110 m aft of its center, with
 the task force making 15 kn into 15 kn of wind. `?beaufort=` overrides the
 sea state the scenario's wind would otherwise choose. Both are DEV-only and
 covered by the same production-bundle assertion.
+
+`?scenario=gunnery-range` parks the player on the Tacloban strip 300 m south
+of the runway center with a chocked training Hellcat at the center -- exactly
+the guns' 300 m convergence -- and a second one 500 m ahead, 35 m left. Hold
+Space from the chocks and the readout at the top of the screen counts the
+rounds down and the hits up; `window.__ww2.combat()` reports the same record
+to Tier 2 (`tests/e2e/gunnery.spec.ts`).
 
 ## Deployment
 
