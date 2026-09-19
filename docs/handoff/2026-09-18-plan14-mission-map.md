@@ -98,7 +98,17 @@ Both flags are now in `CHROMIUM_ARGS`. They reach the browser only if the
 desktop's `playwright run-server` is started with `--unsafe`; measured
 2026-09-18, the server had been running without it and none of the config's
 Chromium flags had ever applied on the reference platform. README's Tier 2
-section carries the corrected command. The resolver-side fix, a LAN answer
+section carries the corrected command.
+
+Later the same day the server was restarted with `--unsafe` from nexus (an
+interactive-logon scheduled task, so it runs in the console session with the
+GPU). Two consequences, both measured: `--use-angle=d3d12`, in the config
+since Task 11, makes `requestAdapter()` return null once it actually applies,
+and was removed; and with the vsync and frame-rate flags real, the full suite
+ran **32 passed, 0 failed** with the frame budget at **gpu p95 1.377 ms** and
+the rAF interval p95 at 1.5 ms. The 5.177 ms figures above and in every
+earlier handoff were measured under vsync with inert flags and are not
+comparable with anything measured after this restart. The resolver-side fix, a LAN answer
 with no HTTPS record for that name, is open and is Mark's decision; the same
 record affects any LAN browser, not only the harness.
 

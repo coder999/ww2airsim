@@ -88,9 +88,26 @@ import { defineConfig } from '@playwright/test'
  * edge saw none of the failing loads and cloudflared on nexus logged nothing,
  * so neither is in the path. The resolver-side fix is a LAN answer with no
  * HTTPS record for that name; these flags make the harness independent of it.
+ *
+ * **2026-09-18, the day the args first applied: the "changed nothing" null
+ * result above is void.** It was measured while `run-server` was silently
+ * dropping every arg, so it measured nothing. With `--disable-gpu-vsync` and
+ * `--disable-frame-rate-limit` actually in force the rAF interval p95 went
+ * 10.1 ms -> 1.5 ms and the frame-time budget's gpu p95 read 1.377 ms against
+ * the 5.177 ms every handoff up to Plan 14 recorded (entities 3.670 -> 0.890).
+ * Whether the old figure included compositor wait inside the timestamp span
+ * or the GPU simply clocks up when uncapped has not been separated. Treat
+ * every GPU number dated before 2026-09-18 as measured under vsync and NOT
+ * comparable with numbers after; the 6.0 ms ceiling stands until re-argued.
  */
 const CHROMIUM_ARGS = [
-  '--use-angle=d3d12',
+  // `--use-angle=d3d12` was here from Task 11 to 2026-09-18 and was REMOVED
+  // the day the args first actually reached the browser (see the `--unsafe`
+  // note above): with it applied, `navigator.gpu.requestAdapter()` returns
+  // null on the reference platform; each of the other args alone, and all of
+  // them together without it, return the AMD rdna-2 adapter. Measured through
+  // the run-server with a per-flag probe. Do not put it back to "fix" an
+  // adapter failure; it is the cause of one.
   '--enable-unsafe-webgpu',
   '--disable-gpu-vsync',
   '--disable-frame-rate-limit',
