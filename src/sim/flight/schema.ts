@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CombatSpecSchema } from '../weapons/schema.js'
 
 /**
  * Every object below is `.strict()`, top level and each sub-object.
@@ -19,6 +20,7 @@ const positive = finite.refine((n) => n > 0, { message: 'must be greater than ze
 const fraction = finite.refine((n) => n > 0 && n <= 1, { message: 'must be in (0, 1]' })
 
 const AircraftSpecObject = z.object({
+  combat: CombatSpecSchema.optional(),
   id: z.string().min(1),
   name: z.string().min(1),
   geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }).strict(),

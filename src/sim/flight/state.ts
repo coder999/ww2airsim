@@ -2,6 +2,8 @@ import { type Vec3, v3 } from '../math/vec3.js'
 import { type Quat, qIdentity } from '../math/quat.js'
 
 export type Controls = {
+  /** Held trigger; guns consume ammunition only inside the fixed-step simulation. */
+  readonly fire?: boolean
   readonly pitch: number     // [-1, 1], positive = nose up
   readonly roll: number      // [-1, 1], positive = right roll
   readonly yaw: number       // [-1, 1], positive = nose right

@@ -1,0 +1,50 @@
+{
+  "id": "gunnery-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": 0,
+          "z": 300
+        }
+      },
+      "chocked": false
+    },
+    {
+      "id": "target-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": 0,
+          "z": 0
+        }
+      },
+      "chocked": true
+    },
+    {
+      "id": "target-2",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": -35,
+          "z": -200
+        }
+      },
+      "chocked": true
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 0
+  }
+}

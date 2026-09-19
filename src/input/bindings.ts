@@ -4,6 +4,7 @@
  * under a non-QWERTY layout.
  */
 export const BINDINGS = {
+  fireGuns: ['Space'],
   pitchUp: ['ArrowDown', 'KeyS'],
   pitchDown: ['ArrowUp', 'KeyW'],
   rollLeft: ['ArrowLeft', 'KeyA'],

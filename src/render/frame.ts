@@ -491,7 +491,7 @@ export function nextFrameState(
   // because they called the module directly. `frame.test.ts` pins this by
   // reading `playerAircraft(f.world).controls.gearDown` back, not just
   // `f.gearDown`.
-  const controls: Controls = { ...controlsAxes, gearDown, flapDown, hookDown, brake }
+  const controls: Controls = { ...controlsAxes, gearDown, flapDown, hookDown, brake, fire: BINDINGS.fireGuns.some(c => pressed.has(c)) }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
   // in wall clock would be unusable precisely when it matters most.
@@ -559,7 +559,7 @@ export function nextFrameState(
   //    Plan 12 (spec §4) -- one airplane crashing must not stop the carrier
   //    or an AI Zero -- so the end of the player's flight is this frame's
   //    decision, here, on the same mechanism as the other two.
-  const holding = (prev.groundSpawn && prev.world.terrain === null) || player.impact !== null
+  const holding = (prev.groundSpawn && prev.world.terrain === null) || player.impact !== null || prev.world.combat.aircraft[prev.world.player]!.damage.destroyedAt !== null
   const advanced = advance(
     withControls(prev.world, prev.world.player, controls),
     holding ? 0 : simElapsedSeconds,

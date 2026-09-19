@@ -1,3 +1,5 @@
+import { createCombat, stepCombat, type CombatState } from './weapons/combat.js'
+import { ageDamage, damagedSpec, type Damage } from './damage/model.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { airVelocity, DT, step } from './flight/model.js'
@@ -336,6 +338,7 @@ export interface ShipEntity {
 }
 
 export interface World<M = undefined> {
+  readonly combat: CombatState
   /**
    * The world's clock. Every entity's `state.tick` equals this after a step;
    * `SimContext.tick` is `tick + 1`.
@@ -502,6 +505,7 @@ export function createWorldOf<M>(parts: {
   }
   return {
     tick: 0,
+    combat: createCombat(parts.aircraft),
     aircraft: parts.aircraft,
     ships,
     player: parts.player,
@@ -564,7 +568,9 @@ function stepAircraftEntity<M>(
   decks: readonly Deck[],
   stepper: Stepper,
   assist: Assist<M>,
+  damage: Damage,
 ): AircraftEntity<M> {
+  if (damage.destroyedAt !== null) return entity
   if (entity.impact !== null) return entity
 
   // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
@@ -592,7 +598,10 @@ function stepAircraftEntity<M>(
   // is bit-identical (`tests/assists/windFrame.test.ts` pins the identity).
   const airState = wind == null ? entity.state : { ...entity.state, velocity: airVelocity(entity.state, wind) }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory)
-  const current = stepper(entity.spec, entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  let current = stepper(damagedSpec(entity.spec, damage), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  if (damage.fuel < 1 && entity.spec.combat !== undefined) {
+    current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
+  }
 
   // Checked after EVERY step in a multi-step frame, not just the last one --
   // a frame that owes several steps (a stalled tab, `MAX_STEPS_PER_FRAME` up
@@ -695,6 +704,7 @@ export function advance<M>(
   let tick = world.tick
   let aircraft = world.aircraft
   let ships = world.ships
+  let combat = world.combat
   for (let i = 0; i < owedSteps; i++) {
     tick += 1
     // Ships first (spec §3.4): exogenous kinematics, reading nothing else.
@@ -706,7 +716,12 @@ export function advance<M>(
     // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
     // an airplane on deck reads the pose the ship has at the end of the tick.
     const decks = decksOf(ships)
-    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist))
+    combat = { ...combat, aircraft: Object.fromEntries(aircraft.map(a => {
+      const rec = combat.aircraft[a.id]!
+      return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT) }]
+    })) }
+    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage))
+    combat = stepCombat(combat, aircraft, ships, world.terrain, world.wind, decks, tick, DT)
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -715,7 +730,7 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { ...world, tick, aircraft, ships, accumulatorSeconds: banked },
+    world: { ...world, tick, aircraft, ships, combat, accumulatorSeconds: banked },
     stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,

@@ -24,6 +24,7 @@ export type LegendRow = {
 }
 
 export const LEGEND_ROWS: readonly LegendRow[] = [
+  { label: 'Guns', bindings: ['fireGuns'] },
   { label: 'Pitch', bindings: ['pitchDown', 'pitchUp'], pair: true },
   { label: 'Roll', bindings: ['rollLeft', 'rollRight'], pair: true },
   { label: 'Yaw', bindings: ['yawLeft', 'yawRight'], pair: true },
@@ -70,7 +71,7 @@ const NAMED: Readonly<Record<string, string>> = {
   BracketLeft: '[',
   BracketRight: ']',
   Backquote: '`',
-  Space: 'Space',
+  Space: 'Space bar',
   Escape: 'Esc',
   // The keypad's operator keys: the generic `Numpad` rule below would print
   // "Num Add", which is not what is on the keycap.

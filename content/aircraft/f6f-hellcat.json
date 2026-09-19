@@ -92,5 +92,189 @@
     "travelSeconds": 5,
     "dragAreaM2": 0.6,
     "clIncrement": 0.4831
+  },
+  "combat": {
+    "roundsPerMinute": 800,
+    "muzzleVelocityMps": 883.92,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "dragPerM": 0.00015,
+    "damagePerHit": 10,
+    "structureHp": 120,
+    "subsystemHp": 40,
+    "fuelLeakKgPerS": 0.5,
+    "engineDecayPerS": 0.05,
+    "guns": [
+      {
+        "position": [
+          1.5,
+          -0.25,
+          -3
+        ],
+        "rounds": 400,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          1.5,
+          -0.25,
+          -3.4
+        ],
+        "rounds": 400,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          1.5,
+          -0.25,
+          -3.8
+        ],
+        "rounds": 400,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          1.5,
+          -0.25,
+          3
+        ],
+        "rounds": 400,
+        "group": "rightGuns"
+      },
+      {
+        "position": [
+          1.5,
+          -0.25,
+          3.4
+        ],
+        "rounds": 400,
+        "group": "rightGuns"
+      },
+      {
+        "position": [
+          1.5,
+          -0.25,
+          3.8
+        ],
+        "rounds": 400,
+        "group": "rightGuns"
+      }
+    ],
+    "zones": [
+      {
+        "id": "engine",
+        "center": [
+          3,
+          0,
+          0
+        ],
+        "halfSize": [
+          1.5,
+          0.85,
+          0.85
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "fuel",
+        "center": [
+          0,
+          0,
+          0
+        ],
+        "halfSize": [
+          1.5,
+          0.85,
+          0.85
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "tail",
+        "center": [
+          -3,
+          0,
+          0
+        ],
+        "halfSize": [
+          1.5,
+          0.6,
+          0.6
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "rudder",
+        "center": [
+          -4,
+          1,
+          0
+        ],
+        "halfSize": [
+          0.8,
+          1,
+          0.25
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-guns",
+        "center": [
+          0,
+          -0.25,
+          -3.2
+        ],
+        "halfSize": [
+          1.2,
+          0.35,
+          1.4
+        ],
+        "system": "leftGuns"
+      },
+      {
+        "id": "right-guns",
+        "center": [
+          0,
+          -0.25,
+          3.2
+        ],
+        "halfSize": [
+          1.2,
+          0.35,
+          1.4
+        ],
+        "system": "rightGuns"
+      },
+      {
+        "id": "left-aileron",
+        "center": [
+          -0.3,
+          -0.25,
+          -5.5
+        ],
+        "halfSize": [
+          1,
+          0.35,
+          1
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-aileron",
+        "center": [
+          -0.3,
+          -0.25,
+          5.5
+        ],
+        "halfSize": [
+          1,
+          0.35,
+          1
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Six .50-cal guns: National Naval Aviation Museum https://www.history.navy.mil/content/history/museums/nnam/explore/collections/aircraft/f/f6f-5-hellcat.html . 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html . 400 rounds/gun: Patriots Point Naval & Maritime Museum https://patriotspoint.org/things-to-do/aircraft/f6f-hellcat . Verified 2026-09-19. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates, mounts and hit zones are gameplay ESTIMATES. Hitboxes approximate the existing procedural mesh, not a sourced installation drawing. No penetration model."
   }
 }
