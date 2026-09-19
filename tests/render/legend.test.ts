@@ -114,3 +114,12 @@ it('puts yaw on Z and X, and throttle on = and - plus their keypad twins, nothin
     }
   }
 })
+
+it('binds P only to the Plan 14 navigation chart', () => {
+  expect(BINDINGS.toggleMissionMap).toEqual(['KeyP'])
+  const otherBindings = Object.entries(BINDINGS).filter(([name]) => name !== 'toggleMissionMap')
+  for (const [name, codes] of otherBindings) {
+    expect(codes, `${name} claims KeyP`).not.toContain('KeyP')
+  }
+  expect(legendLines().find((line) => line.startsWith('Navigation chart'))).toContain('P')
+})

@@ -42,6 +42,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Brakes', bindings: ['brakes'] },
   { label: 'Mute', bindings: ['toggleMute'] },
   { label: 'Controls', bindings: ['toggleLegend'] },
+  { label: 'Navigation chart', bindings: ['toggleMissionMap'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
   { label: 'Pause', bindings: ['pause'] },
 ]

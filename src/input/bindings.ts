@@ -67,6 +67,11 @@ export const BINDINGS = {
   // `throttleDown` above documents for Ctrl+W. Firefox's quick-find IS
   // preventable, and main.ts prevents it.
   toggleLegend: ['Slash'],
+  // Plan 14. P for plot: it opens the navigation chart and is deliberately
+  // page furniture, not a sim control. M already cuts the throttle and I
+  // opens follow-view data, so this free key keeps map lookup discoverable
+  // without a control conflict.
+  toggleMissionMap: ['KeyP'],
   toggleFlightData: ['KeyI'],
   // Plan 11a Task 8. `G` for gear -- the mnemonic every flight sim before
   // this one has used, and free: not one of A, B, C, D, F, I, L, M, R, S, T,
