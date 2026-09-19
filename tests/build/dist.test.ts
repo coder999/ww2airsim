@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH } from '../../src/render/content.js'
+import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
@@ -115,6 +115,9 @@ describe('the built artifact', () => {
       // a byte count that moves means something re-encoded a committed
       // asset, which content/art/NOTICE.md calls a defect.
       expect(statSync(join(outDir, TITLE_ART_PATH)).size).toBe(TITLE_ART_BYTES)
+      // The cloud noise volumes (Plan 16a), fetched at boot by src/render/sky/load.ts.
+      expect(existsSync(join(outDir, SHAPE_NOISE_PATH)), SHAPE_NOISE_PATH).toBe(true)
+      expect(existsSync(join(outDir, DETAIL_NOISE_PATH)), DETAIL_NOISE_PATH).toBe(true)
 
       // Every terrain level the loader actually asks for, derived from the
       // same two functions the loader derives it from rather than written out

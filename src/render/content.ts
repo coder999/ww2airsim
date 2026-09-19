@@ -99,3 +99,10 @@ export const COVER_URL = `${import.meta.env.BASE_URL}${COVER_PATH}`
 export const TITLE_ART_PATH = 'content/art/title.png'
 export const TITLE_ART_URL = `${import.meta.env.BASE_URL}${TITLE_ART_PATH}`
 export const TITLE_ART_BYTES = 2_077_706
+
+/** Plan 16a's cloud noise volumes, gzipped on disk, inflated in the browser
+ *  (src/render/sky/load.ts) exactly as the land-cover raster is. */
+export const SHAPE_NOISE_PATH = 'content/sky/shape.bin.gz'
+export const DETAIL_NOISE_PATH = 'content/sky/detail.bin.gz'
+export const SHAPE_NOISE_URL = `${import.meta.env.BASE_URL}${SHAPE_NOISE_PATH}`
+export const DETAIL_NOISE_URL = `${import.meta.env.BASE_URL}${DETAIL_NOISE_PATH}`
