@@ -49,15 +49,40 @@ export type AudioInputs = {
   /** The simulation tick. Only ever compared with the previous one, to notice
    *  that it moved BACKWARDS -- see `nextAudio`. */
   readonly tick: number
+  /**
+   * The player's cumulative shot count (`World.combat`, Plan 6). Gun audio
+   * follows THIS number rising, never the trigger: a held Space over empty
+   * or shot-away guns emits no rounds, so it makes no noise, and a paused or
+   * repeatedly-rendered frame leaves the count flat, so it replays nothing.
+   */
+  readonly shots: number
 }
 
 export type AudioMemory = {
   readonly wasOnGround: boolean | null
   readonly firedImpactTick: number | null
   readonly lastTick: number
+  /** The shot count last seen, so a rise is an edge (Plan 6). */
+  readonly lastShots: number
+  /** The tick before which no further gun cue is due: a burst clip already
+   *  covers the interval. 0 means one may fire on the next rising count. */
+  readonly gunCueUntilTick: number
 }
 
-export const NO_AUDIO_MEMORY: AudioMemory = { wasOnGround: null, firedImpactTick: null, lastTick: 0 }
+export const NO_AUDIO_MEMORY: AudioMemory = {
+  wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
+}
+
+/**
+ * How many ticks one `machinegun` cue covers before another may fire while
+ * the count keeps rising. `content/audio/machinegun.wav` is 1.30 s (250,370
+ * bytes of 48 kHz stereo 16-bit PCM, read off the header 2026-09-19), so 72
+ * ticks (1.2 s at `DT`) re-cues just before the clip runs out: continuous
+ * fire overlaps the tail rather than gapping, and a one-frame tap costs one
+ * clip rather than one clip per round -- six guns at 800 rpm are 80 rounds a
+ * second, and 80 overlapping one-shots would be noise, not gunfire.
+ */
+export const GUN_CUE_INTERVAL_TICKS = 72
 
 export type AudioFrame = {
   readonly memory: AudioMemory
@@ -101,8 +126,19 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     cues.push('landing_squeak')
   }
 
+  // Gunfire (Plan 6). An edge on the SHOT COUNT, rate-limited by tick so the
+  // clip is re-cued at most once per `GUN_CUE_INTERVAL_TICKS` while rounds
+  // keep leaving the guns. A restart zeroes both memories along with the
+  // count itself, so the new flight's first burst is heard.
+  const lastShots = restarted ? 0 : prev.lastShots
+  let gunCueUntilTick = restarted ? 0 : prev.gunCueUntilTick
+  if (inputs.shots > lastShots && inputs.tick >= gunCueUntilTick) {
+    cues.push('machinegun')
+    gunCueUntilTick = inputs.tick + GUN_CUE_INTERVAL_TICKS
+  }
+
   return {
-    memory: { wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick },
+    memory: { wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick, lastShots: inputs.shots, gunCueUntilTick },
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already
     // gates the propeller MESH on the player's `impact === null` for the same

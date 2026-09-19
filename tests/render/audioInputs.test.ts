@@ -128,3 +128,14 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(audioInputsFrom(frame).tick).toBe(frame.world.tick)
   })
 })
+
+it("carries the player's shot count from World.combat, which is what the gun cue follows (Plan 6)", () => {
+  const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+  expect(audioInputsFrom(frame).shots).toBe(0)
+  const rec = frame.world.combat.aircraft[frame.world.player]!
+  const fired = {
+    ...frame,
+    world: { ...frame.world, combat: { ...frame.world.combat, aircraft: { [frame.world.player]: { ...rec, shots: 42 } } } },
+  }
+  expect(audioInputsFrom(fired).shots).toBe(42)
+})

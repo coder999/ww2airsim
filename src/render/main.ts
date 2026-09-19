@@ -17,6 +17,10 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
+import { createTracers } from './scene/tracers.js'
+import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
+import { createEngineSmoke } from './scene/smoke.js'
+import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
@@ -327,6 +331,10 @@ async function boot(): Promise<void> {
       // same question cannot drift from what it actually did.
       gpuTimestampsSupported: renderer.hasFeature('timestamp-query'),
       audio: () => audio.snapshot(),
+      // Plan 6: the guns, the damage and the rounds in flight, read off the
+      // current frame's `World.combat` by the same adapter the readout's
+      // tests cover. `null` before the first frame, like `impact`.
+      combat: () => (frame ? combatDiagnosticsFor(frame) : null),
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
@@ -547,6 +555,21 @@ async function boot(): Promise<void> {
   // and nothing needs to be.
   const airframes = scenarioWorld.aircraft.map(() => createHellcat())
   for (const a of airframes) scene.add(a.root)
+  // Plan 6. One smoke trail per airframe, a child of its root so it rides
+  // the airplane; shown and sized from that entity's engine damage each
+  // frame. Tracers and hit flashes are pooled scene children in raw world
+  // metres, like the impact effect: `scene.position` carries the
+  // camera-relative shift for them.
+  const smokes = airframes.map((a) => {
+    const smoke = createEngineSmoke()
+    a.root.add(smoke.object)
+    return smoke
+  })
+  const tracers = createTracers()
+  scene.add(tracers.object)
+  const hitFlashes = createHitFlashes()
+  scene.add(hitFlashes.object)
+  let flashMemory: FlashMemory = NO_FLASH_MEMORY
   const playerIndex = scenarioWorld.aircraft.findIndex((a) => a.id === scenarioWorld.player)
   const hellcatRoot = airframes[playerIndex]!.root
   // The propeller the throttle spins is the player's alone -- the wingman is
@@ -611,6 +634,9 @@ async function boot(): Promise<void> {
   const timeBadge = createTimeBadge(root)
   const pauseBadge = createPauseBadge(root)
   const paddlesBadge = createPaddlesBadge(root)
+  // Ships in production, in both camera modes (Plan 6): ammunition and
+  // damage are things the pilot needs whichever way they are looking.
+  const combatReadout = createCombatReadout(root)
   // Restart rebuilds the frame from the scenario rather than tearing anything
   // down: `worldFromScenario` and `initialFrameStateFor` are both pure, so the
   // renderer, the terrain and the ocean cascades all survive untouched -- and
@@ -641,6 +667,12 @@ async function boot(): Promise<void> {
         : restarted
     debrief.hide()
     impactEffect.hide()
+    // The pooled flashes, like the impact effect: a fireball from the old
+    // flight must not sit under the new airplane. The flash MEMORY needs
+    // no reset -- the tick going backwards is its restart signal, as it is
+    // the audio reducer's -- and the tracers redraw from the new world's
+    // (empty) projectile list on the next frame.
+    hitFlashes.hide()
     shownImpactTick = null
     landingShown = false
     postImpactOceanSeconds = 0
@@ -741,6 +773,10 @@ async function boot(): Promise<void> {
       pendingPause = true
     }
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
+    // Space scrolls the page and activates a focused button; neither is
+    // what a pilot holding the trigger means (Plan 6). Not latched like the
+    // toggles above: firing is a HOLD, read from `pressed` every frame.
+    if (BINDINGS.fireGuns.includes(e.code as never)) e.preventDefault()
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
@@ -946,6 +982,19 @@ async function boot(): Promise<void> {
     timeBadge.setScale(current.timeScale)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
+    // Plan 6: every combat visual reads `World.combat` on THIS frame. The
+    // readout and tracers are stateless views of it; the flashes are an
+    // edge detector with its own memory (hitFlash.ts) because a hit's
+    // record persists on the entity every frame afterward.
+    combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
+    tracers.update(current.world.combat.projectiles)
+    const flashes = nextHitFlashes(flashMemory, current.world.combat, current.world.aircraft, current.world.tick)
+    flashMemory = flashes.memory
+    for (const event of flashes.events) hitFlashes.fire(event)
+    current.world.aircraft.forEach((a, i) => {
+      const damage = current.world.combat.aircraft[a.id]!.damage
+      smokes[i]!.set(damage.engine, damage.destroyedAt !== null)
+    })
 
     // Raised once per contact -- `shownImpactTick` is the guard, since the
     // player's `impact` stays non-null every frame after the airplane stops,
@@ -986,6 +1035,7 @@ async function boot(): Promise<void> {
     }
     impactEffect.object.quaternion.copy(camera.quaternion)
     impactEffect.update(frameMs / 1000)
+    hitFlashes.update(frameMs / 1000, camera.quaternion)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's

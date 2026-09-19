@@ -7,6 +7,7 @@ import type { AssistSettings } from '../assists/index.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
+import type { CombatDiagnostics } from './combatReadout.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -231,6 +232,10 @@ export type Ww2Diagnostics = {
    *  A granular snapshot, not the system itself -- the binding ruling on
    *  `impact` above applies unchanged. */
   readonly audio: () => AudioSnapshot
+  /** The player's guns, every airplane's damage and the live projectile
+   *  count (Plan 6), from `World.combat` -- `combatDiagnosticsFor` in
+   *  combatReadout.ts. `null` before the first frame exists. */
+  readonly combat: () => CombatDiagnostics | null
   readonly resetFrameTimes: () => void
 }
 

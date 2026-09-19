@@ -101,6 +101,7 @@ describe('the built artifact', () => {
       for (const path of [
         'content/scenarios/free-flight.json',
         'content/scenarios/deck-quals.json',
+        'content/scenarios/gunnery-range.json',
         'content/bases/tacloban.json',
         'content/bases/dulag.json',
         'content/ships/essex-cv.json',

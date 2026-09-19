@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs } from '../../src/audio/cues.js'
+import { GUN_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, nextAudio, type AudioInputs } from '../../src/audio/cues.js'
 
 const flying: AudioInputs = {
-  throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 100,
+  throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 100, shots: 0,
 }
 const hit = (surface: 'water' | 'land', kind: 'ditched' | 'destroyed', over: AudioInputs = flying): AudioInputs =>
   ({ ...over, engineRunning: false, throttle: 0, impact: { tick: 4102, kind, surface } })
@@ -132,5 +132,51 @@ describe('the audio cue reducer (design §6.2)', () => {
     const a = nextAudio(NO_AUDIO_MEMORY, flying)
     const b = nextAudio(NO_AUDIO_MEMORY, flying)
     expect(b).toEqual(a)
+  })
+})
+
+describe('gun audio follows the shot count (Plan 6)', () => {
+  const flyingArmed: AudioInputs = { ...flying, tick: 100, shots: 0 }
+  const firing = (tick: number, shots: number): AudioInputs => ({ ...flyingArmed, tick, shots })
+
+  it('cues the burst when the count rises, and stays silent while it is flat', () => {
+    // Holding Space over empty or shot-away guns emits no rounds, so the
+    // count does not move and this hears nothing -- the design's "holding an
+    // empty or disabled gun is silent" is this rule, not a trigger check.
+    const quiet = nextAudio(NO_AUDIO_MEMORY, firing(101, 0))
+    expect(quiet.cues).toEqual([])
+    const first = nextAudio(quiet.memory, firing(102, 6))
+    expect(first.cues).toEqual(['machinegun'])
+    const flat = nextAudio(first.memory, firing(103, 6))
+    expect(flat.cues).toEqual([])
+  })
+
+  it('re-cues once per clip interval while rounds keep leaving, not once per round', () => {
+    let m = NO_AUDIO_MEMORY
+    const fired: string[] = []
+    // Six guns at 800 rpm: about 80 rounds a second, over three seconds.
+    for (let tick = 1; tick <= 180; tick++) {
+      const f = nextAudio(m, firing(tick, Math.floor(tick * 80 / 60)))
+      m = f.memory
+      fired.push(...f.cues)
+    }
+    expect(fired.every((c) => c === 'machinegun')).toBe(true)
+    expect(fired.length).toBe(Math.ceil(180 / GUN_CUE_INTERVAL_TICKS))
+  })
+
+  it('replays nothing on a paused or repeated frame, and hears the new flight after a restart', () => {
+    let m = nextAudio(NO_AUDIO_MEMORY, firing(50, 40)).memory
+    // Paused: the same tick and the same count, sixty times.
+    for (let i = 0; i < 60; i++) {
+      const f = nextAudio(m, firing(50, 40))
+      expect(f.cues).toEqual([])
+      m = f.memory
+    }
+    // Restart: the tick goes backwards and the count is rebuilt at zero.
+    const respawn = nextAudio(m, firing(0, 0))
+    expect(respawn.cues).toEqual([])
+    // ...and the first burst of the new flight fires even though the old
+    // flight's interval had not elapsed at tick 50 + 72.
+    expect(nextAudio(respawn.memory, firing(1, 6)).cues).toEqual(['machinegun'])
   })
 })

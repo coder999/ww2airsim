@@ -48,5 +48,11 @@ export function audioInputsFrom(frame: FrameState): AudioInputs {
     // The SAME lookup `onGround` was judged against, so the two cannot
     // disagree about what the airplane is over.
     groundSurface: ground === null ? null : ground.surface,
+    // The player's own record in `World.combat` (Plan 6): the count the
+    // fixed step actually incremented, not the trigger. A world built without
+    // a combat record for the player cannot exist -- `createCombat` writes one
+    // per entity -- so the lookup is total, but `?? 0` keeps a hand-built test
+    // world from throwing inside the render loop.
+    shots: frame.world.combat.aircraft[frame.world.player]?.shots ?? 0,
   }
 }
