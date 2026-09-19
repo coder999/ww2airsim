@@ -81,13 +81,20 @@ message). Goldens, landing snapshots and the soak untouched.
 7. The deck-quals deck-run spec asserted "no deck under the wheels" at a
    fixed 2 s after liftoff, a 3 m margin past the bow; it now polls.
 
+## Follow-up: distant-cloud sampling
+
+The [same-day refinement](2026-09-19-clouds-distance.md) supersedes the
+conservative slab bounds and light-step counts below; it addresses Mark's
+far-field rows and pixel stipple. The original measurements above describe
+the initial release, not that refinement.
+
 ## Known limitations, for 16b/16c and later
 
 - Lighting is single-scatter with a 0.35 extinction scale on the light march
   as the multiple-scattering stand-in; cloud undersides read bright rather
   than shaded. Cirrus uses a constant light term.
-- Curvature widens the flat slab by the sink at the far bound and corrects
-  each sample's altitude; a grazing ray marches empty air first.
+- The initial conservative curved-slab bound wasted samples in empty air;
+  the same-day refinement linked above replaces it with curved intersections.
 - No temporal reprojection and no half-resolution target; neither was needed
   for the budget on this card.
 - Coverage is thresholded after stretching the volume's 110..247 range;

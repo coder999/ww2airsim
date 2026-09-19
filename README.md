@@ -86,8 +86,10 @@ from two committed noise volumes, declared per scenario in `weather.clouds`
 (`free-flight` has a cumulus deck at 1,500 m and a cirrus sheet at 7,000 m;
 the gunnery range stays clear). They drift with the wind, curve over the
 horizon, fog with the terrain, and going into one is a whiteout with the
-panel intact. Measured 2.10 ms of GPU time at the high tier at 1440p;
-[handoff](docs/handoff/2026-09-19-plan16a-clouds.md). Cloud shadows (16b)
+panel intact. The [distant-cloud refinement](docs/handoff/2026-09-19-clouds-distance.md)
+reduces horizon stipple and repeating rows; its cloud-pass cost measured
+1.63 ms at high, 1440p (2026-09-19). See the
+[original handoff](docs/handoff/2026-09-19-plan16a-clouds.md). Cloud shadows (16b)
 and a movable sun (16c) are designed next; master spec §15 holds the status.
 
 That count was genuinely unsettled until then, and this paragraph said so:

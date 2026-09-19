@@ -2,7 +2,7 @@ import { BackSide, Data3DTexture, LinearFilter, Mesh, RedFormat, RepeatWrapping,
 import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
 import {
   Break, Fn, If, Loop, cameraFar, cameraNear, clamp, color, exp, float, fract, int, length, max, min, mix, normalize,
-  positionView, positionWorld, screenCoordinate, smoothstep, texture3D, uniform, uniformArray, vec3, vec4, viewportLinearDepth,
+  positionView, positionWorld, screenCoordinate, sin, smoothstep, sqrt, texture3D, uniform, uniformArray, vec3, vec4, viewportLinearDepth,
 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
@@ -22,9 +22,9 @@ import { SUN_DIRECTION } from './lighting.js'
  * noise so clouds stay put as the airplane flies through them.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 48, lightSteps: 4, cirrusSteps: 8 },
-  medium: { cumulusSteps: 32, lightSteps: 3, cirrusSteps: 6 },
-  low: { cumulusSteps: 20, lightSteps: 2, cirrusSteps: 4 },
+  high: { cumulusSteps: 48, lightSteps: 2, cirrusSteps: 8 },
+  medium: { cumulusSteps: 32, lightSteps: 2, cirrusSteps: 6 },
+  low: { cumulusSteps: 20, lightSteps: 1, cirrusSteps: 4 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
 
@@ -48,6 +48,10 @@ const SHAPE_TILE_M = 6000
 const DETAIL_TILE_M = 400
 /** Extinction per metre at full density; ~250 m to opaque for cumulus. */
 const CUMULUS_SIGMA = 0.012
+/** Bound cumulus sampling to 125 m at high, after finding the actual curved
+ * layer entry. Capping the old widened flat slab marched empty foreground
+ * air and erased distant clouds. Cirrus keeps its full thin-sheet span. */
+const MAX_MARCH_M = 6000
 /** The committed shape volume's value range, from `tests/tools/skyNoise.test.ts`'s
  *  measurement of the 128-cube (110..247 of 255). */
 const SHAPE_MIN = 110 / 255
@@ -148,7 +152,14 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise): Cl
       }).Else(() => {
         // Cumulus: flat-bottomed, rounded on top, edges eroded by the detail
         // volume, strongest near the base and the edge (Schneider 2015).
-        const shapeValue = stretch(texture3D(shape, drifted.div(SHAPE_TILE_M)).r)
+        // Slowly warp the horizontal coordinates at two unequal scales:
+        // the same 6 km volume must not line up in repeating distant rows.
+        const warped = vec3(
+          drifted.x.add(sin(drifted.z.div(7300).add(drifted.x.div(17000))).mul(1800)),
+          drifted.y,
+          drifted.z.add(sin(drifted.x.div(9100).sub(drifted.z.div(13000))).mul(1800)),
+        )
+        const shapeValue = stretch(texture3D(shape, warped.div(SHAPE_TILE_M)).r)
         const gradient = smoothstep(0, 0.1, h).mul(smoothstep(1, 0.55, h))
         const body = threshold(shapeValue).mul(gradient)
         const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
@@ -192,41 +203,72 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise): Cl
       const coverage = layer.z.toVar()
       const kind = layer.w.toVar()
       const top = base.add(thickness).toVar()
-      // The Earth sinks the slab with distance (horizon.ts); widen the flat
-      // slab by the sink at the ray's far bound so the march still covers it.
-      const sinkFar = horizonSinkNode(sceneT.mul(horizontal))
-      const y0 = eyeWorld.y
+      // Along the ray, curved altitude is y0 + dy*t + a*t*t. The interval
+      // below the top, minus the interval below the base, gives up to TWO
+      // cloud segments (a downward ray can leave and re-enter the layer).
+      // Solve before capping: the old conservative flat slab began well
+      // before the cloud, wasting steps and making a short march miss it.
+      const a = horizonSinkNode(horizontal).toVar()
       const dy = dir.y
-      const tA = base.sub(sinkFar).sub(y0).div(dy)
-      const tB = top.sub(y0).div(dy)
-      const tEnter = max(min(tA, tB), 0).toVar()
-      const tExit = min(max(tA, tB), sceneT).toVar()
+      const roots = Fn(([height]: [Node<'float'>]) => {
+        const c = eyeWorld.y.sub(height).toVar()
+        const discriminant = dy.mul(dy).sub(a.mul(c).mul(4)).toVar()
+        const r = sqrt(max(discriminant, 0)).toVar()
+        // Stable quadratic roots: avoid subtracting almost equal values.
+        const q = dy.add(dy.greaterThanEqual(0).select(r, r.negate())).mul(-0.5).toVar()
+        const u = q.div(max(a, 1e-12)).toVar()
+        const v = c.div(q.abs().greaterThan(1e-12).select(q, float(1e-12))).toVar()
+        return vec3(min(u, v), max(u, v), discriminant)
+      })
+      const topRoots = roots(top).toVar()
+      const baseRoots = roots(base).toVar()
+      const tEnter = max(topRoots.x, 0).toVar()
+      const tExit = min(topRoots.y, sceneT).toVar()
+      const gapEnter = tExit.toVar()
+      const gapExit = tExit.toVar()
+      If(baseRoots.z.greaterThan(0), () => {
+        gapEnter.assign(clamp(baseRoots.x, tEnter, max(tEnter, tExit)))
+        gapExit.assign(clamp(baseRoots.y, tEnter, max(tEnter, tExit)))
+      })
+      If(topRoots.z.lessThanEqual(0), () => { tExit.assign(tEnter) })
+      // Vertical rays have no curvature and use the ordinary flat slab.
+      If(a.lessThan(1e-12), () => {
+        const tA = base.sub(eyeWorld.y).div(dy)
+        const tB = top.sub(eyeWorld.y).div(dy)
+        tEnter.assign(max(min(tA, tB), 0))
+        tExit.assign(min(max(tA, tB), sceneT))
+        gapEnter.assign(tExit)
+        gapExit.assign(tExit)
+      })
+      const nearSpan = max(gapEnter.sub(tEnter), 0).toVar()
+      const farSpan = max(tExit.sub(gapExit), 0).toVar()
       If(i.equal(int(0)), () => {
         slabEnter.assign(tEnter)
         slabExit.assign(tExit)
-      })
-      If(dy.abs().lessThan(1e-4), () => {
-        // Level ray: inside the slab or not at all.
-        const within = y0.greaterThan(base.sub(sinkFar)).and(y0.lessThan(top))
-        tEnter.assign(0)
-        tExit.assign(within.select(sceneT, float(0)))
       })
       If(tExit.greaterThan(tEnter).and(transmittance.greaterThan(0.01)).and(coverage.greaterThan(0)), () => {
         const isCirrus = kind.greaterThan(0.5)
         const steps = isCirrus.select(cirrusSteps, cumulusSteps).toVar()
         const sigma = isCirrus.select(float(CIRRUS_SIGMA), float(CUMULUS_SIGMA)).toVar()
-        const span = tExit.sub(tEnter)
         // Converted ONCE into a float var: an inline `steps.toFloat()` used
         // twice emitted the second use as `f32 / i32`, which WGSL rejects.
         const stepsF = steps.toFloat().toVar()
-        const ds = max(span.div(stepsF), thickness.div(stepsF))
-        const t = tEnter.add(ds.mul(dither)).toVar()
+        const fullSpan = nearSpan.add(farSpan).toVar()
+        const span = isCirrus.select(fullSpan, min(fullSpan, float(MAX_MARCH_M))).toVar()
+        const ds = span.div(stepsF).toVar()
+        // With the finer cumulus spacing, half-strength jitter hides the
+        // remaining bands without turning distant edges into pixel stipple.
+        const jitter = isCirrus.select(dither, dither.mul(0.5).add(0.25))
+        const walked = ds.mul(jitter).toVar()
         // `name` is honoured at runtime (LoopNode.js: `param.name || getVarName(i)`)
         // but absent from @types/three 0.186's overloads, hence the casts.
         Loop({ start: int(0), end: steps, type: 'int', condition: '<', name: 's' } as unknown as Node<'int'>, () => {
-          If(t.greaterThan(tExit).or(transmittance.lessThan(0.01)), () => {
+          If(walked.greaterThanEqual(span).or(transmittance.lessThan(0.01)), () => {
             Break()
           })
+          const t = walked.lessThan(nearSpan).select(
+            tEnter.add(walked), gapExit.add(walked.sub(nearSpan)),
+          ).toVar()
           const p = eyeWorld.add(dir.mul(t))
           // Curvature: altitude above the sunk surface rises with distance.
           const pc = vec3(p.x, p.y.add(horizonSinkNode(t.mul(horizontal))), p.z)
@@ -258,7 +300,7 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise): Cl
             scattered.addAssign(lit.mul(transmittance.mul(float(1).sub(stepT))))
             transmittance.mulAssign(stepT)
           })
-          t.addAssign(ds)
+          walked.addAssign(ds)
         })
       })
     })
