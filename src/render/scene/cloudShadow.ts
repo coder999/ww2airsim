@@ -50,11 +50,17 @@ export function snapToTexel(x: number, z: number, texelM = MAP_TEXEL_M): { x: nu
   return { x: Math.round(x / texelM) * texelM + 0, z: Math.round(z / texelM) * texelM + 0 }
 }
 
+/** The projection's minimum sun elevation, sin(5 deg): below it shadows
+ *  would stretch to infinity as `1 / sun.y`; clamped, a horizon sun casts
+ *  shadows eleven times the object's height and no longer (Plan 16c). */
+export const SHADOW_MIN_SUN_Y = Math.sin((5 * Math.PI) / 180)
+
 /** Horizontal offset from a point at height y to the sea-level point on the
  *  same sun ray: exact for a directional sun, so one sea-level map serves
  *  every height. */
 export function sunParallaxXZ(sun: { x: number; y: number; z: number }, y: number): { x: number; z: number } {
-  return { x: (-sun.x / sun.y) * y + 0, z: (-sun.z / sun.y) * y + 0 }
+  const sy = Math.max(sun.y, SHADOW_MIN_SUN_Y)
+  return { x: (-sun.x / sy) * y + 0, z: (-sun.z / sy) * y + 0 }
 }
 
 export type CloudShadowHandle = {
@@ -110,6 +116,7 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
     // five world points read different T from three eye positions).
     const ground = mapOrigin.add(vec2(uv().x, float(1).sub(uv().y)).mul(MAP_SIDE_M)).toVar()
     const sun = normalize(sunDirectionNode).toVar()
+    const sunY = max(sun.y, float(SHADOW_MIN_SUN_Y)).toVar()
     const tau = float(0).toVar()
     const tapsF = taps.toFloat().toVar()
     Loop({ start: int(0), end: field.layerCount, type: 'int', condition: '<' }, ({ i }) => {
@@ -129,7 +136,7 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
           const h = k.toFloat().add(0.5).div(tapsF)
           const y = base.add(thickness.mul(h))
           // The sun ray through (ground, 0): horizontal offset (sun.xz / sun.y) * y.
-          const p = vec3(ground.x.add(sun.x.div(sun.y).mul(y)), y, ground.y.add(sun.z.div(sun.y).mul(y)))
+          const p = vec3(ground.x.add(sun.x.div(sunY).mul(y)), y, ground.y.add(sun.z.div(sunY).mul(y)))
           tau.addAssign(field.density(p, base, thickness, coverage, kind).mul(thickness.div(tapsF)).mul(CUMULUS_SIGMA))
         })
       })
@@ -159,7 +166,8 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
       // world position passes 'world' and skips the add.
       const world = (frame === 'eyeRelative' ? position.add(field.eyeWorld) : position).toVar()
       const sun = normalize(sunDirectionNode).toVar()
-      const ground = world.xz.sub(vec2(sun.x, sun.z).div(sun.y).mul(world.y))
+      const sunY = max(sun.y, float(SHADOW_MIN_SUN_Y)).toVar()
+      const ground = world.xz.sub(vec2(sun.x, sun.z).div(sunY).mul(world.y))
       const st = ground.sub(mapOrigin).div(MAP_SIDE_M)
       const sampled = map.sample(st).r
       // Above the lowest cumulus deck nothing shadows; one deck per shipped

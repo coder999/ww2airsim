@@ -1,6 +1,6 @@
 import { Color, DirectionalLight, Group, HemisphereLight, Vector3, type Object3D } from 'three'
 import { uniform } from 'three/tsl'
-import type { Node } from 'three/webgpu'
+import type { Node, UniformNode } from 'three/webgpu'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { paletteFor, type SkyPalette } from '../sky/palette.js'
 
@@ -34,9 +34,9 @@ export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTI
  * a consumer built before the first frame renders exactly as it did.
  */
 const initial = paletteFor(90)
-export const sunTintNode = uniform(new Color(...initial.sunTint))
-export const skyZenithNode = uniform(new Color(...initial.zenith))
-export const skyHorizonNode = uniform(new Color(...initial.horizon))
+export const sunTintNode = uniform(new Color(...initial.sunTint)) as unknown as UniformNode<'vec3', Color>
+export const skyZenithNode = uniform(new Color(...initial.zenith)) as unknown as UniformNode<'vec3', Color>
+export const skyHorizonNode = uniform(new Color(...initial.horizon)) as unknown as UniformNode<'vec3', Color>
 export const sunElevationNode = uniform(90)
 export const ambientScaleNode = uniform(initial.ambientScale)
 

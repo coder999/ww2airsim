@@ -1,7 +1,7 @@
 import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
-import { clamp, color, mix, positionLocal, step } from 'three/tsl'
-import { SKY_HAZE, SKY_ZENITH } from '../sky/palette.js'
+import { clamp, color, dot, max, mix, normalize, positionLocal, pow, smoothstep, step } from 'three/tsl'
+import { skyHorizonNode, skyZenithNode, sunDirectionNode, sunTintNode } from './lighting.js'
 import { SEA_COLOUR } from './water.js'
 
 export const SKY_RADIUS_M = 45_000
@@ -95,12 +95,21 @@ export function domeColourFor(unitY: number): 'sea' | 'sky' {
  */
 export function createSky(): Object3D {
   const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, depthTest: false })
-  const y = positionLocal.normalize().y
+  const dir = positionLocal.normalize()
+  const y = dir.y
   // `domeColourFor` states the branch this selects; the ramp itself is not
   // mirrored in JavaScript, because it happens in linear working space here
   // and would not agree.
-  const above = mix(color(SKY_HAZE), color(SKY_ZENITH), clamp(y, 0, 1))
-  material.colorNode = mix(color(SEA_COLOUR), above, step(0, y))
+  const above = mix(skyHorizonNode, skyZenithNode, clamp(y, 0, 1))
+  // Plan 16c: the sun disc and its halo, only once the sun is above the
+  // horizon; the cloud dome draws after this and dims it correctly.
+  const sun = normalize(sunDirectionNode)
+  const d = dot(dir, sun)
+  const disc = smoothstep(0.9995, 0.9999, d)
+  const halo = pow(max(d, 0), 64).mul(0.35)
+  const sunUp = smoothstep(-0.02, 0.02, sun.y)
+  const lit = above.add(sunTintNode.mul(disc.add(halo)).mul(sunUp))
+  material.colorNode = mix(color(SEA_COLOUR), lit, step(0, y))
   const sky = new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
   // Background first: a 45 km dome must never paint over the 400 km ocean.
   sky.renderOrder = -1

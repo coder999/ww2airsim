@@ -18,7 +18,6 @@ import {
   Fn,
   attribute,
   clamp,
-  color,
   dot,
   float,
   floor,
@@ -41,8 +40,7 @@ import { fogWeightNode, horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { FINEST_FETCHED_LEVEL } from '../content.js'
-import { SKY_HAZE } from '../scene/sky.js'
-import { sunDirectionNode } from '../scene/lighting.js'
+import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
@@ -287,11 +285,11 @@ function createRingMaterial(
   // `nodeSpec`, `heightM` from the field), so it passes 'world' and the
   // node adds no eye offset. `varying` so the lookup is per fragment.
   const shadowT = shadow ? shadow.node(varying(vec3(worldXZ.x, heightM, worldXZ.y)), 'world') : float(1)
-  const lit = albedo.mul(float(AMBIENT).add(lambert.mul(1 - AMBIENT).mul(shadowT)))
+  const lit = albedo.mul(vec3(AMBIENT).mul(ambientScaleNode).add(sunTintNode.mul(lambert.mul(1 - AMBIENT).mul(shadowT))))
 
   // Aerial perspective, and the reason the far plane can sit exactly on the
   // draw distance (main.ts). `smoothstep` is exactly 1 at `drawDistanceM`,
-  // so terrain at or beyond it is precisely the haze the sky dome behind it
+  // so terrain at or beyond it is precisely the `skyHorizonNode` color the sky dome behind it
   // is painted with -- a fragment the far plane removes and one it keeps are
   // the same colour, and the clip cannot be seen. A `1 - exp(-d/L)`
   // extinction curve would be more physical and never reach 1, which is
@@ -299,7 +297,7 @@ function createRingMaterial(
   // The ramp itself lives in horizon.ts since 2026-09-19 (Plan 16a): the
   // clouds fog on the same one, and `clouds.test.ts` pins it to LOD.drawDistanceM.
   const fog = fogWeightNode(distanceM)
-  const shaded = mix(lit, color(SKY_HAZE), varying(fog))
+  const shaded = mix(lit, skyHorizonNode, varying(fog))
   const vertexHeightM = varying(heightM)
 
   // The ocean owns water fragments. Discard the DEM's zero-elevation sea

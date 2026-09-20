@@ -75,7 +75,8 @@ export function horizonSinkNode(distanceM: Node<'float'>): Node<'float'> {
 export const FOG_DISTANCE_M = 100_000
 
 /**
- * Aerial perspective weight, 0 clear to 1 pure `SKY_HAZE` at `FOG_DISTANCE_M`.
+ * Aerial perspective weight, 0 clear to 1 pure `skyHorizonNode`
+ * (`lighting.ts`) at `FOG_DISTANCE_M`.
  * Moved here from `terrain/mesh.ts` on 2026-09-19 so the clouds and the
  * terrain fog on ONE ramp, for the reason `horizonSinkNode` lives here.
  * `smoothstep` is exactly 1 at the distance, which is what lets the far

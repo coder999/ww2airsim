@@ -8,8 +8,8 @@ import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
 import { FOG_DISTANCE_M, fogWeightNode, horizonSinkNode } from '../horizon.js'
-import { SKY_HAZE, SKY_RADIUS_M } from './sky.js'
-import { sunDirectionNode } from './lighting.js'
+import { SKY_RADIUS_M } from './sky.js'
+import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from './lighting.js'
 import { CUMULUS_SIGMA, SHAPE_TILE_M, cloudDriftM, createCloudField, type CloudField } from './cloudField.js'
 
 export { cloudDriftM }
@@ -87,9 +87,11 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   const debug = uniform(0, 'int')
 
   const sun = normalize(sunDirectionNode)
-  const sunColor = color(0xfff2e0)
-  const ambientTop = color(SKY_HAZE).mul(1.0)
-  const ambientBottom = color(SKY_HAZE).mul(0.6)
+  // TSL's `color()` is a runtime vec3 but @types/three gives it a distinct
+  // `color` tag whose `mul` overload only admits scalars.
+  const sunColor = (color(0xfff2e0) as unknown as Node<'vec3'>).mul(sunTintNode)
+  const ambientTop = skyHorizonNode.mul(ambientScaleNode)
+  const ambientBottom = skyHorizonNode.mul(ambientScaleNode).mul(0.6)
 
 
   const material = new MeshBasicNodeMaterial({ side: BackSide, transparent: true, depthTest: false, depthWrite: false })
@@ -229,7 +231,7 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
     const alpha = float(1).sub(transmittance).toVar()
     // Aerial perspective on the cloud, by the distance to its first sample.
     const fog = fogWeightNode(firstHitT)
-    const rgb = mix(scattered.div(max(alpha, 0.0001)), color(SKY_HAZE), fog).toVar()
+    const rgb = mix(scattered.div(max(alpha, 0.0001)), skyHorizonNode, fog).toVar()
     If(debug.equal(int(2)), () => {
       const g = sceneT.div(FOG_DISTANCE_M)
       rgb.assign(vec3(g, g, g))

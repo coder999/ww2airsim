@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { InstancedMesh, Mesh, type Object3D } from 'three'
 import {
-  MAP_TEXELS, MAP_SIDE_M, MAP_TEXEL_M, SHADOW_TIERS, cloudShadowFromQuery, createCloudShadow, snapToTexel, sunParallaxXZ,
+  MAP_TEXELS, MAP_SIDE_M, MAP_TEXEL_M, SHADOW_MIN_SUN_Y, SHADOW_TIERS, cloudShadowFromQuery, createCloudShadow, snapToTexel, sunParallaxXZ,
 } from '../../src/render/scene/cloudShadow.js'
 import { createCloudField } from '../../src/render/scene/cloudField.js'
 import { SUN_DIRECTION } from '../../src/render/scene/lighting.js'
@@ -46,6 +46,14 @@ describe('cloud shadow map (Plan 16b)', () => {
     const p = sunParallaxXZ(SUN_DIRECTION, 1000)
     expect(p.x).toBeCloseTo(-400, 6)
     expect(p.z).toBeCloseTo(-300, 6)
+  })
+  it('clamps the projection at 5 degrees of elevation, so a sun on the horizon casts long shadows, not infinite ones (Plan 16c)', () => {
+    const grazing = sunParallaxXZ({ x: 1, y: 0.001, z: 0 }, 1000)
+    const fiveDeg = sunParallaxXZ({ x: 1, y: SHADOW_MIN_SUN_Y, z: 0 }, 1000)
+    expect(grazing).toEqual(fiveDeg)
+    expect(Math.abs(grazing.x)).toBeCloseTo(1000 / SHADOW_MIN_SUN_Y, 6)
+    expect(sunParallaxXZ({ x: 1, y: -0.5, z: 0 }, 1000)).toEqual(fiveDeg)
+    expect(sunParallaxXZ(SUN_DIRECTION, 1000).x).toBeCloseTo(-400, 6)
   })
   it('parses the DEV query: off and show, nothing else', () => {
     expect(cloudShadowFromQuery('?cloudShadow=off')).toBe('off')
