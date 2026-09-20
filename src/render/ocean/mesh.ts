@@ -4,7 +4,7 @@ import { Fn, If, clamp, color, fract, max, normalize, dot, pow, reflect, float, 
 import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
 import { OCEAN_SHADOW_FLOOR, type CloudShadowHandle } from '../scene/cloudShadow.js'
-import { skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
+import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
 import type { OceanCompute } from './compute.js'
 import { angularFadeSpacingM, shortestWavelengthM } from './bands.js'
@@ -521,8 +521,14 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   // at twilight, so the glint dies with the sun.
   const sun = normalize(sunDirectionNode)
   const glint = pow(max(dot(reflect(view.negate(), normal), sun), 0), 180).mul(sunTintNode).mul(fresnel)
-  const unshadowed = cascades.length === 0 ? waterColour : mix(
-    mix(waterColour.mul(max(normal.y, 0.3)), skyHorizonNode, fresnel), color(0xe4eff0), clamp(foam, 0, 1)).add(glint)
+  // Plan 16c ruling: the water's subsurface color and the foam are lit by the
+  // sky, so they scale with the palette's ambient (exactly 1 above 30 deg,
+  // 0.25 at civil dusk), as the terrain's ambient term does. Without it the
+  // sea glowed saturated turquoise under a navy dusk sky (read 2026-09-19).
+  const subsurface = waterColour.mul(ambientScaleNode)
+  const foamColour = color(0xe4eff0).mul(ambientScaleNode)
+  const unshadowed = cascades.length === 0 ? subsurface : mix(
+    mix(subsurface.mul(max(normal.y, 0.3)), skyHorizonNode, fresnel), foamColour, clamp(foam, 0, 1)).add(glint)
   // Plan 16b: under cloud the sea loses glint and subsurface light but still
   // reflects the sky, hence a floor rather than the terrain's direct-only
   // scale. The sea is at y = 0, so `worldXZ` is the true world point and the

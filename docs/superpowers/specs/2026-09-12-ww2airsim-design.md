@@ -220,6 +220,11 @@ Precomputed atmospheric scattering LUTs (Hillaire-style) plus raymarched
 volumetric cloud at half resolution with temporal reprojection. Cloud coverage
 and base altitude are per-scenario weather parameters.
 
+*2026-09-19 (Plan 16c): the sun's position and the sky's colors come from an
+analytic elevation-keyed palette, not scattering LUTs; every consumer reads
+uniforms, so LUTs remain a possible later slice without touching them. See
+the 16c design §6.*
+
 ### Performance
 
 Target is 60 fps at 1440p on the reference platform (RX 6700 XT), with 1080p
@@ -718,7 +723,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 13c | any | Coastline and beaches | §4 | **Abandoned as designed 2026-09-18**, and the problem it existed for is SOLVED by other means: the blocky coast was L4's 391 m grid, not the DEM, so shipping L2 at 98 m fixed it (`eef5b4d`, confirmed by eye). Moving the shoreline at 24 m and letting `buildPyramid` carry it down cannot work — `halve` is a [1,2,1] tent filter and does not preserve a binary land/sea boundary; measured net -203 land cells at L4, with before/after frames indistinguishable. Reshaping per level is worse (-6.6% land at L4, -88.9% at L12). `tools/landcover/sea.ts` and `tools/terrain/coast.ts` remain committed, reviewed and UNWIRED. |
 | 15 | any | Audio: engine loop and event cues | — | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan15-audio.md) |
 | 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
-| 16 | any | Clouds | §4 | 16a volumetric layers + whiteout landed 2026-09-19 ([design](2026-09-19-clouds-design.md), [handoff](../../handoff/2026-09-19-plan16a-clouds.md)); 16b cloud shadows landed 2026-09-19 ([design](2026-09-19-cloud-shadows-design.md), [handoff](../../handoff/2026-09-19-plan16b-cloud-shadows.md)); 16c sun angle to be designed |
+| 16 | any | Clouds | §4 | 16a volumetric layers + whiteout landed 2026-09-19 ([design](2026-09-19-clouds-design.md), [handoff](../../handoff/2026-09-19-plan16a-clouds.md)); 16b cloud shadows landed 2026-09-19 ([design](2026-09-19-cloud-shadows-design.md), [handoff](../../handoff/2026-09-19-plan16b-cloud-shadows.md)); 16c movable sun landed 2026-09-19 ([design](2026-09-19-sun-design.md), [handoff](../../handoff/2026-09-19-plan16c-sun.md)) |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
 `Impact` and deliberately stops there, and the sea is a picture rather than a

@@ -95,8 +95,16 @@ reduces horizon stipple and repeating rows; its cloud-pass cost measured
 map rendered each frame from the same cloud field, carried by the sun's
 custom shadow node into every lit material; the terrain and the sea read it
 directly. The pass cost 0.16–0.40 ms at high, 1440p. See the
-[handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md). A movable sun
-(16c) is designed next; master spec §15 holds the status.
+[handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md); master spec
+§15 holds the status.
+
+**The sun moves (Plan 16c, 2026-09-19):** each scenario states an apparent
+solar hour (`weather.timeOfDay`); the sun sits where it would over Leyte on
+1944-10-20, creeps with the sim clock, and the sky, haze, lights, clouds, sea
+and shadows follow its elevation through one keyframed palette. `?timeOfDay=`
+picks any hour in DEV. See the
+[handoff](docs/handoff/2026-09-19-plan16c-sun.md); master spec §15 holds the
+status.
 
 That count was genuinely unsettled until then, and this paragraph said so:
 input assists were inserted into the slot the roadmap had given terrain, and
