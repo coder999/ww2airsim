@@ -14,7 +14,9 @@ not exist, and three conventions below were being missed for that reason).
    what each costs if reversed. Check it before "fixing" an apparent oversight.
 3. The newest `docs/handoff/*.md` — the current trap list and open items. A
    handoff's diagnosis is a claim to re-measure, not a premise.
-4. `.superpowers/sdd/<plan>/progress.md` (gitignored) — the executing agent's
+4. `docs/incidents/*.md` — dated post-mortems with an open fix; read the
+   open ones before touching what they name.
+5. `.superpowers/sdd/<plan>/progress.md` (gitignored) — the executing agent's
    rulings ledger. Write one for any plan you execute.
 
 ## This checkout
