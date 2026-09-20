@@ -249,6 +249,10 @@ export type Ww2Diagnostics = {
    *  null outside the map / with the pass off. A fixed point must read the
    *  same from any eye position: the map is world-anchored, not eye-anchored. */
   readonly cloudShadowAt: (x: number, z: number) => Promise<number | null>
+  /** Plan 16c: the apparent solar hour in force this frame, the sun's
+   *  elevation and azimuth (degrees, azimuth from north clockwise) and the
+   *  unit direction toward it in the world frame (+z south). */
+  readonly sun: () => { readonly timeOfDay: number; readonly elevationDeg: number; readonly azimuthDeg: number; readonly direction: { readonly x: number; readonly y: number; readonly z: number } }
   readonly resetFrameTimes: () => void
 }
 

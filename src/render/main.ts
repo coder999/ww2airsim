@@ -23,6 +23,8 @@ import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, typ
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
 import { loadSkyNoise } from './sky/load.js'
+import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
+import { paletteFor } from './sky/palette.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
@@ -49,7 +51,7 @@ import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import { createSky } from './scene/sky.js'
-import { createLighting } from './scene/lighting.js'
+import { applySun, createLighting } from './scene/lighting.js'
 import { createHellcat } from './scene/hellcat.js'
 import { createShipMesh } from './scene/ship.js'
 import { createTerrainMesh } from './terrain/mesh.js'
@@ -161,6 +163,10 @@ async function boot(): Promise<void> {
   // `spawnPosition`. Assigned where the clouds are created.
   let cloudLayers: readonly CloudLayer[] = []
   let cloudTier: CloudTierName | 'off' = 'high'
+  // Plan 16c, read by the DEV hook's `sun()` below; assigned at boot and
+  // every frame. Apparent solar time.
+  let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
+  let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
 
   // The title screen (2026-09-19), created before ANYTHING that can take
   // time: the adapter, the ocean cascades and the terrain all load behind
@@ -372,6 +378,8 @@ async function boot(): Promise<void> {
       // Plan 16b: the shadow map read back at a world point, for the
       // world-stability check a screenshot cannot make.
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
+      // Plan 16c: the hour in force and where the sun is, for the specs.
+      sun: () => sunState,
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
@@ -516,6 +524,10 @@ async function boot(): Promise<void> {
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle.scenario.weather.clouds ?? []
   cloudTier = forcedCloudTier ?? oceanTier.name
+  // Plan 16c: the scenario's hour, or the DEV override.
+  const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
+  scenarioTimeOfDay = forcedTimeOfDay ?? bundle.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
+  sunState = { ...sunState, timeOfDay: scenarioTimeOfDay }
   const cloudField = createCloudField(cloudLayers, skyNoise)
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
@@ -602,7 +614,8 @@ async function boot(): Promise<void> {
   scene.add(sky)
   // Plan 16b: the sun carries the cloud-shadow lookup into every lit
   // material. `positionWorld` is eye-relative here; the node adds the eye.
-  scene.add(createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined))
+  const lights = createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined)
+  scene.add(lights)
   // Drawn last (its own renderOrder), occluded per pixel by the scene depth.
   scene.add(clouds.object)
   // One airframe per aircraft entity, in world order, so `frame.poses[i]`
@@ -1162,6 +1175,13 @@ async function boot(): Promise<void> {
     // One clock for the sea and the sky (Plan 16a): the clouds drift on the
     // same simulated seconds the ocean's waves evolve on.
     const skyTimeS = oceanTime ?? current.world.tick * DT + current.world.accumulatorSeconds + postImpactOceanSeconds
+    // Plan 16c: the sun creeps with the sim clock, and the palette follows
+    // its elevation. One trig evaluation and a handful of uniform writes.
+    const hour = sunClock(scenarioTimeOfDay, skyTimeS)
+    const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
+    const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
+    applySun(lights, paletteFor(elevationDeg), direction, elevationDeg)
+    sunState = { timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z } }
     clouds.update(current.eye.position, skyTimeS, current.world.wind)
     for (const cascade of cascades) {
       cascade.dispatch(skyTimeS)
