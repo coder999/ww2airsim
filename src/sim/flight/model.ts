@@ -319,7 +319,12 @@ export function step(
   //  - extended gear (`gearDragN`), already a force from its own drag AREA, so
   //    it is added outside that product;
   //  - extended flaps (`flapDragN`, Plan 11b), the same shape as the gear and
-  //    added the same way.
+  //    added the same way;
+  //  - carried stores (`spec.storesLoad?.dragAreaM2`, Plan 6b), a drag AREA
+  //    like gear and flaps, baked in by `storesSpec` in
+  //    `src/sim/weapons/stores.ts` (see that module's doc comment) -- a spec
+  //    with nothing carried has no `storesLoad` at all, so `?? 0` makes this
+  //    term exactly zero and this function's own code is unchanged either way.
   //
   // Merged from two branches on 2026-09-16 and worth stating plainly, because a
   // conflict resolution that kept only one side would silently delete a whole
@@ -327,7 +332,8 @@ export function step(
   const dragN =
     q * spec.geometry.wingAreaM2 * (cd + windmillDragCd0(spec, controls.throttle)) +
     gearDragN(spec, state.gearFraction, q) +
-    flapDragN(spec, state.flapFraction, q)
+    flapDragN(spec, state.flapFraction, q) +
+    q * (spec.storesLoad?.dragAreaM2 ?? 0)
   const thrustN = thrustMagnitude(spec, air, controls.throttle)
 
   const vdir = v > 1e-6 ? normalize(air.velocity) : forward

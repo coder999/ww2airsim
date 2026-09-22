@@ -276,5 +276,24 @@
       }
     ],
     "source": "Six .50-cal guns: National Naval Aviation Museum https://www.history.navy.mil/content/history/museums/nnam/explore/collections/aircraft/f/f6f-5-hellcat.html . 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html . 400 rounds/gun: Patriots Point Naval & Maritime Museum https://patriotspoint.org/things-to-do/aircraft/f6f-hellcat . Verified 2026-09-19. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates, mounts and hit zones are gameplay ESTIMATES. Hitboxes approximate the existing procedural mesh, not a sourced installation drawing. No penetration model."
+  },
+  "stores": {
+    "racks": [
+      { "id": "left-rack", "offset": [0.4, -0.55, -2.6], "store": "an-m65" },
+      { "id": "right-rack", "offset": [0.4, -0.55, 2.6], "store": "an-m65" }
+    ],
+    "rails": [
+      { "id": "left-rail-1", "offset": [0.4, -0.4, -3.6], "store": "hvar" },
+      { "id": "left-rail-2", "offset": [0.4, -0.4, -4.3], "store": "hvar" },
+      { "id": "left-rail-3", "offset": [0.4, -0.4, -5.0], "store": "hvar" },
+      { "id": "right-rail-1", "offset": [0.4, -0.4, 3.6], "store": "hvar" },
+      { "id": "right-rail-2", "offset": [0.4, -0.4, 4.3], "store": "hvar" },
+      { "id": "right-rail-3", "offset": [0.4, -0.4, 5.0], "store": "hvar" }
+    ],
+    "types": {
+      "an-m65": { "kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 0.00002 },
+      "hvar": { "kind": "rocket", "massKg": 61, "dragAreaM2": 0.03, "warheadKg": 20.6, "damage": 40, "blastRadiusM": 8, "burnS": 1.0, "burnDeltaVMps": 419, "lifetimeS": 12, "dragPerM": 0.00008 }
+    },
+    "source": "Six HVARs, three under each wing; single bomb racks under each wing inboard of the undercarriage bays; 1,000 lb class per rack: English Wikipedia, 'Grumman F6F Hellcat', read 2026-09-20. HVAR: 134 lb (61 kg) all-up, 45.5 lb (20.6 kg) warhead, 1,375 ft/s (419 m/s) plus the speed of the launching aircraft: English Wikipedia, 'High Velocity Aircraft Rocket', read 2026-09-20; designation-systems.net 'Air-Launched 5-Inch Rockets' gives 64 kg / 20 kg / 5 km range. Burn time 1.0 s is an ESTIMATE: neither source states it. AN-M65 1,000 lb GP: 530 lb (240.9 kg) Amatol filler, 53% of total weight, so 1,000 lb (453.6 kg) all-up: Australian War Memorial C285409 and bulletpicker.com 'Bomb, 1000 lb GP, AN-M44, AN-M65, AN-M65A1', read 2026-09-20. dragAreaM2, dragPerM, damage, roundDamage, blastRadiusM, armS, lifetimeS are ESTIMATES or gameplay choices, in the same standing as combat's dispersion and HP figures. dragPerM for the bomb is chosen so a release at 120 m/s from 1,500 m lands within about 1,200 m of the release point and reaches roughly 200 m/s; the strike Tier 1 test measures and records the actual figure (Plan 6b)."
   }
 }

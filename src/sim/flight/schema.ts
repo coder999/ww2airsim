@@ -19,8 +19,48 @@ const finite = z.number().refine(Number.isFinite, { message: 'must be a finite n
 const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
 const fraction = finite.refine((n) => n > 0 && n <= 1, { message: 'must be in (0, 1]' })
 
+/**
+ * One carriable store -- a bomb or a rocket -- as content, mirroring
+ * `CombatSpecSchema`'s standing for the gun/hitbox data it sits beside.
+ * Plan 6b §2.1: `storesSpec` in `src/sim/weapons/stores.ts` reads `massKg`
+ * and `dragAreaM2` to bake carried load into a derived `AircraftSpec`; the
+ * rest (`fillerKg`, `armS`, `warheadKg`, `burnS`, `burnDeltaVMps`, `damage`,
+ * `blastRadiusM`, `lifetimeS`, `dragPerM`) belongs to the projectile system
+ * later tasks build, not to this task.
+ */
+const StoreTypeObject = z.object({
+  kind: z.enum(['bomb', 'rocket']),
+  massKg: positive,
+  dragAreaM2: positive,
+  damage: positive,
+  blastRadiusM: positive,
+  lifetimeS: positive,
+  dragPerM: z.number().finite().min(0),
+  // bomb-only
+  fillerKg: positive.optional(),
+  armS: positive.optional(),
+  // rocket-only
+  warheadKg: positive.optional(),
+  burnS: positive.optional(),
+  burnDeltaVMps: positive.optional(),
+}).strict()
+  .refine((t) => t.kind !== 'bomb' || (t.fillerKg !== undefined && t.armS !== undefined), { message: 'a bomb needs fillerKg and armS' })
+  .refine((t) => t.kind !== 'rocket' || (t.warheadKg !== undefined && t.burnS !== undefined && t.burnDeltaVMps !== undefined), { message: 'a rocket needs warheadKg, burnS and burnDeltaVMps' })
+
+const StoresSchema = z.object({
+  racks: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(1).max(8),
+  rails: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(1).max(16),
+  types: z.record(z.string(), StoreTypeObject),
+  source: z.string().min(1),
+}).strict()
+  .refine((s) => [...s.racks, ...s.rails].every((m) => m.store in s.types), { message: 'every rack/rail store id must exist in types' })
+
+export type StoreType = z.infer<typeof StoreTypeObject>
+export type Stores = z.infer<typeof StoresSchema>
+
 const AircraftSpecObject = z.object({
   combat: CombatSpecSchema.optional(),
+  stores: StoresSchema.optional(),
   id: z.string().min(1),
   name: z.string().min(1),
   geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }).strict(),
@@ -357,4 +397,14 @@ export const AircraftSpecSchema = AircraftSpecObject.refine(
   }),
 )
 
-export type AircraftSpec = z.infer<typeof AircraftSpecSchema>
+/**
+ * `storesLoad` is NOT part of the content schema above -- content never sets
+ * it, and a malformed `storesLoad` in actual JSON is therefore never a thing
+ * to validate. It exists only so `storesSpec` (src/sim/weapons/stores.ts)
+ * can return an object that still type-checks as `AircraftSpec` after baking
+ * remaining carried drag area in, the same way `damagedSpec` returns a
+ * `spec` shape unchanged by any zod schema.
+ */
+export type AircraftSpec = z.infer<typeof AircraftSpecSchema> & {
+  storesLoad?: { massKg: number; dragAreaM2: number }
+}

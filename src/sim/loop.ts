@@ -1,5 +1,6 @@
 import { createCombat, stepCombat, type CombatState } from './weapons/combat.js'
 import { ageDamage, damagedSpec, type Damage } from './damage/model.js'
+import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { airVelocity, DT, step } from './flight/model.js'
@@ -569,6 +570,7 @@ function stepAircraftEntity<M>(
   stepper: Stepper,
   assist: Assist<M>,
   damage: Damage,
+  stores: StoresState,
 ): AircraftEntity<M> {
   if (damage.destroyedAt !== null) return entity
   if (entity.impact !== null) return entity
@@ -598,7 +600,7 @@ function stepAircraftEntity<M>(
   // is bit-identical (`tests/assists/windFrame.test.ts` pins the identity).
   const airState = wind == null ? entity.state : { ...entity.state, velocity: airVelocity(entity.state, wind) }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory)
-  let current = stepper(damagedSpec(entity.spec, damage), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  let current = stepper(storesSpec(damagedSpec(entity.spec, damage), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
   if (damage.fuel < 1 && entity.spec.combat !== undefined) {
     current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
   }
@@ -720,7 +722,12 @@ export function advance<M>(
       const rec = combat.aircraft[a.id]!
       return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT) }]
     })) }
-    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage))
+    // `combat.aircraft[a.id]!.stores` does not exist yet -- Task 5 (Plan 6b)
+    // adds it to `AircraftCombat`. Stub with `emptyStores` until then so this
+    // compiles and every existing caller (none of which carry stores) is
+    // bit-identical; Task 5 is responsible for replacing this literal with
+    // the real per-aircraft field at this exact call site.
+    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage, emptyStores))
     combat = stepCombat(combat, aircraft, ships, world.terrain, world.wind, decks, tick, DT)
   }
 
