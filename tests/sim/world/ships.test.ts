@@ -207,6 +207,7 @@ describe('ship hit points and roles', () => {
     expect(dd.hullHp).toBe(160)
     expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: undefined })).toThrow(/hullHp/)
     expect(() => parseShipSpec({ ...raw, hullHp: 0 })).toThrow(/hullHp/)
+    expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: 240 })).not.toThrow()
   })
 
   it('a single-waypoint, zero-speed ship holds position and heading forever, no NaN', () => {
