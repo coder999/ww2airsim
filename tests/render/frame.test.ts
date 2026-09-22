@@ -97,6 +97,29 @@ describe('nextFrameState', () => {
     expect(f.controls.throttle).toBeLessThan(0.3)
   })
 
+  it('dropBomb and fireRockets pulse true for one frame per key-down, never persist', () => {
+    // Plan 6b Task 4: edge-triggered exactly like `throttleCut`, not a
+    // persisting toggle like `gearDown`/`hookDown` -- a held key must not
+    // keep releasing ordnance every frame.
+    const f = nextFrameState(start(), 1 / 60, keys('KeyV'))
+    expect(f.controls.dropBomb).toBe(true)
+    expect(f.controls.fireRockets).toBeFalsy() // independent of the other key
+    const held = nextFrameState(f, 1 / 60, keys('KeyV'))
+    expect(held.controls.dropBomb).toBeFalsy()
+    const released = nextFrameState(held, 1 / 60, keys())
+    const pressedAgain = nextFrameState(released, 1 / 60, keys('KeyV'))
+    expect(pressedAgain.controls.dropBomb).toBe(true)
+
+    const g = nextFrameState(start(), 1 / 60, keys('KeyE'))
+    expect(g.controls.fireRockets).toBe(true)
+    expect(g.controls.dropBomb).toBeFalsy() // independent of the other key
+    const heldE = nextFrameState(g, 1 / 60, keys('KeyE'))
+    expect(heldE.controls.fireRockets).toBeFalsy()
+    const releasedE = nextFrameState(heldE, 1 / 60, keys())
+    const pressedAgainE = nextFrameState(releasedE, 1 / 60, keys('KeyE'))
+    expect(pressedAgainE.controls.fireRockets).toBe(true)
+  })
+
   it('exposes the interpolated pose strictly between the two most recent ticks', () => {
     // Task 13 review, round 1: `frame.ts` computed this pose and handed it to
     // `cameraTransformFor` but never exposed it, so main.ts had nothing to

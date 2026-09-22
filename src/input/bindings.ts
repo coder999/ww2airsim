@@ -90,6 +90,14 @@ export const BINDINGS = {
   // the gear, this is a hold: brakes bite while the key is down and release
   // the moment it is not, the way a toe-brake pedal does.
   brakes: ['KeyB'],
+  // Plan 6b Task 4. `V` for release: it drops a bomb, one press, one bomb --
+  // edge-triggered exactly like `throttleCut`, for the same reason: a held
+  // key must not keep releasing ordnance every frame. Free as of 2026-09-18
+  // (the corrected list on `toggleGear` above did not name it taken).
+  dropBomb: ['KeyV'],
+  // `E` for the rocket pair, edge-triggered identically. Also free as of the
+  // same corrected list.
+  fireRockets: ['KeyE'],
   // Plan 15. `Q` for quiet. `M` is the obvious mute key everywhere else and
   // has been the THROTTLE CUT here since 2026-09-17, so it is not available.
   // A bare letter for the reason `throttleDown` documents: no modifier a

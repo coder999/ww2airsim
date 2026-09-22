@@ -139,6 +139,13 @@ export type FrameState = {
    *  the chop fires once per press, and a held `M` must not keep re-zeroing
    *  a throttle the pilot is trying to open again. */
   readonly throttleCutPressed: boolean
+  /** Whether the bomb-release key was down last frame, for edge detection --
+   *  the same reason `throttleCutPressed` exists: `Controls.dropBomb` pulses
+   *  true for one tick per press, and a held `V` must not keep releasing
+   *  ordnance every frame (Plan 6b Task 4). */
+  readonly dropBombPressed: boolean
+  /** The rocket-fire key's twin of `dropBombPressed`. */
+  readonly fireRocketsPressed: boolean
   /**
    * Whether the simulation is paused (Mark, 2026-09-17: "esc key pauses
    * game"). Applied the same way triple time is, to the frame delta: a paused
@@ -269,6 +276,8 @@ export function initialFrameStateFor(
     hookDown: false,
     hookPressed: false,
     throttleCutPressed: false,
+    dropBombPressed: false,
+    fireRocketsPressed: false,
     paused: false,
     pausePressed: false,
     landing: NO_LANDING,
@@ -478,6 +487,16 @@ export function nextFrameState(
   const hookDown =
     hookKeyDown && !prev.hookPressed ? !prev.hookDown : prev.hookDown
 
+  // Release controls (Plan 6b Task 4): a PULSE, not a lever like the gear/flap/
+  // hook above -- `dropBomb`/`fireRockets` are true for exactly the tick after
+  // the key-down edge, matching `throttleCut`'s one-shot shape rather than a
+  // toggle's persisting state. What happens when these are true is Task 6's
+  // job; this only wires the edge.
+  const dropBombKeyDown = BINDINGS.dropBomb.some((c) => pressed.has(c))
+  const dropBomb = dropBombKeyDown && !prev.dropBombPressed
+  const fireRocketsKeyDown = BINDINGS.fireRockets.some((c) => pressed.has(c))
+  const fireRockets = fireRocketsKeyDown && !prev.fireRocketsPressed
+
   // On/off from a keyboard: 1 while held, 0 the instant it is not.
   // `Controls.brake` is [0, 1] (a pedal's travel, not a switch), so a later
   // axis input -- a rudder pedal's toe-brake, say -- slots in with no type
@@ -491,7 +510,19 @@ export function nextFrameState(
   // because they called the module directly. `frame.test.ts` pins this by
   // reading `playerAircraft(f.world).controls.gearDown` back, not just
   // `f.gearDown`.
-  const controls: Controls = { ...controlsAxes, gearDown, flapDown, hookDown, brake, fire: BINDINGS.fireGuns.some(c => pressed.has(c)) }
+  const controls: Controls = {
+    ...controlsAxes,
+    gearDown,
+    flapDown,
+    hookDown,
+    brake,
+    fire: BINDINGS.fireGuns.some(c => pressed.has(c)),
+    // Only present when `true`: `Controls.dropBomb`'s doc comment promises
+    // `undefined` means no release, and an unconditional `false` here would
+    // break that for every frame that is not the pulse itself.
+    ...(dropBomb ? { dropBomb: true } : {}),
+    ...(fireRockets ? { fireRockets: true } : {}),
+  }
   // `look` deliberately keeps the REAL delta. Look-around is the pilot turning
   // their head, not part of the flight; a view that panned three times as fast
   // in wall clock would be unusable precisely when it matters most.
@@ -611,6 +642,8 @@ export function nextFrameState(
     hookDown,
     hookPressed: hookKeyDown,
     throttleCutPressed: throttleCutDown,
+    dropBombPressed: dropBombKeyDown,
+    fireRocketsPressed: fireRocketsKeyDown,
     paused,
     pausePressed: pauseDown,
     landing,

@@ -24,6 +24,10 @@ export type Controls = {
   /** The tailhook lever. Optional like `gearDown`; `undefined` reads as up.
    *  No travel is modelled (Plan 8 design section 5). */
   readonly hookDown?: boolean
+  /** One release, this tick only -- edge-triggered at the frame layer like
+   *  `throttleCut`, not held like `fire`. `undefined` means no release. */
+  readonly dropBomb?: boolean
+  readonly fireRockets?: boolean
 }
 
 export type AircraftState = {

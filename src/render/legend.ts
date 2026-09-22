@@ -25,6 +25,13 @@ export type LegendRow = {
 
 export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Guns', bindings: ['fireGuns'] },
+  // Plan 6b Task 4 added the bindings; the label text and position here match
+  // what Task 9 (docs/superpowers/plans/2026-09-22-strike.md) specifies, added
+  // early only because `legend.test.ts`'s pre-existing exhaustiveness check
+  // (every BINDINGS entry needs a row) would otherwise fail `npm run verify`
+  // the moment `dropBomb`/`fireRockets` exist in BINDINGS.
+  { label: 'Bombs', bindings: ['dropBomb'] },
+  { label: 'Rockets', bindings: ['fireRockets'] },
   { label: 'Pitch', bindings: ['pitchDown', 'pitchUp'], pair: true },
   { label: 'Roll', bindings: ['rollLeft', 'rollRight'], pair: true },
   { label: 'Yaw', bindings: ['yawLeft', 'yawRight'], pair: true },

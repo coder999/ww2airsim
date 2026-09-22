@@ -793,6 +793,11 @@ async function boot(): Promise<void> {
   // `nextFrameState` the same way.
   let pendingPause = false
   let pendingThrottleCut = false
+  // And the release controls (Plan 6b Task 4), latched the same way for the
+  // same reason: `dropBomb`/`fireRockets` pulse edge-triggered inside
+  // `nextFrameState`, just like the throttle cut.
+  let pendingDropBomb = false
+  let pendingFireRockets = false
   // And the gear and flap levers. Found 2026-09-17 by a Tier 2 screenshot:
   // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
   // and the flap light never lit because `nextFrameState` never saw the key
@@ -813,6 +818,8 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingDropBomb = false
+    pendingFireRockets = false
   }
   const navigationMap = createMissionMap(root, {
     onClose: () => closeNavigationChart(),
@@ -851,6 +858,8 @@ async function boot(): Promise<void> {
       pendingPause = true
     }
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
+    if (BINDINGS.dropBomb.includes(e.code as never) && !e.repeat) pendingDropBomb = true
+    if (BINDINGS.fireRockets.includes(e.code as never) && !e.repeat) pendingFireRockets = true
     // Space scrolls the page and activates a focused button; neither is
     // what a pilot holding the trigger means (Plan 6). Not latched like the
     // toggles above: firing is a HOLD, read from `pressed` every frame.
@@ -903,6 +912,8 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingDropBomb = false
+    pendingFireRockets = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -959,6 +970,8 @@ async function boot(): Promise<void> {
       if (pendingGear) latched.push(BINDINGS.toggleGear[0])
       if (pendingFlaps) latched.push(BINDINGS.toggleFlaps[0])
       if (pendingHook) latched.push(BINDINGS.toggleHook[0])
+      if (pendingDropBomb) latched.push(BINDINGS.dropBomb[0])
+      if (pendingFireRockets) latched.push(BINDINGS.fireRockets[0])
     }
     const frameKeys = chartOpen ? NO_KEYS : latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
     const inputFrame =
@@ -973,6 +986,8 @@ async function boot(): Promise<void> {
             gearPressed: pendingGear ? false : frame!.gearPressed,
             flapPressed: pendingFlaps ? false : frame!.flapPressed,
             hookPressed: pendingHook ? false : frame!.hookPressed,
+            dropBombPressed: pendingDropBomb ? false : frame!.dropBombPressed,
+            fireRocketsPressed: pendingFireRockets ? false : frame!.fireRocketsPressed,
           }
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
@@ -989,6 +1004,8 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingDropBomb = false
+    pendingFireRockets = false
     frame = current
     const player = playerAircraft(current.world)
 
