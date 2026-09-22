@@ -8,7 +8,8 @@
   "deckHeightM": 6,
   "maxSpeedMps": 18.8,
   "turnRateRadPerS": 0.05236,
+  "hullHp": 160,
   "reference": {
-    "source": "lengthM (376.5 ft overall), beamM (39.5 ft) and maxSpeedMps (36.5 kn) from the English Wikipedia article 'Fletcher-class destroyer', read 2026-09-18. deckWidthM is the beam; deckHeightM (main deck above the waterline) and turnRateRadPerS (3 deg/s) are ESTIMATES."
+    "source": "lengthM (376.5 ft overall), beamM (39.5 ft) and maxSpeedMps (36.5 kn) from the English Wikipedia article 'Fletcher-class destroyer', read 2026-09-18. deckWidthM is the beam; deckHeightM (main deck above the waterline) and turnRateRadPerS (3 deg/s) are ESTIMATES. hullHp is a gameplay choice (Plan 6b)."
   }
 }

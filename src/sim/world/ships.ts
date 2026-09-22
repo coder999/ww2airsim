@@ -44,13 +44,14 @@ const ShipSpecObject = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
-    role: z.enum(['carrier', 'escort']),
+    role: z.enum(['carrier', 'escort', 'merchant']),
     lengthM: positive,
     beamM: positive,
     deckWidthM: positive,
     deckHeightM: positive,
     maxSpeedMps: positive,
     turnRateRadPerS: positive,
+    hullHp: positive,
     /** The flight deck a Plan 8 `Deck` is derived from: a rectangle centered
      *  on the ship's position, `heightM` above the waterline. Carriers only. */
     flightDeck: z.object({ lengthM: positive, widthM: positive, heightM: positive }).strict().optional(),
@@ -146,7 +147,10 @@ export function stepShip(spec: ShipSpec, state: ShipState, orders: ShipOrders, c
     target = orders.waypoints[waypoint]!
   }
 
-  const wanted = bearingTo(state.position, target)
+  // If the target is at the ship's position (zero-distance), maintain current heading
+  // to avoid atan2(0, -0) = pi artifact (spec §5.3).
+  const newDist = Math.hypot(target.x - state.position.x, target.z - state.position.z)
+  const wanted = newDist === 0 ? state.headingRad : bearingTo(state.position, target)
   const maxTurn = spec.turnRateRadPerS * dt
   const delta = wrapPi(wanted - state.headingRad)
   const turn = delta > maxTurn ? maxTurn : delta < -maxTurn ? -maxTurn : delta

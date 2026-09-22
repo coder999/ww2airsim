@@ -199,3 +199,22 @@ describe('carrier content consistency', () => {
     expect(() => parseShipSpec(dd)).not.toThrow()
   })
 })
+
+describe('ship hit points and roles', () => {
+  it('carries hullHp and the merchant role', () => {
+    const raw = JSON.parse(JSON.stringify(dd)) as Record<string, unknown>
+    expect(cv.hullHp).toBe(600)
+    expect(dd.hullHp).toBe(160)
+    expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: undefined })).toThrow(/hullHp/)
+    expect(() => parseShipSpec({ ...raw, hullHp: 0 })).toThrow(/hullHp/)
+  })
+
+  it('a single-waypoint, zero-speed ship holds position and heading forever, no NaN', () => {
+    const anchored: ShipOrders = { waypoints: [{ x: 500, z: -500 }], speedMps: 0 }
+    let s = createShipState({ position: v3(500, SEA_LEVEL_M, -500), headingRad: 0.4, speedMps: 0 })
+    for (let tick = 1; tick <= 600; tick++) s = stepShip(dd, s, anchored, { dt: DT, tick })
+    expect(s.position).toEqual(v3(500, SEA_LEVEL_M, -500))
+    expect(s.headingRad).toBe(0.4)
+    expect(Number.isFinite(s.headingRad)).toBe(true)
+  })
+})
