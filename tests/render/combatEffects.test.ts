@@ -11,7 +11,7 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const round = (over: Partial<Projectile> = {}): Projectile => ({
-  owner: 'p', id: 1, position: v3(100, 500, 0), previous: v3(85, 500.2, 0), velocity: v3(880, -3, 0), lifeS: 2, tracer: true, ...over,
+  owner: 'p', id: 1, position: v3(100, 500, 0), previous: v3(85, 500.2, 0), velocity: v3(880, -3, 0), lifeS: 2, tracer: true, kind: 'round', ageS: 0, ...over,
 })
 
 describe('tracers read the projectile list (Plan 6)', () => {

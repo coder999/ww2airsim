@@ -26,7 +26,7 @@ const run = (w = world(), ticks = 60) => {
 }
 const projectile: Projectile = {
   id: 1, owner: 'shooter', position: v3(0, 1000, 0), previous: v3(0, 1000, 0),
-  velocity: v3(100, 0, 0), lifeS: 3, tracer: false,
+  velocity: v3(100, 0, 0), lifeS: 3, tracer: false, kind: 'round', ageS: 0,
 }
 
 describe('combat content', () => {
@@ -67,7 +67,7 @@ describe('ballistics and swept contacts', () => {
     const target = plane('target', 0)
     const moving = { ...target, previous: { ...target.previous, position: v3(0, 1000, -10) }, state: { ...target.state, position: v3(0, 1000, 10) } }
     const c = { ...createCombat([shooter, moving]), projectiles: [{ ...projectile, position: v3(-10, 1000, 0), velocity: v3(1200, 0, 0) }] }
-    const after = stepCombat(c, [shooter, moving], [], null, null, [], 1, DT)
+    const after = stepCombat(c, [shooter, moving], [], [], null, null, [], 1, DT)
     expect(after.aircraft.target!.damage.structure).toBeLessThan(1)
     expect(after.projectiles).toHaveLength(0)
   })
@@ -75,7 +75,7 @@ describe('ballistics and swept contacts', () => {
     const terrain = createTerrainField(parseTerrainHeader({ centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000, finestSamples: 8193, levels: 13, encoding: 'int16-decimetres' }), 12, new Int16Array(9).fill(10000))
     const a = [plane('shooter', -100), plane('target', 10)]
     const c = { ...createCombat(a), projectiles: [{ ...projectile, position: v3(0, 999, 0), velocity: v3(1200, 0, 0) }] }
-    const after = stepCombat(c, a, [], terrain, null, [], 1, DT)
+    const after = stepCombat(c, a, [], [], terrain, null, [], 1, DT)
     expect(after.projectiles).toHaveLength(0)
     expect(after.aircraft.target!.damage.structure).toBe(1)
   })
