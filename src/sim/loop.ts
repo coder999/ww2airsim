@@ -14,6 +14,7 @@ import type { Airfield } from './world/airfields.js'
 import type { Deck } from './world/deck.js'
 import { decksOf } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
+import { buildStructures, type StructureEntity } from './weapons/structures.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -353,6 +354,11 @@ export interface World<M = undefined> {
   readonly tick: number
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships: readonly ShipEntity[]
+  /** Strike targets derived once from `airfields` at world creation (spec
+   *  §3.5): never stepped, so `advance` never reassigns this -- it stays
+   *  the same reference for the whole flight. See `structures.ts`'s own
+   *  docstring for why both friendly and enemy airfields are included. */
+  readonly structures: readonly StructureEntity[]
   /** The airplane the frame's keys drive and the camera follows. An id, not
    *  an index (see `EntityId`); present by construction. */
   readonly player: EntityId
@@ -504,11 +510,21 @@ export function createWorldOf<M>(parts: {
   if (!parts.aircraft.some((a) => a.id === parts.player)) {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
   }
+  const structures = buildStructures(parts.airfields ?? [])
   return {
     tick: 0,
-    combat: createCombat(parts.aircraft),
+    combat: createCombat(
+      parts.aircraft,
+      // Every aircraft starts with no stores until Task 7 threads the real
+      // per-aircraft loadout through `worldFromScenario`'s new `loadout`
+      // parameter; this line is what it replaces.
+      Object.fromEntries(parts.aircraft.map(a => [a.id, emptyStores])),
+      ships.map(s => ({ id: s.id, hullHp: s.spec.hullHp })),
+      structures.map(s => ({ id: s.id, hp: s.hp })),
+    ),
     aircraft: parts.aircraft,
     ships,
+    structures,
     player: parts.player,
     airfields: parts.airfields ?? [],
     terrain: parts.terrain ?? null,
@@ -706,15 +722,23 @@ export function advance<M>(
   let tick = world.tick
   let aircraft = world.aircraft
   let ships = world.ships
+  const structures = world.structures
   let combat = world.combat
   for (let i = 0; i < owedSteps; i++) {
     tick += 1
-    // Ships first (spec §3.4): exogenous kinematics, reading nothing else.
-    ships = ships.map((s) => ({
-      ...s,
-      previous: s.state,
-      state: stepShip(s.spec, s.state, s.orders, { dt: DT, tick }),
-    }))
+    // Ships first (spec §3.4): exogenous kinematics, reading nothing else --
+    // except a destroyed ship's own orders, overridden here to hold position
+    // and heading rather than sail on with no hull left (Task 6 is what can
+    // actually destroy one; this reads last tick's `combat.ships`, i.e. the
+    // value `combat` still carries from the PREVIOUS iteration, before this
+    // iteration's `stepCombat` runs below).
+    ships = ships.map((s) => {
+      const dmg = combat.ships[s.id]
+      const orders = dmg && dmg.destroyedTick !== null
+        ? { waypoints: [{ x: s.state.position.x, z: s.state.position.z }], speedMps: 0 }
+        : s.orders
+      return { ...s, previous: s.state, state: stepShip(s.spec, s.state, orders, { dt: DT, tick }) }
+    })
     // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
     // an airplane on deck reads the pose the ship has at the end of the tick.
     const decks = decksOf(ships)
@@ -722,13 +746,8 @@ export function advance<M>(
       const rec = combat.aircraft[a.id]!
       return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT) }]
     })) }
-    // `combat.aircraft[a.id]!.stores` does not exist yet -- Task 5 (Plan 6b)
-    // adds it to `AircraftCombat`. Stub with `emptyStores` until then so this
-    // compiles and every existing caller (none of which carry stores) is
-    // bit-identical; Task 5 is responsible for replacing this literal with
-    // the real per-aircraft field at this exact call site.
-    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage, emptyStores))
-    combat = stepCombat(combat, aircraft, ships, world.terrain, world.wind, decks, tick, DT)
+    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage, combat.aircraft[a.id]!.stores))
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT)
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -737,7 +756,7 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { ...world, tick, aircraft, ships, combat, accumulatorSeconds: banked },
+    world: { ...world, tick, aircraft, ships, structures, combat, accumulatorSeconds: banked },
     stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,

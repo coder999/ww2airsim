@@ -101,6 +101,7 @@
     "lifetimeS": 3,
     "dragPerM": 0.00015,
     "damagePerHit": 10,
+    "roundDamage": 4,
     "structureHp": 120,
     "subsystemHp": 40,
     "fuelLeakKgPerS": 0.5,

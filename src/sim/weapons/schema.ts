@@ -13,6 +13,7 @@ export const CombatSpecSchema = z.object({
   lifetimeS: positive.max(10),
   dragPerM: z.number().finite().min(0).max(0.01),
   damagePerHit: positive,
+  roundDamage: positive,
   structureHp: positive,
   subsystemHp: positive,
   fuelLeakKgPerS: z.number().finite().min(0),

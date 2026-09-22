@@ -9,6 +9,8 @@ import type { Deck } from '../world/deck.js'
 import { healthyDamage, damageFromHit, type Damage } from '../damage/model.js'
 import { inBody, segmentBox, tupleVector } from './geometry.js'
 import type { DamageSystem } from './schema.js'
+import { emptyStores, type StoresState } from './stores.js'
+import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -17,7 +19,11 @@ export type CombatAircraft = {
   readonly previous: AircraftState; readonly controls: Controls; readonly impact: unknown | null
 }
 export type CombatShip = {
-  readonly spec: { readonly lengthM: number; readonly beamM: number; readonly deckHeightM: number }
+  readonly id: string
+  readonly spec: {
+    readonly lengthM: number; readonly beamM: number; readonly deckHeightM: number
+    readonly hullHp: number; readonly role: 'carrier' | 'escort' | 'merchant'
+  }
   readonly state: { readonly position: Vec3; readonly headingRad: number }
   readonly previous: { readonly position: Vec3; readonly headingRad: number }
 }
@@ -26,11 +32,23 @@ export type AircraftCombat = {
   readonly damage: Damage
   readonly shots: number; readonly hits: number; readonly kills: number
   readonly lastHit: { readonly tick: number; readonly position: Vec3 } | null
+  readonly stores: StoresState
+  readonly shipsSunk: number
+  readonly structuresDestroyed: number
 }
 export type Projectile = {
   readonly owner: string; readonly id: number; readonly position: Vec3; readonly previous: Vec3
   readonly velocity: Vec3; readonly lifeS: number; readonly tracer: boolean
+  readonly kind: 'round' | 'bomb' | 'rocket'
+  readonly ageS: number
 }
+export type ShipDamage = {
+  readonly hp: number; readonly fire: number
+  readonly destroyedTick: number | null; readonly attacker: string | null
+  readonly sinkingFraction: number
+}
+export const healthyShipDamage = (hp: number): ShipDamage =>
+  ({ hp, fire: 0, destroyedTick: null, attacker: null, sinkingFraction: 0 })
 export type CombatState = {
   readonly aircraft: Readonly<Record<string, AircraftCombat>>
   readonly projectiles: readonly Projectile[]
@@ -38,14 +56,25 @@ export type CombatState = {
   /** Serialized PRNG cursor. Each emitted shot advances it exactly twice. */
   readonly rngState: number
   readonly poolSaturated: number
+  readonly ships: Readonly<Record<string, ShipDamage>>
+  readonly structures: Readonly<Record<string, StructureDamage>>
 }
-export function createCombat(aircraft: readonly CombatAircraft[], seed = 1944): CombatState {
+export function createCombat(
+  aircraft: readonly CombatAircraft[],
+  stores: Readonly<Record<string, StoresState>> = {},
+  ships: readonly { readonly id: string; readonly hullHp: number }[] = [],
+  structures: readonly { readonly id: string; readonly hp: number }[] = [],
+  seed = 1944,
+): CombatState {
   return {
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), shots: 0, hits: 0, kills: 0, lastHit: null,
+      stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
     }])),
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
+    ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
+    structures: Object.fromEntries(structures.map(s => [s.id, healthyStructureDamage(s.hp)])),
   }
 }
 
@@ -90,6 +119,11 @@ function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: re
 
 export function stepCombat(
   before: CombatState, aircraft: readonly CombatAircraft[], ships: readonly CombatShip[],
+  // Threaded but not yet consumed: Task 6 (Plan 6b) reads this for
+  // bomb/rocket-vs-structure hit detection. Prefixed `_` for now so
+  // `@typescript-eslint/no-unused-vars` (argsIgnorePattern: '^_') stays
+  // quiet; Task 6 drops the underscore when it starts reading it.
+  _structures: readonly StructureEntity[],
   terrain: TerrainField | null, wind: Vec3 | null, decks: readonly Deck[], tick: number, dt: number,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
@@ -122,7 +156,7 @@ export function stepCombat(
             flying.push({
               p: { owner: a.id, id: nextId++, position, previous: position,
                 velocity: add(carrierVelocity, scale(qRotate(a.previous.attitude, aim), spec.muzzleVelocityMps)),
-                lifeS: spec.lifetimeS, tracer: fired % 5 === 0 },
+                lifeS: spec.lifetimeS, tracer: fired % 5 === 0, kind: 'round', ageS: 0 },
               dt: dt - cooldown, start: t,
             })
           } else poolSaturated++
@@ -178,5 +212,5 @@ export function stepCombat(
       }
     } else if (p.lifeS > 1e-12) alive.push(p)
   }
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: before.ships, structures: before.structures }
 }
