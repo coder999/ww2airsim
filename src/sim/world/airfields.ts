@@ -19,6 +19,19 @@ const positive = finite.refine((n) => n > 0, { message: 'must be greater than ze
 const RectObject = z.object({ x: finite, z: finite, widthM: positive, lengthM: positive }).strict()
 export type Rect = z.infer<typeof RectObject>
 
+const BuildingObject = z
+  .object({
+    id: z.string().min(1),
+    kind: z.enum(['hangar', 'tower']),
+    x: finite,
+    z: finite,
+    widthM: positive,
+    lengthM: positive,
+    hp: positive,
+  })
+  .strict()
+export type Building = z.infer<typeof BuildingObject>
+
 const AirfieldObject = z
   .object({
     id: z.string().min(1),
@@ -34,6 +47,10 @@ const AirfieldObject = z
     apron: RectObject.nullable(),
     /** The footprint kept free of trees; `null` means the strip alone. */
     clearing: RectObject.nullable(),
+    /** Legitimate strike targets (Plan 6b, spec §2.3): local frame, same
+     *  convention as `runway`/`apron`/`clearing`. Decorative huts are NOT
+     *  here — see `AIRFIELD_HUTS` in `src/render/scene/airfield.ts`. */
+    buildings: z.array(BuildingObject).min(1),
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()

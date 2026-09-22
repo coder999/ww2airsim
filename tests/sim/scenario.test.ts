@@ -10,7 +10,7 @@ import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/t
 import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
 import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { AIRFIELD_BUILDINGS } from '../../src/render/scene/airfield.js'
+import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 
 const bundle = loadScenarioBundle('free-flight')
 const header = loadTerrainHeader()
@@ -56,7 +56,14 @@ describe('the free-flight scenario', () => {
     expect(insideRect(tacloban, tacloban.apron!, x, z)).toBe(true)
     expect(insideRunway(tacloban, x, z)).toBe(false)
     const local = worldToLocal(tacloban, x, z)
-    for (const b of AIRFIELD_BUILDINGS) {
+    // Plan 6b split the old 7-entry AIRFIELD_BUILDINGS table into content
+    // `buildings` (hangars, tower) plus AIRFIELD_HUTS (decorative); this
+    // checks clearance against the union, same footprints as before.
+    const footprints = [
+      ...tacloban.buildings.map((b) => ({ kind: b.kind as string, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })),
+      ...AIRFIELD_HUTS.map((h) => ({ kind: 'hut', x: h.x, z: h.z, width: h.width, length: h.length })),
+    ]
+    for (const b of footprints) {
       const clearX = Math.abs(local.x - b.x) > b.width / 2 + 8
       const clearZ = Math.abs(local.z - b.z) > b.length / 2 + 8
       expect(clearX || clearZ, `wingman sits inside the ${b.kind} at (${b.x}, ${b.z})`).toBe(true)

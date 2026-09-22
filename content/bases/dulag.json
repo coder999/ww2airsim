@@ -4,7 +4,13 @@
   "runway": { "center": { "x": -31629, "z": -16479 }, "headingDeg": 0, "lengthM": 1500, "widthM": 45 },
   "apron": null,
   "clearing": null,
+  "buildings": [
+    { "id": "dulag-hangar-1", "kind": "hangar", "x": -146, "z": -150, "widthM": 34, "lengthM": 42, "hp": 120 },
+    { "id": "dulag-hangar-2", "kind": "hangar", "x": -146, "z": -245, "widthM": 34, "lengthM": 42, "hp": 120 },
+    { "id": "dulag-hangar-3", "kind": "hangar", "x": -146, "z": 100, "widthM": 28, "lengthM": 36, "hp": 120 },
+    { "id": "dulag-tower", "kind": "tower", "x": -76, "z": -55, "widthM": 9, "lengthM": 9, "hp": 40 }
+  ],
   "reference": {
-    "source": "runway.center is the world projection of 10.94806 N 125.01028 E from the English Wikipedia article 'Dulag Airfield' (read 2026-09-17, Plan 13b-13d design §7). headingDeg 0 is an ASSUMPTION: the article gives none; north-south along the coastal plain is used until a period photograph says otherwise. lengthM and widthM are ESTIMATES, Tacloban's carried over. Buildings are Plan 13d's."
+    "source": "runway.center is the world projection of 10.94806 N 125.01028 E from the English Wikipedia article 'Dulag Airfield' (read 2026-09-17, Plan 13b-13d design §7). headingDeg 0 is an ASSUMPTION: the article gives none; north-south along the coastal plain is used until a period photograph says otherwise. lengthM and widthM are ESTIMATES, Tacloban's carried over. Buildings are Plan 13d's. buildings reuses Tacloban's table verbatim as a placeholder; Plan 13d's real Dulag layout replaces it (see the note above)."
   }
 }

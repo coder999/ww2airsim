@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { InstancedMesh, Mesh } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { AIRFIELD_BUILDINGS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
+import { AIRFIELD_HUTS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
 import { createCoverNodes, createDetailTexture } from '../../src/render/terrain/surface.js'
 import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
@@ -26,7 +26,14 @@ const dulag = loadAirfield('dulag')
 
 describe('scenery placement on the real Leyte field', () => {
   it('keeps all building footprints on land and outside the runway', () => {
-    for (const b of AIRFIELD_BUILDINGS) {
+    // Plan 6b split the old 7-entry AIRFIELD_BUILDINGS table into content
+    // `buildings` (hangars, tower) plus AIRFIELD_HUTS (decorative); this
+    // checks the same footprints, read from the union.
+    const footprints = [
+      ...tacloban.buildings.map((b) => ({ x: b.x, z: b.z, width: b.widthM, length: b.lengthM })),
+      ...AIRFIELD_HUTS.map((h) => ({ x: h.x, z: h.z, width: h.width, length: h.length })),
+    ]
+    for (const b of footprints) {
       expect(b.x + b.width / 2).toBeLessThan(-tacloban.runway.widthM / 2 - 10)
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         const x = tacloban.runway.center.x + b.x + sx * b.width / 2
@@ -74,16 +81,28 @@ describe('scenery placement on the real Leyte field', () => {
     expect(disagreements).toBe(0)
   })
 
-  it('draws a base with no apron and no buildings as an empty group, not a transplanted Tacloban', () => {
-    // Dulag is a strip and nothing else until Plan 13d gives it its own
-    // building set (`AIRFIELD_BUILDINGS`' comment). The hazard this pins is
-    // the opposite of a crash: `createAirfield` reaching the Tacloban-only
-    // block for it would put Tacloban's three hangars, its tower and its
-    // windsock 31 km south of where they belong, and nothing else in the
-    // suite looks at Dulag's scenery.
+  it('draws its own buildings and huts, but not Tacloban\'s taxiways, stores or windsock', () => {
+    // Before Plan 6b, `createAirfield` gated its ENTIRE Tacloban-only block
+    // (taxiways, buildings, stores, windsock) behind `airfield.id ===
+    // 'tacloban'`, so Dulag drew an empty group. Plan 6b narrows that gate:
+    // every base's content `buildings` (Dulag's is a placeholder reusing
+    // Tacloban's table, per its `reference.source`) and the decorative
+    // `AIRFIELD_HUTS` now draw regardless of id, but the taxiways, apron
+    // clutter and windsock below stay Tacloban-only until 13d gives Dulag its
+    // own set -- so Dulag's group is non-empty but strictly smaller than
+    // Tacloban's own.
     const object = createAirfield(field, dulag)
-    expect(object.children).toHaveLength(0)
+    expect(object.children.length).toBeGreaterThan(0)
     expect(object.name).toContain('Dulag')
+    const taclobanObject = createAirfield(field, tacloban)
+    expect(object.children.length).toBeLessThan(taclobanObject.children.length)
+    for (const child of taclobanObject.children) (child as Mesh).geometry.dispose()
+    for (const child of object.children) {
+      expect(child).toBeInstanceOf(Mesh)
+      const mesh = child as Mesh
+      expect(Array.from(mesh.geometry.getAttribute('position').array).every(Number.isFinite)).toBe(true)
+      mesh.geometry.dispose()
+    }
     // The strip itself is still drawn, and on real ground: Dulag is inland of
     // the coast, so every vertex should be above sea level.
     const strip = createRunway(field, dulag) as Mesh

@@ -10,18 +10,17 @@ import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim
  * A period-inspired scene, not a claim to reconstruct the exact 1944 building
  * survey.
  *
- * TACLOBAN'S, and drawn only there -- `createAirfield` gates this table on
- * `airfield.id`. Plan 13d gives Dulag its own smaller set and makes the table
- * a parameter; until then a second base gets a strip and nothing else, which
- * is honest, where Tacloban's hangars transplanted onto it would not be. */
-export const AIRFIELD_BUILDINGS = [
-  { kind: 'hangar', x: -146, z: -150, width: 34, length: 42 },
-  { kind: 'hangar', x: -146, z: -245, width: 34, length: 42 },
-  { kind: 'hangar', x: -146, z: 100, width: 28, length: 36 },
-  { kind: 'tower', x: -76, z: -55, width: 9, length: 9 },
-  { kind: 'hut', x: -216, z: -60, width: 12, length: 28 },
-  { kind: 'hut', x: -216, z: -15, width: 12, length: 28 },
-  { kind: 'hut', x: -216, z: 30, width: 12, length: 28 },
+ * Decorative only -- never a strike target, never in content, never in
+ * `World.structures` (Plan 6b: the design spec's `buildings.kind` enum is
+ * `'hangar' | 'tower'` only, and huts were never mentioned in it). The
+ * hangars and the tower moved into each base's `content/bases/<id>.json` as
+ * `Airfield.buildings`; huts stayed a small hardcoded table because widening
+ * the damage-relevant `kind` enum for an undestroyable third case would be
+ * worse than the small duplication of keeping them here. */
+export const AIRFIELD_HUTS = [
+  { x: -216, z: -60, width: 12, length: 28 },
+  { x: -216, z: -15, width: 12, length: 28 },
+  { x: -216, z: 30, width: 12, length: 28 },
 ] as const
 
 /**
@@ -110,14 +109,10 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Group {
     const p = at(airfield.apron.x, airfield.apron.z)
     add(groundPatch(field, p.x, p.z, airfield.apron.widthM, airfield.apron.lengthM), coral)
   }
-  // The taxiways, the buildings and the apron clutter below are Tacloban's,
-  // for the reason `AIRFIELD_BUILDINGS` gives; 13d parameterizes them.
-  if (airfield.id !== 'tacloban') {
-    return batched(root, batches)
-  }
-  for (const dz of [-190, 60]) { const p = at(-46, dz); add(groundPatch(field, p.x, p.z, 70, 18), coral) }
-
-  for (const b of AIRFIELD_BUILDINGS) {
+  // Buildings (content, strike targets, Plan 6b) and huts (decorative,
+  // `AIRFIELD_HUTS`) draw at every base -- unlike the taxiways/stores/windsock
+  // below, which stay Tacloban's until 13d gives Dulag its own set.
+  const drawBuilding = (b: { kind: 'hangar' | 'tower' | 'hut'; x: number; z: number; width: number; length: number }): void => {
     const { x, z } = at(b.x, b.z)
     const y = Math.max(...[-1, 1].flatMap(sx => [-1, 1].map(sz =>
       heightAt(field, x + sx * b.width / 2, z + sz * b.length / 2))))
@@ -134,7 +129,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Group {
       box(x, y + 11.7, z, 10, 0.4, 10, steel)
       box(x, y + 12.1, z, 0.12, 4, 0.12, steel)
       for (let i = 0; i < 16; i++) box(x + 5, y + i * 0.5, z + 4 - i * 0.55, 1.2, 0.16, 0.6, timber)
-      continue
+      return
     }
     const wall = b.kind === 'hangar' ? 5.5 : 2.8
     const roofHeight = b.kind === 'hangar' ? b.width * 0.25 : 2.2
@@ -185,6 +180,16 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Group {
       }
     }
   }
+  for (const b of airfield.buildings) drawBuilding({ kind: b.kind, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })
+  for (const h of AIRFIELD_HUTS) drawBuilding({ kind: 'hut', x: h.x, z: h.z, width: h.width, length: h.length })
+
+  // The taxiways and the apron clutter below are Tacloban's, for the reason
+  // `AIRFIELD_HUTS` gives; 13d parameterizes them.
+  if (airfield.id !== 'tacloban') {
+    return batched(root, batches)
+  }
+  for (const dz of [-190, 60]) { const p = at(-46, dz); add(groundPatch(field, p.x, p.z, 70, 18), coral) }
+
   // Canvas stores, fuel drums and supply crates make the apron readable at taxi height.
   for (let i = 0; i < 4; i++) {
     const { x, z } = at(-211, 90 + i * 23)
