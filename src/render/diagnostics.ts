@@ -141,7 +141,8 @@ export type Ww2Diagnostics = {
    */
   readonly structures: () => readonly { readonly id: string; readonly hp: number }[]
   /**
-   * Every aircraft in the world, by id, with its simulated position.
+   * Every aircraft in the world, by id, with its simulated position and
+   * compass heading.
    *
    * The N-entity view of `aircraftPositionM` above, which stays because it is
    * the PLAYER's and half the Tier 2 suite reads it by that name. What this
@@ -149,8 +150,20 @@ export type Ww2Diagnostics = {
    * drop onto the real ground along with the player's, and which -- being
    * chocked and never touched by the pilot -- is also the one entity whose
    * position must not change at all during a flight.
+   *
+   * `headingRad` was added for Plan 7a: an AI pilot's assigned entity has no
+   * other externally observable sign that `controlsForDesiredVelocity`
+   * actually turned the airframe, as opposed to the entity simply drifting
+   * in a straight line under its spawn velocity -- position alone cannot
+   * tell those apart. Derived the same way `ships()`'s `headingRad` is a
+   * direct read of `ShipState`, except `AircraftState` carries a full
+   * attitude quaternion rather than a scalar, so this is the forward body
+   * axis rotated into the world and turned back into the same compass
+   * convention `scenario.ts` builds an airborne start's attitude from.
    */
-  readonly aircraft: () => readonly { readonly id: string; readonly x: number; readonly y: number; readonly z: number }[]
+  readonly aircraft: () => readonly {
+    readonly id: string; readonly x: number; readonly y: number; readonly z: number; readonly headingRad: number
+  }[]
   /**
    * Whether the wheels are currently carrying the airplane -- `supportedContact`
    * (`src/sim/ground.ts`) evaluated against the live frame.

@@ -80,7 +80,7 @@ import {
   spawnPositionFromQuery,
 } from './spawn.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
-import { qFromAxisAngle } from '../sim/math/quat.js'
+import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 import { loadCover } from './landcover/load.js'
 
@@ -362,12 +362,18 @@ async function boot(): Promise<void> {
       structures: () =>
         (frame?.world.combat.structures ? Object.entries(frame.world.combat.structures) : []).map(([id, d]) => ({ id, hp: d.hp })),
       aircraft: () =>
-        (frame?.world.aircraft ?? []).map((a) => ({
-          id: a.id,
-          x: a.state.position.x,
-          y: a.state.position.y,
-          z: a.state.position.z,
-        })),
+        (frame?.world.aircraft ?? []).map((a) => {
+          // Inverse of scenario.ts's airborne-start construction: attitude =
+          // qFromAxisAngle(up, pi/2 - headingRad) applied to +x forward.
+          const forward = qRotate(a.state.attitude, v3(1, 0, 0))
+          return {
+            id: a.id,
+            x: a.state.position.x,
+            y: a.state.position.y,
+            z: a.state.position.z,
+            headingRad: Math.atan2(forward.x, -forward.z),
+          }
+        }),
       // Same `??`-guard as the rest: before the first frame exists there is
       // no impact to report, which is also the honest answer once a restart
       // has cleared one.
