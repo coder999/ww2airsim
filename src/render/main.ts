@@ -29,6 +29,7 @@ import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
 import { createEngineSmoke } from './scene/smoke.js'
+import { createOrdnance, nextOrdnanceImpacts, NO_ORDNANCE_MEMORY, type OrdnanceMemory } from './ordnance.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
@@ -318,12 +319,22 @@ async function boot(): Promise<void> {
       // Plan 12: every entity, not just the player's airplane. See the two
       // members' doc comments in diagnostics.ts for what each one proves.
       ships: () =>
-        (frame?.world.ships ?? []).map((s) => ({
-          id: s.id,
-          x: s.state.position.x,
-          z: s.state.position.z,
-          headingRad: s.state.headingRad,
-        })),
+        (frame?.world.ships ?? []).map((s) => {
+          const damage = frame?.world.combat.ships[s.id]
+          return {
+            id: s.id,
+            x: s.state.position.x,
+            z: s.state.position.z,
+            headingRad: s.state.headingRad,
+            hp: damage?.hp ?? s.spec.hullHp,
+            sinkingFraction: damage?.sinkingFraction ?? 0,
+          }
+        }),
+      // Plan 6b Task 8: the render-side twin of `ships` above, for the same
+      // reason -- `airfield.ts`'s `setDestroyed` has no externally observable
+      // signal besides this once a building collapses.
+      structures: () =>
+        (frame?.world.combat.structures ? Object.entries(frame.world.combat.structures) : []).map(([id, d]) => ({ id, hp: d.hp })),
       aircraft: () =>
         (frame?.world.aircraft ?? []).map((a) => ({
           id: a.id,
@@ -549,6 +560,10 @@ async function boot(): Promise<void> {
   // 2026-09-18 -- confirmed present in the deployed bundle). `let` still,
   // not `const`: `vegetation` is created later, once terrain level 4 lands.
   let vegetation: ReturnType<typeof createVegetation> | null = null
+  // One `AirfieldHandle` per airfield (Plan 6b Task 8), populated the same
+  // frame `vegetation` above is: both need the real terrain heightfield,
+  // which arrives asynchronously (`loadTerrainProgressively` below).
+  let airfieldHandles: readonly ReturnType<typeof createAirfield>[] = []
   void loadCover().then(
     data => {
       // Anything thrown here is a bug in this block, not a bad or missing
@@ -645,6 +660,11 @@ async function boot(): Promise<void> {
   scene.add(tracers.object)
   const hitFlashes = createHitFlashes()
   scene.add(hitFlashes.object)
+  // Ordnance in flight and its impacts (Plan 6b Task 8): `createOrdnance`
+  // adds its own pools to `scene` itself, unlike the pools above, which hand
+  // their `object` back for the caller to add.
+  const ordnance = createOrdnance(scene)
+  let ordnanceMemory: OrdnanceMemory = NO_ORDNANCE_MEMORY
   let flashMemory: FlashMemory = NO_FLASH_MEMORY
   const playerIndex = scenarioWorld.aircraft.findIndex((a) => a.id === scenarioWorld.player)
   const hellcatRoot = airframes[playerIndex]!.root
@@ -655,8 +675,11 @@ async function boot(): Promise<void> {
   // Hulls, in world order for the same reason. Raw world metres like
   // everything else under `scene`, which already carries the camera-relative
   // offset once for every child.
-  const shipMeshes = scenarioWorld.ships.map((ship) => createShipMesh(ship.spec))
-  for (const m of shipMeshes) scene.add(m)
+  // Plan 6b Task 8: `createShipMesh` now returns a handle, `{ root, setDamage }`
+  // -- `root` is what gets posed every frame and added to the scene, exactly
+  // as the bare `Object3D` used to be; `setDamage` is read below.
+  const shipHandles = scenarioWorld.ships.map((ship) => createShipMesh(ship.spec))
+  for (const h of shipHandles) scene.add(h.root)
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -1047,7 +1070,7 @@ async function boot(): Promise<void> {
     // yaw is the same `pi/2 - headingRad` about +y that `parkedAttitude` gives
     // a parked airplane, from the same compass convention.
     current.shipPoses.forEach((pose, i) => {
-      const m = shipMeshes[i]!
+      const m = shipHandles[i]!.root
       m.position.set(pose.position.x, pose.position.y, pose.position.z)
       const q = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad)
       m.quaternion.set(q.x, q.y, q.z, q.w)
@@ -1094,6 +1117,37 @@ async function boot(): Promise<void> {
       const damage = current.world.combat.aircraft[a.id]!.damage
       smokes[i]!.set(damage.engine, damage.destroyedAt !== null)
     })
+    // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
+    // sinking/burning and structure collapse -- all stateless views of
+    // `World.combat` except the impact pool, which (like the flashes above)
+    // is an edge detector: a projectile leaving `combat.projectiles` is the
+    // only signal a bomb or rocket detonated (`nextOrdnanceImpacts`'s own
+    // doc comment).
+    current.world.aircraft.forEach((a, i) => {
+      const stores = current.world.combat.aircraft[a.id]?.stores
+      if (stores !== undefined) airframes[i]!.setStores(stores.bombs, stores.rockets)
+    })
+    ordnance.update(current.world.combat.projectiles, current.eye.position)
+    ordnance.updateEffects(frameMs / 1000)
+    const ordnanceImpacts = nextOrdnanceImpacts(ordnanceMemory, current.world.combat.projectiles, current.world.tick)
+    ordnanceMemory = ordnanceImpacts.memory
+    for (const event of ordnanceImpacts.events) ordnance.spawnImpact(event.kind, event.position)
+    current.world.ships.forEach((s, i) => {
+      const damage = current.world.combat.ships[s.id]
+      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
+    })
+    // Structures: unlike the sinking/burning ships above, `setDestroyed` is
+    // idempotent (airfield.ts's own doc comment) and called unconditionally
+    // for every currently-destroyed id rather than edge-detected, so it
+    // self-corrects every frame with no restart-memory of its own to get
+    // wrong -- the same reason `shipHandles[i].setDamage` needs none. Every
+    // airfield handle is asked about every id rather than tracking which
+    // airfield owns which structure; a handle that does not own `id` is a
+    // documented no-op.
+    for (const [id, damage] of Object.entries(current.world.combat.structures)) {
+      if (damage.destroyedTick !== null) for (const h of airfieldHandles) h.setDestroyed(id)
+    }
+    for (const h of airfieldHandles) h.update(frameMs / 1000)
 
     // Raised once per contact -- `shownImpactTick` is the guard, since the
     // player's `impact` stays non-null every frame after the airplane stops,
@@ -1344,7 +1398,9 @@ async function boot(): Promise<void> {
     if (arrived !== null) {
       // One strip and one set of airfield scenery per airfield the world
       // carries (Plan 12), not one hardcoded Tacloban.
-      scene.add(...next.world.airfields.flatMap((a) => [createRunway(arrived, a), createAirfield(arrived, a)]))
+      const airfields = next.world.airfields.map((a) => ({ runway: createRunway(arrived, a), airfield: createAirfield(arrived, a) }))
+      scene.add(...airfields.flatMap((f) => [f.runway, f.airfield.object]))
+      airfieldHandles = airfields.map((f) => f.airfield)
       vegetation = createVegetation(arrived, next.world.airfields)
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their

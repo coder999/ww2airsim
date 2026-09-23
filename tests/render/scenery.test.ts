@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { InstancedMesh, Mesh } from 'three'
+import { InstancedMesh, Mesh, type Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_HUTS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
@@ -42,14 +42,20 @@ describe('scenery placement on the real Leyte field', () => {
         expect(inAirfieldClearing([tacloban], x, z)).toBe(true)
       }
     }
-    const object = createAirfield(field, tacloban)
-    expect(object.children.length).toBeLessThanOrEqual(10)
-    for (const child of object.children) {
-      expect(child).toBeInstanceOf(Mesh)
-      const mesh = child as Mesh
-      expect(Array.from(mesh.geometry.getAttribute('position').array).every(Number.isFinite)).toBe(true)
-      mesh.geometry.dispose()
-    }
+    const { object } = createAirfield(field, tacloban)
+    // Plan 6b Task 8: `object.children` is no longer "one merged mesh per
+    // material" -- each content building now carries its own
+    // `structure:<id>` group (intact/collapsed/smoke) alongside the shared
+    // decorative batch, so this checks every MESH anywhere in the tree
+    // (`traverse`) rather than assuming every direct child is one.
+    let meshCount = 0
+    object.traverse((o) => {
+      if (!(o instanceof Mesh)) return
+      meshCount++
+      expect(Array.from(o.geometry.getAttribute('position').array).every(Number.isFinite)).toBe(true)
+      o.geometry.dispose()
+    })
+    expect(meshCount).toBeGreaterThan(0)
   })
 
   it('the content clearing reproduces the pre-Plan-12 formula at Tacloban exactly', () => {
@@ -91,18 +97,25 @@ describe('scenery placement on the real Leyte field', () => {
     // clutter and windsock below stay Tacloban-only until 13d gives Dulag its
     // own set -- so Dulag's group is non-empty but strictly smaller than
     // Tacloban's own.
-    const object = createAirfield(field, dulag)
+    const { object } = createAirfield(field, dulag)
     expect(object.children.length).toBeGreaterThan(0)
     expect(object.name).toContain('Dulag')
-    const taclobanObject = createAirfield(field, tacloban)
-    expect(object.children.length).toBeLessThan(taclobanObject.children.length)
-    for (const child of taclobanObject.children) (child as Mesh).geometry.dispose()
-    for (const child of object.children) {
-      expect(child).toBeInstanceOf(Mesh)
-      const mesh = child as Mesh
-      expect(Array.from(mesh.geometry.getAttribute('position').array).every(Number.isFinite)).toBe(true)
-      mesh.geometry.dispose()
+    const { object: taclobanObject } = createAirfield(field, tacloban)
+    // Plan 6b Task 8: each building is now its own `structure:<id>` group
+    // (intact/collapsed/smoke), not folded into one merged mesh, so this
+    // counts actual Meshes anywhere in the tree rather than direct children.
+    const countMeshes = (root: Object3D): number => {
+      let n = 0
+      root.traverse((o) => { if (o instanceof Mesh) n++ })
+      return n
     }
+    expect(countMeshes(object)).toBeLessThan(countMeshes(taclobanObject))
+    taclobanObject.traverse((o) => { if (o instanceof Mesh) o.geometry.dispose() })
+    object.traverse((o) => {
+      if (!(o instanceof Mesh)) return
+      expect(Array.from(o.geometry.getAttribute('position').array).every(Number.isFinite)).toBe(true)
+      o.geometry.dispose()
+    })
     // The strip itself is still drawn, and on real ground: Dulag is inland of
     // the coast, so every vertex should be above sea level.
     const strip = createRunway(field, dulag) as Mesh

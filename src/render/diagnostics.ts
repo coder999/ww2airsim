@@ -120,8 +120,26 @@ export type Ww2Diagnostics = {
    * `y` is deliberately absent: it is `SEA_LEVEL_M` for every ship by
    * construction (`ShipState.position`), so reporting it would be reporting a
    * constant as if it were a measurement.
+   *
+   * `hp` and `sinkingFraction` were added in Plan 6b Task 8, off
+   * `World.combat.ships[s.id]` rather than the kinematic entity above: proving
+   * a ship's hull mesh actually sinks/lists (`ship.ts`'s `setDamage`) needs
+   * the same live damage record `combatReadout.ts` reads for the player's own
+   * airplane, and a Tier 2 spec otherwise has no way to tell "still healthy"
+   * from "sunk and hidden" without reading pixels.
    */
-  readonly ships: () => readonly { readonly id: string; readonly x: number; readonly z: number; readonly headingRad: number }[]
+  readonly ships: () => readonly {
+    readonly id: string; readonly x: number; readonly z: number; readonly headingRad: number
+    readonly hp: number; readonly sinkingFraction: number
+  }[]
+  /**
+   * Every strike-target structure (airfield buildings, Plan 6b Task 8), by
+   * id, with its current hp off `World.combat.structures[id]`. The render-side
+   * twin of `ships` above, for the same reason: `airfield.ts`'s `setDestroyed`
+   * has no other externally observable signal once a building's HP reaches
+   * zero and its mesh swaps to rubble.
+   */
+  readonly structures: () => readonly { readonly id: string; readonly hp: number }[]
   /**
    * Every aircraft in the world, by id, with its simulated position.
    *

@@ -1,6 +1,41 @@
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from 'three'
 
 /**
+ * Rack and rail offsets, body-frame metres, mirrored from
+ * `content/aircraft/f6f-hellcat.json`'s `stores.racks`/`stores.rails`
+ * (read 2026-09-22) exactly the way this file already mirrors that content's
+ * `geometry.wingSpanM` into the wing box above -- hardcoded because this
+ * module is hand-authored low-poly geometry with no content-loading path of
+ * its own, not read from the file at runtime. Order matches content order:
+ * racks are [left, right]; rails are [left-1, left-2, left-3, right-1,
+ * right-2, right-3], nearest-fuselage first on each side.
+ */
+const RACK_OFFSETS: readonly { readonly id: string; readonly offset: readonly [number, number, number] }[] = [
+  { id: 'left-rack', offset: [0.4, -0.55, -2.6] },
+  { id: 'right-rack', offset: [0.4, -0.55, 2.6] },
+]
+const RAIL_OFFSETS: readonly { readonly id: string; readonly offset: readonly [number, number, number] }[] = [
+  { id: 'left-rail-1', offset: [0.4, -0.4, -3.6] },
+  { id: 'left-rail-2', offset: [0.4, -0.4, -4.3] },
+  { id: 'left-rail-3', offset: [0.4, -0.4, -5.0] },
+  { id: 'right-rail-1', offset: [0.4, -0.4, 3.6] },
+  { id: 'right-rail-2', offset: [0.4, -0.4, 4.3] },
+  { id: 'right-rail-3', offset: [0.4, -0.4, 5.0] },
+]
+/**
+ * The order rails actually empty in, mirroring `src/sim/weapons/combat.ts`'s
+ * `railOrder` exactly (not imported: that module is `src/sim/`, this is
+ * `src/render/`, and the dependency-cruiser boundary only allows the other
+ * direction) -- outermost `|z| offset` first, ties broken by index. Task 6's
+ * `releaseRockets` fires two at a time off the front of this order, so
+ * `RAIL_DROP_ORDER.slice(0, RAIL_OFFSETS.length - rocketsLeft)` is exactly
+ * the set of rails Task 6 has already released.
+ */
+const RAIL_DROP_ORDER: readonly number[] = RAIL_OFFSETS
+  .map((_, i) => i)
+  .sort((x, y) => Math.abs(RAIL_OFFSETS[y]!.offset[2]) - Math.abs(RAIL_OFFSETS[x]!.offset[2]) || x - y)
+
+/**
  * A deliberately simple low-poly F6F, built in code.
  *
  * Master spec §10 allows either verifiable-licence assets or deliberately
@@ -22,7 +57,7 @@ import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, type 
  *
  * Body frame matches sim/: +X forward, +Y up, +Z right.
  */
-export function createHellcat(): { root: Object3D; prop: Object3D } {
+export function createHellcat(): { root: Object3D; prop: Object3D; setStores(bombsLeft: number, rocketsLeft: number): void } {
   const root = new Group()
   const paint = new MeshStandardMaterial({ color: 0x2f4f6a, roughness: 0.7 })
   const dark = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
@@ -60,7 +95,44 @@ export function createHellcat(): { root: Object3D; prop: Object3D } {
   prop.position.set(5.4, 0, 0)
   root.add(prop)
 
+  // Stores (Plan 6b Task 8): a squat box per bomb, a slender rotated cylinder
+  // per rocket -- shape is a legibility choice, not a claim to model either
+  // munition's real profile. Named after their content id so `setStores` (and
+  // a test) can address one directly.
+  const bombGeometry = new BoxGeometry(1.6, 0.5, 0.5)
+  const bombMeshes = RACK_OFFSETS.map(({ id, offset }) => {
+    const mesh = new Mesh(bombGeometry, dark)
+    mesh.name = id
+    mesh.position.set(...offset)
+    root.add(mesh)
+    return mesh
+  })
+  const rocketGeometry = new CylinderGeometry(0.09, 0.09, 1.4, 8)
+  rocketGeometry.rotateZ(Math.PI / 2)
+  const rocketMeshes = RAIL_OFFSETS.map(({ id, offset }) => {
+    const mesh = new Mesh(rocketGeometry, dark)
+    mesh.name = id
+    mesh.position.set(...offset)
+    root.add(mesh)
+    return mesh
+  })
+
   // Plan 16b: the sun's custom shadow node reaches only receivers (cloudShadow.ts).
   root.traverse((o) => { o.receiveShadow = true })
-  return { root, prop }
+  return {
+    root,
+    prop,
+    /**
+     * Hides the racks/rails Task 6's `stepCombat` has already released, in
+     * its exact order (see `RAIL_DROP_ORDER`'s doc comment): bombs left-rack
+     * first (array order), rockets outermost-pair-first on each side.
+     */
+    setStores(bombsLeft: number, rocketsLeft: number): void {
+      const droppedBombs = RACK_OFFSETS.length - bombsLeft
+      bombMeshes.forEach((mesh, i) => { mesh.visible = i >= droppedBombs })
+      const firedRockets = RAIL_OFFSETS.length - rocketsLeft
+      const hidden = new Set(RAIL_DROP_ORDER.slice(0, firedRockets))
+      rocketMeshes.forEach((mesh, i) => { mesh.visible = !hidden.has(i) })
+    },
+  }
 }

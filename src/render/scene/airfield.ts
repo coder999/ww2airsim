@@ -1,10 +1,34 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, Group, Mesh, type Material } from 'three'
+import { BoxGeometry, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, Group, Mesh, type Material, type Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { color, mix, positionLocal, varying } from 'three/tsl'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { groundNoise } from '../terrain/surface.js'
 import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
+import { createSmokeColumn } from '../ordnance.js'
+
+/** How long a collapsed building's smoke column fades over, seconds (spec
+ *  §4: "a 60 s fading smoke column"). Longer than an ordnance impact's own
+ *  `IMPACT_LIFETIME_S` (20 s, `ordnance.ts`) -- a razed building smoulders
+ *  longer than the bomb that razed it flashes. */
+const COLLAPSE_SMOKE_LIFETIME_S = 60
+
+/** What `createAirfield` hands back (Plan 6b Task 8): the scene object, plus
+ *  the per-structure update path Task 8 asks for -- `setDestroyed`-shaped,
+ *  following `ship.ts`'s own `setDamage` precedent (an id/value in, a mutation
+ *  of already-built meshes, no rebuild). */
+export type AirfieldHandle = {
+  readonly object: Group
+  /** Swaps building `id`'s intact geometry for its collapsed rubble and starts
+   *  its smoke column. A silent no-op for an id this airfield does not own
+   *  (a structure belongs to exactly one airfield; `main.ts` calls this on
+   *  every airfield for every destroyed structure rather than tracking which
+   *  owns which). Idempotent: calling it again on an already-collapsed
+   *  building does not restart the smoke column. */
+  setDestroyed(id: string): void
+  /** Ages every collapsed building's smoke column by one frame. */
+  update(dtSeconds: number): void
+}
 
 /** Scenery layout, runway-local metres (`x` across the strip, `z` along it).
  * A period-inspired scene, not a claim to reconstruct the exact 1944 building
@@ -83,16 +107,15 @@ function weathered(base: number, worn: number): MeshStandardNodeMaterial {
  * base with scenery on it is Plan 13d's problem along with the building table
  * itself. Stated here rather than left silently true.
  */
-export function createAirfield(field: TerrainField, airfield: Airfield): Group {
-  const root = new Group()
-  root.name = `${airfield.name} airfield scenery`
-  const steel = weathered(0x59645a, 0x919286)
-  const timber = weathered(0x61513c, 0x8d7957)
-  const concrete = weathered(0x8d8978, 0xb3ac92)
-  const coral = weathered(0x8e8464, 0xbdb392)
-  const dark = weathered(0x172624, 0x263e3b)
-  const canvas = weathered(0x696d4b, 0x98916a)
-  const white = weathered(0xd5c9a0, 0xefe4c9)
+/** One material/geometry collector, the same shape the top-level `batches`
+ *  map used to be before Task 8 needed a SEPARATE one per strike-target
+ *  building (see `createAirfield`'s doc comment on why buildings can no
+ *  longer share the airfield-wide batch). */
+function makeCollector(): {
+  readonly add: (g: BufferGeometry, m: Material) => void
+  readonly box: (x: number, y: number, z: number, w: number, h: number, d: number, m: Material) => void
+  readonly batches: Map<Material, BufferGeometry[]>
+} {
   const batches = new Map<Material, BufferGeometry[]>()
   const add = (g: BufferGeometry, m: Material): void => {
     // Merge a common position/normal layout, regardless of primitive UVs.
@@ -104,15 +127,44 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Group {
   const box = (x: number, y: number, z: number, w: number, h: number, d: number, m: Material): void => {
     add(new BoxGeometry(w, h, d).translate(x, y + h / 2, z), m)
   }
+  return { add, box, batches }
+}
+
+export function createAirfield(field: TerrainField, airfield: Airfield): AirfieldHandle {
+  const root = new Group()
+  root.name = `${airfield.name} airfield scenery`
+  const steel = weathered(0x59645a, 0x919286)
+  const timber = weathered(0x61513c, 0x8d7957)
+  const concrete = weathered(0x8d8978, 0xb3ac92)
+  const coral = weathered(0x8e8464, 0xbdb392)
+  const dark = weathered(0x172624, 0x263e3b)
+  const canvas = weathered(0x696d4b, 0x98916a)
+  const white = weathered(0xd5c9a0, 0xefe4c9)
+  // Decorative content (the apron, huts, taxiways, stores, windsock) still
+  // shares ONE airfield-wide batch, merged into as few draw calls as before.
+  const shared = makeCollector()
   const at = (lx: number, lz: number): { x: number; z: number } => localToWorld(airfield, lx, lz)
   if (airfield.apron !== null) {
     const p = at(airfield.apron.x, airfield.apron.z)
-    add(groundPatch(field, p.x, p.z, airfield.apron.widthM, airfield.apron.lengthM), coral)
+    shared.add(groundPatch(field, p.x, p.z, airfield.apron.widthM, airfield.apron.lengthM), coral)
   }
   // Buildings (content, strike targets, Plan 6b) and huts (decorative,
   // `AIRFIELD_HUTS`) draw at every base -- unlike the taxiways/stores/windsock
   // below, which stay Tacloban's until 13d gives Dulag its own set.
-  const drawBuilding = (b: { kind: 'hangar' | 'tower' | 'hut'; x: number; z: number; width: number; length: number }): void => {
+  //
+  // Takes a COLLECTOR now (Task 8), not the airfield-wide `shared` one
+  // implicitly: a content `buildings` entry is a strike target
+  // (`World.structures`), and `setDestroyed` has to hide exactly the one
+  // building that was hit without touching its neighbours -- impossible once
+  // `batched()` has merged every building of the same material into one
+  // mesh. Huts, never a strike target, still go through `shared` below. It
+  // returns the building's ground height so the caller can place the
+  // collapsed rubble and smoke column at the same spot.
+  const drawBuilding = (
+    collector: ReturnType<typeof makeCollector>,
+    b: { kind: 'hangar' | 'tower' | 'hut'; x: number; z: number; width: number; length: number },
+  ): number => {
+    const { add, box } = collector
     const { x, z } = at(b.x, b.z)
     const y = Math.max(...[-1, 1].flatMap(sx => [-1, 1].map(sz =>
       heightAt(field, x + sx * b.width / 2, z + sz * b.length / 2))))
@@ -129,7 +181,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Group {
       box(x, y + 11.7, z, 10, 0.4, 10, steel)
       box(x, y + 12.1, z, 0.12, 4, 0.12, steel)
       for (let i = 0; i < 16; i++) box(x + 5, y + i * 0.5, z + 4 - i * 0.55, 1.2, 0.16, 0.6, timber)
-      return
+      return y
     }
     const wall = b.kind === 'hangar' ? 5.5 : 2.8
     const roofHeight = b.kind === 'hangar' ? b.width * 0.25 : 2.2
@@ -179,40 +231,107 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Group {
         add(rib, timber)
       }
     }
+    return y
   }
-  for (const b of airfield.buildings) drawBuilding({ kind: b.kind, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })
-  for (const h of AIRFIELD_HUTS) drawBuilding({ kind: 'hut', x: h.x, z: h.z, width: h.width, length: h.length })
+
+  // Every content building gets its OWN group -- `intact` (this building's
+  // own merge, via `batched`, of exactly the geometry `drawBuilding` just
+  // built for it), `collapsed` (a low broken box, hidden until destroyed,
+  // sharing this file's own `concrete` weathered material rather than a new
+  // one), and `smoke` (`ordnance.ts`'s `createSmokeColumn`, reused rather
+  // than reimplemented). `structures` is the lookup `setDestroyed` uses.
+  const structures = new Map<string, {
+    readonly intact: Object3D
+    readonly collapsed: Object3D
+    readonly smoke: ReturnType<typeof createSmokeColumn>
+  }>()
+  for (const b of airfield.buildings) {
+    const collector = makeCollector()
+    const y = drawBuilding(collector, { kind: b.kind, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })
+    const { x, z } = at(b.x, b.z)
+    const intact = batched(new Group(), collector.batches)
+    intact.name = 'intact'
+
+    const collapsed = new Group()
+    collapsed.name = 'collapsed'
+    collapsed.visible = false
+    // A low slab across the whole footprint, plus one smaller tilted chunk --
+    // "a low, broken box", not a claim to model real debris distribution.
+    const slab = new Mesh(new BoxGeometry(b.widthM + 1, 1.3, b.lengthM + 1), concrete)
+    slab.position.set(x, y + 0.65, z)
+    slab.receiveShadow = true // Plan 16b, see hellcat.ts -- `batched` misses these, unlike `intact`.
+    collapsed.add(slab)
+    const chunk = new Mesh(new BoxGeometry(b.widthM * 0.4, 2.6, b.lengthM * 0.35), concrete)
+    chunk.position.set(x + b.widthM * 0.18, y + 1.3, z - b.lengthM * 0.22)
+    chunk.rotation.y = 0.35
+    chunk.receiveShadow = true
+    collapsed.add(chunk)
+
+    const smoke = createSmokeColumn()
+    smoke.object.name = 'smoke'
+    smoke.object.position.set(x, y + 2.5, z)
+    smoke.object.scale.setScalar(4)
+
+    const group = new Group()
+    group.name = `structure:${b.id}`
+    group.add(intact, collapsed, smoke.object)
+    root.add(group)
+    structures.set(b.id, { intact, collapsed, smoke })
+  }
+  for (const h of AIRFIELD_HUTS) drawBuilding(shared, { kind: 'hut', x: h.x, z: h.z, width: h.width, length: h.length })
+
+  const finish = (): AirfieldHandle => {
+    const object = batched(root, shared.batches)
+    // A blanket pass, not per-piece: `batched()` already sets this on its own
+    // merged meshes (buildings' `intact` included), but the hand-built
+    // `collapsed` rubble and the smoke puffs need it too, and re-setting an
+    // already-true flag is harmless (Plan 16b, see hellcat.ts).
+    object.traverse((o) => { o.receiveShadow = true })
+    return {
+      object,
+      setDestroyed(id: string): void {
+        const s = structures.get(id)
+        if (s === undefined || s.collapsed.visible) return // not ours, or already collapsed
+        s.intact.visible = false
+        s.collapsed.visible = true
+        s.smoke.start(COLLAPSE_SMOKE_LIFETIME_S)
+      },
+      update(dtSeconds: number): void {
+        for (const s of structures.values()) s.smoke.update(dtSeconds)
+      },
+    }
+  }
 
   // The taxiways and the apron clutter below are Tacloban's, for the reason
   // `AIRFIELD_HUTS` gives; 13d parameterizes them.
   if (airfield.id !== 'tacloban') {
-    return batched(root, batches)
+    return finish()
   }
-  for (const dz of [-190, 60]) { const p = at(-46, dz); add(groundPatch(field, p.x, p.z, 70, 18), coral) }
+  for (const dz of [-190, 60]) { const p = at(-46, dz); shared.add(groundPatch(field, p.x, p.z, 70, 18), coral) }
 
   // Canvas stores, fuel drums and supply crates make the apron readable at taxi height.
   for (let i = 0; i < 4; i++) {
     const { x, z } = at(-211, 90 + i * 23)
     const y = heightAt(field, x, z)
-    box(x, y, z, 8, 2.6, 12, canvas)
+    shared.box(x, y, z, 8, 2.6, 12, canvas)
     const roof = new CylinderGeometry(5.3, 5.3, 12.6, 3).rotateX(Math.PI / 2).translate(x, y + 1.8, z)
-    add(roof, canvas)
+    shared.add(roof, canvas)
   }
   for (let i = 0; i < 18; i++) {
     const { x, z } = at(-78 - (i % 6) * 1.3, 130 + Math.floor(i / 6) * 1.3)
-    add(new CylinderGeometry(0.36, 0.36, 0.95, 8).translate(x, heightAt(field, x, z) + 0.475, z), steel)
+    shared.add(new CylinderGeometry(0.36, 0.36, 0.95, 8).translate(x, heightAt(field, x, z) + 0.475, z), steel)
   }
   for (let i = 0; i < 7; i++) {
     const { x, z } = at(-185 + i % 3 * 2, 155 + Math.floor(i / 3) * 2)
-    box(x, heightAt(field, x, z), z, 1.4, 1.1, 1.3, timber)
+    shared.box(x, heightAt(field, x, z), z, 1.4, 1.1, 1.3, timber)
   }
   // Windsock: a modest orange/cream cone beside the tower.
   const { x: wx, z: wz } = at(-55, -98)
   const wy = heightAt(field, wx, wz)
-  box(wx, wy, wz, 0.12, 6, 0.12, white)
+  shared.box(wx, wy, wz, 0.12, 6, 0.12, white)
   const sock = new CylinderGeometry(0.4, 0.15, 2.4, 10, 1, true).rotateZ(Math.PI / 2).translate(wx + 1.1, wy + 6, wz)
-  add(sock, weathered(0xb66335, 0xd98c57))
-  return batched(root, batches)
+  shared.add(sock, weathered(0xb66335, 0xd98c57))
+  return finish()
 }
 
 /** One merged mesh per material, and the source geometries released. Extracted

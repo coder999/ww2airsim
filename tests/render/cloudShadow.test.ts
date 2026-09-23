@@ -104,8 +104,8 @@ describe('cloud shadow readers (Plan 16b)', () => {
     const terrainField = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
     const tacloban = loadAirfield('tacloban')
     const roots: Object3D[] = [
-      createHellcat().root, createShipMesh(loadShipSpec('essex-cv')), createMarkers(),
-      createRunway(terrainField, tacloban), createAirfield(terrainField, tacloban), createVegetation(terrainField, [tacloban]).object,
+      createHellcat().root, createShipMesh(loadShipSpec('essex-cv')).root, createMarkers(),
+      createRunway(terrainField, tacloban), createAirfield(terrainField, tacloban).object, createVegetation(terrainField, [tacloban]).object,
     ]
     for (const root of roots) {
       const meshes = meshesUnder(root)
