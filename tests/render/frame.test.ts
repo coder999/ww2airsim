@@ -97,10 +97,10 @@ describe('nextFrameState', () => {
     expect(f.controls.throttle).toBeLessThan(0.3)
   })
 
-  it('dropBomb and fireRockets pulse true for one frame per key-down, never persist', () => {
+  it('dropBomb and fireRockets pulse once per key-down, never past the consuming fixed step', () => {
     // Plan 6b Task 4: edge-triggered exactly like `throttleCut`, not a
     // persisting toggle like `gearDown`/`hookDown` -- a held key must not
-    // keep releasing ordnance every frame.
+    // keep releasing ordnance every fixed step.
     const f = nextFrameState(start(), 1 / 60, keys('KeyV'))
     expect(f.controls.dropBomb).toBe(true)
     expect(f.controls.fireRockets).toBeFalsy() // independent of the other key
@@ -118,6 +118,45 @@ describe('nextFrameState', () => {
     const releasedE = nextFrameState(heldE, 1 / 60, keys())
     const pressedAgainE = nextFrameState(releasedE, 1 / 60, keys('KeyE'))
     expect(pressedAgainE.controls.fireRockets).toBe(true)
+  })
+
+  it('holds each release pulse until a fixed step can consume it above 60 Hz', () => {
+    let bomb = nextFrameState(start(), 1 / 240, keys('KeyV'))
+    expect(bomb.stepsRun).toBe(0)
+    expect(bomb.controls.dropBomb).toBe(true)
+    bomb = nextFrameState(bomb, 1 / 240, keys())
+    expect(bomb.stepsRun).toBe(0)
+    expect(bomb.controls.dropBomb).toBe(true)
+    bomb = nextFrameState(bomb, 1 / 60, keys())
+    expect(bomb.stepsRun).toBe(1)
+    expect(bomb.controls.dropBomb).toBe(true)
+    bomb = nextFrameState(bomb, 1 / 240, keys())
+    expect(bomb.controls.dropBomb).toBeFalsy()
+
+    let rockets = nextFrameState(start(), 1 / 240, keys('KeyE'))
+    expect(rockets.stepsRun).toBe(0)
+    expect(rockets.controls.fireRockets).toBe(true)
+    rockets = nextFrameState(rockets, 1 / 240, keys())
+    expect(rockets.stepsRun).toBe(0)
+    expect(rockets.controls.fireRockets).toBe(true)
+    rockets = nextFrameState(rockets, 1 / 60, keys())
+    expect(rockets.stepsRun).toBe(1)
+    expect(rockets.controls.fireRockets).toBe(true)
+    rockets = nextFrameState(rockets, 1 / 240, keys())
+    expect(rockets.controls.fireRockets).toBeFalsy()
+  })
+
+  it('does not queue a release pressed while paused', () => {
+    let f = nextFrameState(start(), 1 / 60, keys('Escape'))
+    expect(f.paused).toBe(true)
+    f = nextFrameState(f, 1 / 240, keys('KeyV', 'KeyE'))
+    expect(f.controls.dropBomb).toBeFalsy()
+    expect(f.controls.fireRockets).toBeFalsy()
+    f = nextFrameState(f, 1 / 240, keys())
+    f = nextFrameState(f, 1 / 60, keys('Escape'))
+    expect(f.paused).toBe(false)
+    expect(f.controls.dropBomb).toBeFalsy()
+    expect(f.controls.fireRockets).toBeFalsy()
   })
 
   it('exposes the interpolated pose strictly between the two most recent ticks', () => {

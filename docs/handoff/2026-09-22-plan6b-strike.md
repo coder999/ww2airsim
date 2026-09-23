@@ -3,180 +3,121 @@
 The second slice of [Plan 6](../superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps)
 (master spec §5 "Guns" and "Damage", §15 row 6). Design:
 [strike design](../superpowers/specs/2026-09-20-strike-design.md); plan:
-[strike plan](../superpowers/plans/2026-09-22-strike.md). Tasks 1-10 (sim,
-render, content, audio) landed on `main` across ten prior commits. This
-document is Task 11's: headless integration, verification, and this handoff.
-**It does not close Plan 6b.** Nothing was pushed or deployed.
+[strike plan](../superpowers/plans/2026-09-22-strike.md). The slice now has
+both Tier 1 and reference-GPU Tier 2 acceptance. It does not close Plan 6:
+structural-overload damage remains, torpedoes wait for a second airframe, and
+AI is Plan 7. Nothing was pushed or deployed.
 
-## Tier 2 acceptance has NOT been run yet — read this first
+## Acceptance result
 
-`tests/e2e/strike.spec.ts` was written this session but **never executed**.
-ryzen (the Windows desktop that hosts the reference RX 6700 XT and normally
-runs `playwright run-server`) had no interactive desktop session for the
-server to attach to during this pass — the machine is powered on, but nobody
-was logged into its console, so there was no display/GPU for Chromium to get.
-Mark was asked and chose to defer Tier 2 to whenever he is next at that
-desktop, rather than have this pass attempt a GPU run with nothing to render
-to.
+The reference RX 6700 XT run on ryzen completed against the served nexus
+checkout:
 
-**Nothing below is a Tier 2 number.** No screenshot has been taken, no GPU
-frame time has been measured for the strike slice, no bomb has actually been
-watched falling on the maru, no hangar has actually been watched collapsing.
-Every figure in this document that looks like a measurement is a Tier 1
-(Node/vitest) one, and is labeled as such.
-
-### Running it, once ryzen has an interactive session
-
-From nexus:
-
-```sh
-ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
-curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/   # must print 200; else npm run dev:lan first
+```text
 PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2 -- tests/e2e/strike.spec.ts
+
+Running 5 tests using 1 worker
+5 passed (51.5s)
+strike gpu p95 1.758 ms over 379 samples
 ```
 
-Read every screenshot with the Read tool before believing anything passed —
-`test-results/` is wiped on every Playwright run, so copy the PNGs out first
-if they need to survive past that (the 16b handoff's own lesson). The
-screenshot paths the spec writes: `strike-stores-chase.png`,
-`strike-stores-cockpit.png`, `strike-maru-fireball.png`,
-`strike-dulag-hangar-razed.png`.
+The 1440p GPU result is comfortably below the 6.0 ms budget. All five cases
+also asserted zero WebGPU validation errors. The suite proved the title-screen
+`both` selection reaches combat, one bomb damages the anchored maru, three HVAR
+pair releases raze Dulag hangar 1, pausing suppresses a held release, and
+Restart restores stores, ship HP, and structure HP/destruction state.
 
-**If the bombing-run case misses the maru**, that is the known risk flagged
-in the spec file's own header comment: the maru's hull is only ±7.9 m wide
-across the bombing run's line of flight (its 15.8 m beam, heading 0 putting
-the 112 m length north-south instead), and the release trigger's accuracy
-depends on real Chromium frame timing over the SSH tunnel, which this session
-could not measure. Retune `BOMB_LEVEL_RANGE_M`'s spawn offset or the release
-trigger in `tests/e2e/strike.spec.ts` before assuming the strike code itself
-is broken — the underlying ballistics are proven deterministic at Tier 1 (see
-below). The Dulag rocket case targets a much larger box (±17 m × ±21 m) and
-carries less of this risk. Once a real run produces genuine numbers, replace
-this whole section and the "measured" table below with them, and only then
-run `tools/mail-doc.py` on this file — it was deliberately NOT emailed this
-session, since it is not the final document Plan 6b's close needs.
+All four screenshots were copied out before Playwright cleared its results and
+read at full size:
 
-## What Tier 1 actually proved (this session, `npm run verify`, rc=0)
+- `strike-stores-chase.png`: the combat readout shows `B 2  R 6`; the attached
+  stores are present but small at this chase distance.
+- `strike-stores-cockpit.png`: the same `B 2  R 6` readout survives the camera
+  change. The cockpit view intentionally hides the exterior airframe, so the
+  readout—not under-wing geometry—is the meaningful stores evidence here.
+- `strike-maru-fireball.png`: a bright orange impact/fire effect is visible on
+  the maru and the readout has fallen to `B 1  R 6`.
+- `strike-dulag-hangar-razed.png`: the readout shows `RAZED 1` and `B 2  R 0`.
+  Dense trees make the exact rubble silhouette hard to isolate in the frame;
+  the production diagnostics assertion independently pins hangar 1 at 0 HP.
 
-```
-> ww2airsim@1.0.0 verify
-> npm run typecheck && npm run lint && npm run depcruise && npm test
+## Defects the first Tier 2 run found
 
+The first real run passed only 1 of 5 cases. Its failures exposed two live-path
+bugs that the original Tier 1 coverage could not reach.
+
+First, a quick V/E key release could vanish on a render frame that ran zero
+fixed simulation steps. `main.ts` cleared the edge latch after one rendered
+frame, while `nextFrameState` had no way to know that `advance()` consumed
+nothing. `frame.ts` now retains an unconsumed bomb or rocket pulse across
+zero-step render frames and spends it on the first eligible fixed step. It
+deliberately discards releases while paused, waiting for terrain, crashed, or
+destroyed. Regression tests cover both high-render-rate retention and the
+paused-release discard.
+
+Second, structure collision boxes were initially constructed at absolute
+sea-level height (`y = 5`) before terrain arrived. Real terrain under Dulag
+hangar 1 is about 10.38 m, so its collider was buried and rockets passed over
+it. `buildStructures` now accepts terrain and anchors each box to local ground;
+the world rebuilds structures when terrain arrives and when New game/Restart
+rebuilds the world. A real-terrain unit test pins the hangar collider's bottom
+to the sampled Dulag ground.
+
+The Tier 2 geometry is measured rather than eyeballed. A level HVAR pass starts
+400 m out at local ground + 17 m; the shipped rocket drops about 10.7 m over
+that run. The bomb case starts 100 m before release. A new Tier 1 regression
+runs the fully loaded Hellcat for 50 fixed ticks at idle power, measuring the
+release at 117.6 m/s while descending 2.7 m/s, then pins the bomb's 17.37 s,
+1,995.4 m trajectory. That is intentionally distinct from the pristine
+projectile-only calibration below.
+
+## Tier 1 verification
+
+The final full pipeline completed with `rc=0`:
+
+```text
 ✔ typecheck: clean
 ✔ lint: 0 warnings (src tests tools spike)
-✔ depcruise: no dependency violations found (123 modules, 354 dependencies cruised)
-✔ test (vitest): 126 test files, 1304 tests passed, 1 pre-existing skip
+✔ depcruise: no dependency violations found (123 modules, 357 dependencies cruised)
+✔ vitest: 126 test files, 1308 passed, 1 pre-existing skip
 ```
 
-`tests/e2e/strike.spec.ts` is **not** part of that count: `vitest.config.ts`
-scopes `test.include` to `tests/**/*.test.ts`, and Playwright specs are
-`tests/e2e/*.spec.ts`, so `npm test` never collects them — confirmed by
-reading the config, not inferred. `package.json`'s `test:tier2` script
-(`playwright test`) is the only thing that runs them, and nothing in `verify`
-calls it. This is the same separation `gunnery.spec.ts` and every other Tier 2
-file already rely on.
+`tests/sim/strike.test.ts` alone has 23 passing tests. It covers release rules,
+stores order and counts, the loaded-airframe browser calibration, bomb and
+rocket flight, nearest-contact detonation, blast falloff and arming, ship and
+structure damage, sinking, RAZED filtering, and deterministic continuation.
 
-`tests/sim/strike.test.ts` alone: **22 tests, all passing** — release rules
-(one bomb or one rocket pair per press, left-then-right bomb order, outermost
-rocket pair, a 2 m/s ground-roll floor, one PRNG cone draw per release),
-ordnance flight (the bomb and rocket closed forms), detonation (nearest
-contact across ground/structure/hull/aircraft, blast falloff, arm delay, the
-direct target excluded from its own blast), structures (destroy-once,
-`roundDamage` from strafing, `enemyAirfields`-gated RAZED counting), ships
-(the fire-fraction curve below half hull, the 90 s sink), and determinism (an
-identical soak run twice, a save/clone continued identically through a
-release-detonation-sink).
+The projectile-only AN-M65 calibration remains useful as the content-level
+reference: a perfectly level 120 m/s release from 1,500 m falls for 17.67 s,
+travels 2,066.5 m, and reaches 202.9 m/s at the water. The original content
+estimate of about 1,200 m was roughly 1.7× low; its 200 m/s speed estimate was
+right. For HVAR, the dragless closed-form burn reaches launch speed + 419 m/s
+(539 m/s from a 120 m/s launch) within 1%; shipped drag keeps burnout within
+the tested 519–539 m/s bound.
 
-### The bomb-drag calibration (spec §2.1's own number, corrected)
+## What the pilot gets
 
-`content/aircraft/f6f-hellcat.json`'s `source` note for `an-m65` originally
-estimated "about 1,200 m downrange and roughly 200 m/s" for a release at
-120 m/s from 1,500 m, written without running it. `tests/sim/strike.test.ts`
-("lands a 1,500 m release at the range and speed the shipped drag actually
-gives") is where Plan 6b said that figure would actually be measured, and it
-now is, at `an-m65`'s shipped `dragPerM` of 2e-5:
+- A title-screen loadout picker: clean, bombs, rockets, or both (default both),
+  carried through New game and Restart.
+- V drops one 1,000 lb bomb per press; E fires the outermost remaining HVAR pair
+  per press. Releases are edge-triggered and cannot repeat while held.
+- Remaining stores affect mass and drag, hang under the wings, disappear as
+  released, and appear as `B n  R n` in the combat readout.
+- `?scenario=strike-range` includes a 240 HP anchored Type B cargo ship east of
+  enemy-held Dulag. Ships burn and sink; hangars and the tower take damage,
+  collapse, and count toward `RAZED`.
+- Bomb-release and synthesized rocket-whoosh cues are driven by cumulative
+  successful release counts.
 
-| Predicted (spec §2.1, unrun) | Measured (Tier 1, this run) |
-| --- | --- |
-| ~1,200 m downrange | **2,066.5 m** downrange |
-| ~200 m/s at the water | **202.9 m/s** at the water |
-| — | **17.67 s** of fall (tick 1060 at 60 Hz) |
+## Remaining scope and one parked visual issue
 
-The speed estimate held; the range estimate was roughly 1.7x low. The content
-file's `source` string already carries this correction (Task 6), not just
-this handoff.
+Plan 6 remains in progress: structural-overload damage remains; torpedoes wait
+for a second airframe. AI pilots are Plan 7. The earlier Task 8 review also
+parked one cosmetic issue: the renderer infers impact effects from a projectile
+disappearing, so a dud or lifetime expiry can produce a false fireball. Fixing
+that honestly needs a simulation-level detonation signal; no state or damage
+result is wrong.
 
-### Rocket burnout (`hvar`)
-
-Launched at 120 m/s (typical release speed), the closed-form burn alone
-(`burnedVelocity`, no drag) reaches exactly launch + `burnDeltaVMps`
-(419 m/s) = **539 m/s** within 1%, matching the source's 1,375 ft/s figure.
-With the shipped `hvar` drag applied, burnout speed is measurably lower than
-539 m/s but no more than 20 m/s lower (the test's own bound: `>` 519 m/s,
-`<` 539 m/s) — "a real but modest slice," in the test's own words. No single
-number is pinned tighter than that bound at Tier 1; a Tier 2 run does not add
-precision here either (`gpuFrameTimesMs`/`aircraftPositionM` do not expose
-projectile velocity), so this bound is likely the permanent record for this
-figure.
-
-### Determinism, not accuracy — what the bombing run's design leans on
-
-`tests/sim/strike.test.ts`'s "flies a bomb on the round closed form" case
-proves a released bomb's flight is **exactly** reproducible from its release
-position and velocity (`toBeCloseTo(..., 9)` against the reference closed
-form, no dispersion applied) — unlike rockets and guns, which draw one PRNG
-cone per release. `strike.spec.ts`'s bombing-run case is built on that fact:
-it triggers the release off the aircraft's live simulated position
-(`page.waitForFunction`, not a fixed delay) specifically so the only error
-source at Tier 2 is release-timing jitter, not trajectory randomness the
-simulation itself does not have.
-
-## What the pilot gets (per the design; visually unverified this session)
-
-- On the title screen, a loadout picker: **clean, bombs, rockets, both**
-  (default both), landed Task 9. Chosen loadout carries into
-  `worldFromScenario` and every Restart uses the same choice.
-- **V drops one 1,000 lb bomb per press, edge-triggered. E fires one pair of
-  5-inch HVAR rockets per press**, also edge-triggered — neither can be held
-  to repeat. Stores hang under the wings until released and are gone from the
-  airframe once fired (Task 8).
-- `?scenario=strike-range`: parked at Tacloban, a Japanese Wartime Standard
-  Type B cargo ship (`maru-1`, 240 hull HP) anchored ~6 km east of Dulag over
-  water, and Dulag itself enemy-held (`enemyAirfields`) — its three hangars
-  and tower are legitimate targets.
-- Ships take damage, burn (a fire fraction that rises below half hull) and
-  sink over 90 s once destroyed. Buildings take damage and collapse once at
-  zero HP, staying rubble; a Restart un-collapses them (Task 8's own fix
-  round). The readout adds `SUNK` and `RAZED` beside `KILLS`, and a
-  `B n  R n` stores segment while any are carried (Task 9).
-- A release thump and a synthesized rocket-whoosh cue, edge-triggered off
-  cumulative release counts (Task 10).
-
-All of the above is Tier 1-verified (the mechanism exists and behaves
-correctly in isolation) and NOT Tier 2-verified (nobody has watched it happen
-in the shipped app). Treat every sentence in this section as "should be true
-in the browser," not "was seen in the browser."
-
-## §15 and README
-
-§15 row 6 now reads the strike slice as landed alongside the gunnery slice,
-**still "in progress"**: structural-overload damage and AI remain, matching
-the design doc's own scoping (torpedoes wait for a second airframe; the F6F
-never carried one in service). The README gets one new paragraph pointing at
-§15 and this handoff, in the style of every prior plan's paragraph, without
-restating the order or the numbers here.
-
-## Remaining Plan 6 scope
-
-Unchanged from the design: torpedoes (wait for a second airframe), and
-structural-overload damage. AI pilots are Plan 7. Beyond the slice itself,
-**Tier 2 acceptance for this slice is the immediate remaining item** — see
-the top of this document.
-
-## The flying queue
-
-Mark has not flown any of Plan 6b's predecessors yet either: the Plan 6
-gunnery slice (2026-09-19), the title screen (2026-09-19), or 16c's movable
-sun (closed 2026-09-19, not pushed/deployed, `?timeOfDay=17` is the sunset).
-This strike slice joins that queue rather than needing to be flown in
-isolation — nothing here should be read as more urgent than the rest of it.
+Mark's manual flying queue still includes the Plan 6 gunnery slice, the title
+screen, and 16c's movable sun (`?timeOfDay=17` for sunset). This automated
+reference-GPU acceptance does not replace that eyes-on pass.

@@ -529,7 +529,7 @@ export function createWorldOf<M>(parts: {
   if (!parts.aircraft.some((a) => a.id === parts.player)) {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
   }
-  const structures = buildStructures(parts.airfields ?? [])
+  const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)
   const enemyAirfields = parts.enemyAirfields ?? []
   const enemyStructureIds = new Set(structures.filter(s => enemyAirfields.includes(s.airfield)).map(s => s.id))
   return {

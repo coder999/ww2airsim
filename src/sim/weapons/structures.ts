@@ -1,5 +1,6 @@
 import { v3, type Vec3 } from '../math/vec3.js'
 import { localToWorld, runwayHeadingRad, type Airfield } from '../world/airfields.js'
+import { heightAt, type TerrainField } from '../world/terrain.js'
 
 /** A strike target derived from airfield content, never stepped (spec §3.5:
  *  "no motion, no aging"). Built once at world creation from EVERY airfield's
@@ -19,17 +20,21 @@ export type StructureEntity = {
  *  taller than this, and the box test only needs an upper bound. */
 const BUILDING_HEIGHT_M = 10
 
-export function buildStructures(airfields: readonly Airfield[]): readonly StructureEntity[] {
+export function buildStructures(
+  airfields: readonly Airfield[],
+  terrain: TerrainField | null = null,
+): readonly StructureEntity[] {
   const out: StructureEntity[] = []
   for (const a of airfields) {
     const heading = runwayHeadingRad(a)
     for (const b of a.buildings) {
       const world = localToWorld(a, b.x, b.z)
+      const groundHeightM = terrain === null ? 0 : heightAt(terrain, world.x, world.z)
       out.push({
         id: b.id,
         airfield: a.id,
         kind: b.kind,
-        position: v3(world.x, BUILDING_HEIGHT_M / 2, world.z),
+        position: v3(world.x, groundHeightM + BUILDING_HEIGHT_M / 2, world.z),
         headingRad: heading,
         halfSize: { x: b.widthM / 2, y: BUILDING_HEIGHT_M / 2, z: b.lengthM / 2 },
         hp: b.hp,

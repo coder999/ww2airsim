@@ -3,7 +3,13 @@ import { debriefDialog, percentile, startGame, type DiagWindow } from './harness
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { localToWorld } from '../../src/sim/world/airfields.js'
+import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import type { Loadout } from '../../src/sim/weapons/stores.js'
+import {
+  FIRST_COMMITTED_LEVEL,
+  loadTerrainHeader,
+  loadTerrainLevel,
+} from '../../tools/terrain/load.js'
 
 /**
  * Tier 2, the strike slice (Plan 6b). Same platform and caveats as
@@ -24,17 +30,14 @@ import type { Loadout } from '../../src/sim/weapons/stores.js'
  * this tier exists to catch is a feature inert in the browser with its
  * tests green.
  *
- * **Not run as part of this commit.** Task 11 (2026-09-22) wrote this file
- * against the harness conventions `gunnery.spec.ts` and `contact.spec.ts`
- * already establish, but ryzen (the reference GPU desktop) had no
- * interactive session for `playwright run-server` to attach to during this
- * pass, so nothing below has executed even once -- not one screenshot has
- * been looked at, not one number here is measured. See
- * `docs/handoff/2026-09-22-plan6b-strike.md` for the exact commands to run
- * it, and read every screenshot with the Read tool before believing any of
- * this passed.
+ * Reference-GPU acceptance completed on 2026-09-22: all five cases passed,
+ * every screenshot was inspected, and the 1440p GPU case measured p95 at
+ * 1.758 ms over 379 samples. The first run caught two production-path bugs:
+ * release pulses lost on zero-step render frames and structure colliders
+ * built below Dulag's real terrain. The unit regressions and implementation
+ * fixes live beside the affected modules; the handoff records the full run.
  *
- * **Known accuracy risk, flagged rather than hidden.** The maru's hull is
+ * The maru's hull is
  * only +-7.9 m wide (`content/ships/type-b-maru.json`'s 15.8 m beam) astride
  * the bombing run's own line of flight (east, the ship's SHORT axis --
  * heading 0 means its 112 m length runs north-south). `tests/sim/
@@ -43,10 +46,8 @@ import type { Loadout } from '../../src/sim/weapons/stores.js'
  * unlike guns/rockets), so the one real source of miss risk here is release
  * TIMING: `page.waitForFunction` below triggers on the live simulated
  * position rather than a fixed delay specifically to keep that error small
- * (Chromium's rAF-driven poll, not `expect.poll`'s coarser ~100 ms default),
- * but a real run over a real network tunnel may still miss the 7.9 m window.
- * If it does, retune `BOMB_LEVEL_RANGE_M`'s spawn offset or the release
- * trigger before assuming the strike code itself is broken.
+ * (Chromium's rAF-driven poll, not `expect.poll`'s coarser ~100 ms default).
+ * The measured loaded-airframe run-in below lands inside that window.
  */
 const RANGE = `/?${SCENARIO_PARAM}=strike-range`
 const [xName, yName, zName] = SPAWN_PARAMS
@@ -56,21 +57,37 @@ const dulag = bundle.airfields['dulag']!
 const [maruX, maruZ] = bundle.scenario.ships[0]!.waypoints[0]!
 const hangar1 = dulag.buildings.find((b) => b.id === 'dulag-hangar-1')!
 const hangar1World = localToWorld(dulag, hangar1.x, hangar1.z)
+const terrainHeader = loadTerrainHeader()
+const terrain = createTerrainField(
+  terrainHeader,
+  FIRST_COMMITTED_LEVEL,
+  loadTerrainLevel(FIRST_COMMITTED_LEVEL, terrainHeader),
+)
+const hangar1GroundM = heightAt(terrain, hangar1World.x, hangar1World.z)
+/**
+ * At a 400 m run-in the shipped HVAR falls about 10.7 m. The rail is below the
+ * aircraft origin, so ground + 17 m puts the rocket through the 10 m-tall box.
+ * Both numbers are measured from the shipped terrain/closed form, not eyeballed.
+ */
+const DULAG_RUN_IN_M = 400
+const DULAG_ATTACK_ALTITUDE_M = hangar1GroundM + 17
 
 /**
  * `flyProjectile`'s own closed form, measured by `tests/sim/strike.test.ts`
  * ("lands a 1,500 m release at the range and speed the shipped drag
  * actually gives", 2026-09-22): an `an-m65` released level at 120 m/s from
  * 1,500 m lands 2,066.5 m downrange after 17.67 s of fall, at 202.9 m/s.
- * That figure is real -- backed by an actual Tier 1 run -- unlike anything
- * else about this bombing run's geometry, which is reasoning about code
- * this session could not execute. The run below is built to reproduce that
- * exact geometry (level release, spawn's default airborne attitude) rather
- * than guess what a diving release's trajectory would be, since there is no
- * equivalent measurement for one.
+ * The run below reproduces level release with the spawn's default airborne
+ * attitude rather than guessing a diving trajectory.
+ *
+ * The browser release has a 100 m idle-power run-in before V is pressed. A
+ * 50-tick Tier 1 reproduction of that run-in measures the actual release at
+ * 117.6 m/s, descending 2.7 m/s; the bomb then travels 1,995.4 m in 17.37 s.
+ * This is intentionally distinct from the pristine 120 m/s projectile-only
+ * calibration above.
  */
-const BOMB_LEVEL_RANGE_M = 2066.5
-const BOMB_FALL_S = 17.67
+const BOMB_LEVEL_RANGE_M = 1995.4
+const BOMB_FALL_S = 17.37
 
 test.setTimeout(180_000)
 
@@ -107,7 +124,7 @@ async function startWithLoadout(page: Page, loadout: Loadout): Promise<void> {
   await page.waitForTimeout(200)
 }
 
-test('strike range: Both carries stores into combat, visible under the wings in both camera modes', async ({
+test('strike range: Both carries stores into combat in both camera modes', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
@@ -134,10 +151,10 @@ test('a level 1,500 m release lands a bomb on the anchored maru, and holding V t
   page,
 }) => {
   const releaseX = maruX - BOMB_LEVEL_RANGE_M
-  // 400 m of runway upstream of the calibrated release point: enough for the
+  // 100 m upstream of the calibrated release point: enough for the
   // title screen click and this function's own overhead to be well behind
-  // us before the release trigger below starts watching the live position.
-  const spawnX = releaseX - 400
+  // us, without giving the airframe long enough to leave the calibrated state.
+  const spawnX = releaseX - 100
 
   await page.goto(spawnQuery(spawnX, 1500, maruZ))
   await startWithLoadout(page, 'both')
@@ -154,8 +171,11 @@ test('a level 1,500 m release lands a bomb on the anchored maru, and holding V t
     { timeout: 15_000 },
   )
   await page.keyboard.press('KeyV')
+  await expect
+    .poll(() => combat(page).then((c) => c.player.stores.bombs), { timeout: 2_000 })
+    .toBe(1)
   const afterRelease = await combat(page)
-  expect(afterRelease.player.stores.bombs, 'V did not take a bomb off the racks').toBe(1)
+  expect(afterRelease.player.stores.bombs).toBe(1)
 
   // The bomb flies on its own closed form from here -- `flyProjectile` never
   // reads the aircraft again -- so diving now is cosmetic, not part of the
@@ -165,7 +185,7 @@ test('a level 1,500 m release lands a bomb on the anchored maru, and holding V t
   await page.waitForTimeout(1500)
   await page.keyboard.up('ArrowUp')
 
-  // 17.67 s of fall plus slack for Chromium's own frame pacing and the
+  // 17.37 s of fall plus slack for Chromium's own frame pacing and the
   // tunnel's round trip.
   await expect
     .poll(() => ships(page).then((s) => s.find((sh) => sh.id === 'maru-1')!.hp), {
@@ -187,29 +207,19 @@ test('a level 1,500 m release lands a bomb on the anchored maru, and holding V t
   await assertNoValidationErrors(page)
 })
 
-test('on final to Dulag, three E presses raze a hangar', async ({ page }) => {
-  // 800 m out, at a plausible low-circuit altitude for a rocket pass --
-  // `groundHeightM`/terrain elevation near Dulag was not measured before
-  // writing this, so the dive below is driven by the live simulated
-  // altitude rather than a precomputed one.
-  const spawnX = hangar1World.x - 800
-  await page.goto(spawnQuery(spawnX, 120, hangar1World.z))
+test('a level rocket pass at Dulag: three E presses raze a hangar', async ({ page }) => {
+  const spawnX = hangar1World.x - DULAG_RUN_IN_M
+  await page.goto(spawnQuery(spawnX, DULAG_ATTACK_ALTITUDE_M, hangar1World.z))
   await startWithLoadout(page, 'both')
 
   const before = (await structures(page)).find((s) => s.id.startsWith('dulag-hangar'))
   expect(before).toBeDefined()
 
-  // A shallow dive toward the strip, closing the last of the 800 m while
-  // losing altitude for a level-ish rocket pass -- not levelled off first,
-  // since a rocket fired from level flight at 120 m would sail well over a
-  // building-height target before gravity had any real effect on it.
-  await page.keyboard.down('ArrowUp')
-  await page.waitForTimeout(1800)
-  await page.keyboard.up('ArrowUp')
-
   for (let i = 0; i < 3; i++) {
     await page.keyboard.press('KeyE')
-    await page.waitForTimeout(400)
+    await expect
+      .poll(() => combat(page).then((c) => c.player.stores.rockets), { timeout: 2_000 })
+      .toBe(6 - (i + 1) * 2)
   }
   const afterFiring = await combat(page)
   expect(afterFiring.player.stores.rockets, 'E did not take rockets off the rails').toBeLessThan(6)
@@ -238,20 +248,20 @@ test.describe('frame-time budget with stores hanging and ordnance damage up', ()
   test('the GPU frame at 1440p over a damaged, smoking Dulag hangar, stores still hanging, stays inside budget', async ({
     page,
   }) => {
-    const spawnX = hangar1World.x - 800
-    await page.goto(spawnQuery(spawnX, 120, hangar1World.z))
+    const spawnX = hangar1World.x - DULAG_RUN_IN_M
+    await page.goto(spawnQuery(spawnX, DULAG_ATTACK_ALTITUDE_M, hangar1World.z))
     await startWithLoadout(page, 'both')
 
-    await page.keyboard.down('ArrowUp')
-    await page.waitForTimeout(1800)
-    await page.keyboard.up('ArrowUp')
-    // One volley only -- damage, not destruction, and five of six rockets
+    // One volley only -- damage, not destruction, and four of six rockets
     // plus both bombs still hanging on the airframe for the measurement.
     await page.keyboard.press('KeyE')
-    await page.waitForTimeout(400)
-
+    await expect
+      .poll(() => combat(page).then((c) => c.player.stores.rockets), { timeout: 2_000 })
+      .toBe(4)
+    await expect
+      .poll(() => structures(page).then((s) => s.find((b) => b.id === hangar1.id)!.hp), { timeout: 5_000 })
+      .toBeLessThan(120)
     const armed = await combat(page)
-    expect(armed.player.stores.rockets).toBe(4)
     expect(armed.player.stores.bombs).toBe(2)
 
     await page.evaluate(() => {
@@ -273,13 +283,10 @@ test.describe('frame-time budget with stores hanging and ordnance damage up', ()
 test('restart clears combat, ships and structures back to full, with the same loadout re-armed', async ({
   page,
 }) => {
-  const spawnX = hangar1World.x - 800
-  await page.goto(spawnQuery(spawnX, 120, hangar1World.z))
+  const spawnX = hangar1World.x - DULAG_RUN_IN_M
+  await page.goto(spawnQuery(spawnX, DULAG_ATTACK_ALTITUDE_M, hangar1World.z))
   await startWithLoadout(page, 'both')
 
-  await page.keyboard.down('ArrowUp')
-  await page.waitForTimeout(1800)
-  await page.keyboard.up('ArrowUp')
   await page.keyboard.press('KeyE')
   await expect
     .poll(() => structures(page).then((s) => s.find((b) => b.id.startsWith('dulag-hangar'))!.hp), { timeout: 10_000 })

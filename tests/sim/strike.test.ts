@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
-import { DT } from '../../src/sim/flight/model.js'
+import { DT, step as stepFlight } from '../../src/sim/flight/model.js'
 import { add, length, sub, v3, ZERO, type Vec3 } from '../../src/sim/math/vec3.js'
 import {
   burnedVelocity, createCombat, damageShip, damageStructure, flyProjectile, healthyShipDamage,
   SINK_SECONDS, stepCombat,
   type CombatAircraft, type CombatShip, type CombatState, type Projectile,
 } from '../../src/sim/weapons/combat.js'
-import { emptyStores, storesFromLoadout } from '../../src/sim/weapons/stores.js'
+import { emptyStores, storesFromLoadout, storesSpec } from '../../src/sim/weapons/stores.js'
 import { healthyStructureDamage, type StructureEntity } from '../../src/sim/weapons/structures.js'
 import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
@@ -230,6 +230,33 @@ describe('ordnance flight', () => {
     expect(tick).toBe(1060)
     expect(last.position.x).toBeCloseTo(2066.5, 0)
     expect(length(last.velocity)).toBeCloseTo(202.9, 0)
+  })
+
+  it('pins the 100 m loaded-airframe run-in used by the browser bombing pass', () => {
+    const loaded = storesSpec(spec, full)
+    let current = createState({ position: v3(0, 1500, 0), velocity: v3(120, 0, 0) })
+    let previous = current
+    for (let tick = 1; tick <= 50; tick++) {
+      previous = current
+      current = stepFlight(loaded, current, idle, { dt: DT, tick })
+    }
+
+    // The live world releases from `previous` after stepping the airframe. The
+    // 50-tick idle-power run-in reaches about 100 m and has already slowed and
+    // begun descending, so it must not reuse the pristine 120 m/s calibration.
+    expect(current.position.x).toBeCloseTo(98.9, 1)
+    expect(current.velocity.x).toBeCloseTo(117.6, 1)
+    expect(current.velocity.y).toBeCloseTo(-2.7, 1)
+
+    let round = bombRound(previous.position, previous.velocity, { ageS: 0 })
+    let ticks = 0
+    do {
+      round = flyProjectile(round, DT, null, bomb.dragPerM)
+      ticks += 1
+    } while (round.position.y > 0 && ticks < 6000)
+
+    expect(ticks).toBe(1042)
+    expect(round.position.x - previous.position.x).toBeCloseTo(1995.4, 1)
   })
 
   it('accelerates a rocket by its full burn delta-V over burnS, exactly, then stops', () => {

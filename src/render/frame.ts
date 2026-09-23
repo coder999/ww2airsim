@@ -9,6 +9,7 @@ import {
   type World,
 } from '../sim/loop.js'
 import type { TerrainField } from '../sim/world/terrain.js'
+import { buildStructures } from '../sim/weapons/structures.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
 import {
@@ -344,7 +345,10 @@ export function withPaused(frame: FrameState, paused: boolean): FrameState {
 }
 
 /**
- * The same `FrameState` with a different (or no) terrain field under it.
+ * The same `FrameState` with a different (or no) terrain field under it. Static
+ * structure collision boxes are rebuilt against that field too: airfield
+ * rendering is terrain-draped, so leaving their combat boxes at sea level
+ * buries Dulag's targets beneath its roughly 10 m-high ground.
  *
  * Exists because the heightfield arrives over the network, seconds after the
  * first frame is drawn: `initialFrameState`'s `terrain` parameter covers the
@@ -356,11 +360,18 @@ export function withPaused(frame: FrameState, paused: boolean): FrameState {
  * Here rather than as a `{ ...frame.world, terrain }` spread at the call
  * site, for the reason Task 13's review gave when it moved the camera
  * arithmetic out of main.ts: a state transition nothing tests is how this
- * renderer got its last two silent bugs. Everything except `world.terrain` is
- * preserved, which is what the test asserts.
+ * renderer got its last two silent bugs. Everything except `world.terrain` and
+ * the terrain-derived structure positions is preserved.
  */
 export function withTerrain(frame: FrameState, terrain: TerrainField | null): FrameState {
-  return { ...frame, world: { ...frame.world, terrain } }
+  return {
+    ...frame,
+    world: {
+      ...frame.world,
+      terrain,
+      structures: buildStructures(frame.world.airfields, terrain),
+    },
+  }
 }
 
 /**
@@ -488,14 +499,27 @@ export function nextFrameState(
     hookKeyDown && !prev.hookPressed ? !prev.hookDown : prev.hookDown
 
   // Release controls (Plan 6b Task 4): a PULSE, not a lever like the gear/flap/
-  // hook above -- `dropBomb`/`fireRockets` are true for exactly the tick after
-  // the key-down edge, matching `throttleCut`'s one-shot shape rather than a
-  // toggle's persisting state. What happens when these are true is Task 6's
-  // job; this only wires the edge.
+  // hook above. At render rates above the fixed 60 Hz simulation rate, the
+  // render frame that receives a key-down can run zero fixed steps. Keep that
+  // pulse until an eligible fixed step consumes it; otherwise a quick tap is
+  // silently lost on the reference GPU. A blocked flight deliberately drops
+  // it, so tapping a release while paused/crashed cannot queue ordnance for
+  // later.
+  const releaseBlocked =
+    paused ||
+    (prev.groundSpawn && prev.world.terrain === null) ||
+    player.impact !== null ||
+    prev.world.combat.aircraft[prev.world.player]!.damage.destroyedAt !== null
   const dropBombKeyDown = BINDINGS.dropBomb.some((c) => pressed.has(c))
-  const dropBomb = dropBombKeyDown && !prev.dropBombPressed
+  const dropBomb =
+    !releaseBlocked &&
+    ((dropBombKeyDown && !prev.dropBombPressed) ||
+      (prev.controls.dropBomb === true && prev.stepsRun === 0))
   const fireRocketsKeyDown = BINDINGS.fireRockets.some((c) => pressed.has(c))
-  const fireRockets = fireRocketsKeyDown && !prev.fireRocketsPressed
+  const fireRockets =
+    !releaseBlocked &&
+    ((fireRocketsKeyDown && !prev.fireRocketsPressed) ||
+      (prev.controls.fireRockets === true && prev.stepsRun === 0))
 
   // On/off from a keyboard: 1 while held, 0 the instant it is not.
   // `Controls.brake` is [0, 1] (a pedal's travel, not a switch), so a later

@@ -60,6 +60,7 @@ import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './t
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { loadScenarioBundle } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import { buildStructures } from '../sim/weapons/structures.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
@@ -539,7 +540,11 @@ async function boot(): Promise<void> {
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
     const w = worldFromScenario(bundle, null, chosenLoadout)
-    const withTerrainField = { ...w, terrain }
+    const withTerrainField = {
+      ...w,
+      terrain,
+      structures: buildStructures(w.airfields, terrain),
+    }
     return override
       ? withAircraftState(
           {

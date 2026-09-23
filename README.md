@@ -76,10 +76,9 @@ and master spec §15 holds the status.
 
 **Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
 loadout picker, stores hung under the wings, ship and airfield-structure
-damage. Its simulation and rendering are Tier 1-verified; Tier 2 GPU
-acceptance has not been run yet (the reference desktop had no interactive
-session to attach the harness to). Torpedoes and structural-overload damage
-still remain; see the
+damage. Tier 1 is green and reference-GPU Tier 2 acceptance passes all five
+strike cases at 1.758 ms p95 at 1440p. Torpedoes and structural-overload
+damage still remain; see the
 [handoff](docs/handoff/2026-09-22-plan6b-strike.md) for what was actually
 measured and what is still open, and master spec §15 for the status.
 
