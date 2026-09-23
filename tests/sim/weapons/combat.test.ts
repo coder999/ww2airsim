@@ -158,6 +158,36 @@ describe('production fixed-step ordnance', () => {
     expect(quiet.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 6 })
   })
 
+  it('releases once per key-down even when one advance owes several ticks', () => {
+    // The release controls are edge-triggered once per RENDERED frame, but a
+    // stutter makes one `advance` run several fixed substeps against that one
+    // frame. A hitch must not multiply the ordnance (spec section 3.7).
+    const owed = 4 // comfortably inside MAX_STEPS_PER_FRAME
+    const held = withControls(loaded(), 'shooter', { ...controls, fire: false, dropBomb: true })
+    const hitched = advance(held, owed * DT, still)
+    expect(hitched.stepsRun).toBe(owed)
+    expect(hitched.world.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 6 })
+    expect(hitched.world.combat.projectiles.filter(p => p.kind === 'bomb')).toHaveLength(1)
+
+    const salvo = withControls(loaded(), 'shooter', { ...controls, fire: false, fireRockets: true })
+    const rockets = advance(salvo, owed * DT, still)
+    expect(rockets.stepsRun).toBe(owed)
+    expect(rockets.world.combat.aircraft.shooter!.stores).toEqual({ bombs: 2, rockets: 4 })
+    expect(rockets.world.combat.projectiles.filter(p => p.kind === 'rocket')).toHaveLength(2)
+
+    // Both keys on the same hitched frame is one of each, not one per substep.
+    const together = withControls(loaded(), 'shooter', { ...controls, fire: false, dropBomb: true, fireRockets: true })
+    const mixed = advance(together, owed * DT, still).world
+    expect(mixed.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 4 })
+    expect(mixed.combat.projectiles.filter(p => p.kind === 'bomb')).toHaveLength(1)
+    expect(mixed.combat.projectiles.filter(p => p.kind === 'rocket')).toHaveLength(2)
+
+    // And the spent pulse does not survive the call: the next frame's controls
+    // are whatever the frame layer hands in, here nothing.
+    const next = advance(mixed, DT, still).world
+    expect(next.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 4 })
+  })
+
   it('takes roundDamage off a hull a round and stops the round there', () => {
     const shooter = plane('shooter', -100)
     const ship = {

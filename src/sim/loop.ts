@@ -684,6 +684,17 @@ function stepAircraftEntity<M>(
   return { ...entity, state: current, previous: entity.state, assistMemory: assisted.memory }
 }
 
+/** `controls` with the one-shot release pulse REMOVED, every held control --
+ *  `fire` above all -- left exactly as it was. Removed rather than set false
+ *  because `Controls.dropBomb` is documented as present only when it is
+ *  asking for a release. See its only caller, in `advance`. */
+function spendRelease(controls: Controls): Controls {
+  const spent: { -readonly [K in keyof Controls]: Controls[K] } = { ...controls }
+  delete spent.dropBomb
+  delete spent.fireRockets
+  return spent
+}
+
 export function advance<M>(
   world: World<M>,
   elapsedSeconds: number,
@@ -748,6 +759,20 @@ export function advance<M>(
     })) }
     aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage, combat.aircraft[a.id]!.stores))
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT)
+    // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
+    // them once per RENDERED frame, but this loop can run up to
+    // MAX_STEPS_PER_FRAME substeps against that one frame's controls. Nothing
+    // else consumes the pulse, so without this a hitch that owes three ticks
+    // would release three bombs -- and drain three stores -- from a single
+    // key-down. Spend it here, on the substep that just ran, so every later
+    // substep of THIS call sees it gone. Only the pulse: `fire` is a HELD
+    // level that must be re-read every substep, and clearing it would stop
+    // the guns mid-frame. Nothing leaks into the next call either -- the
+    // render loop rebuilds `controls` before every `advance`.
+    aircraft = aircraft.map((a) =>
+      a.controls.dropBomb === undefined && a.controls.fireRockets === undefined
+        ? a
+        : { ...a, controls: spendRelease(a.controls) })
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
