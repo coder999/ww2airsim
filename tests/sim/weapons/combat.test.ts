@@ -7,6 +7,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import { createCombat, flyProjectile, stepCombat, type Projectile } from '../../../src/sim/weapons/combat.js'
 import { segmentBox } from '../../../src/sim/weapons/geometry.js'
+import { storesFromLoadout } from '../../../src/sim/weapons/stores.js'
 import { ageDamage, damagedSpec, damageFromHit, healthyDamage } from '../../../src/sim/damage/model.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { createTerrainField } from '../../../src/sim/world/terrain.js'
@@ -134,6 +135,43 @@ describe('production fixed-step gunnery', () => {
     const range = worldFromScenario(loadScenarioBundle('gunnery-range'), null)
     expect(range.aircraft.map(a => a.id)).toEqual(['f6f-1', 'target-1', 'target-2'])
     expect(range.combat.aircraft['f6f-1']!.guns).toHaveLength(6)
+  })
+})
+
+describe('production fixed-step ordnance', () => {
+  const loaded = () => {
+    const w = createWorldOf({ aircraft: [plane('shooter', 0)], player: 'shooter' })
+    const rec = w.combat.aircraft.shooter!
+    return { ...w, combat: { ...w.combat, aircraft: { shooter: { ...rec, stores: storesFromLoadout(spec, 'both') } } } }
+  }
+
+  it('releases a bomb through advance, and a paused world releases nothing', () => {
+    const held = withControls(loaded(), 'shooter', { ...controls, fire: false, dropBomb: true })
+    // Paused is no elapsed time, so it is the same world object back: there
+    // is no tick for a release to happen on (spec section 3.2).
+    expect(advance(held, 0, still).world).toBe(held)
+    const after = advance(held, DT, still).world
+    expect(after.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 6 })
+    expect(after.combat.projectiles.filter(p => p.kind === 'bomb')).toHaveLength(1)
+    // A frame that says nothing releases nothing, and the count holds.
+    const quiet = advance(withControls(after, 'shooter', { ...controls, fire: false }), DT, still).world
+    expect(quiet.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 6 })
+  })
+
+  it('takes roundDamage off a hull a round and stops the round there', () => {
+    const shooter = plane('shooter', -100)
+    const ship = {
+      id: 'maru-1', spec: { lengthM: 112, beamM: 15.8, deckHeightM: 6, hullHp: 240, role: 'merchant' as const },
+      state: { position: v3(0, 0, 0), headingRad: 0 }, previous: { position: v3(0, 0, 0), headingRad: 0 },
+    }
+    const c = {
+      ...createCombat([shooter], {}, [{ id: 'maru-1', hullHp: 240 }]),
+      projectiles: [{ ...projectile, position: v3(0, 20, 0), previous: v3(0, 20, 0), velocity: v3(0, -880, 0) }],
+    }
+    const after = stepCombat(c, [shooter], [ship], [], null, null, [], 1, DT)
+    expect(after.projectiles).toHaveLength(0)
+    expect(after.ships['maru-1']!.hp).toBe(240 - spec.combat!.roundDamage)
+    expect(after.ships['maru-1']!.destroyedTick).toBeNull()
   })
 })
 
