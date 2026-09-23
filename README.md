@@ -90,9 +90,21 @@ frame. Exceeding the F6F content limits continuously damages structure, with
 destruction debrief that reaches Restart. Tier 1 is green and the reference-GPU
 flight measured 10.82 g, 220.19 m/s, and a 1.301 ms render-pass p95 at 1440p
 with zero validation errors. Torpedoes are deferred until a second,
-historically appropriate airframe exists; they do not block Plan 7 AI, now the
-next implementable phase. See the
+historically appropriate airframe exists; they do not block Plan 7 AI. See the
 [handoff](docs/handoff/2026-09-23-plan6c-structural-overload.md).
+
+**Plan 7a AI landed 2026-09-23:** a pure proportional-derivative flight
+controller turns a desired world velocity into the same `Controls` a human
+pilot supplies, and a pursuit pilot predicts a bounded lead intercept and
+fires only within a short-range gun cone. Every assigned pilot's controls are
+derived from one start-of-tick snapshot before any aircraft steps, so
+controller cadence is the fixed 60 Hz tick and reversing the aircraft array
+cannot change a trajectory. `?scenario=pursuit-range` starts the player and
+one AI-flown F6F airborne astern; on the reference GPU it turns onto a gun
+solution and fires within 12.5 s, at 0.852 ms render-pass p95 with zero
+validation errors. Pilot skill, energy-state decisions, defensive maneuvers,
+formation and landing AI remain Plan 7b/7c. See the
+[handoff](docs/handoff/2026-09-23-plan7a-ai-pursuit.md).
 
 **A title screen landed 2026-09-19**, the first slice of Plan 9 ahead of the
 rest of it: Mark's title art with **New game** and **About project**. The
