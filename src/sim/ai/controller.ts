@@ -36,7 +36,13 @@ export function controlsForDesiredVelocity(
   const forward = qRotate(state.attitude, v3(1, 0, 0))
   const up = qRotate(state.attitude, v3(0, 1, 0))
   const right = qRotate(state.attitude, v3(0, 0, 1))
-  const ahead = Math.max(1e-6, dot(desired, forward))
+  // atan2's x-argument is deliberately allowed to be negative (or zero) here:
+  // it is what lets a behind-the-nose target report an error out to +/-pi
+  // instead of being silently capped near +/-pi/2. An earlier
+  // `Math.max(1e-6, ...)` floor forced this positive and collapsed both
+  // errors to 0 for anything dead astern -- see controller.test.ts's "demands
+  // a real turn for a target dead astern" for the regression this guards.
+  const ahead = dot(desired, forward)
   const headingError = Math.atan2(dot(desired, right), ahead)
   const pitchError = Math.atan2(dot(desired, up), ahead)
 

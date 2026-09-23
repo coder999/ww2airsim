@@ -48,6 +48,18 @@ describe('desired-velocity flight controller', () => {
     expect(faster.throttle).toBeGreaterThan(slower.throttle)
   })
 
+  it('demands a real turn for a target dead astern instead of collapsing to zero', () => {
+    // Forward component of the desired direction is negative here, not just
+    // small. The old `Math.max(1e-6, ahead)` floor forced atan2's x-argument
+    // positive for every behind-nose case, silently discarding the sign and
+    // collapsing both headingError and pitchError to exactly 0 whenever the
+    // lateral/vertical offset was also ~0 -- a target dead astern (a real
+    // geometry right after a pursuit overtake) read as indistinguishable
+    // from one dead ahead, and the aircraft commanded nothing.
+    const behind = controlsForDesiredVelocity(state, f6f, v3(-100, 0, 0))
+    expect(Math.abs(behind.roll) + Math.abs(behind.pitch) + Math.abs(behind.yaw)).toBeGreaterThan(2)
+  })
+
   it('returns finite bounded player controls for zero and extreme vectors', () => {
     for (const desired of [v3(0, 0, 0), v3(-1e30, 1e30, -1e30)]) {
       const c = controlsForDesiredVelocity(state, f6f, desired)

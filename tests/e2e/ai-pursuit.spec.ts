@@ -9,12 +9,13 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
  * What only this tier can prove is the wiring of the whole slice in the
  * shipped app: `pursuitControls` reaching `pursuer-1` from the same
  * fixed-tick loop that steps the player, `Controls.fire` from an AI pilot
- * (not a keypress) reaching `frame.controls` and spawning a real projectile,
- * and the airframe actually turning rather than drifting straight under its
- * spawn velocity. Every piece is unit-tested (`tests/sim/ai/*.test.ts`,
- * `tests/sim/scenario.test.ts`'s "turns the production pursuit pilot onto a
- * gun solution"); the Plan 3 defect class -- a feature inert in the browser
- * with its tests green -- is invisible below this tier.
+ * (not a keypress) reaching `frame.controls` and spawning a real projectile
+ * that actually lands, and the airframe actually turning rather than
+ * drifting straight under its spawn velocity. Every piece is unit-tested
+ * (`tests/sim/ai/*.test.ts`, `tests/sim/scenario.test.ts`'s "the pursuit
+ * pilot actually hits the target it is gated on"); the Plan 3 defect class
+ * -- a feature inert in the browser with its tests green -- is invisible
+ * below this tier.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 
@@ -55,6 +56,20 @@ test('the assigned pilot turns onto a gun solution and fires through production 
       message: 'pursuer-1 never fired -- the AI gun gate did not reach frame.controls.fire',
     })
     .toBeGreaterThan(0)
+
+  // Not just firing -- landing rounds. `player.structure` is the only
+  // per-aircraft damage signal already exposed for the PLAYER specifically
+  // (combatReadout.ts); since the player never fires or takes any other
+  // damage source in this scenario, a drop here can only be pursuer-1's own
+  // gunfire connecting -- the gap a reference-GPU review found: the gate
+  // and the steering were checking two different lead points, so every
+  // acceptance shot before that fix missed (1,002 rounds, zero hits).
+  await expect
+    .poll(() => combat(page).then((c) => c.player.structure), {
+      timeout: 20_000,
+      message: 'pursuer-1 fired but never hit the player -- the gate and the steering disagree on where the nose is aimed',
+    })
+    .toBeLessThan(1)
 
   const after = await pursuer(page)
   const moved = Math.hypot(after.x - before.x, after.y - before.y, after.z - before.z)

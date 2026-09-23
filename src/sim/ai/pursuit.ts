@@ -38,21 +38,56 @@ export function leadPursuitVelocity<M>(
     : scale(normalize(intercept), desiredSpeed)
 }
 
+/**
+ * The normalized muzzle-velocity lead direction, or `null` with nothing to
+ * shoot at: out of `AI_GUN_RANGE_M`, or the degenerate coincident-position
+ * case. Shared by `hasGunSolution`'s cone gate and `pursuitDesiredVelocity`'s
+ * close-range steering, so the nose the gate checks is the nose actually
+ * being commanded -- reference-GPU review of Task 5 found the two previously
+ * disagreed (the controller flew the much longer maneuver lead while the
+ * gate checked this, shorter one), so the trigger opened only where the two
+ * unrelated lead points happened to coincide, at the cone's ragged edge,
+ * biased toward over-lead. Every acceptance shot before this fix scored zero
+ * hits.
+ */
+function muzzleLeadDirection<M>(
+  self: AircraftEntity<M>,
+  target: AircraftEntity<M>,
+): Vec3 | null {
+  const combat = self.spec.combat
+  if (combat === undefined) return null
+  const relative = sub(target.state.position, self.state.position)
+  const range = length(relative)
+  if (range < 1e-6 || range > AI_GUN_RANGE_M) return null
+  const flightS = range / combat.muzzleVelocityMps
+  const aim = sub(add(target.state.position, scale(target.state.velocity, flightS)), self.state.position)
+  return length(aim) < 1e-6 ? null : normalize(aim)
+}
+
 /** A short-range muzzle-velocity lead gate; no random draw and no hidden aim. */
 export function hasGunSolution<M>(
   self: AircraftEntity<M>,
   target: AircraftEntity<M>,
 ): boolean {
-  const combat = self.spec.combat
-  if (combat === undefined) return false
-  const relative = sub(target.state.position, self.state.position)
-  const range = length(relative)
-  if (range < 1e-6 || range > AI_GUN_RANGE_M) return false
-  const flightS = range / combat.muzzleVelocityMps
-  const aim = sub(add(target.state.position, scale(target.state.velocity, flightS)), self.state.position)
-  if (length(aim) < 1e-6) return false
+  const aim = muzzleLeadDirection(self, target)
+  if (aim === null) return false
   const forward = qRotate(self.state.attitude, v3(1, 0, 0))
-  return dot(forward, normalize(aim)) >= Math.cos(AI_GUN_CONE_RAD)
+  return dot(forward, aim) >= Math.cos(AI_GUN_CONE_RAD)
+}
+
+/**
+ * The velocity `pursuitControls` asks the flight controller to fly: the
+ * muzzle-lead point once in gun range, at the maneuver lead's speed (so
+ * closure/throttle behavior is unchanged), and the longer maneuver lead
+ * outside it, exactly as before.
+ */
+export function pursuitDesiredVelocity<M>(
+  self: AircraftEntity<M>,
+  target: AircraftEntity<M>,
+): Vec3 {
+  const maneuver = leadPursuitVelocity(self, target)
+  const aim = muzzleLeadDirection(self, target)
+  return aim === null ? maneuver : scale(aim, length(maneuver))
 }
 
 /** The first complete pilot: lead pursuit plus a deliberately narrow gun gate. */
@@ -63,7 +98,7 @@ export function pursuitControls<M>(
   const controls = controlsForDesiredVelocity(
     self.state,
     self.spec,
-    leadPursuitVelocity(self, target),
+    pursuitDesiredVelocity(self, target),
   )
   return hasGunSolution(self, target) ? { ...controls, fire: true } : controls
 }

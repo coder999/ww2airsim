@@ -124,6 +124,20 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     expect(world.combat.aircraft['pursuer-1']!.shots).toBeGreaterThan(0)
   })
 
+  it('the pursuit pilot actually hits the target it is gated on, not just fires blind', () => {
+    // Reference-GPU review of Task 5 found `hasGunSolution` gating on the
+    // muzzle lead while the controller flew a different, longer maneuver
+    // lead: 1,002 rounds fired over 90 s, zero hits. This proves the fix at
+    // the level that failure was measured at, not just at the unit level
+    // `pursuitDesiredVelocity`'s own test proves the two leads now agree.
+    let world = worldFromScenario(pursuit, null)
+    for (let i = 0; i < 400 && world.combat.aircraft['pursuer-1']!.hits === 0; i++) {
+      world = advance(world, DT * 5).world
+    }
+    expect(world.tick).toBeLessThanOrEqual(2000)
+    expect(world.combat.aircraft['pursuer-1']!.hits).toBeGreaterThan(0)
+  })
+
   it('rejects malformed airborne starts and invalid scenario pilot targets', () => {
     const raw = () => JSON.parse(JSON.stringify(pursuit.scenario)) as Record<string, unknown> & {
       aircraft: Array<Record<string, unknown> & { airborneAt: Record<string, unknown> }>
