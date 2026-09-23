@@ -1,5 +1,6 @@
 import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
+import type { Loadout } from '../sim/weapons/stores.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md).
@@ -43,6 +44,21 @@ export function titleModel(): TitleModel {
   }
 }
 
+/**
+ * The loadout picker's options (spec §1: "clean, bombs, rockets, both
+ * (default both)"), a pure array so the Node suite can pin it the same way
+ * `titleModel` pins the button text -- `createTitleScreen`'s radio row is
+ * built straight off this and is otherwise untested here, for the reason
+ * `createLegend`'s own comment gives: the vitest environment is `node`.
+ */
+export const LOADOUT_OPTIONS: readonly { readonly value: Loadout; readonly label: string }[] = [
+  { value: 'clean', label: 'Clean' },
+  { value: 'bombs', label: 'Bombs' },
+  { value: 'rockets', label: 'Rockets' },
+  { value: 'both', label: 'Both' },
+]
+export const DEFAULT_LOADOUT: Loadout = 'both'
+
 export type TitleScreenHandle = {
   /** Whether the title is still on screen; `main.ts` holds the world while it is. */
   readonly up: () => boolean
@@ -53,7 +69,7 @@ const BUTTON_STYLE =
   'padding:10px 22px;border:1px solid #2b3440;border-radius:4px;background:rgba(236,239,243,.94);' +
   'color:#151b22;font:14px ui-monospace,Menlo,monospace;letter-spacing:.08em;cursor:pointer'
 
-export function createTitleScreen(root: HTMLElement, onNewGame: () => void): TitleScreenHandle {
+export function createTitleScreen(root: HTMLElement, onNewGame: (loadout: Loadout) => void): TitleScreenHandle {
   const m = titleModel()
   const overlay = document.createElement('div')
   overlay.setAttribute('role', 'dialog')
@@ -62,6 +78,31 @@ export function createTitleScreen(root: HTMLElement, onNewGame: () => void): Tit
   overlay.style.cssText =
     'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;' +
     `background:#0b0d10 url(${TITLE_ART_URL}) center/cover no-repeat;z-index:20`
+
+  // The loadout picker (spec §1), above the New game button: native radio
+  // inputs, so Tab/Shift-Tab and the arrow keys within the group work with
+  // no listener of this file's own -- the same reason the rest of the title
+  // screen leans on native `<button>` elements rather than a click handler
+  // on a styled `<div>`.
+  const loadoutRow = document.createElement('div')
+  loadoutRow.setAttribute('role', 'radiogroup')
+  loadoutRow.setAttribute('aria-label', 'Loadout')
+  loadoutRow.style.cssText =
+    'display:flex;gap:16px;margin-bottom:2vh;color:#eceff3;font:13px ui-monospace,Menlo,monospace;' +
+    'letter-spacing:.04em'
+  const loadoutInputs = LOADOUT_OPTIONS.map((option) => {
+    const label = document.createElement('label')
+    label.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer'
+    const input = document.createElement('input')
+    input.type = 'radio'
+    input.name = 'loadout'
+    input.value = option.value
+    input.checked = option.value === DEFAULT_LOADOUT
+    label.append(input, option.label)
+    loadoutRow.appendChild(label)
+    return input
+  })
+  overlay.appendChild(loadoutRow)
 
   const row = document.createElement('div')
   row.style.cssText = 'display:flex;gap:14px;margin-bottom:6vh'
@@ -121,8 +162,14 @@ export function createTitleScreen(root: HTMLElement, onNewGame: () => void): Tit
     window.removeEventListener('keydown', onKey)
   }
   const start = (): void => {
+    // One of `loadoutInputs` is always checked -- `DEFAULT_LOADOUT` sets one
+    // at creation and a native radio group never lets the user uncheck the
+    // whole group, only move the checked mark between its members -- so the
+    // fallback below is unreachable in a browser and exists only so this
+    // reads as total rather than trusting that invariant silently.
+    const loadout = loadoutInputs.find((input) => input.checked)?.value as Loadout | undefined
     hide()
-    onNewGame()
+    onNewGame(loadout ?? DEFAULT_LOADOUT)
   }
   newGame.addEventListener('click', start)
   about.addEventListener('click', () => {

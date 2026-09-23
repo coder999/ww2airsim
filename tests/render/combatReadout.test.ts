@@ -37,10 +37,36 @@ describe('the combat readout (Plan 6)', () => {
   it('reports the frame the Tier 2 hook reads: the trigger the sim saw, the player and every target', () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     const d = combatDiagnosticsFor(frame)
-    expect(d.player).toEqual({ shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false })
+    expect(d.player).toEqual({
+      shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
+      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0,
+    })
     expect(d.aircraft.map((a) => a.id)).toEqual(frame.world.aircraft.map((a) => a.id))
     expect(d.projectiles).toBe(0)
     expect(d.tracers).toBe(0)
     expect(combatDiagnosticsFor({ ...frame, controls: { ...frame.controls, fire: true } }).player.firing).toBe(true)
+  })
+
+  it('shows stores remaining, B n  R n, only while any are carried (Plan 6b Task 9, spec §4)', () => {
+    const rec = armed()
+    expect(combatReadoutLabel(rec)).not.toContain('B ')
+    const loaded = { ...rec, stores: { bombs: 2, rockets: 6 } }
+    expect(combatReadoutLabel(loaded)).toBe('AMMO 2400   B 2  R 6   HITS 0   KILLS 0   HP 100%')
+    const bombsOnly = { ...rec, stores: { bombs: 1, rockets: 0 } }
+    expect(combatReadoutLabel(bombsOnly)).toBe('AMMO 2400   B 1  R 0   HITS 0   KILLS 0   HP 100%')
+    const empty = { ...rec, stores: { bombs: 0, rockets: 0 } }
+    expect(combatReadoutLabel(empty)).toBe('AMMO 2400   HITS 0   KILLS 0   HP 100%')
+  })
+
+  it('shows SUNK and RAZED beside KILLS, only when non-zero (spec: "The readout counts SUNK and RAZED beside KILLS")', () => {
+    const rec = armed()
+    expect(combatReadoutLabel(rec)).not.toContain('SUNK')
+    expect(combatReadoutLabel(rec)).not.toContain('RAZED')
+    const sunkOne = { ...rec, shipsSunk: 1 }
+    expect(combatReadoutLabel(sunkOne)).toBe('AMMO 2400   HITS 0   KILLS 0   SUNK 1   HP 100%')
+    const razedTwo = { ...rec, structuresDestroyed: 2 }
+    expect(combatReadoutLabel(razedTwo)).toBe('AMMO 2400   HITS 0   KILLS 0   RAZED 2   HP 100%')
+    const both = { ...rec, shipsSunk: 1, structuresDestroyed: 2 }
+    expect(combatReadoutLabel(both)).toBe('AMMO 2400   HITS 0   KILLS 0   SUNK 1   RAZED 2   HP 100%')
   })
 })

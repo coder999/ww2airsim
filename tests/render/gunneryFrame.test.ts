@@ -82,7 +82,10 @@ describe('Space fires through nextFrameState (Plan 6)', () => {
     expect(combatDiagnosticsFor(f).player.ammo).toBeLessThan(2400)
     const restarted = initialFrameStateFor(worldFromScenario(bundle, null))
     const d = combatDiagnosticsFor(restarted)
-    expect(d.player).toEqual({ shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false })
+    expect(d.player).toEqual({
+      shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
+      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0,
+    })
     expect(d.projectiles).toBe(0)
     expect(d.aircraft.map((a) => a.id)).toEqual(['f6f-1', 'target-1', 'target-2'])
     expect(d.aircraft.every((a) => a.structure === 1 && !a.destroyed)).toBe(true)

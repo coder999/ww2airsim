@@ -34,12 +34,17 @@ export const ammoRemaining = (rec: AircraftCombat): number => rec.guns.reduce((s
  */
 export function combatReadoutLabel(rec: AircraftCombat | undefined): string | null {
   if (rec === undefined || rec.guns.length === 0) return null
-  const parts = [
-    `AMMO ${ammoRemaining(rec)}`,
-    `HITS ${rec.hits}`,
-    `KILLS ${rec.kills}`,
-    `HP ${Math.round(rec.damage.structure * 100)}%`,
-  ]
+  const parts = [`AMMO ${ammoRemaining(rec)}`]
+  // Bomb and rocket stores, beside the gun ammo they are carried alongside --
+  // absent for a clean airplane, or once every store is gone (spec §4:
+  // "the stores remaining (`B 2  R 6`) in the readout while any are
+  // carried").
+  if (rec.stores.bombs + rec.stores.rockets > 0) parts.push(`B ${rec.stores.bombs}  R ${rec.stores.rockets}`)
+  parts.push(`HITS ${rec.hits}`, `KILLS ${rec.kills}`)
+  // Spec: "The readout counts SUNK and RAZED beside KILLS."
+  if (rec.shipsSunk > 0) parts.push(`SUNK ${rec.shipsSunk}`)
+  if (rec.structuresDestroyed > 0) parts.push(`RAZED ${rec.structuresDestroyed}`)
+  parts.push(`HP ${Math.round(rec.damage.structure * 100)}%`)
   if (rec.damage.destroyedAt !== null) parts.push('DESTROYED')
   else {
     const damaged = damagedSystems(rec.damage)
@@ -61,6 +66,11 @@ export type CombatDiagnostics = {
      *  Space reached `frame.controls`, which `shots` rising alone cannot
      *  distinguish from a stuck trigger. */
     readonly firing: boolean
+    /** Bombs and rockets still on the racks/rails, growing `combatReadoutLabel`'s
+     *  `B n  R n` segment (Plan 6b Task 9). */
+    readonly stores: { readonly bombs: number; readonly rockets: number }
+    readonly shipsSunk: number
+    readonly structuresDestroyed: number
   }
   readonly aircraft: readonly {
     readonly id: string
@@ -85,6 +95,9 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       structure: player.damage.structure,
       destroyed: player.damage.destroyedAt !== null,
       firing: frame.controls.fire === true,
+      stores: { bombs: player.stores.bombs, rockets: player.stores.rockets },
+      shipsSunk: player.shipsSunk,
+      structuresDestroyed: player.structuresDestroyed,
     },
     aircraft: frame.world.aircraft.map((a) => {
       const rec = combat.aircraft[a.id]!

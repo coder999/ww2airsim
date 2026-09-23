@@ -18,7 +18,7 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
-import { createTitleScreen } from './titleScreen.js'
+import { createTitleScreen, DEFAULT_LOADOUT } from './titleScreen.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
@@ -60,6 +60,7 @@ import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './t
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { loadScenarioBundle } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import type { Loadout } from '../sim/weapons/stores.js'
 import { step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import type { TerrainField } from '../sim/world/terrain.js'
@@ -168,6 +169,15 @@ async function boot(): Promise<void> {
   // every frame. Apparent solar time.
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
   let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
+  // Plan 6b Task 9: the picker's choice, read by `buildWorld` (below) on
+  // every call -- boot's own included, not only Restart's -- so it doubles
+  // as "remembered across a Restart" (spec §5: "Restart rebuilds stores from
+  // the same loadout") with no separate plumbing. Starts at the picker's own
+  // default so a click landing before `frame` exists (the several awaits
+  // between here and its first assignment give the browser plenty of chance
+  // to paint and take one) needs nothing further: that first `buildWorld`
+  // call below just reads whatever this already holds.
+  let chosenLoadout: Loadout = DEFAULT_LOADOUT
 
   // The title screen (2026-09-19), created before ANYTHING that can take
   // time: the adapter, the ocean cascades and the terrain all load behind
@@ -175,11 +185,26 @@ async function boot(): Promise<void> {
   // button is pressed, which cannot happen before the page has painted --
   // the same argument the debrief's `frame!` reads make. A boot failure
   // empties #app (failure.ts), which takes the overlay with it.
-  const title = createTitleScreen(root, () => {
+  const title = createTitleScreen(root, (loadout) => {
+    chosenLoadout = loadout
     // A click is the user gesture the autoplay policy wants; this is the
     // first-visit resume the audio handoff left open.
     void audio.resume()
-    if (frame) frame = withPaused(frame, false)
+    // `frame` may already exist by the time this fires, built with whatever
+    // `chosenLoadout` held at THAT point (the picker's default, unless this
+    // callback already ran once) -- rebuild it exactly like Restart does
+    // below, rather than only unpausing, so a changed selection actually
+    // reaches the stores. `buildWorld` is declared further down this
+    // function but, like `frame` itself, is always initialised by the time a
+    // real click can reach this closure -- the same forward-reference this
+    // file already relies on for `spawnPosition` and `cascades`.
+    if (frame) {
+      const rebuilt = initialFrameStateFor(buildWorld(frame.world.terrain), frame.assists)
+      frame = rebuilt.groundSpawn && rebuilt.world.terrain !== null
+        ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
+        : rebuilt
+      frame = withPaused(frame, false)
+    }
   })
 
   const canvas = document.createElement('canvas')
@@ -485,7 +510,7 @@ async function boot(): Promise<void> {
   // `?spawnY=` cannot be rejected until the scenario has been read. It is
   // still rejected before any terrain is fetched, and still reaches the
   // failure screen (the throw leaves `boot` and `boot().catch` routes it).
-  const scenarioWorld = worldFromScenario(bundle, null)
+  const scenarioWorld = worldFromScenario(bundle, null, chosenLoadout)
   const parkedAt = playerAircraft(scenarioWorld).state.position
   const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
   const spawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
@@ -505,9 +530,15 @@ async function boot(): Promise<void> {
    * every ship's loop, which is a Tier 1 assertion on every commit
    * (`tests/sim/scenario.test.ts`) and has no business throwing in a browser
    * -- least of all out of the Restart button.
+   *
+   * `chosenLoadout` (Plan 6b Task 9), not a parameter: reading it here rather
+   * than closing over one value at Restart-handler creation time is what
+   * makes the same call site serve boot, a title-screen loadout change and
+   * every future Restart -- whichever loadout was last chosen, not
+   * necessarily the one in effect when this arrow function was defined.
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
-    const w = worldFromScenario(bundle, null)
+    const w = worldFromScenario(bundle, null, chosenLoadout)
     const withTerrainField = { ...w, terrain }
     return override
       ? withAircraftState(
