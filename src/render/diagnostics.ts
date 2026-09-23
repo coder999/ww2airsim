@@ -135,9 +135,9 @@ export type Ww2Diagnostics = {
   /**
    * Every strike-target structure (airfield buildings, Plan 6b Task 8), by
    * id, with its current hp off `World.combat.structures[id]`. The render-side
-   * twin of `ships` above, for the same reason: `airfield.ts`'s `setDestroyed`
+   * twin of `ships` above, for the same reason: `airfield.ts`'s `sync`
    * has no other externally observable signal once a building's HP reaches
-   * zero and its mesh swaps to rubble.
+   * zero and its mesh swaps to rubble (or reverts to intact on Restart).
    */
   readonly structures: () => readonly { readonly id: string; readonly hp: number }[]
   /**

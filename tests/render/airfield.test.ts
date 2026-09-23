@@ -4,6 +4,13 @@ import { parseAirfield } from '../../src/sim/world/airfields.js'
 import { loadAirfield } from '../../tools/content/load.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
 import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { healthyStructureDamage, type StructureDamage } from '../../src/sim/weapons/structures.js'
+
+/** A minimal destroyed `StructureDamage`, the shape `combat.ts`'s
+ *  `damageStructure` produces once hp reaches zero -- only `destroyedTick`
+ *  matters to `airfield.ts`'s `sync`, but the other fields are filled in so
+ *  the value type-checks as a real `StructureDamage`. */
+const destroyedAt = (tick: number): StructureDamage => ({ hp: 0, destroyedTick: tick, attacker: 'test' })
 
 const header = loadTerrainHeader()
 const field = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
@@ -61,15 +68,20 @@ describe('airfield buildings (Plan 6b: moved from a module constant into content
 })
 
 /**
- * Collapse geometry (Plan 6b Task 8). `createAirfield` now returns a HANDLE,
- * `{ object, setDestroyed, update }`, not the bare `Group` it used to --
- * every content `buildings` entry (a strike target, `World.structures`) gets
- * its own named `structure:<id>` group with three children: `intact` (the
- * detailed building, merged per-building the way the whole airfield used to
- * merge everything), `collapsed` (a low broken box, hidden until destroyed,
- * sharing this file's own weathered material), and `smoke` (a `createSmokeColumn`
- * from `ordnance.ts`, reused rather than reimplemented per Task 8's explicit
- * instruction).
+ * Collapse geometry (Plan 6b Task 8; `sync` post-Task-8 fix). `createAirfield`
+ * now returns a HANDLE, `{ object, sync, update }`, not the bare `Group` it
+ * used to -- every content `buildings` entry (a strike target,
+ * `World.structures`) gets its own named `structure:<id>` group with three
+ * children: `intact` (the detailed building, merged per-building the way the
+ * whole airfield used to merge everything), `collapsed` (a low broken box,
+ * hidden until destroyed, sharing this file's own weathered material), and
+ * `smoke` (a `createSmokeColumn` from `ordnance.ts`, reused rather than
+ * reimplemented per Task 8's explicit instruction). `sync` replaced the
+ * original one-way `setDestroyed(id)` latch: it is handed the CURRENT
+ * `World.combat.structures` map every frame and sets every owned building's
+ * visuals from that state each call, so a building can also revert to
+ * intact -- the only way that happens is Restart rebuilding a fresh, healthy
+ * `World.combat.structures`, which the original latch had no path to notice.
  */
 describe('airfield collapse geometry (Plan 6b Task 8)', () => {
   it('every content building starts intact, with its collapsed variant and smoke column hidden', () => {
@@ -84,11 +96,11 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
     }
   })
 
-  it('setDestroyed swaps intact for the collapsed rubble box and starts its smoke column, leaving other buildings untouched', () => {
+  it('sync swaps intact for the collapsed rubble box and starts its smoke column, leaving other buildings untouched', () => {
     const tacloban = loadAirfield('tacloban')
-    const { object, setDestroyed } = createAirfield(field, tacloban)
+    const { object, sync } = createAirfield(field, tacloban)
     const [first, second] = tacloban.buildings
-    setDestroyed(first!.id)
+    sync({ [first!.id]: destroyedAt(1) })
     const hit = object.getObjectByName(`structure:${first!.id}`)!
     expect(hit.getObjectByName('intact')!.visible).toBe(false)
     expect(hit.getObjectByName('collapsed')!.visible).toBe(true)
@@ -101,15 +113,15 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
 
   it('an id with no matching building is a silent no-op', () => {
     const tacloban = loadAirfield('tacloban')
-    const { setDestroyed } = createAirfield(field, tacloban)
-    expect(() => setDestroyed('no-such-building')).not.toThrow()
+    const { sync } = createAirfield(field, tacloban)
+    expect(() => sync({ 'no-such-building': destroyedAt(1) })).not.toThrow()
   })
 
   it("update() fades a destroyed building's smoke column to hidden once its lifetime elapses (spec §4: 60 s)", () => {
     const tacloban = loadAirfield('tacloban')
-    const { object, setDestroyed, update } = createAirfield(field, tacloban)
+    const { object, sync, update } = createAirfield(field, tacloban)
     const id = tacloban.buildings[0]!.id
-    setDestroyed(id)
+    sync({ [id]: destroyedAt(1) })
     const smoke = object.getObjectByName(`structure:${id}`)!.getObjectByName('smoke')!
     expect(smoke.visible).toBe(true)
     update(90) // past the 60 s collapse-smoke lifetime
@@ -118,9 +130,37 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
 
   it("opens Dulag's structures too, not just Tacloban's", () => {
     const dulag = loadAirfield('dulag')
-    const { object, setDestroyed } = createAirfield(field, dulag)
+    const { object, sync } = createAirfield(field, dulag)
     const id = dulag.buildings[0]!.id
     expect(object.getObjectByName(`structure:${id}`)).toBeDefined()
-    expect(() => setDestroyed(id)).not.toThrow()
+    expect(() => sync({ [id]: destroyedAt(1) })).not.toThrow()
+  })
+
+  it('a destroyed building reverts to intact when sync is called again with fresh, healthy structure state -- the Restart path', () => {
+    // The regression test for the bug this fix closes: `main.ts` calls
+    // `setDamage` on ships unconditionally every frame off CURRENT combat
+    // state, so Restart's fresh world (healthyShipDamage, sinkingFraction 0)
+    // naturally un-sinks a hull. Structures had no such path before this fix
+    // -- `setDestroyed` was a one-way latch with no counterpart, so a
+    // destroyed hangar stayed rubble forever even after Restart rebuilt a
+    // healthy `World.combat.structures`. `sync` fixes that by re-deriving
+    // every building's visuals from the CURRENT map on every call, exactly
+    // as Restart's fresh, all-healthy structures map would drive it.
+    const tacloban = loadAirfield('tacloban')
+    const { object, sync } = createAirfield(field, tacloban)
+    const id = tacloban.buildings[0]!.id
+    const group = object.getObjectByName(`structure:${id}`)!
+
+    sync({ [id]: destroyedAt(1) })
+    expect(group.getObjectByName('intact')!.visible).toBe(false)
+    expect(group.getObjectByName('collapsed')!.visible).toBe(true)
+    expect(group.getObjectByName('smoke')!.visible).toBe(true)
+
+    // Restart rebuilds `World.combat.structures` from scratch via
+    // `healthyStructureDamage`, so every id maps back to `destroyedTick: null`.
+    sync(Object.fromEntries(tacloban.buildings.map((b) => [b.id, healthyStructureDamage(b.hp)])))
+    expect(group.getObjectByName('intact')!.visible).toBe(true)
+    expect(group.getObjectByName('collapsed')!.visible).toBe(false)
+    expect(group.getObjectByName('smoke')!.visible).toBe(false)
   })
 })

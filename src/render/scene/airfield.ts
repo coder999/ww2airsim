@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { groundNoise } from '../terrain/surface.js'
 import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
+import type { StructureDamage } from '../../sim/weapons/structures.js'
 import { createSmokeColumn } from '../ordnance.js'
 
 /** How long a collapsed building's smoke column fades over, seconds (spec
@@ -13,19 +14,35 @@ import { createSmokeColumn } from '../ordnance.js'
  *  longer than the bomb that razed it flashes. */
 const COLLAPSE_SMOKE_LIFETIME_S = 60
 
-/** What `createAirfield` hands back (Plan 6b Task 8): the scene object, plus
- *  the per-structure update path Task 8 asks for -- `setDestroyed`-shaped,
- *  following `ship.ts`'s own `setDamage` precedent (an id/value in, a mutation
- *  of already-built meshes, no rebuild). */
+/** What `createAirfield` hands back (Plan 6b Task 8, fixed post-Task-8): the
+ *  scene object, plus the per-structure update path -- following `ship.ts`'s
+ *  own `setDamage` precedent of a per-frame VIEW of current `World.combat`
+ *  state, not a one-way latch. The original Task 8 shape was a one-shot
+ *  `setDestroyed(id)` called only for currently-destroyed ids, which meant a
+ *  building never had a path back to intact -- Restart rebuilds a fresh
+ *  `World.combat.structures` (`destroyedTick: null` for everyone) but
+ *  nothing in the frame loop ever asked this handle to reflect that, so a
+ *  destroyed hangar stayed collapsed rubble forever even once the sim
+ *  itself reported it healthy again. `sync` replaces that: it is handed the
+ *  CURRENT damage state for every structure every frame (mirroring
+ *  `shipHandles[i].setDamage`, which already gets `World.combat.ships` every
+ *  frame unconditionally) and sets each owned building's visuals from
+ *  scratch each call, so reverting to intact needs no special case. */
 export type AirfieldHandle = {
   readonly object: Group
-  /** Swaps building `id`'s intact geometry for its collapsed rubble and starts
-   *  its smoke column. A silent no-op for an id this airfield does not own
-   *  (a structure belongs to exactly one airfield; `main.ts` calls this on
-   *  every airfield for every destroyed structure rather than tracking which
-   *  owns which). Idempotent: calling it again on an already-collapsed
-   *  building does not restart the smoke column. */
-  setDestroyed(id: string): void
+  /** Sets every building this airfield owns to intact or collapsed from the
+   *  CURRENT `structureDamage` map, every call -- not just on a rising edge
+   *  to destroyed. A silent no-op for ids this airfield does not own (a
+   *  structure belongs to exactly one airfield; `main.ts` calls this on
+   *  every airfield with the full map rather than tracking which owns
+   *  which). Idempotent in both directions: repeating the same destroyed or
+   *  the same healthy state does not restart the smoke column or re-hide an
+   *  already-hidden one. Forward (destroyed) keeps the existing 60 s smoke
+   *  fade, started once on the transition into collapsed; backward (only
+   *  reachable via Restart, since nothing else heals a structure) hides the
+   *  collapsed geometry and smoke immediately -- Restart is a hard reset,
+   *  not an animation. */
+  sync(structureDamage: Readonly<Record<string, StructureDamage>>): void
   /** Ages every collapsed building's smoke column by one frame. */
   update(dtSeconds: number): void
 }
@@ -154,8 +171,8 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   //
   // Takes a COLLECTOR now (Task 8), not the airfield-wide `shared` one
   // implicitly: a content `buildings` entry is a strike target
-  // (`World.structures`), and `setDestroyed` has to hide exactly the one
-  // building that was hit without touching its neighbours -- impossible once
+  // (`World.structures`), and `sync` has to hide exactly the one building
+  // that was hit without touching its neighbours -- impossible once
   // `batched()` has merged every building of the same material into one
   // mesh. Huts, never a strike target, still go through `shared` below. It
   // returns the building's ground height so the caller can place the
@@ -239,7 +256,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   // built for it), `collapsed` (a low broken box, hidden until destroyed,
   // sharing this file's own `concrete` weathered material rather than a new
   // one), and `smoke` (`ordnance.ts`'s `createSmokeColumn`, reused rather
-  // than reimplemented). `structures` is the lookup `setDestroyed` uses.
+  // than reimplemented). `structures` is the lookup `sync` uses.
   const structures = new Map<string, {
     readonly intact: Object3D
     readonly collapsed: Object3D
@@ -289,12 +306,15 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     object.traverse((o) => { o.receiveShadow = true })
     return {
       object,
-      setDestroyed(id: string): void {
-        const s = structures.get(id)
-        if (s === undefined || s.collapsed.visible) return // not ours, or already collapsed
-        s.intact.visible = false
-        s.collapsed.visible = true
-        s.smoke.start(COLLAPSE_SMOKE_LIFETIME_S)
+      sync(structureDamage: Readonly<Record<string, StructureDamage>>): void {
+        for (const [id, s] of structures) {
+          const destroyed = (structureDamage[id]?.destroyedTick ?? null) !== null
+          if (destroyed === s.collapsed.visible) continue // already in the right state
+          s.intact.visible = !destroyed
+          s.collapsed.visible = destroyed
+          if (destroyed) s.smoke.start(COLLAPSE_SMOKE_LIFETIME_S)
+          else s.smoke.object.visible = false // Restart is a hard reset, not a fade-out
+        }
       },
       update(dtSeconds: number): void {
         for (const s of structures.values()) s.smoke.update(dtSeconds)

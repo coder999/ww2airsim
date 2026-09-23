@@ -331,8 +331,8 @@ async function boot(): Promise<void> {
           }
         }),
       // Plan 6b Task 8: the render-side twin of `ships` above, for the same
-      // reason -- `airfield.ts`'s `setDestroyed` has no externally observable
-      // signal besides this once a building collapses.
+      // reason -- `airfield.ts`'s `sync` has no externally observable signal
+      // besides this once a building collapses (or reverts on Restart).
       structures: () =>
         (frame?.world.combat.structures ? Object.entries(frame.world.combat.structures) : []).map(([id, d]) => ({ id, hp: d.hp })),
       aircraft: () =>
@@ -1136,17 +1136,16 @@ async function boot(): Promise<void> {
       const damage = current.world.combat.ships[s.id]
       if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
     })
-    // Structures: unlike the sinking/burning ships above, `setDestroyed` is
-    // idempotent (airfield.ts's own doc comment) and called unconditionally
-    // for every currently-destroyed id rather than edge-detected, so it
-    // self-corrects every frame with no restart-memory of its own to get
-    // wrong -- the same reason `shipHandles[i].setDamage` needs none. Every
-    // airfield handle is asked about every id rather than tracking which
-    // airfield owns which structure; a handle that does not own `id` is a
-    // documented no-op.
-    for (const [id, damage] of Object.entries(current.world.combat.structures)) {
-      if (damage.destroyedTick !== null) for (const h of airfieldHandles) h.setDestroyed(id)
-    }
+    // Structures: like the sinking/burning ships above, `sync` is handed the
+    // CURRENT `World.combat.structures` map unconditionally every frame
+    // (airfield.ts's own doc comment on `AirfieldHandle.sync`) rather than
+    // edge-detected on destruction only -- a prior version called
+    // `setDestroyed` just for currently-destroyed ids, which had no path
+    // back to intact and left a Restart's fresh, healthy structures stuck
+    // showing collapsed rubble. Every airfield handle sees the whole map
+    // rather than tracking which airfield owns which structure; a handle
+    // ignores ids it does not own.
+    for (const h of airfieldHandles) h.sync(current.world.combat.structures)
     for (const h of airfieldHandles) h.update(frameMs / 1000)
 
     // Raised once per contact -- `shownImpactTick` is the guard, since the
