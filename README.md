@@ -65,12 +65,13 @@ before there is anybody to shoot at; plan numbers were deliberately NOT
 reused, for the reason the next paragraph records. **Master spec §15 holds the
 order and the argument for it**, and this paragraph does not restate either.
 
-**Plan 6 is in progress:** the playable gunnery slice landed 2026-09-19. Space
+**Plan 6 combat and damage is complete for the current F6F:** the playable
+gunnery slice landed 2026-09-19. Space
 fires the Hellcat's six guns with real flight time and finite ammunition,
 rounds hit other airplanes' hit zones and damage their structure and systems,
 and `?scenario=gunnery-range` parks two training targets downrange at
 Tacloban. Tracers, hit flashes, engine smoke, a combat readout and gun audio
-read that state. Bombs, rockets, torpedoes, ship damage and AI remain; the
+read that state. The
 [handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
 and master spec §15 holds the status.
 
@@ -78,9 +79,20 @@ and master spec §15 holds the status.
 loadout picker, stores hung under the wings, ship and airfield-structure
 damage. Tier 1 is green and reference-GPU Tier 2 acceptance passes all five
 strike cases at 1.758 ms p95 at 1440p. Torpedoes and structural-overload
-damage still remain; see the
+damage were the remaining Plan 6 items at that handoff; see the
 [handoff](docs/handoff/2026-09-22-plan6b-strike.md) for what was actually
 measured and what is still open, and master spec §15 for the status.
+
+**Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
+derives proper load from consecutive aircraft states and airspeed from the wind
+frame. Exceeding the F6F content limits continuously damages structure, with
+`OVER-G` and `OVERSPEED` warnings, current and peak DEV diagnostics, and a
+destruction debrief that reaches Restart. Tier 1 is green and the reference-GPU
+flight measured 10.82 g, 220.19 m/s, and a 1.301 ms render-pass p95 at 1440p
+with zero validation errors. Torpedoes are deferred until a second,
+historically appropriate airframe exists; they do not block Plan 7 AI, now the
+next implementable phase. See the
+[handoff](docs/handoff/2026-09-23-plan6c-structural-overload.md).
 
 **A title screen landed 2026-09-19**, the first slice of Plan 9 ahead of the
 rest of it: Mark's title art with **New game** and **About project**. The
