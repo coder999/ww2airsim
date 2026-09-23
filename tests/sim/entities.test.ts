@@ -58,6 +58,15 @@ describe('createWorldOf', () => {
     expect(() => createWorldOf({ aircraft: [flying('a')], player: 'b' })).toThrow(/player.*"b"/)
   })
 
+  it('rejects a pilot target that is missing or is the pilot itself', () => {
+    expect(() => createWorldOf({
+      aircraft: [{ ...flying('a'), pilot: { target: 'missing' } }], player: 'a',
+    })).toThrow(/pilot "a" targets missing aircraft "missing"/)
+    expect(() => createWorldOf({
+      aircraft: [{ ...flying('a'), pilot: { target: 'a' } }], player: 'a',
+    })).toThrow(/pilot "a" cannot target itself/)
+  })
+
   it('rejects an entity that is not at tick 0, which the world clock would rewind', () => {
     // `advance` steps every entity from `world.tick`, not from the entity's
     // own tick, so an already-stepped entity in a fresh (tick 0) world would
@@ -84,6 +93,53 @@ describe('createWorldOf', () => {
     const w3 = withAircraftState(w, 'a', s)
     expect(aircraftById(w3, 'a')!.state).toBe(s)
     expect(aircraftById(w3, 'a')!.previous).toBe(s)
+  })
+})
+
+describe('AI pilots in the fixed-step world', () => {
+  const pursuitWorld = (reversed = false) => {
+    const pilotState = createState({ position: v3(0, 2000, 0), velocity: v3(100, 0, 0) })
+    const targetState = createState({ position: v3(900, 2100, 250), velocity: v3(110, 0, 15) })
+    const pilot = {
+      ...flying('pilot'), state: pilotState, previous: pilotState,
+      pilot: { target: 'target' },
+    }
+    const target = { ...flying('target'), state: targetState, previous: targetState }
+    return createWorldOf({
+      aircraft: reversed ? [target, pilot] : [pilot, target],
+      player: 'pilot',
+    })
+  }
+
+  it('lets the fixed-tick pilot fly the player seat and recomputes its controls', () => {
+    const first = advance(pursuitWorld(), DT).world
+    const firstPilot = playerAircraft(first)
+    expect(firstPilot.controls.roll).toBeGreaterThan(0)
+    expect(firstPilot.controls.pitch).toBeGreaterThan(0)
+    expect(firstPilot.state.attitude).not.toEqual(flying('pilot').state.attitude)
+
+    const second = advance(first, DT).world
+    expect(playerAircraft(second).controls).not.toEqual(firstPilot.controls)
+  })
+
+  it('is invariant to aircraft array order because every pilot reads the same tick snapshot', () => {
+    const run = (world: ReturnType<typeof pursuitWorld>) => {
+      for (let i = 0; i < 24; i++) world = advance(world, DT * 5).world
+      return world
+    }
+    const normal = run(pursuitWorld())
+    const reversed = run(pursuitWorld(true))
+    for (const id of ['pilot', 'target']) {
+      expect(aircraftById(reversed, id)!.state).toEqual(aircraftById(normal, id)!.state)
+      expect(aircraftById(reversed, id)!.controls).toEqual(aircraftById(normal, id)!.controls)
+    }
+  })
+
+  it('survives structuredClone and continues deterministically with its assignment', () => {
+    const world = advance(pursuitWorld(), DT * 5).world
+    const cloned = structuredClone(world)
+    expect(playerAircraft(cloned).pilot).toEqual({ target: 'target' })
+    expect(advance(cloned, DT * 5).world).toEqual(advance(world, DT * 5).world)
   })
 })
 

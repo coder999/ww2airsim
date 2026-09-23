@@ -15,6 +15,7 @@ import type { Deck } from './world/deck.js'
 import { decksOf } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
 import { buildStructures, type StructureEntity } from './weapons/structures.js'
+import { pursuitControls, type PilotAssignment } from './ai/pursuit.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -326,6 +327,12 @@ export interface AircraftEntity<M = undefined> {
    * placeholder altitude.
    */
   readonly parked: boolean
+  /**
+   * Static Plan 7 pilot assignment. Its target is resolved from the common
+   * start-of-tick aircraft snapshot before any entity moves; absent means the
+   * caller-owned `controls` remain authoritative.
+   */
+  readonly pilot?: PilotAssignment | null
 }
 
 /** A ship: kinematics on a waypoint loop, no aerodynamics, no impact. Steps
@@ -528,6 +535,15 @@ export function createWorldOf<M>(parts: {
   }
   if (!parts.aircraft.some((a) => a.id === parts.player)) {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
+  }
+  for (const a of parts.aircraft) {
+    if (a.pilot == null) continue
+    if (a.pilot.target === a.id) {
+      throw new Error(`createWorldOf: pilot "${a.id}" cannot target itself`)
+    }
+    if (!parts.aircraft.some((candidate) => candidate.id === a.pilot!.target)) {
+      throw new Error(`createWorldOf: pilot "${a.id}" targets missing aircraft "${a.pilot.target}"`)
+    }
   }
   const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)
   const enemyAirfields = parts.enemyAirfields ?? []
@@ -781,7 +797,24 @@ export function advance<M>(
       const rec = combat.aircraft[a.id]!
       return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT) }]
     })) }
-    aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage, combat.aircraft[a.id]!.stores))
+    // Every AI reads this SAME start-of-tick array. Commands are derived before
+    // any aircraft is stepped, so reversing the entity array cannot let one
+    // pilot see another aircraft one tick into the future (entities design §3).
+    const aircraftAtStart = aircraft
+    aircraft = aircraftAtStart.map((a) => {
+      const record = combat.aircraft[a.id]!
+      let commanded = a
+      if (a.pilot != null && a.impact === null && record.damage.destroyedAt === null) {
+        const target = aircraftAtStart.find((candidate) => candidate.id === a.pilot!.target)
+        // `createWorldOf` rejects this state. The guard keeps a manually edited
+        // or future entity-removing world finite instead of fabricating a target.
+        if (target !== undefined) commanded = { ...a, controls: pursuitControls(a, target) }
+      }
+      return stepAircraftEntity(
+        commanded, tick, world.terrain, world.wind, decks, stepper, assist,
+        record.damage, record.stores,
+      )
+    })
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds)
     // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
     // them once per RENDERED frame, but this loop can run up to
