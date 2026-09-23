@@ -1,0 +1,13 @@
+{
+  "id": "strike-range",
+  "player": "f6f-1",
+  "airfields": ["tacloban", "dulag"],
+  "enemyAirfields": ["dulag"],
+  "aircraft": [
+    { "id": "f6f-1", "spec": "f6f-hellcat", "parkedAt": { "airfield": "tacloban", "spot": "runwayCenter" }, "chocked": false }
+  ],
+  "ships": [
+    { "id": "maru-1", "spec": "type-b-maru", "waypoints": [[-25629, -16479]], "speedMps": 0 }
+  ],
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 14 }
+}

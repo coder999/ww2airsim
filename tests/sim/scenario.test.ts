@@ -11,6 +11,7 @@ import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../.
 import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
+import { emptyStores } from '../../src/sim/weapons/stores.js'
 
 const bundle = loadScenarioBundle('free-flight')
 const header = loadTerrainHeader()
@@ -215,5 +216,51 @@ describe('time of day (Plan 16c)', () => {
     expect(loadScenario('free-flight').weather.timeOfDay).toBe(10)
     expect(loadScenario('deck-quals').weather.timeOfDay).toBe(16.5)
     expect(loadScenario('gunnery-range').weather.timeOfDay).toBe(12)
+  })
+})
+
+describe('the zero-speed ship and enemyAirfields (Plan 6b)', () => {
+  const raw = JSON.parse(JSON.stringify(bundle.scenario)) as Record<string, unknown>
+
+  it('rejects a zero-speed ship with fewer than one waypoint, accepts one for zero speed, requires two above zero', () => {
+    expect(() => parseScenario({ ...raw, ships: [{ id: 's', spec: 'fletcher-dd', waypoints: [], speedMps: 0 }] })).toThrow(/waypoints/)
+    expect(() => parseScenario({ ...raw, ships: [{ id: 's', spec: 'fletcher-dd', waypoints: [[0, 0]], speedMps: 0 }] })).not.toThrow()
+    expect(() => parseScenario({ ...raw, ships: [{ id: 's', spec: 'fletcher-dd', waypoints: [[0, 0]], speedMps: 5 }] })).toThrow(/waypoints/)
+  })
+
+  it('enemyAirfields must be a subset of airfields', () => {
+    expect(() => parseScenario({ ...raw, enemyAirfields: ['nonexistent'] })).toThrow(/enemyAirfields/)
+    expect(() => parseScenario({ ...raw, airfields: ['tacloban', 'dulag'], enemyAirfields: ['dulag'] })).not.toThrow()
+  })
+})
+
+describe('the strike-range scenario: loadout and a single-waypoint anchored ship (Plan 6b)', () => {
+  it('worldFromScenario seeds stores from the loadout argument, clean when omitted', () => {
+    const strike = loadScenarioBundle('strike-range')
+    const clean = worldFromScenario(strike, null)
+    expect(clean.combat.aircraft[clean.player]!.stores).toEqual(emptyStores)
+    const armed = worldFromScenario(strike, null, 'both')
+    expect(armed.combat.aircraft[armed.player]!.stores.bombs).toBeGreaterThan(0)
+  })
+
+  it('a single-waypoint anchored ship builds without reading a second waypoint', () => {
+    const strike = loadScenarioBundle('strike-range')
+    expect(() => worldFromScenario(strike, null)).not.toThrow()
+  })
+
+  it('the maru is anchored (zero speed) about 6 km east of Dulag, over water', () => {
+    const strike = loadScenarioBundle('strike-range')
+    const w = worldFromScenario(strike, null)
+    const maru = w.ships.find((s) => s.id === 'maru-1')!
+    expect(maru.state.speedMps).toBe(0)
+    const dulag = strike.airfields['dulag']!
+    const km = Math.hypot(maru.state.position.x - dulag.runway.center.x, maru.state.position.z - dulag.runway.center.z) / 1000
+    expect(km).toBeGreaterThan(5)
+    expect(km).toBeLessThan(7)
+  })
+
+  it('the maru loop passes assertLoopOverWater on the real terrain', () => {
+    const strike = loadScenarioBundle('strike-range')
+    expect(() => worldFromScenario(strike, terrain)).not.toThrow()
   })
 })

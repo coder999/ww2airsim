@@ -490,6 +490,11 @@ export function createWorldOf<M>(parts: {
   readonly airfields?: readonly Airfield[]
   readonly terrain?: TerrainField | null
   readonly wind?: Vec3 | null
+  /** Per-aircraft starting stores, by id (Task 7). An aircraft with no entry
+   *  here gets `emptyStores`, matching every call site's behavior before
+   *  this parameter existed -- `worldFromScenario` is the only caller that
+   *  ever passes a non-empty entry, and only for the scenario's player. */
+  readonly stores?: Readonly<Record<string, StoresState>>
 }): World<M> {
   const ships = parts.ships ?? []
   const seen = new Set<EntityId>()
@@ -515,10 +520,12 @@ export function createWorldOf<M>(parts: {
     tick: 0,
     combat: createCombat(
       parts.aircraft,
-      // Every aircraft starts with no stores until Task 7 threads the real
-      // per-aircraft loadout through `worldFromScenario`'s new `loadout`
-      // parameter; this line is what it replaces.
-      Object.fromEntries(parts.aircraft.map(a => [a.id, emptyStores])),
+      // Task 7: the real per-aircraft loadout, threaded from
+      // `worldFromScenario`'s `loadout` parameter through `parts.stores`.
+      // An aircraft with no entry (every call site that predates Task 7,
+      // and every non-player aircraft `worldFromScenario` builds) gets
+      // `emptyStores`, exactly what this line always returned before.
+      Object.fromEntries(parts.aircraft.map(a => [a.id, parts.stores?.[a.id] ?? emptyStores])),
       ships.map(s => ({ id: s.id, hullHp: s.spec.hullHp })),
       structures.map(s => ({ id: s.id, hp: s.hp })),
     ),

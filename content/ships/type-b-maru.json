@@ -1,0 +1,15 @@
+{
+  "id": "type-b-maru",
+  "name": "Wartime Standard Type B cargo ship",
+  "role": "merchant",
+  "lengthM": 112.0,
+  "beamM": 15.8,
+  "deckWidthM": 15.8,
+  "deckHeightM": 6,
+  "maxSpeedMps": 6.2,
+  "turnRateRadPerS": 0.02,
+  "hullHp": 240,
+  "reference": {
+    "source": "lengthM, beamM from the English Wikipedia article 'Japanese cargo ship Mimasaka Maru (1944)', one of 18 Wartime Standard Type B ships laid down 1943-44: 4,667 GRT, 112.00 m, 15.80 m beam, 9.10 m draught, read 2026-09-20. deckHeightM (6 m) is the escort's figure reused as an ESTIMATE; freeboard is not sourced. maxSpeedMps (12 kn) and turnRateRadPerS are ESTIMATES for the class. hullHp (240 = two bombs, six rockets, or one bomb and three rockets) is a gameplay choice (Plan 6b)."
+  }
+}

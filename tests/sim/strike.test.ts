@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { add, length, sub, v3, ZERO, type Vec3 } from '../../src/sim/math/vec3.js'
@@ -34,7 +34,11 @@ const air = (id: string, position: Vec3, velocity: Vec3 = ZERO, controls: Contro
   return { id, spec, state, previous: state, controls, impact: null }
 }
 
-const MARU = { lengthM: 112, beamM: 15.8, deckHeightM: 6, hullHp: 240, role: 'merchant' as const }
+// The real content (Task 7), not an inline stand-in: this pins the fixture's
+// numbers to whatever `content/ships/type-b-maru.json` actually says, so a
+// content edit that changes the maru's hull points or dimensions is caught
+// here rather than silently diverging from the shipped ship.
+const MARU = loadShipSpec('type-b-maru')
 const maru = (id: string, position: Vec3, headingRad = 0): CombatShip =>
   ({ id, spec: MARU, state: { position, headingRad }, previous: { position, headingRad } })
 
