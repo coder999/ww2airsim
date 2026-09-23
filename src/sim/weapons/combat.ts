@@ -36,6 +36,13 @@ export type AircraftCombat = {
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
+  /** Cumulative, never falling -- what the release audio cue follows
+   *  (Plan 6b Task 10). `stores` cannot serve that purpose: it FALLS as
+   *  ordnance leaves the racks/rails, so a rise on it is a refill, not a
+   *  release. `rocketsFired` counts individual rockets, matching the
+   *  `stores.rockets` decrement exactly -- a release can be a pair. */
+  readonly bombsDropped: number
+  readonly rocketsFired: number
 }
 export type Projectile = {
   readonly owner: string; readonly id: number; readonly position: Vec3; readonly previous: Vec3
@@ -72,6 +79,7 @@ export function createCombat(
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), shots: 0, hits: 0, kills: 0, lastHit: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
+      bombsDropped: 0, rocketsFired: 0,
     }])),
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
@@ -417,16 +425,25 @@ export function stepCombat(
     let stores = rec.stores
     // Sequential, not batched: each release reads the cursor and the counts
     // the one before it left, so V and E in the same tick cost two draws.
-    const emit = (release: Release | null): void => {
-      if (release === null || release.projectiles.length === 0) return
-      if (flying.length + release.projectiles.length > MAX_PROJECTILES) { poolSaturated++; return }
+    // `emit` returns the number of projectiles actually queued (0 on a
+    // no-op or a pool-saturated refusal), which is exactly what `stores`
+    // is decremented by -- so the two cumulative counters below rise in
+    // lockstep with it, never independently of it (Plan 6b Task 10).
+    const emit = (release: Release | null): number => {
+      if (release === null || release.projectiles.length === 0) return 0
+      if (flying.length + release.projectiles.length > MAX_PROJECTILES) { poolSaturated++; return 0 }
       rngState = release.rngState
       stores = release.stores
       for (const p of release.projectiles) flying.push({ p: { ...p, id: nextId++ }, dt, start: 0 })
+      return release.projectiles.length
     }
-    if (wantsBomb) emit(releaseBomb(a, stores, rngState))
-    if (wantsRockets) emit(releaseRockets(a, combat, stores, rngState))
-    records[a.id] = { ...rec, stores }
+    const bombsThisTick = wantsBomb ? emit(releaseBomb(a, stores, rngState)) : 0
+    const rocketsThisTick = wantsRockets ? emit(releaseRockets(a, combat, stores, rngState)) : 0
+    records[a.id] = {
+      ...rec, stores,
+      bombsDropped: rec.bombsDropped + bombsThisTick,
+      rocketsFired: rec.rocketsFired + rocketsThisTick,
+    }
   }
 
   for (const a of aircraft) {

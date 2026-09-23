@@ -11,11 +11,34 @@ US Copyright Office holds that purely AI-generated work is not itself
 copyrightable, so these files carry no exclusive rights the project could
 enforce against reuse; that limits what others owe us, not what we may ship.
 
-The six files are shipped as-is. `bombs_away.wav` and `machinegun.wav` are
-committed but not wired to anything until combat exists.
+The six files are shipped as-is. `bombs_away.wav` is now wired to the bomb
+release cue (Plan 6b Task 10); `machinegun.wav` was wired in Plan 6.
 
 **Not re-encoded.** Loop points are set in code via
 `AudioBufferSourceNode.loopStart`/`loopEnd` rather than by trimming these
 binaries -- Mark's ruling 2026-09-18, and neither ffmpeg nor sox is installed
 on the build host. If a byte count in `ASSETS.md` ever changes, something
 re-encoded a committed asset and that is a defect, not an optimization.
+
+## `rocket_whoosh.wav` is a PLACEHOLDER (added 2026-09-22, Plan 6b Task 10)
+
+Unlike the six Firefly recordings above, `rocket_whoosh.wav` is **not** a
+sourced asset at all: no rocket-motor recording exists yet for this project.
+It is generated purely in code by `tools/audio/synthesizeRocketWhoosh.ts`
+(filtered, seeded white noise under an attack/decay envelope — a short
+rushing-air burst, not a recorded motor), which is why it sounds like a
+synthesized beep-ish whoosh rather than a real rocket. This keeps the release
+cue fully wired and testable now, with clean, unambiguous provenance (see
+`ASSETS.md`'s procedural-texture entries for the same pattern applied to
+audio) instead of leaving the feature half-wired or fabricating numbers for a
+file that does not exist.
+
+**Swap it for a real recording whenever Mark supplies one:** drop the new file
+in at the same path (`content/audio/rocket_whoosh.wav`), then re-measure and
+update `bytes`/`peakFullScale` in `src/audio/assets.ts`'s `AUDIO_ASSETS` table
+(`tests/audio/assets.test.ts` will fail loudly if they are left stale). No
+change is needed to `src/audio/cues.ts`, `src/render/audio.ts`, or the audio
+system itself — they all read the file generically by `ClipId`, same as the
+other six. Once swapped, delete this section and add a row above matching the
+Adobe Firefly ones, and remove the corresponding placeholder row/paragraph in
+`ASSETS.md`.

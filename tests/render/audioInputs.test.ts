@@ -139,3 +139,26 @@ it("carries the player's shot count from World.combat, which is what the gun cue
   }
   expect(audioInputsFrom(fired).shots).toBe(42)
 })
+
+it('carries the cumulative bombsDropped/rocketsFired counts, not the falling stores count (Plan 6b Task 10)', () => {
+  const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+  expect(audioInputsFrom(frame).bombsDropped).toBe(0)
+  expect(audioInputsFrom(frame).rocketsFired).toBe(0)
+  const rec = frame.world.combat.aircraft[frame.world.player]!
+  // `stores` FALLS as ordnance leaves the racks/rails, so it cannot be what
+  // the release cue follows -- only a count that only ever rises can be an
+  // edge. This sets `stores` down and the new cumulative fields up, so a
+  // wiring mistake that read `stores` instead would read the wrong number.
+  const fired = {
+    ...frame,
+    world: {
+      ...frame.world,
+      combat: {
+        ...frame.world.combat,
+        aircraft: { [frame.world.player]: { ...rec, stores: { bombs: 0, rockets: 0 }, bombsDropped: 3, rocketsFired: 7 } },
+      },
+    },
+  }
+  expect(audioInputsFrom(fired).bombsDropped).toBe(3)
+  expect(audioInputsFrom(fired).rocketsFired).toBe(7)
+})

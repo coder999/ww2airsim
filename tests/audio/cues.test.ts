@@ -3,6 +3,7 @@ import { GUN_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, nextAudio, type AudioInputs } 
 
 const flying: AudioInputs = {
   throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 100, shots: 0,
+  bombsDropped: 0, rocketsFired: 0,
 }
 const hit = (surface: 'water' | 'land', kind: 'ditched' | 'destroyed', over: AudioInputs = flying): AudioInputs =>
   ({ ...over, engineRunning: false, throttle: 0, impact: { tick: 4102, kind, surface } })
@@ -178,5 +179,63 @@ describe('gun audio follows the shot count (Plan 6)', () => {
     // ...and the first burst of the new flight fires even though the old
     // flight's interval had not elapsed at tick 50 + 72.
     expect(nextAudio(respawn.memory, firing(1, 6)).cues).toEqual(['machinegun'])
+  })
+})
+
+describe('release audio follows cumulative bomb/rocket counts, with NO cooldown gate (Plan 6b Task 10)', () => {
+  // Unlike gunfire, a bomb or rocket release is already edge-triggered once
+  // per key-down at the sim level (Task 4/6's `dropBomb`/`fireRockets`), so
+  // this cue needs no `GUN_CUE_INTERVAL_TICKS`-style debounce: it is a bare
+  // rising-edge check on the cumulative count.
+  const releasing = (tick: number, bombsDropped: number, rocketsFired: number): AudioInputs =>
+    ({ ...flying, tick, bombsDropped, rocketsFired })
+
+  it('cues bombs_away and rocket_whoosh exactly once per rising edge, and stays silent while flat', () => {
+    const quiet = nextAudio(NO_AUDIO_MEMORY, releasing(101, 0, 0))
+    expect(quiet.cues).toEqual([])
+    const bomb = nextAudio(quiet.memory, releasing(102, 1, 0))
+    expect(bomb.cues).toEqual(['bombs_away'])
+    const flatBomb = nextAudio(bomb.memory, releasing(103, 1, 0))
+    expect(flatBomb.cues).toEqual([])
+    const rocket = nextAudio(flatBomb.memory, releasing(104, 1, 2))
+    expect(rocket.cues).toEqual(['rocket_whoosh'])
+    const flatRocket = nextAudio(rocket.memory, releasing(105, 1, 2))
+    expect(flatRocket.cues).toEqual([])
+  })
+
+  it('cues both together when a bomb and a rocket salvo release on the same tick', () => {
+    const both = nextAudio(NO_AUDIO_MEMORY, releasing(1, 1, 2))
+    expect(both.cues).toEqual(['bombs_away', 'rocket_whoosh'])
+  })
+
+  it('has NO cooldown gate: every consecutive rising tick cues, unlike the machinegun', () => {
+    let m = NO_AUDIO_MEMORY
+    const fired: string[] = []
+    for (let tick = 1; tick <= 5; tick++) {
+      const f = nextAudio(m, releasing(tick, tick, 0))
+      m = f.memory
+      fired.push(...f.cues)
+    }
+    // Five consecutive rising ticks, five cues -- no interval gap suppresses
+    // any of them, which is exactly what the machinegun's own interval WOULD
+    // suppress at this spacing.
+    expect(fired).toEqual(['bombs_away', 'bombs_away', 'bombs_away', 'bombs_away', 'bombs_away'])
+  })
+
+  it('replays nothing on a paused or repeated frame, and hears the new flight after a restart', () => {
+    let m = nextAudio(NO_AUDIO_MEMORY, releasing(50, 2, 4)).memory
+    // Paused: the same tick and the same counts, sixty times.
+    for (let i = 0; i < 60; i++) {
+      const f = nextAudio(m, releasing(50, 2, 4))
+      expect(f.cues).toEqual([])
+      m = f.memory
+    }
+    // Restart: the tick goes backwards and the counts are rebuilt at zero,
+    // matching the `shots`/`machinegun` restart-safety rule exactly.
+    const respawn = nextAudio(m, releasing(0, 0, 0))
+    expect(respawn.cues).toEqual([])
+    // ...and the new flight's own first release is heard even though the old
+    // flight's counts were already higher than this one's first rise.
+    expect(nextAudio(respawn.memory, releasing(1, 1, 0)).cues).toEqual(['bombs_away'])
   })
 })

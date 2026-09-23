@@ -56,6 +56,14 @@ export type AudioInputs = {
    * repeatedly-rendered frame leaves the count flat, so it replays nothing.
    */
   readonly shots: number
+  /**
+   * The player's cumulative bomb/rocket release counts (`World.combat`,
+   * Plan 6b Task 6/10). Like `shots`, these follow a count that only ever
+   * RISES -- never `stores`, which falls as ordnance leaves the racks/rails
+   * and would read a release cue backwards.
+   */
+  readonly bombsDropped: number
+  readonly rocketsFired: number
 }
 
 export type AudioMemory = {
@@ -67,10 +75,16 @@ export type AudioMemory = {
   /** The tick before which no further gun cue is due: a burst clip already
    *  covers the interval. 0 means one may fire on the next rising count. */
   readonly gunCueUntilTick: number
+  /** The bomb/rocket counts last seen (Plan 6b Task 10), so each cue is its
+   *  own rising edge with no interval gate -- a release is already
+   *  edge-triggered once per key-down at the sim level. */
+  readonly lastBombsDropped: number
+  readonly lastRocketsFired: number
 }
 
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
+  lastBombsDropped: 0, lastRocketsFired: 0,
 }
 
 /**
@@ -137,8 +151,21 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     gunCueUntilTick = inputs.tick + GUN_CUE_INTERVAL_TICKS
   }
 
+  // Bomb/rocket release (Plan 6b Task 10). A bare rising edge on each
+  // cumulative count, deliberately WITHOUT the gunfire block's interval
+  // gate: `dropBomb`/`fireRockets` are already edge-triggered once per
+  // key-down at the sim level (Task 4/6's `advance`), so nothing here can
+  // re-fire the same release the way held-trigger gunfire can.
+  const lastBombsDropped = restarted ? 0 : prev.lastBombsDropped
+  const lastRocketsFired = restarted ? 0 : prev.lastRocketsFired
+  if (inputs.bombsDropped > lastBombsDropped) cues.push('bombs_away')
+  if (inputs.rocketsFired > lastRocketsFired) cues.push('rocket_whoosh')
+
   return {
-    memory: { wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick, lastShots: inputs.shots, gunCueUntilTick },
+    memory: {
+      wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick, lastShots: inputs.shots, gunCueUntilTick,
+      lastBombsDropped: inputs.bombsDropped, lastRocketsFired: inputs.rocketsFired,
+    },
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already
     // gates the propeller MESH on the player's `impact === null` for the same

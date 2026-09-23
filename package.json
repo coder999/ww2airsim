@@ -20,6 +20,7 @@
     "terrain:build": "tsx tools/terrain/build.ts",
     "landcover:build": "tsx tools/landcover/build.ts",
     "sky:build": "tsx tools/sky/build.ts",
+    "audio:rocket-whoosh": "tsx tools/audio/synthesizeRocketWhoosh.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"
   },

@@ -6,6 +6,7 @@ import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '
 
 const flying: AudioInputs = {
   throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 10, shots: 0,
+  bombsDropped: 0, rocketsFired: 0,
 }
 
 describe('the audio system, driven through a fake backend (design §7.1)', () => {

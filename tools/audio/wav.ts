@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 
 /**
  * A minimal RIFF/WAVE reader for CHECKING committed files, not a general
@@ -57,4 +57,34 @@ export function readWav(path: string): Wav {
   const samples = new Int16Array(Math.floor(dataLength / 2))
   for (let i = 0; i < samples.length; i++) samples[i] = buf.readInt16LE(dataStart + i * 2)
   return { sampleRate, channels, frames: Math.floor(samples.length / channels), samples }
+}
+
+/**
+ * The write side of `readWav`, for CODE-GENERATED clips only (see
+ * `tools/audio/synthesizeRocketWhoosh.ts`): a minimal 44-byte-header
+ * RIFF/WAVE, uncompressed 16-bit PCM, `fmt ` then `data` and nothing else --
+ * no `LIST`/`XMP ` chunks, because a synthesized file carries no Adobe C2PA
+ * provenance manifest to store. `readWav`'s chunk walk does not assume that
+ * layout, so it reads this format back exactly as it reads the six
+ * Firefly-sourced files that DO carry those extra chunks.
+ */
+export function writeWav(path: string, samples: Int16Array, sampleRate: number, channels: number): void {
+  const dataLength = samples.length * 2
+  const buf = Buffer.alloc(44 + dataLength)
+  buf.write('RIFF', 0, 'ascii')
+  buf.writeUInt32LE(36 + dataLength, 4)
+  buf.write('WAVE', 8, 'ascii')
+  buf.write('fmt ', 12, 'ascii')
+  buf.writeUInt32LE(16, 16) // fmt chunk size
+  buf.writeUInt16LE(1, 20) // PCM
+  buf.writeUInt16LE(channels, 22)
+  buf.writeUInt32LE(sampleRate, 24)
+  const blockAlign = channels * 2
+  buf.writeUInt32LE(sampleRate * blockAlign, 28) // byte rate
+  buf.writeUInt16LE(blockAlign, 32)
+  buf.writeUInt16LE(16, 34) // bits per sample
+  buf.write('data', 36, 'ascii')
+  buf.writeUInt32LE(dataLength, 40)
+  for (let i = 0; i < samples.length; i++) buf.writeInt16LE(samples[i]!, 44 + i * 2)
+  writeFileSync(path, buf)
 }

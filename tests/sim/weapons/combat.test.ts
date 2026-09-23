@@ -189,6 +189,35 @@ describe('production fixed-step ordnance', () => {
     expect(next.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 4 })
   })
 
+  it('starts a fresh combat record with bombsDropped/rocketsFired at zero (Plan 6b Task 10)', () => {
+    expect(createCombat([plane('shooter', 0)]).aircraft.shooter!.bombsDropped).toBe(0)
+    expect(createCombat([plane('shooter', 0)]).aircraft.shooter!.rocketsFired).toBe(0)
+  })
+
+  it('counts bombsDropped/rocketsFired cumulatively, alongside the stores decrement (Plan 6b Task 10)', () => {
+    // Task 6 deliberately left these uncounted (its own ledger flags the
+    // gap); Task 10's audio cue needs a count that only ever RISES, unlike
+    // `stores`, which falls as ordnance leaves the racks/rails.
+    const bomb = withControls(loaded(), 'shooter', { ...controls, fire: false, dropBomb: true })
+    const afterBomb = advance(bomb, DT, still).world
+    expect(afterBomb.combat.aircraft.shooter!.bombsDropped).toBe(1)
+    expect(afterBomb.combat.aircraft.shooter!.rocketsFired).toBe(0)
+
+    // A rocket release fires a PAIR off the rails, and the counter tracks
+    // the same quantity the stores decrement does: individual rockets, not
+    // release events.
+    const salvo = withControls(loaded(), 'shooter', { ...controls, fire: false, fireRockets: true })
+    const afterSalvo = advance(salvo, DT, still).world
+    expect(afterSalvo.combat.aircraft.shooter!.bombsDropped).toBe(0)
+    expect(afterSalvo.combat.aircraft.shooter!.rocketsFired).toBe(2)
+
+    // Cumulative across ticks; a quiet frame leaves it flat.
+    const again = advance(withControls(afterBomb, 'shooter', { ...controls, fire: false, dropBomb: true }), DT, still).world
+    expect(again.combat.aircraft.shooter!.bombsDropped).toBe(2)
+    const quiet = advance(withControls(again, 'shooter', { ...controls, fire: false }), DT, still).world
+    expect(quiet.combat.aircraft.shooter!.bombsDropped).toBe(2)
+  })
+
   it('takes roundDamage off a hull a round and stops the round there', () => {
     const shooter = plane('shooter', -100)
     const ship = {

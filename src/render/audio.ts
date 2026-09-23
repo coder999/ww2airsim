@@ -54,5 +54,11 @@ export function audioInputsFrom(frame: FrameState): AudioInputs {
     // per entity -- so the lookup is total, but `?? 0` keeps a hand-built test
     // world from throwing inside the render loop.
     shots: frame.world.combat.aircraft[frame.world.player]?.shots ?? 0,
+    // Cumulative release counts (Plan 6b Task 10), NOT `stores`: that field
+    // falls as bombs/rockets leave the racks/rails, so reading it here would
+    // hand the cue reducer a count that goes the wrong way -- it needs a
+    // count that only ever rises, exactly like `shots` above.
+    bombsDropped: frame.world.combat.aircraft[frame.world.player]?.bombsDropped ?? 0,
+    rocketsFired: frame.world.combat.aircraft[frame.world.player]?.rocketsFired ?? 0,
   }
 }
