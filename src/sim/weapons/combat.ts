@@ -8,6 +8,12 @@ import { groundUnder } from '../world/ground.js'
 import type { Deck } from '../world/deck.js'
 import { onGround } from '../ground.js'
 import { healthyDamage, damageFromHit, type Damage } from '../damage/model.js'
+import {
+  damageFromStructuralOverload,
+  initialStructuralStress,
+  measureStructuralStress,
+  type StructuralStress,
+} from '../damage/overload.js'
 import { inBody, segmentBox, tupleVector } from './geometry.js'
 import type { CombatSpec, DamageSystem } from './schema.js'
 import { emptyStores, type StoresState } from './stores.js'
@@ -31,6 +37,7 @@ export type CombatShip = {
 export type AircraftCombat = {
   readonly guns: readonly GunState[]
   readonly damage: Damage
+  readonly stress: StructuralStress
   readonly shots: number; readonly hits: number; readonly kills: number
   readonly lastHit: { readonly tick: number; readonly position: Vec3 } | null
   readonly stores: StoresState
@@ -77,7 +84,8 @@ export function createCombat(
   return {
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
-      damage: healthyDamage(), shots: 0, hits: 0, kills: 0, lastHit: null,
+      damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
+      shots: 0, hits: 0, kills: 0, lastHit: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
@@ -414,7 +422,21 @@ export function stepCombat(
     before.projectiles.map(p => ({ p, dt: Math.min(dt, p.lifeS), start: 0 }))
   let nextId = before.nextId, rngState = before.rngState, poolSaturated = before.poolSaturated
 
-  // Releases first, so a tick's ordnance and its rounds leave together and
+  // Structural failure resolves before releases and gunfire. A plane whose
+  // airframe reaches zero this tick cannot emit a weapon on the same tick.
+  // Ground-contact correction can be violent, so a crashed aircraft records
+  // telemetry but takes no further overload damage from it.
+  for (const a of aircraft) {
+    const rec = records[a.id]
+    if (rec === undefined) continue
+    const stress = measureStructuralStress(a.previous, a.state, wind, a.spec.limits, dt, rec.stress)
+    const damage = a.impact === null
+      ? damageFromStructuralOverload(rec.damage, stress, a.spec.limits, tick, dt)
+      : rec.damage
+    records[a.id] = { ...rec, stress, damage }
+  }
+
+  // Releases follow structural damage, so a surviving tick's ordnance and its rounds leave together and
   // the PRNG cursor is spent in one stated order (spec §3.7).
   for (const a of aircraft) {
     const combat = a.spec.combat, rec = records[a.id]

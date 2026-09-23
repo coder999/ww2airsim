@@ -12,6 +12,7 @@
  * would report a healthy target while the airplane burned.
  */
 import type { Damage } from '../sim/damage/model.js'
+import type { StructuralStress } from '../sim/damage/overload.js'
 import type { AircraftCombat } from '../sim/weapons/combat.js'
 import { SYSTEMS, type DamageSystem } from '../sim/weapons/schema.js'
 import type { FrameState } from './frame.js'
@@ -45,6 +46,8 @@ export function combatReadoutLabel(rec: AircraftCombat | undefined): string | nu
   if (rec.shipsSunk > 0) parts.push(`SUNK ${rec.shipsSunk}`)
   if (rec.structuresDestroyed > 0) parts.push(`RAZED ${rec.structuresDestroyed}`)
   parts.push(`HP ${Math.round(rec.damage.structure * 100)}%`)
+  if (rec.stress.overG) parts.push(`OVER-G ${rec.stress.loadFactorG.toFixed(1)}`)
+  if (rec.stress.overspeed) parts.push(`OVERSPEED ${Math.round(rec.stress.airspeedMps)}`)
   if (rec.damage.destroyedAt !== null) parts.push('DESTROYED')
   else {
     const damaged = damagedSystems(rec.damage)
@@ -71,6 +74,7 @@ export type CombatDiagnostics = {
     readonly stores: { readonly bombs: number; readonly rockets: number }
     readonly shipsSunk: number
     readonly structuresDestroyed: number
+    readonly stress: StructuralStress
   }
   readonly aircraft: readonly {
     readonly id: string
@@ -98,6 +102,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       stores: { bombs: player.stores.bombs, rockets: player.stores.rockets },
       shipsSunk: player.shipsSunk,
       structuresDestroyed: player.structuresDestroyed,
+      stress: { ...player.stress },
     },
     aircraft: frame.world.aircraft.map((a) => {
       const rec = combat.aircraft[a.id]!

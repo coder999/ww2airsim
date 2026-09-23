@@ -5,6 +5,7 @@ import { createState, type Controls } from '../../../src/sim/flight/state.js'
 import { advance, createWorldOf, withControls, type AircraftEntity, type Stepper } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
+import { STANDARD_GRAVITY_MPS2 } from '../../../src/sim/damage/overload.js'
 import { createCombat, flyProjectile, stepCombat, type Projectile } from '../../../src/sim/weapons/combat.js'
 import { segmentBox } from '../../../src/sim/weapons/geometry.js'
 import { storesFromLoadout } from '../../../src/sim/weapons/stores.js'
@@ -136,6 +137,64 @@ describe('production fixed-step gunnery', () => {
     const range = worldFromScenario(loadScenarioBundle('gunnery-range'), null)
     expect(range.aircraft.map(a => a.id)).toEqual(['f6f-1', 'target-1', 'target-2'])
     expect(range.combat.aircraft['f6f-1']!.guns).toHaveLength(6)
+  })
+})
+
+describe('production structural overload', () => {
+  const atSpeed = (speed: number, wind = v3(0, 0, 0), impact: unknown | null = null) => {
+    const base = plane('shooter', 0, true)
+    const state = createState({ position: base.state.position, velocity: v3(speed, 0, 0) })
+    const aircraft = [{ ...base, previous: state, state, impact }]
+    return { aircraft, wind, combat: createCombat(aircraft) }
+  }
+
+  it('uses wind-relative speed and skips overload damage after an impact', () => {
+    const speed = spec.limits.diveSpeedMps * 2
+    const calm = atSpeed(speed)
+    const damaged = stepCombat(calm.combat, calm.aircraft, [], [], null, calm.wind, [], 1, DT)
+    expect(damaged.aircraft.shooter!.stress.overspeed).toBe(true)
+    expect(damaged.aircraft.shooter!.damage.structure).toBeCloseTo(1 - DT, 12)
+
+    const tailwind = atSpeed(speed, v3(spec.limits.diveSpeedMps, 0, 0))
+    const safe = stepCombat(tailwind.combat, tailwind.aircraft, [], [], null, tailwind.wind, [], 1, DT)
+    expect(safe.aircraft.shooter!.stress.overspeed).toBe(false)
+    expect(safe.aircraft.shooter!.damage.structure).toBe(1)
+
+    const crashed = atSpeed(speed, v3(0, 0, 0), {})
+    const held = stepCombat(crashed.combat, crashed.aircraft, [], [], null, crashed.wind, [], 1, DT)
+    expect(held.aircraft.shooter!.damage.structure).toBe(1)
+  })
+
+  it('measures proper load from production states and is deterministic from a clone', () => {
+    const base = plane('shooter', 0)
+    const loadG = spec.limits.gLimit * 1.25
+    const previous = createState({ position: base.state.position, velocity: v3(120, 0, 0) })
+    const current = createState({
+      position: base.state.position,
+      velocity: v3(120, (loadG - 1) * STANDARD_GRAVITY_MPS2 * DT, 0),
+    })
+    const aircraft = [{ ...base, previous, state: current }]
+    const combat = createCombat(aircraft)
+    const once = stepCombat(combat, aircraft, [], [], null, null, [], 5, DT)
+    const cloned = stepCombat(structuredClone(combat), structuredClone(aircraft), [], [], null, null, [], 5, DT)
+    expect(once).toEqual(cloned)
+    expect(once.aircraft.shooter!.stress.loadFactorG).toBeCloseTo(loadG, 10)
+    expect(once.aircraft.shooter!.damage.structure).toBeCloseTo(1 - 0.25 * DT, 12)
+  })
+
+  it('destroys before weapons on the same tick, with no attacker or kill credit', () => {
+    const speed = spec.limits.diveSpeedMps * 2
+    const setup = atSpeed(speed)
+    const rec = setup.combat.aircraft.shooter!
+    const fragile = {
+      ...setup.combat,
+      aircraft: { shooter: { ...rec, damage: { ...rec.damage, structure: DT / 2 } } },
+    }
+    const after = stepCombat(fragile, setup.aircraft, [], [], null, null, [], 9, DT)
+    expect(after.aircraft.shooter!.damage).toMatchObject({ structure: 0, destroyedAt: 9, attacker: null })
+    expect(after.aircraft.shooter!.shots).toBe(0)
+    expect(after.aircraft.shooter!.kills).toBe(0)
+    expect(after.projectiles).toHaveLength(0)
   })
 })
 

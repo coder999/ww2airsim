@@ -34,12 +34,35 @@ describe('the combat readout (Plan 6)', () => {
     expect(combatReadoutLabel(dead)).toBe('AMMO 2400   HITS 0   KILLS 0   HP 0%   DESTROYED')
   })
 
+  it('shows current structural-limit warnings with measured values', () => {
+    const rec = armed()
+    const stressed = {
+      ...rec,
+      stress: {
+        ...rec.stress,
+        loadFactorG: 8.24,
+        airspeedMps: 229.6,
+        overG: true,
+        overspeed: true,
+        peakLoadFactorG: 9.1,
+        peakAirspeedMps: 240,
+      },
+    }
+    expect(combatReadoutLabel(stressed)).toBe(
+      'AMMO 2400   HITS 0   KILLS 0   HP 100%   OVER-G 8.2   OVERSPEED 230',
+    )
+  })
+
   it('reports the frame the Tier 2 hook reads: the trigger the sim saw, the player and every target', () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     const d = combatDiagnosticsFor(frame)
     expect(d.player).toEqual({
       shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
       stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0,
+      stress: {
+        loadFactorG: 1, airspeedMps: 120, overG: false, overspeed: false,
+        peakLoadFactorG: 1, peakAirspeedMps: 120,
+      },
     })
     expect(d.aircraft.map((a) => a.id)).toEqual(frame.world.aircraft.map((a) => a.id))
     expect(d.projectiles).toBe(0)
