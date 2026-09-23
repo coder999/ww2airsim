@@ -222,5 +222,5 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
   const stores: Record<string, StoresState> = Object.fromEntries(
     aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : emptyStores]),
   )
-  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores })
+  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields })
 }

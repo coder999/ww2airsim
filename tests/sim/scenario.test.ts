@@ -263,4 +263,23 @@ describe('the strike-range scenario: loadout and a single-waypoint anchored ship
     const strike = loadScenarioBundle('strike-range')
     expect(() => worldFromScenario(strike, terrain)).not.toThrow()
   })
+
+  // Task 7 fix: `worldFromScenario` was building `world.structures` from
+  // every airfield's buildings (correct) but never threading the scenario's
+  // `enemyAirfields` into `createWorldOf`, so `World` had no way to say which
+  // of them were hostile -- `RAZED` counted every destroyed structure, not
+  // just Dulag's (spec §3.5). This pins `world.enemyStructureIds` against
+  // the real shipped content rather than a synthetic fixture, so a content
+  // edit to either base's buildings is caught here too.
+  it('worldFromScenario populates world.enemyStructureIds with exactly Dulag\'s structures, none of Tacloban\'s', () => {
+    const strike = loadScenarioBundle('strike-range')
+    expect(strike.scenario.enemyAirfields).toEqual(['dulag'])
+    const w = worldFromScenario(strike, null)
+    const dulagIds = strike.airfields['dulag']!.buildings.map((b) => b.id)
+    const taclobanIds = strike.airfields['tacloban']!.buildings.map((b) => b.id)
+    expect(dulagIds).toHaveLength(4)
+    expect(taclobanIds).toHaveLength(4)
+    expect([...w.enemyStructureIds].sort()).toEqual([...dulagIds].sort())
+    for (const id of taclobanIds) expect(w.enemyStructureIds.has(id)).toBe(false)
+  })
 })

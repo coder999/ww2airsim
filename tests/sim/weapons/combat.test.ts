@@ -12,6 +12,7 @@ import { ageDamage, damagedSpec, damageFromHit, healthyDamage } from '../../../s
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { createTerrainField } from '../../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
+import type { Airfield } from '../../../src/sim/world/airfields.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, fire: true }
@@ -202,6 +203,54 @@ describe('production fixed-step ordnance', () => {
     expect(after.projectiles).toHaveLength(0)
     expect(after.ships['maru-1']!.hp).toBe(240 - spec.combat!.roundDamage)
     expect(after.ships['maru-1']!.destroyedTick).toBeNull()
+  })
+
+  // Task 7 fix: `advance`'s live `stepCombat` call omitted `enemyStructureIds`
+  // entirely, so it defaulted to `null` -- "count everything" -- and `RAZED`
+  // credited a friendly structure exactly like an enemy one. This drives the
+  // real per-frame path (`createWorldOf` -> `advance` -> `stepCombat`), not
+  // `stepCombat` directly (that mechanism itself is already covered by
+  // `tests/sim/strike.test.ts`'s "counts only enemy structures" test), so it
+  // is the one test that actually exercises the wiring that was missing.
+  it('threads enemyAirfields from createWorldOf through advance into stepCombat, so RAZED counts an enemy structure but not a friendly one', () => {
+    const field = (id: string, buildingId: string, centerX: number): Airfield => ({
+      id, name: id, reference: { source: 'test fixture' },
+      runway: { center: { x: centerX, z: 0 }, headingDeg: 0, lengthM: 500, widthM: 30 },
+      apron: null, clearing: null,
+      buildings: [{ id: buildingId, kind: 'hangar', x: 0, z: 0, widthM: 10, lengthM: 10, hp: 50 }],
+    })
+    const mine = field('mine', 'mine-hangar', 0)
+    const theirs = field('theirs', 'their-hangar', 1000)
+    const worldWith = () => createWorldOf({
+      aircraft: [plane('shooter', 5000)],
+      airfields: [mine, theirs],
+      player: 'shooter',
+      enemyAirfields: ['theirs'],
+    })
+    expect([...worldWith().enemyStructureIds]).toEqual(['their-hangar'])
+
+    // A bomb already armed, sitting exactly at the target structure's box
+    // center: `segmentBox` then reports contact at t=0 regardless of the
+    // small fall one DT produces, so the hit is deterministic without
+    // needing to simulate an actual release and fall.
+    const bombOn = (buildingId: string) => {
+      const w = worldWith()
+      const target = w.structures.find((s) => s.id === buildingId)!
+      const bomb: Projectile = {
+        owner: 'shooter', id: 1, position: target.position, previous: target.position,
+        velocity: v3(0, -50, 0), lifeS: 60, tracer: false, kind: 'bomb', ageS: 1,
+      }
+      const armedWorld = { ...w, combat: { ...w.combat, projectiles: [bomb] } }
+      return advance(armedWorld, DT, still).world
+    }
+
+    const friendly = bombOn('mine-hangar')
+    expect(friendly.combat.structures['mine-hangar']!.destroyedTick).not.toBeNull()
+    expect(friendly.combat.aircraft['shooter']!.structuresDestroyed).toBe(0)
+
+    const enemy = bombOn('their-hangar')
+    expect(enemy.combat.structures['their-hangar']!.destroyedTick).not.toBeNull()
+    expect(enemy.combat.aircraft['shooter']!.structuresDestroyed).toBe(1)
   })
 })
 

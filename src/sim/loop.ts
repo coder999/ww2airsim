@@ -359,6 +359,14 @@ export interface World<M = undefined> {
    *  the same reference for the whole flight. See `structures.ts`'s own
    *  docstring for why both friendly and enemy airfields are included. */
   readonly structures: readonly StructureEntity[]
+  /** Which of `structures` count toward `RAZED` (spec §3.5: only structures
+   *  at an `enemyAirfields` base). Computed once, alongside `structures`, by
+   *  `createWorldOf` from its `enemyAirfields` parameter -- empty when that
+   *  parameter is omitted, matching every world built before this field
+   *  existed. `advance` threads this straight into `stepCombat`'s
+   *  `enemyStructureIds` parameter every tick; `stepCombat` never learns
+   *  where it came from. */
+  readonly enemyStructureIds: ReadonlySet<string>
   /** The airplane the frame's keys drive and the camera follows. An id, not
    *  an index (see `EntityId`); present by construction. */
   readonly player: EntityId
@@ -495,6 +503,12 @@ export function createWorldOf<M>(parts: {
    *  this parameter existed -- `worldFromScenario` is the only caller that
    *  ever passes a non-empty entry, and only for the scenario's player. */
   readonly stores?: Readonly<Record<string, StoresState>>
+  /** Which of `airfields` are hostile (Task 7 fix, spec §3.5): decides
+   *  `World.enemyStructureIds`, the set `advance` narrows `stepCombat`'s
+   *  `RAZED` counting to. Absent means none are -- matching every world
+   *  built before this parameter existed, and every call site but
+   *  `worldFromScenario`. */
+  readonly enemyAirfields?: readonly string[] | undefined
 }): World<M> {
   const ships = parts.ships ?? []
   const seen = new Set<EntityId>()
@@ -516,6 +530,8 @@ export function createWorldOf<M>(parts: {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
   }
   const structures = buildStructures(parts.airfields ?? [])
+  const enemyAirfields = parts.enemyAirfields ?? []
+  const enemyStructureIds = new Set(structures.filter(s => enemyAirfields.includes(s.airfield)).map(s => s.id))
   return {
     tick: 0,
     combat: createCombat(
@@ -532,6 +548,7 @@ export function createWorldOf<M>(parts: {
     aircraft: parts.aircraft,
     ships,
     structures,
+    enemyStructureIds,
     player: parts.player,
     airfields: parts.airfields ?? [],
     terrain: parts.terrain ?? null,
@@ -765,7 +782,7 @@ export function advance<M>(
       return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT) }]
     })) }
     aircraft = aircraft.map((a) => stepAircraftEntity(a, tick, world.terrain, world.wind, decks, stepper, assist, combat.aircraft[a.id]!.damage, combat.aircraft[a.id]!.stores))
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT)
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds)
     // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
     // them once per RENDERED frame, but this loop can run up to
     // MAX_STEPS_PER_FRAME substeps against that one frame's controls. Nothing
