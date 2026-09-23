@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { debriefModel, landingModel, missionScore } from '../../src/render/debrief.js'
+import { debriefModel, destructionModel, landingModel, missionScore } from '../../src/render/debrief.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import type { Impact } from '../../src/sim/loop.js'
@@ -58,6 +58,17 @@ describe('the debrief', () => {
     expect(labels).toContain('Impact speed')
     expect(labels).toContain('Sink rate')
     expect(labels).toContain('Bank')
+  })
+
+  it('explains unattributed structural failure and combat destruction', () => {
+    const state = createState({ position: v3(0, 1500, 0), velocity: v3(220, -20, 0) })
+    const overload = destructionModel(state, null)
+    expect(overload.headline).toBe('KILLED')
+    expect(overload.detail).toContain('structural overload')
+    expect(overload.figures).toContainEqual({ label: 'Altitude', value: '1500 m' })
+
+    const combat = destructionModel(state, 'bandit-1')
+    expect(combat.detail).toContain('combat')
   })
 
   it('shows sink rate as a positive number, not the signed velocity it comes from', () => {

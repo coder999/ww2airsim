@@ -15,7 +15,7 @@ import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
-import { createDebrief, debriefModel, landingModel } from './debrief.js'
+import { createDebrief, debriefModel, destructionModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT } from './titleScreen.js'
@@ -809,6 +809,7 @@ async function boot(): Promise<void> {
     // (empty) projectile list on the next frame.
     hitFlashes.hide()
     shownImpactTick = null
+    shownDestructionTick = null
     landingShown = false
     postImpactOceanSeconds = 0
   })
@@ -821,6 +822,8 @@ async function boot(): Promise<void> {
   /** The tick of the impact the debrief is currently showing, so the modal is
    *  raised once rather than rebuilt sixty times a second. */
   let shownImpactTick: number | null = null
+  /** The damage-destruction tick already shown, parallel to impact above. */
+  let shownDestructionTick: number | null = null
   /**
    * Real elapsed seconds since the flight froze, 0 while still flying.
    *
@@ -1202,6 +1205,18 @@ async function boot(): Promise<void> {
       impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
       impactEffect.fire(hit.surface)
       debrief.show(debriefModel(hit, player.state))
+    }
+    // Gunfire and structural overload can destroy the player before contact.
+    // `nextFrameState` already freezes that world; raise the same Restart path
+    // as an impact instead of leaving the pilot held at HP 0 with no way out.
+    const playerDamage = current.world.combat.aircraft[current.world.player]!.damage
+    if (
+      hit === null &&
+      playerDamage.destroyedAt !== null &&
+      shownDestructionTick !== playerDamage.destroyedAt
+    ) {
+      shownDestructionTick = playerDamage.destroyedAt
+      debrief.show(destructionModel(player.state, playerDamage.attacker))
     }
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).

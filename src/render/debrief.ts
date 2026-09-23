@@ -120,6 +120,22 @@ export function debriefModel(impact: Impact, state: AircraftState): DebriefModel
   }
 }
 
+/** What the debrief says when combat damage, including structural overload,
+ * destroys the aircraft before it makes ground contact. */
+export function destructionModel(state: AircraftState, attacker: string | null): DebriefModel {
+  return {
+    headline: 'KILLED',
+    detail: attacker === null
+      ? 'The airframe failed under structural overload.'
+      : 'The aircraft was destroyed in combat.',
+    figures: [
+      { label: 'Final speed', value: `${Math.round(length(state.velocity))} m/s` },
+      { label: 'Altitude', value: `${Math.round(state.position.y)} m` },
+    ],
+    score: missionScore(),
+  }
+}
+
 export type DebriefHandle = {
   /** `onContinue` is called when the model's `continueLabel` button is
    *  pressed; a model without one shows no such button and never calls it. */

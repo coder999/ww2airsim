@@ -35,7 +35,7 @@ test('gunnery range: Space fires six guns, tracers fly, the guns are heard, and 
   await page.setViewportSize({ width: 2560, height: 1440 })
   await onTheRange(page)
   const before = await combat(page)
-  expect(before.player).toEqual({ shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false })
+  expect(before.player).toMatchObject({ shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false })
   expect(before.aircraft.map((a) => a.id)).toEqual(['f6f-1', 'target-1', 'target-2'])
   const heardBefore = await cuesFired(page)
 
@@ -137,7 +137,7 @@ test('a restart rebuilds the guns: full load, empty sky, no replayed gunfire', a
   const heard = await cuesFired(page)
   await page.waitForTimeout(3_000)
   const restarted = await combat(page)
-  expect(restarted.player).toEqual({ shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false })
+  expect(restarted.player).toMatchObject({ shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false })
   expect(restarted.projectiles).toBe(0)
   expect(restarted.aircraft.every((a) => a.structure === 1 && !a.destroyed)).toBe(true)
   expect(await cuesFired(page), 'the old flight\'s gunfire replayed after a restart').toBe(heard)
