@@ -23,8 +23,10 @@ const diskFetch: typeof fetch = async (input) => {
  */
 describe('loadScenarioBundle (browser twin)', () => {
   it('loads the same bundle the Node loader does', async () => {
-    const viaFetch = await loadScenarioBundle('free-flight', diskFetch)
-    expect(viaFetch).toEqual(loadViaNode('free-flight'))
+    for (const id of ['free-flight', 'pursuit-range']) {
+      const viaFetch = await loadScenarioBundle(id, diskFetch)
+      expect(viaFetch).toEqual(loadViaNode(id))
+    }
   })
 
   it('fails loudly on a missing file, naming it', async () => {

@@ -1,5 +1,5 @@
 import { parseAircraftSpec } from '../sim/content.js'
-import { isShipParked, parseScenario, type ScenarioBundle } from '../sim/scenario.js'
+import { isParkedAircraft, isShipParked, parseScenario, type ScenarioBundle } from '../sim/scenario.js'
 import { parseAirfield } from '../sim/world/airfields.js'
 import { parseShipSpec } from '../sim/world/ships.js'
 import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl } from './content.js'
@@ -43,7 +43,11 @@ export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = f
   const [aircraftSpecs, shipSpecs, airfields] = await Promise.all([
     table(scenario.aircraft.map((a) => a.spec), aircraftUrl, parseAircraftSpec),
     table(scenario.ships.map((s) => s.spec), shipUrl, parseShipSpec),
-    table([...scenario.airfields, ...scenario.aircraft.flatMap((a) => (isShipParked(a.parkedAt) ? [] : [a.parkedAt.airfield]))], airfieldUrl, parseAirfield),
+    table([
+      ...scenario.airfields,
+      ...scenario.aircraft.flatMap((a) =>
+        isParkedAircraft(a) && !isShipParked(a.parkedAt) ? [a.parkedAt.airfield] : []),
+    ], airfieldUrl, parseAirfield),
   ])
   return { scenario, aircraftSpecs, shipSpecs, airfields }
 }

@@ -102,6 +102,7 @@ describe('the built artifact', () => {
         'content/scenarios/free-flight.json',
         'content/scenarios/deck-quals.json',
         'content/scenarios/gunnery-range.json',
+        'content/scenarios/pursuit-range.json',
         'content/bases/tacloban.json',
         'content/bases/dulag.json',
         'content/ships/essex-cv.json',

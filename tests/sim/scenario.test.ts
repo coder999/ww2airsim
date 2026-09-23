@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseScenario, worldFromScenario, PARKED_PLACEHOLDER_Y_M, type ScenarioBundle } from '../../src/sim/scenario.js'
-import { playerAircraft } from '../../src/sim/loop.js'
+import { advance, playerAircraft } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
 import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
@@ -91,6 +91,55 @@ describe('the free-flight scenario', () => {
     const km = Math.hypot(cv.x - tac.x, cv.z - tac.z) / 1000
     expect(km).toBeGreaterThan(9)
     expect(km).toBeLessThan(12)
+  })
+})
+
+describe('the airborne pursuit range (Plan 7a)', () => {
+  const pursuit = loadScenarioBundle('pursuit-range')
+
+  it('starts both aircraft airborne on their compass headings and assigns only the pursuer', () => {
+    const world = worldFromScenario(pursuit, null)
+    const player = playerAircraft(world)
+    const pursuer = world.aircraft.find((a) => a.id === 'pursuer-1')!
+    expect(player.state.position).toEqual(v3(0, 3000, 0))
+    expect(player.state.velocity.x).toBeCloseTo(120, 12)
+    expect(player.state.velocity.z).toBeCloseTo(0, 12)
+    expect(player.state.gearFraction).toBe(0)
+    expect(player.parked).toBe(false)
+    expect(player.pilot).toBeNull()
+    expect(pursuer.state.position).toEqual(v3(-500, 3020, 50))
+    expect(pursuer.state.velocity.x).toBeCloseTo(125, 12)
+    expect(pursuer.state.velocity.z).toBeCloseTo(0, 12)
+    expect(pursuer.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), 0))
+    expect(pursuer.parked).toBe(false)
+    expect(pursuer.pilot).toEqual({ target: 'f6f-1' })
+  })
+
+  it('turns the production pursuit pilot onto a gun solution', () => {
+    let world = worldFromScenario(pursuit, null)
+    for (let i = 0; i < 120 && world.combat.aircraft['pursuer-1']!.shots === 0; i++) {
+      world = advance(world, DT * 5).world
+    }
+    expect(world.tick).toBeLessThanOrEqual(600)
+    expect(world.combat.aircraft['pursuer-1']!.shots).toBeGreaterThan(0)
+  })
+
+  it('rejects malformed airborne starts and invalid scenario pilot targets', () => {
+    const raw = () => JSON.parse(JSON.stringify(pursuit.scenario)) as Record<string, unknown> & {
+      aircraft: Array<Record<string, unknown> & { airborneAt: Record<string, unknown> }>
+    }
+    const badAltitude = raw()
+    badAltitude.aircraft[0]!.airborneAt.position = [0, 0, 0]
+    expect(() => parseScenario(badAltitude)).toThrow(/airborne altitude/)
+    const badSpeed = raw()
+    badSpeed.aircraft[0]!.airborneAt.speedMps = 0
+    expect(() => parseScenario(badSpeed)).toThrow(/speedMps/)
+    const self = raw()
+    self.aircraft[1]!.pilot = { target: 'pursuer-1' }
+    expect(() => parseScenario(self)).toThrow(/cannot target itself/)
+    const missing = raw()
+    missing.aircraft[1]!.pilot = { target: 'nobody' }
+    expect(() => parseScenario(missing)).toThrow(/must name an aircraft/)
   })
 })
 

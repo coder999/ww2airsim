@@ -40,6 +40,40 @@ const CloudLayerObject = z.object({
 }).strict()
 export type CloudLayer = z.infer<typeof CloudLayerObject>
 
+const PilotObject = z.object({ target: id }).strict()
+const ParkedAtObject = z.union([
+  z.object({
+    airfield: id,
+    /** `'runwayCenter'`, or a runway-local spot (meters, `x` across, `z` along). */
+    spot: z.union([z.literal('runwayCenter'), z.object({ x: finite, z: finite }).strict()]),
+  }).strict(),
+  /** On a carrier's flight deck, in deck-local meters from the center. */
+  z.object({ ship: id, spot: z.object({ x: finite, z: finite }).strict() }).strict(),
+])
+const ParkedAircraftObject = z.object({
+  id,
+  spec: id,
+  parkedAt: ParkedAtObject,
+  /** Wheel chocks: `brake: 1` in the held controls. */
+  chocked: z.boolean(),
+  pilot: PilotObject.optional(),
+}).strict()
+const AirborneAircraftObject = z.object({
+  id,
+  spec: id,
+  airborneAt: z.object({
+    /** World meters, `[x, y, z]`; altitude must start above sea level. */
+    position: z.tuple([finite, finite, finite]).refine((p) => p[1] > 0, {
+      message: 'airborne altitude must be greater than zero',
+    }),
+    /** True compass heading: 0 north (-Z), 90 east (+X). */
+    headingDeg: finite,
+    speedMps: finite.refine((n) => n > 0, { message: 'speedMps must be greater than zero' }),
+  }).strict(),
+  pilot: PilotObject.optional(),
+}).strict()
+const ScenarioAircraftObject = z.union([ParkedAircraftObject, AirborneAircraftObject])
+
 const ScenarioObject = z.object({
   id,
   player: id,
@@ -48,23 +82,7 @@ const ScenarioObject = z.object({
    *  structures count toward the `RAZED` counter. Absent means none do --
    *  matching every scenario shipped before this field existed. */
   enemyAirfields: z.array(id).optional(),
-  aircraft: z.array(z.object({
-    id,
-    spec: id,
-    parkedAt: z.union([
-      z.object({
-        airfield: id,
-        /** `'runwayCenter'`, or a runway-local spot (meters, `x` across, `z` along). */
-        spot: z.union([z.literal('runwayCenter'), z.object({ x: finite, z: finite }).strict()]),
-      }).strict(),
-      /** On a carrier's flight deck (Plan 8): deck-local meters, `x` across
-       *  to starboard, `z` along toward the bow, from the deck center. */
-      z.object({ ship: id, spot: z.object({ x: finite, z: finite }).strict() }).strict(),
-    ]),
-    /** Wheel chocks: `brake: 1` in the held controls. The honest model of an
-     *  airplane nobody is flying. */
-    chocked: z.boolean(),
-  }).strict()).min(1),
+  aircraft: z.array(ScenarioAircraftObject).min(1),
   /** A ship on a closed waypoint loop, OR -- when `speedMps` is 0 -- a single
    *  anchored point (Plan 6b's maru): the loop-closing second waypoint has no
    *  meaning for a ship that never moves, so only a moving ship needs two. */
@@ -96,10 +114,27 @@ const ScenarioObject = z.object({
   .refine((s) => (s.enemyAirfields ?? []).every((e) => s.airfields.includes(e)), {
     message: 'every enemyAirfields entry must be one of airfields', path: ['enemyAirfields'],
   })
+  .superRefine((s, ctx) => {
+    const aircraftIds = new Set(s.aircraft.map((a) => a.id))
+    for (const [index, aircraft] of s.aircraft.entries()) {
+      if (aircraft.pilot === undefined) continue
+      if (aircraft.pilot.target === aircraft.id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot cannot target itself', path: ['aircraft', index, 'pilot', 'target'] })
+      } else if (!aircraftIds.has(aircraft.pilot.target)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot target must name an aircraft in this scenario', path: ['aircraft', index, 'pilot', 'target'] })
+      }
+    }
+  })
 
 export type Scenario = z.infer<typeof ScenarioObject>
 
-export const isShipParked = (p: Scenario['aircraft'][number]['parkedAt']): p is { ship: string; spot: { x: number; z: number } } => 'ship' in p
+export type ScenarioAircraft = z.infer<typeof ScenarioAircraftObject>
+export type ParkedScenarioAircraft = z.infer<typeof ParkedAircraftObject>
+
+export const isParkedAircraft = (a: ScenarioAircraft): a is ParkedScenarioAircraft =>
+  'parkedAt' in a
+
+export const isShipParked = (p: ParkedScenarioAircraft['parkedAt']): p is { ship: string; spot: { x: number; z: number } } => 'ship' in p
 
 export function parseScenario(raw: unknown): Scenario {
   const result = ScenarioObject.safeParse(raw)
@@ -185,6 +220,23 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
 
   const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => {
     const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
+    if (!isParkedAircraft(a)) {
+      const [x, y, z] = a.airborneAt.position
+      const headingRad = a.airborneAt.headingDeg * Math.PI / 180
+      const state = createState({
+        position: v3(x, y, z),
+        velocity: v3(
+          Math.sin(headingRad) * a.airborneAt.speedMps,
+          0,
+          -Math.cos(headingRad) * a.airborneAt.speedMps,
+        ),
+        attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - headingRad),
+      })
+      return {
+        id: a.id, spec, state, previous: state, controls: NEUTRAL,
+        assistMemory: undefined, impact: null, parked: false, pilot: a.pilot ?? null,
+      }
+    }
     const parkedAt = a.parkedAt
     if (isShipParked(parkedAt)) {
       const ship = ships.find((sh) => sh.id === parkedAt.ship)
@@ -203,7 +255,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
         gearFraction: 1,
       })
       const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-      return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true }
+      return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: a.pilot ?? null }
     }
     const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
     const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
@@ -215,7 +267,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       gearFraction: 1,
     })
     const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true }
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: a.pilot ?? null }
   })
 
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
