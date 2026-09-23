@@ -74,6 +74,15 @@ read that state. Bombs, rockets, torpedoes, ship damage and AI remain; the
 [handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
 and master spec §15 holds the status.
 
+**Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
+loadout picker, stores hung under the wings, ship and airfield-structure
+damage. Its simulation and rendering are Tier 1-verified; Tier 2 GPU
+acceptance has not been run yet (the reference desktop had no interactive
+session to attach the harness to). Torpedoes and structural-overload damage
+still remain; see the
+[handoff](docs/handoff/2026-09-22-plan6b-strike.md) for what was actually
+measured and what is still open, and master spec §15 for the status.
+
 **A title screen landed 2026-09-19**, the first slice of Plan 9 ahead of the
 rest of it: Mark's title art with **New game** and **About project**. The
 world boots behind it and is held until New game (Enter also works), which is
