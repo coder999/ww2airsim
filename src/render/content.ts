@@ -35,11 +35,11 @@ export const aircraftUrl = (id: string): string => contentUrl('aircraft', id)
 export const shipUrl = (id: string): string => contentUrl('ships', id)
 export const airfieldUrl = (id: string): string => contentUrl('bases', id)
 
-/** The Hellcat's record on disk, for `tests/build/dist.test.ts` alone -- the
+/** The Wildcat's record on disk, for `tests/build/dist.test.ts` alone -- the
  *  browser reaches it through `aircraftUrl` with the id the scenario names,
  *  never through this. Built from the same `contentPath` the URL is, so the
  *  build assertion and the runtime fetch cannot name different files. */
-export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f6f-hellcat')
+export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f4f-wildcat')
 
 /**
  * One pyramid level of the terrain heightfield, as a path and (below) as the

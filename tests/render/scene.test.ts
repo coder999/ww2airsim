@@ -52,19 +52,29 @@ describe('hellcat geometry', () => {
     expect(Math.abs(c.z)).toBeLessThan(2)
   })
 
-  it('exposes the prop separately so it can be spun', () => {
-    const { root, prop } = createHellcat()
-    expect(prop).toBeDefined()
-    expect(root.getObjectById(prop.id)).toBeTruthy()
+  it('spinProp rotates one mesh inside root', () => {
+    const { root, spinProp } = createHellcat()
+    const before = new Map<number, number>()
+    root.traverse((o) => before.set(o.id, o.rotation.x))
+    spinProp(Math.PI / 4)
+    let changed = 0
+    root.traverse((o) => {
+      if (Math.abs(o.rotation.x - (before.get(o.id) ?? 0)) > 1e-9) changed++
+    })
+    expect(changed).toBe(1)
   })
 
   it('points +X forward, matching the sim body frame', () => {
     // sim/ body frame is +X forward, +Y up, +Z right. A model built down -X
     // flies backwards and every camera offset is wrong by 180 degrees.
-    const { prop } = createHellcat()
+    const { root } = createHellcat()
+    let maxX = -Infinity
     const p = new Vector3()
-    prop.getWorldPosition(p)
-    expect(p.x).toBeGreaterThan(2)
+    root.traverse((o) => {
+      o.getWorldPosition(p)
+      if (p.x > maxX) maxX = p.x
+    })
+    expect(maxX).toBeGreaterThan(2)
   })
 })
 

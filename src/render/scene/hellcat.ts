@@ -1,5 +1,6 @@
-import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from 'three'
+import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
 import { attachStores } from './stores.js'
+import type { Airframe } from './airframe.js'
 
 /**
  * A deliberately simple low-poly F6F, built in code.
@@ -23,7 +24,7 @@ import { attachStores } from './stores.js'
  *
  * Body frame matches sim/: +X forward, +Y up, +Z right.
  */
-export function createHellcat(): { root: Object3D; prop: Object3D; setStores(bombsLeft: number, rocketsLeft: number): void } {
+export function createHellcat(): Airframe {
   const root = new Group()
   const paint = new MeshStandardMaterial({ color: 0x2f4f6a, roughness: 0.7 })
   const dark = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
@@ -69,7 +70,14 @@ export function createHellcat(): { root: Object3D; prop: Object3D; setStores(bom
   root.traverse((o) => { o.receiveShadow = true })
   return {
     root,
-    prop,
     setStores,
+    spinProp(deltaRadians: number): void {
+      prop.rotation.x += deltaRadians
+    },
+    /** The procedural Hellcat mesh has no separate landing-gear geometry at all
+     *  (this was the exact gap docs/superpowers/specs/2026-09-24-post-overnight-
+     *  critiques.md item 7 named) -- a documented no-op, not a bug, until that
+     *  geometry is built. */
+    setGear(_fraction: number): void {},
   }
 }

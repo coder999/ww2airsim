@@ -258,11 +258,11 @@ async function boot(): Promise<void> {
   // `initRenderer`'s `await` resolving) that exposed `frame`/`audio`.
   let bundle: ScenarioBundle | null = null
   // Read once, right after the FIRST `loadScenario` call below, for `spec`:
-  // every scenario flies the one shipped `f6f-hellcat` (design doc §5), so
+  // every scenario flies the one shipped `f4f-wildcat` (design doc §5), so
   // nothing else ever needs a later scenario's world.
   let scenarioWorld: World<undefined> | null = null
   let spawnedAt: Vec3 | null = null
-  // `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`, together --
+  // `airframes`/`shipHandles`/`smokes`/`player`, together --
   // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
   // construction and disposal reasoning.
   let scenarioEntities: ScenarioEntities | null = null
@@ -275,7 +275,7 @@ async function boot(): Promise<void> {
    * Fetches one scenario's content bundle and rebuilds everything sized to
    * its entity lists: `scenarioWorld` (read once, below, for the player's
    * aircraft spec), the spawn point, and `scenarioEntities` --
-   * `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`
+   * `airframes`/`shipHandles`/`smokes`/`player`
    * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
    * are NOT rebuilt here (design doc §5: every scenario sits in the same
    * Leyte Gulf tangent plane, so none of that is scenario content), and
@@ -285,7 +285,7 @@ async function boot(): Promise<void> {
    *
    * Any of the five files a bundle fetches failing to load or failing
    * validation is the same fault and the same screen a missing
-   * `f6f-hellcat.json` was before Plan 12 -- content the build was supposed
+   * `f4f-wildcat.json` was before Plan 12 -- content the build was supposed
    * to ship. The message names the file. `id` is assumed already resolved
    * and whitelisted (`requestedScenarioId`/`isKnownScenarioId`, above and in
    * `titleScreen.ts`); this function does not re-check it.
@@ -329,7 +329,7 @@ async function boot(): Promise<void> {
     // The nullable binding the diagnostics hook above closes over, now that
     // there is an answer to put in it.
     spawnPosition = nextSpawnedAt
-    scenarioEntities = buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities)
+    scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities)
   }
   /**
    * The live flight, `null` until boot's own first `initialFrameStateFor`
@@ -935,7 +935,7 @@ async function boot(): Promise<void> {
 
   // The player's own airplane, for the panel, the gauges and the flight-data
   // overlay. One aircraft spec is all any of those take; the wingman's is the
-  // same record anyway (both are `f6f-hellcat`). Read once, from the FIRST
+  // same record anyway (both are `f4f-wildcat`). Read once, from the FIRST
   // scenario's world -- see `scenarioWorld`'s own comment above for why a
   // later `loadScenario` call never needs to touch this.
   const spec = playerAircraft(scenarioWorld!).spec
@@ -1119,12 +1119,12 @@ async function boot(): Promise<void> {
   scene.add(lights)
   // Drawn last (its own renderOrder), occluded per pixel by the scene depth.
   scene.add(clouds.object)
-  // `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop` are already in
+  // `airframes`/`shipHandles`/`smokes`/`player` are already in
   // `scenarioEntities` -- built by the first `loadScenario` call, above,
   // from this same `scene` and this same `scenarioWorld`'s entity lists
   // (`buildScenarioEntities`, `scenarioEntities.ts`, has the construction
   // reasoning: world order, the smoke-per-airframe child, and picking the
-  // player's root/prop out by id rather than assuming index 0). The render
+  // player's `Airframe` out by id rather than assuming index 0). The render
   // loop, below, destructures `scenarioEntities` fresh every frame -- Plan 9
   // Task 7 -- so a later `loadScenario` call is picked up with no further
   // plumbing here.
@@ -1143,9 +1143,10 @@ async function boot(): Promise<void> {
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
-  // lives in its own group rather than as a child of hellcatRoot because the
-  // two are visibility-exclusive (see the cockpit.visible/hellcatRoot.visible
-  // swap below), not because they move differently -- both are posed from the
+  // lives in its own group rather than as a child of the player's airframe
+  // root because the two are visibility-exclusive (see the
+  // cockpit.visible/playerAirframe.root.visible swap below), not because
+  // they move differently -- both are posed from the
   // same `frame.render` pose each frame.
   const panel = createPanel(spec)
   resizePanel(panel, window.innerWidth / window.innerHeight)
@@ -1648,7 +1649,12 @@ async function boot(): Promise<void> {
     // reassigned rather than mutated in place. Non-null: `scenarioEntities`
     // is set by the first `loadScenario` call, awaited well above, before
     // this loop is ever started (`loop.start()`, below).
-    const { airframes, shipHandles, smokes, hellcatRoot, prop } = scenarioEntities!
+    // Aliased on destructure: `player` below is the render loop's existing
+    // name for the sim-side `playerAircraft(current.world)` entity (a few
+    // lines down) -- naming this field the same thing as ScenarioEntities'
+    // own `player: Airframe` would be a duplicate `const player` in one
+    // scope, not a shadow (both are declared in this same function body).
+    const { airframes, shipHandles, smokes, player: playerAirframe } = scenarioEntities!
     const player = playerAircraft(current.world)
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -1677,8 +1683,8 @@ async function boot(): Promise<void> {
     //
     // The player's is `poses[playerIndex]`, which is the SAME object as
     // `current.render` by construction (`posesFor`, frame.ts) -- so this loop
-    // poses `hellcatRoot` too, and it did so twice until the duplicate
-    // `hellcatRoot.position.set(current.render...)` lines were deleted here.
+    // poses `playerAirframe.root` too, and it did so twice until the duplicate
+    // `playerAirframe.root.position.set(current.render...)` lines were deleted here.
     current.poses.forEach((pose, i) => {
       const a = airframes[i]!.root
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
@@ -1698,8 +1704,8 @@ async function boot(): Promise<void> {
     // The cockpit group (the panel) shares the PLAYER's exact pose: panel.ts
     // authors the panel in the same body frame, relative to the eye, so it
     // needs no separate transform here.
-    cockpit.position.copy(hellcatRoot.position)
-    cockpit.quaternion.copy(hellcatRoot.quaternion)
+    cockpit.position.copy(playerAirframe.root.position)
+    cockpit.quaternion.copy(playerAirframe.root.quaternion)
 
     // Cockpit mode must hide the external airframe (frame.ts's
     // `airframeVisibilityFor` doc comment has the occlusion measurement).
@@ -1708,7 +1714,7 @@ async function boot(): Promise<void> {
     // pilot has.
     const visibility = airframeVisibilityFor(current.cameraMode)
     cockpit.visible = visibility.cockpitVisible
-    hellcatRoot.visible = visibility.hellcatVisible
+    playerAirframe.root.visible = visibility.hellcatVisible
     // Numeric gauges from the simulated tick; the attitude ball from the
     // INTERPOLATED attitude, because it is the one instrument compared
     // against something visible in the same frame. `current.controls` is
@@ -1752,6 +1758,13 @@ async function boot(): Promise<void> {
     current.world.aircraft.forEach((a, i) => {
       const stores = current.world.combat.aircraft[a.id]?.stores
       if (stores !== undefined) airframes[i]!.setStores(stores.bombs, stores.rockets)
+    })
+    // Gear travel is multi-second (unlike position/attitude above), so a
+    // non-interpolated per-tick read off `World.aircraft[i].state` causes no
+    // visible jitter -- same reasoning as the `setStores` loop just above,
+    // read off the same per-tick `World`, not the interpolated render pose.
+    current.world.aircraft.forEach((a, i) => {
+      airframes[i]!.setGear(a.state.gearFraction)
     })
     ordnance.update(current.world.combat.projectiles, current.eye.position)
     ordnance.updateEffects(frameMs / 1000)
@@ -1882,7 +1895,7 @@ async function boot(): Promise<void> {
     // propeller belongs to the wrecked airplane; unlike the ocean below, it
     // should stop.
     if (player.impact === null) {
-      prop.rotation.x += current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000)
+      playerAirframe.spinProp(current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000))
     }
 
     // `oceanTime` (DEV-only, from `?oceanTime=`) is a fixed override for

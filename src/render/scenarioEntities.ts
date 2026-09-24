@@ -1,7 +1,8 @@
 import { Mesh, type Object3D, type Scene } from 'three'
-import { createHellcat } from './scene/hellcat.js'
 import { createShipMesh } from './scene/ship.js'
 import { createEngineSmoke } from './scene/smoke.js'
+import { loadWildcat } from './scene/wildcat.js'
+import type { Airframe } from './scene/airframe.js'
 import type { World } from '../sim/loop.js'
 
 /**
@@ -9,16 +10,14 @@ import type { World } from '../sim/loop.js'
  * loop indexes `airframes[i]`/`shipHandles[i]`/`smokes[i]` against
  * `frame.poses`/`frame.shipPoses`/`frame.world.aircraft`, which are built in
  * the same world order (Plan 12) -- so these three stay parallel arrays, not
- * maps. `hellcatRoot`/`prop` are the PLAYER's own airframe's root and
- * propeller mesh, picked out by id rather than assumed to be index 0: a
- * scenario is free to list the wingman first.
+ * maps. `player` is the PLAYER's own `Airframe`, picked out by id rather than
+ * assumed to be index 0: a scenario is free to list the wingman first.
  */
 export interface ScenarioEntities {
-  readonly airframes: readonly ReturnType<typeof createHellcat>[]
+  readonly airframes: readonly Airframe[]
   readonly shipHandles: readonly ReturnType<typeof createShipMesh>[]
   readonly smokes: readonly ReturnType<typeof createEngineSmoke>[]
-  readonly hellcatRoot: Object3D
-  readonly prop: Object3D
+  readonly player: Airframe
 }
 
 /**
@@ -59,11 +58,15 @@ export function disposeMeshTree(root: Object3D): void {
  * scenario currently loaded (or `null`, on the very first call) so a switch
  * cannot leak the meshes it is replacing.
  */
-export function buildScenarioEntities(
+export async function buildScenarioEntities(
   scene: Scene,
   world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player'>,
   previous: ScenarioEntities | null,
-): ScenarioEntities {
+  // Defaulted for production; tests substitute a cheap synchronous stand-in
+  // (createHellcat) so they never run a real GLTFLoader parse in Node --
+  // see this task's Files section for why that matters.
+  loadAirframe: () => Promise<Airframe> = loadWildcat,
+): Promise<ScenarioEntities> {
   if (previous !== null) {
     for (const handle of [...previous.airframes, ...previous.shipHandles]) {
       disposeMeshTree(handle.root)
@@ -71,21 +74,20 @@ export function buildScenarioEntities(
     }
   }
 
-  const airframes = world.aircraft.map(() => createHellcat())
+  // One airframe load per aircraft in the scenario (player and any wingman
+  // alike -- Review Focus above), in parallel: a scenario with two entries
+  // should not pay for two sequential network round-trips.
+  const airframes = await Promise.all(world.aircraft.map(() => loadAirframe()))
   for (const a of airframes) scene.add(a.root)
   const smokes = airframes.map((a) => {
     const smoke = createEngineSmoke()
     a.root.add(smoke.object)
     return smoke
   })
-  // The propeller the throttle spins, and the root the panel/cockpit group
-  // copies its pose from every frame, are the PLAYER's alone -- the wingman
-  // (when a scenario carries one) is chocked with its engine off.
   const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
-  const hellcatRoot = airframes[playerIndex]!.root
-  const prop = airframes[playerIndex]!.prop
+  const player = airframes[playerIndex]!
   const shipHandles = world.ships.map((ship) => createShipMesh(ship.spec))
   for (const h of shipHandles) scene.add(h.root)
 
-  return { airframes, shipHandles, smokes, hellcatRoot, prop }
+  return { airframes, shipHandles, smokes, player }
 }

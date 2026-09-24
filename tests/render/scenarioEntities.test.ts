@@ -4,6 +4,7 @@ import { loadScenarioBundle } from '../../tools/content/load.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import type { World } from '../../src/sim/loop.js'
 import { buildScenarioEntities, disposeMeshTree, type ScenarioEntities } from '../../src/render/scenarioEntities.js'
+import { createHellcat } from '../../src/render/scene/hellcat.js'
 
 // Real shipped content, not fixtures: `content/scenarios/deck-quals.json` and
 // `free-flight.json` both carry 2 aircraft + 3 ships (the largest ship count
@@ -14,6 +15,14 @@ import { buildScenarioEntities, disposeMeshTree, type ScenarioEntities } from '.
 const deckQuals: World<undefined> = worldFromScenario(loadScenarioBundle('deck-quals'), null, 'clean')
 const strikeRange: World<undefined> = worldFromScenario(loadScenarioBundle('strike-range'), null, 'clean')
 const gunneryRange: World<undefined> = worldFromScenario(loadScenarioBundle('gunnery-range'), null, 'clean')
+
+/** The stand-in `loadAirframe` every call in this file passes: real,
+ *  synchronous, no network or texture decode, so this suite exercises
+ *  buildScenarioEntities's OWN logic (array sizing, disposal, id lookup)
+ *  without depending on GLTFLoader working in Vitest's `environment: 'node'`
+ *  (it doesn't -- Task 5's wildcat.ts doc comment has the reason). Which
+ *  aircraft type this resolves to is not what this suite is testing. */
+const stubAirframe = async () => createHellcat()
 
 function allMeshes(entities: ScenarioEntities): Mesh[] {
   const meshes: Mesh[] = []
@@ -28,7 +37,7 @@ function allMeshes(entities: ScenarioEntities): Mesh[] {
 /**
  * `buildScenarioEntities` (Plan 9 Task 7, design doc §5) is what `main.ts`'s
  * `loadScenario` calls on every scenario switch -- the entity-sized meshes
- * (`airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`), not terrain,
+ * (`airframes`/`shipHandles`/`smokes`/`player`), not terrain,
  * ocean or sky, which are untouched. This suite is the Tier 1 half of the
  * plan's own Review Focus: a headless test cannot see a Tier 2 GPU leak
  * directly, but it CAN see that every mesh the previous call built had its
@@ -36,9 +45,9 @@ function allMeshes(entities: ScenarioEntities): Mesh[] {
  * mechanism a leak could hide behind.
  */
 describe('buildScenarioEntities', () => {
-  it('sizes the mesh arrays to the world passed in: one airframe per aircraft, one hull per ship, one smoke per airframe', () => {
+  it('sizes the mesh arrays to the world passed in: one airframe per aircraft, one hull per ship, one smoke per airframe', async () => {
     const scene = new Scene()
-    const entities = buildScenarioEntities(scene, deckQuals, null)
+    const entities = await buildScenarioEntities(scene, deckQuals, null, stubAirframe)
     expect(entities.airframes).toHaveLength(deckQuals.aircraft.length)
     expect(entities.shipHandles).toHaveLength(deckQuals.ships.length)
     expect(entities.smokes).toHaveLength(deckQuals.aircraft.length)
@@ -47,17 +56,16 @@ describe('buildScenarioEntities', () => {
     }
   })
 
-  it("picks the player's hellcatRoot/prop out by id, not index 0", () => {
+  it("picks the player's airframe out by id, not index 0", async () => {
     const scene = new Scene()
-    const entities = buildScenarioEntities(scene, deckQuals, null)
+    const entities = await buildScenarioEntities(scene, deckQuals, null, stubAirframe)
     const playerIndex = deckQuals.aircraft.findIndex((a) => a.id === deckQuals.player)
-    expect(entities.hellcatRoot).toBe(entities.airframes[playerIndex]!.root)
-    expect(entities.prop).toBe(entities.airframes[playerIndex]!.prop)
+    expect(entities.player).toBe(entities.airframes[playerIndex])
   })
 
-  it('a SHRINK (fewer aircraft AND fewer ships) disposes every mesh the larger scenario built, not just the ones the smaller count happens to reuse', () => {
+  it('a SHRINK (fewer aircraft AND fewer ships) disposes every mesh the larger scenario built, not just the ones the smaller count happens to reuse', async () => {
     const scene = new Scene()
-    const before = buildScenarioEntities(scene, deckQuals, null) // 2 aircraft, 3 ships
+    const before = await buildScenarioEntities(scene, deckQuals, null, stubAirframe) // 2 aircraft, 3 ships
     const oldRoots = [...before.airframes, ...before.shipHandles].map((h) => h.root)
     const oldMeshes = allMeshes(before)
     // A sanity floor, not a precise count: each airframe/hull is several
@@ -73,7 +81,7 @@ describe('buildScenarioEntities', () => {
     const materials = [...new Set(oldMeshes.flatMap((m) => (Array.isArray(m.material) ? m.material : [m.material])))]
     const materialSpies = materials.map((mat) => vi.spyOn(mat, 'dispose'))
 
-    const after = buildScenarioEntities(scene, strikeRange, before) // 1 aircraft, 1 ship
+    const after = await buildScenarioEntities(scene, strikeRange, before, stubAirframe) // 1 aircraft, 1 ship
 
     expect(after.airframes).toHaveLength(1)
     expect(after.shipHandles).toHaveLength(1)
@@ -85,14 +93,14 @@ describe('buildScenarioEntities', () => {
     for (const handle of [...after.airframes, ...after.shipHandles]) expect(scene.children).toContain(handle.root)
   })
 
-  it('a GROW (more aircraft, more ships) also disposes the smaller scenario it replaces and produces exactly the new counts', () => {
+  it('a GROW (more aircraft, more ships) also disposes the smaller scenario it replaces and produces exactly the new counts', async () => {
     const scene = new Scene()
-    const before = buildScenarioEntities(scene, strikeRange, null) // 1 aircraft, 1 ship
+    const before = await buildScenarioEntities(scene, strikeRange, null, stubAirframe) // 1 aircraft, 1 ship
     const oldRoots = [...before.airframes, ...before.shipHandles].map((h) => h.root)
     const oldMeshes = allMeshes(before)
     const geometrySpies = oldMeshes.map((m) => vi.spyOn(m.geometry, 'dispose'))
 
-    const after = buildScenarioEntities(scene, deckQuals, before) // 2 aircraft, 3 ships
+    const after = await buildScenarioEntities(scene, deckQuals, before, stubAirframe) // 2 aircraft, 3 ships
 
     expect(after.airframes).toHaveLength(2)
     expect(after.shipHandles).toHaveLength(3)
@@ -100,26 +108,26 @@ describe('buildScenarioEntities', () => {
     for (const root of oldRoots) expect(scene.children).not.toContain(root)
   })
 
-  it('a scenario with no ships at all (gunnery-range) produces an empty shipHandles array, not a leftover from the previous scenario', () => {
+  it('a scenario with no ships at all (gunnery-range) produces an empty shipHandles array, not a leftover from the previous scenario', async () => {
     const scene = new Scene()
-    const before = buildScenarioEntities(scene, deckQuals, null) // 3 ships
-    const after = buildScenarioEntities(scene, gunneryRange, before) // 0 ships
+    const before = await buildScenarioEntities(scene, deckQuals, null, stubAirframe) // 3 ships
+    const after = await buildScenarioEntities(scene, gunneryRange, before, stubAirframe) // 0 ships
     expect(after.airframes).toHaveLength(3)
     expect(after.shipHandles).toHaveLength(0)
     for (const handle of before.shipHandles) expect(scene.children).not.toContain(handle.root)
   })
 
-  it('the very first call (no previous scenario) disposes nothing -- there is nothing to dispose yet', () => {
+  it('the very first call (no previous scenario) disposes nothing -- there is nothing to dispose yet', async () => {
     const scene = new Scene()
-    // Would throw if `buildScenarioEntities` tried to walk a null `previous`.
-    expect(() => buildScenarioEntities(scene, strikeRange, null)).not.toThrow()
+    // Would reject if `buildScenarioEntities` tried to walk a null `previous`.
+    await expect(buildScenarioEntities(scene, strikeRange, null, stubAirframe)).resolves.toBeDefined()
   })
 })
 
 describe('disposeMeshTree', () => {
-  it('disposes every mesh geometry (and material) in a subtree', () => {
+  it('disposes every mesh geometry (and material) in a subtree', async () => {
     const scene = new Scene()
-    const entities = buildScenarioEntities(scene, strikeRange, null)
+    const entities = await buildScenarioEntities(scene, strikeRange, null, stubAirframe)
     const { root } = entities.airframes[0]!
     const meshes: Mesh[] = []
     root.traverse((node) => {
