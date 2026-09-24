@@ -65,6 +65,16 @@ export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
   killed: 0.0,
 }
 
+/** Whole-branch review I-3: the label `createDebrief`'s "Recovery: ..." row
+ *  uses -- the same word each model's own `headline` already shows, kept as
+ *  a separate table rather than reading `model.headline` so this stays
+ *  correct even if a headline's wording ever changes for its own reasons. */
+const RECOVERY_LABEL: Readonly<Record<RecoveryOutcome, string>> = {
+  landed: 'LANDED',
+  ditched: 'DITCHED',
+  killed: 'KILLED',
+}
+
 /**
  * The mission's score: master spec §8's point table applied to kills SINCE
  * the last bank (`killsSince`, so a landing followed by "Continue" and more
@@ -99,6 +109,31 @@ export type DebriefModel = {
    * just look at the view.
    */
   readonly continueLabel?: string
+  /**
+   * Whole-branch review I-3: design doc §1 promises the debrief shows "the
+   * recovery multiplier actually applied" -- `score.multiplier` already
+   * carries the NUMBER (`missionScore`, above), but not which outcome it
+   * came from, which `createDebrief`'s renderer needs for the "Recovery:
+   * LANDED (×1)"-style line (`RECOVERY_MULTIPLIER.landed` is the JS number
+   * `1`, not a string "1.0" -- template interpolation renders it bare).
+   * Always present: every one of the three model builders below scores
+   * against exactly one `RecoveryOutcome`.
+   */
+  readonly outcome: RecoveryOutcome
+  /**
+   * The pilot's cumulative score AFTER this mission's result was banked, and
+   * the rank they were just promoted to (if any) -- design §1's other two
+   * promised figures ("the banked total, any promotion"). Both are set by
+   * `main.ts`'s call sites, AFTER banking, not by the three builders below:
+   * none of them has access to the roster, only to this one mission's score.
+   * `promotedTo` is the new rank's full NAME ("Lieutenant, junior grade"),
+   * not the abbreviation the roster list uses, matching this file's own
+   * `figures` label style; absent when no promotion happened, rather than
+   * present-and-equal-to-the-old-rank, so `show()` can render it
+   * conditionally the same way it already does `continueLabel`.
+   */
+  readonly bankedTotal?: number
+  readonly promotedTo?: string
 }
 
 const MPH_PER_MPS = 2.23694
@@ -139,6 +174,7 @@ export function landingModel(
     ],
     score: missionScore(killsSinceLastBank, 'landed'),
     continueLabel: 'Continue',
+    outcome: 'landed',
   }
 }
 
@@ -166,6 +202,7 @@ export function debriefModel(
       detail: 'You put her down on the water and survived. The airplane is lost.',
       figures,
       score: missionScore(killsSinceLastBank, 'ditched'),
+      outcome: 'ditched',
     }
   }
   // Three surfaces, because `Impact.surface` has had three since Plan 8's
@@ -186,6 +223,7 @@ export function debriefModel(
     detail,
     figures,
     score: missionScore(killsSinceLastBank, 'killed'),
+    outcome: 'killed',
   }
 }
 
@@ -206,6 +244,7 @@ export function destructionModel(
       { label: 'Altitude', value: `${Math.round(state.position.y)} m` },
     ],
     score: missionScore(killsSinceLastBank, 'killed'),
+    outcome: 'killed',
   }
 }
 
@@ -331,6 +370,28 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         score.textContent = `${row.score}`
         line.append(target, count, score)
         panel.appendChild(line)
+      }
+
+      // Whole-branch review I-3: design doc §1's three promised figures this
+      // panel was missing entirely -- the recovery multiplier actually
+      // applied, the pilot's banked cumulative total, and (only when it
+      // actually happened) a promotion notice. Terse, matching this file's
+      // existing style rather than a new heading of its own.
+      const recovery = document.createElement('div')
+      recovery.style.cssText = 'margin-top:6px;color:#55606b'
+      recovery.textContent = `Recovery: ${RECOVERY_LABEL[model.outcome]} (×${model.score.multiplier})`
+      panel.appendChild(recovery)
+      if (model.bankedTotal !== undefined) {
+        const banked = document.createElement('div')
+        banked.style.cssText = 'color:#55606b'
+        banked.textContent = `Banked total: ${model.bankedTotal}`
+        panel.appendChild(banked)
+      }
+      if (model.promotedTo !== undefined) {
+        const promoted = document.createElement('div')
+        promoted.style.cssText = 'margin-top:4px;font-weight:700'
+        promoted.textContent = `Promoted to ${model.promotedTo}!`
+        panel.appendChild(promoted)
       }
 
       if (model.continueLabel !== undefined) {

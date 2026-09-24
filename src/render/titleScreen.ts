@@ -102,7 +102,13 @@ export function isKnownScenarioId(id: string): boolean {
  * above, whose `label` this mirrors.
  */
 export function pilotButtonLabel(pilot: PilotRecord): string {
-  return `${pilot.name} — ${pilot.rank.abbrev} — ${pilot.cumulativeScore}`
+  // Whole-branch review M-1: a `kia` pilot was visually identical to an
+  // `active` one in this list -- nothing distinguished a dead pilot a New
+  // Game would resurrect (design §2) from one still flying. Appended, not a
+  // separate figure, matching this label's existing terse "name — rank —
+  // score" shape.
+  const status = pilot.status === 'kia' ? ' — KIA' : ''
+  return `${pilot.name} — ${pilot.rank.abbrev} — ${pilot.cumulativeScore}${status}`
 }
 
 /**

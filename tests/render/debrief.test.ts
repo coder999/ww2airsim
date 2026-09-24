@@ -146,6 +146,16 @@ describe('the debrief', () => {
     const m = destructionModel(createState({ velocity: v3(150, -40, 0) }), 'bandit-1', kills)
     expect(m.score).toEqual(missionScore(kills, 'killed'))
   })
+
+  // Whole-branch review I-3: `outcome` is what `createDebrief`'s renderer
+  // needs to label the "Recovery: ..." line -- `score.multiplier` alone is
+  // the NUMBER, not which of the three outcomes produced it.
+  it('carries the outcome each model builder actually scored against', () => {
+    expect(landingModel({ touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: null }, zeroKillsByType()).outcome).toBe('landed')
+    expect(debriefModel(impact({ kind: 'ditched' }), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType()).outcome).toBe('ditched')
+    expect(debriefModel(impact({ kind: 'destroyed' }), createState({ velocity: v3(150, -40, 0) }), zeroKillsByType()).outcome).toBe('killed')
+    expect(destructionModel(createState({ velocity: v3(150, -40, 0) }), null, zeroKillsByType()).outcome).toBe('killed')
+  })
 })
 
 describe('missionScore', () => {
@@ -199,8 +209,10 @@ describe('the land -> continue -> one more kill -> land again sequence (Plan 9 T
     const firstModel = landingModel(report, firstDelta)
     expect(firstModel.score.total).toBe(500)
     scoredThroughKillsByType = afterFirstFlight
-    roster = applyMissionResultToRoster(roster, pilot.id, firstModel.score.total, 'landed')
+    roster = applyMissionResultToRoster(roster, pilot.id, firstModel.score.total, 'landed', firstDelta)
     expect(roster[0]!.cumulativeScore).toBe(500)
+    // I-2: the career killsByType banked the delta, not the raw cumulative.
+    expect(roster[0]!.killsByType.fighter).toBe(1)
 
     // Continue (no bank, baseline untouched), fly on, get exactly ONE more
     // kill -- the aircraft's `killsByType` is now cumulative since boot, not
@@ -214,11 +226,16 @@ describe('the land -> continue -> one more kill -> land again sequence (Plan 9 T
     const secondModel = landingModel(report, secondDelta)
     expect(secondModel.score.total).toBe(500) // one more fighter kill, not two
     scoredThroughKillsByType = afterContinuing
-    roster = applyMissionResultToRoster(roster, pilot.id, secondModel.score.total, 'landed')
+    roster = applyMissionResultToRoster(roster, pilot.id, secondModel.score.total, 'landed', secondDelta)
 
     // 500 (first landing) + 500 (second landing's one new kill) = 1000, NOT
     // 500 + 1000 (re-banking both cumulative fighter kills the second time).
     expect(roster[0]!.cumulativeScore).toBe(1000)
     expect(roster[0]!.missionsFlown).toBe(2)
+    // I-2: killsByType accumulated by DELTA across both bankings (1 + 1 = 2),
+    // not re-banked from the aircraft's raw cumulative (which would read 2
+    // the first time and 2 again the second, i.e. never wrongly doubled, but
+    // also never wrongly stuck at 1).
+    expect(roster[0]!.killsByType.fighter).toBe(2)
   })
 })

@@ -16,3 +16,18 @@ export const TARGET_TYPES: readonly TargetType[] = [
 export function zeroKillsByType(): Readonly<Record<TargetType, number>> {
   return Object.fromEntries(TARGET_TYPES.map((t) => [t, 0])) as Readonly<Record<TargetType, number>>
 }
+
+/**
+ * `a` plus `b`, per type -- whole-branch review I-2: `roster.ts`'s
+ * `applyMissionResult` uses this to accumulate a pilot's CAREER
+ * `killsByType` (across every mission ever banked) from the per-mission
+ * delta `main.ts` already computes via `debrief.ts`'s `killsSince`. Kept
+ * here rather than only in `roster.ts` because it is the same vocabulary
+ * `zeroKillsByType` already owns, not roster-specific arithmetic.
+ */
+export function addKillsByType(
+  a: Readonly<Record<TargetType, number>>,
+  b: Readonly<Record<TargetType, number>>,
+): Readonly<Record<TargetType, number>> {
+  return Object.fromEntries(TARGET_TYPES.map((t) => [t, a[t] + b[t]])) as Readonly<Record<TargetType, number>>
+}

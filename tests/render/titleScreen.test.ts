@@ -103,6 +103,14 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
     expect(label).toContain(String(pilot.cumulativeScore))
   })
 
+  it('whole-branch review M-1: marks a kia pilot\'s button distinctly from an active one', () => {
+    const active = createPilot('Boyington')
+    expect(pilotButtonLabel(active)).not.toContain('KIA')
+
+    const kia = { ...active, status: 'kia' as const }
+    expect(pilotButtonLabel(kia)).toContain('KIA')
+  })
+
   it('labels the selected-pilot header with the pilot\'s name and full rank name', () => {
     const pilot = createPilot('Boyington')
     const label = selectedPilotLabel(pilot)

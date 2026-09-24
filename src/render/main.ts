@@ -16,12 +16,12 @@ import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
-import { createDebrief, debriefModel, destructionModel, killsSince, landingModel } from './debrief.js'
+import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { applyMissionResultToRoster, loadRoster, saveRoster } from './roster.js'
-import { zeroKillsByType } from '../sim/weapons/targetType.js'
+import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
@@ -486,6 +486,20 @@ async function boot(): Promise<void> {
           ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
           : rebuilt
         frame = withPaused(frame, false)
+        // Whole-branch review C-1: `resetFlightUi` (declared below, alongside
+        // the state it clears -- see its own doc comment) is a forward
+        // reference exactly like `buildWorld` above, and is safe for the
+        // identical reason: nothing between `frame`'s own first assignment
+        // and `resetFlightUi`'s declaration ever awaits, so by the time any
+        // click can actually reach this closure both are long since
+        // initialized. Without this call, a "Return to title" -> New game
+        // left `landingShown` (and the impact/destruction tick guards)
+        // latched from the PREVIOUS flight's debrief, so the next landing's
+        // own `!landingShown` gate silently never fired again -- no debrief,
+        // no bank, for the rest of the page's life. Runs on both branches
+        // through `onNewGame`: called directly here for a same-scenario
+        // rebuild, and via `.then(rebuildFrame)` for a scenario switch.
+        resetFlightUi()
       }
     }
     if (scenarioId !== requestedScenarioId) {
@@ -1049,18 +1063,12 @@ async function boot(): Promise<void> {
       restarted.groundSpawn && restarted.world.terrain !== null
         ? settleOnTerrain(restarted, restarted.world.terrain)
         : restarted
-    debrief.hide()
-    impactEffect.hide()
     // The pooled flashes, like the impact effect: a fireball from the old
     // flight must not sit under the new airplane. The flash MEMORY needs
     // no reset -- the tick going backwards is its restart signal, as it is
     // the audio reducer's -- and the tracers redraw from the new world's
     // (empty) projectile list on the next frame.
-    hitFlashes.hide()
-    shownImpactTick = null
-    shownDestructionTick = null
-    landingShown = false
-    postImpactOceanSeconds = 0
+    resetFlightUi()
     // A Restart is a new life for scoring purposes exactly like a New game
     // is (this plan's own "Ruling"), even though it keeps the same pilot and
     // does not call `startSortie` again -- Restart is a redo of the SAME
@@ -1097,11 +1105,58 @@ async function boot(): Promise<void> {
    * roster immediately, so both this debrief's own figures and the title
    * screen's next `show()` (which re-reads `loadRoster()`) agree with no
    * extra plumbing. A no-op before `onNewGame` has ever fired.
+   *
+   * Whole-branch review I-2/I-3: `killsSinceLastBank` is threaded through to
+   * `applyMissionResultToRoster` so the pilot's career `killsByType`
+   * actually accumulates (I-2 -- before this it was written nowhere).
+   * Returns the pilot's post-bank cumulative score and, if this mission
+   * crossed a rank threshold, the new rank's name -- design §1's other two
+   * promised debrief figures (I-3), read off the roster entry BEFORE and
+   * AFTER banking so a promotion is reported only when the rank actually
+   * changed, not merely recomputed to the same value. `null` on the same
+   * no-op guard as before (`currentPilotId === null`) and if the pilot
+   * somehow is not found (unreachable in practice: `currentPilotId` only
+   * ever comes from a pilot actually in `roster`).
    */
-  const bankMissionResult = (scoreTotal: number, outcome: 'landed' | 'ditched' | 'killed'): void => {
-    if (currentPilotId === null) return
-    roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome)
+  const bankMissionResult = (
+    scoreTotal: number,
+    outcome: 'landed' | 'ditched' | 'killed',
+    killsSinceLastBank: Readonly<Record<TargetType, number>>,
+  ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
+    if (currentPilotId === null) return null
+    const before = roster.find((p) => p.id === currentPilotId) ?? null
+    roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank)
     saveRoster(roster)
+    const after = roster.find((p) => p.id === currentPilotId) ?? null
+    if (after === null) return null
+    const promotedTo = before !== null && before.rank.abbrev !== after.rank.abbrev ? after.rank.name : undefined
+    return { bankedTotal: after.cumulativeScore, promotedTo }
+  }
+  /**
+   * The one place all three debrief call sites below merge `bankMissionResult`'s
+   * return into the model actually shown (whole-branch review I-3) -- kept in
+   * one function rather than repeated three times so the merge shape cannot
+   * drift between the impact/destruction/landing sites. `banked === null`
+   * (no pilot flying -- a dev-URL bypass, or the roster flow never reached)
+   * shows the model exactly as built, with neither figure.
+   */
+  const showDebrief = (
+    model: DebriefModel,
+    banked: { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null,
+    onContinue: (() => void) | undefined,
+  ): void => {
+    // `exactOptionalPropertyTypes`: spread `promotedTo` in only when it is
+    // actually a string, rather than assigning it `undefined` -- the two are
+    // different things under this tsconfig, and `DebriefModel.promotedTo` is
+    // typed as absent-or-string, not string-or-undefined (matching
+    // `continueLabel`'s existing convention on the same type).
+    debrief.show(
+      banked === null
+        ? model
+        : { ...model, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
+      onContinue,
+      returnToTitle,
+    )
   }
   /**
    * Real elapsed seconds since the flight froze, 0 while still flying.
@@ -1119,6 +1174,51 @@ async function boot(): Promise<void> {
    * bit-identical to before this fix and only a held one keeps moving.
    */
   let postImpactOceanSeconds = 0
+  /**
+   * Whole-branch review C-1: the flight/debrief UI state that must be
+   * cleared before ANY new life begins -- a Restart (above, `createDebrief`'s
+   * own `onRestart`) and an `onNewGame` rebuild (`rebuildFrame`, inside the
+   * title's callback well above) both start a fresh sortie, and neither may
+   * leave a PREVIOUS flight's debrief/effects/landing state behind. Before
+   * this fix only Restart cleared these; `rebuildFrame` rebuilt `frame`
+   * alone, so a landing -> "Return to title" -> New game -> land again
+   * sequence left `landingShown` (and the impact/destruction tick guards)
+   * latched `true`/stale from the first flight, and the second landing's own
+   * `if (... && !landingShown)` gate (below) silently never fired again -- no
+   * debrief, no bank, for the rest of the page's life. The same stale
+   * `landingShown` also silently killed `openNavigationChart` and the
+   * radar-range-cycling keydown handler for that session, both gated on it
+   * elsewhere in this file.
+   *
+   * Declared here, after every variable it touches (`debrief`, `impactEffect`,
+   * `hitFlashes`, `shownImpactTick`, `shownDestructionTick`, `landingShown`,
+   * `postImpactOceanSeconds`) rather than hoisted to the top of `boot` with
+   * `frame`/`buildWorld`/`roster` -- unlike those, nothing here needs the
+   * TDZ-safety hoist: there is no `await` anywhere between `frame`'s own
+   * first assignment, above, and this declaration (confirmed by reading the
+   * whole stretch), so this entire span runs as one synchronous block and no
+   * click can land in the middle of it. `rebuildFrame`'s own call to this
+   * function, textually earlier in the file, is a forward reference that
+   * resolves the same way `buildWorld`'s already does: it is never invoked
+   * before boot() has run this line, because it only runs from a user click,
+   * and boot() has no `await` left between here and starting the render loop
+   * that could let one in early.
+   *
+   * Does NOT reset `scoredThroughKillsByType` -- both call sites already
+   * reset that themselves (the title's `onNewGame` callback, before either
+   * of its branches; the Restart handler, at its own end) for reasons
+   * specific to each path, so folding a third copy in here would be
+   * redundant rather than protective.
+   */
+  const resetFlightUi = (): void => {
+    debrief.hide()
+    impactEffect.hide()
+    hitFlashes.hide()
+    shownImpactTick = null
+    shownDestructionTick = null
+    landingShown = false
+    postImpactOceanSeconds = 0
+  }
   let legendOpen = true
   // Plan 17. Instrument setting, not simulation state -- same tier as
   // `legendOpen`/`muted`, not `FrameState`: neither affects the replay or
@@ -1527,8 +1627,8 @@ async function boot(): Promise<void> {
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = debriefModel(hit, player.state, killsSinceLastBank)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      bankMissionResult(model.score.total, hit.kind === 'ditched' ? 'ditched' : 'killed')
-      debrief.show(model, undefined, returnToTitle)
+      const banked = bankMissionResult(model.score.total, hit.kind === 'ditched' ? 'ditched' : 'killed', killsSinceLastBank)
+      showDebrief(model, banked, undefined)
     }
     // Gunfire and structural overload can destroy the player before contact.
     // `nextFrameState` already freezes that world; raise the same Restart path
@@ -1543,8 +1643,8 @@ async function boot(): Promise<void> {
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = destructionModel(player.state, playerDamage.attacker, killsSinceLastBank)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      bankMissionResult(model.score.total, 'killed')
-      debrief.show(model, undefined, returnToTitle)
+      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank)
+      showDebrief(model, banked, undefined)
     }
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).
@@ -1559,16 +1659,12 @@ async function boot(): Promise<void> {
         Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
       )
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      bankMissionResult(model.score.total, 'landed')
-      debrief.show(
-        model,
-        () => {
-          frame = acknowledgeLanding(frame!)
-          landingShown = false
-          debrief.hide()
-        },
-        returnToTitle,
-      )
+      const banked = bankMissionResult(model.score.total, 'landed', killsSinceLastBank)
+      showDebrief(model, banked, () => {
+        frame = acknowledgeLanding(frame!)
+        landingShown = false
+        debrief.hide()
+      })
     }
     impactEffect.object.quaternion.copy(camera.quaternion)
     impactEffect.update(frameMs / 1000)

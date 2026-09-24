@@ -22,8 +22,11 @@ test('picking a different scenario swaps entities in place, with no navigation',
 
   // Select a pilot (required before New game enables -- design §3/Plan 9
   // Task 5) via the "New pilot" inline form, self-contained here rather than
-  // via harness.ts's `startGame`: that helper predates the roster step and
-  // does not select one (a separate, already-tracked gap, not this test's).
+  // via harness.ts's `startGame`: that helper (since `d9c7203`) selects a
+  // pilot AND immediately presses New Game, with no gap to interact with the
+  // scenario radiogroup in between -- and this test's whole point is picking
+  // a scenario, and in some cases re-checking it, before that click. Not a
+  // gap in `startGame`; just a different job.
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Scenario Swap Test')
   await title.getByRole('button', { name: 'Add' }).click()
@@ -65,8 +68,11 @@ test('picking the already-loaded scenario also stays in place (the same code pat
 
   // Select a pilot (required before New game enables -- design §3/Plan 9
   // Task 5) via the "New pilot" inline form, self-contained here rather than
-  // via harness.ts's `startGame`: that helper predates the roster step and
-  // does not select one (a separate, already-tracked gap, not this test's).
+  // via harness.ts's `startGame`: that helper (since `d9c7203`) selects a
+  // pilot AND immediately presses New Game, with no gap to interact with the
+  // scenario radiogroup in between -- and this test's whole point is picking
+  // a scenario, and in some cases re-checking it, before that click. Not a
+  // gap in `startGame`; just a different job.
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Same Scenario Test')
   await title.getByRole('button', { name: 'Add' }).click()
@@ -112,8 +118,11 @@ test('return to title after an in-place scenario switch preselects the scenario 
 
   // Select a pilot (required before New game enables -- design §3/Plan 9
   // Task 5) via the "New pilot" inline form, self-contained here rather than
-  // via harness.ts's `startGame`: that helper predates the roster step and
-  // does not select one (a separate, already-tracked gap, not this test's).
+  // via harness.ts's `startGame`: that helper (since `d9c7203`) selects a
+  // pilot AND immediately presses New Game, with no gap to interact with the
+  // scenario radiogroup in between -- and this test's whole point is picking
+  // a scenario, and in some cases re-checking it, before that click. Not a
+  // gap in `startGame`; just a different job.
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Regression Test')
   await title.getByRole('button', { name: 'Add' }).click()
