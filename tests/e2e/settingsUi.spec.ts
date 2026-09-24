@@ -22,11 +22,18 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
  *    override wins..." below, which uses the new `__ww2.qualityProbeChecked()`
  *    hook (`diagnostics.ts`/`main.ts`, added by this task) alongside the
  *    pre-existing `oceanTier()` hook.
- * 2. A screen that never calls `ensureStampFilter()` renders an invisible
- *    `.stamp` with no error anywhere (Task 5 review). "roster screen
- *    composites..." and "debrief screen composites..." below both assert a
- *    real, non-zero bounding box and a resolved `filter` on a live `.stamp`
- *    element, not just that the DOM node exists.
+ * 2. A screen that never calls `ensureStampFilter()` is missing its
+ *    `.stamp`'s roughen effect (Task 5 review believed this made the stamp
+ *    invisible outright -- confirmed FALSE on the real reference browser
+ *    during this task's own review: an unfiltered stamp renders completely
+ *    normally, same box, same visibility, same computed `filter` string
+ *    naming the id, right next to a correctly-filtered one; none of that
+ *    depends on whether the filter element exists). "roster screen
+ *    composites..." and "debrief screen composites..." below assert the
+ *    filter ELEMENT itself resolves (`stampFilterResolves`, below) -- the
+ *    one check that actually goes red when a screen forgets to call it --
+ *    alongside the box/visibility checks, which are necessary but not
+ *    sufficient on their own.
  *
  * Settings is reachable only from the title screen (its button lives in
  * `titleScreen.ts`'s always-visible row, hidden once "New game" dismisses the
@@ -45,6 +52,26 @@ const RANGE = `/?${SCENARIO_PARAM}=gunnery-range&${xName}=0&${yName}=5000&${zNam
 test.setTimeout(120_000)
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
+
+/**
+ * Whether the SVG `<filter>` element `naval-comms.css`'s `.stamp` rule names
+ * actually exists in the document -- the one check that goes red when a
+ * screen forgot to call `ensureStampFilter()` (see the header comment's
+ * item 2). Reads `STAMP_FILTER_ID` from the real module INSIDE the page,
+ * via a path string Vite resolves and this file's own Node-side transform
+ * never sees, rather than a static top-level `import` of `navalComms.ts`:
+ * that module pulls in `naval-comms.css`, and Playwright's Node-side loader
+ * for this test file (not Vite, no CSS loader) fails to parse it. Same
+ * reason `ocean.spec.ts` keeps its own cross-boundary import paths as
+ * plain strings.
+ */
+async function stampFilterResolves(page: Page): Promise<boolean> {
+  return page.evaluate(async () => {
+    const navalCommsPath = '/src/render/ui/navalComms.ts'
+    const { STAMP_FILTER_ID } = (await import(navalCommsPath)) as { STAMP_FILTER_ID: string }
+    return document.getElementById(STAMP_FILTER_ID) instanceof SVGFilterElement
+  })
+}
 
 /** Waits for the terrain heightfield without pressing "New game" -- unlike
  *  `harness.ts`'s `waitForTerrain`, which does both, because several cases
@@ -136,6 +163,16 @@ test('DEV ?oceanTier= override wins over a saved low render-quality setting', as
   })
   await page.goto('/?oceanTier=high')
   await waitForTerrainOnly(page)
+
+  // Proves the seeded `localStorage` was genuinely READ at boot, not just
+  // sitting there unused -- without this, a completely failed
+  // `addInitScript` seed would still pass the `oceanTier() === 'high'` check
+  // below by coincidence (nothing seeded also means no saved `low` to lose
+  // to, and the default is `high` regardless of the override). `true` here
+  // means `createBootQuality` read a real persisted choice at construction
+  // (`probeSuppressed`), i.e. the seed landed before the app's own scripts
+  // ran.
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
 
   // The actual runtime state, not the source text: `oceanTier()` reads the
   // live cascade tier `applyOceanTier` built, and the DEV override must have
@@ -329,21 +366,26 @@ test('roster screen composites its letterhead/stamp/table over the WebGPU canvas
   const stamp = title.locator('.stamp:visible', { hasText: 'Confidential' })
   await expect(stamp).toBeVisible()
 
-  // Item 2's real check: a non-zero rendered box, not just DOM presence.
+  // A non-zero rendered box -- necessary, but (per this task's own review)
+  // NOT sufficient: a stamp whose `filter: url(#stampRough)` never resolves
+  // at all renders completely normally, same box, same visibility, same
+  // computed-style string still naming the id -- none of that changes
+  // depending on whether the filter element actually exists. Confirmed for
+  // real by the reviewer: an unfiltered stamp next to a correctly-filtered
+  // one look and measure identically by every property read off the STAMP
+  // element itself. The claim in `ensureStampFilter`'s own doc comment
+  // (`navalComms.ts`) that an unresolved reference is "not rendered at all"
+  // does not hold on this actual browser -- flagged, not fixed here (see
+  // this task's report).
   const box = await stamp.boundingBox()
   expect(box, 'the Confidential stamp has no bounding box at all').not.toBeNull()
   expect(box!.width).toBeGreaterThan(0)
   expect(box!.height).toBeGreaterThan(0)
-  // And a RESOLVED filter -- an unresolved `filter: url(#missing)` computes to
-  // an empty string per the Filter Effects spec, which is exactly the Task 5
-  // review's invisible-stamp failure mode. The inline style is empty: the
-  // filter must come from the stylesheet, not a per-element override hack.
-  const filterInfo = await stamp.evaluate((el) => ({
-    inline: (el as HTMLElement).style.filter,
-    computed: getComputedStyle(el).filter,
-  }))
-  expect(filterInfo.inline).toBe('')
-  expect(filterInfo.computed).toContain('stampRough')
+  // The actual check: the filter ELEMENT resolves, not a property of the
+  // stamp. This is the one assertion that goes red when a screen forgets
+  // `ensureStampFilter()` -- confirmed by the reviewer running this exact
+  // check against a document with no `<filter id="stampRough">` at all.
+  expect(await stampFilterResolves(page)).toBe(true)
 
   await page.screenshot({ path: 'test-results/roster-composite.png' })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
@@ -377,16 +419,14 @@ test('debrief screen composites its letterhead/stamp/figures over the WebGPU can
 
   const stamp = debrief.locator('.stamp').first()
   await expect(stamp).toBeVisible()
+  // Same two checks as the roster test above, and the same correction: the
+  // box/visibility checks alone do not catch a missing filter element (see
+  // that test's comment for the reviewer's confirmed reproduction).
   const box = await stamp.boundingBox()
   expect(box, 'the outcome stamp has no bounding box at all').not.toBeNull()
   expect(box!.width).toBeGreaterThan(0)
   expect(box!.height).toBeGreaterThan(0)
-  const filterInfo = await stamp.evaluate((el) => ({
-    inline: (el as HTMLElement).style.filter,
-    computed: getComputedStyle(el).filter,
-  }))
-  expect(filterInfo.inline).toBe('')
-  expect(filterInfo.computed).toContain('stampRough')
+  expect(await stampFilterResolves(page)).toBe(true)
 
   await page.screenshot({ path: 'test-results/debrief-composite.png' })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])

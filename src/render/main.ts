@@ -464,6 +464,22 @@ async function boot(): Promise<void> {
    * down, once those objects exist.
    */
   const quality = createBootQuality()
+  // Spec §5 step 1: a saved choice means the probe (`adaptOceanQuality`,
+  // below) never runs at all -- the "probe once ever" rule -- so this starts
+  // pre-latched in that path rather than the probe measuring and then
+  // discarding its own result.
+  //
+  // Declared HERE, immediately beside `quality`, rather than down next to
+  // `adaptOceanQuality` where it used to live (Task 9 review): the `__ww2`
+  // DEV hook exposes this variable (`qualityProbeChecked`, below), and that
+  // hook is built well before this point in `boot()` used to be reached --
+  // exactly the "read a `let` before its own declaration has run" bug class
+  // that already crashed `onNewGame` for real during Plan 9 (see this repo's
+  // `tests/e2e/harness.ts`, `waitForScenario`'s doc comment). Hoisting the
+  // declaration removes the hazard structurally instead of relying on every
+  // future reader re-deriving that no caller happens to invoke the hook that
+  // early.
+  let qualityChecked = quality.probeSuppressed
   // Captured once per page load, before any object depends on it: the terrain
   // pyramid's floor cannot change mid-flight, which is what the dialog's
   // `ASSET_QUALITY_EFFECT_NOTE` tells the player. Nothing persisted means
@@ -691,21 +707,13 @@ async function boot(): Promise<void> {
       adapter: adapterVerdict,
       oceanTier: () => oceanTier.name,
       // Task 9 (reference-GPU acceptance): whether `adaptOceanQuality`'s
-      // ~180-frame probe has already resolved -- either because it measured
-      // (a fresh profile, after the warm-up window) or because it was
-      // pre-latched at `true` from `quality.probeSuppressed` (a persisted
-      // choice already existed at boot, so the "probe once ever" rule skips
-      // it entirely). Reading `qualityChecked` itself rather than a second,
-      // parallel flag: it is declared later in this same function (line
-      // ~1049) than this object literal, but every real caller reads it only
-      // after `waitForTerrain`, which requires the terrain heightfield to
-      // have arrived -- itself gated on code further down still than that
-      // `let` -- so the declaration has always run by the time this getter
-      // is invoked. Exists because the DEV-override precedence and the
-      // "an explicit pick suppresses the next page load's probe" claims
-      // (spec §5 steps 1-2) were previously pinned only by a source-text
-      // regex on `bootQuality.test.ts`, never by a running check
-      // (Task 6 review, carried to this task).
+      // ~180-frame probe has already resolved, or was pre-latched true by a
+      // persisted choice at boot (`qualityChecked`, declared beside `quality`
+      // above -- see that declaration for why it lives there now). Exists
+      // because the DEV-override precedence and "an explicit pick suppresses
+      // the next page load's probe" claims (spec §5 steps 1-2) were
+      // previously pinned only by a source-text regex on
+      // `bootQuality.test.ts`, never by a running check (Task 6 review).
       qualityProbeChecked: () => qualityChecked,
       oceanLandWeight: (x, z) => {
         if (!oceanDepth) return null
@@ -1060,10 +1068,8 @@ async function boot(): Promise<void> {
     clouds.setTier(name)
     shadow.setTier(name)
   }
-  // Spec §5 step 1: a saved choice means the probe never runs at all -- the
-  // "probe once ever" rule -- so `qualityChecked` starts pre-latched in that
-  // path rather than the probe measuring and then discarding its own result.
-  let qualityChecked = quality.probeSuppressed
+  // `qualityChecked` itself is declared much earlier now (beside `quality`),
+  // read here and mutated below -- see that declaration for why.
   // Everything a tier moves now exists. This also applies anything picked
   // during boot's own awaits, when the dialog was already clickable and there
   // was nothing yet to apply it to.
