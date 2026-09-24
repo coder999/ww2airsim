@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ww2airsim -- Component &amp; stamp library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Stardos+Stencil:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/telegram.css">
+<style>
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 12px 0 20px; }
+  .swatch-row .caption { width: 100%; font-size: 11px; color: var(--ink-faint); }
+  .palette { display: flex; gap: 14px; flex-wrap: wrap; }
+  .palette-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .palette-chip i { width: 20px; height: 20px; border-radius: 3px; display: block; border: 1px solid rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="stampRough" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2"/>
+    </filter>
+  </svg>
+
+  <nav class="proto-nav"><a href="index.html">&larr; index</a><span>|</span><span>styleguide.html</span></nav>
+
+  <main class="sheet">
+    <div class="letterhead">
+      <img class="seal-svg" src="assets/navy-seal.svg" alt="" />
+      <div class="letterhead-text">
+        <div class="letterhead-kicker">Reference</div>
+        <div class="letterhead-title">Stamp &amp; Component Library</div>
+      </div>
+    </div>
+
+    <div class="form-section-title">Ink colors</div>
+    <div class="palette">
+      <span class="palette-chip"><i style="background:var(--stamp-red)"></i>red -- losses, urgent, failure</span>
+      <span class="palette-chip"><i style="background:var(--stamp-blue)"></i>blue -- positive/official outcomes</span>
+      <span class="palette-chip"><i style="background:var(--stamp-violet)"></i>violet -- administrative/status</span>
+      <span class="palette-chip"><i style="background:var(--stamp-black)"></i>black -- neutral/default</span>
+    </div>
+
+    <div class="form-section-title">Large stamps (.stamp--lg)</div>
+    <div class="swatch-row">
+      <div class="stamp stamp--lg stamp--red stamp--rotate-1">Killed in Action</div>
+      <div class="stamp stamp--lg stamp--blue stamp--rotate-2">Mission Complete</div>
+      <div class="stamp stamp--lg stamp--violet stamp--rotate-3">P.O.W.</div>
+      <div class="caption">P.O.W. is a decorative example only -- the sim has no capture mechanic yet.</div>
+    </div>
+
+    <div class="form-section-title">Medium stamps (.stamp--md)</div>
+    <div class="swatch-row">
+      <div class="stamp stamp--md stamp--violet stamp--rotate-1">Promoted</div>
+      <div class="stamp stamp--md stamp--blue stamp--rotate-2">Recommended</div>
+      <div class="stamp stamp--md stamp--red stamp--rotate-1">Mission Failed</div>
+      <div class="stamp stamp--md stamp--black stamp--rotate-3">Processed</div>
+    </div>
+
+    <div class="form-section-title">Small stamps (.stamp--sm) &amp; chips</div>
+    <div class="swatch-row">
+      <div class="stamp stamp--sm stamp--violet stamp--rotate-2">Confidential</div>
+      <div class="stamp stamp--sm stamp--red stamp--rotate-1">Priority</div>
+      <div class="stamp stamp--sm stamp--black stamp--rotate-0">Routine</div>
+      <span class="stamp-chip" style="color:var(--stamp-red); border-color:var(--stamp-red);">K.I.A.</span>
+      <span class="stamp-chip" style="color:var(--stamp-black); border-color:var(--stamp-black);">Active</span>
+      <span class="stamp-chip" style="color:var(--stamp-violet); border-color:var(--stamp-violet);">Reserve</span>
+    </div>
+
+    <div class="form-section-title">Seal</div>
+    <div class="swatch-row">
+      <img class="seal-svg" src="assets/navy-seal.svg" alt="" style="width:110px;height:110px;" />
+      <div class="caption" style="width:auto; max-width:40ch;">
+        Original line-art insignia (not a reproduction of any official seal). The two arc
+        labels and station name are placeholder text -- swap for whatever the game's
+        squadron/base naming ends up being.
+      </div>
+    </div>
+
+    <div class="form-section-title">Form controls</div>
+    <div class="field-row">
+      <span class="field-label">Typed field</span>
+      <input class="typed-input" type="text" value="Example entry" />
+    </div>
+    <div class="ballot-option" role="radio" aria-checked="true" style="max-width:360px;">
+      <span class="ballot-box"></span>
+      <span class="ballot-label">Ballot option (checked)</span>
+    </div>
+    <div class="ballot-option" role="radio" aria-checked="false" style="max-width:360px;">
+      <span class="ballot-box"></span>
+      <span class="ballot-label">Ballot option (unchecked)</span>
+    </div>
+    <div class="button-row">
+      <button class="ink-button ink-button--primary">Primary button</button>
+      <button class="ink-button">Secondary button</button>
+    </div>
+
+    <div class="form-section-title">Ruled table</div>
+    <table class="form-table">
+      <thead><tr><th>Column</th><th style="width:100px;">Numeric</th></tr></thead>
+      <tbody>
+        <tr><td>Row one</td><td class="num">1,234</td></tr>
+        <tr><td>Row two (selected)</td><td class="num">5,678</td></tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

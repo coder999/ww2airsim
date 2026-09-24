@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="seal-svg">
+  <defs>
+    <path id="sealArcTop" d="M 30,100 A 70,70 0 0 1 170,100" />
+    <path id="sealArcBottom" d="M 42,146 A 70,70 0 0 0 158,146" />
+  </defs>
+
+  <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="2" />
+  <circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" stroke-width="1"
+    stroke-dasharray="1.2 3.4" />
+  <circle cx="100" cy="100" r="70" fill="none" stroke="currentColor" stroke-width="1.5" />
+
+  <text font-family="'Stardos Stencil', sans-serif" font-size="11.5" letter-spacing="3.5" fill="currentColor">
+    <textPath href="#sealArcTop" startOffset="50%" text-anchor="middle">NAVAL AIR STATION</textPath>
+  </text>
+  <text font-family="'Stardos Stencil', sans-serif" font-size="11.5" letter-spacing="3.5" fill="currentColor">
+    <textPath href="#sealArcBottom" startOffset="50%" text-anchor="middle">TASK FORCE PACIFIC</textPath>
+  </text>
+
+  <!-- five-pointed star, crown position -->
+  <path fill="currentColor" d="M100,34 l4.6,14.1 h14.8 l-12,8.7 4.6,14.1 -12-8.7 -12,8.7 4.6-14.1
+    -12-8.7 h14.8 Z" />
+
+  <!-- wings, simple fanned feather strokes -->
+  <g stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M100,104 C82,96 62,98 44,88" />
+    <path d="M100,110 C80,104 58,106 38,100" />
+    <path d="M100,116 C80,112 56,116 36,114" />
+    <path d="M100,104 C118,96 138,98 156,88" />
+    <path d="M100,110 C120,104 142,106 162,100" />
+    <path d="M100,116 C120,112 144,116 164,114" />
+  </g>
+
+  <!-- anchor -->
+  <g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="100" cy="76" r="7" fill="none" />
+    <line x1="100" y1="83" x2="100" y2="138" />
+    <line x1="86" y1="98" x2="114" y2="98" />
+    <path d="M78,118 C78,134 90,144 100,146" />
+    <path d="M122,118 C122,134 110,144 100,146" />
+    <path d="M78,118 l-8,-4 M78,118 l-3,9" />
+    <path d="M122,118 l8,-4 M122,118 l3,9" />
+  </g>
+
+  <!-- wreath sprigs -->
+  <g stroke="currentColor" stroke-width="1.4" fill="none">
+    <path d="M62,150 C58,140 60,128 68,120" />
+    <path d="M62,150 l-6,-3 M60,143 l-6,-2 M64,135 l-6,-1 M67,127 l-5,0" />
+    <path d="M138,150 C142,140 140,128 132,120" />
+    <path d="M138,150 l6,-3 M140,143 l6,-2 M136,135 l6,-1 M133,127 l5,0" />
+  </g>
+</svg>

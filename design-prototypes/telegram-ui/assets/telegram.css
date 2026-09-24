@@ -1,0 +1,354 @@
+/* ww2airsim -- "Naval Communications" UI prototype design system.
+   Standalone: no game code depends on this. See design-prototypes/telegram-ui/README.md. */
+
+:root {
+  --paper: #e9dfc2;
+  --paper-deep: #ddd0a8;
+  --paper-edge: #c9b98a;
+  --ink: #2a2620;
+  --ink-faint: #6b6252;
+  --rule: rgba(42, 38, 32, 0.38);
+  --rule-heavy: rgba(42, 38, 32, 0.62);
+
+  --stamp-red: #a3242c;
+  --stamp-blue: #1f3d63;
+  --stamp-violet: #5b2a5e;
+  --stamp-black: #2a2620;
+
+  --font-display: 'Stardos Stencil', 'Arial Narrow', sans-serif;
+  --font-body: 'Special Elite', 'Courier New', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: #17140f;
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+body {
+  padding: 40px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* ---------- paper sheet ---------- */
+
+.sheet {
+  position: relative;
+  width: min(900px, 100%);
+  background-color: var(--paper);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.015) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 20% -10%, rgba(255, 255, 255, 0.25), transparent 60%),
+    radial-gradient(ellipse at 100% 110%, rgba(0, 0, 0, 0.18), transparent 55%);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 2px 0 var(--paper-edge) inset;
+  padding: 34px 38px 30px;
+  border: 1px solid var(--paper-edge);
+}
+
+.sheet::before {
+  /* deckle/torn-edge suggestion along the bottom */
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -6px;
+  height: 10px;
+  background: linear-gradient(var(--paper), transparent);
+  opacity: 0.6;
+}
+
+/* ---------- letterhead ---------- */
+
+.letterhead {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 3px double var(--rule-heavy);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.seal-svg {
+  width: 68px;
+  height: 68px;
+  color: var(--ink);
+  flex: none;
+  opacity: 0.88;
+}
+
+.letterhead-text { flex: 1; min-width: 0; }
+
+.letterhead-kicker {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.letterhead-title {
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  margin: 2px 0;
+}
+
+.letterhead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.letterhead-meta strong { color: var(--ink); font-weight: normal; }
+
+.form-number {
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- routing / DTG block (debrief-style telegram header) ---------- */
+
+.routing {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--rule-heavy);
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 18px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.routing dt {
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.routing dd { margin: 0; }
+
+/* ---------- ruled form tables ---------- */
+
+table.form-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.form-table th, .form-table td {
+  border: 1px solid var(--rule);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.form-table thead th {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(42, 38, 32, 0.06);
+  border-bottom: 2px solid var(--rule-heavy);
+}
+
+.form-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.form-table td.center { text-align: center; }
+.form-table tbody tr:nth-child(odd) { background: rgba(42, 38, 32, 0.025); }
+.form-table tbody tr.row-selected { background: rgba(31, 61, 99, 0.12); }
+
+/* ---------- section headings ---------- */
+
+.form-section-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 22px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ---------- typed fields / checkbox rows (form controls) ---------- */
+
+.field-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.field-row .field-label {
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  min-width: 130px;
+}
+
+.typed-input {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid var(--rule-heavy);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  padding: 3px 2px;
+}
+.typed-input:focus { outline: none; border-bottom-color: var(--stamp-blue); }
+
+.ballot-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  margin-bottom: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+.ballot-option:hover { background: rgba(42, 38, 32, 0.04); }
+
+.ballot-box {
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--ink);
+  flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ballot-option[aria-checked="true"] .ballot-box::after { content: '\2715'; }
+.ballot-option[aria-checked="true"] { background: rgba(31, 61, 99, 0.08); }
+
+.ballot-label { font-weight: normal; }
+.ballot-note { color: var(--ink-faint); font-size: 11.5px; margin-left: auto; text-align: right; }
+
+/* ---------- ink buttons (rubber-stamp style controls) ---------- */
+
+.ink-button {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 20px;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ink-button:hover { background: rgba(42, 38, 32, 0.06); }
+.ink-button:focus-visible { outline: 2px solid var(--stamp-blue); outline-offset: 2px; }
+
+.ink-button--primary {
+  color: var(--stamp-blue);
+  border-color: var(--stamp-blue);
+}
+.ink-button--primary:hover { background: rgba(31, 61, 99, 0.08); }
+
+.button-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+
+/* ---------- STAMPS ---------- */
+/* A stamp is dropped over content with an ink color, a rotation, and the
+   roughen filter for a hand-struck edge. Sizing follows its text length. */
+
+.stamp {
+  display: inline-block;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border: 3px solid currentColor;
+  border-radius: 6px;
+  padding: 7px 16px;
+  mix-blend-mode: multiply;
+  opacity: 0.86;
+  filter: url(#stampRough);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.stamp::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+.stamp { position: relative; }
+
+.stamp--sm { font-size: 12px; padding: 5px 11px; }
+.stamp--md { font-size: 18px; }
+.stamp--lg { font-size: 30px; padding: 10px 22px; }
+
+.stamp--red { color: var(--stamp-red); }
+.stamp--blue { color: var(--stamp-blue); }
+.stamp--violet { color: var(--stamp-violet); }
+.stamp--black { color: var(--stamp-black); }
+
+.stamp--rotate-1 { transform: rotate(-7deg); }
+.stamp--rotate-2 { transform: rotate(4deg); }
+.stamp--rotate-3 { transform: rotate(-3deg); }
+.stamp--rotate-0 { transform: rotate(0deg); }
+
+.stamp-corner {
+  position: absolute;
+  top: 14px;
+  right: 28px;
+  z-index: 2;
+}
+
+/* status chip: a small inline stamp for table cells */
+.stamp-chip {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  padding: 2px 7px;
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+}
+
+/* ---------- small print / footer ---------- */
+
+.fine-print {
+  margin-top: 26px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- prototype-nav chrome (not part of the ported design) ---------- */
+
+.proto-nav {
+  width: min(900px, 100%);
+  display: flex;
+  gap: 14px;
+  font: 12px ui-monospace, monospace;
+}
+.proto-nav a { color: #cfae5b; text-decoration: none; }
+.proto-nav a:hover { text-decoration: underline; }
+.proto-nav span { color: #6b6252; }
