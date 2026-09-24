@@ -262,6 +262,27 @@ git commit -m "Plan 7b task 1: pilot skill, decision state, widen PilotAssignmen
 
 ## Task 2: The utility scorer
 
+**Ruling (controller, overnight run, 2026-09-23):** the spec's own pseudocode
+(`EXTEND_ENERGY_WEIGHT = -1.0 * energyDiscipline`) contradicts its own prose
+("a disciplined veteran needs a larger energy deficit before Extend
+outscores Pursue") — as written, a HIGHER `energyDiscipline` makes Extend's
+score LARGER for the same deficit, the opposite of "holds the attack
+longer." Worse, no scaling of the Extend term alone can ever make two skill
+presets choose differently at a fixed energy deficit, because Pursue's own
+score has zero skill dependence: for any negative deficit, Extend's
+contribution is non-negative and Pursue's is negative regardless of skill,
+so the ordering can never flip. Fixed below by (1) flipping the Extend
+scale to `(1 - energyDiscipline)` so it actually matches the stated
+behavior, and (2) adding `PURSUE_ENERGY_DISCIPLINE_BONUS * energyDiscipline`
+to Pursue, the minimum change that makes a skill-dependent crossover
+possible at all. Verified by hand against every one of this task's own test
+cases before dispatch; test 6 below uses `-400` (not the original `-600`,
+which the old formula could not have satisfied either) as the exact value
+that produces the veteran/green split. **Costs if wrong:** a re-tune of
+three constants (`PURSUE_ENERGY_DISCIPLINE_BONUS`, and the two energy
+weights) and this task's test 6 — contained entirely to this file, no
+downstream task depends on the exact crossover value.
+
 **Files:**
 - Create: `src/sim/ai/decision.ts`
 - Test: `tests/sim/ai/decision.test.ts` (new)
@@ -327,7 +348,7 @@ describe('scoreManeuvers / decideManeuver', () => {
   })
 
   it('energyDiscipline moves the Pursue/Extend crossover: identical facts, different presets choose differently', () => {
-    const facts: DecisionFacts = { ...HEALTHY, relativeEnergyJPerKg: -600 }
+    const facts: DecisionFacts = { ...HEALTHY, relativeEnergyJPerKg: -400 }
     expect(decideManeuver(facts, VETERAN_SKILL)).toBe('pursue')
     expect(decideManeuver(facts, GREEN_SKILL)).toBe('extend')
   })
@@ -385,6 +406,17 @@ const PURSUE_ENERGY_WEIGHT = 1.0
 const PURSUE_ANGLE_PENALTY = 0.5
 const PURSUE_RANGE_PENALTY = 0.002
 const PURSUE_THREAT_PENALTY = 800
+/** A disciplined pilot's confidence in its own energy read, in the same
+ *  J/kg units as relativeEnergyJPerKg -- see the "Ruling" callout at this
+ *  file's Task 2 for why this term exists. Without SOME skill-dependent
+ *  term on the Pursue side, no scaling of the Extend side alone can ever
+ *  make two skill presets choose differently at a fixed energy deficit:
+ *  Pursue's own score has no skill dependence, so for any negative energy
+ *  deficit Extend's contribution is non-negative and Pursue's is negative,
+ *  regardless of skill -- the ordering can never flip. This additive term
+ *  is what makes master spec §9's own acceptance requirement ("identical
+ *  facts, different presets choose differently") satisfiable at all. */
+const PURSUE_ENERGY_DISCIPLINE_BONUS = 1000
 
 const EXTEND_ENERGY_WEIGHT_BASE = -1.0
 const EXTEND_THREAT_BONUS = 800
@@ -452,13 +484,14 @@ export type ManeuverScores = { readonly pursue: number; readonly extend: number;
 export function scoreManeuvers(facts: DecisionFacts, skill: PilotSkill): ManeuverScores {
   const rangeBeyondGun = Math.max(0, facts.rangeM - AI_GUN_RANGE_M)
   const pursue =
-    PURSUE_ENERGY_WEIGHT * facts.relativeEnergyJPerKg -
+    PURSUE_ENERGY_WEIGHT * facts.relativeEnergyJPerKg +
+    PURSUE_ENERGY_DISCIPLINE_BONUS * skill.energyDiscipline -
     PURSUE_ANGLE_PENALTY * facts.angleOffSelfRad -
     PURSUE_RANGE_PENALTY * rangeBeyondGun -
     (facts.threatAstern ? PURSUE_THREAT_PENALTY : 0)
 
   const extend =
-    EXTEND_ENERGY_WEIGHT_BASE * skill.energyDiscipline * facts.relativeEnergyJPerKg +
+    EXTEND_ENERGY_WEIGHT_BASE * (1 - skill.energyDiscipline) * facts.relativeEnergyJPerKg +
     (facts.threatAstern ? EXTEND_THREAT_BONUS : 0) +
     EXTEND_DAMAGE_WEIGHT * facts.damageTakenFraction +
     EXTEND_FUEL_WEIGHT * (1 - facts.fuelFraction)
