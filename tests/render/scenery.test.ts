@@ -14,11 +14,20 @@ import { RIVER_PATHS, ROAD_PATHS, nearRiver, riverMask } from '../../src/render/
 import { toLocal } from '../../src/sim/world/projection.js'
 import placesData from '../../content/scenery/places.json'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
-import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { loadAirfield } from '../../tools/content/load.js'
 
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 const header = loadTerrainHeader()
-const field = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+const field = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
 
 /** The scenery is drawn from the airfield records now (Plan 12 Task 7), not
  *  from a `RUNWAY_CENTRE` constant this file used to import. Both bases are

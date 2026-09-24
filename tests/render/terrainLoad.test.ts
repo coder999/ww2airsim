@@ -15,7 +15,7 @@ import {
   TERRAIN_HEADER,
 } from '../../src/render/terrain/load.js'
 import { createTerrainMesh, sampleLevelsForRing } from '../../src/render/terrain/mesh.js'
-import { FINEST_FETCHED_LEVEL, terrainLevelUrl } from '../../src/render/content.js'
+import { finestFetchedLevelFor, terrainLevelUrl } from '../../src/render/content.js'
 import { LOD, selectNodes } from '../../src/render/terrain/lod.js'
 import { initialFrameState, withTerrain } from '../../src/render/frame.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
@@ -23,7 +23,22 @@ import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
-import { FIRST_COMMITTED_LEVEL, loadTerrainLevel, TERRAIN_DIR } from '../../tools/terrain/load.js'
+import { loadTerrainLevel, TERRAIN_DIR } from '../../tools/terrain/load.js'
+
+/**
+ * The level these tests exercise as "the" finest fetched level -- mirrors
+ * `main.ts`'s and `terrain/mesh.ts`'s own placeholder
+ * (`finestFetchedLevelFor('low')`, pending Task 6's real persisted-tier
+ * wiring; deliberately `'low'` rather than the spec's eventual `'medium'`
+ * default, see those two files' own notes -- an L0 floor OOM'd this very
+ * file's vitest worker at ~15 `createTerrainMesh` calls, measured
+ * 2026-09-24) rather than hardcoding a number, so this file measures the
+ * same level the app actually asks for today. Before Task 2 (2026-09-24)
+ * `FINEST_FETCHED_LEVEL` was a fixed constant this file imported directly;
+ * it is now a function of the Asset Quality tier, tested in its own right
+ * below (`describe('finestFetchedLevelFor', ...)`).
+ */
+const FINEST_FETCHED_LEVEL = finestFetchedLevelFor('low')
 
 /**
  * Sample edge of one pyramid level, computed from the exponent rather than
@@ -74,26 +89,34 @@ describe('terrain decoding', () => {
   it('delivers levels coarsest-first, so something is on screen early', async () => {
     const seen: number[] = []
     const { fetchImpl } = mockLevelFetch()
-    await loadTerrainProgressively((level) => seen.push(level), fetchImpl)
+    await loadTerrainProgressively((level) => seen.push(level), FINEST_FETCHED_LEVEL, fetchImpl)
     expect(seen).toEqual([...seen].sort((a, b) => b - a))
     expect(seen[0]).toBeGreaterThan(seen[seen.length - 1]!)
   })
 
   it('fetches exactly the levels a fresh clone has, by the URL content.ts publishes', async () => {
-    // The browser can only fetch what is committed: L0-L3 are ~178 MB and
-    // live in the gitignored `content/terrain/tiles/`, so asking for them
-    // 404s for everyone but the machine that ran `npm run terrain:build`.
-    // Checking the committed directory on disk rather than restating
-    // `FIRST_COMMITTED_LEVEL` keeps this true if the split ever moves.
+    // The browser can fetch the WHOLE pyramid now: Task 2 (2026-09-24)
+    // committed L0 and L1 (L0 via Git LFS, over GitHub's 100 MB per-file
+    // limit) alongside L2-L12, so nothing here 404s in a fresh clone no
+    // matter which Asset Quality tier chose the finest level. Checking the
+    // committed directory on disk rather than restating
+    // `FIRST_COMMITTED_LEVEL` keeps this true if the split ever moves again.
     const seen: number[] = []
     const { fetchImpl, urls } = mockLevelFetch()
-    await loadTerrainProgressively((level) => seen.push(level), fetchImpl)
+    await loadTerrainProgressively((level) => seen.push(level), FINEST_FETCHED_LEVEL, fetchImpl)
 
     expect(urls).toEqual(seen.map(terrainLevelUrl))
     for (const level of seen) {
       expect(existsSync(`${TERRAIN_DIR}L${level}.bin`)).toBe(true)
     }
-    expect(existsSync(`${TERRAIN_DIR}L${Math.min(...seen) - 1}.bin`)).toBe(false)
+    // The assumption this test used to check has flipped (2026-09-24):
+    // previously L2 was committed and L1 was not, so "one level finer than
+    // what was fetched" was reliably absent. Now L0 and L1 are BOTH
+    // committed and nothing finer than L0 exists in the pyramid at all, so
+    // there is no absent neighbour to check for any tier -- this asserts the
+    // real boundary instead: L0.bin exists, and there is no L-1 to fetch.
+    expect(existsSync(`${TERRAIN_DIR}L0.bin`)).toBe(true)
+    expect(existsSync(`${TERRAIN_DIR}L-1.bin`)).toBe(false)
 
     // ...and exactly the levels something draws: every level some ring
     // samples, and no level no ring can reach. Until 2026-09-14 the loop ran
@@ -115,8 +138,31 @@ describe('terrain decoding', () => {
     // Silently carrying on leaves the airplane over an empty sea that looks
     // exactly like the game working -- spec §9's "fail loudly" case.
     await expect(
-      loadTerrainProgressively(() => {}, fetchImpl as unknown as typeof fetch),
+      loadTerrainProgressively(() => {}, FINEST_FETCHED_LEVEL, fetchImpl as unknown as typeof fetch),
     ).rejects.toThrow(/404/)
+  })
+})
+
+describe('finestFetchedLevelFor', () => {
+  it('maps each Asset Quality tier to the level design spec addendum §10 names', () => {
+    // low's budget ceiling is 50MB and L1 alone (33.6 MB) already spends
+    // nearly all of it; medium/high/ultra all reach full 24 m resolution
+    // (L0) -- they differ only in how much real texture/asset headroom a
+    // later spec adds on top, which does not exist yet.
+    expect(finestFetchedLevelFor('low')).toBe(1)
+    expect(finestFetchedLevelFor('medium')).toBe(0)
+    expect(finestFetchedLevelFor('high')).toBe(0)
+    expect(finestFetchedLevelFor('ultra')).toBe(0)
+  })
+
+  it('every level it can return is actually committed on disk', () => {
+    // The one thing this function could get wrong without a browser: naming
+    // a level that a fresh clone does not actually have, which would 404 at
+    // runtime and look exactly like the game working (spec §9).
+    for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
+      const level = finestFetchedLevelFor(tier)
+      expect(existsSync(`${TERRAIN_DIR}L${level}.bin`), `L${level}.bin for tier '${tier}'`).toBe(true)
+    }
   })
 })
 
@@ -280,18 +326,25 @@ describe('terrain mesh', () => {
   })
 
   it('reads the finest level it has for any ring finer than that level', () => {
-    // Rings 0-3 want mips 0-3, which no clone has (see the fetch test above).
+    // A synthetic `finest`, not `FINEST_FETCHED_LEVEL`: this tests the
+    // general clamping rule `sampleLevelsForRing` implements, which has to
+    // hold for WHATEVER level a tier stops fetching at, not only for the one
+    // this repo's placeholder happens to resolve to today
+    // (`finestFetchedLevelFor('medium')` === 0, under which ring 0 is no
+    // longer "finer than what's fetched" and this case would be vacuous --
+    // Task 2, 2026-09-24, shipped L0/L1 as committed content). `low`'s level
+    // (1) would also exercise real clamping at ring 0; 3 is chosen instead so
+    // this case does not silently start passing vacuously again if a future
+    // tier's level moves to 1.
+    const finest = 3
+    const coarsest = TERRAIN_HEADER.levels - 1
     // Clamping BOTH taps to the finest level held makes the morph blend a
     // no-op there rather than blending the ground under the airplane toward
     // a coarser level than the one it could have had.
-    const coarsest = TERRAIN_HEADER.levels - 1
-    expect(sampleLevelsForRing(0, FINEST_FETCHED_LEVEL, coarsest)).toEqual({
-      fine: FINEST_FETCHED_LEVEL,
-      coarse: FINEST_FETCHED_LEVEL,
-    })
-    expect(sampleLevelsForRing(5, FINEST_FETCHED_LEVEL, coarsest)).toEqual({ fine: 5, coarse: 6 })
+    expect(sampleLevelsForRing(0, finest, coarsest)).toEqual({ fine: finest, coarse: finest })
+    expect(sampleLevelsForRing(5, finest, coarsest)).toEqual({ fine: 5, coarse: 6 })
     // The coarsest ring has no coarser level to morph toward.
-    expect(sampleLevelsForRing(coarsest, FINEST_FETCHED_LEVEL, coarsest)).toEqual({
+    expect(sampleLevelsForRing(coarsest, finest, coarsest)).toEqual({
       fine: coarsest,
       coarse: coarsest,
     })
@@ -313,7 +366,7 @@ describe('load/mesh coupling', () => {
     // drifted copy of the rule fail here.
     const { fetchImpl } = mockLevelFetch()
     const seen: number[] = []
-    await loadTerrainProgressively((level) => seen.push(level), fetchImpl)
+    await loadTerrainProgressively((level) => seen.push(level), FINEST_FETCHED_LEVEL, fetchImpl)
     const maxFetched = Math.max(...seen)
 
     const mesh = createTerrainMesh(TERRAIN_HEADER)
@@ -359,10 +412,10 @@ describe('terrain under the airplane', () => {
     // never overwrites the first impact it records. The mesh can afford a
     // wrong-but-improving surface; the physics cannot.
     const coarse = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL + 1)
-    expect(physicsFieldFor(FINEST_FETCHED_LEVEL + 1, new Int16Array(coarse * coarse))).toBeNull()
+    expect(physicsFieldFor(FINEST_FETCHED_LEVEL + 1, new Int16Array(coarse * coarse), FINEST_FETCHED_LEVEL)).toBeNull()
 
     const n = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
-    const field = physicsFieldFor(FINEST_FETCHED_LEVEL, new Int16Array(n * n))
+    const field = physicsFieldFor(FINEST_FETCHED_LEVEL, new Int16Array(n * n), FINEST_FETCHED_LEVEL)
     expect(field?.level).toBe(FINEST_FETCHED_LEVEL)
     expect(field?.samples).toBe(n)
   })
@@ -382,7 +435,7 @@ describe('terrain under the airplane', () => {
     const bytes = readFileSync(`${TERRAIN_DIR}L${level}.bin`)
     const decoded = decodeLevel(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), n)
 
-    const field = physicsFieldFor(level, decoded)
+    const field = physicsFieldFor(level, decoded, FINEST_FETCHED_LEVEL)
     expect(field).not.toBeNull()
 
     // A point that is genuinely on land: the nearest land sample to the world
@@ -396,7 +449,14 @@ describe('terrain under the airplane', () => {
     const framed = withTerrain(frameAt(x, z), field)
     expect(framed.world.terrain).not.toBeNull()
 
-    const viaNode = createTerrainField(TERRAIN_HEADER, level, loadTerrainLevel(FIRST_COMMITTED_LEVEL))
+    // `level`, not `FIRST_COMMITTED_LEVEL`: the two used to be numerically
+    // interchangeable (both 2) but no longer are since Task 2 (2026-09-24)
+    // decoupled "what's committed on disk" (now 0, everything) from "what
+    // this page load's tier fetches" (`FINEST_FETCHED_LEVEL` above, 1 for
+    // the `'low'` placeholder) -- passing the wrong one here reads a
+    // DIFFERENT pyramid level than the one just decoded and throws on the
+    // sample-count mismatch rather than comparing anything.
+    const viaNode = createTerrainField(TERRAIN_HEADER, level, loadTerrainLevel(level))
     expect(heightAt(framed.world.terrain!, x, z)).toBe(heightAt(viaNode, x, z))
     expect(heightAt(framed.world.terrain!, x, z)).toBeGreaterThan(0)
   })
@@ -415,7 +475,7 @@ describe('terrain under the airplane', () => {
     const coarseN = samplesAtLevel(TERRAIN_HEADER, coarseLevel)
     const coarseData = new Int16Array(coarseN * coarseN)
     const before = frameAt(0, 0)
-    const afterCoarse = applyTerrainLevel(mesh, before, coarseLevel, coarseData)
+    const afterCoarse = applyTerrainLevel(mesh, before, coarseLevel, coarseData, FINEST_FETCHED_LEVEL)
     // Drawn, but NOT given to the physics: a coarse mip averages peaks down
     // and valleys up, and `advance` never overwrites the first impact it
     // records (load.ts's `physicsFieldFor`).
@@ -424,7 +484,7 @@ describe('terrain under the airplane', () => {
 
     const n = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     const fine = loadTerrainLevel(FINEST_FETCHED_LEVEL)
-    const afterFine = applyTerrainLevel(mesh, afterCoarse, FINEST_FETCHED_LEVEL, fine)
+    const afterFine = applyTerrainLevel(mesh, afterCoarse, FINEST_FETCHED_LEVEL, fine, FINEST_FETCHED_LEVEL)
     expect(seen.length).toBe(2)
     expect(seen[1]!.level).toBe(FINEST_FETCHED_LEVEL)
     // The SAME array object, not a copy: the mesh's float texture and the
@@ -447,7 +507,7 @@ describe('terrain under the airplane', () => {
     // Sized from the header rather than restated: a literal 513 here was an
     // L4 edge and broke the moment FINEST_FETCHED_LEVEL moved (2026-09-18).
     const edge = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
-    const after = withTerrain(before, physicsFieldFor(FINEST_FETCHED_LEVEL, new Int16Array(edge * edge)))
+    const after = withTerrain(before, physicsFieldFor(FINEST_FETCHED_LEVEL, new Int16Array(edge * edge), FINEST_FETCHED_LEVEL))
     expect(after.world.terrain).not.toBeNull()
     expect({ ...after, world: { ...after.world, terrain: null } }).toEqual(before)
   })

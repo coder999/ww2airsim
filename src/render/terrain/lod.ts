@@ -103,18 +103,25 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  *
  * 4x is the first setting frame time has an opinion about (+0.85 ms, 40% of
  * the frame) and it is rejected on both counts: it costs real time AND buys
- * no detail, because rings 0-3 all clamp both mip taps to L4 (`content.ts`'s
- * `FINEST_FETCHED_LEVEL`; L0-L3 are 178,319,368 bytes and are not shipped).
- * A ring-0 patch already tessellates at 24.4 m against L4's 390 m spacing --
- * sixteen times finer than the data can express -- so widening ring 0 adds
- * triangles to a surface that is already the bilinear interpolant of samples
- * it has all of.
+ * no detail, because the finest rings clamp both mip taps to whatever
+ * `content.ts`'s `FINEST_FETCHED_LEVEL` (now `finestFetchedLevelFor`) stopped
+ * at when this was measured -- at the time, L0-L1 were unshipped and every
+ * ring finer than L2 clamped to it. A ring-0 patch already tessellates at
+ * 24.4 m against L2's ~98 m spacing then -- four times finer than the data
+ * could express -- so widening ring 0 added triangles to a surface that was
+ * already the bilinear interpolant of samples it had all of.
  *
- * That last fact is also the honest caveat on this whole constant: it is
- * being tuned against the pyramid a browser can actually fetch. If L0-L3 ever
- * ship (or move to R2 -- design spec section 9 item 2), the "buys no detail"
- * half of the argument stops holding and this wants re-measuring. The
- * frame-time half would not change.
+ * That last fact was also the honest caveat on this whole constant: it was
+ * being tuned against the pyramid a browser could actually fetch, and it said
+ * "if L0-L1 ever ship, the 'buys no detail' half of the argument stops
+ * holding and this wants re-measuring." Task 2 (2026-09-24) is that event --
+ * L0 and L1 are now committed, `finestFetchedLevelFor` maps `medium`/`high`/
+ * `ultra` to L0, and once Task 6 wires a real Asset Quality choice into the
+ * boot sequence some sessions WILL render with L0 as their finest ring. So
+ * the "buys no detail" half is now open again and unverified for those
+ * sessions; the frame-time half (+0.85 ms, 40% of the frame) does not depend
+ * on which level is finest and would not change. Re-measuring is real GPU
+ * work (Tier 2), outside what this task touches.
  */
 const FINEST_RANGE_M = 2 * FINEST_NODE_SIZE_M
 

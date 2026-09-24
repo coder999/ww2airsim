@@ -39,7 +39,7 @@ import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface
 import { fogWeightNode, horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
-import { FINEST_FETCHED_LEVEL } from '../content.js'
+import { finestFetchedLevelFor } from '../content.js'
 import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
@@ -81,10 +81,13 @@ export type TerrainMesh = {
  *
  * Both ends are clamped, and the clamps mean different things:
  *
- * - `finest` is the finest level the app HAS (4 -- `content.ts`'s
- *   FINEST_FETCHED_LEVEL explains why L0-L3 are not fetched). Rings 0-3 ask
- *   for a level nobody has. Clamping BOTH taps to `finest` makes their morph
- *   blend a no-op, which is the point: clamping only the fine tap would
+ * - `finest` is the finest level the app HAS -- `content.ts`'s
+ *   `finestFetchedLevelFor` resolves this from the persisted Asset Quality
+ *   tier (0 for `medium`/`high`/`ultra`, 1 for `low`; every level down to L0
+ *   is committed, but a page load may still choose not to fetch all of it).
+ *   Rings finer than that ask for a level this page load does not have.
+ *   Clamping BOTH taps to `finest` makes their morph blend a no-op, which is
+ *   the point: clamping only the fine tap would
  *   blend the ground directly under the airplane toward level 5 by up to
  *   100% -- morph is clamped at 1 for about half of all nodes (lod.ts,
  *   measured) -- and would render the near field coarser than the data it
@@ -387,12 +390,24 @@ export function createTerrainMesh(header: TerrainHeader, shadow?: CloudShadowHan
   // into, which `levelTexture` below turns into a throw rather than a
   // silently ignored write.
   const coarsestLevel = coarsestFetchedLevel(header.levels)
+  // Placeholder until Task 6 reads the persisted Asset Quality tier and
+  // threads it in from the boot sequence (docs/superpowers/plans/
+  // 2026-09-24-plan-ui-realism.md, Task 6). Deliberately `'low'`, not the
+  // spec's eventual `'medium'` first-visit default: an L0 floor allocates a
+  // 8193x8193 float32 texture per mesh (268 MB) where L1 allocates a
+  // 4097x4097 one (67 MB), and with no Settings UI yet to opt out, `'medium'`
+  // here would also mean every real page load fetches the 134 MB L0.bin
+  // unconditionally. Measured 2026-09-24: `'medium'` OOM'd a single vitest
+  // worker (`tests/render/terrainLoad.test.ts`, ~15 `createTerrainMesh`
+  // calls in one file, "JavaScript heap out of memory" at ~4.1 GB) before
+  // Task 6 exists to let a real choice override it.
+  const finestLevel = finestFetchedLevelFor('low')
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
   const cover = createCoverNodes(COVER_HEADER)
 
   const textures = new Map<number, DataTexture>()
-  for (let level = FINEST_FETCHED_LEVEL; level <= coarsestLevel; level++) {
+  for (let level = finestLevel; level <= coarsestLevel; level++) {
     const n = samplesAtLevel(header, level)
     // Zero-filled until `setLevel` lands: zero is sea level, and the sea is
     // discarded, so nothing is drawn at all until real heights arrive rather
@@ -412,7 +427,7 @@ export function createTerrainMesh(header: TerrainHeader, shadow?: CloudShadowHan
     if (!tex) {
       throw new Error(
         `terrain level ${level} has no texture: this build holds levels ` +
-          `${FINEST_FETCHED_LEVEL}..${coarsestLevel}`,
+          `${finestLevel}..${coarsestLevel}`,
       )
     }
     return tex
@@ -421,7 +436,7 @@ export function createTerrainMesh(header: TerrainHeader, shadow?: CloudShadowHan
   const object = new Group()
   const geometries: InstancedBufferGeometry[] = []
   for (let ring = 0; ring < LOD.rings; ring++) {
-    const { fine, coarse } = sampleLevelsForRing(ring, FINEST_FETCHED_LEVEL, coarsestLevel)
+    const { fine, coarse } = sampleLevelsForRing(ring, finestLevel, coarsestLevel)
     const geometry = new InstancedBufferGeometry()
     geometry.setAttribute('position', position)
     geometry.setIndex(index)

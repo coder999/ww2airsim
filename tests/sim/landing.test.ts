@@ -6,7 +6,8 @@ import { airspeed, DT } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
-import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
 import { nextLandingTracking, NO_LANDING } from '../../src/render/landing.js'
 import {
@@ -14,6 +15,15 @@ import {
   GROUND_CONTACT_TOLERANCE_M,
   MAX_SUPPORTED_SINK_MPS,
 } from '../../src/sim/ground.js'
+
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 
@@ -78,7 +88,7 @@ const RUNWAY_WIDTH_M = TACLOBAN.runway.widthM
 describe('an approach flown into Tacloban', () => {
   it('touches down gently, tracks the strip, and comes to rest on it', () => {
     const header = loadTerrainHeader()
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
     const elevationM = heightAt(terrain, TACLOBAN_X, TACLOBAN_Z)
     // Aim a quarter of the way in from the approach end, leaving three
     // quarters of the strip to roll out on.
@@ -185,9 +195,9 @@ describe('an approach flown into Tacloban', () => {
     expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
       {
         "restX": -29666,
-        "restZ": -47670.18981410662,
-        "touchdownSinkMps": 1.3502298286023335,
-        "touchdownSpeedMps": 37.70385233292351,
+        "restZ": -47669.859457857216,
+        "touchdownSinkMps": 1.348205395498573,
+        "touchdownSpeedMps": 37.72712992030997,
       }
     `)
   })

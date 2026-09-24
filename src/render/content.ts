@@ -1,3 +1,5 @@
+import type { AssetQualityTierName } from './quality.js'
+
 /**
  * Where a content record lives, relative to the site root: the path on disk
  * inside `dist/`, which is also the path under `content/` in the repository
@@ -52,10 +54,13 @@ export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f6f-hellcat')
  * `tools/content/load.ts` <-> `src/sim/content.ts` pattern).
  *
  * How many levels that is depends on which question is being asked, and the
- * two numbers are not the same. NINE are committed -- L4 through L12, the
- * pyramid from `tools/terrain/load.ts`'s FIRST_COMMITTED_LEVEL to its 3x3 top
- * -- and the browser asks for FIVE of them: L8 down to L4, the only levels a
- * LOD ring can sample (`lod.ts`'s `coarsestFetchedLevel`, and
+ * two numbers are not the same. All THIRTEEN are committed -- L0 through
+ * L12, the whole pyramid, since Task 2 (2026-09-24) moved
+ * `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL` to 0 -- and the browser
+ * asks for at most NINE of them: L8 down to whichever level
+ * `finestFetchedLevelFor` returns for the persisted Asset Quality tier (L0
+ * for `medium`/`high`/`ultra`, L1 for `low`), the only levels a LOD ring can
+ * sample (`lod.ts`'s `coarsestFetchedLevel`, and
  * `src/render/terrain/load.ts`'s fetch loop). L9-L12 are 808 bytes in total
  * and no code path reads them; they are committed because they are the
  * pyramid, not because anything loads them.
@@ -69,21 +74,30 @@ export function terrainLevelUrl(level: number): string {
 }
 
 /**
- * The finest pyramid level the browser asks for: the finest one a clone
- * actually has.
+ * The finest pyramid level a page load fetches, as a function of the
+ * persisted Asset Quality tier (design spec
+ * `docs/superpowers/specs/2026-09-24-render-quality-selector-design.md`
+ * §10): `low` stops at L1 (49 m spacing, 33.6 MB) to hold that tier's
+ * budget ceiling; `medium`/`high`/`ultra` all go to L0 (24 m spacing,
+ * 134 MB) -- the whole committed pyramid, since nothing finer exists.
  *
- * Levels 0-1 are 168 MB and are gitignored into `content/terrain/tiles/`
- * (`tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL`, which states the size
- * budget behind the split), so fetching them 404s for everyone but the
- * machine that last ran `npm run terrain:build` -- and L0 alone is 134 MB,
- * which is the first row of the terrain design's own risk table. This is a
- * second literal rather than an import because `tools/` is Node-only
- * (`node:fs`, `import.meta.url`) and must not be reachable from a browser
- * bundle; `tests/render/terrainLoad.test.ts` asserts the level it names is
- * committed and that the next finer one is not, so the two cannot drift
- * without the suite noticing.
+ * Until 2026-09-24 (Task 2 of the same plan) this was a fixed constant, `2`:
+ * L0-L1 were gitignored into `content/terrain/tiles/` and fetching them
+ * 404'd for everyone but the machine that last ran `npm run terrain:build`.
+ * That task committed both files (L0 via Git LFS, over GitHub's 100 MB
+ * per-file limit) and moved `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL`
+ * from 2 to 0, so every level down to L0 is now in every clone and the
+ * only remaining question is how much of it *this* page load asks for.
+ *
+ * A second literal rather than an import of `FIRST_COMMITTED_LEVEL` because
+ * `tools/` is Node-only (`node:fs`, `import.meta.url`) and must not be
+ * reachable from a browser bundle; `tests/render/terrainLoad.test.ts`
+ * asserts every level this function can return is actually committed on
+ * disk, so the two cannot drift without the suite noticing.
  */
-export const FINEST_FETCHED_LEVEL = 2
+export function finestFetchedLevelFor(tier: AssetQualityTierName): number {
+  return tier === 'low' ? 1 : 0
+}
 
 /** Same-origin bathymetry, in int16 metres; header is bundled with the code. */
 export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.bin`

@@ -1,5 +1,5 @@
 import terrainHeader from '../../../content/terrain/header.json' with { type: 'json' }
-import { FINEST_FETCHED_LEVEL, terrainLevelUrl } from '../content.js'
+import { terrainLevelUrl } from '../content.js'
 import { parseTerrainHeader, samplesAtLevel } from '../../sim/world/schema.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
 import { withTerrain, type FrameState } from '../frame.js'
@@ -93,9 +93,15 @@ const COARSEST_FETCHED_LEVEL = coarsestFetchedLevel(TERRAIN_HEADER.levels)
  * 526 KB at level 4 -- alongside the mesh's own float copy of the same
  * samples. Sharing the array rather than copying it is safe because nothing
  * downstream writes to it (`heightAt` only reads).
+ *
+ * `finestLevel` is the caller's own answer to "how far down the pyramid did
+ * THIS page load fetch" (`content.ts`'s `finestFetchedLevelFor`, resolved
+ * from the persisted Asset Quality tier) rather than a level this function
+ * assumes -- Task 2 (2026-09-24) made that answer vary by tier, where it was
+ * previously a fixed constant, so a caller must say which level it means.
  */
-export function physicsFieldFor(level: number, data: Int16Array): TerrainField | null {
-  if (level !== FINEST_FETCHED_LEVEL) return null
+export function physicsFieldFor(level: number, data: Int16Array, finestLevel: number): TerrainField | null {
+  if (level !== finestLevel) return null
   return createTerrainField(TERRAIN_HEADER, level, data)
 }
 
@@ -122,13 +128,14 @@ export function applyTerrainLevel(
   frame: FrameState,
   level: number,
   data: Int16Array,
+  finestLevel: number,
 ): FrameState {
   mesh.setLevel(level, data)
   // The SAME decoded array goes to both, deliberately: `physicsFieldFor`
   // retains it rather than copying (see its cost note), and `setLevel` only
   // reads it, so the mesh's float copy and the physics' int16 view can never
   // be of different samples.
-  const field = physicsFieldFor(level, data)
+  const field = physicsFieldFor(level, data, finestLevel)
   return field ? withTerrain(frame, field) : frame
 }
 
@@ -153,12 +160,18 @@ export function applyTerrainLevel(
  * A level that will not load throws. Carrying on would leave the airplane
  * over a sea with no islands in it, which is indistinguishable from the
  * game working (spec §9).
+ *
+ * `finestLevel` bounds the loop from below: the caller's resolved answer to
+ * `content.ts`'s `finestFetchedLevelFor`, i.e. how far down the pyramid the
+ * persisted Asset Quality tier says this page load should go (Task 2,
+ * 2026-09-24 -- previously a fixed constant here, always 2).
  */
 export async function loadTerrainProgressively(
   onLevel: (level: number, data: Int16Array) => void,
+  finestLevel: number,
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
-  for (let level = COARSEST_FETCHED_LEVEL; level >= FINEST_FETCHED_LEVEL; level--) {
+  for (let level = COARSEST_FETCHED_LEVEL; level >= finestLevel; level--) {
     const url = terrainLevelUrl(level)
     const res = await fetchImpl(url)
     if (!res.ok) {

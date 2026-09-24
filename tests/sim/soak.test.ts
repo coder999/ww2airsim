@@ -2,8 +2,18 @@ import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
 import { runEntitySoak, runSoak, runTerrainSoak } from '../../tools/soak/run.js'
 import { type AssistSettings } from '../../src/assists/index.js'
-import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
+
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 /**
  * Every assist on, stated here rather than read from
@@ -200,8 +210,8 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
     // came from. `tools/terrain/load.ts` is fine to import here -- this file
     // is a test, not `src/sim/`.
     const header = loadTerrainHeader()
-    const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
+    const heights = loadTerrainLevel(GROUND_TRUTH_LEVEL, header)
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, heights)
 
     const result = runTerrainSoak(loadAircraftSpec('f6f-hellcat'), 200, 1337, terrain)
     expect(
@@ -307,8 +317,8 @@ describe('terrain contact soak (spec §11, Task 8: the ground the airplane can h
 describe('entity soak (Plan 12)', () => {
   it('ships stay at sea and in the water, ticks agree, the chocked airplane stays put, and two runs agree', () => {
     const header = loadTerrainHeader()
-    const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
+    const heights = loadTerrainLevel(GROUND_TRUTH_LEVEL, header)
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, heights)
     const result = runEntitySoak(loadScenarioBundle('free-flight'), 12, 1944, terrain)
     expect(result.failures, result.failures.join('\\n')).toEqual([])
     // Twelve one-minute simulations plus the first one repeated to prove

@@ -11,7 +11,16 @@ import { PARKED_PLACEHOLDER_Y_M } from '../../src/sim/scenario.js'
 import { toGeodetic, toLocal, WORLD_CENTRE } from '../../src/sim/world/projection.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
-import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
@@ -62,7 +71,7 @@ describe('geography, view and compass agree', () => {
     expect(spawn.latDeg).toBeCloseTo(11.228, 4)
     expect(spawn.lonDeg).toBeCloseTo(125.028, 4)
     const header = loadTerrainHeader()
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
     const at = (lat: number, lon: number) => {
       const p = toLocal(lat, lon)
       return heightAt(terrain, p.x, p.z)

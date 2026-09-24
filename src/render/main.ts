@@ -6,7 +6,7 @@ import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { FINEST_FETCHED_LEVEL, SCENARIO_ID } from './content.js'
+import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createAudioSystem } from '../audio/system.js'
@@ -629,7 +629,7 @@ async function boot(): Promise<void> {
       oceanTier: () => oceanTier.name,
       oceanLandWeight: (x, z) => {
         if (!oceanDepth) return null
-        return landWeightAt(terrain.levelTexture(FINEST_FETCHED_LEVEL), oceanDepth.header.halfExtentM, x, z)
+        return landWeightAt(terrain.levelTexture(finestFetchedLevel), oceanDepth.header.halfExtentM, x, z)
       },
       oceanComputeTimesMs: () => cascades.map(c => c.computeTimesMs()),
       oceanDisplacementSample: async (index) => {
@@ -868,6 +868,15 @@ async function boot(): Promise<void> {
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
   if (cloudTier !== 'off') shadow.setTier(cloudTier)
+  // Placeholder until Task 6 reads the persisted AssetQualityTierName and
+  // resolves this from Settings (docs/superpowers/plans/
+  // 2026-09-24-plan-ui-realism.md, Task 6). Deliberately `'low'`, not the
+  // spec's eventual `'medium'` first-visit default: with no Settings UI yet
+  // to opt out, `'medium'` would mean every real page load unconditionally
+  // fetches the 134 MB L0.bin (see `createTerrainMesh`'s matching note in
+  // `terrain/mesh.ts` -- the two have to agree, or the mesh would allocate a
+  // texture for a level this loop never fetches).
+  const finestFetchedLevel = finestFetchedLevelFor('low')
   const terrain = createTerrainMesh(TERRAIN_HEADER, shadow)
   // Plan 13b. The raster and the terrain levels race; whichever lands
   // second finds the other ready. A failed fetch leaves the procedural
@@ -916,7 +925,7 @@ async function boot(): Promise<void> {
   const clouds = createClouds(cloudLayers, skyNoise, cloudField)
   if (cloudTier !== 'off') clouds.setTier(cloudTier)
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
-  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(FINEST_FETCHED_LEVEL), shadow)
+  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(finestFetchedLevel), shadow)
   scene.add(water)
   let qualityChecked = false
   const adaptOceanQuality = async (): Promise<void> => {
@@ -935,7 +944,7 @@ async function boot(): Promise<void> {
     const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
     const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
     if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
-    const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(FINEST_FETCHED_LEVEL),shadow)
+    const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(finestFetchedLevel),shadow)
     scene.remove(water)
     water.userData.disposeOcean()
     cascades.forEach(c=>c.dispose())
@@ -1862,17 +1871,18 @@ async function boot(): Promise<void> {
   //
   // `settleOnTerrain` (frame.ts) runs exactly once, on the transition where
   // `applyTerrainLevel` first gives a parked world a real physics field
-  // (`FINEST_FETCHED_LEVEL`, L2 since `eef5b4d` on 2026-09-18 and L4 before
-  // it -- the only level `physicsFieldFor` ever returns non-null for) --
-  // correcting `PARKED_PLACEHOLDER_Y_M` (`src/sim/scenario.ts`, where a
-  // parked entity's altitude comes from) to the real ground height under
-  // EVERY parked airplane, the wingman included. Without this the hold above
-  // buys nothing: the flight would resume from underground or a
-  // tolerance-width above it the instant terrain arrived, exactly the race
-  // Task 14 exists to close.
+  // (`finestFetchedLevel` above -- L2 from `eef5b4d` on 2026-09-18 until Task
+  // 2 (2026-09-24) made it tier-dependent, L4 before that -- the only level
+  // `physicsFieldFor` ever returns non-null for) -- correcting
+  // `PARKED_PLACEHOLDER_Y_M` (`src/sim/scenario.ts`, where a parked entity's
+  // altitude comes from) to the real ground height under EVERY parked
+  // airplane, the wingman included. Without this the hold above buys
+  // nothing: the flight would resume from underground or a tolerance-width
+  // above it the instant terrain arrived, exactly the race Task 14 exists to
+  // close.
   void loadTerrainProgressively((level, data) => {
     const before = frame!
-    const next = applyTerrainLevel(terrain, before, level, data)
+    const next = applyTerrainLevel(terrain, before, level, data, finestFetchedLevel)
     // The field, on the one transition where it first exists, or `null` on
     // every other callback. Written this way rather than as a boolean so the
     // narrowing survives both uses below -- and so the runway and
@@ -1881,7 +1891,7 @@ async function boot(): Promise<void> {
     const arrived = before.world.terrain === null ? next.world.terrain : null
     // Task 11: the strip is draped over the real heightfield, so it cannot be
     // built until there is one. `physicsFieldFor` returns non-null for
-    // `FINEST_FETCHED_LEVEL` alone, so this runs exactly once per page load --
+    // `finestFetchedLevel` alone, so this runs exactly once per page load --
     // and unconditionally, not only for a ground spawn: an airfield is a
     // place in the world, and a DEV `?spawnX/Y/Z` flight should be able to
     // see it too.
@@ -1913,7 +1923,7 @@ async function boot(): Promise<void> {
       scene.add(vegetation.object)
     }
     frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
-  }).catch((err: unknown) => {
+  }, finestFetchedLevel).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
   })

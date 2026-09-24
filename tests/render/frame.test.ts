@@ -19,12 +19,21 @@ import { playerAircraft } from '../../src/sim/loop.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
-import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import { decksOf, deckLocal } from '../../src/sim/world/deck.js'
 import { initialAircraftState } from '../../src/render/spawn.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 const f6f = loadAircraftSpec('f6f-hellcat')
 const tacloban = loadAirfield('tacloban')
 const keys = (...k: string[]) => new Set(k)
@@ -463,8 +472,8 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     // `tests/sim/soak.test.ts`'s terrain-contact soak does: this is a test,
     // not `src/sim/`, so pulling from `tools/terrain/load.ts` is fine here.
     const header = loadTerrainHeader()
-    const heights = loadTerrainLevel(FIRST_COMMITTED_LEVEL, header)
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, heights)
+    const heights = loadTerrainLevel(GROUND_TRUTH_LEVEL, header)
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, heights)
     const groundHeightM = heightAt(terrain, tacloban.runway.center.x, tacloban.runway.center.z)
 
     // Real ground, well above sea level and well below "this is a mountain,
@@ -606,7 +615,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
 
   it('rolls north, down the strip, rather than east across it', () => {
     const header = loadTerrainHeader()
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
     const { f, startX, startZ } = rollFromTheSpawn(terrain)
 
     const alongM = startZ - playerAircraft(f.world).state.position.z
@@ -622,7 +631,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
 
   it('has land, not San Pedro Bay, off the departure end', () => {
     const header = loadTerrainHeader()
-    const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
     const { f } = rollFromTheSpawn(terrain)
     const at = playerAircraft(f.world).state.position
 
@@ -676,7 +685,7 @@ describe('the flap lever (Plan 11b Task 8)', () => {
 describe('a multi-entity frame (Plan 12)', () => {
   const bundle = loadScenarioBundle('free-flight')
   const header = loadTerrainHeader()
-  const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+  const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
 
   it('carries one pose per aircraft and per ship, and render IS the player pose', () => {
     let f = initialFrameStateFor(worldFromScenario(bundle, terrain))

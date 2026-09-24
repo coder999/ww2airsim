@@ -18,10 +18,12 @@ import { tileFileName } from '../../tools/terrain/tiles.js'
 
 const header = loadTerrainHeader()
 
-/** Committed levels: L2 (2049x2049) through L12 (3x3). Everything finer is
- *  gitignored (see `tools/terrain/load.ts`'s FIRST_COMMITTED_LEVEL), so a
- *  fresh clone has exactly these. Moved from L4 on 2026-09-18: L4's 391 m
- *  spacing was itself the blocky-coastline bug. */
+/** Committed levels: the whole pyramid, L0 (8193x8193) through L12 (3x3).
+ *  A fresh clone has exactly these (see `tools/terrain/load.ts`'s
+ *  `FIRST_COMMITTED_LEVEL`). Moved from L4 to L2 on 2026-09-18 (L4's 391 m
+ *  spacing was itself the blocky-coastline bug), and from L2 to L0 by
+ *  Task 2 on 2026-09-24 (L0 committed via Git LFS, over GitHub's 100 MB
+ *  per-file limit; L1 committed plain). */
 const COMMITTED_LEVELS = Array.from(
   { length: header.levels - FIRST_COMMITTED_LEVEL },
   (_v, i) => FIRST_COMMITTED_LEVEL + i,
@@ -29,7 +31,7 @@ const COMMITTED_LEVELS = Array.from(
 
 describe('the committed terrain fallback', () => {
   it('is present, parses, and has the level sizes its header claims', () => {
-    expect(COMMITTED_LEVELS).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect(COMMITTED_LEVELS).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     for (const level of COMMITTED_LEVELS) {
       const data = loadTerrainLevel(level, header)
       const n = samplesAtLevel(header, level)
@@ -118,7 +120,9 @@ describe('the committed terrain fallback', () => {
  * Every digest below was read off the committed artefact with `sha256sum` on
  * 2026-09-14, after `npm run terrain:build` had been run twice from the same
  * cache and `sha256sum -c` confirmed all thirteen levels plus the header were
- * byte-identical across the two runs.
+ * byte-identical across the two runs. L0.bin and L1.bin were added on
+ * 2026-09-24 (Task 2) by running `sha256sum` directly against the committed
+ * files, per this comment's own rule -- not pasted from a failing assertion.
  *
  * Changing the resampler, the mip filter, the projection, the world centre or
  * the source tiles changes these; that is the point. Regenerate them
@@ -127,6 +131,8 @@ describe('the committed terrain fallback', () => {
  */
 const COMMITTED_SHA256: Readonly<Record<string, string>> = {
   'header.json': 'd69644f904f4238f4bd78ac122b9a15ec5b405f809dbc7b94fb028cc4eae2aeb',
+  'L0.bin': '4f1f1eddfaa3f4d1bfd897f3b6adcc97e9b9bfa70ec546b31a3fa808e0b989b0',
+  'L1.bin': '3942839c84e3a4233137e38426dae3895090d071ab2000cea935b042efef2ae6',
   'L2.bin': '9d663dc8a29ec61d353e88ab84aa9bb31af30c4ff19cbe43e6becb12108aee59',
   'L3.bin': 'c546da89a1349c9dadd8db643484bf35881c11caca0b67bbe08dde37c32125a2',
   'L4.bin': '37bf755bfec80c5bae409ff7fddf183507ec4a6f1a7c89b557ee9ae80ea5fe5a',

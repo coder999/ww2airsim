@@ -15,29 +15,42 @@ import { parseTerrainHeader, samplesAtLevel, type TerrainHeader } from '../../sr
  *  `process.cwd()`, so a test run from any directory reads the same bytes. */
 export const TERRAIN_DIR = fileURLToPath(new URL('../../content/terrain/', import.meta.url))
 
-/** `content/terrain/tiles/`, the gitignored half of the output (see
- *  `.gitignore`'s `/content/terrain/tiles/` rule). */
+/** `content/terrain/tiles/`, a gitignored scratch directory
+ *  `tools/terrain/build.ts` writes debug artefacts into (e.g. `L6-preview.png`).
+ *  Until Task 2 (2026-09-24) it also held the uncommitted L0/L1 mips; both
+ *  are committed now (L0 via Git LFS, over GitHub's 100 MB per-file limit),
+ *  so nothing `terrainLevelPath` resolves lives here any more -- see
+ *  `FIRST_COMMITTED_LEVEL` below. */
 export const TILES_DIR = fileURLToPath(new URL('../../content/terrain/tiles/', import.meta.url))
 
 /**
- * The coarsest level that is NOT committed. Levels 0-1 are 134 MB and 33.6 MB
- * (n^2 * 2 bytes for n = 8193, 4097); levels 2-12 together are 11,201,206
- * bytes, dominated by L2's 8.4 MB and L3's 2.1 MB.
+ * The finest level that IS committed -- 0, since Task 2 (2026-09-24)
+ * committed L0 and L1 alongside the rest of the pyramid. Levels 0-1 are
+ * 134,250,498 and 33,570,818 bytes (n^2 * 2 bytes for n = 8193, 4097);
+ * levels 2-12 together are 11,201,206 bytes, dominated by L2's 8.4 MB and
+ * L3's 2.1 MB -- 179,022,522 bytes committed in total, nothing left
+ * uncommitted below it.
  *
- * Moved from 4 to 2 on 2026-09-18. L4's spacing is 391 m, and that number is
- * the bug: the axis-aligned blocks and rectangular water strips along the
- * shore ARE the L4 grid, so no rule applied at L4 can remove them. Plan 13c
- * tried to move the shoreline into the DEM at 24 m and let `buildPyramid`
- * carry it down; `halve` is a [1,2,1] tent filter and does not preserve a
- * binary land/sea boundary, so the before and after frames on the reference
- * GPU were indistinguishable (measured 2026-09-18, net -203 land cells at
- * L4). Shipping L2 at 98 m cuts the visible step 4x instead.
+ * Before Task 2, this was 2: moved from 4 to 2 on 2026-09-18, because L4's
+ * 391 m spacing meant the axis-aligned blocks and rectangular water strips
+ * along the shore WERE the L4 grid, and no rule applied at L4 could remove
+ * them (Plan 13c tried moving the shoreline into the DEM at 24 m and letting
+ * `buildPyramid` carry it down; `halve` is a [1,2,1] tent filter and does not
+ * preserve a binary land/sea boundary, so the before and after frames on the
+ * reference GPU were indistinguishable, measured 2026-09-18, net -203 land
+ * cells at L4). Shipping L2 at 98 m cut the visible step 4x; shipping L0 at
+ * 24 m (this change) cuts it a further ~4x again, though the same
+ * axis-aligned-grid argument still applies at whatever the finest shipped
+ * level's spacing is -- it is smaller now, not gone.
  */
-export const FIRST_COMMITTED_LEVEL = 2
+export const FIRST_COMMITTED_LEVEL = 0
 
 /** Absolute path of a level's `.bin`. Levels below `FIRST_COMMITTED_LEVEL`
- *  live in the gitignored `tiles/` subdirectory; the rest are committed
- *  alongside `header.json`. */
+ *  would live in the gitignored `tiles/` subdirectory; since that boundary is
+ *  now 0, every level is committed alongside `header.json` and this branch is
+ *  unreachable in practice -- kept because a future level below L0 (a finer
+ *  DEM resample) would still need the split, and because `TILES_DIR` remains
+ *  a real, distinct directory (see its own doc comment). */
 export function terrainLevelPath(level: number): string {
   const dir = level < FIRST_COMMITTED_LEVEL ? TILES_DIR : TERRAIN_DIR
   return `${dir}L${level}.bin`

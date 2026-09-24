@@ -7,7 +7,8 @@ import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
-import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
@@ -15,9 +16,17 @@ import { emptyStores } from '../../src/sim/weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 const bundle = loadScenarioBundle('free-flight')
 const header = loadTerrainHeader()
-const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
 
 const withScenario = (patch: Partial<typeof bundle.scenario>, base: ScenarioBundle = bundle): ScenarioBundle => ({
   ...base,

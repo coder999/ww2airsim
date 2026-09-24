@@ -22,15 +22,18 @@ import { resolve, sep } from 'node:path'
  * not by reading this file.
  *
  * `content/terrain/tiles/` is excluded, and that exclusion is the point of the
- * filter rather than a tidiness measure: it holds the gitignored L0-L3 mips
- * (178,319,368 bytes, measured 2026-09-14), which no browser code path fetches
- * -- `src/render/content.ts`'s FINEST_FETCHED_LEVEL stops at L4 precisely
- * because those files are not in a clone. Without the filter, any machine that
- * has run `npm run terrain:build` ships them, and `dist.test.ts` runs two real
- * builds, so `npm run verify` alone copies ~342 MB of them on the one machine
- * that also runs Tier 2 -- which is the machine a hand-deploy comes from. That
- * test asserts the absence, and only on a machine where the directory exists,
- * so it cannot pass in CI for the wrong reason.
+ * filter rather than a tidiness measure. Until Task 2 (2026-09-24) it held
+ * the gitignored L0-L1 mips (167,821,316 bytes); that task committed both
+ * (L0 via Git LFS, over GitHub's 100 MB per-file limit) into
+ * `content/terrain/` proper, so today this directory holds only
+ * `tools/terrain/build.ts`'s debug artefacts (e.g. `L6-preview.png`) --
+ * nothing `terrainLevelPath` resolves lives here any more. The filter stays
+ * regardless: `npm run terrain:build` can still write scratch files here that
+ * must never reach `dist/`, and `dist.test.ts` runs two real builds, so an
+ * unfiltered copy would cost real time on the one machine that also runs
+ * Tier 2 -- which is the machine a hand-deploy comes from. That test asserts
+ * the absence, and only on a machine where the directory exists, so it
+ * cannot pass in CI for the wrong reason.
  */
 function copyContent(): Plugin {
   // Captured from `configResolved` rather than read off the hook context: the

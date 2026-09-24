@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
+import { AIRCRAFT_CONTENT_PATH, finestFetchedLevelFor, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
@@ -52,12 +52,15 @@ const COPERNICUS_LICENCE_STRINGS = {
 const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
 
 /**
- * The gitignored half of the pyramid: L0-L3, 178,319,368 bytes, which
- * `tools/terrain/build.ts` writes and no browser code path fetches
- * (`src/render/content.ts`'s FINEST_FETCHED_LEVEL). `vite.config.ts`'s content
- * copy filters this directory out; without the filter, every build on a
- * machine that has run `npm run terrain:build` ships it, and this file runs
- * two builds.
+ * `tools/terrain/build.ts`'s scratch directory. Until Task 2 (2026-09-24) it
+ * held the gitignored L0-L1 mips (167,821,316 bytes); that task committed
+ * both (L0 via Git LFS, over GitHub's 100 MB per-file limit) into
+ * `content/terrain/` proper, so today this directory holds only debug
+ * artefacts (e.g. `L6-preview.png`) that must never reach `dist/` either.
+ * `vite.config.ts`'s content copy filters this directory out; without the
+ * filter, every build on a machine that has run `npm run terrain:build`
+ * ships whatever scratch output it left behind, and this file runs two
+ * builds.
  *
  * Resolved from this file's own URL rather than from `process.cwd()`, and the
  * same relative string is reused inside `outDir` so the two halves of the
@@ -180,11 +183,25 @@ describe('the built artifact', () => {
       expect(shippedJs).toContain('https://www.openstreetmap.org/copyright')
       expect(readFileSync(join(outDir, 'index.html'), 'utf8')).not.toContain('map-credit')
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
-      for (let level = FINEST_FETCHED_LEVEL; level <= coarsest; level++) {
+      // `'low'`, matching `main.ts`'s and `terrain/mesh.ts`'s own placeholder
+      // pending Task 6's real persisted-tier wiring (see their notes on why
+      // it is deliberately not the spec's eventual `'medium'` default): this
+      // loop asserts every level TODAY's placeholder actually fetches.
+      for (let level = finestFetchedLevelFor('low'); level <= coarsest; level++) {
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
         const bytes = readFileSync(join(outDir, terrainLevelPath(level)))
         expect(bytes.byteLength, `${terrainLevelPath(level)} is the wrong size`).toBe(samples ** 2 * 2)
       }
+      // Task 2 (2026-09-24): L0 and L1 ship as committed content regardless
+      // of which tier a page load ends up fetching (L0 via Git LFS, over
+      // GitHub's 100 MB per-file limit) -- pinned as EXACT literals, the same
+      // pattern `cover.bin.gz` below uses, independently of `samplesAtLevel`
+      // and the loop above: an LFS pointer file left un-smudged by the build
+      // tooling is a few hundred bytes of text, not 134 MB, and a bug in
+      // `samplesAtLevel`/`header.json` itself would not be caught by a check
+      // that derives its own expectation from the same source.
+      expect(readFileSync(join(outDir, 'content/terrain/L0.bin')).length).toBe(134_250_498)
+      expect(readFileSync(join(outDir, 'content/terrain/L1.bin')).length).toBe(33_570_818)
 
       // Copernicus Article 6(b)/6(c): the attribution and the no-liability
       // sentence have to accompany the derived data. They do so via
@@ -194,17 +211,18 @@ describe('the built artifact', () => {
       // repo-side copy is checked by reading the shipped one, so a notice
       // edited to say something else fails here rather than in a lawyer's
       // letter.
-      // The 178 MB the build must NOT ship -- asserted only where the bug is
-      // reachable. `expect(existsSync(...)).toBe(false)` unconditionally would
-      // be green in CI and in a fresh clone for the wrong reason: the SOURCE
-      // directory is absent there, so nothing could have been copied whether
-      // the filter exists or not. Guarded on the source, this is a real
-      // assertion on a machine that has run `npm run terrain:build` and a
-      // stated no-op everywhere else.
+      // The scratch directory's debug artefacts the build must NOT ship --
+      // asserted only where the bug is reachable.
+      // `expect(existsSync(...)).toBe(false)` unconditionally would be green
+      // in CI and in a fresh clone for the wrong reason: the SOURCE directory
+      // is absent there, so nothing could have been copied whether the filter
+      // exists or not. Guarded on the source, this is a real assertion on a
+      // machine that has run `npm run terrain:build` and a stated no-op
+      // everywhere else.
       if (existsSync(REPO_TERRAIN_TILES_DIR)) {
         expect(
           existsSync(join(outDir, TERRAIN_TILES_PATH)),
-          'the build shipped the gitignored L0-L3 tiles (vite.config.ts\'s content-copy filter)',
+          'the build shipped tools/terrain/build.ts\'s scratch directory (vite.config.ts\'s content-copy filter)',
         ).toBe(false)
       }
 

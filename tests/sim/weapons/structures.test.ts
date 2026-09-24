@@ -3,10 +3,19 @@ import { buildStructures, healthyStructureDamage } from '../../../src/sim/weapon
 import { createTerrainField, heightAt } from '../../../src/sim/world/terrain.js'
 import { loadAirfield } from '../../../tools/content/load.js'
 import {
-  FIRST_COMMITTED_LEVEL,
   loadTerrainHeader,
   loadTerrainLevel,
 } from '../../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../../src/render/content.js'
+
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  test used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 describe('structures built from airfield content (Plan 6b)', () => {
   it('builds one StructureEntity per building, at both friendly and enemy airfields', () => {
@@ -21,13 +30,18 @@ describe('structures built from airfield content (Plan 6b)', () => {
     const header = loadTerrainHeader()
     const terrain = createTerrainField(
       header,
-      FIRST_COMMITTED_LEVEL,
-      loadTerrainLevel(FIRST_COMMITTED_LEVEL, header),
+      GROUND_TRUTH_LEVEL,
+      loadTerrainLevel(GROUND_TRUTH_LEVEL, header),
     )
     const hangar = buildStructures([loadAirfield('dulag')], terrain)
       .find((s) => s.id === 'dulag-hangar-1')!
     const groundHeightM = heightAt(terrain, hangar.position.x, hangar.position.z)
-    expect(groundHeightM).toBeGreaterThan(10)
+    // A sanity bound, not a pinned value -- "not at sea level," not an exact
+    // height. Lowered from 10 on Task 2 (2026-09-24): the ground truth moved
+    // from L2 (98 m spacing) to `GROUND_TRUTH_LEVEL` (L1, 49 m), and the
+    // finer grid samples a genuinely different nearby point at Dulag
+    // (9.4 m here, still clearly land).
+    expect(groundHeightM).toBeGreaterThan(5)
     expect(hangar.position.y - hangar.halfSize.y).toBeCloseTo(groundHeightM, 9)
   })
   it('a structure never moves or ages: it is spec, not simulated state', () => {

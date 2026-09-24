@@ -19,8 +19,18 @@ import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { createOcean } from '../../src/render/ocean/mesh.js'
 import { createDepthField } from '../../src/render/ocean/depth.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
-import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { loadAirfield, loadShipSpec } from '../../tools/content/load.js'
+
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 const noise = { shape: loadShape(), detail: loadDetail() }
 const deck = () => createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
@@ -101,7 +111,7 @@ describe('cloud shadow readers (Plan 16b)', () => {
     // on objects with `receiveShadow` (AnalyticLightNode.setup, r186). A mesh
     // added without the flag is lit as if the sky were clear.
     const header = loadTerrainHeader()
-    const terrainField = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const terrainField = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
     const tacloban = loadAirfield('tacloban')
     const roots: Object3D[] = [
       createHellcat().root, createShipMesh(loadShipSpec('essex-cv')).root, createMarkers(),

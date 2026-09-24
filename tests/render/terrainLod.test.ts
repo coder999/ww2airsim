@@ -1,9 +1,23 @@
 import { existsSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { selectNodes, LOD, type LodNode } from '../../src/render/terrain/lod.js'
-import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
 import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { samplesAtLevel, type TerrainHeader } from '../../src/sim/world/schema.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
+
+/**
+ * The level a `'low'`-tier page load actually fetches -- `main.ts`'s and
+ * `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ * wiring (see their notes on why it is deliberately `'low'`, not the spec's
+ * eventual `'medium'` default). Before Task 2 (2026-09-24) the tests below
+ * used `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL` for this purpose,
+ * because it was numerically the same thing (2); that task decoupled "what's
+ * committed on disk" (now 0, the whole pyramid) from "what a page load
+ * fetches" (tier-dependent), so a test measuring what the app actually flies
+ * over has to name the second concept, not the first.
+ */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 const area = (n: { sizeM: number }) => n.sizeM * n.sizeM
 
@@ -293,18 +307,22 @@ describe('CDLOD node selection', () => {
 // this repository's named worst failure mode. The dependency itself is real
 // and unchanged; only the word was stale.
 
-// Mip 0 (the finest, 8193-sample level) lives in the gitignored
-// `content/terrain/tiles/` -- see `tools/terrain/load.ts`'s
-// FIRST_COMMITTED_LEVEL -- so a fresh clone (and CI) has no L0.bin. Skip
-// named, not vanished, matching tests/tools/terrainBuild.test.ts's own
-// `describe.skipIf(!haveSource)` pattern for exactly the same reason: a
-// silently-vanished check is indistinguishable from one that ran and passed.
+// Mip 0 (the finest, 8193-sample level) used to live in the gitignored
+// `content/terrain/tiles/`, so a fresh clone (and CI) had no L0.bin -- see
+// `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL`. Task 2 (2026-09-24)
+// committed it (via Git LFS, over GitHub's 100 MB per-file limit), so this
+// should now be true everywhere; the check stays as a diagnostic (a real
+// clone missing it now points at an LFS-fetch problem, not a pipeline that
+// was never run) rather than a hard dependency, matching
+// `tests/tools/terrainBuild.test.ts`'s own `describe.skipIf(!haveSource)`
+// pattern for exactly the same reason: a silently-vanished check is
+// indistinguishable from one that ran and passed.
 const haveFinestMip = existsSync(terrainLevelPath(0))
 if (!haveFinestMip) {
   console.warn(
     `[terrainLod.test.ts] ${terrainLevelPath(0)} is absent -- the mip-0-referenced far-field ` +
-    'height-error measurement is SKIPPED (the L4-referenced twin below still runs everywhere). ' +
-    'Run `npx tsx tools/terrain/fetch.ts && npm run terrain:build` to enable it.',
+    'height-error measurement is SKIPPED. This should not happen on any clone since Task 2 ' +
+    '(2026-09-24) committed L0.bin; check `git lfs pull` ran.',
   )
 }
 
@@ -329,26 +347,35 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
     })
   })
 
-  it('pins the worst |L0 - L2| error over the whole surface, re-measured 2026-09-18', () => {
+  it('pins the worst |L0 - L1| error over the whole surface, re-measured 2026-09-24', () => {
     // The table above is about LOD SELECTION -- how much coarser the far field
-    // is than the near field. This is the error both of them share: L2 is the
-    // finest level a clone has, the renderer clamps rings 0-1 to it and the
-    // physics is handed it, so a fresh clone flies a Leyte that is this much
-    // flatter than the Copernicus data EVERYWHERE, near field included.
+    // is than the near field. This is the error a `'low'`-tier session's
+    // choice costs: L1 is the finest level `finestFetchedLevelFor('low')`
+    // fetches -- and, pending Task 6, the finest level `main.ts`'s and
+    // `terrain/mesh.ts`'s own interim placeholder fetches for EVERY session
+    // today, not only `'low'` ones -- so this is how much flatter than the
+    // Copernicus data that gets flown over EVERYWHERE, near field included.
     //
     // Recorded in the design spec (section 6) and in the handoff as the number
     // behind "does the relief want a vertical exaggeration?", and pinned here
     // rather than left as prose because it is the premise that argument rests
-    // on. It was previously called unpinnable "because it needs L0, which CI
-    // lacks" -- which this block already answers: it is the same
-    // `skipIf(!haveFinestMip)` gate the mip-0 table above runs under.
+    // on.
     //
-    // Every one of L0's 8193^2 samples against `heightAt` on the L4 field, not
+    // Until Task 2 (2026-09-24) this compared L0 against L2 (the finest level
+    // a clone had at all, gated behind `skipIf(!haveFinestMip)`): L0 and L1
+    // are BOTH committed now, so the "which reference is even on disk"
+    // question that gate existed for no longer applies to this pair, and the
+    // meaningful comparison moved from "against the finest committed level"
+    // to "against the finest level a real page load fetches". Kept in this
+    // block anyway (rather than promoted out from under `skipIf`) because it
+    // still needs L0 loaded whole, which is exactly what that gate checks.
+    //
+    // Every one of L0's 8193^2 samples against `heightAt` on the L1 field, not
     // a subsample: the worst cell is a single ridge top and a stride would
     // step over it.
     const header = loadTerrainHeader()
     const l0 = loadTerrainLevel(0, header)
-    const l4 = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+    const l1 = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
     const n = samplesAtLevel(header, 0)
     const half = header.halfExtentM
     const step = (2 * half) / (n - 1)
@@ -360,7 +387,7 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
       for (let col = 0; col < n; col++) {
         const x = -half + col * step
         // Decimetres on disk (schema.ts's `encoding`), metres everywhere else.
-        const diff = Math.abs(l0[row * n + col]! / 10 - heightAt(l4, x, z))
+        const diff = Math.abs(l0[row * n + col]! / 10 - heightAt(l1, x, z))
         if (diff > worst) {
           worst = diff
           worstX = x
@@ -368,39 +395,42 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
         }
       }
     }
-    expect(worst).toBeCloseTo(111.4875, 3) // re-measured 2026-09-18, shipping L2
+    expect(worst).toBeCloseTo(40.35, 3) // re-measured 2026-09-24, shipping L0/L1
     // WHERE, not just how much: a measurement that moved to a different peak
     // is a different claim even if the magnitude happened to survive.
-    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-57690, -7471]) // re-measured 2026-09-18, shipping L2
+    expect([Math.round(worstX), Math.round(worstZ)]).toEqual([-58521, -6909]) // re-measured 2026-09-24, shipping L0/L1
   })
 })
 
 // Controller ruling (review 2026-09-14): the mip-0-referenced table above
-// never runs in CI or in a fresh clone (mip 0 is gitignored), so it cannot
-// be the plan's only far-field guard -- "a guard that only executes on a box
-// that has run the 178 MB build is not a guard." This twin uses L4, the
-// finest COMMITTED level, as its reference instead: same measurement, worse
-// reference (so smaller, less dramatic numbers than the mip-0 table above --
-// that is expected, not a discrepancy), but it runs everywhere. It only
-// measures rings 5 and up (`worstErrorByRing` skips anything <= the
-// reference level), because rings 0-3 need mips that are not on disk here.
-describe('far-field height error against mip 2, by ring (runs everywhere)', () => {
-  it('matches the pinned worst-case error against mip 2, re-measured 2026-09-18', () => {
+// never ran in CI or in a fresh clone before Task 2 (mip 0 was gitignored),
+// so it could not be the plan's only far-field guard -- "a guard that only
+// executes on a box that has run the 178 MB build is not a guard." This twin
+// uses `GROUND_TRUTH_LEVEL` (L1, `finestFetchedLevelFor('low')`) as its
+// reference instead: same measurement, worse reference (so smaller, less
+// dramatic numbers than the mip-0 table above -- that is expected, not a
+// discrepancy), but it runs everywhere regardless of tier, because L1 (like
+// L0) is committed content, not a build artefact. It only measures ring 2 and
+// up (`worstErrorByRing` skips anything <= the reference level).
+describe('far-field height error against mip 1, by ring (runs everywhere)', () => {
+  it('matches the pinned worst-case error against mip 1, re-measured 2026-09-24', () => {
     // Camera at the exact world corner (100000, 100000): the opposite
     // corner from it is far enough to stay at ring 6, which a moderate
     // corner like (99000, 99000) above does not reach, giving two rings of
     // data instead of one.
     const header = loadTerrainHeader()
-    const worstByRing = worstErrorByRing(header, FIRST_COMMITTED_LEVEL, 100e3, 100e3)
-    // Re-measured 2026-09-18 when FIRST_COMMITTED_LEVEL moved 4 -> 2. Rings 3
-    // and 4 appear because a finer reference level is now on disk for them to
-    // be measured against; rings 5 and 6 rise because the reference they are
-    // compared to is better, not because the far field got worse.
+    const worstByRing = worstErrorByRing(header, GROUND_TRUTH_LEVEL, 100e3, 100e3)
+    // Re-measured 2026-09-24 when the reference moved from `FIRST_COMMITTED_LEVEL`
+    // (L2 until Task 2) to `GROUND_TRUTH_LEVEL` (L1): ring 2 appears because a
+    // finer reference is now used for it to be measured against; rings 3-6
+    // rise because the reference they are compared to is better, not because
+    // the far field got worse.
     expectPinnedTable(worstByRing, {
-      3: 25.7,
-      4: 70.3,
-      5: 193.6,
-      6: 246.7,
+      2: 14.5,
+      3: 40.7,
+      4: 75.1,
+      5: 197.5,
+      6: 253.2,
     })
   })
 })

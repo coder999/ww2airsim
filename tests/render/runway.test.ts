@@ -2,10 +2,20 @@ import { describe, it, expect } from 'vitest'
 import { BufferGeometry, Mesh } from 'three'
 import { RUNWAY_SURFACE_OFFSET_M, createRunway } from '../../src/render/scene/runway.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
-import { loadTerrainHeader, loadTerrainLevel, FIRST_COMMITTED_LEVEL } from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { loadAirfield } from '../../tools/content/load.js'
 import { parseAirfield, runwayCorners } from '../../src/sim/world/airfields.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
+
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 /**
  * The strip is content now (Plan 12 Task 7): `createRunway` takes an
@@ -51,7 +61,7 @@ describe('the runway at Tacloban', () => {
 
 describe('createRunway', () => {
   const header = loadTerrainHeader()
-  const terrain = createTerrainField(header, FIRST_COMMITTED_LEVEL, loadTerrainLevel(FIRST_COMMITTED_LEVEL, header))
+  const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, loadTerrainLevel(GROUND_TRUTH_LEVEL, header))
 
   it('follows the real ground rather than floating over it or burying itself', () => {
     // Tacloban is a table north-south (0.49 m of spread over 1.8 km) but not

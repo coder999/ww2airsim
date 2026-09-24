@@ -5,11 +5,16 @@ import { loadScenarioBundle } from '../../tools/content/load.js'
 import { localToWorld } from '../../src/sim/world/airfields.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import type { Loadout } from '../../src/sim/weapons/stores.js'
-import {
-  FIRST_COMMITTED_LEVEL,
-  loadTerrainHeader,
-  loadTerrainLevel,
-} from '../../tools/terrain/load.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor } from '../../src/render/content.js'
+/** The level a real page load actually flies over today -- `main.ts`'s and
+ *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
+ *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
+ *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
+ *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
+ *  time; the two concepts have since diverged ("what's committed on disk",
+ *  now 0, vs "what a page load fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
 
 /**
  * Tier 2, the strike slice (Plan 6b). Same platform and caveats as
@@ -60,8 +65,8 @@ const hangar1World = localToWorld(dulag, hangar1.x, hangar1.z)
 const terrainHeader = loadTerrainHeader()
 const terrain = createTerrainField(
   terrainHeader,
-  FIRST_COMMITTED_LEVEL,
-  loadTerrainLevel(FIRST_COMMITTED_LEVEL, terrainHeader),
+  GROUND_TRUTH_LEVEL,
+  loadTerrainLevel(GROUND_TRUTH_LEVEL, terrainHeader),
 )
 const hangar1GroundM = heightAt(terrain, hangar1World.x, hangar1World.z)
 /**
