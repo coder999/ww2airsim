@@ -187,6 +187,43 @@ async function boot(): Promise<void> {
   // to paint and take one) needs nothing further: that first `buildWorld`
   // call below just reads whatever this already holds.
   let chosenLoadout: Loadout = DEFAULT_LOADOUT
+  /**
+   * The pilot roster and this life's scoring baseline (Plan 9 Task 6),
+   * hoisted here rather than left at their Task 6 narrative position (by
+   * `bankMissionResult`, further down) for the exact reason `chosenLoadout`
+   * just above is: the `onNewGame` closure just below reads and reassigns
+   * all three on every New Game, and that closure is reachable the instant
+   * the title paints -- long before `boot`'s own several `await`s (the
+   * renderer, the initial scenario fetch, sky noise, the ocean cascades, the
+   * depth field) finish running. A `let` declared at its OLD narrative
+   * position, well after those awaits, sat in its temporal dead zone for
+   * that whole stretch: any New Game click landing in it -- trivially
+   * reachable by a scripted Tier 2 test, and not implausible for a fast
+   * player -- threw `ReferenceError: Cannot access 'roster' before
+   * initialization` out of `onNewGame`'s very first statement, silently
+   * aborting the ENTIRE New Game action (a scenario switch included) with
+   * nothing to show for it but an uncaught exception in the click handler.
+   * Found 2026-09-24 via `scenarioPicker.spec.ts`'s "return to title" test on
+   * the reference GPU: the switch looked like it silently no-op'd, and every
+   * individual piece of `loadScenario`/`rebuildFrame`/`buildWorld` read
+   * correct in isolation, because the actual fault was never reached --
+   * `onNewGame` crashed before any of that code ran at all.
+   * `currentPilotId` is `null` until `onNewGame` fires (no roster flow
+   * reachable yet, or a dev-URL bypass), which is exactly
+   * `bankMissionResult`'s own no-op guard below.
+   */
+  let roster = loadRoster()
+  let currentPilotId: string | null = null
+  /**
+   * The player's `killsByType` as of the last bank -- a landing/ditching/
+   * death that already scored them. Reset to zero on every New Game and every
+   * Restart (both start a new life for scoring purposes); NOT reset by
+   * Continue, so a landing followed by more flying and a second landing
+   * banks only the kills since the first, via `killsSince` (debrief.ts),
+   * rather than re-banking the whole flight's cumulative total. Hoisted
+   * alongside `roster`/`currentPilotId` above, for the same reason.
+   */
+  let scoredThroughKillsByType = zeroKillsByType()
 
   // Plan 17 follow-up: which scenario this boot loads, resolved and
   // whitelisted before the title screen exists so the scenario picker can
@@ -963,24 +1000,6 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
-  /**
-   * The pilot roster and this life's scoring baseline (Plan 9 Task 6). `roster`
-   * is reloaded, not just this closure's boot-time copy, on every New Game --
-   * see the `onNewGame` callback above for why. `currentPilotId` is `null`
-   * until `onNewGame` fires (no roster flow reachable yet, or a dev-URL
-   * bypass), which is exactly `bankMissionResult`'s own no-op guard below.
-   */
-  let roster = loadRoster()
-  let currentPilotId: string | null = null
-  /**
-   * The player's `killsByType` as of the last bank -- a landing/ditching/
-   * death that already scored them. Reset to zero on every New Game and every
-   * Restart (both start a new life for scoring purposes); NOT reset by
-   * Continue, so a landing followed by more flying and a second landing
-   * banks only the kills since the first, via `killsSince` (debrief.ts),
-   * rather than re-banking the whole flight's cumulative total.
-   */
-  let scoredThroughKillsByType = zeroKillsByType()
   /**
    * Applies one mission's score to whichever pilot is flying and persists the
    * roster immediately, so both this debrief's own figures and the title
