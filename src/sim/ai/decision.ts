@@ -36,9 +36,19 @@ const BREAK_RANGE_PENALTY = 0.003
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n))
 
-function angleBetween(a: Vec3, b: Vec3): number {
+/** `degenerateValue` is what this returns for a near-zero-length input (e.g.
+ *  coincident positions, or a stationary target) -- there is no "the" right
+ *  default: finding 2 (final whole-branch review) is that `angleOffSelfRad`
+ *  wants the NEUTRAL value (0, no angle-off penalty) while `angleOffTargetRad`
+ *  wants the SAFE value (Math.PI, "no information = no threat", matching the
+ *  angleBetween convention this fact already uses: 0 is the target's nose ON
+ *  self -- danger -- and Math.PI is pointed fully away -- safe). A single
+ *  hardcoded `0` read as MAXIMUM threat for angleOffTargetRad once that
+ *  convention landed, and could force an incorrect 'break' purely from two
+ *  entities coinciding or a target with zero velocity. */
+function angleBetween(a: Vec3, b: Vec3, degenerateValue: number): number {
   const denom = length(a) * length(b)
-  if (denom < 1e-6) return 0
+  if (denom < 1e-6) return degenerateValue
   return Math.acos(clamp(dot(a, b) / denom, -1, 1))
 }
 
@@ -72,8 +82,8 @@ export function deriveFacts<M>(
     relativeEnergyJPerKg:
       energyOf(self.state.velocity, self.state.position.y) -
       energyOf(target.state.velocity, target.state.position.y),
-    angleOffSelfRad: angleBetween(self.state.velocity, toTarget),
-    angleOffTargetRad: angleBetween(target.state.velocity, toSelf),
+    angleOffSelfRad: angleBetween(self.state.velocity, toTarget, 0),
+    angleOffTargetRad: angleBetween(target.state.velocity, toSelf, Math.PI),
     rangeM,
     closingRate: rangeM < 1e-6 ? 0 : dot(toTarget, self.state.velocity) / rangeM,
     // Is self inside the TARGET's own gun cone right now -- the exact

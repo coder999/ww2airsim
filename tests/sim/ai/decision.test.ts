@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
   MIN_ENGAGEMENT_RANGE_M,
   decideManeuver,
+  deriveFacts,
   scoreManeuvers,
   type DecisionFacts,
 } from '../../../src/sim/ai/decision.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
+import { createState } from '../../../src/sim/flight/state.js'
+import { v3 } from '../../../src/sim/math/vec3.js'
+import type { AircraftEntity } from '../../../src/sim/loop.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const HEALTHY: DecisionFacts = {
   relativeEnergyJPerKg: 0,
@@ -24,7 +29,14 @@ const HEALTHY: DecisionFacts = {
 }
 
 describe('scoreManeuvers / decideManeuver', () => {
-  it('all-zero facts reproduce Pursue -- the Plan 7a regression floor', () => {
+  // Renamed (finding 8, final whole-branch review): HEALTHY's fixture sets
+  // angleOffTargetRad: Math.PI, not 0, per the Task 2 ruling -- so this is
+  // not actually "all-zero facts" (a genuinely all-zero DecisionFacts now
+  // returns 'break'). What this proves is unchanged: a neutral, non-
+  // threatening picture still reproduces Pursue, the Plan 7a regression
+  // floor, because Pursue wins ties and the tie-break logic itself is
+  // correct and unchanged.
+  it('a neutral, non-threatening picture reproduces Pursue -- the Plan 7a regression floor', () => {
     expect(decideManeuver(HEALTHY, GREEN_SKILL)).toBe('pursue')
   })
 
@@ -81,5 +93,48 @@ describe('scoreManeuvers / decideManeuver', () => {
     expect(Number.isFinite(scores.pursue)).toBe(true)
     expect(Number.isFinite(scores.extend)).toBe(true)
     expect(Number.isFinite(scores.breakOff)).toBe(true)
+  })
+})
+
+describe('deriveFacts at coincident positions (finding 2)', () => {
+  // angleBetween's own degenerate-case return of 0 (for a near-zero-length
+  // input vector -- e.g. coincident positions, or a stationary target) now
+  // reads as MAXIMUM threat for angleOffTargetRad, since the Break-angle fix
+  // made 0 the DANGEROUS end of that scale and Math.PI the safe one. A
+  // self/target collision or a same-position test fixture must not force
+  // 'break' purely from this degenerate case -- it should behave like the
+  // existing all-zero-equivalent (HEALTHY) baseline, not like a real threat.
+  const f6f = loadAircraftSpec('f6f-hellcat')
+  const entityAt = (position: ReturnType<typeof v3>, velocity: ReturnType<typeof v3>): AircraftEntity<undefined> => {
+    const state = createState({ position, velocity })
+    return {
+      id: 'e', spec: f6f, state, previous: state,
+      controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 },
+      assistMemory: undefined, impact: null, parked: false,
+    }
+  }
+
+  // Same velocity for self and target as well as coincident positions, so
+  // relativeEnergyJPerKg is also 0 and the ONLY thing under test is the
+  // angle-degeneracy fallback, not an incidental energy advantage.
+  it('angleOffTargetRad is the SAFE degenerate value (Math.PI), not the dangerous one (0)', () => {
+    const self = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
+    const target = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
+    const facts = deriveFacts(self, target, 0, 1)
+    expect(facts.angleOffTargetRad).toBe(Math.PI)
+  })
+
+  it('angleOffSelfRad is the NEUTRAL degenerate value (0)', () => {
+    const self = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
+    const target = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
+    const facts = deriveFacts(self, target, 0, 1)
+    expect(facts.angleOffSelfRad).toBe(0)
+  })
+
+  it('decideManeuver does NOT force break purely from coincident-position degenerate facts, with all other facts neutral', () => {
+    const self = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
+    const target = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
+    const facts = deriveFacts(self, target, 0, 1)
+    expect(decideManeuver(facts, GREEN_SKILL)).toBe('pursue')
   })
 })

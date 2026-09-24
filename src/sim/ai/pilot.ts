@@ -73,6 +73,11 @@ export function extendDesiredVelocity<M>(self: AircraftEntity<M>, threat: Aircra
   return scale(normalize(dive), desiredSpeed)
 }
 
+/** Below this cross-product magnitude, selfFwd and towardThreat are close
+ *  enough to collinear that `cross` is numerically degenerate -- see this
+ *  file's finding-1 fix below. */
+const HEAD_ON_EPSILON = 1e-6
+
 /** Desired velocity for a pilot choosing to Break: turn hard perpendicular to
  *  self's current velocity, into the plane containing the threat, at a speed
  *  the flight controller reads as a max-rate turn rather than a cruise. */
@@ -83,7 +88,20 @@ export function breakDesiredVelocity<M>(self: AircraftEntity<M>, threat: Aircraf
   // "turn hard," not "cruise there."
   const selfFwd = normalize(self.state.velocity)
   const towardThreat = normalize(sub(threat.state.position, self.state.position))
-  const turnAxis = normalize(cross(selfFwd, towardThreat))
+  const rawAxis = cross(selfFwd, towardThreat)
+  // Finding 1 (final whole-branch review): in a head-on merge -- selfFwd and
+  // towardThreat nearly antiparallel, exactly the geometry the Break-angle
+  // fix now correctly triggers Break in -- `rawAxis` approaches the zero
+  // vector, and `normalize(ZERO)` is ZERO (src/sim/math/vec3.ts). A 1mm
+  // vertical perturbation then flips the commanded break direction between
+  // full-up and full-down, and exact collinearity commands nothing at all.
+  // Fall back to a stable, arbitrary perpendicular axis: world-up crossed
+  // with selfFwd. (If selfFwd itself is nearly vertical this could also
+  // degenerate, but that is not the geometry in question here -- a known,
+  // accepted edge case, not this fix's job.)
+  const turnAxis = normalize(
+    length(rawAxis) < HEAD_ON_EPSILON ? cross(v3(0, 1, 0), selfFwd) : rawAxis,
+  )
   const breakDir = normalize(cross(turnAxis, selfFwd))
   return scale(breakDir, Math.max(60, length(self.state.velocity)))
 }

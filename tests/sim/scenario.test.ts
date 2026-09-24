@@ -206,10 +206,33 @@ describe('the energy-aware decision layer (Plan 7b)', () => {
     const firstManeuver = maneuverAt(world)
     const firstRescore = rescoreAt(world)
     world = advance(world, DT).world
-    // Still inside the veteran's 0.3s reaction window (two ticks in) --
-    // decision object must be referentially the same maneuver/rescore pair.
+    // Still inside the veteran's 0.3s reaction window (two ticks in) -- the
+    // maneuver and nextRescoreS VALUES must be unchanged. Not "referentially
+    // the same" (finding 10): advance() allocates a fresh decision/pilot
+    // object every tick regardless of whether a rescore ran, so the only
+    // real guarantee here is value equality, which is exactly what these
+    // .toBe assertions on a string and a number check.
     expect(rescoreAt(world)).toBe(firstRescore)
     expect(maneuverAt(world)).toBe(firstManeuver)
+
+    // Finding 3: the above only proved the "does not change" half of this
+    // test's own name -- it never actually reached nextRescoreS, so it would
+    // have passed against a permanently-latched maneuver too. Advance past
+    // DT + VETERAN_SKILL.reactionS (the exact value pursuer-1's nextRescoreS
+    // was set to) one tick at a time -- advance() caps a single call at
+    // MAX_STEPS_PER_FRAME steps and DROPS anything owed beyond that, so one
+    // large elapsedSeconds does not reliably reach a sim-time target this far
+    // out -- and confirm a rescore genuinely happens: nextRescoreS moves
+    // forward, not just "is different from a moment that never arrived."
+    const rescoreDeadlineS = DT + VETERAN_SKILL.reactionS
+    expect(firstRescore).toBeCloseTo(rescoreDeadlineS, 10)
+    let ticks = 0
+    while (world.tick * DT < firstRescore) {
+      world = advance(world, DT).world
+      ticks += 1
+      if (ticks > 60) throw new Error('nextRescoreS was never reached within 1s of additional sim time')
+    }
+    expect(rescoreAt(world)).toBeGreaterThan(firstRescore)
   })
 
   it('MIN_ENGAGEMENT_RANGE_M forces Extend in production advance() at point-blank range, closing', () => {
@@ -225,6 +248,11 @@ describe('the energy-aware decision layer (Plan 7b)', () => {
       pursuerRecord.state.position.y - player.state.position.y,
       pursuerRecord.state.position.z - player.state.position.z,
     )
+    // Finding 4 (final whole-branch review): a standalone assertion, not
+    // just the guard on the conditional below -- without this, a future
+    // geometry drift that stops triggering the override would silently
+    // no-op this test's only assertions instead of failing loudly.
+    expect(rangeM).toBeLessThan(MIN_ENGAGEMENT_RANGE_M)
     if (rangeM < MIN_ENGAGEMENT_RANGE_M) {
       expect(pursuerRecord.pilot!.decision.maneuver).toBe('extend')
       expect(pursuerRecord.controls.fire).toBeFalsy()

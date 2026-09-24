@@ -329,9 +329,10 @@ export interface AircraftEntity<M = undefined> {
    */
   readonly parked: boolean
   /**
-   * Static Plan 7 pilot assignment. Its target is resolved from the common
-   * start-of-tick aircraft snapshot before any entity moves; absent means the
-   * caller-owned `controls` remain authoritative.
+   * Plan 7 pilot assignment, carrying per-tick decision state (Plan 7b's
+   * `PilotDecisionState`) rescored on its own cadence. Its target is resolved
+   * from the common start-of-tick aircraft snapshot before any entity moves;
+   * absent means the caller-owned `controls` remain authoritative.
    */
   readonly pilot?: PilotAssignment | null
 }
