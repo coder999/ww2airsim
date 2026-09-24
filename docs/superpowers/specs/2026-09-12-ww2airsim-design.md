@@ -477,21 +477,49 @@ entering the integrator silently teleports the aircraft out of the world.
 
 | Aircraft | Role |
 | --- | --- |
-| Grumman f4F Wildcat | Playfer-flown |
+| Grumman F4F Wildcat | Player-flown |
 | Grumman F6F Hellcat | Player-flown |
 | Lockheed P-38 Lightning | Player-flown, friendly AI |
 | Boeing B-17 Flying Fortress | Player-flown, friendly AI, escort subject |
 | Boeing B-29 Superfortress | Player-flown, friendly AI, escort subject |
-| Vought f4U Corsair | Player-flow, firendly AI |
+| Vought F4U Corsair | Player-flown, friendly AI |
 | Mitsubishi A6M Zero | Hostile fighter |
-| Aichi D3a Val | Hostile fitgher |
+| Aichi D3A Val | Hostile fighter |
 | Nakajima Ki-43 Oscar | Hostile fighter |
 | Nakajima Ki-84 Frank | Hostile fighter, higher performance |
 | Mitsubishi G4M Betty | Hostile bomber, defensive gunners |
-| Mitsubishi K-21 Sally | Hostile bomber |
+| Mitsubishi Ki-21 Sally | Hostile bomber |
 
 This roster mirrors the original's and should be confirmed against a primary
 source before art work begins; it currently derives from a secondary summary.
+(Typos corrected 2026-09-24: F4F not "f4F", F4U not "f4U", "friendly" not
+"firendly"/"friendly-flow", Ki-21 not "K-21" — the Imperial Japanese Army
+bomber the 1991 original calls "Sally" is the Mitsubishi **Ki-21**, not a
+"K-21," which is not a real aircraft designation.)
+
+### Ship roster
+
+Added 2026-09-24, alongside the render-quality realism work — same caveat
+as the aircraft roster above: derived from a secondary summary of the
+historical Leyte Gulf order of battle, confirmed against a primary source
+before art/hull-geometry work begins. `role` matches
+`src/sim/world/ships.ts`'s existing enum exactly (`carrier` / `cruiser` /
+`battleship` / `escort` / `merchant`) — no new role values needed.
+
+| Ship | Role |
+| --- | --- |
+| Essex-class fleet carrier | Carrier, friendly (shipped: `essex-cv.json`) |
+| Casablanca-class escort carrier | Carrier, friendly, smaller/slower — the "jeep carriers" of the Battle off Samar |
+| Fletcher-class destroyer | Escort, friendly (shipped: `fletcher-dd.json`) |
+| Cleveland-class light cruiser | Cruiser, friendly |
+| Pennsylvania-class battleship | Battleship, friendly — one of the pre-war "Old Battleships" that fought at Surigao Strait |
+| Type B "Maru" transport | Merchant, hostile (shipped: `type-b-maru.json`) |
+| Kagero-class destroyer | Escort, hostile |
+| Mogami-class heavy cruiser | Cruiser, hostile |
+| Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
+
+Three of nine are shipped content today; the rest are names and roles only,
+same status as most of the aircraft roster above.
 
 ### Scenarios
 
