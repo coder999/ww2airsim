@@ -627,6 +627,19 @@ git commit -m "Plan 7b task 3: Extend and Break desired-velocity producers"
 
 ## Task 4: Gunnery accuracy scales the gun-gate cone
 
+**Ruling (controller, overnight run, 2026-09-23):** this task's own test, as
+originally written, had the veteran/green expectations backwards. Since
+`VETERAN_SKILL.gunneryAccuracy` (0.6) is LOWER than `GREEN_SKILL`'s (1.0),
+and a lower value scales the cone's half-angle DOWN (§7 of the spec: "lower
+= a tighter, more accurate cone"), the veteran's cone is the narrower one —
+a target at the midpoint angle between the two half-angles is INSIDE
+green's (wider) cone and OUTSIDE the veteran's (tighter) cone, not the
+reverse the original test asserted. Fixed below (test renamed, expectations
+swapped). **Cost if wrong:** one test in `pursuit.test.ts`; does not affect
+`hasGunSolution`'s implementation, which was always specified correctly
+(`AI_GUN_CONE_RAD * gunneryAccuracy`) — only the test's own expected
+direction was backwards.
+
 **Files:**
 - Modify: `src/sim/ai/pursuit.ts` (`hasGunSolution`, lines 68-76)
 - Test: `tests/sim/ai/pursuit.test.ts`
@@ -645,9 +658,13 @@ import { AI_GUN_CONE_RAD, hasGunSolution } from '../../../src/sim/ai/pursuit.js'
 import { VETERAN_SKILL, GREEN_SKILL } from '../../../src/sim/ai/pilot.js'
 
 describe('gunneryAccuracy scales the gun cone', () => {
-  it('a shot inside the veteran\'s cone but outside the green cone lands only for the veteran', () => {
-    // Position target at an angle strictly between AI_GUN_CONE_RAD * veteran.gunneryAccuracy
-    // and AI_GUN_CONE_RAD * green.gunneryAccuracy off self's nose, within AI_GUN_RANGE_M.
+  it('a shot inside the green pilot\'s (wider) cone but outside the veteran\'s (tighter) cone lands only for green', () => {
+    // VETERAN_SKILL.gunneryAccuracy (0.6) is LOWER than GREEN_SKILL's (1.0)
+    // -- lower scales the cone's half-angle down, so the veteran's cone is
+    // the NARROWER one (a veteran only takes a tighter, more precise shot),
+    // and green's cone is the wider, today-unchanged one. Position the
+    // target strictly between the two half-angles: outside the veteran's
+    // narrower cone, inside green's wider one, within AI_GUN_RANGE_M.
     const angle = AI_GUN_CONE_RAD * ((VETERAN_SKILL.gunneryAccuracy + GREEN_SKILL.gunneryAccuracy) / 2)
     const range = 400
     const self = entity({
@@ -660,8 +677,8 @@ describe('gunneryAccuracy scales the gun cone', () => {
       position: v3(range * Math.cos(angle), 3000, range * Math.sin(angle)),
       velocity: v3(0, 0, 0),
     })
-    expect(hasGunSolution({ ...self, pilot: { ...self.pilot!, skill: VETERAN_SKILL } }, target)).toBe(true)
-    expect(hasGunSolution({ ...self, pilot: { ...self.pilot!, skill: GREEN_SKILL } }, target)).toBe(false)
+    expect(hasGunSolution({ ...self, pilot: { ...self.pilot!, skill: VETERAN_SKILL } }, target)).toBe(false)
+    expect(hasGunSolution({ ...self, pilot: { ...self.pilot!, skill: GREEN_SKILL } }, target)).toBe(true)
   })
 
   it('a shooter with no pilot (e.g. the player) gets the full, unscaled cone', () => {
