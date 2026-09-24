@@ -14,6 +14,7 @@ import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { createTerrainField } from '../../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
 import type { Airfield } from '../../../src/sim/world/airfields.js'
+import type { StructureEntity } from '../../../src/sim/weapons/structures.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, fire: true }
@@ -137,6 +138,16 @@ describe('production fixed-step gunnery', () => {
     const range = worldFromScenario(loadScenarioBundle('gunnery-range'), null)
     expect(range.aircraft.map(a => a.id)).toEqual(['f6f-1', 'target-1', 'target-2'])
     expect(range.combat.aircraft['f6f-1']!.guns).toHaveLength(6)
+  })
+
+  it('credits an aircraft kill to the shooter\'s killsByType, keyed by the target\'s role (Plan 9 Task 2)', () => {
+    // Mirrors "stops on the nearest target and never awards duplicate kills"
+    // above -- a lone f6f-hellcat target, whose spec role is 'fighter'.
+    const w = createWorldOf({ aircraft: [plane('shooter', 0, true), plane('near', 300)], player: 'shooter' })
+    const after = run(w, 180)
+    expect(after.combat.aircraft.near!.damage.destroyedAt).not.toBeNull()
+    expect(after.combat.aircraft.shooter!.kills).toBe(1)
+    expect(after.combat.aircraft.shooter!.killsByType.fighter).toBe(1)
   })
 })
 
@@ -339,6 +350,60 @@ describe('production fixed-step ordnance', () => {
     const enemy = bombOn('their-hangar')
     expect(enemy.combat.structures['their-hangar']!.destroyedTick).not.toBeNull()
     expect(enemy.combat.aircraft['shooter']!.structuresDestroyed).toBe(1)
+  })
+
+  it('credits a structure kill to killsByType.aaa for an aaa-kind structure, and .building for hangar/tower (Plan 9 Task 2)', () => {
+    const shooter = plane('shooter', -100)
+    // Far apart so neither structure falls inside the other's blast radius.
+    const aaa: StructureEntity = {
+      id: 'aaa-1', airfield: 'test', kind: 'aaa', position: v3(0, 5, 0), headingRad: 0,
+      halfSize: { x: 5, y: 5, z: 5 }, hp: 50,
+    }
+    const hangar: StructureEntity = {
+      id: 'hangar-1', airfield: 'test', kind: 'hangar', position: v3(2000, 5, 0), headingRad: 0,
+      halfSize: { x: 5, y: 5, z: 5 }, hp: 50,
+    }
+    // Bomb already armed, sitting exactly at the target's box center -- the
+    // same trick "threads enemyAirfields..." above uses so contact is
+    // deterministic without simulating a real release and fall.
+    const bombAt = (s: StructureEntity): Projectile => ({
+      owner: 'shooter', id: 1, position: s.position, previous: s.position,
+      velocity: v3(0, -50, 0), lifeS: 60, tracer: false, kind: 'bomb', ageS: 1,
+    })
+    const c0 = createCombat([shooter], {}, [], [{ id: 'aaa-1', hp: 50 }, { id: 'hangar-1', hp: 50 }])
+    const c1 = stepCombat({ ...c0, projectiles: [bombAt(aaa)] }, [shooter], [], [aaa, hangar], null, null, [], 1, DT)
+    expect(c1.structures['aaa-1']!.destroyedTick).not.toBeNull()
+    const c2 = stepCombat({ ...c1, projectiles: [bombAt(hangar)] }, [shooter], [], [aaa, hangar], null, null, [], 2, DT)
+    expect(c2.structures['hangar-1']!.destroyedTick).not.toBeNull()
+    expect(c2.aircraft.shooter!.structuresDestroyed).toBe(2)
+    expect(c2.aircraft.shooter!.killsByType.aaa).toBe(1)
+    expect(c2.aircraft.shooter!.killsByType.building).toBe(1)
+  })
+
+  it('credits a sunk carrier/cruiser/battleship to killsByType, but NOT an escort or merchant sink (Plan 9 Task 2)', () => {
+    const shipFixture = (id: string, role: 'carrier' | 'cruiser' | 'battleship' | 'escort' | 'merchant') => ({
+      id, spec: { lengthM: 100, beamM: 15, deckHeightM: 6, hullHp: 100, role },
+      state: { position: v3(0, 0, 0), headingRad: 0 }, previous: { position: v3(0, 0, 0), headingRad: 0 },
+    })
+    const ships = [
+      shipFixture('carrier-1', 'carrier'), shipFixture('cruiser-1', 'cruiser'),
+      shipFixture('battleship-1', 'battleship'), shipFixture('escort-1', 'escort'),
+    ]
+    const c0 = createCombat([plane('shooter', 0)])
+    const before = {
+      ...c0,
+      ships: Object.fromEntries(ships.map(s =>
+        [s.id, { hp: 0, fire: 1, destroyedTick: 1, attacker: 'shooter', sinkingFraction: 0 }])),
+    }
+    // dt = 100 s against SINK_SECONDS = 90 finishes every sink in this one
+    // step, so all four credit (or not) on the same call.
+    const after = stepCombat(before, [], ships, [], null, null, [], 2, 100)
+    expect(after.aircraft.shooter!.shipsSunk).toBe(4)
+    expect(after.aircraft.shooter!.killsByType.carrier).toBe(1)
+    expect(after.aircraft.shooter!.killsByType.cruiser).toBe(1)
+    expect(after.aircraft.shooter!.killsByType.battleship).toBe(1)
+    const sum = Object.values(after.aircraft.shooter!.killsByType).reduce((a, b) => a + b, 0)
+    expect(sum).toBe(3)
   })
 })
 

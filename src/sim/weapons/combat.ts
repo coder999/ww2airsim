@@ -18,6 +18,7 @@ import { inBody, segmentBox, tupleVector } from './geometry.js'
 import type { CombatSpec, DamageSystem } from './schema.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
+import { zeroKillsByType, type TargetType } from './targetType.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -39,6 +40,7 @@ export type AircraftCombat = {
   readonly damage: Damage
   readonly stress: StructuralStress
   readonly shots: number; readonly hits: number; readonly kills: number
+  readonly killsByType: Readonly<Record<TargetType, number>>
   readonly lastHit: { readonly tick: number; readonly position: Vec3 } | null
   readonly stores: StoresState
   readonly shipsSunk: number
@@ -85,7 +87,7 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null,
+      shots: 0, hits: 0, kills: 0, lastHit: null, killsByType: zeroKillsByType(),
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
@@ -418,6 +420,9 @@ export function stepCombat(
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
   const structureDamage: Record<string, StructureDamage> = { ...before.structures }
+  // For the shipsSunk credit loop below, which only has `ShipDamage` (no
+  // role) per id -- the sunk hull's own role at credit time.
+  const shipRoleById = new Map(ships.map((s) => [s.id, s.spec.role]))
   const flying: { p: Projectile; dt: number; start: number }[] =
     before.projectiles.map(p => ({ p, dt: Math.min(dt, p.lifeS), start: 0 }))
   let nextId = before.nextId, rngState = before.rngState, poolSaturated = before.poolSaturated
@@ -510,12 +515,21 @@ export function stepCombat(
 
   /** A kill by anything -- a round, a direct bomb, or blast -- lands on the
    *  owner's record; `hits` stays the gunnery statistic it has always been. */
-  const creditAircraftDamage = (before_: Damage, after: Damage, owner: string, round: boolean): void => {
+  const creditAircraftDamage = (
+    before_: Damage, after: Damage, owner: string, round: boolean, targetType: TargetType,
+  ): void => {
     const shooter = records[owner]
     if (shooter === undefined) return
     const killed = before_.destroyedAt === null && after.destroyedAt !== null
     if (!round && !killed) return
-    records[owner] = { ...shooter, hits: shooter.hits + (round ? 1 : 0), kills: shooter.kills + (killed ? 1 : 0) }
+    records[owner] = {
+      ...shooter,
+      hits: shooter.hits + (round ? 1 : 0),
+      kills: shooter.kills + (killed ? 1 : 0),
+      killsByType: killed
+        ? { ...shooter.killsByType, [targetType]: shooter.killsByType[targetType] + 1 }
+        : shooter.killsByType,
+    }
   }
 
   const damageAircraftAt = (target: CombatAircraft, amount: number, system: DamageSystem | null, owner: string, point: Vec3 | null): void => {
@@ -525,7 +539,7 @@ export function stepCombat(
       ? blastDamageAircraft(target.spec, rec.damage, amount, tick, owner)
       : damageFromHit(target.spec, rec.damage, system, tick, owner)
     records[target.id] = point === null ? { ...rec, damage } : { ...rec, damage, lastHit: { tick, position: point } }
-    creditAircraftDamage(rec.damage, damage, owner, system !== null)
+    creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role)
   }
 
   const damageStructureAt = (s: StructureEntity, amount: number, owner: string): void => {
@@ -536,7 +550,13 @@ export function stepCombat(
     if (was.destroyedTick !== null || now.destroyedTick === null) return
     if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
     const shooter = records[owner]
-    if (shooter !== undefined) records[owner] = { ...shooter, structuresDestroyed: shooter.structuresDestroyed + 1 }
+    if (shooter === undefined) return
+    const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : 'building'
+    records[owner] = {
+      ...shooter,
+      structuresDestroyed: shooter.structuresDestroyed + 1,
+      killsByType: { ...shooter.killsByType, [targetType]: shooter.killsByType[targetType] + 1 },
+    }
   }
 
   const damageShipAt = (ship: CombatShip, amount: number, owner: string): void => {
@@ -608,7 +628,17 @@ export function stepCombat(
     shipDamage[id] = { ...d, sinkingFraction }
     if (sinkingFraction < 1 || d.attacker === null) continue
     const shooter = records[d.attacker]
-    if (shooter !== undefined) records[d.attacker] = { ...shooter, shipsSunk: shooter.shipsSunk + 1 }
+    if (shooter === undefined) continue
+    const role = shipRoleById.get(id)
+    const targetType: TargetType | null =
+      role === 'carrier' || role === 'cruiser' || role === 'battleship' ? role : null
+    records[d.attacker] = {
+      ...shooter,
+      shipsSunk: shooter.shipsSunk + 1,
+      killsByType: targetType === null
+        ? shooter.killsByType
+        : { ...shooter.killsByType, [targetType]: shooter.killsByType[targetType] + 1 },
+    }
   }
 
   return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage }
