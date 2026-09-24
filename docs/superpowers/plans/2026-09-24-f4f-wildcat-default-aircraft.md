@@ -81,6 +81,7 @@ npm install --save-dev @gltf-transform/cli@^4.5.0
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const INPUT = 'tools/models/cache/grumman_f4f_wildcat_airplane.glb'
 const OUTPUT = 'content/aircraft/wildcat.glb'
@@ -105,7 +106,11 @@ export function buildWildcatModel(): void {
   )
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Matches tools/terrain/build.ts's own entrypoint guard exactly (fileURLToPath
+// against process.argv[1], not a raw file:// string comparison, which mishandles
+// paths with spaces/special characters).
+const isMain = process.argv[1] === fileURLToPath(import.meta.url)
+if (isMain) {
   buildWildcatModel()
 }
 ```
@@ -269,13 +274,7 @@ follow-up work on the same footing this file's Hellcat original took
 (a dedicated primary-source research pass, not a quick estimate).
 ```
 
-- Also add a top-level (sibling to `reference`) short flag so the placeholder status is visible without reading the full citation block:
-
-```json
-"dataStatus": "placeholder-borrowed-from-f6f-hellcat"
-```
-
-(check `src/sim/flight/schema.ts`'s `AircraftSpecObject` — if it uses `.strict()`, an unrecognized `dataStatus` key will fail validation. If so, either add `dataStatus: z.string().optional()` to the schema with a one-line comment explaining it's advisory metadata read by no code path, or drop this field and rely on the `reference.source` text alone. Check before assuming either way.)
+Do not add a separate top-level `dataStatus` field. `AircraftSpecObject` is `.strict()` at every level (confirmed 2026-09-24, `src/sim/flight/schema.ts:5,46`), so an extra key needs a matching schema change for a field no code path would ever read — this file's own Hellcat original carries exactly this kind of annotation in `reference.source` alone, with no separate status field anywhere else in the schema; follow that precedent rather than adding a new one.
 
 - [ ] **Step 2: Verify it parses**
 
@@ -462,7 +461,9 @@ git commit -m "Extract attachStores from hellcat.ts so wildcat.ts can reuse it"
 ## Task 5: Build the Wildcat render module
 
 **Files:**
+- Create: `src/render/scene/airframe.ts`
 - Create: `src/render/scene/wildcat.ts`
+- Modify: `src/render/content.ts` (add `WILDCAT_MODEL_PATH`/`WILDCAT_MODEL_URL`, matching the existing `TITLE_ART_PATH`/`TITLE_ART_URL` pair exactly — `aircraftUrl()` is not usable here, it hardcodes a `.json` suffix for the JSON content files and would resolve to `content/aircraft/wildcat.json`, not the `.glb`)
 - Test: `tests/render/wildcat.test.ts`
 
 **Interfaces:**
@@ -534,14 +535,46 @@ npx vitest run tests/render/wildcat.test.ts
 
 Expected: FAIL, `src/render/scene/wildcat.ts` does not exist.
 
-- [ ] **Step 3: Implement wildcat.ts**
+- [ ] **Step 3: Create the shared `Airframe` type first**
+
+`wildcat.ts` (Step 4 below) imports this, so it must exist first — do not write Step 4 before this step.
+
+```ts
+// src/render/scene/airframe.ts
+import type { Object3D } from 'three'
+
+/** Implemented by every airframe module (hellcat.ts, wildcat.ts). One
+ *  content id, one mesh, one interface: main.ts and scenarioEntities.ts
+ *  drive whichever concrete airframe a scenario names through this alone,
+ *  so adding a third aircraft type later touches neither of those files'
+ *  render-loop logic, only a new module satisfying this shape. */
+export interface Airframe {
+  readonly root: Object3D
+  setStores(bombsLeft: number, rocketsLeft: number): void
+  spinProp(deltaRadians: number): void
+  setGear(fraction: number): void
+}
+```
+
+- [ ] **Step 4: Add the model's path/URL constants to content.ts**
+
+```ts
+// added to src/render/content.ts, next to TITLE_ART_PATH/TITLE_ART_URL --
+// same pattern, same reason: a committed binary asset that is not one of
+// the `aircraftUrl`/`shipUrl`/`airfieldUrl` JSON records, so it needs its
+// own named constant rather than (mis)using a JSON-suffixed helper.
+export const WILDCAT_MODEL_PATH = 'content/aircraft/wildcat.glb'
+export const WILDCAT_MODEL_URL = `${import.meta.env.BASE_URL}${WILDCAT_MODEL_PATH}`
+```
+
+- [ ] **Step 5: Implement wildcat.ts**
 
 ```ts
 // src/render/scene/wildcat.ts
-import { Group, Object3D, Quaternion, Vector3 } from 'three'
+import { Group, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { attachStores } from './stores.js'
-import { aircraftUrl } from '../content.js'
+import { WILDCAT_MODEL_URL } from '../content.js'
 import type { Airframe } from './airframe.js'
 
 /**
@@ -614,8 +647,15 @@ function required(scene: Object3D, name: string): Object3D {
   return found
 }
 
+/** Matches hellcat.ts's `dark` material exactly (color, roughness) --
+ *  deliberately its own instance, not a shared import: sharing one material
+ *  object would mean a future recolor of the Hellcat's trim silently
+ *  recolors the Wildcat's ordnance too, a surprising coupling for one line
+ *  saved. */
+const dark = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
+
 export async function loadWildcat(): Promise<Airframe> {
-  const gltf = await new GLTFLoader().loadAsync(aircraftUrl('wildcat'))
+  const gltf = await new GLTFLoader().loadAsync(WILDCAT_MODEL_URL)
   const scene = gltf.scene
 
   const gearDer = required(scene, 'GRP_Rueda_Der')
@@ -636,7 +676,7 @@ export async function loadWildcat(): Promise<Airframe> {
   root.add(correction)
   root.traverse((o) => { o.receiveShadow = true })
 
-  const { setStores } = attachStores(root, undefined as never) // see Step 3 note below on the material parameter
+  const { setStores } = attachStores(root, dark)
 
   return {
     root,
@@ -656,9 +696,7 @@ export async function loadWildcat(): Promise<Airframe> {
 }
 ```
 
-**Step 3 note on `attachStores`'s material parameter:** `attachStores` (Task 4) takes a `MeshStandardMaterial` for the store meshes' color. Decide and fix before writing this file for real: either (a) give `wildcat.ts` its own small dark `MeshStandardMaterial` (matching `hellcat.ts`'s `dark` constant, `0x1a1d22`/`roughness 0.5`) rather than passing `undefined as never`, which was a placeholder in this plan and must not reach the actual implementation, or (b) export `hellcat.ts`'s `dark` material constant and share it. Prefer (a) for now — a shared material risks an unrelated future recolor of the Hellcat's trim silently recoloring the Wildcat's ordnance too, which is a surprising coupling for one line saved.
-
-- [ ] **Step 4: Run the unit tests, verify they pass**
+- [ ] **Step 6: Run the unit tests, verify they pass**
 
 ```bash
 npx vitest run tests/render/wildcat.test.ts
@@ -666,26 +704,7 @@ npx vitest run tests/render/wildcat.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Create the shared `Airframe` type**
-
-```ts
-// src/render/scene/airframe.ts
-import type { Object3D } from 'three'
-
-/** Implemented by every airframe module (hellcat.ts, wildcat.ts). One
- *  content id, one mesh, one interface: main.ts and scenarioEntities.ts
- *  drive whichever concrete airframe a scenario names through this alone,
- *  so adding a third aircraft type later touches neither of those files'
- *  render-loop logic, only a new module satisfying this shape. */
-export interface Airframe {
-  readonly root: Object3D
-  setStores(bombsLeft: number, rocketsLeft: number): void
-  spinProp(deltaRadians: number): void
-  setGear(fraction: number): void
-}
-```
-
-- [ ] **Step 6: Full verify and commit**
+- [ ] **Step 7: Full verify and commit**
 
 ```bash
 npm run verify; rc=$?
@@ -693,7 +712,7 @@ echo "rc=$rc"
 ```
 
 ```bash
-git add src/render/scene/wildcat.ts src/render/scene/airframe.ts tests/render/wildcat.test.ts
+git add src/render/scene/wildcat.ts src/render/scene/airframe.ts src/render/content.ts tests/render/wildcat.test.ts
 git commit -m "Add wildcat.ts: async glTF loader, basis/scale correction, gear animation"
 ```
 
@@ -708,12 +727,14 @@ git commit -m "Add wildcat.ts: async glTF loader, basis/scale correction, gear a
 - Modify: `src/render/scene/hellcat.ts`
 - Modify: `src/render/scenarioEntities.ts`
 - Modify: `src/render/main.ts`
-- Test: `tests/render/scenarioEntities.test.ts` (check whether this file exists; if not, add assertions to `tests/render/scene.test.ts` instead)
+- Test: `tests/render/scenarioEntities.test.ts` (exists — confirmed 2026-09-24, a real 7-test suite exercising `buildScenarioEntities` against real shipped scenario content with 1-3 aircraft each. Needs a full rewrite, not a spot-check: see Step 6.)
 - Test: `tests/build/dist.test.ts` (existing — must keep passing with the new `AIRCRAFT_CONTENT_PATH`)
 
 **Interfaces:**
 - Consumes: `Airframe`, `loadWildcat` (Task 5); `attachStores` (Task 4).
-- Produces: `buildScenarioEntities` becomes `async`; `ScenarioEntities.player: Airframe` replaces the old `hellcatRoot`/`prop` pair.
+- Produces: `buildScenarioEntities` becomes `async` and takes an injectable `loadAirframe` parameter (default `loadWildcat`); `ScenarioEntities.player: Airframe` replaces the old `hellcatRoot`/`prop` pair.
+
+**Why `loadAirframe` is injectable, not hardcoded to `loadWildcat`:** `tests/render/scenarioEntities.test.ts` (Step 6) calls `buildScenarioEntities` directly, repeatedly, against real multi-aircraft scenario content. If it always called the real `loadWildcat`, every one of those calls would run a real `GLTFLoader` parse of `content/aircraft/wildcat.glb` in Vitest's `environment: 'node'` — and Task 5's own design note already established that environment cannot decode the model's embedded textures (no `createImageBitmap`/`Image`, confirmed 2026-09-24). This is the same shape of problem `tools/terrain/load.ts`'s injectable `fetchImpl` already solves in this codebase for a different loader — follow that precedent rather than inventing a new one: an optional parameter, defaulted for production, substituted with a cheap synchronous stand-in (`createHellcat`, which produces a real, valid `Airframe` with no network or texture decode at all) in tests that only care about `buildScenarioEntities`'s own array-sizing/disposal/id-lookup logic, not which aircraft type is loaded.
 
 - [ ] **Step 1: Point content.ts at the Wildcat**
 
@@ -746,7 +767,7 @@ spinProp(deltaRadians: number): void {
 setGear(_fraction: number): void {},
 ```
 
-Change `createHellcat`'s return type annotation from the current inline object type to `Airframe` (import it from `./airframe.js`), and keep `prop` out of the returned object now that `spinProp` wraps it — check every existing caller of `createHellcat().prop` (Task 6 Step 4 is the only one) before removing the field.
+Change `createHellcat`'s return type annotation from the current inline object type to `Airframe` (import it from `./airframe.js`), and keep `prop` out of the returned object now that `spinProp` wraps it. Three real call sites read `.prop` today and all three need updating in this task: `main.ts` (Step 4), `tests/render/scenarioEntities.test.ts` (Step 6 — confirmed 2026-09-24, not "the only one" as an earlier draft of this plan assumed), and `tests/render/scene.test.ts` (Step 6).
 
 - [ ] **Step 3: Make buildScenarioEntities async and expose one `player: Airframe`**
 
@@ -772,6 +793,10 @@ export async function buildScenarioEntities(
   scene: Scene,
   world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player'>,
   previous: ScenarioEntities | null,
+  // Defaulted for production; tests substitute a cheap synchronous stand-in
+  // (createHellcat) so they never run a real GLTFLoader parse in Node --
+  // see this task's Files section for why that matters.
+  loadAirframe: () => Promise<Airframe> = loadWildcat,
 ): Promise<ScenarioEntities> {
   if (previous !== null) {
     for (const handle of [...previous.airframes, ...previous.shipHandles]) {
@@ -780,10 +805,10 @@ export async function buildScenarioEntities(
     }
   }
 
-  // One Wildcat load per aircraft in the scenario (player and any wingman
+  // One airframe load per aircraft in the scenario (player and any wingman
   // alike -- Review Focus above), in parallel: a scenario with two entries
   // should not pay for two sequential network round-trips.
-  const airframes = await Promise.all(world.aircraft.map(() => loadWildcat()))
+  const airframes = await Promise.all(world.aircraft.map(() => loadAirframe()))
   for (const a of airframes) scene.add(a.root)
   const smokes = airframes.map((a) => {
     const smoke = createEngineSmoke()
@@ -860,9 +885,117 @@ current.world.aircraft.forEach((a, i) => {
 
 `airframes[i]!.setStores(...)` (main.ts:1589) already matches the new `Airframe` interface unchanged — no edit needed there, only confirm it still typechecks once `airframes`'s element type is `Airframe` rather than `ReturnType<typeof createHellcat>`.
 
-- [ ] **Step 6: Update the tests that construct `ScenarioEntities`/call `createHellcat` directly**
+- [ ] **Step 6: Rewrite tests/render/scenarioEntities.test.ts to inject createHellcat, not the real loader**
 
-`tests/render/cloudShadow.test.ts` and `tests/render/scene.test.ts` both call `createHellcat()` directly (not through `buildScenarioEntities`) to build a lightweight scene for their own unrelated assertions (shadow settings, mesh presence) — these do not need to change to `loadWildcat()`, since `createHellcat()` is still a real, valid, synchronous `Airframe` producer and those tests aren't testing which aircraft is the default. Only update them if the new `spinProp`/`setGear` fields on `createHellcat`'s return type make an existing destructure (e.g. `const { root, prop } = createHellcat()` at `tests/render/scene.test.ts:56`) fail to typecheck now that `prop` is gone from the returned object — if so, change those two lines to call `.spinProp(...)` instead of reading `.prop` directly, mirroring main.ts's own Step 4 change.
+`tests/render/cloudShadow.test.ts` calls `createHellcat()` directly for an unrelated assertion (shadow settings) and does not touch `.prop` — no change needed there.
+
+`tests/render/scene.test.ts` (confirmed 2026-09-24) has two tests built on the now-removed `.prop` field, both needing a real rewrite, not a rename — `.prop` was the field these tests were ABOUT, so the replacement has to test the same real invariant through a different door:
+
+```ts
+// was: it('exposes the prop separately so it can be spun', () => {
+//   const { root, prop } = createHellcat()
+//   expect(prop).toBeDefined()
+//   expect(root.getObjectById(prop.id)).toBeTruthy()
+// })
+// prop is no longer a field to find -- spinProp() is the only way to affect
+// it now, so the test moves from "prop exists and is reachable" to "calling
+// spinProp actually rotates exactly one thing inside root":
+it('spinProp rotates one mesh inside root', () => {
+  const { root, spinProp } = createHellcat()
+  const before = new Map<number, number>()
+  root.traverse((o) => before.set(o.id, o.rotation.x))
+  spinProp(Math.PI / 4)
+  let changed = 0
+  root.traverse((o) => {
+    if (Math.abs(o.rotation.x - (before.get(o.id) ?? 0)) > 1e-9) changed++
+  })
+  expect(changed).toBe(1)
+})
+```
+
+```ts
+// was: it('points +X forward, matching the sim body frame', () => {
+//   const { prop } = createHellcat()
+//   const p = new Vector3()
+//   prop.getWorldPosition(p)
+//   expect(p.x).toBeGreaterThan(2)
+// })
+// prop was standing in for "something at the nose is out past x=2" --
+// find the same fact without a name for the specific mesh, by taking the
+// furthest-forward point in the whole tree (the spinner/prop cluster at
+// x=5.1-5.4 in hellcat.ts's own geometry, still the nose regardless of
+// which named variable points at it):
+it('points +X forward, matching the sim body frame', () => {
+  const { root } = createHellcat()
+  let maxX = -Infinity
+  const p = new Vector3()
+  root.traverse((o) => {
+    o.getWorldPosition(p)
+    if (p.x > maxX) maxX = p.x
+  })
+  expect(maxX).toBeGreaterThan(2)
+})
+```
+
+Both keep the file's existing `import { Vector3 } from 'three'` (already imported, line 11) — no new import needed. Run `npx vitest run tests/render/scene.test.ts` after writing these and confirm both pass before moving on; the `toBeGreaterThan(2)` threshold is carried over unchanged from the original test since it is testing the identical geometry, but if it does not hold empirically (it should — hellcat.ts's spinner sits at local x=5.1, unchanged by this task), adjust the threshold to what the real geometry produces rather than force it.
+
+`tests/render/scenarioEntities.test.ts` needs a real rewrite: every one of its 7 `it(...)` blocks calls `buildScenarioEntities` synchronously today, and two of them assert the now-removed `entities.hellcatRoot`/`entities.prop` fields directly. The fix is mechanical but touches every test in the file — do it as one pass, not a spot-fix:
+
+1. Add the import and a tiny helper at the top:
+
+```ts
+import { createHellcat } from '../../src/render/scene/hellcat.js'
+```
+
+```ts
+/** The stand-in `loadAirframe` every call in this file passes: real,
+ *  synchronous, no network or texture decode, so this suite exercises
+ *  buildScenarioEntities's OWN logic (array sizing, disposal, id lookup)
+ *  without depending on GLTFLoader working in Vitest's `environment: 'node'`
+ *  (it doesn't -- Task 5's wildcat.ts doc comment has the reason). Which
+ *  aircraft type this resolves to is not what this suite is testing. */
+const stubAirframe = async () => createHellcat()
+```
+
+2. Every `it(...)` callback that calls `buildScenarioEntities` becomes `async () => { ... }`, and every call becomes `await buildScenarioEntities(scene, <world>, <previous>, stubAirframe)` — the fourth argument, always. There are 8 call sites across the 7 tests (the `SHRINK`/`GROW`/no-ships tests each call it twice, `before`/`after`). Example, the first test:
+
+```ts
+it('sizes the mesh arrays to the world passed in: one airframe per aircraft, one hull per ship, one smoke per airframe', async () => {
+  const scene = new Scene()
+  const entities = await buildScenarioEntities(scene, deckQuals, null, stubAirframe)
+  expect(entities.airframes).toHaveLength(deckQuals.aircraft.length)
+  expect(entities.shipHandles).toHaveLength(deckQuals.ships.length)
+  expect(entities.smokes).toHaveLength(deckQuals.aircraft.length)
+  for (const handle of [...entities.airframes, ...entities.shipHandles]) {
+    expect(scene.children).toContain(handle.root)
+  }
+})
+```
+
+Apply the same two changes (`async () => {`, `await buildScenarioEntities(..., stubAirframe)`) to every other `it` in the `describe('buildScenarioEntities', ...)` block and to `describe('disposeMeshTree', ...)`'s one call too.
+
+3. Fix the `hellcatRoot`/`prop` assertion. The test titled `"picks the player's hellcatRoot/prop out by id, not index 0"` becomes:
+
+```ts
+it("picks the player's airframe out by id, not index 0", async () => {
+  const scene = new Scene()
+  const entities = await buildScenarioEntities(scene, deckQuals, null, stubAirframe)
+  const playerIndex = deckQuals.aircraft.findIndex((a) => a.id === deckQuals.player)
+  expect(entities.player).toBe(entities.airframes[playerIndex])
+})
+```
+
+(`ScenarioEntities.player` is now the single `Airframe` object itself, not a root/prop pair picked out of it — this asserts the SAME identity guarantee the original two-field assertion did, in the shape `Airframe` actually has now.)
+
+4. The suite's own doc comment (above `describe('buildScenarioEntities', ...)`) says "`hellcatRoot`/`prop`" — update it to say "`player`".
+
+5. Run it:
+
+```bash
+npx vitest run tests/render/scenarioEntities.test.ts tests/render/scene.test.ts
+```
+
+Expected: PASS, all 7 (now-async) tests plus `disposeMeshTree`'s.
 
 - [ ] **Step 7: Run the full verify gate**
 
@@ -908,13 +1041,13 @@ In `src/render/diagnostics.ts`, add to `Ww2Diagnostics`:
 readonly gearFraction: () => number
 ```
 
-In `main.ts`, wherever the other accessors (`controls`, `look`, `cameraMode`) are assigned onto the real `window.__ww2` object, add:
+In `main.ts`, the accessors are assigned at the `window.__ww2 = {...}` literal (confirmed 2026-09-24 at line 627), reading off the outer `let frame: FrameState | null = null` closure variable with an `??`/`?.` fallback for before the first frame exists — exactly the pattern `tick: () => frame?.world.tick ?? 0` and `cameraMode: () => frame?.cameraMode ?? 'chase'` (lines 643-644) already use. Add, in the same object literal, next to those two lines:
 
 ```ts
-gearFraction: () => playerAircraft(current.world).state.gearFraction,
+gearFraction: () => (frame ? playerAircraft(frame.world).state.gearFraction : 0),
 ```
 
-(match whatever closure/variable name the neighboring accessors already use for "the current frame's world" — `current.world` per this session's read of the render loop, but confirm against the exact lines `controls`/`cameraMode` are assigned on, which this plan has not read, before writing this line for real.)
+`playerAircraft` is already imported in `main.ts` (used elsewhere in the render loop, e.g. `const player = playerAircraft(current.world)` in the frame loop below) — this is a second call against `frame` rather than `current`, matching the other diagnostics accessors' pre-first-frame safety, not the render loop's own per-tick `current`.
 
 - [ ] **Step 2: Write the spec**
 
