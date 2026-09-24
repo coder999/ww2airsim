@@ -247,10 +247,15 @@ Highway alignment, Tacloban – Palo – Tanauan – Dulag – Abuyog on the eas
 coast and the Ormoc side on the west, which follows the pre-war coastal
 road. Rasterised by the river mask's capsule code into a **second channel**
 of the same texture (`RGFormat` instead of `RedFormat`). That doubles the
-mask's 16 MiB CPU and ~22 MiB GPU; the alternative — dropping both to
-2048², 17 m texels, which still gives a 38 m river two texels — is
-measured in 13d before choosing. Roads draw as a dry earth colour with a
-soft edge; they cost nothing per frame beyond the channel read.
+mask's 16 MiB CPU and ~22 MiB GPU.
+
+**Decided 2026-09-23 (Mark):** widen to `RGFormat` at the existing 4096²,
+rather than dropping to 2048² to make room. Keeps river rendering identical
+to what already shipped and was accepted (13b/16a-c handoffs) rather than
+introducing a visible regression to ship a new feature. The 2048² option
+remains available as a fallback if the combined mask's GPU cost genuinely
+does not fit the budget once measured for real, but is not the default path
+into the implementation plan.
 
 **Dulag.** `createRunway` in `src/render/scene/runway.ts` is generalised
 from a Tacloban constant to a centre and heading, and `airfield.ts`'s
