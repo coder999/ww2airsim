@@ -30,9 +30,15 @@ const PURSUE_NOW = {
 // because the rescore reads `aircraftAtStart`, the pre-step snapshot, and
 // (with GREEN_SKILL.reactionS=1.0 comfortably longer than the 5-tick test
 // window below) no later rescore overwrites it before this assertion runs.
+//
+// `noiseCursor` is no longer 0 either (Task 3: control noise). It advances
+// by a fixed 6-draw step every tick regardless of maneuver or `controlNoise`
+// magnitude (`applyControlNoise`'s own invariant, `noise.ts`), so after 5
+// ticks from a starting cursor of 0 it lands on this measured value -- not
+// itself a meaningful number, just mulberry32's cursor after 5 * 6 draws.
 const RESCORED_PURSUE = {
   maneuver: 'pursue' as const, nextRescoreS: DT + GREEN_SKILL.reactionS,
-  observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 0,
+  observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 3407366838,
 }
 
 const f6f = loadAircraftSpec('f6f-hellcat')

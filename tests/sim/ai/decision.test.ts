@@ -159,6 +159,11 @@ describe('maneuverControls steers against the observed snapshot, not live target
 
   const self = entity('self', v3(0, 3000, 0), v3(100, 0, 0))
 
+  // Task 3 adds skill-scaled control noise to `maneuverControls`'s output.
+  // These two cases assert staleness, not noise, so isolate the assertion
+  // by zeroing noise out of GREEN_SKILL.
+  const NO_NOISE = { ...GREEN_SKILL, controlNoise: 0 }
+
   it('ignores a sharp live-velocity change until the next rescore', () => {
     const snapshotVelocity = v3(0, 0, 100) // observed heading 90 degrees from live
     const decision: PilotDecisionState = {
@@ -168,13 +173,13 @@ describe('maneuverControls steers against the observed snapshot, not live target
     }
     // Live target now flies a completely different heading than the snapshot.
     const liveTarget = entity('target', v3(500, 3000, 0), v3(100, 0, 0))
-    const staleControls = maneuverControls(self, liveTarget, decision)
+    const staleControls = maneuverControls(self, liveTarget, decision, NO_NOISE).controls
 
     // Compare against what steering the LIVE state would have produced, by
     // building a second decision whose snapshot matches the live state
     // exactly -- if staleness works, these two differ.
     const liveDecision: PilotDecisionState = { ...decision, observedTargetVelocity: v3(100, 0, 0) }
-    const freshControls = maneuverControls(self, liveTarget, liveDecision)
+    const freshControls = maneuverControls(self, liveTarget, liveDecision, NO_NOISE).controls
     expect(staleControls).not.toEqual(freshControls)
   })
 
@@ -185,6 +190,6 @@ describe('maneuverControls steers against the observed snapshot, not live target
       observedTargetPosition: target.state.position, observedTargetVelocity: target.state.velocity,
       noiseCursor: 0,
     }
-    expect(maneuverControls(self, target, decision)).toEqual(pursuitControls(self, target))
+    expect(maneuverControls(self, target, decision, NO_NOISE).controls).toEqual(pursuitControls(self, target))
   })
 })

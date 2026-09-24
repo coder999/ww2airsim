@@ -827,7 +827,8 @@ export function advance<M>(
               observedTargetVelocity: target.state.velocity,
             }
           }
-          commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(a, target, decision) }
+          const { controls, decision: steered } = maneuverControls(a, target, decision, a.pilot.skill)
+          commanded = { ...a, pilot: { ...a.pilot, decision: steered }, controls }
         }
       }
       return stepAircraftEntity(

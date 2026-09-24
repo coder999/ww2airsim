@@ -5,6 +5,7 @@ import { controlsForDesiredVelocity } from './controller.js'
 import { AI_GUN_RANGE_M, hasGunSolution, pursuitControls } from './pursuit.js'
 import { breakDesiredVelocity, extendDesiredVelocity } from './pilot.js'
 import type { PilotDecisionState, PilotManeuver, PilotSkill } from './pilot.js'
+import { applyControlNoise } from './noise.js'
 
 const G_MPS2 = 9.80665
 
@@ -150,19 +151,30 @@ export function decideManeuver(facts: DecisionFacts, skill: PilotSkill): PilotMa
  *  ruling, not an oversight: the gate is not special-cased back to live data.
  *  `decision.maneuver` itself was chosen from LIVE facts at the rescore
  *  instant (`loop.ts`'s `deriveFacts` call) -- only the steering in between
- *  rescores goes stale. */
+ *  rescores goes stale.
+ *
+ *  The clean steering above is then run through `applyControlNoise` (Task
+ *  3), a deterministic, skill-scaled jitter on the final roll/pitch/yaw --
+ *  the AI's second weakness alongside perception staleness. This is why the
+ *  return shape grew from a bare `Controls`: the noise draw advances
+ *  `decision.noiseCursor`, and that updated cursor has to travel back out to
+ *  the caller (`loop.ts`) so the next tick's draw doesn't repeat. */
 export function maneuverControls<M>(
   self: AircraftEntity<M>,
   target: AircraftEntity<M>,
   decision: PilotDecisionState,
-): Controls {
+  skill: PilotSkill,
+): { readonly controls: Controls; readonly decision: PilotDecisionState } {
   const perceived: AircraftEntity<M> = {
     ...target,
     state: { ...target.state, position: decision.observedTargetPosition, velocity: decision.observedTargetVelocity },
   }
-  if (decision.maneuver === 'pursue') return pursuitControls(self, perceived)
-  const desired = decision.maneuver === 'extend'
-    ? extendDesiredVelocity(self, perceived)
-    : breakDesiredVelocity(self, perceived)
-  return controlsForDesiredVelocity(self.state, self.spec, desired)
+  const base = decision.maneuver === 'pursue'
+    ? pursuitControls(self, perceived)
+    : controlsForDesiredVelocity(
+        self.state, self.spec,
+        decision.maneuver === 'extend' ? extendDesiredVelocity(self, perceived) : breakDesiredVelocity(self, perceived),
+      )
+  const { controls, cursor } = applyControlNoise(base, skill.controlNoise, decision.noiseCursor)
+  return { controls, decision: { ...decision, noiseCursor: cursor } }
 }
