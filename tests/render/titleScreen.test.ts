@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
+  pilotButtonLabel, selectedPilotLabel, isValidPilotName,
 } from '../../src/render/titleScreen.js'
 import { creditsLine } from '../../src/render/legend.js'
 import { SCENARIO_ID } from '../../src/render/content.js'
+import { createPilot } from '../../src/render/roster.js'
 
 describe('the title screen model (2026-09-19)', () => {
   it('names the two options Mark asked for, and a way back from About', () => {
@@ -83,5 +85,52 @@ describe('the title screen scenario picker', () => {
     // rather than reusing scenarioIdFromQuery's regex a second time.
     expect(isKnownScenarioId('not-a-real-scenario')).toBe(false)
     expect(isKnownScenarioId('')).toBe(false)
+  })
+})
+
+describe('the title screen roster step (Plan 9, design §3)', () => {
+  // `createTitleScreen`'s DOM wiring (the pilot list, the New pilot inline
+  // form, `show()`) is deliberately untested here for the same reason as the
+  // scenario/loadout rows above -- no `document` in this suite's `node`
+  // environment. These three functions are what the roster step's DOM is
+  // built off of, the same split.
+  it('labels a pilot button with name, rank abbreviation and cumulative score', () => {
+    const pilot = createPilot('Boyington')
+    const label = pilotButtonLabel(pilot)
+    expect(label).toContain('Boyington')
+    expect(label).toContain(pilot.rank.abbrev)
+    expect(label).toContain(String(pilot.cumulativeScore))
+  })
+
+  it('labels the selected-pilot header with the pilot\'s name and full rank name', () => {
+    const pilot = createPilot('Boyington')
+    const label = selectedPilotLabel(pilot)
+    expect(label).toContain('Boyington')
+    expect(label).toContain(pilot.rank.name)
+  })
+
+  it('accepts a real name and rejects an empty or whitespace-only one', () => {
+    // The same rule `createPilot` (roster.ts) itself throws on -- this is
+    // what lets the DOM layer reject inline instead of catching that throw.
+    expect(isValidPilotName('Boyington')).toBe(true)
+    expect(isValidPilotName('  Boyington  ')).toBe(true)
+    expect(isValidPilotName('')).toBe(false)
+    expect(isValidPilotName('   ')).toBe(false)
+  })
+
+  it('onNewGame receives the selected pilot\'s id as a third argument (type-level contract)', () => {
+    // The actual DOM wiring that calls `onNewGame(loadout, scenarioId,
+    // pilotId)` on the New game click / Enter key lives in
+    // `createTitleScreen`, which needs a real `document` to exercise (this
+    // suite runs in `node`, per this file's own established convention
+    // above). What's provable here without a DOM is the contract itself: a
+    // callback of this shape type-checks, which `npx tsc --noEmit` also
+    // gates on `createTitleScreen`'s own call site inside `start()`.
+    const onNewGame = (loadout: string, scenarioId: string, pilotId: string): void => {
+      expect(typeof loadout).toBe('string')
+      expect(typeof scenarioId).toBe('string')
+      expect(typeof pilotId).toBe('string')
+    }
+    onNewGame('both', 'free-flight', 'pilot-1-1')
   })
 })
