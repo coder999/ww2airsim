@@ -1,12 +1,9 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, Group, Mesh, type Material, type Object3D } from 'three'
-import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { color, mix, positionLocal, varying } from 'three/tsl'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { BoxGeometry, BufferAttribute, BufferGeometry, CylinderGeometry, Group, Mesh, type Object3D } from 'three'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
-import { groundNoise } from '../terrain/surface.js'
 import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
 import type { StructureDamage } from '../../sim/weapons/structures.js'
 import { createSmokeColumn } from '../ordnance.js'
+import { batched, createBuildingMaterials, drawBuilding, makeCollector, weathered } from './buildings.js'
 
 /** How long a collapsed building's smoke column fades over, seconds (spec
  *  §4: "a 60 s fading smoke column"). Longer than an ordnance impact's own
@@ -104,12 +101,6 @@ function groundPatch(field: TerrainField, x: number, z: number, width: number, l
   return g
 }
 
-function weathered(base: number, worn: number): MeshStandardNodeMaterial {
-  const m = new MeshStandardNodeMaterial({ roughness: 0.93, side: DoubleSide })
-  m.colorNode = mix(color(base), color(worn), groundNoise(varying(positionLocal.xz), 30).g)
-  return m
-}
-
 /**
  * Static batches: one draw per material, including roof ribs and window frames.
  * These are visual objects; building collision belongs to the entity phase.
@@ -124,39 +115,16 @@ function weathered(base: number, worn: number): MeshStandardNodeMaterial {
  * base with scenery on it is Plan 13d's problem along with the building table
  * itself. Stated here rather than left silently true.
  */
-/** One material/geometry collector, the same shape the top-level `batches`
- *  map used to be before Task 8 needed a SEPARATE one per strike-target
- *  building (see `createAirfield`'s doc comment on why buildings can no
- *  longer share the airfield-wide batch). */
-function makeCollector(): {
-  readonly add: (g: BufferGeometry, m: Material) => void
-  readonly box: (x: number, y: number, z: number, w: number, h: number, d: number, m: Material) => void
-  readonly batches: Map<Material, BufferGeometry[]>
-} {
-  const batches = new Map<Material, BufferGeometry[]>()
-  const add = (g: BufferGeometry, m: Material): void => {
-    // Merge a common position/normal layout, regardless of primitive UVs.
-    g.deleteAttribute('uv')
-    const list = batches.get(m) ?? []
-    list.push(g)
-    batches.set(m, list)
-  }
-  const box = (x: number, y: number, z: number, w: number, h: number, d: number, m: Material): void => {
-    add(new BoxGeometry(w, h, d).translate(x, y + h / 2, z), m)
-  }
-  return { add, box, batches }
-}
-
 export function createAirfield(field: TerrainField, airfield: Airfield): AirfieldHandle {
   const root = new Group()
   root.name = `${airfield.name} airfield scenery`
-  const steel = weathered(0x59645a, 0x919286)
-  const timber = weathered(0x61513c, 0x8d7957)
-  const concrete = weathered(0x8d8978, 0xb3ac92)
+  // `drawBuilding` (buildings.ts, extracted Plan 13d Task 3) needs exactly
+  // these five; the apron/taxiway/windsock clutter below needs two more that
+  // stay local to this file.
+  const materials = createBuildingMaterials()
+  const { steel, timber, concrete, white } = materials
   const coral = weathered(0x8e8464, 0xbdb392)
-  const dark = weathered(0x172624, 0x263e3b)
   const canvas = weathered(0x696d4b, 0x98916a)
-  const white = weathered(0xd5c9a0, 0xefe4c9)
   // Decorative content (the apron, huts, taxiways, stores, windsock) still
   // shares ONE airfield-wide batch, merged into as few draw calls as before.
   const shared = makeCollector()
@@ -176,80 +144,9 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   // `batched()` has merged every building of the same material into one
   // mesh. Huts, never a strike target, still go through `shared` below. It
   // returns the building's ground height so the caller can place the
-  // collapsed rubble and smoke column at the same spot.
-  const drawBuilding = (
-    collector: ReturnType<typeof makeCollector>,
-    b: { kind: 'hangar' | 'tower' | 'hut' | 'aaa'; x: number; z: number; width: number; length: number },
-  ): number => {
-    const { add, box } = collector
-    const { x, z } = at(b.x, b.z)
-    const y = Math.max(...[-1, 1].flatMap(sx => [-1, 1].map(sz =>
-      heightAt(field, x + sx * b.width / 2, z + sz * b.length / 2))))
-    box(x, y - 0.5, z, b.width + 1, 0.8, b.length + 1, concrete)
-    if (b.kind === 'tower') {
-      for (const dx of [-3.5, 3.5]) for (const dz of [-3.5, 3.5]) {
-        box(x + dx, y, z + dz, 0.45, 10, 0.45, timber)
-      }
-      box(x, y + 8, z, 8.5, 1.1, 8.5, timber)
-      box(x, y + 9.1, z, 7.5, 2.4, 7.5, dark)
-      for (const dx of [-3.8, 0, 3.8]) for (const dz of [-3.8, 3.8]) {
-        box(x + dx, y + 9, z + dz, 0.22, 2.8, 0.22, white)
-      }
-      box(x, y + 11.7, z, 10, 0.4, 10, steel)
-      box(x, y + 12.1, z, 0.12, 4, 0.12, steel)
-      for (let i = 0; i < 16; i++) box(x + 5, y + i * 0.5, z + 4 - i * 0.55, 1.2, 0.16, 0.6, timber)
-      return y
-    }
-    const wall = b.kind === 'hangar' ? 5.5 : 2.8
-    const roofHeight = b.kind === 'hangar' ? b.width * 0.25 : 2.2
-    box(x - b.width / 2, y, z, 0.35, wall, b.length, steel)
-    box(x + b.width / 2, y, z, 0.35, wall, b.length, steel)
-    box(x, y, z - b.length / 2, b.width, wall, 0.3, b.kind === 'hut' ? timber : dark)
-    if (b.kind === 'hut') box(x, y, z + b.length / 2, b.width, wall, 0.3, timber)
-    // Barrel roof, open toward the apron; an actual shell, not a solid block.
-    const positions: number[] = [], indices: number[] = []
-    const segments = 16
-    for (let end = 0; end < 2; end++) for (let i = 0; i <= segments; i++) {
-      const a = i / segments * Math.PI
-      positions.push(x + Math.cos(a) * b.width / 2, y + wall + Math.sin(a) * roofHeight, z + (end - 0.5) * b.length)
-    }
-    for (let i = 0; i < segments; i++) {
-      const j = i + segments + 1
-      indices.push(i, i + 1, j, i + 1, j + 1, j)
-    }
-    const roof = new BufferGeometry()
-    roof.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
-    roof.setIndex(indices)
-    roof.computeVertexNormals()
-    add(roof, steel)
-    // Close the curved gable at the rear; huts are closed at both ends.
-    // Without this, a view through the hangar sees sky through its back wall.
-    for (const end of b.kind === 'hut' ? [-1, 1] : [-1]) {
-      const gablePositions = [x, y + wall, z + end * b.length / 2]
-      const gableIndices: number[] = []
-      for (let i = 0; i <= segments; i++) {
-        const a = i / segments * Math.PI
-        gablePositions.push(x + Math.cos(a) * b.width / 2,
-          y + wall + Math.sin(a) * roofHeight, z + end * b.length / 2)
-        if (i > 0) gableIndices.push(0, i, i + 1)
-      }
-      const gable = new BufferGeometry()
-      gable.setAttribute('position', new BufferAttribute(new Float32Array(gablePositions), 3))
-      gable.setIndex(gableIndices)
-      gable.computeVertexNormals()
-      add(gable, steel)
-    }
-    for (let dz = -b.length / 2; dz <= b.length / 2; dz += 4) {
-      for (let i = 0; i < segments; i++) {
-        const a = (i + 0.5) / segments * Math.PI
-        const rib = new BoxGeometry(b.width * Math.PI / segments / 2, 0.09, 0.12)
-        rib.rotateZ(Math.atan2(roofHeight * Math.cos(a), -b.width / 2 * Math.sin(a)))
-        rib.translate(x + Math.cos(a) * b.width / 2, y + wall + Math.sin(a) * roofHeight + 0.04, z + dz)
-        add(rib, timber)
-      }
-    }
-    return y
-  }
+  // collapsed rubble and smoke column at the same spot. `drawBuilding`
+  // itself moved to `buildings.ts` (Plan 13d Task 3, so `towns.ts` can call
+  // it too); `at()` now runs here, before the call, rather than inside it.
 
   // Every content building gets its OWN group -- `intact` (this building's
   // own merge, via `batched`, of exactly the geometry `drawBuilding` just
@@ -264,8 +161,8 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   }>()
   for (const b of airfield.buildings) {
     const collector = makeCollector()
-    const y = drawBuilding(collector, { kind: b.kind, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })
     const { x, z } = at(b.x, b.z)
+    const y = drawBuilding(collector, { kind: b.kind, x, z, width: b.widthM, length: b.lengthM }, field, materials)
     const intact = batched(new Group(), collector.batches)
     intact.name = 'intact'
 
@@ -295,7 +192,10 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     root.add(group)
     structures.set(b.id, { intact, collapsed, smoke })
   }
-  for (const h of AIRFIELD_HUTS) drawBuilding(shared, { kind: 'hut', x: h.x, z: h.z, width: h.width, length: h.length })
+  for (const h of AIRFIELD_HUTS) {
+    const { x, z } = at(h.x, h.z)
+    drawBuilding(shared, { kind: 'hut', x, z, width: h.width, length: h.length }, field, materials)
+  }
 
   const finish = (): AirfieldHandle => {
     const object = batched(root, shared.batches)
@@ -352,19 +252,4 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   const sock = new CylinderGeometry(0.4, 0.15, 2.4, 10, 1, true).rotateZ(Math.PI / 2).translate(wx + 1.1, wy + 6, wz)
   shared.add(sock, weathered(0xb66335, 0xd98c57))
   return finish()
-}
-
-/** One merged mesh per material, and the source geometries released. Extracted
- *  so the early return for a base with no building set (above) cannot skip it
- *  and hand back a `Group` with nothing in it but an unmerged batch map. */
-function batched(root: Group, batches: Map<Material, BufferGeometry[]>): Group {
-  for (const [material, geometries] of batches) {
-    const geometry = mergeGeometries(geometries)
-    if (!geometry) throw new Error('airfield: incompatible scenery geometry')
-    const mesh = new Mesh(geometry, material)
-    mesh.receiveShadow = true // Plan 16b, see hellcat.ts
-    root.add(mesh)
-    for (const g of geometries) g.dispose()
-  }
-  return root
 }

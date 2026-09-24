@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { inAirfieldClearing } from './airfield.js'
 import type { Airfield } from '../../sim/world/airfields.js'
+import type { HutFootprint } from './towns.js'
 import { nearRiver } from '../terrain/rivers.js'
 import { coverFractionsAt, type CoverHeader } from '../landcover/cover.js'
 import { COVER_HEADER } from '../landcover/load.js'
@@ -51,6 +52,18 @@ export function residentCellOffsets(fadeEndM = TREE_FADE_END_M): readonly (reado
 }
 const CAPACITY = residentCellOffsets().length * TREES_PER_CELL
 
+/** Keeps a candidate tree out of a town or village hut's footprint (Plan 13d
+ *  Task 3, design §7: "each hut's footprint is cleared of trees the way the
+ *  airfield's is"). `AIRFIELD_HUTS` gets that incidentally, by sitting
+ *  inside its own airfield's `clearing` rect -- `inAirfieldClearing` already
+ *  excludes it below. A town's huts are placed OUTSIDE every airfield
+ *  clearing (`townHutFootprints`), so nothing else keeps trees off them;
+ *  this is the exclusion `treeSites` needs for those. An axis-aligned box,
+ *  like `drawBuilding`'s own footprint -- huts do not rotate. */
+export function nearTownHut(huts: readonly HutFootprint[], x: number, z: number): boolean {
+  return huts.some((h) => Math.abs(x - h.x) < h.width / 2 && Math.abs(z - h.z) < h.length / 2)
+}
+
 /** One cell's instances, composed once and copied on every later visit. */
 type PackedCell = { readonly count: number; readonly crowns: Float32Array; readonly trunks: Float32Array; readonly colors: Float32Array }
 
@@ -85,8 +98,12 @@ function packCell(sites: readonly TreeSite[]): PackedCell {
  *  `inAirfieldClearing` is what keeps the jungle off a strip, and before the
  *  list it only knew about Tacloban -- so Dulag had trees down the middle of
  *  it. Ahead of `cover` in the parameter list because it is required and
- *  `cover` is not. */
-export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup): TreeSite[] {
+ *  `cover` is not.
+ *
+ *  `huts` (Plan 13d Task 3) defaults to empty so every existing caller --
+ *  this file's own tests included -- is unaffected; only `createVegetation`
+ *  (via `main.ts`, which also builds the town huts) passes a real list. */
+export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup, huts: readonly HutFootprint[] = []): TreeSite[] {
   let seed = (Math.imul(cellX, 73856093) ^ Math.imul(cellZ, 19349663) ^ 1944) >>> 0
   const random = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
@@ -101,7 +118,7 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
     if (f && roll >= f.tree + f.mangrove) continue
     const shoreM = f && f.mangrove > 0.25 ? 0.5 : 3
     const y = heightAt(field, x, z)
-    if (y < shoreM || y > 1250 || inAirfieldClearing(airfields, x, z) || nearRiver(x, z)) continue
+    if (y < shoreM || y > 1250 || inAirfieldClearing(airfields, x, z) || nearTownHut(huts, x, z) || nearRiver(x, z)) continue
     const slope = Math.hypot(heightAt(field, x + 10, z) - heightAt(field, x - 10, z),
       heightAt(field, x, z + 10) - heightAt(field, x, z - 10)) / 20
     if (slope > 0.65) continue
@@ -110,7 +127,7 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
   return sites
 }
 
-export function createVegetation(field: TerrainField, airfields: readonly Airfield[]): {
+export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = []): {
   object: Group
   update(x: number, z: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
@@ -203,7 +220,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
         const k = `${cx + dx},${cz + dz}`
         let cell = cache.get(k)
         if (!cell) {
-          cell = packCell(treeSites(field, cx + dx, cz + dz, airfields, cover))
+          cell = packCell(treeSites(field, cx + dx, cz + dz, airfields, cover, huts))
           generated++
         }
         nextCache.set(k, cell)

@@ -53,7 +53,9 @@ import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
+import { createTowns, type Town } from './scene/towns.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
+import placesData from '../../content/scenery/places.json'
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
@@ -1889,7 +1891,14 @@ async function boot(): Promise<void> {
       const airfields = next.world.airfields.map((a) => ({ runway: createRunway(arrived, a), airfield: createAirfield(arrived, a) }))
       scene.add(...airfields.flatMap((f) => [f.runway, f.airfield.object]))
       airfieldHandles = airfields.map((f) => f.airfield)
-      vegetation = createVegetation(arrived, next.world.airfields)
+      // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
+      // `hutFootprints` can be handed straight in: a hut is never inside an
+      // airfield's own clearing (excluded during placement, `townHutFootprints`),
+      // so nothing else keeps trees off it the way `inAirfieldClearing` already
+      // keeps them off `AIRFIELD_HUTS`.
+      const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields)
+      scene.add(towns.object)
+      vegetation = createVegetation(arrived, next.world.airfields, towns.hutFootprints)
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --

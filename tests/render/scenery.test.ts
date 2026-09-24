@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { InstancedMesh, Mesh, type Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_HUTS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
-import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
+import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, nearTownHut, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
+import { createTowns, type Town } from '../../src/render/scene/towns.js'
 import { createCoverNodes, createDetailTexture } from '../../src/render/terrain/surface.js'
 import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
 import { COVER_HEADER } from '../../src/render/landcover/load.js'
@@ -427,5 +428,63 @@ describe('scenery placement on the real Leyte field', () => {
     vegetation.setCover(coverLookup(data))
     expect(crowns.count).toBe(0)
     expect(before).toBeGreaterThan(0)
+  })
+})
+
+describe('towns (Plan 13d)', () => {
+  const airfields = [tacloban, dulag]
+  const towns = placesData as { towns: readonly Town[] }
+
+  it('places every town/village on land, outside every airfield clearing, deterministically by node id', () => {
+    const a = createTowns(field, towns, airfields)
+    const b = createTowns(field, towns, airfields)
+    // Same input, same output: `townHutFootprints` is seeded from each
+    // settlement's own OSM node id, never `Math.random`.
+    expect(a.hutFootprints).toEqual(b.hutFootprints)
+    expect(a.hutFootprints.length).toBeGreaterThan(0)
+    for (const hut of a.hutFootprints) {
+      expect(heightAt(field, hut.x, hut.z)).toBeGreaterThan(0.5)
+      expect(inAirfieldClearing(airfields, hut.x, hut.z)).toBe(false)
+    }
+  })
+
+  it('gives a town three rings and a village one', () => {
+    // Only Ormoc and Tacloban are `town`-sized (places.json, design §7); every
+    // other settlement is a `village`. Ring 0 tops out at 30 m radius, ring 2
+    // reaches 100 m -- so a town's own huts should reach well past 65 m from
+    // its centre, while a village's should never pass ring 0's 30 m.
+    const { hutFootprints } = createTowns(field, towns, airfields)
+    const townEntry = towns.towns.find(t => t.size === 'town')!
+    const villageEntry = towns.towns.find(t => t.size === 'village')!
+    const distancesFrom = (entry: Town) => {
+      const centre = toLocal(entry.lat, entry.lon)
+      return hutFootprints
+        .map(h => Math.hypot(h.x - centre.x, h.z - centre.z))
+        .filter(d => d < 150) // this settlement's own huts only -- others are km away
+    }
+    const townDistances = distancesFrom(townEntry)
+    const villageDistances = distancesFrom(villageEntry)
+    expect(townDistances.length).toBeGreaterThan(0)
+    expect(villageDistances.length).toBeGreaterThan(0)
+    expect(Math.max(...townDistances)).toBeGreaterThan(65)
+    expect(Math.max(...villageDistances)).toBeLessThan(40)
+  })
+
+  it('clears trees from each hut footprint, the same way the airfield\'s huts already do', () => {
+    const { hutFootprints } = createTowns(field, towns, airfields)
+    const hut = hutFootprints[0]!
+    // The predicate `treeSites` now checks: true at the hut's own centre,
+    // false somewhere far from every hut.
+    expect(nearTownHut(hutFootprints, hut.x, hut.z)).toBe(true)
+    expect(nearTownHut(hutFootprints, hut.x + 5000, hut.z + 5000)).toBe(false)
+    // And it is actually wired into `treeSites` (vegetation.ts), the same way
+    // `inAirfieldClearing` already excludes `AIRFIELD_HUTS`: an oversized
+    // synthetic footprint over the hut's whole cell proves no candidate
+    // survives it, without depending on a real candidate landing on the
+    // narrow 5x6 m real footprint by chance.
+    const cellX = Math.floor(hut.x / TREE_CELL_M), cellZ = Math.floor(hut.z / TREE_CELL_M)
+    expect(treeSites(field, cellX, cellZ, airfields).length).toBeGreaterThan(0) // sanity: this cell can grow trees at all
+    const wholeCell = [{ x: (cellX + 0.5) * TREE_CELL_M, z: (cellZ + 0.5) * TREE_CELL_M, width: TREE_CELL_M * 2, length: TREE_CELL_M * 2 }]
+    expect(treeSites(field, cellX, cellZ, airfields, undefined, wholeCell)).toEqual([])
   })
 })
