@@ -819,7 +819,11 @@ export function advance<M>(
               1 - record.damage.structure,
               a.state.fuelKg / a.spec.mass.fuelCapacityKg,
             )
-            decision = { maneuver: decideManeuver(facts, a.pilot.skill), nextRescoreS: nowS + a.pilot.skill.reactionS }
+            decision = {
+              ...decision,
+              maneuver: decideManeuver(facts, a.pilot.skill),
+              nextRescoreS: nowS + a.pilot.skill.reactionS,
+            }
           }
           commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(a, target, decision.maneuver) }
         }

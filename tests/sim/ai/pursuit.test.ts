@@ -9,7 +9,7 @@ import {
 } from '../../../src/sim/ai/pursuit.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
-import { add, dot, normalize, scale, sub, v3 } from '../../../src/sim/math/vec3.js'
+import { add, dot, normalize, scale, sub, v3, ZERO } from '../../../src/sim/math/vec3.js'
 import type { AircraftEntity } from '../../../src/sim/loop.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
@@ -108,7 +108,10 @@ describe('pursuit steers at the point it can actually hit', () => {
 })
 
 describe('gunneryAccuracy scales the gun cone', () => {
-  const PURSUE_NOW = { maneuver: 'pursue' as const, nextRescoreS: 0 }
+  const PURSUE_NOW = {
+    maneuver: 'pursue' as const, nextRescoreS: 0,
+    observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0,
+  }
 
   it('a shot inside the green pilot\'s (wider) cone but outside the veteran\'s (tighter) cone lands only for green', () => {
     // VETERAN_SKILL.gunneryAccuracy (0.6) is LOWER than GREEN_SKILL's (1.0)
