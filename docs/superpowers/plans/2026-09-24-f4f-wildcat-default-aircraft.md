@@ -340,8 +340,15 @@ describe('attachStores', () => {
     const root = new Group()
     const { setStores } = attachStores(root, new MeshStandardMaterial())
     setStores(RACK_OFFSETS.length, RAIL_OFFSETS.length - 2)
-    const outerLeft = root.getObjectByName('left-rail-1')!
-    const innerLeft = root.getObjectByName('left-rail-3')!
+    // left-rail-3 (z=-5.0) has the largest |z| on the left side -- outermost,
+    // fires first, matching RAIL_DROP_ORDER's descending-|z| sort. left-rail-1
+    // (z=-3.6) is innermost, nearest the fuselage, fires last. (Corrected
+    // 2026-09-24 during Task 4: an earlier draft of this test had these two
+    // swapped -- verified against the real sort output and against the
+    // existing, unchanged tests/render/hellcat.test.ts, which already
+    // asserted the direction this corrected version now matches.)
+    const outerLeft = root.getObjectByName('left-rail-3')!
+    const innerLeft = root.getObjectByName('left-rail-1')!
     expect(outerLeft.visible).toBe(false)
     expect(innerLeft.visible).toBe(true)
   })
