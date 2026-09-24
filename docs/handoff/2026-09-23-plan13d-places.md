@@ -111,15 +111,10 @@ picture not looked at):**
 
 - **Tacloban** (`test-results/places-tacloban.png`): the coastline, a clean
   hut cluster (visibly more huts than Dulag's, consistent with `'town'`'s 3
-  rings), no tree over any hut roof. The Maharlika Highway segment through
-  Tacloban (locally named "Magsaysay Boulevard" in the source data, with
-  over a dozen points within 90 m of the town's own OSM node — confirmed by
-  querying `places.json` directly, not assumed) does **not** read as a
-  visually distinct line in this shot: zoomed inspection shows the dry-earth
-  road color and the sandy coastal-beach cover color are close enough in hue
-  that the two blend at this specific vantage. This is a real, worth-noting
-  visibility nuance, not a broken mask — the mechanism is proven functional
-  by both the geometric proximity data and the Tanauan shot below.
+  rings), no tree over any hut roof. No road is visible in this shot — see
+  below for why, corrected after an independent review round found the
+  first explanation offered here didn't survive checking where the data
+  actually is.
 - **Tanauan / "Leyte Valley"** (`test-results/places-leyte-valley.png`): the
   clearest evidence the road mask itself is correct — a clean, constant-
   width dry-earth line crossing the frame with roadside trees, no seams or
@@ -129,9 +124,60 @@ picture not looked at):**
   ring (matching `'village'`), visibly smaller than Tacloban's cluster, no
   floating trees, coastline visible at the frame's edge.
 
+**Correction (review round 2, 2026-09-24): why Tacloban's shot shows no
+road, resolved with a fourth screenshot rather than an argument.** The first
+pass of this handoff claimed the road was present near Tacloban's own OSM
+node but blended into the sandy coastal-beach cover, citing "over a dozen
+points within 90 m of the town's node." That claim did not survive scrutiny:
+those points belong to "Magsaysay Boulevard," which sits in the same
+**grass** area as the clearly-visible hut cluster, nowhere near the coast —
+so a color-blend-with-sand explanation could never have been right, and
+should have been checked against the actual point locations before being
+written down. Investigated for real:
+
+- Querying the live `ROAD_PATHS` the renderer actually consumes (not a
+  re-implementation) shows its nearest point to Tacloban's OSM node is
+  **2,473 m away** — well outside this screenshot's ground footprint. This
+  alone explains the missing road; it is a genuine data gap relative to the
+  town's exact point, not a color/blend issue.
+- Is that gap itself a bug — did Task 1-2's `/maharlika/i` / `ref === '1'`
+  filter wrongly exclude a real, locally-renamed continuation of the
+  highway through downtown Tacloban? Checked directly: "Magsaysay
+  Boulevard" (the nearby road) carries `ref 686` in the raw Overpass cache,
+  and `api.openstreetmap.org`'s own relation data confirms it belongs to
+  **OSM route relation 13888703, "Route 686," network `PH:N`** — a real,
+  separate Philippine national road operated by DPWH, not a member of any
+  Maharlika/`ref 1`/AH26 relation. Cross-checked geometrically too: zero
+  shared nodes, endpoint or interior, between the two way sets in the raw
+  cache. The filter is doing exactly what design §7 asked for; excluding
+  this road is correct, not a bug.
+- So the real explanation is a targeting fact, not a rendering defect: the
+  actual, named Maharlika Highway genuinely does not pass within a few
+  hundred metres of Tacloban's OSM administrative-centre point. A fourth
+  test, **`Tacloban's own stretch of the Maharlika Highway, near where it
+  actually runs`**, was added to `terrain.spec.ts` — it computes that
+  nearest real `ROAD_PATHS` point live (not a pinned literal, same
+  reasoning as `townCentre`) and screenshots there instead
+  (`test-results/places-tacloban-highway.png`). Read directly: a clean,
+  constant-width dry-earth road line with roadside trees, indistinguishable
+  in quality from the Tanauan shot — conclusive proof the mask and its
+  filter both work correctly near Tacloban too, over ordinary terrain, with
+  no special-casing near the coast or near the world origin.
+- `src/render/terrain/rivers.ts` needed one real, load-bearing fix to make
+  this new test possible at all: its `rivers.json`/`places.json` imports
+  had no `with { type: 'json' }` import attribute, which Vite's bundler
+  tolerates but Node's own ESM loader does not — invisible until a
+  Playwright spec imported `rivers.ts` directly for the first time. Fixed
+  to match the attribute every other `src/` JSON import already uses
+  (`terrain/load.ts`, `ocean/depth.ts`, `terrain/lod.ts`,
+  `landcover/load.ts`); `npm run verify` reconfirmed green afterward.
+
 **Frame-time budget, re-measured after this plan's full 8× road-mask memory
-increase:** `frame-time budget: gpu p50 2.957 ms, p95 3.307 ms over 312
-samples; rAF interval p95 1.400 ms` — comfortably inside the existing 6.0 ms
+increase:** `frame-time budget: gpu p50 2.945 ms, p95 3.055 ms over 352
+samples; rAF interval p95 3.900 ms` (final run, after the `rivers.ts` import
+fix below; an earlier run measured p50 2.957/p95 3.307 over 312 samples —
+consistent within this file's own documented run-to-run variance) —
+comfortably inside the existing 6.0 ms
 ceiling (55%), confirming the mask's memory growth is a one-time upload with
 no per-frame GPU-time cost, exactly as design §8 predicted. Recorded as a
 dated row in `terrain.spec.ts`'s own measurement table rather than as a new
@@ -156,19 +202,21 @@ tests passed, 1 pre-existing skip.
 ## Reference-GPU evidence
 
 `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org
-npx playwright test tests/e2e/terrain.spec.ts` — **7/7 passed** (58.7 s):
-the three existing camera sweeps (100/3,000/8,000 m, zero WebGPU validation
-errors each), the frame-time budget (above), and the three new `places:`
-screenshots (zero WebGPU validation errors on all three).
+npx playwright test tests/e2e/terrain.spec.ts` — **8/8 passed** (final run,
+1.1 min): the three existing camera sweeps (100/3,000/8,000 m, zero WebGPU
+validation errors each), the frame-time budget (above), the three original
+`places:` screenshots, and the fourth (Tacloban's real highway point) added
+during review round 2 — zero WebGPU validation errors on all four.
 
 ## Commits
 
-`6ee3632..8f7b666` on `main`, 10 commits: two controller-authored ruling
+`6ee3632..46b0564` on `main`, 11 commits: two controller-authored ruling
 commits before Task 1's implementation, Task 1 (`a710048`) plus its
 skip-guard fix (`d4146d3`), two controller-authored ruling commits before
 Task 2's implementation, Task 2 (`969fa21`), Task 3 (`a7a0687`), Task 4
-(`b285621`), Task 5 (`8f7b666`, this task). Full list via
-`git log --oneline 6ee3632..8f7b666`. Not pushed, not deployed — both are
+(`b285621`), Task 5 (`8f7b666`), and Task 5's review-round-2 fix
+(`46b0564`, this correction). Full list via
+`git log --oneline 6ee3632..46b0564`. Not pushed, not deployed — both are
 Mark's call, separately, per this repo's own convention.
 
 ## Remaining work / open items
@@ -185,11 +233,11 @@ Mark's call, separately, per this repo's own convention.
   m (river) legibility bars with real margin. This task's frame-time
   re-measurement confirms that memory increase cost nothing in per-frame GPU
   time, as expected for a static texture upload.
-- **Tacloban's coastal road is functionally present but visually
-  low-contrast** against the sandy beach cover in a straight-down view —
-  see Task 5's screenshot notes above. Not a defect; flagged in case a
-  future pass wants a more contrasting road color specifically near
-  coastline cover.
+- **Tacloban's own OSM administrative point is ~2.5 km from the real
+  Maharlika Highway alignment.** Not a defect in this plan's code — see the
+  review-round-2 correction above, backed by OSM route-relation data and a
+  fourth screenshot at the real nearest road point. Left as a fact about the
+  source data, not something to fix.
 - Coverage is limited to the Overpass query's bounding box and the moment it
   was retrieved (2026-09-24 UTC) — later OSM edits are not reflected;
   `content/scenery/places.json` is a snapshot, same precedent as the
