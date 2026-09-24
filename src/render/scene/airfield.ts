@@ -179,7 +179,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   // collapsed rubble and smoke column at the same spot.
   const drawBuilding = (
     collector: ReturnType<typeof makeCollector>,
-    b: { kind: 'hangar' | 'tower' | 'hut'; x: number; z: number; width: number; length: number },
+    b: { kind: 'hangar' | 'tower' | 'hut' | 'aaa'; x: number; z: number; width: number; length: number },
   ): number => {
     const { add, box } = collector
     const { x, z } = at(b.x, b.z)

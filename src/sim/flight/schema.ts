@@ -63,6 +63,7 @@ const AircraftSpecObject = z.object({
   stores: StoresSchema.optional(),
   id: z.string().min(1),
   name: z.string().min(1),
+  role: z.enum(['fighter', 'bomber']),
   geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }).strict(),
   mass: z.object({ emptyKg: positive, fuelCapacityKg: positive, maxTakeoffKg: positive }).strict(),
   aero: z.object({

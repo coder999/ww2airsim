@@ -210,6 +210,13 @@ describe('ship hit points and roles', () => {
     expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: 240 })).not.toThrow()
   })
 
+  it("widens role to accept 'cruiser' and 'battleship' (Plan 9 Task 1), rejecting anything outside the enum", () => {
+    const raw = JSON.parse(JSON.stringify(dd)) as Record<string, unknown>
+    expect(() => parseShipSpec({ ...raw, role: 'cruiser' })).not.toThrow()
+    expect(() => parseShipSpec({ ...raw, role: 'battleship' })).not.toThrow()
+    expect(() => parseShipSpec({ ...raw, role: 'submarine' })).toThrow(/role/)
+  })
+
   it('a single-waypoint, zero-speed ship holds position and heading forever, no NaN', () => {
     const anchored: ShipOrders = { waypoints: [{ x: 500, z: -500 }], speedMps: 0 }
     let s = createShipState({ position: v3(500, SEA_LEVEL_M, -500), headingRad: 0.4, speedMps: 0 })

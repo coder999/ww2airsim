@@ -5,6 +5,7 @@ import { loadAircraftSpec } from '../../../tools/content/load.js'
 const valid = {
   id: 'test-plane',
   name: 'Test Plane',
+  role: 'fighter',
   geometry: { wingAreaM2: 30, wingSpanM: 13 },
   mass: { emptyKg: 4000, fuelCapacityKg: 600, maxTakeoffKg: 6000 },
   aero: { clSlopePerRad: 4.6, clMax: 1.4, alphaCritDeg: 15.5, clAtZeroAlpha: 0.1, cySlopePerRad: 0.5, cd0: 0.021, oswaldE: 0.85 },
@@ -130,5 +131,18 @@ describe('AircraftSpec validation (spec §9)', () => {
     expect(f6f.id).toBe('f6f-hellcat')
     expect(f6f.reference.source).not.toBe('')
     expect(f6f.geometry.wingAreaM2).toBeGreaterThan(0)
+  })
+
+  it('the F6F is a fighter (master spec §8 scoring role)', () => {
+    expect(loadAircraftSpec('f6f-hellcat').role).toBe('fighter')
+  })
+
+  it('requires role to be fighter or bomber', () => {
+    const bad: Record<string, unknown> = { ...valid, role: 'transport' }
+    expect(() => parseAircraftSpec(bad)).toThrow(/role/)
+    const missing: Record<string, unknown> = { ...valid }
+    delete missing['role']
+    expect(() => parseAircraftSpec(missing)).toThrow(/role/)
+    expect(() => parseAircraftSpec({ ...valid, role: 'bomber' })).not.toThrow()
   })
 })

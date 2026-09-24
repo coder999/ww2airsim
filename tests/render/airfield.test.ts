@@ -28,16 +28,22 @@ const OLD_TABLE = [
 ] as const
 
 describe('airfield buildings (Plan 6b: moved from a module constant into content)', () => {
-  it("Tacloban's content buildings plus AIRFIELD_HUTS equal the old shipped table", () => {
+  it("Tacloban's content buildings plus AIRFIELD_HUTS equal the old shipped table, plus Plan 9's AAA emplacement", () => {
     const tacloban = loadAirfield('tacloban')
-    expect(tacloban.buildings).toHaveLength(4)
+    expect(tacloban.buildings).toHaveLength(5)
+    // Plan 9 Task 1 added a new 'aaa' building that has no counterpart in the
+    // pre-Plan-6b table -- exclude it here so this test can keep proving the
+    // REST of the split is unchanged, and assert its presence separately.
     const asOld = [
-      ...tacloban.buildings.map((b) => ({ kind: b.kind, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })),
+      ...tacloban.buildings
+        .filter((b) => b.kind !== 'aaa')
+        .map((b) => ({ kind: b.kind, x: b.x, z: b.z, width: b.widthM, length: b.lengthM })),
       ...AIRFIELD_HUTS.map((h) => ({ kind: 'hut', x: h.x, z: h.z, width: h.width, length: h.length })),
     ]
     const sortKey = (r: { kind: string; x: number; z: number }) => `${r.kind}:${r.x}:${r.z}`
     expect(asOld.slice().sort((a, b) => sortKey(a).localeCompare(sortKey(b))))
       .toEqual(OLD_TABLE.slice().sort((a, b) => sortKey(a).localeCompare(sortKey(b))))
+    expect(tacloban.buildings.filter((b) => b.kind === 'aaa')).toHaveLength(1)
   })
 
   it('Dulag carries the same table for now, per its content note', () => {

@@ -29,7 +29,7 @@ export type CombatShip = {
   readonly id: string
   readonly spec: {
     readonly lengthM: number; readonly beamM: number; readonly deckHeightM: number
-    readonly hullHp: number; readonly role: 'carrier' | 'escort' | 'merchant'
+    readonly hullHp: number; readonly role: 'carrier' | 'cruiser' | 'battleship' | 'escort' | 'merchant'
   }
   readonly state: { readonly position: Vec3; readonly headingRad: number }
   readonly previous: { readonly position: Vec3; readonly headingRad: number }

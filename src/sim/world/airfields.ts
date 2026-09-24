@@ -22,7 +22,7 @@ export type Rect = z.infer<typeof RectObject>
 const BuildingObject = z
   .object({
     id: z.string().min(1),
-    kind: z.enum(['hangar', 'tower']),
+    kind: z.enum(['hangar', 'tower', 'aaa']),
     x: finite,
     z: finite,
     widthM: positive,

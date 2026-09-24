@@ -9,7 +9,7 @@ import { heightAt, type TerrainField } from '../world/terrain.js'
 export type StructureEntity = {
   readonly id: string
   readonly airfield: string
-  readonly kind: 'hangar' | 'tower'
+  readonly kind: 'hangar' | 'tower' | 'aaa'
   readonly position: Vec3
   readonly headingRad: number
   readonly halfSize: { readonly x: number; readonly y: number; readonly z: number }

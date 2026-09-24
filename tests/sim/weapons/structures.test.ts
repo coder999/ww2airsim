@@ -13,9 +13,9 @@ describe('structures built from airfield content (Plan 6b)', () => {
     const tacloban = loadAirfield('tacloban')
     const dulag = loadAirfield('dulag')
     const structures = buildStructures([tacloban, dulag])
-    expect(structures).toHaveLength(8) // 4 + 4
+    expect(structures).toHaveLength(9) // 5 (Tacloban, incl. Plan 9's AAA emplacement) + 4 (Dulag)
     expect(structures.every((s) => s.hp > 0)).toBe(true)
-    expect(new Set(structures.map((s) => s.id)).size).toBe(8) // ids unique across bases
+    expect(new Set(structures.map((s) => s.id)).size).toBe(9) // ids unique across bases
   })
   it("anchors Dulag's collision boxes on its real terrain, not at sea level", () => {
     const header = loadTerrainHeader()

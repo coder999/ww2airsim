@@ -44,7 +44,7 @@ const ShipSpecObject = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
-    role: z.enum(['carrier', 'escort', 'merchant']),
+    role: z.enum(['carrier', 'cruiser', 'battleship', 'escort', 'merchant']),
     lengthM: positive,
     beamM: positive,
     deckWidthM: positive,

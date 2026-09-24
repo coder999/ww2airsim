@@ -44,6 +44,18 @@ describe('content', () => {
     expect(() => parseAirfield({ ...raw, elevation: 3 })).toThrow(/elevation/)
     expect(() => parseAirfield({ ...raw, runway: { ...(raw.runway as object), center: { x: Infinity, z: 0 } } })).toThrow(/center/)
   })
+
+  it("accepts a building of kind 'aaa' (Plan 9 Task 1) and rejects an unknown kind", () => {
+    const raw = JSON.parse(JSON.stringify(tacloban)) as Record<string, unknown>
+    const aaaBuilding = { id: 'x', kind: 'aaa', x: 0, z: 0, widthM: 6, lengthM: 6, hp: 30 }
+    expect(() => parseAirfield({ ...raw, buildings: [aaaBuilding] })).not.toThrow()
+    const bunker = { id: 'y', kind: 'bunker', x: 0, z: 0, widthM: 6, lengthM: 6, hp: 30 }
+    expect(() => parseAirfield({ ...raw, buildings: [bunker] })).toThrow(/kind/)
+  })
+
+  it("Tacloban carries a Plan 9 'aaa' building so the category is reachable", () => {
+    expect(tacloban.buildings.some((b) => b.kind === 'aaa')).toBe(true)
+  })
 })
 
 describe('the runway-local frame', () => {

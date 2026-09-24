@@ -1,6 +1,7 @@
 {
   "id": "f6f-hellcat",
   "name": "Grumman F6F-5 Hellcat",
+  "role": "fighter",
   "geometry": {
     "wingAreaM2": 31.03,
     "wingSpanM": 13.06
