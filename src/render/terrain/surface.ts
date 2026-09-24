@@ -163,8 +163,13 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   // Road: the Maharlika Highway alignment, painted into the mask's green
   // channel by rivers.ts's `paint`. Blended in after water, following the
   // same smoothstep-weighted mix() convention as the river/paddy/mangrove
-  // blends above rather than a new blending style -- a road never overlaps
-  // a river in the source data, so blend order between the two doesn't matter.
+  // blends above rather than a new blending style. A road DOES overlap a
+  // river in the source data -- measured directly against the real mask
+  // (2026-09-24): 145 texels have an active road blend over a painted
+  // river, 108 of them over open-water-strength river, the highway's real
+  // river crossings. Blending the road on last is still the right order at
+  // those ~145 crossing texels: the road colour wins, which is what a
+  // bridge should look like.
   const roadWeight = smoothstep(0.05, 0.5, riverRoadMask.g)
   const roadColour = vec3(0.42, 0.36, 0.27) // dry earth, matching the design's own description
   return mix(withWater, roadColour, roadWeight)

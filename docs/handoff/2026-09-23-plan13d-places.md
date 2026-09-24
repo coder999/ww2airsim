@@ -14,8 +14,12 @@ been screenshotted and frame-time-budgeted on the reference GPU.
   and the Maharlika Highway alignment (`highway=trunk|primary`) from the
   public Overpass API over the same bounding box the land-cover tiles use
   (`tools/landcover/fetch.ts`'s `COVER_BOX`), and writes
-  `content/scenery/places.json` (108 towns/villages, 1,897 raw roads before
-  Task 2's filtering). Town sizing is a two-name allowlist (only Tacloban
+  `content/scenery/places.json` (108 towns/villages, **208 roads** —
+  `buildPlaces` applies the name+80 km-radius filter itself as of the
+  2026-09-24 final fix wave below, so the committed file only ever carries
+  the roads the renderer uses; the Overpass query's raw fetch, 1,897 roads
+  before that filter, lives only in the gitignored
+  `tools/scenery/cache/places-overpass.json`). Town sizing is a two-name allowlist (only Tacloban
   and Ormoc are `'town'`; OSM itself tags 103 of the other 106 settlements
   `place=town` too, which would have misclassified nearly everything had the
   build trusted the tag). A road's display name falls back
@@ -103,8 +107,18 @@ because something actually ran on the reference GPU:**
    intended settlement — all three screenshots came back with no road, no
    huts, nothing but scattered trees over open grass. Fixed by spawning
    directly at each settlement's centre and shooting ~800 ms later, keeping
-   the unpowered glide too short to matter (measured final position: 2–8 m
-   off centre, altitude still the intended 500 m, on the corrected run).
+   the unpowered glide too short to matter (measured final position at the
+   shutter, i.e. after the ~800 ms of unpowered glide below: 2–8 m off
+   centre, altitude still the intended 500 m, on the corrected run).
+   **M7 reconciliation (final fix wave, 2026-09-24):** this is a different
+   measurement from `terrain.spec.ts`'s own `ARRIVAL_TOLERANCE_M` comment
+   ("measured drift from `waitForTerrain` alone was 0-2 m"), which reads
+   `arrived.position` immediately after `waitForTerrain` resolves, i.e.
+   before the ~800 ms glide this paragraph is about. Both numbers are
+   correct; they are not the same instant. 0-2 m is the spawn-override
+   landing accuracy; 2-8 m is that plus the drift accrued during the
+   deliberately-short glide before the shutter — consistent with each
+   other, not contradictory.
 
 **What the corrected screenshots show, read directly (never argued about a
 picture not looked at):**
@@ -199,6 +213,11 @@ Result: `rc=0`. Typecheck, ESLint (zero warnings), dependency-cruiser (136
 modules, 399 dependencies, no violations) clean; 137 test files, 1,451
 tests passed, 1 pre-existing skip.
 
+**Final fix wave re-run (2026-09-24), after I1-I4/M1/M3/M7/M8 above:**
+`rc=0`; 137 test files, 1,452 tests passed (one net new: M3's
+road-vs-airfield-clearing test), 1 pre-existing skip. Full output captured
+in `.superpowers/sdd/2026-09-23-plan13d-places/final-fix-wave-report.md`.
+
 ## Reference-GPU evidence
 
 `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org
@@ -210,13 +229,32 @@ during review round 2 — zero WebGPU validation errors on all four.
 
 ## Commits
 
-`6ee3632..46b0564` on `main`, 11 commits: two controller-authored ruling
-commits before Task 1's implementation, Task 1 (`a710048`) plus its
-skip-guard fix (`d4146d3`), two controller-authored ruling commits before
-Task 2's implementation, Task 2 (`969fa21`), Task 3 (`a7a0687`), Task 4
-(`b285621`), Task 5 (`8f7b666`), and Task 5's review-round-2 fix
-(`46b0564`, this correction). Full list via
-`git log --oneline 6ee3632..46b0564`. Not pushed, not deployed — both are
+**M8 correction (final fix wave, 2026-09-24):** the range below used to say
+"`6ee3632..46b0564` on `main`, 11 commits" — that omitted `276e896` ("Close
+Plan 13d") and `cacc65d` (the handoff correction commit itself), both
+already on `main` by the time that line was written. The true plan range,
+per the SDD ledger's own Setup section, starts at `6cc474d` ("Close Plan 9",
+the commit immediately before this plan's first), not `6ee3632`.
+`git log --oneline 6cc474d..cacc65d` lists 13 commits (verified 2026-09-24).
+This fix wave then adds its own commits on top of `cacc65d`; the final HEAD
+after they land is this document's own last edit, so — since a commit
+cannot cite its own hash — the authoritative range is
+**`6cc474d..HEAD`**, not a pinned endpoint: run
+`git log --oneline 6cc474d..HEAD` rather than trusting a number copied here,
+the same "prefer an assertion to a sentence" rule this repo already asks
+for. As of this fix wave's own commits (I1-I4, M1, M3, M7, M8 from the
+final review report), the commits after `cacc65d` are: moving the
+name/radius road filter from a runtime filter in `rivers.ts` into
+`tools/scenery/build.ts`'s `buildPlaces` (I1), regenerating
+`content/scenery/places.json` to the filtered 208-road output, a
+`places.json` ships assertion in `tests/build/dist.test.ts` (I2), the
+missing `with { type: 'json' }` on `main.ts`'s import (I3), the design
+§7 / this handoff's memory-figure and WebGPU-limit corrections (I4), the
+`surface.ts` blend-order comment fix (M1), a road-vs-airfield-clearing test
+in `tests/render/scenery.test.ts` (M3), this section's own M7/M8
+reconciliations, and updated `tests/tools/sceneryBuild.test.ts` real-data
+cases for the two road-fallback assertions that no longer survive the
+now-filtered `buildPlaces()` output. Not pushed, not deployed — both are
 Mark's call, separately, per this repo's own convention.
 
 ## Remaining work / open items
@@ -232,7 +270,39 @@ Mark's call, separately, per this repo's own convention.
   river+road span giving 16.7–16.9 m texels — inside the <38 m (road) / <19
   m (river) legibility bars with real margin. This task's frame-time
   re-measurement confirms that memory increase cost nothing in per-frame GPU
-  time, as expected for a static texture upload.
+  time, as expected for a static texture upload. Measured directly (final
+  review, 2026-09-24): **128 MiB CPU and ~171 MiB GPU with mipmaps** —
+  design §7 originally described a "doubles… 16 MiB CPU/~22 MiB GPU" 4096²
+  case and was not updated when the size grew to 8192²; corrected in place
+  there as of this fix wave.
+- **I4 (final fix wave, 2026-09-24): 8192 is the WebGPU guaranteed
+  `maxTextureDimension2D` limit — there is zero headroom for this mask to
+  grow further by the same "bump the size" mechanism used tonight.** A
+  future extent increase (a bigger query radius, more of Leyte, a second
+  island) cannot be answered by another size bump the way 4096²→8192² was;
+  it needs a different approach entirely (tiling the mask, a non-power-of-
+  two mixed strategy, or similar) before it is attempted. Separately: only
+  per-frame GPU time was measured tonight (Task 5's frame-time budget). The
+  one-time cost of the 128 MiB allocate/paint/upload/mipmap-generation at
+  startup, the resulting resident heap, and the VRAM headroom this leaves on
+  an adapter smaller than the RX 6700 XT reference GPU were **not**
+  measured — worth doing if this becomes a real memory-pressure question
+  later, but out of scope for tonight's per-frame budget check.
+- **I1 (final fix wave, 2026-09-24): `content/scenery/places.json` was being
+  statically imported whole into the main JS bundle, ~86% of it dead
+  weight.** `rivers.ts`'s own name/80 km-radius road filter ran at runtime,
+  so all 1,897 raw roads (1.18 MB, 320 KB gzipped) were parsed into memory
+  on every page load and only 208 ever used. Fixed by moving the filter into
+  `tools/scenery/build.ts`'s `buildPlaces`, so the committed file already
+  carries only the 208 roads the renderer needs (129,493 bytes, down from
+  1,180,589). Re-measured the bundle the same way the review did (`npx vite
+  build --outDir <scratch>`, then `assets/index-*.js` and its gzip size):
+  **1,336,302 bytes / 383,427 bytes gzipped**, down from the prior
+  **2,387,541 / 670,220** — the fix removed almost exactly the
+  ~1.05 MB/287 KB the 1,689 discarded roads cost. The raw 1,897-road
+  Overpass fetch remains available only in the gitignored
+  `tools/scenery/cache/places-overpass.json` for any future plan that wants
+  a different filter.
 - **Tacloban's own OSM administrative point is ~2.5 km from the real
   Maharlika Highway alignment.** Not a defect in this plan's code — see the
   review-round-2 correction above, backed by OSM route-relation data and a

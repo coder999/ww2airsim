@@ -246,7 +246,8 @@ footprint is cleared of trees the way the airfield's is.
 Highway alignment, Tacloban – Palo – Tanauan – Dulag – Abuyog on the east
 coast and the Ormoc side on the west, which follows the pre-war coastal
 road. Rasterised by the river mask's capsule code into a **second channel**
-of the same texture (`RGFormat` instead of `RedFormat`). That doubles the
+of the same texture (`RGFormat` instead of `RedFormat`). At the mask size
+this sentence originally assumed (4096²), that would have doubled the
 mask's 16 MiB CPU and ~22 MiB GPU.
 
 **Decided 2026-09-23 (Mark):** widen to `RGFormat` at the existing 4096²,
@@ -256,6 +257,20 @@ introducing a visible regression to ship a new feature. The 2048² option
 remains available as a fallback if the combined mask's GPU cost genuinely
 does not fit the budget once measured for real, but is not the default path
 into the implementation plan.
+
+**Revised 2026-09-24 (Plan 13d Task 2, controller ruling, superseding the
+4096² decision above).** The combined river+road span measured far larger
+than this section anticipated (138.7 km, not close to the rivers' own
+~36 km × 25 km footprint), so 4096² could not hold the mask's own <38 m
+(road) / <19 m (river) legibility bars. Shipped at **8192²** instead — 8×
+the 4096² baseline, not "doubles" — measured directly against what shipped:
+**128 MiB CPU and ~171 MiB GPU with mipmaps**, not the 16 MiB/~22 MiB this
+section describes for the 4096² case above (left in place rather than
+deleted, per this repo's own correct-in-place convention — see
+`docs/handoff/2026-09-23-plan13d-places.md` for the full measurement and
+the open question it leaves: 8192 is the WebGPU guaranteed
+`maxTextureDimension2D` limit, so a future extent increase cannot be
+answered by another size bump).
 
 **Dulag.** `createRunway` in `src/render/scene/runway.ts` is generalised
 from a Tacloban constant to a centre and heading, and `airfield.ts`'s
