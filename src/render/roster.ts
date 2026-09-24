@@ -84,6 +84,26 @@ export function applyMissionResult(
   }
 }
 
+/**
+ * `applyMissionResult` applied to whichever roster entry has `pilotId`,
+ * leaving every other pilot untouched -- the pure "find this pilot and bank
+ * this result" logic `main.ts`'s `bankMissionResult` closure wraps with the
+ * `currentPilotId === null` no-op guard and the `saveRoster` persistence
+ * call (Plan 9 Task 6). Extracted here, rather than left inline only in
+ * `main.ts`, so the land -> continue -> one more kill -> land again
+ * double-banking scenario (this plan's own Review Focus) is testable without
+ * a DOM or a browser storage global -- `main.ts`'s own closures have no
+ * other precedent for direct testing in this repo.
+ */
+export function applyMissionResultToRoster(
+  roster: readonly PilotRecord[],
+  pilotId: string,
+  scoreTotal: number,
+  outcome: RecoveryOutcome,
+): readonly PilotRecord[] {
+  return roster.map((p) => (p.id === pilotId ? applyMissionResult(p, scoreTotal, outcome) : p))
+}
+
 const STORAGE_KEY = 'ww2airsim.roster.v1'
 
 function validatePilot(value: unknown): PilotRecord {

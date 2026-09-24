@@ -15,10 +15,12 @@ import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
-import { createDebrief, debriefModel, destructionModel, landingModel } from './debrief.js'
+import { createDebrief, debriefModel, destructionModel, killsSince, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
+import { applyMissionResultToRoster, loadRoster, saveRoster } from './roster.js'
+import { zeroKillsByType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
@@ -215,8 +217,19 @@ async function boot(): Promise<void> {
   // when the button is pressed, which cannot happen before the page has
   // painted -- the same argument the debrief's `frame!` reads make. A boot
   // failure empties #app (failure.ts), which takes the overlay with it.
-  const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId) => {
+  const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId, pilotId) => {
     chosenLoadout = loadout
+    // Reload fresh rather than trust whatever boot-time (or previous-flight)
+    // `roster` this closure already held: `titleScreen.ts`'s own `start()`
+    // already called `startSortie` and `saveRoster` for exactly this pilot
+    // before invoking this callback (Plan 9 Task 5) -- re-reading here is
+    // what picks that write up. This is a NEW life for scoring purposes, so
+    // the baseline resets to zero same as Restart does below; see this
+    // plan's own "Ruling" section for why calling `startSortie` again here
+    // would double-count it (never do that in this callback).
+    roster = loadRoster()
+    currentPilotId = pilotId
+    scoredThroughKillsByType = zeroKillsByType()
     if (scenarioId !== requestedScenarioId) {
       // A different scenario can carry a different ENTITY LIST (aircraft,
       // ships) -- `airframes`/`shipHandles` below are built once, sized off
@@ -868,7 +881,21 @@ async function boot(): Promise<void> {
     shownDestructionTick = null
     landingShown = false
     postImpactOceanSeconds = 0
+    // A Restart is a new life for scoring purposes exactly like a New game
+    // is (this plan's own "Ruling"), even though it keeps the same pilot and
+    // does not call `startSortie` again -- Restart is a redo of the SAME
+    // sortie already counted, not a new one.
+    scoredThroughKillsByType = zeroKillsByType()
   })
+  /** Passed to every `debrief.show(...)` call below as the "Return to title"
+   *  handler (design §1) -- constant across all three outcomes, unlike
+   *  `onContinue` which only the landing model supplies, so it is threaded
+   *  through `show()`'s own per-call signature the same way rather than
+   *  hardcoded once into `createDebrief`. */
+  const returnToTitle = (): void => {
+    debrief.hide()
+    title.show()
+  }
   /** Whether the landing debrief is up for the landing `frame.landing.report`
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
    *  Restart. */
@@ -880,6 +907,35 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
+  /**
+   * The pilot roster and this life's scoring baseline (Plan 9 Task 6). `roster`
+   * is reloaded, not just this closure's boot-time copy, on every New Game --
+   * see the `onNewGame` callback above for why. `currentPilotId` is `null`
+   * until `onNewGame` fires (no roster flow reachable yet, or a dev-URL
+   * bypass), which is exactly `bankMissionResult`'s own no-op guard below.
+   */
+  let roster = loadRoster()
+  let currentPilotId: string | null = null
+  /**
+   * The player's `killsByType` as of the last bank -- a landing/ditching/
+   * death that already scored them. Reset to zero on every New Game and every
+   * Restart (both start a new life for scoring purposes); NOT reset by
+   * Continue, so a landing followed by more flying and a second landing
+   * banks only the kills since the first, via `killsSince` (debrief.ts),
+   * rather than re-banking the whole flight's cumulative total.
+   */
+  let scoredThroughKillsByType = zeroKillsByType()
+  /**
+   * Applies one mission's score to whichever pilot is flying and persists the
+   * roster immediately, so both this debrief's own figures and the title
+   * screen's next `show()` (which re-reads `loadRoster()`) agree with no
+   * extra plumbing. A no-op before `onNewGame` has ever fired.
+   */
+  const bankMissionResult = (scoreTotal: number, outcome: 'landed' | 'ditched' | 'killed'): void => {
+    if (currentPilotId === null) return
+    roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome)
+    saveRoster(roster)
+  }
   /**
    * Real elapsed seconds since the flight froze, 0 while still flying.
    *
@@ -1294,7 +1350,11 @@ async function boot(): Promise<void> {
       // as the camera flies away.
       impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
       impactEffect.fire(hit.surface)
-      debrief.show(debriefModel(hit, player.state))
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
+      const model = debriefModel(hit, player.state, killsSinceLastBank)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
+      bankMissionResult(model.score.total, hit.kind === 'ditched' ? 'ditched' : 'killed')
+      debrief.show(model, undefined, returnToTitle)
     }
     // Gunfire and structural overload can destroy the player before contact.
     // `nextFrameState` already freezes that world; raise the same Restart path
@@ -1306,7 +1366,11 @@ async function boot(): Promise<void> {
       shownDestructionTick !== playerDamage.destroyedAt
     ) {
       shownDestructionTick = playerDamage.destroyedAt
-      debrief.show(destructionModel(player.state, playerDamage.attacker))
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
+      const model = destructionModel(player.state, playerDamage.attacker, killsSinceLastBank)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
+      bankMissionResult(model.score.total, 'killed')
+      debrief.show(model, undefined, returnToTitle)
     }
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).
@@ -1314,16 +1378,22 @@ async function boot(): Promise<void> {
     if (current.landing.report !== null && !landingShown) {
       landingShown = true
       frame = withPaused(current, true)
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
+      const model = landingModel(
+        current.landing.report,
+        killsSinceLastBank,
+        Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
+      )
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
+      bankMissionResult(model.score.total, 'landed')
       debrief.show(
-        landingModel(
-          current.landing.report,
-          Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
-        ),
+        model,
         () => {
           frame = acknowledgeLanding(frame!)
           landingShown = false
           debrief.hide()
         },
+        returnToTitle,
       )
     }
     impactEffect.object.quaternion.copy(camera.quaternion)

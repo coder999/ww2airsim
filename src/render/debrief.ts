@@ -210,9 +210,15 @@ export function destructionModel(
 }
 
 export type DebriefHandle = {
-  /** `onContinue` is called when the model's `continueLabel` button is
-   *  pressed; a model without one shows no such button and never calls it. */
-  show(model: DebriefModel, onContinue?: () => void): void
+  /**
+   * `onContinue` is called when the model's `continueLabel` button is
+   * pressed; a model without one shows no such button and never calls it.
+   * `onReturnToTitle` (design §1, Plan 9 Task 6) is called when the always-
+   * present "Return to title" button is pressed -- present on every model,
+   * landing included, since spec §1 says the debrief gains this "rather than
+   * only offering Restart," not as a landing-only substitute for Continue.
+   */
+  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void): void
   hide(): void
 }
 
@@ -225,13 +231,16 @@ export type DebriefHandle = {
  * held-modal behavior without going through a debrief.
  * This module only renders.
  *
- * ONE button for a crash. "Resume" is meaningless after a death, and the 1991
- * original's "End Mission" returns to a mission selector this game does not
- * have -- a button that goes nowhere is how a stale document starts. Plan 9
- * adds the menu and the button that reaches it. A LANDING (2026-09-17) is the
- * one outcome the flight survives, so its model carries a `continueLabel`
- * and this renders a second button for it; the caller decides what
- * continuing means (releasing the pause it took when it showed the dialog).
+ * Originally ONE button for a crash. "Resume" is meaningless after a death,
+ * and the 1991 original's "End Mission" returns to a mission selector this
+ * game does not have -- a button that goes nowhere is how a stale document
+ * starts. Plan 9 Task 6 adds the menu and the "Return to title" button that
+ * reaches it (design §1), present on every model regardless of outcome, so a
+ * crash debrief now shows Restart + Return to title. A LANDING (2026-09-17)
+ * is the one outcome the flight survives, so its model ALSO carries a
+ * `continueLabel` and this renders a third button for it; the caller decides
+ * what continuing means (releasing the pause it took when it showed the
+ * dialog) and what returning to title means (`titleScreen.show()`).
  */
 export function createDebrief(root: HTMLElement, onRestart: () => void): DebriefHandle {
   const backdrop = document.createElement('div')
@@ -269,9 +278,23 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
     onContinue?.()
   })
 
+  // Design §1: "the debrief gains a second button, 'Return to title', which
+  // goes back to the roster rather than only offering Restart" -- present on
+  // every model (landing included), not conditioned on a model field the way
+  // `continueLabel` is, because it applies uniformly regardless of outcome.
+  const returnToTitle = document.createElement('button')
+  returnToTitle.textContent = 'Return to title'
+  returnToTitle.style.cssText = restart.style.cssText + ';margin-left:10px'
+  let onReturnToTitle: (() => void) | undefined
+  returnToTitle.addEventListener('click', () => {
+    returnToTitle.blur()
+    onReturnToTitle?.()
+  })
+
   return {
-    show(model: DebriefModel, continueHandler?: () => void): void {
+    show(model: DebriefModel, continueHandler?: () => void, returnToTitleHandler?: () => void): void {
       onContinue = continueHandler
+      onReturnToTitle = returnToTitleHandler
       panel.textContent = ''
       const headline = document.createElement('div')
       headline.style.cssText = 'font-size:20px;font-weight:700;letter-spacing:.1em'
@@ -315,6 +338,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         panel.appendChild(cont)
       }
       panel.appendChild(restart)
+      panel.appendChild(returnToTitle)
       backdrop.style.display = 'flex'
       if (model.continueLabel !== undefined) cont.focus()
       else restart.focus()
