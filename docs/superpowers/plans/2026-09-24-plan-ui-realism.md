@@ -1,5 +1,8 @@
 # UI: Render Quality, Asset Quality, G-Force Toggle, Naval Comms Redesign — Implementation Plan
 
+**Status: complete 2026-09-24.** Execution evidence and remaining boundaries
+are in [`docs/handoff/2026-09-24-plan-ui-realism.md`](../../handoff/2026-09-24-plan-ui-realism.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the title-screen Settings dialog (Render Quality, Asset
@@ -799,7 +802,7 @@ git commit -m "Reference-GPU acceptance: settings, roster, debrief, damage model
 
 ## Closing (per this repo's own convention)
 
-- [ ] Write `docs/handoff/2026-09-24-plan-ui-realism.md`
-- [ ] Update master spec §15's row for this plan
-- [ ] Add a README paragraph pointing at §15
-- [ ] Not pushed/deployed without being asked, per standing convention
+- [x] Write `docs/handoff/2026-09-24-plan-ui-realism.md`
+- [x] Update master spec §15's row for this plan
+- [x] Add a README paragraph pointing at §15
+- [x] Not pushed/deployed without being asked, per standing convention

@@ -164,6 +164,17 @@ session). [Handoff](docs/handoff/2026-09-23-plan9-meta-game.md). Open:
 roster export/import has no UI wiring yet (needs a replace-vs-merge design
 decision first); badge content (no scenario declares an objective yet).
 
+**The UI-realism plan landed 2026-09-24.** The title screen now has persisted
+Render Quality, Asset Quality and Damage Model settings; the roster, settings
+and debrief use the Naval Communications visual system; and L0/L1 terrain now
+ships as selectable asset quality (L0 through Git LFS). Arcade damage disables
+only G/overspeed structural consequences, not the stress measurement or HUD.
+The reference-GPU acceptance covered every new screen and setting at 1.988 ms
+GPU p95 with zero validation errors. See the
+[handoff](docs/handoff/2026-09-24-plan-ui-realism.md) for measured evidence,
+the Git LFS/CI tradeoff and the deliberately deferred asset-quality work;
+master spec §15 remains the authoritative status table.
+
 **Clouds landed 2026-09-19 (Plan 16a):** volumetric cloud layers raymarched
 from two committed noise volumes, declared per scenario in `weather.clouds`
 (`free-flight` has a cumulus deck at 1,500 m and a cirrus sheet at 7,000 m;
@@ -527,9 +538,9 @@ Pushing `main` releases nothing. The workflow checks out with `lfs: true`
 Git LFS), runs `npm run verify`, builds, rsyncs `dist/`, and then asserts the
 live site — including that `content/terrain/L0.bin` IS public (200, by
 design: it is committed content a real page load fetches) and that
-`tools/terrain/build.ts`'s scratch directory never became public
-(`content/terrain/tiles/L6-preview.png` must 404 — before Task 2 this
-checked `tiles/L0.bin`, which moved out of that directory).
+the gitignored terrain scratch directory never became public
+(`content/terrain/tiles/L6-preview.png` is a sentinel path that must 404 —
+before Task 2 this checked `tiles/L0.bin`, which moved out of that directory).
 
 The design, the facts it rests on and how each was verified are in
 [`docs/superpowers/specs/2026-09-15-deployment-design.md`](docs/superpowers/specs/2026-09-15-deployment-design.md).
