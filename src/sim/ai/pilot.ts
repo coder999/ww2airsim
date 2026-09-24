@@ -41,10 +41,31 @@ export type PilotDecisionState = {
   readonly nextRescoreS: number
 }
 
+/** Beyond this separation, Extend has done its job -- see this file's Task 3
+ *  "Ruling": without a terminal state, the original always-away formula let
+ *  a pursuer dive indefinitely and never return to the fight. A literal,
+ *  not `2 * AI_GUN_RANGE_M` imported from `pursuit.ts`: `pursuit.ts` already
+ *  imports types from this file (Task 1), and pilot.ts importing a VALUE
+ *  back from pursuit.ts would be a real runtime circular dependency, not
+ *  just a type-only one that erases at compile time. */
+export const SAFE_SEPARATION_M = 1100 // 2x AI_GUN_RANGE_M (550m) as of this plan
+
 /** Desired velocity for a pilot choosing to Extend: run away from the threat
- *  and trade altitude for airspeed rather than retreating level. */
+ *  and trade altitude for airspeed rather than retreating level. Once
+ *  safely clear (see SAFE_SEPARATION_M), rejoin the fight on a shallow
+ *  climb instead of diving away forever. */
 export function extendDesiredVelocity<M>(self: AircraftEntity<M>, threat: AircraftEntity<M>): Vec3 {
-  const away = normalize(sub(self.state.position, threat.state.position))
+  const separation = sub(self.state.position, threat.state.position)
+  if (length(separation) > SAFE_SEPARATION_M) {
+    // Safely clear: rejoin on a shallow climb rather than diving away
+    // forever. The decision layer's own per-rescore scoring (unchanged)
+    // still decides what happens once back in range -- this only stops an
+    // indefinite, physically nonsensical dive.
+    const toward = normalize(sub(threat.state.position, self.state.position))
+    const climb = v3(toward.x, Math.max(toward.y, 0.1), toward.z)
+    return scale(normalize(climb), length(self.state.velocity))
+  }
+  const away = normalize(separation)
   // Nose down for airspeed: bias the desired vector toward the horizon-minus,
   // not level -- an Extend that stays level just retreats slowly.
   const dive = v3(away.x, Math.min(away.y, -0.15), away.z)

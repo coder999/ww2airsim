@@ -50,6 +50,15 @@ describe('extendDesiredVelocity', () => {
     expect(dot(desired, away)).toBeGreaterThan(0)
     expect(desired.y).toBeLessThan(0)
   })
+
+  it('rejoins toward the threat on a climb once safely separated, instead of diving forever', () => {
+    const self = entity({ position: v3(0, 3000, 0), velocity: v3(140, 0, 0) })
+    const threat = entity({ position: v3(-1500, 3000, 0), velocity: v3(100, 0, 0) }) // beyond SAFE_SEPARATION_M (1100)
+    const desired = extendDesiredVelocity(self, threat)
+    const toward = sub(threat.state.position, self.state.position)
+    expect(dot(desired, toward)).toBeGreaterThan(0)
+    expect(desired.y).toBeGreaterThan(0)
+  })
 })
 
 describe('breakDesiredVelocity', () => {
