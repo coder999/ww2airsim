@@ -40,6 +40,20 @@ whoosh (Plan 6b Task 10; see `content/audio/NOTICE.md`).
 | `content/audio/water_crash.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
 | `content/art/title.png` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/art/NOTICE.md` |
 
+## Fonts
+
+Self-hosted for the Naval Communications design system
+(`src/render/ui/naval-comms.css`), replacing the design prototype's runtime
+`fonts.googleapis.com` fetch. Retrieved 2026-09-24 from Google Fonts' CDN;
+license verified per-font against `google/fonts` GitHub metadata rather than
+assumed — see `content/fonts/NOTICE.md` for the verification detail and why
+the two fonts turned out to carry different licenses.
+
+| Asset | Source | Author | License |
+| --- | --- | --- | --- |
+| `content/fonts/special-elite.woff2` | `https://fonts.gstatic.com/s/specialelite/v20/XLYgIZbkc4JPUL5CVArUVL0ntnAOSA.woff2` | Astigmatic (Brian J. Bonislawsky) | Apache-2.0; see `content/fonts/NOTICE.md` |
+| `content/fonts/stardos-stencil.woff2` | `https://fonts.gstatic.com/s/stardosstencil/v15/X7n94bcuGPC8hrvEOHXOgaKCc2Th6F52.woff2` | Vernon Adams | SIL Open Font License 1.1; see `content/fonts/NOTICE.md` |
+
 ## Terrain source data
 
 River centre lines in `content/scenery/rivers.json`: © OpenStreetMap
