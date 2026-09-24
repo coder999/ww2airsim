@@ -133,6 +133,13 @@ describe('AircraftSpec validation (spec §9)', () => {
     expect(f6f.geometry.wingAreaM2).toBeGreaterThan(0)
   })
 
+  it('loads and validates the real F4F-4 Wildcat content file', () => {
+    const f4f = loadAircraftSpec('f4f-wildcat')
+    expect(f4f.id).toBe('f4f-wildcat')
+    expect(f4f.reference.source).not.toBe('')
+    expect(f4f.geometry.wingAreaM2).toBeGreaterThan(0)
+  })
+
   it('the F6F is a fighter (master spec §8 scoring role)', () => {
     expect(loadAircraftSpec('f6f-hellcat').role).toBe('fighter')
   })
