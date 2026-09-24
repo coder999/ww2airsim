@@ -1,22 +1,24 @@
 import { test, expect } from '@playwright/test'
 import { type DiagWindow } from './harness.js'
-import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
- * Tier 2, the title screen's scenario picker. What only a browser can prove:
- * picking a non-default scenario and pressing New game actually navigates to
- * `?scenario=<id>` (not just updates in-memory state), that the resulting
- * fresh boot's title screen preselects the scenario that is now actually
- * loaded, and that pressing New game a second time boots the REAL, different
- * entity list that scenario carries -- not just a relabelled default.
+ * Tier 2, the title screen's scenario picker. Plan 9 Task 7: picking a
+ * scenario no longer navigates to `?scenario=<id>` and reloads -- it swaps
+ * the entity list in place, via `main.ts`'s `loadScenario`. What only a
+ * browser can prove is that this stays true end to end: the URL never
+ * changes, the title hides immediately (there is no reload to wait out),
+ * and the world that comes up carries the REAL, different entity list the
+ * picked scenario declares -- not just a relabelled default and not the
+ * previous scenario's meshes left over.
  */
 test.setTimeout(120_000)
 
-test('picking a scenario navigates to it, the reloaded title reflects it, and it actually loads', async ({ page }) => {
+test('picking a different scenario swaps entities in place, with no navigation', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
+  const urlBefore = page.url()
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
@@ -25,22 +27,13 @@ test('picking a scenario navigates to it, the reloaded title reflects it, and it
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
   await title.getByRole('button', { name: 'New game' }).click()
 
-  // A real navigation, not an in-place state change.
-  await page.waitForURL((url) => url.searchParams.get(SCENARIO_PARAM) === 'gunnery-range', { timeout: 15_000 })
-
-  // The reloaded page's title reflects what is now actually loaded, not the
-  // production default.
-  const reloadedTitle = page.getByRole('dialog', { name: 'Title' })
-  await expect(reloadedTitle).toBeVisible()
-  const reloadedScenarioGroup = reloadedTitle.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(reloadedScenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  await expect(reloadedScenarioGroup.getByRole('radio', { name: 'Free Flight' })).not.toBeChecked()
-
-  await reloadedTitle.getByRole('button', { name: 'New game' }).click()
-  await expect(reloadedTitle).toBeHidden()
+  // No reload: the title hides immediately and the URL never carries
+  // `?scenario=`, unlike the pre-Task-7 navigation this replaces.
+  await expect(title).toBeHidden()
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
+  expect(page.url()).toBe(urlBefore)
 
   // The real, different entity list gunnery-range.json carries -- not
   // free-flight's f6f-2 wingman, and not an empty/default world relabelled.
@@ -51,15 +44,14 @@ test('picking a scenario navigates to it, the reloaded title reflects it, and it
   await page.screenshot({ path: 'test-results/scenario-picker.png' })
 })
 
-test('picking the already-loaded scenario does not navigate', async ({ page }) => {
+test('picking the already-loaded scenario also stays in place (the same code path, scenarioId === requestedScenarioId)', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
   const urlBefore = page.url()
 
-  // Free Flight is already checked (the production default) -- New game
-  // should take the existing in-place path, not a reload.
+  // Free Flight is already checked (the production default).
   await title.getByRole('button', { name: 'New game' }).click()
   await expect(title).toBeHidden()
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {

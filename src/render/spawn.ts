@@ -138,19 +138,22 @@ export function initialAircraftState(position: Vec3, groundSpawn: boolean): Airc
 }
 
 /**
- * `?scenario=<id>`: which `content/scenarios/<id>.json` to boot (Plan 8).
+ * `?scenario=<id>`: which `content/scenarios/<id>.json` boot() loads first
+ * (Plan 8).
  *
  * Reaches production now (corrected: this used to be DEV-only, like
- * `SPAWN_PARAMS` still is). The title screen's scenario picker
- * (`titleScreen.ts`'s `SCENARIO_OPTIONS`) is a real, shipped UI over this
- * exact parameter -- picking a scenario there navigates to `?scenario=<id>`
- * rather than swapping entities in place (main.ts's `onNewGame` has the
- * reasoning), so this query string is the actual mechanism, not a DEV
- * shortcut standing in for one. What makes that safe in production is
- * `isKnownScenarioId` (titleScreen.ts): `scenarioIdFromQuery` below only
- * checks the id is well-FORMED, and `main.ts` separately rejects anything
- * well-formed that is not one of the five scenarios this build actually
- * ships, before any content fetch starts.
+ * `SPAWN_PARAMS` still is). This is still what a deep link or a page reload
+ * uses to pick the INITIAL scenario, but as of Plan 9 Task 7 it is no longer
+ * how the title screen's scenario picker (`titleScreen.ts`'s
+ * `SCENARIO_OPTIONS`) switches scenarios in a running session: picking a
+ * different one there now calls `main.ts`'s `loadScenario` to swap entities
+ * in place, rather than navigating to `?scenario=<id>` and re-entering
+ * boot() (that was the mechanism before Task 7; `main.ts`'s `onNewGame` has
+ * the current reasoning). What makes this parameter safe to honor in
+ * production is `isKnownScenarioId` (titleScreen.ts): `scenarioIdFromQuery`
+ * below only checks the id is well-FORMED, and `main.ts` separately rejects
+ * anything well-formed that is not one of the five scenarios this build
+ * actually ships, before any content fetch starts.
  */
 export const SCENARIO_PARAM = 'scenario'
 

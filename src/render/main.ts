@@ -2,6 +2,7 @@ import { Group, PerspectiveCamera, Scene } from 'three'
 import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
+import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
@@ -30,7 +31,6 @@ import { paletteFor } from './sky/palette.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
-import { createEngineSmoke } from './scene/smoke.js'
 import { createOrdnance, nextOrdnanceImpacts, NO_ORDNANCE_MEMORY, type OrdnanceMemory } from './ordnance.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
@@ -56,8 +56,6 @@ import { createAirfield } from './scene/airfield.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting } from './scene/lighting.js'
-import { createHellcat } from './scene/hellcat.js'
-import { createShipMesh } from './scene/ship.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
@@ -80,7 +78,6 @@ import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import {
   hasSpawnOverride,
   initialAircraftState,
-  SCENARIO_PARAM,
   scenarioIdFromQuery,
   spawnPositionFromQuery,
 } from './spawn.js'
@@ -230,36 +227,60 @@ async function boot(): Promise<void> {
     roster = loadRoster()
     currentPilotId = pilotId
     scoredThroughKillsByType = zeroKillsByType()
-    if (scenarioId !== requestedScenarioId) {
-      // A different scenario can carry a different ENTITY LIST (aircraft,
-      // ships) -- `airframes`/`shipHandles` below are built once, sized off
-      // THIS boot's bundle, and nothing after boot adds or removes meshes
-      // (spawn.ts's `SCENARIO_PARAM` doc comment has the full reasoning).
-      // Re-entering boot() from scratch with the new id in the URL costs one
-      // page-load flash and reuses the exact path `?scenario=` already took
-      // in DEV; rebuilding in place would need restructuring when the
-      // entity-sized meshes get built, which is real scope this is not.
-      window.location.href = `${window.location.pathname}?${SCENARIO_PARAM}=${scenarioId}`
-      return
-    }
     // A click is the user gesture the autoplay policy wants; this is the
-    // first-visit resume the audio handoff left open.
+    // first-visit resume the audio handoff left open. Called unconditionally
+    // and BEFORE either branch below, for the same reason the keydown
+    // listener's own comment gives: the autoplay policy ties the gesture to
+    // THIS task, not to a promise chain, so calling it after `loadScenario`
+    // resolves (the different-scenario branch, just below) would spend the
+    // gesture on a fetch instead of the click that produced it.
     void audio.resume()
     // `frame` may already exist by the time this fires, built with whatever
-    // `chosenLoadout` held at THAT point (the picker's default, unless this
-    // callback already ran once) -- rebuild it exactly like Restart does
-    // below, rather than only unpausing, so a changed selection actually
-    // reaches the stores. `buildWorld` is declared further down this
-    // function but, like `frame` itself, is always initialised by the time a
-    // real click can reach this closure -- the same forward-reference this
-    // file already relies on for `spawnPosition` and `cascades`.
-    if (frame) {
-      const rebuilt = initialFrameStateFor(buildWorld(frame.world.terrain), frame.assists)
-      frame = rebuilt.groundSpawn && rebuilt.world.terrain !== null
-        ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
-        : rebuilt
-      frame = withPaused(frame, false)
+    // `chosenLoadout` (and, after a scenario switch, `bundle`) held at THAT
+    // point -- rebuild it exactly like Restart does below, rather than only
+    // unpausing, so a changed selection actually reaches the stores.
+    // `buildWorld` is declared further down this function but, like `frame`
+    // itself, is always initialised by the time a real click can reach this
+    // closure -- the same forward-reference this file already relies on for
+    // `spawnPosition` and `cascades`.
+    const rebuildFrame = (): void => {
+      if (frame) {
+        const rebuilt = initialFrameStateFor(buildWorld(frame.world.terrain), frame.assists)
+        frame = rebuilt.groundSpawn && rebuilt.world.terrain !== null
+          ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
+          : rebuilt
+        frame = withPaused(frame, false)
+      }
     }
+    if (scenarioId !== requestedScenarioId) {
+      // Plan 9 Task 7: a different scenario can carry a different ENTITY
+      // LIST (aircraft, ships), which used to mean a full page reload
+      // (`window.location.href = ?scenario=<id>`) because `airframes`/
+      // `shipHandles` were built once at boot. `loadScenario` now disposes
+      // whatever is currently loaded and rebuilds them in place (design doc
+      // §5) -- terrain, ocean and sky are untouched, since none of that is
+      // scenario content. `requestedScenarioId` is updated FIRST so a
+      // second pick compares against the scenario now actually loaded, not
+      // the one this boot started with, and so a return-to-title flight
+      // followed by picking a THIRD scenario still detects a change.
+      requestedScenarioId = scenarioId
+      // Held paused across the fetch (a return-to-title flight leaves `frame`
+      // very much alive, just as `title.up()` already stops feeding it keys):
+      // without this, the OLD scenario's world keeps stepping -- unpaused,
+      // since the title just hid itself -- for however long `loadScenario`'s
+      // network round trip takes, before `rebuildFrame` below replaces it.
+      if (frame) frame = withPaused(frame, true)
+      // Same failure route as the initial load (`loadScenario`'s own try/catch,
+      // above) and the same shape `loadTerrainProgressively`'s `.catch` below
+      // already uses: a mid-game fetch failure is the same "content the build
+      // was supposed to ship" fault, just discovered later than boot.
+      void loadScenario(scenarioId, loadout).then(rebuildFrame).catch((err: unknown) => {
+        loop?.stop()
+        showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
+      })
+      return
+    }
+    rebuildFrame()
   })
 
   const canvas = document.createElement('canvas')
@@ -541,15 +562,88 @@ async function boot(): Promise<void> {
     validationErrors.push(normalizeGpuError(info))
   }
 
-  // The whole world, as content: the scenario, both airfield records, both
-  // ship classes and the one aircraft spec (`src/render/scenarioLoad.ts`).
-  // Any of the five failing to load or failing validation is the same fault
-  // and the same screen a missing `f6f-hellcat.json` was before Plan 12 --
-  // content the build was supposed to ship. The message names the file.
-  // `requestedScenarioId` is already resolved and whitelisted, above.
-  let bundle: ScenarioBundle
+  // Created here rather than where it used to live, a little further down --
+  // `loadScenario`, just below, needs it to exist so a repeat call can add
+  // and remove meshes from it. `Scene()`'s constructor has no side effects of
+  // its own, so moving the call earlier changes nothing observable.
+  const scene = new Scene()
+
+  // Plan 9 Task 7: which scenario is currently loaded and the meshes sized
+  // to it -- all `let`s `loadScenario`, just below, reassigns on every call,
+  // the same hoist-and-reassign shape this file already uses for `sunState`/
+  // `radarSweepRad`. Nullable rather than given a throwaway default, for the
+  // same temporal-dead-zone reason `spawnPosition` above is: `buildWorld`
+  // and the render loop close over `bundle`/`spawnedAt`/`scenarioEntities`
+  // before `loadScenario`'s first call has resolved.
+  let bundle: ScenarioBundle | null = null
+  // Read once, right after the FIRST `loadScenario` call below, for `spec`:
+  // every scenario flies the one shipped `f6f-hellcat` (design doc §5), so
+  // nothing else ever needs a later scenario's world.
+  let scenarioWorld: World<undefined> | null = null
+  let spawnedAt: Vec3 | null = null
+  // `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`, together --
+  // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
+  // construction and disposal reasoning.
+  let scenarioEntities: ScenarioEntities | null = null
+
+  // DEV `?spawnX/Y/Z` moves the PLAYER into the air instead of wherever the
+  // scenario parks it (spawn.ts) -- a pure function of the URL, so unlike
+  // `spawnedAt` (which needs each scenario's own parked position) it is the
+  // same on every `loadScenario` call and is computed once, here.
+  const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
+
+  /**
+   * Fetches one scenario's content bundle and rebuilds everything sized to
+   * its entity lists: `scenarioWorld` (read once, below, for the player's
+   * aircraft spec), the spawn point, and `scenarioEntities` --
+   * `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`
+   * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
+   * are NOT rebuilt here (design doc §5: every scenario sits in the same
+   * Leyte Gulf tangent plane, so none of that is scenario content), and
+   * neither is the panel -- it is per-PLAYER, not per-entity-count, and
+   * every scenario flies the one shipped airframe, so it is left exactly as
+   * a loadout change already leaves it (the title's `onNewGame`, below).
+   *
+   * Any of the five files a bundle fetches failing to load or failing
+   * validation is the same fault and the same screen a missing
+   * `f6f-hellcat.json` was before Plan 12 -- content the build was supposed
+   * to ship. The message names the file. `id` is assumed already resolved
+   * and whitelisted (`requestedScenarioId`/`isKnownScenarioId`, above and in
+   * `titleScreen.ts`); this function does not re-check it.
+   *
+   * The FIRST call (initial boot, immediately below) is a pure relocation of
+   * what boot() always did at this point. A REPEAT call -- the title's
+   * `onNewGame`, when the picked scenario differs from what is loaded --
+   * additionally disposes every mesh the previous call built, via
+   * `buildScenarioEntities`'s own `previous` parameter; `scenarioEntities`
+   * starts `null` so that disposal is skipped, not a no-op loop, the first
+   * time.
+   */
+  const loadScenario = async (id: string, loadout: Loadout): Promise<void> => {
+    const nextBundle = await loadScenarioBundle(id)
+    const nextScenarioWorld = worldFromScenario(nextBundle, null, loadout)
+    // The scenario says where the player is parked; the DEV override above
+    // moves it into the air instead. The airplane is then not `parked`, so
+    // it gets the airborne posture `initialAircraftState` has always given
+    // an override -- but the frame's own `groundSpawn` stays true, because
+    // the CHOCKED WINGMAN is still parked and still needs the terrain hold,
+    // which is what keeps it from being stepped off its placeholder altitude
+    // while the override flies. `settleOnTerrain` then settles the wingman
+    // alone, since it only touches entities with `parked` set.
+    const parkedAt = playerAircraft(nextScenarioWorld).state.position
+    const nextSpawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
+
+    bundle = nextBundle
+    scenarioWorld = nextScenarioWorld
+    spawnedAt = nextSpawnedAt
+    // The nullable binding the diagnostics hook above closes over, now that
+    // there is an answer to put in it.
+    spawnPosition = nextSpawnedAt
+    scenarioEntities = buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities)
+  }
+
   try {
-    bundle = await loadScenarioBundle(requestedScenarioId)
+    await loadScenario(requestedScenarioId, chosenLoadout)
   } catch (err) {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
@@ -560,31 +654,9 @@ async function boot(): Promise<void> {
   // scenario content. See `seaStateFor`'s doc for why a calm scenario keeps
   // the development sea rather than going flat.
   const beaufort = seaStateFor(
-    bundle.scenario.weather.windMps,
+    bundle!.scenario.weather.windMps,
     import.meta.env.DEV ? beaufortFromQuery(window.location.search) : undefined,
   )
-
-  // The scenario says where the player is parked; a DEV `?spawnX/Y/Z` moves
-  // it into the air instead (spawn.ts). The airplane is then not `parked`, so
-  // it gets the airborne posture `initialAircraftState` has always given an
-  // override -- but the frame's own `groundSpawn` stays true, because the
-  // CHOCKED WINGMAN is still parked and still needs the terrain hold, which
-  // is what keeps it from being stepped off its placeholder altitude while
-  // the override flies. `settleOnTerrain` then settles the wingman alone,
-  // since it only touches entities with `parked` set.
-  //
-  // Read here rather than at the very top of `boot` as it was before Plan 12:
-  // the fallback is the scenario's parked position now, so a malformed
-  // `?spawnY=` cannot be rejected until the scenario has been read. It is
-  // still rejected before any terrain is fetched, and still reaches the
-  // failure screen (the throw leaves `boot` and `boot().catch` routes it).
-  const scenarioWorld = worldFromScenario(bundle, null, chosenLoadout)
-  const parkedAt = playerAircraft(scenarioWorld).state.position
-  const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
-  const spawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
-  // The nullable binding the diagnostics hook above closes over, now that
-  // there is an answer to put in it.
-  spawnPosition = spawnedAt
 
   /**
    * The world a flight starts from: the scenario's, with this page load's
@@ -592,6 +664,10 @@ async function boot(): Promise<void> {
    * terrain, and again by Restart with whatever level has loaded by then --
    * which is why it rebuilds from `bundle` rather than closing over one
    * world, exactly as the old restart path rebuilt from `initialFrameState`.
+   * Reads `bundle`/`spawnedAt` fresh (Plan 9 Task 7): both are reassigned by
+   * `loadScenario`, so a Restart or a same-scenario loadout change after a
+   * scenario switch rebuilds from whichever scenario is CURRENTLY loaded,
+   * not whichever one this closure first closed over.
    *
    * `worldFromScenario` is handed `null` and the field injected afterwards,
    * deliberately: with a real field it re-runs `assertLoopOverWater` over
@@ -606,7 +682,7 @@ async function boot(): Promise<void> {
    * necessarily the one in effect when this arrow function was defined.
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
-    const w = worldFromScenario(bundle, null, chosenLoadout)
+    const w = worldFromScenario(bundle!, null, chosenLoadout)
     const withTerrainField = {
       ...w,
       terrain,
@@ -619,28 +695,29 @@ async function boot(): Promise<void> {
             aircraft: withTerrainField.aircraft.map((a) => (a.id === w.player ? { ...a, parked: false } : a)),
           },
           w.player,
-          initialAircraftState(spawnedAt, false),
+          initialAircraftState(spawnedAt!, false),
         )
       : withTerrainField
   }
 
   // The player's own airplane, for the panel, the gauges and the flight-data
   // overlay. One aircraft spec is all any of those take; the wingman's is the
-  // same record anyway (both are `f6f-hellcat`).
-  const spec = playerAircraft(scenarioWorld).spec
+  // same record anyway (both are `f6f-hellcat`). Read once, from the FIRST
+  // scenario's world -- see `scenarioWorld`'s own comment above for why a
+  // later `loadScenario` call never needs to touch this.
+  const spec = playerAircraft(scenarioWorld!).spec
 
-  const scene = new Scene()
   // Plan 16b: the shadow map's lookup node is baked into the terrain's and
   // the ocean's materials, so the cloud field and the map exist before them.
   // The noise is fetched here rather than beside the bathymetry (16a) for
   // that reason; a clear-sky scenario still loads it (16a's reason stands).
   const skyNoise = await loadSkyNoise()
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
-  cloudLayers = forcedCloudTier === 'off' ? [] : bundle.scenario.weather.clouds ?? []
+  cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   cloudTier = forcedCloudTier ?? oceanTier.name
   // Plan 16c: the scenario's hour, or the DEV override.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
-  scenarioTimeOfDay = forcedTimeOfDay ?? bundle.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
+  scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
   sunState = { ...sunState, timeOfDay: scenarioTimeOfDay }
   const cloudField = createCloudField(cloudLayers, skyNoise)
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
@@ -736,53 +813,27 @@ async function boot(): Promise<void> {
   scene.add(lights)
   // Drawn last (its own renderOrder), occluded per pixel by the scene depth.
   scene.add(clouds.object)
-  // One airframe per aircraft entity, in world order, so `frame.poses[i]`
-  // poses `airframes[i]` with no lookup (Plan 12). The PLAYER's is picked out
-  // by id, not by assuming index 0: `world.player` names an id, and the
-  // scenario is free to list the wingman first.
-  //
-  // Read off `scenarioWorld` rather than off a frame, because the meshes are
-  // built before the first `FrameState` exists. That is safe for exactly one
-  // reason: every world `buildWorld` returns is built from the same `bundle`,
-  // so it lists the same entities under the same ids in the same order --
-  // including the one Restart builds. Nothing here is rebuilt on a restart,
-  // and nothing needs to be.
-  const airframes = scenarioWorld.aircraft.map(() => createHellcat())
-  for (const a of airframes) scene.add(a.root)
-  // Plan 6. One smoke trail per airframe, a child of its root so it rides
-  // the airplane; shown and sized from that entity's engine damage each
-  // frame. Tracers and hit flashes are pooled scene children in raw world
-  // metres, like the impact effect: `scene.position` carries the
-  // camera-relative shift for them.
-  const smokes = airframes.map((a) => {
-    const smoke = createEngineSmoke()
-    a.root.add(smoke.object)
-    return smoke
-  })
+  // `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop` are already in
+  // `scenarioEntities` -- built by the first `loadScenario` call, above,
+  // from this same `scene` and this same `scenarioWorld`'s entity lists
+  // (`buildScenarioEntities`, `scenarioEntities.ts`, has the construction
+  // reasoning: world order, the smoke-per-airframe child, and picking the
+  // player's root/prop out by id rather than assuming index 0). The render
+  // loop, below, destructures `scenarioEntities` fresh every frame -- Plan 9
+  // Task 7 -- so a later `loadScenario` call is picked up with no further
+  // plumbing here.
   const tracers = createTracers()
   scene.add(tracers.object)
   const hitFlashes = createHitFlashes()
   scene.add(hitFlashes.object)
   // Ordnance in flight and its impacts (Plan 6b Task 8): `createOrdnance`
   // adds its own pools to `scene` itself, unlike the pools above, which hand
-  // their `object` back for the caller to add.
+  // their `object` back for the caller to add. Like `tracers`/`hitFlashes`,
+  // sized independently of any scenario's entity list -- nothing here is
+  // rebuilt on a scenario switch either.
   const ordnance = createOrdnance(scene)
   let ordnanceMemory: OrdnanceMemory = NO_ORDNANCE_MEMORY
   let flashMemory: FlashMemory = NO_FLASH_MEMORY
-  const playerIndex = scenarioWorld.aircraft.findIndex((a) => a.id === scenarioWorld.player)
-  const hellcatRoot = airframes[playerIndex]!.root
-  // The propeller the throttle spins is the player's alone -- the wingman is
-  // chocked with its engine off, and a parked airplane with a turning
-  // propeller is a worse lie than a still one.
-  const prop = airframes[playerIndex]!.prop
-  // Hulls, in world order for the same reason. Raw world metres like
-  // everything else under `scene`, which already carries the camera-relative
-  // offset once for every child.
-  // Plan 6b Task 8: `createShipMesh` now returns a handle, `{ root, setDamage }`
-  // -- `root` is what gets posed every frame and added to the scene, exactly
-  // as the bare `Object3D` used to be; `setDamage` is read below.
-  const shipHandles = scenarioWorld.ships.map((ship) => createShipMesh(ship.spec))
-  for (const h of shipHandles) scene.add(h.root)
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -1208,6 +1259,13 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     frame = current
+    // Plan 9 Task 7: read fresh every frame, since `loadScenario` can
+    // reassign `scenarioEntities` wholesale between one frame and the next
+    // (a scenario switch) -- the same reason `sunState`/`radarSweepRad` are
+    // reassigned rather than mutated in place. Non-null: `scenarioEntities`
+    // is set by the first `loadScenario` call, awaited well above, before
+    // this loop is ever started (`loop.start()`, below).
+    const { airframes, shipHandles, smokes, hellcatRoot, prop } = scenarioEntities!
     const player = playerAircraft(current.world)
 
     // Camera-relative: the world moves, the camera stays at the origin. float32

@@ -70,14 +70,16 @@ export const DEFAULT_LOADOUT: Loadout = 'both'
  *
  * This is what `?scenario=` (spawn.ts's `SCENARIO_PARAM`) was always meant
  * to be replaced by (that file's own doc comment named this exact picker).
- * It still uses the same query parameter -- picking a scenario navigates to
- * `?scenario=<id>` (main.ts) rather than swapping entities in place, because
- * the entity list (aircraft, ships) is sized once at boot and a different
- * scenario can carry a different one (see main.ts's `onNewGame` callback for
- * the full reasoning). `isKnownScenarioId` below is what makes accepting
- * that parameter in a PRODUCTION build safe: unlike `scenarioIdFromQuery`'s
- * format check alone, it rejects any well-formed id that is not actually one
- * of these five.
+ * `?scenario=<id>` still selects which scenario a fresh page load boots
+ * into, but picking a DIFFERENT one from this picker no longer navigates
+ * there (Plan 9 Task 7): `main.ts`'s `onNewGame` calls `loadScenario` to
+ * swap the entity list (aircraft, ships) in place instead, disposing
+ * whatever was loaded and rebuilding to the new scenario's counts -- see
+ * that function's own doc comment for the reasoning and what stays put
+ * (terrain, ocean, sky, the panel). `isKnownScenarioId` below is what makes
+ * accepting `?scenario=` in a PRODUCTION build safe either way: unlike
+ * `scenarioIdFromQuery`'s format check alone, it rejects any well-formed id
+ * that is not actually one of these five.
  */
 export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
   { value: 'free-flight', label: 'Free Flight' },
