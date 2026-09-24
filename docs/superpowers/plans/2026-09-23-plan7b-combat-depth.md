@@ -283,6 +283,31 @@ three constants (`PURSUE_ENERGY_DISCIPLINE_BONUS`, and the two energy
 weights) and this task's test 6 — contained entirely to this file, no
 downstream task depends on the exact crossover value.
 
+**Second ruling (found by Task 5's implementer, during production wiring,
+not caught by Task 2's own review):** `angleBetween(target.velocity,
+toSelf)` (`deriveFacts`'s own computation, correct and unchanged) is 0 when
+the target's nose IS on self — real danger — and `Math.PI` when it points
+fully away — safe. `scoreManeuvers`'s original `BREAK_ANGLE_WEIGHT *
+facts.angleOffTargetRad` scores Break HIGHEST exactly when the threat is
+safest and LOWEST when it is most dangerous: the opposite of "turn hard
+defensively when the player has the angle on it." This is why `pursuer-1`
+(directly behind the player, whose nose is necessarily pointed away from
+it — `angleOffTargetRad ≈ π`) chose Break on tick 0 in production instead
+of Pursue, breaking the pre-existing Plan 7a "turns onto a gun solution"
+test. Fixed: the score now reads `BREAK_ANGLE_WEIGHT * (Math.PI -
+facts.angleOffTargetRad)`, and `HEALTHY`'s neutral fixture default
+(originally `0`, the DANGEROUS end of the scale, not a safe baseline)
+changes to `Math.PI`; test 5 explicitly overrides it back to `0` to
+represent real "nose tracking." Every one of Task 2's 9 original test
+cases was hand-re-verified against this corrected formula and either
+passes unaffected (their `breakOff` term returns to exactly 0 at the new
+`Math.PI` baseline, same as the old, coincidentally-also-0 value) or is the
+one intentionally updated. **Cost if wrong:** this is the one formula bug
+in this plan that reached a wired, production-integration test before being
+caught — a wrong fix here reopens the same regression Task 5 found. Applied
+as a follow-up commit on top of Task 2's original commit, reviewed on its
+own before Task 5 resumes.
+
 **Files:**
 - Create: `src/sim/ai/decision.ts`
 - Test: `tests/sim/ai/decision.test.ts` (new)
@@ -314,7 +339,12 @@ import { GREEN_SKILL, VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
 const HEALTHY: DecisionFacts = {
   relativeEnergyJPerKg: 0,
   angleOffSelfRad: 0,
-  angleOffTargetRad: 0,
+  // Math.PI, not 0: this fact is 0 when the target's nose IS on self (real
+  // danger) and Math.PI when it is pointed fully away (no threat) --
+  // angleBetween's own geometric convention (deriveFacts). A neutral,
+  // nothing-happening baseline needs the SAFE value here, not the
+  // "coincidentally zero" one -- see the Task 2 "Ruling" below.
+  angleOffTargetRad: Math.PI,
   rangeM: 400,
   closingRate: 0,
   threatAstern: false,
@@ -343,7 +373,7 @@ describe('scoreManeuvers / decideManeuver', () => {
   })
 
   it('a pilot with the target\'s nose tracking it at close range breaks', () => {
-    const facts: DecisionFacts = { ...HEALTHY, angleOffTargetRad: Math.PI, rangeM: 300 }
+    const facts: DecisionFacts = { ...HEALTHY, angleOffTargetRad: 0, rangeM: 300 }
     expect(decideManeuver(facts, GREEN_SKILL)).toBe('break')
   })
 
@@ -497,7 +527,7 @@ export function scoreManeuvers(facts: DecisionFacts, skill: PilotSkill): Maneuve
     EXTEND_FUEL_WEIGHT * (1 - facts.fuelFraction)
 
   const breakOff =
-    BREAK_ANGLE_WEIGHT * facts.angleOffTargetRad - BREAK_RANGE_PENALTY * rangeBeyondGun
+    BREAK_ANGLE_WEIGHT * (Math.PI - facts.angleOffTargetRad) - BREAK_RANGE_PENALTY * rangeBeyondGun
 
   return { pursue, extend, breakOff }
 }
