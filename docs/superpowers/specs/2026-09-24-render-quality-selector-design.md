@@ -306,10 +306,26 @@ live-applies). The Settings dialog must say so — e.g. "Takes effect next
 time you start a sortie" — rather than imply an instant change the way the
 Simple/Advanced render-quality rows do.
 
-**Implementation-plan-level open item, not resolved here**: confirming L0
-and L1's terrain files are actually part of this project's build/deploy
-output today, or only present in a local dev checkout's generated cache —
-the musings doc said they're "already built on disk, gitignored, not
-shipped," which is a statement about generation, not about whether the
-deploy pipeline currently packages them for production. Verify before
-assuming this is purely a runtime-constant change.
+**Resolved, 2026-09-24 (was an open item):** verified directly against the
+checkout rather than assumed. `FIRST_COMMITTED_LEVEL = 2`
+(`tools/terrain/load.ts`) — L2 through L12 are committed to git under
+`content/terrain/`; **L0 and L1 live only in the gitignored
+`content/terrain/tiles/`**, never shipped. Real measured sizes:
+`L1.bin` 33,570,818 bytes (33.5MB — commits normally), **`L0.bin`
+134,250,498 bytes (~128MB) — over GitHub's hard 100MB-per-file limit for a
+normal git push.** This is not a pure runtime-constant change for the
+`medium`/`high`/`ultra` tiers: L0 cannot be committed the way every other
+terrain level is today.
+
+**Ruling (Mark, 2026-09-24): Git LFS.** L0 (and any future asset over
+GitHub's 100MB limit) ships via Git LFS rather than a regular git blob,
+chunked fetch/reassembly, or external object storage — the other three
+options considered and set aside. This is a real, ongoing decision, not
+free: LFS has its own storage/bandwidth quota on GitHub (1GB/month free,
+paid beyond that), and this repo has no `.gitattributes`/LFS setup today —
+adding it is itself a small piece of implementation work (git-lfs install,
+track `content/terrain/L0.bin`'s glob pattern, confirm the CI/deploy
+pipeline that already exists for this repo can actually check out LFS
+objects, not just regular git ones). L1 needs no LFS (33.5MB, commits
+normally) — only L0 (and by extension the `medium`/`high`/`ultra` tiers)
+crosses the threshold.
