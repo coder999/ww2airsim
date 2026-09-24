@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 
-// Upper bound from Step 2's actual measured output size, rounded up --
-// catches a future re-run of models:build silently ballooning back toward
-// the 73.9 MB raw input (e.g. a flag typo dropping --texture-compress).
-const MAX_BYTES = 3_000_000
+// Upper bound from the actual measured output size, rounded up -- catches a
+// future re-run of models:build silently ballooning back toward the 73.9 MB
+// raw input (e.g. a flag typo dropping --texture-compress). Raised from
+// 3_000_000 (2026-09-24, Task 5 review fix): the original build silently
+// applied @gltf-transform/cli's default meshopt geometry/animation
+// compression, which shrank the file but left it undecodable at runtime
+// (`EXT_meshopt_compression` had no matching decoder wired up anywhere in
+// this project -- Three.js's GLTFLoader throws on a required extension it
+// can't decode). tools/models/build.ts now passes `--compress false`
+// explicitly, which disables that compression and measured 5,573,356 bytes
+// (~5.57 MB) -- texture recompression (webp, 1024px) is still fully applied
+// and remains the dominant size reduction from the 73.9 MB raw input.
+const MAX_BYTES = 6_300_000
 
 describe('content/aircraft/wildcat.glb', () => {
   it('is committed and under the compressed size budget', () => {
@@ -21,5 +30,18 @@ describe('content/aircraft/wildcat.glb', () => {
       expect(names.has(required)).toBe(true)
     }
     expect(doc.animations).toHaveLength(1)
+  })
+
+  it('does not require a glTF extension this project has no decoder for (2026-09-24 regression)', () => {
+    // @gltf-transform/cli's `optimize` defaults --compress to "meshopt" when
+    // the flag is omitted; Three.js's GLTFLoader throws at load time if a
+    // required extension has no matching decoder registered, and this
+    // project registers none (confirmed: no MeshoptDecoder/setMeshoptDecoder
+    // anywhere in src/tests/tools). tools/models/build.ts must keep passing
+    // `--compress false` so this list stays empty.
+    const buf = readFileSync('content/aircraft/wildcat.glb')
+    const jsonLength = buf.readUInt32LE(12)
+    const doc = JSON.parse(buf.subarray(20, 20 + jsonLength).toString('utf8'))
+    expect(doc.extensionsRequired ?? []).not.toContain('EXT_meshopt_compression')
   })
 })

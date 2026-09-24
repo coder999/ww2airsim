@@ -7,11 +7,18 @@
  * and committing that raw would make this repo's single largest tracked file
  * by a wide margin for no reason texture recompression doesn't already fix.
  *
- * Texture-only pass deliberately: no --simplify or Draco geometry compression
- * yet, so the exact node names and animation keyframes this project's render
- * code depends on (src/render/scene/wildcat.ts) are as close to the source
- * download as possible. Re-run the node/animation inspection below after any
- * future change to this script's flags.
+ * Texture-only pass deliberately: `--no-simplify` and `--compress false`
+ * disable meshoptimizer simplification AND `optimize`'s own default geometry/
+ * animation compression (its `--compress` flag defaults to `"meshopt"` when
+ * omitted -- easy to miss, since simplify and compress are separate concerns
+ * with separate flags, and this file's own instructions previously named only
+ * the first one). Three.js's `GLTFLoader` throws at runtime if a required
+ * extension like `EXT_meshopt_compression` has no matching decoder wired up,
+ * and this project has none, so `--compress false` is load-bearing, not
+ * cosmetic. With both disabled, the exact node names and animation keyframes
+ * this project's render code depends on (src/render/scene/wildcat.ts) are as
+ * close to the source download as possible. Re-run the node/animation
+ * inspection below after any future change to this script's flags.
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
@@ -36,7 +43,8 @@ export function buildWildcatModel(): void {
     ['--yes', '@gltf-transform/cli', 'optimize', INPUT, OUTPUT,
       '--texture-compress', 'webp',
       '--texture-size', '1024',
-      '--no-simplify'],
+      '--no-simplify',
+      '--compress', 'false'],
     { stdio: 'inherit' },
   )
 }
