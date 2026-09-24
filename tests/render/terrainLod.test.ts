@@ -1,23 +1,21 @@
-import { existsSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { selectNodes, LOD, type LodNode } from '../../src/render/terrain/lod.js'
-import { loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
+import { hasRealLevelFile, loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
 import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { samplesAtLevel, type TerrainHeader } from '../../src/sim/world/schema.js'
-import { finestFetchedLevelFor } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 
 /**
- * The level a `'low'`-tier page load actually fetches -- `main.ts`'s and
- * `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
- * wiring (see their notes on why it is deliberately `'low'`, not the spec's
- * eventual `'medium'` default). Before Task 2 (2026-09-24) the tests below
- * used `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL` for this purpose,
- * because it was numerically the same thing (2); that task decoupled "what's
- * committed on disk" (now 0, the whole pyramid) from "what a page load
- * fetches" (tier-dependent), so a test measuring what the app actually flies
- * over has to name the second concept, not the first.
+ * The level a real page load actually fetches today -- `main.ts`'s own
+ * placeholder, `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` (see its own
+ * comment for what it is and why). Before Task 2 (2026-09-24) the tests
+ * below used `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL` for this
+ * purpose, because it was numerically the same thing (2); that task
+ * decoupled "what's committed on disk" (now 0, the whole pyramid) from
+ * "what a page load fetches" (tier-dependent), so a test measuring what the
+ * app actually flies over has to name the second concept, not the first.
  */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
 const area = (n: { sizeM: number }) => n.sizeM * n.sizeM
 
@@ -310,19 +308,23 @@ describe('CDLOD node selection', () => {
 // Mip 0 (the finest, 8193-sample level) used to live in the gitignored
 // `content/terrain/tiles/`, so a fresh clone (and CI) had no L0.bin -- see
 // `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL`. Task 2 (2026-09-24)
-// committed it (via Git LFS, over GitHub's 100 MB per-file limit), so this
-// should now be true everywhere; the check stays as a diagnostic (a real
-// clone missing it now points at an LFS-fetch problem, not a pipeline that
-// was never run) rather than a hard dependency, matching
-// `tests/tools/terrainBuild.test.ts`'s own `describe.skipIf(!haveSource)`
-// pattern for exactly the same reason: a silently-vanished check is
+// committed it, via Git LFS (over GitHub's 100 MB per-file limit) -- and
+// `hasRealLevelFile` (not bare `existsSync`) is the gate for a NEW reason
+// that replaces the old one: `ci.yml` and `nightly-soak.yml` deliberately
+// check out WITHOUT `lfs: true` (bandwidth cost -- see their own comments,
+// and `deploy.yml`'s, on the decision), so L0.bin exists as a file on every
+// CI runner but is a ~130-byte pointer, not the real 134 MB. Only
+// `deploy.yml` (which does `lfs: true`) and a real developer machine that
+// ran `git lfs pull` have the actual bytes this describe block needs.
+// Skipped-not-thrown for the same reason `tests/tools/terrainBuild.test.ts`'s
+// `describe.skipIf(!haveSource)` is: a silently-vanished check is
 // indistinguishable from one that ran and passed.
-const haveFinestMip = existsSync(terrainLevelPath(0))
+const haveFinestMip = hasRealLevelFile(0)
 if (!haveFinestMip) {
   console.warn(
-    `[terrainLod.test.ts] ${terrainLevelPath(0)} is absent -- the mip-0-referenced far-field ` +
-    'height-error measurement is SKIPPED. This should not happen on any clone since Task 2 ' +
-    '(2026-09-24) committed L0.bin; check `git lfs pull` ran.',
+    `[terrainLod.test.ts] ${terrainLevelPath(0)} is absent or an unsmudged Git LFS pointer -- the ` +
+    'mip-0-referenced far-field height-error measurement is SKIPPED. Expected in CI (ci.yml/' +
+    'nightly-soak.yml do not fetch LFS content, by design); run `git lfs pull` to enable it locally.',
   )
 }
 
@@ -350,11 +352,11 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
   it('pins the worst |L0 - L1| error over the whole surface, re-measured 2026-09-24', () => {
     // The table above is about LOD SELECTION -- how much coarser the far field
     // is than the near field. This is the error a `'low'`-tier session's
-    // choice costs: L1 is the finest level `finestFetchedLevelFor('low')`
-    // fetches -- and, pending Task 6, the finest level `main.ts`'s and
-    // `terrain/mesh.ts`'s own interim placeholder fetches for EVERY session
-    // today, not only `'low'` ones -- so this is how much flatter than the
-    // Copernicus data that gets flown over EVERYWHERE, near field included.
+    // choice costs: L1 is the finest level that tier fetches -- and, pending
+    // Task 6, the finest level `main.ts`'s own interim placeholder
+    // (`GROUND_TRUTH_LEVEL` above) fetches for EVERY session today, not only
+    // `'low'` ones -- so this is how much flatter than the Copernicus data
+    // that gets flown over EVERYWHERE, near field included.
     //
     // Recorded in the design spec (section 6) and in the handoff as the number
     // behind "does the relief want a vertical exaggeration?", and pinned here
@@ -406,7 +408,7 @@ describe.skipIf(!haveFinestMip)('far-field height error against mip 0, by ring',
 // never ran in CI or in a fresh clone before Task 2 (mip 0 was gitignored),
 // so it could not be the plan's only far-field guard -- "a guard that only
 // executes on a box that has run the 178 MB build is not a guard." This twin
-// uses `GROUND_TRUTH_LEVEL` (L1, `finestFetchedLevelFor('low')`) as its
+// uses `GROUND_TRUTH_LEVEL` (L1, `main.ts`'s own interim placeholder) as its
 // reference instead: same measurement, worse reference (so smaller, less
 // dramatic numbers than the mip-0 table above -- that is expected, not a
 // discrepancy), but it runs everywhere regardless of tier, because L1 (like

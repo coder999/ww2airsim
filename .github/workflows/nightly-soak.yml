@@ -12,6 +12,12 @@ jobs:
   soak:
     runs-on: ubuntu-latest
     steps:
+      # Deliberately NO `lfs: true` here (Task 2 review, 2026-09-25), same
+      # bandwidth reasoning as `ci.yml`'s own comment. This job only runs
+      # `tests/sim/soak.test.ts`, which reads `finestFetchedLevelFor('low')`'s
+      # L1 -- a plain git blob, always real, LFS or not -- and never touches
+      # L0.bin, so this workflow does not need `lfs: true` even setting
+      # bandwidth aside.
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:

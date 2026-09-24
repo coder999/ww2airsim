@@ -6,16 +6,15 @@ import {
   loadTerrainHeader,
   loadTerrainLevel,
 } from '../../../tools/terrain/load.js'
-import { finestFetchedLevelFor } from '../../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../../src/render/content.js'
 
-/** The level a real page load actually flies over today -- `main.ts`'s and
- *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
- *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
- *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
- *  test used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
- *  time; the two concepts have since diverged ("what's committed on disk",
- *  now 0, vs "what a page load fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
+/** The level a real page load actually flies over today -- see
+ *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+ *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
+ *  numerically the same thing (2) at the time; the two concepts have since
+ *  diverged ("what's committed on disk", now 0, vs "what a page load
+ *  fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
 describe('structures built from airfield content (Plan 6b)', () => {
   it('builds one StructureEntity per building, at both friendly and enemy airfields', () => {
@@ -40,8 +39,10 @@ describe('structures built from airfield content (Plan 6b)', () => {
     // height. Lowered from 10 on Task 2 (2026-09-24): the ground truth moved
     // from L2 (98 m spacing) to `GROUND_TRUTH_LEVEL` (L1, 49 m), and the
     // finer grid samples a genuinely different nearby point at Dulag
-    // (9.4 m here, still clearly land).
-    expect(groundHeightM).toBeGreaterThan(5)
+    // (9.37 m here, still clearly land). Kept close to the measured value
+    // (8, not the original 10) rather than loosened further, so this still
+    // catches a real regression toward sea level (review, 2026-09-25).
+    expect(groundHeightM).toBeGreaterThan(8)
     expect(hangar.position.y - hangar.halfSize.y).toBeCloseTo(groundHeightM, 9)
   })
   it('a structure never moves or ages: it is spec, not simulated state', () => {

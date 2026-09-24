@@ -123,10 +123,12 @@ export function airfieldAt(airfields: readonly Airfield[], x: number, z: number)
  * deleted Task 5) hardcoded for that one airfield.
  *
  * The strip's axis is not a taste call; it is the ground. Measured on the
- * committed L4 field -- the one level `physicsFieldFor` ever hands the
- * physics -- from Tacloban's `runway.center`, sampling every 30 m
- * (2026-09-17, carried forward from the deleted `DEFAULT_SPAWN_ATTITUDE`
- * comment when Task 5 moved the spawn onto content):
+ * committed L4 field -- the finest level a clone had at the time (before
+ * Task 2, 2026-09-24, moved that boundary to L0; `physicsFieldFor` takes its
+ * finest level as a caller-supplied parameter now, not a fixed one) --
+ * from Tacloban's `runway.center`, sampling every 30 m (2026-09-17, carried
+ * forward from the deleted `DEFAULT_SPAWN_ATTITUDE` comment when Task 5
+ * moved the spawn onto content):
  *
  * | Direction | Height spread over +/-900 m | Sea ahead of the nose |
  * | --- | --- | --- |

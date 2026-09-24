@@ -5,13 +5,14 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { AIRCRAFT_CONTENT_PATH, finestFetchedLevelFor, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
+import { AIRCRAFT_CONTENT_PATH, finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
+import { hasRealLevelFile } from '../../tools/terrain/load.js'
 
 /**
  * The two Copernicus licence strings that must accompany the derived terrain
@@ -68,6 +69,26 @@ const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
  */
 const TERRAIN_TILES_PATH = 'content/terrain/tiles'
 const REPO_TERRAIN_TILES_DIR = fileURLToPath(new URL(`../../${TERRAIN_TILES_PATH}`, import.meta.url))
+
+/**
+ * Whether the repo's own `content/terrain/L0.bin` (the SOURCE `vite build`
+ * copies from, not the built copy) is real content, not an unsmudged Git LFS
+ * pointer. `ci.yml` deliberately checks out WITHOUT `lfs: true` (bandwidth
+ * cost against GitHub LFS's free 1 GB/month quota on every push/PR -- see
+ * its own comment, and `deploy.yml`'s, which DOES `lfs: true` and is where
+ * this exact byte count is actually gated before a release ships), so a
+ * pointer copies through to `dist/` byte-for-byte just like the real file
+ * would -- `copyContent()` (vite.config.ts) has no reason to treat it
+ * differently, and should not.
+ */
+const haveRealL0 = hasRealLevelFile(0)
+if (!haveRealL0) {
+  console.warn(
+    '[dist.test.ts] content/terrain/L0.bin is absent or an unsmudged Git LFS pointer -- its exact-byte' +
+    '-count assertion is SKIPPED. Expected in CI (ci.yml does not fetch LFS content, by design); run ' +
+    '`git lfs pull` to enable it locally.',
+  )
+}
 
 /**
  * Ruling R14, placed by Ruling R20.
@@ -183,11 +204,10 @@ describe('the built artifact', () => {
       expect(shippedJs).toContain('https://www.openstreetmap.org/copyright')
       expect(readFileSync(join(outDir, 'index.html'), 'utf8')).not.toContain('map-credit')
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
-      // `'low'`, matching `main.ts`'s and `terrain/mesh.ts`'s own placeholder
-      // pending Task 6's real persisted-tier wiring (see their notes on why
-      // it is deliberately not the spec's eventual `'medium'` default): this
+      // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER`, matching `main.ts`'s
+      // own placeholder pending Task 6's real persisted-tier wiring: this
       // loop asserts every level TODAY's placeholder actually fetches.
-      for (let level = finestFetchedLevelFor('low'); level <= coarsest; level++) {
+      for (let level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER); level <= coarsest; level++) {
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
         const bytes = readFileSync(join(outDir, terrainLevelPath(level)))
         expect(bytes.byteLength, `${terrainLevelPath(level)} is the wrong size`).toBe(samples ** 2 * 2)
@@ -200,7 +220,14 @@ describe('the built artifact', () => {
       // tooling is a few hundred bytes of text, not 134 MB, and a bug in
       // `samplesAtLevel`/`header.json` itself would not be caught by a check
       // that derives its own expectation from the same source.
-      expect(readFileSync(join(outDir, 'content/terrain/L0.bin')).length).toBe(134_250_498)
+      //
+      // L1 always runs (a plain git blob, real on any checkout). L0 is
+      // guarded on `haveRealL0` (see its own comment, above) -- CI
+      // deliberately does not fetch it, so this environment's own repo copy
+      // may be a pointer that `vite build` copies through byte-for-byte,
+      // same as it would the real file, making this a real skip, not a
+      // no-op assertion that happens to pass.
+      if (haveRealL0) expect(readFileSync(join(outDir, 'content/terrain/L0.bin')).length).toBe(134_250_498)
       expect(readFileSync(join(outDir, 'content/terrain/L1.bin')).length).toBe(33_570_818)
 
       // Copernicus Article 6(b)/6(c): the attribution and the no-liability

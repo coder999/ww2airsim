@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { OCEAN_EXTENT_M, horizonSinkM } from '../../../src/render/horizon.js'
 import { DEEP_WATER_COLOUR, oceanRings, oceanGeometry, createOcean, recentreOcean, oceanCameraXZ, shoalingScale, meshFadeWeight, screenFadeWeight, landWeightFromTerrain, landWeightAt, gridSampleAt, textureSamples, pixelFootprintM } from '../../../src/render/ocean/mesh.js'
 import { OUTSIDE_DEPTH_M } from '../../../src/render/ocean/depth.js'
-import { finestFetchedLevelFor } from '../../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../../src/render/content.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../../tools/terrain/load.js'
 import { ANGULAR_FADE_SAMPLES_PER_WAVELENGTH, FADE_FOOTPRINT_RATIO, angularFadeSpacingM } from '../../../src/render/ocean/bands.js'
 import { SEA_COLOUR } from '../../../src/render/scene/water.js'
@@ -424,15 +424,16 @@ describe('the land-weight grid sampler', () => {
 
   it('weights the real shipped terrain level: open gulf 1, Tacloban 0', () => {
     // The level the ocean is actually handed (main.ts's placeholder pending
-    // Task 6, `finestFetchedLevelFor('low')` -- deliberately not the spec's
-    // eventual `'medium'` default; see main.ts's own note on why), read the
-    // way the texture would be built from it. This used to be 2049 samples
+    // Task 6, `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` -- see its own
+    // comment for why it is deliberately not the spec's eventual `'medium'`
+    // default), read the way the texture would be built from it. This used
+    // to be 2049 samples
     // (L2) indexed as 513 -- the bug that would have failed here on
     // 2026-09-18 had this test existed -- and is 4097 samples (L1) since
     // Task 2 (2026-09-24) shipped the finer levels and moved the finest
     // fetched level to 1.
     const header = loadTerrainHeader()
-    const level = loadTerrainLevel(finestFetchedLevelFor('low'), header)
+    const level = loadTerrainLevel(finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER), header)
     const n = Math.sqrt(level.length)
     expect(n).toBe(4097)
     const texture = { image: { width: n, height: n, data: level } }

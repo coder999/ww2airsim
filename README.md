@@ -305,53 +305,89 @@ height-error tables, and the one open question — is
 
 ## Getting started
 
-Node 22 and npm.
+Node 22, npm, and **Git LFS** (`git-lfs`) — the last one is new as of Task 2
+(2026-09-24) and easy to miss, because its absence does not look like a
+missing tool. `content/terrain/L0.bin` is 134 MB, over GitHub's 100 MB
+per-file limit, so it is committed via Git LFS rather than as a plain blob. A
+checkout without git-lfs installed (or without `git lfs pull` run) gets a
+~130-byte pointer file in its place, and `npm run verify` fails with an
+exact-byte-count mismatch that reads exactly like data corruption, not like a
+missing prerequisite. Install once per machine, then pull if a clone predates
+this:
 
 ```sh
+git lfs install        # once per machine, not per clone
+git lfs pull            # if `content/terrain/L0.bin` is ~130 bytes, not ~134 MB
 npm ci
 npm run verify   # typecheck -> lint -> depcruise -> tests
 ```
 
 `npm run verify` is the gate: it runs `tsc --noEmit`, ESLint, the
 dependency-cruiser boundary rules, and the full vitest suite, in that order.
+CI (`ci.yml`, `nightly-soak.yml`) deliberately does NOT fetch LFS content (a
+bandwidth-cost decision against GitHub LFS's free 1 GB/month quota, made
+because those workflows run on every push/PR or nightly — see `ci.yml`'s own
+comment); the handful of tests that need L0's real bytes detect the pointer
+and skip themselves by name instead of failing. `deploy.yml` (manual,
+low-frequency) DOES fetch LFS content, and is where L0 is actually verified
+before a release ships.
 
 ## The terrain pyramid: a clone already flies
 
-Nothing has to be downloaded to fly over Leyte. `content/terrain/` carries
-`header.json` and `L4.bin`…`L12.bin` — 703,306 bytes, committed — and the
-browser fetches five of those levels, L8 down to L4 (702,346 bytes), because
-`LOD.rings` is 8 and no ring can sample anything coarser (`coarsestFetchedLevel`,
-`src/render/terrain/lod.ts`). L4, at 390 m sample spacing, is what a fresh
-clone draws and what the physics queries.
+Nothing has to be downloaded to fly over Leyte. Since Task 2 (2026-09-24),
+`content/terrain/` carries the WHOLE pyramid, `header.json` and
+`L0.bin`…`L12.bin` — 179,022,522 bytes, all committed (L0 via Git LFS, per
+the prerequisite above; L1 and coarser as plain git blobs). The browser only
+fetches part of it, though: `finestFetchedLevelFor` (`src/render/content.ts`)
+resolves how far down the pyramid a page load goes from the persisted Asset
+Quality tier, and until a later task wires that up from a real Settings
+choice, every session uses the same placeholder, `'low'` — L8 down to L1,
+eight levels, 44,771,216 bytes (`LOD.rings` is 8 and no ring can sample
+anything coarser, `coarsestFetchedLevel` in `src/render/terrain/lod.ts`). L1,
+at 49 m sample spacing, is what a fresh page load draws and what the physics
+queries today; `'medium'`/`'high'`/`'ultra'` (not yet reachable without that
+later task) go one level further, to L0 at 24 m.
 
-Rebuilding is therefore only needed to obtain **L0–L3**, which the browser has
-never been able to fetch. One command, which fetches the eight source tiles
-itself if the cache is empty:
+Before Task 2, only L2–L12 (703,306 bytes) were committed and the pyramid
+stopped at L4 (390 m) for both rendering and physics; L0–L3 lived gitignored
+in `content/terrain/tiles/` and had to be rebuilt locally to even exist.
+`npm run terrain:build` no longer unlocks anything the committed set lacks —
+everything down to L0 is committed now — but it still regenerates the
+pyramid from source, which matters for verifying the pipeline itself is
+reproducible, or after changing the resampler, the mip filter, or the DEM.
+One command, which fetches the eight source tiles itself if the cache is
+empty:
 
 ```sh
 npm run terrain:build    # tools/terrain/build.ts; prints bytes written and elapsed time
 npm run bathy:build      # GEBCO subset → 513² int16 metre grid, 526338 bytes
 ```
 
-Measured on nexus, 2026-09-14:
+Measured on nexus, 2026-09-14 (before Task 2; the committed byte counts above
+are current):
 
 | | |
 | --- | --- |
 | Downloaded | **106,966,683 bytes** — eight Copernicus GLO-30 COGs into `tools/terrain/cache/`, gitignored |
-| Written | **179,022,674 bytes** of pyramid — the 178,319,368 bytes of gitignored `L0`–`L3`, plus the 703,306 already-committed bytes, rewritten byte-identically |
+| Written | **179,022,674 bytes** of pyramid — at the time, the 178,319,368 bytes of gitignored `L0`–`L3`, plus the 703,306 already-committed bytes, rewritten byte-identically |
 
 (Plan 4 estimated "~90 MB of downloads". The eight tiles measure 107 MB; the
 ninth 1° × 1° cell this world touches is 100% open ocean and Copernicus
 publishes no tile for it — `ASSETS.md` has the confirmation.)
 
-Two Tier 1 checks skip themselves **by name** without those files, rather than
-vanishing: the mip-0 far-field height-error table in
-`tests/render/terrainLod.test.ts`, and the built-grid-against-source-tiles
-block in `tests/tools/terrainBuild.test.ts`. Both gate on `L0.bin` AND the
-source cache, because both read both — until 2026-09-14 the second gated on the
-cache alone, so running only the `fetch.ts` half of the command above turned
-its named skip into an ENOENT. Everything else in `npm run verify` runs against
-the committed levels.
+Three Tier 1 checks skip themselves **by name** rather than vanishing when
+their preconditions are not met: the mip-0 far-field height-error table and
+the L0/L1 whole-surface error pin in `tests/render/terrainLod.test.ts`, the
+L0-specific size/hash checks in `tests/tools/terrainBuild.test.ts`, and the
+L0 byte-count assertion in `tests/build/dist.test.ts`. All three gate on
+`tools/terrain/load.ts`'s `hasRealLevelFile(0)` — true only when `L0.bin` is
+its real 134 MB, not an unsmudged LFS pointer — which is exactly the CI
+situation described above. `tests/tools/terrainBuild.test.ts`'s
+built-grid-against-source-tiles block additionally needs the gitignored
+source cache; running only the `fetch.ts` half of the command above without
+also running `terrain:build` turns that one's named skip into an ENOENT
+(review 2026-09-14, finding M3). Everything else in `npm run verify` runs
+regardless.
 
 ## Tier 2: the GPU harness
 
@@ -486,10 +522,14 @@ Live at <https://ww2airsim.marktuttle.dev>, a public static site on the OVH
 VPS. `noindex`, because it is unfinished.
 
 Deploys are **manual**: `gh workflow run deploy.yml --repo coder999/ww2airsim`.
-Pushing `main` releases nothing. The workflow runs `npm run verify`, builds,
-rsyncs `dist/`, and then asserts the live site — including that the gitignored
-L0–L3 terrain tiles never became public (`content/terrain/tiles/L0.bin` must
-404).
+Pushing `main` releases nothing. The workflow checks out with `lfs: true`
+(needed since Task 2, 2026-09-24: `content/terrain/L0.bin` is committed via
+Git LFS), runs `npm run verify`, builds, rsyncs `dist/`, and then asserts the
+live site — including that `content/terrain/L0.bin` IS public (200, by
+design: it is committed content a real page load fetches) and that
+`tools/terrain/build.ts`'s scratch directory never became public
+(`content/terrain/tiles/L6-preview.png` must 404 — before Task 2 this
+checked `tiles/L0.bin`, which moved out of that directory).
 
 The design, the facts it rests on and how each was verified are in
 [`docs/superpowers/specs/2026-09-15-deployment-design.md`](docs/superpowers/specs/2026-09-15-deployment-design.md).

@@ -3,19 +3,18 @@ import { BufferGeometry, Mesh } from 'three'
 import { RUNWAY_SURFACE_OFFSET_M, createRunway } from '../../src/render/scene/runway.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { loadAirfield } from '../../tools/content/load.js'
 import { parseAirfield, runwayCorners } from '../../src/sim/world/airfields.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 
-/** The level a real page load actually flies over today -- `main.ts`'s and
- *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
- *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
- *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
- *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
- *  time; the two concepts have since diverged ("what's committed on disk",
- *  now 0, vs "what a page load fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
+/** The level a real page load actually flies over today -- see
+ *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+ *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
+ *  numerically the same thing (2) at the time; the two concepts have since
+ *  diverged ("what's committed on disk", now 0, vs "what a page load
+ *  fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
 /**
  * The strip is content now (Plan 12 Task 7): `createRunway` takes an

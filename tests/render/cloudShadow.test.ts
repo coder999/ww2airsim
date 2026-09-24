@@ -20,17 +20,16 @@ import { createOcean } from '../../src/render/ocean/mesh.js'
 import { createDepthField } from '../../src/render/ocean/depth.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { loadAirfield, loadShipSpec } from '../../tools/content/load.js'
 
-/** The level a real page load actually flies over today -- `main.ts`'s and
- *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
- *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
- *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
- *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
- *  time; the two concepts have since diverged ("what's committed on disk",
- *  now 0, vs "what a page load fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
+/** The level a real page load actually flies over today -- see
+ *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+ *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
+ *  numerically the same thing (2) at the time; the two concepts have since
+ *  diverged ("what's committed on disk", now 0, vs "what a page load
+ *  fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
 const noise = { shape: loadShape(), detail: loadDetail() }
 const deck = () => createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
@@ -126,7 +125,7 @@ describe('cloud shadow readers (Plan 16b)', () => {
   it('the terrain and the ocean construct with a shadow handle, and without one', () => {
     const field = deck()
     const shadow = createCloudShadow(field)
-    const terrain = createTerrainMesh(TERRAIN_HEADER, shadow)
+    const terrain = createTerrainMesh(TERRAIN_HEADER, GROUND_TRUTH_LEVEL, shadow)
     expect(terrain.object.children.length).toBeGreaterThan(0)
     const depth = createDepthField({ centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000, samples: 3, encoding: 'int16-metres' }, new Int16Array(9).fill(-125))
     const ocean = createOcean(depth, 4, [], undefined, shadow)

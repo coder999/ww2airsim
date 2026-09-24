@@ -7,7 +7,7 @@
 //
 // `loadTerrainField` is deliberately NOT here: it returns `TerrainField`, a
 // type Task 7 defines, and a task may not depend on a type from a later one.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parseTerrainHeader, samplesAtLevel, type TerrainHeader } from '../../src/sim/world/schema.js'
 
@@ -80,6 +80,37 @@ export function loadTerrainHeader(): TerrainHeader {
   }
 
   return parseTerrainHeader(json)
+}
+
+/**
+ * Whether `level`'s committed `.bin` is the REAL content, not an unsmudged
+ * Git LFS pointer -- the state a checkout gets from a plain
+ * `actions/checkout@v5` with no `lfs: true` (or a manual clone before `git
+ * lfs pull`). A pointer is ~130 bytes of text (`version https://git-lfs...`);
+ * the real file is exactly `samplesAtLevel(header, level) ** 2 * 2` bytes.
+ *
+ * Only `L0.bin` can actually be a pointer today -- it is the only path
+ * `.gitattributes` tracks with `filter=lfs` (`L1.bin` and everything coarser
+ * are plain git blobs, always real on any checkout) -- but this takes any
+ * level so a caller does not have to know that split.
+ *
+ * Exists because CI (`ci.yml`, `nightly-soak.yml`) deliberately does NOT set
+ * `lfs: true` on its checkout -- that would fetch L0.bin (134 MB) on every
+ * push and PR, a real bandwidth cost against GitHub LFS's free 1 GB/month
+ * quota, for a check `deploy.yml` (which DOES `lfs: true`, low-frequency,
+ * gating an actual release) already makes for real. Tests that need L0's
+ * ACTUAL bytes use this to skip with a named reason instead of throwing
+ * `loadTerrainLevel`'s length-guard error, which reads exactly like data
+ * corruption rather than "this environment did not fetch LFS content" --
+ * see `tests/render/terrainLod.test.ts`'s `haveFinestMip`,
+ * `tests/tools/terrainBuild.test.ts`'s `haveRealL0`, and
+ * `tests/build/dist.test.ts`'s L0 byte-count assertion.
+ */
+export function hasRealLevelFile(level: number, header: TerrainHeader = loadTerrainHeader()): boolean {
+  const path = terrainLevelPath(level)
+  if (!existsSync(path)) return false
+  const n = samplesAtLevel(header, level)
+  return statSync(path).size === n * n * 2
 }
 
 /**

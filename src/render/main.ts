@@ -6,7 +6,7 @@ import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, SCENARIO_ID } from './content.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createAudioSystem } from '../audio/system.js'
@@ -868,16 +868,19 @@ async function boot(): Promise<void> {
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
   if (cloudTier !== 'off') shadow.setTier(cloudTier)
-  // Placeholder until Task 6 reads the persisted AssetQualityTierName and
-  // resolves this from Settings (docs/superpowers/plans/
-  // 2026-09-24-plan-ui-realism.md, Task 6). Deliberately `'low'`, not the
-  // spec's eventual `'medium'` first-visit default: with no Settings UI yet
-  // to opt out, `'medium'` would mean every real page load unconditionally
-  // fetches the 134 MB L0.bin (see `createTerrainMesh`'s matching note in
-  // `terrain/mesh.ts` -- the two have to agree, or the mesh would allocate a
-  // texture for a level this loop never fetches).
-  const finestFetchedLevel = finestFetchedLevelFor('low')
-  const terrain = createTerrainMesh(TERRAIN_HEADER, shadow)
+  // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` has the memory reasoning for
+  // why this is `'low'` and not the spec's eventual `'medium'` first-visit
+  // default. Computed ONCE, here -- the only call site in `src/` -- and
+  // threaded into every place that needs it (`createTerrainMesh`'s
+  // `finestLevel` param, `terrain.levelTexture()` below,
+  // `loadTerrainProgressively`'s and `applyTerrainLevel`'s `finestLevel`
+  // params further down) rather than resolved independently in each: until
+  // 2026-09-25 (Task 2 review) `createTerrainMesh` called
+  // `finestFetchedLevelFor('low')` itself, a second source of truth that
+  // happened to agree with this one only because both were the same
+  // hardcoded literal.
+  const finestFetchedLevel = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+  const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow)
   // Plan 13b. The raster and the terrain levels race; whichever lands
   // second finds the other ready. A failed fetch leaves the procedural
   // paint (surface.ts's `ready` uniform) and the daa1b39 forest, logged,

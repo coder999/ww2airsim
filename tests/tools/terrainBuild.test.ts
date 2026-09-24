@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest'
 import { fromFile } from 'geotiff'
 import {
   FIRST_COMMITTED_LEVEL,
+  hasRealLevelFile,
   loadTerrainHeader,
   loadTerrainLevel,
   terrainHeaderPath,
@@ -29,10 +30,33 @@ const COMMITTED_LEVELS = Array.from(
   (_v, i) => FIRST_COMMITTED_LEVEL + i,
 )
 
+/**
+ * Whether L0.bin's ACTUAL bytes are on this checkout, not an unsmudged Git
+ * LFS pointer. `ci.yml` and `nightly-soak.yml` deliberately check out
+ * WITHOUT `lfs: true` (a real bandwidth-cost decision -- see their own
+ * comments, and `deploy.yml`'s, which DOES `lfs: true` and is where L0's
+ * real bytes are actually gated before a release ships), so L0.bin exists as
+ * a file there but is ~130 bytes of pointer text. `L1.bin` and every level
+ * coarser are plain git blobs and are always real, on any checkout, with or
+ * without LFS -- only L0-specific checks below need this gate.
+ */
+const haveRealL0 = hasRealLevelFile(0, header)
+if (!haveRealL0) {
+  console.warn(
+    `[terrainBuild.test.ts] ${terrainLevelPath(0)} is absent or an unsmudged Git LFS pointer -- the ` +
+    'L0-specific size and hash checks below are SKIPPED (L1-L12 still run). Expected in CI; run ' +
+    '`git lfs pull` to enable them locally.',
+  )
+}
+
 describe('the committed terrain fallback', () => {
   it('is present, parses, and has the level sizes its header claims', () => {
     expect(COMMITTED_LEVELS).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     for (const level of COMMITTED_LEVELS) {
+      // Named skip (the console.warn above), not silent: L0 alone can be an
+      // unsmudged LFS pointer in an environment that deliberately did not
+      // fetch it (see `haveRealL0`'s own comment).
+      if (level === 0 && !haveRealL0) continue
       const data = loadTerrainLevel(level, header)
       const n = samplesAtLevel(header, level)
       expect(data.length, `L${level}`).toBe(n * n)
@@ -151,8 +175,18 @@ const sha256 = (path: string): string => createHash('sha256').update(readFileSyn
 describe('the committed terrain is byte-for-byte the pinned build', () => {
   it('matches the pinned SHA-256 of header.json and every committed level', () => {
     const actual: Record<string, string> = { 'header.json': sha256(terrainHeaderPath()) }
-    for (const level of COMMITTED_LEVELS) actual[`L${level}.bin`] = sha256(terrainLevelPath(level))
-    expect(actual).toEqual(COMMITTED_SHA256)
+    // L0.bin's pinned hash is dropped from BOTH sides, symmetrically, when
+    // this checkout does not have its real bytes (`haveRealL0`'s own
+    // comment) -- rather than hashing an LFS pointer and failing on a
+    // mismatch that says nothing about the pipeline. L1-L12 are always real
+    // and always checked; this is a named, partial skip, not a vanished one.
+    const expected: Record<string, string> = { ...COMMITTED_SHA256 }
+    if (!haveRealL0) delete expected['L0.bin']
+    for (const level of COMMITTED_LEVELS) {
+      if (level === 0 && !haveRealL0) continue
+      actual[`L${level}.bin`] = sha256(terrainLevelPath(level))
+    }
+    expect(actual).toEqual(expected)
   })
 })
 
@@ -163,19 +197,22 @@ describe('the committed terrain is byte-for-byte the pinned build', () => {
 // not". The console line below makes that unmissable even in a dot reporter.
 //
 // BOTH preconditions, not just the cache. The block below also calls
-// `loadTerrainLevel(0, header)`, and L0.bin lives in the SEPARATELY gitignored
-// `content/terrain/tiles/` -- so gating on the cache alone turned a named skip
-// into a hard ENOENT for anyone who followed the instruction this line used to
-// print: `npx tsx tools/terrain/fetch.ts` creates the cache and does not create
-// L0 (review 2026-09-14, finding M3). `tests/render/terrainLod.test.ts` gates
-// on `existsSync(terrainLevelPath(0))` and names both commands, which is the
-// shape copied here.
-const haveSource = existsSync(CACHE_DIR) && existsSync(terrainLevelPath(0))
+// `loadTerrainLevel(0, header)`, which needs L0's REAL bytes, not merely a
+// file at that path -- `hasRealLevelFile`, not bare `existsSync`, because
+// Task 2 (2026-09-24) committed L0.bin (previously it lived in the
+// separately gitignored `content/terrain/tiles/`, which is the ENOENT this
+// gate was first written to prevent, review 2026-09-14 finding M3), and a
+// checkout without `git lfs pull` (or `lfs: true`, which `ci.yml`
+// deliberately omits -- see `haveRealL0` above) has a file at that path that
+// is only a ~130-byte pointer. `tests/render/terrainLod.test.ts`'s
+// `haveFinestMip` is the same check for the same reason.
+const haveSource = existsSync(CACHE_DIR) && hasRealLevelFile(0, header)
 if (!haveSource) {
   console.warn(
-    `[terrainBuild.test.ts] ${CACHE_DIR} or ${terrainLevelPath(0)} is absent -- the source ` +
-    `cross-check and the source-tile digests are SKIPPED. Run ` +
-    `\`npx tsx tools/terrain/fetch.ts && npm run terrain:build\` to enable them.`,
+    `[terrainBuild.test.ts] ${CACHE_DIR} is absent, or ${terrainLevelPath(0)} is absent/an unsmudged ` +
+    'Git LFS pointer -- the source cross-check and the source-tile digests are SKIPPED. Run ' +
+    '`npx tsx tools/terrain/fetch.ts && npm run terrain:build` to populate the cache, and/or ' +
+    '`git lfs pull` to fetch L0.bin\'s real bytes, to enable them.',
   )
 }
 

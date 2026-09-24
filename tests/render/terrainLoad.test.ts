@@ -15,7 +15,7 @@ import {
   TERRAIN_HEADER,
 } from '../../src/render/terrain/load.js'
 import { createTerrainMesh, sampleLevelsForRing } from '../../src/render/terrain/mesh.js'
-import { finestFetchedLevelFor, terrainLevelUrl } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelUrl } from '../../src/render/content.js'
 import { LOD, selectNodes } from '../../src/render/terrain/lod.js'
 import { initialFrameState, withTerrain } from '../../src/render/frame.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
@@ -27,18 +27,15 @@ import { loadTerrainLevel, TERRAIN_DIR } from '../../tools/terrain/load.js'
 
 /**
  * The level these tests exercise as "the" finest fetched level -- mirrors
- * `main.ts`'s and `terrain/mesh.ts`'s own placeholder
- * (`finestFetchedLevelFor('low')`, pending Task 6's real persisted-tier
- * wiring; deliberately `'low'` rather than the spec's eventual `'medium'`
- * default, see those two files' own notes -- an L0 floor OOM'd this very
- * file's vitest worker at ~15 `createTerrainMesh` calls, measured
- * 2026-09-24) rather than hardcoding a number, so this file measures the
- * same level the app actually asks for today. Before Task 2 (2026-09-24)
- * `FINEST_FETCHED_LEVEL` was a fixed constant this file imported directly;
- * it is now a function of the Asset Quality tier, tested in its own right
- * below (`describe('finestFetchedLevelFor', ...)`).
+ * `main.ts`'s own placeholder, `content.ts`'s `INTERIM_ASSET_QUALITY_TIER`
+ * (see its own comment for what it is and why), rather than hardcoding a
+ * number, so this file measures the same level the app actually asks for
+ * today. Before Task 2 (2026-09-24) `FINEST_FETCHED_LEVEL` was a fixed
+ * constant this file imported directly; it is now a function of the Asset
+ * Quality tier, tested in its own right below
+ * (`describe('finestFetchedLevelFor', ...)`).
  */
-const FINEST_FETCHED_LEVEL = finestFetchedLevelFor('low')
+const FINEST_FETCHED_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
 /**
  * Sample edge of one pyramid level, computed from the exponent rather than
@@ -149,6 +146,14 @@ describe('finestFetchedLevelFor', () => {
     // nearly all of it; medium/high/ultra all reach full 24 m resolution
     // (L0) -- they differ only in how much real texture/asset headroom a
     // later spec adds on top, which does not exist yet.
+    //
+    // The literal `'low'`, not `INTERIM_ASSET_QUALITY_TIER`, is deliberate
+    // here: this test is pinning the TIER-TO-LEVEL MAPPING's contract (`low`
+    // means 1, full stop), which must hold regardless of which tier
+    // `main.ts` currently uses as its placeholder -- unlike the
+    // `GROUND_TRUTH_LEVEL`-style constants elsewhere in this file and
+    // others, which deliberately DO track `INTERIM_ASSET_QUALITY_TIER` so
+    // they keep measuring whatever the app actually flies over.
     expect(finestFetchedLevelFor('low')).toBe(1)
     expect(finestFetchedLevelFor('medium')).toBe(0)
     expect(finestFetchedLevelFor('high')).toBe(0)
@@ -194,7 +199,7 @@ describe('terrain mesh', () => {
     // symmetric about that diagonal, so swapping centreX and centreZ maps it
     // onto itself and this test passes with the coordinates transposed --
     // confirmed by mutation, 2026-09-14, which is how this line got written.
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     mesh.update(3e3, -47e3)
 
     // float32 on the way to the GPU, so the expectation is rounded the same
@@ -210,7 +215,7 @@ describe('terrain mesh', () => {
   })
 
   it('re-packs from scratch each frame, and flags the result for re-upload', () => {
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     mesh.update(3e3, 3e3)
     mesh.update(-40e3, 61e3)
     const expected = selectNodes(-40e3, 61e3).length
@@ -236,7 +241,7 @@ describe('terrain mesh', () => {
     // cube at the scene origin -- i.e. at -eye once the camera-relative
     // translation is applied. Left culled, the entire terrain disappears
     // whenever the world origin is out of frame, which is almost always.
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     for (const child of mesh.object.children) {
       expect(child.frustumCulled).toBe(false)
     }
@@ -246,7 +251,7 @@ describe('terrain mesh', () => {
     // Backface culling is on (FrontSide is three's default), and a grid wound
     // the other way renders nothing at all from an airplane. Nothing else in
     // this task can see that headless.
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     const geometry = (mesh.object.children[0] as Mesh).geometry as BufferGeometry
     const position = geometry.getAttribute('position')
     const index = geometry.getIndex()!
@@ -264,7 +269,7 @@ describe('terrain mesh', () => {
   })
 
   it('stores a level as metres, in the texture whose size the header dictates', () => {
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     const level = COARSEST_DRAWN_LEVEL
     const n = samplesAtLevel(TERRAIN_HEADER, level)
     const versionBefore = mesh.levelTexture(level).version
@@ -283,7 +288,7 @@ describe('terrain mesh', () => {
   })
 
   it('refuses a level whose sample count disagrees with the header', () => {
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     expect(() => mesh.setLevel(COARSEST_DRAWN_LEVEL, new Int16Array(4))).toThrow(/samples/i)
   })
 
@@ -319,7 +324,7 @@ describe('terrain mesh', () => {
     // green (review 2026-09-14, I3). `shaderCameraXZ` returns the uniform's
     // own value object, so this cannot pass against a mesh that updates a
     // copy.
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     expect(mesh.shaderCameraXZ().toArray()).toEqual([0, 0])
     mesh.update(3e3, -47e3)
     expect(mesh.shaderCameraXZ().toArray()).toEqual([3e3, -47e3])
@@ -369,7 +374,7 @@ describe('load/mesh coupling', () => {
     await loadTerrainProgressively((level) => seen.push(level), FINEST_FETCHED_LEVEL, fetchImpl)
     const maxFetched = Math.max(...seen)
 
-    const mesh = createTerrainMesh(TERRAIN_HEADER)
+    const mesh = createTerrainMesh(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)
     let maxMeshLevel = -1
     for (let level = 0; level < TERRAIN_HEADER.levels; level++) {
       try {
@@ -391,12 +396,12 @@ describe('load/mesh coupling', () => {
     // plausible everywhere. Every real caller passes TERRAIN_HEADER, so this
     // is the only thing standing between "not reachable" and "not reachable
     // in silence" (review 2026-09-14, finding I2).
-    expect(() => createTerrainMesh({ ...TERRAIN_HEADER, halfExtentM: TERRAIN_HEADER.halfExtentM / 2 })).toThrow(
+    expect(() => createTerrainMesh({ ...TERRAIN_HEADER, halfExtentM: TERRAIN_HEADER.halfExtentM / 2 }, FINEST_FETCHED_LEVEL)).toThrow(
       /half-extent/,
     )
     // ...and the level count is still free to differ, which is what
     // `coarsestFetchedLevel` takes a level count rather than a header for.
-    expect(() => createTerrainMesh({ ...TERRAIN_HEADER, levels: LOD.rings + 1 })).not.toThrow()
+    expect(() => createTerrainMesh({ ...TERRAIN_HEADER, levels: LOD.rings + 1 }, FINEST_FETCHED_LEVEL)).not.toThrow()
   })
 })
 

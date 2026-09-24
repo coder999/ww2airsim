@@ -39,7 +39,6 @@ import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface
 import { fogWeightNode, horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
-import { finestFetchedLevelFor } from '../content.js'
 import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
@@ -365,8 +364,17 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  *
  * `object.children[k]` is ring k, in order, and says so in its name -- the
  * mesh's own bookkeeping depends on it and so does the Node test.
+ *
+ * `finestLevel` bounds the texture map from below (see its own comment,
+ * further down, for the memory reason it matters which level the caller
+ * passes) and has to be the SAME value the caller passes to
+ * `loadTerrainProgressively`'s `finestLevel` argument (`terrain/load.ts`) --
+ * this function does not resolve it independently, on purpose (Task 2
+ * review, 2026-09-25: it used to, and `main.ts` computed a second, separate
+ * value for the network loop, which happened to agree only because both
+ * were hardcoded to the same literal).
  */
-export function createTerrainMesh(header: TerrainHeader, shadow?: CloudShadowHandle): TerrainMesh {
+export function createTerrainMesh(header: TerrainHeader, finestLevel: number, shadow?: CloudShadowHandle): TerrainMesh {
   // Two world extents would be two worlds. `header` decides the texture sizes
   // and `sampleField`'s world->grid mapping below, but `update` calls
   // `selectNodes` with the DEFAULT `LOD`, whose `halfExtentM` comes from the
@@ -390,18 +398,32 @@ export function createTerrainMesh(header: TerrainHeader, shadow?: CloudShadowHan
   // into, which `levelTexture` below turns into a throw rather than a
   // silently ignored write.
   const coarsestLevel = coarsestFetchedLevel(header.levels)
-  // Placeholder until Task 6 reads the persisted Asset Quality tier and
-  // threads it in from the boot sequence (docs/superpowers/plans/
-  // 2026-09-24-plan-ui-realism.md, Task 6). Deliberately `'low'`, not the
-  // spec's eventual `'medium'` first-visit default: an L0 floor allocates a
-  // 8193x8193 float32 texture per mesh (268 MB) where L1 allocates a
-  // 4097x4097 one (67 MB), and with no Settings UI yet to opt out, `'medium'`
-  // here would also mean every real page load fetches the 134 MB L0.bin
-  // unconditionally. Measured 2026-09-24: `'medium'` OOM'd a single vitest
-  // worker (`tests/render/terrainLoad.test.ts`, ~15 `createTerrainMesh`
-  // calls in one file, "JavaScript heap out of memory" at ~4.1 GB) before
-  // Task 6 exists to let a real choice override it.
-  const finestLevel = finestFetchedLevelFor('low')
+  // `finestLevel` is the caller's own answer to "how far down the pyramid
+  // did THIS page load fetch" (`content.ts`'s `finestFetchedLevelFor`,
+  // resolved from the persisted Asset Quality tier), taken as a parameter
+  // rather than resolved independently in here -- until 2026-09-25 (Task 2
+  // review) this function called `finestFetchedLevelFor('low')` itself while
+  // `main.ts` computed its OWN, separately, and passed that to
+  // `levelTexture()`/`applyTerrainLevel()`/`loadTerrainProgressively()`: two
+  // independent sources of truth for a value that has to agree, or this
+  // allocates a texture map for a level the network loop never fetches (or
+  // vice versa, a level arrives with no texture reserved for it -- either
+  // way `levelTexture` below throws). One caller, `main.ts`, computing it
+  // once and threading it through both places it is needed is what makes
+  // that agreement structural instead of coincidental.
+  //
+  // The memory reason the CALLER should pass `'low'`'s level rather than the
+  // spec's eventual `'medium'` default, until Task 6 adds lazy/on-demand
+  // level-texture allocation: this loop allocates one `Float32Array(n^2)`
+  // PER LEVEL from `finestLevel` upward, all at once, for the life of the
+  // mesh. At L0 that is 8193x8193 (268 MB) + L1's 4097x4097 (67 MB) + L2's
+  // 2049x2049 (17 MB) + ... -- roughly 358 MB per mesh instance -- against
+  // 90 MB starting from L1. Measured 2026-09-24: a `'medium'` floor OOM'd a
+  // single vitest worker (`tests/render/terrainLoad.test.ts`, ~15
+  // `createTerrainMesh` calls in one file, "JavaScript heap out of memory"
+  // at ~4.1 GB), and the same allocation runs in a real browser tab the
+  // moment Task 6 flips the default -- this is a real memory ceiling, not a
+  // test-only inconvenience.
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
   const cover = createCoverNodes(COVER_HEADER)

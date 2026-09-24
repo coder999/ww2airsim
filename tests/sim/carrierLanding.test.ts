@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { advance, playerAircraft, withAircraftState, withControls, type World } from '../../src/sim/loop.js'
@@ -14,14 +14,13 @@ import { paddlesCue, type PaddlesCue } from '../../src/sim/paddles.js'
 import { v3, sub, length } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 
-/** The level a real page load actually flies over today -- `main.ts`'s and
- *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
- *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
- *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
- *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
- *  time; the two concepts have since diverged ("what's committed on disk",
- *  now 0, vs "what a page load fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
+/** The level a real page load actually flies over today -- see
+ *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+ *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
+ *  numerically the same thing (2) at the time; the two concepts have since
+ *  diverged ("what's committed on disk", now 0, vs "what a page load
+ *  fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 const f6f = loadAircraftSpec('f6f-hellcat')
 
 describe('an approach flown to the moving deck (Plan 8)', () => {

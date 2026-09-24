@@ -20,20 +20,19 @@ import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import { decksOf, deckLocal } from '../../src/sim/world/deck.js'
 import { initialAircraftState } from '../../src/render/spawn.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
-/** The level a real page load actually flies over today -- `main.ts`'s and
- *  `terrain/mesh.ts`'s own placeholder pending Task 6's real persisted-tier
- *  wiring (deliberately `'low'`, not the spec's eventual `'medium'` default;
- *  see those two files' own notes on why). Before Task 2 (2026-09-24) this
- *  file used `FIRST_COMMITTED_LEVEL`, numerically the same thing (2) at the
- *  time; the two concepts have since diverged ("what's committed on disk",
- *  now 0, vs "what a page load fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor('low')
+/** The level a real page load actually flies over today -- see
+ *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+ *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
+ *  numerically the same thing (2) at the time; the two concepts have since
+ *  diverged ("what's committed on disk", now 0, vs "what a page load
+ *  fetches", tier-dependent). */
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 const f6f = loadAircraftSpec('f6f-hellcat')
 const tacloban = loadAirfield('tacloban')
 const keys = (...k: string[]) => new Set(k)
@@ -467,10 +466,10 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
   const TAKEOFF_SPEED_MPS = 86.5 * 0.44704
 
   it('holds, settles onto the real terrain, rolls and lifts off under full throttle', () => {
-    // The committed L4 field -- the one level `physicsFieldFor` ever hands to
-    // the physics (src/render/terrain/load.ts) -- loaded the same way
-    // `tests/sim/soak.test.ts`'s terrain-contact soak does: this is a test,
-    // not `src/sim/`, so pulling from `tools/terrain/load.ts` is fine here.
+    // The ground-truth field (`GROUND_TRUTH_LEVEL`, this task's placeholder
+    // pending Task 6) -- loaded the same way `tests/sim/soak.test.ts`'s
+    // terrain-contact soak does: this is a test, not `src/sim/`, so pulling
+    // from `tools/terrain/load.ts` is fine here.
     const header = loadTerrainHeader()
     const heights = loadTerrainLevel(GROUND_TRUTH_LEVEL, header)
     const terrain = createTerrainField(header, GROUND_TRUTH_LEVEL, heights)
@@ -481,13 +480,22 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     expect(groundHeightM).toBeGreaterThan(0)
     expect(groundHeightM).toBeLessThan(50)
 
+    // `initialAircraftState(position, true)`, not a hand-built `createState`:
+    // the latter's `attitude` defaults to `qIdentity()` (nose pointing +X,
+    // i.e. EAST), which is exactly the pre-2026-09-17 bug `rollFromTheSpawn`'s
+    // own comment below warns about ("east of Tacloban is San Pedro Bay").
+    // This test carried that bug latently -- L2's coarser, over-extended
+    // coastline happened to keep the bay far enough east that a 30 s ground
+    // roll and 90-tick rotate never reached it, so it read as "passing" for
+    // the wrong reason. Task 2's review (2026-09-25) caught it: at
+    // `GROUND_TRUTH_LEVEL` (L1, closer to the real, finer coastline) the
+    // identity-attitude roll crashed into the bay mid-rotation. This is a
+    // pre-existing fixture weakness this task's terrain-resolution change
+    // exposed, not a terrain data bug -- L0/L1/L2 all agree San Pedro Bay is
+    // there, they just place its true shoreline a little more accurately.
     let f = initialFrameState(
       f6f,
-      createState({
-        position: v3(tacloban.runway.center.x, groundHeightM, tacloban.runway.center.z),
-        velocity: v3(0, 0, 0),
-        gearFraction: 1,
-      }),
+      initialAircraftState(v3(tacloban.runway.center.x, groundHeightM, tacloban.runway.center.z), true),
       undefined,
       null,
       true,

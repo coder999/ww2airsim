@@ -12,7 +12,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # `lfs: true` fetches `content/terrain/L0.bin`'s real 134 MB (Task 2,
+      # 2026-09-24) instead of leaving it as a ~130-byte Git LFS pointer.
+      # Deliberately set HERE and not on `ci.yml`/`nightly-soak.yml` (see
+      # their own comments): this workflow is manual (`workflow_dispatch`)
+      # and gates an actual release, so it is worth the real GitHub LFS
+      # bandwidth cost (against the free 1 GB/month quota) every time it
+      # runs; a plain checkout without this would silently ship a 134-byte
+      # pointer as the "terrain," and `npm run verify` below would also fail
+      # its own L0 byte-count assertion first.
       - uses: actions/checkout@v5
+        with:
+          lfs: true
 
       - uses: actions/setup-node@v5
         with:
@@ -77,15 +88,17 @@ jobs:
       # Every request below carries a `?cb=` key unique to this run and to the
       # check making it. Without one these assertions test CLOUDFLARE'S CACHE,
       # not the deploy, and a stale edge answer is indistinguishable from a
-      # correct one. Measured against the live site 2026-09-15:
+      # correct one. Measured against the live site 2026-09-15 (before Task 2
+      # moved L0.bin out of the gitignored `tiles/` directory):
       #
       #   /content/terrain/tiles/L0.bin        -> 404, cf-cache-status: HIT, age: 129
       #   /content/terrain/tiles/L0.bin?cb=... -> 404, cf-cache-status: MISS
       #
-      # So the negative assertion -- the one that exists to catch the 178 MB of
-      # gitignored terrain tiles going public -- was the single most foolable
-      # check in this file: a deploy that really did publish them could have
-      # been answered 404 from cache and gone green.
+      # So the negative assertion -- at the time, the one that existed to
+      # catch the 178 MB of gitignored terrain tiles going public, now the
+      # scratch-tiles-directory check further down -- was the single most
+      # foolable check in this file: a deploy that really did publish them
+      # could have been answered 404 from cache and gone green.
       #
       # The key varies per request, not just per run, so no attempt can be
       # served a response that an earlier attempt in the same run populated.
@@ -157,6 +170,20 @@ jobs:
 
           tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin?cb=$cb-l4")
           test "$tcode" = "200" || { echo "::error::terrain L4 returned $tcode"; exit 1; }
-          lcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/tiles/L0.bin?cb=$cb-l0")
-          test "$lcode" = "404" || { echo "::error::gitignored L0 is public ($lcode)"; exit 1; }
+          # L0.bin is INTENTIONALLY public since Task 2 (2026-09-24) -- it is
+          # committed content (via Git LFS), fetched by `medium`/`high`/
+          # `ultra` Asset Quality tiers -- unlike before that task, when it
+          # lived gitignored in `tiles/` and this line asserted the opposite
+          # (a 404). A 200 here also confirms this deploy's checkout smudged
+          # the real bytes rather than shipping the ~130-byte LFS pointer,
+          # which `npm run verify` above would already have caught via its
+          # own exact-byte-count assertion -- this is the same fact,
+          # confirmed on the actual live site rather than only in CI.
+          l0code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L0.bin?cb=$cb-l0")
+          test "$l0code" = "200" || { echo "::error::content/terrain/L0.bin returned $l0code, not 200"; exit 1; }
+          # `tools/terrain/build.ts`'s scratch directory (debug artefacts
+          # like `L6-preview.png`) must still never be public -- this is the
+          # check the L0 one used to be, before L0 moved out of `tiles/`.
+          scode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/tiles/L6-preview.png?cb=$cb-tiles")
+          test "$scode" = "404" || { echo "::error::the scratch tiles/ directory is public ($scode)"; exit 1; }
           echo "live site verified"
