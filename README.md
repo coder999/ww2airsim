@@ -116,8 +116,8 @@ slot now shows a rotating, heading-up sweep with fading contact dots and a
 `Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own
 `pursuit-range` playtest, where he evaded the AI contact and had no way to
 find it again. Tier 1 is green and the reference-GPU spec passed 5
-consecutive runs against the real RX 6700 XT, gpu p95 well under the 6.0 ms
-budget with zero validation errors. Task review caught and fixed two real
+consecutive runs against the real RX 6700 XT, gpu p95 0.82-1.13 ms (budget
+6.0 ms) with zero validation errors. Task review caught and fixed two real
 defects along the way — a doubled render-target uv-flip in the diagnostic
 readback, and a nearly-unfalsifiable brightness assertion — both covered in
 the [handoff](docs/handoff/2026-09-23-plan17-radar.md), which also has the
