@@ -70,11 +70,14 @@ that is the only shore that exists; there was never a second one to wait for.
 
 - **The river+road mask's bounding box grows — measured, not just flagged.**
   `createRiverMask`'s extent is derived from whichever paths exist; today
-  that's two short river segments near Tacloban (~36 km × 25 km). The real,
-  name-filtered Maharlika Highway alignment spans ~137 km on its own —
-  bigger than "tens of km," confirmed directly against Task 1's real
-  output, not assumed. Task 2's default mask size is raised to 8192² (from
-  4096²) as a result — see Task 2's own "Ruling" for the full measurement
+  that's two short river segments near Tacloban (~36 km × 25 km). Naming
+  the Maharlika Highway alone spans ~179 km (it's OSM's name for the whole
+  Pan-Philippine Highway, not a Leyte-local road) — a geographic radius
+  filter around Tacloban brings the real, shipped extent to ~137 km,
+  bigger than "tens of km" either way, confirmed directly against Task 1's
+  real output at every step, not assumed. Task 2's default mask size is
+  raised to 8192² (from 4096²) as a result — see Task 2's own "Ruling" for
+  the full two-round measurement
   and reasoning; Task 2 must still confirm this actually gives a usable
   river width in texels (the shipped rivers must not visibly thin or
   vanish) rather than trusting the estimate, or fall back to the design's
@@ -305,33 +308,52 @@ git commit -m "Plan 13d task 1: Overpass extraction -- towns, roads, places.json
 
 ## Task 2: Roads on the river mask's second channel
 
-**Ruling (controller, overnight run, 2026-09-24, measured against Task 1's
-real output):** the combined river+road mask's extent, and therefore the
-resolution needed to keep it as fine as the shipped river-only mask, turned
-out to be a much bigger jump than the amendment commit (`1b8ecef`) that
-decided "RG at 4096², not 2048²" anticipated — that decision was weighing
-4096² against 2048² for a mask assumed to stay close to the rivers' own
-~36 km × 25 km footprint. The real Maharlika Highway alignment (see the
-`ROAD_PATHS` filter above, and its own comment) spans roughly 137 km on its
-own — Tacloban to Ormoc, which design §7 itself names as one end of the
-alignment, is ~100 km by road in reality. At 4096² over that span, texels
-land at ~34 m (worse than the 19 m a 38 m river's two-texel minimum needs,
-failing this task's own texel-size test by roughly 2×). This is a
-resolution problem, not the memory-cost problem the 2048² fallback existed
-for — per this task's own Step 4 instruction ("if the actual problem
-measured here is resolution, not memory, a larger size is the correct
-fix"), the default is raised to **8192²**, not lowered to 2048². At 8192²
-the same 137 km span gives ~17 m texels — inside the bar with room to
-spare. **Cost if wrong:** this roughly quadruples the mask's GPU memory
-versus the already-shipped 4096² single-channel version (measure the real
-delta in Task 2's own Step 4 — the design doc's own §8 "6.0 ms budget...
-re-derived with the table, never widened to pass" rule applies to GPU
-TIME, not memory footprint directly, but a much larger texture is exactly
-the kind of change Tier 2's own budget check exists to catch if it turns
-out to cost real frame time). Flag this specific number (8192² vs the
-originally-decided 4096²) for Mark's morning review — it is the one
-ruling in this plan that changes a number he explicitly chose (`1b8ecef`),
-not just a data-extraction assumption.
+**Ruling (controller, overnight run, 2026-09-24, revised TWICE against
+real measurements before landing here — both earlier estimates below are
+kept, struck through in spirit but not in text, because this repo's own
+rule is to correct a wrong claim in place with what was actually found,
+not silently rewrite it):**
+
+The combined river+road mask's extent, and the resolution needed to keep it
+as fine as the shipped river-only mask, turned out to be a much bigger jump
+than the amendment commit (`1b8ecef`, "RG at 4096², not 2048²") anticipated
+— that decision weighed 4096² against 2048² for a mask assumed to stay
+close to the rivers' own ~36 km × 25 km footprint.
+
+- **First estimate (wrong):** filtering `places.json`'s 1,897 roads to
+  ones named "Maharlika"/ref `'1'` alone (290 roads) was assumed to bound
+  the extent to design §7's own named scope. Measured span: ~137 km.
+  Task 2's implementer actually built this and measured the REAL number:
+  **178.6 km**, not 137 — the estimate was computed from an approximate
+  Tacloban coordinate and an incomplete filter, not the real projected
+  data. At 8192² that real span gives ~44 m texels, still failing the
+  <19 m bar. **Root cause:** "Maharlika Highway" is OSM's name for the
+  entire Pan-Philippine Highway, which crosses into Samar north of
+  Tacloban (the San Juanico Bridge) and continues south past Abuyog — a
+  name match alone cannot bound it to Leyte's own coastline, because the
+  name isn't Leyte-specific.
+- **Second, actually-measured fix:** add a geographic filter alongside the
+  name filter — every point of a matched way within 80 km of Tacloban's
+  own sourced coordinate (`content/bases/tacloban.json`'s "11.228 N
+  125.028 E", NOT the tangent-plane's (0,0) origin at 10.8 N/125.3 E,
+  which is a different point — filtering against the wrong one would
+  silently miscenter this radius). 80 km comfortably covers both named
+  ends of the alignment (Ormoc is ~50 km from Tacloban straight-line;
+  Abuyog is ~65-70 km) while cutting the Samar/beyond-Abuyog tails.
+  Measured directly against the real data (not estimated): 206 roads,
+  spanning ~137 km, giving ~16.7 m texels at 8192² — inside the <19 m
+  bar with real margin, not an estimate's optimistic rounding.
+
+The default mask size is raised to **8192²** (not lowered to 2048² — this
+is a resolution problem, not the memory-cost problem 2048² was a fallback
+for, per this task's own Step 4 instruction). **Cost if wrong:** the real
+memory delta versus the shipped 4096² single-channel mask (16 MiB) is
+**8×** (128 MiB) — both the linear size AND the channel count doubled,
+correcting an earlier "roughly quadruples" guess in this same ruling that
+undercounted it. Flag both the 8192² size AND the 80 km geographic radius
+for Mark's morning review — the size revises a number he explicitly chose
+(`1b8ecef`), and the radius is a judgment call (why 80 km, why centered on
+Tacloban specifically) with no design-doc precedent to check it against.
 
 **Files:**
 - Modify: `src/render/terrain/rivers.ts`
@@ -393,23 +415,35 @@ export const RIVER_PATHS = riverData.map(r => ({
 }))
 
 // Task 1's Overpass query has no name filter, so `places.json` carries
-// every trunk/primary way in the whole 200 km query box -- 1,897 roads
-// spanning the box's full ~196 km, most of them minor provincial roads
-// nowhere near Leyte's coast. Rasterizing all of them would both paint
-// roads design §7 never asked for and force the mask's bounding box out to
-// the query box's own full extent. Filtered here to the one alignment §7
-// actually names ("the Maharlika Highway alignment... and the Ormoc side
-// on the west"): 290 roads, matched by name or by the `ref` fallback
-// Task 1 gives an unnamed segment (`'1'`, the AH26/N1 route number this
-// highway carries in OSM). Measured 2026-09-24: this set still spans
-// ~137 km (Tacloban to Ormoc, real road distance, is itself ~100 km) --
-// see this file's own Ruling below for what that costs in resolution.
+// every trunk/primary way in the whole 200 km query box -- 1,897 roads.
+// Filtered by name/ref to the one alignment design §7 actually names
+// ("the Maharlika Highway alignment... and the Ormoc side on the west"):
+// 290 roads. THAT ALONE IS NOT ENOUGH -- measured 2026-09-24 against the
+// real data: "Maharlika Highway" is OSM's name for the whole Pan-Philippine
+// Highway, which crosses into Samar north of Tacloban (the San Juanico
+// Bridge) and continues south past Abuyog -- the name-only set spans
+// ~178 km, not the ~100 km (Tacloban-Ormoc, the alignment's own two
+// named ends) this plan actually needs. A second filter -- every point of
+// the way within 80 km of Tacloban's own world origin (comfortably beyond
+// both Ormoc, ~50 km, and Abuyog, ~65-70 km, straight-line) -- brings it
+// down to 206 roads spanning ~137 km, measured texel size ~16.7 m at the
+// mask's 8192² size, inside the <19 m bar with real margin (not the ~17 m
+// ESTIMATE the first version of this ruling used before measuring the
+// actual geographic spread).
+// Tacloban's own sourced coordinate (content/bases/tacloban.json's
+// reference: "11.228 N 125.028 E"), not the tangent-plane's (0,0) origin
+// (10.8 N, 125.3 E per master spec §4) -- these are different points, and
+// filtering against the wrong one would silently miscenter this radius.
+const TACLOBAN_LOCAL = toLocal(11.228, 125.028)
+const TACLOBAN_RADIUS_M = 80_000
 export const ROAD_PATHS = placesData.roads
   .filter(r => /maharlika/i.test(r.name) || r.name === '1')
   .map(r => ({
     name: r.name, widthM: r.widthM,
     points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
   }))
+  .filter(r => r.points.every(p =>
+    Math.hypot(p.x - TACLOBAN_LOCAL.x, p.z - TACLOBAN_LOCAL.z) < TACLOBAN_RADIUS_M))
 
 function paint(
   paths: readonly { readonly widthM: number; readonly points: readonly { x: number; z: number }[] }[],
