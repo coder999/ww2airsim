@@ -75,7 +75,8 @@ export function hasGunSolution<M>(
   const aim = muzzleLeadDirection(self, target)
   if (aim === null) return false
   const forward = qRotate(self.state.attitude, v3(1, 0, 0))
-  return dot(forward, aim) >= Math.cos(AI_GUN_CONE_RAD)
+  const gunneryAccuracy = self.pilot?.skill.gunneryAccuracy ?? 1.0
+  return dot(forward, aim) >= Math.cos(AI_GUN_CONE_RAD * gunneryAccuracy)
 }
 
 /**
