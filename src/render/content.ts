@@ -145,6 +145,13 @@ export const TITLE_ART_PATH = 'content/art/title.png'
 export const TITLE_ART_URL = `${import.meta.env.BASE_URL}${TITLE_ART_PATH}`
 export const TITLE_ART_BYTES = 2_077_706
 
+/** The Wildcat glTF model (ASSETS.md), Task 5 -- a committed binary asset,
+ *  not one of the `aircraftUrl`/`shipUrl`/`airfieldUrl` JSON records, so it
+ *  gets its own named constant rather than (mis)using a JSON-suffixed
+ *  helper. Same pattern as TITLE_ART_PATH/TITLE_ART_URL above. */
+export const WILDCAT_MODEL_PATH = 'content/aircraft/wildcat.glb'
+export const WILDCAT_MODEL_URL = `${import.meta.env.BASE_URL}${WILDCAT_MODEL_PATH}`
+
 /** Plan 16a's cloud noise volumes, gzipped on disk, inflated in the browser
  *  (src/render/sky/load.ts) exactly as the land-cover raster is. */
 export const SHAPE_NOISE_PATH = 'content/sky/shape.bin.gz'
