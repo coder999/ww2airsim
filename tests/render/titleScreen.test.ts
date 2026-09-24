@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
   pilotButtonLabel, selectedPilotLabel, isValidPilotName,
+  type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
 import { creditsLine } from '../../src/render/legend.js'
 import { SCENARIO_ID } from '../../src/render/content.js'
@@ -132,5 +133,28 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
       expect(typeof pilotId).toBe('string')
     }
     onNewGame('both', 'free-flight', 'pilot-1-1')
+  })
+
+  it('show() requires the currently-loaded scenario id, not a zero-arg call (type-level contract, Plan 9 Task 7 bugfix)', () => {
+    // The bug (found by review): `TitleScreenHandle.show` used to take no
+    // argument at all, so `main.ts`'s "return to title" path could only ever
+    // rebuild the picker off `createTitleScreen`'s OWN `currentScenarioId`
+    // closure -- fixed once at construction, and never updated by an
+    // in-session `loadScenario` switch (Plan 9 Task 7's whole point). A
+    // return-to-title after switching scenarios left the radiogroup showing
+    // whichever scenario this boot originally started with.
+    //
+    // The DOM behaviour this drives (`build`'s scenario radio reflecting the
+    // reassigned `currentScenarioId`) needs a real `document`, same caveat as
+    // the test above. What's provable here without one is the fixed
+    // contract: `show` now REQUIRES a scenario id, which is what makes
+    // `main.ts`'s `title.show(requestedScenarioId)` call site -- passing its
+    // own live tracking variable, not nothing -- the only thing that
+    // type-checks. A regression back to a 0-arg `show()` would make this
+    // assignment fail `tsc --noEmit` (part of `npm run verify`).
+    const fakeShow: TitleScreenHandle['show'] = (currentScenarioId: string): void => {
+      expect(typeof currentScenarioId).toBe('string')
+    }
+    fakeShow('gunnery-range')
   })
 })

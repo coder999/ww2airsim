@@ -130,8 +130,18 @@ export type TitleScreenHandle = {
   hide(): void
   /** Rebuilds the overlay fresh and re-reads `loadRoster()`; see the file's
    *  own top comment for why. `main.ts` calls this when a flight ends and
-   *  the player is sent back to the title rather than straight to a new one. */
-  show(): void
+   *  the player is sent back to the title rather than straight to a new one.
+   *
+   *  `currentScenarioId` is what the scenario radiogroup preselects (Plan 9
+   *  Task 7 bugfix). It is a PARAMETER here, not the constructor's own
+   *  `currentScenarioId` closed over once, because `main.ts`'s
+   *  `loadScenario` can swap scenarios in place after this title screen was
+   *  first built -- a return-to-title flight following an in-session switch
+   *  must show what is ACTUALLY loaded right now, which only `main.ts` still
+   *  knows by the time `show()` is called; the constructor's own value is
+   *  stale the instant a switch happens. `main.ts` passes its own live
+   *  tracking variable (`requestedScenarioId`) on every call. */
+  show(currentScenarioId: string): void
 }
 
 const BUTTON_STYLE =
@@ -147,9 +157,11 @@ const ROSTER_BUTTON_SELECTED_STYLE = `${ROSTER_ROW_STYLE}background:rgba(236,239
 export function createTitleScreen(
   root: HTMLElement,
   /** Whichever scenario `main.ts` already resolved this boot with (`?scenario=`
-   *  or the production default) -- what the picker preselects, so a picker
-   *  shown after a scenario-changing reload reflects what actually loaded
-   *  rather than silently reverting to the production default. */
+   *  or the production default) -- what the FIRST build of the picker
+   *  preselects. Reassigned by `show()` below on every later call (Plan 9
+   *  Task 7 bugfix), since an in-session scenario switch can leave this
+   *  initial value stale before a return-to-title ever shows the picker
+   *  again -- see `TitleScreenHandle.show`'s own doc comment. */
   currentScenarioId: string,
   onNewGame: (loadout: Loadout, scenarioId: string, pilotId: string) => void,
 ): TitleScreenHandle {
@@ -455,5 +467,18 @@ export function createTitleScreen(
 
   build()
 
-  return { up: () => isUp, hide, show: build }
+  return {
+    up: () => isUp,
+    hide,
+    // Reassigns the parameter `build`'s closure already reads
+    // (`currentScenarioId`, above) before rebuilding, rather than adding a
+    // second variable -- `build`'s own scenario-radio and `start()`'s
+    // fallback both close over this one binding by reference, so a
+    // reassignment here is exactly what the next `build()` call sees (Plan 9
+    // Task 7 bugfix).
+    show: (nextScenarioId: string): void => {
+      currentScenarioId = nextScenarioId
+      build()
+    },
+  }
 }

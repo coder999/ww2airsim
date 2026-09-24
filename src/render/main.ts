@@ -945,7 +945,12 @@ async function boot(): Promise<void> {
    *  hardcoded once into `createDebrief`. */
   const returnToTitle = (): void => {
     debrief.hide()
-    title.show()
+    // Plan 9 Task 7 bugfix: `requestedScenarioId` is this file's own live
+    // tracking of which scenario is ACTUALLY loaded right now -- updated by
+    // the title's own `onNewGame` the instant a switch is requested, not
+    // just once at boot -- so a return-to-title after an in-session switch
+    // preselects what is really loaded, not whatever this boot started with.
+    title.show(requestedScenarioId)
   }
   /** Whether the landing debrief is up for the landing `frame.landing.report`
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
