@@ -1,3 +1,6 @@
+import type { AircraftEntity } from '../loop.js'
+import { cross, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
+
 export type PilotSkill = {
   /** Seconds between decision-layer rescores. Lower = reacts faster. This
    *  IS "reaction delay" (master spec §7) -- the decision layer's own
@@ -36,4 +39,30 @@ export type PilotDecisionState = {
   readonly maneuver: PilotManeuver
   /** Sim time (tick * DT) at which the next rescore runs. */
   readonly nextRescoreS: number
+}
+
+/** Desired velocity for a pilot choosing to Extend: run away from the threat
+ *  and trade altitude for airspeed rather than retreating level. */
+export function extendDesiredVelocity<M>(self: AircraftEntity<M>, threat: AircraftEntity<M>): Vec3 {
+  const away = normalize(sub(self.state.position, threat.state.position))
+  // Nose down for airspeed: bias the desired vector toward the horizon-minus,
+  // not level -- an Extend that stays level just retreats slowly.
+  const dive = v3(away.x, Math.min(away.y, -0.15), away.z)
+  const desiredSpeed = length(self.state.velocity) + 40 // accelerate, don't just match
+  return scale(normalize(dive), desiredSpeed)
+}
+
+/** Desired velocity for a pilot choosing to Break: turn hard perpendicular to
+ *  self's current velocity, into the plane containing the threat, at a speed
+ *  the flight controller reads as a max-rate turn rather than a cruise. */
+export function breakDesiredVelocity<M>(self: AircraftEntity<M>, threat: AircraftEntity<M>): Vec3 {
+  // Turn into the threat's approach plane at max commanded rate: the
+  // direction perpendicular to self's current velocity, on the side that
+  // most reduces the threat's angle-off, at a speed the controller reads as
+  // "turn hard," not "cruise there."
+  const selfFwd = normalize(self.state.velocity)
+  const towardThreat = normalize(sub(threat.state.position, self.state.position))
+  const turnAxis = normalize(cross(selfFwd, towardThreat))
+  const breakDir = normalize(cross(turnAxis, selfFwd))
+  return scale(breakDir, Math.max(60, length(self.state.velocity)))
 }
