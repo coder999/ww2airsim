@@ -1,4 +1,4 @@
-import { Mesh, type Object3D, type Scene } from 'three'
+import { Mesh, type Material, type Object3D, type Scene, type Texture } from 'three'
 import { createShipMesh } from './scene/ship.js'
 import { createEngineSmoke } from './scene/smoke.js'
 import { loadWildcat } from './scene/wildcat.js'
@@ -20,10 +20,29 @@ export interface ScenarioEntities {
   readonly player: Airframe
 }
 
+/** Every texture-valued property `MeshStandardMaterial` (or a sibling
+ *  material type) can carry. `Material.dispose()` frees the material's own
+ *  GPU program/uniform state but explicitly does NOT dispose the textures it
+ *  references (Three.js's own documented behaviour) -- so before Task 6,
+ *  when every airframe was procedural (hellcat.ts's solid-colour boxes),
+ *  geometry+material was a complete disposal because there were no textures
+ *  to miss. `loadWildcat()` loads a real glTF with 26 embedded WebP
+ *  textures, and `disposeMeshTree` runs on every scenario switch, so leaving
+ *  this list out leaks the previous scenario's texture GPU memory on every
+ *  switch (found in review, Task 6). */
+const TEXTURE_PROPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'bumpMap', 'displacementMap'] as const
+
+function disposeMaterialTextures(material: Material): void {
+  for (const prop of TEXTURE_PROPS) {
+    const tex = (material as unknown as Record<string, Texture | null>)[prop]
+    if (tex) tex.dispose()
+  }
+}
+
 /**
  * Frees the GPU resources a mesh subtree holds -- every `Mesh`'s geometry
- * buffer and material(s) -- and leaves `root` itself for the caller to
- * remove from the scene graph.
+ * buffer, material(s), and the textures those materials reference -- and
+ * leaves `root` itself for the caller to remove from the scene graph.
  *
  * Plan 9 Task 7 (design doc §5): nothing in this codebase disposed an
  * aircraft or ship mesh before this task, because `airframes`/`shipHandles`
@@ -38,8 +57,11 @@ export function disposeMeshTree(root: Object3D): void {
     if (!(node instanceof Mesh)) return
     node.geometry.dispose()
     const material = node.material
-    if (Array.isArray(material)) material.forEach((m) => m.dispose())
-    else material.dispose()
+    const materials = Array.isArray(material) ? material : [material]
+    for (const m of materials) {
+      disposeMaterialTextures(m)
+      m.dispose()
+    }
   })
 }
 

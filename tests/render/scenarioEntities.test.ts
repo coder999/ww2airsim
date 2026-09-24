@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { Mesh, Scene } from 'three'
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Scene, Texture } from 'three'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import type { World } from '../../src/sim/loop.js'
@@ -139,5 +139,32 @@ describe('disposeMeshTree', () => {
     disposeMeshTree(root)
 
     for (const spy of geometrySpies) expect(spy).toHaveBeenCalled()
+  })
+
+  it('disposes textures on a material, not just the material itself (review finding, Task 6)', () => {
+    // `stubAirframe`/`createHellcat()` above is procedural and texture-free,
+    // so it cannot exercise this path at all -- `Material.dispose()` frees
+    // the material's own GPU state but explicitly does NOT dispose textures
+    // it references (Three.js's documented behaviour). Before this task
+    // every airframe was procedural (no textures existed to miss); now
+    // `loadWildcat()` loads a real glTF with embedded textures, and this
+    // function runs on every scenario switch -- so a real `Texture`, not the
+    // stub, is what proves the leak is actually closed.
+    const map = new Texture()
+    const normalMap = new Texture()
+    const material = new MeshStandardMaterial({ map, normalMap })
+    const mesh = new Mesh(new BoxGeometry(1, 1, 1), material)
+    const root = new Group()
+    root.add(mesh)
+
+    const mapSpy = vi.spyOn(map, 'dispose')
+    const normalMapSpy = vi.spyOn(normalMap, 'dispose')
+    const materialSpy = vi.spyOn(material, 'dispose')
+
+    disposeMeshTree(root)
+
+    expect(mapSpy).toHaveBeenCalled()
+    expect(normalMapSpy).toHaveBeenCalled()
+    expect(materialSpy).toHaveBeenCalled()
   })
 })

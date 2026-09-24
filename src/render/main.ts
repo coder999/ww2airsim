@@ -258,7 +258,9 @@ async function boot(): Promise<void> {
   // `initRenderer`'s `await` resolving) that exposed `frame`/`audio`.
   let bundle: ScenarioBundle | null = null
   // Read once, right after the FIRST `loadScenario` call below, for `spec`:
-  // every scenario flies the one shipped `f4f-wildcat` (design doc §5), so
+  // every scenario flies the one shipped flight model, `f6f-hellcat` (design
+  // doc §5, `content/scenarios/*.json` spec fields, unchanged by Task 6 --
+  // only the RENDERED mesh is now the Wildcat, via `loadWildcat()`), so
   // nothing else ever needs a later scenario's world.
   let scenarioWorld: World<undefined> | null = null
   let spawnedAt: Vec3 | null = null
@@ -285,7 +287,7 @@ async function boot(): Promise<void> {
    *
    * Any of the five files a bundle fetches failing to load or failing
    * validation is the same fault and the same screen a missing
-   * `f4f-wildcat.json` was before Plan 12 -- content the build was supposed
+   * `f6f-hellcat.json` was before Plan 12 -- content the build was supposed
    * to ship. The message names the file. `id` is assumed already resolved
    * and whitelisted (`requestedScenarioId`/`isKnownScenarioId`, above and in
    * `titleScreen.ts`); this function does not re-check it.
@@ -935,9 +937,11 @@ async function boot(): Promise<void> {
 
   // The player's own airplane, for the panel, the gauges and the flight-data
   // overlay. One aircraft spec is all any of those take; the wingman's is the
-  // same record anyway (both are `f4f-wildcat`). Read once, from the FIRST
-  // scenario's world -- see `scenarioWorld`'s own comment above for why a
-  // later `loadScenario` call never needs to touch this.
+  // same record anyway (both are `f6f-hellcat` -- the flight-model spec,
+  // unchanged by Task 6; the rendered mesh for both is the Wildcat). Read
+  // once, from the FIRST scenario's world -- see `scenarioWorld`'s own
+  // comment above for why a later `loadScenario` call never needs to touch
+  // this.
   const spec = playerAircraft(scenarioWorld!).spec
 
   // Plan 16b: the shadow map's lookup node is baked into the terrain's and

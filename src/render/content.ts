@@ -35,11 +35,23 @@ export const aircraftUrl = (id: string): string => contentUrl('aircraft', id)
 export const shipUrl = (id: string): string => contentUrl('ships', id)
 export const airfieldUrl = (id: string): string => contentUrl('bases', id)
 
-/** The Wildcat's record on disk, for `tests/build/dist.test.ts` alone -- the
+/** The Hellcat's record on disk, for `tests/build/dist.test.ts` alone -- the
  *  browser reaches it through `aircraftUrl` with the id the scenario names,
  *  never through this. Built from the same `contentPath` the URL is, so the
- *  build assertion and the runtime fetch cannot name different files. */
-export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f4f-wildcat')
+ *  build assertion and the runtime fetch cannot name different files.
+ *
+ *  Still `f6f-hellcat`, not `f4f-wildcat`, even after Task 6 made the
+ *  Wildcat the default RENDERED mesh: every shipped scenario's aircraft
+ *  entries still carry `"spec": "f6f-hellcat"` (the flight-model identity --
+ *  `content/scenarios/*.json`, unchanged, out of this plan's scope), so
+ *  `f6f-hellcat.json` remains the one real content record every scenario
+ *  actually fetches. `content/aircraft/f4f-wildcat.json` (Task 3) exists as
+ *  validated, licensed content for a future multi-aircraft roster, but no
+ *  scenario references it yet, so pinning THIS constant to it would leave
+ *  the file every real scenario fetches unpinned -- the exact gap this
+ *  constant exists to prevent. See `WILDCAT_MODEL_PATH` below for the
+ *  build-pinning of the Wildcat's actual boot-critical asset, the mesh. */
+export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f6f-hellcat')
 
 /**
  * One pyramid level of the terrain heightfield, as a path and (below) as the

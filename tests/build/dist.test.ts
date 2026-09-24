@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { AIRCRAFT_CONTENT_PATH, finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
+import { AIRCRAFT_CONTENT_PATH, finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH, WILDCAT_MODEL_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
@@ -134,6 +134,20 @@ describe('the built artifact', () => {
         const raw = readFileSync(join(outDir, path), 'utf8')
         expect(() => JSON.parse(raw), path).not.toThrow()
       }
+
+      // The Wildcat glTF (ASSETS.md, Task 5 of the f4f-wildcat-default-aircraft
+      // plan) -- the boot-critical MESH asset Task 6 made the default,
+      // fetched at runtime by `loadWildcat()` (src/render/scene/wildcat.ts)
+      // via `WILDCAT_MODEL_URL`, built from this same `WILDCAT_MODEL_PATH`.
+      // Before this line, nothing in this suite pinned its presence in
+      // `dist/` at all -- exactly the "build exits 0 while missing the thing
+      // that breaks the game" class this file's own R14 history is about,
+      // just for this plan's new asset instead of `f6f-hellcat.json`. Exact
+      // byte count, not existence alone, for the same reason TITLE_ART_BYTES
+      // and cover.bin.gz below are pinned exactly rather than with `> 0`: a
+      // truncated copy is a 200 that GLTFLoader then fails to parse in the
+      // browser, the same failure screen by a slower route.
+      expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(5_573_356)
 
       // The title art (2026-09-19). Shipped as supplied, never re-encoded:
       // a byte count that moves means something re-encoded a committed
