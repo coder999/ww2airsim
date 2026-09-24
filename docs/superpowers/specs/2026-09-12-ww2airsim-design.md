@@ -724,6 +724,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 15 | any | Audio: engine loop and event cues | — | Complete 2026-09-18; [handoff](../../handoff/2026-09-18-plan15-audio.md) |
 | 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Not started; [design](2026-09-18-land-cover-design.md) 2026-09-18 |
 | 16 | any | Clouds | §4 | 16a volumetric layers + whiteout landed 2026-09-19 ([design](2026-09-19-clouds-design.md), [handoff](../../handoff/2026-09-19-plan16a-clouds.md)); 16b cloud shadows landed 2026-09-19 ([design](2026-09-19-cloud-shadows-design.md), [handoff](../../handoff/2026-09-19-plan16b-cloud-shadows.md)); 16c movable sun landed 2026-09-19 ([design](2026-09-19-sun-design.md), [handoff](../../handoff/2026-09-19-plan16c-sun.md)) |
+| 17 | any | Radar | — | Complete 2026-09-23; [design](2026-09-23-radar-design.md), [handoff](../../handoff/2026-09-23-plan17-radar.md) |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
 `Impact` and deliberately stops there, and the sea is a picture rather than a

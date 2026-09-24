@@ -111,6 +111,18 @@ skill, energy-state decisions, a minimum engagement range, defensive
 maneuvers, formation and landing AI remain Plan 7b/7c. See the
 [handoff](docs/handoff/2026-09-23-plan7a-ai-pursuit.md).
 
+**Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
+slot now shows a rotating, heading-up sweep with fading contact dots and a
+`Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own
+`pursuit-range` playtest, where he evaded the AI contact and had no way to
+find it again. Tier 1 is green and the reference-GPU spec passed 5
+consecutive runs against the real RX 6700 XT, gpu p95 well under the 6.0 ms
+budget with zero validation errors. Task review caught and fixed two real
+defects along the way — a doubled render-target uv-flip in the diagnostic
+readback, and a nearly-unfalsifiable brightness assertion — both covered in
+the [handoff](docs/handoff/2026-09-23-plan17-radar.md), which also has the
+measured figures and the deferred list.
+
 **A title screen landed 2026-09-19**, the first slice of Plan 9 ahead of the
 rest of it: Mark's title art with **New game** and **About project**. The
 world boots behind it and is held until New game (Enter also works), which is
