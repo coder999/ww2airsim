@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { toLocal } from '../../src/sim/world/projection.js'
+import { type Town } from '../../src/render/scene/towns.js'
+import placesData from '../../content/scenery/places.json' with { type: 'json' }
 
 /**
  * Tier 2, terrain. Same platform and same caveats as `adapter.spec.ts`; this
@@ -200,6 +203,17 @@ test.describe('frame-time budget', () => {
    *    + trees (69-cell disc, cached cells)                   4.92      5.05
    *    (as Codex shipped it: anisotropy 8, 121-cell square    11.34     11.73)
    *    + land cover raster (1 sample/fragment, Plan 13b)      4.98      5.18
+   *    + real towns/roads/Dulag buildings (Plan 13d,           2.957     3.307
+   *      measured 2026-09-24) -- lower than the row above despite this
+   *      plan adding a merged static hut mesh and a road/river mask read
+   *      (the road mask itself grew 8x in texture memory, Task 1-2, but
+   *      that is a one-time upload, not per-frame work, exactly as design
+   *      §8 predicted). This reference desktop is shared and this file's
+   *      own measurement notes above already document run-to-run movement
+   *      at the quantisation-step level; a ~2 ms drop is bigger than that,
+   *      so it reads as a lighter-loaded run rather than a genuine
+   *      speedup -- reported rather than discarded either way, per this
+   *      file's own "printed on a PASS" rule below.
    *
    *  6.0 ms is 1.2x the measured p95, 72% of the 8.33 ms a 120 Hz frame
    *  allows, and under the 8 ms at which the ocean's one-time tier choice
@@ -304,4 +318,135 @@ test.describe('frame-time budget', () => {
     expect(times.errors, `WebGPU validation errors:
 ${JSON.stringify(times.errors, null, 2)}`).toEqual([])
   })
+})
+
+/**
+ * Plan 13d Task 5: the reference-GPU acceptance pass for real towns, roads
+ * and Dulag's own buildings (Tasks 1-4). Not a new invariant to assert --
+ * design §11's Tier 2 already covers validation errors and the frame budget
+ * above -- this is the one thing neither of those can check: whether the
+ * result actually LOOKS right. The executing agent reads every PNG this
+ * produces before claiming success (this repo's own rule, `CLAUDE.md`'s
+ * "never argue about a picture you have not looked at").
+ *
+ * **Why these three places.** `content/scenery/places.json`'s `towns`, read
+ * live rather than pinned as literals here (unlike `SPAWN_X/Z_M` above) --
+ * these are screenshots of whatever the real Overpass data currently says,
+ * so a stale hardcoded coordinate would quietly screenshot the wrong point
+ * after the next `tools/scenery/build.ts` re-run rather than failing.
+ *   - **Tacloban**: a `town`-sized entry (3 hut rings), on the coast, right
+ *     where the Maharlika Highway alignment (Task 1-2) runs past it -- the
+ *     one shot that can show the road as a coastal line AND a dense hut
+ *     cluster in the same frame.
+ *   - **Tanauan**: a `village`-sized entry almost exactly midway between
+ *     Tacloban and Dulag on that same highway (1.5 km off the literal
+ *     midpoint, measured 2026-09-24) -- "the Leyte Valley" the brief asks
+ *     for, i.e. a stretch of the coastal plain that is not centred on either
+ *     named base.
+ *   - **Dulag**: also `village`-sized -- one hut ring, not three -- so this
+ *     frame is the direct visual check that it reads as its own smaller
+ *     settlement rather than a copy of Tacloban's.
+ *
+ * **Why a real flight, not the title-frozen trick `clouds.spec.ts` uses for
+ * its "distant cloud edges" cases.** That looked like the right tool here
+ * too, and a first version of this file used it -- spawn exactly at the
+ * settlement, hide the title dialog without clicking "New game", screenshot
+ * while `tick()` stays 0. It hung for 60 s on the reference GPU instead:
+ * `main.ts`'s render loop computes `chartOpen = navigationMapState.open ||
+ * title.up()` and feeds the frame `NO_KEYS` whenever that is true --
+ * deliberately, per its own comment ("no keys reach the frame and the frame
+ * is paused"), so the navigation chart cannot leak keystrokes into the sim.
+ * `Numpad2` never reaches `lookOffsetFromKeys` while the title is up, CSS
+ * visibility or not, so `look().pitchRad` never leaves 0. Position-frozen
+ * and look-around are mutually exclusive in this app; a screenshot that
+ * needs both has to fly for real.
+ *
+ * **So: fly, but keep the flight short.** A first version of this spec
+ * spawned 7 km west of each settlement, read the airplane's REAL position
+ * once `waitForTerrain` resolved, and waited out the remaining distance at
+ * an assumed constant 120 m/s (`spawn.ts`'s airborne branch) to close the
+ * loop on whatever drift `waitForTerrain` itself cost. That assumption was
+ * the bug: with no throttle input the airplane does not hold 120 m/s, it
+ * glides, and on the reference GPU (2026-09-24) ~58 s of that unpowered
+ * glide bled it from the 500 m/120 m/s spawn down to a stable glide at
+ * ~100 m/141 mph -- identical terminal telemetry (THR 0%, V/S -1690 ft/min)
+ * on all three places, because a trimmed glide converges regardless of
+ * where it started. The wrong-speed assumption then undershot the target on
+ * top of that, so every one of the three screenshots came back with no
+ * road, no huts, nothing but scattered trees over open grass -- neither the
+ * intended altitude nor the intended place. The fix is to remove the need
+ * for a long flight rather than model the glide: spawn AT the settlement's
+ * own centre directly (measured drift from `waitForTerrain` alone is 0-2 m
+ * for all three places here, the console.log below prints it on every run)
+ * and keep the time between `waitForTerrain` resolving and the shutter as
+ * short as this app allows, so there is nowhere near enough time for an
+ * unpowered glide to matter.
+ *
+ * **Why `Numpad2` (look down).** Wings level at 500 m with the identity
+ * spawn attitude (nose east) looks at the horizon, not the ground -- a hut
+ * ring a few dozen metres across would be a handful of pixels near the
+ * bottom edge of frame at best. Holding look-down snaps the eye to ~82
+ * degrees below the nose (`LOOK_LIMIT_RAD`, `src/input/lookAround.ts`), the
+ * same key `clouds.spec.ts`'s "above-down" case uses to look at cloud tops
+ * from directly above -- and, per the finding above, it only works now that
+ * the flight is actually running.
+ */
+test.describe('places: Tacloban, Tanauan and Dulag (Plan 13d Task 5)', () => {
+  test.use({ viewport: { width: 2560, height: 1440 } })
+
+  const SCREENSHOT_ALTITUDE_M = 500
+  /** How far off the settlement's own centre still counts as "arrived".
+   *  Measured drift from `waitForTerrain` alone was 0-2 m for all three
+   *  places here (2026-09-24, reference GPU) -- this is a tripwire against
+   *  a broken spawn override, not a tuned number, so it is left generously
+   *  wider than that. */
+  const ARRIVAL_TOLERANCE_M = 400
+
+  const places = placesData as { readonly towns: readonly Town[] }
+  const townCentre = (name: string): { x: number; z: number } => {
+    const town = places.towns.find((t) => t.name === name)
+    if (!town) throw new Error(`no town named ${JSON.stringify(name)} in content/scenery/places.json`)
+    return toLocal(town.lat, town.lon)
+  }
+
+  const shots: readonly { readonly town: string; readonly title: string; readonly file: string }[] = [
+    { town: 'Tacloban', title: 'Tacloban shore: coastal road and a 3-ring hut cluster', file: 'places-tacloban.png' },
+    { town: 'Tanauan', title: 'Leyte Valley: the coastal highway midway to Dulag', file: 'places-leyte-valley.png' },
+    { town: 'Dulag', title: "Dulag: its own smaller, 1-ring building set", file: 'places-dulag.png' },
+  ]
+
+  for (const { town, title, file } of shots) {
+    test(`${title}`, async ({ page }) => {
+      const centre = townCentre(town)
+      await page.goto(spawnUrl({ x: centre.x, y: SCREENSHOT_ALTITUDE_M, z: centre.z }))
+      await waitForTerrain(page)
+
+      const arrived = await snapshot(page)
+      console.log(
+        `${town}: ${Math.hypot(arrived.position.x - centre.x, arrived.position.z - centre.z).toFixed(0)} m off centre, alt ${arrived.position.y.toFixed(0)} m, right after waitForTerrain`,
+      )
+      expect(
+        Math.hypot(arrived.position.x - centre.x, arrived.position.z - centre.z),
+        `${town}: spawn override did not land at the settlement's own centre`,
+      ).toBeLessThan(ARRIVAL_TOLERANCE_M)
+      // Over land, not the sea: `heightAt <= 0.5` is `townHutFootprints`'s own
+      // off-map/underwater skip (towns.ts) -- a positive ground height here is
+      // proof this settlement's own node landed on real relief, the same
+      // reasoning the sweep tests above use for the spawn corridor.
+      expect(arrived.groundHeightM, `${town} is over water, not over Leyte`).not.toBeNull()
+      expect(arrived.groundHeightM!, `${town} is over water, not over Leyte`).toBeGreaterThan(0)
+
+      await page.keyboard.down('Numpad2')
+      // Short, and a timed settle rather than `waitForFunction(look().pitchRad
+      // !== 0)`: every extra second here is a second of the unpowered glide
+      // the block comment above found the hard way, bleeding altitude and
+      // speed away from the framing `SCREENSHOT_ALTITUDE_M` was chosen for.
+      await page.waitForTimeout(800)
+      await page.screenshot({ path: `test-results/${file}` })
+      await page.keyboard.up('Numpad2')
+
+      const errors = await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)
+      expect(errors, `WebGPU validation errors:\n${JSON.stringify(errors, null, 2)}`).toEqual([])
+    })
+  }
 })
