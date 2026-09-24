@@ -1078,13 +1078,28 @@ mutable `let`s in `boot()` (around line 875-882), add:
   let scoredThroughKillsByType = zeroKillsByType()
 ```
 
-Wherever `onNewGame` is currently wired to `createTitleScreen` (construct
-it with the new three-argument signature from Task 5): look up the selected
-pilot in `roster`, call `startSortie` on it, replace it in `roster`, call
-`saveRoster(roster)`, set `currentPilotId` to its id, and reset
-`scoredThroughKillsByType = zeroKillsByType()` before proceeding with
-whatever `onNewGame` already does today (loading the scenario — Task 7
-changes this to call `loadScenario`).
+**Ruling (controller, overnight run, 2026-09-23): corrected from the
+original text above, based on what Task 5 actually built.** Task 5's
+`titleScreen.ts` already calls `startSortie` and `saveRoster` itself,
+inside its own `start()` handler, before invoking `onNewGame` — necessary
+because `main.ts`'s existing scenario-switch path does a full
+`window.location.href` navigation (unfixed until Task 7), which would
+silently discard an unpersisted roster change if `titleScreen.ts` didn't
+persist first. **Do not re-call `startSortie` here — the pilot handed to
+`onNewGame` already has its sortie counted and is already saved.**
+Wherever `onNewGame` is wired to `createTitleScreen` (construct it with the
+new three-argument signature from Task 5): reload the roster fresh
+(`roster = loadRoster()`, picking up `titleScreen.ts`'s own write rather
+than trusting a stale boot-time copy), set `currentPilotId` to the received
+`pilotId`, and reset `scoredThroughKillsByType = zeroKillsByType()` before
+proceeding with whatever `onNewGame` already does today (loading the
+scenario — Task 7 changes this to call `loadScenario`). **Cost if wrong:**
+calling `startSortie` again here would double-count `sorties` (and, for a
+freshly-revived pilot, double-increment `resurrections`) on every single
+New Game press — read Task 5's own report
+(`.superpowers/sdd/2026-09-23-plan9-meta-game/task-5-report.md`, gitignored
+but present in tonight's checkout) for the full reasoning before writing
+this task's code.
 
 In the Restart handler (around line 836-871), add the same
 `scoredThroughKillsByType = zeroKillsByType()` reset — a Restart is a new
