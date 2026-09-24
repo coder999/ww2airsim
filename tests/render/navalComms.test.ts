@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
+import { STAMP_FILTER_ID } from '../../src/render/ui/navalComms.js'
 
 describe('naval-comms.css', () => {
   const css = readFileSync('src/render/ui/naval-comms.css', 'utf8')
@@ -13,6 +14,19 @@ describe('naval-comms.css', () => {
   })
   it('self-hosts fonts, no external Google Fonts reference', () => {
     expect(css).not.toContain('fonts.googleapis.com')
+  })
+  it('the filter id `.stamp` references is the one navalComms.ts declares', () => {
+    // Task 5 review, Important #1. `.stamp` carries `filter: url(#<id>)`, and
+    // per the Filter Effects spec an element referencing an id that does not
+    // resolve is NOT RENDERED -- a stamp would be invisible, not merely
+    // unfiltered, with nothing logged. Nothing else couples these two files,
+    // so without this assertion the CSS and `ensureStampFilter` can drift
+    // apart silently (they already did once: the id was `ww2StampRough` in
+    // TypeScript and `stampRough` in CSS, papered over by a per-element
+    // inline override no other screen would have known to add).
+    const referenced = [...css.matchAll(/filter:\s*url\(#([^)]+)\)/g)].map((m) => m[1])
+    expect(referenced.length).toBeGreaterThan(0)
+    for (const id of referenced) expect(id).toBe(STAMP_FILTER_ID)
   })
   it('styles no bare element selector -- the app document is a WebGPU canvas, not the prototype page', () => {
     // Task 5, the first consumer, imports this file into the app bundle. The

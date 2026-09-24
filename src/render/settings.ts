@@ -1,4 +1,4 @@
-import './ui/naval-comms.css'
+import { ensureStampFilter } from './ui/navalComms.js'
 import { INTERIM_ASSET_QUALITY_TIER } from './content.js'
 import {
   clearQualitySettings, defaultQualitySettings, loadAssetQualityTier, loadQualitySettings,
@@ -221,9 +221,21 @@ export type SettingsModel = {
   /** `main.ts` pushes back settings IT applied -- the probe's live swap.
    *  Never counts as an explicit choice. */
   setCurrentQuality(settings: QualitySettings): void
-  /** Called after every state change, so the DOM layer can re-render. One
-   *  listener; the dialog is the only consumer. */
-  subscribe(listener: () => void): void
+  /**
+   * Registers `listener`, called after every state change. Returns its own
+   * unsubscribe function.
+   *
+   * ADDITIVE, and it has to be. There are at least two subscribers by
+   * design: the dialog re-renders from it, and `main.ts` (Task 6) hangs its
+   * live-apply off it. A single-slot version (the shape this had until the
+   * Task 5 review) fails silently in both directions -- `main.ts`
+   * subscribing would freeze the dialog's checkmarks, Recommended stamp and
+   * Reset state while every pick still saved correctly, and the dialog
+   * re-subscribing on the next `show()` would drop `main.ts`'s listener. No
+   * error either way; the only symptom is a screen that stops agreeing with
+   * itself.
+   */
+  subscribe(listener: () => void): () => void
 }
 
 export function createSettingsModel(callbacks: SettingsCallbacks = {}): SettingsModel {
@@ -247,9 +259,11 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   let advancedExpanded = false
   let recommendedTier: QualityTierName | null = null
   let explicitChoiceMade = false
-  let listener: (() => void) | null = null
+  const listeners = new Set<() => void>()
 
-  const changed = (): void => listener?.()
+  // Iterates a copy: a listener that unsubscribes itself (or another) while
+  // being notified would otherwise mutate the set mid-iteration.
+  const changed = (): void => { for (const listener of [...listeners]) listener() }
 
   const applyQuality = (next: QualitySettings): void => {
     quality = next
@@ -308,7 +322,10 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
     },
     setRecommendedTier: (tier: QualityTierName): void => { recommendedTier = tier; changed() },
     setCurrentQuality: (settings: QualitySettings): void => { quality = settings; changed() },
-    subscribe: (next: () => void): void => { listener = next },
+    subscribe: (next: () => void): (() => void) => {
+      listeners.add(next)
+      return () => { listeners.delete(next) }
+    },
   }
 }
 
@@ -316,33 +333,11 @@ export type SettingsDialogHandle = {
   readonly isOpen: () => boolean
   open(): void
   close(): void
-  /** Removes the dialog's node and its window key listener. `titleScreen.ts`
-   *  calls this from `hide()`, because it rebuilds its whole overlay from
-   *  scratch on every `show()` and a listener left behind would accumulate
-   *  one per return-to-title. */
+  /** Removes the dialog's node, its window key listener and its subscription
+   *  to the model. `titleScreen.ts` calls this from `hide()`, because it
+   *  rebuilds its whole overlay from scratch on every `show()` and anything
+   *  left behind would accumulate one per return-to-title. */
   destroy(): void
-}
-
-const STAMP_FILTER_ID = 'ww2StampRough'
-
-/**
- * `.stamp`'s hand-struck edge is `filter: url(#stampRough)` -- an SVG filter
- * the prototype declared inline in its own page. Nothing in `index.html`
- * declares it, and a CSS `filter: url()` pointing at a missing element is
- * not merely ignored in Chromium, so the Recommended stamp would vanish.
- * Declared once per dialog, inside it, so it cannot outlive the overlay.
- */
-function stampFilterDefs(): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  svg.setAttribute('width', '0')
-  svg.setAttribute('height', '0')
-  svg.setAttribute('aria-hidden', 'true')
-  svg.style.cssText = 'position:absolute'
-  svg.innerHTML =
-    `<filter id="${STAMP_FILTER_ID}" x="-20%" y="-20%" width="140%" height="140%">` +
-    '<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>' +
-    '<feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2"/></filter>'
-  return svg
 }
 
 function sectionTitle(text: string): HTMLDivElement {
@@ -416,7 +411,9 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   overlay.setAttribute('aria-label', 'Settings')
   overlay.style.cssText =
     'position:absolute;inset:0;display:none;overflow-y:auto;background:rgba(11,13,16,.82);z-index:30'
-  overlay.appendChild(stampFilterDefs())
+  // Document-level and idempotent -- `.stamp` is invisible without it, and
+  // the debrief (Task 8) needs the same filter from its own screen.
+  ensureStampFilter()
 
   const sheet = document.createElement('div')
   sheet.className = 'sheet'
@@ -458,7 +455,9 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   const recommendedStamp = document.createElement('div')
   recommendedStamp.className = 'stamp stamp--violet stamp--sm stamp--rotate-2'
   recommendedStamp.textContent = 'Recommended'
-  recommendedStamp.style.cssText = `position:absolute;top:-30px;right:18px;filter:url(#${STAMP_FILTER_ID})`
+  // Position only. The roughen filter comes from `.stamp` itself now that
+  // `ensureStampFilter` declares the id the stylesheet actually names.
+  recommendedStamp.style.cssText = 'position:absolute;top:-30px;right:18px'
 
   const recommendationNote = document.createElement('p')
   recommendationNote.className = 'fine-print'
@@ -585,7 +584,11 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     resetButton.style.cursor = s.canReset ? 'pointer' : 'default'
   }
 
-  model.subscribe(render)
+  // Kept so `destroy()` can drop it. Without that, every `show()` would leave
+  // the previous dialog's `render` closure -- and the whole detached DOM tree
+  // it captures -- alive in the model's listener set, re-running on every
+  // later change.
+  const unsubscribe = model.subscribe(render)
   render()
 
   // Esc, on `window` rather than the dialog, so it works no matter which of
@@ -608,6 +611,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     },
     close: (): void => model.close(),
     destroy: (): void => {
+      unsubscribe()
       window.removeEventListener('keydown', onKey)
       overlay.remove()
     },

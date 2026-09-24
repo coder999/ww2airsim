@@ -234,6 +234,56 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
     expect(model.snapshot().advancedExpanded).toBe(true)
   })
 
+  it('subscribe is additive and returns an unsubscribe -- the dialog and main.ts both listen', () => {
+    // Task 5 review, Important #2: this was a single slot. `main.ts` (Task 6)
+    // subscribing to live-apply a tier change would have silently replaced
+    // the dialog's own re-render subscription -- every pick still saving,
+    // while the checkmarks, the Recommended stamp and the Reset button froze.
+    // No error, in either direction.
+    const model = createSettingsModel()
+    const dialogRenders: string[] = []
+    const mainApplies: string[] = []
+    const stopDialog = model.subscribe(() => dialogRenders.push('render'))
+    const stopMain = model.subscribe(() => mainApplies.push('apply'))
+
+    model.selectSimpleTier('low')
+    expect(dialogRenders.length).toBe(1)
+    expect(mainApplies.length).toBe(1)
+
+    // Every state change notifies, not just the ones that save.
+    model.open()
+    model.toggleAdvanced()
+    model.selectAssetQuality('ultra')
+    model.selectDamageModel('arcade')
+    model.setRecommendedTier('high')
+    model.resetToAutoDetect()
+    expect(dialogRenders.length).toBe(7)
+    expect(mainApplies.length).toBe(7)
+
+    // `destroy()`'s half: dropping one subscription leaves the other running.
+    stopDialog()
+    model.selectSimpleTier('high')
+    expect(dialogRenders.length).toBe(7)
+    expect(mainApplies.length).toBe(8)
+
+    stopMain()
+    model.selectSimpleTier('medium')
+    expect(mainApplies.length).toBe(8)
+  })
+
+  it('a listener that unsubscribes during a notification does not disturb the others', () => {
+    const model = createSettingsModel()
+    const seen: string[] = []
+    let stopFirst = (): void => {}
+    stopFirst = model.subscribe(() => { seen.push('first'); stopFirst() })
+    model.subscribe(() => seen.push('second'))
+
+    expect(() => model.selectSimpleTier('low')).not.toThrow()
+    expect(seen).toEqual(['first', 'second'])
+    model.selectSimpleTier('high')
+    expect(seen).toEqual(['first', 'second', 'second'])
+  })
+
   it('the probe recommendation is pushed in by main.ts and never overwrites an explicit pick', () => {
     const applied: string[] = []
     const model = createSettingsModel({ onQualityChange: (q) => applied.push(q.ocean) })
