@@ -59,6 +59,37 @@ export const LOADOUT_OPTIONS: readonly { readonly value: Loadout; readonly label
 ]
 export const DEFAULT_LOADOUT: Loadout = 'both'
 
+/**
+ * The scenario picker's options: every `content/scenarios/<id>.json` this
+ * build ships, in the order shown. Player-facing labels, not the raw content
+ * ids -- `pursuit-range` reads "Air Combat" here, matching how Mark actually
+ * refers to it, not the file stem.
+ *
+ * This is what `?scenario=` (spawn.ts's `SCENARIO_PARAM`) was always meant
+ * to be replaced by (that file's own doc comment named this exact picker).
+ * It still uses the same query parameter -- picking a scenario navigates to
+ * `?scenario=<id>` (main.ts) rather than swapping entities in place, because
+ * the entity list (aircraft, ships) is sized once at boot and a different
+ * scenario can carry a different one (see main.ts's `onNewGame` callback for
+ * the full reasoning). `isKnownScenarioId` below is what makes accepting
+ * that parameter in a PRODUCTION build safe: unlike `scenarioIdFromQuery`'s
+ * format check alone, it rejects any well-formed id that is not actually one
+ * of these five.
+ */
+export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
+  { value: 'free-flight', label: 'Free Flight' },
+  { value: 'deck-quals', label: 'Deck Quals' },
+  { value: 'gunnery-range', label: 'Gunnery Range' },
+  { value: 'pursuit-range', label: 'Air Combat' },
+  { value: 'strike-range', label: 'Strike Range' },
+]
+
+/** Whether `id` is one of `SCENARIO_OPTIONS` -- the whitelist that makes
+ *  `?scenario=` safe to honor in production (main.ts), not just DEV. */
+export function isKnownScenarioId(id: string): boolean {
+  return SCENARIO_OPTIONS.some((option) => option.value === id)
+}
+
 export type TitleScreenHandle = {
   /** Whether the title is still on screen; `main.ts` holds the world while it is. */
   readonly up: () => boolean
@@ -69,7 +100,15 @@ const BUTTON_STYLE =
   'padding:10px 22px;border:1px solid #2b3440;border-radius:4px;background:rgba(236,239,243,.94);' +
   'color:#151b22;font:14px ui-monospace,Menlo,monospace;letter-spacing:.08em;cursor:pointer'
 
-export function createTitleScreen(root: HTMLElement, onNewGame: (loadout: Loadout) => void): TitleScreenHandle {
+export function createTitleScreen(
+  root: HTMLElement,
+  /** Whichever scenario `main.ts` already resolved this boot with (`?scenario=`
+   *  or the production default) -- what the picker preselects, so a picker
+   *  shown after a scenario-changing reload reflects what actually loaded
+   *  rather than silently reverting to the production default. */
+  currentScenarioId: string,
+  onNewGame: (loadout: Loadout, scenarioId: string) => void,
+): TitleScreenHandle {
   const m = titleModel()
   const overlay = document.createElement('div')
   overlay.setAttribute('role', 'dialog')
@@ -78,6 +117,31 @@ export function createTitleScreen(root: HTMLElement, onNewGame: (loadout: Loadou
   overlay.style.cssText =
     'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;' +
     `background:#0b0d10 url(${TITLE_ART_URL}) center/cover no-repeat;z-index:20`
+
+  // The scenario picker: same native-radio pattern as the loadout picker
+  // below and for the same reason (free keyboard group navigation). Picking
+  // one and pressing New game navigates to `?scenario=<id>` (main.ts's
+  // `onNewGame`) rather than changing anything in this file -- this row
+  // only reports which value was checked.
+  const scenarioRow = document.createElement('div')
+  scenarioRow.setAttribute('role', 'radiogroup')
+  scenarioRow.setAttribute('aria-label', 'Scenario')
+  scenarioRow.style.cssText =
+    'display:flex;gap:16px;margin-bottom:2vh;color:#eceff3;font:13px ui-monospace,Menlo,monospace;' +
+    'letter-spacing:.04em'
+  const scenarioInputs = SCENARIO_OPTIONS.map((option) => {
+    const label = document.createElement('label')
+    label.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer'
+    const input = document.createElement('input')
+    input.type = 'radio'
+    input.name = 'scenario'
+    input.value = option.value
+    input.checked = option.value === currentScenarioId
+    label.append(input, option.label)
+    scenarioRow.appendChild(label)
+    return input
+  })
+  overlay.appendChild(scenarioRow)
 
   // The loadout picker (spec §1), above the New game button: native radio
   // inputs, so Tab/Shift-Tab and the arrow keys within the group work with
@@ -168,8 +232,11 @@ export function createTitleScreen(root: HTMLElement, onNewGame: (loadout: Loadou
     // fallback below is unreachable in a browser and exists only so this
     // reads as total rather than trusting that invariant silently.
     const loadout = loadoutInputs.find((input) => input.checked)?.value as Loadout | undefined
+    // Same unreachable-in-a-browser fallback as `loadout` above, for the same
+    // reason: a native radio group always has exactly one checked member.
+    const scenarioId = scenarioInputs.find((input) => input.checked)?.value ?? currentScenarioId
     hide()
-    onNewGame(loadout ?? DEFAULT_LOADOUT)
+    onNewGame(loadout ?? DEFAULT_LOADOUT, scenarioId)
   }
   newGame.addEventListener('click', start)
   about.addEventListener('click', () => {

@@ -18,7 +18,7 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, destructionModel, landingModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
-import { createTitleScreen, DEFAULT_LOADOUT } from './titleScreen.js'
+import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
@@ -78,6 +78,7 @@ import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import {
   hasSpawnOverride,
   initialAircraftState,
+  SCENARIO_PARAM,
   scenarioIdFromQuery,
   spawnPositionFromQuery,
 } from './spawn.js'
@@ -188,14 +189,46 @@ async function boot(): Promise<void> {
   // call below just reads whatever this already holds.
   let chosenLoadout: Loadout = DEFAULT_LOADOUT
 
-  // The title screen (2026-09-19), created before ANYTHING that can take
-  // time: the adapter, the ocean cascades and the terrain all load behind
-  // it. `frame` and `audio` are declared below and read here only when the
-  // button is pressed, which cannot happen before the page has painted --
-  // the same argument the debrief's `frame!` reads make. A boot failure
-  // empties #app (failure.ts), which takes the overlay with it.
-  const title = createTitleScreen(root, (loadout) => {
+  // Plan 17 follow-up: which scenario this boot loads, resolved and
+  // whitelisted before the title screen exists so the scenario picker can
+  // preselect it. `?scenario=` now reaches production too -- the DEV-only
+  // gate that used to sit here is gone, and `isKnownScenarioId` is what
+  // makes that safe: any format-valid id that is not one of
+  // `SCENARIO_OPTIONS`'s five fails here, before anything else loads,
+  // rather than reaching `loadScenarioBundle` and failing on a missing file.
+  // This one synchronous check does not touch the "title screen before
+  // anything slow" ordering below -- there is nothing to await here.
+  let requestedScenarioId: string
+  try {
+    requestedScenarioId = scenarioIdFromQuery(window.location.search, SCENARIO_ID)
+    if (!isKnownScenarioId(requestedScenarioId)) {
+      throw new Error(`scenario: ${JSON.stringify(requestedScenarioId)} is not a scenario this build ships`)
+    }
+  } catch (err) {
+    showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
+    return
+  }
+
+  // The title screen (2026-09-19), created before anything that can take
+  // real time: the adapter, the ocean cascades and the terrain all load
+  // behind it. `frame` and `audio` are declared below and read here only
+  // when the button is pressed, which cannot happen before the page has
+  // painted -- the same argument the debrief's `frame!` reads make. A boot
+  // failure empties #app (failure.ts), which takes the overlay with it.
+  const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId) => {
     chosenLoadout = loadout
+    if (scenarioId !== requestedScenarioId) {
+      // A different scenario can carry a different ENTITY LIST (aircraft,
+      // ships) -- `airframes`/`shipHandles` below are built once, sized off
+      // THIS boot's bundle, and nothing after boot adds or removes meshes
+      // (spawn.ts's `SCENARIO_PARAM` doc comment has the full reasoning).
+      // Re-entering boot() from scratch with the new id in the URL costs one
+      // page-load flash and reuses the exact path `?scenario=` already took
+      // in DEV; rebuilding in place would need restructuring when the
+      // entity-sized meshes get built, which is real scope this is not.
+      window.location.href = `${window.location.pathname}?${SCENARIO_PARAM}=${scenarioId}`
+      return
+    }
     // A click is the user gesture the autoplay policy wants; this is the
     // first-visit resume the audio handoff left open.
     void audio.resume()
@@ -500,9 +533,10 @@ async function boot(): Promise<void> {
   // Any of the five failing to load or failing validation is the same fault
   // and the same screen a missing `f6f-hellcat.json` was before Plan 12 --
   // content the build was supposed to ship. The message names the file.
+  // `requestedScenarioId` is already resolved and whitelisted, above.
   let bundle: ScenarioBundle
   try {
-    bundle = await loadScenarioBundle(import.meta.env.DEV ? scenarioIdFromQuery(window.location.search, SCENARIO_ID) : SCENARIO_ID)
+    bundle = await loadScenarioBundle(requestedScenarioId)
   } catch (err) {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return

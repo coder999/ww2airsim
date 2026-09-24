@@ -137,9 +137,21 @@ export function initialAircraftState(position: Vec3, groundSpawn: boolean): Airc
   })
 }
 
-/** `?scenario=<id>`: which `content/scenarios/<id>.json` to boot (Plan 8).
- *  DEV only at the call site, like `SPAWN_PARAMS`; the mission picker that
- *  replaces it is Plan 9's. */
+/**
+ * `?scenario=<id>`: which `content/scenarios/<id>.json` to boot (Plan 8).
+ *
+ * Reaches production now (corrected: this used to be DEV-only, like
+ * `SPAWN_PARAMS` still is). The title screen's scenario picker
+ * (`titleScreen.ts`'s `SCENARIO_OPTIONS`) is a real, shipped UI over this
+ * exact parameter -- picking a scenario there navigates to `?scenario=<id>`
+ * rather than swapping entities in place (main.ts's `onNewGame` has the
+ * reasoning), so this query string is the actual mechanism, not a DEV
+ * shortcut standing in for one. What makes that safe in production is
+ * `isKnownScenarioId` (titleScreen.ts): `scenarioIdFromQuery` below only
+ * checks the id is well-FORMED, and `main.ts` separately rejects anything
+ * well-formed that is not one of the five scenarios this build actually
+ * ships, before any content fetch starts.
+ */
 export const SCENARIO_PARAM = 'scenario'
 
 export function scenarioIdFromQuery(search: string, fallback: string): string {

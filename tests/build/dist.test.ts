@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { AIRCRAFT_CONTENT_PATH, FINEST_FETCHED_LEVEL, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
-import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
+import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
@@ -278,7 +278,11 @@ describe('the built artifact', () => {
       // Reject the query-key literal; general Beaufort validation can remain
       // in production as scenario weather will use it too.
       expect(bundle).not.toContain(JSON.stringify(BEAUFORT_PARAM))
-      expect(bundle).not.toContain(JSON.stringify(SCENARIO_PARAM))
+      // SCENARIO_PARAM is deliberately NOT asserted absent here (corrected:
+      // it used to be, back when `?scenario=` was DEV-only). It now reaches
+      // production for real -- the title screen's scenario picker navigates
+      // to `?scenario=<id>` (main.ts) -- and `main.ts`'s `isKnownScenarioId`
+      // whitelist, not bundle-text exclusion, is what keeps that safe.
       expect(bundle).not.toContain('ocean weather:')
       expect(bundle).not.toContain('sceneryView')
       // The spawn override, by the parameter names the app actually parses
