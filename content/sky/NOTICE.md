@@ -6,3 +6,7 @@ after Schneider & Vos, "The Real-Time Volumetric Cloudscapes of Horizon: Zero
 Dawn" (SIGGRAPH 2015) -- method only, no data from that or any other source.
 Original, AGPL-3.0-or-later. `tests/tools/skyNoise.test.ts` pins their
 SHA-256; a rebuild that changes a byte changes that test in the same commit.
+
+`coverage.bin.gz` (64² R8) is the cumulus coverage-modulation "weather map"
+added in Plan 16d, built the same way and under the same license by the same
+`npm run sky:build` command.

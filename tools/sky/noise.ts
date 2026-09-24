@@ -1,5 +1,5 @@
 import { createRng } from '../../src/sim/rng.js'
-import { DETAIL_SIZE, SHAPE_SIZE } from '../../src/render/sky/noise.js'
+import { COVERAGE_SIZE, DETAIL_SIZE, SHAPE_SIZE } from '../../src/render/sky/noise.js'
 
 /**
  * Tileable Perlin and Worley noise for the cloud volumes (design §3), after
@@ -94,6 +94,28 @@ export function buildDetail(size = DETAIL_SIZE, seed = 1945): Uint8Array {
     const u = x / size, v = y / size, w = z / size
     const d = 0.625 * worleyTileable(u, v, w, 4, perm) + 0.25 * worleyTileable(u, v, w, 8, perm) + 0.125 * worleyTileable(u, v, w, 16, perm)
     out[(z * size + y) * size + x] = quantize(d)
+  }
+  return out
+}
+
+/** Large-scale 2D Perlin fbm: the cumulus coverage-modulation "weather map"
+ *  (design §2). Perlin alone, no Worley mix -- unlike buildShape this has no
+ *  billowy cloud-body job to do, just smooth regional clumping/gapping of
+ *  the per-layer coverage scalar. `base = 3` (vs. buildShape's 4) for even
+ *  lower frequency: this is meant to vary over tens of kilometres. */
+export function buildCoverage(size = COVERAGE_SIZE, seed = 1946): Uint8Array {
+  const perm = createPermutation(seed)
+  const out = new Uint8Array(size * size)
+  const base = 3
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const u = x / size, v = y / size
+    let n = 0, amp = 0.5, freq = base
+    for (let o = 0; o < 3; o++) {
+      n += amp * perlinTileable(u * freq, v * freq, 0, freq, perm)
+      amp *= 0.5
+      freq *= 2
+    }
+    out[y * size + x] = quantize(n * 0.5 + 0.5)
   }
   return out
 }

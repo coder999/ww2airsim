@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { buildShape, createPermutation, perlinTileable, remap, worleyTileable } from '../../tools/sky/noise.js'
-import { detailPath, shapePath, loadDetail, loadShape } from '../../tools/sky/load.js'
-import { DETAIL_SIZE, SHAPE_SIZE, detailByteLength, shapeByteLength } from '../../src/render/sky/noise.js'
+import { buildCoverage, buildShape, createPermutation, perlinTileable, remap, worleyTileable } from '../../tools/sky/noise.js'
+import { coveragePath, detailPath, shapePath, loadCoverage, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { COVERAGE_SIZE, DETAIL_SIZE, SHAPE_SIZE, coverageByteLength, detailByteLength, shapeByteLength } from '../../src/render/sky/noise.js'
 
 describe('tileable noise (Plan 16a)', () => {
   const perm = createPermutation(7)
@@ -43,19 +43,41 @@ describe('tileable noise (Plan 16a)', () => {
   })
 })
 
+describe('coverage noise (Plan 16d)', () => {
+  it('tiles at its period and is not a constant field', () => {
+    const n = 32
+    const v = buildCoverage(n, 5)
+    expect(v.length).toBe(n * n)
+    const at = (x: number, y: number) => v[y * n + x]!
+    // Same wrapping check as buildShape's: opposite edges are adjacent
+    // samples under tiling, so they differ by one texel's worth, not a seam.
+    let worst = 0
+    for (let y = 0; y < n; y++) worst = Math.max(worst, Math.abs(at(0, y) - at(n - 1, y)))
+    expect(worst).toBeLessThan(60)
+    // The exact defect design §4 warns about: a constant field would
+    // silently defeat spatial variation while every other test still passes.
+    expect(Math.max(...v) - Math.min(...v)).toBeGreaterThan(80)
+  })
+})
+
 const COMMITTED_SHA256: Readonly<Record<string, string>> = {
   // Paste from `sha256sum content/sky/*.gz` after `npm run sky:build`; the
   // commit that changes these says what moved and why.
   'shape.bin.gz': 'ad7af382f211d5ba09eb365d28b70a7a05c11672f107774b6a6f2d7cca8c3fbd',
   'detail.bin.gz': '3291e29dd335627ee5f58d3c21afd1fd3e5a8fd7ce96f1df25895ee5930c81bd',
+  'coverage.bin.gz': '16658436b3106f525c59e19759c42a890e602c5bcdc64db9652fa1604f6b81ca',
 }
 describe('the committed noise', () => {
   it('has the size the loader expects and the hashes the build produced', () => {
     expect(loadShape().length).toBe(shapeByteLength())
     expect(loadDetail().length).toBe(detailByteLength())
+    expect(loadCoverage().length).toBe(coverageByteLength())
     expect(SHAPE_SIZE).toBe(128)
     expect(DETAIL_SIZE).toBe(32)
-    for (const [name, path] of [['shape.bin.gz', shapePath()], ['detail.bin.gz', detailPath()]] as const) {
+    expect(COVERAGE_SIZE).toBe(64)
+    for (const [name, path] of [
+      ['shape.bin.gz', shapePath()], ['detail.bin.gz', detailPath()], ['coverage.bin.gz', coveragePath()],
+    ] as const) {
       expect(createHash('sha256').update(readFileSync(path)).digest('hex'), name).toBe(COMMITTED_SHA256[name])
     }
   })
