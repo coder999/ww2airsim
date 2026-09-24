@@ -106,10 +106,21 @@ dead-astern target could silently command nothing; both are fixed and
 covered by a new hits-not-just-shots test at both tiers.
 `?scenario=pursuit-range` starts the player and one AI-flown F6F airborne
 astern; on the reference GPU it turns onto a gun solution and lands a hit
-within 24.3 s, at 0.860 ms render-pass p95 with zero validation errors. Pilot
-skill, energy-state decisions, a minimum engagement range, defensive
-maneuvers, formation and landing AI remain Plan 7b/7c. See the
-[handoff](docs/handoff/2026-09-23-plan7a-ai-pursuit.md).
+within 24.3 s, at 0.860 ms render-pass p95 with zero validation errors. The
+rest of the maneuver library, formation and landing AI remain Plan 7c. See
+the [handoff](docs/handoff/2026-09-23-plan7a-ai-pursuit.md).
+
+**Plan 7b energy-aware maneuvering landed 2026-09-23.** An AI pilot now
+chooses between three maneuvers — Pursue, Extend, Break — rescored on a
+per-skill cadence (`PilotSkill`: reaction delay, gunnery accuracy, energy
+discipline), instead of flying one script forever. A
+`MIN_ENGAGEMENT_RANGE_M` (120 m) override forces a break-off before
+point-blank range, closing the pass-through gap 7a's own review had
+declined to fix. On the reference GPU, `pursuer-1` (now `VETERAN_SKILL`)
+closes under 120 m, never comes closer than 50 m, and opens range
+afterward, at 0.861 ms render-pass p95 with zero validation errors. See the
+[handoff](docs/handoff/2026-09-23-plan7b-combat-depth.md) for the three
+formula bugs the overnight run found and fixed along the way.
 
 **Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
 slot now shows a rotating, heading-up sweep with fading contact dots and a
