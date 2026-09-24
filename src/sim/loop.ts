@@ -742,6 +742,21 @@ export function advance<M>(
   elapsedSeconds: number,
   stepper: Stepper = step,
   assist: Assist<M> = identityAssist,
+  /**
+   * The Damage Model setting, threaded straight into `stepCombat`'s own
+   * `arcadeDamage` parameter (Plan "UI realism" Tasks 3 and 6). `true`
+   * disables structural-overload damage and nothing else -- the stress
+   * MEASUREMENT the HUD reads is unconditional; see `stepCombat`.
+   *
+   * A parameter, injected by the caller, for the reason `stepper` and
+   * `assist` are: `src/sim/` may not read `localStorage` (the setting's home)
+   * and must not learn where the value came from. Not a `World` field either
+   * -- a `World` is a description of the FLIGHT, and this is a preference the
+   * player can flip mid-flight from the title screen's dialog. Defaults to
+   * `false`, so every existing call site keeps the damage model this game has
+   * always had.
+   */
+  arcadeDamage = false,
 ): AdvanceResult<M> {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
   // that is negative or not a number; banking either would poison the
@@ -829,7 +844,7 @@ export function advance<M>(
         record.damage, record.stores,
       )
     })
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds)
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage)
     // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
     // them once per RENDERED frame, but this loop can run up to
     // MAX_STEPS_PER_FRAME substeps against that one frame's controls. Nothing

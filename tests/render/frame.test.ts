@@ -184,6 +184,37 @@ describe('nextFrameState', () => {
     expect(f.render.position.x).toBeGreaterThan(lo)
     expect(f.render.position.x).toBeLessThan(hi)
   })
+
+  // Task 6 of the UI-realism plan: `combat.ts` grew an `arcadeDamage`
+  // parameter (Task 3) with no production caller at all -- `advance` did not
+  // pass one and neither did this function, so the Settings toggle could have
+  // shipped doing precisely nothing while `tests/sim/weapons/combat.test.ts`
+  // stayed green on the mechanism itself. This drives the whole production
+  // path the flag actually travels (`nextFrameState` -> `advance` ->
+  // `stepCombat`), which is the part that was missing.
+  it('threads the arcade damage flag through advance into stepCombat', () => {
+    const overspeed = () =>
+      initialFrameState(f6f, createState({
+        position: v3(0, 3000, 0),
+        velocity: v3(f6f.limits.diveSpeedMps * 2, 0, 0),
+      }))
+    let realistic = overspeed()
+    let arcade = overspeed()
+    for (let i = 0; i < 30; i++) {
+      realistic = nextFrameState(realistic, 1 / 60, keys())
+      arcade = nextFrameState(arcade, 1 / 60, keys(), undefined, true)
+    }
+    const record = (f: typeof realistic) => f.world.combat.aircraft[f.world.player]!
+    // The realistic run is the regression guard: without it this test would
+    // pass even if the flag had been wired to nothing, since a healthy
+    // airframe also reads 1.
+    expect(record(realistic).damage.structure).toBeLessThan(1)
+    expect(record(arcade).damage.structure).toBe(1)
+    // And the measurement behind the HUD's stress gauge is unconditional --
+    // arcade turns off the consequence, not the reading (visual-realism §1).
+    expect(record(arcade).stress.overspeed).toBe(true)
+    expect(record(arcade).stress).toEqual(record(realistic).stress)
+  })
 })
 
 describe('toThreeOrientation', () => {

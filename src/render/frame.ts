@@ -446,6 +446,13 @@ export function nextFrameState(
   elapsedSeconds: number,
   pressed: PressedKeys,
   stepper?: Stepper,
+  /** The Damage Model setting, read fresh every frame by `main.ts` from the
+   *  Settings dialog's model and handed to `advance` below (Plan "UI realism"
+   *  Task 6). A parameter rather than a `FrameState` field because it is not
+   *  frame state: nothing here derives from it, edge-triggers on it or carries
+   *  it forward -- it is passed through, exactly like `stepper`. Default
+   *  `false` keeps every other caller on the realistic model. */
+  arcadeDamage = false,
 ): FrameState {
   const player = playerAircraft(prev.world)
   const spec = player.spec
@@ -620,6 +627,7 @@ export function nextFrameState(
     holding ? 0 : simElapsedSeconds,
     stepper,
     assist,
+    arcadeDamage,
   )
   const advancedPlayer = playerAircraft(advanced.world)
   const { poses, shipPoses, render } = posesFor(advanced.world, advanced.alpha)

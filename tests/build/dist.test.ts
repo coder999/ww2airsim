@@ -204,10 +204,20 @@ describe('the built artifact', () => {
       expect(shippedJs).toContain('https://www.openstreetmap.org/copyright')
       expect(readFileSync(join(outDir, 'index.html'), 'utf8')).not.toContain('map-credit')
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
-      // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER`, matching `main.ts`'s
-      // own placeholder pending Task 6's real persisted-tier wiring: this
-      // loop asserts every level TODAY's placeholder actually fetches.
+      // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` -- since Task 6
+      // (2026-09-24) the FIRST-VISIT default rather than a placeholder, and
+      // still `'low'`/L1 for the memory reason that constant documents. This
+      // loop asserts every level a default page load actually fetches.
       for (let level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER); level <= coarsest; level++) {
+        // L0 is the one level this environment may not have (`ci.yml` checks
+        // out without `lfs: true`), so it is skipped here exactly as it is in
+        // the explicit byte-count line below -- an un-smudged LFS pointer is a
+        // few hundred bytes of text that `vite build` copies through
+        // faithfully, and reading it here would fail looking precisely like
+        // data corruption. Guarded rather than assumed unreachable: the loop's
+        // floor moves the day `INTERIM_ASSET_QUALITY_TIER` does, and the whole
+        // point of deriving it from that constant is that it is allowed to.
+        if (level === 0 && !haveRealL0) continue
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
         const bytes = readFileSync(join(outDir, terrainLevelPath(level)))
         expect(bytes.byteLength, `${terrainLevelPath(level)} is the wrong size`).toBe(samples ** 2 * 2)

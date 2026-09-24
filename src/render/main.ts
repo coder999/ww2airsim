@@ -6,7 +6,9 @@ import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, SCENARIO_ID } from './content.js'
+import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
+import { createBootQuality } from './bootQuality.js'
+import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createAudioSystem } from '../audio/system.js'
@@ -170,6 +172,16 @@ async function boot(): Promise<void> {
   // `spawnPosition`. Assigned where the clouds are created.
   let cloudLayers: readonly CloudLayer[] = []
   let cloudTier: CloudTierName | 'off' = 'high'
+  /**
+   * The scenery tier in force, which `vegetation` is the only consumer of --
+   * and `vegetation` does not exist until terrain level `finestFetchedLevel`
+   * arrives, long after a Settings pick or the GPU probe can first move this.
+   * Held here so the value survives that gap: `createVegetation`'s own
+   * `setTier` call below reads THIS, rather than `oceanTier.name`, which is
+   * what makes Advanced's three rows genuinely independent (spec §4) instead
+   * of scenery silently tracking the ocean.
+   */
+  let sceneryTier: QualityTierName = 'high'
   // Plan 16c, read by the DEV hook's `sun()` below; assigned at boot and
   // every frame. Apparent solar time.
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
@@ -437,6 +449,28 @@ async function boot(): Promise<void> {
     return
   }
 
+  /**
+   * The Settings dialog's model and the boot sequence's side of it
+   * (`bootQuality.ts`, Task 6; design spec
+   * `docs/superpowers/specs/2026-09-24-render-quality-selector-design.md` §5).
+   *
+   * Built HERE, above `createTitleScreen`, and handed to it as its fourth
+   * parameter -- that argument is the whole feature. Without it `titleScreen`
+   * builds its own default model, every pick still saves to localStorage, the
+   * checkmarks still move, and nothing in the game ever changes tier: a
+   * silent failure with a completely correct-looking UI. It is also read
+   * before the first tier-dependent object is built (the ocean cascades, the
+   * clouds, the terrain's level floor) and bound to the live setters further
+   * down, once those objects exist.
+   */
+  const quality = createBootQuality()
+  // Captured once per page load, before any object depends on it: the terrain
+  // pyramid's floor cannot change mid-flight, which is what the dialog's
+  // `ASSET_QUALITY_EFFECT_NOTE` tells the player. Nothing persisted means
+  // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` (L1), not the spec's eventual
+  // `'medium'` (L0) -- see that constant, and `BootQuality.assetQuality`.
+  const finestFetchedLevel = finestFetchedLevelFor(quality.assetQuality)
+
   // The title screen (2026-09-19), created before anything that can take
   // real time: the adapter, the ocean cascades and the terrain all load
   // behind it. A boot failure empties #app (failure.ts), which takes the
@@ -533,7 +567,7 @@ async function boot(): Promise<void> {
       return
     }
     rebuildFrame()
-  })
+  }, quality.settings)
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
@@ -554,7 +588,17 @@ async function boot(): Promise<void> {
   // diagnostics hook's `oceanLandWeight` closes over it before `loadDepth` resolves.
   let oceanDepth: DepthField | null = null
   const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
-  let oceanTier = forcedOceanTier ?? OCEAN_TIERS[0]
+  /** An `OCEAN_TIERS` entry by name. Total: `QualityTierName` and the tiers'
+   *  own names are the same three strings, so the fallback is unreachable --
+   *  it exists because `find` cannot say so in the type system. */
+  const oceanTierNamed = (name: QualityTierName) => OCEAN_TIERS.find((t) => t.name === name) ?? OCEAN_TIERS[0]
+  // Spec §5 steps 1 and 2: a saved choice is what this page load builds at,
+  // `defaultQualitySettings('high')` (i.e. `OCEAN_TIERS[0]`, unchanged from
+  // before this plan) when nothing is saved -- and a DEV `?oceanTier=`
+  // override still wins over both, which is what keeps a Tier 2 measurement
+  // run reading its own query parameter rather than whatever localStorage on
+  // that machine happens to hold.
+  let oceanTier = forcedOceanTier ?? oceanTierNamed(quality.current().ocean)
 
   // Declared here rather than beside `frameFn` further down, for the same
   // temporal-dead-zone reason as `spawnPosition` and `cascades` above: the
@@ -859,7 +903,11 @@ async function boot(): Promise<void> {
   const skyNoise = await loadSkyNoise()
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
-  cloudTier = forcedCloudTier ?? oceanTier.name
+  // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
+  // diverge). With nothing saved both read `high`, which is what this line
+  // resolved to before this plan existed. `?cloudTier=` still wins.
+  cloudTier = forcedCloudTier ?? quality.current().clouds
+  sceneryTier = quality.current().scenery
   // Plan 16c: the scenario's hour, or the DEV override.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
@@ -868,9 +916,8 @@ async function boot(): Promise<void> {
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
   if (cloudTier !== 'off') shadow.setTier(cloudTier)
-  // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` has the memory reasoning for
-  // why this is `'low'` and not the spec's eventual `'medium'` first-visit
-  // default. Computed ONCE, here -- the only call site in `src/` -- and
+  // `finestFetchedLevel` is computed ONCE, at the top of `boot()` from the
+  // persisted Asset Quality tier -- the only call site in `src/` -- and
   // threaded into every place that needs it (`createTerrainMesh`'s
   // `finestLevel` param, `terrain.levelTexture()` below,
   // `loadTerrainProgressively`'s and `applyTerrainLevel`'s `finestLevel`
@@ -879,7 +926,6 @@ async function boot(): Promise<void> {
   // `finestFetchedLevelFor('low')` itself, a second source of truth that
   // happened to agree with this one only because both were the same
   // hardcoded literal.
-  const finestFetchedLevel = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
   const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow)
   // Plan 13b. The raster and the terrain levels race; whichever lands
   // second finds the other ready. A failed fetch leaves the procedural
@@ -930,19 +976,23 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(finestFetchedLevel), shadow)
   scene.add(water)
-  let qualityChecked = false
-  const adaptOceanQuality = async (): Promise<void> => {
-    // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
-    // pipelines during flight; a DEV override holds the tier for comparison.
-    const p95 = (values: readonly number[]) => [...values].sort((a,b)=>a-b)[Math.floor(values.length * .95)] ?? 0
-    const timed = renderer.hasFeature('timestamp-query')
-    if (qualityChecked || forcedOceanTier || (timed ? gpuFrameTimesMs.length < 180 : frameTimesMs.length < 180)) return
-    qualityChecked = true
-    const cost = timed ? p95(gpuFrameTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
-      : p95(frameTimesMs.slice(60))
-    // Without GPU timestamps, frame intervals include refresh cadence. Keep
-    // high at 60 fps, medium below 30 fps, low otherwise.
-    const next = timed ? tierForFrameTimeMs(cost) : cost <= 18 ? OCEAN_TIERS[0] : cost <= 34 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
+  /**
+   * Swap the ocean onto `name`'s cascades, live. Extracted from the probe
+   * (where this whole body used to live inline) because the Settings dialog
+   * now reaches the same swap: a Simple-row or Advanced Ocean click is the
+   * identical operation the probe performs, and two copies of a rebuild that
+   * disposes GPU resources is exactly the divergence this file has been bitten
+   * by before.
+   *
+   * A DEV `?oceanTier=` override holds the tier against BOTH callers (spec §5
+   * step 2). That guard matters more now than it did: without it, `bind`
+   * below applies the saved settings the moment the ocean exists, so a
+   * measurement run on a machine with `low` in localStorage would silently
+   * measure `low` while its URL said `high`.
+   */
+  const applyOceanTier = async (name: QualityTierName): Promise<void> => {
+    if (forcedOceanTier !== undefined) return
+    const next = oceanTierNamed(name)
     if (next === oceanTier) return
     const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
     const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
@@ -955,12 +1005,49 @@ async function boot(): Promise<void> {
     water = replacement
     scene.add(water)
     oceanTier = next
-    vegetation?.setTier(next.name)
-    if (forcedCloudTier === undefined) {
-      cloudTier = next.name
-      clouds.setTier(next.name)
-      shadow.setTier(next.name)
-    }
+  }
+  /** `vegetation` is null until terrain arrives, which is why the tier is
+   *  also recorded: `createVegetation`'s own `setTier` call reads it. */
+  const applySceneryTier = (name: QualityTierName): void => {
+    sceneryTier = name
+    vegetation?.setTier(name)
+  }
+  /** `?cloudTier=` holds this one, including `off` -- which is a scene with no
+   *  cloud pass at all, not a tier, and must not be pulled back on by a saved
+   *  setting or by the probe. */
+  const applyCloudTier = (name: QualityTierName): void => {
+    if (forcedCloudTier !== undefined || cloudTier === name) return
+    cloudTier = name
+    clouds.setTier(name)
+    shadow.setTier(name)
+  }
+  // Spec §5 step 1: a saved choice means the probe never runs at all -- the
+  // "probe once ever" rule -- so `qualityChecked` starts pre-latched in that
+  // path rather than the probe measuring and then discarding its own result.
+  let qualityChecked = quality.probeSuppressed
+  // Everything a tier moves now exists. This also applies anything picked
+  // during boot's own awaits, when the dialog was already clickable and there
+  // was nothing yet to apply it to.
+  quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier })
+  const adaptOceanQuality = async (): Promise<void> => {
+    // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
+    // pipelines during flight; a DEV override holds the tier for comparison.
+    const p95 = (values: readonly number[]) => [...values].sort((a,b)=>a-b)[Math.floor(values.length * .95)] ?? 0
+    const timed = renderer.hasFeature('timestamp-query')
+    if (qualityChecked || forcedOceanTier || (timed ? gpuFrameTimesMs.length < 180 : frameTimesMs.length < 180)) return
+    qualityChecked = true
+    const cost = timed ? p95(gpuFrameTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
+      : p95(frameTimesMs.slice(60))
+    // Without GPU timestamps, frame intervals include refresh cadence. Keep
+    // high at 60 fps, medium below 30 fps, low otherwise.
+    const next = timed ? tierForFrameTimeMs(cost) : cost <= 18 ? OCEAN_TIERS[0] : cost <= 34 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
+    // Spec §5 step 3, all of it -- including the case this function used to
+    // return early on (`next === oceanTier`): the measurement is still what
+    // the dialog stamps "Recommended", and still worth saving, since what
+    // makes the probe run once per BROWSER rather than once per page load is
+    // the save, not the swap. `applyProbeResult` discards its own result if
+    // the player picked a tier first; it never overwrites a deliberate choice.
+    quality.applyProbeResult(next.name)
   }
   const sky = createSky()
   scene.add(sky)
@@ -1471,7 +1558,11 @@ async function boot(): Promise<void> {
             dropBombPressed: pendingDropBomb ? false : frame!.dropBombPressed,
             fireRocketsPressed: pendingFireRockets ? false : frame!.fireRocketsPressed,
           }
-    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper)
+    // The Damage Model setting, read fresh every frame rather than captured:
+    // the dialog is reachable from the title screen between sorties, and
+    // `arcadeDamage()` is a plain boolean read off the model (no localStorage
+    // round trip per frame). It reaches `stepCombat` through `advance`.
+    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage())
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
     if (title.up()) current = withPaused(current, true)
@@ -1920,8 +2011,11 @@ async function boot(): Promise<void> {
       // recomposes a third time. One wasted recompose is cheap; this was two
       // (whole-branch review, 2026-09-18).
       vegetation.update(next.eye.position.x, next.eye.position.z)
-      // The tier may already have been chosen by the time terrain arrives.
-      vegetation.setTier(oceanTier.name)
+      // The tier may already have been chosen by the time terrain arrives --
+      // by the probe, or by a Settings pick made while the terrain loaded.
+      // `sceneryTier` is where `applySceneryTier` parks it for exactly this
+      // moment, since `vegetation` does not exist to receive it any earlier.
+      vegetation.setTier(sceneryTier)
       if (cover !== null) vegetation.setCover(cover)
       scene.add(vegetation.object)
     }
