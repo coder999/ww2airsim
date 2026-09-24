@@ -244,6 +244,20 @@ export type Ww2Diagnostics = {
    *  simulation or the renderer reads, unlike the `FrameState` setter
    *  `assists` above deliberately does not offer. */
   readonly oceanTier: () => string
+  /**
+   * Whether `main.ts`'s `adaptOceanQuality` probe has already resolved this
+   * page load -- `true` either because it measured (a fresh profile, once
+   * the ~180-frame warm-up window elapses) or because a persisted
+   * render-quality choice pre-latched it at boot, per the "probe once ever"
+   * rule (design spec §5 step 1). Added in Task 9 (reference-GPU acceptance)
+   * because the DEV-override-wins and probe-suppression claims were
+   * previously pinned only by a source-text regex on `main.ts` (Task 6
+   * review, twice) -- never proven against a real running page. Reading it
+   * immediately after `waitForTerrain` on a page load with a persisted
+   * choice already in `localStorage` should read `true` well before the
+   * ~3 s a fresh profile takes to flip it.
+   */
+  readonly qualityProbeChecked: () => boolean
   /** `landWeightFromTerrain` at world (x, z), read on the CPU from the SAME
    *  terrain texture the ocean mesh samples for its land weight. 1 over
    *  open water, 0 on land, `null` before the ocean exists. Added

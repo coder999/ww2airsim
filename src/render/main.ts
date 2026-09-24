@@ -690,6 +690,23 @@ async function boot(): Promise<void> {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
       oceanTier: () => oceanTier.name,
+      // Task 9 (reference-GPU acceptance): whether `adaptOceanQuality`'s
+      // ~180-frame probe has already resolved -- either because it measured
+      // (a fresh profile, after the warm-up window) or because it was
+      // pre-latched at `true` from `quality.probeSuppressed` (a persisted
+      // choice already existed at boot, so the "probe once ever" rule skips
+      // it entirely). Reading `qualityChecked` itself rather than a second,
+      // parallel flag: it is declared later in this same function (line
+      // ~1049) than this object literal, but every real caller reads it only
+      // after `waitForTerrain`, which requires the terrain heightfield to
+      // have arrived -- itself gated on code further down still than that
+      // `let` -- so the declaration has always run by the time this getter
+      // is invoked. Exists because the DEV-override precedence and the
+      // "an explicit pick suppresses the next page load's probe" claims
+      // (spec §5 steps 1-2) were previously pinned only by a source-text
+      // regex on `bootQuality.test.ts`, never by a running check
+      // (Task 6 review, carried to this task).
+      qualityProbeChecked: () => qualityChecked,
       oceanLandWeight: (x, z) => {
         if (!oceanDepth) return null
         return landWeightAt(terrain.levelTexture(finestFetchedLevel), oceanDepth.header.halfExtentM, x, z)
