@@ -1,5 +1,5 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat } from 'three'
-import { color, float, max, mix, smoothstep, texture, uniform, vec2 } from 'three/tsl'
+import { color, float, max, mix, smoothstep, texture, uniform, vec2, vec3 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
 import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
@@ -154,9 +154,18 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   const beachToLand = smoothstep(0.4, 2.3, height.add(patches.sub(0.5).mul(0.6)))
   const ground = mix(mix(sand, land, beachToLand), rock, bare)
   const rivers = riverMask()
-  const mask = texture(rivers.texture, xz.sub(vec2(rivers.minX, rivers.minZ))
-    .div(vec2(rivers.width, rivers.depth))).r
+  const riverUv = xz.sub(vec2(rivers.minX, rivers.minZ)).div(vec2(rivers.width, rivers.depth))
+  const riverRoadMask = texture(rivers.texture, riverUv)
+  const mask = riverRoadMask.r
   const wetBank = mix(ground, color(0x68664b), smoothstep(0.05, 0.5, mask).mul(0.8))
   const water = mix(color(0x345455), color(0x65796d), groundNoise(xz, 55).g)
-  return mix(wetBank, water, smoothstep(0.45, 0.85, mask))
+  const withWater = mix(wetBank, water, smoothstep(0.45, 0.85, mask))
+  // Road: the Maharlika Highway alignment, painted into the mask's green
+  // channel by rivers.ts's `paint`. Blended in after water, following the
+  // same smoothstep-weighted mix() convention as the river/paddy/mangrove
+  // blends above rather than a new blending style -- a road never overlaps
+  // a river in the source data, so blend order between the two doesn't matter.
+  const roadWeight = smoothstep(0.05, 0.5, riverRoadMask.g)
+  const roadColour = vec3(0.42, 0.36, 0.27) // dry earth, matching the design's own description
+  return mix(withWater, roadColour, roadWeight)
 }

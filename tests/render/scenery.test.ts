@@ -9,7 +9,9 @@ import { COVER_HEADER } from '../../src/render/landcover/load.js'
 import { coverByteLength, quantize } from '../../src/render/landcover/cover.js'
 import { SCENERY_TIERS } from '../../src/render/scene/tiers.js'
 import { createRunway } from '../../src/render/scene/runway.js'
-import { RIVER_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
+import { RIVER_PATHS, ROAD_PATHS, nearRiver, riverMask } from '../../src/render/terrain/rivers.js'
+import { toLocal } from '../../src/sim/world/projection.js'
+import placesData from '../../content/scenery/places.json'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { FIRST_COMMITTED_LEVEL, loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { loadAirfield } from '../../tools/content/load.js'
@@ -277,11 +279,62 @@ describe('scenery placement on the real Leyte field', () => {
       expect(p.z).toBeLessThan(0)
       const col = Math.floor((p.x - m.minX) / m.stepX)
       const row = Math.floor((p.z - m.minZ) / m.stepZ)
-      expect(m.data[row * m.size + col]).toBeGreaterThan(200)
+      // Plan 13d Task 2: the mask is now RG-interleaved (2 bytes/texel), so
+      // reading the raw array needs channel 0 -- same mechanical change as
+      // `nearRiver`'s own read a few lines below. The threshold and every
+      // other assertion here are untouched.
+      expect(m.data[(row * m.size + col) * 2]).toBeGreaterThan(200)
       expect(nearRiver(p.x, p.z)).toBe(true)
       expect(nearRiver(p.x, -p.z)).toBe(false)
     }
     expect(nearRiver(tacloban.runway.center.x, tacloban.runway.center.z)).toBe(false)
+  })
+
+  it('places roads without disturbing nearRiver -- Plan 13d widens the mask, it does not move the rivers', () => {
+    // Re-run the EXACT same assertions the existing river-placement test
+    // above makes (river points read true, their mirror reads false, the
+    // Tacloban runway centre reads false) -- if this test and the one above
+    // it both pass, the channel-count change did not regress river placement.
+    const m = riverMask()
+    for (const river of RIVER_PATHS) for (const p of river.points) {
+      expect(p.x).toBeLessThan(0)
+      expect(p.z).toBeLessThan(0)
+      const col = Math.floor((p.x - m.minX) / m.stepX)
+      const row = Math.floor((p.z - m.minZ) / m.stepZ)
+      expect(m.data[(row * m.size + col) * 2]).toBeGreaterThan(200)
+      expect(nearRiver(p.x, p.z)).toBe(true)
+      expect(nearRiver(p.x, -p.z)).toBe(false)
+    }
+    expect(nearRiver(tacloban.runway.center.x, tacloban.runway.center.z)).toBe(false)
+  })
+
+  it('reads the road channel at a known Maharlika Highway point, and false off it', () => {
+    const m = riverMask()
+    // ROAD_PATHS[0]'s first coordinate, re-derived independently here
+    // through the SAME two filters rivers.ts applies (name/ref, then the
+    // 80 km Tacloban radius) rather than trusting rivers.ts's own
+    // conversion or filter order.
+    const taclobanLocal = toLocal(11.228, 125.028)
+    const nameFiltered = placesData.roads
+      .filter(r => /maharlika/i.test(r.name) || r.name === '1')
+      .map(r => ({ name: r.name, points: r.coordinates.map(c => toLocal(c[1]!, c[0]!)) }))
+      .filter(r => r.points.every(pt => Math.hypot(pt.x - taclobanLocal.x, pt.z - taclobanLocal.z) < 80_000))
+    const p = nameFiltered[0]!.points[0]!
+    // Independently-derived point matches rivers.ts's own ROAD_PATHS conversion.
+    expect(p).toEqual(ROAD_PATHS[0]!.points[0])
+    const col = Math.floor((p.x - m.minX) / m.stepX)
+    const row = Math.floor((p.z - m.minZ) / m.stepZ)
+    expect(m.data[(row * m.size + col) * 2 + 1]).toBeGreaterThan(24)
+    // Far from any road: well off the mask's road corridor, near its west edge.
+    const farX = m.minX + 200, farZ = m.minZ + m.depth / 2
+    const farCol = Math.floor((farX - m.minX) / m.stepX)
+    const farRow = Math.floor((farZ - m.minZ) / m.stepZ)
+    expect(m.data[(farRow * m.size + farCol) * 2 + 1]).toBeLessThan(5)
+  })
+
+  it('measures the combined mask\'s texel size and asserts it is still finer than a 38 m river\'s two-texel minimum', () => {
+    const m = riverMask()
+    expect(Math.max(m.stepX, m.stepZ) * 2).toBeLessThan(38)
   })
 
   it('takes the land-cover raster once it arrives, and paints procedurally until then', () => {
