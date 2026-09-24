@@ -67,6 +67,17 @@ road), not surveyed, matching the order of magnitude of design §7's own JSON
 example. A way referencing a member node id absent from the response still
 throws — that is a genuine gap in the returned geometry, not a naming gap.
 
+**What ships.** The paragraphs above describe the raw Overpass response
+(1,897 ways). The committed `places.json` narrows further:
+`tools/scenery/build.ts`'s `buildPlaces` also applies a name (Maharlika
+Highway / route ref `1`) and 80 km-Tacloban-radius filter to the roads
+before writing the file — moved here from a runtime filter in
+`src/render/terrain/rivers.ts` (2026-09-24, to stop shipping the 1,689
+discarded roads in the JS bundle). The committed `places.json` therefore
+carries all 108 towns/villages but only **208** of the 1,897 roads; the raw,
+unfiltered 1,897-road response remains available (as this section already
+describes) only in the gitignored `tools/scenery/cache/places-overpass.json`.
+
 To rebuild: save the raw response as
 `tools/scenery/cache/places-overpass.json` (gitignored, not committed —
 matches `binahaan.json`/`daguitan.json`'s existing precedent), then run

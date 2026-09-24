@@ -55,7 +55,7 @@ import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
 import { createTowns, type Town } from './scene/towns.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
-import placesData from '../../content/scenery/places.json'
+import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'

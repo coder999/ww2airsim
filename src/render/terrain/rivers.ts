@@ -8,42 +8,20 @@ export const RIVER_PATHS = riverData.map(r => ({
   points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
 }))
 
-// Task 1's Overpass query has no name filter, so `places.json` carries
-// every trunk/primary way in the whole 200 km query box -- 1,897 roads.
-// Filtered by name/ref to the one alignment design §7 actually names
-// ("the Maharlika Highway alignment... and the Ormoc side on the west"):
-// 290 roads. THAT ALONE IS NOT ENOUGH -- measured 2026-09-24 against the
-// real data: "Maharlika Highway" is OSM's name for the whole Pan-Philippine
-// Highway, which crosses into Samar north of Tacloban (the San Juanico
-// Bridge) and continues south past Abuyog -- the name-only set spans
-// ~178 km, not the ~100 km (Tacloban-Ormoc, the alignment's own two named
-// ends) this plan actually needs. A second filter -- every point of the way
-// within 80 km of Tacloban's own world origin (comfortably beyond both
-// Ormoc, ~50 km, and Abuyog, ~65-70 km, straight-line) -- brings it down to
-// 208 roads (measured directly against the real data by running this exact
-// filter, not estimated; the controller's own overnight measurement got
-// 206 with the same filter -- a couple of ways sit close enough to the
-// 80 km boundary that floating-point rounding in the projection can flip
-// them either side, and it does not change the outcome below either way)
-// spanning 138.7 km (depth of the combined river+road bbox), measured
-// texel size 4.9 x 16.9 m at the mask's 8192² size -- two-texel 33.9 m,
-// inside the <38 m bar with real margin, confirmed by running the actual
-// code (not the ~17 m ESTIMATE the first version of this ruling used
-// before measuring the actual geographic spread).
-// Tacloban's own sourced coordinate (content/bases/tacloban.json's
-// reference: "11.228 N 125.028 E"), not the tangent-plane's (0,0) origin
-// (10.8 N, 125.3 E per master spec §4) -- these are different points, and
-// filtering against the wrong one would silently miscenter this radius.
-const TACLOBAN_LOCAL = toLocal(11.228, 125.028)
-const TACLOBAN_RADIUS_M = 80_000
-export const ROAD_PATHS = placesData.roads
-  .filter(r => /maharlika/i.test(r.name) || r.name === '1')
-  .map(r => ({
-    name: r.name, widthM: r.widthM,
-    points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
-  }))
-  .filter(r => r.points.every(p =>
-    Math.hypot(p.x - TACLOBAN_LOCAL.x, p.z - TACLOBAN_LOCAL.z) < TACLOBAN_RADIUS_M))
+// The name+radius filter that narrows the Overpass query's raw 1,897 roads
+// down to the 208 the Maharlika Highway alignment actually needs (design
+// §7) now runs at BUILD time, in tools/scenery/build.ts's `buildPlaces` --
+// moved out of this runtime filter (I1 fix wave, 2026-09-24) because Vite
+// statically inlines the whole of `placesData` into the JS bundle, and the
+// unfiltered file shipped 1,689 discarded roads on every page load. The
+// committed `content/scenery/places.json` is therefore already filtered;
+// see `build.ts` for the full history/measurements behind the filter's
+// values. The raw 1,897-road fetch remains available only in the gitignored
+// `tools/scenery/cache/places-overpass.json`.
+export const ROAD_PATHS = placesData.roads.map(r => ({
+  name: r.name, widthM: r.widthM,
+  points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
+}))
 
 function paint(
   paths: readonly { readonly widthM: number; readonly points: readonly { x: number; z: number }[] }[],

@@ -332,9 +332,13 @@ describe('scenery placement on the real Leyte field', () => {
   it('reads the road channel at a known Maharlika Highway point, and false off it', () => {
     const m = riverMask()
     // ROAD_PATHS[0]'s first coordinate, re-derived independently here
-    // through the SAME two filters rivers.ts applies (name/ref, then the
-    // 80 km Tacloban radius) rather than trusting rivers.ts's own
-    // conversion or filter order.
+    // through the SAME two filters tools/scenery/build.ts's `buildPlaces`
+    // applies to produce the committed `content/scenery/places.json` (I1
+    // fix wave, 2026-09-24: the filter used to run at runtime in
+    // rivers.ts, which is why this re-derivation used to describe itself
+    // that way -- it now doubles as a regression check that the COMMITTED
+    // file is still correctly pre-filtered, not just that rivers.ts's
+    // conversion is correct).
     const taclobanLocal = toLocal(11.228, 125.028)
     const nameFiltered = placesData.roads
       .filter(r => /maharlika/i.test(r.name) || r.name === '1')
@@ -488,6 +492,31 @@ describe('towns (Plan 13d)', () => {
     expect(villageDistances.length).toBeGreaterThan(0)
     expect(Math.max(...townDistances)).toBeGreaterThan(65)
     expect(Math.max(...villageDistances)).toBeLessThan(40)
+  })
+
+  it('never lets the Maharlika Highway alignment clip an airfield clearing, sampled along the whole polyline', () => {
+    // M3 (final review, 2026-09-24): the plan's own Review Focus asked for
+    // this to be checked along the whole polyline, not just endpoints or
+    // town centres -- a road can clip a clearing's edge even when its
+    // endpoints don't. Every real `ROAD_PATHS` vertex (3,735 of them) AND
+    // every point along every segment sampled every 5 m -- measured 0 hits
+    // against Tacloban's and Dulag's clearings either way (nearest road
+    // vertex: 3,875 m from Tacloban's runway centre, 1,798 m from Dulag's).
+    const samplePoints: { x: number; z: number }[] = []
+    for (const road of ROAD_PATHS) {
+      for (const p of road.points) samplePoints.push(p)
+      for (let i = 1; i < road.points.length; i++) {
+        const a = road.points[i - 1]!, b = road.points[i]!
+        const segLen = Math.hypot(b.x - a.x, b.z - a.z)
+        const steps = Math.floor(segLen / 5)
+        for (let s = 1; s <= steps; s++) {
+          const t = (s * 5) / segLen
+          samplePoints.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t })
+        }
+      }
+    }
+    expect(samplePoints.length).toBeGreaterThan(3_735) // sanity: vertices plus at least some 5 m samples
+    for (const p of samplePoints) expect(inAirfieldClearing(airfields, p.x, p.z)).toBe(false)
   })
 
   it('clears trees from each hut footprint, the same way the airfield\'s huts already do', () => {

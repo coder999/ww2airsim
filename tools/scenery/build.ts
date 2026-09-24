@@ -1,5 +1,6 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { toLocal } from '../../src/sim/world/projection.js'
 
 // Offline extraction only. See content/scenery/NOTICE.md for the public
 // Nominatim and Overpass queries used to populate these ignored caches.
@@ -90,6 +91,55 @@ export function parseWay(way: OverpassWay, nodesById: Map<number, OverpassNode>)
 const isNode = (el: OverpassElement): el is OverpassNode => el.type === 'node'
 const isWay = (el: OverpassElement): el is OverpassWay => el.type === 'way'
 
+// The Overpass query has no name filter, so the raw cache
+// (tools/scenery/cache/places-overpass.json, gitignored, matching the river
+// caches' own precedent) carries every trunk/primary way in the whole 200 km
+// query box -- 1,897 roads. Filtered by name/ref to the one alignment design
+// §7 actually names ("the Maharlika Highway alignment... and the Ormoc side
+// on the west"): 290 roads. THAT ALONE IS NOT ENOUGH -- measured 2026-09-24
+// against the real data: "Maharlika Highway" is OSM's name for the whole
+// Pan-Philippine Highway, which crosses into Samar north of Tacloban (the
+// San Juanico Bridge) and continues south past Abuyog -- the name-only set
+// spans ~178 km, not the ~100 km (Tacloban-Ormoc, the alignment's own two
+// named ends) this plan actually needs. A second filter -- every point of
+// the way within 80 km of Tacloban's own world origin (comfortably beyond
+// both Ormoc, ~50 km, and Abuyog, ~65-70 km, straight-line) -- brings it
+// down to 208 roads (measured directly against the real data by running
+// this exact filter, not estimated; the controller's own overnight
+// measurement got 206 with the same filter -- a couple of ways sit close
+// enough to the 80 km boundary that floating-point rounding in the
+// projection can flip them either side, and it does not change the outcome
+// either way) spanning 138.7 km (depth of the combined river+road bbox),
+// measured texel size 4.9 x 16.9 m at the mask's 8192² size -- two-texel
+// 33.9 m, inside the <38 m bar with real margin.
+// Tacloban's own sourced coordinate (content/bases/tacloban.json's
+// reference: "11.228 N 125.028 E"), not the tangent-plane's (0,0) origin
+// (10.8 N, 125.3 E per master spec §4) -- these are different points, and
+// filtering against the wrong one would silently miscenter this radius.
+//
+// Moved here from a runtime filter in src/render/terrain/rivers.ts (I1 fix
+// wave, 2026-09-24): the unfiltered file was 1.18 MB and Vite statically
+// inlined all of it -- including the 1,689 of 1,897 roads that never
+// survived the filter -- into the main JS bundle on every page load.
+// Applying the filter here instead means the COMMITTED places.json already
+// carries only the 208 roads the renderer uses; the full 1,897-road raw
+// fetch remains available in the gitignored Overpass cache above, so a
+// future plan that needs a different filter can still re-run this function
+// against the same cache. See rivers.ts for the one-line pointer back.
+const TACLOBAN_LOCAL = toLocal(11.228, 125.028)
+const TACLOBAN_RADIUS_M = 80_000
+
+function isMaharlikaHighway(road: Road): boolean {
+  return /maharlika/i.test(road.name) || road.name === '1'
+}
+
+function withinTaclobanRadius(road: Road): boolean {
+  return road.coordinates.every(([lon, lat]) => {
+    const { x, z } = toLocal(lat!, lon!)
+    return Math.hypot(x - TACLOBAN_LOCAL.x, z - TACLOBAN_LOCAL.z) < TACLOBAN_RADIUS_M
+  })
+}
+
 export function buildPlaces(): Places {
   const data = JSON.parse(readFileSync('tools/scenery/cache/places-overpass.json', 'utf8')) as OverpassResponse
   const nodesById = new Map<number, OverpassNode>()
@@ -105,6 +155,8 @@ export function buildPlaces(): Places {
     .filter(isWay)
     .filter(w => w.tags?.highway !== undefined)
     .map(w => parseWay(w, nodesById))
+    .filter(isMaharlikaHighway)
+    .filter(withinTaclobanRadius)
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return { towns, roads }

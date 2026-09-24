@@ -147,6 +147,13 @@ describe('the built artifact', () => {
       expect(JSON.parse(readFileSync(join(outDir, 'content/landcover/header.json'), 'utf8')).samples).toBe(1025)
       const rivers = JSON.parse(readFileSync(join(outDir, 'content/scenery/rivers.json'), 'utf8'))
       expect(rivers.length).toBe(8)
+      // Design §9's Tier 1 list says verbatim "the places file ships" -- I2
+      // (2026-09-24): 108 towns/villages, and 208 roads (the committed
+      // count after I1's build-time name/80 km-radius filter, not the
+      // Overpass query's raw 1,897 -- see tools/scenery/build.ts).
+      const places = JSON.parse(readFileSync(join(outDir, 'content/scenery/places.json'), 'utf8'))
+      expect(places.towns.length).toBe(108)
+      expect(places.roads.length).toBe(208)
       expect(readFileSync(join(outDir, 'content/scenery/NOTICE.md'), 'utf8')).toContain('OpenStreetMap contributors')
 
       // Plan 15. Exact byte counts for the same reason `cover.bin.gz` above
