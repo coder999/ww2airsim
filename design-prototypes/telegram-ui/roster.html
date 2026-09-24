@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ww2airsim -- Roster prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Stardos+Stencil:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/telegram.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="stampRough" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2"/>
+    </filter>
+  </svg>
+
+  <nav class="proto-nav"><a href="index.html">&larr; index</a><span>|</span><span>roster.html</span></nav>
+
+  <main class="sheet" style="position:relative;">
+    <div class="stamp stamp--violet stamp--sm stamp--rotate-2 stamp-corner">Confidential</div>
+
+    <div class="letterhead">
+      <img class="seal-svg" src="assets/navy-seal.svg" alt="" />
+      <div class="letterhead-text">
+        <div class="letterhead-kicker">Bureau of Naval Personnel</div>
+        <div class="letterhead-title">Squadron Roster</div>
+        <div class="letterhead-meta">
+          <span>SQDN: <strong>VF-19</strong></span>
+          <span>BASE: <strong>TACLOBAN</strong></span>
+          <span>AS OF: <strong>24 SEP 1944</strong></span>
+        </div>
+      </div>
+      <div class="form-number">NAVPERS&nbsp;601-B<br/>(prototype)</div>
+    </div>
+
+    <table class="form-table">
+      <thead>
+        <tr>
+          <th style="width:34px;">No.</th>
+          <th>Name</th>
+          <th style="width:150px;">Rank</th>
+          <th style="width:80px;">Score</th>
+          <th style="width:76px;">Sorties</th>
+          <th style="width:60px;">Kills</th>
+          <th style="width:110px;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-selected">
+          <td class="center">1</td>
+          <td>HARTWELL, J. R.</td>
+          <td>LT, Lieutenant</td>
+          <td class="num">42,150</td>
+          <td class="num">31</td>
+          <td class="num">17</td>
+          <td class="center"><span class="stamp-chip" style="color:var(--stamp-black); border-color:var(--stamp-black);">Active</span></td>
+        </tr>
+        <tr>
+          <td class="center">2</td>
+          <td>COLBY, M. E.</td>
+          <td>LTJG, Lt. (jg)</td>
+          <td class="num">18,900</td>
+          <td class="num">19</td>
+          <td class="num">8</td>
+          <td class="center"><span class="stamp-chip" style="color:var(--stamp-black); border-color:var(--stamp-black);">Active</span></td>
+        </tr>
+        <tr>
+          <td class="center">3</td>
+          <td>OSTRANDER, W. P.</td>
+          <td>ENS, Ensign</td>
+          <td class="num">6,250</td>
+          <td class="num">9</td>
+          <td class="num">2</td>
+          <td class="center"><span class="stamp-chip" style="color:var(--stamp-black); border-color:var(--stamp-black);">Active</span></td>
+        </tr>
+        <tr>
+          <td class="center">4</td>
+          <td>RENNIE, D. A.</td>
+          <td>ENS, Ensign</td>
+          <td class="num">2,750</td>
+          <td class="num">4</td>
+          <td class="num">1</td>
+          <td class="center"><span class="stamp-chip" style="color:var(--stamp-red); border-color:var(--stamp-red);">K.I.A.</span></td>
+        </tr>
+        <tr>
+          <td class="center">5</td>
+          <td>SULLIVAN, T. G.</td>
+          <td>LCDR, Lt. Cdr.</td>
+          <td class="num">61,400</td>
+          <td class="num">44</td>
+          <td class="num">23</td>
+          <td class="center"><span class="stamp-chip" style="color:var(--stamp-black); border-color:var(--stamp-black);">Active</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="form-section-title">Enlist New Pilot</div>
+    <div class="field-row">
+      <span class="field-label">Name</span>
+      <input class="typed-input" type="text" placeholder="LAST, FIRST M." />
+    </div>
+    <div class="button-row">
+      <button class="ink-button ink-button--primary">Enlist</button>
+      <button class="ink-button">Fly Selected</button>
+    </div>
+
+    <div class="fine-print">
+      <span>All ratings certified accurate as of date shown.</span>
+      <span>Roster prototype -- ww2airsim design-prototypes/telegram-ui</span>
+    </div>
+  </main>
+</body>
+</html>

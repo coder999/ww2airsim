@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ww2airsim -- Debrief prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Stardos+Stencil:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/telegram.css">
+<style>
+  .outcome-switch { display: flex; gap: 8px; margin-bottom: 6px; }
+  .outcome-switch button {
+    font: 11px var(--font-body); letter-spacing: .05em; text-transform: uppercase;
+    padding: 6px 12px; border: 1px solid var(--rule-heavy); background: transparent;
+    color: var(--ink-faint); cursor: pointer;
+  }
+  .outcome-switch button[aria-pressed="true"] { color: var(--ink); background: rgba(42,38,32,.08); }
+  .figure-row { display: flex; justify-content: space-between; gap: 24px; padding: 3px 0; font-size: 13px; }
+  .figure-row .k { color: var(--ink-faint); }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="stampRough" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2"/>
+    </filter>
+  </svg>
+
+  <nav class="proto-nav"><a href="index.html">&larr; index</a><span>|</span><span>debrief.html</span></nav>
+
+  <div class="outcome-switch" role="tablist" aria-label="outcome variant">
+    <button data-outcome="landed" aria-pressed="true">Landed</button>
+    <button data-outcome="ditched" aria-pressed="false">Ditched</button>
+    <button data-outcome="killed" aria-pressed="false">Killed</button>
+  </div>
+
+  <main class="sheet" style="position:relative;">
+    <div id="outcomeStamp" class="stamp stamp--blue stamp--lg stamp--rotate-1 stamp-corner">Mission Complete</div>
+
+    <div class="letterhead" style="border-bottom:none; padding-bottom:0; margin-bottom:0;">
+      <img class="seal-svg" src="assets/navy-seal.svg" alt="" style="width:52px;height:52px;" />
+      <div class="letterhead-text">
+        <div class="letterhead-kicker">Action Report</div>
+        <div class="letterhead-title" style="font-size:24px;">Flight Debrief</div>
+      </div>
+    </div>
+
+    <dl class="routing">
+      <div><dt>From</dt><dd>PILOT HARTWELL, J. R. -- VF-19</dd></div>
+      <div><dt>To</dt><dd>BUREAU OF NAVAL PERSONNEL</dd></div>
+      <div><dt>Date-Time Group</dt><dd>241430Z SEP 44</dd></div>
+      <div><dt>Precedence</dt><dd>ROUTINE</dd></div>
+    </dl>
+
+    <div class="form-section-title">Flight Figures</div>
+    <div id="figures">
+      <div class="figure-row"><span class="k">Duration</span><strong>0:41:12</strong></div>
+      <div class="figure-row"><span class="k">Distance flown</span><strong>187 nm</strong></div>
+      <div class="figure-row"><span class="k">Fuel remaining</span><strong>22%</strong></div>
+    </div>
+
+    <div class="form-section-title" id="scoreHeading">Targets Destroyed -- Score 4,750</div>
+    <table class="form-table">
+      <thead><tr><th>Target</th><th style="width:90px;">Destroyed</th><th style="width:90px;">Score</th></tr></thead>
+      <tbody>
+        <tr><td>Fighter</td><td class="num">2</td><td class="num">1,000</td></tr>
+        <tr><td>Bomber</td><td class="num">1</td><td class="num">750</td></tr>
+        <tr><td>AAA Battery</td><td class="num">4</td><td class="num">1,000</td></tr>
+        <tr><td>Runway</td><td class="num">4</td><td class="num">2,000</td></tr>
+      </tbody>
+    </table>
+
+    <div id="recoveryLine" class="figure-row" style="margin-top:10px;">
+      <span class="k">Recovery</span><strong>Landed (&times;1.0)</strong>
+    </div>
+    <div class="figure-row"><span class="k">Banked total</span><strong>46,900</strong></div>
+
+    <div id="promotionStamp" class="stamp stamp--violet stamp--md stamp--rotate-3" style="margin-top:14px;">
+      Promoted to LT
+    </div>
+
+    <div class="button-row">
+      <button id="btnContinue" class="ink-button ink-button--primary">Continue</button>
+      <button class="ink-button">Restart</button>
+      <button class="ink-button">Return to Title</button>
+    </div>
+
+    <div class="fine-print">
+      <span>Figures certified by flight recorder.</span>
+      <span>Debrief prototype -- ww2airsim design-prototypes/telegram-ui</span>
+    </div>
+  </main>
+
+  <script>
+    const OUTCOMES = {
+      landed: {
+        stampText: 'Mission Complete', stampClass: 'stamp--blue',
+        recovery: 'Landed (×1.0)', promo: 'Promoted to LT', showPromo: true,
+        continueLabel: 'Continue',
+      },
+      ditched: {
+        stampText: 'Pilot Recovered', stampClass: 'stamp--violet',
+        recovery: 'Ditched (×0.5)', promo: '', showPromo: false,
+        continueLabel: 'Continue',
+      },
+      killed: {
+        stampText: 'Killed in Action', stampClass: 'stamp--red',
+        recovery: 'Killed (×0)', promo: '', showPromo: false,
+        continueLabel: null,
+      },
+    }
+
+    const stampEl = document.getElementById('outcomeStamp')
+    const recoveryLine = document.getElementById('recoveryLine')
+    const promoEl = document.getElementById('promotionStamp')
+    const continueBtn = document.getElementById('btnContinue')
+
+    function applyOutcome(key) {
+      const o = OUTCOMES[key]
+      stampEl.textContent = o.stampText
+      stampEl.className = 'stamp stamp--lg stamp-corner ' + o.stampClass +
+        ' ' + (key === 'killed' ? 'stamp--rotate-2' : 'stamp--rotate-1')
+      recoveryLine.querySelector('strong').textContent = o.recovery
+      promoEl.style.display = o.showPromo ? 'inline-block' : 'none'
+      continueBtn.style.display = o.continueLabel ? 'inline-block' : 'none'
+      if (o.continueLabel) continueBtn.textContent = o.continueLabel
+
+      for (const btn of document.querySelectorAll('.outcome-switch button')) {
+        btn.setAttribute('aria-pressed', String(btn.dataset.outcome === key))
+      }
+    }
+
+    for (const btn of document.querySelectorAll('.outcome-switch button')) {
+      btn.addEventListener('click', () => applyOutcome(btn.dataset.outcome))
+    }
+  </script>
+</body>
+</html>

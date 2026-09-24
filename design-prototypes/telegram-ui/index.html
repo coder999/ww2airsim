@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ww2airsim -- Naval Communications UI prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Stardos+Stencil:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/telegram.css">
+<style>
+  body { align-items: center; justify-content: center; min-height: 100vh; }
+  .index-sheet { text-align: center; padding: 50px 40px; }
+  .index-links { display: grid; gap: 14px; margin-top: 26px; }
+  .index-links a {
+    font-family: var(--font-display); font-size: 16px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink); text-decoration: none;
+    border: 1.5px solid var(--rule-heavy); padding: 12px 20px; display: block;
+  }
+  .index-links a:hover { background: rgba(42,38,32,.06); }
+  .index-links small { display: block; font-family: var(--font-body); text-transform: none;
+    letter-spacing: normal; color: var(--ink-faint); font-size: 11px; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="sheet index-sheet">
+    <div class="letterhead" style="justify-content:center; border-bottom:none;">
+      <img class="seal-svg" src="assets/navy-seal.svg" alt="" />
+      <div class="letterhead-text">
+        <div class="letterhead-kicker">ww2airsim -- design prototype</div>
+        <div class="letterhead-title">Naval Communications UI</div>
+      </div>
+    </div>
+    <p style="color:var(--ink-faint); font-size:13px; max-width:60ch; margin:0 auto;">
+      Static mockups only -- nothing here is wired to the game. Pick a page below.
+    </p>
+    <div class="index-links">
+      <a href="roster.html">Roster<small>Pilot service record / squadron list</small></a>
+      <a href="debrief.html">Debrief<small>After-action report, three outcome variants</small></a>
+      <a href="settings.html">Settings<small>Requisition-form take on a render-quality / options screen</small></a>
+      <a href="styleguide.html">Stamp &amp; component library<small>Every stamp color, the seal, form controls</small></a>
+    </div>
+  </div>
+</body>
+</html>
