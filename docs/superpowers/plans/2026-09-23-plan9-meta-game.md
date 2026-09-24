@@ -668,6 +668,21 @@ git commit -m "Plan 9 task 3: real missionScore(), recovery multiplier, killsSin
 
 ## Task 4: `roster.ts`
 
+**Ruling (controller, overnight run, 2026-09-23):** this repo's vitest
+`environment: 'node'` provides no `window` global at all — confirmed
+directly against this checkout's Node v22 (`globalThis.window` and
+`globalThis.localStorage` are both `undefined` by default; Node's own
+experimental `localStorage` global, where available, is not `window`-
+scoped either). `loadRoster`/`saveRoster`'s design-mandated
+`window.localStorage` usage (design §2) would throw "window is not
+defined" the instant the persistence tests ran. Fixed in the test file's
+own setup (below) with a minimal in-memory fake `window.localStorage`,
+rather than changing production code to a different global — the
+persistence functions are correctly browser-shaped for their real runtime;
+only the Node test environment needed a shim. **Cost if wrong:** contained
+entirely to `tests/render/roster.test.ts`'s `beforeEach`; production
+`roster.ts` is unaffected either way.
+
 **Files:**
 - Create: `src/render/roster.ts`
 - Test: `tests/render/roster.test.ts` (new, `environment: 'node'` per this
@@ -703,7 +718,26 @@ describe('rankFor', () => {
 })
 
 describe('roster persistence', () => {
-  beforeEach(() => { globalThis.localStorage?.clear?.() })
+  // This repo's vitest config (`environment: 'node'`) provides no DOM and
+  // no `window` global at all -- confirmed against this checkout's own
+  // Node (v22): `globalThis.window`/`globalThis.localStorage` are both
+  // `undefined` by default. `loadRoster`/`saveRoster` correctly use
+  // `window.localStorage` (design §2 says persistence is a browser
+  // concern), so the test file supplies a minimal in-memory fake `window`
+  // here rather than changing production code to a different global --
+  // `titleScreen.test.ts`/`debrief.test.ts`'s "test the pure pieces only"
+  // convention is about not driving DOM construction, not about avoiding
+  // every browser global a pure-looking function happens to call.
+  beforeEach(() => {
+    const store = new Map<string, string>()
+    ;(globalThis as { window?: unknown }).window = {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => { store.set(key, value) },
+        clear: () => store.clear(),
+      },
+    }
+  })
 
   it('save/load round-trips exactly', () => {
     const pilot = createPilot('Boyington')
