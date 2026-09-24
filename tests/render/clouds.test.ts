@@ -5,10 +5,10 @@ import { FAR_FADE_START_M } from '../../src/render/scene/atmosphereShading.js'
 import { AP_MAX_DISTANCE_M } from '../../src/render/sky/atmosphereLuts.js'
 import { LOD } from '../../src/render/terrain/lod.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadDetail, loadShape } from '../../tools/sky/load.js'
+import { loadCoverage, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
-const noise = { shape: loadShape(), detail: loadDetail() }
+const noise = { shape: loadShape(), detail: loadDetail(), coverage: loadCoverage() }
 
 describe('clouds (Plan 16a)', () => {
   it('has three tiers that march fewer steps as they descend', () => {

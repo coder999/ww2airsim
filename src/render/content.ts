@@ -170,3 +170,8 @@ export const SHAPE_NOISE_PATH = 'content/sky/shape.bin.gz'
 export const DETAIL_NOISE_PATH = 'content/sky/detail.bin.gz'
 export const SHAPE_NOISE_URL = `${import.meta.env.BASE_URL}${SHAPE_NOISE_PATH}`
 export const DETAIL_NOISE_URL = `${import.meta.env.BASE_URL}${DETAIL_NOISE_PATH}`
+
+/** Plan 16d's cumulus coverage-modulation field, shipped the same way as
+ *  the shape/detail volumes above. */
+export const COVERAGE_NOISE_PATH = 'content/sky/coverage.bin.gz'
+export const COVERAGE_NOISE_URL = `${import.meta.env.BASE_URL}${COVERAGE_NOISE_PATH}`

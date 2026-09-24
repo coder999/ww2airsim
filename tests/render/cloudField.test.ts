@@ -2,14 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createCloudField, CUMULUS_SIGMA, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
+import { createCloudField, COVERAGE_TILE_M, CUMULUS_SIGMA, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadDetail, loadShape } from '../../tools/sky/load.js'
+import { loadCoverage, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { COVERAGE_SIZE } from '../../src/render/sky/noise.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
-const noise = { shape: loadShape(), detail: loadDetail() }
+const noise = { shape: loadShape(), detail: loadDetail(), coverage: loadCoverage() }
 
 describe('cloud field (Plan 16b, extracted from the dome)', () => {
   it('holds the shipped decks sorted by base, padded to the maximum, and names the lowest cumulus', () => {
@@ -48,6 +49,15 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
   it('keeps the constants the dome was tuned with', () => {
     expect(SHAPE_TILE_M).toBe(6000)
     expect(CUMULUS_SIGMA).toBe(0.012)
+  })
+  it('exposes a coverage field that spatially modulates cumulus (Plan 16d)', () => {
+    const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
+    expect(field.coverage.image.width).toBe(COVERAGE_SIZE)
+    expect(field.coverage.image.height).toBe(COVERAGE_SIZE)
+    const data = field.coverage.image.data as Uint8Array
+    expect(Math.max(...data) - Math.min(...data)).toBeGreaterThan(80)
+    expect(COVERAGE_TILE_M).toBe(60_000)
+    field.dispose()
   })
   it('is imported only by the dome and the shadow pass: one field, two readers', () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'render')

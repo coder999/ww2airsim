@@ -1,24 +1,40 @@
-import { Data3DTexture, LinearFilter, RedFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
+import { Data3DTexture, DataTexture, LinearFilter, RedFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
 import type { Node, UniformNode, UniformArrayNode } from 'three/webgpu'
-import { Fn, If, clamp, float, max, sin, smoothstep, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
+import { Fn, If, clamp, float, max, mix, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
-import { DETAIL_SIZE, SHAPE_SIZE } from '../sky/noise.js'
+import { COVERAGE_SIZE, DETAIL_SIZE, SHAPE_SIZE } from '../sky/noise.js'
 
 /**
- * The cloud FIELD: the two noise volumes, the layer uniforms, the drift, and
- * the density function (design 16a §4). Extracted from the dome on
- * 2026-09-19 for Plan 16b so the shadow pass reads the same function the
- * cloud march reads (a pass since photoreal Task 3, cloudPass.ts) -- one field, two readers, and the shadow cannot disagree
- * with the cloud that casts it. `clouds.ts` keeps the march; `cloudShadow.ts`
- * integrates this along the sun. Nothing here knows about a camera.
+ * The cloud FIELD: the two noise volumes, the coverage-modulation field, the
+ * layer uniforms, the drift, and the density function (design 16a §4, 16d
+ * §2). Extracted from the dome on 2026-09-19 for Plan 16b so the shadow pass
+ * reads the same function the cloud march reads (a pass since photoreal
+ * Task 3, cloudPass.ts) -- one field, two readers, and the shadow cannot
+ * disagree with the cloud that casts it. `clouds.ts` keeps the march;
+ * `cloudShadow.ts` integrates this along the sun. Nothing here knows about a
+ * camera.
  */
 
 /** Metres per repeat of the shape volume and of the detail volume. Gameplay
  *  estimates (16a design §9): a 128-texel tile over 6 km is 47 m per texel. */
 export const SHAPE_TILE_M = 6000
 export const DETAIL_TILE_M = 400
+/** Metres per repeat of the cumulus coverage-modulation field (Plan 16d
+ *  design §2). Much larger than SHAPE_TILE_M on purpose: this is meant to
+ *  read as broad, tens-of-kilometres regional weather variation, not
+ *  per-cloud shape. 60 km against a 100 km `FOG_DISTANCE_M` draw distance
+ *  keeps at most one visible repeat inside the fog. */
+export const COVERAGE_TILE_M = 60_000
+/** How far the coverage field can push a layer's configured coverage up or
+ *  down: [0.4x, 1.6x], centred on 1x at a mid-value (0.5) sample so the
+ *  configured `coverage` stays the deck's spatial average -- this only
+ *  clumps and gaps it, it does not change the average cloudiness Mark
+ *  configured per layer (design §2). Cumulus only; cirrus's threshold is
+ *  untouched. */
+const COVERAGE_MOD_MIN = 0.4
+const COVERAGE_MOD_MAX = 1.6
 /** Extinction per metre at full density; ~250 m to opaque for cumulus. */
 export const CUMULUS_SIGMA = 0.012
 /** The committed shape volume's value range, from `tests/tools/skyNoise.test.ts`'s
@@ -36,6 +52,9 @@ export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z:
 export type CloudField = {
   readonly shape: Data3DTexture
   readonly detail: Data3DTexture
+  /** The Plan 16d cumulus coverage-modulation field (design §2), 2D, tiled
+   *  every `COVERAGE_TILE_M`. */
+  readonly coverage: DataTexture
   /** [base, thickness, coverage, kind] per layer, padded to MAX_CLOUD_LAYERS, sorted by base. */
   readonly layerData: UniformArrayNode<string>
   readonly layerCount: UniformNode<'int', number>
@@ -62,10 +81,22 @@ function volume(data: Uint8Array, size: number): Data3DTexture {
   return t
 }
 
+function plane(data: Uint8Array, size: number): DataTexture {
+  const t = new DataTexture(data, size, size)
+  t.format = RedFormat
+  t.type = UnsignedByteType
+  t.wrapS = t.wrapT = RepeatWrapping
+  t.minFilter = t.magFilter = LinearFilter
+  t.unpackAlignment = 1
+  t.needsUpdate = true
+  return t
+}
+
 export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise): CloudField {
   const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
   const shape = volume(noise.shape, SHAPE_SIZE)
   const detail = volume(noise.detail, DETAIL_SIZE)
+  const coverageField = plane(noise.coverage, COVERAGE_SIZE)
 
   // Uniforms. Layers as [base, thickness, coverage, kind], padded to MAX.
   const layerData = uniformArray(
@@ -90,9 +121,12 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
       // lifts the low end on purpose); stretched back to 0..1 here so
       // `coverage` means the fraction of sky it names.
       const stretch = (v: Node<'float'>): Node<'float'> => clamp(v.sub(SHAPE_MIN).div(SHAPE_MAX - SHAPE_MIN), 0, 1)
-      // Coverage thresholds the shape: what survives above 1 - coverage is cloud.
-      const threshold = (shapeValue: Node<'float'>): Node<'float'> =>
-        clamp(shapeValue.sub(float(1).sub(coverage)).div(max(coverage, 0.001)), 0, 1)
+      // Coverage thresholds the shape: what survives above 1 - coverage is
+      // cloud. `cov` is a parameter now (Plan 16d), not the closed-over
+      // layer scalar directly, so cumulus can pass a spatially-modulated
+      // value while cirrus keeps passing the plain layer scalar unchanged.
+      const threshold = (shapeValue: Node<'float'>, cov: Node<'float'>): Node<'float'> =>
+        clamp(shapeValue.sub(float(1).sub(cov)).div(max(cov, 0.001)), 0, 1)
       // ONE branch samples, never both: a `mix` of the two kinds after
       // sampling cost every cumulus step three volume reads instead of one
       // (3.9 ms against the 2.5 ms budget, 2026-09-19).
@@ -100,10 +134,11 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
         // Cirrus: the same volume stretched along the east axis over a tile
         // three times wider, times a second coarser sample so the 1.5 km
         // Worley cells cannot read as a grid from below. A thin band.
+        // Untouched by Plan 16d: no coverage modulation for cirrus (spec §1).
         const streaks = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 9), 1 / SHAPE_TILE_M, 1 / (SHAPE_TILE_M * 3)))).r
         const sheet = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 4), 1 / (SHAPE_TILE_M * 2), 1 / (SHAPE_TILE_M * 5))).add(0.37)).r
         const gradient = smoothstep(0, 0.3, h).mul(smoothstep(1, 0.7, h))
-        d.assign(threshold(stretch(streaks.mul(0.6).add(sheet.mul(0.4)))).mul(gradient).mul(0.6))
+        d.assign(threshold(stretch(streaks.mul(0.6).add(sheet.mul(0.4))), coverage).mul(gradient).mul(0.6))
       }).Else(() => {
         // Cumulus: flat-bottomed, rounded on top, edges eroded by the detail
         // volume, strongest near the base and the edge (Schneider 2015).
@@ -115,8 +150,15 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
           drifted.z.add(sin(drifted.x.div(9100).sub(drifted.z.div(13000))).mul(1800)),
         )
         const shapeValue = stretch(texture3D(shape, warped.div(SHAPE_TILE_M)).r)
+        // Plan 16d: the coverage-modulation field, sampled at the SAME
+        // warped XZ the shape volume uses -- already wind-drifted via
+        // `drifted` -- so the clumping pattern never slides against the
+        // cloud bodies it gates (Review Focus). Reading a bare `drifted.xz`
+        // here instead would be the easy, wrong "simplification."
+        const covNoise = texture(coverageField, warped.xz.div(COVERAGE_TILE_M)).r
+        const effCoverage = clamp(coverage.mul(mix(float(COVERAGE_MOD_MIN), float(COVERAGE_MOD_MAX), covNoise)), 0, 1)
         const gradient = smoothstep(0, 0.1, h).mul(smoothstep(1, 0.55, h))
-        const body = threshold(shapeValue).mul(gradient)
+        const body = threshold(shapeValue, effCoverage).mul(gradient)
         const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
         const erode = e.mul(float(1).sub(h)).mul(0.3)
         d.assign(clamp(body.sub(erode).div(max(float(1).sub(erode), 0.001)), 0, 1))
@@ -127,7 +169,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
 
   const firstCumulus = sorted.find((l) => l.kind === 'cumulus')
   return {
-    shape, detail, layerData, layerCount, eyeWorld, drift, layers: sorted,
+    shape, detail, coverage: coverageField, layerData, layerCount, eyeWorld, drift, layers: sorted,
     // A TSL `Fn` is callable but not typed as the method above; the closure
     // gives the handle a plain function type.
     density: (p, base, thickness, coverage, kind) => density(p, base, thickness, coverage, kind),
@@ -140,6 +182,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
     dispose(): void {
       shape.dispose()
       detail.dispose()
+      coverageField.dispose()
     },
   }
 }
