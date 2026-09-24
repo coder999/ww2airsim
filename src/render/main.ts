@@ -982,7 +982,21 @@ async function boot(): Promise<void> {
     // and mute are: FrameState is the deterministic simulation state the
     // golden trajectory and the soak replay, and a display range belongs in
     // neither.
-    if (BINDINGS.toggleRadarRange.includes(e.code as never) && !e.repeat) {
+    //
+    // Guarded on the debrief being up (whole-branch review, I-2): the debrief
+    // modal (impact or landing) has native <button>s -- Restart, Continue --
+    // with no other keyboard binding, so Tab was their only keyboard route
+    // until this plan's unconditional preventDefault() silently broke it.
+    // Same condition `openNavigationChart` above already uses to recognise a
+    // debrief is showing, minus its own `navigationMapState.open` clause
+    // (irrelevant here). Skipping BOTH the range cycling and the
+    // preventDefault when a debrief is up lets Tab fall through to the
+    // browser's native focus behaviour, which is what reaches those buttons.
+    if (
+      BINDINGS.toggleRadarRange.includes(e.code as never) &&
+      !e.repeat &&
+      !(playerAircraft(frame!.world).impact !== null || landingShown)
+    ) {
       e.preventDefault()
       selectedRadarRangeMi = cycleRadarRange(selectedRadarRangeMi)
     }

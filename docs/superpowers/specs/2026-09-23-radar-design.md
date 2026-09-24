@@ -61,9 +61,14 @@ doc comment on the field) and excluding the player's own id, then to
 than the shader has slots for.
 
 `main.ts` calls this each frame from the same `frame.world.aircraft` the
-`aircraft()` diagnostic already reads, and threads the result into
-`updatePanel` as a new parameter alongside the existing `state`/`controls`/
-`wind`. Selected range and the live sweep angle are UI state held in
+`aircraft()` diagnostic already reads, and sends the result straight to
+`radarScope.update()` — `updatePanel`'s own signature is unchanged (corrected
+2026-09-23, whole-branch review I-3; an earlier version of this doc claimed
+contact data threaded through `updatePanel` as a new parameter, which never
+shipped). That is the better call, not a deviation to apologize for: it keeps
+`panel.ts` headless-safe, with no rendering-specific data crossing into the
+module the Tier 1 suite exercises without a GPU. Selected range and the live
+sweep angle are UI state held in
 `main.ts` at the same tier the mission-map toggle and mute already are — not
 `FrameState`: neither affects the simulation, so neither is part of the
 replay/golden-trajectory contract. The sweep angle is
@@ -106,9 +111,19 @@ skipped), the same technique `cloudField.ts` already uses for its layer data.
 
 `Tab` (`toggleRadarRange` in `BINDINGS`) cycles the range, edge-triggered
 (`!e.repeat`) like every other panel toggle, with `e.preventDefault()` —
-Tab's default is to shift page focus, and this app has no other focusable
-element for it to usefully land on. It works through a pause, the same as
+Tab's default is to shift page focus. It works through a pause, the same as
 the legend and mute toggles: an instrument setting, not a simulation input.
+
+Corrected 2026-09-23 (whole-branch review I-2): this doc originally justified
+the unconditional `preventDefault()` with "this app has no other focusable
+element for it to usefully land on." That was stale — the debrief modal
+(impact or landing) has native `<button>`s (Restart, Continue) with no other
+keyboard binding, so an unconditional `preventDefault()` silently broke their
+only keyboard route. The handler now skips both the range cycling and the
+`preventDefault()` call when a debrief is showing (the same
+`playerAircraft(frame!.world).impact !== null || landingShown` condition
+`openNavigationChart` already checks), so Tab falls through to native focus
+behaviour in that case and reaches those buttons.
 
 ## 5. Deliberate boundary
 

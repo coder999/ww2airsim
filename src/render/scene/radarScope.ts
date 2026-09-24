@@ -17,15 +17,28 @@ import { MAX_RADAR_CONTACTS, RADAR_FADE_FLOOR, type RadarContact } from '../rada
  * incident (2026-09-19) left behind: a camera-relative map read backwards
  * and no screenshot caught it.
  *
- * Roughly matches the physical `radarFace` mesh's 0.131 x 0.111 m aspect so
- * a circle drawn in UV space is not squashed into an ellipse once mapped
- * onto the mesh.
+ * These texel counts only set sampling density -- they have NO effect on the
+ * uv-to-mesh shape (whole-branch review, I-3; an earlier version of this
+ * comment claimed the opposite). The circle this shader paints is drawn in
+ * UV space (0..1 square) and then mapped onto the physical `radarFace`
+ * mesh's non-square 0.131 x 0.111 m aspect, so it actually renders as an
+ * ~18% squashed ellipse regardless of what `RADAR_TEXELS_X`/`RADAR_TEXELS_Y`
+ * are set to. Known, deferred (Task 3 review minor 2 / final review):
+ * fixing the actual ellipse is a separate, non-blocking visual change, not
+ * done here.
  */
 export const RADAR_TEXELS_X = 128
 export const RADAR_TEXELS_Y = 108
 
 const DOT_RADIUS = 0.05
-const TRAIL_DIM = 0.55
+// Exported (final-review fix pass, 2026-09-23) so tests/e2e/radar.spec.ts can
+// compute the SAME expected ambient-trail level the shader itself paints,
+// analytically from `radarBrightness` (already Tier-1-proven pure math) and
+// this constant, rather than re-measuring it with a second live pixel read.
+// That second read was found live, on the reference GPU, to be unreliable
+// near the sweep's own leading edge -- see the spec's comment for the full
+// derivation. No behaviour change; this constant's value is unchanged.
+export const TRAIL_DIM = 0.55
 const GREEN = { r: 0.25, g: 1, b: 0.45 }
 const TWO_PI = 2 * Math.PI
 
