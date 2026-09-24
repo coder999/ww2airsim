@@ -10,7 +10,12 @@ import { GREEN_SKILL, VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
 const HEALTHY: DecisionFacts = {
   relativeEnergyJPerKg: 0,
   angleOffSelfRad: 0,
-  angleOffTargetRad: 0,
+  // Math.PI, not 0: this fact is 0 when the target's nose IS on self (real
+  // danger) and Math.PI when it is pointed fully away (no threat) --
+  // angleBetween's own geometric convention (deriveFacts). A neutral,
+  // nothing-happening baseline needs the SAFE value here, not the
+  // "coincidentally zero" one -- see the Task 2 "Ruling" below.
+  angleOffTargetRad: Math.PI,
   rangeM: 400,
   closingRate: 0,
   threatAstern: false,
@@ -39,7 +44,7 @@ describe('scoreManeuvers / decideManeuver', () => {
   })
 
   it('a pilot with the target\'s nose tracking it at close range breaks', () => {
-    const facts: DecisionFacts = { ...HEALTHY, angleOffTargetRad: Math.PI, rangeM: 300 }
+    const facts: DecisionFacts = { ...HEALTHY, angleOffTargetRad: 0, rangeM: 300 }
     expect(decideManeuver(facts, GREEN_SKILL)).toBe('break')
   })
 

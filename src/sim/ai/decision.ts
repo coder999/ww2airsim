@@ -102,7 +102,7 @@ export function scoreManeuvers(facts: DecisionFacts, skill: PilotSkill): Maneuve
     EXTEND_FUEL_WEIGHT * (1 - facts.fuelFraction)
 
   const breakOff =
-    BREAK_ANGLE_WEIGHT * facts.angleOffTargetRad - BREAK_RANGE_PENALTY * rangeBeyondGun
+    BREAK_ANGLE_WEIGHT * (Math.PI - facts.angleOffTargetRad) - BREAK_RANGE_PENALTY * rangeBeyondGun
 
   return { pursue, extend, breakOff }
 }
