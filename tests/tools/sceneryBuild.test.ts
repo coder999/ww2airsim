@@ -1,7 +1,22 @@
+import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { buildPlaces, parsePlaceNode, parseWay, resolveWayCoordinates } from '../../tools/scenery/build.js'
 
-describe('places extraction (Plan 13d)', () => {
+// tools/scenery/cache/places-overpass.json is gitignored (see NOTICE.md and
+// the river cache precedent this mirrors), so a fresh clone or CI has none.
+// `describe.skipIf` prints a NAMED skip rather than vanishing, which is what
+// keeps "green because it checked" distinguishable from "green because it
+// did not" -- same shape as terrainBuild.test.ts's `haveSource` gate.
+const CACHE_PATH = 'tools/scenery/cache/places-overpass.json'
+const haveSource = existsSync(CACHE_PATH)
+if (!haveSource) {
+  console.warn(
+    `[sceneryBuild.test.ts] ${CACHE_PATH} is absent -- the real-data places ` +
+    `checks are SKIPPED. See content/scenery/NOTICE.md to fetch it.`,
+  )
+}
+
+describe.skipIf(!haveSource)('places extraction against the real Overpass cache (Plan 13d)', () => {
   it('includes Tacloban and Ormoc as towns, and at least one village', () => {
     const places = buildPlaces()
     const names = places.towns.map((t) => t.name)
@@ -38,15 +53,18 @@ describe('places extraction (Plan 13d)', () => {
     expect(places.roads.some((r) => r.name === 'Unnamed road 25654757')).toBe(true)
   })
 
+  it('has no airfields key', () => {
+    const places = buildPlaces() as unknown as Record<string, unknown>
+    expect('airfields' in places).toBe(false)
+  })
+})
+
+// Synthetic fixtures only -- no cache file touched, so these run unconditionally.
+describe('places extraction: node/way parsing (synthetic fixtures)', () => {
   it('never throws on a road naming gap, only synthesizes a placeholder', () => {
     const way = { type: 'way' as const, id: 3, nodes: [], tags: { highway: 'primary' } }
     expect(() => parseWay(way, new Map())).not.toThrow()
     expect(parseWay(way, new Map()).name).toBe('Unnamed road 3')
-  })
-
-  it('has no airfields key', () => {
-    const places = buildPlaces() as unknown as Record<string, unknown>
-    expect('airfields' in places).toBe(false)
   })
 
   it('throws on an Overpass node with no name tag, rather than emitting a blank town', () => {
