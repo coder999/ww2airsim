@@ -31,8 +31,13 @@ export const VETERAN_SKILL: PilotSkill = {
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
   disengageThreshold: -400,
-  // Starting value; Task 4 retunes against a real flight on the reference
-  // GPU and replaces this comment with the measured result.
+  // Measured 2026-09-24 on the reference GPU (pursuit-range, tail-chase
+  // geometry): sampling pursuer-1's headingRad every 500ms over ~9s (523
+  // ticks) of live Pursue steering, 0.02 produces a clean, MONOTONIC turn
+  // onto the intercept -- every sample-to-sample heading delta had the same
+  // sign (mean 0.185 deg/500ms, max 0.365 deg/500ms, steadily shrinking as
+  // it settles) -- imperceptible as jitter distinct from the turn itself.
+  // Kept unchanged from Task 1's starting value.
   controlNoise: 0.02,
 }
 
@@ -41,8 +46,19 @@ export const GREEN_SKILL: PilotSkill = {
   gunneryAccuracy: 1.0,
   energyDiscipline: 0.3,
   disengageThreshold: -150,
-  // Starting value; Task 4 retunes against a real flight on the reference
-  // GPU and replaces this comment with the measured result.
+  // Measured 2026-09-24 on the reference GPU (pursuit-range, same tail-chase
+  // flight as VETERAN_SKILL's comment, skill swapped to 'green' via a
+  // temporary scenario edit and reverted after): the same headingRad
+  // sampling shows a visibly wobbly path, not a clean turn -- sample-to-
+  // sample deltas repeatedly reversed sign against the overall turn-in
+  // trend (e.g. +0.248, +0.176 deg/500ms mixed into an otherwise negative
+  // series), roughly 1.4x veteran's mean magnitude (0.258 vs. 0.185
+  // deg/500ms) and 1.6x its max (0.589 vs. 0.365 deg/500ms). No stall or
+  // spin: altitude/speed stayed on a normal pursuit-dive profile throughout
+  // (no shipped camera follows an AI entity, so this was read from
+  // telemetry, not a screenshot of the airframe itself -- see task-4-report.md).
+  // Kept unchanged from Task 1's starting value; already >=2x
+  // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
 }
 
