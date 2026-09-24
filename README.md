@@ -134,12 +134,35 @@ readback, and a nearly-unfalsifiable brightness assertion — both covered in
 the [handoff](docs/handoff/2026-09-23-plan17-radar.md), which also has the
 measured figures and the deferred list.
 
-**A title screen landed 2026-09-19**, the first slice of Plan 9 ahead of the
-rest of it: Mark's title art with **New game** and **About project**. The
-world boots behind it and is held until New game (Enter also works), which is
-the click that unlocks audio on a first visit. The pilot roster, mission
-select and a return to the title from the debrief remain Plan 9's;
-[handoff](docs/handoff/2026-09-19-title-screen.md).
+**A title screen landed 2026-09-19**, the first slice of Plan 9: Mark's title
+art with **New game** and **About project**. The world boots behind it and is
+held until New game (Enter also works), which is the click that unlocks audio
+on a first visit. [Handoff](docs/handoff/2026-09-19-title-screen.md).
+
+**The rest of Plan 9 (roster, live scoring, dynamic scenario switching)
+landed 2026-09-23/24.** A pilot roster now sits ahead of the scenario/loadout
+pickers (persisted to `localStorage`, not the design doc's original
+IndexedDB — Mark's call, the scale never justified it); landing or crashing
+now produces a real debrief with per-target points, the recovery multiplier
+applied, the banked total, and a promotion notice, instead of every field
+reading zero; picking a different scenario swaps the entity list in place
+with no page reload. This plan's first real reference-GPU run — for the
+scenario-switch feature specifically — found the switch didn't work at all,
+tracked to a temporal-dead-zone bug class in `main.ts`'s title-screen
+callback (a closure created before several bindings it reads were declared,
+across real `await` boundaries) that a silent `ReferenceError` was aborting
+with no visible symptom; fixed across six bindings, the last two found only
+by building a click harness fast enough to beat the race. The same run found
+this plan's own roster gate had broken the shared Tier 2 test harness
+repo-wide (~20 spec files), fixed separately. The final whole-branch review
+then found one more real regression in the same area — returning to title
+after a landing and flying a second sortie silently stopped banking any
+score, because the "New Game" path reset the scoring baseline but not the
+other flight/debrief UI state Restart already reset — fixed and re-verified
+on the real GPU (a banked total going 500 → 1000 across two landings in one
+session). [Handoff](docs/handoff/2026-09-23-plan9-meta-game.md). Open:
+roster export/import has no UI wiring yet (needs a replace-vs-merge design
+decision first); badge content (no scenario declares an objective yet).
 
 **Clouds landed 2026-09-19 (Plan 16a):** volumetric cloud layers raymarched
 from two committed noise volumes, declared per scenario in `weather.clouds`
