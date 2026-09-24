@@ -56,12 +56,11 @@ const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
  * `tools/terrain/build.ts`'s scratch directory. Until Task 2 (2026-09-24) it
  * held the gitignored L0-L1 mips (167,821,316 bytes); that task committed
  * both (L0 via Git LFS, over GitHub's 100 MB per-file limit) into
- * `content/terrain/` proper, so today this directory holds only debug
- * artefacts (e.g. `L6-preview.png`) that must never reach `dist/` either.
- * `vite.config.ts`'s content copy filters this directory out; without the
- * filter, every build on a machine that has run `npm run terrain:build`
- * ships whatever scratch output it left behind, and this file runs two
- * builds.
+ * `content/terrain/` proper. The build still creates this gitignored
+ * directory but writes no current pyramid level into it; local experiments
+ * and any future finer-than-L0 level may leave files there. It must never
+ * reach `dist/`. `vite.config.ts` filters the directory out, and this test
+ * proves the exclusion on checkouts where the source directory exists.
  *
  * Resolved from this file's own URL rather than from `process.cwd()`, and the
  * same relative string is reused inside `outDir` so the two halves of the
@@ -248,8 +247,8 @@ describe('the built artifact', () => {
       // repo-side copy is checked by reading the shipped one, so a notice
       // edited to say something else fails here rather than in a lawyer's
       // letter.
-      // The scratch directory's debug artefacts the build must NOT ship --
-      // asserted only where the bug is reachable.
+      // The gitignored scratch directory the build must NOT ship -- asserted
+      // only where the bug is reachable.
       // `expect(existsSync(...)).toBe(false)` unconditionally would be green
       // in CI and in a fresh clone for the wrong reason: the SOURCE directory
       // is absent there, so nothing could have been copied whether the filter

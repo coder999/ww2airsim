@@ -181,9 +181,10 @@ jobs:
           # confirmed on the actual live site rather than only in CI.
           l0code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L0.bin?cb=$cb-l0")
           test "$l0code" = "200" || { echo "::error::content/terrain/L0.bin returned $l0code, not 200"; exit 1; }
-          # `tools/terrain/build.ts`'s scratch directory (debug artefacts
-          # like `L6-preview.png`) must still never be public -- this is the
-          # check the L0 one used to be, before L0 moved out of `tiles/`.
+          # The gitignored terrain scratch directory must never be public.
+          # The build test proves the whole directory is excluded on a
+          # checkout where it exists; this live 404 is defense in depth for
+          # the deployed path that the old L0 check used before L0 moved out.
           scode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/tiles/L6-preview.png?cb=$cb-tiles")
           test "$scode" = "404" || { echo "::error::the scratch tiles/ directory is public ($scode)"; exit 1; }
           echo "live site verified"

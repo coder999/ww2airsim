@@ -6,10 +6,11 @@
 // (a) turning eight cached COGs into one `SourceSampler` and (b) writing the
 // pyramid out. It reimplements none of the filtering.
 //
-// Output layout, per spec §10 and task-6-brief step 2:
-//   content/terrain/header.json   committed
-//   content/terrain/L4..L12.bin   committed (703,154 bytes total)
-//   content/terrain/tiles/L0..L3.bin   gitignored (178 MB)
+// Output layout is derived from `FIRST_COMMITTED_LEVEL` in load.ts. Since
+// Task 2 of the 2026-09-24 UI-realism plan it is 0, so header.json and every
+// L0..L12 binary are written under content/terrain/ (L0 is tracked by Git
+// LFS). content/terrain/tiles/ is still created as a gitignored scratch
+// directory, but the current build writes no pyramid level into it.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { fromFile } from 'geotiff'

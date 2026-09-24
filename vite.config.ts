@@ -25,15 +25,12 @@ import { resolve, sep } from 'node:path'
  * filter rather than a tidiness measure. Until Task 2 (2026-09-24) it held
  * the gitignored L0-L1 mips (167,821,316 bytes); that task committed both
  * (L0 via Git LFS, over GitHub's 100 MB per-file limit) into
- * `content/terrain/` proper, so today this directory holds only
- * `tools/terrain/build.ts`'s debug artefacts (e.g. `L6-preview.png`) --
- * nothing `terrainLevelPath` resolves lives here any more. The filter stays
- * regardless: `npm run terrain:build` can still write scratch files here that
- * must never reach `dist/`, and `dist.test.ts` runs two real builds, so an
- * unfiltered copy would cost real time on the one machine that also runs
- * Tier 2 -- which is the machine a hand-deploy comes from. That test asserts
- * the absence, and only on a machine where the directory exists, so it
- * cannot pass in CI for the wrong reason.
+ * `content/terrain/` proper, so nothing `terrainLevelPath` resolves lives
+ * here any more. The build still creates the directory, and local experiments
+ * or a future finer-than-L0 level can leave files in it. The filter therefore
+ * stays: no gitignored scratch content may reach `dist/`. `dist.test.ts`
+ * asserts the directory's absence only on a checkout where the source
+ * directory exists, so it cannot pass in CI for the wrong reason.
  */
 function copyContent(): Plugin {
   // Captured from `configResolved` rather than read off the hook context: the

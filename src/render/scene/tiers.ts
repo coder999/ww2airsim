@@ -13,10 +13,10 @@ export const TREE_FADE_END_M = 1850
  * that a separately chosen scenery tier "would only disagree with it". The
  * Settings dialog's Advanced disclosure (render-quality-selector spec §4) now
  * lets a player set the three independently on purpose, and `main.ts` keeps a
- * `sceneryTier` of its own for this table. The one case that still moves them
- * together is the DEV `?oceanTier=` override, which drives scenery too so the
- * URL keeps meaning what every recorded frame-time measurement assumed it
- * meant (`main.ts`'s `forcedSceneryTier`).
+ * `sceneryTier` of its own for this table. Simple-row choices and the probe
+ * still move all three together by design. The DEV `?oceanTier=` override
+ * also drives scenery so the URL keeps meaning what every recorded frame-time
+ * measurement assumed it meant (`main.ts`'s `forcedSceneryTier`).
  *
  * The trees are the scenery's one GPU-scalable cost: 1.1 ms of a 4.9 ms
  * frame at 1440p on the reference desktop (2026-09-17, serialized

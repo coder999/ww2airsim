@@ -16,14 +16,14 @@ describe('naval-comms.css', () => {
     expect(css).not.toContain('fonts.googleapis.com')
   })
   it('the filter id `.stamp` references is the one navalComms.ts declares', () => {
-    // Task 5 review, Important #1. `.stamp` carries `filter: url(#<id>)`, and
-    // per the Filter Effects spec an element referencing an id that does not
-    // resolve is NOT RENDERED -- a stamp would be invisible, not merely
-    // unfiltered, with nothing logged. Nothing else couples these two files,
-    // so without this assertion the CSS and `ensureStampFilter` can drift
-    // apart silently (they already did once: the id was `ww2StampRough` in
-    // TypeScript and `stampRough` in CSS, papered over by a per-element
-    // inline override no other screen would have known to add).
+    // Task 5 review, Important #1. `.stamp` carries `filter: url(#<id>)`.
+    // Nothing else couples these two files, so without this assertion the CSS
+    // and `ensureStampFilter` can drift apart silently (they already did once:
+    // the id was `ww2StampRough` in TypeScript and `stampRough` in CSS,
+    // papered over by a per-element inline override no other screen would
+    // have known to add). Task 9's browser check separately proves the named
+    // SVG filter element exists; Chromium otherwise paints an unroughened
+    // stamp with the same visibility, box and computed filter string.
     const referenced = [...css.matchAll(/filter:\s*url\(#([^)]+)\)/g)].map((m) => m[1])
     expect(referenced.length).toBeGreaterThan(0)
     for (const id of referenced) expect(id).toBe(STAMP_FILTER_ID)

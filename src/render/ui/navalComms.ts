@@ -23,7 +23,7 @@ import './naval-comms.css'
  * `filter: url(#stampRough)`. Exported so the assertion in
  * `tests/render/navalComms.test.ts` can check the stylesheet and this module
  * still agree -- a cross-boundary claim (CSS says one id, TypeScript creates
- * another) whose failure mode is silent and total, see below.
+ * another) whose failure mode is a silently missing roughen effect.
  */
 export const STAMP_FILTER_ID = 'stampRough'
 
@@ -31,10 +31,11 @@ export const STAMP_FILTER_ID = 'stampRough'
  * Declares `.stamp`'s roughen filter in the document, once.
  *
  * `.stamp` carries `filter: url(#stampRough)`. The prototype declared that
- * filter inline in its own page; `index.html` does not. Per the Filter
- * Effects spec an element referencing a filter id that does not resolve is
- * **not rendered at all** -- so a `.stamp` without this is invisible, not
- * merely unfiltered, and nothing logs a thing.
+ * filter inline in its own page; `index.html` does not. The reference
+ * Chromium build renders a stamp whose filter id does not resolve, but it
+ * renders it unroughened and logs nothing (measured 2026-09-24 during Task 9
+ * review). The filter element itself therefore has to be asserted; computed
+ * style, visibility and bounding-box checks all passed without it.
  *
  * Document-level and idempotent, rather than per-screen: the first version of
  * this (Task 5) injected the defs into the Settings overlay's own DOM under a

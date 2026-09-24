@@ -189,6 +189,30 @@ test('DEV ?oceanTier= override wins over a saved low render-quality setting', as
   expect(JSON.parse(saved!)).toEqual({ ocean: 'low', scenery: 'low', clouds: 'low' })
 })
 
+test('rapid Ocean picks settle on the last choice after older cascade rebuilds finish', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto('/')
+  await waitForTerrainOnly(page)
+
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await title.getByRole('button', { name: 'Settings' }).click()
+  const dlg = settingsDialog(page)
+  await dlg.getByRole('button', { name: /Advanced/ }).click()
+  const ocean = dlg.getByRole('radiogroup', { name: 'Ocean quality' })
+
+  // Each click starts an asynchronous cascade rebuild. The last click is
+  // back to the already-active High tier, so it must cancel both older
+  // requests rather than returning early and letting Low/Medium win later.
+  await ocean.getByRole('radio', { name: /Low\b/ }).click()
+  await ocean.getByRole('radio', { name: /Medium\b/ }).click()
+  await ocean.getByRole('radio', { name: /High\b/ }).click()
+  await page.waitForTimeout(6_000)
+
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.oceanTier())).toBe('high')
+  await expect(ocean.getByRole('radio', { name: /High\b/ })).toHaveAttribute('aria-checked', 'true')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+})
+
 test('Advanced Scenery override to Low changes only Scenery: Ocean and Clouds stay High', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   // Bare URL: the parked runway spawn near Tacloban, where trees are known to

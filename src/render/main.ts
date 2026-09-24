@@ -1034,12 +1034,29 @@ async function boot(): Promise<void> {
    * measurement run on a machine with `low` in localStorage would silently
    * measure `low` while its URL said `high`.
    */
+  // Settings can issue several picks while a cascade rebuild is still in
+  // flight. Track the latest request so an older, slower rebuild cannot win
+  // after the player has already selected something else. Re-selecting the
+  // currently active tier also cancels an in-flight change back away from it.
+  let oceanTierRequest = 0
+  let requestedOceanTier: QualityTierName | null = null
   const applyOceanTier = async (name: QualityTierName): Promise<void> => {
     if (forcedOceanTier !== undefined) return
     const next = oceanTierNamed(name)
-    if (next === oceanTier) return
+    if (requestedOceanTier === name) return
+    if (next === oceanTier) {
+      if (requestedOceanTier !== null) {
+        oceanTierRequest += 1
+        requestedOceanTier = null
+      }
+      return
+    }
+    const request = ++oceanTierRequest
+    requestedOceanTier = name
     const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
     const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
+    if (request !== oceanTierRequest) { ready.forEach(c=>c.dispose()); return }
+    requestedOceanTier = null
     if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
     const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(finestFetchedLevel),shadow)
     scene.remove(water)

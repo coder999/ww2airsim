@@ -15,12 +15,13 @@ import { parseTerrainHeader, samplesAtLevel, type TerrainHeader } from '../../sr
  *  `process.cwd()`, so a test run from any directory reads the same bytes. */
 export const TERRAIN_DIR = fileURLToPath(new URL('../../content/terrain/', import.meta.url))
 
-/** `content/terrain/tiles/`, a gitignored scratch directory
- *  `tools/terrain/build.ts` writes debug artefacts into (e.g. `L6-preview.png`).
- *  Until Task 2 (2026-09-24) it also held the uncommitted L0/L1 mips; both
- *  are committed now (L0 via Git LFS, over GitHub's 100 MB per-file limit),
- *  so nothing `terrainLevelPath` resolves lives here any more -- see
- *  `FIRST_COMMITTED_LEVEL` below. */
+/** `content/terrain/tiles/`, a gitignored scratch directory retained for
+ *  local experiments and any future level finer than the committed range.
+ *  `tools/terrain/build.ts` creates it, but with `FIRST_COMMITTED_LEVEL = 0`
+ *  writes no pyramid level there. Until Task 2 (2026-09-24) it held the
+ *  uncommitted L0/L1 mips; both are committed now (L0 via Git LFS, over
+ *  GitHub's 100 MB per-file limit), so nothing `terrainLevelPath` resolves
+ *  lives here today -- see `FIRST_COMMITTED_LEVEL` below. */
 export const TILES_DIR = fileURLToPath(new URL('../../content/terrain/tiles/', import.meta.url))
 
 /**

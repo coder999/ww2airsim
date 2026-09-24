@@ -260,18 +260,17 @@ export function createTitleScreen(
     //
     // `ensureStampFilter()` runs before anything below can render the
     // corner "Confidential" `.stamp` -- see that function's own doc comment
-    // (navalComms.ts): a `.stamp` referencing the filter before it exists in
-    // the document does not render at all, with no error. Idempotent, so
-    // calling it again here is safe even though `settings.ts`'s dialog also
-    // calls it.
+    // (navalComms.ts): without the filter element Chromium silently paints an
+    // unroughened stamp. Idempotent, so calling it again here is safe even
+    // though `settings.ts`'s dialog also calls it.
     ensureStampFilter()
     const pilots: PilotRecord[] = [...loadRoster()]
     let selectedPilotId: string | null = null
     const pilotRows = new Map<string, { row: HTMLTableRowElement; selectButton: HTMLButtonElement }>()
 
     // `.naval-comms`'s page-furniture rules (`naval-comms.css`'s own comment:
-    // 40px padding, a centered flex column with a 28px gap, a `#17140f`
-    // background) are meant for a screen that IS the whole page -- this
+    // 40px padding and a centered flex column with a 28px gap) are meant for
+    // a screen that IS the whole page -- this
     // panel is one section of the title screen's own flex column, alongside
     // the scenario/loadout pickers and the New game/About/Settings row built
     // below, over the title art. Overridden here the same way `settings.ts`
