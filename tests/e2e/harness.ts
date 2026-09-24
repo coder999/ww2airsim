@@ -43,6 +43,38 @@ export function debriefDialog(page: Page): Locator {
   return page.getByRole('dialog', { name: 'Debrief' })
 }
 
+/**
+ * Waits until `main.ts`'s live `bundle` is the scenario `id` names -- the
+ * only signal that actually tracks an in-place scenario switch (Plan 9 Task
+ * 7) completing, via `window.__ww2.scenarioId()`.
+ *
+ * `groundHeightM() !== null` looks like it would do this and was used for it
+ * in `scenarioPicker.spec.ts` before this helper existed, but it answers an
+ * unrelated, ONE-TIME question -- whether a terrain field has arrived at
+ * all -- that is already permanently true for any switch requested after
+ * boot's own terrain load finishes. A spec that waits on it after clicking
+ * "New game" for a second, in-session switch can resolve on its very first
+ * poll, before `loadScenario`'s fetch (and the `rebuildFrame` after it) have
+ * done anything -- reading `aircraft()`/`ships()` at that point would see
+ * whichever scenario was ALREADY loaded, not the one just picked.
+ *
+ * Investigated 2026-09-24 after `scenarioPicker.spec.ts`'s "return to title"
+ * test failed on the reference GPU with the previous scenario's entities
+ * still in place. The failure that round trip actually reproduced turned out
+ * to be a separate bug -- `onNewGame` in `main.ts` crashing on a real
+ * temporal-dead-zone `ReferenceError` before `loadScenario` was ever called
+ * (see the fix on `roster`'s declaration there) -- not this timing gap by
+ * itself. This helper is still the correct fix and stays: even with that
+ * crash gone, `groundHeightM()` remains the wrong signal in principle for the
+ * reasoning above, and a slow-enough `loadScenario` fetch racing a
+ * fast-enough terrain arrival is a real gap this closes regardless.
+ */
+export async function waitForScenario(page: Page, id: string): Promise<void> {
+  await page.waitForFunction((wanted) => (window as DiagWindow).__ww2?.scenarioId() === wanted, id, {
+    timeout: 30_000,
+  })
+}
+
 export async function waitForTerrain(page: Page): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,

@@ -256,6 +256,21 @@ export type Ww2Diagnostics = {
   readonly deck: () => { readonly shipId: string; readonly heightM: number; readonly velocity: Vec3 } | null
   /** The world wind, the velocity of the air; `null` is calm (Plan 8). */
   readonly wind: () => Vec3 | null
+  /**
+   * The `id` of the scenario `main.ts`'s `bundle` currently holds -- `null`
+   * only in the sliver before the FIRST `loadScenario` call resolves (there
+   * is no scenario yet to name). Added for the in-place scenario switch
+   * (Plan 9 Task 7): unlike `groundHeightM()`, which answers a ONE-TIME,
+   * wholly independent question ("has a terrain field arrived yet") that a
+   * Tier 2 spec cannot use to detect a scenario switch completing after
+   * boot -- terrain, once loaded, stays loaded across every later switch, so
+   * a `waitForFunction` on it resolves on its very first poll for a switch
+   * requested after that point, whether or not `loadScenario`'s own fetch
+   * (and the `rebuildFrame` that follows it) has finished. This is the
+   * signal that actually tracks the switch: read it AND wait for it to equal
+   * the requested id before trusting `aircraft()`/`ships()` to reflect it.
+   */
+  readonly scenarioId: () => string | null
   /** Separate GPU compute-pass costs, one sample list per active cascade. */
   readonly oceanComputeTimesMs: () => readonly (readonly number[])[]
   readonly oceanDisplacementSample: (cascade: number) => Promise<{

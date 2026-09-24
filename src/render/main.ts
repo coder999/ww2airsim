@@ -512,6 +512,12 @@ async function boot(): Promise<void> {
       },
       // The world wind, the velocity of the air; `null` is calm (Plan 8).
       wind: () => frame?.world.wind ?? null,
+      // Read fresh every call, same reason `scenarioEntities` is read fresh
+      // in the render loop: `loadScenario` reassigns `bundle` wholesale on
+      // every call, including a Task 7 in-place switch -- see this member's
+      // own doc comment in diagnostics.ts for why a Tier 2 spec needs this
+      // rather than `groundHeightM()` to detect a switch completing.
+      scenarioId: () => bundle?.scenario.id ?? null,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation

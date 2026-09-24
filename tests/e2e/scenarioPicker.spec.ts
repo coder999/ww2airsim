@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { debriefDialog, spawnUrl, type DiagWindow } from './harness.js'
+import { debriefDialog, spawnUrl, waitForScenario, type DiagWindow } from './harness.js'
 
 /**
  * Tier 2, the title screen's scenario picker. Plan 9 Task 7: picking a
@@ -20,6 +20,14 @@ test('picking a different scenario swaps entities in place, with no navigation',
   await expect(title).toBeVisible()
   const urlBefore = page.url()
 
+  // Select a pilot (required before New game enables -- design §3/Plan 9
+  // Task 5) via the "New pilot" inline form, self-contained here rather than
+  // via harness.ts's `startGame`: that helper predates the roster step and
+  // does not select one (a separate, already-tracked gap, not this test's).
+  await title.getByRole('button', { name: 'New pilot' }).click()
+  await title.getByPlaceholder('Pilot name').fill('Scenario Swap Test')
+  await title.getByRole('button', { name: 'Add' }).click()
+
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
   await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeVisible()
@@ -30,6 +38,10 @@ test('picking a different scenario swaps entities in place, with no navigation',
   // No reload: the title hides immediately and the URL never carries
   // `?scenario=`, unlike the pre-Task-7 navigation this replaces.
   await expect(title).toBeHidden()
+  // `waitForScenario`, not a `groundHeightM()` poll: see that helper's doc
+  // comment (harness.ts) for why the terrain signal cannot tell "the switch
+  // landed" from "terrain arrived on its own, unrelated schedule".
+  await waitForScenario(page, 'gunnery-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
@@ -51,9 +63,22 @@ test('picking the already-loaded scenario also stays in place (the same code pat
   await expect(title).toBeVisible()
   const urlBefore = page.url()
 
+  // Select a pilot (required before New game enables -- design §3/Plan 9
+  // Task 5) via the "New pilot" inline form, self-contained here rather than
+  // via harness.ts's `startGame`: that helper predates the roster step and
+  // does not select one (a separate, already-tracked gap, not this test's).
+  await title.getByRole('button', { name: 'New pilot' }).click()
+  await title.getByPlaceholder('Pilot name').fill('Same Scenario Test')
+  await title.getByRole('button', { name: 'Add' }).click()
+
   // Free Flight is already checked (the production default).
   await title.getByRole('button', { name: 'New game' }).click()
   await expect(title).toBeHidden()
+  // This branch never calls `loadScenario` (main.ts: `scenarioId ===
+  // requestedScenarioId` skips straight to a synchronous `rebuildFrame`), so
+  // there is no async switch to race -- `waitForScenario` here is
+  // belt-and-braces, not the fix this test needed.
+  await waitForScenario(page, 'free-flight')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
@@ -99,6 +124,15 @@ test('return to title after an in-place scenario switch preselects the scenario 
   await title.getByRole('button', { name: 'New game' }).click()
   await expect(title).toBeHidden()
 
+  // `waitForScenario`, not a `groundHeightM()` poll: see that helper's doc
+  // comment (harness.ts). This exact test failed on the reference GPU
+  // 2026-09-24 with the previous scenario's stale entity list -- root cause
+  // was `onNewGame` crashing on a real TDZ `ReferenceError` before
+  // `loadScenario` ever ran (fixed in `main.ts`, see `roster`'s declaration
+  // there); `groundHeightM()` is still the wrong signal to wait on here even
+  // with that crash gone, for the reason `waitForScenario`'s own comment
+  // gives.
+  await waitForScenario(page, 'gunnery-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
