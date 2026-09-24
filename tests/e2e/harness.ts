@@ -56,10 +56,35 @@ export async function waitForTerrain(page: Page): Promise<void> {
  * through the shipped title rather than a DEV bypass; a spec that waits on
  * the tick directly instead (ocean.spec.ts) calls it itself. A no-op once
  * the title is gone.
+ *
+ * Since Plan 9 Task 5 (`3dc0fc6`, roster step -- design §3) `New game` starts
+ * disabled and only `selectPilot()` inside titleScreen.ts's `build()` clears
+ * it, and `build()` resets `selectedPilotId` to null on every fresh title
+ * (including a return-to-title, where the roster list persists but the
+ * selection never does) -- so a bare click here used to sit on a permanently
+ * disabled button until Playwright's actionability wait burned the whole
+ * test timeout. Fixed 2026-09-24: pick the first existing roster entry if
+ * one is present (`button[aria-pressed]` is the roster row's own marker,
+ * set only by `makePilotButton` -- `New pilot`/`New game`/`about`/`close`
+ * never get one), otherwise go through the "New pilot" inline form with a
+ * fixed, recognizable name, matching the sequence `scenarioPicker.spec.ts`'s
+ * "Regression Test" case already exercised by hand before this fix existed.
  */
 export async function startGame(page: Page): Promise<void> {
-  const newGame = page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'New game' })
-  if (await newGame.isVisible()) await newGame.click()
+  const title = page.getByRole('dialog', { name: 'Title' })
+  const newGame = title.getByRole('button', { name: 'New game' })
+  if (!(await newGame.isVisible())) return
+
+  const existingPilot = title.locator('button[aria-pressed]').first()
+  if (await existingPilot.isVisible()) {
+    await existingPilot.click()
+  } else {
+    await title.getByRole('button', { name: 'New pilot' }).click()
+    await title.getByPlaceholder('Pilot name').fill('Test Pilot')
+    await title.getByRole('button', { name: 'Add' }).click()
+  }
+
+  await newGame.click()
 }
 
 /** Everything the assertions below need, in one round trip. */
