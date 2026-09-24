@@ -477,12 +477,18 @@ entering the integrator silently teleports the aircraft out of the world.
 
 | Aircraft | Role |
 | --- | --- |
+| Grumman f4F Wildcat | Playfer-flown |
 | Grumman F6F Hellcat | Player-flown |
-| Lockheed P-38 Lightning | Friendly AI |
-| Boeing B-17 Flying Fortress | Friendly AI, escort subject |
+| Lockheed P-38 Lightning | Player-flown, friendly AI |
+| Boeing B-17 Flying Fortress | Player-flown, friendly AI, escort subject |
+| Boeing B-29 Superfortress | Player-flown, friendly AI, escort subject |
+| Vought f4U Corsair | Player-flow, firendly AI |
 | Mitsubishi A6M Zero | Hostile fighter |
+| Aichi D3a Val | Hostile fitgher |
+| Nakajima Ki-43 Oscar | Hostile fighter |
 | Nakajima Ki-84 Frank | Hostile fighter, higher performance |
 | Mitsubishi G4M Betty | Hostile bomber, defensive gunners |
+| Mitsubishi K-21 Sally | Hostile bomber |
 
 This roster mirrors the original's and should be confirmed against a primary
 source before art work begins; it currently derives from a secondary summary.
