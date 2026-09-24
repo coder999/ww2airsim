@@ -253,4 +253,25 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
     expect(source).toMatch(/const applyOceanTier[\s\S]{0,400}?if \(forcedOceanTier !== undefined\) return/)
     expect(source).toMatch(/const applyCloudTier[\s\S]{0,400}?if \(forcedCloudTier !== undefined \|\| cloudTier === name\) return/)
   })
+
+  it('keeps ?oceanTier= driving the scenery tier, which is what turns the trees off', () => {
+    // Round-1 regression, caught in review: scenery was made independent of
+    // the ocean (correct for the Advanced disclosure) but nothing replaced
+    // the DEV override's reach into it, so `?oceanTier=low` -- the URL every
+    // recorded GPU frame-time number in this project was measured through --
+    // silently started rendering trees to the horizon in a fresh browser
+    // context. `SCENERY_TIERS.low.treeFadeEndM` is 0; trees appearing or
+    // vanishing from tier logic has cost real debugging time here before
+    // (2026-09-20).
+    expect(source).toContain('const forcedSceneryTier = forcedOceanTier?.name')
+    expect(source).toContain('sceneryTier = forcedSceneryTier ?? quality.current().scenery')
+    expect(source).toMatch(/const applySceneryTier[\s\S]{0,400}?if \(forcedSceneryTier !== undefined\) return/)
+    // The one remaining `setTier` on vegetation must read that variable, not
+    // a tier resolved somewhere else.
+    expect(source).toContain('vegetation.setTier(sceneryTier)')
+    // Two CALLS -- `applySceneryTier`'s and the one on the terrain-arrival
+    // path. The lookbehind skips the `code span` in the comment above that
+    // quotes the pre-plan form.
+    expect(source.match(/(?<!`)vegetation[?]?\.setTier\(/g)).toHaveLength(2)
+  })
 })

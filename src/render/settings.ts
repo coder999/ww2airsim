@@ -225,15 +225,21 @@ export type SettingsModel = {
    * Registers `listener`, called after every state change. Returns its own
    * unsubscribe function.
    *
-   * ADDITIVE, and it has to be. There are at least two subscribers by
-   * design: the dialog re-renders from it, and `main.ts` (Task 6) hangs its
-   * live-apply off it. A single-slot version (the shape this had until the
-   * Task 5 review) fails silently in both directions -- `main.ts`
-   * subscribing would freeze the dialog's checkmarks, Recommended stamp and
-   * Reset state while every pick still saved correctly, and the dialog
-   * re-subscribing on the next `show()` would drop `main.ts`'s listener. No
-   * error either way; the only symptom is a screen that stops agreeing with
-   * itself.
+   * ADDITIVE, and it stays that way. Task 5's review corrected it from a
+   * single-slot version on the expectation that `main.ts` would subscribe
+   * too; Task 6 shipped without doing so -- it takes the `SettingsCallbacks`
+   * above instead, which fire on a PICK, while a listener here also fires on
+   * `open`/`close`/`toggleAdvanced`/`setRecommendedTier`, none of which a
+   * live-apply wants. So today there is exactly one subscriber, the dialog's
+   * own `render`.
+   *
+   * Single-slot would still be the wrong shape, for a reason that outlives
+   * that correction: `titleScreen.ts` builds a NEW dialog on every `show()`
+   * against a model that survives the whole session, so a slot would hand
+   * the sole subscription to whichever dialog subscribed last and, if
+   * `destroy()`'s unsubscribe ever regressed, silently to a detached one.
+   * The failure mode has no error in it -- just a screen that stops agreeing
+   * with itself -- which is why the cheap shape is the right one.
    */
   subscribe(listener: () => void): () => void
 }

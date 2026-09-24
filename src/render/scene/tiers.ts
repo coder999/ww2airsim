@@ -4,10 +4,19 @@
 export const TREE_FADE_END_M = 1850
 
 /**
- * What the scenery gives up on each quality tier. Keyed by the ocean tier's
- * name because the app has exactly one quality signal -- the one-time
- * downgrade `adaptOceanQuality` makes in main.ts from measured GPU time --
- * and a second, independently chosen tier would only disagree with it.
+ * What the scenery gives up on each quality tier. The three tier tables
+ * (here, `OCEAN_TIERS`, `CLOUD_TIERS`) share one set of names, `'high' |
+ * 'medium' | 'low'`, which is `quality.ts`'s `QualityTierName`.
+ *
+ * They no longer share one VALUE. Until 2026-09-24 this comment said the app
+ * had exactly one quality signal -- the GPU probe's one-time downgrade -- and
+ * that a separately chosen scenery tier "would only disagree with it". The
+ * Settings dialog's Advanced disclosure (render-quality-selector spec §4) now
+ * lets a player set the three independently on purpose, and `main.ts` keeps a
+ * `sceneryTier` of its own for this table. The one case that still moves them
+ * together is the DEV `?oceanTier=` override, which drives scenery too so the
+ * URL keeps meaning what every recorded frame-time measurement assumed it
+ * meant (`main.ts`'s `forcedSceneryTier`).
  *
  * The trees are the scenery's one GPU-scalable cost: 1.1 ms of a 4.9 ms
  * frame at 1440p on the reference desktop (2026-09-17, serialized

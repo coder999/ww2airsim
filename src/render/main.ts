@@ -588,6 +588,25 @@ async function boot(): Promise<void> {
   // diagnostics hook's `oceanLandWeight` closes over it before `loadDepth` resolves.
   let oceanDepth: DepthField | null = null
   const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
+  /**
+   * Scenery has no query parameter of its own and has ALWAYS ridden the
+   * ocean's: before this plan, `vegetation.setTier(oceanTier.name)` was the
+   * only call site, so `?oceanTier=low` meant "and no trees at all"
+   * (`SCENERY_TIERS.low.treeFadeEndM` is 0). Every GPU frame-time number this
+   * project has ever recorded was measured through that URL, and Task 6's
+   * first round quietly broke it: scenery read a saved/default tier no query
+   * parameter could reach, so `?oceanTier=low` in a fresh browser context
+   * rendered trees to the horizon. Trees silently appearing or vanishing
+   * because of tier logic has cost this project real debugging time once
+   * already (2026-09-20), so the DEV override keeps meaning exactly what it
+   * has always meant -- and holds scenery against a saved setting and the
+   * probe, the same way it holds the ocean and the clouds.
+   *
+   * A separate `?sceneryTier=` was the alternative and was not taken: it
+   * would change what `?oceanTier=low` renders, which is the one thing this
+   * must not do.
+   */
+  const forcedSceneryTier = forcedOceanTier?.name
   /** An `OCEAN_TIERS` entry by name. Total: `QualityTierName` and the tiers'
    *  own names are the same three strings, so the fallback is unreachable --
    *  it exists because `find` cannot say so in the type system. */
@@ -907,7 +926,7 @@ async function boot(): Promise<void> {
   // diverge). With nothing saved both read `high`, which is what this line
   // resolved to before this plan existed. `?cloudTier=` still wins.
   cloudTier = forcedCloudTier ?? quality.current().clouds
-  sceneryTier = quality.current().scenery
+  sceneryTier = forcedSceneryTier ?? quality.current().scenery
   // Plan 16c: the scenario's hour, or the DEV override.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
@@ -1007,8 +1026,11 @@ async function boot(): Promise<void> {
     oceanTier = next
   }
   /** `vegetation` is null until terrain arrives, which is why the tier is
-   *  also recorded: `createVegetation`'s own `setTier` call reads it. */
+   *  also recorded: `createVegetation`'s own `setTier` call reads it.
+   *  `?oceanTier=` holds this one -- see `forcedSceneryTier` for why scenery
+   *  answers to the ocean's override rather than to one of its own. */
   const applySceneryTier = (name: QualityTierName): void => {
+    if (forcedSceneryTier !== undefined) return
     sceneryTier = name
     vegetation?.setTier(name)
   }

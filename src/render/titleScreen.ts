@@ -146,10 +146,11 @@ export type TitleScreenHandle = {
    * tier and `arcadeDamage`, pushes the GPU probe's result back in with
    * `setRecommendedTier`/`setCurrentQuality`, and checks `explicitChoiceMade`
    * before letting that probe overwrite anything. It gets the live change
-   * callbacks by building its own model (`createSettingsModel(callbacks)`)
-   * and passing it as `createTitleScreen`'s optional fourth parameter; the
-   * default one built here still persists every pick, it just has nobody
-   * listening to apply it live until the next page load.
+   * callbacks from `src/render/bootQuality.ts`'s `createBootQuality()`, which
+   * owns the one model of the page and the `SettingsCallbacks` that apply a
+   * pick live, and hands it here as `createTitleScreen`'s fourth argument.
+   * The default model built below still persists every pick; it just has
+   * nobody listening to apply it until the next page load.
    */
   readonly settings: SettingsModel
   hide(): void
@@ -192,9 +193,11 @@ export function createTitleScreen(
   /** The Settings dialog's model. Optional so this file owns a working
    *  dialog on its own: with nothing passed, every pick still persists, it
    *  simply takes effect on the next page load rather than live. `main.ts`
-   *  (Task 6) passes one built with `createSettingsModel(callbacks)` so a
+   *  (Task 6) passes `createBootQuality().settings` (`bootQuality.ts`) so a
    *  tier click reaches the live cascades/clouds/vegetation -- see
-   *  `TitleScreenHandle.settings`. */
+   *  `TitleScreenHandle.settings`. `tests/render/bootQuality.test.ts` pins
+   *  that this argument is actually passed, because omitting it is invisible
+   *  on screen: the dialog looks and persists exactly the same. */
   settings: SettingsModel = createSettingsModel(),
 ): TitleScreenHandle {
   const m = titleModel()
