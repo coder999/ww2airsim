@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 import { toLocal } from '../../src/sim/world/projection.js'
 import { type Town } from '../../src/render/scene/towns.js'
+import { ROAD_PATHS } from '../../src/render/terrain/rivers.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 
 /**
@@ -334,15 +335,31 @@ ${JSON.stringify(times.errors, null, 2)}`).toEqual([])
  * these are screenshots of whatever the real Overpass data currently says,
  * so a stale hardcoded coordinate would quietly screenshot the wrong point
  * after the next `tools/scenery/build.ts` re-run rather than failing.
- *   - **Tacloban**: a `town`-sized entry (3 hut rings), on the coast, right
- *     where the Maharlika Highway alignment (Task 1-2) runs past it -- the
- *     one shot that can show the road as a coastal line AND a dense hut
- *     cluster in the same frame.
+ *   - **Tacloban**: a `town`-sized entry (3 hut rings), on the coast -- the
+ *     hut-cluster and no-floating-trees check. **Not** a road shot: verified
+ *     2026-09-24 (review round 2, after a first, wrong "blends with the sandy
+ *     beach" explanation didn't survive checking where the road actually is)
+ *     that `ROAD_PATHS`'s nearest point to this settlement's own OSM node is
+ *     2,473 m away -- Tacloban's real "Magsaysay Boulevard," which passes
+ *     within 60-90 m of the same node and reads as a road in every screenshot,
+ *     is OSM route relation 13888703, **`ref 686`, network `PH:N`** -- a real,
+ *     separate Philippine national road, not a locally-named continuation of
+ *     the Maharlika Highway (which is `ref 1`/`AH26`) -- confirmed by zero
+ *     shared endpoint OR interior nodes between the two way sets in the raw
+ *     Overpass cache, and independently by `api.openstreetmap.org`'s own
+ *     relation membership for one of its ways. So `ROAD_PATHS`'s filter
+ *     (Task 1-2) is doing exactly what it is supposed to here: the real,
+ *     named Maharlika Highway genuinely does not pass within this
+ *     screenshot's ground footprint of Tacloban's administrative centre
+ *     point. See the fourth test below, which frames the real alignment's
+ *     own nearest point instead and settles this with a picture rather than
+ *     an argument.
  *   - **Tanauan**: a `village`-sized entry almost exactly midway between
  *     Tacloban and Dulag on that same highway (1.5 km off the literal
  *     midpoint, measured 2026-09-24) -- "the Leyte Valley" the brief asks
  *     for, i.e. a stretch of the coastal plain that is not centred on either
- *     named base.
+ *     named base, and close enough to the real alignment (307 m) that the
+ *     road and a village hut ring land in the same frame.
  *   - **Dulag**: also `village`-sized -- one hut ring, not three -- so this
  *     frame is the direct visual check that it reads as its own smaller
  *     settlement rather than a copy of Tacloban's.
@@ -409,8 +426,16 @@ test.describe('places: Tacloban, Tanauan and Dulag (Plan 13d Task 5)', () => {
     return toLocal(town.lat, town.lon)
   }
 
+  /** How far off `SCREENSHOT_ALTITUDE_M` still counts as "the framing this
+   *  shot was tuned for" -- a regression guard for the exact bug the block
+   *  comment above found the hard way (an unpowered glide quietly changing
+   *  the altitude a screenshot was taken at). 150 m is generous next to the
+   *  ~400 m the 58 s glide actually cost, with room for the ~800 ms this
+   *  test does spend airborne before the shutter. */
+  const ALTITUDE_TOLERANCE_M = 150
+
   const shots: readonly { readonly town: string; readonly title: string; readonly file: string }[] = [
-    { town: 'Tacloban', title: 'Tacloban shore: coastal road and a 3-ring hut cluster', file: 'places-tacloban.png' },
+    { town: 'Tacloban', title: 'Tacloban: hut cluster, no floating trees (its road is 2.5 km away -- see the fourth test)', file: 'places-tacloban.png' },
     { town: 'Tanauan', title: 'Leyte Valley: the coastal highway midway to Dulag', file: 'places-leyte-valley.png' },
     { town: 'Dulag', title: "Dulag: its own smaller, 1-ring building set", file: 'places-dulag.png' },
   ]
@@ -435,18 +460,95 @@ test.describe('places: Tacloban, Tanauan and Dulag (Plan 13d Task 5)', () => {
       // reasoning the sweep tests above use for the spawn corridor.
       expect(arrived.groundHeightM, `${town} is over water, not over Leyte`).not.toBeNull()
       expect(arrived.groundHeightM!, `${town} is over water, not over Leyte`).toBeGreaterThan(0)
+      // The altitude regression guard itself -- see ALTITUDE_TOLERANCE_M.
+      expect(
+        arrived.position.y,
+        `${town}: altitude drifted away from SCREENSHOT_ALTITUDE_M -- an unpowered glide eating the framing again?`,
+      ).toBeGreaterThan(SCREENSHOT_ALTITUDE_M - ALTITUDE_TOLERANCE_M)
+      expect(
+        arrived.position.y,
+        `${town}: altitude drifted away from SCREENSHOT_ALTITUDE_M -- an unpowered glide eating the framing again?`,
+      ).toBeLessThan(SCREENSHOT_ALTITUDE_M + ALTITUDE_TOLERANCE_M)
 
+      // try/finally: a failed expect above this point never reaches the key
+      // press, so it is moot there -- this guards the down/up pair around the
+      // screenshot itself, so a thrown `page.screenshot()` (a real failure
+      // mode: a closed page, a network hiccup over the tunnel) cannot leave
+      // Numpad2 held for whatever runs in this page next.
       await page.keyboard.down('Numpad2')
-      // Short, and a timed settle rather than `waitForFunction(look().pitchRad
-      // !== 0)`: every extra second here is a second of the unpowered glide
-      // the block comment above found the hard way, bleeding altitude and
-      // speed away from the framing `SCREENSHOT_ALTITUDE_M` was chosen for.
-      await page.waitForTimeout(800)
-      await page.screenshot({ path: `test-results/${file}` })
-      await page.keyboard.up('Numpad2')
+      try {
+        // Short, and a timed settle rather than `waitForFunction(look().
+        // pitchRad !== 0)`: every extra second here is a second of the
+        // unpowered glide the block comment above found the hard way,
+        // bleeding altitude and speed away from the framing
+        // `SCREENSHOT_ALTITUDE_M` was chosen for.
+        await page.waitForTimeout(800)
+        await page.screenshot({ path: `test-results/${file}` })
+      } finally {
+        await page.keyboard.up('Numpad2')
+      }
 
       const errors = await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)
       expect(errors, `WebGPU validation errors:\n${JSON.stringify(errors, null, 2)}`).toEqual([])
     })
   }
+
+  /**
+   * The real Maharlika Highway's own nearest point to Tacloban's OSM node --
+   * not the node itself, which the block comment above found is 2,473 m from
+   * any `ROAD_PATHS` geometry. Computed live from the same `ROAD_PATHS` the
+   * renderer consumes (imported at the top of this file), not pinned as a
+   * literal, for the same reason `townCentre` reads `places.json` live: a
+   * future Overpass re-run or filter change should move this shot with it
+   * rather than silently screenshotting a stale point.
+   *
+   * This is the test that actually settles the round-2 review question with
+   * a picture: if the road renders here (over real, ordinary terrain, no
+   * different from Tanauan's case), the mask and its filter are proven
+   * correct, and Tacloban's OTHER screenshot showing no road is a targeting
+   * fact about where the real highway runs relative to one town's OSM node,
+   * not a rendering defect.
+   */
+  test("Tacloban's own stretch of the Maharlika Highway, near where it actually runs", async ({ page }) => {
+    const tacloban = townCentre('Tacloban')
+    let nearest: { x: number; z: number; dist: number } | null = null
+    for (const road of ROAD_PATHS) {
+      for (const p of road.points) {
+        const dist = Math.hypot(p.x - tacloban.x, p.z - tacloban.z)
+        if (nearest === null || dist < nearest.dist) nearest = { x: p.x, z: p.z, dist }
+      }
+    }
+    if (!nearest) throw new Error('ROAD_PATHS is empty -- nothing to screenshot')
+    console.log(`Tacloban's nearest real road point: ${nearest.dist.toFixed(0)} m from the town's own OSM node`)
+
+    await page.goto(spawnUrl({ x: nearest.x, y: SCREENSHOT_ALTITUDE_M, z: nearest.z }))
+    await waitForTerrain(page)
+
+    const arrived = await snapshot(page)
+    expect(
+      Math.hypot(arrived.position.x - nearest.x, arrived.position.z - nearest.z),
+      "spawn override did not land at the highway point",
+    ).toBeLessThan(ARRIVAL_TOLERANCE_M)
+    expect(arrived.groundHeightM, 'over water, not over Leyte').not.toBeNull()
+    expect(arrived.groundHeightM!, 'over water, not over Leyte').toBeGreaterThan(0)
+    expect(
+      arrived.position.y,
+      'altitude drifted away from SCREENSHOT_ALTITUDE_M',
+    ).toBeGreaterThan(SCREENSHOT_ALTITUDE_M - ALTITUDE_TOLERANCE_M)
+    expect(
+      arrived.position.y,
+      'altitude drifted away from SCREENSHOT_ALTITUDE_M',
+    ).toBeLessThan(SCREENSHOT_ALTITUDE_M + ALTITUDE_TOLERANCE_M)
+
+    await page.keyboard.down('Numpad2')
+    try {
+      await page.waitForTimeout(800)
+      await page.screenshot({ path: 'test-results/places-tacloban-highway.png' })
+    } finally {
+      await page.keyboard.up('Numpad2')
+    }
+
+    const errors = await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)
+    expect(errors, `WebGPU validation errors:\n${JSON.stringify(errors, null, 2)}`).toEqual([])
+  })
 })

@@ -1,7 +1,7 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RGFormat } from 'three'
 import { toLocal } from '../../sim/world/projection.js'
-import riverData from '../../../content/scenery/rivers.json'
-import placesData from '../../../content/scenery/places.json'
+import riverData from '../../../content/scenery/rivers.json' with { type: 'json' }
+import placesData from '../../../content/scenery/places.json' with { type: 'json' }
 
 export const RIVER_PATHS = riverData.map(r => ({
   name: r.name, widthM: r.widthM,
