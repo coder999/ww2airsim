@@ -1,3 +1,4 @@
+import { ensureStampFilter } from './ui/navalComms.js'
 import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
@@ -174,11 +175,21 @@ const BUTTON_STYLE =
   'padding:10px 22px;border:1px solid #2b3440;border-radius:4px;background:rgba(236,239,243,.94);' +
   'color:#151b22;font:14px ui-monospace,Menlo,monospace;letter-spacing:.08em;cursor:pointer'
 
-const ROSTER_ROW_STYLE =
-  'display:block;width:100%;text-align:left;padding:8px 12px;border:1px solid #2b3440;border-radius:4px;' +
-  'font:13px ui-monospace,Menlo,monospace;letter-spacing:.02em;cursor:pointer'
-const ROSTER_BUTTON_STYLE = `${ROSTER_ROW_STYLE}background:rgba(236,239,243,.08);color:#eceff3`
-const ROSTER_BUTTON_SELECTED_STYLE = `${ROSTER_ROW_STYLE}background:rgba(236,239,243,.94);color:#151b22`
+// The roster step's own tokens (Task 7 restyle, naval-comms spec §3) --
+// design-system colors/fonts via the `var(--...)` custom properties
+// `naval-comms.css` declares on `:root` (available anywhere in the document,
+// not just under `.naval-comms`), not the `#eceff3`-on-dark palette the rest
+// of this screen (title art overlay, About panel) still uses.
+const FLYING_AS_STYLE =
+  'margin:14px 0 4px;min-height:1.4em;color:var(--ink-faint);font:12px var(--font-body);letter-spacing:.04em'
+const NEW_PILOT_ERROR_STYLE =
+  'display:none;margin:8px 0 0;color:var(--stamp-red);font:12px var(--font-body);letter-spacing:.02em'
+// A native `<button>` reset to read as plain table-cell text while staying a
+// real, clickable, keyboard-reachable control -- same "native control, not a
+// styled div" convention the rest of this file follows (see the roster
+// section's own comment below).
+const ROW_SELECT_BUTTON_STYLE =
+  'all:unset;display:block;width:100%;cursor:pointer;font:inherit;color:inherit;padding:2px 0'
 
 export function createTitleScreen(
   root: HTMLElement,
@@ -238,35 +249,91 @@ export function createTitleScreen(
       'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;' +
       `background:#0b0d10 url(${TITLE_ART_URL}) center/cover no-repeat;z-index:20`
 
-    // The roster step (design §3): every pilot `loadRoster()` returns, plus a
-    // "New pilot" entry -- read fresh on every `build()` call so a score just
-    // banked by the debrief that preceded this `show()` is what the pilot's
-    // button actually says. Native `<button>` per entry, same reason the
-    // scenario/loadout rows below lean on native controls rather than a
-    // click handler on a styled `<div>`: free keyboard support, and it is
-    // this file's own convention (the mission chart's `role="button"`
-    // marker exists only because SVG has no `<button>`; here we do).
+    // The roster step (design §3; restyled Task 7 into the Naval
+    // Communications system -- naval-comms spec §3: letterhead, a ruled
+    // `.form-table`, `.row-selected`). Every pilot `loadRoster()` returns,
+    // plus a "New pilot" entry -- read fresh on every `build()` call so a
+    // score just banked by the debrief that preceded this `show()` is what
+    // the roster shows. Native `<button>` per selectable row, same reason
+    // the scenario/loadout rows below lean on native controls rather than a
+    // click handler on a styled `<div>`: free keyboard support.
+    //
+    // `ensureStampFilter()` runs before anything below can render the
+    // corner "Confidential" `.stamp` -- see that function's own doc comment
+    // (navalComms.ts): a `.stamp` referencing the filter before it exists in
+    // the document does not render at all, with no error. Idempotent, so
+    // calling it again here is safe even though `settings.ts`'s dialog also
+    // calls it.
+    ensureStampFilter()
     const pilots: PilotRecord[] = [...loadRoster()]
     let selectedPilotId: string | null = null
-    const pilotButtons = new Map<string, HTMLButtonElement>()
+    const pilotRows = new Map<string, { row: HTMLTableRowElement; selectButton: HTMLButtonElement }>()
 
-    const rosterSection = document.createElement('div')
-    rosterSection.style.cssText =
-      'display:flex;flex-direction:column;gap:6px;width:280px;margin-bottom:1.5vh'
-    const rosterLabel = document.createElement('div')
-    rosterLabel.textContent = 'Pilot'
-    rosterLabel.style.cssText =
-      'color:#eceff3;font:13px ui-monospace,Menlo,monospace;letter-spacing:.04em;margin-bottom:2px'
-    const rosterList = document.createElement('div')
-    rosterList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:22vh;overflow-y:auto'
-    rosterSection.append(rosterLabel, rosterList)
+    // `.naval-comms`'s page-furniture rules (`naval-comms.css`'s own comment:
+    // 40px padding, a centered flex column with a 28px gap, a `#17140f`
+    // background) are meant for a screen that IS the whole page -- this
+    // panel is one section of the title screen's own flex column, alongside
+    // the scenario/loadout pickers and the New game/About/Settings row built
+    // below, over the title art. Overridden here the same way `settings.ts`
+    // overrides `position`/`background` for ITS layout: `display:block`
+    // neutralizes `flex-direction`/`align-items`/`gap` (inert once the
+    // container isn't a flex box), and `padding`/`background` are reset
+    // directly so this reads as a full-width paper sheet against the art,
+    // not a padded dark box inside a dark box.
+    const rosterPanel = document.createElement('div')
+    rosterPanel.className = 'naval-comms'
+    rosterPanel.style.cssText =
+      'display:block;padding:0;background:transparent;width:min(900px,92vw);margin-bottom:1.5vh'
 
-    const flyingAs = document.createElement('div')
-    flyingAs.style.cssText =
-      'min-height:1.4em;color:#eceff3;font:13px ui-monospace,Menlo,monospace;letter-spacing:.04em;' +
-      'margin-bottom:1vh'
-    rosterSection.appendChild(flyingAs)
-    overlay.appendChild(rosterSection)
+    const sheet = document.createElement('div')
+    sheet.className = 'sheet'
+
+    const confidentialStamp = document.createElement('div')
+    confidentialStamp.className = 'stamp stamp--violet stamp--sm stamp--rotate-2 stamp-corner'
+    confidentialStamp.textContent = 'Confidential'
+    sheet.appendChild(confidentialStamp)
+
+    const letterhead = document.createElement('div')
+    letterhead.className = 'letterhead'
+    const letterheadText = document.createElement('div')
+    letterheadText.className = 'letterhead-text'
+    const letterheadKicker = document.createElement('div')
+    letterheadKicker.className = 'letterhead-kicker'
+    letterheadKicker.textContent = 'Bureau of Naval Personnel'
+    const letterheadTitle = document.createElement('div')
+    letterheadTitle.className = 'letterhead-title'
+    letterheadTitle.textContent = 'Squadron Roster'
+    letterheadText.append(letterheadKicker, letterheadTitle)
+    letterhead.appendChild(letterheadText)
+    sheet.appendChild(letterhead)
+
+    // The pilot list itself, scrolled independently of the letterhead/enlist
+    // form around it -- the same 22vh-ish scroll budget the previous button
+    // list gave a long roster, just confined to the table body this time so
+    // the form below stays reachable without scrolling past every pilot.
+    const tableScroll = document.createElement('div')
+    tableScroll.style.cssText = 'max-height:32vh;overflow-y:auto'
+    const table = document.createElement('table')
+    table.className = 'form-table'
+    const thead = document.createElement('thead')
+    const headRow = document.createElement('tr')
+    for (const label of ['Name', 'Rank', 'Score', 'Sorties', 'Kills', 'Status']) {
+      const th = document.createElement('th')
+      th.textContent = label
+      headRow.appendChild(th)
+    }
+    thead.appendChild(headRow)
+    const tbody = document.createElement('tbody')
+    table.append(thead, tbody)
+    tableScroll.appendChild(table)
+    sheet.appendChild(tableScroll)
+
+    const flyingAs = document.createElement('p')
+    flyingAs.style.cssText = FLYING_AS_STYLE
+    sheet.appendChild(flyingAs)
+
+    rosterPanel.appendChild(sheet)
+    overlay.appendChild(rosterPanel)
 
     // The scenario picker: same native-radio pattern as the loadout picker
     // below and for the same reason (free keyboard group navigation). Picking
@@ -383,10 +450,10 @@ export function createTitleScreen(
 
     const selectPilot = (pilot: PilotRecord): void => {
       selectedPilotId = pilot.id
-      for (const [id, button] of pilotButtons) {
+      for (const [id, { row: pilotRow, selectButton }] of pilotRows) {
         const selected = id === pilot.id
-        button.style.cssText = selected ? ROSTER_BUTTON_SELECTED_STYLE : ROSTER_BUTTON_STYLE
-        button.setAttribute('aria-pressed', String(selected))
+        pilotRow.classList.toggle('row-selected', selected)
+        selectButton.setAttribute('aria-pressed', String(selected))
       }
       flyingAs.textContent = selectedPilotLabel(pilot)
       scenarioRow.style.display = 'flex'
@@ -395,38 +462,110 @@ export function createTitleScreen(
       newGame.style.opacity = '1'
     }
 
-    const makePilotButton = (pilot: PilotRecord): HTMLButtonElement => {
-      const button = document.createElement('button')
-      button.textContent = pilotButtonLabel(pilot)
-      button.style.cssText = ROSTER_BUTTON_STYLE
-      button.setAttribute('aria-pressed', 'false')
-      button.addEventListener('click', () => selectPilot(pilot))
-      pilotButtons.set(pilot.id, button)
-      return button
+    const totalKills = (pilot: PilotRecord): number =>
+      Object.values(pilot.killsByType).reduce((sum, n) => sum + n, 0)
+
+    // One `.form-table` row per pilot, columns matching `PilotRecord` (naval-
+    // comms spec §3): name, rank, score, sorties, kills, status. The Name
+    // cell's button is the row's select control -- a real `<button>` reset to
+    // read as plain cell text (`ROW_SELECT_BUTTON_STYLE`), not a `role`
+    // stuck on the `<tr>` itself, so the table keeps valid row/cell structure
+    // while staying a native, keyboard-reachable control.
+    //
+    // Its accessible name is `pilotButtonLabel(pilot)` -- the SAME
+    // name/rank/score(/KIA) string this screen has always used, unchanged
+    // and still pinned by `titleScreen.test.ts` -- carried as `aria-label`
+    // rather than visible text now that those fields each have their own
+    // column, so a screen reader still hears the whole picture in one
+    // announcement instead of just the name.
+    const makePilotRow = (pilot: PilotRecord): HTMLTableRowElement => {
+      const pilotRow = document.createElement('tr')
+
+      const nameCell = document.createElement('td')
+      const selectButton = document.createElement('button')
+      selectButton.style.cssText = ROW_SELECT_BUTTON_STYLE
+      selectButton.textContent = pilot.name
+      selectButton.setAttribute('aria-label', pilotButtonLabel(pilot))
+      selectButton.setAttribute('aria-pressed', 'false')
+      selectButton.addEventListener('click', () => selectPilot(pilot))
+      nameCell.appendChild(selectButton)
+
+      const rankCell = document.createElement('td')
+      rankCell.textContent = `${pilot.rank.abbrev}, ${pilot.rank.name}`
+
+      const scoreCell = document.createElement('td')
+      scoreCell.className = 'num'
+      scoreCell.textContent = String(pilot.cumulativeScore)
+
+      const sortiesCell = document.createElement('td')
+      sortiesCell.className = 'num'
+      sortiesCell.textContent = String(pilot.sorties)
+
+      const killsCell = document.createElement('td')
+      killsCell.className = 'num'
+      killsCell.textContent = String(totalKills(pilot))
+
+      // `.stamp-chip` -- unlike `.stamp`, it carries no `filter: url(...)`
+      // reference (naval-comms.css), so it needs no `ensureStampFilter()`.
+      const statusCell = document.createElement('td')
+      statusCell.className = 'center'
+      const statusChip = document.createElement('span')
+      statusChip.className = 'stamp-chip'
+      const isKia = pilot.status === 'kia'
+      const statusColor = isKia ? '--stamp-red' : '--stamp-black'
+      statusChip.style.cssText = `color:var(${statusColor});border-color:var(${statusColor})`
+      statusChip.textContent = isKia ? 'K.I.A.' : 'Active'
+      statusCell.appendChild(statusChip)
+
+      pilotRow.append(nameCell, rankCell, scoreCell, sortiesCell, killsCell, statusCell)
+      pilotRows.set(pilot.id, { row: pilotRow, selectButton })
+      return pilotRow
     }
 
+    for (const pilot of pilots) tbody.appendChild(makePilotRow(pilot))
+
+    // "Enlist New Pilot" (naval-comms spec §3: no matching prototype example
+    // for this control, a new composition within the design system) -- a
+    // `.form-section-title` heading, a `.field-row`/`.typed-input` pair for
+    // the name, and an `.ink-button` pair, all styled off `naval-comms.css`'s
+    // existing classes rather than the ad-hoc inline styles this section used
+    // before. Behavior is untouched: "New pilot" toggles to the inline form,
+    // the same button text, placeholder and confirm label `tests/e2e/
+    // scenarioPicker.spec.ts` already selects by.
+    const enlistTitle = document.createElement('div')
+    enlistTitle.className = 'form-section-title'
+    enlistTitle.textContent = 'Enlist New Pilot'
+    sheet.appendChild(enlistTitle)
+
     const newPilotButton = document.createElement('button')
+    newPilotButton.className = 'ink-button'
     newPilotButton.textContent = 'New pilot'
-    newPilotButton.style.cssText = ROSTER_BUTTON_STYLE
 
     const newPilotForm = document.createElement('div')
-    newPilotForm.style.cssText = 'display:none;gap:6px'
+    newPilotForm.style.cssText = 'display:none;flex-direction:column;gap:10px'
+    const fieldRow = document.createElement('div')
+    fieldRow.className = 'field-row'
+    const fieldLabel = document.createElement('span')
+    fieldLabel.className = 'field-label'
+    fieldLabel.textContent = 'Name'
     const newPilotInput = document.createElement('input')
     newPilotInput.type = 'text'
     newPilotInput.placeholder = 'Pilot name'
-    newPilotInput.style.cssText =
-      'flex:1;min-width:0;padding:6px 8px;border:1px solid #2b3440;border-radius:4px;background:#eceff3;' +
-      'color:#151b22;font:13px ui-monospace,Menlo,monospace'
+    newPilotInput.className = 'typed-input'
+    fieldRow.append(fieldLabel, newPilotInput)
+    const confirmRow = document.createElement('div')
+    confirmRow.className = 'button-row'
     const newPilotConfirm = document.createElement('button')
+    newPilotConfirm.className = 'ink-button ink-button--primary'
     newPilotConfirm.textContent = 'Add'
-    newPilotConfirm.style.cssText = BUTTON_STYLE
-    newPilotForm.append(newPilotInput, newPilotConfirm)
+    confirmRow.appendChild(newPilotConfirm)
+    newPilotForm.append(fieldRow, confirmRow)
+
     const newPilotError = document.createElement('p')
     newPilotError.setAttribute('aria-live', 'polite')
-    newPilotError.style.cssText = 'display:none;margin:2px 0 0;color:#e2856b;font:12px ui-monospace,Menlo,monospace'
+    newPilotError.style.cssText = NEW_PILOT_ERROR_STYLE
 
-    for (const pilot of pilots) rosterList.appendChild(makePilotButton(pilot))
-    rosterList.append(newPilotButton, newPilotForm, newPilotError)
+    sheet.append(newPilotButton, newPilotForm, newPilotError)
 
     const openNewPilotForm = (): void => {
       newPilotButton.style.display = 'none'
@@ -437,7 +576,7 @@ export function createTitleScreen(
     }
     const closeNewPilotForm = (): void => {
       newPilotForm.style.display = 'none'
-      newPilotButton.style.display = 'block'
+      newPilotButton.style.display = ''
       newPilotError.style.display = 'none'
     }
     // Rejects an empty/whitespace name here, inline -- `createPilot` (roster.ts)
@@ -453,7 +592,7 @@ export function createTitleScreen(
       const pilot = createPilot(newPilotInput.value)
       pilots.push(pilot)
       saveRoster(pilots)
-      rosterList.insertBefore(makePilotButton(pilot), newPilotButton)
+      tbody.appendChild(makePilotRow(pilot))
       closeNewPilotForm()
       selectPilot(pilot)
     }
