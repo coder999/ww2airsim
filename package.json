@@ -20,6 +20,7 @@
     "terrain:build": "tsx tools/terrain/build.ts",
     "landcover:build": "tsx tools/landcover/build.ts",
     "sky:build": "tsx tools/sky/build.ts",
+    "models:build": "tsx tools/models/build.ts",
     "audio:rocket-whoosh": "tsx tools/audio/synthesizeRocketWhoosh.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"
@@ -33,6 +34,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.2",
     "@types/three": "^0.186.0",
