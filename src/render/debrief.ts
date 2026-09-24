@@ -1,3 +1,4 @@
+import { ensureStampFilter } from './ui/navalComms.js'
 import type { Impact } from '../sim/loop.js'
 import type { AircraftState } from '../sim/flight/state.js'
 import { attitudeAngles } from '../sim/flight/attitude.js'
@@ -261,6 +262,64 @@ export type DebriefHandle = {
   hide(): void
 }
 
+function sectionTitle(text: string): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'form-section-title'
+  el.textContent = text
+  return el
+}
+
+// `.figure-row`/`.k` are the prototype's OWN local styles
+// (design-prototypes/telegram-ui/debrief.html's inline `<style>`), specific
+// to this one screen's key/value lines -- unlike `.sheet`/`.form-table`/etc.
+// they never made it into the shared `naval-comms.css` (that file's own
+// `tests/render/navalComms.test.ts` pins the class list Tasks 5/7/8 actually
+// share, and this pair is not on it). Kept local rather than added to the
+// shared stylesheet other screens also depend on.
+const FIGURE_ROW_STYLE = 'display:flex;justify-content:space-between;gap:24px;padding:3px 0;font-size:13px'
+const FIGURE_ROW_LABEL_STYLE = 'color:var(--ink-faint)'
+
+/** One "label ... value" line, styled like the prototype's `.figure-row`. */
+function figureRow(label: string, value: string): HTMLDivElement {
+  const row = document.createElement('div')
+  row.style.cssText = FIGURE_ROW_STYLE
+  const k = document.createElement('span')
+  k.style.cssText = FIGURE_ROW_LABEL_STYLE
+  k.textContent = label
+  const v = document.createElement('strong')
+  v.textContent = value
+  row.append(k, v)
+  return row
+}
+
+/** A figure-row-styled line carrying one pre-joined string rather than a
+ *  split label/value pair -- used for the Recovery/Banked total lines so
+ *  their wording stays exactly what `tests/e2e/meta-game-relaunch.spec.ts`
+ *  already asserts on (`Recovery: LANDED (×1)`, `Banked total: 500`), which
+ *  a `k`/`strong` split would break into two text nodes with no colon
+ *  between them. */
+function plainRow(text: string): HTMLDivElement {
+  const row = document.createElement('div')
+  row.style.cssText = FIGURE_ROW_STYLE
+  row.textContent = text
+  return row
+}
+
+const DTG_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'] as const
+
+/** Naval date-time-group format (`DDHHMMZ MON YY`) for the routing header's
+ *  one genuinely dynamic field -- see `show()`'s own comment on why the rest
+ *  of that block is static flavor text rather than real pilot/mission data.
+ *  UTC, per the format's own trailing "Z". */
+function formatDtg(date: Date): string {
+  const dd = String(date.getUTCDate()).padStart(2, '0')
+  const hh = String(date.getUTCHours()).padStart(2, '0')
+  const mi = String(date.getUTCMinutes()).padStart(2, '0')
+  const mon = DTG_MONTHS[date.getUTCMonth()]
+  const yy = String(date.getUTCFullYear()).slice(-2)
+  return `${dd}${hh}${mi}Z ${mon} ${yy}`
+}
+
 /**
  * The end-of-flight modal, over a scene that is still being drawn.
  *
@@ -280,8 +339,20 @@ export type DebriefHandle = {
  * `continueLabel` and this renders a third button for it; the caller decides
  * what continuing means (releasing the pause it took when it showed the
  * dialog) and what returning to title means (`titleScreen.show()`).
+ *
+ * Restyled in Task 8 of the 2026-09-24 plan-ui-realism plan into the Naval
+ * Communications design system (naval-comms spec §3) -- presentation only;
+ * every field below still comes from the same `DebriefModel` the three pure
+ * builders above already produced.
  */
 export function createDebrief(root: HTMLElement, onRestart: () => void): DebriefHandle {
+  // `.stamp` (the outcome stamp `show()` renders below) is invisible with no
+  // error if this has not run first -- see `ensureStampFilter`'s own doc
+  // comment. Document-level and idempotent, so it does not matter that
+  // `titleScreen.ts`/`settings.ts` also call it; called once here, before
+  // this dialog's first `show()`.
+  ensureStampFilter()
+
   const backdrop = document.createElement('div')
   backdrop.style.cssText =
     'position:fixed;inset:0;display:none;align-items:center;justify-content:center;' +
@@ -292,25 +363,36 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
   // Named so a test (or a screen reader) can tell this dialog from the Plan 14
   // navigation chart, which is a second role="dialog" on the same page.
   panel.setAttribute('aria-label', 'Debrief')
+  // Naval Communications design system (naval-comms spec §3). `.naval-comms`
+  // brings page furniture meant for a screen that IS the whole page (40px
+  // padding, a centered flex column with a 28px gap -- see that class's own
+  // comment in naval-comms.css). This panel is one node inside `backdrop`'s
+  // own centering flexbox, not the whole page, so those rules would fight
+  // its layout: `display:block` neutralizes the class's flex-only properties
+  // (`align-items`/`gap` are inert once the container isn't a flex box), and
+  // `padding`/`background` are reset directly. Same override
+  // `titleScreen.ts`'s roster panel (Task 7, commit ac801cb) and
+  // `settings.ts`'s dialog overlay both use, for the same reason.
+  panel.className = 'naval-comms'
   panel.style.cssText =
-    'min-width:340px;max-width:560px;padding:18px 20px;border:1px solid #2b3440;' +
-    'border-radius:6px;background:#eceff3;color:#151b22;' +
-    'font:13px/1.5 ui-monospace,Menlo,monospace;box-shadow:0 12px 40px rgba(0,0,0,.45)'
+    'display:block;padding:0;background:transparent;width:min(720px,94vw);' +
+    'max-height:88vh;overflow-y:auto'
   backdrop.appendChild(panel)
   root.appendChild(backdrop)
 
+  // Built once, re-styled/re-labeled and re-appended on every `show()` --
+  // same reason `titleScreen.ts` keeps its native controls stable rather
+  // than recreating them: the click listeners below attach exactly once.
   const restart = document.createElement('button')
+  restart.className = 'ink-button'
   restart.textContent = 'Restart'
-  restart.style.cssText =
-    'margin-top:14px;padding:6px 14px;border:1px solid #2b3440;border-radius:4px;' +
-    'background:#fff;color:#151b22;font:12px ui-monospace,Menlo,monospace;cursor:pointer'
   restart.addEventListener('click', () => {
     restart.blur()
     onRestart()
   })
 
   const cont = document.createElement('button')
-  cont.style.cssText = restart.style.cssText + ';margin-right:10px'
+  cont.className = 'ink-button ink-button--primary'
   let onContinue: (() => void) | undefined
   cont.addEventListener('click', () => {
     cont.blur()
@@ -322,8 +404,8 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
   // every model (landing included), not conditioned on a model field the way
   // `continueLabel` is, because it applies uniformly regardless of outcome.
   const returnToTitle = document.createElement('button')
+  returnToTitle.className = 'ink-button'
   returnToTitle.textContent = 'Return to title'
-  returnToTitle.style.cssText = restart.style.cssText + ';margin-left:10px'
   let onReturnToTitle: (() => void) | undefined
   returnToTitle.addEventListener('click', () => {
     returnToTitle.blur()
@@ -335,71 +417,150 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       onContinue = continueHandler
       onReturnToTitle = returnToTitleHandler
       panel.textContent = ''
-      const headline = document.createElement('div')
-      headline.style.cssText = 'font-size:20px;font-weight:700;letter-spacing:.1em'
-      headline.textContent = model.headline
-      const detail = document.createElement('p')
-      detail.style.cssText = 'margin:6px 0 12px'
-      detail.textContent = model.detail
-      panel.append(headline, detail)
 
-      for (const figure of model.figures) {
+      const sheet = document.createElement('div')
+      sheet.className = 'sheet'
+
+      // Outcome stamp (naval-comms spec §3's `.stamp`) -- color and text
+      // keyed off the REAL `DebriefModel.outcome` this flight actually
+      // produced, never a player-controlled toggle: the prototype's own
+      // outcome-switcher buttons (design-prototypes/telegram-ui/debrief.html)
+      // are a review-only demo feature for flipping between the three
+      // variants by hand, not something this app ships.
+      const stampColorClass: Readonly<Record<RecoveryOutcome, string>> = {
+        landed: 'stamp--blue',
+        ditched: 'stamp--violet',
+        killed: 'stamp--red',
+      }
+      const stamp = document.createElement('div')
+      stamp.className =
+        `stamp stamp--lg stamp-corner ${stampColorClass[model.outcome]} ` +
+        (model.outcome === 'killed' ? 'stamp--rotate-2' : 'stamp--rotate-1')
+      stamp.textContent = model.headline
+      sheet.appendChild(stamp)
+
+      const letterhead = document.createElement('div')
+      letterhead.className = 'letterhead'
+      const letterheadText = document.createElement('div')
+      letterheadText.className = 'letterhead-text'
+      const letterheadKicker = document.createElement('div')
+      letterheadKicker.className = 'letterhead-kicker'
+      letterheadKicker.textContent = 'Action Report'
+      const letterheadTitle = document.createElement('div')
+      letterheadTitle.className = 'letterhead-title'
+      letterheadTitle.textContent = 'Flight Debrief'
+      letterheadText.append(letterheadKicker, letterheadTitle)
+      letterhead.appendChild(letterheadText)
+      sheet.appendChild(letterhead)
+
+      // Routing header (naval-comms spec §3's `.routing`) -- decorative
+      // message-form flavor, the same register as `settings.ts`'s "FORM
+      // OPS-4" form number, not new gameplay data: `debrief.ts` is never
+      // passed a pilot identity (only `landingModel`'s `shipNames` map, for
+      // naming a carrier), so inventing one here would be new plumbing this
+      // restyle does not need. "From" names the aircraft rather than a pilot.
+      // The Date-Time Group is the one real, dynamic value in the block --
+      // this moment, in the standard DDHHMMZ MON YY naval format.
+      const routing = document.createElement('dl')
+      routing.className = 'routing'
+      const routingRow = (term: string, value: string): void => {
         const row = document.createElement('div')
-        row.style.cssText = 'display:flex;justify-content:space-between;gap:24px'
-        const label = document.createElement('span')
-        label.style.color = '#55606b'
-        label.textContent = figure.label
-        const value = document.createElement('strong')
-        value.textContent = figure.value
-        row.append(label, value)
-        panel.appendChild(row)
+        const dt = document.createElement('dt')
+        dt.textContent = term
+        const dd = document.createElement('dd')
+        dd.textContent = value
+        row.append(dt, dd)
+        routing.appendChild(row)
       }
+      routingRow('From', 'Pilot, this aircraft')
+      routingRow('To', 'Bureau of Naval Personnel')
+      routingRow('Date-Time Group', formatDtg(new Date()))
+      routingRow('Precedence', 'Routine')
+      sheet.appendChild(routing)
 
-      const scoreHeading = document.createElement('div')
-      scoreHeading.style.cssText = 'margin:14px 0 4px;font-weight:700'
-      scoreHeading.textContent = `Targets destroyed — score ${model.score.total}`
-      panel.appendChild(scoreHeading)
-      for (const row of model.score.rows) {
-        const line = document.createElement('div')
-        line.style.cssText = 'display:flex;justify-content:space-between;gap:24px;color:#55606b'
-        const target = document.createElement('span')
-        target.textContent = row.target
-        const count = document.createElement('span')
-        count.textContent = `${row.destroyed}`
-        const score = document.createElement('span')
-        score.textContent = `${row.score}`
-        line.append(target, count, score)
-        panel.appendChild(line)
+      const detail = document.createElement('p')
+      detail.style.cssText = 'margin:0 0 8px'
+      detail.textContent = model.detail
+      sheet.appendChild(detail)
+
+      // ---- Flight Figures ----
+      sheet.appendChild(sectionTitle('Flight Figures'))
+      for (const figure of model.figures) {
+        sheet.appendChild(figureRow(figure.label, figure.value))
       }
-
-      // Whole-branch review I-3: design doc §1's three promised figures this
-      // panel was missing entirely -- the recovery multiplier actually
-      // applied, the pilot's banked cumulative total, and (only when it
-      // actually happened) a promotion notice. Terse, matching this file's
-      // existing style rather than a new heading of its own.
-      const recovery = document.createElement('div')
-      recovery.style.cssText = 'margin-top:6px;color:#55606b'
-      recovery.textContent = `Recovery: ${RECOVERY_LABEL[model.outcome]} (×${model.score.multiplier})`
-      panel.appendChild(recovery)
+      // Whole-branch review I-3's three figures (recovery multiplier, banked
+      // total, promotion notice) -- given a home in this same section since
+      // the prototype predates them and shows no example of its own.
+      // `plainRow`, not `figureRow`, for the first two: see that function's
+      // own comment on why the exact wording matters.
+      sheet.appendChild(plainRow(`Recovery: ${RECOVERY_LABEL[model.outcome]} (×${model.score.multiplier})`))
       if (model.bankedTotal !== undefined) {
-        const banked = document.createElement('div')
-        banked.style.cssText = 'color:#55606b'
-        banked.textContent = `Banked total: ${model.bankedTotal}`
-        panel.appendChild(banked)
+        sheet.appendChild(plainRow(`Banked total: ${model.bankedTotal}`))
       }
       if (model.promotedTo !== undefined) {
+        // A second stamp (naval-comms spec §3), matching the prototype's own
+        // `#promotionStamp` -- both stamps share the one document-level
+        // filter `ensureStampFilter()` already declared above.
         const promoted = document.createElement('div')
-        promoted.style.cssText = 'margin-top:4px;font-weight:700'
+        promoted.className = 'stamp stamp--violet stamp--md stamp--rotate-3'
+        promoted.style.marginTop = '10px'
         promoted.textContent = `Promoted to ${model.promotedTo}!`
-        panel.appendChild(promoted)
+        sheet.appendChild(promoted)
       }
 
+      // ---- Targets Destroyed ----
+      // All eight of master spec §8's categories, always, zero or not --
+      // unchanged from the original DOM's behavior (`model.score.rows` is
+      // never filtered), matching `missionScore`'s own contract that every
+      // row is present even at zero (tests/render/debrief.test.ts).
+      sheet.appendChild(sectionTitle(`Targets Destroyed — score ${model.score.total}`))
+      const table = document.createElement('table')
+      table.className = 'form-table'
+      const thead = document.createElement('thead')
+      const headRow = document.createElement('tr')
+      for (const label of ['Target', 'Destroyed', 'Score']) {
+        const th = document.createElement('th')
+        th.textContent = label
+        headRow.appendChild(th)
+      }
+      thead.appendChild(headRow)
+      const tbody = document.createElement('tbody')
+      for (const row of model.score.rows) {
+        const tr = document.createElement('tr')
+        const targetCell = document.createElement('td')
+        targetCell.textContent = row.target
+        const destroyedCell = document.createElement('td')
+        destroyedCell.className = 'num'
+        destroyedCell.textContent = `${row.destroyed}`
+        const scoreCell = document.createElement('td')
+        scoreCell.className = 'num'
+        scoreCell.textContent = `${row.score}`
+        tr.append(targetCell, destroyedCell, scoreCell)
+        tbody.appendChild(tr)
+      }
+      table.append(thead, tbody)
+      sheet.appendChild(table)
+
+      // ---- Actions. Unchanged from before this restyle: a crash offers
+      // Restart + Return to title, a landing adds Continue -- see this
+      // module's own doc comment on `createDebrief` for why. ----
+      const buttons = document.createElement('div')
+      buttons.className = 'button-row'
       if (model.continueLabel !== undefined) {
         cont.textContent = model.continueLabel
-        panel.appendChild(cont)
+        buttons.appendChild(cont)
       }
-      panel.appendChild(restart)
-      panel.appendChild(returnToTitle)
+      buttons.append(restart, returnToTitle)
+      sheet.appendChild(buttons)
+
+      const finePrint = document.createElement('div')
+      finePrint.className = 'fine-print'
+      const certified = document.createElement('span')
+      certified.textContent = 'Figures certified by flight recorder.'
+      finePrint.appendChild(certified)
+      sheet.appendChild(finePrint)
+
+      panel.appendChild(sheet)
       backdrop.style.display = 'flex'
       if (model.continueLabel !== undefined) cont.focus()
       else restart.focus()
