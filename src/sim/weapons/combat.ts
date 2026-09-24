@@ -416,6 +416,16 @@ export function stepCombat(
    * scenario's `enemyAirfields`.
    */
   enemyStructureIds: ReadonlySet<string> | null = null,
+  /**
+   * Settings toggle (Plan "UI realism" Task 3/5/6): "arcade" disables
+   * structural-overload damage entirely, while leaving its MEASUREMENT
+   * (`measureStructuralStress`, below) completely unconditional -- the HUD
+   * readout (`src/render/combatReadout.ts`) reads `stress`, never `damage`,
+   * and must not depend on this flag. Defaults to `false` (realistic: the
+   * damage this function has always applied) so every existing caller is
+   * unaffected until Task 6 threads a real persisted value in.
+   */
+  arcadeDamage = false,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
@@ -435,7 +445,7 @@ export function stepCombat(
     const rec = records[a.id]
     if (rec === undefined) continue
     const stress = measureStructuralStress(a.previous, a.state, wind, a.spec.limits, dt, rec.stress)
-    const damage = a.impact === null
+    const damage = a.impact === null && !arcadeDamage
       ? damageFromStructuralOverload(rec.damage, stress, a.spec.limits, tick, dt)
       : rec.damage
     records[a.id] = { ...rec, stress, damage }

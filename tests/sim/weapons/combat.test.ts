@@ -207,6 +207,51 @@ describe('production structural overload', () => {
     expect(after.aircraft.shooter!.kills).toBe(0)
     expect(after.projectiles).toHaveLength(0)
   })
+
+  it('measureStructuralStress output is identical regardless of the damage-model flag', () => {
+    // Two otherwise-identical runs (same overstressed constant-velocity
+    // aircraft, same tick numbers), one realistic and one arcade -- the HUD
+    // reading (`stress`) must be bit-identical at every tick even though the
+    // two diverge on `damage`.
+    const speed = spec.limits.diveSpeedMps * 2
+    const realistic = atSpeed(speed)
+    const arcade = atSpeed(speed)
+    let realisticState = realistic.combat
+    let arcadeState = arcade.combat
+    for (let tick = 1; tick <= 10; tick++) {
+      realisticState = stepCombat(realisticState, realistic.aircraft, [], [], null, realistic.wind, [], tick, DT)
+      arcadeState = stepCombat(arcadeState, arcade.aircraft, [], [], null, arcade.wind, [], tick, DT, null, true)
+      expect(arcadeState.aircraft.shooter!.stress).toEqual(realisticState.aircraft.shooter!.stress)
+    }
+    // Regression guard for the other half of this claim: the two runs must
+    // actually have diverged on damage, or this test would pass even if the
+    // flag silently did nothing at all (or zeroed the stress readout too).
+    expect(realisticState.aircraft.shooter!.damage.structure).toBeLessThan(1)
+    expect(arcadeState.aircraft.shooter!.damage.structure).toBe(1)
+  })
+
+  it('arcade mode (damage disabled) never reduces structure from G/overspeed alone', () => {
+    const speed = spec.limits.diveSpeedMps * 2
+    const setup = atSpeed(speed)
+    const rec = setup.combat.aircraft.shooter!
+    const fragile = {
+      ...setup.combat,
+      aircraft: { shooter: { ...rec, damage: { ...rec.damage, structure: DT / 2 } } },
+    }
+    // Regression guard: absent the flag, this exact tick sequence destroys
+    // the airframe (mirrors "destroys before weapons" above).
+    const realistic = stepCombat(fragile, setup.aircraft, [], [], null, setup.wind, [], 9, DT)
+    expect(realistic.aircraft.shooter!.damage.structure).toBe(0)
+    expect(realistic.aircraft.shooter!.damage.destroyedAt).toBe(9)
+
+    const arcade = stepCombat(fragile, setup.aircraft, [], [], null, setup.wind, [], 9, DT, null, true)
+    expect(arcade.aircraft.shooter!.damage.structure).toBe(DT / 2)
+    expect(arcade.aircraft.shooter!.damage.destroyedAt).toBeNull()
+
+    // Both halves of the Review Focus item, in one place: damage differs,
+    // but the stress reading behind the HUD does not.
+    expect(arcade.aircraft.shooter!.stress).toEqual(realistic.aircraft.shooter!.stress)
+  })
 })
 
 describe('production fixed-step ordnance', () => {
