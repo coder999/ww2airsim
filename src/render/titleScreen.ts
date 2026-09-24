@@ -391,6 +391,16 @@ export function createTitleScreen(
     newPilotInput.addEventListener('keydown', (e) => {
       if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return
       e.preventDefault()
+      // Stops the keydown from bubbling to `window`'s `onKey` at all, rather
+      // than relying on `onKey`'s own newPilotForm-open guard: the bubble
+      // phase runs strictly AFTER this listener finishes, and
+      // `confirmNewPilot` below can close the form and select a pilot
+      // (enabling `newGame`) before that later phase runs -- so by the time
+      // `onKey` would check `newPilotForm.style.display`, the form is
+      // already hidden again and the guard no longer fires, letting Enter
+      // fall through to `start()` and launch a flight unreviewed. Cutting
+      // propagation here removes the ordering dependency entirely.
+      e.stopPropagation()
       confirmNewPilot()
     })
 
