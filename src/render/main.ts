@@ -224,6 +224,196 @@ async function boot(): Promise<void> {
    * alongside `roster`/`currentPilotId` above, for the same reason.
    */
   let scoredThroughKillsByType = zeroKillsByType()
+  // `Scene()`'s constructor has no side effects of its own (confirmed when
+  // this was first moved, pre-Task-7-round-2, a little later than here), so
+  // hoisting it further, alongside `loadScenario` below which needs it to
+  // exist, changes nothing observable.
+  const scene = new Scene()
+  // Plan 9 Task 7 round 2: hoisted together with `loadScenario` just below,
+  // for the same TDZ reason as `roster` above and `frame`/`audio`/
+  // `buildWorld` further down -- `loadScenario`'s only unguarded call site
+  // is `onNewGame`'s different-scenario branch (`void
+  // loadScenario(scenarioId, loadout).then(rebuildFrame).catch(...)`, no
+  // `if (frame)` or equivalent around the call itself, unlike `buildWorld`),
+  // and `loadScenario` WRITES to all four of these, which needs them out of
+  // their own temporal dead zone too -- assigning to a `let` still in TDZ
+  // throws exactly the same as reading one. Confirmed live 2026-09-24: a
+  // scripted fast click choosing a different scenario threw `ReferenceError:
+  // Cannot access 'loadScenario' before initialization` consistently,
+  // landing in the same narrow window (between the title painting and
+  // `initRenderer`'s `await` resolving) that exposed `frame`/`audio`.
+  let bundle: ScenarioBundle | null = null
+  // Read once, right after the FIRST `loadScenario` call below, for `spec`:
+  // every scenario flies the one shipped `f6f-hellcat` (design doc §5), so
+  // nothing else ever needs a later scenario's world.
+  let scenarioWorld: World<undefined> | null = null
+  let spawnedAt: Vec3 | null = null
+  // `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`, together --
+  // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
+  // construction and disposal reasoning.
+  let scenarioEntities: ScenarioEntities | null = null
+  // DEV `?spawnX/Y/Z` moves the PLAYER into the air instead of wherever the
+  // scenario parks it (spawn.ts) -- a pure function of the URL, so unlike
+  // `spawnedAt` (which needs each scenario's own parked position) it is the
+  // same on every `loadScenario` call and is computed once, here.
+  const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
+  /**
+   * Fetches one scenario's content bundle and rebuilds everything sized to
+   * its entity lists: `scenarioWorld` (read once, below, for the player's
+   * aircraft spec), the spawn point, and `scenarioEntities` --
+   * `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`
+   * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
+   * are NOT rebuilt here (design doc §5: every scenario sits in the same
+   * Leyte Gulf tangent plane, so none of that is scenario content), and
+   * neither is the panel -- it is per-PLAYER, not per-entity-count, and
+   * every scenario flies the one shipped airframe, so it is left exactly as
+   * a loadout change already leaves it (the title's `onNewGame`, below).
+   *
+   * Any of the five files a bundle fetches failing to load or failing
+   * validation is the same fault and the same screen a missing
+   * `f6f-hellcat.json` was before Plan 12 -- content the build was supposed
+   * to ship. The message names the file. `id` is assumed already resolved
+   * and whitelisted (`requestedScenarioId`/`isKnownScenarioId`, above and in
+   * `titleScreen.ts`); this function does not re-check it.
+   *
+   * The FIRST call (boot's own, a little further down) is a pure relocation
+   * of what boot() always did at this point. A REPEAT call -- the title's
+   * `onNewGame`, when the picked scenario differs from what is loaded --
+   * additionally disposes every mesh the previous call built, via
+   * `buildScenarioEntities`'s own `previous` parameter; `scenarioEntities`
+   * starts `null` so that disposal is skipped, not a no-op loop, the first
+   * time.
+   *
+   * Being hoisted and callable this early does NOT mean it is called with
+   * anything sensible this early -- a click landing before boot's own
+   * initial call, further down, has just as much claim to run first. Both
+   * calls are independent and internally consistent (each captures its own
+   * `nextBundle`/`nextScenarioWorld` before writing the shared `let`s), so
+   * the result is a last-write-wins race over WHICH scenario ends up
+   * loaded, not a crash -- a real but far smaller problem than the
+   * `ReferenceError` this hoist replaces, and not one this round's evidence
+   * showed a practical way to trigger (every reference-GPU run has boot's
+   * own call resolve first).
+   */
+  const loadScenario = async (id: string, loadout: Loadout): Promise<void> => {
+    const nextBundle = await loadScenarioBundle(id)
+    const nextScenarioWorld = worldFromScenario(nextBundle, null, loadout)
+    // The scenario says where the player is parked; the DEV override above
+    // moves it into the air instead. The airplane is then not `parked`, so
+    // it gets the airborne posture `initialAircraftState` has always given
+    // an override -- but the frame's own `groundSpawn` stays true, because
+    // the CHOCKED WINGMAN is still parked and still needs the terrain hold,
+    // which is what keeps it from being stepped off its placeholder altitude
+    // while the override flies. `settleOnTerrain` then settles the wingman
+    // alone, since it only touches entities with `parked` set.
+    const parkedAt = playerAircraft(nextScenarioWorld).state.position
+    const nextSpawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
+
+    bundle = nextBundle
+    scenarioWorld = nextScenarioWorld
+    spawnedAt = nextSpawnedAt
+    // The nullable binding the diagnostics hook above closes over, now that
+    // there is an answer to put in it.
+    spawnPosition = nextSpawnedAt
+    scenarioEntities = buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities)
+  }
+  /**
+   * The live flight, `null` until boot's own first `initialFrameStateFor`
+   * call (well below) produces one. Hoisted here for the same reason
+   * `roster` above is: `onNewGame`'s closure (just below) reads and
+   * reassigns it, and is reachable the instant the title paints, before
+   * `frame` used to be declared. Already nullable and guarded with `if
+   * (frame)` everywhere it is touched in this closure, so the hoist alone is
+   * a complete fix -- unlike `bundle` (see `buildWorld`'s comment below),
+   * `frame` needs nothing from an intervening `await` to be SAFELY `null`.
+   */
+  let frame: FrameState | null = null
+  /**
+   * The render loop, `null` until boot starts it (well below, `loop =
+   * createRafLoop(frameFn)`). Hoisted for the same reason as `frame` above:
+   * `onNewGame`'s different-scenario branch's `.catch` handler reads it
+   * (`loop?.stop()`) if `loadScenario` rejects -- a real, if rarer, path
+   * than the happy one (a genuine content-load failure, not just a fast
+   * click), and one this round found by tracing every identifier
+   * `onNewGame` touches rather than by reproducing it live. `deviceLost`
+   * and wiring `renderer.onDeviceLost` stay at their original position
+   * (search `let deviceLost`) -- both need `renderer`, which cannot itself
+   * be hoisted before `initRenderer`'s `await` produces it, so only this
+   * bare, already-`?.`-guarded declaration moved.
+   */
+  let loop: RafLoop | null = null
+  /**
+   * Hoisted for the same reason as `frame` just above: `onNewGame` calls
+   * `audio.resume()` unconditionally, first thing, and `createAudioSystem`/
+   * `createWebAudioBackend` construct the browser's Web Audio context (see
+   * `webAudio.ts`, the one file allowed to name that API directly) with no
+   * dependency on anything computed between here and where this used to be
+   * declared (right before `audio.load()` kicks off the clip fetches, which
+   * stays there -- see that comment below for why only the fetch, not the
+   * construction, needs to stay put).
+   */
+  const audio = createAudioSystem(createWebAudioBackend())
+  /**
+   * The world a flight starts from: the scenario's, with this page load's
+   * terrain and the DEV spawn override applied. Called once at boot with no
+   * terrain, and again by Restart with whatever level has loaded by then --
+   * which is why it rebuilds from `bundle` rather than closing over one
+   * world, exactly as the old restart path rebuilt from `initialFrameState`.
+   * Reads `bundle`/`spawnedAt` fresh (Plan 9 Task 7): both are reassigned by
+   * `loadScenario`, so a Restart or a same-scenario loadout change after a
+   * scenario switch rebuilds from whichever scenario is CURRENTLY loaded,
+   * not whichever one this closure first closed over.
+   *
+   * `worldFromScenario` is handed `null` and the field injected afterwards,
+   * deliberately: with a real field it re-runs `assertLoopOverWater` over
+   * every ship's loop, which is a Tier 1 assertion on every commit
+   * (`tests/sim/scenario.test.ts`) and has no business throwing in a browser
+   * -- least of all out of the Restart button.
+   *
+   * `chosenLoadout` (Plan 6b Task 9), not a parameter: reading it here rather
+   * than closing over one value at Restart-handler creation time is what
+   * makes the same call site serve boot, a title-screen loadout change and
+   * every future Restart -- whichever loadout was last chosen, not
+   * necessarily the one in effect when this arrow function was defined.
+   *
+   * Hoisted here, alongside `frame`/`audio`, for the identical TDZ reason --
+   * `rebuildFrame`, inside `onNewGame` below, calls this. UNLIKE `frame`/
+   * `audio`, this function's body dereferences `bundle!`/`spawnedAt!` with
+   * non-null assertions that are only true once boot's own initial
+   * `loadScenario` call (well below, a real network fetch) has resolved --
+   * moving `buildWorld`'s OWN declaration earlier does not make that any
+   * more true. What actually protects this: every call site --
+   * `rebuildFrame` here, and `rebuildFrame` again inside the different-
+   * scenario branch's `.then()` -- is reached only through `if (frame)`,
+   * and `frame`'s own first real assignment (below, `frame =
+   * initialFrameStateFor(buildWorld(null))`) cannot execute before `bundle`
+   * is already populated, because that line is textually and causally after
+   * the initial `loadScenario` call. So `frame` staying `null` (its hoisted
+   * default) until boot legitimately sets it is what keeps `buildWorld` from
+   * ever running against a still-`null` `bundle` -- this hoist removes the
+   * ReferenceError `buildWorld` itself could otherwise throw merely by being
+   * REFERENCED (not called) before its old declaration point, but does not
+   * change, and does not need to change, the separate invariant that
+   * actually keeps it from being CALLED too early.
+   */
+  const buildWorld = (terrain: TerrainField | null): World<undefined> => {
+    const w = worldFromScenario(bundle!, null, chosenLoadout)
+    const withTerrainField = {
+      ...w,
+      terrain,
+      structures: buildStructures(w.airfields, terrain),
+    }
+    return override
+      ? withAircraftState(
+          {
+            ...withTerrainField,
+            aircraft: withTerrainField.aircraft.map((a) => (a.id === w.player ? { ...a, parked: false } : a)),
+          },
+          w.player,
+          initialAircraftState(spawnedAt!, false),
+        )
+      : withTerrainField
+  }
 
   // Plan 17 follow-up: which scenario this boot loads, resolved and
   // whitelisted before the title screen exists so the scenario picker can
@@ -247,10 +437,19 @@ async function boot(): Promise<void> {
 
   // The title screen (2026-09-19), created before anything that can take
   // real time: the adapter, the ocean cascades and the terrain all load
-  // behind it. `frame` and `audio` are declared below and read here only
-  // when the button is pressed, which cannot happen before the page has
-  // painted -- the same argument the debrief's `frame!` reads make. A boot
-  // failure empties #app (failure.ts), which takes the overlay with it.
+  // behind it. A boot failure empties #app (failure.ts), which takes the
+  // overlay with it.
+  //
+  // CORRECTION 2026-09-24: this comment used to claim `frame`/`audio`/
+  // `buildWorld` were declared below and safe to read here because a click
+  // "cannot happen before the page has painted." That reasoning was false --
+  // painted and clickable is exactly what the title is the instant
+  // `createTitleScreen` returns, several real `await`s before this file used
+  // to declare any of those three, and `roster`/`currentPilotId`/
+  // `scoredThroughKillsByType` had the identical bug (see their own comment
+  // above) confirmed live via a `ReferenceError` a fast click actually threw
+  // on the reference GPU. All six are hoisted above this call now, for
+  // exactly that reason -- see their own comments for what each one needed.
   const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId, pilotId) => {
     chosenLoadout = loadout
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
@@ -340,7 +539,6 @@ async function boot(): Promise<void> {
   let oceanDepth: DepthField | null = null
   const forcedOceanTier = import.meta.env.DEV ? oceanTierFromQuery(location.search) : undefined
   let oceanTier = forcedOceanTier ?? OCEAN_TIERS[0]
-  let frame: FrameState | null = null
 
   // Declared here rather than beside `frameFn` further down, for the same
   // temporal-dead-zone reason as `spawnPosition` and `cascades` above: the
@@ -396,8 +594,11 @@ async function boot(): Promise<void> {
   // `ReferenceError` whose cause the test output would never show.
   // Ships in production, like the legend and unlike `overlay`: sound is part
   // of the game, not developer telemetry. The context starts suspended; the
-  // first keypress resumes it (see the keydown listener).
-  const audio = createAudioSystem(createWebAudioBackend())
+  // first keypress resumes it (see the keydown listener). `audio` itself is
+  // constructed earlier (hoisted, alongside `frame`/`buildWorld` -- see that
+  // comment above), but kicking off the clip loads is left here, where it
+  // always ran: unlike the construction, this does not need to be safe for
+  // `onNewGame` to touch before it runs, so there is no reason to move it.
   // Deliberately not awaited, exactly like `loadTerrainProgressively` below.
   // A sound that will not load must never reach `showFailure`: a flight sim
   // with no sound is playable, and `system.ts` already degrades each clip to
@@ -567,9 +768,16 @@ async function boot(): Promise<void> {
   // node_modules/three/src/renderers/webgpu/WebGPUBackend.js), so every
   // invocation reaching this callback is a real loss worth surfacing, not a
   // teardown.
-  // Declared here so `onDeviceLost`, wired immediately below, closes over a
-  // binding that already exists -- Task 15's TDZ lesson.
-  let loop: RafLoop | null = null
+  // `loop` itself is now hoisted further up, alongside `frame`/`audio` (Plan 9
+  // Task 7 round 2) -- `onNewGame`'s different-scenario branch reads it,
+  // unguarded, inside `loadScenario(...).then(rebuildFrame).catch((err) => {
+  // loop?.stop(); ... })`, so it needed the same treatment those did.
+  // `deviceLost` and `onDeviceLost`'s wiring stay here: both need `renderer`,
+  // which cannot itself be hoisted (it IS `initRenderer`'s awaited result),
+  // so there is nothing to gain by moving them and a real risk of tangling
+  // the ordering `onDeviceLost`'s own comment below already documents
+  // (Task 15's TDZ lesson, a narrower, already-solved instance of the same
+  // class of bug this round fixed more of).
   // Set by `onDeviceLost` so `boot` cannot go on to start a loop onto a device
   // that is already gone. `stopped`-for-good inside `createRafLoop` does not
   // help here: during setup the loop that gets stopped and the loop that gets
@@ -605,86 +813,6 @@ async function boot(): Promise<void> {
     validationErrors.push(normalizeGpuError(info))
   }
 
-  // Created here rather than where it used to live, a little further down --
-  // `loadScenario`, just below, needs it to exist so a repeat call can add
-  // and remove meshes from it. `Scene()`'s constructor has no side effects of
-  // its own, so moving the call earlier changes nothing observable.
-  const scene = new Scene()
-
-  // Plan 9 Task 7: which scenario is currently loaded and the meshes sized
-  // to it -- all `let`s `loadScenario`, just below, reassigns on every call,
-  // the same hoist-and-reassign shape this file already uses for `sunState`/
-  // `radarSweepRad`. Nullable rather than given a throwaway default, for the
-  // same temporal-dead-zone reason `spawnPosition` above is: `buildWorld`
-  // and the render loop close over `bundle`/`spawnedAt`/`scenarioEntities`
-  // before `loadScenario`'s first call has resolved.
-  let bundle: ScenarioBundle | null = null
-  // Read once, right after the FIRST `loadScenario` call below, for `spec`:
-  // every scenario flies the one shipped `f6f-hellcat` (design doc §5), so
-  // nothing else ever needs a later scenario's world.
-  let scenarioWorld: World<undefined> | null = null
-  let spawnedAt: Vec3 | null = null
-  // `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`, together --
-  // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
-  // construction and disposal reasoning.
-  let scenarioEntities: ScenarioEntities | null = null
-
-  // DEV `?spawnX/Y/Z` moves the PLAYER into the air instead of wherever the
-  // scenario parks it (spawn.ts) -- a pure function of the URL, so unlike
-  // `spawnedAt` (which needs each scenario's own parked position) it is the
-  // same on every `loadScenario` call and is computed once, here.
-  const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
-
-  /**
-   * Fetches one scenario's content bundle and rebuilds everything sized to
-   * its entity lists: `scenarioWorld` (read once, below, for the player's
-   * aircraft spec), the spawn point, and `scenarioEntities` --
-   * `airframes`/`shipHandles`/`smokes`/`hellcatRoot`/`prop`
-   * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
-   * are NOT rebuilt here (design doc §5: every scenario sits in the same
-   * Leyte Gulf tangent plane, so none of that is scenario content), and
-   * neither is the panel -- it is per-PLAYER, not per-entity-count, and
-   * every scenario flies the one shipped airframe, so it is left exactly as
-   * a loadout change already leaves it (the title's `onNewGame`, below).
-   *
-   * Any of the five files a bundle fetches failing to load or failing
-   * validation is the same fault and the same screen a missing
-   * `f6f-hellcat.json` was before Plan 12 -- content the build was supposed
-   * to ship. The message names the file. `id` is assumed already resolved
-   * and whitelisted (`requestedScenarioId`/`isKnownScenarioId`, above and in
-   * `titleScreen.ts`); this function does not re-check it.
-   *
-   * The FIRST call (initial boot, immediately below) is a pure relocation of
-   * what boot() always did at this point. A REPEAT call -- the title's
-   * `onNewGame`, when the picked scenario differs from what is loaded --
-   * additionally disposes every mesh the previous call built, via
-   * `buildScenarioEntities`'s own `previous` parameter; `scenarioEntities`
-   * starts `null` so that disposal is skipped, not a no-op loop, the first
-   * time.
-   */
-  const loadScenario = async (id: string, loadout: Loadout): Promise<void> => {
-    const nextBundle = await loadScenarioBundle(id)
-    const nextScenarioWorld = worldFromScenario(nextBundle, null, loadout)
-    // The scenario says where the player is parked; the DEV override above
-    // moves it into the air instead. The airplane is then not `parked`, so
-    // it gets the airborne posture `initialAircraftState` has always given
-    // an override -- but the frame's own `groundSpawn` stays true, because
-    // the CHOCKED WINGMAN is still parked and still needs the terrain hold,
-    // which is what keeps it from being stepped off its placeholder altitude
-    // while the override flies. `settleOnTerrain` then settles the wingman
-    // alone, since it only touches entities with `parked` set.
-    const parkedAt = playerAircraft(nextScenarioWorld).state.position
-    const nextSpawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
-
-    bundle = nextBundle
-    scenarioWorld = nextScenarioWorld
-    spawnedAt = nextSpawnedAt
-    // The nullable binding the diagnostics hook above closes over, now that
-    // there is an answer to put in it.
-    spawnPosition = nextSpawnedAt
-    scenarioEntities = buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities)
-  }
-
   try {
     await loadScenario(requestedScenarioId, chosenLoadout)
   } catch (err) {
@@ -700,48 +828,6 @@ async function boot(): Promise<void> {
     bundle!.scenario.weather.windMps,
     import.meta.env.DEV ? beaufortFromQuery(window.location.search) : undefined,
   )
-
-  /**
-   * The world a flight starts from: the scenario's, with this page load's
-   * terrain and the DEV spawn override applied. Called once at boot with no
-   * terrain, and again by Restart with whatever level has loaded by then --
-   * which is why it rebuilds from `bundle` rather than closing over one
-   * world, exactly as the old restart path rebuilt from `initialFrameState`.
-   * Reads `bundle`/`spawnedAt` fresh (Plan 9 Task 7): both are reassigned by
-   * `loadScenario`, so a Restart or a same-scenario loadout change after a
-   * scenario switch rebuilds from whichever scenario is CURRENTLY loaded,
-   * not whichever one this closure first closed over.
-   *
-   * `worldFromScenario` is handed `null` and the field injected afterwards,
-   * deliberately: with a real field it re-runs `assertLoopOverWater` over
-   * every ship's loop, which is a Tier 1 assertion on every commit
-   * (`tests/sim/scenario.test.ts`) and has no business throwing in a browser
-   * -- least of all out of the Restart button.
-   *
-   * `chosenLoadout` (Plan 6b Task 9), not a parameter: reading it here rather
-   * than closing over one value at Restart-handler creation time is what
-   * makes the same call site serve boot, a title-screen loadout change and
-   * every future Restart -- whichever loadout was last chosen, not
-   * necessarily the one in effect when this arrow function was defined.
-   */
-  const buildWorld = (terrain: TerrainField | null): World<undefined> => {
-    const w = worldFromScenario(bundle!, null, chosenLoadout)
-    const withTerrainField = {
-      ...w,
-      terrain,
-      structures: buildStructures(w.airfields, terrain),
-    }
-    return override
-      ? withAircraftState(
-          {
-            ...withTerrainField,
-            aircraft: withTerrainField.aircraft.map((a) => (a.id === w.player ? { ...a, parked: false } : a)),
-          },
-          w.player,
-          initialAircraftState(spawnedAt!, false),
-        )
-      : withTerrainField
-  }
 
   // The player's own airplane, for the panel, the gauges and the flight-data
   // overlay. One aircraft spec is all any of those take; the wingman's is the
