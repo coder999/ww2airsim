@@ -29,6 +29,31 @@ const TRAIL_DIM = 0.55
 const GREEN = { r: 0.25, g: 1, b: 0.45 }
 const TWO_PI = 2 * Math.PI
 
+/** Bearing/range -> the texel `readAt` reads, using the SAME placement math
+ *  the fragment shader paints with. In this raw sampler-row space, bearing 0
+ *  (ahead) lands at HIGH `py`, not row 0 -- the fragment shader's own uv.y
+ *  flip comment says texture row 0 is where "ahead" would land WITHOUT the
+ *  flip, i.e. row 0 is the scope's bottom; +pi/2 (right) lands at high `px`.
+ *  Verified against that comment and covered by
+ *  `tests/render/radarScope.test.ts`'s orientation invariants. Pure and
+ *  pixel-independent, so it's testable without a GPU -- exactly the guard
+ *  this shader's one real bug (a doubled uv flip in `readAt`, caught in task
+ *  review) had no automated check against. */
+export function scopeTexelFor(bearingRad: number, rangeMi: number, selectedRangeMi: number): { px: number; py: number } {
+  const localX = Math.sin(bearingRad) * (rangeMi / selectedRangeMi) * 0.5
+  const localY = Math.cos(bearingRad) * (rangeMi / selectedRangeMi) * 0.5
+  const u = localX + 0.5
+  // Sampler space, which is what the copy origin counts in: the shader writes
+  // local.y at row (local.y + 0.5) * N (uv.y = 1 is row 0), and the readback
+  // origin counts rows from row 0 -- the same convention cloudShadow's readAt
+  // hands straight through. Do NOT flip again here; the flip already happened
+  // in the fragment shader.
+  const v = localY + 0.5
+  const px = Math.min(RADAR_TEXELS_X - 4, Math.max(0, Math.floor(u * RADAR_TEXELS_X)))
+  const py = Math.min(RADAR_TEXELS_Y - 1, Math.max(0, Math.floor(v * RADAR_TEXELS_Y)))
+  return { px, py }
+}
+
 export type RadarScopeHandle = {
   readonly target: RenderTarget
   readonly scene: Scene
@@ -144,15 +169,10 @@ export function createRadarScope(): RadarScopeHandle {
     },
     async readAt(renderer, bearingRad, rangeMi): Promise<number | null> {
       if (rangeMi > selectedRangeMi.value) return null
-      const localX = Math.sin(bearingRad) * (rangeMi / selectedRangeMi.value) * 0.5
-      const localY = Math.cos(bearingRad) * (rangeMi / selectedRangeMi.value) * 0.5
-      const u = localX + 0.5
-      const v = 1 - (localY + 0.5)
       // Four texels wide, not one: a narrower copy fails WebGPU's
       // mapAsync alignment (the exact "Size (1) must be a multiple of 4"
       // trap `cloudShadow.ts`'s `readAt` already hit and documented).
-      const px = Math.min(RADAR_TEXELS_X - 4, Math.max(0, Math.floor(u * RADAR_TEXELS_X)))
-      const py = Math.min(RADAR_TEXELS_Y - 1, Math.max(0, Math.floor(v * RADAR_TEXELS_Y)))
+      const { px, py } = scopeTexelFor(bearingRad, rangeMi, selectedRangeMi.value)
       const data = await renderer.readRenderTargetPixelsAsync(target, px, py, 4, 1)
       return (data[1] ?? 0) / 255
     },
