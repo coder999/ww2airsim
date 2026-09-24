@@ -560,6 +560,34 @@ git commit -m "Plan 7b task 2: the Pursue/Extend/Break utility scorer"
 
 ## Task 3: Extend and Break desired-velocity producers
 
+**Ruling (controller, found by Task 5's implementer during production
+wiring, applied retroactively to this already-reviewed task):**
+`extendDesiredVelocity` as originally specified always dives away with no
+terminal state — once `MIN_ENGAGEMENT_RANGE_M` forces one tick of Extend,
+the aircraft commits to a hard dive with real momentum, and nothing ever
+tells it to stop diving or turn back. Empirically confirmed in production:
+`pursuer-1` in `pursuit-range` reached 33,743 m range and -2,647 m altitude
+by tick 11,505 (nearly 200 s) and never returned, permanently failing Plan
+7a's own "actually hits the target" acceptance test. This contradicts the
+design's own framing of Extend as "dive away from the threat and build
+airspeed" — a temporary energy-building maneuver, not a permanent retreat —
+and the master spec's own description of a pilot that "presses the attack
+when it has the advantage, [and] break off and dive away when it doesn't"
+(implying a return to the fight once the advantage is regained, not a
+one-way trip). Fixed: once range from the threat exceeds
+`SAFE_SEPARATION_M` (`2 * AI_GUN_RANGE_M` = 1,100 m), `extendDesiredVelocity`
+turns back toward the threat on a shallow climb instead of continuing away
+— the smallest change that gives Extend an actual terminal state, without
+touching the close-in dive behavior the original code already had right.
+The decision layer's own per-rescore scoring (unchanged) still governs
+whether the pilot resumes Pursue, tries Break, or extends again once back
+in range — this fix only stops an indefinite, physically nonsensical dive.
+**Cost if wrong:** `SAFE_SEPARATION_M`'s exact value may need retuning
+(a magic number, named and isolated); if this fix alone does not resolve
+the divergence Task 5 measured, that is itself new information pointing at
+a deeper rescore-cadence/commitment issue outside this task's scope, to be
+escalated rather than iterated on blindly.
+
 **Files:**
 - Modify: `src/sim/ai/pilot.ts`
 - Test: `tests/sim/ai/pilot.test.ts`
@@ -591,6 +619,15 @@ describe('extendDesiredVelocity', () => {
     expect(dot(desired, away)).toBeGreaterThan(0)
     expect(desired.y).toBeLessThan(0)
   })
+
+  it('rejoins toward the threat on a climb once safely separated, instead of diving forever', () => {
+    const self = entity({ position: v3(0, 3000, 0), velocity: v3(140, 0, 0) })
+    const threat = entity({ position: v3(-1500, 3000, 0), velocity: v3(100, 0, 0) }) // beyond SAFE_SEPARATION_M (1100)
+    const desired = extendDesiredVelocity(self, threat)
+    const toward = sub(threat.state.position, self.state.position)
+    expect(dot(desired, toward)).toBeGreaterThan(0)
+    expect(desired.y).toBeGreaterThan(0)
+  })
 })
 
 describe('breakDesiredVelocity', () => {
@@ -619,8 +656,27 @@ Expected: FAIL — `extendDesiredVelocity`/`breakDesiredVelocity` not exported y
 import type { AircraftEntity } from '../loop.js'
 import { cross, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 
+/** Beyond this separation, Extend has done its job -- see this file's Task 3
+ *  "Ruling": without a terminal state, the original always-away formula let
+ *  a pursuer dive indefinitely and never return to the fight. A literal,
+ *  not `2 * AI_GUN_RANGE_M` imported from `pursuit.ts`: `pursuit.ts` already
+ *  imports types from this file (Task 1), and pilot.ts importing a VALUE
+ *  back from pursuit.ts would be a real runtime circular dependency, not
+ *  just a type-only one that erases at compile time. */
+export const SAFE_SEPARATION_M = 1100 // 2x AI_GUN_RANGE_M (550m) as of this plan
+
 export function extendDesiredVelocity<M>(self: AircraftEntity<M>, threat: AircraftEntity<M>): Vec3 {
-  const away = normalize(sub(self.state.position, threat.state.position))
+  const separation = sub(self.state.position, threat.state.position)
+  if (length(separation) > SAFE_SEPARATION_M) {
+    // Safely clear: rejoin on a shallow climb rather than diving away
+    // forever. The decision layer's own per-rescore scoring (unchanged)
+    // still decides what happens once back in range -- this only stops an
+    // indefinite, physically nonsensical dive.
+    const toward = normalize(sub(threat.state.position, self.state.position))
+    const climb = v3(toward.x, Math.max(toward.y, 0.1), toward.z)
+    return scale(normalize(climb), length(self.state.velocity))
+  }
+  const away = normalize(separation)
   // Nose down for airspeed: bias the desired vector toward the horizon-minus,
   // not level -- an Extend that stays level just retreats slowly.
   const dive = v3(away.x, Math.min(away.y, -0.15), away.z)
