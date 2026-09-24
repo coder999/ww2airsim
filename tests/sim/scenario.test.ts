@@ -12,6 +12,7 @@ import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
+import { GREEN_SKILL, VETERAN_SKILL } from '../../src/sim/ai/pilot.js'
 
 const bundle = loadScenarioBundle('free-flight')
 const header = loadTerrainHeader()
@@ -112,7 +113,30 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     expect(pursuer.state.velocity.z).toBeCloseTo(0, 12)
     expect(pursuer.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), 0))
     expect(pursuer.parked).toBe(false)
-    expect(pursuer.pilot).toEqual({ target: 'f6f-1' })
+    expect(pursuer.pilot).toEqual({
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0 },
+    })
+  })
+
+  it('accepts an optional pilot skill, defaulting to green, and seeds the initial decision state', () => {
+    const raw = () => JSON.parse(JSON.stringify(pursuit.scenario)) as Record<string, unknown> & {
+      aircraft: Array<Record<string, unknown>>
+    }
+    const veteran = raw()
+    veteran.aircraft[1]!.pilot = { target: 'f6f-1', skill: 'veteran' }
+    const veteranWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(veteran) }, null)
+    const veteranPursuer = veteranWorld.aircraft.find((a) => a.id === 'pursuer-1')!
+    expect(veteranPursuer.pilot).toEqual({
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0 },
+    })
+
+    const green = raw()
+    green.aircraft[1]!.pilot = { target: 'f6f-1' }
+    const greenWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(green) }, null)
+    const greenPursuer = greenWorld.aircraft.find((a) => a.id === 'pursuer-1')!
+    expect(greenPursuer.pilot).toEqual({
+      target: 'f6f-1', skill: GREEN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0 },
+    })
   })
 
   it('turns the production pursuit pilot onto a gun solution', () => {

@@ -10,6 +10,8 @@ import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
+import { GREEN_SKILL, VETERAN_SKILL } from './ai/pilot.js'
+import type { PilotAssignment } from './ai/pursuit.js'
 
 /**
  * A scenario says where everything starts (spec §7). It is the data contract
@@ -40,7 +42,23 @@ const CloudLayerObject = z.object({
 }).strict()
 export type CloudLayer = z.infer<typeof CloudLayerObject>
 
-const PilotObject = z.object({ target: id }).strict()
+const PilotObject = z.object({
+  target: id,
+  skill: z.enum(['veteran', 'green']).default('green'),
+}).strict()
+
+/** Maps a parsed scenario's `pilot` content to a runtime `PilotAssignment`,
+ *  seeding the initial decision state -- every already-shipped scenario
+ *  omits `skill`, so the `'green'` default reproduces its exact behavior. */
+function pilotAssignmentFrom(pilot: z.infer<typeof PilotObject> | undefined): PilotAssignment | null {
+  if (pilot === undefined) return null
+  return {
+    target: pilot.target,
+    skill: pilot.skill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL,
+    decision: { maneuver: 'pursue', nextRescoreS: 0 },
+  }
+}
+
 const ParkedAtObject = z.union([
   z.object({
     airfield: id,
@@ -234,7 +252,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       })
       return {
         id: a.id, spec, state, previous: state, controls: NEUTRAL,
-        assistMemory: undefined, impact: null, parked: false, pilot: a.pilot ?? null,
+        assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.pilot),
       }
     }
     const parkedAt = a.parkedAt
@@ -255,7 +273,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
         gearFraction: 1,
       })
       const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-      return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: a.pilot ?? null }
+      return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
     }
     const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
     const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
@@ -267,7 +285,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       gearFraction: 1,
     })
     const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: a.pilot ?? null }
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
   })
 
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)

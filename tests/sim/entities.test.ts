@@ -11,6 +11,9 @@ import { interpolateShip } from '../../src/sim/interpolate.js'
 import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
+import { GREEN_SKILL } from '../../src/sim/ai/pilot.js'
+
+const PURSUE_NOW = { maneuver: 'pursue' as const, nextRescoreS: 0 }
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const dd = loadShipSpec('fletcher-dd')
@@ -60,10 +63,10 @@ describe('createWorldOf', () => {
 
   it('rejects a pilot target that is missing or is the pilot itself', () => {
     expect(() => createWorldOf({
-      aircraft: [{ ...flying('a'), pilot: { target: 'missing' } }], player: 'a',
+      aircraft: [{ ...flying('a'), pilot: { target: 'missing', skill: GREEN_SKILL, decision: PURSUE_NOW } }], player: 'a',
     })).toThrow(/pilot "a" targets missing aircraft "missing"/)
     expect(() => createWorldOf({
-      aircraft: [{ ...flying('a'), pilot: { target: 'a' } }], player: 'a',
+      aircraft: [{ ...flying('a'), pilot: { target: 'a', skill: GREEN_SKILL, decision: PURSUE_NOW } }], player: 'a',
     })).toThrow(/pilot "a" cannot target itself/)
   })
 
@@ -102,7 +105,7 @@ describe('AI pilots in the fixed-step world', () => {
     const targetState = createState({ position: v3(900, 2100, 250), velocity: v3(110, 0, 15) })
     const pilot = {
       ...flying('pilot'), state: pilotState, previous: pilotState,
-      pilot: { target: 'target' },
+      pilot: { target: 'target', skill: GREEN_SKILL, decision: PURSUE_NOW },
     }
     const target = { ...flying('target'), state: targetState, previous: targetState }
     return createWorldOf({
@@ -138,7 +141,7 @@ describe('AI pilots in the fixed-step world', () => {
   it('survives structuredClone and continues deterministically with its assignment', () => {
     const world = advance(pursuitWorld(), DT * 5).world
     const cloned = structuredClone(world)
-    expect(playerAircraft(cloned).pilot).toEqual({ target: 'target' })
+    expect(playerAircraft(cloned).pilot).toEqual({ target: 'target', skill: GREEN_SKILL, decision: PURSUE_NOW })
     expect(advance(cloned, DT * 5).world).toEqual(advance(world, DT * 5).world)
   })
 })

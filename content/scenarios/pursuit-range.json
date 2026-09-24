@@ -20,7 +20,7 @@
         "headingDeg": 90,
         "speedMps": 125
       },
-      "pilot": { "target": "f6f-1" }
+      "pilot": { "target": "f6f-1", "skill": "veteran" }
     }
   ],
   "ships": [],

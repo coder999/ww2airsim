@@ -3,10 +3,13 @@ import { qRotate } from '../math/quat.js'
 import { add, dot, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import type { Controls } from '../flight/state.js'
 import { controlsForDesiredVelocity } from './controller.js'
+import type { PilotDecisionState, PilotSkill } from './pilot.js'
 
 export type PilotAssignment = {
   /** Aircraft id read from the common start-of-tick snapshot. */
   readonly target: string
+  readonly skill: PilotSkill
+  readonly decision: PilotDecisionState
 }
 
 export const AI_GUN_RANGE_M = 550
