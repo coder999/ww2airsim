@@ -285,6 +285,12 @@ export type Ww2Diagnostics = {
    *  null outside the map / with the pass off. A fixed point must read the
    *  same from any eye position: the map is world-anchored, not eye-anchored. */
   readonly cloudShadowAt: (x: number, z: number) => Promise<number | null>
+  /** Plan 17 DEV diagnostic: the radar scope's green-channel brightness at
+   *  a given (bearingRad, rangeMi), read back the same way
+   *  `cloudShadowAt` proves the cloud shadow map -- a direct pixel
+   *  readback, not an inference from a screenshot. `null` outside the
+   *  currently selected range. */
+  readonly radarPixelAt: (bearingRad: number, rangeMi: number) => Promise<number | null>
   /** Plan 16c: the apparent solar hour in force this frame, the sun's
    *  elevation and azimuth (degrees, azimuth from north clockwise) and the
    *  unit direction toward it in the world frame (+z south). */

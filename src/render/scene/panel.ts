@@ -88,6 +88,14 @@ export type Panel = {
     readonly ball: Object3D
     readonly ring: Object3D
   }
+  /** The radar scope's physical face mesh (Plan 17). `createPanel` gives it
+   *  a plain, headless-safe fallback material (matching the old placeholder
+   *  color) so Tier 1's `createPanel(f6f, () => null)` keeps working with
+   *  no GPU or canvas; the browser-only `radarScope.attachTo` (main.ts)
+   *  replaces it with the live scope texture at startup, the same
+   *  construction-vs-browser-enhancement split `TextTextureFactory`
+   *  already establishes for text. */
+  readonly radar: { readonly face: Object3D }
   /** The trapezoidal coaming plate. Runs past the bottom of the frame on
    *  purpose (see `createPanel`), so it reads as clipped rather than
    *  floating with sky visible beneath it. */
@@ -458,7 +466,11 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     dial.position.set(x, PANEL_BELOW_M - lowerCentre, 0)
     root.add(dial)
   })
-  // Visible reservation for combat-phase radar; no simulated sweep or contacts.
+  // Live as of Plan 17: no longer a claim-without-backing placeholder (the
+  // design spec's §5 "unlit bezel reads as broken" reasoning, now in
+  // reverse -- a "RESERVED" label on a working instrument would be the same
+  // lie the other direction). No on-face label, matching the attitude
+  // ball's precedent: a live, self-evidently-a-radar sweep needs none.
   const radar = new Group()
   radar.name = 'radar'
   radar.position.set(slotX('radar'), PANEL_BELOW_M - lowerCentre, 0)
@@ -466,12 +478,6 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const radarFace = new Mesh(new PlaneGeometry(0.131, 0.111), new MeshBasicMaterial({ color: 0x101c17 }))
   radarFace.position.z = Z_MARKS
   radar.add(radarFace)
-  const radarLabel = textPlate('RADAR', 0.08, 0.014, makeText)
-  radarLabel.position.set(0, 0.035, Z_READOUT)
-  radar.add(radarLabel)
-  const radarReserved = textPlate('RESERVED', 0.10, 0.011, makeText)
-  radarReserved.position.set(0, -0.029, Z_READOUT)
-  radar.add(radarReserved)
   root.add(radar)
 
   // Column gauges: a vertical light bar, not a needle -- Mark asked for this
@@ -804,6 +810,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     readouts,
     columns,
     attitude: attitude!,
+    radar: { face: radarFace },
     reticle,
     backing,
     tape: tape!,

@@ -59,6 +59,7 @@ import { createShipMesh } from './scene/ship.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
+import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import { buildStructures } from '../sim/weapons/structures.js'
@@ -428,6 +429,9 @@ async function boot(): Promise<void> {
       // Plan 16b: the shadow map read back at a world point, for the
       // world-stability check a screenshot cannot make.
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
+      // Plan 17: the radar scope read back at a (bearing, range), for the
+      // world-stability check a screenshot cannot make -- mirrors `cloudShadowAt`.
+      radarPixelAt: (bearingRad: number, rangeMi: number) => radarScope.readAt(renderer, bearingRad, rangeMi),
       // Plan 16c: the hour in force and where the sun is, for the specs.
       sun: () => sunState,
       // Plan 17: the radar scope's live state, same `frame`-guard as `combat`
@@ -741,6 +745,8 @@ async function boot(): Promise<void> {
   // same `frame.render` pose each frame.
   const panel = createPanel(spec)
   resizePanel(panel, window.innerWidth / window.innerHeight)
+  const radarScope = createRadarScope()
+  radarScope.attachTo(panel.radar.face)
   const cockpit = new Group()
   cockpit.add(panel.root)
   scene.add(cockpit)
@@ -1356,6 +1362,14 @@ async function boot(): Promise<void> {
         renderer.render(shadow.scene, shadow.camera)
         renderer.setRenderTarget(null)
       }
+      // Plan 17: the radar scope's own offscreen pass, the same shape the
+      // cloud shadow map already uses, and for the same reason -- inside
+      // the same frame and timestamp pool as the shadow pass above, so the
+      // render-time budget includes it.
+      radarScope.update(radarSweepRad, selectedRadarRangeMi, radarContactList)
+      renderer.setRenderTarget(radarScope.target)
+      renderer.render(radarScope.scene, radarScope.camera)
+      renderer.setRenderTarget(null)
       renderer.render(scene, camera)
     }
 
