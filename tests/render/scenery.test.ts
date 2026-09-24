@@ -94,12 +94,15 @@ describe('scenery placement on the real Leyte field', () => {
     // Before Plan 6b, `createAirfield` gated its ENTIRE Tacloban-only block
     // (taxiways, buildings, stores, windsock) behind `airfield.id ===
     // 'tacloban'`, so Dulag drew an empty group. Plan 6b narrows that gate:
-    // every base's content `buildings` (Dulag's is a placeholder reusing
-    // Tacloban's table, per its `reference.source`) and the decorative
-    // `AIRFIELD_HUTS` now draw regardless of id, but the taxiways, apron
-    // clutter and windsock below stay Tacloban-only until 13d gives Dulag its
-    // own set -- so Dulag's group is non-empty but strictly smaller than
-    // Tacloban's own.
+    // every base's content `buildings` and the decorative `AIRFIELD_HUTS`
+    // now draw regardless of id. Plan 13d Task 4 narrows it again: the
+    // taxiways, apron clutter and windsock below now draw only where
+    // `airfield.apron !== null` (was a hardcoded `id !== 'tacloban'` check),
+    // and gave Dulag its own real, smaller building set (no longer
+    // Tacloban's copied one) -- Dulag's group is non-empty (its own 2
+    // buildings plus the shared huts) but strictly smaller than Tacloban's
+    // own (5 buildings plus taxiways/stores/windsock), because Dulag's
+    // `apron` is `null`, not because of its id.
     const { object } = createAirfield(field, dulag)
     expect(object.children.length).toBeGreaterThan(0)
     expect(object.name).toContain('Dulag')
@@ -129,11 +132,28 @@ describe('scenery placement on the real Leyte field', () => {
 
   it('keeps trees off the Dulag strip too', () => {
     // The whole point of `inAirfieldClearing` taking a list: Dulag is a strip
-    // in `world.airfields` with no apron and no buildings, and before Plan 12
-    // the jungle grew straight down the middle of it.
+    // in `world.airfields` with no apron (still true after Plan 13d Task 4
+    // gave it its own buildings), and before Plan 12 the jungle grew
+    // straight down the middle of it.
     const d = dulag.runway.center
     expect(inAirfieldClearing([tacloban, dulag], d.x, d.z)).toBe(true)
     expect(inAirfieldClearing([tacloban], d.x, d.z)).toBe(false)
+  })
+
+  it('Dulag has its own real building layout, not Tacloban\'s copied one (Plan 13d Task 4)', () => {
+    // Dulag shipped with Tacloban's building table copied verbatim as an
+    // explicit placeholder (dulag.json's own `reference.source` said so).
+    // Task 4 replaced it with a smaller, Dulag-appropriate set: this pins
+    // both halves of "own layout" -- no id shared with Tacloban's table, and
+    // fewer buildings than Tacloban's ("a smaller set", design §7). Note:
+    // Dulag's ids were already namespaced `dulag-*` before this task even
+    // though the geometry was Tacloban's copied verbatim, so the id-overlap
+    // half of this assertion does not by itself distinguish old content from
+    // new -- the length assertion is what Task 4 actually changes here.
+    const dulagIds = new Set(dulag.buildings.map((b) => b.id))
+    const taclobanIds = new Set(tacloban.buildings.map((b) => b.id))
+    expect([...dulagIds].some((id) => taclobanIds.has(id))).toBe(false)
+    expect(dulag.buildings.length).toBeLessThan(tacloban.buildings.length)
   })
 
   it('has stable trees while leaving shore, runway, service apron and river banks clear', () => {

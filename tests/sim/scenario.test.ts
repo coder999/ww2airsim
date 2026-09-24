@@ -454,7 +454,7 @@ describe('the strike-range scenario: loadout and a single-waypoint anchored ship
     const w = worldFromScenario(strike, null)
     const dulagIds = strike.airfields['dulag']!.buildings.map((b) => b.id)
     const taclobanIds = strike.airfields['tacloban']!.buildings.map((b) => b.id)
-    expect(dulagIds).toHaveLength(4)
+    expect(dulagIds).toHaveLength(2) // Plan 13d Task 4 gave Dulag its own smaller set
     expect(taclobanIds).toHaveLength(5) // Plan 9 Task 1 added tacloban-aaa-1
     expect([...w.enemyStructureIds].sort()).toEqual([...dulagIds].sort())
     for (const id of taclobanIds) expect(w.enemyStructureIds.has(id)).toBe(false)

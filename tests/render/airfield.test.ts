@@ -46,9 +46,11 @@ describe('airfield buildings (Plan 6b: moved from a module constant into content
     expect(tacloban.buildings.filter((b) => b.kind === 'aaa')).toHaveLength(1)
   })
 
-  it('Dulag carries the same table for now, per its content note', () => {
+  it('Dulag carries its own smaller table now, per its content note (Plan 13d Task 4)', () => {
     const dulag = loadAirfield('dulag')
-    expect(dulag.buildings).toHaveLength(4)
+    const tacloban = loadAirfield('tacloban')
+    expect(dulag.buildings).toHaveLength(2)
+    expect(dulag.buildings.length).toBeLessThan(tacloban.buildings.length)
     expect(dulag.reference.source).toMatch(/Plan 13d/)
   })
 
@@ -65,8 +67,10 @@ describe('airfield buildings (Plan 6b: moved from a module constant into content
     // 'tacloban'`, so Dulag drew an empty group (tests/render/scenery.test.ts
     // pinned that). This task narrows the gate to open only the
     // building/hut pass for every base -- Dulag's taxiways/stores/windsock
-    // stay Tacloban-only, but its 4 content buildings plus the 3 huts now
-    // draw, so the group is no longer empty.
+    // stay gated on `airfield.apron !== null` (Plan 13d Task 4 generalized
+    // that check off Dulag's own `apron: null`), but its content buildings
+    // (2, since Plan 13d Task 4) plus the 3 huts now draw, so the group is
+    // no longer empty.
     const dulag = loadAirfield('dulag')
     const { object } = createAirfield(field, dulag)
     expect(object.children.length).toBeGreaterThan(0)

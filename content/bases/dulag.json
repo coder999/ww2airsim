@@ -5,12 +5,10 @@
   "apron": null,
   "clearing": null,
   "buildings": [
-    { "id": "dulag-hangar-1", "kind": "hangar", "x": -146, "z": -150, "widthM": 34, "lengthM": 42, "hp": 120 },
-    { "id": "dulag-hangar-2", "kind": "hangar", "x": -146, "z": -245, "widthM": 34, "lengthM": 42, "hp": 120 },
-    { "id": "dulag-hangar-3", "kind": "hangar", "x": -146, "z": 100, "widthM": 28, "lengthM": 36, "hp": 120 },
-    { "id": "dulag-tower", "kind": "tower", "x": -76, "z": -55, "widthM": 9, "lengthM": 9, "hp": 40 }
+    { "id": "dulag-hangar-1", "kind": "hangar", "x": -146, "z": -150, "widthM": 22, "lengthM": 28, "hp": 90 },
+    { "id": "dulag-hangar-2", "kind": "hangar", "x": -146, "z": -245, "widthM": 12, "lengthM": 16, "hp": 50 }
   ],
   "reference": {
-    "source": "runway.center is the world projection of 10.94806 N 125.01028 E from the English Wikipedia article 'Dulag Airfield' (read 2026-09-17, Plan 13b-13d design §7). headingDeg 0 is an ASSUMPTION: the article gives none; north-south along the coastal plain is used until a period photograph says otherwise. lengthM and widthM are ESTIMATES, Tacloban's carried over. Buildings are Plan 13d's. buildings reuses Tacloban's table verbatim as a placeholder; Plan 13d's real Dulag layout replaces it (see the note above)."
+    "source": "runway.center is the world projection of 10.94806 N 125.01028 E from the English Wikipedia article 'Dulag Airfield' (read 2026-09-17, Plan 13b-13d design §7). headingDeg 0 is an ASSUMPTION: the article gives none; north-south along the coastal plain is used until a period photograph says otherwise. lengthM and widthM are ESTIMATES, Tacloban's carried over. Plan 13d Task 4 (2026-09-24) replaced the placeholder buildings (Tacloban's table, reused verbatim) with Dulag's own smaller set: the same Wikipedia article records the field seized 'shortly after the Leyte Landing' with the 475th Fighter Group arriving 28 October 1944, so a hastily-established fighter strip gets one small hangar (dulag-hangar-1, at the same x/z as the old placeholder's first hangar, confirmed on land by tests/sim/weapons/structures.test.ts before this change) plus one smaller maintenance shed (dulag-hangar-2, at the old placeholder's second-hangar offset, for the same reason) and nothing else -- no control tower, no third hangar, no AAA emplacement; those were Tacloban's later, larger and more permanent base. Both entries use kind 'hangar' rather than a 'hut': content buildings are strike targets (spec §2.3, BuildingObject's kind enum in src/sim/world/airfields.ts is 'hangar' | 'tower' | 'aaa' only), unlike the decorative AIRFIELD_HUTS list in src/render/scene/airfield.ts which does accept 'hut' for rendering but is never per-base content. apron and clearing stay null: a hastily-built 1944 strip plausibly had no paved apron, and null is also what keeps airfield.ts's taxiway/clutter gate (generalized this same task from `airfield.id !== 'tacloban'` to `airfield.apron !== null`) correctly silent for Dulag without a Tacloban-specific id check."
   }
 }

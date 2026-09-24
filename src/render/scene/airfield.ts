@@ -135,7 +135,10 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   }
   // Buildings (content, strike targets, Plan 6b) and huts (decorative,
   // `AIRFIELD_HUTS`) draw at every base -- unlike the taxiways/stores/windsock
-  // below, which stay Tacloban's until 13d gives Dulag its own set.
+  // below, which draw only where `airfield.apron !== null` (Plan 13d Task 4;
+  // see that gate further down). Dulag has no apron -- a hastily-built 1944
+  // strip plausibly had none (content/bases/dulag.json's reference.source)
+  // -- so it stays silent there too, but on the data, not a hardcoded id.
   //
   // Takes a COLLECTOR now (Task 8), not the airfield-wide `shared` one
   // implicitly: a content `buildings` entry is a strike target
@@ -222,9 +225,15 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     }
   }
 
-  // The taxiways and the apron clutter below are Tacloban's, for the reason
-  // `AIRFIELD_HUTS` gives; 13d parameterizes them.
-  if (airfield.id !== 'tacloban') {
+  // The taxiways and the apron clutter below belong to a base only if it HAS
+  // an apron (Plan 13d Task 4 -- was `airfield.id !== 'tacloban'`, a
+  // hardcoded exclusion of the one other base that existed; generalized here
+  // because Dulag is now the second base actually proving it, per its own
+  // `apron: null` and the reasoning in `content/bases/dulag.json`'s
+  // `reference.source`). Every base that ships today is still either
+  // Tacloban (apron non-null) or Dulag (apron null), so this changes no
+  // shipped behavior -- it only stops relying on the id.
+  if (airfield.apron === null) {
     return finish()
   }
   for (const dz of [-190, 60]) { const p = at(-46, dz); shared.add(groundPatch(field, p.x, p.z, 70, 18), coral) }
