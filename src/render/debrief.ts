@@ -3,6 +3,7 @@ import type { AircraftState } from '../sim/flight/state.js'
 import { attitudeAngles } from '../sim/flight/attitude.js'
 import { length } from '../sim/math/vec3.js'
 import type { LandingReport } from './landing.js'
+import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
 
 export type ScoreRow = {
   readonly target: string
@@ -11,16 +12,76 @@ export type ScoreRow = {
 }
 
 /**
- * The mission's score.
- *
- * A stub, and deliberately the ONLY one: scoring is Plan 9's (master spec §8),
- * and nothing destructible exists yet, so every honest number here is zero.
- * The categories are §8's own table, so Plan 9 replaces this one function
- * rather than a scattering of assumptions spread through a dialog.
+ * The per-type kills accrued SINCE the last bank (e.g. since the last
+ * landing/ditching/death that already scored them). Exists so a landing
+ * followed by "Continue" and more flying does not re-bank the whole flight's
+ * cumulative kill count on a second debrief later -- `main.ts` (Plan 9 Task 6)
+ * computes the baseline and calls this before each of the three model
+ * builders below.
  */
-export function missionScore(): { readonly rows: readonly ScoreRow[]; readonly total: number } {
-  const targets = ['Fighter', 'Bomber', 'AAA Battery', 'Carrier', 'Battleship', 'Cruiser', 'Runway']
-  return { rows: targets.map((target) => ({ target, destroyed: 0, score: 0 })), total: 0 }
+export function killsSince(
+  current: Readonly<Record<TargetType, number>>,
+  baseline: Readonly<Record<TargetType, number>>,
+): Readonly<Record<TargetType, number>> {
+  return Object.fromEntries(
+    TARGET_TYPES.map((t) => [t, current[t] - baseline[t]]),
+  ) as Readonly<Record<TargetType, number>>
+}
+
+const POINTS_BY_TARGET_TYPE: Readonly<Record<TargetType, number>> = {
+  fighter: 500,
+  bomber: 750,
+  cruiser: 1500,
+  battleship: 3000,
+  aaa: 250,
+  runway: 500,
+  building: 150,
+  carrier: 5000,
+}
+
+const TARGET_LABEL: Readonly<Record<TargetType, string>> = {
+  fighter: 'Fighter',
+  bomber: 'Bomber',
+  cruiser: 'Cruiser',
+  battleship: 'Battleship',
+  aaa: 'AAA Battery',
+  runway: 'Runway',
+  building: 'Building',
+  carrier: 'Carrier',
+}
+
+/**
+ * The three recovery outcomes the sim can actually produce. Master spec §8
+ * has a fourth row ("bailed out over friendly water," 0.25x) -- there is no
+ * bail-out/parachute mechanic in this sim to reach it, so it is deliberately
+ * absent here rather than an unreachable fourth union member. See this
+ * plan's own "Ruling" section for why.
+ */
+export type RecoveryOutcome = 'landed' | 'ditched' | 'killed'
+
+export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
+  landed: 1.0,
+  ditched: 0.5,
+  killed: 0.0,
+}
+
+/**
+ * The mission's score: master spec §8's point table applied to kills SINCE
+ * the last bank (`killsSince`, so a landing followed by "Continue" and more
+ * flying does not re-bank the whole flight's cumulative total), times the
+ * recovery multiplier for how this flight/segment ended.
+ */
+export function missionScore(
+  killsByType: Readonly<Record<TargetType, number>>,
+  outcome: RecoveryOutcome,
+): { readonly rows: readonly ScoreRow[]; readonly total: number; readonly multiplier: number } {
+  const multiplier = RECOVERY_MULTIPLIER[outcome]
+  const rows: ScoreRow[] = TARGET_TYPES.map((t) => ({
+    target: TARGET_LABEL[t],
+    destroyed: killsByType[t],
+    score: Math.round(killsByType[t] * POINTS_BY_TARGET_TYPE[t] * multiplier),
+  }))
+  return { rows, total: rows.reduce((sum, r) => sum + r.score, 0), multiplier }
 }
 
 export type DebriefFigure = { readonly label: string; readonly value: string }
@@ -47,7 +108,11 @@ const MPH_PER_MPS = 2.23694
  *  `shipNames` maps a carrier's ship id (`LandingReport.at.name`) to its
  *  display name -- `landing.ts` names a carrier by id because that is what
  *  `nextLandingTracking` has in hand; `main.ts` passes the world's ships. */
-export function landingModel(report: LandingReport, shipNames: Readonly<Record<string, string>> = {}): DebriefModel {
+export function landingModel(
+  report: LandingReport,
+  killsSinceLastBank: Readonly<Record<TargetType, number>>,
+  shipNames: Readonly<Record<string, string>> = {},
+): DebriefModel {
   const mph = (mps: number) => Math.round(mps * MPH_PER_MPS)
   const landedAt = (): string => {
     if (report.at === null) return 'off-field'
@@ -72,14 +137,18 @@ export function landingModel(report: LandingReport, shipNames: Readonly<Record<s
       },
       { label: 'Roll-out', value: `${Math.round(report.rollOutM)} m` },
     ],
-    score: missionScore(),
+    score: missionScore(killsSinceLastBank, 'landed'),
     continueLabel: 'Continue',
   }
 }
 
 /** What the debrief says about how a flight ended. Pure, so the node-environment
  *  suite can assert on all of it; the DOM in `createDebrief` renders it. */
-export function debriefModel(impact: Impact, state: AircraftState): DebriefModel {
+export function debriefModel(
+  impact: Impact,
+  state: AircraftState,
+  killsSinceLastBank: Readonly<Record<TargetType, number>>,
+): DebriefModel {
   const { rollRad } = attitudeAngles(state)
   const figures: DebriefFigure[] = [
     { label: 'Impact speed', value: `${Math.round(length(state.velocity))} m/s` },
@@ -96,7 +165,7 @@ export function debriefModel(impact: Impact, state: AircraftState): DebriefModel
       headline: 'DITCHED',
       detail: 'You put her down on the water and survived. The airplane is lost.',
       figures,
-      score: missionScore(),
+      score: missionScore(killsSinceLastBank, 'ditched'),
     }
   }
   // Three surfaces, because `Impact.surface` has had three since Plan 8's
@@ -116,13 +185,17 @@ export function debriefModel(impact: Impact, state: AircraftState): DebriefModel
     headline: 'KILLED',
     detail,
     figures,
-    score: missionScore(),
+    score: missionScore(killsSinceLastBank, 'killed'),
   }
 }
 
 /** What the debrief says when combat damage, including structural overload,
  * destroys the aircraft before it makes ground contact. */
-export function destructionModel(state: AircraftState, attacker: string | null): DebriefModel {
+export function destructionModel(
+  state: AircraftState,
+  attacker: string | null,
+  killsSinceLastBank: Readonly<Record<TargetType, number>>,
+): DebriefModel {
   return {
     headline: 'KILLED',
     detail: attacker === null
@@ -132,7 +205,7 @@ export function destructionModel(state: AircraftState, attacker: string | null):
       { label: 'Final speed', value: `${Math.round(length(state.velocity))} m/s` },
       { label: 'Altitude', value: `${Math.round(state.position.y)} m` },
     ],
-    score: missionScore(),
+    score: missionScore(killsSinceLastBank, 'killed'),
   }
 }
 

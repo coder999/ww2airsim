@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { initialFrameState, nextFrameState, acknowledgeLanding, type FrameState } from '../../src/render/frame.js'
 import { nextLandingTracking, NO_LANDING, AIRBORNE_LATCH_M, LANDED_SPEED_MPS } from '../../src/render/landing.js'
 import { landingModel } from '../../src/render/debrief.js'
+import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { playerAircraft, withAircraftState } from '../../src/sim/loop.js'
 import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
@@ -156,7 +157,10 @@ describe('landing tracking', () => {
 
 describe('the landing debrief', () => {
   it('congratulates the pilot and shows the touchdown figures', () => {
-    const m = landingModel({ touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, at: { kind: 'airfield', name: 'Tacloban' } })
+    const m = landingModel(
+      { touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, at: { kind: 'airfield', name: 'Tacloban' } },
+      zeroKillsByType(),
+    )
     expect(m.headline).toBe('LANDED')
     expect(m.detail.toLowerCase()).toContain('nice')
     const labels = m.figures.map((x) => x.label)
