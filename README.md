@@ -275,10 +275,14 @@ plan rather than to a to-do list:
   runways, gear or deck operations. Those are Plan 11.
 - ~~**No trees, buildings or roads. The surface is bare relief.**~~ False
   since `daa1b39`, 2026-09-17: trees (`src/render/scene/vegetation.ts`) and
-  the Tacloban airfield buildings (`scene/airfield.ts`) are drawn. Roads
-  remain future work (Plan 13d, not started; roadmap table in
+  the Tacloban airfield buildings (`scene/airfield.ts`) are drawn. Real
+  OpenStreetMap towns/villages (deterministic hut rings), the Maharlika
+  Highway alignment and Dulag's own smaller 1944 building layout landed in
+  Plan 13d, 2026-09-24. Handoff:
+  [`2026-09-23-plan13d-places.md`](docs/handoff/2026-09-23-plan13d-places.md);
+  roadmap table in
   [`2026-09-12-ww2airsim-design.md`](docs/superpowers/specs/2026-09-12-ww2airsim-design.md)
-  §15).
+  §15.
 
 **Three things you will see that have already been ruled on**, recorded here
 so they are not re-reported as bugs:
