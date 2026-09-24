@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createCloudField, COVERAGE_TILE_M, CUMULUS_SIGMA, remap, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
+import { createCloudField, COVERAGE_TILE_M, CUMULUS_SIGMA, DETAIL_TILE_M, remap, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
@@ -49,6 +49,12 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
   it('keeps the constants the dome was tuned with', () => {
     expect(SHAPE_TILE_M).toBe(6000)
     expect(CUMULUS_SIGMA).toBe(0.012)
+  })
+  it('retiles the cumulus-only detail volume finer for the up-close view (Plan 16d)', () => {
+    // DETAIL_TILE_M is sampled only in density()'s cumulus branch -- cirrus
+    // never reads `detail` -- so this is the whole fix for "pixelated up
+    // close," not a partial one (design §2).
+    expect(DETAIL_TILE_M).toBe(150)
   })
   it('exposes a coverage field that spatially modulates cumulus (Plan 16d)', () => {
     const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)

@@ -17,10 +17,21 @@ import { COVERAGE_SIZE, DETAIL_SIZE, SHAPE_SIZE } from '../sky/noise.js'
  * camera.
  */
 
-/** Metres per repeat of the shape volume and of the detail volume. Gameplay
- *  estimates (16a design §9): a 128-texel tile over 6 km is 47 m per texel. */
+/** Metres per repeat of the shape volume. Gameplay estimates (16a design
+ *  §9): a 128-texel tile over 6 km is 47 m per texel. */
 export const SHAPE_TILE_M = 6000
-export const DETAIL_TILE_M = 400
+/** Metres per repeat of the detail volume -- cumulus-only in effect, since
+ *  density() below samples `detail` only in the cumulus branch; cirrus never
+ *  reads it. Retiled 400 -> 150 m (Plan 16d, design §2's "cheaper retiling
+ *  option"): the erosion texel now spans ~4.7 m over the existing 32-texel
+ *  volume, versus ~12.5 m before, for the "camera inside or just below the
+ *  cumulus layer" case cirrus never hits. No new texture, no VRAM cost --
+ *  see design §2 for why a genuinely finer volume is deferred until this is
+ *  measured (Plan 16d Task 5). Kept by photoreal Task 10 on 2026-09-25 after
+ *  a 150-vs-400 m capture under the Schneider erosion: 150 m gives
+ *  cauliflower edges at 1 km where 400 m is smooth, with no sparkle inside
+ *  the deck. */
+export const DETAIL_TILE_M = 150
 /** Metres per repeat of the cumulus coverage-modulation field (Plan 16d
  *  design §2). Much larger than SHAPE_TILE_M on purpose: this is meant to
  *  read as broad, tens-of-kilometres regional weather variation, not
