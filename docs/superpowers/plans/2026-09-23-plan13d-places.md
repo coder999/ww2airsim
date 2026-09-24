@@ -206,20 +206,50 @@ its cache file, how it writes its output) with a parallel `places` path:
 - Index every returned `node` by its Overpass id (needed to resolve a
   `way`'s `nodes: [id, ...]` array into actual lat/lon pairs).
 - For each `place` node: require `tags.name` (throw with the node id in the
-  message if absent); `size = tags.place === 'city' || tags.place === 'town' ? 'town' : 'village'`
-  — municipalities that aren't literally tagged `city`/`town` still count as
-  `village` per design §7 ("Tacloban and Ormoc are `town`, everything else
-  `village`"); `source = `https://www.openstreetmap.org/node/${id}``.
-- For each `highway` way: require `tags.name` (throw if absent — a nameless
-  trunk/primary road inside this box would be a data anomaly worth seeing,
-  not silently rendering); resolve every member node id through the id index
-  (throw naming the missing id if any lookup misses); `widthM`: use a
-  reasonable fixed value for a 1944 provincial highway (design doc does not
-  specify one for roads the way it does for rivers — 8 m, a two-lane
-  unpaved provincial road, is the same order of magnitude the design doc's
-  own JSON example uses (`"widthM": 8`) — record this as a documented
-  assumption in `places.json`'s own generation comment, the same way
-  Dulag's heading assumption is recorded); `source = `https://www.openstreetmap.org/way/${id}``.
+  message if absent); `size = (name === 'Tacloban' || name === 'Ormoc') ?
+  'town' : 'village'` — **ruling below explains why this is by NAME, not by
+  OSM tag**; `source = `https://www.openstreetmap.org/node/${id}``.
+- For each `highway` way: `name = tags.name ?? tags.ref ?? null` (throw only
+  if BOTH are absent, naming the way id — **ruling below explains why a
+  route reference is an acceptable fallback**); resolve every member node id
+  through the id index (throw naming the missing id if any lookup misses);
+  `widthM`: use a reasonable fixed value for a 1944 provincial highway
+  (design doc does not specify one for roads the way it does for rivers —
+  8 m, a two-lane unpaved provincial road, is the same order of magnitude
+  the design doc's own JSON example uses (`"widthM": 8`) — record this as a
+  documented assumption in `places.json`'s own generation comment, the same
+  way Dulag's heading assumption is recorded); `source =
+  `https://www.openstreetmap.org/way/${id}``.
+
+**Ruling (controller, overnight run, 2026-09-23/24, found against the REAL
+Overpass response, not a hypothetical):**
+
+1. **Town/village sizing is by name, not by OSM tag.** The original rule
+   (`place === 'city' || 'town' ? 'town' : 'village'`) was a mistranscription
+   of design §7's own literal words — "Tacloban and Ormoc are `town`,
+   everything else `village`" is an explicit two-name allowlist, not a
+   tag-based heuristic. Against the real query result (108 place nodes),
+   the tag-based version classified EVERY node as `'town'` (0 villages) —
+   caught by the implementer before writing any code, not discovered as a
+   test failure after the fact. Fixed to match by name.
+2. **A road's `name` falls back to its route reference (`ref`), and only
+   throws if both are absent.** 68 of 1,897 real highway ways in the query
+   result (3.6%) have no `name` tag, including real segments of AH26 (the
+   Maharlika Highway's Asian Highway route number) explicitly tagged
+   `noname=yes` — a legitimate, common OSM pattern for a numbered highway,
+   not a data anomaly. The original "throw if no name" rule would make this
+   task unbuildable against real data. `ref` (when present) is exactly the
+   right fallback identity for these segments — design §7 itself calls the
+   whole alignment "the Maharlika Highway alignment," and AH26 *is* that
+   highway's own route number.
+
+**Cost if wrong:** (1) is a one-line predicate change, isolated to this
+build step; a wrong village/town split shows up immediately and visibly in
+Tier 2 screenshots (the wrong two settlements get three-ring treatment).
+(2) only affects segments Overpass itself declines to name — if `ref` turns
+out to be a worse fallback than intended, roads still render (just possibly
+mislabeled in `source`/debugging output), they do not silently vanish from
+the alignment, which was the actual risk being ruled against.
 - Write `content/scenery/places.json` with `{ towns, roads }`, sorted
   deterministically (by name) so regenerating the build from the same cache
   produces byte-identical output — match whatever sort/format convention
