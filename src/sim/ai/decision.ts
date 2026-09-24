@@ -4,7 +4,7 @@ import type { Controls } from '../flight/state.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { AI_GUN_RANGE_M, hasGunSolution, pursuitControls } from './pursuit.js'
 import { breakDesiredVelocity, extendDesiredVelocity } from './pilot.js'
-import type { PilotManeuver, PilotSkill } from './pilot.js'
+import type { PilotDecisionState, PilotManeuver, PilotSkill } from './pilot.js'
 
 const G_MPS2 = 9.80665
 
@@ -137,13 +137,32 @@ export function decideManeuver(facts: DecisionFacts, skill: PilotSkill): PilotMa
  *  shared flight controller, and therefore never set `fire` -- only
  *  `pursuitControls`'s own gun gate ever does that. Lives here rather than in
  *  `pilot.ts` per this file's header note: it needs `pursuitControls` from
- *  `pursuit.ts`, and `pilot.ts` must not import back from `pursuit.ts`. */
+ *  `pursuit.ts`, and `pilot.ts` must not import back from `pursuit.ts`.
+ *
+ *  Steers against `decision`'s OBSERVED target snapshot, not `target`'s live
+ *  state (Task 2, master spec's perception-staleness requirement): a
+ *  "perceived" entity is built once here, with the live target's id/spec but
+ *  the last-rescore position/velocity substituted in, and that same
+ *  perceived entity is threaded into whichever of `pursuitControls`/
+ *  `extendDesiredVelocity`/`breakDesiredVelocity` the chosen maneuver calls --
+ *  uniformly, including Pursue's firing gate (`hasGunSolution`, reached
+ *  through `pursuitControls`). This was a deliberate architecture-section
+ *  ruling, not an oversight: the gate is not special-cased back to live data.
+ *  `decision.maneuver` itself was chosen from LIVE facts at the rescore
+ *  instant (`loop.ts`'s `deriveFacts` call) -- only the steering in between
+ *  rescores goes stale. */
 export function maneuverControls<M>(
   self: AircraftEntity<M>,
   target: AircraftEntity<M>,
-  maneuver: PilotManeuver,
+  decision: PilotDecisionState,
 ): Controls {
-  if (maneuver === 'pursue') return pursuitControls(self, target)
-  const desired = maneuver === 'extend' ? extendDesiredVelocity(self, target) : breakDesiredVelocity(self, target)
+  const perceived: AircraftEntity<M> = {
+    ...target,
+    state: { ...target.state, position: decision.observedTargetPosition, velocity: decision.observedTargetVelocity },
+  }
+  if (decision.maneuver === 'pursue') return pursuitControls(self, perceived)
+  const desired = decision.maneuver === 'extend'
+    ? extendDesiredVelocity(self, perceived)
+    : breakDesiredVelocity(self, perceived)
   return controlsForDesiredVelocity(self.state, self.spec, desired)
 }

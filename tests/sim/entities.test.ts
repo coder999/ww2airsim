@@ -23,9 +23,16 @@ const PURSUE_NOW = {
 // skill.reactionS` regardless of which maneuver wins. Below, `pursuitWorld`'s
 // fixture is deliberately energy-favorable for the pilot, so this rescore
 // keeps choosing `'pursue'` -- see that fixture's own comment.
+//
+// `observedTargetPosition`/`observedTargetVelocity` are no longer `ZERO`
+// (Task 2: perception staleness makes these fields real). They capture the
+// target's START-OF-TICK-1 state -- `pursuitWorld`'s own `targetState` --
+// because the rescore reads `aircraftAtStart`, the pre-step snapshot, and
+// (with GREEN_SKILL.reactionS=1.0 comfortably longer than the 5-tick test
+// window below) no later rescore overwrites it before this assertion runs.
 const RESCORED_PURSUE = {
   maneuver: 'pursue' as const, nextRescoreS: DT + GREEN_SKILL.reactionS,
-  observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0,
+  observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 0,
 }
 
 const f6f = loadAircraftSpec('f6f-hellcat')

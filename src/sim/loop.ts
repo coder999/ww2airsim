@@ -823,9 +823,11 @@ export function advance<M>(
               ...decision,
               maneuver: decideManeuver(facts, a.pilot.skill),
               nextRescoreS: nowS + a.pilot.skill.reactionS,
+              observedTargetPosition: target.state.position,
+              observedTargetVelocity: target.state.velocity,
             }
           }
-          commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(a, target, decision.maneuver) }
+          commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(a, target, decision) }
         }
       }
       return stepAircraftEntity(
