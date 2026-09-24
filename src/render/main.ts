@@ -80,9 +80,11 @@ import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import {
   hasSpawnOverride,
   initialAircraftState,
+  pilotSkillFromQuery,
   scenarioIdFromQuery,
   spawnPositionFromQuery,
 } from './spawn.js'
+import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
@@ -259,6 +261,12 @@ async function boot(): Promise<void> {
   // `spawnedAt` (which needs each scenario's own parked position) it is the
   // same on every `loadScenario` call and is computed once, here.
   const override = import.meta.env.DEV && hasSpawnOverride(window.location.search)
+  // DEV `?pilotSkill=green|veteran` (spawn.ts) forces every AI pilot's skill
+  // in whatever scenario loads, overriding whatever `pursuit-range.json` (or
+  // any future scenario) pins in content -- same "computed once, applies to
+  // every `loadScenario` call" reasoning as `override` above, since it too
+  // is a pure function of the URL rather than of the scenario just fetched.
+  const forcedPilotSkill = import.meta.env.DEV ? pilotSkillFromQuery(window.location.search) : undefined
   /**
    * Fetches one scenario's content bundle and rebuilds everything sized to
    * its entity lists: `scenarioWorld` (read once, below, for the player's
@@ -400,8 +408,20 @@ async function boot(): Promise<void> {
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
     const w = worldFromScenario(bundle!, null, chosenLoadout)
+    // `forcedPilotSkill` replaces whatever skill the scenario's own content
+    // pinned (e.g. pursuit-range.json's `veteran`) on every entity that has
+    // a pilot at all; entities with no `pilot` (the player, any unpiloted
+    // aircraft) are untouched. `undefined` (production, or DEV with no
+    // `?pilotSkill=`) leaves `w.aircraft` byte-for-byte, same as `override`
+    // leaving `withTerrainField` untouched below.
+    const skilledAircraft = forcedPilotSkill
+      ? w.aircraft.map((a) =>
+          a.pilot ? { ...a, pilot: { ...a.pilot, skill: forcedPilotSkill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL } } : a,
+        )
+      : w.aircraft
     const withTerrainField = {
       ...w,
+      aircraft: skilledAircraft,
       terrain,
       structures: buildStructures(w.airfields, terrain),
     }
