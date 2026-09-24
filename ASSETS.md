@@ -17,6 +17,16 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | Asset | Source | Author | License |
 | --- | --- | --- | --- |
 | `src/render/scene/ship.ts` | original procedural hulls, built from the class dimensions in `content/ships/` | authored for this project | AGPL-3.0-or-later |
+| `content/aircraft/wildcat.glb` | https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4 | rojatsu | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+
+`content/aircraft/wildcat.glb` is a texture-recompressed derivative of the
+Sketchfab download above, produced by `tools/models/build.ts` (`npm run
+models:build`) via `@gltf-transform/cli`'s `optimize` command -- textures
+resized to 1024x1024 and re-encoded as WebP, geometry untouched. Retrieved
+and verified rigged (separate, named landing-gear nodes with baked
+retraction keyframes) 2026-09-24. Node names used by
+`src/render/scene/wildcat.ts`: `Helice` (propeller), `GRP_Rueda_Der` /
+`GRP_Rueda_Izq` (main gear, right/left). The model has no flap geometry.
 
 ## Textures and audio
 
