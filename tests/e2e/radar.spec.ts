@@ -35,13 +35,39 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   // bearing/range, not a value this spec computed independently -- the
   // claim under test is "the shader painted what radar.ts says", not a
   // second, parallel derivation of the geometry.
+  //
+  // A raw brightness threshold is NOT enough here (task review, round 1):
+  // the ambient sweep trail alone reaches RADAR_FADE_FLOOR * TRAIL_DIM
+  // (0.12 * 0.55 = 0.066) at EVERY point inside the circle, contact or not,
+  // so a lone `toBeGreaterThan(0.05)` clears on pure background glow and
+  // would not have caught the doubled-uv-flip bug this readback exists to
+  // catch. Instead, compare the contact's own position against the SAME
+  // bearing at a range far enough outside the shader's `DOT_RADIUS` (0.05
+  // in normalized units) to be pure trail: both share the identical
+  // `brightnessOf(bearing)` term (angle alone decides it, not range), which
+  // cancels in the ratio and leaves a FIXED, sweep-timing-independent
+  // multiple -- 1 / TRAIL_DIM = ~1.818x -- if and only if a dot is actually
+  // painted at the contact's exact position. Under the pre-fix bug, both
+  // reads would have sampled equally dot-free mismapped trail at the same
+  // wrong bearing, giving a ratio of ~1.0 and failing this assertion.
   const contact = initial.contacts.find((c) => c.id === 'pursuer-1')!
-  const brightness = await page.evaluate(
-    ([b, r]) => (window as DiagWindow).__ww2!.radarPixelAt(b, r),
-    [contact.bearingRad, contact.rangeMi] as const,
-  )
-  expect(brightness, 'no pixel painted at the contact\'s own reported bearing/range').not.toBeNull()
-  expect(brightness!).toBeGreaterThan(0.05)
+  const farRangeMi = Math.min(initial.rangeMi, contact.rangeMi + Math.max(3, initial.rangeMi * 0.2))
+  const [atContact, atFarSameBearing] = await Promise.all([
+    page.evaluate(
+      ([b, r]) => (window as DiagWindow).__ww2!.radarPixelAt(b, r),
+      [contact.bearingRad, contact.rangeMi] as const,
+    ),
+    page.evaluate(
+      ([b, r]) => (window as DiagWindow).__ww2!.radarPixelAt(b, r),
+      [contact.bearingRad, farRangeMi] as const,
+    ),
+  ])
+  expect(atContact, 'no pixel painted at the contact\'s own reported bearing/range').not.toBeNull()
+  expect(atFarSameBearing, 'no pixel painted at the same-bearing control point').not.toBeNull()
+  expect(
+    atContact!,
+    `contact reading ${atContact} is not brighter than the same-bearing background trail ${atFarSameBearing} -- the dot is not where the math says it is`,
+  ).toBeGreaterThan(atFarSameBearing! * 1.3)
 
   // Tab through the real keyboard path.
   await page.keyboard.press('Tab')
