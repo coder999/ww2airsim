@@ -102,7 +102,7 @@ export function buildDetail(size = DETAIL_SIZE, seed = 1945): Uint8Array {
  *  (design §2). Perlin alone, no Worley mix -- unlike buildShape this has no
  *  billowy cloud-body job to do, just smooth regional clumping/gapping of
  *  the per-layer coverage scalar. `base = 3` (vs. buildShape's 4) for even
- *  lower frequency: this is meant to vary over tens of kilometres. */
+ *  lower frequency: this is meant to vary over tens of kilometers. */
 export function buildCoverage(size = COVERAGE_SIZE, seed = 1946): Uint8Array {
   const perm = createPermutation(seed)
   const out = new Uint8Array(size * size)
