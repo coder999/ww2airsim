@@ -14,6 +14,13 @@ import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { GREEN_SKILL } from '../../src/sim/ai/pilot.js'
 
 const PURSUE_NOW = { maneuver: 'pursue' as const, nextRescoreS: 0 }
+// What `PURSUE_NOW` becomes after `advance()`'s Plan 7b dispatch runs its
+// very first rescore (tick 1, since `nextRescoreS: 0` is always <= tick*DT):
+// the maneuver is decided fresh, and `nextRescoreS` moves to `DT +
+// skill.reactionS` regardless of which maneuver wins. Below, `pursuitWorld`'s
+// fixture is deliberately energy-favorable for the pilot, so this rescore
+// keeps choosing `'pursue'` -- see that fixture's own comment.
+const RESCORED_PURSUE = { maneuver: 'pursue' as const, nextRescoreS: DT + GREEN_SKILL.reactionS }
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const dd = loadShipSpec('fletcher-dd')
@@ -102,7 +109,15 @@ describe('createWorldOf', () => {
 describe('AI pilots in the fixed-step world', () => {
   const pursuitWorld = (reversed = false) => {
     const pilotState = createState({ position: v3(0, 2000, 0), velocity: v3(100, 0, 0) })
-    const targetState = createState({ position: v3(900, 2100, 250), velocity: v3(110, 0, 15) })
+    // Target is slower than the pilot despite being 100m higher, so the
+    // pilot's relative energy stays positive and the Plan 7b decision layer
+    // resolves to Pursue on tick 1 -- this fixture predates that layer and
+    // originally had the target FASTER (velocity (110,0,15)), which is now a
+    // real energy deficit for the pilot and flips the decision to Extend.
+    // Position (bearing, range) is unchanged from the original fixture: only
+    // speed moved, so the pursuit geometry these tests assert against
+    // (roll/pitch sign, array-order invariance, clone determinism) is intact.
+    const targetState = createState({ position: v3(900, 2100, 250), velocity: v3(80, 0, 10) })
     const pilot = {
       ...flying('pilot'), state: pilotState, previous: pilotState,
       pilot: { target: 'target', skill: GREEN_SKILL, decision: PURSUE_NOW },
@@ -141,7 +156,7 @@ describe('AI pilots in the fixed-step world', () => {
   it('survives structuredClone and continues deterministically with its assignment', () => {
     const world = advance(pursuitWorld(), DT * 5).world
     const cloned = structuredClone(world)
-    expect(playerAircraft(cloned).pilot).toEqual({ target: 'target', skill: GREEN_SKILL, decision: PURSUE_NOW })
+    expect(playerAircraft(cloned).pilot).toEqual({ target: 'target', skill: GREEN_SKILL, decision: RESCORED_PURSUE })
     expect(advance(cloned, DT * 5).world).toEqual(advance(world, DT * 5).world)
   })
 })

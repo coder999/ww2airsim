@@ -15,7 +15,8 @@ import type { Deck } from './world/deck.js'
 import { decksOf } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
 import { buildStructures, type StructureEntity } from './weapons/structures.js'
-import { pursuitControls, type PilotAssignment } from './ai/pursuit.js'
+import type { PilotAssignment } from './ai/pursuit.js'
+import { deriveFacts, decideManeuver, maneuverControls } from './ai/decision.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -808,7 +809,19 @@ export function advance<M>(
         const target = aircraftAtStart.find((candidate) => candidate.id === a.pilot!.target)
         // `createWorldOf` rejects this state. The guard keeps a manually edited
         // or future entity-removing world finite instead of fabricating a target.
-        if (target !== undefined) commanded = { ...a, controls: pursuitControls(a, target) }
+        if (target !== undefined) {
+          const nowS = tick * DT
+          let decision = a.pilot.decision
+          if (nowS >= decision.nextRescoreS) {
+            const facts = deriveFacts(
+              a, target,
+              1 - record.damage.structure,
+              a.state.fuelKg / a.spec.mass.fuelCapacityKg,
+            )
+            decision = { maneuver: decideManeuver(facts, a.pilot.skill), nextRescoreS: nowS + a.pilot.skill.reactionS }
+          }
+          commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(a, target, decision.maneuver) }
+        }
       }
       return stepAircraftEntity(
         commanded, tick, world.terrain, world.wind, decks, stepper, assist,

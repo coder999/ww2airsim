@@ -1,6 +1,9 @@
 import type { AircraftEntity } from '../loop.js'
 import { dot, length, sub, type Vec3 } from '../math/vec3.js'
-import { AI_GUN_RANGE_M, hasGunSolution } from './pursuit.js'
+import type { Controls } from '../flight/state.js'
+import { controlsForDesiredVelocity } from './controller.js'
+import { AI_GUN_RANGE_M, hasGunSolution, pursuitControls } from './pursuit.js'
+import { breakDesiredVelocity, extendDesiredVelocity } from './pilot.js'
 import type { PilotManeuver, PilotSkill } from './pilot.js'
 
 const G_MPS2 = 9.80665
@@ -116,4 +119,21 @@ export function decideManeuver(facts: DecisionFacts, skill: PilotSkill): PilotMa
   const { pursue, extend, breakOff } = scoreManeuvers(facts, skill)
   if (pursue >= extend && pursue >= breakOff) return 'pursue' // Pursue wins ties
   return extend >= breakOff ? 'extend' : 'break'
+}
+
+/** The single dispatch point `loop.ts` calls once a maneuver has been chosen:
+ *  Pursue keeps the existing gun-gated pursuit controller unchanged; Extend
+ *  and Break fly their own desired-velocity producers (Task 3) through the
+ *  shared flight controller, and therefore never set `fire` -- only
+ *  `pursuitControls`'s own gun gate ever does that. Lives here rather than in
+ *  `pilot.ts` per this file's header note: it needs `pursuitControls` from
+ *  `pursuit.ts`, and `pilot.ts` must not import back from `pursuit.ts`. */
+export function maneuverControls<M>(
+  self: AircraftEntity<M>,
+  target: AircraftEntity<M>,
+  maneuver: PilotManeuver,
+): Controls {
+  if (maneuver === 'pursue') return pursuitControls(self, target)
+  const desired = maneuver === 'extend' ? extendDesiredVelocity(self, target) : breakDesiredVelocity(self, target)
+  return controlsForDesiredVelocity(self.state, self.spec, desired)
 }
