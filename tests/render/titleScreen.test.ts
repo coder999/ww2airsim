@@ -7,6 +7,7 @@ import {
 import { creditsLine } from '../../src/render/legend.js'
 import { SCENARIO_ID } from '../../src/render/content.js'
 import { createPilot } from '../../src/render/roster.js'
+import { createSettingsModel } from '../../src/render/settings.js'
 
 describe('the title screen model (2026-09-19)', () => {
   it('names the two options Mark asked for, and a way back from About', () => {
@@ -14,6 +15,46 @@ describe('the title screen model (2026-09-19)', () => {
     expect(m.newGame).toBe('New game')
     expect(m.about).toBe('About project')
     expect(m.close).toBe('Close')
+  })
+
+  it('names the Settings button, reachable at every step of the screen', () => {
+    // Render-quality-selector spec §6: "visible at all times regardless of
+    // which roster/scenario/loadout step is active". The DOM proof of that
+    // (the button lives in the same always-visible row as New game and About,
+    // not inside the pilot-gated section) needs a `document`, which this
+    // suite's `node` environment does not have -- what is pinned here is the
+    // label the button is built from, the same split every other control on
+    // this screen uses.
+    expect(titleModel().settings).toBe('Settings')
+  })
+
+  it('exposes the Settings model on the handle, so main.ts can read it and push the probe in (type-level contract)', () => {
+    // The read/write surface Task 6 consumes (`settings.ts`). It is on the
+    // HANDLE rather than rebuilt per `show()` because the player's choices
+    // are session state, not screen state -- `createTitleScreen`'s `hide()`
+    // destroys the dialog's DOM and keeps this model. A regression that
+    // dropped it, or rebuilt it per screen, would fail `tsc --noEmit` at
+    // `main.ts`'s own call site once Task 6 lands.
+    const readSettings = (handle: Pick<TitleScreenHandle, 'settings'>): void => {
+      const s = handle.settings.snapshot()
+      expect(typeof s.arcadeDamage).toBe('boolean')
+      expect(typeof s.assetQuality).toBe('string')
+      expect(typeof s.explicitChoiceMade).toBe('boolean')
+    }
+    // A model built against a fake store, since this environment has no
+    // `window.localStorage` -- the same stand-in `quality.test.ts` uses.
+    const store = new Map<string, string>()
+    ;(globalThis as { window?: { localStorage: Storage } }).window = {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v) },
+        removeItem: (k: string) => { store.delete(k) },
+        clear: () => store.clear(),
+        key: (i: number) => [...store.keys()][i] ?? null,
+        get length() { return store.size },
+      } as Storage,
+    }
+    readSettings({ settings: createSettingsModel() })
   })
 
   it('tells the visitor what this is, who owns the data, and where the code lives', () => {

@@ -2,6 +2,7 @@ import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord } from './roster.js'
+import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md;
@@ -19,6 +20,7 @@ import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord } fr
 export type TitleModel = {
   readonly newGame: string
   readonly about: string
+  readonly settings: string
   readonly close: string
   readonly aboutParagraphs: readonly string[]
   readonly credits: string
@@ -30,6 +32,7 @@ export function titleModel(): TitleModel {
   return {
     newGame: 'New game',
     about: 'About project',
+    settings: 'Settings',
     close: 'Close',
     aboutParagraphs: [
       'A WWII Pacific air combat simulator that runs in the browser. Fly an F6F ' +
@@ -133,6 +136,22 @@ export function isValidPilotName(name: string): boolean {
 export type TitleScreenHandle = {
   /** Whether the title is still on screen; `main.ts` holds the world while it is. */
   readonly up: () => boolean
+  /**
+   * The Settings dialog's model (`settings.ts`) -- the read/write surface
+   * `main.ts` needs and the one thing here that OUTLIVES `hide()`/`show()`,
+   * since the dialog's DOM is rebuilt with the rest of the overlay but the
+   * player's choices are session state, not screen state.
+   *
+   * `main.ts` (Task 6) reads `snapshot()` at boot for the tiers, the asset
+   * tier and `arcadeDamage`, pushes the GPU probe's result back in with
+   * `setRecommendedTier`/`setCurrentQuality`, and checks `explicitChoiceMade`
+   * before letting that probe overwrite anything. It gets the live change
+   * callbacks by building its own model (`createSettingsModel(callbacks)`)
+   * and passing it as `createTitleScreen`'s optional fourth parameter; the
+   * default one built here still persists every pick, it just has nobody
+   * listening to apply it live until the next page load.
+   */
+  readonly settings: SettingsModel
   hide(): void
   /** Rebuilds the overlay fresh and re-reads `loadRoster()`; see the file's
    *  own top comment for why. `main.ts` calls this when a flight ends and
@@ -170,15 +189,32 @@ export function createTitleScreen(
    *  again -- see `TitleScreenHandle.show`'s own doc comment. */
   currentScenarioId: string,
   onNewGame: (loadout: Loadout, scenarioId: string, pilotId: string) => void,
+  /** The Settings dialog's model. Optional so this file owns a working
+   *  dialog on its own: with nothing passed, every pick still persists, it
+   *  simply takes effect on the next page load rather than live. `main.ts`
+   *  (Task 6) passes one built with `createSettingsModel(callbacks)` so a
+   *  tier click reaches the live cascades/clouds/vegetation -- see
+   *  `TitleScreenHandle.settings`. */
+  settings: SettingsModel = createSettingsModel(),
 ): TitleScreenHandle {
   const m = titleModel()
 
   let isUp = false
   let onKey: ((e: KeyboardEvent) => void) | null = null
+  // Rebuilt with the overlay on every `build()`; the MODEL above is not,
+  // which is what makes a choice survive a return-to-title.
+  let settingsDialog: SettingsDialogHandle | null = null
 
   const hide = (): void => {
     if (!isUp) return
     isUp = false
+    // Before the overlay node goes: the dialog also owns a `window` keydown
+    // listener for Esc, and one leaked per return-to-title would accumulate.
+    // Closed first so a dialog left open when a flight starts is not still
+    // open on the overlay the next `show()` builds.
+    settings.close()
+    settingsDialog?.destroy()
+    settingsDialog = null
     root.querySelector('[data-ww2-title]')?.remove()
     if (onKey) window.removeEventListener('keydown', onKey)
     onKey = null
@@ -294,7 +330,14 @@ export function createTitleScreen(
     const about = document.createElement('button')
     about.textContent = m.about
     about.style.cssText = BUTTON_STYLE
-    row.append(newGame, about)
+    // Settings sits beside New game and About, NOT inside the roster/
+    // scenario/loadout flow: it is session-wide state, not part of starting a
+    // sortie, so it is reachable at every step including before a pilot is
+    // picked (render-quality-selector spec §6).
+    const settingsButton = document.createElement('button')
+    settingsButton.textContent = m.settings
+    settingsButton.style.cssText = BUTTON_STYLE
+    row.append(newGame, about, settingsButton)
     overlay.appendChild(row)
 
     // The About panel lives inside the overlay so it can never outlive it.
@@ -328,6 +371,11 @@ export function createTitleScreen(
     close.style.cssText = BUTTON_STYLE
     aboutPanel.append(credits, licence, close)
     overlay.appendChild(aboutPanel)
+
+    // Inside the overlay, same as the About panel and for the same reason:
+    // it can never outlive the screen it belongs to.
+    settingsDialog = createSettingsDialog(overlay, settings)
+
     root.appendChild(overlay)
 
     const selectPilot = (pilot: PilotRecord): void => {
@@ -458,11 +506,16 @@ export function createTitleScreen(
       aboutPanel.style.display = 'none'
       about.focus()
     })
+    settingsButton.addEventListener('click', () => settingsDialog?.open())
 
     onKey = (e: KeyboardEvent): void => {
       if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return
       if (aboutPanel.style.display !== 'none') return
       if (newPilotForm.style.display !== 'none') return
+      // Enter must not launch a sortie out from under the Settings dialog.
+      // Its own ballot rows already stop Enter propagating (settings.ts), but
+      // Enter pressed with nothing in the dialog focused still reaches here.
+      if (settingsDialog?.isOpen() === true) return
       e.preventDefault()
       start()
     }
@@ -475,6 +528,7 @@ export function createTitleScreen(
 
   return {
     up: () => isUp,
+    settings,
     hide,
     // Reassigns the parameter `build`'s closure already reads
     // (`currentScenarioId`, above) before rebuilding, rather than adding a

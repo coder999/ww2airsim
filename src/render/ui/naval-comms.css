@@ -41,17 +41,23 @@
   --font-body: 'Special Elite', 'Courier New', ui-monospace, monospace;
 }
 
-* { box-sizing: border-box; }
+/* The prototype styled the PAGE (`* `, `html, body`) because it WAS the whole
+   page. In the app this stylesheet is loaded into a document whose body is a
+   full-screen WebGPU canvas, so those rules would put 40px of padding and a
+   flex column around the game itself and paint the page #17140f. Scoped to
+   `.naval-comms` -- the container class every screen built in this visual
+   language carries -- for the same reason Task 4 dropped the prototype's own
+   nav chrome: it is page furniture, not design system. Found by Task 5, the
+   first real consumer (2026-09-24); `tests/render/navalComms.test.ts` asserts
+   no bare-element rule comes back. */
 
-html, body {
-  margin: 0;
-  min-height: 100%;
-  background: #17140f;
-  color: var(--ink);
-  font-family: var(--font-body);
+.naval-comms, .naval-comms *, .naval-comms *::before, .naval-comms *::after {
+  box-sizing: border-box;
 }
 
-body {
+.naval-comms {
+  color: var(--ink);
+  font-family: var(--font-body);
   padding: 40px 16px 80px;
   display: flex;
   flex-direction: column;
