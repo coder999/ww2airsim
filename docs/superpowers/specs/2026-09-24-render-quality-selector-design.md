@@ -241,3 +241,75 @@ read directly, not argued about.
   the existing title screen's native-button, no-framework convention.
 - Whether the DEV hook for Tier 2's "did the probe run" check is a new
   `__ww2` field or reuses an existing one — an implementation detail.
+
+## 10. Addendum, 2026-09-24 (same day, later): a second axis — Asset Quality
+
+Added after brainstorming item #8 (rendering quality generally) and the
+"beach still boxy" critique specifically. This is a genuinely different
+kind of choice from §3-§9 above and gets its own type, its own persisted
+key, and its own row in the same Settings dialog — **not** a fourth value
+folded into `QualityTierName`:
+
+```ts
+export type AssetQualityTierName = 'low' | 'medium' | 'high' | 'ultra'
+```
+
+**Why a separate axis, not a 4th tier of the existing one:** render quality
+(§1-§9) tunes GPU cost against data that is *already downloaded* — ocean
+cascades, cloud raymarch steps, tree fade distance. Asset quality decides
+**what gets downloaded in the first place** — today, that's terrain
+resolution; a later spec (real ground/tree/building textures) will add more
+to this axis. A great GPU on a slow connection and a weak GPU on a fast one
+are both real, and they want opposite answers on these two axes
+independently.
+
+**Budget ceilings, measured against today's ~17MB build** (Mark's own
+proposed cutoffs, 2026-09-24):
+
+| Tier | Ceiling | Terrain level (this spec) | Headroom (future spec) |
+| --- | --- | --- | --- |
+| `low` | 50MB | L1, 49m spacing (+32MB → ~49MB) | none |
+| `medium` | 150MB | L0, 24m spacing (+128MB → ~145MB) | ~5MB |
+| `high` | 500MB | L0 | ~370MB |
+| `ultra` | 1GB | L0 | ~870MB |
+
+`low`'s headroom is genuinely zero (L1 alone spends the whole budget) —
+confirmed as an intentional floor, not an oversight: someone on a real
+bandwidth constraint gets terrain only, no real textures at all, procedural
+everything else. `medium` already reaches full 24m terrain; the difference
+between `medium`/`high`/`ultra` is entirely how much real texture/asset
+detail a later spec adds on top, sized once that spec exists.
+
+**What "asset quality" actually gates today**: `src/render/content.ts`'s
+`FINEST_FETCHED_LEVEL` (currently a fixed constant, `2`) becomes a function
+of the persisted `AssetQualityTierName` — `low` → level 1, `medium`/`high`/
+`ultra` → level 0. `loadTerrainProgressively` (`src/render/terrain/load.ts`)
+already fetches coarsest-first and hands each level to `onLevel` as it
+lands; this needs no change to that sequencing, only to what the loop's
+lower bound is.
+
+**No GPU-style probe for this axis.** Render quality's probe works because
+frame time is cheap and reliable to measure in-browser. Network throughput
+is not: the Network Information API (`navigator.connection`) is unsupported
+in Safari and even where present only reports a coarse bucket
+(`slow-2g`/`2g`/`3g`/`4g`), not a real number worth sizing a multi-hundred-
+-MB decision against. **Judgment call**: no auto-detection at all for this
+axis — default to `medium` on first visit (full terrain resolution, no
+texture headroom yet), purely user-chosen thereafter via the Settings
+dialog, persisted the same way (`ww2airsim.quality.v1` gains an
+`assetQuality` field, or a sibling key — implementation's call). Flagging
+this default for Mark's review since it's a real judgment call, not a
+measured fact like the rest of this spec.
+
+**Changing this setting needs a reload, unlike render quality** (which
+live-applies). The Settings dialog must say so — e.g. "Takes effect next
+time you start a sortie" — rather than imply an instant change the way the
+Simple/Advanced render-quality rows do.
+
+**Implementation-plan-level open item, not resolved here**: confirming L0
+and L1's terrain files are actually part of this project's build/deploy
+output today, or only present in a local dev checkout's generated cache —
+the musings doc said they're "already built on disk, gitignored, not
+shipped," which is a statement about generation, not about whether the
+deploy pipeline currently packages them for production. Verify before
+assuming this is purely a runtime-constant change.
