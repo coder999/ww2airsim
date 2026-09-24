@@ -103,6 +103,11 @@ export const BINDINGS = {
   // A bare letter for the reason `throttleDown` documents: no modifier a
   // browser can intercept.
   toggleMute: ['KeyQ'],
+  // Plan 17. `Tab` for the radar range: free (not one of the letters/codes
+  // any other binding claims), and its browser default -- shifting page
+  // focus -- has nothing here to usefully land on, so `preventDefault` in
+  // main.ts costs nothing. Edge-triggered like every other panel toggle.
+  toggleRadarRange: ['Tab'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS

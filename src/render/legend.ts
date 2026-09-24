@@ -52,6 +52,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Mute', bindings: ['toggleMute'] },
   { label: 'Controls', bindings: ['toggleLegend'] },
   { label: 'Navigation chart', bindings: ['toggleMissionMap'] },
+  { label: 'Radar range', bindings: ['toggleRadarRange'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
   { label: 'Pause', bindings: ['pause'] },
 ]
@@ -80,6 +81,15 @@ const NAMED: Readonly<Record<string, string>> = {
   Backquote: '`',
   Space: 'Space bar',
   Escape: 'Esc',
+  // Plan 17. `KeyboardEvent.code` for this key already IS 'Tab', so the
+  // fallthrough `return code` at the bottom of `keyLabel` would print it
+  // correctly by coincidence -- but `legend.test.ts`'s "never shows a bound
+  // key as its raw DOM code" sweep can't tell coincidence from the `Slash`
+  // bug it exists to catch, and fails on the identity either way. An
+  // explicit NAMED entry (worded like `Space` above, not left bare) satisfies
+  // both: still the keycap's own word, but reached through the same mapping
+  // every other multi-character key goes through, not the fallthrough.
+  Tab: 'Tab key',
   // The keypad's operator keys: the generic `Numpad` rule below would print
   // "Num Add", which is not what is on the keycap.
   NumpadAdd: 'Num +',

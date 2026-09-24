@@ -10,6 +10,7 @@ import type { PaddlesCue } from '../sim/paddles.js'
 import type { CombatDiagnostics } from './combatReadout.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import type { CloudTierName } from './scene/clouds.js'
+import type { RadarContact, RadarRangeMi } from './radar.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -269,6 +270,10 @@ export type Ww2Diagnostics = {
    *  count (Plan 6), from `World.combat` -- `combatDiagnosticsFor` in
    *  combatReadout.ts. `null` before the first frame exists. */
   readonly combat: () => CombatDiagnostics | null
+  /** The radar scope's live state (Plan 17): the currently selected range,
+   *  the sweep's current angle, and every contact it is showing. `null`
+   *  before the first frame exists, the same guard `impact`/`combat` use. */
+  readonly radar: () => { readonly rangeMi: RadarRangeMi; readonly sweepRad: number; readonly contacts: readonly RadarContact[] } | null
   /** The cloud deck in force and its tier (Plan 16a); `off` under the DEV
    *  `?cloudTier=off`, `steps` the cumulus march count at that tier. */
   readonly clouds: () => {

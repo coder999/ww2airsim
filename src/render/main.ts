@@ -31,6 +31,7 @@ import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } f
 import { createEngineSmoke } from './scene/smoke.js'
 import { createOrdnance, nextOrdnanceImpacts, NO_ORDNANCE_MEMORY, type OrdnanceMemory } from './ordnance.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
+import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
 import { BINDINGS } from '../input/bindings.js'
 import {
   airframeVisibilityFor,
@@ -170,6 +171,12 @@ async function boot(): Promise<void> {
   // every frame. Apparent solar time.
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
   let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
+  // Plan 17, read by the DEV hook's `radar()` below and by Task 3's render
+  // code; assigned every frame in the render loop, the same hoist-and-
+  // reassign shape `sunState` above uses so both the loop and this closure
+  // see the latest value.
+  let radarSweepRad = 0
+  let radarContactList: readonly RadarContact[] = []
   // Plan 6b Task 9: the picker's choice, read by `buildWorld` (below) on
   // every call -- boot's own included, not only Restart's -- so it doubles
   // as "remembered across a Restart" (spec §5: "Restart rebuilds stores from
@@ -423,6 +430,9 @@ async function boot(): Promise<void> {
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
       // Plan 16c: the hour in force and where the sun is, for the specs.
       sun: () => sunState,
+      // Plan 17: the radar scope's live state, same `frame`-guard as `combat`
+      // above -- the hook is installed before the first frame exists.
+      radar: () => (frame ? { rangeMi: selectedRadarRangeMi, sweepRad: radarSweepRad, contacts: radarContactList } : null),
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
@@ -847,6 +857,11 @@ async function boot(): Promise<void> {
    */
   let postImpactOceanSeconds = 0
   let legendOpen = true
+  // Plan 17. Instrument setting, not simulation state -- same tier as
+  // `legendOpen`/`muted`, not `FrameState`: neither affects the replay or
+  // golden-trajectory contract. Defaults to the widest ring on load, like
+  // every other panel state (no persistence, design doc §5).
+  let selectedRadarRangeMi: RadarRangeMi = RADAR_RANGES_MI[0]
 
   const pressed = new Set<string>()
   // Preserve a camera tap even if keydown and keyup both fall between frames.
@@ -956,6 +971,14 @@ async function boot(): Promise<void> {
       muted = !muted
       audio.setMuted(muted)
       legend.setMuted(muted)
+    }
+    // Plan 17. Page furniture, toggled here for the same reason the legend
+    // and mute are: FrameState is the deterministic simulation state the
+    // golden trajectory and the soak replay, and a display range belongs in
+    // neither.
+    if (BINDINGS.toggleRadarRange.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      selectedRadarRangeMi = cycleRadarRange(selectedRadarRangeMi)
     }
     // Unconditional, and synchronous inside the listener: the autoplay policy
     // ties the gesture to the TASK, not to the promise chain, so awaiting
@@ -1143,6 +1166,13 @@ async function boot(): Promise<void> {
     // vector the propeller spin below already reads.
     // `current.world.wind` reaches the AIRSPEED dial and the SPD field: both
     // read the air over the wings, not the ground track (Plan 8 review).
+    // Plan 17. Frozen on pause by construction: `current.world.tick * DT +
+    // current.world.accumulatorSeconds` is the same clock `skyTimeS` below
+    // already uses for exactly this reason -- ticks do not advance while
+    // paused. Contacts come from the same `current.world.aircraft` list
+    // `aircraft()` diagnostics already reads.
+    radarSweepRad = radarSweepAngle(current.world.tick * DT + current.world.accumulatorSeconds)
+    radarContactList = radarContacts(player, current.world.aircraft, selectedRadarRangeMi)
     updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude, current.world.wind)
     audio.update(audioInputsFrom(current))
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
