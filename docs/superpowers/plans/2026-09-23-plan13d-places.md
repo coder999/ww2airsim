@@ -9,8 +9,11 @@ via Overpass and rendered with zero runtime network dependency.
 **Architecture:** `tools/scenery/build.ts` grows a second Overpass-backed
 extraction (mirroring its existing Nominatim-backed river extraction exactly)
 that writes `content/scenery/places.json`. Roads rasterize into a new second
-channel of the already-shipped river mask (`RGFormat`, still 4096², per
-Mark's 2026-09-23 decision in the land-cover design doc). Towns render as
+channel of the already-shipped river mask (`RGFormat`, raised from 4096² to
+**8192²** — a controller ruling made once the real road data's extent was
+measured, see Task 2's own "Ruling"; Mark's 2026-09-23 decision was to keep
+4096² rather than drop to 2048², and this doesn't reverse that call, it
+answers a question that call didn't anticipate). Towns render as
 deterministic hut rings reusing the airfield renderer's own building-drawing
 code, factored out to take world coordinates so it isn't airfield-local
 anymore. Dulag's placeholder buildings (already checked in as an explicit
@@ -65,15 +68,18 @@ that is the only shore that exists; there was never a second one to wait for.
 
 ## Review Focus
 
-- **The river+road mask's bounding box grows.** `createRiverMask`'s extent is
-  derived from whichever paths exist; today that's two short river segments
-  near Tacloban. The Maharlika Highway spans both coasts of Leyte, tens of
-  km — the combined bbox after Task 2 is materially larger than rivers alone,
-  which coarsens the fixed 4096² grid's texel size. Task 2 must MEASURE the
-  actual `stepX`/`stepZ` after adding roads and either confirm it still gives
-  a usable river width in texels (the shipped rivers must not visibly
-  thin or vanish) or fall back to the design's own named alternative (2048²
-  is explicitly declined as the default, but the design doc keeps it as a
+- **The river+road mask's bounding box grows — measured, not just flagged.**
+  `createRiverMask`'s extent is derived from whichever paths exist; today
+  that's two short river segments near Tacloban (~36 km × 25 km). The real,
+  name-filtered Maharlika Highway alignment spans ~137 km on its own —
+  bigger than "tens of km," confirmed directly against Task 1's real
+  output, not assumed. Task 2's default mask size is raised to 8192² (from
+  4096²) as a result — see Task 2's own "Ruling" for the full measurement
+  and reasoning; Task 2 must still confirm this actually gives a usable
+  river width in texels (the shipped rivers must not visibly thin or
+  vanish) rather than trusting the estimate, or fall back to the design's
+  own named alternative (2048² is explicitly declined as the default, but
+  the design doc keeps it as a
   recorded fallback if the combined cost doesn't fit once measured for
   real) — do not silently ship a coarsened river with no comparison.
 - **`nearRiver`'s existing test** (`tests/render/scenery.test.ts`, "places
@@ -299,6 +305,34 @@ git commit -m "Plan 13d task 1: Overpass extraction -- towns, roads, places.json
 
 ## Task 2: Roads on the river mask's second channel
 
+**Ruling (controller, overnight run, 2026-09-24, measured against Task 1's
+real output):** the combined river+road mask's extent, and therefore the
+resolution needed to keep it as fine as the shipped river-only mask, turned
+out to be a much bigger jump than the amendment commit (`1b8ecef`) that
+decided "RG at 4096², not 2048²" anticipated — that decision was weighing
+4096² against 2048² for a mask assumed to stay close to the rivers' own
+~36 km × 25 km footprint. The real Maharlika Highway alignment (see the
+`ROAD_PATHS` filter above, and its own comment) spans roughly 137 km on its
+own — Tacloban to Ormoc, which design §7 itself names as one end of the
+alignment, is ~100 km by road in reality. At 4096² over that span, texels
+land at ~34 m (worse than the 19 m a 38 m river's two-texel minimum needs,
+failing this task's own texel-size test by roughly 2×). This is a
+resolution problem, not the memory-cost problem the 2048² fallback existed
+for — per this task's own Step 4 instruction ("if the actual problem
+measured here is resolution, not memory, a larger size is the correct
+fix"), the default is raised to **8192²**, not lowered to 2048². At 8192²
+the same 137 km span gives ~17 m texels — inside the bar with room to
+spare. **Cost if wrong:** this roughly quadruples the mask's GPU memory
+versus the already-shipped 4096² single-channel version (measure the real
+delta in Task 2's own Step 4 — the design doc's own §8 "6.0 ms budget...
+re-derived with the table, never widened to pass" rule applies to GPU
+TIME, not memory footprint directly, but a much larger texture is exactly
+the kind of change Tier 2's own budget check exists to catch if it turns
+out to cost real frame time). Flag this specific number (8192² vs the
+originally-decided 4096²) for Mark's morning review — it is the one
+ruling in this plan that changes a number he explicitly chose (`1b8ecef`),
+not just a data-extraction assumption.
+
 **Files:**
 - Modify: `src/render/terrain/rivers.ts`
 - Modify: `src/render/terrain/surface.ts`
@@ -358,10 +392,24 @@ export const RIVER_PATHS = riverData.map(r => ({
   points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
 }))
 
-export const ROAD_PATHS = placesData.roads.map(r => ({
-  name: r.name, widthM: r.widthM,
-  points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
-}))
+// Task 1's Overpass query has no name filter, so `places.json` carries
+// every trunk/primary way in the whole 200 km query box -- 1,897 roads
+// spanning the box's full ~196 km, most of them minor provincial roads
+// nowhere near Leyte's coast. Rasterizing all of them would both paint
+// roads design §7 never asked for and force the mask's bounding box out to
+// the query box's own full extent. Filtered here to the one alignment §7
+// actually names ("the Maharlika Highway alignment... and the Ormoc side
+// on the west"): 290 roads, matched by name or by the `ref` fallback
+// Task 1 gives an unnamed segment (`'1'`, the AH26/N1 route number this
+// highway carries in OSM). Measured 2026-09-24: this set still spans
+// ~137 km (Tacloban to Ormoc, real road distance, is itself ~100 km) --
+// see this file's own Ruling below for what that costs in resolution.
+export const ROAD_PATHS = placesData.roads
+  .filter(r => /maharlika/i.test(r.name) || r.name === '1')
+  .map(r => ({
+    name: r.name, widthM: r.widthM,
+    points: r.coordinates.map(p => toLocal(p[1]!, p[0]!)),
+  }))
 
 function paint(
   paths: readonly { readonly widthM: number; readonly points: readonly { x: number; z: number }[] }[],
@@ -388,7 +436,7 @@ function paint(
   }
 }
 
-export function createRiverMask(size = 4096) {
+export function createRiverMask(size = 8192) {
   const allPoints = [...RIVER_PATHS, ...ROAD_PATHS].flatMap(r => r.points)
   const minX = Math.min(...allPoints.map(p => p.x)) - 256
   const minZ = Math.min(...allPoints.map(p => p.z)) - 256
@@ -455,14 +503,16 @@ whatever the river blend already contributes at the same pixel.)
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run verify; rc=$?; echo rc=$rc`
-Expected: `rc=0`. If the texel-size assertion in Step 1 fails (the combined
-extent coarsens texels past the 38 m/2 threshold), do NOT loosen the test —
-switch `createRiverMask`'s default `size` argument to a larger value first
-(the design's own fallback is dropping to 2048² for a DIFFERENT reason,
-smaller memory footprint at the cost of resolution; if the actual problem
-measured here is resolution, not memory, a larger size is the correct fix
-and keeps the resolution decision Mark actually made). Record whichever
-number ships, and why, in this task's commit message.
+Expected: `rc=0` with `createRiverMask`'s default already raised to 8192²
+per this task's own Ruling above. Confirm the texel-size assertion actually
+passes at this size against the REAL filtered `ROAD_PATHS` (don't just
+trust the Ruling's estimate — measure it for real, the same "prove it,
+don't guess" standard this repo asks everywhere else). If it still fails
+even at 8192², that means the real extent is larger than measured here and
+this needs a fresh ruling, not a further silent size bump — stop and
+report rather than guessing a third number. Record the actual measured
+`stepX`/`stepZ` and the resulting mask's raw memory size in this task's
+commit message.
 
 - [ ] **Step 5: Commit**
 
