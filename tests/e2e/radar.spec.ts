@@ -94,10 +94,22 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   // GPU-measured flake, not a hypothesis. Comparing against the analytic
   // baseline instead removes that second, independently-unstable read
   // entirely; the live pixel read this assertion still depends on --
-  // `atContact`, at the contact's own exact (bearing, range) -- keeps its
-  // full power to catch the double-flip regression, since a mirrored read
-  // would land at a DIFFERENT, unrelated bearing with no reason to clear
-  // this bearing's own expected-trail threshold.
+  // `atContact`, at the contact's own exact (bearing, range) -- catches a
+  // reintroduced double-flip in most runs, since a mirrored read lands at
+  // the reflected bearing pi - bearingRad, not the true one, and that
+  // bearing's own brightness generally differs from the true bearing's.
+  // NOT airtight, though (whole-branch review, round 2): the reflected
+  // bearing's lag from the sweep is a FIXED offset from the true bearing's
+  // own lag, so for the narrow arc of `sweepRad` where the true bearing
+  // sits near the floor (making the 1.3x threshold very low) while the
+  // reflected one sits near the sweep's peak, a mirrored read could still
+  // clear this threshold with no dot present -- a real, if narrower and
+  // differently-shaped, residual gap from the one this redesign closed.
+  // The deterministic backstop against this whole bug class either way is
+  // `tests/render/radarScope.test.ts`'s headless, GPU-free orientation
+  // invariants on `scopeTexelFor` -- pure math, unaffected by sweep timing,
+  // and the ledger records why a live-pixel Tier 2 check exists alongside
+  // it anyway (proving the whole pipeline, not just the placement math).
   const displacementFromDoubleFlip = 2 * Math.abs(Math.cos(contact.bearingRad)) * (contact.rangeMi / paused.rangeMi)
   expect(
     displacementFromDoubleFlip,
