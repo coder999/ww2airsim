@@ -6,11 +6,11 @@ import { COVERAGE_TABLE_SIZE, coverageThresholds, createCloudField, CUMULUS_SIGM
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { WEATHER_SIZE } from '../../src/render/sky/noise.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
-const noise = { shape: loadShape(), detail: loadDetail(), weather: loadWeather() }
+const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather() }
 
 describe('cloud field (Plan 16b, extracted from the dome)', () => {
   it('holds the shipped decks sorted by base, padded to the maximum, and names the lowest cumulus', () => {
@@ -47,14 +47,14 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
     own.dispose()
   })
   it('keeps the constants the dome was tuned with', () => {
-    expect(SHAPE_TILE_M).toBe(6000)
+    expect(SHAPE_TILE_M).toBe(2560)
     expect(CUMULUS_SIGMA).toBe(0.012)
   })
   it('retiles the cumulus-only detail volume finer for the up-close view (Plan 16d)', () => {
     // DETAIL_TILE_M is sampled only in density()'s cumulus branch -- cirrus
     // never reads `detail` -- so this is the whole fix for "pixelated up
     // close," not a partial one (design §2).
-    expect(DETAIL_TILE_M).toBe(150)
+    expect(DETAIL_TILE_M).toBe(40)
   })
   it('exposes the RGBA weather map that places individual cumulus (Cloud Fidelity II 3.3)', () => {
     const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)

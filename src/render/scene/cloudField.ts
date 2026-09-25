@@ -1,10 +1,10 @@
-import { Data3DTexture, DataTexture, LinearFilter, RGBAFormat, RedFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
+import { Data3DTexture, DataTexture, LinearFilter, RGBAFormat, RGFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
 import type { Node, UniformNode, UniformArrayNode } from 'three/webgpu'
 import { Fn, If, abs, clamp, float, max, min, mix, pow, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
-import { DETAIL_SIZE, SHAPE_SIZE, WEATHER_SIZE, WEATHER_TILE_M } from '../sky/noise.js'
+import { CURL_SIZE, DETAIL_SIZE, SHAPE_SIZE, WEATHER_SIZE, WEATHER_TILE_M } from '../sky/noise.js'
 
 /**
  * The cloud FIELD: the two noise volumes, the weather map (Cloud Fidelity II
@@ -17,21 +17,17 @@ import { DETAIL_SIZE, SHAPE_SIZE, WEATHER_SIZE, WEATHER_TILE_M } from '../sky/no
  * camera.
  */
 
-/** Metres per repeat of the shape volume. Gameplay estimates (16a design
- *  §9): a 128-texel tile over 6 km is 47 m per texel. */
-export const SHAPE_TILE_M = 6000
-/** Metres per repeat of the detail volume -- cumulus-only in effect, since
- *  density() below samples `detail` only in the cumulus branch; cirrus never
- *  reads it. Retiled 400 -> 150 m (Plan 16d, design §2's "cheaper retiling
- *  option"): the erosion texel now spans ~4.7 m over the existing 32-texel
- *  volume, versus ~12.5 m before, for the "camera inside or just below the
- *  cumulus layer" case cirrus never hits. No new texture, no VRAM cost --
- *  see design §2 for why a genuinely finer volume is deferred until this is
- *  measured (Plan 16d Task 5). Kept by photoreal Task 10 on 2026-09-25 after
- *  a 150-vs-400 m capture under the Schneider erosion: 150 m gives
- *  cauliflower edges at 1 km where 400 m is smooth, with no sparkle inside
- *  the deck. */
-export const DETAIL_TILE_M = 150
+/** Metres per repeat of the shape volume: Cloud Fidelity II §3.4's packed
+ *  128³ volume spans 20 m per texel. */
+export const SHAPE_TILE_M = 2560
+/** Metres per repeat of the 64³ detail volume. It is cumulus-only: cirrus
+ *  never reads it. Cloud Fidelity II §3.4 deliberately makes this a 40 m
+ *  high-frequency erosion tile, with a curl field breaking stationary seams. */
+export const DETAIL_TILE_M = 40
+/** Curl repeats independently of both volumes and displaces only the
+ *  high-frequency detail coordinates, breaking stationary erosion seams. */
+export const CURL_TILE_M = 1280
+export const CURL_DISPLACEMENT_M = 24
 export { WEATHER_TILE_M }
 /** The lowest top a cloud can have, as a fraction of its layer's thickness:
  *  the weather map's B channel spans [WEATHER_TOP_MIN, 1] (Cloud Fidelity II
@@ -125,6 +121,7 @@ export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z:
 export type CloudField = {
   readonly shape: Data3DTexture
   readonly detail: Data3DTexture
+  readonly curl: DataTexture
   /** The cumulus weather map (Cloud Fidelity II §3.3), RGBA: coverage
    *  potential, cloud type, top height; tiled every `WEATHER_TILE_M`. */
   readonly weather: DataTexture
@@ -150,9 +147,20 @@ export type CloudField = {
 
 function volume(data: Uint8Array, size: number): Data3DTexture {
   const t = new Data3DTexture(data, size, size, size)
-  t.format = RedFormat
+  t.format = RGBAFormat
   t.type = UnsignedByteType
   t.wrapS = t.wrapT = t.wrapR = RepeatWrapping
+  t.minFilter = t.magFilter = LinearFilter
+  t.unpackAlignment = 1
+  t.needsUpdate = true
+  return t
+}
+
+function curlPlane(data: Uint8Array, size: number): DataTexture {
+  const t = new DataTexture(data, size, size)
+  t.format = RGFormat
+  t.type = UnsignedByteType
+  t.wrapS = t.wrapT = RepeatWrapping
   t.minFilter = t.magFilter = LinearFilter
   t.unpackAlignment = 1
   t.needsUpdate = true
@@ -174,6 +182,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
   const shape = volume(noise.shape, SHAPE_SIZE)
   const detail = volume(noise.detail, DETAIL_SIZE)
+  const curl = curlPlane(noise.curl, CURL_SIZE)
   const weatherMap = plane(noise.weather, WEATHER_SIZE)
   const thresholds = uniformArray(coverageThresholds(noise.weather), 'float')
 
@@ -257,7 +266,9 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
           // cumulus (1, n 5) a column with a rounded top.
           const type = wm.g
           const n = mix(mix(float(8), float(2.5), saturate(type.mul(2))), float(5), saturate(type.mul(2).sub(1)))
-          const shapeValue = stretch(texture3D(shape, warped.div(SHAPE_TILE_M)).r)
+          const shapeSample = texture3D(shape, warped.div(SHAPE_TILE_M))
+          const shapeFbm = shapeSample.g.mul(0.625).add(shapeSample.b.mul(0.25)).add(shapeSample.a.mul(0.125))
+          const shapeValue = saturate(stretch(shapeSample.r).mul(mix(float(0.82), float(1.08), shapeFbm)))
           // A flat base ramped over CLOUD_BASE_RAMP_M, a soft top.
           const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
           const covH = cellCov.mul(pow(saturate(float(1).sub(pow(max(hc, 0), n))), 0.5))
@@ -268,7 +279,10 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
             // Erosion only lowers density, so where the base shape is empty
             // the detail volume is not read at all (photoreal Task 11).
             If(body.greaterThan(0), () => {
-              const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
+              const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
+              const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
+              const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
+              const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
               // Wispy near each cloud's base, billowy above it.
               const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
               d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
@@ -286,7 +300,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
 
   const firstCumulus = sorted.find((l) => l.kind === 'cumulus')
   return {
-    shape, detail, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
+    shape, detail, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
     // A TSL `Fn` is callable but not typed as the method above; the closure
     // gives the handle a plain function type.
     density: (p, base, thickness, coverage, kind) => density(p, base, thickness, coverage, kind),
@@ -300,6 +314,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
     dispose(): void {
       shape.dispose()
       detail.dispose()
+      curl.dispose()
       weatherMap.dispose()
     },
   }
