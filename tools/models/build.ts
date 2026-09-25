@@ -21,12 +21,70 @@
  * inspection below after any future change to this script's flags.
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const INPUT = 'tools/models/cache/grumman_f4f_wildcat_airplane.glb'
 const OUTPUT = 'content/aircraft/wildcat.glb'
+
+/**
+ * The raw Sketchfab download sets `alphaMode: BLEND` on Chasis_MAT (the
+ * wheel-well/hull cover) and Cabina_MAT (the canopy) -- confirmed by reading
+ * the untouched download directly, so `optimize` above does not introduce
+ * this, only carries it through. Neither material's base-color texture has
+ * any fully- or mostly-transparent pixels (alpha only dips to ~55% over a
+ * small fraction of each texture): the signature of a baked AO/dirt mask
+ * left in the alpha channel by the artist's tool, not intended glass or
+ * cutout geometry. Three.js's GLTFLoader turns BLEND into `transparent:
+ * true, depthWrite: false` regardless of the actual opacity values, which
+ * produces a camera-angle/background-dependent see-through artifact on the
+ * hull -- reported by Mark 2026-09-24 flying against open sky. This project
+ * has no aircraft with intentionally transparent geometry today (hellcat.ts's
+ * canopy is the same opaque `dark` material as the rest of that airframe),
+ * so every material is forced OPAQUE rather than only the two known-bad
+ * ones, catching the same defect in a future re-export under different
+ * material names.
+ *
+ * Implemented as a direct .glb binary patch rather than pulling in
+ * `@gltf-transform/core` as a scripting dependency for one field: this
+ * project already reads this exact chunk layout at runtime (`wildcat.ts`'s
+ * own tests) and it is simpler than round-tripping a webp-textured document
+ * through a library that expects to decode image data it never needs to
+ * touch here. glTF binary layout is header(12) + JSON chunk(8-byte header +
+ * padded data) + BIN chunk(8-byte header + padded data), per the glTF 2.0
+ * spec.
+ */
+export function forceOpaqueMaterials(glbPath: string): void {
+  const buf = readFileSync(glbPath)
+  const jsonLength = buf.readUInt32LE(12)
+  const jsonChunkType = buf.readUInt32LE(16)
+  const doc = JSON.parse(buf.subarray(20, 20 + jsonLength).toString('utf8'))
+  for (const material of doc.materials ?? []) {
+    delete material.alphaMode
+    delete material.alphaCutoff
+  }
+  const newJsonBytes = Buffer.from(JSON.stringify(doc), 'utf8')
+  const pad = (4 - (newJsonBytes.length % 4)) % 4
+  const paddedJson = Buffer.concat([newJsonBytes, Buffer.alloc(pad, 0x20)])
+
+  const binChunkStart = 20 + jsonLength
+  const binChunkLength = buf.readUInt32LE(binChunkStart)
+  // Sliced including its own 8-byte chunk header, so it round-trips
+  // unchanged -- no need to read chunkType out separately.
+  const binChunk = buf.subarray(binChunkStart, binChunkStart + 8 + binChunkLength)
+
+  const header = Buffer.alloc(12)
+  header.writeUInt32LE(buf.readUInt32LE(0), 0) // magic
+  header.writeUInt32LE(buf.readUInt32LE(4), 4) // version
+  header.writeUInt32LE(12 + 8 + paddedJson.length + binChunk.length, 8) // total length
+
+  const jsonChunkHeader = Buffer.alloc(8)
+  jsonChunkHeader.writeUInt32LE(paddedJson.length, 0)
+  jsonChunkHeader.writeUInt32LE(jsonChunkType, 4)
+
+  writeFileSync(glbPath, Buffer.concat([header, jsonChunkHeader, paddedJson, binChunk]))
+}
 
 export function buildWildcatModel(): void {
   if (!existsSync(INPUT)) {
@@ -47,6 +105,7 @@ export function buildWildcatModel(): void {
       '--compress', 'false'],
     { stdio: 'inherit' },
   )
+  forceOpaqueMaterials(OUTPUT)
 }
 
 // Matches tools/terrain/build.ts's own entrypoint guard exactly (fileURLToPath

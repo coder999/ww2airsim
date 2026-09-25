@@ -147,7 +147,10 @@ describe('the built artifact', () => {
       // and cover.bin.gz below are pinned exactly rather than with `> 0`: a
       // truncated copy is a 200 that GLTFLoader then fails to parse in the
       // browser, the same failure screen by a slower route.
-      expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(5_573_356)
+      // Updated 2026-09-24 (hull-transparency fix): forceOpaqueMaterials
+      // strips the two bogus alphaMode:BLEND fields, shrinking the JSON
+      // chunk by 40 bytes.
+      expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(5_573_316)
 
       // The title art (2026-09-19). Shipped as supplied, never re-encoded:
       // a byte count that moves means something re-encoded a committed

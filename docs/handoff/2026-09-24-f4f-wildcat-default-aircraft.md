@@ -18,14 +18,15 @@ before this handoff was written.
 
 - `tools/models/build.ts` (`npm run models:build`) compresses the 73.9 MB raw
   Sketchfab download (CC-BY 4.0, rojatsu; cached locally, gitignored, never
-  committed) into `content/aircraft/wildcat.glb`, a committed 5,573,356-byte
+  committed) into `content/aircraft/wildcat.glb`, a committed 5,573,316-byte
   (~5.3 MB) asset — WebP-recompressed 1024px textures, geometry and animation
   untouched. `--compress false` is load-bearing: `@gltf-transform/cli`
   defaults to meshopt geometry/animation compression, which this project has
   no decoder for and which made the first build unloadable at runtime
   (`20bcaa4`) despite passing every other check. `tests/tools/modelsBuild.test.ts`
   guards the file size, the three named nodes (`Helice`, `GRP_Rueda_Der`,
-  `GRP_Rueda_Izq`) and the absence of `EXT_meshopt_compression`.
+  `GRP_Rueda_Izq`), the absence of `EXT_meshopt_compression`, and (added in
+  the post-handoff fix below) the absence of any `alphaMode: BLEND` material.
 - `src/render/scene/wildcat.ts` is the new render module: async glTF load,
   a basis correction (model's native +Z nose onto sim +X forward) and a
   15.658 m → 13.06 m wingspan scale correction, plus gear animation driven by
@@ -82,6 +83,45 @@ before this handoff was written.
   reasoning ledger is gone. Worth a convention note: for worktree-executed
   plans, either commit the ledger's key rulings into the plan doc directly,
   or copy it out before the worktree is retired.
+
+## Post-handoff fix: hull transparency against the sky
+
+Mark reported (2026-09-24, after flying this build): part of the hull looked
+transparent while airborne, seeming to start when the aircraft crossed the
+horizon. Root-caused with `superpowers:systematic-debugging` rather than
+guessed at: `content/aircraft/wildcat.glb`'s `Chasis_MAT` (the wheel-well/hull
+cover, mesh `Cubierta_ruedas_Chasis_MAT_0`) and `Cabina_MAT` (the canopy) both
+carry `alphaMode: BLEND` -- confirmed present, unmodified, in the untouched
+raw Sketchfab download itself (`content/models/grumman_f4f_wildcat_airplane.glb`,
+left over from the candidate-research pass), so Task 1's build never
+introduced it. Neither material's base-color texture has any fully- or
+mostly-transparent pixels: alpha only dips to ~55% over roughly 3-18% of each
+texture's area, the signature of a baked AO/dirt mask sitting in the alpha
+channel by accident, not intended glass or a cutout. Three.js's GLTFLoader
+turns `BLEND` into `transparent: true, depthWrite: false` regardless of the
+actual opacity values, and confirmed live via a temporary scene-graph dump
+(`page.evaluate` against a debug-only hook, added and reverted, never
+committed) before the fix and again after: `transparent`/`depthWrite` flipped
+from `true`/`false` to `false`/`true` on both materials, with no other
+material affected.
+
+Fixed in `tools/models/build.ts`'s new `forceOpaqueMaterials`, run as
+`buildWildcatModel`'s last step: a direct `.glb` binary patch (JSON chunk
+re-serialized with every material's `alphaMode`/`alphaCutoff` deleted,
+re-padded, header lengths recomputed) rather than pulling in
+`@gltf-transform/core` as a scripting dependency for one field. Every
+material is forced opaque, not just the two known-bad ones, since this
+project has no aircraft with intentionally transparent geometry today
+(`hellcat.ts`'s canopy is the same opaque `dark` material as the rest of that
+airframe) — a future re-export under different material names hits the same
+guard. `tests/tools/modelsBuild.test.ts` gained a regression test (written
+first, confirmed failing against the pre-fix committed asset, then fixed);
+`tests/build/dist.test.ts`'s exact byte-size pin dropped by 40 bytes (the two
+now-absent `"alphaMode":"BLEND"` strings). Re-ran `tests/e2e/wildcat.spec.ts`
+against the real GPU harness after the fix: still 1/1, no regressions. Full
+`npm run verify` afterward: `rc=0`, all 144 test files, 1,521/1,522 passed
+(one pre-existing unrelated skip) — the flaky `gunzip.test.ts` timeout seen
+during the original Task 8 run did not recur.
 
 ## Tier 1 evidence
 
