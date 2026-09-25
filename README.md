@@ -474,7 +474,28 @@ loopback dev server visible to the desktop; if the LAN path is ever
 unavailable, that reverse tunnel plus plain `npm run dev` is still the
 fallback, with `PW_BASE_URL` left unset. An isolated worktree on another port
 needs `PW_BASE_URL=http://localhost:5183` and the reverse tunnel, since only
-5173 is routed.
+5173 is routed — unless it uses one of the two dedicated slots below, which
+route the same real-HTTPS way `ww2airsim.windomlane.org` does and need no
+reverse tunnel at all.
+
+**Two more slots exist for running a second and third dev server in
+parallel** — e.g. two worktrees each mid-plan, both needing the reference
+GPU at once. `ww2airsim-wt.windomlane.org` routes to port 5174,
+`ww2airsim-2.windomlane.org` to port 5175; both are real A records +
+Traefik routes, wired exactly like the main hostname above (LAN goes
+straight to nexus with a cert, off-LAN goes through the Cloudflare tunnel
+and Access). To use one from a worktree: edit that worktree's own
+`vite.config.ts` — change `TUNNEL_HOST` to the slot's hostname and
+`server.port` to match — then run `WW2AIRSIM_TUNNEL=1 npx vite --port 5174`
+(or `5175`) from the worktree. That edit is local scratch, not something to
+commit: `vite.config.ts` on `main` stays pointed at the primary hostname and
+port 5173, and each worktree that wants a slot points its own uncommitted
+copy at it for as long as it needs the GPU. Whichever worktree is using a
+slot should say so if asked, since only one dev server can bind a given port
+at a time; there's no reservation system beyond that. Both routes are
+persistent, reusable infrastructure, not scoped to whichever plan first
+needed them — see `vps-local/shared/traefik/dynamic/ww2airsim-worktree-dev.yml`
+and `ww2airsim-2-dev.yml` for the full wiring and history.
 
 The one thing this cannot do for itself: **the `playwright run-server` it
 connects to must already be running in the Windows console session** (started
