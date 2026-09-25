@@ -841,7 +841,15 @@ name. The candidates folder stays a staging area, not a build input.
   photoreal session. §10 bounds the region each lane may touch, and every
   commit on `main` re-diffs against `HEAD`.
 
-## Open for Mark
+## Decisions (Mark, 2026-09-25)
+
+**Spec approved by Mark 2026-09-25 with every recommendation below accepted
+as written.** The items are kept verbatim as the record of what was decided.
+Execution runs in the combined **Models track** (one plan, one executor at a
+time), in the order Z1 -> H1 (Hangar) -> S1 -> Z3 -> H2 -> S2 -> H3; the
+Zero's flight model and guns (Z2) run in the separate combat track after the
+gunnery fix.
+
 
 1. **Which Zero flies: an A6M2 or an A6M5?** The mesh is an A6M2, and the best
    US primary data (the Akutan Zero, 1942) is for the A6M2. But by October
