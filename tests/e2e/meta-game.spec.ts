@@ -58,10 +58,11 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Meta Acceptance Pilot')
   await title.getByRole('button', { name: 'Add' }).click()
+  await title.getByRole('button', { name: 'New game' }).click()
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
 
   // First in-place switch: boot's own default (free-flight, never shown)
@@ -212,6 +213,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   // from `localStorage` by `show()` -- not a fresh, zeroed entry.
   await expect(reshownTitle.getByRole('button', { name: /Meta Acceptance Pilot — ENS — 500/ })).toBeVisible()
   await reshownTitle.getByRole('button', { name: /Meta Acceptance Pilot/ }).click()
+  await reshownTitle.getByRole('button', { name: 'New game' }).click()
 
   // -- Second in-session switch: gunnery-range -> pursuit-range ("Air
   // Combat" here, `SCENARIO_OPTIONS`), without a page navigation.
@@ -219,7 +221,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
   await expect(reshownScenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
   await reshownScenarioGroup.getByRole('radio', { name: 'Air Combat' }).check()
-  await reshownTitle.getByRole('button', { name: 'New game' }).click()
+  await reshownTitle.getByRole('button', { name: 'Launch' }).click()
   await expect(reshownTitle).toBeHidden()
 
   await waitForScenario(page, 'pursuit-range')

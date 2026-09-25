@@ -30,13 +30,15 @@ test('picking a different scenario swaps entities in place, with no navigation',
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Scenario Swap Test')
   await title.getByRole('button', { name: 'Add' }).click()
+  // Form 1 -> Form 2 (Sortie Orders): the mission rows live on Form 2.
+  await title.getByRole('button', { name: 'New game' }).click()
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
   await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeVisible()
 
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
 
   // No reload: the title hides immediately and the URL never carries
   // `?scenario=`, unlike the pre-Task-7 navigation this replaces.
@@ -76,9 +78,11 @@ test('picking the already-loaded scenario also stays in place (the same code pat
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Same Scenario Test')
   await title.getByRole('button', { name: 'Add' }).click()
+  // Form 1 -> Form 2 (Sortie Orders): the mission rows live on Form 2.
+  await title.getByRole('button', { name: 'New game' }).click()
 
   // Free Flight is already checked (the production default).
-  await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
   // This branch never calls `loadScenario` (main.ts: `scenarioId ===
   // requestedScenarioId` skips straight to a synchronous `rebuildFrame`), so
@@ -126,11 +130,13 @@ test('return to title after an in-place scenario switch preselects the scenario 
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Regression Test')
   await title.getByRole('button', { name: 'Add' }).click()
+  // Form 1 -> Form 2 (Sortie Orders): the mission rows live on Form 2.
+  await title.getByRole('button', { name: 'New game' }).click()
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
 
   // `waitForScenario`, not a `groundHeightM()` poll: see that helper's doc
@@ -163,6 +169,7 @@ test('return to title after an in-place scenario switch preselects the scenario 
   // trip (`saveRoster`, roster.ts) is what makes the SAME pilot pickable
   // here rather than needing another "New pilot" round trip.
   await reshownTitle.getByRole('button', { name: /Regression Test/ }).click()
+  await reshownTitle.getByRole('button', { name: 'New game' }).click()
   const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
   // The fix: Gunnery Range, what is ACTUALLY loaded -- not Free Flight, what
   // this boot started with (the bug).

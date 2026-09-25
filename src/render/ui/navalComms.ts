@@ -60,3 +60,53 @@ export function ensureStampFilter(): void {
   // happened to be first is torn down and rebuilt on every `show()`.
   document.body.appendChild(svg)
 }
+
+/**
+ * One `.ballot-option`, carrying the prototype's own accessibility contract:
+ * `role="radio"` + `aria-checked` + `tabindex="0"` + Enter/Space activation
+ * (naval-comms spec §3). Ported as a listener pair rather than as the
+ * prototype's page-wide inline `<script>` sweep, matching how every other
+ * control in `titleScreen.ts` wires itself up. Shared by Settings and the
+ * title screen's Sortie Orders form (Mission and Armament rows).
+ *
+ * Enter is swallowed (`stopPropagation`) for the same reason
+ * `titleScreen.ts`'s new-pilot field swallows it: that file has a `window`
+ * keydown listener that advances or launches on Enter, and a bubbled Enter
+ * from a ballot would do that instead of just picking the row.
+ */
+export function ballotOption(label: string, note: string, onActivate: () => void): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'ballot-option'
+  el.setAttribute('role', 'radio')
+  el.setAttribute('aria-checked', 'false')
+  el.tabIndex = 0
+
+  const box = document.createElement('span')
+  box.className = 'ballot-box'
+  const text = document.createElement('span')
+  text.className = 'ballot-label'
+  text.textContent = label
+  el.append(box, text)
+  if (note !== '') {
+    const noteEl = document.createElement('span')
+    noteEl.className = 'ballot-note'
+    noteEl.textContent = note
+    el.appendChild(noteEl)
+  }
+
+  el.addEventListener('click', onActivate)
+  el.addEventListener('keydown', (e) => {
+    if (e.code !== 'Enter' && e.code !== 'NumpadEnter' && e.code !== 'Space') return
+    e.preventDefault()
+    e.stopPropagation()
+    onActivate()
+  })
+  return el
+}
+
+export function radioGroup(ariaLabel: string): HTMLDivElement {
+  const group = document.createElement('div')
+  group.setAttribute('role', 'radiogroup')
+  group.setAttribute('aria-label', ariaLabel)
+  return group
+}

@@ -1,4 +1,4 @@
-import { ensureStampFilter } from './ui/navalComms.js'
+import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
@@ -13,6 +13,12 @@ import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, t
  * the ocean and the terrain load behind it; `main.ts` holds the world while
  * `up()` is true, exactly as it does for the open navigation chart.
  *
+ * The screen is two sequential memo forms in the Naval Communications style
+ * (`ui/naval-comms.css`), with a small administrative memo (About project,
+ * Settings) under both: Form 1 of 2 picks or enlists a pilot, and New game
+ * moves to Form 2 of 2, where the mission and armament are chosen and Launch
+ * starts the flight; Back returns to Form 1 with the pilot still selected.
+ *
  * `show()` rebuilds the overlay from scratch rather than trying to reuse DOM
  * nodes an earlier `hide()` already removed -- simpler and safer -- and
  * re-reads `loadRoster()` on every call, so a score just banked by the
@@ -20,9 +26,15 @@ import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, t
  */
 export type TitleModel = {
   readonly newGame: string
+  /** Form 2's button that starts the flight. `New game` only advances to Form 2. */
+  readonly launch: string
+  /** Form 2's way back to Form 1. */
+  readonly back: string
   readonly about: string
   readonly settings: string
   readonly close: string
+  readonly aboutKicker: string
+  readonly aboutTitle: string
   readonly aboutParagraphs: readonly string[]
   readonly credits: string
   readonly licence: string
@@ -32,9 +44,13 @@ export type TitleModel = {
 export function titleModel(): TitleModel {
   return {
     newGame: 'New game',
+    launch: 'Launch',
+    back: 'Back',
     about: 'About project',
     settings: 'Settings',
     close: 'Close',
+    aboutKicker: 'Project Office',
+    aboutTitle: 'Project Information',
     aboutParagraphs: [
       'A WWII Pacific air combat simulator that runs in the browser. Fly an F6F ' +
         'Hellcat from carrier and land bases over a geographically real Leyte Gulf.',
@@ -50,6 +66,15 @@ export function titleModel(): TitleModel {
     repository: 'https://github.com/coder999/ww2airsim',
   }
 }
+
+/**
+ * The letterhead text of the two sequential forms. Numbered "of 2" so the
+ * player can see there is a second form before pressing New game.
+ */
+export const TITLE_FORMS = {
+  roster: { kicker: 'Bureau of Naval Personnel', title: 'Squadron Roster', number: 'Form 1 of 2' },
+  orders: { kicker: 'Flight Operations', title: 'Sortie Orders', number: 'Form 2 of 2' },
+} as const
 
 /**
  * The loadout picker's options (spec §1: "clean, bombs, rockets, both
@@ -124,6 +149,11 @@ export function selectedPilotLabel(pilot: PilotRecord): string {
   return `Flying as ${pilot.name} (${pilot.rank.name})`
 }
 
+/** The pilot as named in Form 2's routing block: rank abbreviation, then name. */
+export function sortiePilotLabel(pilot: PilotRecord): string {
+  return `${pilot.rank.abbrev} ${pilot.name}`
+}
+
 /**
  * Whether `name` is acceptable to pass to `createPilot` (roster.ts) -- the
  * same non-empty-after-trim rule `createPilot` itself enforces, duplicated
@@ -171,15 +201,10 @@ export type TitleScreenHandle = {
   show(currentScenarioId: string): void
 }
 
-const BUTTON_STYLE =
-  'padding:10px 22px;border:1px solid #2b3440;border-radius:4px;background:rgba(236,239,243,.94);' +
-  'color:#151b22;font:14px ui-monospace,Menlo,monospace;letter-spacing:.08em;cursor:pointer'
-
 // The roster step's own tokens (Task 7 restyle, naval-comms spec §3) --
 // design-system colors/fonts via the `var(--...)` custom properties
 // `naval-comms.css` declares on `:root` (available anywhere in the document,
-// not just under `.naval-comms`), not the `#eceff3`-on-dark palette the rest
-// of this screen (title art overlay, About panel) still uses.
+// not just under `.naval-comms`).
 const FLYING_AS_STYLE =
   'margin:14px 0 4px;min-height:1.4em;color:var(--ink-faint);font:12px var(--font-body);letter-spacing:.04em'
 const NEW_PILOT_ERROR_STYLE =
@@ -190,6 +215,74 @@ const NEW_PILOT_ERROR_STYLE =
 // section's own comment below).
 const ROW_SELECT_BUTTON_STYLE =
   'all:unset;display:block;width:100%;cursor:pointer;font:inherit;color:inherit;padding:2px 0'
+
+/**
+ * One memo panel: a `.naval-comms` wrapper around a `.sheet`.
+ *
+ * `.naval-comms`'s page-furniture rules (`naval-comms.css`'s own comment:
+ * 40px padding and a centered flex column with a 28px gap) are meant for a
+ * screen that IS the whole page -- these panels are sections of the title
+ * screen's own flex column, over the title art. Overridden the same way
+ * `settings.ts` overrides `position`/`background` for ITS layout:
+ * `display:block` neutralizes `flex-direction`/`align-items`/`gap` (inert once
+ * the container isn't a flex box), and `padding`/`background` are reset
+ * directly so this reads as a full-width paper sheet against the art, not a
+ * padded dark box inside a dark box.
+ */
+function memoPanel(): { readonly panel: HTMLDivElement; readonly sheet: HTMLDivElement } {
+  const panel = document.createElement('div')
+  panel.className = 'naval-comms'
+  panel.style.cssText = 'display:block;padding:0;background:transparent;width:min(900px,92vw);margin-bottom:2vh;flex:none'
+  const sheet = document.createElement('div')
+  sheet.className = 'sheet'
+  panel.appendChild(sheet)
+  return { panel, sheet }
+}
+
+/** A `.letterhead`: kicker over title, with an optional form number at the right. */
+function letterhead(kicker: string, title: string, number?: string): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'letterhead'
+  const text = document.createElement('div')
+  text.className = 'letterhead-text'
+  const kickerEl = document.createElement('div')
+  kickerEl.className = 'letterhead-kicker'
+  kickerEl.textContent = kicker
+  const titleEl = document.createElement('div')
+  titleEl.className = 'letterhead-title'
+  titleEl.textContent = title
+  text.append(kickerEl, titleEl)
+  el.appendChild(text)
+  if (number !== undefined) {
+    const numberEl = document.createElement('div')
+    numberEl.className = 'form-number'
+    numberEl.textContent = number
+    el.appendChild(numberEl)
+  }
+  return el
+}
+
+function sectionTitle(text: string): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'form-section-title'
+  el.textContent = text
+  return el
+}
+
+function inkButton(text: string, primary = false): HTMLButtonElement {
+  const el = document.createElement('button')
+  el.className = primary ? 'ink-button ink-button--primary' : 'ink-button'
+  el.textContent = text
+  return el
+}
+
+function buttonRow(...buttons: HTMLButtonElement[]): HTMLDivElement {
+  const row = document.createElement('div')
+  row.className = 'button-row'
+  row.style.justifyContent = 'flex-end'
+  row.append(...buttons)
+  return row
+}
 
 export function createTitleScreen(
   root: HTMLElement,
@@ -237,27 +330,23 @@ export function createTitleScreen(
   // Rebuilds the whole overlay from nothing -- both the initial build below
   // and `show()` (TitleScreenHandle) run this same path, so there is exactly
   // one place the DOM gets constructed rather than an initial build and a
-  // second, easily-diverging copy for the return trip.
+  // second, easily-diverging copy for the return trip. Always lands on
+  // Form 1, so a return-to-title starts from the roster with the selection
+  // cleared, as it always has.
   const build = (): void => {
     hide()
+    // Only the forms scroll (`stage`); the overlay itself does not, so the
+    // About and Settings dialogs (`position:absolute;inset:0`) always cover
+    // the whole viewport and the administrative memo stays on screen.
     const overlay = document.createElement('div')
     overlay.dataset.ww2Title = ''
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
     overlay.setAttribute('aria-label', 'Title')
     overlay.style.cssText =
-      'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;' +
+      'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;overflow:hidden;' +
       `background:#0b0d10 url(${TITLE_ART_URL}) center/cover no-repeat;z-index:20`
 
-    // The roster step (design §3; restyled Task 7 into the Naval
-    // Communications system -- naval-comms spec §3: letterhead, a ruled
-    // `.form-table`, `.row-selected`). Every pilot `loadRoster()` returns,
-    // plus a "New pilot" entry -- read fresh on every `build()` call so a
-    // score just banked by the debrief that preceded this `show()` is what
-    // the roster shows. Native `<button>` per selectable row, same reason
-    // the scenario/loadout rows below lean on native controls rather than a
-    // click handler on a styled `<div>`: free keyboard support.
-    //
     // `ensureStampFilter()` runs before anything below can render the
     // corner "Confidential" `.stamp` -- see that function's own doc comment
     // (navalComms.ts): without the filter element Chromium silently paints an
@@ -268,48 +357,34 @@ export function createTitleScreen(
     let selectedPilotId: string | null = null
     const pilotRows = new Map<string, { row: HTMLTableRowElement; selectButton: HTMLButtonElement }>()
 
-    // `.naval-comms`'s page-furniture rules (`naval-comms.css`'s own comment:
-    // 40px padding and a centered flex column with a 28px gap) are meant for
-    // a screen that IS the whole page -- this
-    // panel is one section of the title screen's own flex column, alongside
-    // the scenario/loadout pickers and the New game/About/Settings row built
-    // below, over the title art. Overridden here the same way `settings.ts`
-    // overrides `position`/`background` for ITS layout: `display:block`
-    // neutralizes `flex-direction`/`align-items`/`gap` (inert once the
-    // container isn't a flex box), and `padding`/`background` are reset
-    // directly so this reads as a full-width paper sheet against the art,
-    // not a padded dark box inside a dark box.
-    const rosterPanel = document.createElement('div')
-    rosterPanel.className = 'naval-comms'
-    rosterPanel.style.cssText =
-      'display:block;padding:0;background:transparent;width:min(900px,92vw);margin-bottom:1.5vh'
+    // The two forms sit in a scroll region whose first child's `margin-top:
+    // auto` bottom-aligns them over the art when they are short (what
+    // `justify-content:flex-end` did before) while staying scrollable from
+    // the top when they are not -- `flex-end` would clip the top unreachably.
+    const stage = document.createElement('div')
+    stage.style.cssText =
+      'flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;' +
+      'align-items:center;padding-top:16px'
+    overlay.appendChild(stage)
 
-    const sheet = document.createElement('div')
-    sheet.className = 'sheet'
+    // ============ Form 1 of 2: the roster (design §3) ============
+    // Every pilot `loadRoster()` returns, plus a "New pilot" entry -- read
+    // fresh on every `build()` call so a score just banked by the debrief
+    // that preceded this `show()` is what the roster shows. Native `<button>`
+    // per selectable row: free keyboard support.
+    const roster = memoPanel()
+    roster.panel.style.marginTop = 'auto'
+    const rosterSheet = roster.sheet
 
     const confidentialStamp = document.createElement('div')
     confidentialStamp.className = 'stamp stamp--violet stamp--sm stamp--rotate-2 stamp-corner'
     confidentialStamp.textContent = 'Confidential'
-    sheet.appendChild(confidentialStamp)
-
-    const letterhead = document.createElement('div')
-    letterhead.className = 'letterhead'
-    const letterheadText = document.createElement('div')
-    letterheadText.className = 'letterhead-text'
-    const letterheadKicker = document.createElement('div')
-    letterheadKicker.className = 'letterhead-kicker'
-    letterheadKicker.textContent = 'Bureau of Naval Personnel'
-    const letterheadTitle = document.createElement('div')
-    letterheadTitle.className = 'letterhead-title'
-    letterheadTitle.textContent = 'Squadron Roster'
-    letterheadText.append(letterheadKicker, letterheadTitle)
-    letterhead.appendChild(letterheadText)
-    sheet.appendChild(letterhead)
+    rosterSheet.appendChild(confidentialStamp)
+    rosterSheet.appendChild(letterhead(TITLE_FORMS.roster.kicker, TITLE_FORMS.roster.title, TITLE_FORMS.roster.number))
 
     // The pilot list itself, scrolled independently of the letterhead/enlist
-    // form around it -- the same 22vh-ish scroll budget the previous button
-    // list gave a long roster, just confined to the table body this time so
-    // the form below stays reachable without scrolling past every pilot.
+    // form around it -- confined to the table body so the form below stays
+    // reachable without scrolling past every pilot.
     const tableScroll = document.createElement('div')
     tableScroll.style.cssText = 'max-height:32vh;overflow-y:auto'
     const table = document.createElement('table')
@@ -325,127 +400,172 @@ export function createTitleScreen(
     const tbody = document.createElement('tbody')
     table.append(thead, tbody)
     tableScroll.appendChild(table)
-    sheet.appendChild(tableScroll)
+    rosterSheet.appendChild(tableScroll)
 
     const flyingAs = document.createElement('p')
     flyingAs.style.cssText = FLYING_AS_STYLE
-    sheet.appendChild(flyingAs)
+    rosterSheet.appendChild(flyingAs)
 
-    rosterPanel.appendChild(sheet)
-    overlay.appendChild(rosterPanel)
+    stage.appendChild(roster.panel)
 
-    // The scenario picker: same native-radio pattern as the loadout picker
-    // below and for the same reason (free keyboard group navigation). Picking
-    // one and pressing New game navigates to `?scenario=<id>` (main.ts's
-    // `onNewGame`) rather than changing anything in this file -- this row
-    // only reports which value was checked. Hidden until a pilot is picked
-    // (design §3: "selecting a pilot reveals today's scenario/loadout
-    // pickers underneath").
-    const scenarioRow = document.createElement('div')
-    scenarioRow.setAttribute('role', 'radiogroup')
-    scenarioRow.setAttribute('aria-label', 'Scenario')
-    scenarioRow.style.cssText =
-      'display:none;gap:16px;margin-bottom:2vh;color:#eceff3;font:13px ui-monospace,Menlo,monospace;' +
-      'letter-spacing:.04em'
-    const scenarioInputs = SCENARIO_OPTIONS.map((option) => {
-      const label = document.createElement('label')
-      label.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer'
-      const input = document.createElement('input')
-      input.type = 'radio'
-      input.name = 'scenario'
-      input.value = option.value
-      input.checked = option.value === currentScenarioId
-      label.append(input, option.label)
-      scenarioRow.appendChild(label)
-      return input
-    })
-    overlay.appendChild(scenarioRow)
+    // ============ Form 2 of 2: sortie orders ============
+    // Mission (scenario) and Armament (loadout): the same choices the two
+    // native-radio rows made before, now `.ballot-option` rows shared with
+    // Settings. `role="radiogroup"` and the group labels are unchanged, and
+    // `role="radio"` + `aria-checked` is what `getByRole('radio').check()`
+    // in the e2e specs keys on. Hidden until New game advances to it.
+    const orders = memoPanel()
+    orders.panel.style.display = 'none'
+    orders.panel.style.marginTop = 'auto'
+    const ordersSheet = orders.sheet
+    ordersSheet.appendChild(letterhead(TITLE_FORMS.orders.kicker, TITLE_FORMS.orders.title, TITLE_FORMS.orders.number))
 
-    // The loadout picker (spec §1), above the New game button: native radio
-    // inputs, so Tab/Shift-Tab and the arrow keys within the group work with
-    // no listener of this file's own -- the same reason the rest of the
-    // title screen leans on native `<button>` elements rather than a click
-    // handler on a styled `<div>`. Hidden until a pilot is picked, same as
-    // `scenarioRow` above.
-    const loadoutRow = document.createElement('div')
-    loadoutRow.setAttribute('role', 'radiogroup')
-    loadoutRow.setAttribute('aria-label', 'Loadout')
-    loadoutRow.style.cssText =
-      'display:none;gap:16px;margin-bottom:2vh;color:#eceff3;font:13px ui-monospace,Menlo,monospace;' +
-      'letter-spacing:.04em'
-    const loadoutInputs = LOADOUT_OPTIONS.map((option) => {
-      const label = document.createElement('label')
-      label.style.cssText = 'display:flex;align-items:center;gap:5px;cursor:pointer'
-      const input = document.createElement('input')
-      input.type = 'radio'
-      input.name = 'loadout'
-      input.value = option.value
-      input.checked = option.value === DEFAULT_LOADOUT
-      label.append(input, option.label)
-      loadoutRow.appendChild(label)
-      return input
-    })
-    overlay.appendChild(loadoutRow)
+    const routing = document.createElement('dl')
+    routing.className = 'routing'
+    const routingTerm = document.createElement('dt')
+    routingTerm.textContent = 'Pilot'
+    const routingPilot = document.createElement('dd')
+    const routingRow = document.createElement('div')
+    routingRow.append(routingTerm, routingPilot)
+    routing.appendChild(routingRow)
+    ordersSheet.appendChild(routing)
 
-    const row = document.createElement('div')
-    row.style.cssText = 'display:flex;gap:14px;margin-bottom:6vh'
-    const newGame = document.createElement('button')
-    newGame.textContent = m.newGame
-    newGame.style.cssText = BUTTON_STYLE
-    // Disabled until a pilot is selected -- `start()` also guards on
-    // `selectedPilotId` so Enter (via `onKey`) can't bypass this.
-    newGame.disabled = true
-    newGame.style.opacity = '.45'
-    const about = document.createElement('button')
-    about.textContent = m.about
-    about.style.cssText = BUTTON_STYLE
-    // Settings sits beside New game and About, NOT inside the roster/
-    // scenario/loadout flow: it is session-wide state, not part of starting a
-    // sortie, so it is reachable at every step including before a pilot is
-    // picked (render-quality-selector spec §6).
-    const settingsButton = document.createElement('button')
-    settingsButton.textContent = m.settings
-    settingsButton.style.cssText = BUTTON_STYLE
-    row.append(newGame, about, settingsButton)
-    overlay.appendChild(row)
+    // Side by side when the sheet is wide, stacked when it is not.
+    const columns = document.createElement('div')
+    columns.style.cssText =
+      'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:0 28px'
+    const missionColumn = document.createElement('div')
+    const armamentColumn = document.createElement('div')
+    columns.append(missionColumn, armamentColumn)
+    ordersSheet.appendChild(columns)
 
-    // The About panel lives inside the overlay so it can never outlive it.
+    const markGroup = <T>(options: Map<T, HTMLDivElement>, selected: T): void => {
+      for (const [value, el] of options) el.setAttribute('aria-checked', String(value === selected))
+    }
+
+    // Same total-by-construction fallback the native radio groups had:
+    // `selectedScenarioId` starts as what `main.ts` has loaded and
+    // `selectedLoadout` as `DEFAULT_LOADOUT`, so `start()` never needs a
+    // branch for "nothing picked".
+    let selectedScenarioId = currentScenarioId
+    const scenarioOptions = new Map<string, HTMLDivElement>()
+    const scenarioGroup = radioGroup('Scenario')
+    for (const option of SCENARIO_OPTIONS) {
+      const el = ballotOption(option.label, '', () => {
+        selectedScenarioId = option.value
+        markGroup(scenarioOptions, selectedScenarioId)
+      })
+      scenarioOptions.set(option.value, el)
+      scenarioGroup.appendChild(el)
+    }
+    markGroup(scenarioOptions, selectedScenarioId)
+    missionColumn.append(sectionTitle('Mission'), scenarioGroup)
+
+    let selectedLoadout: Loadout = DEFAULT_LOADOUT
+    const loadoutOptions = new Map<Loadout, HTMLDivElement>()
+    const loadoutGroup = radioGroup('Loadout')
+    for (const option of LOADOUT_OPTIONS) {
+      const el = ballotOption(option.label, '', () => {
+        selectedLoadout = option.value
+        markGroup(loadoutOptions, selectedLoadout)
+      })
+      loadoutOptions.set(option.value, el)
+      loadoutGroup.appendChild(el)
+    }
+    markGroup(loadoutOptions, selectedLoadout)
+    armamentColumn.append(sectionTitle('Armament'), loadoutGroup)
+
+    const backButton = inkButton(m.back)
+    const launchButton = inkButton(m.launch, true)
+    ordersSheet.appendChild(buttonRow(backButton, launchButton))
+    stage.appendChild(orders.panel)
+
+    // ============ Administrative memo: About / Settings ============
+    // A separate, always-visible memo under both forms. Settings sits here,
+    // NOT inside the roster/orders flow: it is session-wide state, not part of
+    // starting a sortie, so it is reachable at every step including before a
+    // pilot is picked (render-quality-selector spec §6).
+    const admin = memoPanel()
+    admin.panel.style.marginBottom = '3vh'
+    admin.sheet.style.cssText = 'padding:12px 24px'
+    const adminRow = document.createElement('div')
+    adminRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap'
+    const adminKicker = document.createElement('div')
+    adminKicker.className = 'letterhead-kicker'
+    adminKicker.textContent = 'Administration'
+    const about = inkButton(m.about)
+    const settingsButton = inkButton(m.settings)
+    const adminButtons = document.createElement('div')
+    adminButtons.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap'
+    adminButtons.append(about, settingsButton)
+    adminRow.append(adminKicker, adminButtons)
+    admin.sheet.appendChild(adminRow)
+    overlay.appendChild(admin.panel)
+
+    // ============ About memo (popup) ============
+    // Inside the overlay so it can never outlive it; dimmed the same way the
+    // Settings dialog is.
     const aboutPanel = document.createElement('div')
+    aboutPanel.className = 'naval-comms'
     aboutPanel.setAttribute('role', 'dialog')
+    aboutPanel.setAttribute('aria-modal', 'true')
     aboutPanel.setAttribute('aria-label', 'About')
     aboutPanel.style.cssText =
-      'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;max-width:560px;' +
-      'padding:18px 22px;border:1px solid #2b3440;border-radius:6px;background:#eceff3;color:#151b22;' +
-      'font:13px/1.55 ui-monospace,Menlo,monospace;box-shadow:0 12px 40px rgba(0,0,0,.55)'
+      'position:absolute;inset:0;display:none;overflow-y:auto;background:rgba(11,13,16,.82);z-index:30'
+    const aboutSheet = document.createElement('div')
+    aboutSheet.className = 'sheet'
+    aboutSheet.style.maxWidth = '640px'
+    aboutSheet.appendChild(letterhead(m.aboutKicker, m.aboutTitle, 'FORM INFO-1'))
     for (const text of m.aboutParagraphs) {
       const p = document.createElement('p')
-      p.style.cssText = 'margin:0 0 10px'
+      p.style.cssText = 'margin:0 0 10px;font-size:13px;line-height:1.55'
       p.textContent = text
-      aboutPanel.appendChild(p)
+      aboutSheet.appendChild(p)
     }
-    const credits = document.createElement('p')
-    credits.style.cssText = 'margin:0 0 4px;color:#55606b;font-size:12px'
-    credits.textContent = m.credits
-    const licence = document.createElement('p')
-    licence.style.cssText = 'margin:0 0 12px;color:#55606b;font-size:12px'
+    const aboutFinePrint = document.createElement('div')
+    aboutFinePrint.className = 'fine-print'
+    const creditsSpan = document.createElement('span')
+    creditsSpan.textContent = m.credits
+    const licenceSpan = document.createElement('span')
     const repo = document.createElement('a')
     repo.href = m.repository
     repo.target = '_blank'
     repo.rel = 'noopener'
     repo.textContent = m.repository
     repo.style.color = 'inherit'
-    licence.append(`${m.licence} `, repo)
-    const close = document.createElement('button')
-    close.textContent = m.close
-    close.style.cssText = BUTTON_STYLE
-    aboutPanel.append(credits, licence, close)
+    licenceSpan.append(`${m.licence} `, repo)
+    aboutFinePrint.append(creditsSpan, licenceSpan)
+    aboutSheet.appendChild(aboutFinePrint)
+    const close = inkButton(m.close, true)
+    aboutSheet.appendChild(buttonRow(close))
+    aboutPanel.appendChild(aboutSheet)
     overlay.appendChild(aboutPanel)
 
     // Inside the overlay, same as the About panel and for the same reason:
     // it can never outlive the screen it belongs to.
     settingsDialog = createSettingsDialog(overlay, settings)
 
+    // The New game button lives at the foot of Form 1 (see `rosterSheet`
+    // below, after the enlist form) but is declared here so `selectPilot`
+    // can enable it.
+    // Disabled until a pilot is selected -- `advance()` also guards on
+    // `selectedPilotId` so Enter (via `onKey`) can't bypass this.
+    const newGame = inkButton(m.newGame, true)
+    newGame.disabled = true
+    newGame.style.opacity = '.45'
+
     root.appendChild(overlay)
+
+    let step: 'roster' | 'orders' = 'roster'
+    const showStep = (next: 'roster' | 'orders'): void => {
+      step = next
+      roster.panel.style.display = next === 'roster' ? 'block' : 'none'
+      orders.panel.style.display = next === 'orders' ? 'block' : 'none'
+      // Whichever control the player is most likely to press next.
+      if (next === 'orders') launchButton.focus()
+      else if (selectedPilotId !== null) newGame.focus()
+      else newPilotButton.focus()
+    }
 
     const selectPilot = (pilot: PilotRecord): void => {
       selectedPilotId = pilot.id
@@ -455,8 +575,7 @@ export function createTitleScreen(
         selectButton.setAttribute('aria-pressed', String(selected))
       }
       flyingAs.textContent = selectedPilotLabel(pilot)
-      scenarioRow.style.display = 'flex'
-      loadoutRow.style.display = 'flex'
+      routingPilot.textContent = sortiePilotLabel(pilot)
       newGame.disabled = false
       newGame.style.opacity = '1'
     }
@@ -527,18 +646,12 @@ export function createTitleScreen(
     // for this control, a new composition within the design system) -- a
     // `.form-section-title` heading, a `.field-row`/`.typed-input` pair for
     // the name, and an `.ink-button` pair, all styled off `naval-comms.css`'s
-    // existing classes rather than the ad-hoc inline styles this section used
-    // before. Behavior is untouched: "New pilot" toggles to the inline form,
-    // the same button text, placeholder and confirm label `tests/e2e/
+    // existing classes. "New pilot" toggles to the inline form, the same
+    // button text, placeholder and confirm label `tests/e2e/
     // scenarioPicker.spec.ts` already selects by.
-    const enlistTitle = document.createElement('div')
-    enlistTitle.className = 'form-section-title'
-    enlistTitle.textContent = 'Enlist New Pilot'
-    sheet.appendChild(enlistTitle)
+    rosterSheet.appendChild(sectionTitle('Enlist New Pilot'))
 
-    const newPilotButton = document.createElement('button')
-    newPilotButton.className = 'ink-button'
-    newPilotButton.textContent = 'New pilot'
+    const newPilotButton = inkButton('New pilot')
 
     const newPilotForm = document.createElement('div')
     newPilotForm.style.cssText = 'display:none;flex-direction:column;gap:10px'
@@ -554,9 +667,7 @@ export function createTitleScreen(
     fieldRow.append(fieldLabel, newPilotInput)
     const confirmRow = document.createElement('div')
     confirmRow.className = 'button-row'
-    const newPilotConfirm = document.createElement('button')
-    newPilotConfirm.className = 'ink-button ink-button--primary'
-    newPilotConfirm.textContent = 'Add'
+    const newPilotConfirm = inkButton('Add', true)
     confirmRow.appendChild(newPilotConfirm)
     newPilotForm.append(fieldRow, confirmRow)
 
@@ -564,7 +675,8 @@ export function createTitleScreen(
     newPilotError.setAttribute('aria-live', 'polite')
     newPilotError.style.cssText = NEW_PILOT_ERROR_STYLE
 
-    sheet.append(newPilotButton, newPilotForm, newPilotError)
+    rosterSheet.append(newPilotButton, newPilotForm, newPilotError)
+    rosterSheet.appendChild(buttonRow(newGame))
 
     const openNewPilotForm = (): void => {
       newPilotButton.style.display = 'none'
@@ -607,58 +719,78 @@ export function createTitleScreen(
       // (enabling `newGame`) before that later phase runs -- so by the time
       // `onKey` would check `newPilotForm.style.display`, the form is
       // already hidden again and the guard no longer fires, letting Enter
-      // fall through to `start()` and launch a flight unreviewed. Cutting
-      // propagation here removes the ordering dependency entirely.
+      // fall through to `advance()` unreviewed. Cutting propagation here
+      // removes the ordering dependency entirely.
       e.stopPropagation()
       confirmNewPilot()
     })
 
+    // New game: Form 1 -> Form 2. Deliberately does NOT call `startSortie`
+    // (the resurrection below): with a Back button the player can reach Form
+    // 2 and return any number of times, and counting a resurrection on each
+    // trip would inflate it for a pilot who never flew.
+    const advance = (): void => {
+      if (selectedPilotId === null) return
+      showStep('orders')
+    }
+
+    // Launch: Form 2 -> the flight.
     const start = (): void => {
-      // Guards the disabled `newGame` button the same way for Enter (`onKey`
-      // below): no pilot selected, no flight -- `pilotId` has nothing to be.
+      // Guards Enter (`onKey` below) the same way `advance` does: no pilot
+      // selected, no flight -- `pilotId` has nothing to be.
       if (selectedPilotId === null) return
       const pilotIndex = pilots.findIndex((p) => p.id === selectedPilotId)
       if (pilotIndex === -1) return // unreachable: selectedPilotId only ever comes from `pilots`
-      // One of `loadoutInputs` is always checked -- `DEFAULT_LOADOUT` sets one
-      // at creation and a native radio group never lets the user uncheck the
-      // whole group, only move the checked mark between its members -- so the
-      // fallback below is unreachable in a browser and exists only so this
-      // reads as total rather than trusting that invariant silently.
-      const loadout = loadoutInputs.find((input) => input.checked)?.value as Loadout | undefined
-      // Same unreachable-in-a-browser fallback as `loadout` above, for the same
-      // reason: a native radio group always has exactly one checked member.
-      const scenarioId = scenarioInputs.find((input) => input.checked)?.value ?? currentScenarioId
       const pilotId = selectedPilotId
       // The resurrection (design §2): flipping a `kia` pilot back to `active`
-      // and counting the resurrection happens exactly here, the moment New
-      // game is pressed with that pilot selected -- not on selection, which
-      // would count a pilot merely looked at.
+      // and counting the resurrection happens exactly here, the moment the
+      // sortie is LAUNCHED with that pilot selected -- not on selection, and
+      // not on New game's step to Form 2, either of which would count a pilot
+      // merely looked at.
       pilots[pilotIndex] = startSortie(pilots[pilotIndex]!)
       saveRoster(pilots)
       hide()
-      onNewGame(loadout ?? DEFAULT_LOADOUT, scenarioId, pilotId)
+      onNewGame(selectedLoadout, selectedScenarioId, pilotId)
     }
-    newGame.addEventListener('click', start)
+    newGame.addEventListener('click', advance)
+    launchButton.addEventListener('click', start)
+    backButton.addEventListener('click', () => showStep('roster'))
+
+    const aboutOpen = (): boolean => aboutPanel.style.display !== 'none'
     about.addEventListener('click', () => {
-      aboutPanel.style.display = 'block'
+      aboutPanel.style.display = 'flex'
       close.focus()
     })
-    close.addEventListener('click', () => {
+    const closeAbout = (): void => {
       aboutPanel.style.display = 'none'
       about.focus()
-    })
+    }
+    close.addEventListener('click', closeAbout)
     settingsButton.addEventListener('click', () => settingsDialog?.open())
 
     onKey = (e: KeyboardEvent): void => {
+      if (e.code === 'Escape' && aboutOpen()) {
+        e.preventDefault()
+        closeAbout()
+        return
+      }
       if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return
-      if (aboutPanel.style.display !== 'none') return
+      if (aboutOpen()) return
       if (newPilotForm.style.display !== 'none') return
-      // Enter must not launch a sortie out from under the Settings dialog.
+      // Enter must not advance or launch out from under the Settings dialog.
       // Its own ballot rows already stop Enter propagating (settings.ts), but
       // Enter pressed with nothing in the dialog focused still reaches here.
       if (settingsDialog?.isOpen() === true) return
+      // A focused button activates itself natively on Enter: Back must go
+      // back and About must open, not have Enter turn into "advance". The one
+      // exception is a roster row's select button (the only button that
+      // carries `aria-pressed`): click a pilot, press Enter -- that fast path
+      // predates the two forms and is kept.
+      const target = e.target instanceof Element ? e.target.closest('button') : null
+      if (target !== null && !target.hasAttribute('aria-pressed')) return
       e.preventDefault()
-      start()
+      if (step === 'roster') advance()
+      else start()
     }
     window.addEventListener('keydown', onKey)
     isUp = true
@@ -673,8 +805,8 @@ export function createTitleScreen(
     hide,
     // Reassigns the parameter `build`'s closure already reads
     // (`currentScenarioId`, above) before rebuilding, rather than adding a
-    // second variable -- `build`'s own scenario-radio and `start()`'s
-    // fallback both close over this one binding by reference, so a
+    // second variable -- `build`'s own scenario ballot and `start()`'s
+    // selection both close over this one binding by reference, so a
     // reassignment here is exactly what the next `build()` call sees (Plan 9
     // Task 7 bugfix).
     show: (nextScenarioId: string): void => {

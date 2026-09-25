@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
-  pilotButtonLabel, selectedPilotLabel, isValidPilotName,
+  pilotButtonLabel, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
   type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
 import { creditsLine } from '../../src/render/legend.js'
 import { SCENARIO_ID } from '../../src/render/content.js'
 import { createPilot } from '../../src/render/roster.js'
 import { createSettingsModel } from '../../src/render/settings.js'
+import { ballotOption, radioGroup } from '../../src/render/ui/navalComms.js'
 
 describe('the title screen model (2026-09-19)', () => {
   it('names the two options Mark asked for, and a way back from About', () => {
@@ -205,5 +206,44 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
       expect(typeof currentScenarioId).toBe('string')
     }
     fakeShow('gunnery-range')
+  })
+})
+
+describe('the title screen as two sequential memo forms', () => {
+  // The DOM (step switching, Back, Enter) needs a `document`, which this
+  // suite's `node` environment lacks; `tests/e2e/title.spec.ts` drives it.
+  // What is pinned here is the text the two forms and the buttons that move
+  // between them are built from, the same split as every block above.
+  it('names the button that leaves form 2 for the flight, and the way back to form 1', () => {
+    const m = titleModel()
+    expect(m.newGame).toBe('New game')
+    expect(m.launch).toBe('Launch')
+    expect(m.back).toBe('Back')
+  })
+
+  it('numbers the two forms "of 2" and gives each its own letterhead', () => {
+    expect(TITLE_FORMS.roster.number).toBe('Form 1 of 2')
+    expect(TITLE_FORMS.orders.number).toBe('Form 2 of 2')
+    expect(TITLE_FORMS.roster.title).toBe('Squadron Roster')
+    expect(TITLE_FORMS.orders.title).toBe('Sortie Orders')
+    expect(TITLE_FORMS.orders.kicker).not.toBe(TITLE_FORMS.roster.kicker)
+  })
+
+  it('gives the About memo its own letterhead', () => {
+    const m = titleModel()
+    expect(m.aboutKicker).not.toBe('')
+    expect(m.aboutTitle).not.toBe('')
+  })
+
+  it('names the pilot on the orders form by rank abbreviation and name', () => {
+    const pilot = createPilot('Boyington')
+    const label = sortiePilotLabel(pilot)
+    expect(label).toContain('Boyington')
+    expect(label).toContain(pilot.rank.abbrev)
+  })
+
+  it('shares the ballot helpers with Settings from navalComms.ts, not a second copy', () => {
+    expect(typeof ballotOption).toBe('function')
+    expect(typeof radioGroup).toBe('function')
   })
 })

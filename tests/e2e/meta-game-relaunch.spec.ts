@@ -156,10 +156,11 @@ test('land, return to title, New game, land again: a second debrief shows and th
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Relaunch Test Pilot')
   await title.getByRole('button', { name: 'Add' }).click()
+  await title.getByRole('button', { name: 'New game' }).click()
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
   await waitForScenario(page, 'gunnery-range')
 
@@ -181,12 +182,13 @@ test('land, return to title, New game, land again: a second debrief shows and th
   // `localStorage`, same as `meta-game.spec.ts`'s acceptance check.
   await expect(reshownTitle.getByRole('button', { name: /Relaunch Test Pilot — ENS — 500/ })).toBeVisible()
   await reshownTitle.getByRole('button', { name: /Relaunch Test Pilot/ }).click()
+  await reshownTitle.getByRole('button', { name: 'New game' }).click()
 
   // Same scenario -- this is `onNewGame`'s SAME-scenario branch (a direct
   // `rebuildFrame()` call, not `loadScenario(...).then(rebuildFrame)`), the
   // other of the two paths through `onNewGame` the fix has to cover.
   await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  await reshownTitle.getByRole('button', { name: 'New game' }).click()
+  await reshownTitle.getByRole('button', { name: 'Launch' }).click()
   await expect(reshownTitle).toBeHidden()
 
   // The world rebuilt fresh: target-1 is alive again, not still wrecked from

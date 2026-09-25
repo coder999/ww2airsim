@@ -102,7 +102,7 @@ export async function waitForTerrain(page: Page): Promise<void> {
  * fixed, recognizable name, matching the sequence `scenarioPicker.spec.ts`'s
  * "Regression Test" case already exercised by hand before this fix existed.
  */
-export async function startGame(page: Page): Promise<void> {
+export async function startGame(page: Page, options: { readonly loadout?: string } = {}): Promise<void> {
   const title = page.getByRole('dialog', { name: 'Title' })
   const newGame = title.getByRole('button', { name: 'New game' })
   if (!(await newGame.isVisible())) return
@@ -116,7 +116,15 @@ export async function startGame(page: Page): Promise<void> {
     await title.getByRole('button', { name: 'Add' }).click()
   }
 
+  // Two sequential forms (titleScreen.ts): New game only advances from the
+  // roster to Sortie Orders, and Launch starts the flight. The mission and
+  // loadout defaults are already selected on Form 2, so a bare Launch is the
+  // production default; `loadout` picks an Armament row first.
   await newGame.click()
+  if (options.loadout !== undefined) {
+    await title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: options.loadout }).check()
+  }
+  await title.getByRole('button', { name: 'Launch' }).click()
 }
 
 /** Everything the assertions below need, in one round trip. */

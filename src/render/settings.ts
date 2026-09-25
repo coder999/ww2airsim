@@ -1,4 +1,4 @@
-import { ensureStampFilter } from './ui/navalComms.js'
+import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { INTERIM_ASSET_QUALITY_TIER } from './content.js'
 import {
   clearQualitySettings, defaultQualitySettings, loadAssetQualityTier, loadQualitySettings,
@@ -351,55 +351,6 @@ function sectionTitle(text: string): HTMLDivElement {
   el.className = 'form-section-title'
   el.textContent = text
   return el
-}
-
-/**
- * One `.ballot-option`, carrying the prototype's own accessibility contract:
- * `role="radio"` + `aria-checked` + `tabindex="0"` + Enter/Space activation
- * (naval-comms spec §3). Ported as a listener pair rather than as the
- * prototype's page-wide inline `<script>` sweep, matching how every other
- * control in `titleScreen.ts` wires itself up.
- *
- * Enter is swallowed (`stopPropagation`) for the same reason
- * `titleScreen.ts`'s new-pilot field swallows it: that file has a `window`
- * keydown listener that starts a flight on Enter, and a bubbled Enter from a
- * ballot would launch a sortie out from under an open dialog.
- */
-function ballotOption(label: string, note: string, onActivate: () => void): HTMLDivElement {
-  const el = document.createElement('div')
-  el.className = 'ballot-option'
-  el.setAttribute('role', 'radio')
-  el.setAttribute('aria-checked', 'false')
-  el.tabIndex = 0
-
-  const box = document.createElement('span')
-  box.className = 'ballot-box'
-  const text = document.createElement('span')
-  text.className = 'ballot-label'
-  text.textContent = label
-  el.append(box, text)
-  if (note !== '') {
-    const noteEl = document.createElement('span')
-    noteEl.className = 'ballot-note'
-    noteEl.textContent = note
-    el.appendChild(noteEl)
-  }
-
-  el.addEventListener('click', onActivate)
-  el.addEventListener('keydown', (e) => {
-    if (e.code !== 'Enter' && e.code !== 'NumpadEnter' && e.code !== 'Space') return
-    e.preventDefault()
-    e.stopPropagation()
-    onActivate()
-  })
-  return el
-}
-
-function radioGroup(ariaLabel: string): HTMLDivElement {
-  const group = document.createElement('div')
-  group.setAttribute('role', 'radiogroup')
-  group.setAttribute('aria-label', ariaLabel)
-  return group
 }
 
 /**
