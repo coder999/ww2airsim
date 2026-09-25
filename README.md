@@ -266,6 +266,9 @@ The full design lives in
 and remains the authoritative description of the project as a whole — read it
 for intent, and the code for what is actually built.
 
+What the player sees — scoring and ranks, the aircraft, ship and building
+rosters, the scenarios — is in [`GAMEPLAY.md`](GAMEPLAY.md).
+
 ## Ocean: trying Plan 5
 
 Run `npm run dev -- --port 5183` in the ocean worktree. Compare

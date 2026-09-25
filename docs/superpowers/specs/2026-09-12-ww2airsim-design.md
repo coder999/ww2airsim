@@ -324,7 +324,7 @@ time-of-flight; hitscan is explicitly rejected, because being forced to lead a
 crossing target is most of what makes gunnery satisfying.
 
 Bombs, rockets, and torpedoes reuse the same projectile system with different
-data. Bomb count is a pre-flight loadout choice (§8) and affects mass and drag.
+data. Bomb count is a pre-flight loadout choice (§8, now in [`GAMEPLAY.md`](../../../GAMEPLAY.md#mission-selector)) and affects mass and drag.
 
 The G4M carries defensive gunners: simple lead-and-fire within an accuracy cone.
 
@@ -363,90 +363,11 @@ energy discipline, disengagement threshold. Green versus veteran is data.
 
 ## 8. Meta-game
 
-### Scoring
-
-Points are **provisional until recovery**. This is the central risk/reward
-mechanic: kills are worth nothing until the pilot is back on a deck or runway.
-
-| Target | Points | Target | Points |
-| --- | --- | --- | --- |
-| Fighter | 500 | AAA battery | 250 |
-| Bomber | 750 | Runway | 500 |
-| Cruiser | 1500 | Building | 150 |
-| Battleship | 3000 | Carrier | 5000 |
-
-Recovery multiplier applied to the mission total:
-
-| Outcome | Multiplier |
-| --- | --- |
-| Landed at carrier or airfield | 1.0 |
-| Ditched alongside friendly ships | 0.5 |
-| Bailed out over friendly water | 0.25 |
-| Killed, or captured over enemy territory | 0.0 |
-
-### Ranks
-
-Cumulative banked score determines rank.
-
-| Rank | Abbrev | Threshold |
-| --- | --- | --- |
-| Ensign | ENS | 0 |
-| Lieutenant, junior grade | LTJG | 2,500 |
-| Lieutenant | LT | 7,500 |
-| Lieutenant Commander | LCDR | 17,500 |
-| Commander | CDR | 35,000 |
-| Captain | CAPT | 60,000 |
-| Commodore | COMO | 100,000 |
-| Rear Admiral | RADM | 150,000 |
-| Vice Admiral | VADM | 225,000 |
-| Admiral | ADM | 325,000 |
-
-Flag officers do not fly combat aircraft. The top tiers are prestige rewards,
-and the game does not pretend otherwise.
-
-**Period accuracy note.** The ladder deviates from the modern USN list it was
-drawn from. In 1944 the one-star flag rank was **Commodore** (reestablished
-9 April 1943 for wartime service) and **Rear Admiral** was two stars with no
-upper/lower-half split; "Rear Admiral (lower half)" as a title dates only to
-1986. The substitution is one-for-one, so tier count and thresholds are
-unchanged.
-
-### Badges
-
-Objective-based, not score-based. Each scenario defines named objectives;
-completing them awards that scenario's badge. This deliberately rewards flying
-the brief over farming kills.
-
-### Pilot roster
-
-The main menu is a roster of pilot records:
-
-```
-name, rank, cumulativeScore, missionsFlown, sorties,
-kills (by type), badges[], status: 'active' | 'kia', resurrections
-```
-
-**Resurrection** flips `status` from `kia` back to `active` and increments
-`resurrections`. It does not erase the death. The roster stays simultaneously
-honest and forgiving.
-
-### Persistence
-
-IndexedDB, with explicit JSON export and import so a pilot survives a cleared
-browser. Save/load round-trip equality is a property test (§11). Server-side
-sync against existing auth infrastructure is possible later but is not worth
-the coupling now.
-
-### Mission selector
-
-Scenario choice plus pre-flight loadout: fuel fraction and bomb count, both
-feeding mass and drag into the flight model. The loadout screen is a
-performance decision, not decoration.
-
-### Debrief
-
-Post-mission: targets destroyed with per-item points, mission total, recovery
-multiplier applied, banked total, badges awarded, and any promotion.
+Moved to [`GAMEPLAY.md`](../../../GAMEPLAY.md#meta-game) on 2026-09-24: scoring,
+ranks, badges, the pilot roster, persistence, the mission selector and the
+debrief. The heading stays so that "master spec §8" — which the plans, the
+handoffs and source comments all cite — still resolves. The point table and
+rank ladder there are the values the code is graded against.
 
 ## 9. Content and data
 
@@ -473,66 +394,12 @@ Schema validation at the boundary is a correctness requirement, not hygiene:
 malformed aircraft data does not throw, it produces `NaN` velocity, and a `NaN`
 entering the integrator silently teleports the aircraft out of the world.
 
-### Aircraft roster
+### Rosters and scenarios
 
-| Aircraft | Role |
-| --- | --- |
-| Grumman F4F Wildcat | Player-flown |
-| Grumman F6F Hellcat | Player-flown |
-| Lockheed P-38 Lightning | Player-flown, friendly AI |
-| Boeing B-17 Flying Fortress | Player-flown, friendly AI, escort subject |
-| Boeing B-29 Superfortress | Player-flown, friendly AI, escort subject |
-| Vought F4U Corsair | Player-flown, friendly AI |
-| Mitsubishi A6M Zero | Hostile fighter |
-| Aichi D3A Val | Hostile fighter |
-| Nakajima Ki-43 Oscar | Hostile fighter |
-| Nakajima Ki-84 Frank | Hostile fighter, higher performance |
-| Mitsubishi G4M Betty | Hostile bomber, defensive gunners |
-| Mitsubishi Ki-21 Sally | Hostile bomber |
-
-This roster mirrors the original's and should be confirmed against a primary
-source before art work begins; it currently derives from a secondary summary.
-(Typos corrected 2026-09-24: F4F not "f4F", F4U not "f4U", "friendly" not
-"firendly"/"friendly-flow", Ki-21 not "K-21" — the Imperial Japanese Army
-bomber the 1991 original calls "Sally" is the Mitsubishi **Ki-21**, not a
-"K-21," which is not a real aircraft designation.)
-
-### Ship roster
-
-Added 2026-09-24, alongside the render-quality realism work — same caveat
-as the aircraft roster above: derived from a secondary summary of the
-historical Leyte Gulf order of battle, confirmed against a primary source
-before art/hull-geometry work begins. `role` matches
-`src/sim/world/ships.ts`'s existing enum exactly (`carrier` / `cruiser` /
-`battleship` / `escort` / `merchant`) — no new role values needed.
-
-| Ship | Role |
-| --- | --- |
-| Essex-class fleet carrier | Carrier, friendly (shipped: `essex-cv.json`) |
-| Casablanca-class escort carrier | Carrier, friendly, smaller/slower — the "jeep carriers" of the Battle off Samar |
-| Fletcher-class destroyer | Escort, friendly (shipped: `fletcher-dd.json`) |
-| Cleveland-class light cruiser | Cruiser, friendly |
-| Pennsylvania-class battleship | Battleship, friendly — one of the pre-war "Old Battleships" that fought at Surigao Strait |
-| Type B "Maru" transport | Merchant, hostile (shipped: `type-b-maru.json`) |
-| Kagero-class destroyer | Escort, hostile |
-| Mogami-class heavy cruiser | Cruiser, hostile |
-| Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
-
-Three of nine are shipped content today; the rest are names and roles only,
-same status as most of the aircraft roster above.
-
-### Scenarios
-
-Eight, with original names rather than the 1991 game's mission list:
-
-1. **Deck Quals** — training: launch, pattern, recover
-2. **Scramble** — intercept inbound G4M formation
-3. **Airfield Strike** — bomb a coastal airstrip
-4. **Escort** — protect a B-17 formation
-5. **Flattop Hunt** — strike an enemy carrier
-6. **Combat Air Patrol** — fighter sweep
-7. **Kamikaze Watch** — defend the fleet from massed attack
-8. **Single Combat** — 1v1 against a veteran Ki-84
+The **aircraft roster**, **ship roster**, **building roster** and the eight
+**scenarios** moved to [`GAMEPLAY.md`](../../../GAMEPLAY.md) on 2026-09-24.
+This section keeps only the JSON schemas above, which are the engineering
+half of the same content.
 
 ## 10. Assets and licensing
 
@@ -663,7 +530,7 @@ blocking implementation.
    war), *Angels Fifteen*, *Feet Wet*. *Taffy 3* is recorded as **rejected**:
    that task unit flew FM-2 Wildcats and TBM Avengers from escort carriers, not
    Hellcats from fleet carriers.
-2. **Aircraft roster confirmation** against a primary source before art work
+2. **Aircraft roster confirmation** (roster now in [`GAMEPLAY.md`](../../../GAMEPLAY.md#aircraft-roster)) against a primary source before art work
    (§9).
 
 ## 14. Risks
