@@ -63,6 +63,23 @@ function pitchOf(q: Quat): number {
 
 const LOOK_ZERO: LookOffset = { yawRad: 0, pitchRad: 0 }
 
+/** DEV-only `?look=<yawDeg>,<pitchDeg>`: a fixed head offset (yaw positive
+ *  left, pitch positive up, same axes as `LookOffset`) used whenever no look
+ *  key is held. Added for Cloud Fidelity II's "photo" view (spec §5: from the
+ *  runway, ~30 deg up), which the quarter-turn hat cannot produce. Throws on
+ *  a malformed value rather than silently looking straight ahead. */
+export const LOOK_PARAM = 'look'
+export function lookFromQuery(search: string): LookOffset | undefined {
+  const raw = new URLSearchParams(search).get(LOOK_PARAM)
+  if (raw === null) return undefined
+  const parts = raw.split(',')
+  const [yaw, pitch] = parts.map((s) => (s.trim() === '' ? NaN : Number(s)))
+  if (parts.length !== 2 || !Number.isFinite(yaw) || !Number.isFinite(pitch) || Math.abs(pitch!) > 80) {
+    throw new Error(`${LOOK_PARAM}: ${JSON.stringify(raw)} is not "<yawDeg>,<pitchDeg>" with |pitch| <= 80`)
+  }
+  return { yawRad: (yaw! * Math.PI) / 180, pitchRad: (pitch! * Math.PI) / 180 }
+}
+
 /**
  * Turns a body-frame attitude plus a look-around offset into the attitude the
  * eye actually faces.

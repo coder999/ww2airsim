@@ -171,7 +171,8 @@ export const DETAIL_NOISE_PATH = 'content/sky/detail.bin.gz'
 export const SHAPE_NOISE_URL = `${import.meta.env.BASE_URL}${SHAPE_NOISE_PATH}`
 export const DETAIL_NOISE_URL = `${import.meta.env.BASE_URL}${DETAIL_NOISE_PATH}`
 
-/** Plan 16d's cumulus coverage-modulation field, shipped the same way as
- *  the shape/detail volumes above. */
-export const COVERAGE_NOISE_PATH = 'content/sky/coverage.bin.gz'
-export const COVERAGE_NOISE_URL = `${import.meta.env.BASE_URL}${COVERAGE_NOISE_PATH}`
+/** Cloud Fidelity II §3.3's cumulus weather map (one Worley cell per
+ *  cloud), shipped the same way as the shape/detail volumes above. It
+ *  replaced Plan 16d's coverage-modulation field. */
+export const WEATHER_MAP_PATH = 'content/sky/weather.bin.gz'
+export const WEATHER_MAP_URL = `${import.meta.env.BASE_URL}${WEATHER_MAP_PATH}`

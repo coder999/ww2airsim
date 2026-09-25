@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cameraTransformFor, CHASE_OFFSET_M } from '../../src/render/camera.js'
+import { cameraTransformFor, CHASE_OFFSET_M, lookFromQuery } from '../../src/render/camera.js'
 import { v3, length, sub } from '../../src/sim/math/vec3.js'
 import { qIdentity, qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -185,5 +185,15 @@ describe('chase offset sign (review 2026-09-13)', () => {
     expect(eye.position.x).toBeLessThan(pose.position.x)
     expect(eye.position.y).toBeGreaterThan(pose.position.y)
     expect(Math.abs(eye.position.z - pose.position.z)).toBeLessThan(1e-9)
+  })
+})
+
+describe('DEV ?look= (Cloud Fidelity II photo view)', () => {
+  it('parses yaw,pitch in degrees and rejects anything else', () => {
+    expect(lookFromQuery('?x=1')).toBeUndefined()
+    const l = lookFromQuery('?look=180,30')!
+    expect(l.yawRad).toBeCloseTo(Math.PI, 12)
+    expect(l.pitchRad).toBeCloseTo(Math.PI / 6, 12)
+    for (const bad of ['30', '30,', 'a,b', '0,85', '1,2,3']) expect(() => lookFromQuery(`?look=${bad}`)).toThrow(/look/)
   })
 })

@@ -4,8 +4,8 @@ import { gunzipSync } from 'node:zlib'
 import { inflateIfGzipped } from '../../src/render/gunzip.js'
 import { loadSkyNoise } from '../../src/render/sky/load.js'
 import { loadCover } from '../../src/render/landcover/load.js'
-import { COVER_URL, COVERAGE_NOISE_URL, DETAIL_NOISE_URL, SHAPE_NOISE_URL } from '../../src/render/content.js'
-import { coveragePath, detailPath, shapePath, loadShape } from '../../tools/sky/load.js'
+import { COVER_URL, WEATHER_MAP_URL, DETAIL_NOISE_URL, SHAPE_NOISE_URL } from '../../src/render/content.js'
+import { weatherPath, detailPath, shapePath, loadShape } from '../../tools/sky/load.js'
 import { coverPath } from '../../tools/landcover/load.js'
 
 /** A server that, like Vite's, inflates a `.gz` before handing it over. */
@@ -13,7 +13,7 @@ const inflatingServer: typeof fetch = async (input) => {
   const url = String(input)
   const path = url.endsWith(SHAPE_NOISE_URL) ? shapePath()
     : url.endsWith(DETAIL_NOISE_URL) ? detailPath()
-    : url.endsWith(COVERAGE_NOISE_URL) ? coveragePath()
+    : url.endsWith(WEATHER_MAP_URL) ? weatherPath()
     : url.endsWith(COVER_URL) ? coverPath()
     : null
   if (path === null) return new Response(null, { status: 404 })
@@ -24,7 +24,7 @@ const rawServer: typeof fetch = async (input) => {
   const url = String(input)
   const path = url.endsWith(SHAPE_NOISE_URL) ? shapePath()
     : url.endsWith(DETAIL_NOISE_URL) ? detailPath()
-    : url.endsWith(COVERAGE_NOISE_URL) ? coveragePath()
+    : url.endsWith(WEATHER_MAP_URL) ? weatherPath()
     : url.endsWith(COVER_URL) ? coverPath()
     : null
   if (path === null) return new Response(null, { status: 404 })
@@ -43,7 +43,7 @@ describe('inflateIfGzipped (2026-09-19)', () => {
     const viaRaw = await loadSkyNoise(rawServer)
     expect(viaInflating.shape).toEqual(viaRaw.shape)
     expect(viaInflating.detail).toEqual(viaRaw.detail)
-    expect(viaInflating.coverage).toEqual(viaRaw.coverage)
+    expect(viaInflating.weather).toEqual(viaRaw.weather)
     // The dev server has inflated the land cover before every session since
     // 2026-09-18, and the old loader failed on it with a console warning.
     expect(await loadCover(inflatingServer)).toEqual(await loadCover(rawServer))

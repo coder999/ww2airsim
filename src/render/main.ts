@@ -4,7 +4,7 @@ import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
-import { CAMERA_VFOV_DEG, cameraTransformFor, type CameraMode } from './camera.js'
+import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
 import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
@@ -1294,6 +1294,7 @@ async function boot(): Promise<void> {
   // Repeatable scenery inspection with the existing DEV spawn overrides.
   // Hold position and look down; absent from production builds.
   const inspectScenery = import.meta.env.DEV && new URLSearchParams(location.search).get('sceneryView') === '1'
+  const forcedLook = import.meta.env.DEV ? lookFromQuery(location.search) : undefined
   if (inspectScenery) frame = withPaused(frame, true)
 
   // Ships in production, unlike `overlay` below: it is the pilot's only view
@@ -1753,6 +1754,9 @@ async function boot(): Promise<void> {
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage())
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
+    if (forcedLook !== undefined && current.look.yawRad === 0 && current.look.pitchRad === 0) {
+      current = { ...current, eye: cameraTransformFor(current.cameraMode, spec, current.render, forcedLook) }
+    }
     if (title.up()) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)

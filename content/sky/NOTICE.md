@@ -7,6 +7,8 @@ Dawn" (SIGGRAPH 2015) -- method only, no data from that or any other source.
 Original, AGPL-3.0-or-later. `tests/tools/skyNoise.test.ts` pins their
 SHA-256; a rebuild that changes a byte changes that test in the same commit.
 
-`coverage.bin.gz` (64² R8) is the cumulus coverage-modulation "weather map"
-added in Plan 16d, built the same way and under the same license by the same
+`weather.bin.gz` (512² RGBA8) is the cumulus weather map of Cloud Fidelity
+II §3.3 (`tools/sky/weather.ts`): one Worley cell per cloud, with coverage
+potential, cloud type and top height. It replaced Plan 16d's 64² coverage
+field. Built the same way and under the same license by the same
 `npm run sky:build` command.

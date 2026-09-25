@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createCloudField, COVERAGE_TILE_M, CUMULUS_SIGMA, DETAIL_TILE_M, remap, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
+import { COVERAGE_TABLE_SIZE, coverageThresholds, createCloudField, CUMULUS_SIGMA, DETAIL_TILE_M, remap, SHAPE_TILE_M, WEATHER_TILE_M } from '../../src/render/scene/cloudField.js'
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadCoverage, loadDetail, loadShape } from '../../tools/sky/load.js'
-import { COVERAGE_SIZE } from '../../src/render/sky/noise.js'
+import { loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { WEATHER_SIZE } from '../../src/render/sky/noise.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
-const noise = { shape: loadShape(), detail: loadDetail(), coverage: loadCoverage() }
+const noise = { shape: loadShape(), detail: loadDetail(), weather: loadWeather() }
 
 describe('cloud field (Plan 16b, extracted from the dome)', () => {
   it('holds the shipped decks sorted by base, padded to the maximum, and names the lowest cumulus', () => {
@@ -56,14 +56,44 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
     // close," not a partial one (design §2).
     expect(DETAIL_TILE_M).toBe(150)
   })
-  it('exposes a coverage field that spatially modulates cumulus (Plan 16d)', () => {
+  it('exposes the RGBA weather map that places individual cumulus (Cloud Fidelity II 3.3)', () => {
     const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
-    expect(field.coverage.image.width).toBe(COVERAGE_SIZE)
-    expect(field.coverage.image.height).toBe(COVERAGE_SIZE)
-    const data = field.coverage.image.data as Uint8Array
-    expect(Math.max(...data) - Math.min(...data)).toBeGreaterThan(80)
-    expect(COVERAGE_TILE_M).toBe(60_000)
+    expect(field.weather.image.width).toBe(WEATHER_SIZE)
+    expect(field.weather.image.height).toBe(WEATHER_SIZE)
+    expect((field.weather.image.data as Uint8Array).length).toBe(WEATHER_SIZE ** 2 * 4)
+    expect(WEATHER_TILE_M).toBe(40_000)
     field.dispose()
+  })
+  it('thresholds the map so a layer\'s coverage is the fraction of the map in cloud', () => {
+    const t = coverageThresholds(noise.weather)
+    expect(t).toHaveLength(COVERAGE_TABLE_SIZE)
+    // Monotonic: more coverage, lower threshold.
+    for (let k = 1; k < t.length; k++) expect(t[k]!).toBeLessThanOrEqual(t[k - 1]!)
+    const count = noise.weather.length / 4
+    const fractionAbove = (theta: number): number => {
+      let n = 0
+      for (let i = 0; i < count; i++) if (noise.weather[i * 4]! / 255 > theta) n++
+      return n / count
+    }
+    // Every table entry that can be met is met to within a byte's worth.
+    for (const c of [0.25, 0.4375, 0.5625, 0.625]) {
+      const k = c * (COVERAGE_TABLE_SIZE - 1)
+      expect(Number.isInteger(k)).toBe(true)
+      const theta = t[k]!
+      expect(fractionAbove(theta + 1 / 255)).toBeLessThanOrEqual(c + 1e-9)
+      expect(fractionAbove(theta - 1 / 255)).toBeGreaterThanOrEqual(c - 1e-9)
+    }
+    // Past the map's support the gaps stay clear rather than filling in.
+    expect(t[COVERAGE_TABLE_SIZE - 1]).toBe(0)
+  })
+  it('computes thresholds from a synthetic map exactly', () => {
+    // 4 texels with R = 0, 64, 128, 255: coverage 0.5 sits between 64 and 128.
+    const map = new Uint8Array([0, 0, 0, 0, 64, 0, 0, 0, 128, 0, 0, 0, 255, 0, 0, 0])
+    const t = coverageThresholds(map, 5)
+    expect(t[0]).toBeCloseTo(1, 6)
+    expect(t[2]! * 255).toBeGreaterThanOrEqual(64)
+    expect(t[2]! * 255).toBeLessThan(128)
+    expect(t[4]).toBe(0)
   })
   it('is imported only by the dome and the shadow pass: one field, two readers', () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'render')
