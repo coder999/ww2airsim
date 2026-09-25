@@ -142,7 +142,14 @@ for (const tier of ['high', 'medium', 'low'] as const) {
         }, png.toString('base64'))
         console.log('distant cloud pixel quality', quality)
         expect(quality.residual, 'distant clouds became pixel stipple again').toBeLessThan(3)
-        expect(quality.range, 'a blank strip must not pass as smooth clouds').toBeGreaterThan(40)
+        // Re-baselined 2026-09-25, photoreal render pass Task 5 (AgX
+        // tonemapping): was > 40, measured 36.0 because the cloud tops in the
+        // strip used to clip at 254.7 gray and AgX now rolls them off to ~206
+        // (toneMap=none of the same build still measures 78.3, as at Task 4).
+        // The guard is unchanged in kind: a blank strip (cloudTier=off, same
+        // view, AgX) measures 2.7, so half the clouded range still separates
+        // the two by a wide margin, as 40 did against 78.3.
+        expect(quality.range, 'a blank strip must not pass as smooth clouds').toBeGreaterThan(18)
       }
     }
   })

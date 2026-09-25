@@ -93,6 +93,7 @@ import { v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 import { createFramePipeline } from './pipeline.js'
+import { exposureFor, toneMapFromQuery } from './exposure.js'
 import { loadCover } from './landcover/load.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
@@ -1228,6 +1229,10 @@ async function boot(): Promise<void> {
   // the device-loss path: `renderer.dispose()` there already releases every
   // GPU resource the pass and its output quad hold.
   const framePipeline = createFramePipeline(renderer, scene, camera)
+  // Phase A (spec §4.2): AgX in production; DEV `?toneMap=agx|aces|none`
+  // swaps the curve for comparison screenshots (and throws on a typo).
+  const forcedToneMap = import.meta.env.DEV ? toneMapFromQuery(location.search) : undefined
+  if (forcedToneMap !== undefined) framePipeline.setToneMap(forcedToneMap)
   // Photoreal Task 3 (spec §4.1): the cloud march at reduced resolution,
   // composited over the scene pass. It renders from inside
   // `framePipeline.render()` (a node's `updateBefore`, after the scene pass)
@@ -1994,6 +1999,9 @@ async function boot(): Promise<void> {
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
     applySun(lights, paletteFor(elevationDeg), direction, elevationDeg)
+    // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
+    // reads dim but not black. One uniform write; no pipeline rebuild.
+    framePipeline.setExposure(exposureFor(elevationDeg))
     sunState = { timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z } }
     clouds.update(current.eye.position, skyTimeS, current.world.wind)
     for (const cascade of cascades) {
