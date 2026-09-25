@@ -92,7 +92,7 @@ import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
-import { createFramePipeline } from './pipeline.js'
+import { antiAliasingFromQuery, createFramePipeline } from './pipeline.js'
 import { exposureFor, toneMapFromQuery } from './exposure.js'
 import { loadCover } from './landcover/load.js'
 
@@ -882,6 +882,8 @@ async function boot(): Promise<void> {
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
       }),
+      // Photoreal Task 6: explicit TRAA/motion history resets since boot.
+      antiAliasing: () => ({ historyResets: framePipeline.historyResets() }),
       // Plan 16b: the shadow map read back at a world point, for the
       // world-stability check a screenshot cannot make.
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
@@ -1233,6 +1235,9 @@ async function boot(): Promise<void> {
   // swaps the curve for comparison screenshots (and throws on a typo).
   const forcedToneMap = import.meta.env.DEV ? toneMapFromQuery(location.search) : undefined
   if (forcedToneMap !== undefined) framePipeline.setToneMap(forcedToneMap)
+  // Task 6: TRAA in production; DEV `?aa=traa|smaa` for comparison captures.
+  const forcedAntiAliasing = import.meta.env.DEV ? antiAliasingFromQuery(location.search) : undefined
+  if (forcedAntiAliasing !== undefined) framePipeline.setAntiAliasing(forcedAntiAliasing)
   // Photoreal Task 3 (spec §4.1): the cloud march at reduced resolution,
   // composited over the scene pass. It renders from inside
   // `framePipeline.render()` (a node's `updateBefore`, after the scene pass)
@@ -1463,6 +1468,7 @@ async function boot(): Promise<void> {
     // frame loop would usually catch it too -- this does not depend on how
     // far the restart moved the eye.
     cloudPass?.resetHistory()
+    framePipeline.resetHistory()
   }
   let legendOpen = true
   // Plan 17. Instrument setting, not simulation state -- same tier as
@@ -1642,8 +1648,9 @@ async function boot(): Promise<void> {
   // game. Cross-task drift between Task 11 and Task 15's own convention.
   const overlay = import.meta.env.DEV ? createOverlay(root) : null
   let last = performance.now()
-  // Photoreal Task 4: the eye, time and pause state of the last frame the
-  // cloud pass rendered, for its history reset (render branch below).
+  // Photoreal Task 4: the eye, time and pause state of the last rendered
+  // frame, for the cloud and (Task 6) TRAA history resets (render branch
+  // below). Named for the cloud pass, which had them first.
   let cloudHistoryEye: Vec3 | null = null
   let cloudHistoryAtMs = 0
   let cloudHistoryPaused = false
@@ -2028,22 +2035,31 @@ async function boot(): Promise<void> {
       renderer.setRenderTarget(radarScope.target)
       renderer.render(radarScope.scene, radarScope.camera)
       renderer.setRenderTarget(null)
-      // Photoreal Task 4: the cloud pass's temporal state, fed only on frames
-      // that actually render (a frame skipped above leaves the history where
-      // it was, so the next test measures from the last RENDERED frame).
-      // Reset on a teleport or a stall (`shouldResetHistory`), on unpause and
-      // on a camera-mode cut;
+      // Photoreal Task 4: the temporal state (cloud history; since Task 6
+      // TRAA too), fed only on frames that actually render (a frame skipped
+      // above leaves the history where it was, so the next test measures
+      // from the last RENDERED frame). Reset on a teleport or a stall
+      // (`shouldResetHistory`), on unpause and on a camera-mode cut;
       // restart and scenario switch reset through `resetFlightUi`.
-      if (cloudPass !== null) {
+      // Photoreal Task 6: TRAA's history (and the world-fixed motion
+      // vectors) reset on exactly the same discontinuities, with or without
+      // a cloud pass -- a teleport smears the old view through TRAA as
+      // surely as through the clouds.
+      {
         const eye = current.eye.position
-        if (cloudHistoryEye !== null && shouldResetHistory({
+        const cut = (cloudHistoryEye !== null && shouldResetHistory({
           eye, prevEye: cloudHistoryEye, frameSeconds: (now - cloudHistoryAtMs) / 1000, timeScale: current.timeScale,
-        })) cloudPass.resetHistory()
-        if (cloudHistoryPaused && !current.paused) cloudPass.resetHistory()
-        // A chase <-> cockpit cut is a new view, whatever the speed test
-        // makes of a 10 m eye jump at this frame rate.
-        if (cloudHistoryCameraMode !== null && current.cameraMode !== cloudHistoryCameraMode) cloudPass.resetHistory()
-        cloudPass.setEye(eye)
+        }))
+          || (cloudHistoryPaused && !current.paused)
+          // A chase <-> cockpit cut is a new view, whatever the speed test
+          // makes of a 10 m eye jump at this frame rate.
+          || (cloudHistoryCameraMode !== null && current.cameraMode !== cloudHistoryCameraMode)
+        if (cut) {
+          cloudPass?.resetHistory()
+          framePipeline.resetHistory()
+        }
+        cloudPass?.setEye(eye)
+        framePipeline.setEye(eye)
         cloudHistoryEye = eye
         cloudHistoryAtMs = now
         cloudHistoryPaused = current.paused

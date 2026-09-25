@@ -55,6 +55,29 @@ for (const name of ['in-deck-1900', 'under-deck-1200']) {
   })
 }
 
+// Photoreal Task 6: TRAA during a roll over land and sea. Wrong motion
+// vectors on the custom-positioned surfaces (terrain CDLOD, the polar ocean,
+// the refilled tree instances) show here as smear or shimmer on the ground
+// and the sea, and a ghosted airframe or horizon. READ at 0 / 0.5 / 1.0 s:
+// terrain, sea, trees, ships and the airframe sharp, no trails. The AA reset
+// counter proves the roll ran on accumulated history, not a reset every frame.
+const aaResets = (page: Page): Promise<number> => page.evaluate(() => (window as DiagWindow).__ww2!.antiAliasing().historyResets)
+test('aa roll: full left aileron at low-land-600, TRAA does not ghost', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(view('low-land-600'))
+  await waitForTerrain(page)
+  await page.waitForTimeout(2000)
+  const before = await aaResets(page)
+  await page.keyboard.down('KeyA')
+  await page.screenshot({ path: 'test-results/cloudTemporal/aa-roll-low-land-600-0.0.png' })
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: 'test-results/cloudTemporal/aa-roll-low-land-600-0.5.png' })
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: 'test-results/cloudTemporal/aa-roll-low-land-600-1.0.png' })
+  await page.keyboard.up('KeyA')
+  expect(await aaResets(page) - before, 'a roll must not reset the TRAA history').toBe(0)
+})
+
 // A fresh page at a different view, three frames in. READ: no ghost of the
 // under-deck view in the above-deck one.
 test('teleport: a new view three frames in carries no ghost of the old one', async ({ page }) => {
@@ -82,11 +105,13 @@ test('restart: history resets across a crash and Restart in the same page', asyn
   await page.keyboard.up('ArrowUp')
   await page.waitForTimeout(1000)
   const before = await resets(page)
+  const aaBefore = await aaResets(page)
   await page.getByRole('button', { name: 'Restart' }).click()
   await expect(debriefDialog(page)).toBeHidden()
   await frames(page, 3)
   await page.screenshot({ path: 'test-results/cloudTemporal/restart-3frames.png' })
   expect(await resets(page) - before, 'Restart must reset the cloud history').toBeGreaterThanOrEqual(1)
+  expect(await aaResets(page) - aaBefore, 'Restart must reset the TRAA history (Task 6)').toBeGreaterThanOrEqual(1)
 })
 
 // Look left and back. Numpad4 is a SNAP, not a pan (lookAround.ts), so there
@@ -151,9 +176,11 @@ test('camera cut: cycling chase to cockpit resets the cloud history', async ({ p
   await waitForTerrain(page)
   await page.waitForTimeout(1500)
   const before = await resets(page)
+  const aaBefore = await aaResets(page)
   const mode = await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())
   await page.keyboard.press('KeyC')
   await page.waitForFunction((m) => (window as DiagWindow).__ww2!.cameraMode() !== m, mode)
   await frames(page, 3)
   expect(await resets(page) - before, 'a camera cut must reset the cloud history').toBeGreaterThanOrEqual(1)
+  expect(await aaResets(page) - aaBefore, 'a camera cut must reset the TRAA history (Task 6)').toBeGreaterThanOrEqual(1)
 })

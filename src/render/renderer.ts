@@ -78,7 +78,11 @@ export async function initRenderer(
   // The 0.1 m cockpit near plane and 440 km ocean far plane need reversed
   // floating-point depth. Conventional depth visibly interleaved land and
   // water at 30–100 km (reference GPU capture, 2026-09-15).
-  const renderer = new WebGPURenderer({ canvas, antialias: true, trackTimestamp, reversedDepthBuffer: true })
+  // `antialias: false`: photoreal Task 6 (spec §4.2) anti-aliases with TRAA in
+  // the frame pipeline (pipeline.ts), and three's TRAANode.js says "MSAA must
+  // be disabled when TRAA is in use" -- its resolve `load`s the scene
+  // pass's depth and velocity per texel, and the history copies that depth.
+  const renderer = new WebGPURenderer({ canvas, antialias: false, trackTimestamp, reversedDepthBuffer: true })
   await renderer.init()
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight)

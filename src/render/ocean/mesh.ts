@@ -9,6 +9,7 @@ import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
 import type { OceanCompute } from './compute.js'
 import { angularFadeSpacingM, shortestWavelengthM } from './bands.js'
 import { windSpeedMps } from './beaufort.js'
+import { worldFixedVelocityMrt } from '../scene/velocity.js'
 
 export const DEEP_WATER_COLOUR = SEA_COLOUR
 /** Art direction: turquoise shallow water; this is not an optical model. */
@@ -472,6 +473,11 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   const displacement: Node<'vec3'> = raw.mul(landWeight).mul(shoal)
   const displacedPosition = vec3(positionLocal.x, horizonSinkNode(distanceM).negate(), positionLocal.z).add(displacement)
   material.positionNode = displacedPosition
+  // Photoreal Task 6: the mesh follows the eye, so its object matrices say
+  // nothing about where the SEA was last frame; the water is world-fixed
+  // (wave motion ignored, centimetres per frame -- scene/velocity.ts). A
+  // `mrtNode`, so the shadow and radar passes (no MRT) ignore it.
+  material.mrtNode = worldFixedVelocityMrt()
   // Geometry follows the eye, but the texture samples fixed world positions.
   const worldXZ = varying(positionLocal.xz).add(camera)
   const depth = depthNode(field.header.halfExtentM, tex, worldXZ)

@@ -338,6 +338,9 @@ export type Ww2Diagnostics = {
      *  boot (first frame, resizes, every discontinuity reset); 0 with no pass. */
     readonly historyResets: number
   }
+  /** Photoreal Task 6: explicit TRAA (and world-fixed motion) history resets
+   *  since boot -- the same discontinuities the cloud history resets on. */
+  readonly antiAliasing: () => { readonly historyResets: number }
   /** Plan 16b: the shadow map's transmittance at a sea-level world point, or
    *  null outside the map / with the pass off. A fixed point must read the
    *  same from any eye position: the map is world-anchored, not eye-anchored. */
