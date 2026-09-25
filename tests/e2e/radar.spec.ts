@@ -44,6 +44,18 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   await expect.poll(() => radar(page).then((r) => r.rangeMi)).toBe(5)
   await page.keyboard.press('Tab')
   await expect.poll(() => radar(page).then((r) => r.rangeMi)).toBe(1)
+  // Since 2026-09-25 pursuit-range is a head-on start at 2.5 km (1.55 mi), so
+  // the 1 mi ring is empty until the pursuer closes into it. Measured
+  // headless the same day with a passive player: inside 1 mi from 3.7 s to
+  // 17.3 s (the merge is at 10.4 s). Waiting for the contact to appear,
+  // rather than pausing on arrival, pauses it near the ring's edge -- where
+  // the displacement check below has the most margin.
+  await expect
+    .poll(() => radar(page).then((r) => r.contacts.some((c) => c.id === 'pursuer-1')), {
+      timeout: 15_000,
+      message: 'pursuer-1 never closed inside the 1 mi ring',
+    })
+    .toBe(true)
 
   // Pause here, on the 1 mi ring, for the pixel-placement check below.
   // Two reasons to do both at once: pausing freezes the sweep, which is

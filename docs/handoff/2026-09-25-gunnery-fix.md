@@ -54,15 +54,22 @@ These runs use the scripted player in `tests/sim/gunneryBot.ts` (the spike's "hu
 
 `npm run verify` passed after every commit (`rc=0`). The final run gave 1630 passed and 12 skipped. The skips are the missing terrain tiles.
 
-## Tier 2 specs edited but not run
+## Tier 2 on the reference GPU (after merging to main, 2026-09-25)
 
-- `meta-game.spec.ts` now selects the `Air Combat` radio with `exact: true`. Without it, the selector would also match "Air Combat: Veteran" and trip Playwright's strict mode.
-- The following specs are annotated but left unchanged. No URL parameter can reach a fixture, because `?scenario=` is whitelisted by `isKnownScenarioId`, so these specs now run against the head-on start:
-  - `ai-maneuver.spec.ts`: headless, the pursuer comes within 16 m at 10.4 s and forces `extend` there.
-  - `ai-pursuit.spec.ts`: **expected RED**. Headless with a passive player, the pursuer never fires; see open item 1.
-  - `ai-pursuit-difficulty.spec.ts`: its claim is about the old tail-chase start.
-  - `radar.spec.ts`: the contact is inside 1 mi only from 3.67 s to 17.25 s of sim time. The 1 mi pixel check has to land inside that window.
-- Worth re-running as a regression: `gunnery.spec.ts` (the reticle moved, and the chase view now draws a pipper).
+Merged into `main` via `c763c7f` (main into the branch, no conflicts, then a fast-forward). `npm run verify` on the merge: `rc=0`, 1644 passed, 12 skipped.
+
+The first Tier 2 run had 7 failures and 1 pass. Five of the failures were test mechanics and are now fixed; they pass on re-run (9/9, including `audio.spec.ts`):
+
+- `gunnery.spec.ts` ×3 and `audio.spec.ts`: they expected 6 clips, but there have been 7 since `9432942` (Plan 6b's `rocket_whoosh`). This predates the gunnery fix. The count now comes from `AUDIO_ASSETS.length`.
+- `meta-game.spec.ts`: it read the roster once, right after `waitForScenario`. `scenarioId()` flips when `loadScenario` assigns the bundle, which happens before its `await buildScenarioEntities` and before `rebuildFrame`. The spec saw gunnery-range's targets. It now polls the roster. The root fix would be for `scenarioId()` to report the rebuilt frame's scenario. That is not done, because it changes a `main.ts` diagnostic that every `waitForScenario` caller relies on.
+- `radar.spec.ts`: the head-on start is 1.55 mi out, so the 1 mi ring was empty when the spec paused. It now waits for the contact to enter the ring, which headless happens at 3.7 s.
+
+Still red. Both are AI behavior (see open items 1 and 5), not test mechanics:
+
+- `ai-pursuit.spec.ts`: the pursuer never fires.
+- `ai-maneuver.spec.ts`: closest range is 44.8 m, below the floor of 50. Headless, the veteran closes to 11 m, so switching the spec to `pursuit-range-veteran` would not help.
+
+`ai-pursuit-difficulty.spec.ts` passed.
 
 ## Open items
 

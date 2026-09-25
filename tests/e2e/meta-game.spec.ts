@@ -232,8 +232,14 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   })
   expect(page.url()).toBe(urlBeforeSwitch)
 
-  const pursuitIds = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id))
-  expect(pursuitIds.sort()).toEqual(['f6f-1', 'pursuer-1'])
+  // Polled, not read once: `scenarioId()` reports the new bundle as soon as
+  // `loadScenario` assigns it, BEFORE its `await buildScenarioEntities` and
+  // the `.then(rebuildFrame)` that swaps `frame` -- so for that window
+  // `aircraft()` still lists gunnery-range's roster (seen on the reference
+  // GPU 2026-09-25: target-1/target-2 read right after waitForScenario).
+  await expect
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id).sort()), { timeout: 20_000 })
+    .toEqual(['f6f-1', 'pursuer-1'])
 
   // -- Fly it: prove pursuit-range is not just loaded but flyable -- the
   // same "did the AI actually turn" signal `ai-pursuit.spec.ts` reads.
