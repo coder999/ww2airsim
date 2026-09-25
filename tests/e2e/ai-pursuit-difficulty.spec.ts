@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
 import { PILOT_SKILL_PARAM, SCENARIO_PARAM } from '../../src/render/spawn.js'
+import { isBehind } from './pursuitGeometry.js'
 
 /**
  * Tier 2, Plan 7d. The actual acceptance bar Mark's complaint sets: not
@@ -28,25 +29,17 @@ import { PILOT_SKILL_PARAM, SCENARIO_PARAM } from '../../src/render/spawn.js'
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range&${PILOT_SKILL_PARAM}=green`
 
-type AircraftDiag = { readonly id: string; readonly x: number; readonly y: number; readonly z: number; readonly headingRad: number }
-
 const aircraft = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft())
 
 test.setTimeout(120_000)
 
-/** True when `player` is within `withinDeg` of directly behind `enemy`'s
- *  tail and inside `withinM` -- an approximation of "got behind it" using
- *  only the horizontal heading diagnostics already exposes (no full 3D
- *  attitude is available from `aircraft()`), which is the geometry this
- *  scenario's own combat plane is flown in. */
-function isBehind(player: AircraftDiag, enemy: AircraftDiag, withinM: number, withinDeg: number): boolean {
-  const dx = player.x - enemy.x, dz = player.z - enemy.z
-  const rangeM = Math.hypot(dx, dz, player.y - enemy.y)
-  if (rangeM > withinM) return false
-  const bearingToPlayer = Math.atan2(dx, dz)
-  const angleOff = Math.abs(Math.atan2(Math.sin(bearingToPlayer - enemy.headingRad), Math.cos(bearingToPlayer - enemy.headingRad)))
-  return (angleOff * 180) / Math.PI < withinDeg
-}
+// `isBehind` lives in `./pursuitGeometry.ts`, unit-tested in
+// `tests/render/pursuitGeometry.test.ts`. It was inline here and inverted --
+// wrong bearing convention AND alignment-with-nose instead of
+// opposition-to-nose, which for this scenario's due-east spawn made the whole
+// acceptance test pass exactly when the AI was winning (final whole-branch
+// review, Critical 1). The fix is one line of arithmetic; the reason it went
+// unseen for a whole task is that no assertion could reach it from here.
 
 test('a scripted evasion-and-reversal lets the player get behind a green pursuer within a bounded window, where it could not before this plan', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
@@ -69,13 +62,17 @@ test('a scripted evasion-and-reversal lets the player get behind a green pursuer
   await page.keyboard.up('ArrowDown')
 
   // Explicit `intervals` rather than Playwright's default ramping cadence
-  // (which climbs to sub-second): Task 4 found this worktree's route to the
-  // remote reference-desktop Chromium freezes `requestAnimationFrame`
-  // deterministically under heavy `.poll()` traffic
-  // (`src/sim/loop.ts`'s `MAX_STEPS_PER_FRAME` drops, rather than banks, sim
-  // time owed beyond 5 ticks/frame -- a real environment issue, not an AI
-  // bug; fix is out of this task's scope). Polling once a second avoids
-  // retriggering it.
+  // (which climbs to sub-second). Task 4 added this believing the route to
+  // the remote reference Chromium freezes `requestAnimationFrame` under fast
+  // `.poll()` traffic, with `src/sim/loop.ts`'s `MAX_STEPS_PER_FRAME`
+  // dropping owed sim time. **That diagnosis is disproven** (final-review fix
+  // wave, 2026-09-24): the freeze it was inferred from is `ai-maneuver.spec
+  // .ts`'s player being SHOT DOWN at tick 517, after which `frame.ts:617`
+  // deliberately holds the world -- and it reproduces identically at one poll
+  // per second. See that spec's header for the measurement. The cadence stays
+  // because this spec is verified green with it and its timing is not worth
+  // re-rolling for a cosmetic reason; it is NOT load-bearing, and it is not
+  // evidence of any throttling.
   await expect
     .poll(
       async () => {
@@ -87,6 +84,19 @@ test('a scripted evasion-and-reversal lets the player get behind a green pursuer
       { timeout: 40_000, intervals: [1000], message: 'player never got behind pursuer-1 within the bounded window' },
     )
     .toBe(true)
+
+  // The world FREEZES the moment the player is destroyed (`frame.ts:617`'s
+  // `holding`), so a dead player's last geometry would sit there being polled
+  // forever -- and if it happened to satisfy `isBehind`, this test would
+  // report a win the player did not live to have. That is not hypothetical:
+  // it is exactly how `ai-maneuver.spec.ts` fails on this same scenario
+  // (tick 517, structure 0). Checked AFTER the poll, which is sound precisely
+  // because a destroyed player's world never advances again.
+  const survived = await page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    return { destroyed: d.combat()?.player.destroyed ?? null, structure: d.combat()?.player.structure ?? null }
+  })
+  expect(survived.destroyed, `the player was shot down (structure ${survived.structure}) -- "got behind" was read off a frozen world`).toBe(false)
 
   await page.screenshot({ path: 'test-results/ai-pursuit-difficulty.png' })
 
