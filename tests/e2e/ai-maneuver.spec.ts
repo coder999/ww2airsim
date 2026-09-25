@@ -54,6 +54,19 @@ import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
  * re-tune veteran lethality, or fly this spec's player so it survives to the
  * merge -- which is Mark's call, not a test-mechanics one. Left red and
  * documented rather than loosened.
+ *
+ * **2026-09-25: the geometry this spec was written against moved.**
+ * `pursuit-range` is now a head-on merge at 2.5 km with a GREEN pursuer (the
+ * shootdown spike; `tests/sim/pursuitMerge.test.ts`), and the old tail chase
+ * lives on only as the Tier 1 fixture
+ * `tests/fixtures/scenarios/pursuit-tail-chase.json`. No URL parameter can
+ * load a fixture (`?scenario=` is whitelisted to the title screen's list by
+ * `isKnownScenarioId`), so this spec now runs against the head-on start.
+ * Headless measurement of the new start with a passive player (2026-09-25,
+ * `nextFrameState`, no keys): the green pursuer closes to 16 m at 10.4 s
+ * and forces `extend` there -- so the point-blank break-off this spec gates
+ * IS reached again -- but it never fires. Re-run on the reference GPU before
+ * trusting either outcome.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 

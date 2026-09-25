@@ -220,7 +220,9 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   const urlBeforeSwitch = page.url()
   const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
   await expect(reshownScenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  await reshownScenarioGroup.getByRole('radio', { name: 'Air Combat' }).check()
+  // `exact`: since 2026-09-25 the picker also lists "Air Combat: Veteran",
+  // which a substring match would also select (a strict-mode violation).
+  await reshownScenarioGroup.getByRole('radio', { name: 'Air Combat', exact: true }).check()
   await reshownTitle.getByRole('button', { name: 'Launch' }).click()
   await expect(reshownTitle).toBeHidden()
 

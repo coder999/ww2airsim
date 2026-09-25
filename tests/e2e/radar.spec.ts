@@ -17,6 +17,12 @@ import { TRAIL_DIM } from '../../src/render/scene/radarScope.js'
  * genuinely freezes on pause rather than jumping ahead by the paused
  * wall-clock duration.
  */
+// 2026-09-25: pursuit-range now spawns pursuer-1 2.5 km ahead (1.55 mi), a
+// head-on merge, not ~500 m astern; headless it closes inside 1 mi after
+// 3.67 s, passes within 16 m at 10.4 s and is back beyond 1 mi at 17.25 s
+// (sim time, passive player). The 1 mi ring check below needs the contact
+// inside the ring when it pauses -- re-run on the reference GPU to confirm
+// it lands in that window.
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 
 test.setTimeout(120_000)
@@ -50,7 +56,7 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   // the time it is compared against. The 1 mi ring matters for a second
   // reason (final whole-branch review): the pre-fix doubled-uv-flip bug
   // displaces a read by 2*|cos(bearing)|*(rangeMi/selectedRangeMi) in
-  // normalized units. At the DEFAULT 15 mi ring, pursuit-range's ~500 m
+  // normalized units. At the DEFAULT 15 mi ring, pursuit-range's old ~500 m
   // initial spawn keeps that displacement small enough to still fall
   // inside the shader's DOT_RADIUS, so a mirrored read could still catch
   // some of the dot's own brightness -- this check would have had only a

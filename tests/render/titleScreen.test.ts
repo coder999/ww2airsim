@@ -101,7 +101,7 @@ describe('the title screen scenario picker', () => {
   // is untested DOM, built straight off this array.
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
-      'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'strike-range',
+      'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -115,6 +115,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['deck-quals']).toBe('Deck Quals')
     expect(labels['gunnery-range']).toBe('Gunnery Range')
     expect(labels['pursuit-range']).toBe('Air Combat')
+    expect(labels['pursuit-range-veteran']).toBe('Air Combat: Veteran')
     expect(labels['strike-range']).toBe('Strike Range')
   })
 

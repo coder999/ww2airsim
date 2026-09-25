@@ -26,6 +26,18 @@ import { isBehind } from './pursuitGeometry.js'
  * `PILOT_SKILL_PARAM`) and wired into `main.ts`'s `buildWorld` behind
  * `import.meta.env.DEV`, following exactly those four functions' shape:
  * inert in a production build, and used here instead of editing content.
+ *
+ * **2026-09-25: the geometry this spec was written against moved.**
+ * `pursuit-range` is now a head-on merge at 2.5 km with a GREEN pursuer (the
+ * shootdown spike; `tests/sim/pursuitMerge.test.ts`), and the old tail chase
+ * lives on only as the Tier 1 fixture
+ * `tests/fixtures/scenarios/pursuit-tail-chase.json`. No URL parameter can
+ * load a fixture (`?scenario=` is whitelisted to the title screen's list by
+ * `isKnownScenarioId`), so this spec now runs against the head-on start.
+ * Its claim -- a scripted break and reversal gets behind a TAIL-CHASING green
+ * pursuer -- is a claim about the old start. Against the head-on merge the
+ * evasion keys mean something else; re-measure, or retire the spec along
+ * with the geometry, before reading its result as the Plan 7d bar.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range&${PILOT_SKILL_PARAM}=green`
 
