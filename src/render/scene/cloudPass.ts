@@ -53,6 +53,8 @@ export type CloudPass = {
   /** Full-resolution composite of clouds over `sceneColor`, for `FramePipeline.setOutput`. */
   readonly composite: Node<'vec4'>
   setResolutionScale(scale: number): void
+  /** 1 marches every texel; 16 marches one 4x4 Bayer phase per frame. */
+  setUpdatePeriod(frames: 1 | 16): void
   /** The eye's world position for the frame about to render (camera-relative
    *  rendering: the camera itself sits at the origin). Call once per rendered
    *  frame, before `FramePipeline.render()`. */
@@ -131,8 +133,25 @@ const DEPTH_MISMATCH = 0.1
  *  at the NEAREST previous texel; an airframe or a hill against distant
  *  ground differs by far more than 25%. */
 const DISOCCLUSION = 0.25
+/** A sharp gradient in last frame's representative CLOUD depth marks a
+ * volumetric silhouette. Those texels update immediately: scene-depth
+ * disocclusion cannot detect a cloud edge moving over clear sky. */
+const CLOUD_EDGE_DEPTH_MISMATCH = 0.2
 /** The golden-ratio increment of the per-frame dither offset (spec §4.1). */
 const GOLDEN = 0.618034
+
+/** The canonical 4x4 Bayer order used by the High-tier amortized march. */
+export function bayer4Index(x: number, y: number): number {
+  const bayer2 = (a: number, b: number): number => 2 * a + b * (3 - 4 * a)
+  return 4 * bayer2(x & 1, y & 1) + bayer2((x >> 1) & 1, (y >> 1) & 1)
+}
+
+export function bayer4Offset(phase: number): { x: number; y: number } {
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 4; x++) if (bayer4Index(x, y) === phase) return { x, y }
+  }
+  throw new Error(`Bayer phase ${phase} is outside 0..15`)
+}
 
 const MarchOut = struct({ color: 'vec4', data: 'vec4' })
 const NEIGHBORS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const
@@ -168,6 +187,8 @@ let rendererState: ReturnType<typeof RendererUtils.resetRendererState> | undefin
 const drawingBuffer = new Vector2()
 
 class CloudPassNode extends TempNode<'vec4'> {
+  /** Compact 1/16-area target containing this frame's Bayer phase. */
+  private readonly updates = marchTarget()
   /** Ping-pong march targets; `march[current]` is written this frame and
    *  `march[1 - current]` still holds last frame's (its data feeds the
    *  resolve's disocclusion test). */
@@ -178,6 +199,8 @@ class CloudPassNode extends TempNode<'vec4'> {
   private current = 0
   private readonly material = new NodeMaterial()
   private readonly quad = new QuadMesh(this.material)
+  private readonly updateMaterial = new NodeMaterial()
+  private readonly updateQuad = new QuadMesh(this.updateMaterial)
   private readonly resolveMaterial = new NodeMaterial()
   private readonly resolveQuad = new QuadMesh(this.resolveMaterial)
   /** Full-resolution texels per cloud texel, per axis (`cloudCells`). */
@@ -187,10 +210,17 @@ class CloudPassNode extends TempNode<'vec4'> {
   private readonly lowSize = uniform(new Vector2(1, 1))
   private readonly cellsF = uniform(2)
   private readonly cellsI = uniform(2, 'int')
+  /** 1 for every-frame tiers; 16 for High's one-texel-per-4x4 schedule. */
+  private readonly updatePeriod = uniform(1, 'int')
+  private readonly updateOffset = uniform(new Vector2())
+  /** DEV residual measurements compare two fully marched frames. */
+  private readonly forceMarch = uniform(0)
   // Texture nodes whose `.value` is swapped every frame (NodeSampledTexture
   // rebinds on a changed value; AfterImageNode relies on the same).
   private readonly marchColor = texture(this.march[0].textures[0]!) as unknown as TextureNode
   private readonly marchData = texture(this.march[0].textures[1]!) as unknown as TextureNode
+  private readonly updateColor = texture(this.updates.textures[0]!) as unknown as TextureNode
+  private readonly updateData = texture(this.updates.textures[1]!) as unknown as TextureNode
   private readonly prevMarchData = texture(this.march[1].textures[1]!) as unknown as TextureNode
   private readonly historyRead = texture(this.history[1].texture) as unknown as TextureNode
   private readonly resolved = texture(this.history[0].texture) as unknown as TextureNode
@@ -257,18 +287,10 @@ class CloudPassNode extends TempNode<'vec4'> {
       return { dir, cosView, valid: reprojected.valid, uv: vec2(reprojected.uv).toVar() as unknown as Node<'vec2'> }
     }
 
-    const march = Fn(() => {
-      // Low-resolution pixel center, and the block of full-resolution
-      // texels it covers.
-      const low = screenCoordinate.xy
-      const cell = floor(low).toVar()
+    /** MIN scene view-Z over the full-resolution block covered by `cell`. */
+    const minViewZAt = (cell: Node<'vec2'>): Node<'float'> => {
       const origin = ivec2(cell.mul(this.cellsF)).toVar()
       const fullMax = ivec2(this.fullSize).sub(ivec2(1, 1)).toVar()
-      // MIN view-Z over the block (spec §4.1: "min-depth downsample so thin
-      // foreground geometry is not marched through"). Converted per texel
-      // with three's own `perspectiveDepthToViewZ`, which follows
-      // `renderer.reversedDepthBuffer` (always on, renderer.ts), so the min
-      // is taken in metres and cannot pick the wrong end of a reversed range.
       const minViewZ = float(FOG_DISTANCE_M).toVar()
       Loop({ start: int(0), end: this.cellsI, type: 'int', condition: '<', name: 'by' } as unknown as Node<'int'>, (outer) => {
         const by = (outer as unknown as { readonly by: Node<'int'> }).by
@@ -279,20 +301,111 @@ class CloudPassNode extends TempNode<'vec4'> {
           minViewZ.assign(min(minViewZ, perspectiveDepthToViewZ(depth, this.near, this.far).negate()))
         })
       })
+      return minViewZ as unknown as Node<'float'>
+    }
+
+    /** The expensive ray march for one actual low-resolution cloud cell. */
+    const marchAt = (cell: Node<'vec2'>, minViewZ: Node<'float'>): { color: Node<'vec4'>; depth: Node<'float'> } => {
       const { dir, cosView } = rayThrough(cell as unknown as Node<'vec2'>)
-      // Scene depth as a ray length: view-space Z over the ray's cosine to
-      // the view axis, capped at the fog distance -- as the dome did.
       const sceneT = min(minViewZ.div(max(cosView, 0.001)), float(FOG_DISTANCE_M))
-      // Per-pixel start dither: interleaved gradient noise, hides step
-      // banding. On the LOW-resolution pixel, so each marched texel differs.
-      // Task 4: offset by a golden-ratio sequence per frame, so successive
-      // frames sample different start depths and the resolve averages them.
-      const ign = fract(float(52.9829189).mul(fract(low.x.mul(0.06711056).add(low.y.mul(0.00583715)))))
+      const ign = fract(float(52.9829189).mul(fract(cell.x.mul(0.06711056).add(cell.y.mul(0.00583715)))))
       const dither = fract(ign.add(this.jitter))
       const result = clouds.marchNode(dir, sceneT, dither)
-      // ONE node out of the `Fn` (trap 1): a struct, split into the two
-      // attachments below.
-      return MarchOut(result.color, vec4(result.depthM, minViewZ, 0, 0))
+      return { color: result.color, depth: result.depthM }
+    }
+
+    // The compact update pass has one texel per 4x4 block. Its phase offset
+    // maps each output back to the one full cloud cell scheduled this frame,
+    // so the expensive branch executes coherently over 1/16 the pixels.
+    const update = Fn(() => {
+      const block = floor(screenCoordinate.xy).toVar()
+      const cell = min(block.mul(4).add(this.updateOffset), this.lowSize.sub(1)).toVar()
+      const minViewZ = minViewZAt(cell as unknown as Node<'vec2'>)
+      const result = marchAt(cell as unknown as Node<'vec2'>, minViewZ)
+      return MarchOut(result.color, vec4(result.depth, minViewZ, 1, 0))
+    })()
+    this.updateMaterial.fragmentNode = mrt({ cloudColor: update.get('color'), cloudData: update.get('data') })
+    this.updateMaterial.name = 'CloudUpdate'
+    this.updateQuad.material = this.updateMaterial
+    this.updateQuad.name = 'CloudUpdate'
+
+    const march = Fn(() => {
+      const cell = floor(screenCoordinate.xy).toVar()
+      const minViewZ = minViewZAt(cell as unknown as Node<'vec2'>)
+      const { dir, cosView } = rayThrough(cell as unknown as Node<'vec2'>)
+
+      // Cloud Fidelity II §3.2: seed reprojection from last frame's depth at
+      // this screen cell, then refine it once from the depth at the resulting
+      // previous-frame coordinate. This gives an unscheduled texel the same
+      // history/disocclusion decision the ordinary resolve gets without first
+      // paying for a fresh march.
+      const at = ivec2(cell).toVar()
+      const lowMax = ivec2(this.lowSize).sub(ivec2(1, 1)).toVar()
+      const seedData = this.prevMarchData.load(clampTexel(at, lowMax)).toVar()
+      const seeded = this.reprojectTexel(cell as unknown as Node<'vec2'>, seedData as unknown as Node<'vec4'>)
+      const seededLow = this.prevLowOf(seeded.uv)
+      const previousData = this.prevMarchData.load(clampTexel(ivec2(floor(seededLow)), lowMax)).toVar()
+      const reprojected = this.reprojectTexel(cell as unknown as Node<'vec2'>, previousData as unknown as Node<'vec4'>)
+      const prevLow = vec2(this.prevLowOf(reprojected.uv)).toVar()
+      // Unconditional texture sample: WGSL textureSample must stay in uniform
+      // control flow even though only unscheduled, accepted texels use it.
+      const history = this.historyRead.sample(prevLow.div(this.lowSize))
+      const stop = this.eyeDelta.add(dir.mul(minViewZ.div(max(cosView, 0.001))))
+      const expected = min(this.prevViewProjection.mul(vec4(stop, 1)).w, float(FOG_DISTANCE_M))
+      const prevAt = clampTexel(ivec2(floor(prevLow)), lowMax).toVar()
+      const prevStop = this.prevMarchData.load(prevAt).y
+      const occluded = abs(prevStop.sub(expected)).div(max(expected, 1e-3)).greaterThan(DISOCCLUSION)
+      const cloudDepthMin = float(previousData.x).toVar()
+      const cloudDepthMax = float(previousData.x).toVar()
+      for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+        const d = this.prevMarchData.load(clampTexel(prevAt.add(ivec2(ox, oy)), lowMax)).x
+        cloudDepthMin.assign(min(cloudDepthMin, d))
+        cloudDepthMax.assign(max(cloudDepthMax, d))
+      }
+      const cloudEdge = cloudDepthMax.sub(cloudDepthMin).div(max(cloudDepthMax, 1)).greaterThan(CLOUD_EDGE_DEPTH_MISMATCH)
+      const uv = reprojected.uv
+      const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
+      const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not()).and(cloudEdge.not())
+      const color = vec4(history).toVar()
+      const cloudDepth = float(previousData.x).toVar()
+      const marched = float(0).toVar()
+      const assignMarch = (): void => {
+        const result = marchAt(cell as unknown as Node<'vec2'>, minViewZ)
+        color.assign(result.color)
+        cloudDepth.assign(result.depth)
+        marched.assign(1)
+      }
+      const compactAt = ivec2(floor(cell.div(4))).toVar()
+      const fullMarch = this.forceMarch.greaterThan(0.5).or(this.updatePeriod.equal(int(1)))
+      const scheduled = cell.x.mod(4).equal(this.updateOffset.x).and(cell.y.mod(4).equal(this.updateOffset.y))
+      If(fullMarch, assignMarch).Else(() => {
+        If(scheduled, () => {
+          const data = this.updateData.load(compactAt)
+          color.assign(this.updateColor.load(compactAt))
+          cloudDepth.assign(data.x)
+          marched.assign(1)
+        }).Else(() => {
+          // A disoccluded/off-screen texel is marched immediately instead of
+          // waiting for its Bayer phase, preventing a 16-frame clear trail.
+          If(accept.not(), assignMarch).Else(() => {
+            // Carried history is up to 15 frames old, and re-sampling it
+            // every frame under rotation smears it into arcs (in-deck roll,
+            // 2026-09-25; gone with every-texel updates). Bound it by this
+            // frame's fresh samples: the 3x3 compact texels around this
+            // cell, the marches nearest it. Loads, so no uniformity rule.
+            const compactMax = ivec2(this.lowSize.add(3).div(4)).sub(ivec2(1, 1)).toVar()
+            const freshLo = vec4(this.updateColor.load(clampTexel(compactAt, compactMax))).toVar()
+            const freshHi = vec4(freshLo).toVar()
+            for (const [ox, oy] of NEIGHBORS) {
+              const n = this.updateColor.load(clampTexel(compactAt.add(ivec2(ox, oy)), compactMax)).toVar()
+              freshLo.assign(min(freshLo, n))
+              freshHi.assign(max(freshHi, n))
+            }
+            color.assign(clamp(history, freshLo, freshHi))
+          })
+        })
+      })
+      return MarchOut(color, vec4(cloudDepth, minViewZ, marched, 0))
     })()
     this.material.fragmentNode = mrt({ cloudColor: march.get('color'), cloudData: march.get('data') })
     this.material.name = 'CloudMarch'
@@ -326,29 +439,33 @@ class CloudPassNode extends TempNode<'vec4'> {
       const low = screenCoordinate.xy
       const cell = floor(low).toVar()
       const at = ivec2(cell).toVar()
-      const lowMax = ivec2(this.lowSize).sub(ivec2(1, 1)).toVar()
       const current = this.marchColor.load(at).toVar()
-      const lo = vec4(current).toVar()
-      const hi = vec4(current).toVar()
-      for (const [ox, oy] of NEIGHBORS) {
-        const n = this.marchColor.load(clampTexel(at.add(ivec2(ox, oy)), lowMax)).toVar()
-        lo.assign(min(lo, n))
-        hi.assign(max(hi, n))
-      }
       const data = this.marchData.load(at).toVar()
-      const reprojected = this.reprojectTexel(cell as unknown as Node<'vec2'>, data as unknown as Node<'vec4'>)
-      const { dir, cosView, uv } = reprojected
-      const prevLow = vec2(this.prevLowOf(uv)).toVar()
-      const history = this.historyRead.sample(prevLow.div(this.lowSize))
-      const clamped = clamp(history, lo, hi)
-      // Disocclusion: today's stop point, in the previous camera.
-      const stop = this.eyeDelta.add(dir.mul(data.y.div(max(cosView, 0.001))))
-      const expected = min(this.prevViewProjection.mul(vec4(stop, 1)).w, float(FOG_DISTANCE_M))
-      const prevStop = this.prevMarchData.load(clampTexel(ivec2(floor(prevLow)), lowMax)).y
-      const occluded = abs(prevStop.sub(expected)).div(max(expected, 1e-3)).greaterThan(DISOCCLUSION)
-      const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
-      const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not())
-      return accept.select(mix(current, clamped, HISTORY_BLEND), current)
+      const output = vec4(current).toVar()
+      If(data.z.greaterThan(0.5), () => {
+        const lowMax = ivec2(this.lowSize).sub(ivec2(1, 1)).toVar()
+        const lo = vec4(current).toVar()
+        const hi = vec4(current).toVar()
+        for (const [ox, oy] of NEIGHBORS) {
+          const n = this.marchColor.load(clampTexel(at.add(ivec2(ox, oy)), lowMax)).toVar()
+          lo.assign(min(lo, n))
+          hi.assign(max(hi, n))
+        }
+        const reprojected = this.reprojectTexel(cell as unknown as Node<'vec2'>, data as unknown as Node<'vec4'>)
+        const { dir, cosView, uv } = reprojected
+        const prevLow = vec2(this.prevLowOf(uv)).toVar()
+        const history = this.historyRead.sample(prevLow.div(this.lowSize))
+        const clamped = clamp(history, lo, hi)
+        // Disocclusion: today's stop point, in the previous camera.
+        const stop = this.eyeDelta.add(dir.mul(data.y.div(max(cosView, 0.001))))
+        const expected = min(this.prevViewProjection.mul(vec4(stop, 1)).w, float(FOG_DISTANCE_M))
+        const prevStop = this.prevMarchData.load(clampTexel(ivec2(floor(prevLow)), lowMax)).y
+        const occluded = abs(prevStop.sub(expected)).div(max(expected, 1e-3)).greaterThan(DISOCCLUSION)
+        const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
+        const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not())
+        output.assign(accept.select(mix(current, clamped, HISTORY_BLEND), current))
+      })
+      return output
     })()
     this.resolveMaterial.fragmentNode = resolve
     this.resolveMaterial.name = 'CloudResolve'
@@ -360,6 +477,11 @@ class CloudPassNode extends TempNode<'vec4'> {
     if (scale !== this.scale) this.resetPending = true
     this.scale = scale
     this.cells = cloudCells(scale)
+  }
+
+  setUpdatePeriod(frames: 1 | 16): void {
+    if (frames !== this.updatePeriod.value) this.resetPending = true
+    this.updatePeriod.value = frames
   }
 
   setEye(eye: Vec3): void {
@@ -381,14 +503,37 @@ class CloudPassNode extends TempNode<'vec4'> {
     // A resize reallocates every target: last frame's history is gone.
     if (march.width !== lowWidth || march.height !== lowHeight) this.resetPending = true
     for (const target of [...this.march, ...this.history]) target.setSize(lowWidth, lowHeight)
+    this.updates.setSize(Math.ceil(lowWidth / 4), Math.ceil(lowHeight / 4))
     this.fullSize.value.set(width, height)
     this.lowSize.value.set(lowWidth, lowHeight)
     this.cellsF.value = this.cells.span
     this.cellsI.value = this.cells.block
     this.jitter.value = (this.frameIndex * GOLDEN) % 1
+    const updateOffset = bayer4Offset(this.frameIndex % 16)
+    this.updateOffset.value.set(updateOffset.x, updateOffset.y)
     this.frameIndex++
 
-    // 1. The march, into this frame's target.
+    // Reprojection is needed by the march itself now: unscheduled texels
+    // carry accepted history, while rejected ones march immediately.
+    const eye = this.eye ?? { x: 0, y: 0, z: 0 }
+    const reset = this.resetPending || this.prevEye === null
+    const prevEye = this.prevEye ?? eye
+    this.eyeDelta.value.set(eye.x - prevEye.x, eye.y - prevEye.y, eye.z - prevEye.z)
+    this.historyValid.value = reset ? 0 : 1
+    this.historyRead.value = this.history[1 - this.current]!.texture
+    this.forceMarch.value = this.residualRequests.length > 0 ? 1 : 0
+
+    // 1. High's compact 1/16-area scheduled update. Every-frame tiers bypass
+    // it and march coherently in the full target below.
+    if (this.updatePeriod.value === 16) {
+      this.updateColor.value = this.updates.textures[0]!
+      this.updateData.value = this.updates.textures[1]!
+      renderer.setRenderTarget(this.updates)
+      this.updateQuad.render(renderer)
+    }
+
+    // 2. Assemble carried history, compact updates and disocclusion fallbacks
+    // into this frame's full cloud target.
     this.marchColor.value = march.textures[0]!
     this.marchData.value = march.textures[1]!
     this.prevMarchData.value = this.march[1 - this.current]!.textures[1]!
@@ -396,20 +541,14 @@ class CloudPassNode extends TempNode<'vec4'> {
     renderer.setRenderTarget(march)
     this.quad.render(renderer)
 
-    // 2. The resolve, from last frame's history into this frame's.
-    const eye = this.eye ?? { x: 0, y: 0, z: 0 }
-    const reset = this.resetPending || this.prevEye === null
-    const prevEye = this.prevEye ?? eye
-    this.eyeDelta.value.set(eye.x - prevEye.x, eye.y - prevEye.y, eye.z - prevEye.z)
-    this.historyValid.value = reset ? 0 : 1
-    this.historyRead.value = this.history[1 - this.current]!.texture
+    // 3. The resolve, from last frame's history into this frame's.
     renderer.setRenderTarget(history)
     this.resolveQuad.render(renderer)
     this.resolved.value = history.texture
     if (this.residualRequests.length > 0) this.renderResidual(renderer, reset)
     if (reset) this.resets++
 
-    // 3. This frame becomes the previous one. The scene pass has already
+    // 4. This frame becomes the previous one. The scene pass has already
     // rendered this frame, so the camera's matrices are this frame's.
     this.prevViewProjection.value.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
     this.prevEye = eye
@@ -553,7 +692,9 @@ class CloudPassNode extends TempNode<'vec4'> {
   override dispose(): void {
     super.dispose()
     for (const target of [...this.march, ...this.history]) target.dispose()
+    this.updates.dispose()
     this.material.dispose()
+    this.updateMaterial.dispose()
     this.resolveMaterial.dispose()
     if (this.residual !== null) { this.residual.target.dispose(); this.residual.material.dispose() }
     for (const r of this.residualRequests) r(null)
@@ -574,6 +715,7 @@ export function createCloudPass(opts: {
   return {
     composite: node as unknown as Node<'vec4'>,
     setResolutionScale(scale) { node.setResolutionScale(scale) },
+    setUpdatePeriod(frames) { node.setUpdatePeriod(frames) },
     setEye(eye) { node.setEye(eye) },
     resetHistory() { node.resetHistory() },
     historyResets() { return node.resets },

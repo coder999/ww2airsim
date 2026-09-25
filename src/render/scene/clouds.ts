@@ -46,11 +46,17 @@ export { cloudDriftM }
  * `fineLightSteps` of them on the DETAILED density (the creases between
  * billows are shadows cast by the erosion), and no distance light LOD
  * (`lightLodBandM` null; the lower tiers blend it out over 1.5-2.5 km).
+ *
+ * Cloud Fidelity II §3.2 (2026-09-25): `updatePeriod: 16` marches one texel
+ * per 4x4 block per frame (cloudPass.ts), and High spends the saving on 128
+ * view steps. in-deck-1900 p95 at 4K: 11.2 ms at 96 steps, 13.4 / 13.8 ms at
+ * 128, 16.0 ms at 128 with 8 light / 4 fine (rejected: no margin). Medium and
+ * Low still march every texel.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 96, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5 },
-  medium: { cumulusSteps: 64, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3 },
-  low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25 },
+  high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 16 },
+  medium: { cumulusSteps: 64, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
+  low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25, updatePeriod: 1 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
 

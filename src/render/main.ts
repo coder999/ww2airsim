@@ -1159,6 +1159,7 @@ async function boot(): Promise<void> {
     cloudTier = name
     clouds.setTier(name)
     cloudPass?.setResolutionScale(CLOUD_TIERS[name].resolutionScale)
+    cloudPass?.setUpdatePeriod(CLOUD_TIERS[name].updatePeriod)
     shadow.setTier(name)
   }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
@@ -1281,6 +1282,7 @@ async function boot(): Promise<void> {
   })
   if (cloudPass !== null && cloudTier !== 'off') {
     cloudPass.setResolutionScale(CLOUD_TIERS[cloudTier].resolutionScale)
+    cloudPass.setUpdatePeriod(CLOUD_TIERS[cloudTier].updatePeriod)
     framePipeline.setOutput(cloudPass.composite)
   }
 
