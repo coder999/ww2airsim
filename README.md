@@ -582,7 +582,7 @@ to Tier 2 (`tests/e2e/gunnery.spec.ts`).
 
 ## Deployment
 
-Live at <https://ww2airsim.marktuttle.dev>, a public static site on the OVH
+Live at <https://ww2airsim.com>, a public static site on the OVH
 VPS. `noindex`, because it is unfinished.
 
 Deploys are **manual**: `gh workflow run deploy.yml --repo coder999/ww2airsim`.

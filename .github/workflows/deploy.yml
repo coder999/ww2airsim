@@ -106,7 +106,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base=https://ww2airsim.marktuttle.dev
+          base=https://ww2airsim.com
           cb=${{ github.run_id }}
 
           # The container's healthcheck fetches `/`, which 403s while htdocs is

@@ -93,7 +93,7 @@ function copyContent(): Plugin {
  * gate in front of it and what does NOT need configuring in Cloudflare are
  * documented once, in vps-local/shared/traefik/dynamic/ww2airsim-dev.yml --
  * do not restate any of it here. That hostname is dev-only; production
- * remains ww2airsim.marktuttle.dev and is unaffected by this file.
+ * remains ww2airsim.com and is unaffected by this file.
  *
  * `hmr` has to be spelled out for that path because the browser reaches the
  * page on :443 over TLS while Vite listens on plain :5173, so the client's
