@@ -2,7 +2,7 @@ import { Color, DirectionalLight, Group, HemisphereLight, Vector3, type Object3D
 import { uniform } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import type { Vec3 } from '../../sim/math/vec3.js'
-import { atmospherePalette, type SkyPalette } from '../sky/palette.js'
+import { directAtmospherePalette, type SkyPalette } from '../sky/palette.js'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -44,9 +44,10 @@ export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTI
  *    perspective add these over the model (`atmosphereShading.ts`).
  *
  * Initialized from the noon sea-level palette so a consumer built before the
- * first frame renders a plausible day.
+ * first frame renders a plausible day -- by one direct evaluation, not the
+ * irradiance table, whose build main.ts schedules during boot's load phase.
  */
-const initial = atmospherePalette(0, 68)
+const initial = directAtmospherePalette(0, 68)
 const vec3Uniform = (c: readonly [number, number, number]): UniformNode<'vec3', Color> =>
   uniform(new Color(...c)) as unknown as UniformNode<'vec3', Color>
 export const sunColorNode = vec3Uniform(initial.sunColor)

@@ -98,8 +98,20 @@ export const IRRADIANCE_ALTITUDES_M: readonly number[] = [0, 1000, 2000, 3500, 5
 const LOG_FLOOR = 1e-12
 type IrradianceTable = { readonly up: Float64Array; readonly down: Float64Array }
 let table: IrradianceTable | null = null
+let tableBuildMs: number | null = null
+/**
+ * Builds the table now if it is not built yet, and returns how long the
+ * build took (ms; the same number on every later call). main.ts calls this
+ * during boot's async load phase so the build never lands on a rendered
+ * frame; `interpolatedIrradiance` still builds lazily if nobody warmed it.
+ */
+export function warmIrradianceTable(): number {
+  irradianceTable()
+  return tableBuildMs!
+}
 function irradianceTable(): IrradianceTable {
   if (table !== null) return table
+  const started = performance.now()
   const ne = IRRADIANCE_ELEVATIONS_DEG.length, na = IRRADIANCE_ALTITUDES_M.length
   const up = new Float64Array(na * ne * 3), down = new Float64Array(na * ne * 3)
   for (let a = 0; a < na; a++) {
@@ -112,6 +124,7 @@ function irradianceTable(): IrradianceTable {
     }
   }
   table = { up, down }
+  tableBuildMs = performance.now() - started
   return table
 }
 /** Index of the cell containing x and the fraction across it, clamped to the grid. */
@@ -140,11 +153,23 @@ export function interpolatedIrradiance(hM: number, elevationDeg: number): { up: 
   return { up: [at(t.up, 0), at(t.up, 1), at(t.up, 2)], down: [at(t.down, 0), at(t.down, 1), at(t.down, 2)] }
 }
 
-/** The palette for an eye altitude (m, the world's y) and sun elevation (deg). */
+/** The palette for an eye altitude (m, the world's y) and sun elevation (deg),
+ *  its sky irradiance from the boot-time table. */
 export function atmospherePalette(eyeAltitudeM: number, elevationDeg: number): SkyPalette {
   const hM = Math.max(0, eyeAltitudeM)
+  return paletteFrom(hM, elevationDeg, interpolatedIrradiance(hM, elevationDeg))
+}
+
+/** The same palette from ONE direct `skyIrradiance` evaluation (~2 ms), for a
+ *  one-off -- lighting.ts's initial uniform values at module load, which must
+ *  not trigger the table build before the page has even painted. */
+export function directAtmospherePalette(eyeAltitudeM: number, elevationDeg: number): SkyPalette {
+  const hM = Math.max(0, eyeAltitudeM)
+  return paletteFrom(hM, elevationDeg, skyIrradiance(hM, elevationDeg, SCENE_GROUND_ALBEDO))
+}
+
+function paletteFrom(hM: number, elevationDeg: number, irr: { up: Rgb; down: Rgb }): SkyPalette {
   const sunColor = scaled(sunColorAt(hM, elevationDeg), SUN_ILLUMINANCE)
-  const irr = interpolatedIrradiance(hM, elevationDeg)
   const up = scaled(irr.up, SUN_ILLUMINANCE)
   const down = scaled(irr.down, SUN_ILLUMINANCE)
   // The floor's weight: F²/(L² + F²) on the luminances of the model's sky fill

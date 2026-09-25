@@ -350,6 +350,9 @@ export type Ww2Diagnostics = {
    *  zenith cosine mu, read back and bilinearly filtered as a sampler would
    *  (atmosphereLuts.ts), for comparison with the CPU `transmittanceToTop`. */
   readonly atmosphereTransmittance: (hM: number, mu: number) => Promise<readonly [number, number, number]>
+  /** Photoreal Task 9 fix 2: how long the boot-time sky-irradiance table
+   *  (sky/palette.ts) took to build, ms; null if it has not been built. */
+  readonly irradianceTableBuildMs: () => number | null
   /** Photoreal Task 8: one stored texel of an atmosphere LUT (rgba), by
    *  pixel column and row from the texture's first row. */
   readonly atmosphereLutTexel: (lut: AtmosphereLutName, px: number, py: number) => Promise<readonly [number, number, number, number]>

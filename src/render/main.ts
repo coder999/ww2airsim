@@ -31,7 +31,7 @@ import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
-import { atmospherePalette } from './sky/palette.js'
+import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -204,6 +204,8 @@ async function boot(): Promise<void> {
   // every frame. Apparent solar time.
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
   let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
+  /** Photoreal Task 9 fix 2: the boot-time irradiance table build, ms (DEV readout). */
+  let irradianceTableMs: number | null = null
   // Plan 17, read by the DEV hook's `radar()` below and by Task 3's render
   // code; assigned every frame in the render loop, the same hoist-and-
   // reassign shape `sunState` above uses so both the loop and this closure
@@ -890,6 +892,7 @@ async function boot(): Promise<void> {
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
       // Photoreal Task 8: the GPU transmittance LUT at (hM, mu), for the
       // CPU/GPU agreement check (tests/e2e/atmosphere.spec.ts).
+      irradianceTableBuildMs: () => irradianceTableMs,
       atmosphereTransmittance: (hM: number, mu: number) => getAtmosphereLuts().readTransmittance(renderer, hM, mu),
       atmosphereLutTexel: (lut: AtmosphereLutName, px: number, py: number) => getAtmosphereLuts().readTexel(renderer, lut, px, py),
       // Photoreal Task 4 fix round 1: the reprojection-direction check.
@@ -998,7 +1001,19 @@ async function boot(): Promise<void> {
   // the ocean's materials, so the cloud field and the map exist before them.
   // The noise is fetched here rather than beside the bathymetry (16a) for
   // that reason; a clear-sky scenario still loads it (16a's reason stands).
-  const skyNoise = await loadSkyNoise()
+  const skyNoiseLoading = loadSkyNoise()
+  // Handled below by the `await`; this only stops a rejection during the
+  // yield from being reported as unhandled before that `await` attaches.
+  skyNoiseLoading.catch(() => undefined)
+  // Photoreal Task 9 fix 2: build the sky-irradiance table (sky/palette.ts,
+  // ~0.3 s of CPU) HERE, during the async load phase, rather than lazily on
+  // the first `atmospherePalette` call -- which is inside the frame loop, so
+  // the build would land as a stall on the first rendered frame. Yield to
+  // the event loop first so the loading/title UI can paint, and overlap the
+  // build with the sky-noise fetch already in flight.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  irradianceTableMs = warmIrradianceTable()
+  const skyNoise = await skyNoiseLoading
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
