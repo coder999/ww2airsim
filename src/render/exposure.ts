@@ -4,10 +4,12 @@
  * no histogram auto-exposure -- so a given time of day always looks the same
  * and a Tier 2 screenshot is reproducible.
  *
- * The keys are the same elevations `sky/palette.ts` keys its look on (30,
- * 10, 0, -6 degrees): the palette dims the lights toward dusk, and this lifts
- * the picture back by a photographer's stop or two so dusk reads as dim, not
- * black. Offsets are in EV (stops) and interpolated linearly in that log2
+ * The keys sit at the elevations Plan 16c's retired palette keyed its look
+ * on (30, 10, 0, -6 degrees). The atmosphere (`sky/palette.ts`, photoreal
+ * Task 9) dims the light toward dusk, and this lifts the picture back by a
+ * photographer's stop or two so dusk reads as dim, not black. Task 9 kept
+ * the keys unchanged: noon runway luminance 0.968 of Phase A, the 18:30
+ * dusk frame mean grey 22 (sun.spec's range is [2, 60]). Offsets are in EV (stops) and interpolated linearly in that log2
  * space, so the brightening is perceptually even across the transition.
  */
 

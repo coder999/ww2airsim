@@ -125,7 +125,8 @@ function smoothstep(e0: number, e1: number, x: number): number {
 }
 
 /** How far below the local geometric horizon the sun fades to nothing: the
- *  existing dusk floor (palette.ts's -6° key). */
+ *  dusk floor elevation of Plan 16c's retired -6° palette key (the floor's
+ *  sky and fill now come from `atmospherePalette`, sky/palette.ts). */
 export const SUN_FADE_BELOW_HORIZON_DEG = 6
 
 /** Sun illuminance color reaching altitude hM at sun elevation (deg), relative
