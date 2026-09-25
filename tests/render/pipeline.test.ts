@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ACESFilmicToneMapping, AgXToneMapping, NoToneMapping, PerspectiveCamera, Scene } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
-import { antiAliasingFromQuery, createFramePipeline, DEFAULT_ANTI_ALIASING } from '../../src/render/pipeline.js'
+import { antiAliasingFromQuery, createFramePipeline, DEFAULT_ANTI_ALIASING, sharpenFromQuery } from '../../src/render/pipeline.js'
 
 describe('createFramePipeline', () => {
   it('passes the scene through unchanged by default', () => {
@@ -45,5 +45,16 @@ describe('antiAliasingFromQuery', () => {
   })
   it('throws on an unknown mode rather than silently showing the default', () => {
     expect(() => antiAliasingFromQuery('?aa=msaa')).toThrow(/aa: "msaa"/)
+  })
+})
+
+describe('sharpenFromQuery', () => {
+  it('parses an amount in [0, 1] and throws outside it', () => {
+    expect(sharpenFromQuery('')).toBeUndefined()
+    expect(sharpenFromQuery('?sharpen=0')).toBe(0)
+    expect(sharpenFromQuery('?sharpen=0.5')).toBe(0.5)
+    expect(() => sharpenFromQuery('?sharpen=')).toThrow(/sharpen/)
+    expect(() => sharpenFromQuery('?sharpen=2')).toThrow(/sharpen/)
+    expect(() => sharpenFromQuery('?sharpen=abc')).toThrow(/sharpen/)
   })
 })

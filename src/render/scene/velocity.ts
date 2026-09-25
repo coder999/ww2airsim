@@ -109,8 +109,8 @@ const scratch = new Matrix4()
  * Advances the motion state to the frame about to render. Call once per
  * RENDERED frame, before the pipeline renders (the camera must be unjittered
  * and posed for this frame). After `resetVelocity` (and on the first frame)
- * the previous state is this frame's, so the velocity is zero, like three's
- * own `VelocityNode` on an object's first frame.
+ * the previous state is this frame's, so the ocean's velocity is zero, like
+ * three's own `VelocityNode` on an object's first frame.
  */
 export function advanceVelocity(camera: Camera, eye: Vec3): void {
   camera.updateMatrixWorld()
@@ -127,7 +127,10 @@ export function advanceVelocity(camera: Camera, eye: Vec3): void {
   previousEye = { x: eye.x, y: eye.y, z: eye.z }
 }
 
-/** The next `advanceVelocity` starts from nothing (a teleport or a cut). */
+/** The next `advanceVelocity` starts from nothing (a teleport or a cut).
+ *  This resets only `worldFixedVelocity`'s state (the ocean); every other
+ *  mesh keeps three's per-object previous matrices across it, which is
+ *  harmless because TRAA discards its history on the same frame. */
 export function resetVelocity(): void {
   previousEye = null
 }

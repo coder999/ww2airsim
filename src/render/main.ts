@@ -92,7 +92,7 @@ import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
-import { antiAliasingFromQuery, createFramePipeline } from './pipeline.js'
+import { antiAliasingFromQuery, createFramePipeline, sharpenFromQuery } from './pipeline.js'
 import { exposureFor, toneMapFromQuery } from './exposure.js'
 import { loadCover } from './landcover/load.js'
 
@@ -1238,6 +1238,9 @@ async function boot(): Promise<void> {
   // Task 6: TRAA in production; DEV `?aa=traa|smaa` for comparison captures.
   const forcedAntiAliasing = import.meta.env.DEV ? antiAliasingFromQuery(location.search) : undefined
   if (forcedAntiAliasing !== undefined) framePipeline.setAntiAliasing(forcedAntiAliasing)
+  // Task 6 fix round 1: DEV `?sharpen=0..1` overrides the post-AA RCAS amount.
+  const forcedSharpen = import.meta.env.DEV ? sharpenFromQuery(location.search) : undefined
+  if (forcedSharpen !== undefined) framePipeline.setSharpen(forcedSharpen)
   // Photoreal Task 3 (spec §4.1): the cloud march at reduced resolution,
   // composited over the scene pass. It renders from inside
   // `framePipeline.render()` (a node's `updateBefore`, after the scene pass)

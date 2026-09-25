@@ -1,6 +1,6 @@
 import { ACESFilmicToneMapping, AgXToneMapping, HalfFloatType, NoToneMapping, RGFormat, type Camera, type Scene, type ToneMapping } from 'three'
-import { RenderPipeline, type Node, type NodeFrame, type PassNode, type RenderTarget, type TextureNode, type WebGPURenderer } from 'three/webgpu'
-import { convertToTexture, luminance, max, mix, mrt, output, pass, uniform, vec3, vec4 } from 'three/tsl'
+import { RenderPipeline, type Node, type PassNode, type TextureNode, type WebGPURenderer } from 'three/webgpu'
+import { Fn, clamp, convertToTexture, float, floor, int, ivec2, luminance, max, min, mix, mrt, output, pass, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import TRAANode from 'three/addons/tsl/display/TRAANode.js'
 import { smaa } from 'three/addons/tsl/display/SMAANode.js'
@@ -74,13 +74,18 @@ export type FramePipeline = {
   setExposure(value: number): void
   setToneMap(name: ToneMapName): void
   setAntiAliasing(mode: AntiAliasingName): void
+  /** RCAS amount after anti-aliasing, 0..1 (`SHARPEN_AMOUNT`); a uniform. */
+  setSharpen(amount: number): void
   /** The eye's world position for the frame about to render (camera-relative
    *  rendering), for the world-fixed motion vectors. Once per rendered frame. */
   setEye(eye: Vec3): void
-  /** The next rendered frame resolves without TRAA history and with zero
-   *  world-fixed motion: every discontinuity the cloud history resets on. */
+  /** The next rendered frame resolves without TRAA history (see `Traa`),
+   *  and the ocean's world-fixed motion restarts at zero. Other meshes keep
+   *  three's per-object previous matrices across the reset -- harmless: the
+   *  reset frame blends the current picture with itself whatever the motion
+   *  says. Called on every discontinuity the cloud history resets on. */
   resetHistory(): void
-  /** Frames TRAA resolved from a reset history (explicit resets only). */
+  /** `resetHistory` calls since boot. */
   historyResets(): number
   render(): void
   dispose(): void
@@ -101,32 +106,17 @@ export function antiAliasingFromQuery(search: string): AntiAliasingName | undefi
 }
 
 /**
- * `TRAANode` with a history reset. three@0.186.0's node has none public; it
- * refills its history from the current picture only when the picture's size
- * changes (TRAANode.js `updateBefore`, `needsRestart`). This does the same
- * copy on request, BEFORE the resolve, so the resolve blends the current
- * frame with itself: no trace of the previous view survives the reset frame.
- * The previous-depth texture is left stale on that frame; it only gates the
- * history the copy has just made identical to the current frame.
+ * `TRAANode`'s public runtime API that @types/three 0.186 does not declare
+ * (both are documented methods in three@0.186.0 TRAANode.js).
+ *
+ * The history reset uses `setSize(1, 1)`: on the next `updateBefore` the
+ * history no longer matches the picture's size, so three's own restart path
+ * runs (TRAANode.js `needsRestart`: re-init both targets, copy the current
+ * picture into the history) BEFORE the resolve, which then blends the
+ * current frame with itself -- no trace of the previous view survives. The
+ * same path a window resize takes; no private field is touched.
  */
-class ResettableTRAANode extends TRAANode {
-  private resetPending = false
-  resetHistory(): void { this.resetPending = true }
-  override updateBefore(frame: NodeFrame): boolean | undefined {
-    if (this.resetPending) {
-      this.resetPending = false
-      const beauty = this.beautyNode as unknown as { isRTTNode?: boolean; renderTarget?: RenderTarget; passNode?: { renderTarget: RenderTarget } }
-      const source = (beauty.isRTTNode ? beauty.renderTarget : beauty.passNode?.renderTarget)?.texture
-      // Private in r186 (TRAANode.js constructor), read, not assumed.
-      const history = (this as unknown as { _historyRenderTarget: RenderTarget })._historyRenderTarget
-      // A size mismatch means the node restarts from the picture by itself.
-      if (source !== undefined && history.width === source.width && history.height === source.height) {
-        (frame.renderer as WebGPURenderer).copyTextureToTexture(source, history.texture)
-      }
-    }
-    return super.updateBefore(frame)
-  }
-}
+type Traa = TRAANode & { setSize(width: number, height: number): void; getTextureNode(): TextureNode }
 
 const TONE_MAPPINGS: Readonly<Record<ToneMapName, ToneMapping>> = {
   agx: AgXToneMapping, aces: ACESFilmicToneMapping, none: NoToneMapping,
@@ -152,7 +142,70 @@ export const BLOOM_THRESHOLD = 1.2
  */
 export const AGX_LOOK_SATURATION = 1.4
 
-type OutputChain = { readonly node: Node<'vec4'>; readonly traa: ResettableTRAANode | null; dispose(): void }
+/**
+ * Contrast-adaptive sharpening after anti-aliasing (Task 6 fix round 1,
+ * controller ruling: TRAA's defaults -- 95% history, bilinear history
+ * resampling -- visibly softened fine terrain and sub-pixel detail against
+ * the MSAA-era captures, and the spec never trades visible quality away).
+ *
+ * AMD FidelityFX FSR 1's RCAS, as three's SharpenNode.js ports it (5-tap
+ * cross; the lobe is limited by local contrast so it cannot ring past the
+ * neighborhood's min/max), with two changes:
+ * - It runs inline in the output quad rather than as its own pass, so it
+ *   costs no extra full-resolution target.
+ * - RCAS assumes a [0, 1] signal (its limiter divides by `1 - max`) and this
+ *   picture is linear HDR (cloud tops and the sun exceed 1). Each tap is
+ *   compressed per channel with `x / (1 + x)`, sharpened, and expanded with
+ *   `c / (1 - c)`. Without it the limiter goes to 0/0 on bright pixels.
+ *
+ * `amount` is FSR's `exp2(-sharpness)`: 0 = off, 1 = RCAS's strongest.
+ */
+export const SHARPEN_AMOUNT = 0.5
+const RCAS_LIMIT = 0.25 - 1 / 16
+
+function rcasSharpen(tex: TextureNode, amount: Node<'float'>): Node<'vec4'> {
+  return Fn(() => {
+    const size = ivec2(tex.size(int(0)) as unknown as Node<'ivec2'>)
+    const hi = size.sub(ivec2(1, 1))
+    const at = ivec2(floor(uv().mul(vec2(size)))).toConst()
+    const compress = (rgb: Node<'vec3'>): Node<'vec3'> => {
+      const c = rgb.max(vec3(0))
+      return c.div(c.add(1)).toConst() as unknown as Node<'vec3'>
+    }
+    const tap = (x: number, y: number): Node<'vec3'> => compress(tex.load(clampTexel(at.add(ivec2(x, y)), hi)).rgb)
+    const center = tex.load(at).toConst()
+    const e = compress(center.rgb), b = tap(0, -1), d = tap(-1, 0), f = tap(1, 0), h = tap(0, 1)
+    const mn4 = min(min(b, d), min(f, h)).toConst()
+    const mx4 = max(max(b, d), max(f, h)).toConst()
+    const hitMin = min(mn4, e).div(max(mx4, vec3(1e-5)).mul(4)).toConst()
+    const hitMax = vec3(1).sub(max(mx4, e)).div(mn4.mul(4).sub(4)).toConst()
+    const lobeRGB = max(hitMin.negate(), hitMax).toConst()
+    const lobe = max(float(-RCAS_LIMIT), min(max(lobeRGB.x, max(lobeRGB.y, lobeRGB.z)), float(0))).mul(amount).toConst()
+    const sharpened = b.add(d).add(f).add(h).mul(lobe).add(e).div(lobe.mul(4).add(1))
+    const c = min(sharpened.max(vec3(0)), vec3(0.9999)).toConst()
+    return vec4(c.div(vec3(1).sub(c)), center.a)
+  })() as unknown as Node<'vec4'>
+}
+
+/** Integer texel clamped into [0, hi]; see cloudPass.ts's `clampTexel` for
+ *  why the cast (@types/three 0.186's `clamp` admits only float vectors). */
+function clampTexel(at: Node<'ivec2'>, hi: Node<'ivec2'>): Node<'ivec2'> {
+  return (clamp as unknown as (x: Node<'ivec2'>, lo: Node<'ivec2'>, hi: Node<'ivec2'>) => Node<'ivec2'>)(at, ivec2(0, 0), hi)
+}
+
+/** DEV `?sharpen=<0..1>`, for tuning captures. Throws outside [0, 1]. */
+export const SHARPEN_PARAM = 'sharpen'
+export function sharpenFromQuery(search: string): number | undefined {
+  const raw = new URLSearchParams(search).get(SHARPEN_PARAM)
+  if (raw === null) return undefined
+  const value = Number(raw)
+  if (raw.trim() === '' || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${SHARPEN_PARAM}: ${JSON.stringify(raw)} is not a number in [0, 1]`)
+  }
+  return value
+}
+
+type OutputChain = { readonly node: Node<'vec4'>; readonly traa: Traa | null; dispose(): void }
 
 type AaInputs = { readonly depth: TextureNode; readonly velocity: TextureNode; readonly camera: Camera }
 
@@ -165,18 +218,21 @@ type AaInputs = { readonly depth: TextureNode; readonly velocity: TextureNode; r
  * and anti-aliasing reads that.
  *
  * `resolved` is the anti-aliased frame (Task 6): TRAA's resolve target, or
- * SMAA's blend target. Bloom and the output both read it, so bloom sees
- * stable edges rather than the jittered ones.
+ * SMAA's blend target. Bloom reads it as is; the output reads it through
+ * `rcasSharpen` (Task 6 fix round 1), before exposure and the curve.
  */
-function outputChain(picture: Node<'vec4'>, saturation: Node<'float'>, mode: AntiAliasingName, inputs: AaInputs): OutputChain {
+function outputChain(
+  picture: Node<'vec4'>, saturation: Node<'float'>, sharpenAmount: Node<'float'>, mode: AntiAliasingName, inputs: AaInputs,
+): OutputChain {
   const color = convertToTexture(picture) as unknown as TextureNode
-  const traa = mode === 'traa' ? new ResettableTRAANode(color, inputs.depth, inputs.velocity, inputs.camera) : null
+  const traa = mode === 'traa' ? new TRAANode(color, inputs.depth, inputs.velocity, inputs.camera) as Traa : null
   const smaaNode = traa === null ? smaa(color) : null
-  const resolved = (traa ?? smaaNode!.getTextureNode()) as unknown as Node<'vec4'>
-  const glow = bloom(resolved, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD)
-  const hdr = resolved.rgb.add(glow.rgb)
+  const resolved = (traa ?? smaaNode!).getTextureNode()
+  const glow = bloom(resolved as unknown as Node<'vec4'>, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD)
+  const sharp = rcasSharpen(resolved, sharpenAmount)
+  const hdr = sharp.rgb.add(glow.rgb)
   const looked = max(mix(vec3(luminance(hdr)), hdr, saturation), vec3(0))
-  const node = vec4(looked, resolved.a) as unknown as Node<'vec4'>
+  const node = vec4(looked, sharp.a) as unknown as Node<'vec4'>
   return {
     node,
     traa,
@@ -211,15 +267,16 @@ export function createFramePipeline(renderer: WebGPURenderer, scene: Scene, came
   // Production is always AgX; `setToneMap` exists for DEV `?toneMap=`.
   renderer.toneMapping = TONE_MAPPINGS.agx
   const saturation = uniform(AGX_LOOK_SATURATION)
+  const sharpenAmount = uniform(SHARPEN_AMOUNT)
   let picture: Node<'vec4'> = sceneColor
   let mode = DEFAULT_ANTI_ALIASING
-  let chain = outputChain(picture, saturation, mode, inputs)
+  let chain = outputChain(picture, saturation, sharpenAmount, mode, inputs)
   const pipeline = new RenderPipeline(renderer, chain.node)
   let eye: Vec3 | null = null
   let resets = 0
   const rebuild = (): void => {
     chain.dispose()
-    chain = outputChain(picture, saturation, mode, inputs)
+    chain = outputChain(picture, saturation, sharpenAmount, mode, inputs)
     pipeline.outputNode = chain.node
     pipeline.needsUpdate = true
   }
@@ -234,6 +291,7 @@ export function createFramePipeline(renderer: WebGPURenderer, scene: Scene, came
       renderer.toneMapping = TONE_MAPPINGS[name]
       saturation.value = name === 'agx' ? AGX_LOOK_SATURATION : 1
     },
+    setSharpen(amount) { sharpenAmount.value = amount },
     setAntiAliasing(next) {
       if (next === mode) return
       mode = next
@@ -242,7 +300,7 @@ export function createFramePipeline(renderer: WebGPURenderer, scene: Scene, came
     setEye(next) { eye = next },
     resetHistory() {
       resets++
-      chain.traa?.resetHistory()
+      chain.traa?.setSize(1, 1)
       resetVelocity()
     },
     historyResets() { return resets },
