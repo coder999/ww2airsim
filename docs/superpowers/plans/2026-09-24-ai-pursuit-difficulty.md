@@ -870,10 +870,10 @@ git commit -m "Reference-GPU acceptance: a scripted evasion can now get behind a
 
 ## Closing (per this repo's own convention)
 
-- [ ] Write `docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md`
-- [ ] Update master spec §15's existing Plan 7 row (currently "7 | 14 —
+- [x] Write `docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md`
+- [x] Update master spec §15's existing Plan 7 row (currently "7 | 14 —
   7a/7b complete | AI | §7 | ..."), appending a 7d entry in the same style
   as the existing 7a/7b sentences, linking this design doc, this plan, and
   the new handoff
-- [ ] Add a README paragraph pointing at §15
-- [ ] Not pushed/deployed without being asked, per standing convention
+- [x] Add a README paragraph pointing at §15
+- [x] Not pushed/deployed without being asked, per standing convention

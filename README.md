@@ -122,6 +122,25 @@ afterward, at 0.861 ms render-pass p95 with zero validation errors. See the
 [handoff](docs/handoff/2026-09-23-plan7b-combat-depth.md) for the three
 formula bugs the overnight run found and fixed along the way.
 
+**Plan 7d AI pursuit difficulty landed 2026-09-24.** A `green`-skill pursuer
+now steers against a stale snapshot of the target captured at its last
+rescore rather than live ground truth, and applies deterministic,
+skill-scaled jitter (`controlNoise`) to its final roll/pitch/yaw — closing
+the gap Mark's own play found: "I can't ever get behind that pilot," true
+even at the easiest preset. A scripted hard-break-and-reversal now genuinely
+gets behind `pursuer-1` at `green` skill within a bounded window on the
+reference GPU (23.6 s, gpu p95 1.616 ms, player confirmed alive when it
+happens — not a frozen corpse's stale geometry). The final review found the
+acceptance spec's own geometry helper had been exactly inverted (it passed
+when the pursuer had the player in its own gun cone) and fixed it with a new
+Tier 1 unit suite deriving the bearing convention from the app's actual
+heading construction rather than hand-picking it. Re-running Tier 2 broadly
+also surfaced that `ai-maneuver.spec.ts`'s point-blank break-off gate is now
+red — the veteran pursuer kills a passive player before that range is
+reached — left as an open gameplay-balance decision rather than forced
+green. See the
+[handoff](docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md) for both.
+
 **Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
 slot now shows a rotating, heading-up sweep with fading contact dots and a
 `Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own
