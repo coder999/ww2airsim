@@ -96,6 +96,9 @@ const AirborneAircraftObject = z.object({
     /** True compass heading: 0 north (-Z), 90 east (+X). */
     headingDeg: finite,
     speedMps: finite.refine((n) => n > 0, { message: 'speedMps must be greater than zero' }),
+    /** The throttle lever at spawn, 0 to 1. Absent means
+     *  `AIRBORNE_SPAWN_THROTTLE`. */
+    throttle: z.number().finite().min(0).max(1).optional(),
   }).strict(),
   pilot: PilotObject.optional(),
 }).strict()
@@ -192,6 +195,21 @@ export const PARKED_PLACEHOLDER_Y_M = 1.9
 const NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
 
 /**
+ * The throttle an airborne spawn starts at when its scenario does not say
+ * (2026-09-25). 0.7 is the setting that holds an F6F's 120 m/s at 3,000 m
+ * hands-off -- measured through production `nextFrameState`: 120.0 -> 120.3
+ * m/s over 30 s, against 98.6 m/s after 10 s at the old 0 and 141.9 m/s after
+ * 30 s at full throttle. A constant rather than a per-spec value because the
+ * aircraft specs carry no cruise setting; `scenario.test.ts` re-measures the
+ * hold, so a flight-model change that moves it fails there.
+ *
+ * Before this, an airborne spawn inherited the parked airplane's NEUTRAL
+ * controls -- throttle 0 -- by reuse, not by any ruling (commit 732ea9d), and
+ * the player bled speed from the first frame while the pursuer closed.
+ */
+export const AIRBORNE_SPAWN_THROTTLE = 0.7
+
+/**
  * The velocity of the air for a wind blowing FROM `windFromDeg` (true, 0 =
  * north, 90 = east) at `windMps`. Compass convention as `shipVelocity`:
  * +x east, +z south, north is -z. A wind FROM the north moves the air
@@ -260,7 +278,8 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
         attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - headingRad),
       })
       return {
-        id: a.id, spec, state, previous: state, controls: NEUTRAL,
+        id: a.id, spec, state, previous: state,
+        controls: { ...NEUTRAL, throttle: a.airborneAt.throttle ?? AIRBORNE_SPAWN_THROTTLE },
         assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.pilot),
       }
     }

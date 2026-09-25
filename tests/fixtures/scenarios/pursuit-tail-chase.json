@@ -15,7 +15,8 @@
           0
         ],
         "headingDeg": 90,
-        "speedMps": 120
+        "speedMps": 120,
+        "throttle": 0
       }
     },
     {
@@ -28,7 +29,8 @@
           50
         ],
         "headingDeg": 90,
-        "speedMps": 125
+        "speedMps": 125,
+        "throttle": 0
       },
       "pilot": {
         "target": "f6f-1",
