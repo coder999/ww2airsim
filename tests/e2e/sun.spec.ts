@@ -130,7 +130,7 @@ test('a twilight scenario is dusk, not black, and the shadow pass is still sane'
  * horizon the atmosphere model alone is ~1e-4 of noon, so what is on screen is
  * the dusk floor (sky/palette.ts) through the dusk exposure. Dim, not black
  * (a NaN or a dead floor), not blown out (an exposure runaway). Mean grey of
- * the frame with the top 100 rows -- the DEV readout -- cropped: 18.5 when
+ * the frame with the top 100 rows -- the DEV readout -- cropped: 22.1 when
  * first measured, 2026-09-25.
  */
 test('dusk at under-deck-1200, 18:30: dim but not black, not blown', async ({ page }) => {
