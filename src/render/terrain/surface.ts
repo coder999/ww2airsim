@@ -1,5 +1,5 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat } from 'three'
-import { color, float, max, mix, smoothstep, texture, uniform, vec2, vec3 } from 'three/tsl'
+import { color, float, length, max, min, mix, smoothstep, texture, uniform, vec2, vec3 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
 import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
@@ -84,6 +84,79 @@ const detail = createDetailTexture()
  * and subpixel grains disappear instead of sparkling on approach. */
 export function groundNoise(xz: Node<'vec2'>, metres: number): Node<'vec4'> {
   return texture(detail, xz.div(metres))
+}
+
+/**
+ * Terrain detail normal (photoreal Task 13, spec §4.5): the near ground's
+ * lighting gets relief from the SAME value noise the albedo reads
+ * (`createDetailTexture`), as a bump whose slope is taken by finite
+ * differences -- three taps per scale -- at two scales, faded out with
+ * distance so the far field, where the mesh's own normal carries the relief
+ * and the noise would only shimmer, is untouched.
+ *
+ * Each scale is a channel of the detail tile: `cellM` is the noise's cell
+ * (its feature wavelength), `amplitudeM` its height. The amplitudes are set
+ * for a TYPICAL tilt of ~6 deg: neighboring value-noise samples differ by
+ * ~0.35 on average, so a scale's typical slope is ~0.35 x 1.5 A / cell.
+ * Sized from the worst case instead (smoothstep's peak gradient, 1.5 per
+ * cell) the first cut read ~2-3 deg typical and its runway capture differed
+ * from the flat one by 0.4 of 255 (2026-09-25). The combined slope is
+ * CLAMPED to tan(`DETAIL_NORMAL_MAX_TILT_DEG`), the brief's "<= ~12 deg", so
+ * the cap is a fact of the node, not of the arithmetic. Mip filtering
+ * attenuates it further at grazing angles, which is where it would shimmer.
+ */
+export const DETAIL_NORMAL_SCALES = [
+  { cellM: 8, amplitudeM: 1.3, channel: 'b', cells: 64 },
+  { cellM: 40, amplitudeM: 7, channel: 'g', cells: 32 },
+] as const
+export const DETAIL_NORMAL_MAX_TILT_DEG = 12
+const MAX_DETAIL_SLOPE = Math.tan((DETAIL_NORMAL_MAX_TILT_DEG * Math.PI) / 180)
+export const DETAIL_NORMAL_NEAR_M = 500
+export const DETAIL_NORMAL_FAR_M = 2000
+
+/** 1 at <= 500 m, 0 at >= 2000 m, smoothstep between; finite for any input
+ *  (NaN and negatives read as the near field). `detailNormalFadeNode` is its twin. */
+export function detailNormalFade(distanceM: number): number {
+  if (!(distanceM > DETAIL_NORMAL_NEAR_M)) return 1
+  const t = Math.min(1, (distanceM - DETAIL_NORMAL_NEAR_M) / (DETAIL_NORMAL_FAR_M - DETAIL_NORMAL_NEAR_M))
+  return 1 - t * t * (3 - 2 * t)
+}
+export function detailNormalFadeNode(distanceM: Node<'float'>): Node<'float'> {
+  return float(1).sub(smoothstep(DETAIL_NORMAL_NEAR_M, DETAIL_NORMAL_FAR_M, distanceM))
+}
+
+/** The detail relief's slope (dh/dx, dh/dz) at a world point, in m/m. Each
+ *  scale's lookup is rotated and offset from the albedo's so the bumps do not
+ *  line up with the color patches. */
+export function detailSlopeNode(xz: Node<'vec2'>): Node<'vec2'> {
+  let slope: Node<'vec2'> = vec2(0, 0)
+  for (const [i, { cellM, amplitudeM, channel, cells }] of DETAIL_NORMAL_SCALES.entries()) {
+    const tileM = cellM * cells
+    // A quarter-cell step: fine enough to follow the smoothstep, coarse
+    // enough that the 8-bit texel steps do not read as noise.
+    const h = cellM / 4
+    const p = (i === 0 ? vec2(xz.y, xz.x.negate()) : vec2(xz.x.negate(), xz.y.negate())).add(311 * (i + 1))
+    const at = (q: Node<'vec2'>): Node<'float'> => groundNoise(q, tileM)[channel]
+    const n0 = at(p)
+    const dx = at(p.add(vec2(h, 0))).sub(n0)
+    const dz = at(p.add(vec2(0, h))).sub(n0)
+    // Back from the rotated frame to world x/z: p.x = z, p.y = -x (scale 0);
+    // p.x = -x, p.y = -z (scale 1).
+    const world = i === 0 ? vec2(dz.negate(), dx) : vec2(dx.negate(), dz.negate())
+    slope = slope.add(world.mul(amplitudeM / h))
+  }
+  return clampSlopeNode(slope)
+}
+
+/** Scales a slope vector down to at most tan(`DETAIL_NORMAL_MAX_TILT_DEG`);
+ *  `clampDetailSlope` is its CPU twin. */
+function clampSlopeNode(slope: Node<'vec2'>): Node<'vec2'> {
+  return slope.mul(min(float(1), float(MAX_DETAIL_SLOPE).div(max(length(slope), 1e-6))))
+}
+export function clampDetailSlope(sx: number, sz: number): [number, number] {
+  const m = Math.hypot(sx, sz)
+  const k = m > MAX_DETAIL_SLOPE ? MAX_DETAIL_SLOPE / m : 1
+  return [sx * k, sz * k]
 }
 
 export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {

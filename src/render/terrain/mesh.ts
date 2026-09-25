@@ -37,7 +37,7 @@ import {
   vec4,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
-import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface.js'
+import { createCoverNodes, detailNormalFadeNode, detailSlopeNode, terrainSurfaceNode, type CoverNodes } from './surface.js'
 import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
@@ -277,8 +277,18 @@ function createRingMaterial(
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
   const slope = length(vec2(field.y, field.z))
   const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope), cover)
+  // Photoreal Task 13: the shading normal carries a procedural detail bump
+  // (surface.ts `detailSlopeNode`, two scales of the albedo's value noise)
+  // faded out between 500 m and 2 km of eye distance. The mesh normal is a
+  // heightfield normal (y > 0 always), so dividing by y recovers
+  // (-dh/dx, 1, -dh/dz) and the detail slope adds to it exactly.
+  const eyeToVertex = modelWorldMatrix.mul(vec4(position, 1)).xyz
+  const eyeDistanceM = length(eyeToVertex)
+  const meshNormal = varying(normal)
+  const detailSlope = detailSlopeNode(varying(worldXZ)).mul(detailNormalFadeNode(varying(eyeDistanceM)))
+  const shadingNormal = normalize(meshNormal.div(meshNormal.y).sub(vec3(detailSlope.x, 0, detailSlope.y)))
   const sun = normalize(sunDirectionNode)
-  const lambert = clamp(dot(varying(normal), sun), 0, 1)
+  const lambert = clamp(dot(shadingNormal, sun), 0, 1)
   // Plan 16b: cloud shadow scales the direct term only; the sky's ambient
   // stays, so the ground under an opaque cloud is lit like a north slope.
   // The terrain already has TRUE world coordinates (`worldXZ` from
@@ -292,7 +302,7 @@ function createRingMaterial(
   // HemisphereLight does (lighting.ts sets both from one palette). The up
   // term includes the cumulus deck's scattered skylight, as the
   // HemisphereLight's sky color does (photoreal Task 12, lighting.ts).
-  const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode), varying(normal).y.mul(0.5).add(0.5))
+  const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode), shadingNormal.y.mul(0.5).add(0.5))
   const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT))))
 
   // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
@@ -306,8 +316,6 @@ function createRingMaterial(
   // the sea at its own (further) distance below the true horizon, the sky
   // above it (`farFadeTarget`) -- so the clip cannot be seen. `smoothstep`
   // is exactly 1 at the distance.
-  const eyeToVertex = modelWorldMatrix.mul(vec4(position, 1)).xyz
-  const eyeDistanceM = length(eyeToVertex)
   const ap = varying(aerialPerspective(eyeToVertex, eyeDistanceM))
   const fade = varying(farFadeWeight(eyeDistanceM))
   const behind = varying(farFadeTarget(eyeToVertex))
