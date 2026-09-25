@@ -54,3 +54,23 @@ test('a camera sweep produces zero WebGPU validation errors', async ({ page }) =
   expect(errors, `WebGPU validation errors:
 ${JSON.stringify(errors, null, 2)}`).toEqual([])
 })
+
+// Asset Quality Medium and above load terrain L0, an 8193x8193 texture, one
+// texel past WebGPU's default limit. Every other Tier 2 test boots at the
+// default Low tier, which is how a black sky and black ground on every GPU
+// went unseen until Mark hit it on 2026-09-25 (renderer.ts's
+// `requiredDeviceLimits`).
+test('Asset Quality Medium boots with zero WebGPU validation errors', async ({ page }) => {
+  test.setTimeout(240_000)
+  await page.addInitScript(() => window.localStorage.setItem('ww2airsim.assetQuality.v1', 'medium'))
+  await page.goto('/')
+  // L0 is a 134 MB fetch; through the Tier 2 tunnel it outlasts
+  // waitForTerrain's 30 s, which is sized for the default Low tier.
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
+    timeout: 150_000,
+  })
+  await waitForTerrain(page)
+  await page.waitForTimeout(2000)
+  await page.screenshot({ path: 'test-results/adapter/asset-medium.png' })
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+})
