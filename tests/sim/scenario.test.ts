@@ -163,11 +163,30 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     // MIN_ENGAGEMENT_RANGE_M exists to remove). With `extendDesiredVelocity`
     // rejoining beyond `SAFE_SEPARATION_M` (task 3's fix) instead of diving
     // away forever, the pursuer breaks off, separates, rejoins, and gets a
-    // second firing pass -- observed landing its first hit at tick 7430 in
-    // this exact scenario, deterministically (no RNG in this gate, so this
-    // repeats every run). 12000 is that observed value with ~60% headroom,
-    // matching this same describe block's other budget's own margin (600
-    // asserted vs. ~305 observed for the shots-only test above).
+    // second firing pass. That second pass was where the first hit used to
+    // land: tick 7430, measured for Plan 7b.
+    //
+    // **Re-measured 2026-09-24 (Plan 7d, final-review fix wave): first hit is
+    // now tick 525** -- first shot at 295, first hit at 525, 312 rounds
+    // fired, run twice with identical output. Perception staleness and
+    // control noise re-roll which individual rounds connect, and here they
+    // moved the first hit forward onto the FIRST firing pass instead of the
+    // post-rejoin one. The old figure was measured before either existed and
+    // was never re-taken, so the "~60% headroom" arithmetic that used to sit
+    // here was stale by a factor of 14.
+    //
+    // There IS RNG in this gate now (`pursuit-range` pins `pursuer-1` to
+    // `veteran`, whose `controlNoise` is 0.02, so six mulberry32 draws are
+    // taken every tick). The run is still bit-for-bit repeatable, but for the
+    // other reason: the draws are seeded and cursor-threaded, not absent.
+    //
+    // 12000 is deliberately NOT retightened onto 525. The claim this test
+    // exists to make is "the pursuer actually connects, rather than firing
+    // blind forever" -- the 1,002-rounds-zero-hits defect above -- and a
+    // ceiling near the observed value would instead make it a tuning gate
+    // that goes red on any future AI retune for reasons that have nothing to
+    // do with that claim. It also still covers the slower rejoin-and-second-
+    // pass path, which remains reachable.
     let world = worldFromScenario(pursuit, null)
     for (let i = 0; i < 2400 && world.combat.aircraft['pursuer-1']!.hits === 0; i++) {
       world = advance(world, DT * 5).world

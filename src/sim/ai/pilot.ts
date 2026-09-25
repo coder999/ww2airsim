@@ -2,10 +2,17 @@ import type { AircraftEntity } from '../loop.js'
 import { cross, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 
 export type PilotSkill = {
-  /** Seconds between decision-layer rescores. Lower = reacts faster. This
-   *  IS "reaction delay" (master spec §7) -- the decision layer's own
-   *  rescore cadence gates how fast a pilot changes its mind; there is no
-   *  separate buffered-observation mechanism. */
+  /** Seconds between decision-layer rescores. Lower = reacts faster. This IS
+   *  "reaction delay" (master spec §7), and since Plan 7d it carries TWO
+   *  meanings off the one number: how often this pilot reconsiders its
+   *  maneuver, and how outdated its mental picture of the enemy is allowed to
+   *  get. A rescore both chooses the maneuver (from live facts, at that
+   *  instant) and captures the target's position/velocity into
+   *  `PilotDecisionState.observedTarget*`; all steering until the NEXT
+   *  rescore flies against that frozen snapshot (`decision.ts`'s
+   *  `maneuverControls`). So raising `reactionS` does not just slow the
+   *  pilot's mind down, it also lets it aim at where the target used to be --
+   *  up to `reactionS` ago. */
   readonly reactionS: number
   /** 0-1. Scales AI_GUN_CONE_RAD's half-angle; 1.0 leaves the cone
    *  unchanged. Does not change AI_GUN_RANGE_M. */
