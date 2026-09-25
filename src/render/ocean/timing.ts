@@ -7,8 +7,14 @@ export function computeTimer(device: GPUDevice) {
   let pending = false
   let generation = 0
   let disposed = false
+  // The most recent measured dispatch, kept across `reset()` on purpose: it
+  // is what main.ts adds to each GPU frame sample so `gpuFrameTimesMs`
+  // counts compute (photoreal Task 2, 2026-09-24), and a window reset does
+  // not make the last measurement of the same dispatch any less current.
+  let latest: number | undefined
   return {
     samples: () => samples.slice(),
+    latest: () => latest,
     reset: () => { samples.length = 0; generation++ },
     begin(): GPUComputePassDescriptor {
       return querySet && !pending && !disposed && samples.length < 4096 ? {timestampWrites:{querySet,beginningOfPassWriteIndex:0,endOfPassWriteIndex:1}} : {}
@@ -23,6 +29,7 @@ export function computeTimer(device: GPUDevice) {
         void read.mapAsync(GPUMapMode.READ).then(() => {
           const times = new BigUint64Array(read.getMappedRange())
           const ms = Number(times[1]! - times[0]!) / 1e6
+          if (!disposed) latest = ms
           if (!disposed && epoch === generation && samples.length < 4096) samples.push(ms)
           read.unmap()
         }).catch(() => { /* device loss is reported by the renderer */ }).finally(() => { pending = false })

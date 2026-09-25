@@ -1,8 +1,8 @@
-import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
-import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
+import { BackSide, DepthTexture, FloatType, Mesh, SphereGeometry, type Object3D } from 'three'
+import { MeshBasicNodeMaterial, ViewportDepthTextureNode, type Node } from 'three/webgpu'
 import {
   Break, Fn, If, Loop, cameraFar, cameraNear, clamp, color, exp, float, fract, int, length, max, min, mix, normalize,
-  positionView, positionWorld, screenCoordinate, sqrt, texture3D, uniform, vec3, vec4, viewportLinearDepth,
+  linearDepth, positionView, positionWorld, screenCoordinate, screenUV, sqrt, texture3D, uniform, vec3, vec4,
 } from 'three/tsl'
 import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
@@ -95,11 +95,23 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
 
 
   const material = new MeshBasicNodeMaterial({ side: BackSide, transparent: true, depthTest: false, depthWrite: false })
+  // The copy of scene depth the march reads. NOT three's shared
+  // `viewportLinearDepth` any more (photoreal Task 2, 2026-09-24): that
+  // copies into a default DepthTexture (UnsignedIntType -> depth24plus),
+  // which matched the renderer's own frame-buffer target (Textures.js
+  // creates its depth as UnsignedIntType) but not the RenderPipeline scene
+  // pass, whose `PassNode.setup` makes the depth FloatType (depth32float)
+  // under `reversedDepthBuffer` -- always on, renderer.ts. A mismatch is a
+  // WebGPUBackend `copyFramebufferToTexture` error and no depth. Task 3
+  // moves the march out of the scene and reads the pass depth directly.
+  const sceneDepthCopy = new DepthTexture(1, 1)
+  sceneDepthCopy.type = FloatType
+  const sceneLinearDepth = linearDepth(new ViewportDepthTextureNode(screenUV, null, sceneDepthCopy))
   const march = Fn(() => {
     const dir = normalize(positionWorld)
     // Scene depth as a ray length: orthographic linear depth is view-space Z,
     // and the dome fragment's own view position gives the ray's angle to it.
-    const viewZ = cameraNear.add(viewportLinearDepth.mul(cameraFar.sub(cameraNear)))
+    const viewZ = cameraNear.add(sceneLinearDepth.mul(cameraFar.sub(cameraNear)))
     const cosView = positionView.z.negate().div(length(positionView))
     const sceneT = debug.equal(int(1)).select(float(FOG_DISTANCE_M), min(viewZ.div(max(cosView, 0.001)), float(FOG_DISTANCE_M)))
     // Per-pixel start dither: interleaved gradient noise, hides step banding.
@@ -302,6 +314,7 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
       if (ownsField) f.dispose()
       mesh.geometry.dispose()
       material.dispose()
+      sceneDepthCopy.dispose()
     },
   }
 }

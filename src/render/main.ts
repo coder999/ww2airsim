@@ -90,6 +90,7 @@ import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
+import { createFramePipeline } from './pipeline.js'
 import { loadCover } from './landcover/load.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
@@ -130,7 +131,7 @@ const validationErrors: string[] = []
 const frameTimesMs: number[] = []
 
 /**
- * GPU render-pass durations, milliseconds, since the last
+ * GPU frame durations, milliseconds, since the last
  * `window.__ww2.resetFrameTimes()` -- one sample per resolved frame, from the
  * WebGPU timestamp queries `initRenderer`'s `trackTimestamp` turns on in DEV.
  *
@@ -141,10 +142,21 @@ const frameTimesMs: number[] = []
  * can say "we made the deadline" and nothing more. That cadence is NOT the
  * display -- the monitor runs at 120 Hz, and the same 10.0 ms appears with
  * the GPU disabled and headless, so it is Chromium's own; design spec
- * section 10.2 has the evidence. This one is the GPU's own clock around the
- * render pass and does not know any of that exists.
+ * section 10.2 has the evidence. This one is the GPU's own clock and does
+ * not know any of that exists: render pool + compute pool + native ocean
+ * compute per frame since 2026-09-24 (diagnostics.ts has the detail).
  */
 const gpuFrameTimesMs: number[] = []
+
+/**
+ * The render-pool part of each `gpuFrameTimesMs` sample on its own, which is
+ * what `gpuFrameTimesMs` itself held until 2026-09-24. Kept because the
+ * one-time ocean probe (`adaptOceanQuality`) was derived against it and adds
+ * the ocean's compute percentiles itself; handing it the combined samples
+ * would count compute twice. Also the sampling window's capacity counter:
+ * a combined sample can be skipped (see the resolve below), this one cannot.
+ */
+const gpuRenderTimesMs: number[] = []
 
 /** Purely visual: gauges.ts explains why no tachometer is fitted -- there is
  *  no modeled engine RPM to drive it honestly. This spins the prop mesh at an
@@ -848,6 +860,7 @@ async function boot(): Promise<void> {
       scenarioId: () => bundle?.scenario.id ?? null,
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
+      gpuRenderTimesMs: () => gpuRenderTimesMs.slice(),
       // `hasFeature`, not a stored flag: three decides at device creation
       // whether to honour `trackTimestamp` by testing exactly this feature
       // (WebGPUBackend.js:298, three@0.186.0), so asking the renderer the
@@ -879,6 +892,7 @@ async function boot(): Promise<void> {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
         gpuFrameTimesMs.length = 0
+        gpuRenderTimesMs.length = 0
       },
     }
   }
@@ -1121,9 +1135,9 @@ async function boot(): Promise<void> {
     // pipelines during flight; a DEV override holds the tier for comparison.
     const p95 = (values: readonly number[]) => [...values].sort((a,b)=>a-b)[Math.floor(values.length * .95)] ?? 0
     const timed = renderer.hasFeature('timestamp-query')
-    if (qualityChecked || forcedOceanTier || (timed ? gpuFrameTimesMs.length < 180 : frameTimesMs.length < 180)) return
+    if (qualityChecked || forcedOceanTier || (timed ? gpuRenderTimesMs.length < 180 : frameTimesMs.length < 180)) return
     qualityChecked = true
-    const cost = timed ? p95(gpuFrameTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
+    const cost = timed ? p95(gpuRenderTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
       : p95(frameTimesMs.slice(60))
     // Without GPU timestamps, frame intervals include refresh cadence. Keep
     // high at 60 fps, medium below 30 fps, low otherwise.
@@ -1198,6 +1212,13 @@ async function boot(): Promise<void> {
     // fades at its own draw distance; the far plane no longer clips the sea.
     OCEAN_EXTENT_M * 1.1,
   )
+  // Photoreal render pass (spec §4.1): the picture now renders through a
+  // RenderPipeline whose scene pass later phases insert nodes after. Built
+  // once here; its target follows the drawing-buffer size on its own
+  // (pipeline.ts), so the resize handler below needs no call. No dispose on
+  // the device-loss path: `renderer.dispose()` there already releases every
+  // GPU resource the pass and its output quad hold.
+  const framePipeline = createFramePipeline(renderer, scene, camera)
 
   // Everything about the first frame -- the gear, the terrain hold, one pose
   // per entity -- is derived from the world's own entities by
@@ -1945,7 +1966,7 @@ async function boot(): Promise<void> {
     // While GPU samples are being collected, a frame is NOT rendered until the
     // previous frame's timestamp resolve has landed. The paragraph after the
     // next explains why the guard alone stopped being enough on 2026-09-17.
-    const sampling = renderer.hasFeature('timestamp-query') && gpuFrameTimesMs.length < FRAME_TIME_CAPACITY
+    const sampling = renderer.hasFeature('timestamp-query') && gpuRenderTimesMs.length < FRAME_TIME_CAPACITY
     if (!(sampling && gpuResolvePending)) {
       // Plan 16b: the shadow map first, inside the same frame and the same
       // timestamp pool ('render'), so the budget below includes it.
@@ -1963,7 +1984,7 @@ async function boot(): Promise<void> {
       renderer.setRenderTarget(radarScope.target)
       renderer.render(radarScope.scene, radarScope.camera)
       renderer.setRenderTarget(null)
-      renderer.render(scene, camera)
+      framePipeline.render()
     }
 
     // One GPU timestamp sample per resolve; quality selection also uses it. Guarded on a pending
@@ -2006,12 +2027,28 @@ async function boot(): Promise<void> {
     void adaptOceanQuality()
     if (sampling && !gpuResolvePending) {
       gpuResolvePending = true
-      void renderer
-        .resolveTimestampsAsync('render')
-        .then((ms: number | undefined) => {
+      // The sample is the frame's whole GPU cost, render AND compute
+      // (photoreal spec §2; 2026-09-24): the render pool (shadow, radar, the
+      // scene pass and the pipeline's output quad -- all `renderer.render`
+      // calls, proven by the Task 2 expensive-node experiment), three's own
+      // compute pool (empty today, `undefined` until something calls
+      // `renderer.compute`; Phase B adds dispatches there), and the native
+      // ocean FFT, which runs on the raw device outside both pools and times
+      // itself (ocean/timing.ts). The ocean term is each cascade's most
+      // recently measured dispatch -- its timer skips dispatches while its
+      // own readback is pending, so there is no exact per-frame pairing; the
+      // dispatch is the same work every frame, so the latest is that frame's.
+      void Promise.all([renderer.resolveTimestampsAsync('render'), renderer.resolveTimestampsAsync('compute')])
+        .then(([ms, computeMs]: [number | undefined, number | undefined]) => {
           // `undefined` when tracking is off (three warns once and returns
           // nothing); 0 when the pool had nothing pending. Neither is a frame.
-          if (typeof ms === 'number' && ms > 0) gpuFrameTimesMs.push(ms)
+          if (typeof ms !== 'number' || ms <= 0) return
+          gpuRenderTimesMs.push(ms)
+          const ocean = cascades.map(c => c.latestComputeMs())
+          // Until every cascade has one measurement (boot, a tier swap) the
+          // frame's cost is unknown; skipping it beats under-reporting it.
+          if (ocean.some(t => t === undefined)) return
+          gpuFrameTimesMs.push(ms + (computeMs ?? 0) + ocean.reduce<number>((sum, t) => sum + (t ?? 0), 0))
         })
         .finally(() => {
           gpuResolvePending = false

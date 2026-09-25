@@ -103,11 +103,13 @@ for (const tier of ['high','medium','low']) {
     }
     await page.waitForFunction(() => {
       const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!
-      return d.gpuFrameTimesMs().length >= 240 && d.oceanComputeTimesMs().every(s => s.length >= 120)
+      return d.gpuRenderTimesMs().length >= 240 && d.oceanComputeTimesMs().every(s => s.length >= 120)
     })
     const timing = await page.evaluate(() => {
       const d = (window as unknown as import('./harness.js').DiagWindow).__ww2!
-      return {render:d.gpuFrameTimesMs(),compute:d.oceanComputeTimesMs(),errors:d.validationErrors}
+      // Render pool alone: this sum-of-percentiles adds the compute itself,
+      // and gpuFrameTimesMs includes it since 2026-09-24 (photoreal Task 2).
+      return {render:d.gpuRenderTimesMs(),compute:d.oceanComputeTimesMs(),errors:d.validationErrors}
     })
     const percentile = (a: readonly number[], p: number) => [...a].sort((x,y)=>x-y)[Math.floor((a.length-1)*p)]!
     // Sum per-pass percentiles: conservative proxy, not paired frame latency.

@@ -13,6 +13,10 @@ export type OceanCompute = {
   readonly options: OceanComputeOptions
   readonly timeS: number | undefined
   computeTimesMs(): number[]
+  /** The most recently measured dispatch's duration, ms; `undefined` until
+   *  the first one resolves or without `timestamp-query`. Survives
+   *  `resetTimings()` (see timing.ts). */
+  latestComputeMs(): number | undefined
   resetTimings(): void
   dispatch(timeS: number): void
   readDisplacement(component?: 'height' | 'x' | 'z'): Promise<{ timeS: number; values: Float32Array }>
@@ -88,7 +92,7 @@ export async function createOceanCompute(renderer: WebGPURenderer, options: Ocea
     let lastTime: number | undefined
     return {
       get timeS() { return lastTime },
-      computeTimesMs: timer.samples, resetTimings: timer.reset,
+      computeTimesMs: timer.samples, latestComputeMs: timer.latest, resetTimings: timer.reset,
       options, phaseSeed: (OCEAN_PHASE_SEED ^ options.cascade) >>> 0,
       displacement:displacement.texture, normal:normal.texture, foam:foam.texture,
       dispatch(timeS): void {

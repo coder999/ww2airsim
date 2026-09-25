@@ -232,14 +232,32 @@ export type Ww2Diagnostics = {
    * committed home for it -- Task 11's own report lives under the gitignored
    * `.superpowers/` and is not in a fresh clone.
    *
-   * Read from WebGPU timestamp queries written around the render pass, so it
-   * is the GPU's own clock and knows nothing about the cadence above, vsync,
-   * the compositor or the present. It therefore EXCLUDES the simulation, the scene update and
-   * three's submission work and native ocean compute (reported separately by
-   * `oceanComputeTimesMs`) -- it is the render pass, not the whole
-   * of one. Empty if `gpuTimestampsSupported` is false.
+   * Read from WebGPU timestamp queries, so it is the GPU's own clock and
+   * knows nothing about the cadence above, vsync, the compositor or the
+   * present. It EXCLUDES the simulation, the scene update and three's
+   * submission work.
+   *
+   * **Since 2026-09-24 (photoreal render pass Task 2) each sample is the
+   * frame's whole GPU cost: render pool + three's compute pool + native
+   * ocean compute.** Before that it was the render pool alone and the ocean
+   * FFT was only in `oceanComputeTimesMs`; the photoreal spec §2 budget is
+   * "render-pool plus compute-pool", and Phase B adds compute dispatches a
+   * render-only number would silently drop. The ocean term is each cascade's
+   * most recently measured dispatch (its timer cannot time every one), and a
+   * frame is not sampled until every cascade has one. The render pool covers
+   * every pass of the RenderPipeline frame: a throwaway 400-read output node
+   * raised 4K `low-land-600` p95 from 7.44 to 15.77 ms (Task 2 report).
+   * `oceanComputeTimesMs` still reports the ocean alone, so a caller that
+   * adds it to these samples counts it twice. Empty if
+   * `gpuTimestampsSupported` is false.
    */
   readonly gpuFrameTimesMs: () => readonly number[]
+  /** The render-pool part of each `gpuFrameTimesMs` sample alone -- what
+   *  `gpuFrameTimesMs` meant before 2026-09-24 -- for the one caller whose
+   *  assertion was derived against that meaning and adds
+   *  `oceanComputeTimesMs` percentiles itself (ocean.spec.ts). Same window
+   *  and capacity; may hold a few more samples (see `gpuFrameTimesMs`). */
+  readonly gpuRenderTimesMs: () => readonly number[]
   /** Whether the adapter advertises `timestamp-query`, i.e. whether
    *  `gpuFrameTimesMs()` can ever be non-empty. Distinguishes "this GPU
    *  cannot be timed" from "nothing has been sampled yet", which an empty
