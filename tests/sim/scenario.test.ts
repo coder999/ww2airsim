@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseScenario, worldFromScenario, PARKED_PLACEHOLDER_Y_M, type ScenarioBundle } from '../../src/sim/scenario.js'
+import { parseScenario, worldFromScenario, AIRBORNE_SPAWN_THROTTLE, PARKED_PLACEHOLDER_Y_M, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { advance, playerAircraft } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
@@ -10,6 +10,7 @@ import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/t
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
+import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
@@ -104,8 +105,22 @@ describe('the free-flight scenario', () => {
   })
 })
 
+/**
+ * Plans 7a, 7b and 7d measured the AI against ONE geometry: the pursuer 500 m
+ * astern of the player, 5 m/s faster, both due east at 3,000 m, the player's
+ * throttle closed. `content/scenarios/pursuit-range.json` stopped being that
+ * geometry on 2026-09-25 (it is now a head-on merge -- the shootdown spike
+ * found the tail chase gives the player no firing chance), so these tests
+ * read a frozen copy of the old scenario instead of re-tuning their numbers
+ * to the new one: `tests/fixtures/scenarios/pursuit-tail-chase.json`. It pins
+ * `airborneAt.throttle: 0` on both aircraft, which is what every airborne
+ * spawn got before `AIRBORNE_SPAWN_THROTTLE` existed, so it flies exactly the
+ * world those plans measured. It is a
+ * test fixture, not content -- nothing ships it and the title screen never
+ * lists it.
+ */
 describe('the airborne pursuit range (Plan 7a)', () => {
-  const pursuit = loadScenarioBundle('pursuit-range')
+  const pursuit = loadFixtureScenarioBundle('pursuit-tail-chase')
 
   it('starts both aircraft airborne on their compass headings and assigns only the pursuer', () => {
     const world = worldFromScenario(pursuit, null)
@@ -222,8 +237,54 @@ describe('the airborne pursuit range (Plan 7a)', () => {
   })
 })
 
+describe('airborne spawns start at cruise throttle (2026-09-25)', () => {
+  // Airborne aircraft used to start with the parked airplane's NEUTRAL
+  // controls, throttle 0 -- no ruling asked for that (732ea9d reused the
+  // parked constant), and the shootdown spike measured the cost: the player
+  // bled from 120 to 98.6 m/s in 10 s while the pursuer closed.
+  const shipped = loadScenarioBundle('pursuit-range')
+  const raw = () => JSON.parse(JSON.stringify(shipped.scenario)) as Record<string, unknown> & {
+    aircraft: Array<Record<string, unknown> & { airborneAt: Record<string, unknown> }>
+  }
+
+  it('gives every airborne aircraft AIRBORNE_SPAWN_THROTTLE unless the scenario says otherwise', () => {
+    expect(AIRBORNE_SPAWN_THROTTLE).toBe(0.7)
+    const world = worldFromScenario(shipped, null)
+    for (const a of world.aircraft) expect(a.controls.throttle, a.id).toBe(AIRBORNE_SPAWN_THROTTLE)
+    // Parked airplanes are untouched: nobody leaves an engine at cruise on
+    // the chocks.
+    for (const a of worldFromScenario(bundle, null).aircraft) expect(a.controls.throttle, a.id).toBe(0)
+  })
+
+  it('holds the spawn speed hands-off: 0.7 is what an F6F at 120 m/s and 3,000 m needs', () => {
+    const solo = raw()
+    solo.aircraft = [solo.aircraft[0]!]
+    solo.aircraft[0]!.airborneAt = { position: [0, 3000, 0], headingDeg: 90, speedMps: 120 }
+    let world = worldFromScenario({ ...shipped, scenario: parseScenario(solo) }, null)
+    for (let i = 0; i < 30 * 60; i++) world = advance(world, DT).world
+    const v = Math.hypot(world.aircraft[0]!.state.velocity.x, world.aircraft[0]!.state.velocity.y, world.aircraft[0]!.state.velocity.z)
+    expect(v).toBeGreaterThan(117)
+    expect(v).toBeLessThan(123)
+  })
+
+  it('lets a scenario pin its own spawn throttle, within 0 to 1', () => {
+    const pinned = raw()
+    pinned.aircraft[0]!.airborneAt.throttle = 0.25
+    const world = worldFromScenario({ ...shipped, scenario: parseScenario(pinned) }, null)
+    expect(playerAircraft(world).controls.throttle).toBe(0.25)
+    const bad = raw()
+    bad.aircraft[0]!.airborneAt.throttle = 1.5
+    expect(() => parseScenario(bad)).toThrow()
+  })
+
+  it('the frozen Plan 7 fixture keeps its closed throttle, so its tests still measure what they measured', () => {
+    const world = worldFromScenario(loadFixtureScenarioBundle('pursuit-tail-chase'), null)
+    for (const a of world.aircraft) expect(a.controls.throttle, a.id).toBe(0)
+  })
+})
+
 describe('the energy-aware decision layer (Plan 7b)', () => {
-  const pursuit = loadScenarioBundle('pursuit-range')
+  const pursuit = loadFixtureScenarioBundle('pursuit-tail-chase')
 
   it('does not change maneuver between two ticks inside one reactionS window, and does change once nextRescoreS is reached', () => {
     let world = worldFromScenario(pursuit, null)

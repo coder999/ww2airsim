@@ -108,13 +108,14 @@ export const DEFAULT_LOADOUT: Loadout = 'both'
  * (terrain, ocean, sky, the panel). `isKnownScenarioId` below is what makes
  * accepting `?scenario=` in a PRODUCTION build safe either way: unlike
  * `scenarioIdFromQuery`'s format check alone, it rejects any well-formed id
- * that is not actually one of these five.
+ * that is not actually one of these six.
  */
 export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
   { value: 'free-flight', label: 'Free Flight' },
   { value: 'deck-quals', label: 'Deck Quals' },
   { value: 'gunnery-range', label: 'Gunnery Range' },
   { value: 'pursuit-range', label: 'Air Combat' },
+  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran' },
   { value: 'strike-range', label: 'Strike Range' },
 ]
 

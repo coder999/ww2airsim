@@ -1,0 +1,47 @@
+{
+  "id": "pursuit-tail-chase",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          0,
+          3000,
+          0
+        ],
+        "headingDeg": 90,
+        "speedMps": 120,
+        "throttle": 0
+      }
+    },
+    {
+      "id": "pursuer-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          -500,
+          3020,
+          50
+        ],
+        "headingDeg": 90,
+        "speedMps": 125,
+        "throttle": 0
+      },
+      "pilot": {
+        "target": "f6f-1",
+        "skill": "veteran"
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 0,
+    "timeOfDay": 12
+  }
+}

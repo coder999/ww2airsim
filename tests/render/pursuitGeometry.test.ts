@@ -11,7 +11,8 @@ import { isBehind, type AircraftDiag } from '../e2e/pursuitGeometry.js'
  * `atan2(dx, -dz)` that `src/render/main.ts` builds `headingRad` with, and
  * `angleOff < withinDeg` (in FRONT of the nose) where "behind the tail"
  * needs `angleOff > 180 - withinDeg`. The two errors cancel only near
- * headings 0 and pi; `content/scenarios/pursuit-range.json` spawns both
+ * headings 0 and pi; the Plan 7 tail chase (`content/scenarios/pursuit-range.json` until
+ * 2026-09-25, now `tests/fixtures/scenarios/pursuit-tail-chase.json`) spawns both
  * aircraft due east, where they compound into an exact inversion -- the test
  * passed precisely when the pursuer had the player in its gunsight, and would
  * have passed at the merge-base with none of Plan 7d's code.
@@ -42,7 +43,7 @@ describe('isBehind, the Plan 7d acceptance geometry', () => {
     // 0 = north = -Z, +pi/2 = east = +X. Asserted so the four cases below are
     // reading real spawn headings, not hand-written radians that could drift
     // from what `scenario.ts` and `main.ts` agree on.
-    expect(headingRadOf(90)).toBeCloseTo(Math.PI / 2, 12) // pursuit-range spawns both due east
+    expect(headingRadOf(90)).toBeCloseTo(Math.PI / 2, 12) // the Plan 7 tail chase spawns both due east
     expect(headingRadOf(0)).toBeCloseTo(0, 12)
   })
 

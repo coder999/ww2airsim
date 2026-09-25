@@ -16,11 +16,11 @@
       "id": "pursuer-1",
       "spec": "f6f-hellcat",
       "airborneAt": {
-        "position": [-500, 3020, 50],
-        "headingDeg": 90,
+        "position": [2500, 3000, 60],
+        "headingDeg": 270,
         "speedMps": 125
       },
-      "pilot": { "target": "f6f-1", "skill": "veteran" }
+      "pilot": { "target": "f6f-1", "skill": "green" }
     }
   ],
   "ships": [],

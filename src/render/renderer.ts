@@ -29,6 +29,30 @@ export function normalizeGpuError(info: string | { message?: string }): string {
 }
 
 /**
+ * The device limits to request beyond WebGPU's defaults.
+ *
+ * Terrain level L0 is an 8193x8193 height texture (Asset Quality Medium and
+ * above), one texel past the default `maxTextureDimension2D` of 8192. Without
+ * this request every GPU rejected it, the terrain bind group went invalid, and
+ * the whole scene pass drew nothing but the clouds -- found on Mark's work
+ * laptop 2026-09-25, reproduced the same day on the RX 6700 XT (which
+ * advertises 16384), because every Tier 2 run had used the default Low tier.
+ * Uploading that texture then needs a 270.6 MB staging buffer (8193 rows of
+ * 32,772 bytes padded to 33,024) against the default `maxBufferSize` of
+ * 256 MiB, so that limit is raised too. Asking for the adapter's own maximum
+ * can never fail the device request.
+ */
+export function requiredDeviceLimits(adapterLimits: {
+  readonly maxTextureDimension2D: number
+  readonly maxBufferSize: number
+}): Record<string, number> {
+  return {
+    maxTextureDimension2D: adapterLimits.maxTextureDimension2D,
+    maxBufferSize: adapterLimits.maxBufferSize,
+  }
+}
+
+/**
  * Brings up WebGPU and judges the adapter.
  *
  * The guard warns here rather than failing: a laptop should still run the game.
@@ -82,7 +106,10 @@ export async function initRenderer(
   // the frame pipeline (pipeline.ts), and three's TRAANode.js says "MSAA must
   // be disabled when TRAA is in use" -- its resolve `load`s the scene
   // pass's depth and velocity per texel, and the history copies that depth.
-  const renderer = new WebGPURenderer({ canvas, antialias: false, trackTimestamp, reversedDepthBuffer: true })
+  const renderer = new WebGPURenderer({
+    canvas, antialias: false, trackTimestamp, reversedDepthBuffer: true,
+    requiredLimits: requiredDeviceLimits(adapter.limits),
+  })
   await renderer.init()
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight)

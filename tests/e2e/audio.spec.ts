@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 
 /**
  * Tier 2 is `src/audio/webAudio.ts`'s only coverage, on purpose: the vitest
@@ -39,13 +40,13 @@ test.skip('the audio context is suspended until a key is pressed', () => {
 test('the context is running once the game has been played, and every clip decodes', async ({ page }) => {
   // The one thing a fake backend cannot know: whether a 48 kHz stereo WAV that
   // is the right number of bytes on disk is one `decodeAudioData` accepts.
-  // Six clips, from the URLs src/audio/assets.ts builds.
+  // Every clip `AUDIO_ASSETS` lists, from the URLs src/audio/assets.ts builds.
   await page.goto('/')
   await waitForTerrain(page)
   await page.keyboard.press('KeyP') // deliberately UNBOUND: a gesture that changes nothing
   await expect
     .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 })
-    .toBe(6)
+    .toBe(AUDIO_ASSETS.length)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().state)).toBe('running')
   // None of them FAILED, which `loaded.length` alone cannot distinguish from a
   // clip that is merely slow.

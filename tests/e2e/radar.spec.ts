@@ -17,6 +17,12 @@ import { TRAIL_DIM } from '../../src/render/scene/radarScope.js'
  * genuinely freezes on pause rather than jumping ahead by the paused
  * wall-clock duration.
  */
+// 2026-09-25: pursuit-range now spawns pursuer-1 2.5 km ahead (1.55 mi), a
+// head-on merge, not ~500 m astern; headless it closes inside 1 mi after
+// 3.67 s, passes within 16 m at 10.4 s and is back beyond 1 mi at 17.25 s
+// (sim time, passive player). The 1 mi ring check below needs the contact
+// inside the ring when it pauses -- re-run on the reference GPU to confirm
+// it lands in that window.
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 
 test.setTimeout(120_000)
@@ -38,6 +44,18 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   await expect.poll(() => radar(page).then((r) => r.rangeMi)).toBe(5)
   await page.keyboard.press('Tab')
   await expect.poll(() => radar(page).then((r) => r.rangeMi)).toBe(1)
+  // Since 2026-09-25 pursuit-range is a head-on start at 2.5 km (1.55 mi), so
+  // the 1 mi ring is empty until the pursuer closes into it. Measured
+  // headless the same day with a passive player: inside 1 mi from 3.7 s to
+  // 17.3 s (the merge is at 10.4 s). Waiting for the contact to appear,
+  // rather than pausing on arrival, pauses it near the ring's edge -- where
+  // the displacement check below has the most margin.
+  await expect
+    .poll(() => radar(page).then((r) => r.contacts.some((c) => c.id === 'pursuer-1')), {
+      timeout: 15_000,
+      message: 'pursuer-1 never closed inside the 1 mi ring',
+    })
+    .toBe(true)
 
   // Pause here, on the 1 mi ring, for the pixel-placement check below.
   // Two reasons to do both at once: pausing freezes the sweep, which is
@@ -50,7 +68,7 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   // the time it is compared against. The 1 mi ring matters for a second
   // reason (final whole-branch review): the pre-fix doubled-uv-flip bug
   // displaces a read by 2*|cos(bearing)|*(rangeMi/selectedRangeMi) in
-  // normalized units. At the DEFAULT 15 mi ring, pursuit-range's ~500 m
+  // normalized units. At the DEFAULT 15 mi ring, pursuit-range's old ~500 m
   // initial spawn keeps that displacement small enough to still fall
   // inside the shader's DOT_RADIUS, so a mirrored read could still catch
   // some of the dot's own brightness -- this check would have had only a

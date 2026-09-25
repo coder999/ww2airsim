@@ -152,7 +152,7 @@ export function initialAircraftState(position: Vec3, groundSpawn: boolean): Airc
  * the current reasoning). What makes this parameter safe to honor in
  * production is `isKnownScenarioId` (titleScreen.ts): `scenarioIdFromQuery`
  * below only checks the id is well-FORMED, and `main.ts` separately rejects
- * anything well-formed that is not one of the five scenarios this build
+ * anything well-formed that is not one of the scenarios this build
  * actually ships, before any content fetch starts.
  */
 export const SCENARIO_PARAM = 'scenario'
@@ -173,12 +173,15 @@ export function scenarioIdFromQuery(search: string, fallback: string): string {
  *
  * Added for the acceptance test this plan's spec §5 requires: a scripted
  * evasion getting behind pursuer-1 at GREEN skill within a bounded window.
- * `pursuit-range.json` (the only scenario that ships an AI pilot) pins
- * `pilot.skill` to `'veteran'` in content, not the `'green'` schema default
- * `scenario.ts`'s `PilotObject` documents -- so there was no existing way to
- * reach a green-skill pursuer short of hand-editing shipped content (which
- * Task 4 did temporarily, and reverted, to take the GREEN_SKILL tuning
- * measurement in `pilot.ts`'s comment). This mirrors `oceanTierFromQuery`
+ * `pursuit-range.json` (then the only scenario that shipped an AI pilot)
+ * pinned `pilot.skill` to `'veteran'` in content, not the `'green'` schema
+ * default `scenario.ts`'s `PilotObject` documents -- so there was no existing
+ * way to reach a green-skill pursuer short of hand-editing shipped content
+ * (which Task 4 did temporarily, and reverted, to take the GREEN_SKILL tuning
+ * measurement in `pilot.ts`'s comment). Since 2026-09-25 `pursuit-range` is
+ * a head-on merge with a GREEN pursuer and `pursuit-range-veteran` carries
+ * the veteran; this param still forces either skill on any scenario. This
+ * mirrors `oceanTierFromQuery`
  * (`ocean/tiers.ts`) and `beaufortFromQuery` (`ocean/weather.ts`): a single
  * query param, parsed here, applied by `main.ts` only behind
  * `import.meta.env.DEV` -- inert in a production build, same as those.

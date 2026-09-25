@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, percentile, waitForTerrain, type DiagWindow } from './harness.js'
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
+import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 
 /**
  * Tier 2, the playable gunnery slice (Plan 6). Same platform and caveats as
@@ -28,7 +29,7 @@ async function onTheRange(page: Page): Promise<void> {
   await page.goto(RANGE)
   await waitForTerrain(page)
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
-  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 }).toBe(6)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 }).toBe(AUDIO_ASSETS.length)
 }
 
 test('gunnery range: Space fires six guns, tracers fly, the guns are heard, and the Hellcat 300 m downrange takes hits', async ({ page }) => {
@@ -121,7 +122,7 @@ test('a restart rebuilds the guns: full load, empty sky, no replayed gunfire', a
   const [xName, yName, zName] = SPAWN_PARAMS
   await page.goto(`${RANGE}&${xName}=0&${yName}=120&${zName}=0`)
   await waitForTerrain(page)
-  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 }).toBe(6)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 }).toBe(AUDIO_ASSETS.length)
   await page.keyboard.down('Space')
   await expect.poll(() => combat(page).then((c) => c.player.shots), { timeout: 5_000 }).toBeGreaterThan(0)
   await page.waitForTimeout(500)

@@ -16,7 +16,11 @@ import { createSky, domeColourFor } from '../../src/render/scene/sky.js'
 import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import {
   applySun,
+  CLOUD_SKYLIGHT_FRACTION,
+  cloudSkylight,
+  cloudSkylightNode,
   createLighting,
+  cumulusCover,
   skyIrradianceDownNode,
   skyIrradianceUpNode,
   sunColorNode,
@@ -276,6 +280,36 @@ describe('lighting', () => {
     expect(sunElevationNode.value).toBe(0)
     applySun(lights, atmospherePalette(0, 70), v3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z), 70)
     expect(sun.position.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
+  })
+
+  it('cumulus cover combines cumulus layers only and the cloud skylight scales the sun by it (photoreal Task 12)', () => {
+    expect(cumulusCover([])).toBe(0)
+    expect(cumulusCover([{ kind: 'cirrus', coverage: 0.9 }])).toBe(0)
+    expect(cumulusCover([{ kind: 'cumulus', coverage: 0.55 }, { kind: 'cirrus', coverage: 0.35 }])).toBeCloseTo(0.55, 12)
+    expect(cumulusCover([{ kind: 'cumulus', coverage: 0.5 }, { kind: 'cumulus', coverage: 0.5 }])).toBeCloseTo(0.75, 12)
+    expect(cumulusCover([{ kind: 'cumulus', coverage: 2 }])).toBe(1)
+    expect(cloudSkylight([2, 1, 0.5], 0)).toEqual([0, 0, 0])
+    expect(cloudSkylight([2, 1, 0.5], Number.NaN)).toEqual([0, 0, 0])
+    const full = cloudSkylight([2, 1, 0.5], 1)
+    expect(full[0]).toBeCloseTo(2 * CLOUD_SKYLIGHT_FRACTION, 12)
+    expect(full[2]).toBeCloseTo(0.5 * CLOUD_SKYLIGHT_FRACTION, 12)
+  })
+
+  it('applySun adds the cloud skylight to the fill and its uniform, never to the clear-sky uniform the clouds read (photoreal Task 12)', () => {
+    const lights = createLighting()
+    const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)!
+    const palette = atmospherePalette(0, 20)
+    applySun(lights, palette, v3(0.5, 0.34, 0.5), 20, 0.55)
+    const expected = cloudSkylight(palette.sunColor, 0.55)
+    expect(cloudSkylightNode.value.g).toBeCloseTo(expected[1], 6)
+    expect(fill.color.g).toBeCloseTo(palette.fillSky[1] + expected[1], 6)
+    expect(skyIrradianceUpNode.value.g).toBeCloseTo(palette.fillSky[1], 6)
+    // Under the deck the skylight outweighs the clear sky at a 20 deg sun:
+    // the reason the shadowed deck was black without it.
+    expect(expected[1]).toBeGreaterThan(palette.fillSky[1])
+    applySun(lights, palette, v3(0.5, 0.34, 0.5), 20)
+    expect(cloudSkylightNode.value.g).toBe(0)
+    expect(fill.color.g).toBeCloseTo(palette.fillSky[1], 6)
   })
 
   it('casts only when given a cloud-shadow node, which it hands to the sun (Plan 16b)', () => {

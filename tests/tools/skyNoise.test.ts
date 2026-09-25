@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { buildCoverage, buildShape, createPermutation, perlinTileable, remap, worleyTileable } from '../../tools/sky/noise.js'
-import { coveragePath, detailPath, shapePath, loadCoverage, loadDetail, loadShape } from '../../tools/sky/load.js'
-import { COVERAGE_SIZE, DETAIL_SIZE, SHAPE_SIZE, coverageByteLength, detailByteLength, shapeByteLength } from '../../src/render/sky/noise.js'
+import { buildCurl, buildShape, createPermutation, perlinTileable, remap, worleyTileable } from '../../tools/sky/noise.js'
+import { buildWeather } from '../../tools/sky/weather.js'
+import { curlPath, detailPath, shapePath, weatherPath, loadCurl, loadDetail, loadShape, loadWeather } from '../../tools/sky/load.js'
+import { CURL_SIZE, DETAIL_SIZE, SHAPE_SIZE, WEATHER_SIZE, curlByteLength, detailByteLength, shapeByteLength, weatherByteLength } from '../../src/render/sky/noise.js'
 
 describe('tileable noise (Plan 16a)', () => {
   const perm = createPermutation(7)
@@ -29,8 +30,8 @@ describe('tileable noise (Plan 16a)', () => {
   it('builds a tileable shape volume: opposite faces are neighbours, and the range is used', () => {
     const n = 16
     const v = buildShape(n, 3)
-    expect(v.length).toBe(n * n * n)
-    const at = (x: number, y: number, z: number) => v[(z * n + y) * n + x]!
+    expect(v.length).toBe(n * n * n * 4)
+    const at = (x: number, y: number, z: number, c = 0) => v[((z * n + y) * n + x) * 4 + c]!
     // Column 0 and column n-1 are adjacent samples under wrapping, so they
     // differ by one texel's worth of the field, never by a seam.
     let worst = 0
@@ -38,45 +39,78 @@ describe('tileable noise (Plan 16a)', () => {
     expect(worst).toBeLessThan(60)
     // The remap lifts the low end on purpose (Schneider 2015): the committed
     // 128-cube spans 110..247. Coverage thresholds it later.
-    expect(Math.min(...v)).toBeLessThan(150)
-    expect(Math.max(...v)).toBeGreaterThan(200)
+    const body = Array.from({ length: n ** 3 }, (_, i) => v[i * 4]!)
+    expect(Math.min(...body)).toBeLessThan(150)
+    expect(Math.max(...body)).toBeGreaterThan(200)
+    for (const channel of [1, 2, 3]) expect(new Set(Array.from({ length: n ** 3 }, (_, i) => v[i * 4 + channel]!)).size).toBeGreaterThan(32)
+  })
+  it('builds a deterministic, signed, tileable curl field', () => {
+    const n = 32
+    const curl = buildCurl(n, 9)
+    expect(curl.length).toBe(n * n * 2)
+    expect(buildCurl(n, 9)).toEqual(curl)
+    expect(buildCurl(n, 10)).not.toEqual(curl)
+    const at = (x: number, y: number, c: number) => curl[(y * n + x) * 2 + c]!
+    let worst = 0
+    for (let i = 0; i < n; i++) for (const c of [0, 1]) {
+      worst = Math.max(worst, Math.abs(at(0, i, c) - at(n - 1, i, c)), Math.abs(at(i, 0, c) - at(i, n - 1, c)))
+    }
+    expect(worst).toBeLessThan(110)
+    expect(Math.min(...curl)).toBeLessThan(80)
+    expect(Math.max(...curl)).toBeGreaterThan(175)
   })
 })
 
-describe('coverage noise (Plan 16d)', () => {
-  it('tiles at its period and is not a constant field', () => {
-    const n = 32
-    const v = buildCoverage(n, 5)
-    expect(v.length).toBe(n * n)
-    const at = (x: number, y: number) => v[y * n + x]!
-    // Same wrapping check as buildShape's: opposite edges are adjacent
-    // samples under tiling, so they differ by one texel's worth, not a seam.
+describe('weather map (Cloud Fidelity II 3.3)', () => {
+  const n = 64
+  const tile = 12_000 // 188 m texels: fast, and still several cells across
+  const map = buildWeather(n, 5, tile)
+  const at = (x: number, y: number, c: number) => map[(y * n + x) * 4 + c]!
+  it('is deterministic and RGBA', () => {
+    expect(map.length).toBe(n * n * 4)
+    expect(buildWeather(n, 5, tile)).toEqual(map)
+    expect(buildWeather(n, 6, tile)).not.toEqual(map)
+  })
+  it('tiles: opposite edges are neighbours, not a seam', () => {
     let worst = 0
-    for (let y = 0; y < n; y++) worst = Math.max(worst, Math.abs(at(0, y) - at(n - 1, y)))
-    expect(worst).toBeLessThan(60)
-    // The exact defect design §4 warns about: a constant field would
-    // silently defeat spatial variation while every other test still passes.
-    expect(Math.max(...v) - Math.min(...v)).toBeGreaterThan(80)
+    for (let y = 0; y < n; y++) worst = Math.max(worst, Math.abs(at(0, y, 0) - at(n - 1, y, 0)), Math.abs(at(y, 0, 0) - at(y, n - 1, 0)))
+    // One 188 m texel of a 330 m+ bump: well under the full range.
+    expect(worst).toBeLessThan(140)
+  })
+  it('has separate clouds: peaks at 255-scale centers, gaps at zero, types and tops spread', () => {
+    const r = Array.from({ length: n * n }, (_, i) => map[i * 4]!)
+    expect(Math.max(...r)).toBeGreaterThan(200)
+    // Gaps between clouds carry no potential at all.
+    expect(r.filter((v) => v === 0).length / r.length).toBeGreaterThan(0.03)
+    const g = Array.from({ length: n * n }, (_, i) => map[i * 4 + 1]!)
+    const b = Array.from({ length: n * n }, (_, i) => map[i * 4 + 2]!)
+    expect(Math.max(...g) - Math.min(...g)).toBeGreaterThan(100)
+    expect(Math.max(...b) - Math.min(...b)).toBeGreaterThan(150)
+    // A texel never has more potential than the peak of the cloud it belongs to.
+    for (let i = 0; i < n * n; i++) expect(map[i * 4]!).toBeLessThanOrEqual(map[i * 4 + 3]! + 1)
   })
 })
 
 const COMMITTED_SHA256: Readonly<Record<string, string>> = {
   // Paste from `sha256sum content/sky/*.gz` after `npm run sky:build`; the
   // commit that changes these says what moved and why.
-  'shape.bin.gz': 'ad7af382f211d5ba09eb365d28b70a7a05c11672f107774b6a6f2d7cca8c3fbd',
-  'detail.bin.gz': '3291e29dd335627ee5f58d3c21afd1fd3e5a8fd7ce96f1df25895ee5930c81bd',
-  'coverage.bin.gz': '16658436b3106f525c59e19759c42a890e602c5bcdc64db9652fa1604f6b81ca',
+  'shape.bin.gz': 'db3f0d914ecd9bc1e58e2f2a355b140550856a63be60c0bf7d0a74df0630930c',
+  'detail.bin.gz': 'f77f343e6dd4b465041bf73f25baff1b2ab04ca6d34f2b9f366e59e54c15d044',
+  'curl.bin.gz': '24a66985d15abe3d1005d76c245477221460a780260b239bce741f9e0054c970',
+  'weather.bin.gz': '4573e61f664e243b687f2ec4450acf7a01aa5e720c93b434178c2497491eaa71',
 }
 describe('the committed noise', () => {
   it('has the size the loader expects and the hashes the build produced', () => {
     expect(loadShape().length).toBe(shapeByteLength())
     expect(loadDetail().length).toBe(detailByteLength())
-    expect(loadCoverage().length).toBe(coverageByteLength())
+    expect(loadCurl().length).toBe(curlByteLength())
+    expect(loadWeather().length).toBe(weatherByteLength())
     expect(SHAPE_SIZE).toBe(128)
-    expect(DETAIL_SIZE).toBe(32)
-    expect(COVERAGE_SIZE).toBe(64)
+    expect(DETAIL_SIZE).toBe(64)
+    expect(CURL_SIZE).toBe(128)
+    expect(WEATHER_SIZE).toBe(512)
     for (const [name, path] of [
-      ['shape.bin.gz', shapePath()], ['detail.bin.gz', detailPath()], ['coverage.bin.gz', coveragePath()],
+      ['shape.bin.gz', shapePath()], ['detail.bin.gz', detailPath()], ['curl.bin.gz', curlPath()], ['weather.bin.gz', weatherPath()],
     ] as const) {
       expect(createHash('sha256').update(readFileSync(path)).digest('hex'), name).toBe(COMMITTED_SHA256[name])
     }

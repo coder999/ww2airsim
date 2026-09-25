@@ -16,6 +16,19 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
  * pilot actually hits the target it is gated on"); the Plan 3 defect class
  * -- a feature inert in the browser with its tests green -- is invisible
  * below this tier.
+ *
+ * **2026-09-25: the geometry this spec was written against moved.**
+ * `pursuit-range` is now a head-on merge at 2.5 km with a GREEN pursuer (the
+ * shootdown spike; `tests/sim/pursuitMerge.test.ts`), and the old tail chase
+ * lives on only as the Tier 1 fixture
+ * `tests/fixtures/scenarios/pursuit-tail-chase.json`. No URL parameter can
+ * load a fixture (`?scenario=` is whitelisted to the title screen's list by
+ * `isKnownScenarioId`), so this spec now runs against the head-on start.
+ * Expect this spec RED on the new start: headless with a passive player
+ * (2026-09-25), pursuer-1 turns within 0.2 s but fires ZERO rounds in 120 s
+ * -- after the merge its decision layer picks `extend` and never leaves it
+ * (range grows to 4.4 km). That is a Lane A finding in `src/sim/ai/`, not a
+ * spec bug; this spec's claims need the fixture geometry or an AI fix.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 
