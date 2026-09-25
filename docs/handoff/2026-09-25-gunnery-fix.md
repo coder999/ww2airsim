@@ -73,8 +73,8 @@ Still red. Both are AI behavior (see open items 1 and 5), not test mechanics:
 
 ## Open items
 
-1. **Lane A: after a head-on merge the AI never re-engages.** With a passive player, both skills pick `break` and then `extend`, and they never leave `extend`. At 120 s the range is 4.4 km and the pursuer has fired 0 rounds. So a player who misses on the first merge has no second fight. This comes from the `src/sim/ai/decision.ts` scoring, which was not touched here.
+1. **Lane A: after a head-on merge the AI never re-engages.** With a passive player, both skills pick `break` and then `extend`, and they never leave `extend`. At 120 s the range is 4.4 km and the pursuer has fired 0 rounds. So a player who misses on the first merge has no second fight. This comes from the `src/sim/ai/decision.ts` scoring, which was not touched here. **Mark, 2026-09-25: no stopgap. Leave this to 7c.**
 2. **Lane A: the AI leads with the target's velocity instead of the relative velocity** (`muzzleLeadDirection`, `src/sim/ai/pursuit.ts`). The spike has a failing-test sketch. This is out of scope here.
-3. **Nobody has seen the pipper and the depressed reticle on the GPU.** They have not been checked under the photoreal pipeline (TRAA, aerial perspective). The pipper's material uses `depthTest: false` and `fog: false`.
+3. **Resolved 2026-09-25:** Mark flew Air Combat on his own GPU, shot the pursuer down, and said the pipper looked good.
 4. The DEV `?spawnX/Y/Z` override moves a parked player into the air but keeps its parked controls, so the throttle is still 0. It was not changed.
 5. The veteran is no harder than the green on the first merge (8/8 kills against 7/8). Whether "Veteran" should mean something at the merge is a Lane A tuning question.
