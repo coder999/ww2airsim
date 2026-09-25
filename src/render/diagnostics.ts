@@ -34,6 +34,12 @@ export type Ww2Diagnostics = {
   readonly validationErrors: readonly string[]
   readonly tick: () => number
   readonly cameraMode: () => CameraMode
+  /** Proves a KeyG press reached the player's AircraftState.gearFraction
+   *  and therefore the rendered Airframe.setGear path. This mirrors the
+   *  controls() diagnostic below: an advancing tick alone cannot prove the
+   *  input or render-state wire was exercised. Added by the 2026-09-24
+   *  F4F Wildcat default-aircraft plan. */
+  readonly gearFraction: () => number
   /** Added in round 1 review: proves the control-deflection phase of the
    *  camera sweep actually reached `frame.controls`, which `tick` advancing
    *  alone cannot (the render loop ticks from `requestAnimationFrame`

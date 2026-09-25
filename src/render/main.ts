@@ -732,6 +732,7 @@ async function boot(): Promise<void> {
       validationErrors,
       tick: () => frame?.world.tick ?? 0,
       cameraMode: () => frame?.cameraMode ?? 'chase',
+      gearFraction: () => (frame ? playerAircraft(frame.world).state.gearFraction : 0),
       controls: () => frame?.controls ?? NEUTRAL,
       look: () => frame?.look ?? LOOK_CENTRE,
       // Same `??`-guard as the four above, for the same reason: the hook is
