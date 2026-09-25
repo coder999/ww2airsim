@@ -14,12 +14,16 @@ describe('cloud pass (photoreal Task 3)', () => {
     for (const scale of [0.5, 0.45, 0.4, 0.35, 1 / 3, 0.25]) {
       for (const [w, h] of [[2560, 1440], [3840, 2160], [1001, 3]] as const) {
         const size = cloudTargetSize(w, h, scale)
-        const { span, block } = cloudCells(scale)
+        const { span } = cloudCells(scale)
         expect(size.width * span).toBeGreaterThanOrEqual(w - 1e-6)
         expect(size.height * span).toBeGreaterThanOrEqual(h - 1e-6)
-        // The min-depth block covers the texel's span wherever it starts.
-        expect(block).toBeGreaterThanOrEqual(Math.ceil(span))
       }
+      // The min-depth block (read from floor(i * span)) covers every
+      // full-resolution pixel texel i's span touches, for every i.
+      const { span, block } = cloudCells(scale)
+      let needed = 0
+      for (let i = 0; i < 4000; i++) needed = Math.max(needed, Math.ceil((i + 1) * span) - Math.floor(i * span))
+      expect(block, `scale ${scale}`).toBeGreaterThanOrEqual(needed)
     }
     expect(cloudCells(0.5)).toEqual({ span: 2, block: 2 })
     expect(cloudCells(0.25)).toEqual({ span: 4, block: 4 })

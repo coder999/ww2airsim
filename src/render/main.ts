@@ -2016,8 +2016,8 @@ async function boot(): Promise<void> {
     const skyTimeS = oceanTime ?? current.world.tick * DT + current.world.accumulatorSeconds + postImpactOceanSeconds
     // Plan 16c: the sun creeps with the sim clock, and the light follows its
     // elevation and the eye's altitude -- photoreal Task 9, from the
-    // atmosphere model (sky/palette.ts; its sky irradiance is cached and
-    // re-evaluated only on a 0.25 deg / 100 m change).
+    // atmosphere model (sky/palette.ts; its sky irradiance comes from a
+    // table built once at boot and interpolated here).
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)

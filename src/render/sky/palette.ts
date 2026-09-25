@@ -3,8 +3,8 @@ import { skyIrradiance, sunColorAt, type Rgb } from './atmosphere.js'
 /**
  * The scene's light as a function of eye altitude and sun elevation, from the
  * physically based atmosphere (photoreal Task 9, spec §4.3). Replaces Plan
- * 16c's hand-tuned keys, which the spec retires. Pure apart from a one-entry
- * cache of the expensive sky irradiance (below).
+ * 16c's hand-tuned keys, which the spec retires. Pure apart from a boot-time
+ * table of the expensive sky irradiance, built once (below).
  *
  * Units: scene-linear, the space three's lights and every shader uniform
  * receive. The CPU model (`atmosphere.ts`) and the GPU LUTs
@@ -79,29 +79,72 @@ function mixRgb(a: Rgb, b: Rgb, t: number): Rgb { return [a[0] + (b[0] - a[0]) *
 function luminance(c: Rgb): number { return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] }
 
 /**
- * `skyIrradiance` costs 2–4 ms of CPU (Task 7), far too much per frame. The
- * light it describes changes slowly, so it is re-evaluated only when the sun
- * has moved more than 0.25 deg or the eye more than 100 m vertically since
- * the cached value; otherwise the cache is returned. The sim clock moves the
- * sun 0.25 deg in one minute, so this is a few-ms hitch per minute of flight
- * (or per 100 m of climb), not per frame.
+ * `skyIrradiance` costs ~2 ms of CPU per call (Task 7), far too much per
+ * frame, and a throttled re-evaluation (the first version: every 0.25 deg /
+ * 100 m) both hitched the main thread several times a second in a steep dive
+ * and popped the ambient by 10-20% per step at dusk (Task 9 review). So it
+ * is evaluated ONCE, on a (sun elevation x eye altitude) grid, when the
+ * first palette is asked for at boot, and interpolated per frame.
+ *
+ * The grid is dense where the light changes fastest -- around the horizon --
+ * and the interpolation is bilinear in LOG space, because between -6 and 0
+ * degrees the irradiance changes by two orders of magnitude and a linear
+ * blend there would be a poor exponential. Accuracy against direct
+ * evaluation is pinned by tests/render/palette.test.ts. Cost: 23 x 7 = 161
+ * evaluations, measured in task-9-report.md.
  */
-export const IRRADIANCE_REFRESH_DEG = 0.25
-export const IRRADIANCE_REFRESH_M = 100
-let cache: { hM: number; elevationDeg: number; up: Rgb; down: Rgb } | null = null
-function cachedIrradiance(hM: number, elevationDeg: number): { up: Rgb; down: Rgb } {
-  if (cache === null || Math.abs(cache.elevationDeg - elevationDeg) > IRRADIANCE_REFRESH_DEG || Math.abs(cache.hM - hM) > IRRADIANCE_REFRESH_M) {
-    const { up, down } = skyIrradiance(hM, elevationDeg, SCENE_GROUND_ALBEDO)
-    cache = { hM, elevationDeg, up, down }
+export const IRRADIANCE_ELEVATIONS_DEG: readonly number[] = [-8, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 6, 8, 10, 13, 17, 22, 30, 40, 55, 70, 90]
+export const IRRADIANCE_ALTITUDES_M: readonly number[] = [0, 1000, 2000, 3500, 5500, 8000, 12000]
+const LOG_FLOOR = 1e-12
+type IrradianceTable = { readonly up: Float64Array; readonly down: Float64Array }
+let table: IrradianceTable | null = null
+function irradianceTable(): IrradianceTable {
+  if (table !== null) return table
+  const ne = IRRADIANCE_ELEVATIONS_DEG.length, na = IRRADIANCE_ALTITUDES_M.length
+  const up = new Float64Array(na * ne * 3), down = new Float64Array(na * ne * 3)
+  for (let a = 0; a < na; a++) {
+    for (let e = 0; e < ne; e++) {
+      const irr = skyIrradiance(IRRADIANCE_ALTITUDES_M[a]!, IRRADIANCE_ELEVATIONS_DEG[e]!, SCENE_GROUND_ALBEDO)
+      for (let c = 0; c < 3; c++) {
+        up[(a * ne + e) * 3 + c] = Math.log(Math.max(LOG_FLOOR, irr.up[c]!))
+        down[(a * ne + e) * 3 + c] = Math.log(Math.max(LOG_FLOOR, irr.down[c]!))
+      }
+    }
   }
-  return cache
+  table = { up, down }
+  return table
+}
+/** Index of the cell containing x and the fraction across it, clamped to the grid. */
+function bracket(grid: readonly number[], x: number): [number, number] {
+  if (!(x > grid[0]!)) return [0, 0]
+  const last = grid.length - 1
+  if (x >= grid[last]!) return [last - 1, 1]
+  let i = 0
+  while (grid[i + 1]! < x) i++
+  return [i, (x - grid[i]!) / (grid[i + 1]! - grid[i]!)]
+}
+/** `skyIrradiance(hM, elevationDeg, SCENE_GROUND_ALBEDO)` from the boot-time
+ *  table: log-bilinear, clamped to the grid (below -8 deg the dusk floor has
+ *  long since taken over; above 12 km is out of the flight envelope). */
+export function interpolatedIrradiance(hM: number, elevationDeg: number): { up: Rgb; down: Rgb } {
+  const t = irradianceTable()
+  const ne = IRRADIANCE_ELEVATIONS_DEG.length
+  const [a, fa] = bracket(IRRADIANCE_ALTITUDES_M, hM)
+  const [e, fe] = bracket(IRRADIANCE_ELEVATIONS_DEG, elevationDeg)
+  const at = (data: Float64Array, c: number): number => {
+    const v = (ai: number, ei: number): number => data[(ai * ne + ei) * 3 + c]!
+    const lo = v(a, e) * (1 - fe) + v(a, e + 1) * fe
+    const hi = v(a + 1, e) * (1 - fe) + v(a + 1, e + 1) * fe
+    return Math.exp(lo * (1 - fa) + hi * fa)
+  }
+  return { up: [at(t.up, 0), at(t.up, 1), at(t.up, 2)], down: [at(t.down, 0), at(t.down, 1), at(t.down, 2)] }
 }
 
 /** The palette for an eye altitude (m, the world's y) and sun elevation (deg). */
 export function atmospherePalette(eyeAltitudeM: number, elevationDeg: number): SkyPalette {
   const hM = Math.max(0, eyeAltitudeM)
   const sunColor = scaled(sunColorAt(hM, elevationDeg), SUN_ILLUMINANCE)
-  const irr = cachedIrradiance(hM, elevationDeg)
+  const irr = interpolatedIrradiance(hM, elevationDeg)
   const up = scaled(irr.up, SUN_ILLUMINANCE)
   const down = scaled(irr.down, SUN_ILLUMINANCE)
   // The floor's weight: F²/(L² + F²) on the luminances of the model's sky fill

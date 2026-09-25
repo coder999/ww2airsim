@@ -308,8 +308,8 @@ class CloudPassNode extends TempNode<'vec4'> {
      *    into the previous frame (`reprojectUvNode`, with the eye delta
      *    because the scene is camera-relative), then converted from screen
      *    UV into the previous low-resolution target's UV (the target covers
-     *    `lowSize * cells` full-resolution pixels, which can exceed the
-     *    screen by up to `cells - 1`).
+     *    `lowSize * span` full-resolution pixels -- `cloudCells`' span, exactly
+     *    1 / scale -- which exceeds the screen by less than one span).
      * 3. History is REJECTED -- the texel takes `current` -- when history is
      *    reset, the point is behind the previous camera or off its screen,
      *    or disoccluded: where the previous march stopped (its min view-Z,

@@ -3,7 +3,7 @@ import { clamp, color, float, max, mix, pow, smoothstep, sqrt, vec3, vec4 } from
 import { AP_MAX_DISTANCE_M, getAtmosphereLuts } from '../sky/atmosphereLuts.js'
 import { SUN_ILLUMINANCE } from '../sky/palette.js'
 import { ATMOSPHERE } from '../sky/atmosphere.js'
-import { FOG_DISTANCE_M } from '../horizon.js'
+import { FOG_DISTANCE_M, seaHitDistanceNode } from '../horizon.js'
 import { skyIrradianceUpNode, sunColorNode, sunDirectionNode, twilightHorizonNode, twilightZenithNode } from './lighting.js'
 import { SEA_COLOUR } from './water.js'
 
@@ -32,8 +32,13 @@ export function skyRadiance(dir: Node<'vec3'>): Node<'vec3'> {
  * proportion to the opacity), `a` the transmittance. One vec4 so a vertex
  * stage can pass it as one varying.
  *
- * Valid for in-frustum directions only (Task 8's LUT is built in the
- * camera's frustum); terrain, ocean and cloud fragments are on screen.
+ * The LUT is built in the camera's frustum (Task 8), so the lookup is exact
+ * for on-screen directions only. Terrain and ocean call this per VERTEX, and
+ * a vertex of an on-screen triangle can lie off screen: its lookup is
+ * clamped to the LUT's edge column/row, which is close to right for the
+ * visible part of the triangle because the LUT is smooth. The clouds call it
+ * per on-screen texel. DEV `?atmosphere=off` skips the LUT update, so AP (and
+ * the dome) then read LUTs frozen at their last update -- or never rendered.
  *
  * Beyond the LUT's range (`AP_MAX_DISTANCE_M`, 100 km) -- only the 400 km
  * sea goes there -- it is extrapolated as a homogeneous medium from the
@@ -62,16 +67,43 @@ export const FAR_FADE_START_M = 0.9 * FOG_DISTANCE_M
  * The far-plane invariant (spec §4.3; horizon.ts `FOG_DISTANCE_M`): terrain
  * at the draw distance must be indistinguishable from what is behind it.
  * The aerial perspective alone does not guarantee that -- at 100 km it is not
- * opaque (transmittance ~0.36 from 1900 m, Task 8's readback) -- and what
- * replaces clipped terrain is the SEA (the ocean runs to 400 km), not the
- * sky. So over the last 10% the terrain's lit color blends toward
- * `farSeaColor`, the ocean's own far-field color along the same ray, before
- * the shared aerial perspective; land and sea then meet the draw distance in
- * one color. An earlier version faded toward the horizon sky and left a pale
- * ring where land met sea from altitude (high-6000, read 2026-09-25).
+ * opaque (transmittance ~0.36 from 1900 m, Task 8's readback) -- so over the
+ * last 10% the terrain's final (post-AP) color blends toward
+ * `farFadeTarget`, what the eye would see along the same ray with the
+ * terrain gone. `smoothstep` is exactly 1 at the distance.
  */
 export function farFadeWeight(distanceM: Node<'float'>): Node<'float'> {
   return smoothstep(FAR_FADE_START_M, FOG_DISTANCE_M, distanceM)
+}
+
+/** Half-width (sine) of the blend across the true horizon in `farFadeTarget`. */
+export const FAR_FADE_HORIZON_BLEND = 0.002
+
+/**
+ * What is behind clipped terrain along `dir` (unit or not), post aerial
+ * perspective. Two cases, and the edge of the draw distance can show either
+ * (Task 9 review):
+ *  - BELOW the true horizon (`trueHorizonSin`) the ray goes on to meet the
+ *    SEA -- the ocean runs to 400 km -- at `seaHitDistanceNode` (horizon.ts),
+ *    which is further than the edge. So: `farSeaColor` (the ocean's own
+ *    far-field color) under the aerial perspective of THAT distance, which
+ *    past 100 km is `aerialPerspective`'s extrapolation, as the ocean's is.
+ *    From 6000 m looking inland the sea behind the edge is 120+ km away.
+ *  - ABOVE it the ray passes over the edge into the SKY dome: a low eye
+ *    looking at high ground 90-100 km off sees the ridge against the sky, so
+ *    the target is `skyRadiance(dir)`, which the dome draws unaltered.
+ * The two are blended over ±`FAR_FADE_HORIZON_BLEND` about the horizon, the
+ * same line where the drawn sea meets the dome.
+ */
+export function farFadeTarget(dir: Node<'vec3'>): Node<'vec3'> {
+  const d = dir.normalize()
+  const luts = getAtmosphereLuts()
+  const seaDistanceM = seaHitDistanceNode(d, luts.eyeAltitude)
+  const seaAp = aerialPerspective(d, seaDistanceM)
+  const sea = farSeaColor(d).mul(seaAp.a).add(seaAp.rgb)
+  const hs = trueHorizonSin()
+  const above = smoothstep(hs.sub(FAR_FADE_HORIZON_BLEND), hs.add(FAR_FADE_HORIZON_BLEND), d.y)
+  return mix(sea, skyRadiance(d), above)
 }
 
 /** The mirrored sky the flat sea reflects, never below the true horizon: the

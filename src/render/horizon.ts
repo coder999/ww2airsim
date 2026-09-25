@@ -1,4 +1,4 @@
-import { mul } from 'three/tsl'
+import { length, max, mul, sqrt } from 'three/tsl'
 import type { Node } from 'three/webgpu'
 import { EARTH_RADIUS_M } from '../sim/world/projection.js'
 
@@ -70,7 +70,24 @@ export function horizonSinkNode(distanceM: Node<'float'>): Node<'float'> {
 }
 
 /** The terrain's draw distance, the aerial-perspective LUT's range and the
- *  end of its far fade into the horizon sky (`scene/atmosphereShading.ts`;
- *  `terrain/lod.ts`'s `drawDistanceM` -- `tests/render/clouds.test.ts` pins
- *  the three equal). */
+ *  end of the terrain's far fade into whatever is behind its edge -- sky or
+ *  sea (`scene/atmosphereShading.ts` `farFadeTarget`; `terrain/lod.ts`'s
+ *  `drawDistanceM` -- `tests/render/clouds.test.ts` pins them equal). */
 export const FOG_DISTANCE_M = 100_000
+
+/**
+ * Where a ray from the eye meets the sunk sea, as a 3D distance along the
+ * unit direction `dir`: the nearer root of the ray against `horizonSinkNode`'s
+ * surface, y = -eyeHeight - x^2/2R at horizontal distance x (the same
+ * surface the ocean mesh draws). At or above the true horizon there is no
+ * hit; the discriminant is clamped so the result is the horizon distance
+ * there, continuous, never NaN. Photoreal Task 9: the terrain's far fade
+ * needs the distance of the sea behind its clipped edge.
+ */
+export function seaHitDistanceNode(dir: Node<'vec3'>, eyeHeightM: Node<'float'>): Node<'float'> {
+  const horizontal = max(length(dir.xz), 1e-4)
+  const slope = dir.y.div(horizontal)
+  const disc = max(slope.mul(slope).sub(eyeHeightM.mul(2 / EARTH_RADIUS_M)), 0)
+  const x = max(slope.negate().sub(sqrt(disc)), 0).mul(EARTH_RADIUS_M)
+  return x.div(horizontal)
+}

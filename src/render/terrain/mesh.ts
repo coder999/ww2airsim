@@ -42,7 +42,7 @@ import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
 import { skyIrradianceDownNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode } from '../scene/lighting.js'
-import { aerialPerspective, farFadeWeight, farSeaColor } from '../scene/atmosphereShading.js'
+import { aerialPerspective, farFadeTarget, farFadeWeight } from '../scene/atmosphereShading.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
@@ -299,16 +299,17 @@ function createRingMaterial(
   // The scene is camera-relative, so the model-to-world transform of the
   // displaced vertex IS the eye-to-vertex vector.
   //
-  // The far-plane invariant: over the last 10% of the draw distance the lit
-  // color blends toward the far sea's (`farFadeWeight`'s doc), so where the
-  // terrain ends the ocean behind it continues in the same color and the
-  // clip cannot be seen. `smoothstep` is exactly 1 at the distance.
+  // The far-plane invariant: over the last 10% of the draw distance the
+  // final color blends toward what is behind the edge along the same ray --
+  // the sea at its own (further) distance below the true horizon, the sky
+  // above it (`farFadeTarget`) -- so the clip cannot be seen. `smoothstep`
+  // is exactly 1 at the distance.
   const eyeToVertex = modelWorldMatrix.mul(vec4(position, 1)).xyz
   const eyeDistanceM = length(eyeToVertex)
   const ap = varying(aerialPerspective(eyeToVertex, eyeDistanceM))
   const fade = varying(farFadeWeight(eyeDistanceM))
-  const farSea = varying(farSeaColor(eyeToVertex))
-  const shaded = mix(lit, farSea, fade).mul(ap.a).add(ap.rgb)
+  const behind = varying(farFadeTarget(eyeToVertex))
+  const shaded = mix(lit.mul(ap.a).add(ap.rgb), behind, fade)
   const vertexHeightM = varying(heightM)
 
   // The ocean owns water fragments. Discard the DEM's zero-elevation sea
