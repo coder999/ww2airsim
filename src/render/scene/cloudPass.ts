@@ -1,14 +1,16 @@
-import { FloatType, HalfFloatType, LinearFilter, NearestFilter, RGBAFormat, RenderTarget, Vector2, type PerspectiveCamera } from 'three'
+import { FloatType, HalfFloatType, LinearFilter, Matrix4, NearestFilter, RGBAFormat, RenderTarget, Vector2, Vector3, type PerspectiveCamera } from 'three'
 import {
   NodeMaterial, NodeUpdateType, QuadMesh, RendererUtils, TempNode,
   type Node, type NodeBuilder, type NodeFrame, type TextureNode, type WebGPURenderer,
 } from 'three/webgpu'
 import {
-  Fn, If, Loop, abs, clamp, float, floor, fract, int, ivec2, max, min, mrt, normalize, perspectiveDepthToViewZ,
+  Fn, If, Loop, abs, clamp, float, floor, fract, int, ivec2, max, min, mix, mrt, normalize, perspectiveDepthToViewZ,
   reference, screenCoordinate, struct, texture, uniform, vec2, vec4,
 } from 'three/tsl'
+import type { Vec3 } from '../../sim/math/vec3.js'
 import { FOG_DISTANCE_M } from '../horizon.js'
 import type { CloudsHandle } from './clouds.js'
+import { HISTORY_BLEND, reprojectUvNode } from './cloudHistory.js'
 
 /**
  * The cloud march as a reduced-resolution full-screen pass (photoreal spec
@@ -28,25 +30,50 @@ import type { CloudsHandle } from './clouds.js'
  * drawing buffer every frame (as `PassNode.updateBefore` does), so a window
  * resize or a pixel-ratio change needs no call either.
  *
- * Targets, both at `cloudTargetSize(drawing buffer, scale)`:
- * - `cloudColor` (half float, linear filter): rgb premultiplied by alpha, alpha.
- * - `cloudData` (float -- `FOG_DISTANCE_M` is 100 km, past half float's
- *   65504): x = the cloud's transmittance-weighted mean distance in metres
- *   (for Task 4's reprojection), y = the MIN scene view-Z over the
- *   full-resolution texels this texel covers, capped at `FOG_DISTANCE_M` --
- *   the depth the march actually stopped at, which the composite matches
- *   against.
+ * Targets, all at `cloudTargetSize(drawing buffer, scale)`:
+ * - The march, two of them ping-ponged (Task 4), each a two-attachment MRT:
+ *   - `cloudColor` (half float, linear filter): rgb premultiplied by alpha, alpha.
+ *   - `cloudData` (float -- `FOG_DISTANCE_M` is 100 km, past half float's
+ *     65504): x = the cloud's transmittance-weighted mean distance in metres
+ *     (the resolve's reprojection depth), y = the MIN scene view-Z over the
+ *     full-resolution texels this texel covers, capped at `FOG_DISTANCE_M` --
+ *     the depth the march actually stopped at, which the composite matches
+ *     against and the next frame's resolve tests for disocclusion.
+ * - `cloudHistory`, two ping-ponged (half float, linear): the temporally
+ *   resolved color (photoreal Task 4, 2026-09-24; see the resolve's doc
+ *   comment). The composite reads THIS, not the raw march; depth is never
+ *   accumulated, so the composite's depth matching is this frame's.
+ *
+ * Temporal state is fed by main.ts: `setEye` every rendered frame, and
+ * `resetHistory` on every discontinuity (`shouldResetHistory`, restart,
+ * scenario switch, unpause). A resize or a resolution-scale change resets by
+ * itself, because it reallocates the targets.
  */
 export type CloudPass = {
   /** Full-resolution composite of clouds over `sceneColor`, for `FramePipeline.setOutput`. */
   readonly composite: Node<'vec4'>
   setResolutionScale(scale: number): void
+  /** The eye's world position for the frame about to render (camera-relative
+   *  rendering: the camera itself sits at the origin). Call once per rendered
+   *  frame, before `FramePipeline.render()`. */
+  setEye(eye: Vec3): void
+  /** The next rendered frame resolves from its own march alone (Task 4:
+   *  teleport, respawn, scenario switch, unpause, long stall). */
+  resetHistory(): void
+  /** Frames resolved without history since boot (every reset, the first
+   *  frame and every resize), for the Tier 2 discontinuity case. */
+  historyResets(): number
   dispose(): void
 }
 
 /** The cloud target's size for a drawing buffer and a per-axis scale. */
 export function cloudTargetSize(width: number, height: number, scale: number): { width: number; height: number } {
-  return { width: Math.max(1, Math.ceil(width * scale)), height: Math.max(1, Math.ceil(height * scale)) }
+  return { width: cloudTargetAxis(width, scale), height: cloudTargetAxis(height, scale) }
+}
+/** One axis of `cloudTargetSize`; the per-frame path calls this directly so
+ *  it allocates nothing. */
+function cloudTargetAxis(pixels: number, scale: number): number {
+  return Math.max(1, Math.ceil(pixels * scale))
 }
 
 /** The composite's depth weight is `1 / (DEPTH_EPSILON + relative difference)`;
@@ -56,8 +83,19 @@ const DEPTH_EPSILON = 0.01
  *  full-resolution pixel, the composite falls back to the best-matching texel
  *  of the surrounding 4x4 (see the composite's doc comment). */
 const DEPTH_MISMATCH = 0.1
+/** The resolve's disocclusion test (Task 4): history is rejected where the
+ *  previous frame's march stopped at a view-Z more than this far (relative)
+ *  from where today's stop point sat in the previous camera. 0.25, not the
+ *  composite's 0.1: adjacent low-res texels of grazing terrain near the
+ *  horizon differ by up to ~7% (30 km at 600 m, 1440p), and history is read
+ *  at the NEAREST previous texel; an airframe or a hill against distant
+ *  ground differs by far more than 25%. */
+const DISOCCLUSION = 0.25
+/** The golden-ratio increment of the per-frame dither offset (spec §4.1). */
+const GOLDEN = 0.618034
 
 const MarchOut = struct({ color: 'vec4', data: 'vec4' })
+const NEIGHBORS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const
 
 /** Integer texel coordinate clamped into [0, max]. `clamp`'s @types/three
  *  0.186 overloads admit only float vectors; WGSL's `clamp` takes ivec2. */
@@ -65,13 +103,43 @@ function clampTexel(at: Node<'ivec2'>, hi: Node<'ivec2'>): Node<'ivec2'> {
   return (clamp as unknown as (x: Node<'ivec2'>, lo: Node<'ivec2'>, hi: Node<'ivec2'>) => Node<'ivec2'>)(at, ivec2(0, 0), hi)
 }
 
+/** One march target: `count: 2` MRT, color half float (linear), data float (nearest). */
+function marchTarget(): RenderTarget {
+  const target = new RenderTarget(1, 1, { count: 2, type: HalfFloatType, format: RGBAFormat, depthBuffer: false })
+  const [color, data] = target.textures as [RenderTarget['texture'], RenderTarget['texture']]
+  color.name = 'cloudColor'
+  color.minFilter = color.magFilter = LinearFilter
+  data.name = 'cloudData'
+  data.type = FloatType
+  data.minFilter = data.magFilter = NearestFilter
+  return target
+}
+
+/** One history target: the resolved premultiplied color, half float, linear
+ *  (the resolve samples it bilinearly at the reprojected position). */
+function historyTarget(): RenderTarget {
+  const target = new RenderTarget(1, 1, { type: HalfFloatType, format: RGBAFormat, depthBuffer: false })
+  target.texture.name = 'cloudHistory'
+  target.texture.minFilter = target.texture.magFilter = LinearFilter
+  return target
+}
+
 let rendererState: ReturnType<typeof RendererUtils.resetRendererState> | undefined
 const drawingBuffer = new Vector2()
 
 class CloudPassNode extends TempNode<'vec4'> {
-  readonly target: RenderTarget
+  /** Ping-pong march targets; `march[current]` is written this frame and
+   *  `march[1 - current]` still holds last frame's (its data feeds the
+   *  resolve's disocclusion test). */
+  private readonly march: readonly [RenderTarget, RenderTarget] = [marchTarget(), marchTarget()]
+  /** Ping-pong resolved targets: `history[current]` is written this frame
+   *  from `history[1 - current]`, and is what the composite reads. */
+  private readonly history: readonly [RenderTarget, RenderTarget] = [historyTarget(), historyTarget()]
+  private current = 0
   private readonly material = new NodeMaterial()
   private readonly quad = new QuadMesh(this.material)
+  private readonly resolveMaterial = new NodeMaterial()
+  private readonly resolveQuad = new QuadMesh(this.resolveMaterial)
   /** Full-resolution texels per cloud texel, per axis: round(1 / scale). */
   private cells = 2
   private scale = 0.5
@@ -79,10 +147,32 @@ class CloudPassNode extends TempNode<'vec4'> {
   private readonly lowSize = uniform(new Vector2(1, 1))
   private readonly cellsF = uniform(2)
   private readonly cellsI = uniform(2, 'int')
+  // Texture nodes whose `.value` is swapped every frame (NodeSampledTexture
+  // rebinds on a changed value; AfterImageNode relies on the same).
+  private readonly marchColor = texture(this.march[0].textures[0]!) as unknown as TextureNode
+  private readonly marchData = texture(this.march[0].textures[1]!) as unknown as TextureNode
+  private readonly prevMarchData = texture(this.march[1].textures[1]!) as unknown as TextureNode
+  private readonly historyRead = texture(this.history[1].texture) as unknown as TextureNode
+  private readonly resolved = texture(this.history[0].texture) as unknown as TextureNode
+  /** Per-frame dither offset, `frameIndex * GOLDEN mod 1`, computed in float64
+   *  on the CPU: a float32 `frameIndex * 0.618` loses the fraction after a few
+   *  hours of frames. */
+  private readonly jitter = uniform(0)
+  private frameIndex = 0
+  /** `eye - prevEye`, subtracted in float64 (world coordinates reach 100 km). */
+  private readonly eyeDelta = uniform(new Vector3())
+  /** Last rendered frame's `projectionMatrix * matrixWorldInverse` -- a
+   *  rotation-only view, since the camera sits at the origin every frame. */
+  private readonly prevViewProjection = uniform(new Matrix4())
+  private readonly historyValid = uniform(0)
+  private eye: Vec3 | null = null
+  private prevEye: Vec3 | null = null
+  private resetPending = true
+  resets = 0
 
   constructor(
     clouds: CloudsHandle,
-    camera: PerspectiveCamera,
+    private readonly camera: PerspectiveCamera,
     private readonly sceneColor: Node<'vec4'>,
     private readonly sceneDepth: TextureNode,
     private readonly near: Node<'float'>,
@@ -90,19 +180,25 @@ class CloudPassNode extends TempNode<'vec4'> {
   ) {
     super('vec4')
     this.updateBeforeType = NodeUpdateType.FRAME
-    this.target = new RenderTarget(1, 1, { count: 2, type: HalfFloatType, format: RGBAFormat, depthBuffer: false })
-    const [color, data] = this.target.textures as [RenderTarget['texture'], RenderTarget['texture']]
-    color.name = 'cloudColor'
-    color.minFilter = color.magFilter = LinearFilter
-    data.name = 'cloudData'
-    data.type = FloatType
-    data.minFilter = data.magFilter = NearestFilter
 
     // The pass renders with the QuadMesh's own camera, so the scene camera's
     // matrices come in as uniforms holding the camera's live Matrix4 objects
     // (as GTAONode does), never through `cameraProjectionMatrix` & co.
     const projectionInverse = uniform(camera.projectionMatrixInverse)
     const cameraWorld = uniform(camera.matrixWorld)
+    /** The view ray through a low-resolution texel's block center. The scene
+     *  is camera-relative (the camera sits at the origin, main.ts), so the
+     *  world direction is the view direction rotated by the camera; any NDC
+     *  depth inside the frustum lies on the same ray. Shared by the march and
+     *  the resolve, so both see the SAME ray for a texel. */
+    const rayThrough = (cell: Node<'vec2'>): { dir: Node<'vec3'>; cosView: Node<'float'> } => {
+      const center = cell.add(0.5).mul(this.cellsF)
+      const ndc = vec2(center.x.div(this.fullSize.x).mul(2).sub(1), float(1).sub(center.y.div(this.fullSize.y).mul(2)))
+      const viewH = projectionInverse.mul(vec4(ndc, 0.5, 1)).toVar()
+      const viewDir = normalize(viewH.xyz.div(viewH.w)).toVar()
+      return { dir: cameraWorld.mul(vec4(viewDir, 0)).xyz as unknown as Node<'vec3'>, cosView: viewDir.z.negate() as unknown as Node<'float'> }
+    }
+
     const march = Fn(() => {
       // Low-resolution pixel center, and the block of full-resolution
       // texels it covers.
@@ -125,22 +221,16 @@ class CloudPassNode extends TempNode<'vec4'> {
           minViewZ.assign(min(minViewZ, perspectiveDepthToViewZ(depth, this.near, this.far).negate()))
         })
       })
-      // The view ray through the block's center. The scene is
-      // camera-relative (the camera sits at the origin, main.ts), so the
-      // world direction is the view direction rotated by the camera; any
-      // NDC depth inside the frustum lies on the same ray.
-      const center = cell.add(0.5).mul(this.cellsF)
-      const ndc = vec2(center.x.div(this.fullSize.x).mul(2).sub(1), float(1).sub(center.y.div(this.fullSize.y).mul(2)))
-      const viewH = projectionInverse.mul(vec4(ndc, 0.5, 1)).toVar()
-      const viewDir = normalize(viewH.xyz.div(viewH.w)).toVar()
-      const dir = cameraWorld.mul(vec4(viewDir, 0)).xyz
+      const { dir, cosView } = rayThrough(cell as unknown as Node<'vec2'>)
       // Scene depth as a ray length: view-space Z over the ray's cosine to
       // the view axis, capped at the fog distance -- as the dome did.
-      const cosView = viewDir.z.negate()
       const sceneT = min(minViewZ.div(max(cosView, 0.001)), float(FOG_DISTANCE_M))
       // Per-pixel start dither: interleaved gradient noise, hides step
       // banding. On the LOW-resolution pixel, so each marched texel differs.
-      const dither = fract(float(52.9829189).mul(fract(low.x.mul(0.06711056).add(low.y.mul(0.00583715)))))
+      // Task 4: offset by a golden-ratio sequence per frame, so successive
+      // frames sample different start depths and the resolve averages them.
+      const ign = fract(float(52.9829189).mul(fract(low.x.mul(0.06711056).add(low.y.mul(0.00583715)))))
+      const dither = fract(ign.add(this.jitter))
       const result = clouds.marchNode(dir, sceneT, dither)
       // ONE node out of the `Fn` (trap 1): a struct, split into the two
       // attachments below.
@@ -150,25 +240,122 @@ class CloudPassNode extends TempNode<'vec4'> {
     this.material.name = 'CloudMarch'
     this.quad.material = this.material
     this.quad.name = 'CloudMarch'
+
+    /**
+     * The temporal resolve (spec §4.1, Task 4), one low-resolution texel per
+     * fragment:
+     * 1. `current` = this frame's march; `lo`/`hi` = per-channel min/max of
+     *    its 3x3 neighborhood.
+     * 2. The cloud's representative depth along this texel's ray, reprojected
+     *    into the previous frame (`reprojectUvNode`, with the eye delta
+     *    because the scene is camera-relative), then converted from screen
+     *    UV into the previous low-resolution target's UV (the target covers
+     *    `lowSize * cells` full-resolution pixels, which can exceed the
+     *    screen by up to `cells - 1`).
+     * 3. History is REJECTED -- the texel takes `current` -- when history is
+     *    reset, the point is behind the previous camera or off its screen,
+     *    or disoccluded: where the previous march stopped (its min view-Z,
+     *    `cloudData.y`, at the nearest previous texel) differs by more than
+     *    `DISOCCLUSION` from the view-Z today's stop point had in the
+     *    previous camera. That is what keeps a rolling airframe from
+     *    dragging a clear-sky ghost of itself across the deck: the texels it
+     *    uncovers were stopped at 10 m last frame.
+     * 4. Otherwise `mix(current, clamp(history, lo, hi), HISTORY_BLEND)`.
+     * The texture sample is taken unconditionally and selected afterwards:
+     * WGSL's `textureSample` must be in uniform control flow.
+     */
+    const resolve = Fn(() => {
+      const low = screenCoordinate.xy
+      const cell = floor(low).toVar()
+      const at = ivec2(cell).toVar()
+      const lowMax = ivec2(this.lowSize).sub(ivec2(1, 1)).toVar()
+      const current = this.marchColor.load(at).toVar()
+      const lo = vec4(current).toVar()
+      const hi = vec4(current).toVar()
+      for (const [ox, oy] of NEIGHBORS) {
+        const n = this.marchColor.load(clampTexel(at.add(ivec2(ox, oy)), lowMax)).toVar()
+        lo.assign(min(lo, n))
+        hi.assign(max(hi, n))
+      }
+      const data = this.marchData.load(at).toVar()
+      const { dir, cosView } = rayThrough(cell as unknown as Node<'vec2'>)
+      const reprojected = reprojectUvNode(dir, data.x as unknown as Node<'float'>, this.eyeDelta as unknown as Node<'vec3'>, this.prevViewProjection as unknown as Node<'mat4'>)
+      const uv = vec2(reprojected.uv).toVar()
+      const prevLow = uv.mul(this.fullSize).div(this.cellsF).toVar()
+      const history = this.historyRead.sample(prevLow.div(this.lowSize))
+      const clamped = clamp(history, lo, hi)
+      // Disocclusion: today's stop point, in the previous camera.
+      const stop = this.eyeDelta.add(dir.mul(data.y.div(max(cosView, 0.001))))
+      const expected = min(this.prevViewProjection.mul(vec4(stop, 1)).w, float(FOG_DISTANCE_M))
+      const prevStop = this.prevMarchData.load(clampTexel(ivec2(floor(prevLow)), lowMax)).y
+      const occluded = abs(prevStop.sub(expected)).div(max(expected, 1e-3)).greaterThan(DISOCCLUSION)
+      const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
+      const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not())
+      return accept.select(mix(current, clamped, HISTORY_BLEND), current)
+    })()
+    this.resolveMaterial.fragmentNode = resolve
+    this.resolveMaterial.name = 'CloudResolve'
+    this.resolveQuad.material = this.resolveMaterial
+    this.resolveQuad.name = 'CloudResolve'
   }
 
   setResolutionScale(scale: number): void {
+    if (scale !== this.scale) this.resetPending = true
     this.scale = scale
     this.cells = Math.max(1, Math.round(1 / scale))
+  }
+
+  setEye(eye: Vec3): void {
+    this.eye = { x: eye.x, y: eye.y, z: eye.z }
+  }
+
+  resetHistory(): void {
+    this.resetPending = true
   }
 
   override updateBefore(frame: NodeFrame): undefined {
     const renderer = frame.renderer as unknown as WebGPURenderer
     rendererState = RendererUtils.resetRendererState(renderer, rendererState as ReturnType<typeof RendererUtils.resetRendererState>)
     const { x: width, y: height } = renderer.getDrawingBufferSize(drawingBuffer)
-    const low = cloudTargetSize(width, height, this.scale)
-    this.target.setSize(low.width, low.height)
+    const lowWidth = cloudTargetAxis(width, this.scale)
+    const lowHeight = cloudTargetAxis(height, this.scale)
+    const march = this.march[this.current]!
+    const history = this.history[this.current]!
+    // A resize reallocates every target: last frame's history is gone.
+    if (march.width !== lowWidth || march.height !== lowHeight) this.resetPending = true
+    for (const target of [...this.march, ...this.history]) target.setSize(lowWidth, lowHeight)
     this.fullSize.value.set(width, height)
-    this.lowSize.value.set(low.width, low.height)
+    this.lowSize.value.set(lowWidth, lowHeight)
     this.cellsF.value = this.cells
     this.cellsI.value = this.cells
-    renderer.setRenderTarget(this.target)
+    this.jitter.value = (this.frameIndex * GOLDEN) % 1
+    this.frameIndex++
+
+    // 1. The march, into this frame's target.
+    this.marchColor.value = march.textures[0]!
+    this.marchData.value = march.textures[1]!
+    this.prevMarchData.value = this.march[1 - this.current]!.textures[1]!
+    renderer.setRenderTarget(march)
     this.quad.render(renderer)
+
+    // 2. The resolve, from last frame's history into this frame's.
+    const eye = this.eye ?? { x: 0, y: 0, z: 0 }
+    const reset = this.resetPending || this.prevEye === null
+    const prevEye = this.prevEye ?? eye
+    this.eyeDelta.value.set(eye.x - prevEye.x, eye.y - prevEye.y, eye.z - prevEye.z)
+    this.historyValid.value = reset ? 0 : 1
+    this.historyRead.value = this.history[1 - this.current]!.texture
+    renderer.setRenderTarget(history)
+    this.resolveQuad.render(renderer)
+    this.resolved.value = history.texture
+    if (reset) this.resets++
+
+    // 3. This frame becomes the previous one. The scene pass has already
+    // rendered this frame, so the camera's matrices are this frame's.
+    this.prevViewProjection.value.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+    this.prevEye = eye
+    this.resetPending = false
+    this.current = 1 - this.current
     RendererUtils.restoreRendererState(renderer, rendererState)
     return undefined
   }
@@ -199,8 +386,10 @@ class CloudPassNode extends TempNode<'vec4'> {
    * neighboring texel that marched to its own depth.
    */
   override setup(_builder: NodeBuilder): Node<'vec4'> {
-    const cloudColor = texture(this.target.textures[0]!) as unknown as TextureNode
-    const cloudData = texture(this.target.textures[1]!) as unknown as TextureNode
+    // Task 4: color from the temporally resolved target, depth from this
+    // frame's march (depth is never accumulated).
+    const cloudColor = this.resolved
+    const cloudData = this.marchData
     const composite = Fn(() => {
       const pixel = screenCoordinate.xy
       const depth = this.sceneDepth.load(ivec2(floor(pixel))).x
@@ -246,8 +435,9 @@ class CloudPassNode extends TempNode<'vec4'> {
 
   override dispose(): void {
     super.dispose()
-    this.target.dispose()
+    for (const target of [...this.march, ...this.history]) target.dispose()
     this.material.dispose()
+    this.resolveMaterial.dispose()
   }
 }
 
@@ -265,6 +455,9 @@ export function createCloudPass(opts: {
   return {
     composite: node as unknown as Node<'vec4'>,
     setResolutionScale(scale) { node.setResolutionScale(scale) },
+    setEye(eye) { node.setEye(eye) },
+    resetHistory() { node.resetHistory() },
+    historyResets() { return node.resets },
     dispose() { node.dispose() },
   }
 }

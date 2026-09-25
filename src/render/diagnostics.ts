@@ -333,6 +333,9 @@ export type Ww2Diagnostics = {
     readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly steps: number
     /** Plan 16b: whether the shadow pass runs, its taps per layer, and the map's side. */
     readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number }
+    /** Photoreal Task 4: frames the cloud pass resolved WITHOUT history since
+     *  boot (first frame, resizes, every discontinuity reset); 0 with no pass. */
+    readonly historyResets: number
   }
   /** Plan 16b: the shadow map's transmittance at a sea-level world point, or
    *  null outside the map / with the pass off. A fixed point must read the

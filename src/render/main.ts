@@ -26,6 +26,7 @@ import { applyMissionResultToRoster, loadRoster, saveRoster } from './roster.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
+import { shouldResetHistory } from './scene/cloudHistory.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
 import { loadSkyNoise } from './sky/load.js'
@@ -877,6 +878,8 @@ async function boot(): Promise<void> {
         layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
         // Plan 16b: what the shadow pass is doing, for the Tier 2 budget.
         shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
+        // Photoreal Task 4: frames resolved without history (0 with no pass).
+        historyResets: cloudPass?.historyResets() ?? 0,
       }),
       // Plan 16b: the shadow map read back at a world point, for the
       // world-stability check a screenshot cannot make.
@@ -1448,6 +1451,11 @@ async function boot(): Promise<void> {
     shownDestructionTick = null
     landingShown = false
     postImpactOceanSeconds = 0
+    // Photoreal Task 4: a new life is a new view; the cloud history of the
+    // old one must not be reprojected into it. The teleport test in the
+    // frame loop would usually catch it too -- this does not depend on how
+    // far the restart moved the eye.
+    cloudPass?.resetHistory()
   }
   let legendOpen = true
   // Plan 17. Instrument setting, not simulation state -- same tier as
@@ -1627,6 +1635,11 @@ async function boot(): Promise<void> {
   // game. Cross-task drift between Task 11 and Task 15's own convention.
   const overlay = import.meta.env.DEV ? createOverlay(root) : null
   let last = performance.now()
+  // Photoreal Task 4: the eye, time and pause state of the last frame the
+  // cloud pass rendered, for its history reset (render branch below).
+  let cloudHistoryEye: Vec3 | null = null
+  let cloudHistoryAtMs = 0
+  let cloudHistoryPaused = false
   // Whether a timestamp resolve is outstanding; see the call site below.
   let gpuResolvePending = false
   const frameFn = (now: number): void => {
@@ -2004,6 +2017,22 @@ async function boot(): Promise<void> {
       renderer.setRenderTarget(radarScope.target)
       renderer.render(radarScope.scene, radarScope.camera)
       renderer.setRenderTarget(null)
+      // Photoreal Task 4: the cloud pass's temporal state, fed only on frames
+      // that actually render (a frame skipped above leaves the history where
+      // it was, so the next test measures from the last RENDERED frame).
+      // Reset on a teleport or a stall (`shouldResetHistory`) and on unpause;
+      // restart and scenario switch reset through `resetFlightUi`.
+      if (cloudPass !== null) {
+        const eye = current.eye.position
+        if (cloudHistoryEye !== null && shouldResetHistory({
+          eye, prevEye: cloudHistoryEye, frameSeconds: (now - cloudHistoryAtMs) / 1000, timeScale: current.timeScale,
+        })) cloudPass.resetHistory()
+        if (cloudHistoryPaused && !current.paused) cloudPass.resetHistory()
+        cloudPass.setEye(eye)
+        cloudHistoryEye = eye
+        cloudHistoryAtMs = now
+        cloudHistoryPaused = current.paused
+      }
       framePipeline.render()
     }
 
