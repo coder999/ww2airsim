@@ -5,7 +5,7 @@ import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
 import { OCEAN_SHADOW_FLOOR, type CloudShadowHandle } from '../scene/cloudShadow.js'
 import { sunColorNode, sunDirectionNode } from '../scene/lighting.js'
-import { aerialPerspective, mirroredSky, seaIrradianceOverPi } from '../scene/atmosphereShading.js'
+import { aerialPerspective, reflectedSky, seaIrradianceOverPi } from '../scene/atmosphereShading.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
 import type { OceanCompute } from './compute.js'
 import { angularFadeSpacingM, shortestWavelengthM } from './bands.js'
@@ -540,15 +540,18 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   const subsurface = waterColour.mul(seaIrradiance)
   // `color()`'s type admits only scalar `mul` (clouds.ts has the same cast).
   const foamColour = (color(0xe4eff0) as unknown as Node<'vec3'>).mul(seaIrradiance)
-  // The sky the water reflects: the sky-view LUT along the mirror direction
-  // of the MEAN surface, per vertex (spec §4.5 moves this to the per-fragment
-  // wave-normal reflection in Task 12). `mirroredSky` is shared with the
-  // terrain's far fade (atmosphereShading.ts), which must match this sea.
+  // The sky the water reflects (photoreal Task 12, spec §4.5): the sky-view
+  // LUT along the eye ray reflected off the per-fragment WAVE normal, so each
+  // facet takes the color of the sky it faces -- far field the grazing
+  // horizon sky, near field the higher, bluer sky mixed with the subsurface
+  // hue by Fresnel. `reflectedSky` floors the direction at the true horizon
+  // (atmosphereShading.ts); with a flat normal it is exactly `mirroredSky`,
+  // which the terrain's far fade reads, so the two still meet.
   const eyeToVertex = displacedPosition.sub(vec3(0, eyeHeight, 0))
   const eyeDistanceM = length(eyeToVertex)
-  const reflectedSky = varying(mirroredSky(eyeToVertex))
+  const reflectedSkyColor = reflectedSky(reflect(view.negate(), normal))
   const unshadowed = cascades.length === 0 ? subsurface : mix(
-    mix(subsurface.mul(max(normal.y, 0.3)), reflectedSky, fresnel), foamColour, clamp(foam, 0, 1)).add(glint)
+    mix(subsurface.mul(max(normal.y, 0.3)), reflectedSkyColor, fresnel), foamColour, clamp(foam, 0, 1)).add(glint)
   // Plan 16b: under cloud the sea loses glint and subsurface light but still
   // reflects the sky, hence a floor rather than the terrain's direct-only
   // scale. The sea is at y = 0, so `worldXZ` is the true world point and the

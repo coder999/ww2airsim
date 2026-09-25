@@ -41,7 +41,7 @@ import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface
 import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
-import { skyIrradianceDownNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode } from '../scene/lighting.js'
+import { cloudSkylightNode, skyIrradianceDownNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode } from '../scene/lighting.js'
 import { aerialPerspective, farFadeTarget, farFadeWeight } from '../scene/atmosphereShading.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
@@ -289,8 +289,10 @@ function createRingMaterial(
   // irradiance -- three's BRDF_Lambert, so the terrain and the lit materials
   // parked on it agree. The ambient is the atmosphere's sky irradiance,
   // mixed from the up- and down-facing values by the normal as three's
-  // HemisphereLight does (lighting.ts sets both from one palette).
-  const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode, varying(normal).y.mul(0.5).add(0.5))
+  // HemisphereLight does (lighting.ts sets both from one palette). The up
+  // term includes the cumulus deck's scattered skylight, as the
+  // HemisphereLight's sky color does (photoreal Task 12, lighting.ts).
+  const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode), varying(normal).y.mul(0.5).add(0.5))
   const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT))))
 
   // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and

@@ -62,7 +62,7 @@ import { createTowns, type Town } from './scene/towns.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
-import { applySun, createLighting } from './scene/lighting.js'
+import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
@@ -2036,7 +2036,8 @@ async function boot(): Promise<void> {
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
-    applySun(lights, atmospherePalette(current.eye.position.y, elevationDeg), direction, elevationDeg)
+    applySun(lights, atmospherePalette(current.eye.position.y, elevationDeg), direction, elevationDeg,
+      cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))
