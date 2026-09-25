@@ -44,11 +44,13 @@ import { CAMERA_VFOV_DEG } from '../camera.js'
 import { gearDisplay, flapDisplay } from '../flightData.js'
 import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
+import { gunHarmonization } from '../../sim/weapons/harmonization.js'
 
 export type Panel = {
   readonly root: Object3D
-  /** The reflector gunsight's reticle. On the boresight, so it is where the
-   *  guns point rather than where the panel is. */
+  /** The reflector gunsight's reticle, depressed below the eye's boresight
+   *  by the guns' harmonization angle (`gunHarmonization`): it marks where
+   *  the rounds pass at convergence range, not where the eye looks. */
   readonly reticle: Object3D
   readonly needles: Map<GaugeId, Object3D>
   /** The digital readout plate inside each dial, and the string it currently
@@ -303,13 +305,17 @@ export const PANEL_BELOW_M = 0.19
  */
 const RETICLE_SPAN_DEG = 3
 const RETICLE_GAP_DEG = 1
+/** The center dot's angular diameter, inside the gap. */
+const RETICLE_DOT_DEG = 0.2
 /** At -0.004, this is FARTHER from the pilot than the dial faces (z = 0) and
  *  the backing plate (`BACKING_Z` = -0.001), by this file's own "local +Z
  *  points at the pilot" convention -- not "in front of" either, which is
  *  what this comment used to claim back when it was framed around the
  *  now-retired horizon bar. That ordering turns out to be moot: the reticle
- *  spans only about 1.51 degrees either side of the eye line, and the
- *  backing plate starts about 3.00 degrees below it (`HORIZON_KEEP_DEG`,
+ *  spans only about 1.51 degrees either side of its own center, which sits
+ *  0.28 degrees below the eye line (the harmonization depression, F6F), so
+ *  it reaches about 1.8 degrees below the eye line; the backing plate starts
+ *  about 3.00 degrees below it (`HORIZON_KEEP_DEG`,
  *  panelLayout.ts), so the two never share the same screen position and
  *  which one is nominally "in front" never gets exercised. `panel.test.ts`
  *  pins the sight's own screen position independently of this value, at
@@ -661,13 +667,19 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     attitude = { ball, ring }
   }
 
-  // The sight sits at local (0, PANEL_BELOW_M) -- the boresight -- NOT at the
-  // panel's own origin, which is PANEL_BELOW_M below the eye. `panel.test.ts`
-  // projects it and requires dead centre at five attitudes, which is the check
-  // that a sight drawn on the panel face would fail.
+  // The sight's center sits on the line from the eye to where the rounds
+  // pass at convergence range: local (0, PANEL_BELOW_M) is the eye's own
+  // boresight, and the sight is lowered from there by the harmonization
+  // angle (`gunHarmonization`, sim/weapons/harmonization.ts -- 0.28 degrees
+  // for the F6F). Until 2026-09-25 it sat dead on the boresight, 0.9 m above
+  // the line the guns aim along and with no allowance for drop, and a target
+  // centered on it took zero hits at every range (the shootdown spike;
+  // tests/render/gunsightBallistics.test.ts now fires production rounds
+  // through it). An airplane with no guns keeps the boresight.
   const reticle = new Group()
   reticle.name = 'reticle'
   const sightDistance = PANEL_AHEAD_M - RETICLE_Z
+  const depressionRad = spec.combat === undefined ? 0 : gunHarmonization(spec.combat, spec.view.eyePointM).depressionRad
   const armM = sightDistance * Math.tan((RETICLE_SPAN_DEG * Math.PI) / 360)
   const gapM = sightDistance * Math.tan((RETICLE_GAP_DEG * Math.PI) / 360)
   const strokeM = armM * 0.14
@@ -681,7 +693,14 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     arm.position.set(dx * (gapM + long / 2), dy * (gapM + long / 2), 0)
     reticle.add(arm)
   }
-  reticle.position.set(0, PANEL_BELOW_M, RETICLE_Z)
+  // The center dot (2026-09-25): the gap is 1 degree across and a fighter at
+  // 300 m is about 0.3 degrees tall, so without a mark in the gap the pilot
+  // cannot place the target on the aim point precisely. 0.2 degrees across:
+  // visible, and still smaller than the target it sits on.
+  const dot = new Mesh(new CircleGeometry(sightDistance * Math.tan((RETICLE_DOT_DEG * Math.PI) / 360), 16), reticleMat)
+  dot.name = 'reticle:dot'
+  reticle.add(dot)
+  reticle.position.set(0, PANEL_BELOW_M - sightDistance * Math.tan(depressionRad), RETICLE_Z)
   root.add(reticle)
 
   // The heading tape: a sliding compass strip across the upper band,

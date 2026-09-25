@@ -38,6 +38,7 @@ import { createState, type AircraftState, type Controls } from '../../src/sim/fl
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { gunHarmonization } from '../../src/sim/weapons/harmonization.js'
 import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -1019,15 +1020,20 @@ describe('the gunsight reticle (2026-09-15)', () => {
     return { x: p.x / -p.z, y: p.y / -p.z }
   }
 
-  it('sits on the boresight, at every attitude', () => {
-    // A reflector sight is aimed where the guns point, so the reticle has to
-    // land dead centre whatever the airplane is doing -- it is fixed to the
-    // airframe, not to the world like the attitude ball's own horizon chord.
+  it('sits below the boresight by the guns\' harmonization angle, at every attitude', () => {
+    // A reflector sight marks where the rounds GO, not where the eye looks:
+    // the eye is 0.9 m above the line the guns aim along and the rounds drop
+    // on the way, so the reticle is drawn depressed by the angle to their
+    // mean impact at convergence (`gunHarmonization`). Before 2026-09-25 this
+    // test required dead centre and claimed that was "where the guns point";
+    // it was not, and a target centered there took zero hits at every range
+    // (tests/render/gunsightBallistics.test.ts proves the fix through
+    // production stepCombat).
     //
-    // This is the assertion that a reticle parented correctly but positioned
-    // on the PANEL FACE would fail: the panel sits PANEL_BELOW_M below the eye,
-    // so a sight built at local y = 0 projects well below centre rather than
-    // on it. Checked across attitudes so a pose bug cannot hide at level.
+    // Checked across attitudes so a pose bug cannot hide at level; it is
+    // fixed to the airframe, not to the world like the attitude ball.
+    const depression = gunHarmonization(f6f.combat!, f6f.view.eyePointM).depressionRad
+    expect(depression).toBeGreaterThan(0.004) // about 0.28 degrees
     const attitudes = [[0, 0], [12, 0], [-20, 0], [0, 45], [8, -30]] as const
     for (const [pitchDeg, bankDeg] of attitudes) {
       const panel = createPanel(f6f)
@@ -1036,7 +1042,29 @@ describe('the gunsight reticle (2026-09-15)', () => {
       const at = screenOf(panel.reticle, state, worldToCamera, eye)
 
       expect(at.x, `pitch ${pitchDeg} bank ${bankDeg}: horizontal`).toBeCloseTo(0, 6)
-      expect(at.y, `pitch ${pitchDeg} bank ${bankDeg}: vertical`).toBeCloseTo(0, 6)
+      expect(at.y, `pitch ${pitchDeg} bank ${bankDeg}: vertical`).toBeCloseTo(-Math.tan(depression), 6)
+    }
+  })
+
+  it('has a center dot inside the 1 degree gap, so a 0.3 degree target can be placed on it', () => {
+    const panel = createPanel(f6f)
+    const dot = panel.reticle.getObjectByName('reticle:dot')
+    expect(dot, 'no reticle:dot').toBeDefined()
+    expect(dot!.position.x).toBe(0)
+    expect(dot!.position.y).toBe(0)
+    // Its angular size, seen from the eye: small against the 1 degree gap
+    // (so it does not hide the target) but not a single pixel either.
+    const size = new Box3().setFromObject(dot!).getSize(new Vector3())
+    const distance = PANEL_AHEAD_M - panel.reticle.position.z
+    const spanDeg = (2 * Math.atan(Math.max(size.x, size.y) / 2 / distance) * 180) / Math.PI
+    expect(spanDeg).toBeGreaterThan(0.1)
+    expect(spanDeg).toBeLessThan(0.4)
+    // Clear of the arms: every arm starts outside the dot.
+    for (const arm of panel.reticle.children) {
+      if (arm === dot) continue
+      const box = new Box3().setFromObject(arm)
+      const dotBox = new Box3().setFromObject(dot!)
+      expect(box.intersectsBox(dotBox), `${arm.name || 'arm'} overlaps the dot`).toBe(false)
     }
   })
 })
