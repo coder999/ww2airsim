@@ -42,7 +42,7 @@
 **Interfaces:**
 - Produces: `content/aircraft/wildcat.glb` on disk, a real committed file every later task reads by that exact path.
 
-- [ ] **Step 1: Move the raw download into the cache convention**
+- [x] **Step 1: Move the raw download into the cache convention**
 
 ```bash
 mkdir -p tools/models/cache
@@ -53,13 +53,13 @@ rmdir content/models 2>/dev/null || true
 
 Update `.gitignore`: remove the `/content/models/` line only. `/tools/**/cache/` already exists (confirmed 2026-09-24, it's what already covers `tools/terrain/cache/` and `tools/landcover/cache/`) and already matches `tools/models/cache/` — no new line needed.
 
-- [ ] **Step 2: Add `@gltf-transform/cli`**
+- [x] **Step 2: Add `@gltf-transform/cli`**
 
 ```bash
 npm install --save-dev @gltf-transform/cli@^4.5.0
 ```
 
-- [ ] **Step 3: Write the build script**
+- [x] **Step 3: Write the build script**
 
 ```ts
 // tools/models/build.ts
@@ -123,7 +123,7 @@ Add to `package.json`'s `scripts`:
 
 (check whether `tsx` or `ts-node` is the existing runner for `terrain:build`/`landcover:build` in `package.json` and match it exactly rather than introducing a second one.)
 
-- [ ] **Step 2: Run it and measure the result**
+- [x] **Step 2: Run it and measure the result**
 
 ```bash
 npm run models:build
@@ -132,7 +132,7 @@ ls -la content/aircraft/wildcat.glb
 
 Record the actual output byte size (do not guess it in advance) — it becomes the upper bound Step 4's test asserts.
 
-- [ ] **Step 3: Re-verify node names and gear keyframes survived compression**
+- [x] **Step 3: Re-verify node names and gear keyframes survived compression**
 
 Reuse this session's own inspection method (already proven against the raw file) against the *compressed* output:
 
@@ -152,7 +152,7 @@ print("OK:", required, "all present;", len(doc['animations'][0]['channels']), "a
 
 If any required name is missing, the `optimize` flags need adjusting (most likely `dedup` merging two identically-shaped meshes and dropping one's node name) before proceeding — do not continue to Task 5 on a compressed file that fails this check.
 
-- [ ] **Step 4: Write the regression test**
+- [x] **Step 4: Write the regression test**
 
 ```ts
 // tests/tools/modelsBuild.test.ts
@@ -183,7 +183,7 @@ describe('content/aircraft/wildcat.glb', () => {
 })
 ```
 
-- [ ] **Step 5: Run the full verify gate and commit**
+- [x] **Step 5: Run the full verify gate and commit**
 
 ```bash
 npm run verify; rc=$?
@@ -207,7 +207,7 @@ git commit -m "Add compressed, committed Wildcat glTF model via tools/models/bui
 **Interfaces:**
 - Consumes: nothing from other tasks (can run in parallel with Task 1, but do it right after so the license is on record before anything downstream references the file).
 
-- [ ] **Step 1: Add the row**
+- [x] **Step 1: Add the row**
 
 Add to the "3D models" table in `ASSETS.md`:
 
@@ -228,7 +228,7 @@ retraction keyframes) 2026-09-24. Node names used by
 `GRP_Rueda_Izq` (main gear, right/left). The model has no flap geometry.
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add ASSETS.md
@@ -246,7 +246,7 @@ git commit -m "Record Wildcat model provenance in ASSETS.md"
 **Interfaces:**
 - Produces: a second valid `AircraftSpec` JSON, parseable by the same `AircraftSpecObject` schema `f6f-hellcat.json` already uses (`src/sim/flight/schema.ts`, confirmed `id` is `z.string().min(1)` with no enum restriction — any id string validates).
 
-- [ ] **Step 1: Copy and re-flag the content file**
+- [x] **Step 1: Copy and re-flag the content file**
 
 ```bash
 cp content/aircraft/f6f-hellcat.json content/aircraft/f4f-wildcat.json
@@ -276,7 +276,7 @@ follow-up work on the same footing this file's Hellcat original took
 
 Do not add a separate top-level `dataStatus` field. `AircraftSpecObject` is `.strict()` at every level (confirmed 2026-09-24, `src/sim/flight/schema.ts:5,46`), so an extra key needs a matching schema change for a field no code path would ever read — this file's own Hellcat original carries exactly this kind of annotation in `reference.source` alone, with no separate status field anywhere else in the schema; follow that precedent rather than adding a new one.
 
-- [ ] **Step 2: Verify it parses**
+- [x] **Step 2: Verify it parses**
 
 Find (or write, if none exists) the test that loads `f6f-hellcat.json` through `AircraftSpecObject.parse(...)`, and add the same assertion for `f4f-wildcat.json`:
 
@@ -287,7 +287,7 @@ it('content/aircraft/f4f-wildcat.json validates against AircraftSpecObject', () 
 })
 ```
 
-- [ ] **Step 3: Run and commit**
+- [x] **Step 3: Run and commit**
 
 ```bash
 npm run verify; rc=$?
@@ -311,7 +311,7 @@ git commit -m "Add f4f-wildcat.json content, flight data borrowed from f6f-hellc
 **Interfaces:**
 - Produces: `attachStores(root: Object3D, material: MeshStandardMaterial): { setStores(bombsLeft: number, rocketsLeft: number): void }`, used by both `hellcat.ts` (Step 2) and `wildcat.ts` (Task 5).
 
-- [ ] **Step 1: Write the failing test for the extracted module**
+- [x] **Step 1: Write the failing test for the extracted module**
 
 ```ts
 // tests/render/stores.test.ts
@@ -355,7 +355,7 @@ describe('attachStores', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```bash
 npx vitest run tests/render/stores.test.ts
@@ -363,7 +363,7 @@ npx vitest run tests/render/stores.test.ts
 
 Expected: FAIL, `src/render/scene/stores.ts` does not exist.
 
-- [ ] **Step 3: Extract the module**
+- [x] **Step 3: Extract the module**
 
 ```ts
 // src/render/scene/stores.ts
@@ -431,7 +431,7 @@ export function attachStores(root: Object3D, material: MeshStandardMaterial): { 
 }
 ```
 
-- [ ] **Step 4: Update hellcat.ts to use it**
+- [x] **Step 4: Update hellcat.ts to use it**
 
 Replace `hellcat.ts`'s `RACK_OFFSETS`/`RAIL_OFFSETS`/`RAIL_DROP_ORDER` constants and the bomb/rocket mesh construction block (lines 1-36 and 98-118 of the current file) with:
 
@@ -443,7 +443,7 @@ const { setStores } = attachStores(root, dark)
 
 and delete the now-redundant `setStores` implementation from `createHellcat`'s returned object, returning the one `attachStores` produced instead.
 
-- [ ] **Step 5: Run tests, confirm the existing hellcat store behavior is unchanged**
+- [x] **Step 5: Run tests, confirm the existing hellcat store behavior is unchanged**
 
 ```bash
 npx vitest run tests/render/hellcat.test.ts tests/render/stores.test.ts
@@ -451,7 +451,7 @@ npx vitest run tests/render/hellcat.test.ts tests/render/stores.test.ts
 
 Expected: both pass, `tests/render/hellcat.test.ts`'s existing assertions about `setStores` still hold (they now exercise the same logic through `attachStores`).
 
-- [ ] **Step 6: Full verify and commit**
+- [x] **Step 6: Full verify and commit**
 
 ```bash
 npm run verify; rc=$?
@@ -485,7 +485,7 @@ git commit -m "Extract attachStores from hellcat.ts so wildcat.ts can reuse it"
   }
   ```
 
-- [ ] **Step 1: Write the failing unit tests for the pure gear/orientation math**
+- [x] **Step 1: Write the failing unit tests for the pure gear/orientation math**
 
 These test the math directly, with no `GLTFLoader`/network involved — the loader itself is verified separately by Task 7's Tier 2 harness, for the reasons in this task's final note.
 
@@ -534,7 +534,7 @@ describe('basis correction constants', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 ```bash
 npx vitest run tests/render/wildcat.test.ts
@@ -542,7 +542,7 @@ npx vitest run tests/render/wildcat.test.ts
 
 Expected: FAIL, `src/render/scene/wildcat.ts` does not exist.
 
-- [ ] **Step 3: Create the shared `Airframe` type first**
+- [x] **Step 3: Create the shared `Airframe` type first**
 
 `wildcat.ts` (Step 4 below) imports this, so it must exist first — do not write Step 4 before this step.
 
@@ -563,7 +563,7 @@ export interface Airframe {
 }
 ```
 
-- [ ] **Step 4: Add the model's path/URL constants to content.ts**
+- [x] **Step 4: Add the model's path/URL constants to content.ts**
 
 ```ts
 // added to src/render/content.ts, next to TITLE_ART_PATH/TITLE_ART_URL --
@@ -574,7 +574,7 @@ export const WILDCAT_MODEL_PATH = 'content/aircraft/wildcat.glb'
 export const WILDCAT_MODEL_URL = `${import.meta.env.BASE_URL}${WILDCAT_MODEL_PATH}`
 ```
 
-- [ ] **Step 5: Implement wildcat.ts**
+- [x] **Step 5: Implement wildcat.ts**
 
 ```ts
 // src/render/scene/wildcat.ts
@@ -703,7 +703,7 @@ export async function loadWildcat(): Promise<Airframe> {
 }
 ```
 
-- [ ] **Step 6: Run the unit tests, verify they pass**
+- [x] **Step 6: Run the unit tests, verify they pass**
 
 ```bash
 npx vitest run tests/render/wildcat.test.ts
@@ -711,7 +711,7 @@ npx vitest run tests/render/wildcat.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 7: Full verify and commit**
+- [x] **Step 7: Full verify and commit**
 
 ```bash
 npm run verify; rc=$?
@@ -743,7 +743,7 @@ git commit -m "Add wildcat.ts: async glTF loader, basis/scale correction, gear a
 
 **Why `loadAirframe` is injectable, not hardcoded to `loadWildcat`:** `tests/render/scenarioEntities.test.ts` (Step 6) calls `buildScenarioEntities` directly, repeatedly, against real multi-aircraft scenario content. If it always called the real `loadWildcat`, every one of those calls would run a real `GLTFLoader` parse of `content/aircraft/wildcat.glb` in Vitest's `environment: 'node'` — and Task 5's own design note already established that environment cannot decode the model's embedded textures (no `createImageBitmap`/`Image`, confirmed 2026-09-24). This is the same shape of problem `tools/terrain/load.ts`'s injectable `fetchImpl` already solves in this codebase for a different loader — follow that precedent rather than inventing a new one: an optional parameter, defaulted for production, substituted with a cheap synchronous stand-in (`createHellcat`, which produces a real, valid `Airframe` with no network or texture decode at all) in tests that only care about `buildScenarioEntities`'s own array-sizing/disposal/id-lookup logic, not which aircraft type is loaded.
 
-- [ ] **Step 1: Point content.ts at the Wildcat**
+- [x] **Step 1: Point content.ts at the Wildcat**
 
 In `src/render/content.ts`, change:
 
@@ -759,7 +759,7 @@ export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f4f-wildcat')
 
 Update the doc comment immediately above it (currently says "The Hellcat's record on disk") to name the Wildcat instead, and update `main.ts`'s two comments that say "every scenario flies the one shipped `f6f-hellcat`" (lines 249, 276 per this session's read) to say `f4f-wildcat`.
 
-- [ ] **Step 2: Make hellcat.ts satisfy the shared `Airframe` interface**
+- [x] **Step 2: Make hellcat.ts satisfy the shared `Airframe` interface**
 
 `hellcat.ts` stays in the repo (it is still the design spec's own future-roster item for the Hellcat as a separate player-flyable type, and its tests still exercise it directly) but must satisfy the same `Airframe` shape Task 5 defined, so `scenarioEntities.ts` can hold either kind of airframe behind one type. Add to `createHellcat`'s returned object:
 
@@ -776,7 +776,7 @@ setGear(_fraction: number): void {},
 
 Change `createHellcat`'s return type annotation from the current inline object type to `Airframe` (import it from `./airframe.js`), and keep `prop` out of the returned object now that `spinProp` wraps it. Three real call sites read `.prop` today and all three need updating in this task: `main.ts` (Step 4), `tests/render/scenarioEntities.test.ts` (Step 6 — confirmed 2026-09-24, not "the only one" as an earlier draft of this plan assumed), and `tests/render/scene.test.ts` (Step 6).
 
-- [ ] **Step 3: Make buildScenarioEntities async and expose one `player: Airframe`**
+- [x] **Step 3: Make buildScenarioEntities async and expose one `player: Airframe`**
 
 In `src/render/scenarioEntities.ts`:
 
@@ -831,7 +831,7 @@ export async function buildScenarioEntities(
 }
 ```
 
-- [ ] **Step 4: Update main.ts's call site and per-frame loop**
+- [x] **Step 4: Update main.ts's call site and per-frame loop**
 
 `loadScenario`'s current line (main.ts:320, the closure `boot()` defines and awaits — already `async`, so this is the only change its signature needs):
 
@@ -888,11 +888,11 @@ current.world.aircraft.forEach((a, i) => {
 
 (Place this next to the existing `setStores` loop, not the pose-interpolation loop above it — same reasoning as that loop's own comment: gear travel is multi-second, so a non-interpolated per-tick read causes no visible jitter, unlike position.)
 
-- [ ] **Step 5: Fix every other `airframes[i]!.setStores` call site's type**
+- [x] **Step 5: Fix every other `airframes[i]!.setStores` call site's type**
 
 `airframes[i]!.setStores(...)` (main.ts:1589) already matches the new `Airframe` interface unchanged — no edit needed there, only confirm it still typechecks once `airframes`'s element type is `Airframe` rather than `ReturnType<typeof createHellcat>`.
 
-- [ ] **Step 6: Rewrite tests/render/scenarioEntities.test.ts to inject createHellcat, not the real loader**
+- [x] **Step 6: Rewrite tests/render/scenarioEntities.test.ts to inject createHellcat, not the real loader**
 
 `tests/render/cloudShadow.test.ts` calls `createHellcat()` directly for an unrelated assertion (shadow settings) and does not touch `.prop` — no change needed there.
 
@@ -1004,7 +1004,7 @@ npx vitest run tests/render/scenarioEntities.test.ts tests/render/scene.test.ts
 
 Expected: PASS, all 7 (now-async) tests plus `disposeMeshTree`'s.
 
-- [ ] **Step 7: Run the full verify gate**
+- [x] **Step 7: Run the full verify gate**
 
 ```bash
 npm run verify; rc=$?
@@ -1013,7 +1013,7 @@ echo "rc=$rc"
 
 Expected: PASS. `tests/build/dist.test.ts` in particular must still pass — it asserts `AIRCRAFT_CONTENT_PATH`'s file exists in a real build output, so this is the test that catches a typo'd id between Task 3's file name and Task 6 Step 1's constant.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/render/content.ts src/render/scene/hellcat.ts src/render/scenarioEntities.ts src/render/main.ts tests/render/
@@ -1035,7 +1035,7 @@ git commit -m "Wire the Wildcat in as the default flown/rendered aircraft"
 
 This repo's Tier 2 tests **deliberately exclude screenshot goldens** (`adapter.spec.ts`'s own doc comment: "at a stage where the picture changes every commit they generate constant diffs that mean nothing, and they are the expensive half to maintain"). Every existing spec instead asserts on real state exposed through `window.__ww2` (`Ww2Diagnostics`, `src/render/diagnostics.ts`) — `combat()`, `cameraMode()`, `controls()` — proving a keypress actually reached the simulation, not just that nothing crashed. This task follows that exact convention rather than the screenshot-based check an earlier draft of this plan had: gear state gets the same kind of accessor `controls()` already has, for the same reason `controls()`'s own doc comment gives ("proves the... phase actually reached `frame.controls`, which `tick` advancing alone cannot").
 
-- [ ] **Step 1: Add the diagnostic accessor**
+- [x] **Step 1: Add the diagnostic accessor**
 
 In `src/render/diagnostics.ts`, add to `Ww2Diagnostics`:
 
@@ -1056,7 +1056,7 @@ gearFraction: () => (frame ? playerAircraft(frame.world).state.gearFraction : 0)
 
 `playerAircraft` is already imported in `main.ts` (used elsewhere in the render loop, e.g. `const player = playerAircraft(current.world)` in the frame loop below) — this is a second call against `frame` rather than `current`, matching the other diagnostics accessors' pre-first-frame safety, not the render loop's own per-tick `current`.
 
-- [ ] **Step 2: Write the spec**
+- [x] **Step 2: Write the spec**
 
 ```ts
 // tests/e2e/wildcat.spec.ts
@@ -1098,7 +1098,7 @@ test('Wildcat spawns gear-down, KeyG retracts it, no console errors', async ({ p
 })
 ```
 
-- [ ] **Step 3: Run it against the real Tier 2 harness**
+- [x] **Step 3: Run it against the real Tier 2 harness**
 
 Follow `README.md`'s "Tier 2: the GPU harness" section exactly (from `~/projects/ww2airsim`, on nexus):
 
@@ -1110,11 +1110,11 @@ PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm
 
 (the Windows desktop must already have `npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe` running in the console session — README's own precondition, not something this task starts.)
 
-- [ ] **Step 4: One-time manual look, not a committed asset**
+- [x] **Step 4: One-time manual look, not a committed asset**
 
 Per this repo's own root `CLAUDE.md`: "never argue about a picture you have not looked at." Take one throwaway screenshot by hand during this step (`await page.screenshot({ path: '/tmp/wildcat-check.png' })`, not committed, not part of the spec file) at `gearFraction() === 1` and again after the `KeyG` poll resolves, and look at both once to confirm by eye that this matches this session's own two reference renders (wheels extended vs. tucked into the wing) — then discard the file. This is a one-off sanity check, not the thing Step 2's spec asserts on.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/render/diagnostics.ts src/render/main.ts tests/e2e/wildcat.spec.ts
@@ -1132,15 +1132,15 @@ git commit -m "Expose gearFraction diagnostic and add Tier 2 verification for th
 **Interfaces:**
 - Consumes: nothing further; this is the closing task.
 
-- [ ] **Step 1: Write the handoff doc**
+- [x] **Step 1: Write the handoff doc**
 
 Cover, in this repo's established handoff style (see `docs/handoff/*.md` for the pattern): what changed (Wildcat is now the default, real rigged gear animation, Hellcat preserved but unwired), what's explicitly still a placeholder (all flight-model numbers, dated and reasoned per Task 3), what's explicitly still missing (flaps — no geometry exists on this model; the other 10 roster aircraft — no plan yet), and the exact measured numbers this plan's tasks produced (compressed file size from Task 1 Step 2, the two gear poses from Task 5).
 
-- [ ] **Step 2: Update §15's table**
+- [x] **Step 2: Update §15's table**
 
 Add a row for this plan, following the existing table's format exactly (check the table's own column headers before writing the row).
 
-- [ ] **Step 3: Email it**
+- [x] **Step 3: Email it**
 
 Per root `CLAUDE.md`: email every finished plan/spec-adjacent document as HTML, unprompted.
 
@@ -1148,7 +1148,7 @@ Per root `CLAUDE.md`: email every finished plan/spec-adjacent document as HTML, 
 python3 tools/mail-doc.py docs/handoff/2026-09-24-f4f-wildcat-default-aircraft.md "ww2airsim: F4F Wildcat is now the default aircraft"
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/handoff/2026-09-24-f4f-wildcat-default-aircraft.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md
