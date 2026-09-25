@@ -12,6 +12,7 @@ import type { CloudLayer } from '../sim/scenario.js'
 import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
+import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -345,6 +346,13 @@ export type Ww2Diagnostics = {
    *  null outside the map / with the pass off. A fixed point must read the
    *  same from any eye position: the map is world-anchored, not eye-anchored. */
   readonly cloudShadowAt: (x: number, z: number) => Promise<number | null>
+  /** Photoreal Task 8: the GPU transmittance LUT at altitude hM (m) and
+   *  zenith cosine mu, read back and bilinearly filtered as a sampler would
+   *  (atmosphereLuts.ts), for comparison with the CPU `transmittanceToTop`. */
+  readonly atmosphereTransmittance: (hM: number, mu: number) => Promise<readonly [number, number, number]>
+  /** Photoreal Task 8: one stored texel of an atmosphere LUT (rgba), by
+   *  pixel column and row from the texture's first row. */
+  readonly atmosphereLutTexel: (lut: AtmosphereLutName, px: number, py: number) => Promise<readonly [number, number, number, number]>
   /** Photoreal Task 4 fix round 1: the cloud resolve's reprojection residual
    *  on the next rendered frame, for the correct mapping and two deliberately
    *  wrong ones (`ReprojectionResidual`, cloudPass.ts); null with no pass. */

@@ -8,11 +8,14 @@
  * sun's illuminance at the top of the atmosphere on a surface facing it is
  * [1, 1, 1]. Radiances are that per steradian.
  *
- * The GPU LUTs (atmosphereLuts.ts) are built from these same constants and
- * are checked against `transmittanceToTop` within 2%, so the helpers they
- * mirror are exported here: the density profile, the ray/sphere distances,
- * the phase functions, the per-step Ψms integrand, and both LUT (u, v)
- * mappings. Change a formula here and the GPU copy must change with it.
+ * The GPU LUTs (atmosphereLuts.ts) are built from these same constants, so
+ * the helpers they mirror are exported here: the density profile, the
+ * ray/sphere distances, the phase functions, the per-step Ψms integrand, and
+ * both LUT (u, v) mappings. Change a formula here and the GPU copy must change
+ * with it: tests/e2e/atmosphere.spec.ts (Tier 2) reads the GPU transmittance
+ * LUT back and fails beyond 2% of `transmittanceToTop`, and the GPU Ψms LUT
+ * beyond 2% of `multipleScatteringPsi` (measured 2026-09-25 on the reference
+ * desktop: both within 0.1%).
  */
 export const ATMOSPHERE = {
   bottomRadiusM: 6_360_000, topRadiusM: 6_460_000,

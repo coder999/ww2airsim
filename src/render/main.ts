@@ -32,6 +32,7 @@ import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/clo
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
 import { paletteFor } from './sky/palette.js'
+import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
@@ -887,6 +888,10 @@ async function boot(): Promise<void> {
       // Plan 16b: the shadow map read back at a world point, for the
       // world-stability check a screenshot cannot make.
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
+      // Photoreal Task 8: the GPU transmittance LUT at (hM, mu), for the
+      // CPU/GPU agreement check (tests/e2e/atmosphere.spec.ts).
+      atmosphereTransmittance: (hM: number, mu: number) => getAtmosphereLuts().readTransmittance(renderer, hM, mu),
+      atmosphereLutTexel: (lut: AtmosphereLutName, px: number, py: number) => getAtmosphereLuts().readTexel(renderer, lut, px, py),
       // Photoreal Task 4 fix round 1: the reprojection-direction check.
       cloudReprojectionResidual: () => cloudPass?.measureReprojectionResidual() ?? Promise.resolve(null),
       // Plan 17: the radar scope read back at a (bearing, range), for the
@@ -949,6 +954,7 @@ async function boot(): Promise<void> {
     deviceLost = true
     loop?.stop()
     showFailure(root, 'device-lost', info.message)
+    disposeAtmosphereLuts()
     // three's WebGPUBackend filters `reason === 'destroyed'` before calling
     // onDeviceLost (see the comment above), so the destroy this triggers
     // cannot re-enter here.
@@ -1007,6 +1013,11 @@ async function boot(): Promise<void> {
   const cloudField = createCloudField(cloudLayers, skyNoise)
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
+  // Photoreal Task 8 (spec §4.3): the atmosphere LUTs, one module-level
+  // instance (atmosphereLuts.ts); the static two render on the first update.
+  // DEV `?atmosphere=off` skips the per-frame update, for cost attribution.
+  const atmosphere = getAtmosphereLuts()
+  const atmosphereOff = import.meta.env.DEV && atmosphereFromQuery(location.search) === 'off'
   if (cloudTier !== 'off') shadow.setTier(cloudTier)
   // `finestFetchedLevel` is computed ONCE, at the top of `boot()` from the
   // persisted Asset Quality tier -- the only call site in `src/` -- and
@@ -2024,6 +2035,10 @@ async function boot(): Promise<void> {
     if (!(sampling && gpuResolvePending)) {
       // Plan 16b: the shadow map first, inside the same frame and the same
       // timestamp pool ('render'), so the budget below includes it.
+      // Photoreal Task 8: the per-frame sky-view and aerial-perspective LUTs
+      // at this frame's eye altitude (the world's y is true metres) and sun,
+      // in the same timestamp pool as the passes below.
+      if (!atmosphereOff) atmosphere.update(renderer, current.eye.position.y, direction, camera)
       if (shadow.enabled) {
         shadow.update(current.eye.position)
         renderer.setRenderTarget(shadow.target)

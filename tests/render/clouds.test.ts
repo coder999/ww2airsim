@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { CLOUD_TIERS, cloudDriftM, cloudTierFromQuery, createClouds } from '../../src/render/scene/clouds.js'
 import { FOG_DISTANCE_M } from '../../src/render/horizon.js'
+import { AP_MAX_DISTANCE_M } from '../../src/render/sky/atmosphereLuts.js'
 import { LOD } from '../../src/render/terrain/lod.js'
 import { loadScenario } from '../../tools/content/load.js'
 import { loadDetail, loadShape } from '../../tools/sky/load.js'
@@ -48,5 +49,8 @@ describe('clouds (Plan 16a)', () => {
   })
   it('shares the terrain fog distance, so a cloud at the draw distance is exactly haze', () => {
     expect(LOD.drawDistanceM).toBe(FOG_DISTANCE_M)
+  })
+  it('aerial perspective reaches exactly the fog distance (photoreal Task 8)', () => {
+    expect(AP_MAX_DISTANCE_M).toBe(FOG_DISTANCE_M)
   })
 })
