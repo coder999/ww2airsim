@@ -159,6 +159,47 @@ describe('AI pilots in the fixed-step world', () => {
     expect(playerAircraft(second).controls).not.toEqual(firstPilot.controls)
   })
 
+  it('freezes the observed target snapshot for a whole reactionS window, then refreshes it at the next rescore', () => {
+    // Spec §5's Tier 1 staleness bar, which `tests/sim/ai/decision.test.ts`'s
+    // two unit cases over hand-built `PilotDecisionState` literals do not
+    // reach: those prove the SUBSTITUTION (the controller steers against
+    // whatever is in `observedTarget*`), not the CADENCE (that the snapshot
+    // really holds across a full `reactionS` and really refreshes after it).
+    // Only driving `advance()` can show the second, and nothing did until
+    // the final whole-branch review asked for it.
+    const first = advance(pursuitWorld(), DT).world
+    const atRescore = playerAircraft(first).pilot!.decision
+    expect(atRescore.observedTargetPosition).toEqual(v3(900, 2100, 250))
+    expect(atRescore.observedTargetVelocity).toEqual(v3(80, 0, 10))
+    expect(atRescore.nextRescoreS).toBeCloseTo(DT + GREEN_SKILL.reactionS, 12)
+
+    // Move the target somewhere no honest live observation could miss --
+    // kilometres away, on a reversed heading -- one tick INTO the window.
+    const jumped = createState({ position: v3(-4000, 900, 3000), velocity: v3(-150, 20, -90), tick: first.tick })
+    let world = withAircraftState(first, 'target', jumped)
+
+    // Half a window later (30 ticks = 0.5 s against GREEN_SKILL's 1.0 s), the
+    // snapshot must be untouched, and the pilot must still be flying against
+    // a target that is no longer there.
+    for (let i = 0; i < 30; i++) world = advance(world, DT).world
+    expect(world.tick * DT).toBeLessThan(atRescore.nextRescoreS)
+    const mid = playerAircraft(world).pilot!.decision
+    expect(mid.observedTargetPosition).toEqual(atRescore.observedTargetPosition)
+    expect(mid.observedTargetVelocity).toEqual(atRescore.observedTargetVelocity)
+    expect(mid.nextRescoreS).toBe(atRescore.nextRescoreS)
+    expect(aircraftById(world, 'target')!.state.position.x).toBeLessThan(-3000) // it really did move
+
+    // Cross `nextRescoreS`: now it must pick the target up where the target
+    // actually is -- specifically at that tick's START-of-tick state, which
+    // `stepAircraftEntity` leaves behind as `previous`.
+    while (world.tick * DT < atRescore.nextRescoreS) world = advance(world, DT).world
+    const after = playerAircraft(world).pilot!.decision
+    expect(after.observedTargetPosition).not.toEqual(atRescore.observedTargetPosition)
+    expect(after.observedTargetPosition).toEqual(aircraftById(world, 'target')!.previous.position)
+    expect(after.observedTargetVelocity).toEqual(aircraftById(world, 'target')!.previous.velocity)
+    expect(after.nextRescoreS).toBeCloseTo(world.tick * DT + GREEN_SKILL.reactionS, 12)
+  })
+
   it('is invariant to aircraft array order because every pilot reads the same tick snapshot', () => {
     const run = (world: ReturnType<typeof pursuitWorld>) => {
       for (let i = 0; i < 24; i++) world = advance(world, DT * 5).world
