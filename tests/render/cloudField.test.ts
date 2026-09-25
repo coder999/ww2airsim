@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createCloudField, COVERAGE_TILE_M, CUMULUS_SIGMA, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
+import { createCloudField, COVERAGE_TILE_M, CUMULUS_SIGMA, remap, SHAPE_TILE_M } from '../../src/render/scene/cloudField.js'
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
@@ -75,5 +75,16 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
     // a third reader, which is the defect this test exists to catch.
     expect(importers.sort()).toEqual(['cloudShadow.ts', 'clouds.ts', 'main.ts'].filter((f) => importers.includes(f)))
     expect(importers).toContain('clouds.ts')
+  })
+})
+
+describe('remap (photoreal Task 10, Schneider 2015)', () => {
+  it('maps [lo0, hi0] linearly onto [lo1, hi1]', () => {
+    expect(remap(0.5, 0, 1, 0, 10)).toBe(5)
+    expect(remap(0.2, 0.2, 1, 0, 1)).toBe(0)
+    expect(remap(1, 0.2, 1, 0, 1)).toBe(1)
+  })
+  it('returns lo1 rather than dividing by zero when the input range is empty', () => {
+    expect(remap(0.7, 0.4, 0.4, 0.25, 1)).toBe(0.25)
   })
 })

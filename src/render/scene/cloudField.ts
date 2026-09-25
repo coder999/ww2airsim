@@ -1,6 +1,6 @@
 import { Data3DTexture, DataTexture, LinearFilter, RedFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
 import type { Node, UniformNode, UniformArrayNode } from 'three/webgpu'
-import { Fn, If, clamp, float, max, mix, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
+import { Fn, If, abs, clamp, float, max, mix, pow, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
@@ -43,6 +43,34 @@ const SHAPE_MIN = 110 / 255
 const SHAPE_MAX = 247 / 255
 export const KIND_CUMULUS = 0
 export const KIND_CIRRUS = 1
+
+/** How far the detail noise eats into the base shape: the low edge of
+ *  Schneider 2015's erosion remap (photoreal Task 10). */
+export const DETAIL_EROSION = 0.35
+/** Density gain on the thresholded base shape before erosion (photoreal
+ *  Task 10) -- Schneider's density multiplier, used IN PLACE of his
+ *  multiply-by-coverage. Without it the 0.35 erosion alone cut the columns
+ *  reaching optical depth 0.3 at coverage 0.45 from 32% to 8% on a CPU twin
+ *  of this function; with it they stay at 31%, edges steeper and bodies
+ *  about twice as dense. Captured 2026-09-25: cloud pixels in the
+ *  above-deck-3200 view 83% before, 75% after. */
+export const BODY_GAIN = 2
+
+/** Schneider 2015's remap: `v` linearly from [lo0, hi0] onto [lo1, hi1],
+ *  unclamped. An empty input range returns `lo1` instead of dividing by 0. */
+export function remap(v: number, lo0: number, hi0: number, lo1: number, hi1: number): number {
+  const span = hi0 - lo0
+  if (span === 0) return lo1
+  return lo1 + ((v - lo0) * (hi1 - lo1)) / span
+}
+
+/** The node twin of `remap`; same empty-range rule (|span| under 1e-6). */
+export function remapNode(v: Node<'float'>, lo0: Node<'float'>, hi0: Node<'float'>, lo1: Node<'float'>, hi1: Node<'float'>): Node<'float'> {
+  const span = hi0.sub(lo0)
+  const ok = abs(span).greaterThan(1e-6)
+  const safe = select(ok, span, float(1))
+  return select(ok, lo1.add(v.sub(lo0).mul(hi1.sub(lo1)).div(safe)), lo1)
+}
 
 /** Where the noise has drifted to: the ground wind times simulated seconds. */
 export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z: number } {
@@ -157,11 +185,22 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
         // here instead would be the easy, wrong "simplification."
         const covNoise = texture(coverageField, warped.xz.div(COVERAGE_TILE_M)).r
         const effCoverage = clamp(coverage.mul(mix(float(COVERAGE_MOD_MIN), float(COVERAGE_MOD_MAX), covNoise)), 0, 1)
-        const gradient = smoothstep(0, 0.1, h).mul(smoothstep(1, 0.55, h))
-        const body = threshold(shapeValue, effCoverage).mul(gradient)
+        // Photoreal Task 10: Schneider 2015's shape, replacing 16a's ad-hoc
+        // subtract-and-renormalize erosion that read as blurred cotton.
+        // Height profile: a flat base (full density 7% up the slab) and a
+        // rounded top -- above mid-slab, coverage narrows as sqrt of the
+        // remaining height, so a column needs a stronger shape value to
+        // reach higher and tops dome in. (The task brief's sqrt(1 - h) over
+        // the WHOLE slab, plus Schneider's "then multiply by coverage", cut
+        // the columns reaching cloud from 32% to 0% at coverage 0.45 on a
+        // CPU twin of this function; see the Task 10 report.)
+        const gradient = smoothstep(0, 0.07, h).mul(smoothstep(1, 0.6, h))
+        const covH = effCoverage.mul(pow(saturate(float(1).sub(h).mul(2)), 0.5))
+        // Coverage is the remap's low edge: what survives above 1 - coverage.
+        const body = saturate(remapNode(shapeValue.mul(gradient), float(1).sub(covH), float(1), float(0), float(1)).mul(BODY_GAIN))
         const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
-        const erode = e.mul(float(1).sub(h)).mul(0.3)
-        d.assign(clamp(body.sub(erode).div(max(float(1).sub(erode), 0.001)), 0, 1))
+        const detailMod = mix(e, float(1).sub(e), saturate(h.mul(5)))
+        d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
       })
     })
     return d
