@@ -87,6 +87,15 @@ needed one — see README's "Tier 2: the GPU harness" and
 `ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
 slot should say so if asked; there's no reservation system beyond that.
 
+## Fetching third-party models
+
+Sketchfab downloads work headlessly from nexus:
+`tools/models/sketchfab-fetch.sh <uid> <name>` puts `<name>.glb` plus a
+license sidecar in the gitignored `content/models/candidates/` (token from
+1Password `hal9000/sketchfab-api`, never printed; verified 2026-09-25). Do not
+tell Mark a model "needs a manual download". A download is not a license
+check: vet and record it per `ASSETS.md` before promoting anything.
+
 ## Conventions
 
 - **US spelling** in new prose and identifiers. Existing `centre`-style
