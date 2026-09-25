@@ -92,6 +92,8 @@ export function octavePhasesNode(cosTheta: Node<'float'>): Node<'float'>[] {
   return Array.from({ length: MS_OCTAVES }, (_, n) => dualLobePhaseNode(cosTheta, MS_C ** n))
 }
 
+/** Takes the per-ray phases hoisted by `octavePhasesNode` (not cos theta),
+ *  so the march pays for them once per ray, not once per step. */
 export function multiScatterNode(phases: readonly Node<'float'>[], shadowOpticalDepth: Node<'float'>): Node<'float'> {
   let sum: Node<'float'> = float(0)
   for (let n = 0; n < MS_OCTAVES; n++) {

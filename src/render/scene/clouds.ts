@@ -1,6 +1,6 @@
 import type { Node } from 'three/webgpu'
 import {
-  Break, Fn, If, Loop, clamp, dot, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
+  Break, Fn, If, Loop, clamp, dot, smoothstep, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
 } from 'three/tsl'
 import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
@@ -32,12 +32,15 @@ export { cloudDriftM }
  * samples was 14.5 ms p95 against the 8.33 budget. The plan's two allowed
  * levers were both needed and both taken to their floor: `high.lightSteps`
  * 6 -> 4, and `high.resolutionScale` 0.45 -> 0.35 (rolling-flight ghost check
- * re-run, clean), together with the march's early-outs below; that measured
- * 8.06-8.25 ms. Medium and low were set by the plan, not measured.
+ * re-run, clean), together with the march's early-outs and light LOD below;
+ * the gate runs measured 8.16 and 8.12 ms (2026-09-25). A tier's view work
+ * goes as resolutionScale^2 x cumulusSteps, which must fall high -> medium ->
+ * low (clouds.test.ts): medium is 64 steps at 0.3 (5.8 vs high's 11.8), not
+ * the plan's 0.5, which made it 1.36x HEAVIER than high (Task 11 fix 1).
  */
 export const CLOUD_TIERS = {
   high: { cumulusSteps: 96, lightSteps: 4, cirrusSteps: 8, resolutionScale: 0.35 },
-  medium: { cumulusSteps: 64, lightSteps: 4, cirrusSteps: 6, resolutionScale: 0.5 },
+  medium: { cumulusSteps: 64, lightSteps: 4, cirrusSteps: 6, resolutionScale: 0.3 },
   low: { cumulusSteps: 32, lightSteps: 2, cirrusSteps: 4, resolutionScale: 0.25 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
@@ -66,17 +69,15 @@ const CIRRUS_SIGMA = 0.0015
  *  last 3% of a ray's light changes its color by well under a gray level.
  *  Was 0.01 with no opaque fill (the 1% leaked the background). */
 const OPAQUE_TRANSMITTANCE = 0.03
-/** Light-march level of detail (photoreal Task 11): once the view ray's
- *  transmittance is below this, a step contributes at most this fraction of
- *  the pixel, and its light march drops to `LIGHT_STEPS_DEEP` near samples
- *  (plus the cone sample) spanning the same distance. */
+/** Light-march level of detail, a BUDGET LEVER (photoreal Task 11, 4K
+ *  in-deck-1900): once the view ray's transmittance is below this, a step
+ *  contributes at most this fraction of the pixel, and its light march drops
+ *  to `LIGHT_STEPS_DEEP` near samples (plus the cone sample) spanning the
+ *  same distance. */
 const LIGHT_LOD_TRANSMITTANCE = 0.3
-const LIGHT_STEPS_DEEP = 1
-/** ... and beyond this distance, where a 62 m view step is a few pixels. */
-const LIGHT_LOD_DISTANCE_M = 2000
-/** Below this density a step reuses the previous light march (photoreal
- *  Task 11): 1 - exp(-0.03 x 0.012 x 62 m) is 2% opacity per step. */
-const THIN_DENSITY = 0.03
+const LIGHT_STEPS_DEEP = 2
+/** ... and with distance, blended across this band in metres. */
+const LIGHT_LOD_BAND_M = [1500, 2500] as const
 /** Step multiplier through empty air inside the layer's slab. */
 const EMPTY_STEP_SCALE = 2
 
@@ -243,8 +244,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
         // remaining bands without turning distant edges into pixel stipple.
         const jitter = isCirrus.select(dither, dither.mul(0.5).add(0.25))
         const walked = ds.mul(jitter).toVar()
-        /** The last light march's optical path on this stretch, -1 for none. */
-        const lastShadow = float(-1).toVar()
         // `name` is honoured at runtime (LoopNode.js: `param.name || getVarName(i)`)
         // but absent from @types/three 0.186's overloads, hence the casts.
         Loop({ start: int(0), end: steps, type: 'int', condition: '<', name: 's' } as unknown as Node<'int'>, () => {
@@ -271,32 +270,39 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
             // for its segment's length, so `shadow` is the optical path in
             // metres of density.
             const shadow = float(0).toVar()
-            // Thin steps (a percent or two of opacity each) reuse the last
-            // light march's result on this stretch of cloud instead of
-            // marching again; the first step after empty air always marches.
-            If(isCirrus.not().and(dens.greaterThan(THIN_DENSITY).or(lastShadow.lessThan(0))), () => {
+            If(isCirrus.not(), () => {
               const toTop = top.sub(pc.y).div(max(sun.y, 0.05)).toVar()
               const near = min(toTop, thickness).toVar()
-              // Deep in the ray (little of this step reaches the eye) or far
-              // away, the near span is covered by LIGHT_STEPS_DEEP segments.
-              const shallow = transmittance.greaterThan(LIGHT_LOD_TRANSMITTANCE).and(t.lessThan(LIGHT_LOD_DISTANCE_M))
-              const count = shallow.select(lightSteps, int(LIGHT_STEPS_DEEP)).toVar()
-              const segment = near.div(shallow.select(lightUnits, float(2 ** LIGHT_STEPS_DEEP - 1))).toVar()
-              const edge = float(0).toVar()
-              Loop({ start: int(0), end: count, type: 'int', condition: '<', name: 'l' } as unknown as Node<'int'>, () => {
-                const lp = pc.add(sun.mul(edge.add(segment.mul(0.5))))
-                shadow.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(segment))
-                edge.addAssign(segment)
-                segment.mulAssign(2)
-              })
+              // Optical path over [0, near] from `count` geometric segments.
+              const nearMarch = (count: Node<'int'>, units: Node<'float'>, name: string): Node<'float'> => {
+                const path = float(0).toVar()
+                const segment = near.div(units).toVar()
+                const edge = float(0).toVar()
+                Loop({ start: int(0), end: count, type: 'int', condition: '<', name } as unknown as Node<'int'>, () => {
+                  const lp = pc.add(sun.mul(edge.add(segment.mul(0.5))))
+                  path.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(segment))
+                  edge.addAssign(segment)
+                  segment.mulAssign(2)
+                })
+                return path
+              }
+              // Budget lever (photoreal Task 11): the full near march fades
+              // out over LIGHT_LOD_BAND_M and wherever the view ray's
+              // transmittance is below LIGHT_LOD_TRANSMITTANCE, into a
+              // LIGHT_STEPS_DEEP-segment march over the same span. Across
+              // the band BOTH are marched and blended, so no ring can form.
+              const full = float(1).sub(smoothstep(LIGHT_LOD_BAND_M[0], LIGHT_LOD_BAND_M[1], t))
+                .mul(transmittance.greaterThan(LIGHT_LOD_TRANSMITTANCE).select(float(1), float(0))).toVar()
+              const fullPath = float(0).toVar()
+              const deepPath = float(0).toVar()
+              If(full.greaterThan(0), () => { fullPath.assign(nearMarch(lightSteps, lightUnits, 'l')) })
+              If(full.lessThan(1), () => { deepPath.assign(nearMarch(int(LIGHT_STEPS_DEEP), float(2 ** LIGHT_STEPS_DEEP - 1), 'm')) })
+              shadow.assign(mix(deepPath, fullPath, full))
               const far = min(toTop, thickness.mul(3)).toVar()
               If(far.greaterThan(near), () => {
                 const lp = pc.add(sun.mul(near.add(far).mul(0.5)))
                 shadow.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(far.sub(near)))
               })
-              lastShadow.assign(shadow)
-            }).Else(() => {
-              shadow.assign(lastShadow)
             })
             // Cirrus keeps its constant light (0.85 of the sun reaches it)
             // but gets the phase function; cumulus uses the octaves.
@@ -309,7 +315,9 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
             const localPowder = powderNode(dens.mul(sigma).mul(POWDER_LENGTH_M))
             const h = clamp(pc.y.sub(base).div(thickness), 0, 1)
             const ambient = mix(ambientBottom, ambientTop, h)
-            const lit = sunColorNode.mul(sunLight).mul(mix(float(1), localPowder, 0.5)).add(ambient)
+            // Cumulus only: a 300 m cirrus sheet keeps its old flat light.
+            const powderMix = isCirrus.select(float(1), mix(float(1), localPowder, 0.5))
+            const lit = sunColorNode.mul(sunLight).mul(powderMix).add(ambient)
             const stepT = exp(dens.mul(sigma).mul(ds).negate()).toVar()
             const w = transmittance.mul(float(1).sub(stepT)).toVar()
             hitTSum.addAssign(t.mul(w))
@@ -317,11 +325,12 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
             scattered.addAssign(lit.mul(w))
             transmittance.mulAssign(stepT)
           })
-          // Empty space: the next step is twice as long (photoreal Task 11).
-          // The start jitter moves every frame, so the temporal resolve still
-          // sees the thin edges a doubled step can straddle.
-          If(dens.lessThanEqual(0.001), () => { lastShadow.assign(-1) })
-          walked.addAssign(dens.greaterThan(0.001).select(ds, ds.mul(EMPTY_STEP_SCALE)))
+          // Empty cumulus air: the next step is twice as long (photoreal
+          // Task 11). A cloud's leading edge is then found up to one extra
+          // step late (ds/2 on average, spread by the per-frame start
+          // jitter, which the temporal resolve averages). Cirrus keeps its
+          // 8 even steps.
+          walked.addAssign(isCirrus.not().and(dens.lessThanEqual(0.001)).select(ds.mul(EMPTY_STEP_SCALE), ds))
         })
       })
     })
