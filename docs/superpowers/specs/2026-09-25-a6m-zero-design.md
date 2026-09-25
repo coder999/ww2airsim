@@ -61,7 +61,11 @@ on it.
 | #6 metadata | 187,441 faces, 91,334 vertices, 5 materials, 15 textures, 0 animations, CC-BY 4.0, downloadable, published 2020-05-13, "Made on solidworks 2018" | `api.sketchfab.com/v3/models/d701787b75fa4c979792b0c0c14221e2` |
 | #6 authorship | Uploader's 20 models are consistent SolidWorks/CAD work (helicopters, a rocket-engine *assembly animation*, a Yak-38). None shows rip or re-upload signs | `api.sketchfab.com/v3/models?user=SavinienBerault` |
 | #6 appearance | Gear modeled **down**, belly drop tank fitted, framed canopy, weathered dark green with yellow wing leading edges | 1024 px API thumbnail, viewed |
-| #6 raw file | **Not downloaded.** No runnable, documented download command exists (the Wildcat precedent says "fetched by hand, login required"), so this design did not try | See §11 prerequisite |
+| #6 raw file | **Downloaded** 2026-09-25T14:31Z by `tools/models/sketchfab-fetch.sh` (on `main` as `86d38e9`) to the main checkout's `content/models/candidates/a6m2-zeke.glb`: 16,138,556 bytes, with a sidecar | `ls -la`, sidecar JSON |
+| #6 structure | 14 nodes, 6 meshes, 5 materials, **11** PNG textures (the API said 15), 0 animations, 187,441 triangles. Separate named nodes: `Rotor` (29,088 tris), `Verriere` (canopy, 34,253), `Corps` (body, 2 primitives: 84,340 and 16,048), `Leg d` and `Leg g` (right and left main legs, 11,856 each) | `glbinspect.py` on that file |
+| #6 axes | After Sketchfab's root matrix: nose **+X**, up **+Y**, span along **Z**, right = **+Z** (`Leg d`, *droite*, sits at z ≈ +100). The prop's spin axis is exactly world X, so the thrust line is level and no pitch correction is needed. The root matrix also carries a 0.31° tilt, which `normalize` absorbs. Span is 632.3 units, so 12.0 m means 0.01898 m per unit | World-space vertex bounds per node |
+| #6 pivots | **No part node is pivoted where it moves.** `Rotor`'s origin is the model origin (0, 0, 0), about 283 units behind the hub. `Leg d`, `Leg g`, `Corps` and `Verriere` all share one matrix (translation (0, 1.684, 0)). Measured hub axis: along world X through y ≈ 129.2, z ≈ -6.3. That is the mean of the spinner's front-most vertices. The prop's bounding-box center (y 146.4) is **wrong** for a three-blade disc. Leg hinge tops: (168.5, 87.8, +101.5) right and (168.5, 87.8, -113.1) left, symmetric about the fuselage centerline z ≈ -5.8. Wheel contact y = -1.71, so a leg is about 92 units (≈ 1.75 m) long | Vertex statistics per node |
+| #6 islands | `Corps`'s main primitive is one 77,896-triangle shell holding the fuselage, wings, flaps, ailerons **and the belly drop tank**: the centerline dips to y ≈ 15 at x 50 to 125, against a belly around 40 to 55 elsewhere. There are also 8 small islands. One is the **tailwheel** (1,810 tris, x -180 to -155, y -2 to 19). Two others (290 and 272 tris) are fittings at the leg tops. **Flaps and control surfaces are not separable, even as islands** | Union-find over the welded index buffer |
 | #1 structure | 1,162 triangles, **one mesh** (Sketchfab's `obj.cleaner.materialmerger` merged everything), 1 material, 1 JPEG texture (203,513 bytes), no animations, no separate prop or gear, and the gear is not modeled at all | `glbinspect.py` on `content/models/candidates/a6m3-zero-lowpoly.glb` (main checkout) |
 | #1 axes | Nose at source **-X** (prop radius 0.278 at x = -0.49), span along **Z**, up **+Y**, fin tip (highest vertex) at x = +1.66 | Vertex slices through the same file |
 | #1 proportions | Span / length 3.251 / 2.367 = **1.37**. The A6M2 is 12.0 m / 9.06 m = 1.32, and the clipped-tip A6M3 Model 32 is 11.0 / 9.06 = 1.21. **So #1 is not clipped-wing geometry.** Scaled to a 12.0 m span it is 8.72 m long, 3.8% short | Same |
@@ -121,46 +125,57 @@ Mark has chosen it. These are the facts that support the choice:
 The ShareAlike question about ivon852's A6M2/A6M5 (CC-BY-SA) is moot and is
 not analyzed here.
 
-### 3.2 The risk: are its parts separate?
+### 3.2 Which parts are separate (inspected 2026-09-25)
 
-"Made on solidworks 2018" suggests one CAD body per part. But candidate #1
-shows that Sketchfab's OBJ path can merge everything by material. With five
-materials, #6 could arrive as anything from five meshes to hundreds of named
-parts. **This cannot be known until the file is downloaded.** So Z3's first
-task is inspection, and the design commits to a ladder of fallbacks rather
-than to one outcome:
+**Amended 2026-09-25, after the download.** Before it, this section was a
+ladder for an unknown file. The inspection in §2 has now settled each rung,
+part by part:
 
-1. **Named, separate nodes** for the propeller, the gear legs and the flaps:
-   drive them directly. This is how the Wildcat's `Helice` and `GRP_Rueda_*`
-   nodes work.
-2. **Merged by material, but the parts are separate triangle islands.** A CAD
-   export keeps each body as its own connected shell even after a material
-   merge. The pipeline's `split` stage (§6.2) carves out every connected
-   component whose bounding-box center falls inside a box given in the
-   manifest, and moves it to a new named node with a stated pivot. The
-   propeller disc and the gear legs are spatially isolated, so a box selects
-   them cleanly. The Zero's split flaps sit on the wing's underside between
-   the ailerons and the fuselage, and are separate shells in any CAD build.
-3. **Not separable even as islands:**
-   - **Propeller:** hide the static blades above 30% throttle and show a
-     procedural translucent prop disc, which is what a running propeller looks
-     like anyway.
-   - **Gear:** the gear is modeled down on #6, so a flying Zero would show
-     gear hanging. The fallback is to `remove` the gear's triangles by box
-     and show none. That is acceptable for a hostile that is always airborne
-     in the shipped scenario, and it is recorded as a known gap.
-   - **Flaps:** stay static.
-4. **Control surfaces** (ailerons, elevator, rudder) are animated **only if
-   rung 1 applies**. Splitting a hinge line out of a continuous wing skin by
-   box is not worth its risk for the few pixels a moving aileron occupies at
-   gunnery range.
+| Part | Rung | What the build does |
+| --- | --- | --- |
+| Propeller | **1: named node** `Rotor` | Kept un-joined. **Re-pivoted** at build time onto the measured hub axis, because its node origin is not at the hub (§2) |
+| Main gear legs | **1: named nodes** `Leg d` / `Leg g` | Kept un-joined. **Re-pivoted** onto each leg's top hinge. Wheel, strut and the strut-mounted cover plate come as one piece |
+| Tailwheel | **2: separate island** inside `Corps` | `split` by component into `Tailwheel`, pivoted at its top |
+| Canopy | Named node `Verriere` | Joined like any other part (no sliding canopy), but simplified on its own ratio: 34k triangles is far denser than it needs to be |
+| Split flaps | **3: fused** into the main 77,896-triangle shell | **Static.** A triangle-level cut along the hinge would tear the lower wing skin |
+| Ailerons, elevator, rudder | **3: fused** | **Static.** Out of scope, as rung 3 always said |
+| Drop tank | **Fused** into the main shell | See below |
 
 Whatever the rung, the build fails loudly if a listed part is missing, just
 as `wildcat.ts`'s `required()` fails at runtime today.
 
-The **drop tank** is removed at build time with `remove`. A Zero that is
-fighting has jettisoned it, and a tank hanging from a hostile in a dogfight
-is wrong. The pilot figure, if the model has one, is kept.
+**Pivots are now a pipeline requirement, not a detail.** A `keep` entry may
+carry a `pivot` (a point and an axis in source units), and the build moves
+that node's origin there without moving any vertex in world space. The
+output test proves each pivot mechanically:
+
+- **Propeller:** rotating `Rotor` by 120° about its pivot axis maps its vertex
+  set onto itself within a tolerance (three-blade symmetry). A pivot off the
+  hub fails this.
+- **Legs:** at gear fraction 0, each leg's vertices lie above the wing's lower
+  surface at that spanwise station, less a small margin. That proves the leg
+  folds *into* the wing and does not swing out below it.
+
+**The drop tank** is fused into the main shell, so neither `remove` (by node)
+nor a component split can take it out. A Zero that is fighting has
+jettisoned its tank, so the design tries one thing and falls back to
+another:
+
+1. **Try:** a triangle-level `cut`, a `split` with `select: "triangles"`
+   rather than the default `"components"`. It removes the triangles inside a
+   box under the belly (roughly x 40 to 160, y < 35, |z + 6| < 25 in source
+   units; Z3 Task 1 fits the exact box).
+2. **Accept it** if the belly behind the cut is intact: no open hole in a
+   Tier 2 close-up of the underside, and a closed-manifold check on the
+   remaining shell.
+3. **Otherwise keep the tank** and record it as a known inaccuracy. A hole in
+   the fuselage is worse than a tank that should not be there.
+
+The pilot figure, if the model has one, is kept.
+
+**Critique #7's gear and flaps:** the gear animates, and so do the prop and
+the tailwheel. The flaps are the one part of that critique this model cannot
+meet. That goes in Z3's handoff and is not hidden.
 
 ### 3.3 Candidate #1 as the distance LOD
 
@@ -414,7 +429,7 @@ Zero's.
 // tools/models/entries/a6m2-zero.json
 {
   "id": "a6m2-zero",                                   // unique; the output basename
-  "input": "tools/models/cache/a6m2-zero-zeke.glb",    // raw download, gitignored by /tools/**/cache/
+  "input": "tools/models/cache/a6m2-zeke.glb",         // raw download, gitignored by /tools/**/cache/
   "output": "content/aircraft/a6m2-zero.glb",          // committed; aircraft -> content/aircraft/, ships -> content/ships/
   "source": {                                          // must match an ASSETS.md row (a test checks this)
     "url": "https://sketchfab.com/3d-models/...-d701787b75fa4c979792b0c0c14221e2",
@@ -425,20 +440,26 @@ Zero's.
   // ALL coordinates below are in the INPUT's own units and axes, i.e. what
   // models:inspect prints. One rule, so nobody converts by hand.
   "normalize": {                       // baked into the output; runtime applies no basis or scale fix
-    "forward": "-x",                   // source axis at the nose or bow; becomes +X (sim body frame)
+    "forward": "+x",                   // source axis at the nose or bow; becomes +X (sim body frame)
     "up": "+y",                        // becomes +Y; +Z (right) follows, right-handed
-    "origin": [0.12, 0.40, 0.0],       // becomes (0,0,0): aircraft = CG/thrust-line reference, ships = waterline midships
+    "origin": [<cg x>, 129.2, -6.3],   // becomes (0,0,0): aircraft = CG on the thrust line, ships = waterline midships
     "fit": { "extent": "span", "meters": 12.0 }   // "span" = extent across (Z out), "length" = along X out
   },
-  "keep": ["Prop"],                    // nodes that must exist and survive un-joined, by name
-  "split": [                           // optional: carve connected components into a new named node
-    { "name": "GearL", "boxMin": [..], "boxMax": [..], "pivot": [..] }
+  "keep": [                            // nodes that must exist and survive un-joined; optional re-pivot
+    { "node": "Rotor", "as": "Prop",  "pivot": { "point": [283, 129.2, -6.3],  "axis": "+x" } },
+    { "node": "Leg d", "as": "GearR", "pivot": { "point": [168.5, 87.8, 101.5],  "axis": "+x" } },
+    { "node": "Leg g", "as": "GearL", "pivot": { "point": [168.5, 87.8, -113.1], "axis": "+x" } }
+  ],
+  "split": [                           // optional: carve geometry into a new named node
+    { "name": "Tailwheel", "select": "components", "boxMin": [..], "boxMax": [..], "pivot": { "point": [..], "axis": "+z" } },
+    { "name": "DropTank",  "select": "triangles",  "boxMin": [..], "boxMax": [..] }
   ],
   "remove": ["DropTank"],              // nodes or split names dropped from the output
-  "simplify": { "ratio": 0.5, "error": 0.001 },     // omitted = geometry untouched
+  "simplify": { "ratio": 0.5, "error": 0.001,     // omitted = geometry untouched
+                "perNode": { "Verriere": 0.2, "Rotor": 0.3 } },
   "textures": { "maxSize": 1024, "format": "webp" },
   "opaque": true,                      // default true: every material forced OPAQUE (the Wildcat hull fix)
-  "budget": { "maxBytes": 5600000, "maxTriangles": 100000, "maxDrawCalls": 24 },
+  "budget": { "maxBytes": 5600000, "maxTriangles": 100000, "maxDrawCalls": 12 },
   "noseNode": "Prop"                   // optional: a test asserts this node's center is the max-X point
 }
 ```
@@ -450,17 +471,21 @@ unit-tested on small synthetic documents built in the test itself. No test
 reads a gitignored raw file.
 
 1. `remove`
-2. `split`: selects connected components after a weld, so CAD shells come out
-   whole
-3. `normalize`: wrap the scene roots in a node carrying the translation,
+2. `split`: `select: "components"` (the default) takes whole connected
+   components after a weld, so CAD shells come out whole. `select:
+   "triangles"` takes individual triangles inside the box, which is the
+   drop-tank cut in §3.2
+3. `pivot`: move each kept or split node's origin onto its stated pivot point
+   and axis, compensating its children, so no vertex moves in world space
+4. `normalize`: wrap the scene roots in a node carrying the translation,
    rotation and uniform scale, then flatten that one transform in, keeping
    inner node names
-4. `join`: everything **except** `keep` and `split` nodes, grouped by
+5. `join`: everything **except** `keep` and `split` nodes, grouped by
    material, so draw calls come to roughly materials + kept parts
-5. `simplify`: meshoptimizer, geometry only
-6. texture resize and WebP
-7. `opaque`
-8. write, then check the budget. **Over budget fails the build**, with the
+6. `simplify`: meshoptimizer, geometry only, with optional per-node ratios
+7. texture resize and WebP
+8. `opaque`
+9. write, then check the budget. **Over budget fails the build**, with the
    measured numbers in the message.
 
 **Load-bearing constraint, carried over from `build.ts`'s header: no
@@ -584,12 +609,12 @@ The Zero's parts:
 
 | Part | Motion | Source |
 | --- | --- | --- |
-| Propeller | Rotates about body +X, at a rate from throttle, like the player's today | Same rate constant `main.ts` uses today |
-| Main gear | Rotates **90° inboard** about a fore-aft hinge at each leg's top pivot | Summary 85: "retracts 90° inward to the line of flight". The pivot comes from the manifest, the angle from the source |
-| Gear doors | Ride with their leg if they are part of it. Otherwise a separate `keep` or `split` part rotating about the wing-root hinge | Whatever inspection finds |
-| Tailwheel | Retracts if it is a separable part. Otherwise static | Summary 85: "fully retractable" |
-| Split flaps | Rotate down about the flap hinge line to a maximum deflection | The plan sources the angle; if no source is found, it is an estimate labeled as one |
-| Control surfaces | Deflect by the controls, only on rung 1 of §3.2 | — |
+| Propeller (`Prop` ← `Rotor`) | Rotates about body +X through the re-pivoted hub, at a rate from throttle, like the player's today | Same rate constant `main.ts` uses today. Pivot measured (§2) |
+| Main gear (`GearR` / `GearL` ← `Leg d` / `Leg g`) | Rotates **90° inboard** about a fore-aft (X) hinge at each leg's measured top: the right leg toward -Z, the left toward +Z | Summary 85: "retracts 90° inward to the line of flight". Hinges at (168.5, 87.8, +101.5) and (168.5, 87.8, -113.1) in source units |
+| Leg-top fittings, wheel-well doors | **Static**, part of the body. The two small islands at the leg tops stay with `Corps` | Inspection: no separate door part exists |
+| Tailwheel (split island) | Retracts forward and up, about a lateral (Z) axis at its top, into the tail cone | Summary 85: "fully retractable". The angle is an estimate, labeled as one |
+| Split flaps | **Static**: fused into the wing shell (§3.2). `update` ignores `flapFraction` for this model, exactly as the Wildcat's does | — |
+| Control surfaces | **Static**: fused (§3.2) | — |
 
 Pure pose functions (`gearPose(fraction)`, `flapAngle(fraction)`,
 `propAngle(prev, throttle, dt)`) carry the tests. The module is only
@@ -637,8 +662,8 @@ through the cache and shows one of them at a time.
 | | LOD0 (#6) | LOD1 (#1) | Wildcat today |
 | --- | --- | --- | --- |
 | Triangles | ≤ 100,000 | ≤ 2,000 | 100,886 |
-| Draw calls | ≤ 24 | 1 | 47 |
-| Textures | ≤ 15 at ≤ 1024² | 1 at ≤ 512² | 26 at 1024² |
+| Draw calls | ≤ 12 (measured: 6 meshes, 5 materials, plus tailwheel) | 1 | 47 |
+| Textures | ≤ 11 at ≤ 1024² | 1 at ≤ 512² | 26 at 1024² |
 | File | ≤ 5.6 MB | ≤ 150 KB | 5.57 MB |
 | VRAM | ~80 MiB, **once** per page (shared) | < 2 MiB | ~139 MiB **per instance** today |
 
@@ -649,7 +674,7 @@ through the cache and shows one of them at a time.
   about 9k when all are far. Critique #8 measured a GPU p95 of 3.055 ms
   against a 16.67 ms frame, so the Tier 2 budget spec in Z3 checks the
   6.0 ms p95 with a LOD0 Zero in view rather than assuming it.
-- **All budgets are build-time assertions** (§6.2 stage 8) and per-entry
+- **All budgets are build-time assertions** (§6.2 stage 9) and per-entry
   output tests, not prose.
 
 ## 9. Scenario: the Zero as a hostile (Open item 4)
@@ -720,14 +745,12 @@ Each sub-plan is executable by a subagent in its own worktree, ends with
 `npm run verify` returning `rc=0` (captured directly, never through a grep),
 and ends with a dated handoff, its §15 row and a README pointer.
 
-**Prerequisite for Z3 (not for Z1 or Z2):** the raw #6 download at
-`tools/models/cache/a6m2-zero-zeke.glb`, and #1 copied from
-`content/models/candidates/a6m3-zero-lowpoly.glb` to
-`tools/models/cache/a6m3-zero-lowpoly.glb`. Sketchfab downloads need a login.
-If the executing agent has no documented fetch command, it stops at Z3
-Task 1 and asks Mark to place the file: one download of the "glTF (.glb)"
-autoconverted format, the same route as the Wildcat. It never looks for
-credentials.
+**Inputs for Z3 (no gate):** #6 is already downloaded, and
+`tools/models/sketchfab-fetch.sh <uid> <name>` (on `main` as `86d38e9`)
+re-fetches it if needed. Z3 Task 1 copies it and #1 from
+`content/models/candidates/` into `tools/models/cache/`, as
+`a6m2-zeke.glb` and `a6m3-zero-lowpoly.glb`, the raw location the entries
+name. The candidates folder stays a staging area, not a build input.
 
 ### Z1: model pipeline and runtime foundation (about 8 tasks, no new asset)
 
@@ -772,20 +795,22 @@ credentials.
 
 ### Z3: the Zero on screen (about 10 tasks, depends on Z1)
 
-1. **Gate:** acquisition, `models:inspect` on #6, and an inspection record in
-   the plan's progress ledger. Decide the §3.2 rung per part, then write
-   `keep`/`split`/`remove`, `origin`, `forward` and `up`.
+1. Copy the raw inputs (see above). Re-run `models:inspect` and confirm
+   §2's 2026-09-25 numbers, since a re-fetch could differ. Fit the tailwheel
+   and drop-tank boxes, and settle the CG `origin` x. Record everything in
+   the plan's progress ledger.
 2. `entries/a6m2-zero.json`: build, output tests (budget, parts present, prop
-   at max X, span 12.0 m ± 1 mm, no BLEND, no meshopt), and the `ASSETS.md`
-   row.
+   at max X, prop 120° self-symmetry about its pivot, legs fold above the
+   wing's lower surface, span 12.0 m ± 1 mm, no BLEND, no meshopt), the
+   drop-tank cut accepted or reverted per §3.2, and the `ASSETS.md` row.
 3. `entries/a6m2-zero-lod1.json`: #1 built the same way, its tests (§7.4),
    and the `ASSETS.md` row.
 4. Measure `gear.heightM`, `view.eyePointM`, gun mounts and zones from LOD0.
    Update the content, and re-run the take-off and matchup cards in the same
    commit.
 5. `zero.ts`: pure pose functions with their tests (prop, gear at 90°
-   inboard, flaps, control surfaces only on rung 1), then the module
-   plumbing.
+   inboard about the measured hinges, tailwheel; flaps and control surfaces
+   static), then the module plumbing.
 6. `pickLod`, with Tier 1 tests.
 7. `zero-range.json`, the title entry, and the dist list.
 8. Diagnostics: `airframeInfo(id)` returning `{ model, lod, gearFraction }`,
@@ -800,10 +825,10 @@ credentials.
 
 ## 12. Risks
 
-- **#6 turns out fully merged** (rung 3). The Zero still ships, with a prop
-  disc, no gear and static flaps. That fails critique #7's "visible, animating
-  landing gear and flaps" for this airframe. It is recorded in the handoff,
-  not hidden. Z3 Task 1 finds this out on day one.
+- **Static flaps.** Inspection settled this: the flaps are fused into the
+  wing skin, so critique #7 is met for the gear but not for the flaps. It is
+  recorded in the handoff, not hidden.
+- **The drop-tank cut leaves a hole.** Then the tank stays (§3.2).
 - **Simplify at 0.5 damages the CAD silhouette.** The budget allows 100k
   triangles, but the build can keep more. The budget is Wildcat parity, not a
   physical limit, and the stated fallback is to raise the budget with a
