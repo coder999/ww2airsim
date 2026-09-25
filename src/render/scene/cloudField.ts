@@ -39,7 +39,7 @@ export const DETAIL_TILE_M = 150
  *  keeps at most one visible repeat inside the fog. */
 export const COVERAGE_TILE_M = 60_000
 /** How far the coverage field can push a layer's configured coverage up or
- *  down: [0.4x, 1.6x], centred on 1x at a mid-value (0.5) sample so the
+ *  down: [0.4x, 1.6x], centered on 1x at a mid-value (0.5) sample so the
  *  configured `coverage` stays the deck's spatial average -- this only
  *  clumps and gaps it, it does not change the average cloudiness Mark
  *  configured per layer (design §2). Cumulus only; cirrus's threshold is
@@ -103,6 +103,11 @@ export type CloudField = {
   readonly layers: readonly CloudLayer[]
   /** Density in [0, 1] at a TRUE world point for one layer; 0 outside its slab. */
   density(p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>): Node<'float'>
+  /** `density` without the cumulus detail erosion (one volume read fewer):
+   *  the cheap sample for the cloud light march (photoreal Task 11), where
+   *  the shadow a 5 m erosion texel casts is below what a 60 m+ light step
+   *  resolves anyway (Schneider 2015 does the same). Cirrus is unchanged. */
+  densityCoarse(p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>): Node<'float'>
   /** Lowest cumulus layer's [base, top] in metres, or null when the deck has no cumulus. */
   lowestCumulus(): { baseM: number; topM: number } | null
   update(eye: Vec3, driftSeconds: number, wind: Vec3 | null): void
@@ -149,8 +154,9 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const eyeWorld = uniform(new Vector3())
   const drift = uniform(new Vector2())
 
-  /** Density in [0, 1] at a world point for one layer; 0 outside the slab. */
-  const density = Fn(([p, base, thickness, coverage, kind]: [Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>]) => {
+  /** Density in [0, 1] at a world point for one layer; 0 outside the slab.
+   *  `detailed` false skips the detail erosion (`densityCoarse`). */
+  const makeDensity = (detailed: boolean) => Fn(([p, base, thickness, coverage, kind]: [Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>]) => {
     const h = p.y.sub(base).div(thickness)
     const inside = h.greaterThan(0).and(h.lessThan(1))
     const d = float(0).toVar()
@@ -208,14 +214,24 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
         const gradient = smoothstep(0, 0.07, h).mul(smoothstep(1, 0.6, h))
         const covH = effCoverage.mul(pow(saturate(float(1).sub(h).mul(2)), 0.5))
         // Coverage is the remap's low edge: what survives above 1 - coverage.
-        const body = saturate(remapNode(shapeValue.mul(gradient), float(1).sub(covH), float(1), float(0), float(1)).mul(BODY_GAIN))
-        const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
-        const detailMod = mix(e, float(1).sub(e), saturate(h.mul(5)))
-        d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
+        const body = saturate(remapNode(shapeValue.mul(gradient), float(1).sub(covH), float(1), float(0), float(1)).mul(BODY_GAIN)).toVar()
+        if (detailed) {
+          // Erosion only lowers density, so where the base shape is empty
+          // the detail volume is not read at all (photoreal Task 11).
+          If(body.greaterThan(0), () => {
+            const e = texture3D(detail, drifted.div(DETAIL_TILE_M)).r
+            const detailMod = mix(e, float(1).sub(e), saturate(h.mul(5)))
+            d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
+          })
+        } else {
+          d.assign(body)
+        }
       })
     })
     return d
   })
+  const density = makeDensity(true)
+  const densityCoarse = makeDensity(false)
 
   const firstCumulus = sorted.find((l) => l.kind === 'cumulus')
   return {
@@ -223,6 +239,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
     // A TSL `Fn` is callable but not typed as the method above; the closure
     // gives the handle a plain function type.
     density: (p, base, thickness, coverage, kind) => density(p, base, thickness, coverage, kind),
+    densityCoarse: (p, base, thickness, coverage, kind) => densityCoarse(p, base, thickness, coverage, kind),
     lowestCumulus: () => (firstCumulus ? { baseM: firstCumulus.baseM, topM: firstCumulus.baseM + firstCumulus.thicknessM } : null),
     update(eye, driftSeconds, wind): void {
       eyeWorld.value.set(eye.x, eye.y, eye.z)

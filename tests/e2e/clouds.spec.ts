@@ -184,3 +184,28 @@ test('near silhouette: chase-view airframe under the deck', async ({ page }) => 
   await page.screenshot({ path: 'test-results/clouds-silhouette-chase.png' })
   expect(await errors(page)).toEqual([])
 })
+
+// Photoreal Task 11 (spec §4.4 acceptance): the sun ~15 deg up behind the
+// deck, camera at 1200 m facing it. READ: bright rims (the dual-lobe phase's
+// silver lining) on the cumulus nearest the sun, and bloom not blowing the
+// frame out. The look is a quarter-turn snap (input/lookAround.ts), chosen
+// from `__ww2.sun()`'s azimuth against the spawn heading (090).
+test('sun behind cloud: facing the late-afternoon sun from under the deck', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(`${spawnUrl({ ...OVER_GULF, y: 1200 })}&timeOfDay=16.8`)
+  await waitForTerrain(page)
+  const sun = await page.evaluate(() => (window as DiagWindow).__ww2!.sun())
+  expect(sun.elevationDeg).toBeGreaterThan(10)
+  expect(sun.elevationDeg).toBeLessThan(20)
+  const relative = ((sun.azimuthDeg - 90 + 540) % 360) - 180
+  const key = Math.abs(relative) < 45 ? null : Math.abs(relative) > 135 ? 'Numpad0' : relative > 0 ? 'Numpad6' : 'Numpad4'
+  const looked = key === null ? 0 : key === 'Numpad0' ? 180 : key === 'Numpad6' ? 90 : -90
+  const off = Math.abs(((relative - looked + 540) % 360) - 180)
+  console.log(`sun az ${sun.azimuthDeg.toFixed(1)} el ${sun.elevationDeg.toFixed(1)}; look ${key ?? 'ahead'}; sun ${off.toFixed(1)} deg off the look axis`)
+  expect(off).toBeLessThan(45)
+  if (key !== null) await page.keyboard.down(key)
+  await page.waitForTimeout(2000)
+  await page.screenshot({ path: 'test-results/clouds-sun-behind.png' })
+  if (key !== null) await page.keyboard.up(key)
+  expect(await errors(page)).toEqual([])
+})

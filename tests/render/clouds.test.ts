@@ -19,19 +19,25 @@ describe('clouds (Plan 16a)', () => {
     expect(cloudTierFromQuery('?x=1')).toBeUndefined()
     expect(() => cloudTierFromQuery('?cloudTier=ultra')).toThrow(/cloudTier/)
   })
-  it('has exactly high/medium/low, each with a resolution scale and the pre-16d step counts (photoreal spec 4.1)', () => {
+  it('has exactly high/medium/low, each with a resolution scale and the Task 11 step counts (photoreal spec 4.4)', () => {
     expect(Object.keys(CLOUD_TIERS)).toEqual(['high', 'medium', 'low'])
     for (const tier of Object.values(CLOUD_TIERS)) {
       expect(tier.resolutionScale).toBeGreaterThan(0)
       expect(tier.resolutionScale).toBeLessThanOrEqual(1)
     }
-    expect([CLOUD_TIERS.high.cumulusSteps, CLOUD_TIERS.medium.cumulusSteps, CLOUD_TIERS.low.cumulusSteps]).toEqual([48, 32, 20])
-    expect([CLOUD_TIERS.high.lightSteps, CLOUD_TIERS.medium.lightSteps, CLOUD_TIERS.low.lightSteps]).toEqual([2, 1, 1])
+    // Photoreal Task 11 (2026-09-25): spec 4.4 floors high's view steps at
+    // 96. high's light march is 4, not the plan's 6: the plan's first
+    // allowed budget lever, needed at 4K in-deck-1900.
+    expect(CLOUD_TIERS.high.cumulusSteps).toBeGreaterThanOrEqual(96)
+    expect([CLOUD_TIERS.high.cumulusSteps, CLOUD_TIERS.medium.cumulusSteps, CLOUD_TIERS.low.cumulusSteps]).toEqual([96, 64, 32])
+    expect([CLOUD_TIERS.high.lightSteps, CLOUD_TIERS.medium.lightSteps, CLOUD_TIERS.low.lightSteps]).toEqual([4, 4, 2])
     expect([CLOUD_TIERS.high.cirrusSteps, CLOUD_TIERS.medium.cirrusSteps, CLOUD_TIERS.low.cirrusSteps]).toEqual([8, 6, 4])
     // high 0.5 -> 0.45 on 2026-09-25 (photoreal Task 9, the plan ledger's
     // allowed budget lever): the atmosphere's consumers took in-deck-1900's
-    // 4K p95 to 8.46 ms; 0.45 measured 7.80/7.82.
-    expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.45, 0.5, 0.25])
+    // 4K p95 to 8.46 ms; 0.45 measured 7.80/7.82. 0.45 -> 0.35 on 2026-09-25
+    // (photoreal Task 11, same lever, at its 0.35 floor): the 96-step march.
+    expect(CLOUD_TIERS.high.resolutionScale).toBeGreaterThanOrEqual(0.35)
+    expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.35, 0.5, 0.25])
   })
   it('drifts with the wind, the velocity of the air, and stands still in calm', () => {
     expect(cloudDriftM(null, 100)).toEqual({ x: 0, z: 0 })
