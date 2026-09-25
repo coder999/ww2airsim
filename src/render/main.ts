@@ -25,6 +25,7 @@ import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleSc
 import { applyMissionResultToRoster, loadRoster, saveRoster } from './roster.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
+import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
 import { loadSkyNoise } from './sky/load.js'
@@ -1115,6 +1116,7 @@ async function boot(): Promise<void> {
     sceneryTier = name
     vegetation?.setTier(name)
   }
+  let cloudPass: CloudPass | null = null
   /** `?cloudTier=` holds this one, including `off` -- which is a scene with no
    *  cloud pass at all, not a tier, and must not be pulled back on by a saved
    *  setting or by the probe. */
@@ -1122,6 +1124,7 @@ async function boot(): Promise<void> {
     if (forcedCloudTier !== undefined || cloudTier === name) return
     cloudTier = name
     clouds.setTier(name)
+    cloudPass?.setResolutionScale(CLOUD_TIERS[name].resolutionScale)
     shadow.setTier(name)
   }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
@@ -1156,8 +1159,9 @@ async function boot(): Promise<void> {
   // material. `positionWorld` is eye-relative here; the node adds the eye.
   const lights = createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined)
   scene.add(lights)
-  // Drawn last (its own renderOrder), occluded per pixel by the scene depth.
-  scene.add(clouds.object)
+  // The clouds are no longer in the scene: photoreal Task 3 moved the march
+  // into a reduced-resolution pass composited after it (`cloudPass`, below
+  // `framePipeline`).
   // `airframes`/`shipHandles`/`smokes`/`player` are already in
   // `scenarioEntities` -- built by the first `loadScenario` call, above,
   // from this same `scene` and this same `scenarioWorld`'s entity lists
@@ -1219,6 +1223,22 @@ async function boot(): Promise<void> {
   // the device-loss path: `renderer.dispose()` there already releases every
   // GPU resource the pass and its output quad hold.
   const framePipeline = createFramePipeline(renderer, scene, camera)
+  // Photoreal Task 3 (spec §4.1): the cloud march at reduced resolution,
+  // composited over the scene pass. It renders from inside
+  // `framePipeline.render()` (a node's `updateBefore`, after the scene pass)
+  // and follows the drawing-buffer size by itself, so neither the frame loop
+  // nor the resize handler calls it. `?cloudTier=off` and a clear-sky
+  // scenario build no pass at all: the output stays `sceneColor`.
+  // `applyCloudTier` (above) may run before this line -- `quality.bind`
+  // applies a pending pick at once -- which is why the pass takes its scale
+  // from `cloudTier` here rather than relying on that call.
+  cloudPass = cloudTier === 'off' || !clouds.enabled ? null : createCloudPass({
+    clouds, camera, sceneColor: framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+  })
+  if (cloudPass !== null && cloudTier !== 'off') {
+    cloudPass.setResolutionScale(CLOUD_TIERS[cloudTier].resolutionScale)
+    framePipeline.setOutput(cloudPass.composite)
+  }
 
   // Everything about the first frame -- the gear, the terrain hold, one pose
   // per entity -- is derived from the world's own entities by

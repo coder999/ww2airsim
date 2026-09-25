@@ -14,7 +14,7 @@ import { sunDirectionNode } from './lighting.js'
  *
  * A sun-view transmittance map: one 8-bit channel, MAP_TEXELS square over
  * MAP_SIDE_M around the eye, rendered every frame by a full-screen quad
- * whose fragment integrates the SAME cloud density the dome marches
+ * whose fragment integrates the SAME cloud density the cloud pass marches
  * (cloudField.ts) up the sun ray from a sea-level ground point. The lookup
  * node undoes the camera-relative shift when asked to, applies exact
  * directional-sun parallax, fades to 1 above the lowest cumulus deck, and

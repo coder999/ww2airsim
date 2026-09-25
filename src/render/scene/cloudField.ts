@@ -10,7 +10,7 @@ import { DETAIL_SIZE, SHAPE_SIZE } from '../sky/noise.js'
  * The cloud FIELD: the two noise volumes, the layer uniforms, the drift, and
  * the density function (design 16a §4). Extracted from the dome on
  * 2026-09-19 for Plan 16b so the shadow pass reads the same function the
- * dome marches -- one field, two readers, and the shadow cannot disagree
+ * cloud march reads (a pass since photoreal Task 3, cloudPass.ts) -- one field, two readers, and the shadow cannot disagree
  * with the cloud that casts it. `clouds.ts` keeps the march; `cloudShadow.ts`
  * integrates this along the sun. Nothing here knows about a camera.
  */

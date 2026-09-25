@@ -1,14 +1,11 @@
-import { BackSide, DepthTexture, FloatType, Mesh, SphereGeometry, type Object3D } from 'three'
-import { MeshBasicNodeMaterial, ViewportDepthTextureNode, type Node } from 'three/webgpu'
+import type { Node } from 'three/webgpu'
 import {
-  Break, Fn, If, Loop, cameraFar, cameraNear, clamp, color, exp, float, fract, int, length, max, min, mix, normalize,
-  linearDepth, positionView, positionWorld, screenCoordinate, screenUV, sqrt, texture3D, uniform, vec3, vec4,
+  Break, Fn, If, Loop, clamp, color, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
 } from 'three/tsl'
 import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
 import { FOG_DISTANCE_M, fogWeightNode, horizonSinkNode } from '../horizon.js'
-import { SKY_RADIUS_M } from './sky.js'
 import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from './lighting.js'
 import { CUMULUS_SIGMA, SHAPE_TILE_M, cloudDriftM, createCloudField, type CloudField } from './cloudField.js'
 
@@ -17,16 +14,24 @@ export { cloudDriftM }
 /**
  * Volumetric cloud layers (design: docs/superpowers/specs/2026-09-19-clouds-design.md §4).
  *
- * One dome, drawn after everything else, whose fragment marches the view ray
- * through each layer's slab, occluded per pixel by the scene depth. The world
- * is camera-relative, so the eye is the origin and the dome vertex direction
+ * The march of one view ray through each layer's slab, stopped at the scene
+ * depth. Until photoreal Task 3 (2026-09-24) this was the fragment of a dome
+ * drawn last in the scene, once per full-resolution pixel; it is now a node
+ * builder (`marchNode`) that `cloudPass.ts` calls from a reduced-resolution
+ * full-screen pass and composites over the scene (photoreal spec §4.1). The
+ * world is camera-relative, so the eye is the origin and the view direction
  * is the ray; `eyeWorld` (a uniform) restores true world coordinates for the
  * noise so clouds stay put as the airplane flies through them.
+ *
+ * `resolutionScale` is the cloud pass's target size as a fraction of the
+ * drawing buffer, per axis. Step counts are the pre-16d baseline (photoreal
+ * spec §4.1): medium's light march went from 2 to 1 on 2026-09-24, which the
+ * spec names as that baseline.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 48, lightSteps: 2, cirrusSteps: 8 },
-  medium: { cumulusSteps: 32, lightSteps: 2, cirrusSteps: 6 },
-  low: { cumulusSteps: 20, lightSteps: 1, cirrusSteps: 4 },
+  high: { cumulusSteps: 48, lightSteps: 2, cirrusSteps: 8, resolutionScale: 0.5 },
+  medium: { cumulusSteps: 32, lightSteps: 1, cirrusSteps: 6, resolutionScale: 0.5 },
+  low: { cumulusSteps: 20, lightSteps: 1, cirrusSteps: 4, resolutionScale: 0.25 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
 
@@ -63,8 +68,29 @@ export function cloudDebugFromQuery(search: string): CloudDebug | undefined {
   throw new Error(`${CLOUD_DEBUG_PARAM}: ${JSON.stringify(raw)} is not a cloud debug mode`)
 }
 
+/** One view ray's march (see `CloudsHandle.marchNode`). */
+export type CloudMarch = {
+  /** rgb premultiplied by alpha, and alpha. */
+  readonly color: Node<'vec4'>
+  /** Transmittance-weighted mean distance of the cloud along the ray, in
+   *  metres; `FOG_DISTANCE_M` where the ray met no cloud. */
+  readonly depthM: Node<'float'>
+}
+
 export type CloudsHandle = {
-  readonly object: Object3D
+  /** False for a clear sky: nothing to march, so the caller builds no pass. */
+  readonly enabled: boolean
+  /**
+   * Emits the march for one view ray into the CURRENT TSL stack and returns
+   * its two results. It is deliberately not a `Fn`: a `Fn` must return ONE
+   * node (trap 1, handoff 2026-09-19), and the pass needs both. Call it from
+   * inside the caller's own `Fn`, which then returns one node (cloudPass.ts
+   * returns a struct).
+   * @param dir unit view direction in world axes (the eye is the origin).
+   * @param sceneT distance along `dir` to the scene, capped at `FOG_DISTANCE_M`.
+   * @param dither start jitter in [0, 1).
+   */
+  marchNode(dir: Node<'vec3'>, sceneT: Node<'float'>, dither: Node<'float'>): CloudMarch
   setTier(name: CloudTierName): void
   setDebug(mode: CloudDebug | undefined): void
   update(eyeWorld: Vec3, driftSeconds: number, wind: Vec3 | null): void
@@ -94,31 +120,18 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   const ambientBottom = skyHorizonNode.mul(ambientScaleNode).mul(0.6)
 
 
-  const material = new MeshBasicNodeMaterial({ side: BackSide, transparent: true, depthTest: false, depthWrite: false })
-  // The copy of scene depth the march reads. NOT three's shared
-  // `viewportLinearDepth` any more (photoreal Task 2, 2026-09-24): that
-  // copies into a default DepthTexture (UnsignedIntType -> depth24plus),
-  // which matched the renderer's own frame-buffer target (Textures.js
-  // creates its depth as UnsignedIntType) but not the RenderPipeline scene
-  // pass, whose `PassNode.setup` makes the depth FloatType (depth32float)
-  // under `reversedDepthBuffer` -- always on, renderer.ts. A mismatch is a
-  // WebGPUBackend `copyFramebufferToTexture` error and no depth. Task 3
-  // moves the march out of the scene and reads the pass depth directly.
-  const sceneDepthCopy = new DepthTexture(1, 1)
-  sceneDepthCopy.type = FloatType
-  const sceneLinearDepth = linearDepth(new ViewportDepthTextureNode(screenUV, null, sceneDepthCopy))
-  const march = Fn(() => {
-    const dir = normalize(positionWorld)
-    // Scene depth as a ray length: orthographic linear depth is view-space Z,
-    // and the dome fragment's own view position gives the ray's angle to it.
-    const viewZ = cameraNear.add(sceneLinearDepth.mul(cameraFar.sub(cameraNear)))
-    const cosView = positionView.z.negate().div(length(positionView))
-    const sceneT = debug.equal(int(1)).select(float(FOG_DISTANCE_M), min(viewZ.div(max(cosView, 0.001)), float(FOG_DISTANCE_M)))
-    // Per-pixel start dither: interleaved gradient noise, hides step banding.
-    const dither = fract(float(52.9829189).mul(fract(screenCoordinate.x.mul(0.06711056).add(screenCoordinate.y.mul(0.00583715)))))
+  const marchNode = (dirIn: Node<'vec3'>, sceneTIn: Node<'float'>, dither: Node<'float'>): CloudMarch => {
+    const dir = normalize(dirIn).toVar()
+    // `nodepth` debug: march to the fog distance, ignoring the scene.
+    const sceneT = debug.equal(int(1)).select(float(FOG_DISTANCE_M), sceneTIn).toVar()
 
     const transmittance = float(1).toVar()
     const scattered = vec3(0, 0, 0).toVar()
+    // Representative cloud depth for the composite and the temporal
+    // reprojection (photoreal spec §4.1): each step's distance weighted by
+    // the light it contributes, transmittance * (1 - stepT).
+    const hitTSum = float(0).toVar()
+    const hitWSum = float(0).toVar()
     const firstHitT = float(FOG_DISTANCE_M).toVar()
     const horizontal = length(dir.xz)
     const peakDensity = float(0).toVar()
@@ -232,8 +245,11 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
             const h = clamp(pc.y.sub(base).div(thickness), 0, 1)
             const ambient = mix(ambientBottom, ambientTop, h)
             const lit = sunColor.mul(light).mul(mix(float(1), powder, 0.5)).mul(1.2).add(ambient)
-            const stepT = exp(dens.mul(sigma).mul(ds).negate())
-            scattered.addAssign(lit.mul(transmittance.mul(float(1).sub(stepT))))
+            const stepT = exp(dens.mul(sigma).mul(ds).negate()).toVar()
+            const w = transmittance.mul(float(1).sub(stepT)).toVar()
+            hitTSum.addAssign(t.mul(w))
+            hitWSum.addAssign(w)
+            scattered.addAssign(lit.mul(w))
             transmittance.mulAssign(stepT)
           })
           walked.addAssign(ds)
@@ -242,8 +258,11 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
     })
     const alpha = float(1).sub(transmittance).toVar()
     // Aerial perspective on the cloud, by the distance to its first sample.
+    // Mixed on the straight (un-premultiplied) color exactly as the dome did;
+    // premultiplied again at the end for the pass's over-composite.
     const fog = fogWeightNode(firstHitT)
     const rgb = mix(scattered.div(max(alpha, 0.0001)), skyHorizonNode, fog).toVar()
+    const depthM = hitWSum.greaterThan(0).select(hitTSum.div(max(hitWSum, 1e-12)), float(FOG_DISTANCE_M)).toVar()
     If(debug.equal(int(2)), () => {
       const g = sceneT.div(FOG_DISTANCE_M)
       rgb.assign(vec3(g, g, g))
@@ -279,22 +298,17 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
       rgb.assign(vec3(g, g, g))
       alpha.assign(1)
     })
-    // ONE node out, never a JS object: a `Fn` that returns `{ rgb, alpha }`
-    // does not build ("this.outputNode.build is not a function"), and three
-    // then draws the dome with a blank fallback material -- a black screen
-    // with zero validation errors (first GPU run, 2026-09-19).
-    return vec4(rgb, alpha)
-  })()
-  material.colorNode = march.xyz
-  material.opacityNode = march.w
-
-  const mesh = new Mesh(new SphereGeometry(SKY_RADIUS_M * 0.9, 32, 16), material)
-  mesh.renderOrder = 10
-  mesh.frustumCulled = false
-  mesh.visible = sorted.length > 0
+    // Not a `Fn` return, so a JS object is fine HERE. Inside a `Fn` it is
+    // not: a `Fn` that returns `{ rgb, alpha }` does not build
+    // ("this.outputNode.build is not a function"), and three then draws with
+    // a blank fallback material -- a black screen with zero validation
+    // errors (first GPU run, 2026-09-19). The caller's `Fn` returns one node.
+    return { color: vec4(rgb.mul(alpha), alpha), depthM }
+  }
 
   return {
-    object: mesh,
+    enabled: sorted.length > 0,
+    marchNode,
     setTier(name: CloudTierName): void {
       const t = CLOUD_TIERS[name]
       cumulusSteps.value = t.cumulusSteps
@@ -306,15 +320,10 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
       debug.value = mode === undefined ? 0 : modes[mode]
     },
     update(eye: Vec3, driftSeconds: number, wind: Vec3 | null): void {
-      // Centered on the eye: with the scene at -eye the dome's center is the camera.
-      mesh.position.set(eye.x, eye.y, eye.z)
       f.update(eye, driftSeconds, wind)
     },
     dispose(): void {
       if (ownsField) f.dispose()
-      mesh.geometry.dispose()
-      material.dispose()
-      sceneDepthCopy.dispose()
     },
   }
 }

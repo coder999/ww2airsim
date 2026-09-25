@@ -102,7 +102,7 @@ export function createSky(): Object3D {
   // and would not agree.
   const above = mix(skyHorizonNode, skyZenithNode, clamp(y, 0, 1))
   // Plan 16c: the sun disc and its halo, only once the sun is above the
-  // horizon; the cloud dome draws after this and dims it correctly.
+  // horizon; the cloud pass composites over it and dims it correctly.
   const sun = normalize(sunDirectionNode)
   const d = dot(dir, sun)
   const disc = smoothstep(0.9995, 0.9999, d)

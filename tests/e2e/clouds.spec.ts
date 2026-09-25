@@ -147,3 +147,33 @@ for (const tier of ['high', 'medium', 'low'] as const) {
     }
   })
 }
+
+// Photoreal Task 3 (2026-09-24): the march now renders into a reduced-
+// resolution target that must follow the canvas. READ all three: no
+// stretched or stale-size frame after either resize.
+test('resize: the cloud pass follows the canvas down and back up', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(spawnUrl({ ...OVER_GULF, y: 1900 }))
+  await waitForTerrain(page)
+  await page.waitForTimeout(1000)
+  await page.screenshot({ path: 'test-results/clouds-resize-1440.png' })
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.waitForTimeout(1000)
+  await page.screenshot({ path: 'test-results/clouds-resize-720.png' })
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.waitForTimeout(1000)
+  await page.screenshot({ path: 'test-results/clouds-resize-back.png' })
+  expect(await errors(page)).toEqual([])
+})
+
+// Photoreal Task 3: the chase-view airframe against the deck from below.
+// READ: the airframe edges against cloud as sharp as against clear sky, with
+// no low-resolution halo (the composite's depth-aware upsample).
+test('near silhouette: chase-view airframe under the deck', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(spawnUrl({ ...OVER_GULF, y: 1200 }))
+  await waitForTerrain(page)
+  await page.waitForTimeout(1500)
+  await page.screenshot({ path: 'test-results/clouds-silhouette-chase.png' })
+  expect(await errors(page)).toEqual([])
+})

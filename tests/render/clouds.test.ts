@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import type { Mesh } from 'three'
 import { CLOUD_TIERS, cloudDriftM, cloudTierFromQuery, createClouds } from '../../src/render/scene/clouds.js'
 import { FOG_DISTANCE_M } from '../../src/render/horizon.js'
 import { LOD } from '../../src/render/terrain/lod.js'
@@ -18,25 +17,34 @@ describe('clouds (Plan 16a)', () => {
     expect(cloudTierFromQuery('?x=1')).toBeUndefined()
     expect(() => cloudTierFromQuery('?cloudTier=ultra')).toThrow(/cloudTier/)
   })
+  it('has exactly high/medium/low, each with a resolution scale and the pre-16d step counts (photoreal spec 4.1)', () => {
+    expect(Object.keys(CLOUD_TIERS)).toEqual(['high', 'medium', 'low'])
+    for (const tier of Object.values(CLOUD_TIERS)) {
+      expect(tier.resolutionScale).toBeGreaterThan(0)
+      expect(tier.resolutionScale).toBeLessThanOrEqual(1)
+    }
+    expect([CLOUD_TIERS.high.cumulusSteps, CLOUD_TIERS.medium.cumulusSteps, CLOUD_TIERS.low.cumulusSteps]).toEqual([48, 32, 20])
+    expect([CLOUD_TIERS.high.lightSteps, CLOUD_TIERS.medium.lightSteps, CLOUD_TIERS.low.lightSteps]).toEqual([2, 1, 1])
+    expect([CLOUD_TIERS.high.cirrusSteps, CLOUD_TIERS.medium.cirrusSteps, CLOUD_TIERS.low.cirrusSteps]).toEqual([8, 6, 4])
+    expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.5, 0.5, 0.25])
+  })
   it('drifts with the wind, the velocity of the air, and stands still in calm', () => {
     expect(cloudDriftM(null, 100)).toEqual({ x: 0, z: 0 })
     expect(cloudDriftM(v3(3, 0, -4), 10)).toEqual({ x: 30, z: -40 })
   })
-  it('constructs for every shipped deck, drawn last with depth off, and is absent for a clear sky', () => {
+  it('constructs for every shipped deck as a march with no scene object, and is disabled for a clear sky', () => {
     for (const id of ['free-flight', 'deck-quals']) {
       const clouds = createClouds(loadScenario(id).weather.clouds ?? [], noise)
-      const mesh = clouds.object as Mesh
-      expect(mesh.renderOrder).toBeGreaterThan(0)
-      expect(mesh.visible).toBe(true)
-      const material = mesh.material as { transparent: boolean; depthTest: boolean; depthWrite: boolean }
-      expect(material.transparent).toBe(true)
-      expect(material.depthTest).toBe(false)
-      expect(material.depthWrite).toBe(false)
+      // Photoreal Task 3: the dome left the scene; the march is a node
+      // builder the reduced-resolution cloud pass calls.
+      expect('object' in clouds).toBe(false)
+      expect(clouds.enabled).toBe(true)
+      expect(typeof clouds.marchNode).toBe('function')
       clouds.setTier('low')
       clouds.update(v3(0, 1000, 0), 12, v3(5, 0, 0))
       clouds.dispose()
     }
-    expect(createClouds([], noise).object.visible).toBe(false)
+    expect(createClouds([], noise).enabled).toBe(false)
   })
   it('shares the terrain fog distance, so a cloud at the draw distance is exactly haze', () => {
     expect(LOD.drawDistanceM).toBe(FOG_DISTANCE_M)
