@@ -456,14 +456,21 @@ performance budgets, so they are insensitive to contention anyway.
   for a while, and that is accurate. The bench's value grows as Lanes B and
   C land.
 
-## Open for Mark
+## Decisions (Mark, 2026-09-25)
 
-1. **`Airframe.parts`.** *Recommendation:* ask Lane B to add it as a one-line
-   additive field in Z1. The fallback is a static part table in the hangar,
-   which can drift from the model.
-2. **A battleship model for H3.** No battleship candidate has been
-   downloaded or license-checked. *Recommendation:* H3 starts with the
-   Cleveland or Mogami candidate (turreted, already downloaded), and a
-   Yamato or Pennsylvania search happens under Lane C's S2.
-3. **The Library button in production before v1.0.** *Recommendation:* yes.
-   The library part is harmless, and the bench stays behind `?bench=1`.
+1. **`Airframe.parts`: yes.** Lane B adds it as an additive field in Z1. The
+   static fallback table is not built.
+2. **Battleship for H3: Claude's call, delegated by Mark.** Both staged
+   cruiser candidates are ONE merged mesh (measured 2026-09-25:
+   `cleveland-cl.glb` 3 nodes / 1 mesh, `mogami-ca.glb` 4 nodes / 2 meshes),
+   so turrets must be split as triangle islands (the union-find technique the
+   A6M Zero spec uses for the tailwheel). H3 Task 3 tries `cleveland-cl`
+   first and falls back to `mogami-ca`, keeping whichever yields clean turret
+   islands. A battleship waits for Lane C's S2.
+3. **Library button in production before v1.0: yes.** The bench stays behind
+   `?bench=1`.
+
+**Execution:** H1-H3 run inside the combined **Models track** (one plan, one
+executor at a time, one worktree lineage), in the order Z1 -> H1 -> S1 -> Z3
+-> H2 -> S2 -> H3, alongside the A6M Zero and ship-models specs. The Zero's
+flight model and guns (Z2) run in the separate combat track.
