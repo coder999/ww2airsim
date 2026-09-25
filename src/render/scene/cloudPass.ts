@@ -89,6 +89,27 @@ export type ReprojectionResidual = {
 export function cloudTargetSize(width: number, height: number, scale: number): { width: number; height: number } {
   return { width: cloudTargetAxis(width, scale), height: cloudTargetAxis(height, scale) }
 }
+/**
+ * How many full-resolution pixels one cloud texel spans per axis (`span`,
+ * exactly 1 / scale, possibly fractional) and the side of the full-resolution
+ * block the march's min-depth downsample reads (`block`, whole texels that
+ * are guaranteed to cover the span wherever it starts).
+ *
+ * FIXED 2026-09-25 (photoreal Task 9): the span was `round(1 / scale)`,
+ * correct only for scale = 1/n. At 0.45 it was 2 while the target was
+ * ceil(0.45 × pixels) texels, so the target covered 0.9 of the screen and
+ * the bottom and right 10% of the composite read the clamped last row and
+ * column: vertical streaks along the bottom of high-6000 (read 2026-09-25).
+ * A span that is exactly 1 / scale makes target × span >= pixels for any
+ * scale (`cloudTargetAxis` rounds up); a fractional span starting mid-pixel
+ * can touch ceil(span) + 1 pixels, hence `block`.
+ */
+export function cloudCells(scale: number): { span: number; block: number } {
+  const span = 1 / scale
+  const whole = Math.abs(span - Math.round(span)) < 1e-9
+  return { span: whole ? Math.round(span) : span, block: whole ? Math.round(span) : Math.ceil(span) + 1 }
+}
+
 /** One axis of `cloudTargetSize`; the per-frame path calls this directly so
  *  it allocates nothing. */
 function cloudTargetAxis(pixels: number, scale: number): number {
@@ -159,8 +180,8 @@ class CloudPassNode extends TempNode<'vec4'> {
   private readonly quad = new QuadMesh(this.material)
   private readonly resolveMaterial = new NodeMaterial()
   private readonly resolveQuad = new QuadMesh(this.resolveMaterial)
-  /** Full-resolution texels per cloud texel, per axis: round(1 / scale). */
-  private cells = 2
+  /** Full-resolution texels per cloud texel, per axis (`cloudCells`). */
+  private cells = cloudCells(0.5)
   private scale = 0.5
   private readonly fullSize = uniform(new Vector2(1, 1))
   private readonly lowSize = uniform(new Vector2(1, 1))
@@ -338,7 +359,7 @@ class CloudPassNode extends TempNode<'vec4'> {
   setResolutionScale(scale: number): void {
     if (scale !== this.scale) this.resetPending = true
     this.scale = scale
-    this.cells = Math.max(1, Math.round(1 / scale))
+    this.cells = cloudCells(scale)
   }
 
   setEye(eye: Vec3): void {
@@ -362,8 +383,8 @@ class CloudPassNode extends TempNode<'vec4'> {
     for (const target of [...this.march, ...this.history]) target.setSize(lowWidth, lowHeight)
     this.fullSize.value.set(width, height)
     this.lowSize.value.set(lowWidth, lowHeight)
-    this.cellsF.value = this.cells
-    this.cellsI.value = this.cells
+    this.cellsF.value = this.cells.span
+    this.cellsI.value = this.cells.block
     this.jitter.value = (this.frameIndex * GOLDEN) % 1
     this.frameIndex++
 
