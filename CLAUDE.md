@@ -21,9 +21,13 @@ not exist, and three conventions below were being missed for that reason).
 
 ## This checkout
 
-- **Work on `main`, in place. No worktrees.** The vite dev server serves this
-  directory to Mark; a worktree is unreachable. Re-diff against `HEAD` right
-  before every commit — other sessions commit here too.
+- **Ask Mark whether a task belongs on `main` or in a worktree — don't
+  assume either way.** As a rule of thumb, parallel work (multiple sessions
+  or worktrees active at once) is better isolated in its own worktree;
+  isolated, single-session work is better done on `main`, in place, so the
+  primary vite dev server can show Mark the live result. If it's on `main`,
+  re-diff against `HEAD` right before every commit — other sessions commit
+  here too.
 - **Never run `git clean -fdx`.** `content/terrain/tiles/` and
   `tools/terrain/cache/` are ~275 MB of gitignored data that exists nowhere
   else. Its absence shows as extra named skips in the suite, not failures.
@@ -68,6 +72,20 @@ pressing keys. Run Tier 2 at 1440p before trusting any GPU number; the budget
 is gpu p95 under 6.0 ms. A throwaway spec that calls `page.screenshot()` gets
 a PNG onto nexus you can read directly — never argue about a picture you have
 not looked at.
+
+**Two more dev-server slots exist for parallel worktree work**, each real
+HTTPS wired the same way as the primary hostname above:
+`ww2airsim-2.windomlane.org` (port 5175) and `ww2airsim-3.windomlane.org`
+(port 5174). If a task is running in a worktree and needs the reference
+GPU alongside another session's, point that worktree's own
+`vite.config.ts` at one of these — change `TUNNEL_HOST` and `server.port`
+to match, then `WW2AIRSIM_TUNNEL=1 npx vite --port 5175` (or `5174`) from
+the worktree. That edit is local scratch, never committed. Both slots are
+persistent, reusable infrastructure, not scoped to whichever plan first
+needed one — see README's "Tier 2: the GPU harness" and
+`vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
+`ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
+slot should say so if asked; there's no reservation system beyond that.
 
 ## Conventions
 
