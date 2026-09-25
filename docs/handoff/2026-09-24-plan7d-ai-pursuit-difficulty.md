@@ -139,6 +139,9 @@ confirmed unchanged by actually running it, not assumed.
 
 ## Reference-GPU evidence
 
+Command as actually run at the time (hostname since renamed — see "Infra,"
+below; use `ww2airsim-3.windomlane.org` today):
+
 ```
 PW_REMOTE=ws://localhost:39001/ \
 PW_BASE_URL=https://ww2airsim-wt.windomlane.org \
@@ -163,15 +166,17 @@ doesn't serve — see "Infra," below).
 This worktree needed its own Tier 2 route since the existing one
 (`ww2airsim.windomlane.org`) serves the `main` checkout, not a worktree.
 Stood up (Mark's explicit choice among three presented options): a new
-UniFi DNS A record (`ww2airsim-wt.windomlane.org`), a new `vps-local`
-Traefik file (`shared/traefik/dynamic/ww2airsim-worktree-dev.yml`, mirroring
-`ww2airsim-dev.yml`'s two-router pattern, no Cloudflare change needed), and
-a local, **never-committed** `vite.config.ts` override in this worktree
-(port 5173→5174, `TUNNEL_HOST`→`ww2airsim-wt.windomlane.org`). Cleanup,
-once this worktree is deleted: kill the backgrounded worktree Vite process,
-confirm `vite.config.ts` reverts with the worktree, and ask Mark whether to
-keep the DNS record + Traefik file for reuse by a future worktree (default:
-keep, per the Traefik file's own header) or remove both. Full detail in this
+UniFi DNS A record (originally `ww2airsim-wt.windomlane.org`, **renamed to
+`ww2airsim-3.windomlane.org`** at the end of this plan, same record id, to
+match `ww2airsim-2`'s own generic slot naming — see `vps-local`'s
+`ww2airsim-3-dev.yml` and ww2airsim's README, "Tier 2: the GPU harness"),
+a new `vps-local` Traefik file (`shared/traefik/dynamic/ww2airsim-3-dev.yml`,
+mirroring `ww2airsim-dev.yml`'s two-router pattern, no Cloudflare change
+needed), and a local, **never-committed** `vite.config.ts` override in this
+worktree (port 5173→5174, `TUNNEL_HOST`→`ww2airsim-3.windomlane.org` after
+the rename). This route is now persistent, reusable infrastructure — kept
+for reuse by future worktrees rather than removed, per Mark's decision at
+the end of this plan. Full detail in this
 plan's SDD ledger (`.superpowers/sdd/2026-09-24-ai-pursuit-difficulty/
 progress.md`, gitignored).
 

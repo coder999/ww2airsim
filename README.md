@@ -480,7 +480,7 @@ reverse tunnel at all.
 
 **Two more slots exist for running a second and third dev server in
 parallel** — e.g. two worktrees each mid-plan, both needing the reference
-GPU at once. `ww2airsim-wt.windomlane.org` routes to port 5174,
+GPU at once. `ww2airsim-3.windomlane.org` routes to port 5174,
 `ww2airsim-2.windomlane.org` to port 5175; both are real A records +
 Traefik routes, wired exactly like the main hostname above (LAN goes
 straight to nexus with a cert, off-LAN goes through the Cloudflare tunnel
@@ -494,8 +494,10 @@ copy at it for as long as it needs the GPU. Whichever worktree is using a
 slot should say so if asked, since only one dev server can bind a given port
 at a time; there's no reservation system beyond that. Both routes are
 persistent, reusable infrastructure, not scoped to whichever plan first
-needed them — see `vps-local/shared/traefik/dynamic/ww2airsim-worktree-dev.yml`
-and `ww2airsim-2-dev.yml` for the full wiring and history.
+needed them — see `vps-local/shared/traefik/dynamic/ww2airsim-3-dev.yml`
+and `ww2airsim-2-dev.yml` for the full wiring and history. (The 5174 slot
+was originally named `ww2airsim-wt`, renamed to `ww2airsim-3` 2026-09-24
+to match `ww2airsim-2`'s own generic naming.)
 
 The one thing this cannot do for itself: **the `playwright run-server` it
 connects to must already be running in the Windows console session** (started
