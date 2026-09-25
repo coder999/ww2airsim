@@ -14,7 +14,7 @@ asked what stands between them. This spec is the answer turned into work.
 | Cauliflower billows at every scale down to metres | Smooth lumps | Shape volume 128³ over 6 km (47 m/texel); detail 32³ over 150 m; one octave each |
 | Sharp light/shadow between billows | Smooth gradients | `high` light march: 4 samples on COARSE density beyond near range; fine noise never reaches the light march |
 | Crisp edges | Soft edges, especially near | Cloud pass at 0.35 resolution scale, temporally reconstructed |
-| — | ~5–6 ms of clouds in an 8.33 ms 4K frame | Budget, and ~2 ms of it lost to an unexplained motion-vector (MRT) overhead (photoreal Task 11 measured: in-deck, clouds off, p50 1.78 ms no MRT / 2.47 `mrt({output})` / 3.85 with motion) |
+| — | ~5–6 ms of clouds in an 8.33 ms 4K frame | Budget, plus a measurable scene-wide motion MRT tax. A 2026-09-25 same-build audit found 3.849 ms p50 with the original MRT, 3.595 ms with a zero-motion TRAA source and no motion pass, and 3.632–3.637 ms with quarter-linear-resolution reconstructed motion. The earlier 1.78 ms “no MRT” figure is not reproducible as an end-to-end frame and is retired. |
 
 ## 2. Budget (Mark's decision, 2026-09-25)
 
@@ -45,9 +45,10 @@ TRAA's variance-clip rejection; the plan measures both and picks. The ocean's
 waves are ignored for motion (the surface is world-fixed; the photoreal pass's
 custom ocean velocity already treats it so).
 
-Acceptance: the ~2 ms comes back (in-deck, clouds off, within 0.3 ms of the
-no-MRT 1.78 ms p50), and the TRAA roll captures show no new ghosting on aircraft
-or ships.
+Acceptance: in-deck with clouds off, reconstructed motion is within 0.15 ms of
+the reproducible 3.595 ms zero-motion TRAA control (p50 ≤ 3.75 ms) and at least
+0.10 ms faster than the original 3.849 ms motion MRT. The TRAA roll captures
+show no new ghosting on aircraft or ships.
 
 ### 3.2 Amortized cloud updates
 
