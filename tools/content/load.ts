@@ -56,7 +56,13 @@ export function loadScenario(id: string): Scenario {
 /** Every content file a scenario names, loaded and validated. Node only;
  *  `src/render/scenarioLoad.ts` is the browser twin. */
 export function loadScenarioBundle(id: string): ScenarioBundle {
-  const scenario = loadScenario(id)
+  return bundleForScenario(loadScenario(id))
+}
+
+/** Every content file an already-parsed scenario names, loaded and
+ *  validated -- the half of `loadScenarioBundle` that does not care where the
+ *  scenario itself came from (a test fixture, for one). */
+export function bundleForScenario(scenario: Scenario): ScenarioBundle {
   const table = <T>(ids: readonly string[], load: (i: string) => T): Readonly<Record<string, T>> =>
     Object.fromEntries([...new Set(ids)].map((i) => [i, load(i)]))
   return {

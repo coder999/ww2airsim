@@ -10,6 +10,7 @@ import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/t
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
+import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
@@ -104,8 +105,19 @@ describe('the free-flight scenario', () => {
   })
 })
 
+/**
+ * Plans 7a, 7b and 7d measured the AI against ONE geometry: the pursuer 500 m
+ * astern of the player, 5 m/s faster, both due east at 3,000 m, the player's
+ * throttle closed. `content/scenarios/pursuit-range.json` stopped being that
+ * geometry on 2026-09-25 (it is now a head-on merge -- the shootdown spike
+ * found the tail chase gives the player no firing chance), so these tests
+ * read a frozen copy of the old scenario instead of re-tuning their numbers
+ * to the new one: `tests/fixtures/scenarios/pursuit-tail-chase.json`. It is a
+ * test fixture, not content -- nothing ships it and the title screen never
+ * lists it.
+ */
 describe('the airborne pursuit range (Plan 7a)', () => {
-  const pursuit = loadScenarioBundle('pursuit-range')
+  const pursuit = loadFixtureScenarioBundle('pursuit-tail-chase')
 
   it('starts both aircraft airborne on their compass headings and assigns only the pursuer', () => {
     const world = worldFromScenario(pursuit, null)
@@ -223,7 +235,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
 })
 
 describe('the energy-aware decision layer (Plan 7b)', () => {
-  const pursuit = loadScenarioBundle('pursuit-range')
+  const pursuit = loadFixtureScenarioBundle('pursuit-tail-chase')
 
   it('does not change maneuver between two ticks inside one reactionS window, and does change once nextRescoreS is reached', () => {
     let world = worldFromScenario(pursuit, null)
