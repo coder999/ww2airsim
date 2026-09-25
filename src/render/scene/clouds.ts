@@ -1,3 +1,4 @@
+import { Vector2 } from 'three'
 import type { Node } from 'three/webgpu'
 import {
   Break, Fn, If, Loop, clamp, dot, smoothstep, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
@@ -35,13 +36,21 @@ export { cloudDriftM }
  * re-run, clean), together with the march's early-outs and light LOD below;
  * the gate runs measured 8.16 and 8.12 ms (2026-09-25). A tier's view work
  * goes as resolutionScale^2 x cumulusSteps, which must fall high -> medium ->
- * low (clouds.test.ts): medium is 64 steps at 0.3 (5.8 vs high's 11.8), not
+ * low (clouds.test.ts): medium is 64 steps at 0.3 (5.8 vs high's then 11.8), not
  * the plan's 0.5, which made it 1.36x HEAVIER than high (Task 11 fix 1).
+ *
+ * 2026-09-25, Mark's decision: `high` targets 60 Hz (gpu p95 <= 16.67 ms at
+ * 4K); medium and low keep 8.33 (budget4k.spec.ts checks both). High spends
+ * it on the clouds: resolution scale 0.5 (in-deck-1900 p95 measured 16.66
+ * ms at 0.6 and 14.9-17.0 ms at 0.55), 6 light samples, the first
+ * `fineLightSteps` of them on the DETAILED density (the creases between
+ * billows are shadows cast by the erosion), and no distance light LOD
+ * (`lightLodBandM` null; the lower tiers blend it out over 1.5-2.5 km).
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 96, lightSteps: 4, cirrusSteps: 8, resolutionScale: 0.35 },
-  medium: { cumulusSteps: 64, lightSteps: 4, cirrusSteps: 6, resolutionScale: 0.3 },
-  low: { cumulusSteps: 32, lightSteps: 2, cirrusSteps: 4, resolutionScale: 0.25 },
+  high: { cumulusSteps: 96, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5 },
+  medium: { cumulusSteps: 64, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3 },
+  low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
 
@@ -76,10 +85,11 @@ const OPAQUE_TRANSMITTANCE = 0.03
  *  same distance. */
 const LIGHT_LOD_TRANSMITTANCE = 0.3
 const LIGHT_STEPS_DEEP = 2
-/** ... and with distance, blended across this band in metres. */
-const LIGHT_LOD_BAND_M = [1500, 2500] as const
+/** ... and with distance, blended across the tier's `lightLodBandM`. */
 /** Step multiplier through empty air inside the layer's slab. */
 const EMPTY_STEP_SCALE = 2
+/** A distance no view ray reaches (FOG_DISTANCE_M is 100 km): "no LOD band". */
+const NO_LOD_M = 1e7
 
 /** DEV-only `?cloudDebug=`: `nodepth` marches to the fog distance ignoring the
  *  scene depth; `depth` paints the depth bound as grey (black near, white at
@@ -140,6 +150,10 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   /** 2^lightSteps - 1: the light march's near span in units of its first
    *  (shortest) segment. */
   const lightUnits = uniform(2 ** CLOUD_TIERS.high.lightSteps - 1)
+  /** Light samples, nearest first, that read the detailed density. */
+  const fineLightSteps = uniform(CLOUD_TIERS.high.fineLightSteps, 'int')
+  /** The distance light LOD band [start, end] in metres; far away = none. */
+  const lodBand = uniform(new Vector2(NO_LOD_M, NO_LOD_M * 2))
   /** 0 normal, 1 ignore depth, 2 paint the depth bound. */
   const debug = uniform(0, 'int')
 
@@ -274,29 +288,34 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
               const toTop = top.sub(pc.y).div(max(sun.y, 0.05)).toVar()
               const near = min(toTop, thickness).toVar()
               // Optical path over [0, near] from `count` geometric segments.
-              const nearMarch = (count: Node<'int'>, units: Node<'float'>, name: string): Node<'float'> => {
+              const nearMarch = (count: Node<'int'>, units: Node<'float'>, name: string, fine: Node<'int'>): Node<'float'> => {
                 const path = float(0).toVar()
                 const segment = near.div(units).toVar()
                 const edge = float(0).toVar()
-                Loop({ start: int(0), end: count, type: 'int', condition: '<', name } as unknown as Node<'int'>, () => {
-                  const lp = pc.add(sun.mul(edge.add(segment.mul(0.5))))
-                  path.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(segment))
+                Loop({ start: int(0), end: count, type: 'int', condition: '<', name } as unknown as Node<'int'>, (inputs) => {
+                  const idx = (inputs as unknown as Record<string, Node<'int'>>)[name]!
+                  const lp = pc.add(sun.mul(edge.add(segment.mul(0.5)))).toVar()
+                  If(idx.lessThan(fine), () => {
+                    path.addAssign(density(lp, base, thickness, coverage, kind).mul(segment))
+                  }).Else(() => {
+                    path.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(segment))
+                  })
                   edge.addAssign(segment)
                   segment.mulAssign(2)
                 })
                 return path
               }
               // Budget lever (photoreal Task 11): the full near march fades
-              // out over LIGHT_LOD_BAND_M and wherever the view ray's
+              // out over the tier's LOD band and wherever the view ray's
               // transmittance is below LIGHT_LOD_TRANSMITTANCE, into a
               // LIGHT_STEPS_DEEP-segment march over the same span. Across
               // the band BOTH are marched and blended, so no ring can form.
-              const full = float(1).sub(smoothstep(LIGHT_LOD_BAND_M[0], LIGHT_LOD_BAND_M[1], t))
+              const full = float(1).sub(smoothstep(lodBand.x, lodBand.y, t))
                 .mul(transmittance.greaterThan(LIGHT_LOD_TRANSMITTANCE).select(float(1), float(0))).toVar()
               const fullPath = float(0).toVar()
               const deepPath = float(0).toVar()
-              If(full.greaterThan(0), () => { fullPath.assign(nearMarch(lightSteps, lightUnits, 'l')) })
-              If(full.lessThan(1), () => { deepPath.assign(nearMarch(int(LIGHT_STEPS_DEEP), float(2 ** LIGHT_STEPS_DEEP - 1), 'm')) })
+              If(full.greaterThan(0), () => { fullPath.assign(nearMarch(lightSteps, lightUnits, 'l', fineLightSteps)) })
+              If(full.lessThan(1), () => { deepPath.assign(nearMarch(int(LIGHT_STEPS_DEEP), float(2 ** LIGHT_STEPS_DEEP - 1), 'm', int(0))) })
               shadow.assign(mix(deepPath, fullPath, full))
               const far = min(toTop, thickness.mul(3)).toVar()
               If(far.greaterThan(near), () => {
@@ -398,6 +417,9 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
       cirrusSteps.value = t.cirrusSteps
       lightSteps.value = t.lightSteps
       lightUnits.value = 2 ** t.lightSteps - 1
+      fineLightSteps.value = t.fineLightSteps
+      const band = t.lightLodBandM ?? [NO_LOD_M, NO_LOD_M * 2]
+      lodBand.value.set(band[0], band[1])
     },
     setDebug(mode: CloudDebug | undefined): void {
       const modes: Record<CloudDebug, number> = { nodepth: 1, depth: 2, layer: 3, shape: 4, density: 5, slab: 6, point: 7, eye: 8 }
