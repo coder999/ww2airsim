@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, percentile, waitForTerrain, type DiagWindow } from './harness.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
@@ -113,4 +113,60 @@ test('H toggles the hook and is listed in the legend', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.controls().hookDown)).toBe(true)
   await expect(page.getByText(/Hook\s+H/)).toBeVisible()
   await expect(debriefDialog(page)).toBeHidden()
+})
+
+/**
+ * Photoreal Task 12 (spec §4.5): the carrier deck must read as a lit surface.
+ * Before it, the deck in deck-quals rendered at mean gray 1.0 of 255: the
+ * 16.5 h sun is 19.6 deg up, its path through the 55% cumulus deck puts the
+ * whole local sea in cloud shadow (T = 0.004 at the airplane), and the only
+ * light left was the CLEAR sky's fill -- the scattered skylight of the clouds
+ * themselves was missing (lighting.ts `cloudSkylightNode`, the fix).
+ *
+ * `DECK_RECT` is a fixed rectangle of the 2560x1440 frame below the parked
+ * airframe and its chocks, on the flight deck in deck-quals and on the
+ * asphalt in the runway view (chosen from the Task 12 captures, 2026-09-25).
+ */
+const DECK_RECT = { x: 700, y: 1150, w: 1200, h: 230 } as const
+async function meanGray(page: Page, url: string): Promise<number> {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(url)
+  await waitForTerrain(page)
+  await page.waitForTimeout(3000)
+  const png = await page.screenshot()
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  return page.evaluate(async ({ base64, r }) => {
+    const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob())
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(bitmap, 0, 0)
+    bitmap.close()
+    const { data } = ctx.getImageData(r.x, r.y, r.w, r.h)
+    let sum = 0
+    for (let p = 0; p < r.w * r.h; p++) sum += 0.2126 * data[p * 4]! + 0.7152 * data[p * 4 + 1]! + 0.0722 * data[p * 4 + 2]!
+    return sum / (r.w * r.h)
+  }, { base64: png.toString('base64'), r: DECK_RECT })
+}
+
+test('the carrier deck reads as a lit surface: within 0.5-1.5x the runway under the same sun, and not black in cloud shadow (photoreal Task 12)', async ({ page }) => {
+  const errors: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 400)) })
+  // Matched light: the deck-quals sun on both, cloud shadow off so where a
+  // cloud's shadow happens to fall does not decide the comparison. What is
+  // left is material and lighting -- the defects a black deck could have.
+  const matched = { cloudTier: 'high', oceanTier: 'high', timeOfDay: '16.5', cloudShadow: 'off' }
+  const q = (params: Record<string, string>) => new URLSearchParams(params).toString()
+  const runway = await meanGray(page, `/?${q(matched)}`)
+  const deck = await meanGray(page, `${URL}&${q(matched)}`)
+  // As shipped, in the cloud shadow: lit by the sky and the clouds alone.
+  const shadowed = await meanGray(page, `${URL}&${q({ cloudTier: 'high', oceanTier: 'high' })}`)
+  console.log(`deck luminance: runway ${runway.toFixed(1)} deck ${deck.toFixed(1)} ratio ${(deck / runway).toFixed(3)} shadowed deck ${shadowed.toFixed(1)}`)
+  expect(deck / runway).toBeGreaterThanOrEqual(0.5)
+  expect(deck / runway).toBeLessThanOrEqual(1.5)
+  // 1.0 before the fix; the floor is well clear of black and well under what
+  // the fix measured, so cloud drift across the deck cannot flip it.
+  expect(shadowed).toBeGreaterThan(5)
+  expect(errors).toEqual([])
 })

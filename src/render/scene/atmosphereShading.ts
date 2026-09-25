@@ -4,7 +4,7 @@ import { AP_MAX_DISTANCE_M, getAtmosphereLuts } from '../sky/atmosphereLuts.js'
 import { SUN_ILLUMINANCE } from '../sky/palette.js'
 import { ATMOSPHERE } from '../sky/atmosphere.js'
 import { FOG_DISTANCE_M, seaHitDistanceNode } from '../horizon.js'
-import { skyIrradianceUpNode, sunColorNode, sunDirectionNode, twilightHorizonNode, twilightZenithNode } from './lighting.js'
+import { cloudSkylightNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode, twilightHorizonNode, twilightZenithNode } from './lighting.js'
 import { SEA_COLOUR } from './water.js'
 
 /**
@@ -112,13 +112,24 @@ export function farFadeTarget(dir: Node<'vec3'>): Node<'vec3'> {
 export const MIRROR_MIN_Y_ABOVE_HORIZON = 0.004
 export function mirroredSky(dir: Node<'vec3'>): Node<'vec3'> {
   const d = dir.normalize()
-  return skyRadiance(vec3(d.x, max(d.y.negate(), trueHorizonSin().add(MIRROR_MIN_Y_ABOVE_HORIZON)), d.z))
+  return reflectedSky(vec3(d.x, d.y.negate(), d.z))
+}
+
+/** The sky along an already-reflected direction `r` (photoreal Task 12: the
+ *  sea's per-fragment wave-normal reflection), raised to the same floor as
+ *  `mirroredSky` so a grazing reflection off a wave's back never samples the
+ *  ground half of the horizon row. `mirroredSky` is this with a flat normal,
+ *  which is what keeps the terrain's far fade matched to the far sea. */
+export function reflectedSky(r: Node<'vec3'>): Node<'vec3'> {
+  const d = r.normalize()
+  return skyRadiance(vec3(d.x, max(d.y, trueHorizonSin().add(MIRROR_MIN_Y_ABOVE_HORIZON)), d.z))
 }
 
 /** Irradiance on the up-facing sea, as albedo/π scale: the transmitted sun
- *  on the horizontal plus the sky's (dusk floor included), divided by π. */
+ *  on the horizontal plus the sky's (dusk floor included) and the cumulus
+ *  deck's scattered skylight (lighting.ts), divided by π. */
 export function seaIrradianceOverPi(): Node<'vec3'> {
-  return sunColorNode.mul(max(sunDirectionNode.normalize().y, 0)).add(skyIrradianceUpNode).mul(1 / Math.PI)
+  return sunColorNode.mul(max(sunDirectionNode.normalize().y, 0)).add(skyIrradianceUpNode).add(cloudSkylightNode).mul(1 / Math.PI)
 }
 
 /**
@@ -126,7 +137,7 @@ export function seaIrradianceOverPi(): Node<'vec3'> {
  * i.e. at the terrain's draw distance: ocean/mesh.ts's formula with a flat
  * normal -- deep-water subsurface and the mirrored sky, Schlick-Fresnel
  * weighted. Kept here beside the terrain's fade so the two cannot drift; the
- * ocean mesh reads `mirroredSky` and `seaIrradianceOverPi` from here too.
+ * ocean mesh reads `reflectedSky` (the same floor) and `seaIrradianceOverPi` from here too.
  */
 export function farSeaColor(dir: Node<'vec3'>): Node<'vec3'> {
   const d = dir.normalize()

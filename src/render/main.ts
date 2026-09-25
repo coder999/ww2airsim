@@ -4,7 +4,7 @@ import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
-import { CAMERA_VFOV_DEG, cameraTransformFor, type CameraMode } from './camera.js'
+import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
 import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
@@ -62,7 +62,7 @@ import { createTowns, type Town } from './scene/towns.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
-import { applySun, createLighting } from './scene/lighting.js'
+import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
@@ -1160,6 +1160,7 @@ async function boot(): Promise<void> {
     cloudTier = name
     clouds.setTier(name)
     cloudPass?.setResolutionScale(CLOUD_TIERS[name].resolutionScale)
+    cloudPass?.setUpdatePeriod(CLOUD_TIERS[name].updatePeriod)
     shadow.setTier(name)
   }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
@@ -1284,6 +1285,7 @@ async function boot(): Promise<void> {
   })
   if (cloudPass !== null && cloudTier !== 'off') {
     cloudPass.setResolutionScale(CLOUD_TIERS[cloudTier].resolutionScale)
+    cloudPass.setUpdatePeriod(CLOUD_TIERS[cloudTier].updatePeriod)
     framePipeline.setOutput(cloudPass.composite)
   }
 
@@ -1295,6 +1297,7 @@ async function boot(): Promise<void> {
   // Repeatable scenery inspection with the existing DEV spawn overrides.
   // Hold position and look down; absent from production builds.
   const inspectScenery = import.meta.env.DEV && new URLSearchParams(location.search).get('sceneryView') === '1'
+  const forcedLook = import.meta.env.DEV ? lookFromQuery(location.search) : undefined
   if (inspectScenery) frame = withPaused(frame, true)
 
   // Ships in production, unlike `overlay` below: it is the pilot's only view
@@ -1754,6 +1757,9 @@ async function boot(): Promise<void> {
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage())
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
+    if (forcedLook !== undefined && current.look.yawRad === 0 && current.look.pitchRad === 0) {
+      current = { ...current, eye: cameraTransformFor(current.cameraMode, spec, current.render, forcedLook) }
+    }
     if (title.up()) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
@@ -2040,7 +2046,8 @@ async function boot(): Promise<void> {
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
-    applySun(lights, atmospherePalette(current.eye.position.y, elevationDeg), direction, elevationDeg)
+    applySun(lights, atmospherePalette(current.eye.position.y, elevationDeg), direction, elevationDeg,
+      cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

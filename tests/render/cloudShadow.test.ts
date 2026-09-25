@@ -6,7 +6,7 @@ import {
 import { createCloudField } from '../../src/render/scene/cloudField.js'
 import { SUN_DIRECTION } from '../../src/render/scene/lighting.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadCoverage, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../src/render/scene/ship.js'
@@ -31,7 +31,7 @@ import { loadAirfield, loadShipSpec } from '../../tools/content/load.js'
  *  fetches", tier-dependent). */
 const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
-const noise = { shape: loadShape(), detail: loadDetail(), coverage: loadCoverage() }
+const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather() }
 const deck = () => createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
 
 describe('cloud shadow map (Plan 16b)', () => {

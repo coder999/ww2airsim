@@ -57,10 +57,48 @@ export const twilightZenithNode = vec3Uniform(initial.zenith)
 export const twilightHorizonNode = vec3Uniform(initial.horizon)
 export const sunElevationNode = uniform(68)
 
+/**
+ * The downward diffuse light a cumulus deck scatters onto everything under
+ * it (photoreal Task 12), as irradiance on an up-facing surface in scene
+ * units. `skyIrradianceUpNode` is the CLEAR atmosphere's sky only, so before
+ * this a surface in cloud shadow was lit by the blue sky alone -- ~5% of the
+ * sunlit value -- and the carrier deck under deck-quals' low sun (19.5 deg,
+ * T ~ 0 over the whole local sea, `?cloudShadow=show` 2026-09-25) rendered
+ * black. The clouds themselves read the clear-sky uniform (their ambient is
+ * the sky ABOVE them); surfaces add this on top. Written by `applySun`.
+ */
+export const cloudSkylightNode = vec3Uniform([0, 0, 0])
+
+/**
+ * Fraction of the sun's normal irradiance a fully cumulus-covered sky returns
+ * downward as diffuse light. **An estimate**: two-stream diffuse transmittance
+ * of a tau ~ 20 cloud with g = 0.85 is 1 / (1 + 0.75 tau (1 - g)) = 0.31, and
+ * broken cumulus adds the light its sunlit sides scatter down; measured
+ * diffuse horizontal irradiance under broken cumulus runs ~0.25-0.35 of the
+ * direct normal at 50-70% cover. 0.4 x coverage lands there.
+ */
+export const CLOUD_SKYLIGHT_FRACTION = 0.4
+
+/** Combined cover of the cumulus layers, 1 - prod(1 - c): the fraction of the
+ *  sky a ground observer sees clouded. Cirrus is too thin to count. */
+export function cumulusCover(layers: readonly { readonly kind: string; readonly coverage: number }[]): number {
+  let clear = 1
+  for (const l of layers) if (l.kind === 'cumulus') clear *= 1 - Math.min(1, Math.max(0, l.coverage))
+  return 1 - clear
+}
+
+/** `cloudSkylightNode`'s value: sun normal irradiance x cover x fraction. */
+export function cloudSkylight(sunIrradiance: readonly [number, number, number], cover: number): [number, number, number] {
+  const k = CLOUD_SKYLIGHT_FRACTION * Math.min(1, Math.max(0, Number.isFinite(cover) ? cover : 0))
+  return [sunIrradiance[0] * k, sunIrradiance[1] * k, sunIrradiance[2] * k]
+}
+
 /** Drives the two lights and every sun/sky uniform from one palette and one
  *  direction. `direction` is the unit vector toward the sun (sun.ts); it is
- *  stored unnormalized-compatible, as `SUN_DIRECTION` always was. */
-export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3, elevationDeg: number): void {
+ *  stored unnormalized-compatible, as `SUN_DIRECTION` always was. `cover` is
+ *  `cumulusCover` of the weather: the HemisphereLight's sky color carries the
+ *  cloud skylight too, so every lit material under the deck gets it. */
+export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3, elevationDeg: number, cover = 0): void {
   const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)
   const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)
   if (!sun || !fill) throw new Error('applySun: the lighting group must hold the sun and the fill')
@@ -68,7 +106,10 @@ export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3,
   sun.color.setRGB(...palette.sunColor)
   sun.intensity = palette.sunIntensity
   // HemisphereLightNode: irradiance = mix(ground, sky, 0.5 + 0.5 n.y) x intensity.
-  fill.color.setRGB(...palette.fillSky)
+  const sunIrradiance = [0, 1, 2].map((i) => palette.sunColor[i]! * palette.sunIntensity) as [number, number, number]
+  const skylight = cloudSkylight(sunIrradiance, cover)
+  fill.color.setRGB(palette.fillSky[0] + skylight[0], palette.fillSky[1] + skylight[1], palette.fillSky[2] + skylight[2])
+  cloudSkylightNode.value.setRGB(...skylight)
   fill.groundColor.setRGB(...palette.fillGround)
   fill.intensity = 1
   sunDirectionNode.value.set(direction.x, direction.y, direction.z)

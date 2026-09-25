@@ -1,12 +1,12 @@
-import { ACESFilmicToneMapping, AgXToneMapping, HalfFloatType, NoToneMapping, RGFormat, type Camera, type Scene, type ToneMapping } from 'three'
+import { ACESFilmicToneMapping, AgXToneMapping, NoToneMapping, type Camera, type Scene, type ToneMapping } from 'three'
 import { RenderPipeline, type Node, type PassNode, type TextureNode, type WebGPURenderer } from 'three/webgpu'
-import { Fn, clamp, convertToTexture, float, floor, int, ivec2, luminance, max, min, mix, mrt, output, pass, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
+import { Fn, clamp, convertToTexture, float, floor, int, ivec2, luminance, max, min, mix, pass, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import TRAANode from 'three/addons/tsl/display/TRAANode.js'
 import { smaa } from 'three/addons/tsl/display/SMAANode.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import type { ToneMapName } from './exposure.js'
-import { MOTION_OUTPUT, advanceVelocity, resetVelocity, sceneVelocity } from './scene/velocity.js'
+import { advanceVelocity, createCameraMotion, resetVelocity } from './scene/velocity.js'
 
 /**
  * The frame as a render pipeline (photoreal render pass, spec §4.1). The
@@ -53,17 +53,15 @@ import { MOTION_OUTPUT, advanceVelocity, resetVelocity, sceneVelocity } from './
  *   `needsUpdate` of its own. `toneMappingExposure` is a renderer-reference
  *   uniform (`ToneMappingNode.js`), read every frame with no rebuild.
  *
- * Anti-aliasing (spec §4.2, Task 6): TRAA replaces MSAA. The scene pass
- * writes a second MRT attachment, `motion` (`MOTION_OUTPUT`: a per-vertex
- * `VelocityNode`, or the world-fixed override on the camera-following sea --
- * scene/velocity.ts has why, and why the output is NOT named `velocity`), and
- * `TRAANode` resolves the picture against its own history between the
- * picture texture and bloom, so bloom and the output both see the resolved
- * frame. TRAA jitters the camera's projection for the length of
- * `RenderPipeline.render` (its `OnBeforeRenderPipeline` / `OnAfterRenderPipeline`
- * hooks, TRAANode.js), so the cloud pass, which renders inside it, marches
- * the same jittered pixels the scene pass drew. SMAA (no history, no jitter)
- * is the spec's fallback and stays selectable with DEV `?aa=smaa`.
+ * Anti-aliasing (spec §4.2, Cloud Fidelity II §3.1): TRAA replaces MSAA.
+ * `createCameraMotion` reconstructs static-world motion in a quarter-linear-
+ * resolution pass, avoiding the scene-wide motion MRT's ~2 ms cost at 4K.
+ * `TRAANode` resolves the picture against its own history between
+ * the picture texture and bloom, so bloom and the output both see the
+ * resolved frame. TRAA jitters the camera's projection for the length of
+ * `RenderPipeline.render`; the scene, cloud and reconstruction passes
+ * therefore agree on the sampled depth. SMAA (no history, no jitter) remains
+ * selectable with DEV `?aa=smaa`.
  */
 export type FramePipeline = {
   readonly scenePass: PassNode
@@ -77,13 +75,11 @@ export type FramePipeline = {
   /** RCAS amount after anti-aliasing, 0..1 (`SHARPEN_AMOUNT`); a uniform. */
   setSharpen(amount: number): void
   /** The eye's world position for the frame about to render (camera-relative
-   *  rendering), for the world-fixed motion vectors. Once per rendered frame. */
+   *  rendering), for depth-reconstructed motion. Once per rendered frame. */
   setEye(eye: Vec3): void
   /** The next rendered frame resolves without TRAA history (see `Traa`),
-   *  and the ocean's world-fixed motion restarts at zero. Other meshes keep
-   *  three's per-object previous matrices across the reset -- harmless: the
-   *  reset frame blends the current picture with itself whatever the motion
-   *  says. Called on every discontinuity the cloud history resets on. */
+   *  and reconstructed camera motion restarts at zero. Called on every
+   *  discontinuity the cloud history resets on. */
   resetHistory(): void
   /** `resetHistory` calls since boot. */
   historyResets(): number
@@ -249,19 +245,12 @@ const ORIGIN: Vec3 = { x: 0, y: 0, z: 0 }
 
 export function createFramePipeline(renderer: WebGPURenderer, scene: Scene, camera: Camera): FramePipeline {
   const scenePass = pass(scene, camera) as unknown as PassNode
-  // Task 6: motion vectors for TRAA. Written under SMAA too (a DEV
-  // comparison only), so switching modes never has to rebuild the pass.
-  scenePass.setMRT(mrt({ output, [MOTION_OUTPUT]: sceneVelocity }))
-  // Two half floats, not the pass's RGBA16F default: velocity is a vec2 and
-  // every scene fragment writes it, so the attachment is half the bandwidth.
-  const velocityTexture = scenePass.getTexture(MOTION_OUTPUT)
-  velocityTexture.format = RGFormat
-  velocityTexture.type = HalfFloatType
   const sceneColor = scenePass.getTextureNode('output') as unknown as Node<'vec4'>
   const sceneDepth = scenePass.getTextureNode('depth') as unknown as Node<'float'>
+  const cameraMotion = createCameraMotion(sceneDepth as unknown as TextureNode, camera)
   const inputs: AaInputs = {
     depth: sceneDepth as unknown as TextureNode,
-    velocity: scenePass.getTextureNode(MOTION_OUTPUT) as unknown as TextureNode,
+    velocity: cameraMotion.source,
     camera,
   }
   // Production is always AgX; `setToneMap` exists for DEV `?toneMap=`.
@@ -309,6 +298,6 @@ export function createFramePipeline(renderer: WebGPURenderer, scene: Scene, came
       advanceVelocity(camera, eye ?? ORIGIN)
       pipeline.render()
     },
-    dispose() { pipeline.dispose(); chain.dispose(); scenePass.dispose() },
+    dispose() { pipeline.dispose(); chain.dispose(); cameraMotion.dispose(); scenePass.dispose() },
   }
 }
