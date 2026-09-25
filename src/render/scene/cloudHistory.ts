@@ -6,8 +6,10 @@ import type { Vec3 } from '../../sim/math/vec3.js'
  * Temporal accumulation for the reduced-resolution cloud pass (photoreal
  * spec §4.1, Task 4, 2026-09-24): the pure arithmetic, in JS for tests and in
  * TSL for the resolve shader in cloudPass.ts. The two are written line for
- * line alike; the TSL one is proved on the GPU by `cloudTemporal.spec.ts`'s
- * look-left case, not by this file's tests.
+ * line alike. This file's tests pin the JS; the TSL one is checked on the GPU
+ * by `cloudTemporal.spec.ts`'s "reprojection direction" case, which measures
+ * the resolve's own mapping against deliberately reversed and mirrored ones
+ * during a held pull-up (`ReprojectionResidual`, cloudPass.ts).
  */
 
 /** Weight of the reprojected history in the resolve: `mix(current, history, HISTORY_BLEND)`. */

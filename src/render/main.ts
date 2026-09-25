@@ -4,7 +4,7 @@ import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
-import { CAMERA_VFOV_DEG, cameraTransformFor } from './camera.js'
+import { CAMERA_VFOV_DEG, cameraTransformFor, type CameraMode } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
 import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
@@ -884,6 +884,8 @@ async function boot(): Promise<void> {
       // Plan 16b: the shadow map read back at a world point, for the
       // world-stability check a screenshot cannot make.
       cloudShadowAt: (x: number, z: number) => shadow.readAt(renderer, x, z),
+      // Photoreal Task 4 fix round 1: the reprojection-direction check.
+      cloudReprojectionResidual: () => cloudPass?.measureReprojectionResidual() ?? Promise.resolve(null),
       // Plan 17: the radar scope read back at a (bearing, range), for the
       // world-stability check a screenshot cannot make -- mirrors `cloudShadowAt`.
       radarPixelAt: (bearingRad: number, rangeMi: number) => radarScope.readAt(renderer, bearingRad, rangeMi),
@@ -1640,6 +1642,7 @@ async function boot(): Promise<void> {
   let cloudHistoryEye: Vec3 | null = null
   let cloudHistoryAtMs = 0
   let cloudHistoryPaused = false
+  let cloudHistoryCameraMode: CameraMode | null = null
   // Whether a timestamp resolve is outstanding; see the call site below.
   let gpuResolvePending = false
   const frameFn = (now: number): void => {
@@ -2020,7 +2023,8 @@ async function boot(): Promise<void> {
       // Photoreal Task 4: the cloud pass's temporal state, fed only on frames
       // that actually render (a frame skipped above leaves the history where
       // it was, so the next test measures from the last RENDERED frame).
-      // Reset on a teleport or a stall (`shouldResetHistory`) and on unpause;
+      // Reset on a teleport or a stall (`shouldResetHistory`), on unpause and
+      // on a camera-mode cut;
       // restart and scenario switch reset through `resetFlightUi`.
       if (cloudPass !== null) {
         const eye = current.eye.position
@@ -2028,10 +2032,14 @@ async function boot(): Promise<void> {
           eye, prevEye: cloudHistoryEye, frameSeconds: (now - cloudHistoryAtMs) / 1000, timeScale: current.timeScale,
         })) cloudPass.resetHistory()
         if (cloudHistoryPaused && !current.paused) cloudPass.resetHistory()
+        // A chase <-> cockpit cut is a new view, whatever the speed test
+        // makes of a 10 m eye jump at this frame rate.
+        if (cloudHistoryCameraMode !== null && current.cameraMode !== cloudHistoryCameraMode) cloudPass.resetHistory()
         cloudPass.setEye(eye)
         cloudHistoryEye = eye
         cloudHistoryAtMs = now
         cloudHistoryPaused = current.paused
+        cloudHistoryCameraMode = current.cameraMode
       }
       framePipeline.render()
     }

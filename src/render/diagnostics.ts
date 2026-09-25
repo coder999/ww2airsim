@@ -9,6 +9,7 @@ import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
 import type { CombatDiagnostics } from './combatReadout.js'
 import type { CloudLayer } from '../sim/scenario.js'
+import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
 
@@ -341,6 +342,10 @@ export type Ww2Diagnostics = {
    *  null outside the map / with the pass off. A fixed point must read the
    *  same from any eye position: the map is world-anchored, not eye-anchored. */
   readonly cloudShadowAt: (x: number, z: number) => Promise<number | null>
+  /** Photoreal Task 4 fix round 1: the cloud resolve's reprojection residual
+   *  on the next rendered frame, for the correct mapping and two deliberately
+   *  wrong ones (`ReprojectionResidual`, cloudPass.ts); null with no pass. */
+  readonly cloudReprojectionResidual: () => Promise<ReprojectionResidual | null>
   /** Plan 17 DEV diagnostic: the radar scope's green-channel brightness at
    *  a given (bearingRad, rangeMi), read back the same way
    *  `cloudShadowAt` proves the cloud shadow map -- a direct pixel

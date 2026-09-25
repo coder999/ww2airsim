@@ -63,7 +63,26 @@ export type CloudPass = {
   /** Frames resolved without history since boot (every reset, the first
    *  frame and every resize), for the Tier 2 discontinuity case. */
   historyResets(): number
+  /** Measures `ReprojectionResidual` on the next rendered frame (DEV
+   *  diagnostic; the pass it needs is compiled on first use only). */
+  measureReprojectionResidual(): Promise<ReprojectionResidual | null>
   dispose(): void
+}
+
+/**
+ * DEV check of the resolve's reprojection direction (Task 4 fix round 1):
+ * the mean over the low-resolution target of |last frame's march at the
+ * reprojected position - this frame's march| (summed over rgba), for the
+ * mapping the resolve actually uses and for two deliberately wrong ones --
+ * the motion reversed (`2 * uvHere - uv`) and v mirrored (`1 - v`, the
+ * render-target y-flip trap). All three come from ONE pass over ONE frame,
+ * so they share content exactly. During a continuous maneuver the correct
+ * mapping must have the smallest residual; `cloudTemporal.spec.ts` asserts
+ * it. `reset` is true when the frame had no valid previous frame (the
+ * numbers are then meaningless).
+ */
+export type ReprojectionResidual = {
+  readonly correct: number; readonly reversed: number; readonly mirrored: number; readonly reset: boolean
 }
 
 /** The cloud target's size for a drawing buffer and a per-axis scale. */
@@ -165,6 +184,18 @@ class CloudPassNode extends TempNode<'vec4'> {
    *  rotation-only view, since the camera sits at the origin every frame. */
   private readonly prevViewProjection = uniform(new Matrix4())
   private readonly historyValid = uniform(0)
+  /** Last frame's march color, for the DEV reprojection-residual check only. */
+  private readonly prevMarchColor = texture(this.march[1].textures[0]!) as unknown as TextureNode
+  /** The reprojection of one low-resolution texel into the previous frame,
+   *  shared by the resolve and the residual check so the check measures
+   *  exactly the mapping the resolve uses. Assigned in the constructor. */
+  private readonly reprojectTexel: (cell: Node<'vec2'>, data: Node<'vec4'>) => {
+    dir: Node<'vec3'>; cosView: Node<'float'>; valid: Node<'bool'>; uv: Node<'vec2'>
+  }
+  /** Screen UV of the previous frame -> continuous previous low-res texel coordinate. */
+  private readonly prevLowOf = (uv: Node<'vec2'>): Node<'vec2'> => uv.mul(this.fullSize).div(this.cellsF) as unknown as Node<'vec2'>
+  private residual: { target: RenderTarget; material: NodeMaterial; quad: QuadMesh } | null = null
+  private residualRequests: ((r: ReprojectionResidual | null) => void)[] = []
   private eye: Vec3 | null = null
   private prevEye: Vec3 | null = null
   private resetPending = true
@@ -197,6 +228,12 @@ class CloudPassNode extends TempNode<'vec4'> {
       const viewH = projectionInverse.mul(vec4(ndc, 0.5, 1)).toVar()
       const viewDir = normalize(viewH.xyz.div(viewH.w)).toVar()
       return { dir: cameraWorld.mul(vec4(viewDir, 0)).xyz as unknown as Node<'vec3'>, cosView: viewDir.z.negate() as unknown as Node<'float'> }
+    }
+
+    this.reprojectTexel = (cell, data) => {
+      const { dir, cosView } = rayThrough(cell)
+      const reprojected = reprojectUvNode(dir, data.x as unknown as Node<'float'>, this.eyeDelta as unknown as Node<'vec3'>, this.prevViewProjection as unknown as Node<'mat4'>)
+      return { dir, cosView, valid: reprojected.valid, uv: vec2(reprojected.uv).toVar() as unknown as Node<'vec2'> }
     }
 
     const march = Fn(() => {
@@ -278,10 +315,9 @@ class CloudPassNode extends TempNode<'vec4'> {
         hi.assign(max(hi, n))
       }
       const data = this.marchData.load(at).toVar()
-      const { dir, cosView } = rayThrough(cell as unknown as Node<'vec2'>)
-      const reprojected = reprojectUvNode(dir, data.x as unknown as Node<'float'>, this.eyeDelta as unknown as Node<'vec3'>, this.prevViewProjection as unknown as Node<'mat4'>)
-      const uv = vec2(reprojected.uv).toVar()
-      const prevLow = uv.mul(this.fullSize).div(this.cellsF).toVar()
+      const reprojected = this.reprojectTexel(cell as unknown as Node<'vec2'>, data as unknown as Node<'vec4'>)
+      const { dir, cosView, uv } = reprojected
+      const prevLow = vec2(this.prevLowOf(uv)).toVar()
       const history = this.historyRead.sample(prevLow.div(this.lowSize))
       const clamped = clamp(history, lo, hi)
       // Disocclusion: today's stop point, in the previous camera.
@@ -335,6 +371,7 @@ class CloudPassNode extends TempNode<'vec4'> {
     this.marchColor.value = march.textures[0]!
     this.marchData.value = march.textures[1]!
     this.prevMarchData.value = this.march[1 - this.current]!.textures[1]!
+    this.prevMarchColor.value = this.march[1 - this.current]!.textures[0]!
     renderer.setRenderTarget(march)
     this.quad.render(renderer)
 
@@ -348,6 +385,7 @@ class CloudPassNode extends TempNode<'vec4'> {
     renderer.setRenderTarget(history)
     this.resolveQuad.render(renderer)
     this.resolved.value = history.texture
+    if (this.residualRequests.length > 0) this.renderResidual(renderer, reset)
     if (reset) this.resets++
 
     // 3. This frame becomes the previous one. The scene pass has already
@@ -433,11 +471,71 @@ class CloudPassNode extends TempNode<'vec4'> {
     return composite() as unknown as Node<'vec4'>
   }
 
+  measureResidual(): Promise<ReprojectionResidual | null> {
+    return new Promise((resolve) => { this.residualRequests.push(resolve) })
+  }
+
+  /** The residual pass (see `ReprojectionResidual`), built on first use. */
+  private buildResidual(): { target: RenderTarget; material: NodeMaterial; quad: QuadMesh } {
+    const target = new RenderTarget(1, 1, { type: FloatType, format: RGBAFormat, depthBuffer: false })
+    target.texture.minFilter = target.texture.magFilter = NearestFilter
+    const material = new NodeMaterial()
+    material.fragmentNode = Fn(() => {
+      const cell = floor(screenCoordinate.xy).toVar()
+      const at = ivec2(cell).toVar()
+      const current = this.marchColor.load(at).toVar()
+      const data = this.marchData.load(at).toVar()
+      const { uv } = this.reprojectTexel(cell as unknown as Node<'vec2'>, data as unknown as Node<'vec4'>)
+      const here = cell.add(0.5).mul(this.cellsF).div(this.fullSize)
+      const residual = (at2: Node<'vec2'>): Node<'float'> => {
+        const d = abs(this.prevMarchColor.sample(this.prevLowOf(at2).div(this.lowSize)).sub(current))
+        return d.x.add(d.y).add(d.z).add(d.w) as unknown as Node<'float'>
+      }
+      return vec4(
+        residual(uv),
+        residual(here.mul(2).sub(uv) as unknown as Node<'vec2'>),
+        residual(vec2(uv.x, float(1).sub(uv.y)) as unknown as Node<'vec2'>),
+        1,
+      )
+    })()
+    material.name = 'CloudResidual'
+    const quad = new QuadMesh(material)
+    quad.name = 'CloudResidual'
+    return { target, material, quad }
+  }
+
+  private renderResidual(renderer: WebGPURenderer, reset: boolean): void {
+    const requests = this.residualRequests
+    this.residualRequests = []
+    this.residual ??= this.buildResidual()
+    const { target, quad } = this.residual
+    const width = this.march[0].width
+    const height = this.march[0].height
+    target.setSize(width, height)
+    renderer.setRenderTarget(target)
+    quad.render(renderer)
+    // 16 float4 texels = 256 bytes: a width that is a multiple of 16 needs no
+    // row padding in three's readback (WebGPUTextureUtils.copyTextureToBuffer
+    // pads every row to 256 bytes).
+    const readWidth = Math.max(16, Math.floor(width / 16) * 16)
+    if (readWidth > width) { for (const r of requests) r(null); return }
+    void renderer.readRenderTargetPixelsAsync(target, 0, 0, readWidth, height).then((pixels) => {
+      const data = pixels as Float32Array
+      let correct = 0, reversed = 0, mirrored = 0
+      for (let i = 0; i < data.length; i += 4) { correct += data[i]!; reversed += data[i + 1]!; mirrored += data[i + 2]! }
+      const n = data.length / 4
+      const result = { correct: correct / n, reversed: reversed / n, mirrored: mirrored / n, reset }
+      for (const r of requests) r(result)
+    }, () => { for (const r of requests) r(null) })
+  }
+
   override dispose(): void {
     super.dispose()
     for (const target of [...this.march, ...this.history]) target.dispose()
     this.material.dispose()
     this.resolveMaterial.dispose()
+    if (this.residual !== null) { this.residual.target.dispose(); this.residual.material.dispose() }
+    for (const r of this.residualRequests) r(null)
   }
 }
 
@@ -458,6 +556,7 @@ export function createCloudPass(opts: {
     setEye(eye) { node.setEye(eye) },
     resetHistory() { node.resetHistory() },
     historyResets() { return node.resets },
+    measureReprojectionResidual() { return node.measureResidual() },
     dispose() { node.dispose() },
   }
 }
