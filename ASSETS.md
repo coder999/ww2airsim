@@ -28,6 +28,60 @@ retraction keyframes) 2026-09-24. Node names used by
 `src/render/scene/wildcat.ts`: `Helice` (propeller), `GRP_Rueda_Der` /
 `GRP_Rueda_Izq` (main gear, right/left). The model has no flap geometry.
 
+### Candidate models (downloaded, not bundled)
+
+Staged in `content/models/candidates/` (gitignored), each with a
+`<name>.sketchfab.json` beside it holding the uid, author, license slug and
+fetch time. The ships, props and low-poly models were fetched 2026-09-25
+through the Sketchfab download API. The eight aircraft with underscore names
+were downloaded by hand on 2026-09-24 from
+`docs/handoff/2026-09-24-aircraft-model-candidates.md`; their source was
+recovered 2026-09-25 from the attribution Sketchfab embeds in every glTF
+export (`asset.extras`), then re-checked against the API. **None ships yet.** Promoting one
+means building it through `tools/models/` and moving its row into the table
+above.
+
+Each license was read from `api.sketchfab.com/v3/models/<uid>`, not the page,
+on the fetch date. That proves only what the uploader chose. Authorship was
+judged separately, from the description and the uploader's other models, and
+everything below showed no rip or re-upload signs. "Faces" is the
+triangle count after glTF import.
+
+| Candidate | Source | Author | License | Faces | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 | 43k | Generic 1943–44 Fletcher, full hull, rigging |
+| `cleveland-cl.glb` | https://sketchfab.com/3d-models/uss-cleveland-model-fpr-14000-printing-da03808e0aa74ca89a237ce4da2ac29e | KTKloss | CC-BY 4.0 | 9k | Printing model, untextured, waterline |
+| `mogami-ca.glb` | https://sketchfab.com/3d-models/ijn-mogami-model-for-14000-printing-89ccafb8c0884b868d806d7654f0fa71 | KTKloss | CC-BY 4.0 | 6k | 8-inch heavy-cruiser fit, untextured |
+| `musashi-bb.glb` | https://sketchfab.com/3d-models/ijn-musashi-model-for-small-scale-printing-698f9b6de9204609ae09aaa98f6f1e30 | KTKloss | CC-BY 4.0 | 10k | Yamato class, untextured |
+| `shiratsuyu-dd-samidare.glb` | https://sketchfab.com/3d-models/samidare-destroyer-b37939147c854e61857f5b248f9efd29 | everlasting17th (@everlastinggrey) | CC-BY 4.0 | 140k | 23 textures; needs decimation |
+| `f6f-hellcat-lowpoly.glb` | https://sketchfab.com/3d-models/f6f-hellcat-5b0151482fa745d5ade945be7963262e | snrnsrk5 | CC-BY 4.0 | 2k | Low-poly, textured |
+| `a6m3-zero-lowpoly.glb` | https://sketchfab.com/3d-models/mitsubishi-a6m3-zero-cb9fa84167ac4efa9d8aebcab133f7f3 | Mamoru_Morimoto | CC-BY 4.0 | 1k | Low-poly |
+| `p38-lightning.glb` | https://sketchfab.com/3d-models/p38-7eab500310604fd996b116f9cd7520a7 | manilov.ap | CC-BY 4.0 | 114k | Untextured |
+| `bomb-m64-500lb.glb` | https://sketchfab.com/3d-models/low-poly-wwii-style-500lb-bomb-c6f4e1adb6f940ae83d0386e79d5ca1c | Pippa (@Planetrix23) | CC-BY 4.0 | 1k | US M64 |
+| `torpedo-bliss-leavitt-mk2.glb` | https://sketchfab.com/3d-models/torpedo-mk2-993688382c4a41489a11d26814c72178 | AlanTinka | CC-BY 4.0 | 121k | A 1904-era ship torpedo, not the aerial Mk 13 |
+| `flag-rising-sun.glb` | https://sketchfab.com/3d-models/flag-of-the-rising-sun-japanese-flag-77ae0df787c445818849a787c0a0ca85 | Mamoru_Morimoto | CC-BY 4.0 | 8k | IJN naval ensign |
+| `type97-chi-ha.glb` | https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6 | snrnsrk5 | CC-BY 4.0 | 4k | Low-poly, textured |
+| `willys-mb-jeep.glb` | https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98 | MattyNL | CC-BY 4.0 | 19k | Made by the uploader for the Darkest Hour mod, not ripped from it |
+| `f4u.glb` | https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284 | manilov.ap | CC-BY 4.0 | 30k | Same author and set as `f6f.glb`, `ki43.glb`, `p38-lightning.glb` |
+| `f6f.glb` | https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e | manilov.ap | CC-BY 4.0 | 37k | 276 separate meshes |
+| `ki43.glb` | https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6 | manilov.ap | CC-BY 4.0 | 19k | |
+| `aichi_d3a_val.glb` | https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501 | helijah | CC-BY 4.0 | 293k | FlightGear modeler; needs decimation |
+| `boeing_b-17_flying_fortress.glb` | https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5 | helijah | CC-BY 4.0 | 763k | FlightGear modeler; needs heavy decimation |
+| `mitsubishi_g4m.glb` | https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368 | Jec (@Jec_Games) | CC-BY 4.0 | 3k | Low-poly game asset |
+| `a6m_zero.glb` | https://sketchfab.com/3d-models/a6m-zero-dfc211d9a0684d90b3f0d09ec560e97f | zdw930 | CC-BY 4.0 | 5k | **Authorship uncertain:** no origin stated, and the account also posts a "Do-17z-7 Reskin". Prefer `a6m3-zero-lowpoly.glb` |
+| `boeing_b-29_superfortress.glb` | https://sketchfab.com/3d-models/boeing-b-29-superfortress-5b051209bff445ff88eab3bd94fdfdfd | Spark_Customs | CC-BY 4.0 | 45k | **Suspect, do not ship as-is:** this account's Essex carrier says "Imported from Free3D" (a personal-use license), and its uploads span unrelated aircraft and cars with no tags |
+
+All require author credit under CC-BY 4.0
+(https://creativecommons.org/licenses/by/4.0/).
+
+**Checked and rejected 2026-09-25**, so they are not re-found:
+
+- Shinano-class "Kii": no license, not downloadable; the description says "taken from World of Warships".
+- Akagi (ThomasBeerens), Type 97 Shinhoto Chi-Ha 120mm (AdamKozakGrafika), A6M Zero (NETRUNNER_pl): Sketchfab Standard license, sold, not downloadable.
+- B-29 (Escou): not downloadable, sold on Fab.
+- Everything by kriss50, KojfDiscord, lxyun_2 and oiopu: self-declared game rips or re-uploads.
+- bsterling's USS Cleveland: relabeled CC-BY, but the original was CC-BY-NC.
+
 ## Textures and audio
 
 Original deterministic terrain and weathering textures generated by

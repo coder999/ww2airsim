@@ -147,11 +147,13 @@ before art/hull-geometry work begins. `role` matches
 | Pennsylvania-class battleship | Battleship, friendly — one of the pre-war "Old Battleships" that fought at Surigao Strait |
 | Type B "Maru" transport | Merchant, hostile (shipped: `type-b-maru.json`) |
 | Kagero-class destroyer | Escort, hostile |
+| Shiratsuyu-class destroyer | Escort, hostile — *Shigure* was the only survivor of Nishimura's force at Surigao Strait |
 | Mogami-class heavy cruiser | Cruiser, hostile |
 | Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
 
-Three of nine are shipped content today; the rest are names and roles only,
-same status as most of the aircraft roster above.
+Three of ten are shipped content today; the rest are names and roles only,
+same status as most of the aircraft roster above. Candidate 3D models for
+several of them are recorded in `ASSETS.md` under "Candidate models".
 
 ## Building roster
 
@@ -207,6 +209,18 @@ crates and a windsock. They block trees and are visual only.
 | Revetment | Cover for parked aircraft; not a target in itself |
 | Coastal gun battery | Hostile shore defence, the shore counterpart of AAA |
 | Pier and warehouses | Harbour target at a port town; supply objective |
+
+## Vehicle roster
+
+New 2026-09-25, candidate only. No vehicle exists in the sim, and the
+[scoring table](#scoring) has no vehicle row, so none of these can be shot or
+scored yet. Listed so the candidate models in `ASSETS.md` have a role to be
+checked against.
+
+| Vehicle | Role |
+| --- | --- |
+| Type 97 Chi-Ha medium tank | Hostile ground target |
+| Willys MB jeep | Friendly airfield scenery |
 
 ## Scenarios
 
