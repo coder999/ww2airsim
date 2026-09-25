@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { Group, Vector3 } from 'three'
 import { createPanel } from '../../src/render/scene/panel.js'
 import { cameraTransformFor } from '../../src/render/camera.js'
-import { advance, createWorldOf, withControls, type AircraftEntity, type Stepper, type World } from '../../src/sim/loop.js'
+import { advance, createWorldOf, withControls, type World } from '../../src/sim/loop.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { createState, type AircraftState, type Controls } from '../../src/sim/flight/state.js'
+import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { add, normalize, scale, sub, v3, type Vec3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../../src/sim/math/quat.js'
+import { cruise, entity, FIRE, HOLD, LEVEL_EAST, levelStateAt, meanProductionImpact, SPEED_MPS, START } from './productionImpact.js'
 import { inBody } from '../../src/sim/weapons/geometry.js'
 import { gunHarmonization } from '../../src/sim/weapons/harmonization.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -25,26 +26,15 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
  *
  * The world is a co-moving tail chase: both airplanes level at 120 m/s along
  * body +x, stepped at constant velocity rather than through the flight model
- * (`cruise` below), so there is no deflection and the only question is the
+ * (`cruise`, productionImpact.ts), so there is no deflection and the only question is the
  * sight's harmonization.
  */
 
 const f6f = loadAircraftSpec('f6f-hellcat')
-const SPEED_MPS = 120
-const ATTITUDE = qFromAxisAngle(v3(0, 1, 0), 0) // body +x = world +x
-const START = v3(0, 3000, 0)
-const FIRE: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7, fire: true }
-const HOLD: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 }
+const ATTITUDE = LEVEL_EAST
 const deg = (rad: number): number => rad * 180 / Math.PI
-
-const cruise: Stepper = (_spec, state, _controls, ctx) =>
-  ({ ...state, position: add(state.position, scale(state.velocity, ctx.dt)), tick: ctx.tick })
-
-const stateAt = (position: Vec3): AircraftState =>
-  createState({ position, velocity: v3(SPEED_MPS, 0, 0), attitude: ATTITUDE })
-
-const entity = (id: string, state: AircraftState): AircraftEntity<undefined> =>
-  ({ id, spec: f6f, state, previous: state, controls: HOLD, assistMemory: undefined, impact: null, parked: false })
+const stateAt = levelStateAt
+const entityOf = (id: string, state: AircraftState) => entity(f6f, id, state)
 
 /** The reticle's line of sight, world frame, read off the built panel posed
  *  on the airframe exactly as main.ts poses it (`cockpit` group). */
@@ -66,7 +56,7 @@ function burstOnReticle(rangeM: number): { hits: number; shots: number; killS: n
   const shooter = stateAt(START)
   const { eye, direction } = reticleLine(shooter)
   const target = stateAt(add(eye, scale(direction, rangeM)))
-  let world: World<undefined> = createWorldOf({ aircraft: [entity('f6f-1', shooter), entity('target', target)], player: 'f6f-1' })
+  let world: World<undefined> = createWorldOf({ aircraft: [entityOf('f6f-1', shooter), entityOf('target', target)], player: 'f6f-1' })
   let killS: number | null = null
   for (let i = 0; i < 150; i++) {
     world = advance(withControls(world, 'f6f-1', i < 60 ? FIRE : HOLD), DT, cruise).world
@@ -88,24 +78,10 @@ describe('the gunsight is harmonized with the guns (2026-09-25)', () => {
     // the mean of where each round crosses convergence range in the
     // shooter's co-moving body frame.
     const shooter = stateAt(START)
-    let world: World<undefined> = createWorldOf({ aircraft: [entity('f6f-1', shooter)], player: 'f6f-1' })
     const range = f6f.combat!.convergenceM
-    const last = new Map<number, Vec3>()
-    const crossings: Vec3[] = []
-    for (let i = 0; i < 90; i++) {
-      world = advance(withControls(world, 'f6f-1', i < 60 ? FIRE : HOLD), DT, cruise).world
-      const me = world.aircraft[0]!.state
-      for (const p of world.combat.projectiles) {
-        const body = inBody(me.attitude, sub(p.position, me.position))
-        const before = last.get(p.id)
-        if (before !== undefined && before.x < range && body.x >= range) {
-          crossings.push(add(before, scale(sub(body, before), (range - before.x) / (body.x - before.x))))
-        }
-        last.set(p.id, body)
-      }
-    }
-    expect(crossings.length).toBeGreaterThan(60)
-    const meanY = crossings.reduce((s, c) => s + c.y, 0) / crossings.length
+    const { mean, rounds } = meanProductionImpact(f6f, range)
+    expect(rounds).toBeGreaterThan(60)
+    const meanY = mean.y
     const [ex, ey] = f6f.view.eyePointM
     const impactDeg = deg(Math.atan2(ey - meanY, range - ex))
 

@@ -66,6 +66,7 @@ import { applySun, createLighting } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
+import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
@@ -1232,6 +1233,8 @@ async function boot(): Promise<void> {
   const cockpit = new Group()
   cockpit.add(panel.root)
   scene.add(cockpit)
+  const gunPipper = createGunPipper(spec) // chase-view aiming reference (scene/gunPipper.ts)
+  if (gunPipper) scene.add(gunPipper.root)
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -1838,6 +1841,7 @@ async function boot(): Promise<void> {
     const visibility = airframeVisibilityFor(current.cameraMode)
     cockpit.visible = visibility.cockpitVisible
     playerAirframe.root.visible = visibility.hellcatVisible
+    if (gunPipper) poseGunPipper(gunPipper, playerAirframe.root, visibility.hellcatVisible)
     // Numeric gauges from the simulated tick; the attitude ball from the
     // INTERPOLATED attitude, because it is the one instrument compared
     // against something visible in the same frame. `current.controls` is
