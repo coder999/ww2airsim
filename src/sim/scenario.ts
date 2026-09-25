@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { AircraftSpec } from './flight/schema.js'
 import { createState, type Controls } from './flight/state.js'
 import { createWorldOf, type AircraftEntity, type ShipEntity, type World } from './loop.js'
-import { type Vec3, v3 } from './math/vec3.js'
+import { type Vec3, v3, ZERO } from './math/vec3.js'
 import { type Airfield, localToWorld, parkedAttitude } from './world/airfields.js'
 import { deckOf, deckWorld } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
@@ -55,7 +55,16 @@ function pilotAssignmentFrom(pilot: z.infer<typeof PilotObject> | undefined): Pi
   return {
     target: pilot.target,
     skill: pilot.skill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL,
-    decision: { maneuver: 'pursue', nextRescoreS: 0 },
+    decision: {
+      maneuver: 'pursue',
+      nextRescoreS: 0,
+      // Immediately overwritten at the first rescore (nextRescoreS: 0
+      // guarantees tick 1 triggers one) -- a fixed, knowable seed, same
+      // convention as nextRescoreS's own starting value.
+      observedTargetPosition: ZERO,
+      observedTargetVelocity: ZERO,
+      noiseCursor: 0,
+    },
   }
 }
 

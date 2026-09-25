@@ -2,10 +2,17 @@ import type { AircraftEntity } from '../loop.js'
 import { cross, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 
 export type PilotSkill = {
-  /** Seconds between decision-layer rescores. Lower = reacts faster. This
-   *  IS "reaction delay" (master spec §7) -- the decision layer's own
-   *  rescore cadence gates how fast a pilot changes its mind; there is no
-   *  separate buffered-observation mechanism. */
+  /** Seconds between decision-layer rescores. Lower = reacts faster. This IS
+   *  "reaction delay" (master spec §7), and since Plan 7d it carries TWO
+   *  meanings off the one number: how often this pilot reconsiders its
+   *  maneuver, and how outdated its mental picture of the enemy is allowed to
+   *  get. A rescore both chooses the maneuver (from live facts, at that
+   *  instant) and captures the target's position/velocity into
+   *  `PilotDecisionState.observedTarget*`; all steering until the NEXT
+   *  rescore flies against that frozen snapshot (`decision.ts`'s
+   *  `maneuverControls`). So raising `reactionS` does not just slow the
+   *  pilot's mind down, it also lets it aim at where the target used to be --
+   *  up to `reactionS` ago. */
   readonly reactionS: number
   /** 0-1. Scales AI_GUN_CONE_RAD's half-angle; 1.0 leaves the cone
    *  unchanged. Does not change AI_GUN_RANGE_M. */
@@ -17,6 +24,13 @@ export type PilotSkill = {
    *  below which Extend is forced -- reserved for a future slice; this
    *  plan's forced override is range-based (MIN_ENGAGEMENT_RANGE_M) only. */
   readonly disengageThreshold: number
+  /** Standard deviation of noise added to each of roll/pitch/yaw, in the
+   *  same [-1, 1] units `Controls` already uses. 0 = perfect (no jitter).
+   *  HIGHER IS ALWAYS WORSE -- unlike `gunneryAccuracy`, chosen
+   *  specifically so a future reader cannot get the direction backwards by
+   *  pattern-matching on this file's other, inverted field (Plan 7b's own
+   *  gunneryAccuracy bug, spec §3). */
+  readonly controlNoise: number
 }
 
 export const VETERAN_SKILL: PilotSkill = {
@@ -24,6 +38,14 @@ export const VETERAN_SKILL: PilotSkill = {
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
   disengageThreshold: -400,
+  // Measured 2026-09-24 on the reference GPU (pursuit-range, tail-chase
+  // geometry): sampling pursuer-1's headingRad every 500ms over ~9s (523
+  // ticks) of live Pursue steering, 0.02 produces a clean, MONOTONIC turn
+  // onto the intercept -- every sample-to-sample heading delta had the same
+  // sign (mean 0.185 deg/500ms, max 0.365 deg/500ms, steadily shrinking as
+  // it settles) -- imperceptible as jitter distinct from the turn itself.
+  // Kept unchanged from Task 1's starting value.
+  controlNoise: 0.02,
 }
 
 export const GREEN_SKILL: PilotSkill = {
@@ -31,6 +53,20 @@ export const GREEN_SKILL: PilotSkill = {
   gunneryAccuracy: 1.0,
   energyDiscipline: 0.3,
   disengageThreshold: -150,
+  // Measured 2026-09-24 on the reference GPU (pursuit-range, same tail-chase
+  // flight as VETERAN_SKILL's comment, skill swapped to 'green' via a
+  // temporary scenario edit and reverted after): the same headingRad
+  // sampling shows a visibly wobbly path, not a clean turn -- sample-to-
+  // sample deltas repeatedly reversed sign against the overall turn-in
+  // trend (e.g. +0.248, +0.176 deg/500ms mixed into an otherwise negative
+  // series), roughly 1.4x veteran's mean magnitude (0.258 vs. 0.185
+  // deg/500ms) and 1.6x its max (0.589 vs. 0.365 deg/500ms). No stall or
+  // spin: altitude/speed stayed on a normal pursuit-dive profile throughout
+  // (no shipped camera follows an AI entity, so this was read from
+  // telemetry, not a screenshot of the airframe itself -- see task-4-report.md).
+  // Kept unchanged from Task 1's starting value; already >=2x
+  // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
+  controlNoise: 0.15,
 }
 
 export type PilotManeuver = 'pursue' | 'extend' | 'break'
@@ -39,6 +75,17 @@ export type PilotDecisionState = {
   readonly maneuver: PilotManeuver
   /** Sim time (tick * DT) at which the next rescore runs. */
   readonly nextRescoreS: number
+  /** The target's position/velocity as of the last rescore -- what the
+   *  pilot is actually flying (and aiming) against between rescores.
+   *  Captured alongside `decideManeuver`'s own facts-derivation in
+   *  `loop.ts`, so there is one observation per rescore. */
+  readonly observedTargetPosition: Vec3
+  readonly observedTargetVelocity: Vec3
+  /** mulberry32 cursor for this pilot's control-noise draws (Task 3),
+   *  independent of `weapons/combat.ts`'s own `rngState` cursor. Advances
+   *  every tick, not just at rescore, since noise is applied to
+   *  `maneuverControls`'s output every tick regardless of maneuver. */
+  readonly noiseCursor: number
 }
 
 /** Beyond this separation, Extend has done its job -- see this file's Task 3

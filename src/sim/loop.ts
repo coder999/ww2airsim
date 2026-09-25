@@ -834,9 +834,16 @@ export function advance<M>(
               1 - record.damage.structure,
               a.state.fuelKg / a.spec.mass.fuelCapacityKg,
             )
-            decision = { maneuver: decideManeuver(facts, a.pilot.skill), nextRescoreS: nowS + a.pilot.skill.reactionS }
+            decision = {
+              ...decision,
+              maneuver: decideManeuver(facts, a.pilot.skill),
+              nextRescoreS: nowS + a.pilot.skill.reactionS,
+              observedTargetPosition: target.state.position,
+              observedTargetVelocity: target.state.velocity,
+            }
           }
-          commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(a, target, decision.maneuver) }
+          const { controls, decision: steered } = maneuverControls(a, target, decision, a.pilot.skill)
+          commanded = { ...a, pilot: { ...a.pilot, decision: steered }, controls }
         }
       }
       return stepAircraftEntity(

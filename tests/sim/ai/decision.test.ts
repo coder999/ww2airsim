@@ -3,10 +3,12 @@ import {
   MIN_ENGAGEMENT_RANGE_M,
   decideManeuver,
   deriveFacts,
+  maneuverControls,
   scoreManeuvers,
   type DecisionFacts,
 } from '../../../src/sim/ai/decision.js'
-import { GREEN_SKILL, VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
+import { pursuitControls } from '../../../src/sim/ai/pursuit.js'
+import { GREEN_SKILL, VETERAN_SKILL, type PilotDecisionState } from '../../../src/sim/ai/pilot.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import type { AircraftEntity } from '../../../src/sim/loop.js'
@@ -136,5 +138,58 @@ describe('deriveFacts at coincident positions (finding 2)', () => {
     const target = entityAt(v3(0, 3000, 0), v3(100, 0, 0))
     const facts = deriveFacts(self, target, 0, 1)
     expect(decideManeuver(facts, GREEN_SKILL)).toBe('pursue')
+  })
+})
+
+describe('maneuverControls steers against the observed snapshot, not live target state', () => {
+  const f6f = loadAircraftSpec('f6f-hellcat')
+  // This file's own existing `entityAt` helper (used by the "coincident
+  // positions" describe block above) hardcodes id 'e' for both arguments,
+  // which is wrong for a test needing two distinct, independently-named
+  // entities -- a local helper here instead of forcing a shared one into a
+  // shape it wasn't built for.
+  const entity = (id: string, position: ReturnType<typeof v3>, velocity: ReturnType<typeof v3>): AircraftEntity<undefined> => {
+    const state = createState({ position, velocity })
+    return {
+      id, spec: f6f, state, previous: state,
+      controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0.7 },
+      assistMemory: undefined, impact: null, parked: false,
+    }
+  }
+
+  const self = entity('self', v3(0, 3000, 0), v3(100, 0, 0))
+
+  // Task 3 adds skill-scaled control noise to `maneuverControls`'s output.
+  // These two cases assert staleness, not noise, so isolate the assertion
+  // by zeroing noise out of GREEN_SKILL.
+  const NO_NOISE = { ...GREEN_SKILL, controlNoise: 0 }
+
+  it('ignores a sharp live-velocity change until the next rescore', () => {
+    const snapshotVelocity = v3(0, 0, 100) // observed heading 90 degrees from live
+    const decision: PilotDecisionState = {
+      maneuver: 'pursue', nextRescoreS: 999,
+      observedTargetPosition: v3(500, 3000, 0), observedTargetVelocity: snapshotVelocity,
+      noiseCursor: 0,
+    }
+    // Live target now flies a completely different heading than the snapshot.
+    const liveTarget = entity('target', v3(500, 3000, 0), v3(100, 0, 0))
+    const staleControls = maneuverControls(self, liveTarget, decision, NO_NOISE).controls
+
+    // Compare against what steering the LIVE state would have produced, by
+    // building a second decision whose snapshot matches the live state
+    // exactly -- if staleness works, these two differ.
+    const liveDecision: PilotDecisionState = { ...decision, observedTargetVelocity: v3(100, 0, 0) }
+    const freshControls = maneuverControls(self, liveTarget, liveDecision, NO_NOISE).controls
+    expect(staleControls).not.toEqual(freshControls)
+  })
+
+  it('reproduces today\'s exact steering when the snapshot equals live state', () => {
+    const target = entity('target', v3(500, 3000, 0), v3(100, 0, 0))
+    const decision: PilotDecisionState = {
+      maneuver: 'pursue', nextRescoreS: 999,
+      observedTargetPosition: target.state.position, observedTargetVelocity: target.state.velocity,
+      noiseCursor: 0,
+    }
+    expect(maneuverControls(self, target, decision, NO_NOISE).controls).toEqual(pursuitControls(self, target))
   })
 })

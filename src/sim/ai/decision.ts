@@ -4,7 +4,8 @@ import type { Controls } from '../flight/state.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { AI_GUN_RANGE_M, hasGunSolution, pursuitControls } from './pursuit.js'
 import { breakDesiredVelocity, extendDesiredVelocity } from './pilot.js'
-import type { PilotManeuver, PilotSkill } from './pilot.js'
+import type { PilotDecisionState, PilotManeuver, PilotSkill } from './pilot.js'
+import { applyControlNoise } from './noise.js'
 
 const G_MPS2 = 9.80665
 
@@ -137,13 +138,43 @@ export function decideManeuver(facts: DecisionFacts, skill: PilotSkill): PilotMa
  *  shared flight controller, and therefore never set `fire` -- only
  *  `pursuitControls`'s own gun gate ever does that. Lives here rather than in
  *  `pilot.ts` per this file's header note: it needs `pursuitControls` from
- *  `pursuit.ts`, and `pilot.ts` must not import back from `pursuit.ts`. */
+ *  `pursuit.ts`, and `pilot.ts` must not import back from `pursuit.ts`.
+ *
+ *  Steers against `decision`'s OBSERVED target snapshot, not `target`'s live
+ *  state (Task 2, master spec's perception-staleness requirement): a
+ *  "perceived" entity is built once here, with the live target's id/spec but
+ *  the last-rescore position/velocity substituted in, and that same
+ *  perceived entity is threaded into whichever of `pursuitControls`/
+ *  `extendDesiredVelocity`/`breakDesiredVelocity` the chosen maneuver calls --
+ *  uniformly, including Pursue's firing gate (`hasGunSolution`, reached
+ *  through `pursuitControls`). This was a deliberate architecture-section
+ *  ruling, not an oversight: the gate is not special-cased back to live data.
+ *  `decision.maneuver` itself was chosen from LIVE facts at the rescore
+ *  instant (`loop.ts`'s `deriveFacts` call) -- only the steering in between
+ *  rescores goes stale.
+ *
+ *  The clean steering above is then run through `applyControlNoise` (Task
+ *  3), a deterministic, skill-scaled jitter on the final roll/pitch/yaw --
+ *  the AI's second weakness alongside perception staleness. This is why the
+ *  return shape grew from a bare `Controls`: the noise draw advances
+ *  `decision.noiseCursor`, and that updated cursor has to travel back out to
+ *  the caller (`loop.ts`) so the next tick's draw doesn't repeat. */
 export function maneuverControls<M>(
   self: AircraftEntity<M>,
   target: AircraftEntity<M>,
-  maneuver: PilotManeuver,
-): Controls {
-  if (maneuver === 'pursue') return pursuitControls(self, target)
-  const desired = maneuver === 'extend' ? extendDesiredVelocity(self, target) : breakDesiredVelocity(self, target)
-  return controlsForDesiredVelocity(self.state, self.spec, desired)
+  decision: PilotDecisionState,
+  skill: PilotSkill,
+): { readonly controls: Controls; readonly decision: PilotDecisionState } {
+  const perceived: AircraftEntity<M> = {
+    ...target,
+    state: { ...target.state, position: decision.observedTargetPosition, velocity: decision.observedTargetVelocity },
+  }
+  const base = decision.maneuver === 'pursue'
+    ? pursuitControls(self, perceived)
+    : controlsForDesiredVelocity(
+        self.state, self.spec,
+        decision.maneuver === 'extend' ? extendDesiredVelocity(self, perceived) : breakDesiredVelocity(self, perceived),
+      )
+  const { controls, cursor } = applyControlNoise(base, skill.controlNoise, decision.noiseCursor)
+  return { controls, decision: { ...decision, noiseCursor: cursor } }
 }

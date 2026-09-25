@@ -41,6 +41,10 @@ describe('pilot skill presets', () => {
     expect(structuredClone(VETERAN_SKILL)).toEqual(VETERAN_SKILL)
     expect(structuredClone(GREEN_SKILL)).toEqual(GREEN_SKILL)
   })
+
+  it('green jitters materially more than veteran (higher is always worse)', () => {
+    expect(GREEN_SKILL.controlNoise).toBeGreaterThan(VETERAN_SKILL.controlNoise)
+  })
 })
 
 describe('SAFE_SEPARATION_M', () => {

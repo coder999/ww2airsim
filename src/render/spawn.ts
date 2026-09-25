@@ -166,3 +166,35 @@ export function scenarioIdFromQuery(search: string, fallback: string): string {
   if (!/^[a-z0-9-]+$/.test(raw)) throw new Error(`scenario: ${JSON.stringify(raw)} is not a scenario id`)
   return raw
 }
+
+/**
+ * `?pilotSkill=green|veteran`: DEV-only override for every AI pilot's skill
+ * in the scenario just loaded (Plan 7d Task 5).
+ *
+ * Added for the acceptance test this plan's spec §5 requires: a scripted
+ * evasion getting behind pursuer-1 at GREEN skill within a bounded window.
+ * `pursuit-range.json` (the only scenario that ships an AI pilot) pins
+ * `pilot.skill` to `'veteran'` in content, not the `'green'` schema default
+ * `scenario.ts`'s `PilotObject` documents -- so there was no existing way to
+ * reach a green-skill pursuer short of hand-editing shipped content (which
+ * Task 4 did temporarily, and reverted, to take the GREEN_SKILL tuning
+ * measurement in `pilot.ts`'s comment). This mirrors `oceanTierFromQuery`
+ * (`ocean/tiers.ts`) and `beaufortFromQuery` (`ocean/weather.ts`): a single
+ * query param, parsed here, applied by `main.ts` only behind
+ * `import.meta.env.DEV` -- inert in a production build, same as those.
+ *
+ * A present-but-invalid value throws rather than silently falling back to
+ * the scenario's own skill, for the same reason every other query parser in
+ * this file does: a test that asked for `green` and silently got `veteran`
+ * would look identical to a passing run.
+ */
+export const PILOT_SKILL_PARAM = 'pilotSkill'
+
+export function pilotSkillFromQuery(search: string): 'veteran' | 'green' | undefined {
+  const raw = new URLSearchParams(search).get(PILOT_SKILL_PARAM)
+  if (raw === null) return undefined
+  if (raw !== 'veteran' && raw !== 'green') {
+    throw new Error(`pilotSkill: ${JSON.stringify(raw)} is not 'veteran' or 'green'`)
+  }
+  return raw
+}

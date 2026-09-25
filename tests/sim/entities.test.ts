@@ -5,7 +5,7 @@ import {
 } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { v3 } from '../../src/sim/math/vec3.js'
+import { v3, ZERO } from '../../src/sim/math/vec3.js'
 import { createShipState } from '../../src/sim/world/ships.js'
 import { interpolateShip } from '../../src/sim/interpolate.js'
 import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
@@ -13,14 +13,33 @@ import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { GREEN_SKILL } from '../../src/sim/ai/pilot.js'
 
-const PURSUE_NOW = { maneuver: 'pursue' as const, nextRescoreS: 0 }
+const PURSUE_NOW = {
+  maneuver: 'pursue' as const, nextRescoreS: 0,
+  observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0,
+}
 // What `PURSUE_NOW` becomes after `advance()`'s Plan 7b dispatch runs its
 // very first rescore (tick 1, since `nextRescoreS: 0` is always <= tick*DT):
 // the maneuver is decided fresh, and `nextRescoreS` moves to `DT +
 // skill.reactionS` regardless of which maneuver wins. Below, `pursuitWorld`'s
 // fixture is deliberately energy-favorable for the pilot, so this rescore
 // keeps choosing `'pursue'` -- see that fixture's own comment.
-const RESCORED_PURSUE = { maneuver: 'pursue' as const, nextRescoreS: DT + GREEN_SKILL.reactionS }
+//
+// `observedTargetPosition`/`observedTargetVelocity` are no longer `ZERO`
+// (Task 2: perception staleness makes these fields real). They capture the
+// target's START-OF-TICK-1 state -- `pursuitWorld`'s own `targetState` --
+// because the rescore reads `aircraftAtStart`, the pre-step snapshot, and
+// (with GREEN_SKILL.reactionS=1.0 comfortably longer than the 5-tick test
+// window below) no later rescore overwrites it before this assertion runs.
+//
+// `noiseCursor` is no longer 0 either (Task 3: control noise). It advances
+// by a fixed 6-draw step every tick regardless of maneuver or `controlNoise`
+// magnitude (`applyControlNoise`'s own invariant, `noise.ts`), so after 5
+// ticks from a starting cursor of 0 it lands on this measured value -- not
+// itself a meaningful number, just mulberry32's cursor after 5 * 6 draws.
+const RESCORED_PURSUE = {
+  maneuver: 'pursue' as const, nextRescoreS: DT + GREEN_SKILL.reactionS,
+  observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 3407366838,
+}
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const dd = loadShipSpec('fletcher-dd')
@@ -138,6 +157,47 @@ describe('AI pilots in the fixed-step world', () => {
 
     const second = advance(first, DT).world
     expect(playerAircraft(second).controls).not.toEqual(firstPilot.controls)
+  })
+
+  it('freezes the observed target snapshot for a whole reactionS window, then refreshes it at the next rescore', () => {
+    // Spec §5's Tier 1 staleness bar, which `tests/sim/ai/decision.test.ts`'s
+    // two unit cases over hand-built `PilotDecisionState` literals do not
+    // reach: those prove the SUBSTITUTION (the controller steers against
+    // whatever is in `observedTarget*`), not the CADENCE (that the snapshot
+    // really holds across a full `reactionS` and really refreshes after it).
+    // Only driving `advance()` can show the second, and nothing did until
+    // the final whole-branch review asked for it.
+    const first = advance(pursuitWorld(), DT).world
+    const atRescore = playerAircraft(first).pilot!.decision
+    expect(atRescore.observedTargetPosition).toEqual(v3(900, 2100, 250))
+    expect(atRescore.observedTargetVelocity).toEqual(v3(80, 0, 10))
+    expect(atRescore.nextRescoreS).toBeCloseTo(DT + GREEN_SKILL.reactionS, 12)
+
+    // Move the target somewhere no honest live observation could miss --
+    // kilometres away, on a reversed heading -- one tick INTO the window.
+    const jumped = createState({ position: v3(-4000, 900, 3000), velocity: v3(-150, 20, -90), tick: first.tick })
+    let world = withAircraftState(first, 'target', jumped)
+
+    // Half a window later (30 ticks = 0.5 s against GREEN_SKILL's 1.0 s), the
+    // snapshot must be untouched, and the pilot must still be flying against
+    // a target that is no longer there.
+    for (let i = 0; i < 30; i++) world = advance(world, DT).world
+    expect(world.tick * DT).toBeLessThan(atRescore.nextRescoreS)
+    const mid = playerAircraft(world).pilot!.decision
+    expect(mid.observedTargetPosition).toEqual(atRescore.observedTargetPosition)
+    expect(mid.observedTargetVelocity).toEqual(atRescore.observedTargetVelocity)
+    expect(mid.nextRescoreS).toBe(atRescore.nextRescoreS)
+    expect(aircraftById(world, 'target')!.state.position.x).toBeLessThan(-3000) // it really did move
+
+    // Cross `nextRescoreS`: now it must pick the target up where the target
+    // actually is -- specifically at that tick's START-of-tick state, which
+    // `stepAircraftEntity` leaves behind as `previous`.
+    while (world.tick * DT < atRescore.nextRescoreS) world = advance(world, DT).world
+    const after = playerAircraft(world).pilot!.decision
+    expect(after.observedTargetPosition).not.toEqual(atRescore.observedTargetPosition)
+    expect(after.observedTargetPosition).toEqual(aircraftById(world, 'target')!.previous.position)
+    expect(after.observedTargetVelocity).toEqual(aircraftById(world, 'target')!.previous.velocity)
+    expect(after.nextRescoreS).toBeCloseTo(world.tick * DT + GREEN_SKILL.reactionS, 12)
   })
 
   it('is invariant to aircraft array order because every pilot reads the same tick snapshot', () => {
