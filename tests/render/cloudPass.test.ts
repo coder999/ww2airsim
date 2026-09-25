@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { cloudCells, cloudTargetSize } from '../../src/render/scene/cloudPass.js'
+import { bayer4Index, bayer4Offset, cloudCells, cloudTargetSize } from '../../src/render/scene/cloudPass.js'
 
 describe('cloud pass (photoreal Task 3)', () => {
+  it('the 4x4 Bayer schedule updates every texel exactly once in 16 frames', () => {
+    const phases = Array.from({ length: 4 }, (_, y) =>
+      Array.from({ length: 4 }, (_, x) => bayer4Index(x, y)),
+    )
+    expect(phases).toEqual([
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ])
+    expect(phases.flat().sort((a, b) => a - b)).toEqual(Array.from({ length: 16 }, (_, i) => i))
+    for (let phase = 0; phase < 16; phase++) {
+      const offset = bayer4Offset(phase)
+      expect(bayer4Index(offset.x, offset.y)).toBe(phase)
+    }
+    expect(bayer4Index(4, 4)).toBe(bayer4Index(0, 0))
+    expect(bayer4Index(7, 6)).toBe(bayer4Index(3, 2))
+  })
+
   it('sizes the reduced-resolution target by ceiling, never below one texel', () => {
     expect(cloudTargetSize(2560, 1440, 0.5)).toEqual({ width: 1280, height: 720 })
     expect(cloudTargetSize(3840, 2160, 0.25)).toEqual({ width: 960, height: 540 })

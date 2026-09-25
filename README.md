@@ -219,6 +219,13 @@ directly. The pass cost 0.16–0.40 ms at high, 1440p. See the
 [handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md); master spec
 §15 holds the status.
 
+**Cloud fidelity II landed 2026-09-25:** a weather map makes cumulus
+separate cells with flat bases and varied tops, carved by packed multiscale
+noise and a curl field; High updates one cloud pixel in sixteen per frame to
+fund 128 view steps, against the 60 Hz High budget. See the
+[handoff](docs/handoff/2026-09-25-cloud-fidelity-ii.md) for the reference-GPU
+numbers; master spec §15 holds the status.
+
 **The sun moves (Plan 16c, 2026-09-19):** each scenario states an apparent
 solar hour (`weather.timeOfDay`); the sun sits where it would over Leyte on
 1944-10-20, creeps with the sim clock, and the sky, haze, lights, clouds, sea
