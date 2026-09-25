@@ -108,7 +108,7 @@ reference GPU (Tier 2).
   `noiseCursor: number` — consumed by Task 2 (snapshot) and Task 3 (noise).
 - Consumes: nothing new.
 
-- [ ] **Step 1: Extend `PilotSkill` and `PilotDecisionState` in `src/sim/ai/pilot.ts`**
+- [x] **Step 1: Extend `PilotSkill` and `PilotDecisionState` in `src/sim/ai/pilot.ts`**
 
 ```ts
 export type PilotSkill = {
@@ -165,7 +165,7 @@ export type PilotDecisionState = {
 Import `Vec3` (already imported in this file as a type via
 `'../math/vec3.js'`; add `ZERO` to that same import for Step 2).
 
-- [ ] **Step 2: Seed the new fields in `src/sim/scenario.ts`**
+- [x] **Step 2: Seed the new fields in `src/sim/scenario.ts`**
 
 ```ts
 import { ZERO } from './math/vec3.js' // add to this file's existing vec3 import
@@ -189,7 +189,7 @@ function pilotAssignmentFrom(pilot: z.infer<typeof PilotObject> | undefined): Pi
 }
 ```
 
-- [ ] **Step 3: Keep `src/sim/loop.ts`'s rescore branch type-correct without changing its behavior**
+- [x] **Step 3: Keep `src/sim/loop.ts`'s rescore branch type-correct without changing its behavior**
 
 Around the existing block (confirmed at lines 815-824 as of 2026-09-24):
 
@@ -212,7 +212,7 @@ commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(
 
 The only change from today is `{ ...decision, maneuver: ..., nextRescoreS: ... }` replacing the previous fresh two-field literal, so `observedTargetPosition`/`observedTargetVelocity`/`noiseCursor` survive a rescore unchanged. Nothing yet reads or updates them with real data.
 
-- [ ] **Step 4: Update every existing `PilotDecisionState` literal to compile**
+- [x] **Step 4: Update every existing `PilotDecisionState` literal to compile**
 
 In `tests/sim/ai/pursuit.test.ts` (line 111):
 
@@ -248,7 +248,7 @@ decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, o
 
 (add the same `ZERO` import to this file.)
 
-- [ ] **Step 5: Extend `tests/sim/ai/pilot.test.ts` for the new field**
+- [x] **Step 5: Extend `tests/sim/ai/pilot.test.ts` for the new field**
 
 ```ts
 it('green jitters materially more than veteran (higher is always worse)', () => {
@@ -258,7 +258,7 @@ it('green jitters materially more than veteran (higher is always worse)', () => 
 
 (The existing `structuredClone(VETERAN_SKILL)).toEqual(VETERAN_SKILL)` case already covers the new field automatically — no change needed there.)
 
-- [ ] **Step 6: Run the full suite and verify**
+- [x] **Step 6: Run the full suite and verify**
 
 ```bash
 npm run verify; rc=$?; echo rc=$rc
@@ -268,7 +268,7 @@ Expected: `rc=0`. This task changes no runtime behavior (Task 1's loop.ts
 edit is a type-preserving refactor); every currently-passing test must
 still pass with identical assertions on `maneuver`/`nextRescoreS`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim/ai/pilot.ts src/sim/scenario.ts src/sim/loop.ts \
@@ -294,7 +294,7 @@ git commit -m "Widen PilotSkill/PilotDecisionState for control noise and percept
   signature, replacing the old `(self, target, maneuver)` — Task 3 extends
   this again to add a `skill` parameter and change the return type).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // tests/sim/ai/decision.test.ts (new cases)
@@ -351,7 +351,7 @@ describe('maneuverControls steers against the observed snapshot, not live target
 })
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 ```bash
 npx vitest run tests/sim/ai/decision.test.ts
@@ -359,7 +359,7 @@ npx vitest run tests/sim/ai/decision.test.ts
 
 Expected: FAIL — `maneuverControls` does not yet accept a `decision` argument.
 
-- [ ] **Step 3: Implement the perceived-target substitution in `src/sim/ai/decision.ts`**
+- [x] **Step 3: Implement the perceived-target substitution in `src/sim/ai/decision.ts`**
 
 ```ts
 export function maneuverControls<M>(
@@ -382,7 +382,7 @@ export function maneuverControls<M>(
 Import `PilotDecisionState` as a type alongside this file's existing
 `PilotManeuver`/`PilotSkill` import from `./pilot.js`.
 
-- [ ] **Step 4: Wire the snapshot capture into `src/sim/loop.ts`**
+- [x] **Step 4: Wire the snapshot capture into `src/sim/loop.ts`**
 
 Extend Task 1's rescore branch to also capture the snapshot, and update the
 call site:
@@ -410,13 +410,13 @@ commanded = { ...a, pilot: { ...a.pilot, decision }, controls: maneuverControls(
 unchanged, per spec §2); only `maneuverControls`'s steering now goes
 through the snapshot.
 
-- [ ] **Step 5: Run the new tests, verify pass**
+- [x] **Step 5: Run the new tests, verify pass**
 
 ```bash
 npx vitest run tests/sim/ai/decision.test.ts
 ```
 
-- [ ] **Step 6: Run the Review Focus regression gates**
+- [x] **Step 6: Run the Review Focus regression gates**
 
 ```bash
 npx vitest run tests/sim/scenario.test.ts tests/sim/entities.test.ts
@@ -429,7 +429,7 @@ their existing tick budgets. If either regresses, stop and investigate
 before proceeding (per this Review Focus item) rather than loosening the
 budget to make it pass.
 
-- [ ] **Step 7: Run `npm run verify`**
+- [x] **Step 7: Run `npm run verify`**
 
 ```bash
 npm run verify; rc=$?; echo rc=$rc
@@ -437,7 +437,7 @@ npm run verify; rc=$?; echo rc=$rc
 
 Expected: `rc=0`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/sim/ai/decision.ts src/sim/loop.ts tests/sim/ai/decision.test.ts
@@ -466,7 +466,7 @@ git commit -m "Perception staleness: steer between rescores against the last-obs
   return shape `{ controls: Controls; decision: PilotDecisionState }`,
   consumed by `loop.ts`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // tests/sim/ai/noise.test.ts
@@ -538,7 +538,7 @@ describe('applyControlNoise', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 ```bash
 npx vitest run tests/sim/ai/noise.test.ts
@@ -546,7 +546,7 @@ npx vitest run tests/sim/ai/noise.test.ts
 
 Expected: FAIL — `src/sim/ai/noise.ts` does not exist yet.
 
-- [ ] **Step 3: Implement `src/sim/ai/noise.ts`**
+- [x] **Step 3: Implement `src/sim/ai/noise.ts`**
 
 ```ts
 import { createRng } from '../rng.js'
@@ -600,13 +600,13 @@ export function applyControlNoise(
 }
 ```
 
-- [ ] **Step 4: Run the noise tests, verify pass**
+- [x] **Step 4: Run the noise tests, verify pass**
 
 ```bash
 npx vitest run tests/sim/ai/noise.test.ts
 ```
 
-- [ ] **Step 5: Wire noise into `maneuverControls` (`src/sim/ai/decision.ts`)**
+- [x] **Step 5: Wire noise into `maneuverControls` (`src/sim/ai/decision.ts`)**
 
 ```ts
 export function maneuverControls<M>(
@@ -632,14 +632,14 @@ export function maneuverControls<M>(
 
 Import `applyControlNoise` from `./noise.js`.
 
-- [ ] **Step 6: Update the call site in `src/sim/loop.ts`**
+- [x] **Step 6: Update the call site in `src/sim/loop.ts`**
 
 ```ts
 const { controls, decision: steered } = maneuverControls(a, target, decision, a.pilot.skill)
 commanded = { ...a, pilot: { ...a.pilot, decision: steered }, controls }
 ```
 
-- [ ] **Step 7: Update Task 2's two `decision.test.ts` cases for the new return shape and signature**
+- [x] **Step 7: Update Task 2's two `decision.test.ts` cases for the new return shape and signature**
 
 Both now read `.controls` off the result and pass a `skill` argument (use
 `GREEN_SKILL` with `controlNoise: 0` overridden to isolate the staleness
@@ -656,13 +656,13 @@ expect(staleControls).not.toEqual(freshControls)
 expect(maneuverControls(self, target, decision, NO_NOISE).controls).toEqual(pursuitControls(self, target))
 ```
 
-- [ ] **Step 8: Run the full AI test suite, verify pass**
+- [x] **Step 8: Run the full AI test suite, verify pass**
 
 ```bash
 npx vitest run tests/sim/ai tests/sim/scenario.test.ts tests/sim/entities.test.ts
 ```
 
-- [ ] **Step 9: Run `npm run verify`**
+- [x] **Step 9: Run `npm run verify`**
 
 ```bash
 npm run verify; rc=$?; echo rc=$rc
@@ -670,7 +670,7 @@ npm run verify; rc=$?; echo rc=$rc
 
 Expected: `rc=0`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/sim/ai/noise.ts src/sim/ai/decision.ts src/sim/loop.ts \
@@ -693,7 +693,7 @@ git commit -m "Control noise: deterministic skill-scaled jitter on final roll/pi
   harness").
 - Produces: nothing new for later tasks.
 
-- [ ] **Step 1: Confirm the golden-trajectory suite is untouched**
+- [x] **Step 1: Confirm the golden-trajectory suite is untouched**
 
 ```bash
 npx vitest run tests/sim/golden/trajectory.test.ts
@@ -705,7 +705,7 @@ never exercises any code this plan touches. If this fails, stop and
 investigate before touching the golden file; do not assume the failure is
 unrelated.
 
-- [ ] **Step 2: Fly the `pursuit-range` scenario at `green` skill on the reference GPU and observe the jitter**
+- [x] **Step 2: Fly the `pursuit-range` scenario at `green` skill on the reference GPU and observe the jitter**
 
 ```bash
 ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
@@ -718,7 +718,7 @@ value (0.15 from Task 1). Read the result directly rather than trusting a
 number — per this repo's standing "never argue about a picture nobody
 looked at" rule.
 
-- [ ] **Step 3: Adjust `GREEN_SKILL.controlNoise`/`VETERAN_SKILL.controlNoise` based on what was observed**
+- [x] **Step 3: Adjust `GREEN_SKILL.controlNoise`/`VETERAN_SKILL.controlNoise` based on what was observed**
 
 If `green`'s pursuer flies visibly smoothly (no perceptible wobble) or
 absurdly erratically (over-corrects into its own stall/spin), adjust the
@@ -733,7 +733,7 @@ comment style):
 // veteran's 0.0Y stays imperceptible in the same flight.
 ```
 
-- [ ] **Step 4: Run `npm run verify`**
+- [x] **Step 4: Run `npm run verify`**
 
 ```bash
 npm run verify; rc=$?; echo rc=$rc
@@ -741,7 +741,7 @@ npm run verify; rc=$?; echo rc=$rc
 
 Expected: `rc=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/ai/pilot.ts
@@ -761,7 +761,7 @@ git commit -m "Tune controlNoise magnitudes against a real flight on the referen
   key bindings (`rollLeft`/`rollRight`: `ArrowLeft`/`ArrowRight`;
   `pitchUp`/`pitchDown`: `ArrowDown`/`ArrowUp`).
 
-- [ ] **Step 1: Write the Tier 2 spec**
+- [x] **Step 1: Write the Tier 2 spec**
 
 ```ts
 // tests/e2e/ai-pursuit-difficulty.spec.ts
@@ -846,7 +846,7 @@ test('a scripted evasion-and-reversal lets the player get behind a green pursuer
 })
 ```
 
-- [ ] **Step 2: Run against the reference GPU**
+- [x] **Step 2: Run against the reference GPU**
 
 ```bash
 ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
@@ -859,7 +859,7 @@ still runs it down every time), that is real information, not a test bug —
 read the screenshot, and consider whether Task 4's tuning needs revisiting
 before editing the timing/pattern in this spec to make it pass artificially.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/e2e/ai-pursuit-difficulty.spec.ts
