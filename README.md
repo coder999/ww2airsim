@@ -158,6 +158,14 @@ art with **New game** and **About project**. The world boots behind it and is
 held until New game (Enter also works), which is the click that unlocks audio
 on a first visit. [Handoff](docs/handoff/2026-09-19-title-screen.md).
 
+**The title screen became two sequential memo forms 2026-09-24**, in the
+Naval Communications style: Form 1 of 2 is the pilot roster, New game opens
+Form 2 of 2 (Sortie Orders: mission and armament), and **Launch** starts the
+flight, with Back returning to the roster. About project and Settings sit in
+their own memo underneath both. The KIA-pilot resurrection now happens on
+Launch, not New game. `src/render/titleScreen.ts` is authoritative; the e2e
+harness's `startGame` walks both forms.
+
 **The rest of Plan 9 (roster, live scoring, dynamic scenario switching)
 landed 2026-09-23/24.** A pilot roster now sits ahead of the scenario/loadout
 pickers (persisted to `localStorage`, not the design doc's original

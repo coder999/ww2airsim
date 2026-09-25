@@ -109,8 +109,8 @@ const assertNoValidationErrors = async (page: Page): Promise<void> => {
 }
 
 /**
- * Waits for terrain, picks `loadout` on the title screen's own radio row
- * (spec §1: "clean, bombs, rockets, both"), then presses New game --
+ * Waits for terrain, picks `loadout` on the title screen's Armament rows
+ * (spec §1: "clean, bombs, rockets, both"; Form 2, Sortie Orders), then launches --
  * `LOADOUT_OPTIONS`' labels (src/render/titleScreen.ts) capitalize the
  * `Loadout` value, so `'both'` -> `'Both'`. Deliberately does NOT reuse
  * `harness.ts`'s `waitForTerrain` (which only presses New game): every test
@@ -122,8 +122,7 @@ async function startWithLoadout(page: Page, loadout: Loadout): Promise<void> {
     timeout: 30_000,
   })
   const label = loadout[0]!.toUpperCase() + loadout.slice(1)
-  await page.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: label }).check()
-  await startGame(page)
+  await startGame(page, { loadout: label })
   // One frame's grace so `World.combat` exists before the first read below.
   await page.waitForTimeout(200)
 }
