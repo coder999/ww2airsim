@@ -20,6 +20,40 @@ import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
  * MIN_ENGAGEMENT_RANGE_M override tested below is a strictly safer default
  * near a dead target than the old unconditional Pursue, but closing that gap
  * is out of scope here.
+ *
+ * **RED as of 2026-09-24, for a real reason, measured -- not a harness
+ * artifact.** Plan 7d's Task 4 attributed this spec's failure to
+ * `requestAnimationFrame` throttling under fast `.poll()` traffic, with
+ * `src/sim/loop.ts`'s `MAX_STEPS_PER_FRAME` dropping owed sim time and
+ * `tick()` freezing at 517. The final-review fix wave re-measured it on the
+ * reference GPU and that diagnosis does not survive: polling once a second
+ * (the mitigation Task 4's own theory prescribes) reproduces the identical
+ * freeze -- same tick 517, same 386 m range -- so the poll cadence is not in
+ * the path at all. What actually happens, read straight off
+ * `__ww2.combat()` once a second:
+ *
+ *   tick 433  structure 1.000
+ *   tick 494  structure 0.583
+ *   tick 517  structure 0.000  destroyed: true   <- world stops here
+ *
+ * **The pursuer shoots the player down at tick 517 (8.6 s), at 386 m, long
+ * before the range ever reaches MIN_ENGAGEMENT_RANGE_M.** `frame.ts:617`
+ * then holds the world (`holding` includes the player's `destroyedAt`), so
+ * `tick()` freezes forever and the first `.poll()` can only time out. This
+ * spec flies NO inputs -- the player is a passive, non-maneuvering target --
+ * and the veteran pursuer is now lethal enough on its FIRST firing pass to
+ * kill one. Attributed to Plan 7d on two pieces of evidence, neither a
+ * re-run of the merge-base browser: this spec was green before this branch
+ * and nothing in it changed, and Tier 1's own hit-budget measurement in
+ * `tests/sim/scenario.test.ts` moved from tick 7430 (recorded for Plan 7b)
+ * to tick 525 (re-measured 2026-09-24, three identical runs).
+ *
+ * So the point-blank break-off this spec gates is no longer REACHABLE in this
+ * scenario with a passive player, and no change to the polling, the timeouts
+ * or the thresholds can make it so. Fixing it means a deliberate decision --
+ * re-tune veteran lethality, or fly this spec's player so it survives to the
+ * merge -- which is Mark's call, not a test-mechanics one. Left red and
+ * documented rather than loosened.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 
