@@ -1,49 +1,44 @@
 import { describe, it, expect } from 'vitest'
-import { SKY_HAZE, SKY_ZENITH, paletteFor, srgbHexToLinear } from '../../src/render/sky/palette.js'
-import { SKY_HAZE as DOME_HAZE, SKY_ZENITH as DOME_ZENITH } from '../../src/render/scene/sky.js'
+import { SUN_ILLUMINANCE, atmospherePalette, srgbHexToLinear } from '../../src/render/sky/palette.js'
+import { sunColorAt } from '../../src/render/sky/atmosphere.js'
 
-describe('sky palette (Plan 16c)', () => {
-  it('the high key is today\'s constants, and the dome still exports them', () => {
-    const high = paletteFor(70)
-    expect(high.sunColor).toEqual(srgbHexToLinear(0xfff2e0))
-    expect(high.sunIntensity).toBe(2.5)
-    expect(high.zenith).toEqual(srgbHexToLinear(SKY_ZENITH))
-    expect(high.horizon).toEqual(srgbHexToLinear(SKY_HAZE))
-    expect(high.fillSky).toEqual(srgbHexToLinear(0x9eb8cc))
-    expect(high.fillGround).toEqual(srgbHexToLinear(0x18384f))
-    expect(high.sunTint).toEqual([1, 1, 1])
-    expect(high.ambientScale).toBe(1)
-    expect(paletteFor(30)).toEqual(high)
-    expect(DOME_HAZE).toBe(SKY_HAZE)
-    expect(DOME_ZENITH).toBe(SKY_ZENITH)
+/** Rec. 709 luminance of a linear triple. */
+const lum = (c: readonly number[]): number => 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!
+
+describe('sky palette from the atmosphere (photoreal Task 9)', () => {
+  it('the sun color is the CPU model\'s transmitted sun times the one intensity constant', () => {
+    const p = atmospherePalette(0, 60)
+    const expected = sunColorAt(0, 60)
+    for (let i = 0; i < 3; i++) expect(p.sunColor[i]).toBeCloseTo(expected[i]! * SUN_ILLUMINANCE, 9)
+    // The DirectionalLight's intensity is folded into its color.
+    expect(p.sunIntensity).toBe(1)
+  })
+  it('below the horizon (-6 deg) it is finite and dimmer than at 0 deg, but never black', () => {
+    const dusk = atmospherePalette(0, -6)
+    const sunset = atmospherePalette(0, 0)
+    for (const k of ['sunColor', 'fillSky', 'fillGround', 'zenith', 'horizon'] as const) {
+      for (const v of dusk[k]) expect(Number.isFinite(v)).toBe(true)
+    }
+    expect(lum(dusk.sunColor)).toBeLessThan(lum(sunset.sunColor))
+    expect(lum(dusk.fillSky)).toBeLessThan(lum(sunset.fillSky))
+    // The dusk floor (spec 4.3: the existing floor behavior is preserved).
+    expect(lum(dusk.fillSky)).toBeGreaterThan(0)
+    expect(dusk.twilight).toBeGreaterThan(0.5)
+    expect(atmospherePalette(0, -20)).toEqual(atmospherePalette(0, -20))
+  })
+  it('the light warms toward the horizon: red/blue is higher at 5 deg than at 60 deg', () => {
+    const low = atmospherePalette(0, 5), high = atmospherePalette(0, 60)
+    expect(low.sunColor[0] / low.sunColor[2]).toBeGreaterThan(high.sunColor[0] / high.sunColor[2])
+  })
+  it('the sky fill is blue at noon and the twilight floor is negligible there', () => {
+    const noon = atmospherePalette(0, 68)
+    expect(noon.fillSky[2]).toBeGreaterThan(noon.fillSky[0])
+    expect(noon.twilight).toBeLessThan(0.05)
   })
   it('converts sRGB hex to linear the way three does', () => {
     expect(srgbHexToLinear(0xffffff)).toEqual([1, 1, 1])
     expect(srgbHexToLinear(0x000000)).toEqual([0, 0, 0])
     const [r] = srgbHexToLinear(0x808080)
     expect(r).toBeCloseTo(0.2158, 3)
-  })
-  it('is continuous across the keys and warms toward the horizon', () => {
-    let prev = paletteFor(40)
-    for (let e = 39.9; e >= -8; e -= 0.1) {
-      const p = paletteFor(e)
-      for (const k of ['sunColor', 'zenith', 'horizon', 'fillSky', 'fillGround'] as const) {
-        for (let i = 0; i < 3; i++) expect(Math.abs(p[k][i]! - prev[k][i]!)).toBeLessThan(0.02)
-      }
-      expect(Math.abs(p.sunIntensity - prev.sunIntensity)).toBeLessThan(0.05)
-      prev = p
-    }
-    const horizon = paletteFor(0)
-    expect(horizon.sunColor[0]).toBeGreaterThan(horizon.sunColor[2] * 3)
-    expect(horizon.horizon[0]).toBeGreaterThan(paletteFor(70).horizon[0])
-    expect(paletteFor(0).sunIntensity).toBeLessThan(paletteFor(10).sunIntensity)
-  })
-  it('holds flat at twilight: never black, never below the floor', () => {
-    const t = paletteFor(-6)
-    expect(paletteFor(-20)).toEqual(t)
-    expect(paletteFor(-90)).toEqual(t)
-    expect(t.sunIntensity).toBe(0)
-    expect(t.zenith[2]).toBeGreaterThan(0)
-    expect(t.ambientScale).toBeGreaterThan(0.1)
   })
 })

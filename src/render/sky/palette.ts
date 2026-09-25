@@ -1,24 +1,69 @@
-/**
- * The sky's look as a function of sun elevation (Plan 16c, design §4).
- * Pure: keyframes in sRGB hex, interpolated in LINEAR RGB, which is the
- * space three's ColorManagement works in and the space every `uniform(new
- * Color(...))` receives. The HIGH key is exactly the constants the scene
- * shipped with through 16b, so a sun above 30 degrees looks as it did.
- * Everything below it is a starting look that Mark tunes by eye.
- */
-export const SKY_HAZE = 0x9eb8cc
-export const SKY_ZENITH = 0x29619f
+import { skyIrradiance, sunColorAt, type Rgb } from './atmosphere.js'
 
-export type Rgb = readonly [number, number, number]
+/**
+ * The scene's light as a function of eye altitude and sun elevation, from the
+ * physically based atmosphere (photoreal Task 9, spec §4.3). Replaces Plan
+ * 16c's hand-tuned keys, which the spec retires. Pure apart from a one-entry
+ * cache of the expensive sky irradiance (below).
+ *
+ * Units: scene-linear, the space three's lights and every shader uniform
+ * receive. The CPU model (`atmosphere.ts`) and the GPU LUTs
+ * (`atmosphereLuts.ts`) are relative to a top-of-atmosphere sun of 1; the
+ * scene multiplies both by ONE constant, `SUN_ILLUMINANCE`, so the sun, the
+ * sky dome, the sky fill and the aerial perspective can never drift apart.
+ * Surfaces are Lambertian in these units: outgoing radiance = albedo/π × E,
+ * which is three's own `BRDF_Lambert` for the lit materials and what the
+ * terrain and ocean shaders compute by hand.
+ */
+
+export type { Rgb }
+
+/**
+ * Top-of-atmosphere sun illuminance in scene units. Chosen once, 2026-09-25
+ * (photoreal Task 9), so the noon `runway` view's mean luminance stays within
+ * ±15% of Phase A's (`shots/a-fix1/`); the measurement is in task-9-report.md.
+ */
+export const SUN_ILLUMINANCE = 3.6
+
+/**
+ * The ground albedo the sky irradiance's DOWN term (the light reflected up
+ * from below) is computed with. The theater is mostly sea (open ocean ≈ 0.06)
+ * with forested land (≈ 0.12–0.15); 0.1 splits them. Task 7 exposed the
+ * argument because the model's default 0.3 makes the ground bounce brighter
+ * than the sky fill, which over the Leyte Gulf is wrong.
+ */
+export const SCENE_GROUND_ALBEDO = 0.1
+
+/**
+ * The dusk floor (spec §4.3: "below the horizon the existing dusk floor
+ * behavior is preserved; night lighting is out of scope"). The physical model
+ * falls to ~1e-4 of noon by -6 deg; the game keeps a dim blue sky instead.
+ * These are the retired palette's -6 deg dome colors (0x0d1b33 zenith,
+ * 0x3a3a5a horizon) times one scale, in the same scene units as the model.
+ * They are ADDED, weighted by `twilight` (below), which is ~0 in daylight.
+ */
+const TWILIGHT_SCALE = 0.15
+const TWILIGHT_ZENITH = scaled(srgbHexToLinear(0x0d1b33), TWILIGHT_SCALE)
+const TWILIGHT_HORIZON = scaled(srgbHexToLinear(0x3a3a5a), TWILIGHT_SCALE)
+/** The irradiance a dome of the floor's radiance gives an up-facing surface
+ *  (π × its mean radiance, weighted toward the horizon band). */
+const TWILIGHT_UP: Rgb = scaled(mixRgb(TWILIGHT_ZENITH, TWILIGHT_HORIZON, 0.6), Math.PI)
+
 export type SkyPalette = {
+  /** The DirectionalLight's color: transmitted sun × SUN_ILLUMINANCE. */
   readonly sunColor: Rgb
+  /** Always 1: the intensity is folded into `sunColor`. */
   readonly sunIntensity: number
-  readonly sunTint: Rgb
+  /** The dusk floor's dome colors as currently weighted (0 in daylight).
+   *  The dome and the aerial perspective ADD these to the model. */
   readonly zenith: Rgb
   readonly horizon: Rgb
+  /** Sky irradiance on an up-facing surface, dusk floor included. */
   readonly fillSky: Rgb
+  /** Irradiance on a down-facing surface (ground bounce), floor included. */
   readonly fillGround: Rgb
-  readonly ambientScale: number
+  /** Weight of the dusk floor, 0 (daylight) to 1 (the sun well below). */
+  readonly twilight: number
 }
 
 /** three's `SRGBToLinear`, exactly. */
@@ -28,45 +73,49 @@ function srgbToLinear(c: number): number {
 export function srgbHexToLinear(hex: number): Rgb {
   return [srgbToLinear(((hex >> 16) & 255) / 255), srgbToLinear(((hex >> 8) & 255) / 255), srgbToLinear((hex & 255) / 255)]
 }
+function scaled(c: Rgb, k: number): Rgb { return [c[0] * k, c[1] * k, c[2] * k] }
+function added(a: Rgb, b: Rgb): Rgb { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]] }
+function mixRgb(a: Rgb, b: Rgb, t: number): Rgb { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t] }
+function luminance(c: Rgb): number { return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] }
 
-type Key = { elevationDeg: number; sun: number; intensity: number; zenith: number; horizon: number; fillSky: number; fillGround: number; ambient: number }
-/** Design §4's table. Sorted by elevation, descending. */
-const KEYS: readonly Key[] = [
-  { elevationDeg: 30, sun: 0xfff2e0, intensity: 2.5, zenith: SKY_ZENITH, horizon: SKY_HAZE, fillSky: 0x9eb8cc, fillGround: 0x18384f, ambient: 1 },
-  { elevationDeg: 10, sun: 0xffdcae, intensity: 2.1, zenith: 0x2a5a94, horizon: 0xc9bfa8, fillSky: 0xb7b0a0, fillGround: 0x18384f, ambient: 0.9 },
-  { elevationDeg: 0, sun: 0xff8c4a, intensity: 1.2, zenith: 0x1f3e6e, horizon: 0xf0a060, fillSky: 0x8f7f78, fillGround: 0x142a3c, ambient: 0.6 },
-  { elevationDeg: -6, sun: 0x000000, intensity: 0, zenith: 0x0d1b33, horizon: 0x3a3a5a, fillSky: 0x2c3550, fillGround: 0x0b1520, ambient: 0.25 },
-]
-const HIGH_SUN = srgbHexToLinear(KEYS[0]!.sun)
+/**
+ * `skyIrradiance` costs 2–4 ms of CPU (Task 7), far too much per frame. The
+ * light it describes changes slowly, so it is re-evaluated only when the sun
+ * has moved more than 0.25 deg or the eye more than 100 m vertically since
+ * the cached value; otherwise the cache is returned. The sim clock moves the
+ * sun 0.25 deg in one minute, so this is a few-ms hitch per minute of flight
+ * (or per 100 m of climb), not per frame.
+ */
+export const IRRADIANCE_REFRESH_DEG = 0.25
+export const IRRADIANCE_REFRESH_M = 100
+let cache: { hM: number; elevationDeg: number; up: Rgb; down: Rgb } | null = null
+function cachedIrradiance(hM: number, elevationDeg: number): { up: Rgb; down: Rgb } {
+  if (cache === null || Math.abs(cache.elevationDeg - elevationDeg) > IRRADIANCE_REFRESH_DEG || Math.abs(cache.hM - hM) > IRRADIANCE_REFRESH_M) {
+    const { up, down } = skyIrradiance(hM, elevationDeg, SCENE_GROUND_ALBEDO)
+    cache = { hM, elevationDeg, up, down }
+  }
+  return cache
+}
 
-function lerp(a: number, b: number, t: number): number { return a + (b - a) * t }
-function lerpRgb(a: Rgb, b: Rgb, t: number): Rgb { return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)] }
-function resolve(k: Key): Omit<SkyPalette, 'sunTint'> {
+/** The palette for an eye altitude (m, the world's y) and sun elevation (deg). */
+export function atmospherePalette(eyeAltitudeM: number, elevationDeg: number): SkyPalette {
+  const hM = Math.max(0, eyeAltitudeM)
+  const sunColor = scaled(sunColorAt(hM, elevationDeg), SUN_ILLUMINANCE)
+  const irr = cachedIrradiance(hM, elevationDeg)
+  const up = scaled(irr.up, SUN_ILLUMINANCE)
+  const down = scaled(irr.down, SUN_ILLUMINANCE)
+  // The floor's weight: F²/(L² + F²) on the luminances of the model's sky fill
+  // and the floor's, so it is ~0.5% at noon, ~0.3 at sunset and ~1 once
+  // the model has gone dark. Continuous in elevation, never NaN (F > 0).
+  const f = luminance(TWILIGHT_UP), l = luminance(up)
+  const twilight = (f * f) / (l * l + f * f)
   return {
-    sunColor: srgbHexToLinear(k.sun), sunIntensity: k.intensity, zenith: srgbHexToLinear(k.zenith), horizon: srgbHexToLinear(k.horizon),
-    fillSky: srgbHexToLinear(k.fillSky), fillGround: srgbHexToLinear(k.fillGround), ambientScale: k.ambient,
+    sunColor,
+    sunIntensity: 1,
+    zenith: scaled(TWILIGHT_ZENITH, twilight),
+    horizon: scaled(TWILIGHT_HORIZON, twilight),
+    fillSky: added(up, scaled(TWILIGHT_UP, twilight)),
+    fillGround: added(down, scaled(TWILIGHT_UP, twilight * SCENE_GROUND_ALBEDO)),
+    twilight,
   }
-}
-function withTint(p: Omit<SkyPalette, 'sunTint'>): SkyPalette {
-  return { ...p, sunTint: [p.sunColor[0] / HIGH_SUN[0], p.sunColor[1] / HIGH_SUN[1], p.sunColor[2] / HIGH_SUN[2]] }
-}
-
-export function paletteFor(elevationDeg: number): SkyPalette {
-  if (elevationDeg >= KEYS[0]!.elevationDeg) return withTint(resolve(KEYS[0]!))
-  const last = KEYS[KEYS.length - 1]!
-  if (elevationDeg <= last.elevationDeg) return withTint(resolve(last))
-  for (let i = 0; i < KEYS.length - 1; i++) {
-    const a = KEYS[i]!, b = KEYS[i + 1]!
-    if (elevationDeg <= a.elevationDeg && elevationDeg > b.elevationDeg) {
-      const t = (a.elevationDeg - elevationDeg) / (a.elevationDeg - b.elevationDeg)
-      const A = resolve(a), B = resolve(b)
-      return withTint({
-        sunColor: lerpRgb(A.sunColor, B.sunColor, t), sunIntensity: lerp(A.sunIntensity, B.sunIntensity, t),
-        zenith: lerpRgb(A.zenith, B.zenith, t), horizon: lerpRgb(A.horizon, B.horizon, t),
-        fillSky: lerpRgb(A.fillSky, B.fillSky, t), fillGround: lerpRgb(A.fillGround, B.fillGround, t),
-        ambientScale: lerp(A.ambientScale, B.ambientScale, t),
-      })
-    }
-  }
-  throw new Error(`paletteFor: no key brackets ${elevationDeg}`)
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { CLOUD_TIERS, cloudDriftM, cloudTierFromQuery, createClouds } from '../../src/render/scene/clouds.js'
 import { FOG_DISTANCE_M } from '../../src/render/horizon.js'
+import { FAR_FADE_START_M } from '../../src/render/scene/atmosphereShading.js'
 import { AP_MAX_DISTANCE_M } from '../../src/render/sky/atmosphereLuts.js'
 import { LOD } from '../../src/render/terrain/lod.js'
 import { loadScenario } from '../../tools/content/load.js'
@@ -27,7 +28,10 @@ describe('clouds (Plan 16a)', () => {
     expect([CLOUD_TIERS.high.cumulusSteps, CLOUD_TIERS.medium.cumulusSteps, CLOUD_TIERS.low.cumulusSteps]).toEqual([48, 32, 20])
     expect([CLOUD_TIERS.high.lightSteps, CLOUD_TIERS.medium.lightSteps, CLOUD_TIERS.low.lightSteps]).toEqual([2, 1, 1])
     expect([CLOUD_TIERS.high.cirrusSteps, CLOUD_TIERS.medium.cirrusSteps, CLOUD_TIERS.low.cirrusSteps]).toEqual([8, 6, 4])
-    expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.5, 0.5, 0.25])
+    // high 0.5 -> 0.45 on 2026-09-25 (photoreal Task 9, the plan ledger's
+    // allowed budget lever): the atmosphere's consumers took in-deck-1900's
+    // 4K p95 to 8.46 ms; 0.45 measured 7.80/7.82.
+    expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.45, 0.5, 0.25])
   })
   it('drifts with the wind, the velocity of the air, and stands still in calm', () => {
     expect(cloudDriftM(null, 100)).toEqual({ x: 0, z: 0 })
@@ -47,8 +51,15 @@ describe('clouds (Plan 16a)', () => {
     }
     expect(createClouds([], noise).enabled).toBe(false)
   })
-  it('shares the terrain fog distance, so a cloud at the draw distance is exactly haze', () => {
+  it('the terrain draw distance is the fog distance (clouds, AP and the far fade all key on it)', () => {
     expect(LOD.drawDistanceM).toBe(FOG_DISTANCE_M)
+  })
+  it('the terrain far fade ends exactly at the draw distance, over its last 10% (photoreal Task 9)', () => {
+    // atmosphereShading.ts farFadeWeight: smoothstep(FAR_FADE_START_M,
+    // FOG_DISTANCE_M, d) is exactly 1 at the distance, which is what lets the
+    // terrain's edge sit on the draw distance invisibly.
+    expect(FAR_FADE_START_M).toBeCloseTo(0.9 * FOG_DISTANCE_M, 6)
+    expect(FAR_FADE_START_M).toBeLessThan(LOD.drawDistanceM)
   })
   it('aerial perspective reaches exactly the fog distance (photoreal Task 8)', () => {
     expect(AP_MAX_DISTANCE_M).toBe(FOG_DISTANCE_M)

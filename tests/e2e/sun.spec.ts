@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
-import { spawnUrl, type DiagWindow } from './harness.js'
+import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { VIEWS } from './views.js'
 import { TIME_OF_DAY_PARAM, sunPosition } from '../../src/render/sky/sun.js'
 import { loadAirfield } from '../../tools/content/load.js'
 import { loadTerrainHeader } from '../../tools/terrain/load.js'
@@ -121,5 +122,26 @@ test('a twilight scenario is dusk, not black, and the shadow pass is still sane'
   console.log('dusk', { sky, ground })
   expect(sky.gray).toBeGreaterThan(8)
   expect(ground.gray).toBeGreaterThan(4)
+  expect(await errors(page)).toEqual([])
+})
+
+/**
+ * Photoreal Task 9 (spec §4.3, review focus 4): with the sun 9 deg below the
+ * horizon the atmosphere model alone is ~1e-4 of noon, so what is on screen is
+ * the dusk floor (sky/palette.ts) through the dusk exposure. Dim, not black
+ * (a NaN or a dead floor), not blown out (an exposure runaway). Mean grey of
+ * the frame with the top 100 rows -- the DEV readout -- cropped: 18.5 when
+ * first measured, 2026-09-25.
+ */
+test('dusk at under-deck-1200, 18:30: dim but not black, not blown', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(`${VIEWS.find((v) => v.name === 'under-deck-1200')!.url}&${TIME_OF_DAY_PARAM}=18.5`)
+  await waitForTerrain(page)
+  await page.waitForTimeout(3000)
+  const png = await page.screenshot({ path: 'test-results/sun-dusk-under-deck.png' })
+  const frame = await rgbStats(page, png, { x: 0, y: 100, w: 2560, h: 1340 })
+  console.log('dusk under-deck-1200', frame)
+  expect(frame.gray).toBeGreaterThan(2)
+  expect(frame.gray).toBeLessThan(60)
   expect(await errors(page)).toEqual([])
 })

@@ -1,4 +1,4 @@
-import { mul, smoothstep } from 'three/tsl'
+import { mul } from 'three/tsl'
 import type { Node } from 'three/webgpu'
 import { EARTH_RADIUS_M } from '../sim/world/projection.js'
 
@@ -69,19 +69,8 @@ export function horizonSinkNode(distanceM: Node<'float'>): Node<'float'> {
   return mul(distanceM, distanceM).div(2 * EARTH_RADIUS_M)
 }
 
-/** The terrain's draw distance and the distance at which aerial perspective
- *  is total (`terrain/lod.ts`'s `drawDistanceM`; `tests/render/clouds.test.ts`
- *  pins the two equal). */
+/** The terrain's draw distance, the aerial-perspective LUT's range and the
+ *  end of its far fade into the horizon sky (`scene/atmosphereShading.ts`;
+ *  `terrain/lod.ts`'s `drawDistanceM` -- `tests/render/clouds.test.ts` pins
+ *  the three equal). */
 export const FOG_DISTANCE_M = 100_000
-
-/**
- * Aerial perspective weight, 0 clear to 1 pure `skyHorizonNode`
- * (`lighting.ts`) at `FOG_DISTANCE_M`.
- * Moved here from `terrain/mesh.ts` on 2026-09-19 so the clouds and the
- * terrain fog on ONE ramp, for the reason `horizonSinkNode` lives here.
- * `smoothstep` is exactly 1 at the distance, which is what lets the far
- * plane sit on the draw distance invisibly -- mesh.ts's own comment.
- */
-export function fogWeightNode(distanceM: Node<'float'>): Node<'float'> {
-  return smoothstep(0, FOG_DISTANCE_M, distanceM)
-}

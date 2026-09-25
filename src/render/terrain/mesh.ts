@@ -26,6 +26,7 @@ import {
   length,
   min,
   mix,
+  modelWorldMatrix,
   normalize,
   positionLocal,
   textureLoad,
@@ -33,13 +34,15 @@ import {
   varying,
   vec2,
   vec3,
+  vec4,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import { createCoverNodes, terrainSurfaceNode, type CoverNodes } from './surface.js'
-import { fogWeightNode, horizonSinkNode } from '../horizon.js'
+import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
-import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
+import { skyIrradianceDownNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode } from '../scene/lighting.js'
+import { aerialPerspective, farFadeWeight, farSeaColor } from '../scene/atmosphereShading.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
@@ -116,11 +119,6 @@ export function sampleLevelsForRing(
  * reallocation, not a dropped patch.
  */
 const INITIAL_RING_CAPACITY = 64
-
-/** Fraction of the terrain's lit colour that survives in shadow: sky and
- *  sea bounce, standing in for the HemisphereLight the rest of the scene
- *  gets (lighting.ts). Without it, every north face is black. */
-const AMBIENT = 0.35
 
 /**
  * Bilinear height and horizontal gradient at a world (x, z), read from one
@@ -228,11 +226,10 @@ function sampleField(
  *
  * `MeshBasicNodeMaterial` rather than a lit standard material: the terrain
  * does its own lambert against `sunDirectionNode` (lighting.ts) using the
- * interpolated terrain normal, and takes its ambient from a constant
- * instead of the scene's HemisphereLight. That keeps the whole surface --
- * displacement, normal, colour and fog -- in one graph that can be read in
- * one sitting, at the cost of not tracking the scene's lights if they ever
- * change. A `ShaderMaterial` is not an option at all here; sky.ts records
+ * interpolated terrain normal, and takes its ambient from the same sky
+ * irradiance uniforms `applySun` gives the scene's HemisphereLight. That
+ * keeps the whole surface -- displacement, normal, colour and aerial
+ * perspective -- in one graph that can be read in one sitting. A `ShaderMaterial` is not an option at all here; sky.ts records
  * why (the WebGPU node library has no entry for it).
  */
 function createRingMaterial(
@@ -274,32 +271,44 @@ function createRingMaterial(
   // only there -- see its doc comment for why a second copy is how the hidden
   // beach comes back.
   const sinkM = horizonSinkNode(distanceM)
-  material.positionNode = vec3(worldXZ.x, heightM.sub(sinkM), worldXZ.y)
+  const position = vec3(worldXZ.x, heightM.sub(sinkM), worldXZ.y)
+  material.positionNode = position
 
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
   const slope = length(vec2(field.y, field.z))
   const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope), cover)
   const sun = normalize(sunDirectionNode)
   const lambert = clamp(dot(varying(normal), sun), 0, 1)
-  // Plan 16b: cloud shadow scales the direct term only; ambient stays, so
-  // the ground under an opaque cloud keeps AMBIENT, like a north slope.
+  // Plan 16b: cloud shadow scales the direct term only; the sky's ambient
+  // stays, so the ground under an opaque cloud is lit like a north slope.
   // The terrain already has TRUE world coordinates (`worldXZ` from
   // `nodeSpec`, `heightM` from the field), so it passes 'world' and the
   // node adds no eye offset. `varying` so the lookup is per fragment.
   const shadowT = shadow ? shadow.node(varying(vec3(worldXZ.x, heightM, worldXZ.y)), 'world') : float(1)
-  const lit = albedo.mul(vec3(AMBIENT).mul(ambientScaleNode).add(sunTintNode.mul(lambert.mul(1 - AMBIENT).mul(shadowT))))
+  // Photoreal Task 9 (spec §4.3): Lambertian in scene units, albedo/pi x
+  // irradiance -- three's BRDF_Lambert, so the terrain and the lit materials
+  // parked on it agree. The ambient is the atmosphere's sky irradiance,
+  // mixed from the up- and down-facing values by the normal as three's
+  // HemisphereLight does (lighting.ts sets both from one palette).
+  const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode, varying(normal).y.mul(0.5).add(0.5))
+  const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT))))
 
-  // Aerial perspective, and the reason the far plane can sit exactly on the
-  // draw distance (main.ts). `smoothstep` is exactly 1 at `drawDistanceM`,
-  // so terrain at or beyond it is precisely the `skyHorizonNode` color the sky dome behind it
-  // is painted with -- a fragment the far plane removes and one it keeps are
-  // the same colour, and the clip cannot be seen. A `1 - exp(-d/L)`
-  // extinction curve would be more physical and never reach 1, which is
-  // exactly the property that would make the clip a visible edge.
-  // The ramp itself lives in horizon.ts since 2026-09-19 (Plan 16a): the
-  // clouds fog on the same one, and `clouds.test.ts` pins it to LOD.drawDistanceM.
-  const fog = fogWeightNode(distanceM)
-  const shaded = mix(lit, skyHorizonNode, varying(fog))
+  // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
+  // interpolated like the old fog ramp: the LUT is 32x32 per slice and
+  // smooth, and a per-fragment lookup would cost two samples per 4K pixel.
+  // The scene is camera-relative, so the model-to-world transform of the
+  // displaced vertex IS the eye-to-vertex vector.
+  //
+  // The far-plane invariant: over the last 10% of the draw distance the lit
+  // color blends toward the far sea's (`farFadeWeight`'s doc), so where the
+  // terrain ends the ocean behind it continues in the same color and the
+  // clip cannot be seen. `smoothstep` is exactly 1 at the distance.
+  const eyeToVertex = modelWorldMatrix.mul(vec4(position, 1)).xyz
+  const eyeDistanceM = length(eyeToVertex)
+  const ap = varying(aerialPerspective(eyeToVertex, eyeDistanceM))
+  const fade = varying(farFadeWeight(eyeDistanceM))
+  const farSea = varying(farSeaColor(eyeToVertex))
+  const shaded = mix(lit, farSea, fade).mul(ap.a).add(ap.rgb)
   const vertexHeightM = varying(heightM)
 
   // The ocean owns water fragments. Discard the DEM's zero-elevation sea

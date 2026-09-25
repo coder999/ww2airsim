@@ -1,12 +1,13 @@
 import type { Node } from 'three/webgpu'
 import {
-  Break, Fn, If, Loop, clamp, color, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
+  Break, Fn, If, Loop, clamp, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
 } from 'three/tsl'
 import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
-import { FOG_DISTANCE_M, fogWeightNode, horizonSinkNode } from '../horizon.js'
-import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from './lighting.js'
+import { FOG_DISTANCE_M, horizonSinkNode } from '../horizon.js'
+import { skyIrradianceDownNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode } from './lighting.js'
+import { aerialPerspective } from './atmosphereShading.js'
 import { CUMULUS_SIGMA, SHAPE_TILE_M, cloudDriftM, createCloudField, type CloudField } from './cloudField.js'
 
 export { cloudDriftM }
@@ -26,10 +27,12 @@ export { cloudDriftM }
  * `resolutionScale` is the cloud pass's target size as a fraction of the
  * drawing buffer, per axis. Step counts are the pre-16d baseline (photoreal
  * spec §4.1): medium's light march went from 2 to 1 on 2026-09-24, which the
- * spec names as that baseline.
+ * spec names as that baseline. `high`'s resolution scale went from 0.5 to
+ * 0.45 on 2026-09-25 (photoreal Task 9) to pay for the atmosphere at 4K --
+ * the plan's allowed lever; the rolling-flight ghost check was re-run.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 48, lightSteps: 2, cirrusSteps: 8, resolutionScale: 0.5 },
+  high: { cumulusSteps: 48, lightSteps: 2, cirrusSteps: 8, resolutionScale: 0.45 },
   medium: { cumulusSteps: 32, lightSteps: 1, cirrusSteps: 6, resolutionScale: 0.5 },
   low: { cumulusSteps: 20, lightSteps: 1, cirrusSteps: 4, resolutionScale: 0.25 },
 } as const
@@ -113,11 +116,14 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   const debug = uniform(0, 'int')
 
   const sun = normalize(sunDirectionNode)
-  // TSL's `color()` is a runtime vec3 but @types/three gives it a distinct
-  // `color` tag whose `mul` overload only admits scalars.
-  const sunColor = (color(0xfff2e0) as unknown as Node<'vec3'>).mul(sunTintNode)
-  const ambientTop = skyHorizonNode.mul(ambientScaleNode)
-  const ambientBottom = skyHorizonNode.mul(ambientScaleNode).mul(0.6)
+  // Photoreal Task 9: the atmosphere's light, as radiance a Lambertian
+  // surface would return (irradiance / pi, the terrain's scale): the sun
+  // transmitted to the eye's altitude, the sky's up-facing irradiance on the
+  // tops and the ground bounce (down-facing) under the bases. Phase C1
+  // (Task 11) replaces this single-scattering model; the inputs stay.
+  const sunColor = sunColorNode.mul(1 / Math.PI)
+  const ambientTop = skyIrradianceUpNode.mul(1 / Math.PI)
+  const ambientBottom = skyIrradianceDownNode.mul(1 / Math.PI)
 
 
   const marchNode = (dirIn: Node<'vec3'>, sceneTIn: Node<'float'>, dither: Node<'float'>): CloudMarch => {
@@ -132,7 +138,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
     // the light it contributes, transmittance * (1 - stepT).
     const hitTSum = float(0).toVar()
     const hitWSum = float(0).toVar()
-    const firstHitT = float(FOG_DISTANCE_M).toVar()
     const horizontal = length(dir.xz)
     const peakDensity = float(0).toVar()
     const slabEnter = float(0).toVar()
@@ -224,7 +229,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
           const dens = density(pc, base, thickness, coverage, kind)
           peakDensity.assign(max(peakDensity, dens))
           If(dens.greaterThan(0.001), () => {
-            firstHitT.assign(min(firstHitT, t))
             // Light march toward the sun through this layer.
             // Light march toward the sun, cumulus only: a 300 m cirrus sheet
             // casts no shadow on itself worth four density samples a step --
@@ -257,12 +261,13 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
       })
     })
     const alpha = float(1).sub(transmittance).toVar()
-    // Aerial perspective on the cloud, by the distance to its first sample.
-    // Mixed on the straight (un-premultiplied) color exactly as the dome did;
-    // premultiplied again at the end for the pass's over-composite.
-    const fog = fogWeightNode(firstHitT)
-    const rgb = mix(scattered.div(max(alpha, 0.0001)), skyHorizonNode, fog).toVar()
     const depthM = hitWSum.greaterThan(0).select(hitTSum.div(max(hitWSum, 1e-12)), float(FOG_DISTANCE_M)).toVar()
+    // Aerial perspective on the cloud at its representative depth (photoreal
+    // Task 9, spec §4.3), applied to the straight (un-premultiplied) color
+    // and premultiplied again at the end for the pass's over-composite. The
+    // scene behind carries its own aerial perspective.
+    const ap = aerialPerspective(dir, depthM).toVar()
+    const rgb = scattered.div(max(alpha, 0.0001)).mul(ap.a).add(ap.rgb).toVar()
     If(debug.equal(int(2)), () => {
       const g = sceneT.div(FOG_DISTANCE_M)
       rgb.assign(vec3(g, g, g))

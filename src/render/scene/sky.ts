@@ -1,7 +1,10 @@
 import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
-import { clamp, color, dot, max, mix, normalize, positionLocal, pow, smoothstep, step } from 'three/tsl'
-import { skyHorizonNode, skyZenithNode, sunDirectionNode, sunTintNode } from './lighting.js'
+import { clamp, color, dot, float, mix, normalize, positionLocal, positionWorld, smoothstep, sqrt, step } from 'three/tsl'
+import { sunDirectionNode } from './lighting.js'
+import { skyRadiance } from './atmosphereShading.js'
+import { getAtmosphereLuts } from '../sky/atmosphereLuts.js'
+import { SUN_ILLUMINANCE } from '../sky/palette.js'
 import { SEA_COLOUR } from './water.js'
 
 export const SKY_RADIUS_M = 45_000
@@ -43,9 +46,18 @@ const SKY_WIDTH_SEGMENTS = 64
  *  that; the first pass raised it to 32 for no stated reason and no
  *  measurable gain, so it goes back too. */
 const SKY_HEIGHT_SEGMENTS = 16
-/** Moved to `sky/palette.ts` in Plan 16c: they are the palette's HIGH key.
- *  Re-exported so every importer of "the" haze and zenith still resolves. */
-export { SKY_HAZE, SKY_ZENITH } from '../sky/palette.js'
+/** The sun's angular radius (half-angle), degrees: 0.533 deg across. */
+export const SUN_ANGULAR_RADIUS_DEG = 0.2665
+/**
+ * The disc's radiance per unit of transmitted sun illuminance (scene units).
+ * A physical disc is E / Ω = 1 / 6.8e-5 sr ≈ 15,000× the illuminance; that
+ * overflows nothing in half float but turns TRAA's history and the bloom's
+ * high pass into a white blot a hundred pixels wide. 40 puts the disc's
+ * core at ~140 at noon -- two orders above the bloom threshold (pipeline.ts
+ * `BLOOM_THRESHOLD` 1.2), so it blooms into a halo, and after AgX it reads
+ * as the brightest thing in the frame (photoreal Task 9 ruling).
+ */
+export const SUN_DISC_RADIANCE = 40
 
 /**
  * Whether the dome is sea or sky at a given vertical component of the unit
@@ -78,7 +90,7 @@ export function domeColourFor(unitY: number): 'sea' | 'sky' {
 }
 
 /**
- * Gradient dome. Attitude is judged against a horizon, so this is not optional.
+ * The sky dome. Attitude is judged against a horizon, so this is not optional.
  *
  * Built with TSL rather than a GLSL ShaderMaterial: WebGPURenderer resolves
  * every mesh material through a `StandardNodeLibrary` that maps material
@@ -95,21 +107,35 @@ export function domeColourFor(unitY: number): 'sea' | 'sky' {
  */
 export function createSky(): Object3D {
   const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, depthTest: false })
-  const dir = positionLocal.normalize()
-  const y = dir.y
-  // `domeColourFor` states the branch this selects; the ramp itself is not
-  // mirrored in JavaScript, because it happens in linear working space here
-  // and would not agree.
-  const above = mix(skyHorizonNode, skyZenithNode, clamp(y, 0, 1))
-  // Plan 16c: the sun disc and its halo, only once the sun is above the
-  // horizon; the cloud pass composites over it and dims it correctly.
+  // The sea/sky branch is on the dome's OWN direction (`domeColourFor`), but
+  // the radiance is looked up along the true VIEW direction. main.ts centres
+  // the dome at sea level under the eye, not on the eye, so from altitude the
+  // two differ by up to atan(eye.y / SKY_RADIUS_M) -- 7.6 deg at 6000 m. The
+  // gradient never cared; the sky-view LUT does: sampling it along the
+  // dome's direction put the horizon's bright band 7 deg too high and left
+  // a pale strip with a hard edge between the sea's horizon and the sky
+  // (high-6000 without clouds, read 2026-09-25). The scene is
+  // camera-relative, so `positionWorld` IS the eye-to-fragment vector.
+  const y = positionLocal.normalize().y
+  const dir = positionWorld.normalize()
+  // Photoreal Task 9 (spec §4.3): the sky-view LUT, in scene units, with the
+  // dusk floor (atmosphereShading.ts). The radiance is the GPU's business.
+  const above = skyRadiance(dir)
+  // The physical sun disc: smoothstep over its angular radius, limb darkening
+  // 1 - 0.6(1 - sqrt(1 - r^2)) with r the fraction of the radius, times the
+  // transmittance toward the sun (which carries the below-horizon fade).
+  // The cloud pass composites over it and dims it correctly.
   const sun = normalize(sunDirectionNode)
+  const sinR = Math.sin(SUN_ANGULAR_RADIUS_DEG * Math.PI / 180)
   const d = dot(dir, sun)
-  const disc = smoothstep(0.9995, 0.9999, d)
-  const halo = pow(max(d, 0), 64).mul(0.35)
-  const sunUp = smoothstep(-0.02, 0.02, sun.y)
-  const lit = above.add(sunTintNode.mul(disc.add(halo)).mul(sunUp))
-  material.colorNode = mix(color(SEA_COLOUR), lit, step(0, y))
+  // Fraction of the radius from the chord, sin(angle) / sin(radius); the
+  // `step` rejects the antipode, where the sine is small again.
+  const rRaw = sqrt(clamp(float(1).sub(d.mul(d)), 0, 1)).div(sinR)
+  const inside = float(1).sub(smoothstep(0.85, 1, rRaw)).mul(step(0, d))
+  const r = clamp(rRaw, 0, 1)
+  const limb = float(1).sub(float(1).sub(sqrt(float(1).sub(r.mul(r)))).mul(0.6))
+  const disc = getAtmosphereLuts().sunTransmittanceNode().mul(SUN_ILLUMINANCE * SUN_DISC_RADIANCE).mul(limb.mul(inside))
+  material.colorNode = mix(color(SEA_COLOUR), above.add(disc), step(0, y))
   const sky = new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
   // Background first: a 45 km dome must never paint over the 400 km ocean.
   sky.renderOrder = -1

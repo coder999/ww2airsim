@@ -125,6 +125,10 @@ export type AtmosphereLuts = {
   readonly multiScattering: Texture
   readonly skyView: Texture
   readonly aerialPerspective: Texture
+  /** The eye altitude the per-frame LUTs were last built at, meters
+   *  (clamped to [MIN_EYE_ALTITUDE_M, top)). Photoreal Task 9 reads it for
+   *  the true horizon's elevation. */
+  readonly eyeAltitude: Node<'float'>
   /** Sky radiance for a world direction (sampling skyView). */
   skyRadianceNode(dirWorld: Node<'vec3'>): Node<'vec3'>
   /** Aerial perspective at a camera-relative distance along a direction:
@@ -530,6 +534,7 @@ export function createAtmosphereLuts(): AtmosphereLuts {
     multiScattering: multiScatteringTarget.texture,
     skyView: skyViewTarget.texture,
     aerialPerspective: apTarget.texture,
+    eyeAltitude,
     skyRadianceNode,
     aerialPerspectiveNode,
     sunTransmittanceNode,

@@ -4,7 +4,8 @@ import { Fn, If, clamp, color, fract, max, normalize, dot, pow, reflect, float, 
 import { horizonSinkNode, OCEAN_EXTENT_M } from '../horizon.js'
 import { SEA_COLOUR } from '../scene/water.js'
 import { OCEAN_SHADOW_FLOOR, type CloudShadowHandle } from '../scene/cloudShadow.js'
-import { ambientScaleNode, skyHorizonNode, sunDirectionNode, sunTintNode } from '../scene/lighting.js'
+import { sunColorNode, sunDirectionNode } from '../scene/lighting.js'
+import { aerialPerspective, mirroredSky, seaIrradianceOverPi } from '../scene/atmosphereShading.js'
 import { OUTSIDE_DEPTH_M, type DepthField } from './depth.js'
 import type { OceanCompute } from './compute.js'
 import { angularFadeSpacingM, shortestWavelengthM } from './bands.js'
@@ -522,25 +523,43 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   const normal = normalize(vec3(slopes.x, 1, slopes.y))
   const view = normalize(vec3(0, eyeHeight, 0).sub(varying(displacedPosition)))
   const fresnel = float(0.0204).add(pow(float(1).sub(clamp(dot(normal, view), 0, 1)), 5).mul(0.9796))
-  // Plan 16c: the sky the water reflects follows the sun, and a specular
-  // glint appears where the wave normals reflect it. `sunTintNode` is black
-  // at twilight, so the glint dies with the sun.
+  // Plan 16c: a specular glint where the wave normals reflect the sun.
+  // Photoreal Task 9: in the atmosphere's sun color (scene units, black
+  // below the dusk floor, so the glint dies with the sun), bright enough to
+  // bloom.
   const sun = normalize(sunDirectionNode)
-  const glint = pow(max(dot(reflect(view.negate(), normal), sun), 0), 180).mul(sunTintNode).mul(fresnel)
-  // Plan 16c ruling: the water's subsurface color and the foam are lit by the
-  // sky, so they scale with the palette's ambient (exactly 1 above 30 deg,
-  // 0.25 at civil dusk), as the terrain's ambient term does. Without it the
-  // sea glowed saturated turquoise under a navy dusk sky (read 2026-09-19).
-  const subsurface = waterColour.mul(ambientScaleNode)
-  const foamColour = color(0xe4eff0).mul(ambientScaleNode)
+  const glint = pow(max(dot(reflect(view.negate(), normal), sun), 0), 180).mul(sunColorNode).mul(fresnel)
+  // Photoreal Task 9: the subsurface color and the foam are lit by the
+  // irradiance on the up-facing sea -- the transmitted sun on the horizontal
+  // plus the sky's (`skyIrradianceUpNode`, dusk floor included) -- as
+  // albedo/pi x E, the terrain's Lambertian. At noon that is ~1, the scale
+  // the colors were chosen at; at dusk it falls with the light, as the old
+  // palette's ambient scale did (without it the sea glowed turquoise under
+  // a navy sky, read 2026-09-19).
+  const seaIrradiance = seaIrradianceOverPi()
+  const subsurface = waterColour.mul(seaIrradiance)
+  // `color()`'s type admits only scalar `mul` (clouds.ts has the same cast).
+  const foamColour = (color(0xe4eff0) as unknown as Node<'vec3'>).mul(seaIrradiance)
+  // The sky the water reflects: the sky-view LUT along the mirror direction
+  // of the MEAN surface, per vertex (spec §4.5 moves this to the per-fragment
+  // wave-normal reflection in Task 12). `mirroredSky` is shared with the
+  // terrain's far fade (atmosphereShading.ts), which must match this sea.
+  const eyeToVertex = displacedPosition.sub(vec3(0, eyeHeight, 0))
+  const eyeDistanceM = length(eyeToVertex)
+  const reflectedSky = varying(mirroredSky(eyeToVertex))
   const unshadowed = cascades.length === 0 ? subsurface : mix(
-    mix(subsurface.mul(max(normal.y, 0.3)), skyHorizonNode, fresnel), foamColour, clamp(foam, 0, 1)).add(glint)
+    mix(subsurface.mul(max(normal.y, 0.3)), reflectedSky, fresnel), foamColour, clamp(foam, 0, 1)).add(glint)
   // Plan 16b: under cloud the sea loses glint and subsurface light but still
   // reflects the sky, hence a floor rather than the terrain's direct-only
   // scale. The sea is at y = 0, so `worldXZ` is the true world point and the
   // parallax is zero.
   const shadowT = shadow ? shadow.node(vec3(worldXZ.x, 0, worldXZ.y), 'world') : float(1)
-  material.colorNode = shadow?.showing ? vec3(shadowT, shadowT, shadowT) : unshadowed.mul(mix(float(OCEAN_SHADOW_FLOOR), float(1), shadowT))
+  // Aerial perspective (atmosphereShading.ts), per vertex like the terrain's;
+  // past the LUT's 100 km it is extrapolated, carrying the 400 km sea into the
+  // horizon haze. The terrain fades to THIS sea at its draw distance.
+  const ap = varying(aerialPerspective(eyeToVertex, eyeDistanceM))
+  const lit = unshadowed.mul(mix(float(OCEAN_SHADOW_FLOOR), float(1), shadowT))
+  material.colorNode = shadow?.showing ? vec3(shadowT, shadowT, shadowT) : lit.mul(ap.a).add(ap.rgb)
   const mesh = new Mesh(oceanGeometry(oceanRings(OCEAN_EXTENT_M, 8)), material)
   mesh.frustumCulled = false // shader changes bounds; the disc always surrounds the eye
   mesh.userData.disposeOcean = () => { mesh.geometry.dispose(); material.dispose(); tex.dispose() }

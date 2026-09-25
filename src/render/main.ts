@@ -31,7 +31,7 @@ import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
-import { paletteFor } from './sky/palette.js'
+import { atmospherePalette } from './sky/palette.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -2014,12 +2014,14 @@ async function boot(): Promise<void> {
     // One clock for the sea and the sky (Plan 16a): the clouds drift on the
     // same simulated seconds the ocean's waves evolve on.
     const skyTimeS = oceanTime ?? current.world.tick * DT + current.world.accumulatorSeconds + postImpactOceanSeconds
-    // Plan 16c: the sun creeps with the sim clock, and the palette follows
-    // its elevation. One trig evaluation and a handful of uniform writes.
+    // Plan 16c: the sun creeps with the sim clock, and the light follows its
+    // elevation and the eye's altitude -- photoreal Task 9, from the
+    // atmosphere model (sky/palette.ts; its sky irradiance is cached and
+    // re-evaluated only on a 0.25 deg / 100 m change).
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
-    applySun(lights, paletteFor(elevationDeg), direction, elevationDeg)
+    applySun(lights, atmospherePalette(current.eye.position.y, elevationDeg), direction, elevationDeg)
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

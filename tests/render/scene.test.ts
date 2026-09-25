@@ -15,17 +15,18 @@ import { createMarkers, recentreMarkers, MARKER_SPACING_M } from '../../src/rend
 import { createSky, domeColourFor } from '../../src/render/scene/sky.js'
 import { CAMERA_VFOV_DEG } from '../../src/render/camera.js'
 import {
-  ambientScaleNode,
   applySun,
   createLighting,
-  skyHorizonNode,
-  skyZenithNode,
+  skyIrradianceDownNode,
+  skyIrradianceUpNode,
+  sunColorNode,
   sunDirectionNode,
   sunElevationNode,
   SUN_DIRECTION,
-  sunTintNode,
+  twilightHorizonNode,
+  twilightZenithNode,
 } from '../../src/render/scene/lighting.js'
-import { paletteFor } from '../../src/render/sky/palette.js'
+import { atmospherePalette } from '../../src/render/sky/palette.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
 /** 1440p, the resolution the legibility trade was made for. */
@@ -253,11 +254,11 @@ describe('lighting', () => {
     expect(sunDirectionNode.value.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
   })
 
-  it('applySun drives both lights and the shared uniforms from the palette (Plan 16c)', () => {
+  it('applySun drives both lights and the shared uniforms from the palette (Plan 16c; atmosphere since photoreal Task 9)', () => {
     const lights = createLighting()
     const sun = lights.children.find((c): c is DirectionalLight => c instanceof DirectionalLight)!
     const fill = lights.children.find((c): c is HemisphereLight => c instanceof HemisphereLight)!
-    const palette = paletteFor(0)
+    const palette = atmospherePalette(1000, 0)
     applySun(lights, palette, v3(-0.9, 0.05, 0.2), 0)
     expect(sun.position.toArray()).toEqual([-0.9, 0.05, 0.2])
     expect(sunDirectionNode.value.toArray()).toEqual([-0.9, 0.05, 0.2])
@@ -265,14 +266,15 @@ describe('lighting', () => {
     expect(sun.color.r).toBeCloseTo(palette.sunColor[0], 6)
     expect(fill.color.g).toBeCloseTo(palette.fillSky[1], 6)
     expect(fill.groundColor.b).toBeCloseTo(palette.fillGround[2], 6)
-    expect(sunTintNode.value.r).toBeCloseTo(palette.sunTint[0], 6)
-    expect(skyHorizonNode.value.r).toBeCloseTo(palette.horizon[0], 6)
-    expect(skyZenithNode.value.b).toBeCloseTo(palette.zenith[2], 6)
+    expect(fill.intensity).toBe(1)
+    // The shader uniforms are the lights' own values (ruling P3's names).
+    expect(sunColorNode.value.r).toBeCloseTo(palette.sunColor[0] * palette.sunIntensity, 6)
+    expect(skyIrradianceUpNode.value.b).toBeCloseTo(palette.fillSky[2], 6)
+    expect(skyIrradianceDownNode.value.g).toBeCloseTo(palette.fillGround[1], 6)
+    expect(twilightHorizonNode.value.r).toBeCloseTo(palette.horizon[0], 6)
+    expect(twilightZenithNode.value.b).toBeCloseTo(palette.zenith[2], 6)
     expect(sunElevationNode.value).toBe(0)
-    expect(ambientScaleNode.value).toBe(palette.ambientScale)
-    // Back to the high key: the uniforms read exactly today's constants again.
-    applySun(lights, paletteFor(70), v3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z), 70)
-    expect(sunTintNode.value.toArray()).toEqual([1, 1, 1])
+    applySun(lights, atmospherePalette(0, 70), v3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z), 70)
     expect(sun.position.toArray()).toEqual([SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z])
   })
 

@@ -2,7 +2,7 @@ import { Color, DirectionalLight, Group, HemisphereLight, Vector3, type Object3D
 import { uniform } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import type { Vec3 } from '../../sim/math/vec3.js'
-import { paletteFor, type SkyPalette } from '../sky/palette.js'
+import { atmospherePalette, type SkyPalette } from '../sky/palette.js'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -28,17 +28,33 @@ export const SUN_DIRECTION = { x: 0.4, y: 1, z: 0.3 } as const
 export const sunDirectionNode = uniform(new Vector3(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z))
 
 /**
- * Plan 16c: the palette as uniforms. Written once per frame by `applySun`
- * from `paletteFor(elevation)`; read by the sky dome, the terrain, the
- * clouds and the ocean. Initialized to the HIGH key, i.e. today's look, so
- * a consumer built before the first frame renders exactly as it did.
+ * The palette as uniforms (Plan 16c; from the atmosphere since photoreal
+ * Task 9, `sky/palette.ts`). Written once per frame by `applySun`. All are
+ * scene-linear and already scaled by `SUN_ILLUMINANCE`. Controller ruling P3
+ * names `sunColorNode`, `skyIrradianceUpNode` and `skyIrradianceDownNode`;
+ * later tasks read them by those names.
+ *
+ *  - `sunColorNode`: the transmitted sun's irradiance on a surface facing it
+ *    (the DirectionalLight's color × intensity). Black below the dusk floor.
+ *  - `skyIrradianceUpNode` / `skyIrradianceDownNode`: sky irradiance on an
+ *    up-facing / down-facing surface (the HemisphereLight's sky / ground),
+ *    dusk floor included.
+ *  - `twilightZenithNode` / `twilightHorizonNode`: the dusk floor's dome
+ *    radiance as currently weighted -- 0 in daylight. The dome and the aerial
+ *    perspective add these over the model (`atmosphereShading.ts`).
+ *
+ * Initialized from the noon sea-level palette so a consumer built before the
+ * first frame renders a plausible day.
  */
-const initial = paletteFor(90)
-export const sunTintNode = uniform(new Color(...initial.sunTint)) as unknown as UniformNode<'vec3', Color>
-export const skyZenithNode = uniform(new Color(...initial.zenith)) as unknown as UniformNode<'vec3', Color>
-export const skyHorizonNode = uniform(new Color(...initial.horizon)) as unknown as UniformNode<'vec3', Color>
-export const sunElevationNode = uniform(90)
-export const ambientScaleNode = uniform(initial.ambientScale)
+const initial = atmospherePalette(0, 68)
+const vec3Uniform = (c: readonly [number, number, number]): UniformNode<'vec3', Color> =>
+  uniform(new Color(...c)) as unknown as UniformNode<'vec3', Color>
+export const sunColorNode = vec3Uniform(initial.sunColor)
+export const skyIrradianceUpNode = vec3Uniform(initial.fillSky)
+export const skyIrradianceDownNode = vec3Uniform(initial.fillGround)
+export const twilightZenithNode = vec3Uniform(initial.zenith)
+export const twilightHorizonNode = vec3Uniform(initial.horizon)
+export const sunElevationNode = uniform(68)
 
 /** Drives the two lights and every sun/sky uniform from one palette and one
  *  direction. `direction` is the unit vector toward the sun (sun.ts); it is
@@ -50,14 +66,17 @@ export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3,
   sun.position.set(direction.x, direction.y, direction.z)
   sun.color.setRGB(...palette.sunColor)
   sun.intensity = palette.sunIntensity
+  // HemisphereLightNode: irradiance = mix(ground, sky, 0.5 + 0.5 n.y) x intensity.
   fill.color.setRGB(...palette.fillSky)
   fill.groundColor.setRGB(...palette.fillGround)
+  fill.intensity = 1
   sunDirectionNode.value.set(direction.x, direction.y, direction.z)
-  sunTintNode.value.setRGB(...palette.sunTint)
-  skyZenithNode.value.setRGB(...palette.zenith)
-  skyHorizonNode.value.setRGB(...palette.horizon)
+  sunColorNode.value.setRGB(...palette.sunColor).multiplyScalar(palette.sunIntensity)
+  skyIrradianceUpNode.value.setRGB(...palette.fillSky)
+  skyIrradianceDownNode.value.setRGB(...palette.fillGround)
+  twilightZenithNode.value.setRGB(...palette.zenith)
+  twilightHorizonNode.value.setRGB(...palette.horizon)
   sunElevationNode.value = elevationDeg
-  ambientScaleNode.value = palette.ambientScale
 }
 
 /**
@@ -75,7 +94,7 @@ export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3,
  */
 export function createLighting(shadowNode?: Node<'float'>): Object3D {
   const group = new Group()
-  const sun = new DirectionalLight(0xfff2e0, 2.5)
+  const sun = new DirectionalLight(new Color(...initial.sunColor), initial.sunIntensity)
   sun.position.set(SUN_DIRECTION.x, SUN_DIRECTION.y, SUN_DIRECTION.z)
   if (shadowNode !== undefined) {
     // Plan 16b: three multiplies this light's direct term by the node on
@@ -87,6 +106,6 @@ export function createLighting(shadowNode?: Node<'float'>): Object3D {
   }
   sun.target.position.set(0, 0, 0)
   group.add(sun, sun.target)
-  group.add(new HemisphereLight(0x9eb8cc, 0x18384f, 0.8))
+  group.add(new HemisphereLight(new Color(...initial.fillSky), new Color(...initial.fillGround), 1))
   return group
 }
