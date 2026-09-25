@@ -681,7 +681,15 @@ never runs in Node. They check:
   Japanese maru. Mark accepted inaccuracy in general; Open items 1 and 2 put the
   two most visible stand-ins in front of him.
 
-## 13. Open for Mark
+## 13. Decisions (Mark, 2026-09-25)
+
+**Spec approved by Mark 2026-09-25 with every recommendation below accepted
+as written.** The items are kept verbatim as the record of what was decided.
+Execution runs in the combined **Models track** (one plan, one executor at a
+time), in the order Z1 -> H1 (Hangar) -> S1 -> Z3 -> H2 -> S2 -> H3; the
+Zero's flight model and guns (Z2) run in the separate combat track after the
+gunnery fix.
+
 
 1. **Essex stand-in.** No license-clean Essex exists: every "Essex" on
    Sketchfab is the same Free3D import (§2.3). *Recommendation:* the KTKloss USS
