@@ -16,6 +16,7 @@ import {
 } from '../damage/overload.js'
 import { inBody, segmentBox, tupleVector } from './geometry.js'
 import type { CombatSpec, DamageSystem } from './schema.js'
+import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
 import { zeroKillsByType, type TargetType } from './targetType.js'
@@ -58,6 +59,9 @@ export type Projectile = {
   readonly velocity: Vec3; readonly lifeS: number; readonly tracer: boolean
   readonly kind: 'round' | 'bomb' | 'rocket'
   readonly ageS: number
+  /** The firing mount's `guns[].type`, for a typed mount only. Absent on
+   *  every round an untyped mount fires, so those rounds are unchanged. */
+  readonly gunType?: string
 }
 export type ShipDamage = {
   readonly hp: number; readonly fire: number
@@ -489,6 +493,7 @@ export function stepCombat(
     let shots = rec.shots
     const guns = rec.guns.map((g, index): GunState => {
       const mount = spec.guns[index]!
+      const ballistic = gunBallistics(spec, mount.type)
       let cooldown = g.cooldownS, ammo = g.ammo, fired = g.shots
       if (a.controls.fire === true && a.impact === null && rec.damage.destroyedAt === null && rec.damage[mount.group] > 0) {
         while (cooldown < dt - 1e-12 && ammo > 0) {
@@ -503,12 +508,13 @@ export function stepCombat(
             fired++; shots++; ammo--
             flying.push({
               p: { owner: a.id, id: nextId++, position, previous: position,
-                velocity: add(carrierVelocity, scale(qRotate(a.previous.attitude, aim), spec.muzzleVelocityMps)),
-                lifeS: spec.lifetimeS, tracer: fired % 5 === 0, kind: 'round', ageS: 0 },
+                velocity: add(carrierVelocity, scale(qRotate(a.previous.attitude, aim), ballistic.muzzleVelocityMps)),
+                lifeS: spec.lifetimeS, tracer: fired % 5 === 0, kind: 'round', ageS: 0,
+                ...(mount.type === undefined ? {} : { gunType: mount.type }) },
               dt: dt - cooldown, start: t,
             })
           } else poolSaturated++
-          cooldown += 60 / spec.roundsPerMinute
+          cooldown += 60 / ballistic.roundsPerMinute
         }
       }
       return { ammo, shots: fired, cooldownS: Math.max(0, cooldown - dt) }
@@ -542,12 +548,12 @@ export function stepCombat(
     }
   }
 
-  const damageAircraftAt = (target: CombatAircraft, amount: number, system: DamageSystem | null, owner: string, point: Vec3 | null): void => {
+  const damageAircraftAt = (target: CombatAircraft, amount: number, system: DamageSystem | null, owner: string, point: Vec3 | null, hitScale = 1): void => {
     const rec = records[target.id]
     if (rec === undefined || rec.damage.destroyedAt !== null || target.impact !== null) return
     const damage = system === null
       ? blastDamageAircraft(target.spec, rec.damage, amount, tick, owner)
-      : damageFromHit(target.spec, rec.damage, system, tick, owner)
+      : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale)
     records[target.id] = point === null ? { ...rec, damage } : { ...rec, damage, lastHit: { tick, position: point } }
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role)
   }
@@ -608,10 +614,11 @@ export function stepCombat(
     if (ownerSpec === undefined || source === undefined || shot.dt <= 0) continue
     const store = shot.p.kind === 'round' ? null : storeTypeOf(ownerSpec, shot.p.kind)
     if (shot.p.kind !== 'round' && store === null) continue // its content is gone
+    const ballistic = store === null ? gunBallistics(source, shot.p.gunType) : null
     const burned = shot.p.kind === 'rocket' && store !== null
       ? { ...shot.p, velocity: burnedVelocity(shot.p.velocity, store.burnDeltaVMps ?? 0, store.burnS ?? 1, shot.p.ageS, shot.dt) }
       : shot.p
-    const flown = flyProjectile(burned, shot.dt, wind, store?.dragPerM ?? source.dragPerM)
+    const flown = flyProjectile(burned, shot.dt, wind, store !== null ? store.dragPerM : ballistic!.dragPerM)
     const p: Projectile = { ...flown, ageS: shot.p.ageS + shot.dt }
     const contact = nearestContact(p, shot.start, aircraft, afloat, structures, terrain, decks)
     if (contact === null) {
@@ -623,7 +630,7 @@ export function stepCombat(
     if (p.kind === 'bomb' && store !== null && p.ageS < (store.armS ?? 0)) continue
     const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
     const damage = store === null ? source.roundDamage : store.damage
-    if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point)
+    if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
     if (store !== null) applyBlast(point, store.damage, store.blastRadiusM, contact, p.owner)

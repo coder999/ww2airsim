@@ -2,6 +2,7 @@ import { DT } from '../flight/model.js'
 import { add, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import { flyProjectile, type Projectile } from './combat.js'
 import { tupleVector } from './geometry.js'
+import { gunBallistics, isPrimaryGun } from './gunTypes.js'
 import type { CombatSpec } from './schema.js'
 
 type GunMount = CombatSpec['guns'][number]
@@ -23,10 +24,10 @@ export type Harmonization = {
 }
 
 export type HarmonizationOptions = {
-  /** Which guns the sight is harmonized to. Default: all of them. A mixed
-   *  battery (guns of different types, e.g. a later plan's per-type guns)
-   *  picks its reference gun type here; today every gun shares the spec's
-   *  one muzzle velocity, so this only chooses whose mean is taken. */
+  /** Which guns the sight is harmonized to. Default: the PRIMARY guns
+   *  (isPrimaryGun, src/sim/weapons/gunTypes.ts) -- every gun on an airplane
+   *  with one gun type, the 7.7 mm pair on the A6M. Each gun's round is
+   *  flown with its own type's ballistics. */
   readonly referenceGuns?: (gun: GunMount, index: number) => boolean
   /** The shooter's airspeed in the reference condition. Drag acts on the
    *  round's AIR-relative speed, which includes the carrier's, so this moves
@@ -62,7 +63,7 @@ export function gunHarmonization(
   eyePointM: readonly [number, number, number],
   options: HarmonizationOptions = {},
 ): Harmonization {
-  const select = options.referenceGuns ?? (() => true)
+  const select = options.referenceGuns ?? ((g: GunMount) => isPrimaryGun(combat, g))
   const guns = combat.guns.filter((g, i) => select(g, i))
   if (guns.length === 0) throw new Error('gunHarmonization: no reference gun selected')
   const airspeed = options.airspeedMps ?? REFERENCE_AIRSPEED_MPS
@@ -78,11 +79,12 @@ export function gunHarmonization(
 }
 
 function impactAt(gun: GunMount, combat: CombatSpec, carrier: Vec3, rangeM: number): Vec3 {
+  const ballistic = gunBallistics(combat, gun.type)
   const origin = tupleVector(gun.position)
   const direction = normalize(sub(v3(rangeM, 0, 0), origin))
   let p: Projectile = {
     owner: 'harmonization', id: 0, position: origin, previous: origin,
-    velocity: add(carrier, scale(direction, combat.muzzleVelocityMps)),
+    velocity: add(carrier, scale(direction, ballistic.muzzleVelocityMps)),
     lifeS: combat.lifetimeS, tracer: false, kind: 'round', ageS: 0,
   }
   // Body frame = world frame translated by the shooter's travel; the
@@ -91,7 +93,7 @@ function impactAt(gun: GunMount, combat: CombatSpec, carrier: Vec3, rangeM: numb
   let t = 0
   let before = origin
   while (p.lifeS > 0) {
-    p = flyProjectile(p, DT, null, combat.dragPerM)
+    p = flyProjectile(p, DT, null, ballistic.dragPerM)
     t += DT
     const body = sub(p.position, scale(carrier, t))
     if (body.x >= rangeM) {
