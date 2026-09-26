@@ -1855,7 +1855,7 @@ async function boot(): Promise<void> {
     // paused. Contacts come from the same `current.world.aircraft` list
     // `aircraft()` diagnostics already reads.
     radarSweepRad = radarSweepAngle(current.world.tick * DT + current.world.accumulatorSeconds)
-    radarContactList = radarContacts(player, current.world.aircraft, selectedRadarRangeMi)
+    radarContactList = radarContacts(player, current.world.aircraft, selectedRadarRangeMi, current.world.combat.aircraft)
     updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude, current.world.wind)
     audio.update(audioInputsFrom(current))
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)

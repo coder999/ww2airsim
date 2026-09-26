@@ -1,4 +1,4 @@
-import { createCombat, stepCombat, type CombatState } from './weapons/combat.js'
+import { createCombat, creditDownedAircraft, stepCombat, type CombatState } from './weapons/combat.js'
 import { ageDamage, damagedSpec, type Damage } from './damage/model.js'
 import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
@@ -868,7 +868,12 @@ export function advance<M>(
         record.damage, record.stores,
       )
     })
+    const combatAtStart = combat
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage)
+    // After `stepCombat`, which is where an overload break-up happens, and
+    // after every aircraft has stepped, which is where a crash happens: a loss
+    // with no killing hit is credited to whoever last hit the airplane.
+    combat = creditDownedAircraft(combatAtStart, combat, aircraftAtStart, aircraft)
     // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
     // them once per RENDERED frame, but this loop can run up to
     // MAX_STEPS_PER_FRAME substeps against that one frame's controls. Nothing
