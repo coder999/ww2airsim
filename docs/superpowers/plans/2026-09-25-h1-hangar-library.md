@@ -14,6 +14,8 @@
 
 ## Open questions for Mark
 
+**Answered 2026-09-25: Mark accepted both defaults** (an optional `rosterName` field, and `japanese` for all building entries). The questions are kept below as the record of what was decided and why.
+
 Each question has a default, and the plan follows that default unless Mark says otherwise. Either answer is a one-task change.
 
 1. **Roster names versus spec names.** Three shipped specs carry a variant name, and GAMEPLAY.md's rosters give a type name for the same object:
