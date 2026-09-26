@@ -18,6 +18,8 @@ import { buildStructures, type StructureEntity } from './weapons/structures.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './ai/decision.js'
 import type { MissionState } from './mission/state.js'
+import { stepMission } from './mission/step.js'
+import { spawnInto, type SpawnParts } from './mission/spawn.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -806,6 +808,7 @@ export function advance<M>(
   let ships = world.ships
   const structures = world.structures
   let combat = world.combat
+  let mission = world.mission
   for (let i = 0; i < owedSteps; i++) {
     tick += 1
     // Ships first (spec §3.4): exogenous kinematics, reading nothing else --
@@ -880,6 +883,29 @@ export function advance<M>(
       a.controls.dropBomb === undefined && a.controls.fireRockets === undefined
         ? a
         : { ...a, controls: spendRelease(a.controls) })
+    // Missions (spec 2026-09-25 §1): once per tick, after combat has
+    // resolved and the release pulse is spent, so objectives read this
+    // tick's damage and positions. A world with no mission skips this
+    // block entirely -- the bit-identity gate -- rather than running a
+    // no-op. Spawns land at the END of the tick with `state.tick = tick`
+    // and step from the next iteration, like every other entity.
+    if (mission !== null) {
+      const stepped = stepMission(mission, {
+        tick, player: world.player, aircraft, ships, combat,
+        terrain: world.terrain, airfields: world.airfields, decks,
+      })
+      // A non-null local: `mission` is reassigned in this loop, so TS cannot
+      // carry the `!== null` narrowing into the spawn loop below.
+      let m: MissionState<M> = stepped.mission
+      for (const groupId of stepped.spawns) {
+        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m }, groupId)
+        aircraft = spawned.aircraft
+        ships = spawned.ships
+        combat = spawned.combat
+        m = spawned.mission
+      }
+      mission = m
+    }
   }
 
   // Discarded steps have their time discarded with them; otherwise the debt
@@ -888,7 +914,7 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { ...world, tick, aircraft, ships, structures, combat, accumulatorSeconds: banked },
+    world: { ...world, tick, aircraft, ships, structures, combat, mission, accumulatorSeconds: banked },
     stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,

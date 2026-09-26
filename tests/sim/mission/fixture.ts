@@ -2,9 +2,12 @@ import { createTerrainField, type TerrainField } from '../../../src/sim/world/te
 import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { bundleForScenario } from '../../../tools/content/load.js'
-import { advance, type World } from '../../../src/sim/loop.js'
+import { advance, withAircraftState, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import type { ObjectiveState } from '../../../src/sim/mission/state.js'
+import { createState } from '../../../src/sim/flight/state.js'
+import { v3, type Vec3 } from '../../../src/sim/math/vec3.js'
+import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
 
 /**
  * One small mission world, inline so a test can read it on one screen. Not
@@ -74,4 +77,52 @@ export function deepFreeze<T>(value: T): T {
     for (const key of Object.getOwnPropertyNames(value)) deepFreeze((value as Record<string, unknown>)[key])
   }
   return value
+}
+
+/** Nose north (-z): a yaw of pi/2 about +y, as `worldFromScenario` does. */
+export const NORTH = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2)
+
+/** Replaces the player's state (and `previous`): flying north at `speed`,
+ *  sinking at `sink`, gear and flaps at `gear` (1 down, 0 up). */
+export function putPlayer<M>(w: World<M>, position: Vec3, speed: number, sink: number, gear = 0): World<M> {
+  return withAircraftState(w, w.player, createState({
+    position, velocity: v3(0, -sink, -speed), attitude: NORTH, gearFraction: gear, flapFraction: gear, tick: w.tick,
+  }))
+}
+
+/** Places aircraft `id` at `position`, level, flying north at 120 m/s. */
+export function moveAircraft<M>(w: World<M>, id: string, position: Vec3): World<M> {
+  return withAircraftState(w, id, createState({ position, velocity: v3(0, 0, -120), attitude: NORTH, tick: w.tick }))
+}
+
+export function destroyShip<M>(w: World<M>, id: string): World<M> {
+  const rec = w.combat.ships[id]!
+  return { ...w, combat: { ...w.combat, ships: { ...w.combat.ships, [id]: { ...rec, hp: 0, destroyedTick: w.tick, attacker: 'f6f-1' } } } }
+}
+
+export function destroyStructure<M>(w: World<M>, id: string): World<M> {
+  const rec = w.combat.structures[id]!
+  return { ...w, combat: { ...w.combat, structures: { ...w.combat.structures, [id]: { ...rec, hp: 0, destroyedTick: w.tick, attacker: 'f6f-1' } } } }
+}
+
+export function destroyAircraft<M>(w: World<M>, id: string): World<M> {
+  const rec = w.combat.aircraft[id]!
+  return { ...w, combat: { ...w.combat, aircraft: { ...w.combat.aircraft, [id]: { ...rec, damage: { ...rec.damage, destroyedAt: w.tick, attacker: 'f6f-1' } } } } }
+}
+
+/**
+ * One landing at (x, z) on ground `groundY`, stepped through production
+ * `advance` the way tests/render/landing.test.ts steps it through the frame
+ * (measured 2026-09-25: a touchdown after 7 ticks on land and on the Essex):
+ * latch airborne 50 m up; settle from 0.4 m (wheels) at 30 m/s and 1 m/s
+ * sink; then come to rest. Returns the world one tick after the rest, when
+ * the mission has recorded the landing.
+ */
+export function landOnce<M>(w: World<M>, x: number, groundY: number, z: number): World<M> {
+  const gearM = w.aircraft.find((a) => a.id === w.player)!.spec.gear.heightM
+  let world = steps(putPlayer(w, v3(x, groundY + gearM + 50, z), 45, 0, 1), 1)
+  world = putPlayer(world, v3(x, groundY + gearM + 0.4, z), 30, 1, 1)
+  for (let i = 0; i < 120 && world.mission!.recovery.touchdown === null; i++) world = steps(world, 1)
+  if (world.mission!.recovery.touchdown === null) throw new Error('landOnce: no touchdown within 120 ticks')
+  return steps(putPlayer(world, v3(x, groundY + gearM, z), 0, 0, 1), 1)
 }
