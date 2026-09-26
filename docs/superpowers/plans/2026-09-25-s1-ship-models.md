@@ -14,6 +14,8 @@
 
 ## Open questions for Mark
 
+**Answered 2026-09-25: Mark accepted all three defaults** (S1 switches the Hangar's ship path now, so H2's item 4 is done early; the island clearance is accepted as drawn, 0.9 m of wingtip margin at its forward feature rather than 2.1 m; the model carrier's trap band is narrowed to 18.5 m, its width carried in the glb's `TrapBand` node). The questions are kept below as the record of what was decided and why.
+
 Each has a default, and the plan follows the default unless Mark says otherwise. Each answer is at most a one-task change.
 
 1. **The Hangar's ships.** The Hangar spec (§12) moves the Hangar's ships to Lane C's loader in H2, "if S1 has merged". H2 comes after S1 in the track, so until then the Hangar would show boxes for ships the game draws as models.
