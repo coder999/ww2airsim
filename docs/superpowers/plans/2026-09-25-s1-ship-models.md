@@ -194,7 +194,7 @@ Five things the spec implies but no step of it tests. Each one has a test in the
 
 The module is pure: typed arrays in, numbers out, no three.js and no DOM, so both the build (Node) and Tier 1 can run it. `FitSpec` is a structural subset of `ShipSpec`, so nothing here imports `src/sim/`.
 
-- [ ] **Step 1: Write the fixtures and the failing test.**
+- [x] **Step 1: Write the fixtures and the failing test.**
 
 `tests/render/shipFixtures.ts`:
 
@@ -469,12 +469,12 @@ describe('the skirt (spec §4.5)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail.**
+- [x] **Step 2: Run it to see it fail.**
 
 Run: `npx vitest run tests/render/shipFit.test.ts --maxWorkers=2`
 Expected: FAIL. `src/render/scene/shipFit.js` does not resolve.
 
-- [ ] **Step 3: Implement.** `src/render/scene/shipPalette.ts`:
+- [x] **Step 3: Implement.** `src/render/scene/shipPalette.ts`:
 
 ```ts
 // src/render/scene/shipPalette.ts
@@ -1123,12 +1123,12 @@ export function residualProblems(fit: ShipFit, o: Pick<FitOptions, 'fit'>): stri
 }
 ```
 
-- [ ] **Step 4: Run it to see it pass.**
+- [x] **Step 4: Run it to see it pass.**
 
 Run: `npx vitest run tests/render/shipFit.test.ts --maxWorkers=2`
 Expected: PASS, 29 tests. The 15 `fitProblems` cases each fail by the named quantity, and the fixture carrier maps onto the Essex rectangle with `rx` 262.7/256 and `ry` 17/16.
 
-- [ ] **Step 5: Verify and commit.**
+- [x] **Step 5: Verify and commit.**
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
