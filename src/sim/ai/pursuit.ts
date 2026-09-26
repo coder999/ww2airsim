@@ -6,8 +6,10 @@ import { controlsForDesiredVelocity } from './controller.js'
 import type { PilotDecisionState, PilotSkill } from './pilot.js'
 
 export type PilotAssignment = {
-  /** Aircraft id read from the common start-of-tick snapshot. */
-  readonly target: string
+  /** A static target: an aircraft id read from the common start-of-tick
+   *  snapshot, on the opposite side (7e). `null`: the pilot chooses its own
+   *  target at every rescore (7e spec §4.2, `targeting.ts`). */
+  readonly target: string | null
   readonly skill: PilotSkill
   readonly decision: PilotDecisionState
 }

@@ -20,6 +20,7 @@ import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
+import { sideOf, type Side } from './sides.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -338,6 +339,12 @@ export interface AircraftEntity<M = undefined> {
    * absent means the caller-owned `controls` remain authoritative.
    */
   readonly pilot?: PilotAssignment | null
+  /**
+   * Plan 7e. Optional so every hand-built entity stays valid; absent, the
+   * player is `allied` and every other aircraft `axis`. Read it only
+   * through `sideOf` (`src/sim/sides.ts`), which applies that default.
+   */
+  readonly side?: Side
 }
 
 /** A ship: kinematics on a waypoint loop, no aerodynamics, no impact. Steps
@@ -554,12 +561,19 @@ export function createWorldOf<M>(parts: {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
   }
   for (const a of parts.aircraft) {
-    if (a.pilot == null) continue
-    if (a.pilot.target === a.id) {
+    // A null target is a pilot that chooses its own (7e spec §4.2).
+    const target = a.pilot?.target ?? null
+    if (target === null) continue
+    if (target === a.id) {
       throw new Error(`createWorldOf: pilot "${a.id}" cannot target itself`)
     }
-    if (!parts.aircraft.some((candidate) => candidate.id === a.pilot!.target)) {
-      throw new Error(`createWorldOf: pilot "${a.id}" targets missing aircraft "${a.pilot.target}"`)
+    const named = parts.aircraft.find((candidate) => candidate.id === target)
+    if (named === undefined) {
+      throw new Error(`createWorldOf: pilot "${a.id}" targets missing aircraft "${target}"`)
+    }
+    // 7e spec §4.1: a static target must be on the opposite side.
+    if (sideOf(parts, named) === sideOf(parts, a)) {
+      throw new Error(`createWorldOf: pilot "${a.id}" targets "${target}" on its own side`)
     }
   }
   const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)

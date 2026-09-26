@@ -69,8 +69,15 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
   })
 
   it('a held pilot may target a starting aircraft or its own groupmate', () => {
-    const twoShip = { id: 'wave-1', aircraft: [{ ...WAVE.aircraft[0], pilot: { target: 'f6f-1' } }, { ...WAVE.aircraft[0], id: 'raid-3', pilot: { target: 'raid-2' } }] }
+    // 7e: a static target must be on the opposite side, so the groupmate
+    // that targets raid-2 is explicitly allied (the default makes both axis).
+    const twoShip = { id: 'wave-1', aircraft: [{ ...WAVE.aircraft[0], pilot: { target: 'f6f-1' } }, { ...WAVE.aircraft[0], id: 'raid-3', side: 'allied', pilot: { target: 'raid-2' } }] }
     expect(() => parse({ objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [twoShip] })).not.toThrow()
+  })
+
+  it('7e: a held pilot may not target its own side', () => {
+    const twoShip = { id: 'wave-1', aircraft: [WAVE.aircraft[0], { ...WAVE.aircraft[0], id: 'raid-3', pilot: { target: 'raid-2' } }] }
+    expect(() => parse({ objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [twoShip] })).toThrow(/heldGroups\.0\.aircraft\.1\.pilot\.target: pilot target must be on the opposite side/)
   })
 
   it('an airfield building may carry tags', () => {

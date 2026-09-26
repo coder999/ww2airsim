@@ -38,6 +38,7 @@ export function pilotTick<M>(
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
+  if (pilot.target === null) return a
   const target = snapshot.find((candidate) => candidate.id === pilot.target)
   if (target === undefined) return a
   let decision = pilot.decision

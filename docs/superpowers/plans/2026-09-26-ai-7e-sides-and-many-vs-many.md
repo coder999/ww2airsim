@@ -119,7 +119,7 @@ E1 (effects) and O1 (ordnance models) execute in parallel from the same `242c35e
 **Interfaces:**
 - Produces: `type Side = 'allied' | 'axis'`; `sideOf(world: { readonly player: string }, a: Sided): Side`; `sidesOf(world, aircraft: readonly Sided[]): Readonly<Record<string, Side>>`; `sameSide(sides, a: string, b: string): boolean`; `AircraftEntity.side?: Side`; `PilotAssignment.target: string | null`.
 
-- [ ] **Step 1: Write the failing tests** (`tests/sim/sides.test.ts`)
+- [x] **Step 1: Write the failing tests** (`tests/sim/sides.test.ts`)
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -152,9 +152,9 @@ describe('sides (7e spec §4.1)', () => {
 
 The last case parses a two-aircraft scenario whose AI says `"side": "allied"` and targets the player, and expects `Invalid scenario: aircraft.1.pilot.target: pilot target must be on the opposite side`. It then calls `createWorldOf` with the same pair built by hand and expects `createWorldOf: pilot "ai" targets "p" on its own side`.
 
-- [ ] **Step 2: Run to verify it fails** — `npx vitest run tests/sim/sides.test.ts --maxWorkers=2`, expect "Cannot find module .../sides.js".
+- [x] **Step 2: Run to verify it fails** — `npx vitest run tests/sim/sides.test.ts --maxWorkers=2`, expect "Cannot find module .../sides.js".
 
-- [ ] **Step 3: Implement.** `src/sim/sides.ts`:
+- [x] **Step 3: Implement.** `src/sim/sides.ts`:
 
 ```ts
 /** Sides (AI 7c spec §4.1, Plan 7e). The mission engine reads `side` and
@@ -180,9 +180,9 @@ export function sameSide(sides: Readonly<Record<string, Side>>, a: string, b: st
 
 `AircraftEntity` gains `readonly side?: Side` (doc: optional so hand-built entities stay valid; read through `sideOf`). `PilotAssignment.target` becomes `string | null` ("null: the pilot chooses, Task 5"). `pilotTick` returns `a` when `pilot.target === null` until Task 5 replaces that guard. `createWorldOf`'s pilot loop skips the target checks when `target === null` and adds the side check. `scenario.ts`: both aircraft objects gain `side: z.enum(['allied', 'axis']).optional()`; `PilotObject.target` becomes optional; the target superRefine adds the opposite-side check using the default rule over the start aircraft; the held-group check does the same over start + group aircraft; `buildAircraft` spreads `side` only when present (so a scenario without it builds byte-identical entities); `pilotAssignmentFrom` maps an absent target to `null`.
 
-- [ ] **Step 4: Run** `tests/sim/sides.test.ts tests/sim/scenario.test.ts tests/sim/entities.test.ts tests/sim/mission/schema.test.ts` — PASS. Typecheck. Run the digest probe: all eight rows unchanged.
+- [x] **Step 4: Run** `tests/sim/sides.test.ts tests/sim/scenario.test.ts tests/sim/entities.test.ts tests/sim/mission/schema.test.ts` — PASS. Typecheck. Run the digest probe: all eight rows unchanged.
 
-- [ ] **Step 5: Commit** `7e Task 1: sides -- sideOf, the side field, and the opposite-side static-target check`.
+- [x] **Step 5: Commit** `7e Task 1: sides -- sideOf, the side field, and the opposite-side static-target check`.
 
 ### Task 2: Friendly fire stays physical; teamkills never score
 
