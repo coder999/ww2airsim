@@ -34,8 +34,14 @@ not exist, and three conventions below were being missed for that reason).
 - **Never run `git clean -fdx`.** `content/terrain/tiles/` and
   `tools/terrain/cache/` are ~275 MB of gitignored data that exists nowhere
   else. Its absence shows as extra named skips in the suite, not failures.
-- **Never push or deploy unasked.** Both are Mark's call, separately. Pushing
-  `main` releases nothing; the deploy command is in README's "Deployment".
+- **`main` and deploys are Mark's call; branches are not** (Mark, 2026-09-26).
+  - **Never push `main` unasked.**
+  - **Never merge a branch or worktree into `main` unasked.**
+  - **Never deploy unasked.**
+  - **A worktree branch may be pushed freely.**
+
+  Pushing `main` releases nothing. The deploy command is in README's
+  "Deployment".
 - `npm run verify` (typecheck, lint at zero warnings, depcruise, tests) ends
   every task. Capture `rc=$?` directly; never gate on a grepped pipeline.
 - **Full suites and `verify` go through `remote-run`** (`remote-run npm run
@@ -120,8 +126,25 @@ The whole ingest, from search to a Hangar check, is `docs/models.md`.
 
 ## How Mark works
 
-Technical playground: the engineering is the deliverable. He asked to be kept
-out of the testing loop, so never design in a manual verification step. He
-flies the result, and his eye and ear find what the suite cannot. **When he
+Technical playground: the engineering is the deliverable. He flies the result,
+and his eye and ear find what the suite cannot.
+
+**His viewing is a checkpoint, never a test gate** (Mark, 2026-09-26). No test
+waits on him; the automated tiers decide pass or fail. When and whether he
+looks is decided per plan, up front:
+
+- **When writing a plan, ask him to define his viewing checkpoints:**
+  - intermediate steps (name the tasks),
+  - the final product only, or
+  - none.
+
+  Record the answer in the plan's header.
+- **Ask whether the run will be attended.**
+  - **Attended:** stop at each checkpoint. Send the windomlane URL and
+    captures, then wait for him before continuing.
+  - **Unattended** (overnight, or he is away): run to completion without
+    stopping. Collect the checkpoint captures in the handoff for when he is
+    back.
+- **If the plan's header does not say, and he cannot be asked, run unattended.** **When he
 says he cannot perceive a difference, believe him and measure at the level he
 is looking at.**

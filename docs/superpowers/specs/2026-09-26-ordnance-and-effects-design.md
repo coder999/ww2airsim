@@ -415,11 +415,23 @@ files and changes no code outside `tools/fx/` and the catalog's tuning.
 - Foam: a stamp raises ocean luminance at the impact point and decays by 30 s.
 - Hangar: stores inside the Wildcat's wing silhouette, not behind the tail.
 
-**Tier 3 (Mark)**
+**Mark's viewing: a checkpoint, not a gate**
 
-After E2 and again after E3, on `ww2airsim.windomlane.org`, with its reachability
-asserted first (`curl` expecting `200`). The captures are shown side by side
-with reference screenshots from IL-2 Great Battles, DCS or MSFS.
+The automated tiers above decide pass or fail. Per `CLAUDE.md` ("How Mark
+works"), each plan's header records two things, agreed with Mark when the
+plan is written:
+
+- when he views: intermediate tasks, the final product only, or none
+- whether the run is attended
+
+This design proposes the end of E2 and the end of E3 as natural checkpoints.
+
+At a checkpoint:
+
+- The work is served on `ww2airsim.windomlane.org`, with reachability asserted
+  first (`curl` expecting `200`).
+- The Tier 2 captures go next to reference screenshots from IL-2 Great Battles,
+  DCS or MSFS.
 
 ## 8. Plans
 
