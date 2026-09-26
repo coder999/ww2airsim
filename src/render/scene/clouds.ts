@@ -147,8 +147,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   const f = field ?? createCloudField(layers, noise)
   const { shape, layerData, layerCount, eyeWorld } = f
   const sorted = f.layers
-  const density = f.density
-  const densityCoarse = f.densityCoarse
 
   const cumulusSteps = uniform(CLOUD_TIERS.high.cumulusSteps, 'int')
   const cirrusSteps = uniform(CLOUD_TIERS.high.cirrusSteps, 'int')
@@ -174,6 +172,9 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
 
 
   const marchNode = (dirIn: Node<'vec3'>, sceneTIn: Node<'float'>, dither: Node<'float'>): CloudMarch => {
+    // One laid-out pair per material build: `marchNode` runs once for the
+    // CloudMarch material and once for CloudUpdate (loading spec §A.3).
+    const { density, densityCoarse } = f.laidOut()
     const dir = normalize(dirIn).toVar()
     // The view-sun angle is constant along the ray, so the octaves' phase
     // terms are evaluated once here, not per step.

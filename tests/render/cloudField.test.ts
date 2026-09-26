@@ -137,3 +137,16 @@ describe('remap (photoreal Task 10, Schneider 2015)', () => {
     expect(remap(0.7, 0.4, 0.4, 0.25, 1)).toBe(0.25)
   })
 })
+
+describe('laidOut density (loading spec §A.3)', () => {
+  it('returns a fresh Fn pair per call, so no two materials share one', () => {
+    // three 0.186 caches a laid-out Fn's code per backend by Fn identity,
+    // with the FIRST builder's binding names; sharing one across materials
+    // fails WGSL validation ("unresolved value 'nodeUniform3'").
+    const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
+    const a = field.laidOut()
+    const b = field.laidOut()
+    expect(a.density).not.toBe(b.density)
+    expect(a.densityCoarse).not.toBe(b.densityCoarse)
+  })
+})
