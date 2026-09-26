@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
 import { cp } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /**
  * Gitignored directories under `content/` that must never reach `dist/`:
@@ -134,5 +135,15 @@ export default defineConfig({
         }
       : {}),
   },
-  build: { target: 'esnext' },
+  build: {
+    target: 'esnext',
+    // Two pages: the game, and the object library (Hangar spec §3). A
+    // second page is a second Rollup input; each bundles only what it imports.
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        hangar: fileURLToPath(new URL('./hangar.html', import.meta.url)),
+      },
+    },
+  },
 })

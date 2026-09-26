@@ -158,6 +158,13 @@ describe('the built artifact', () => {
       // strips the two bogus alphaMode:BLEND fields, shrinking the JSON
       // chunk by 40 bytes.
       expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(5_573_316)
+      // Hangar spec §3: the library page, and one file per library entry.
+      // `copyContent` copies content/library/ like any other content; the
+      // page itself bundles the same files (contentIndex.ts), so this pins
+      // what a reader of dist/ can audit, not what the page fetches.
+      expect(existsSync(join(outDir, 'hangar.html')), 'dist/hangar.html').toBe(true)
+      const libraryFiles = readdirSync('content/library').filter((f) => f.endsWith('.json')).sort()
+      expect(readdirSync(join(outDir, 'content/library')).filter((f) => f.endsWith('.json')).sort()).toEqual(libraryFiles)
 
       // The title art (2026-09-19). Shipped as supplied, never re-encoded:
       // a byte count that moves means something re-encoded a committed
