@@ -47,21 +47,31 @@ is also why a bar alone cannot fix it -- a JS-driven bar freezes for the same
 plus a thin DOM strip, the `paddlesBadge.ts` split.
 
 ```ts
-export type BootStage = 'sky' | 'terrain' | 'surface' | 'shaders' | 'firstFrame'
+export type BootStage = 'renderer' | 'sky' | 'surface' | 'shaders'
 export type BootProgress = {
   begin(stage: BootStage): void
   end(stage: BootStage): void
   readonly fraction: number          // 0..1, weighted by completed stages
   readonly label: string             // "Compiling cloud shaders..."
-  readonly ready: boolean            // true once 'firstFrame' has ended
+  readonly ready: boolean            // true once 'shaders' has ended
   onChange(listener: () => void): void
 }
 ```
 
 - `main.ts` calls `begin`/`end` around the stages it already passes through:
-  sky noise load, terrain fetch, land cover + ocean depth, the shader build
-  (the first `pipeline.render`), and the first presented frame. Weights are
-  initial guesses from the A.1 table, re-measured once A.3 lands.
+  the WebGPU adapter/device (`initRenderer`), sky noise, the surface (land
+  cover, ocean cascades and depth), and the shader build, which is the first
+  `frameFn` call (the first `pipeline.render`). Weights are initial guesses
+  from the A.1 table, re-measured once A.3 lands.
+- **Terrain is not a stage** (correction to the first draft of this spec,
+  2026-09-25): `loadTerrainProgressively` is deliberately not awaited and
+  runs *after* the render loop starts, and a Launch before it lands is
+  already safe -- a ground spawn is held at zero elapsed time until the
+  physics field arrives (`FrameState.groundSpawn`, frame.ts). Gating `ready`
+  on it would lock the title for no correctness reason.
+- Before the `shaders` stage's frame runs, `main.ts` waits for one paint
+  (`requestAnimationFrame` then a `setTimeout(0)`), so "Compiling
+  shaders..." is on screen before the build blocks the thread.
 - The strip lives at the foot of the title overlay: a thin bar, the current
   stage label, and a moving stripe driven by a **CSS `transform` animation**,
   which the compositor keeps running while the main thread is blocked. The
@@ -78,26 +88,60 @@ export type BootProgress = {
 
 ### A.3 Shrinking the freeze
 
-Measurement before any fix:
+**Measured, not hypothesized (2026-09-25, same desktop, slot 3, one boot per
+row; the desktop was shared with another session's GPU work, so read ±1.5 s).**
+The original hypothesis (shared sub-expressions re-traversed) is dead: the
+cost scales with how many times the cumulus `density`/`densityCoarse` graph
+is *inlined*, and each inlined copy in the light march costs ~2–3 s to build.
 
-1. Instrument the cloud material build (a DEV-only counter wrapped around
-   `NodeBuilder.build` for that material): unique node count, total node
-   visits, time per build phase (setup / analyze / generate).
-2. **Hypothesis to confirm or kill:** shared sub-expressions in the cloud
-   graph are re-traversed many times over (visits ≫ unique nodes). If it
-   holds, the fix is `.toVar()` / hoisting at the shared points so each node
-   is built once. If it does not hold, report what does dominate before
-   choosing a fix -- this section is re-opened with Mark, not improvised.
-3. Whatever cost remains is split so the terrain/ocean material builds and
-   the cloud material build fall on separate frames (the loading strip
-   repaints between them).
+| Build variant (temporary `?exp=` switch) | Longest task |
+| --- | --- |
+| as shipped | 12 158 ms |
+| `?cloudTier=off` | 645 ms |
+| light-march block removed entirely | 982 ms |
+| debug branches / aerial perspective / multi-scatter removed | 12–15 s (no change) |
+| light march with only the far sample (1 copy) | 3 309 ms |
+| light march with only the full march (2 copies) | 6 990 ms |
+| all three light-march call sites removed | 1 156 ms |
+| **per-material laid-out density `Fn` (the fix)** | **1 136 ms** |
+
+Why: `makeDensity` returns a TSL `Fn` with no `setLayout`, and TSL inlines a
+layout-less `Fn` at every call site. The light march calls it five more times
+(`nearMarch` twice, each with `density` + `densityCoarse`, plus the far
+sample), each copy nested four control-flow levels deep, and both cloud
+materials (CloudMarch and CloudUpdate) build the whole march separately.
+
+**The fix:** give `density`/`densityCoarse` a `setLayout` so each is emitted
+once as a WGSL function, with two constraints found the hard way:
+
+1. **One laid-out `Fn` instance per material build, never shared.** three
+   0.186's `NodeBuilder.buildFunctionNode` caches a laid-out function's code
+   per backend keyed by the `Fn` object, with the binding names the *first*
+   builder assigned; a second material reusing it fails WGSL validation with
+   `unresolved value 'nodeUniform3'`. One instance per *call* is also wrong:
+   it compiled but boot rose to 18.5 s. `CloudField` gains `laidOut()`, which
+   returns a fresh pair; `marchNode` calls it once per invocation (once per
+   material).
+2. **Uniforms go in as arguments.** `drift` (vec2 uniform) and the coverage
+   threshold `theta` (read from the `thresholds` uniform array) are computed
+   at the call site and passed as `drifted: vec3` and `theta: float`
+   parameters. Textures captured from the closure resolve correctly once the
+   instance is per-material (verified: zero WGSL errors).
+
+Verified with the fix in place: `tests/e2e/clouds.spec.ts` 9/10 on the
+reference GPU with no console errors. The 10th, the budget tripwire, failed
+identically on the *unmodified* shader in the same session (9 samples
+collected against a 120 minimum, cloud cost 4.958 ms unmodified vs 4.934 ms
+fixed): desktop contention, not the change. `cloudShadow.ts` keeps the inline
+`field.density` (one call site, not in the freeze).
 
 Visual output must not change: a fixed-seed cloud frame is captured before
-and after on the reference GPU and pixel-diffed (max channel delta ≤ 1).
+and after on the reference GPU and pixel-diffed (max channel delta ≤ 2, to
+allow for a function-call vs inlined floating-point ordering difference).
 
-**Coordination:** A.3 edits `clouds.ts` / `cloudLighting.ts`, which the Codex
-`cloud-vdb-fidelity` worktree also changes. A.3 is done last and kept to the
-minimum edit so either merge order stays cheap.
+**Coordination:** A.3 edits `cloudField.ts` and one line of `clouds.ts`,
+which the Codex `cloud-vdb-fidelity` worktree also changes. A.3 lands last and
+stays that small so either merge order is cheap.
 
 ### A.4 Acceptance
 
