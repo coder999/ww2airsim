@@ -23,7 +23,7 @@ export function audioInputsFrom(frame: FrameState): AudioInputs {
   const { terrain, ships } = frame.world
   const { state: aircraft, impact, spec } = playerAircraft(frame.world)
   // ONE ground model (Plan 8 review, item 3): `groundUnder` is what
-  // `src/sim/flight/model.ts`, `src/render/landing.ts` and `main.ts` all read,
+  // `src/sim/flight/model.ts`, `src/sim/landing.ts` and `main.ts` all read,
   // and it knows about carrier decks as well as terrain. This adapter called
   // `heightAt`/`surfaceAt` directly until 2026-09-19, so an airplane chocked
   // on a flight deck before the heightfield arrived reported `onGround: null`

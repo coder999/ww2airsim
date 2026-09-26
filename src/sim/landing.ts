@@ -1,12 +1,12 @@
-import { supportedContact } from '../sim/ground.js'
-import { airspeed } from '../sim/flight/model.js'
-import type { AircraftState } from '../sim/flight/state.js'
-import type { AircraftSpec } from '../sim/flight/schema.js'
-import { airfieldAt, type Airfield } from '../sim/world/airfields.js'
-import { groundUnder, type GroundUnder } from '../sim/world/ground.js'
-import { deckLocal, type Deck } from '../sim/world/deck.js'
-import type { TerrainField } from '../sim/world/terrain.js'
-import { sub, length } from '../sim/math/vec3.js'
+import { supportedContact } from './ground.js'
+import { airspeed } from './flight/model.js'
+import type { AircraftState } from './flight/state.js'
+import type { AircraftSpec } from './flight/schema.js'
+import { airfieldAt, type Airfield } from './world/airfields.js'
+import { groundUnder, type GroundUnder } from './world/ground.js'
+import { deckLocal, type Deck } from './world/deck.js'
+import type { TerrainField } from './world/terrain.js'
+import { sub, length } from './math/vec3.js'
 
 /**
  * Where a flight touched down, and what it looked like at that instant.
@@ -24,6 +24,13 @@ export type Touchdown = {
   readonly deck: Deck | null
 }
 
+/** Where a landing ended. `id` is what content names (`land.at` in a
+ *  mission, spec 2026-09-25 §2.1): an airfield's content id, or a carrier's
+ *  ship id. `name` is what the debrief prints: the airfield's display name,
+ *  or the ship id again. The two differ for airfields ("tacloban" /
+ *  "Tacloban", measured 2026-09-25), which is why both are carried. */
+export type LandingAt = { readonly kind: 'airfield' | 'carrier'; readonly id: string; readonly name: string }
+
 /** A completed landing: the touchdown, plus how far the roll-out ran. */
 export type LandingReport = {
   readonly touchdownSinkMps: number
@@ -32,8 +39,8 @@ export type LandingReport = {
   readonly tick: number
   /** Where the flight ended: the airfield whose runway the touchdown lies
    *  inside, the carrier whose deck it was arrested on, or `null` off-field.
-   *  Master spec section 8's recovery multiplier reads this in Plan 9. */
-  readonly at: { readonly kind: 'airfield' | 'carrier'; readonly name: string } | null
+   *  The recovery multiplier and a mission's `land` objectives read this. */
+  readonly at: LandingAt | null
 }
 
 /**
@@ -41,12 +48,14 @@ export type LandingReport = {
  * successfully land, it should prompt the overlay screen (like the crash
  * screen)").
  *
- * Lives in the render layer, not `sim/`, on purpose: the simulation already
- * says everything this needs (`supportedContact`, the state history) and a
- * landing is an OUTCOME the presentation reports, the way the debrief reports
- * a crash. An `AircraftEntity`'s `impact` is different -- the sim must know
- * about a crash because that entity stops stepping on one. Nothing in the sim
- * changes because a landing was noticed.
+ * In `sim/` since missions M1 (2026-09-25), and still pure: ONE function with
+ * two callers. The render frame (`nextFrameState`, src/render/frame.ts) runs
+ * it once per frame for the debrief; the mission engine
+ * (src/sim/mission/step.ts) runs it once per tick for `land` and `takeoff`
+ * objectives and the badge rule. `tests/sim/mission/recoveryAgreement.test.ts`
+ * pins that the two agree on every recovery kind. No force or state in the
+ * flight dynamics reads it: an `AircraftEntity`'s `impact` stops the entity,
+ * a landing stops nothing.
  *
  * - `airborne` latches once the wheels have been `AIRBORNE_LATCH_M` clear of
  *   the ground since spawn, and is what tells a landing from an airplane that
@@ -149,8 +158,10 @@ function rollOutM(touchdown: Touchdown, after: AircraftState, g: GroundUnder): n
   return Math.hypot(after.position.x - touchdown.x, after.position.z - touchdown.z)
 }
 
-function landedAt(touchdown: Touchdown, airfields: readonly Airfield[], g: GroundUnder): LandingReport['at'] {
-  if (g.deck !== null && touchdown.deck !== null && g.deck.shipId === touchdown.deck.shipId) return { kind: 'carrier', name: g.deck.shipId }
+function landedAt(touchdown: Touchdown, airfields: readonly Airfield[], g: GroundUnder): LandingAt | null {
+  if (g.deck !== null && touchdown.deck !== null && g.deck.shipId === touchdown.deck.shipId) {
+    return { kind: 'carrier', id: g.deck.shipId, name: g.deck.shipId }
+  }
   const field = airfieldAt(airfields, touchdown.x, touchdown.z)
-  return field === null ? null : { kind: 'airfield', name: field.name }
+  return field === null ? null : { kind: 'airfield', id: field.id, name: field.name }
 }

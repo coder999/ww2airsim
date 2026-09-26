@@ -26,7 +26,7 @@ import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
-import { nextLandingTracking, NO_LANDING, type LandingTracking } from './landing.js'
+import { nextLandingTracking, NO_LANDING, type LandingTracking } from '../sim/landing.js'
 
 export type FrameState = {
   /** `World<undefined>` since altitude hold was deleted on 2026-09-17: it was

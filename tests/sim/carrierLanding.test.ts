@@ -9,7 +9,7 @@ import { createState, DT } from '../../src/sim/flight/model.js'
 import { MAX_SUPPORTED_SINK_MPS } from '../../src/sim/ground.js'
 import { deckOf, deckWorld, deckLocal, decksOf } from '../../src/sim/world/deck.js'
 import { approachControls, VREF_STALL_MULTIPLE } from '../../tools/autopilot/approach.js'
-import { nextLandingTracking, NO_LANDING } from '../../src/render/landing.js'
+import { nextLandingTracking, NO_LANDING } from '../../src/sim/landing.js'
 import { paddlesCue, type PaddlesCue } from '../../src/sim/paddles.js'
 import { v3, sub, length } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
@@ -111,7 +111,7 @@ describe('an approach flown to the moving deck (Plan 8)', () => {
     expect(Math.abs(local.x)).toBeLessThan(deckEnd.widthM / 4)
     expect(local.z + deckEnd.lengthM / 2).toBeLessThan(deckEnd.trapToSternM + 40)
     expect(tracking.report).not.toBeNull()
-    expect(tracking.report!.at).toEqual({ kind: 'carrier', name: 'cv-1' })
+    expect(tracking.report!.at).toEqual({ kind: 'carrier', id: 'cv-1', name: 'cv-1' })
     expect(tracking.report!.rollOutM).toBeLessThan(60)
     // The paddles saw this approach and called the cut: an empty sequence
     // would mean the cue is unreachable in flight whatever its unit test says.

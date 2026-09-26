@@ -3,7 +3,7 @@ import type { Impact } from '../sim/loop.js'
 import type { AircraftState } from '../sim/flight/state.js'
 import { attitudeAngles } from '../sim/flight/attitude.js'
 import { length } from '../sim/math/vec3.js'
-import type { LandingReport } from './landing.js'
+import type { LandingReport } from '../sim/landing.js'
 import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
 
 export type ScoreRow = {
@@ -142,8 +142,9 @@ const MPH_PER_MPS = 2.23694
 /** What the debrief says about a landing (Mark, 2026-09-17: "successful
  *  landing - nice job! (or similar)"). Pure, like `debriefModel`.
  *  `shipNames` maps a carrier's ship id (`LandingReport.at.name`) to its
- *  display name -- `landing.ts` names a carrier by id because that is what
- *  `nextLandingTracking` has in hand; `main.ts` passes the world's ships. */
+ *  display name -- `src/sim/landing.ts` names a carrier by its ship id
+ *  because that is what `nextLandingTracking` has in hand; `main.ts` passes
+ *  the world's ships. */
 export function landingModel(
   report: LandingReport,
   killsSinceLastBank: Readonly<Record<TargetType, number>>,
