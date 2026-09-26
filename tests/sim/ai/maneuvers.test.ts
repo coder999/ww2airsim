@@ -121,3 +121,38 @@ describe('attack run selection (Task 9)', () => {
     expect(isPhased('attack-run')).toBe(true)
   })
 })
+
+describe('Break family selection (Task 10)', () => {
+  const base = factsFor('break')
+  const scissorsPicture = {
+    ...base, threatBehind: true, velocityAngleRad: 0.1, selfSpeedMps: 88, targetSpeedMps: 100,
+    selfCornerSpeedMps: 92.26, targetCornerSpeedMps: 119.98,
+    facts: { ...base.facts, rangeM: 150 },
+    envelope: { ...base.envelope, turnAdvantage: 1.6, pairing: 'turnfight' as const },
+  }
+
+  it('scissors: threat close behind, near-parallel, both below corner speed, and we out-turn it', () => {
+    expect(selectManeuver(scissorsPicture, VETERAN_SKILL.repertoire)).toBe('scissors')
+  })
+
+  it('no scissors against a better turner (the envelope gate), nor above corner speed, nor for green', () => {
+    expect(selectManeuver({ ...scissorsPicture, envelope: { ...scissorsPicture.envelope, turnAdvantage: 0.63, pairing: 'boom-and-zoom' } }, VETERAN_SKILL.repertoire)).not.toBe('scissors')
+    expect(selectManeuver({ ...scissorsPicture, targetSpeedMps: 130 }, VETERAN_SKILL.repertoire)).not.toBe('scissors')
+    expect(selectManeuver(scissorsPicture, GREEN_SKILL.repertoire)).toBe('defensive-break')
+  })
+
+  const splitPicture = {
+    ...base, threatBehind: true, heightAboveGroundM: 3000, selfSpeedMps: 110, selfDiveSpeedMps: 216,
+    facts: { ...base.facts, threatAstern: true, rangeM: 250 },
+  }
+
+  it('split-S: threat astern in gun range, height to spare, below 0.6 x the dive limit', () => {
+    expect(selectManeuver(splitPicture, VETERAN_SKILL.repertoire)).toBe('split-s')
+  })
+
+  it('no split-S below 1,500 m, too fast, or with the threat AHEAD (a head-on pass, ruling R12)', () => {
+    expect(selectManeuver({ ...splitPicture, heightAboveGroundM: 1499 }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+    expect(selectManeuver({ ...splitPicture, selfSpeedMps: 130 }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+    expect(selectManeuver({ ...splitPicture, threatBehind: false }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+  })
+})

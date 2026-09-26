@@ -1,5 +1,6 @@
 import type { AircraftEntity } from '../loop.js'
 import type { Controls } from '../flight/state.js'
+import { qRotate } from '../math/quat.js'
 import { add, dot, length, normalize, scale, sub, v3 } from '../math/vec3.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { controlsForLiftVector, steerToward } from './liftVector.js'
@@ -193,6 +194,97 @@ export function flyAttackRun<M>(self: AircraftEntity<M>, perceived: AircraftEnti
   return { controls, latch: done ? null : next(2) }
 }
 
+const headingOf = (v: { readonly x: number; readonly z: number }): number => Math.atan2(v.z, v.x)
+const headingChange = (from: number, to: number): number => Math.abs(Math.atan2(Math.sin(to - from), Math.cos(to - from)))
+
+/** Scissors (spec §3.5): a level turn toward the threat's side of our
+ *  flight path, banked SCISSORS_BANK_RAD (2 g at 60°) at SCISSORS_THROTTLE,
+ *  reversing into the threat each time it crosses behind us to the other
+ *  side, so we slow and it slides ahead. Ends once the threat is ahead of
+ *  our 3/9 line (or at the 20 s latch cap). The latch records the threat's
+ *  side (+1 right, -1 left, in the horizontal plane) and counts each
+ *  change as a reversal.
+ *
+ *  The plan flew the lift vector straight at the threat at the G budget.
+ *  Measured 2026-09-26 in the scissors signature world (a veteran Zero at
+ *  88 m/s, a Hellcat 150 m behind at 100 m/s, tests/sim/ai/breakManeuvers.test.ts):
+ *  with the threat near dead astern that lift line is ill-conditioned; the
+ *  roll command never changed sign in 16 s (0 roll reversals), the latch's
+ *  body-axis side flickered 3 times in 6 ticks, and 16 s in the Zero was
+ *  down to 38 m/s with the Hellcat still behind it.
+ *
+ *  SCISSORS_BANK_RAD, swept 2026-09-26 in that world at throttle 0.3, 0.4
+ *  and 0.5, as a level-turn load factor: 1.5, 1.75, 2, 2.25, 2.5 and 3 g all
+ *  give 2 reversals inside 12 s and end with the Hellcat ahead (12.2-19.7 s).
+ *  The Zero's lowest speed during the maneuver falls with the G: 59.2, 49.2,
+ *  38.0, 28.1, 22.8, 28.6 m/s at throttle 0.4. Its stall speed is 34.87 m/s,
+ *  so above 2 g it mushes below the stall. Both airplanes are pitch-rate
+ *  limited here (30°/s scaled by airspeed), so turning harder only bleeds
+ *  speed. At the G budget instead (6.3 g asked, about 3.4 g flown) with
+ *  throttle 0.3-0.4 the scissors ran to the cap with the Hellcat still
+ *  behind; at throttle 0-0.2 the Hellcat got ahead after one reversal. 60°
+ *  (2 g), the textbook level-turn bank, is kept.
+ *
+ *  SCISSORS_THROTTLE is the plan's 0.4, kept: at 60°, throttle 0.3 / 0.4 /
+ *  0.5 end at 14.1 / 14.4 / 15.0 s with a lowest speed of 35.2 / 38.0 /
+ *  39.3 m/s.
+ *
+ *  SCISSORS_SIDE_DEADBAND_M: the threat must be this far across our flight
+ *  path before we reverse. At 60° / 0.4, a deadband of 0 or 2 m counts 4
+ *  latch reversals against 2 real roll reversals (the side flickers as the
+ *  threat crosses). 5 m counts 2 against 2; 10 and 20 m also count 2 but
+ *  reverse 18 and 36 ticks later, with a lowest speed of 34.8 and 30.6 m/s. */
+export const SCISSORS_BANK_RAD = 60 * Math.PI / 180
+export const SCISSORS_THROTTLE = 0.4
+export const SCISSORS_SIDE_DEADBAND_M = 5
+export function flyScissors<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
+  const v = self.state.velocity
+  const to = sub(perceived.state.position, self.state.position)
+  const flatRight = normalize(v3(-v.z, 0, v.x))
+  const s = dot(to, flatRight)
+  const side = latch.lastSide === 0 ? (s >= 0 ? 1 : -1)
+    : s * latch.lastSide < -SCISSORS_SIDE_DEADBAND_M ? -latch.lastSide : latch.lastSide
+  const lift = add(UP, scale(flatRight, side * Math.tan(SCISSORS_BANK_RAD)))
+  const controls = controlsForLiftVector(self.state, self.spec, lift, 1 / Math.cos(SCISSORS_BANK_RAD), SCISSORS_THROTTLE)
+  if (dot(to, v) > 0) return { controls, latch: null }
+  if (side === latch.lastSide) return { controls, latch }
+  return { controls, latch: { ...latch, lastSide: side, reversals: latch.reversals + (latch.lastSide !== 0 ? 1 : 0) } }
+}
+
+/** Split-S (spec §3.5): phase 0 rolls inverted (lift straight down at 1 g);
+ *  phase 1 pulls through around the loop center fixed at entry
+ *  (`openLatch`), at the G budget. Ends with the heading reversed by
+ *  REVERSAL_DONE_RAD and the nose back near level: climb component
+ *  (velocity.y / speed) above LEVEL_EXIT_MIN_CLIMB. REVERSAL_DONE_RAD is
+ *  spec §3.5's signature (heading change >= 150°; the table's "reversed
+ *  ± 30°").
+ *
+ *  The other two are the plan's values, kept. Measured 2026-09-26 in the
+ *  split-S signature world (`splitSWorld`: a veteran F6F at 110 m/s, a
+ *  Hellcat 250 m dead astern at 130 m/s, 3,000 m up), each swept with the
+ *  other fixed, reading heading change / height lost / peak G / exit speed:
+ *  - SPLIT_S_THROTTLE: 0 -> 166.7° / 513 m / 5.81 g / 103.2 m/s;
+ *    0.3 -> 167.5° / 504 m / 6.41 g / 112.9 m/s; 0.6 -> 176.1° / 509 m /
+ *    6.72 g / 121.9 m/s; 1 -> 176.2° / 539 m / 6.83 g / 134.0 m/s. Every
+ *    value meets the signature; 0.3 keeps the exit near the entry speed.
+ *  - LEVEL_EXIT_MIN_CLIMB: -0.4 -> 170.0° / 488 m, exit 8.3 s after entry;
+ *    -0.2 -> 167.5° / 504 m, 8.8 s; 0 -> 165.6° / 509 m, 9.35 s;
+ *    0.1 -> 164.7° / 508 m, 9.63 s. */
+export const REVERSAL_DONE_RAD = 150 * Math.PI / 180
+export const LEVEL_EXIT_MIN_CLIMB = -0.2
+export const SPLIT_S_THROTTLE = 0.3
+export function flySplitS<M>(self: AircraftEntity<M>, _perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
+  if (latch.phase === 0) {
+    const controls = controlsForLiftVector(self.state, self.spec, v3(0, -1, 0), 1, SPLIT_S_THROTTLE)
+    return { controls, latch: qRotate(self.state.attitude, UP).y < -0.9 ? { ...latch, phase: 1 } : latch }
+  }
+  const controls = controlsForLiftVector(self.state, self.spec, sub(latch.loopCenter, self.state.position), loadFactorBudget(self.spec), SPLIT_S_THROTTLE)
+  const v = self.state.velocity
+  const turned = headingChange(latch.entryHeadingRad, headingOf(v)) >= REVERSAL_DONE_RAD
+  const level = v.y / Math.max(length(v), 1e-6) > LEVEL_EXIT_MIN_CLIMB
+  return { controls, latch: turned && level ? null : latch }
+}
+
 /** A maneuver's controls this tick, and its latch afterwards: the same
  *  object while it continues unchanged, a new one when its data changes (a
  *  phase change, or the attack run's new lowest altitude), null once it has
@@ -211,5 +303,7 @@ export function flyManeuver<M>(
     case 'high-yo-yo': return flyHighYoYo(self, perceived, decision.latch!)
     case 'low-yo-yo': return flyLowYoYo(self, perceived, decision.latch!)
     case 'attack-run': return flyAttackRun(self, perceived, decision.latch!)
+    case 'scissors': return flyScissors(self, perceived, decision.latch!)
+    case 'split-s': return flySplitS(self, perceived, decision.latch!)
   }
 }

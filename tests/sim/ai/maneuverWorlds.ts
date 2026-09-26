@@ -1,4 +1,4 @@
-import { advance, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
+import { advance, createWorldOf, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import type { AircraftSpec } from '../../../src/sim/flight/schema.js'
 import { createState, type Controls } from '../../../src/sim/flight/state.js'
@@ -7,7 +7,8 @@ import { add, cross, normalize, scale, v3, type Vec3 } from '../../../src/sim/ma
 import { controlsForDesiredVelocity } from '../../../src/sim/ai/controller.js'
 import { controlsForLiftVector } from '../../../src/sim/ai/liftVector.js'
 import { closureRateMps, pursuitDesiredVelocity, type PilotAssignment } from '../../../src/sim/ai/pursuit.js'
-import { initialDecision, type ManeuverName, type PilotSkill } from '../../../src/sim/ai/pilot.js'
+import { VETERAN_SKILL, initialDecision, type ManeuverName, type PilotSkill } from '../../../src/sim/ai/pilot.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 /**
  * Canned geometries for the 7c maneuver signatures (spec §3.6): one AI pilot
@@ -69,3 +70,19 @@ export function runCanned(
 export const closureOf = (self: AircraftEntity<undefined>, other: AircraftEntity<undefined>): number => closureRateMps(self, other)
 
 export const headingChangeRad = (from: number, to: number): number => Math.abs(Math.atan2(Math.sin(to - from), Math.cos(to - from)))
+
+export const BREAK_SET: readonly ManeuverName[] = ['lead-pursuit', 'defensive-break', 'scissors', 'split-s', 'extend']
+
+/** A veteran F6F at 110 m/s with a faster Hellcat 250 m dead astern, nose on:
+ *  Break (the threat's nose is on us), threat astern, 3,000 m up, below
+ *  0.6 x 216 m/s. No scissors: the threat is above its 120 m/s corner speed. */
+export function splitSWorld(): World<undefined> {
+  const f6f = loadAircraftSpec('f6f-hellcat')
+  return createWorldOf({
+    aircraft: [
+      level('p', f6f, v3(0, 3000, 0), v3(110, 0, 0), pilotFor('t', withRepertoire(VETERAN_SKILL, BREAK_SET))),
+      level('t', f6f, v3(-250, 3000, 0), v3(130, 0, 0)),
+    ],
+    player: 't',
+  })
+}

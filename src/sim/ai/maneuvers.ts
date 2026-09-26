@@ -1,11 +1,11 @@
 import type { AircraftEntity } from '../loop.js'
-import { length, sub, dot, v3, ZERO, type Vec3 } from '../math/vec3.js'
+import { add, length, sub, dot, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import type { DecisionFacts } from './decision.js'
 import { airframeEnvelope, relativeEnvelope, type RelativeEnvelope } from './envelope.js'
 import { DEFAULT_MANEUVER, INTENT_OF, type ManeuverLatch, type ManeuverName, type PilotManeuver } from './pilot.js'
 import { ATTACK_RUN_HEIGHT_M } from './maneuverFlight.js'
 import { closureRateMps } from './pursuit.js'
-import { FLOOR_M } from './safety.js'
+import { FLOOR_M, loadFactorBudget } from './safety.js'
 
 /** Spec §3.5: a phased maneuver holds at most this long. */
 export const LATCH_CAP_S = 20
@@ -88,12 +88,35 @@ export const OVERSHOOT_CLOSURE_MPS = 40
 export const LOW_YOYO_RANGE_M = 400
 export const LOW_YOYO_HEIGHT_MARGIN_M = 500
 
+/** The Break family's entry values. SCISSORS_RANGE_M, SPLIT_S_MIN_HEIGHT_M
+ *  and SPLIT_S_MAX_SPEED_FRACTION are spec §3.5's table values (scissors:
+ *  threat within 300 m, both below corner speed, turnAdvantage >= 1;
+ *  split-S: threat astern in gun range, >= 1,500 m above ground, airspeed
+ *  < 0.6 x dive limit). SCISSORS_ANGLE_RAD is the plan's reading of the
+ *  table's "low angle-off", as the angle between the two velocities; not
+ *  swept.
+ *
+ *  Measured 2026-09-26 at the first rescore of the signature worlds
+ *  (tests/sim/ai/breakManeuvers.test.ts). Scissors: 153 m, 0.00° between
+ *  the velocities, Zero 88 m/s against a 92.26 m/s corner, Hellcat 100
+ *  against 119.98, turnAdvantage 1.596 (turnfight). Swapped, the Hellcat
+ *  reads 0.627 (boom-and-zoom). Over its 120 s run, 18 of its 314 Break
+ *  rescores meet every other scissors condition, so the envelope gate is
+ *  what keeps it out. Split-S: 250 m, threat astern and behind, 3,000 m up,
+ *  110 m/s against 0.6 x 216 = 129.6. None of the four shipped pilot
+ *  scenarios (pursuit-range, pursuit-range-veteran, the tail-chase and
+ *  zero-merge fixtures) selects either in 120 s. */
+export const SCISSORS_RANGE_M = 300
+export const SCISSORS_ANGLE_RAD = 45 * Math.PI / 180
+export const SPLIT_S_MIN_HEIGHT_M = 1500
+export const SPLIT_S_MAX_SPEED_FRACTION = 0.6
+
 /** The named maneuver for this rescore. With nothing special in the picture
  *  it is the intent's default, which keeps 7b's regression floor. Task 8
  *  adds the Pursue family (lag pursuit, high yo-yo, low yo-yo), Task 9 the
  *  attack run, which outranks them all when the height is there and the
- *  pairing is not a turnfight (spec §3.5's envelope gate); Tasks 10-11 add
- *  the rest. */
+ *  pairing is not a turnfight (spec §3.5's envelope gate), Task 10 the
+ *  Break family (scissors, split-S); Task 11 adds the Immelmann. */
 export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverName[]): ManeuverName {
   const has = (n: ManeuverName): boolean => repertoire.includes(n)
   const f = m.facts
@@ -112,10 +135,22 @@ export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverNa
     if (turning && has('low-yo-yo') && f.rangeM > LOW_YOYO_RANGE_M && m.closureMps < 0 &&
         m.heightAboveGroundM >= FLOOR_M + LOW_YOYO_HEIGHT_MARGIN_M) return 'low-yo-yo'
   }
+  if (m.intent === 'break') {
+    // Scissors needs turnAdvantage >= 1 (spec §3.5's envelope gate): a
+    // boom-and-zoom airframe does not get into a flat scissors with a better
+    // turner. The split-S needs the threat behind our 3/9 line as well as
+    // astern (ruling R12): at a head-on merge the player's gun cone is on us
+    // too, and a split-S there would cost the player's head-on shot.
+    if (has('scissors') && m.threatBehind && f.rangeM < SCISSORS_RANGE_M && m.velocityAngleRad < SCISSORS_ANGLE_RAD &&
+        m.selfSpeedMps < m.selfCornerSpeedMps && m.targetSpeedMps < m.targetCornerSpeedMps &&
+        m.envelope.turnAdvantage >= 1) return 'scissors'
+    if (has('split-s') && f.threatAstern && m.threatBehind && m.heightAboveGroundM >= SPLIT_S_MIN_HEIGHT_M &&
+        m.selfSpeedMps < SPLIT_S_MAX_SPEED_FRACTION * m.selfDiveSpeedMps) return 'split-s'
+  }
   return DEFAULT_MANEUVER[m.intent]
 }
 
-const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run'])
+const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'scissors', 'split-s'])
 export const isPhased = (name: ManeuverName): boolean => PHASED.has(name)
 
 export const latchExpired = (latch: ManeuverLatch, nowS: number): boolean => nowS - latch.enteredAtS >= LATCH_CAP_S
@@ -133,8 +168,10 @@ export const loopRadiusM = (speedMps: number, loadFactorG: number): number =>
 
 export function openLatch<M>(name: ManeuverName, self: AircraftEntity<M>, nowS: number): ManeuverLatch {
   const v = self.state.velocity
-  const loopCenter: Vec3 = ZERO
-  void v3
+  // The split-S pulls through around a center one loop radius below the
+  // entry point, at the G budget, fixed here so the pull is not re-aimed.
+  const r = loopRadiusM(length(v), loadFactorBudget(self.spec))
+  const loopCenter: Vec3 = name === 'split-s' ? add(self.state.position, v3(0, -r, 0)) : ZERO
   return {
     name, phase: 0, enteredAtS: nowS,
     entryHeadingRad: Math.atan2(v.z, v.x),

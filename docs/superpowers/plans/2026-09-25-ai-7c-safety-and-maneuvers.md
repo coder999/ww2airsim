@@ -2634,7 +2634,7 @@ git commit -m "7c: the attack run, gated by the airframe envelope (7c Task 9)"
 - Produces, from `maneuvers.ts`: `SCISSORS_RANGE_M = 300`, `SCISSORS_ANGLE_RAD = 45°`, `SPLIT_S_MIN_HEIGHT_M = 1500` and `SPLIT_S_MAX_SPEED_FRACTION = 0.6`
 - Produces, from `maneuverFlight.ts`: `SCISSORS_THROTTLE = 0.4`, `SPLIT_S_THROTTLE = 0.3`, `REVERSAL_DONE_RAD = 150°`, `LEVEL_EXIT_MIN_CLIMB = -0.2`, `flyScissors` and `flySplitS`
 
-- [ ] **Step 1: Write the failing tests.** First append two shared fixtures to `tests/sim/ai/maneuverWorlds.ts`. Task 12 reuses them, and a test file must never import another test file, because its tests would register twice. Add `import { VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'` (merged into that file's existing `pilot.js` import), `import { createWorldOf } from '../../../src/sim/loop.js'` (merged likewise) and `import { loadAircraftSpec } from '../../../tools/content/load.js'`:
+- [x] **Step 1: Write the failing tests.** First append two shared fixtures to `tests/sim/ai/maneuverWorlds.ts`. Task 12 reuses them, and a test file must never import another test file, because its tests would register twice. Add `import { VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'` (merged into that file's existing `pilot.js` import), `import { createWorldOf } from '../../../src/sim/loop.js'` (merged likewise) and `import { loadAircraftSpec } from '../../../tools/content/load.js'`:
 
 ```ts
 export const BREAK_SET: readonly ManeuverName[] = ['lead-pursuit', 'defensive-break', 'scissors', 'split-s', 'extend']
@@ -2776,12 +2776,12 @@ describe('scissors, and the envelope gate (7c spec §3.6)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/maneuvers.test.ts tests/sim/ai/breakManeuvers.test.ts --maxWorkers=2`
 Expected: FAIL: the names are unknown.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 - In `pilot.ts`: add `| 'scissors' | 'split-s'` to `ManeuverName`, add `scissors: 'break', 'split-s': 'break'` to `INTENT_OF`, and add both to `VETERAN_SKILL.repertoire`.
 - In `maneuvers.ts`: add both names to `PHASED`, and add the constants:
 
@@ -2855,13 +2855,13 @@ export function flySplitS<M>(self: AircraftEntity<M>, _perceived: AircraftEntity
 
 Add `case 'scissors': return flyScissors(self, perceived, decision.latch!)` and `case 'split-s': return flySplitS(self, perceived, decision.latch!)` to `flyManeuver`.
 
-- [ ] **Step 4: Run the tests, and measure.** Run the command from Step 2, and expect PASS. Record the split-S's heading change, height lost and peak G, and the scissors' reversals and exit time, in each test's comment. Apply Task 8 Step 8's rule.
+- [x] **Step 4: Run the tests, and measure.** Run the command from Step 2, and expect PASS. Record the split-S's heading change, height lost and peak G, and the scissors' reversals and exit time, in each test's comment. Apply Task 8 Step 8's rule.
 
 In the scissors test, the Zero's pitch authority fades above 250 mph EAS, but both airplanes start below 100 m/s, so the fade is inactive. If the Zero's scissors fails to reverse, check whether the chaser ever crosses its 3/9 line at all (log `side`) before changing anything.
 
-- [ ] **Step 5: The regression gate.** Run Task 8 Step 9's command. This matters most here: at the head-on merge the player's gun cone is on the pursuer, which is exactly `threatAstern`. The `threatBehind` condition (ruling R12) is what keeps the split-S out of the merge. `pursuitMerge.test.ts` must still show the green and veteran first-merge kills at 6 or more of 8. Count `named === 'split-s'` ticks in the first 15 s of both shipped scenarios; expect 0, and record the count.
+- [x] **Step 5: The regression gate.** Run Task 8 Step 9's command. This matters most here: at the head-on merge the player's gun cone is on the pursuer, which is exactly `threatAstern`. The `threatBehind` condition (ruling R12) is what keeps the split-S out of the merge. `pursuitMerge.test.ts` must still show the green and veteran first-merge kills at 6 or more of 8. Count `named === 'split-s'` ticks in the first 15 s of both shipped scenarios; expect 0, and record the count.
 
-- [ ] **Step 6: Verify and commit.**
+- [x] **Step 6: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
