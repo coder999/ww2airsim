@@ -5,6 +5,9 @@ import { worldFromScenario } from '../../src/sim/scenario.js'
 import type { World } from '../../src/sim/loop.js'
 import { buildScenarioEntities, disposeMeshTree, type ScenarioEntities } from '../../src/render/scenarioEntities.js'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
+import { loadWildcat } from '../../src/render/scene/wildcat.js'
+import { createModelCache } from '../../src/render/models/modelCache.js'
+import { WILDCAT_MODEL_URL } from '../../src/render/content.js'
 
 // Real shipped content, not fixtures: `content/scenarios/deck-quals.json` and
 // `free-flight.json` both carry 2 aircraft + 3 ships (the largest ship count
@@ -166,5 +169,58 @@ describe('disposeMeshTree', () => {
     expect(mapSpy).toHaveBeenCalled()
     expect(normalMapSpy).toHaveBeenCalled()
     expect(materialSpy).toHaveBeenCalled()
+  })
+})
+
+describe('buildScenarioEntities and the model cache (Z1)', () => {
+  it('a switch disposes every previous airframe through its own dispose(), and its smoke', async () => {
+    const scene = new Scene()
+    const before = await buildScenarioEntities(scene, deckQuals, null, stubAirframe)
+    const disposeSpies = before.airframes.map((a) => vi.spyOn(a, 'dispose'))
+    const smokeMeshes: Mesh[] = []
+    for (const s of before.smokes) s.object.traverse((n) => { if (n instanceof Mesh) smokeMeshes.push(n) })
+    const smokeSpies = smokeMeshes.map((m) => vi.spyOn(m.geometry, 'dispose'))
+    await buildScenarioEntities(scene, strikeRange, before, stubAirframe)
+    for (const spy of disposeSpies) expect(spy).toHaveBeenCalledTimes(1)
+    for (const spy of smokeSpies) expect(spy).toHaveBeenCalled()
+  })
+
+  it('if one airframe fails to load, the ones that loaded are disposed and the previous scenario is untouched', async () => {
+    const scene = new Scene()
+    const before = await buildScenarioEntities(scene, strikeRange, null, stubAirframe)
+    const disposeSpies: ReturnType<typeof vi.fn>[] = []
+    let calls = 0
+    const flaky = async () => {
+      calls++
+      if (calls === 2) throw new Error('model fetch 404')
+      const a = createHellcat()
+      const spy = vi.fn(a.dispose)
+      disposeSpies.push(spy)
+      return { ...a, dispose: spy }
+    }
+    await expect(buildScenarioEntities(scene, deckQuals, before, flaky)).rejects.toThrow('model fetch 404')
+    expect(disposeSpies.length).toBe(deckQuals.aircraft.length - 1)
+    for (const spy of disposeSpies) expect(spy).toHaveBeenCalledTimes(1)
+    for (const h of [...before.airframes, ...before.shipHandles]) expect(scene.children).toContain(h.root)
+  })
+
+  it('switching between two scenarios that both fly the Wildcat parses it once and frees nothing still drawn', async () => {
+    let parses = 0
+    const cache = createModelCache(async () => {
+      parses++
+      const root = new Group()
+      for (const name of ['Helice', 'GRP_Rueda_Der', 'GRP_Rueda_Izq']) {
+        const m = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial())
+        m.name = name
+        root.add(m)
+      }
+      return root
+    })
+    const load = () => loadWildcat((url) => cache.acquire(url))
+    const scene = new Scene()
+    const first = await buildScenarioEntities(scene, deckQuals, null, load)
+    const second = await buildScenarioEntities(scene, strikeRange, first, load)
+    expect(parses).toBe(1)
+    expect(cache.refCount(WILDCAT_MODEL_URL)).toBe(second.airframes.length)
   })
 })

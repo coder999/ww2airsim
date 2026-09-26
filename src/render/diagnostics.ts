@@ -37,7 +37,7 @@ export type Ww2Diagnostics = {
   readonly tick: () => number
   readonly cameraMode: () => CameraMode
   /** Proves a KeyG press reached the player's AircraftState.gearFraction
-   *  and therefore the rendered Airframe.setGear path. This mirrors the
+   *  and therefore the rendered Airframe.update gear path (setGear until Z1). This mirrors the
    *  controls() diagnostic below: an advancing tick alone cannot prove the
    *  input or render-state wire was exercised. Added by the 2026-09-24
    *  F4F Wildcat default-aircraft plan. */

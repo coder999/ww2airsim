@@ -3,6 +3,7 @@ import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities.js'
+import { airframeUpdateFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
@@ -162,16 +163,6 @@ const gpuFrameTimesMs: number[] = []
  * a combined sample can be skipped (see the resolve below), this one cannot.
  */
 const gpuRenderTimesMs: number[] = []
-
-/** Purely visual: gauges.ts explains why no tachometer is fitted -- there is
- *  no modeled engine RPM to drive it honestly. This spins the prop mesh at an
- *  arbitrary rate scaled by throttle (see hellcat.ts's comment on why `prop`
- *  is a separate mesh); it confirms throttle reaches the frame state, not
- *  that it reaches the simulation -- a bug that stopped `frame.controls` from
- *  reaching `advance` would leave the prop spinning at the correct rate with
- *  nothing driving the airplane (Task 13 review, measured 2026-09-13). It is
- *  not a claim about real RPM and never appears on the instrument panel. */
-const PROP_MAX_RAD_PER_SEC = 40
 
 async function boot(): Promise<void> {
   /**
@@ -1892,12 +1883,15 @@ async function boot(): Promise<void> {
       const stores = current.world.combat.aircraft[a.id]?.stores
       if (stores !== undefined) airframes[i]!.setStores(stores.bombs, stores.rockets)
     })
-    // Gear travel is multi-second (unlike position/attitude above), so a
-    // non-interpolated per-tick read off `World.aircraft[i].state` causes no
-    // visible jitter -- same reasoning as the `setStores` loop just above,
-    // read off the same per-tick `World`, not the interpolated render pose.
+    // One `update` per aircraft per frame (A6M Zero spec §7.3): gear, flaps,
+    // propeller, and from Z3 the level of detail. Gear and flap travel are
+    // multi-second, so a per-tick read off `World.aircraft[i].state` causes
+    // no visible jitter -- same reasoning as the `setStores` loop above.
+    // `airframeUpdateFor` owns the rules: the player's airframe reads the raw
+    // frame controls, every other its own pilot's, and a wreck's prop stops.
     current.world.aircraft.forEach((a, i) => {
-      airframes[i]!.setGear(a.state.gearFraction)
+      const playerControls = a.id === current.world.player ? current.controls : null
+      airframes[i]!.update(airframeUpdateFor(a, playerControls, current.poses[i]!.position, current.eye.position, frameMs / 1000))
     })
     ordnance.update(current.world.combat.projectiles, current.eye.position)
     ordnance.updateEffects(frameMs / 1000)
@@ -2018,18 +2012,6 @@ async function boot(): Promise<void> {
     // as the water and markers do.
     terrain.update(current.eye.position.x, current.eye.position.z)
     vegetation?.update(current.eye.position.x, current.eye.position.z)
-
-    // Gated on the flight still being live (whole-branch review I-1): once
-    // the player's `impact` is set, `controlsFromKeys` keeps latching throttle
-    // and `nextFrameState` keeps producing controls from it every frame (it
-    // holds the world at zero elapsed time rather than stepping it -- see
-    // `holding` in frame.ts), so an ungated spin would leave the propeller
-    // turning at full speed on a wreck sitting in its own fireball. The
-    // propeller belongs to the wrecked airplane; unlike the ocean below, it
-    // should stop.
-    if (player.impact === null) {
-      playerAirframe.spinProp(current.controls.throttle * PROP_MAX_RAD_PER_SEC * (frameMs / 1000))
-    }
 
     // `oceanTime` (DEV-only, from `?oceanTime=`) is a fixed override for
     // reproducing one ocean state on demand and stays exactly as fixed as it

@@ -1,8 +1,9 @@
+// src/render/scene/wildcat.ts
 import { Group, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { attachStores } from './stores.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
-import type { Airframe } from './airframe.js'
+import { propAngle, type Airframe } from './airframe.js'
+import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
 /**
  * The Wildcat model (content/aircraft/wildcat.glb, ASSETS.md) is authored
@@ -68,12 +69,6 @@ export function applyGearFraction(node: Object3D, down: GearPose, up: GearPose, 
   node.quaternion.slerpQuaternions(up.quat, down.quat, fraction)
 }
 
-function required(scene: Object3D, name: string): Object3D {
-  const found = scene.getObjectByName(name)
-  if (!found) throw new Error(`Wildcat model: required node "${name}" not found -- content/aircraft/wildcat.glb may have been re-exported with different names (see ASSETS.md)`)
-  return found
-}
-
 /** Matches hellcat.ts's `dark` material exactly (color, roughness) --
  *  deliberately its own instance, not a shared import: sharing one material
  *  object would mean a future recolor of the Hellcat's trim silently
@@ -81,19 +76,28 @@ function required(scene: Object3D, name: string): Object3D {
  *  saved. */
 const dark = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
 
-export async function loadWildcat(): Promise<Airframe> {
-  const gltf = await new GLTFLoader().loadAsync(WILDCAT_MODEL_URL)
-  const scene = gltf.scene
+/**
+ * One Wildcat. Loads through the shared model cache (A6M Zero spec §7.1): the
+ * first call parses wildcat.glb, every later call clones that parse, and all
+ * of them share its geometry, materials and 26 textures. `acquire` is
+ * injectable so Node tests can hand in a synthetic instance.
+ */
+export async function loadWildcat(acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
+  const instance = await acquire(WILDCAT_MODEL_URL)
+  const scene = instance.root
 
-  const gearDer = required(scene, 'GRP_Rueda_Der')
-  const gearIzq = required(scene, 'GRP_Rueda_Izq')
-  const helice = required(scene, 'Helice')
+  const gearDer = instance.node('GRP_Rueda_Der')
+  const gearIzq = instance.node('GRP_Rueda_Izq')
+  const helice = instance.node('Helice')
+  // The prop turns about ITS OWN native axis (local Z here, not the +X
+  // hellcat.ts's box uses), from whatever angle the file authored it at.
+  const heliceRestZ = helice.rotation.z
+  let propRad = 0
 
   // The basis/scale fix lives on one wrapper Group, isolating this model's
   // native-axis quirk from every consumer (scenarioEntities.ts, main.ts):
   // `root` below is posed directly in sim body-frame convention exactly the
-  // way hellcat.ts's `root` always was, with zero further changes needed at
-  // any call site for this specific concern.
+  // way hellcat.ts's `root` always was.
   const correction = new Group()
   correction.rotation.y = WILDCAT_TO_SIM_ROTATION_Y
   correction.scale.setScalar(WILDCAT_SCALE)
@@ -103,21 +107,25 @@ export async function loadWildcat(): Promise<Airframe> {
   root.add(correction)
   root.traverse((o) => { o.receiveShadow = true })
 
-  const { setStores } = attachStores(root, dark)
+  const stores = attachStores(root, dark)
+  let disposed = false
 
   return {
     root,
-    setStores,
-    /** `deltaRadians` spins the propeller about ITS OWN native axis (local Z
-     *  here, not the +X hellcat.ts's simple box uses) -- the axis knowledge
-     *  stays inside this module so main.ts's one call site does not need to
-     *  know which aircraft type it is driving. */
-    spinProp(deltaRadians: number): void {
-      helice.rotation.z += deltaRadians
+    /** This model has no flap geometry at all (ASSETS.md, F4F plan Review Focus). */
+    parts: ['prop', 'gear', 'stores'],
+    setStores: stores.setStores,
+    update(u): void {
+      propRad = propAngle(propRad, u.throttle, u.frameS)
+      helice.rotation.z = heliceRestZ + propRad
+      applyGearFraction(gearDer, GEAR_DOWN.der, GEAR_UP.der, u.gearFraction)
+      applyGearFraction(gearIzq, GEAR_DOWN.izq, GEAR_UP.izq, u.gearFraction)
     },
-    setGear(fraction: number): void {
-      applyGearFraction(gearDer, GEAR_DOWN.der, GEAR_UP.der, fraction)
-      applyGearFraction(gearIzq, GEAR_DOWN.izq, GEAR_UP.izq, fraction)
+    dispose(): void {
+      if (disposed) return
+      disposed = true
+      stores.dispose()
+      instance.release()
     },
   }
 }

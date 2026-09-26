@@ -31,7 +31,7 @@ const RAIL_DROP_ORDER: readonly number[] = RAIL_OFFSETS
  *  airframe module exposes. `material` is the airframe's own dark trim
  *  material, passed in so stores match that aircraft's existing palette
  *  rather than hardcoding a second one here. */
-export function attachStores(root: Object3D, material: MeshStandardMaterial): { setStores(bombsLeft: number, rocketsLeft: number): void } {
+export function attachStores(root: Object3D, material: MeshStandardMaterial): { setStores(bombsLeft: number, rocketsLeft: number): void; dispose(): void } {
   const bombGeometry = new BoxGeometry(1.6, 0.5, 0.5)
   const bombMeshes = RACK_OFFSETS.map(({ id, offset }) => {
     const mesh = new Mesh(bombGeometry, material)
@@ -57,6 +57,12 @@ export function attachStores(root: Object3D, material: MeshStandardMaterial): { 
       const firedRockets = RAIL_OFFSETS.length - rocketsLeft
       const hidden = new Set(RAIL_DROP_ORDER.slice(0, firedRockets))
       rocketMeshes.forEach((mesh, i) => { mesh.visible = !hidden.has(i) })
+    },
+    /** Frees the two store geometries this call built. `material` is the
+     *  caller's, so it is the caller's to free. */
+    dispose(): void {
+      bombGeometry.dispose()
+      rocketGeometry.dispose()
     },
   }
 }
