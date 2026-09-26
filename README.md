@@ -141,6 +141,8 @@ reached — left as an open gameplay-balance decision rather than forced
 green. See the
 [handoff](docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md) for both.
 
+**Plan 7c AI safety envelope and maneuver library is complete and merged to `main` (2026-09-26).** Its two merge blockers and the low-target finding were resolved by Mark's decisions of 2026-09-26. AI pilots can no longer overload their own airframe, fly into the sea or over-speed, and an AI Zero no longer cuts its own engine under negative g. A pursuing AI chases a low target down to 50 ft above the ground, and no lower. After a missed head-on pass the pursuer now turns back and fights again, where before it flew away for good. Veterans fly the named maneuvers (yo-yos, lag pursuit, attack run, scissors, split-S, Immelmann; an AI Zero flies no Immelmann), and greens fly only 7b's basic set, so they are easy to beat. The veteran was toned down per Mark's ruling. See the [handoff](docs/handoff/2026-09-26-ai-7c.md); master spec §15 holds the status.
+
 **The A6M Zero flies, headless (Z2, 2026-09-25):**
 `content/aircraft/a6m2-zero.json` is graded against the 1942 Navy trial of a
 captured A6M2. Its controls stiffen above 250 mph, its engine cuts out under
@@ -241,6 +243,15 @@ GPU p95 with zero validation errors. See the
 the Git LFS/CI tradeoff and the deliberately deferred asset-quality work;
 master spec §15 remains the authoritative status table.
 
+**Terrain surface textures landed 2026-09-26.** Five CC0 Poly Haven materials
+(sand, grass, dirt, jungle floor and rock) now add photographed albedo and normal
+detail under the existing land-cover blend. The 2.77 MB KTX2 arrays load before
+terrain creation, preserve the procedural average color, fade with distance and
+turn off entirely at scenery `low`; a failed texture load falls back to the old
+procedural ground. See the
+[plan](docs/superpowers/plans/2026-09-26-terrain-surface-textures.md),
+[handoff](docs/handoff/2026-09-26-terrain-textures.md) and master spec §15.
+
 **Clouds landed 2026-09-19 (Plan 16a):** volumetric cloud layers raymarched
 from two committed noise volumes, declared per scenario in `weather.clouds`
 (`free-flight` has a cumulus deck at 1,500 m and a cirrus sheet at 7,000 m;
@@ -264,6 +275,13 @@ noise and a curl field; High updates one cloud pixel in sixteen per frame to
 fund 128 view steps, against the 60 Hz High budget. See the
 [handoff](docs/handoff/2026-09-25-cloud-fidelity-ii.md) for the reference-GPU
 numbers; master spec §15 holds the status.
+
+**Cloud VDB fidelity merged 2026-09-26:** every cumulus is carved from one
+baked procedural cloud (`tools/sky/cumulus.py`), rotated and scaled per
+weather cell, and a layer's `coverage` is again the fraction of sky it
+covers. Flying inside a cloud has its own 4K budget. See the
+[handoff](docs/handoff/2026-09-26-cloud-vdb-fidelity.md); master spec §15
+holds the status.
 
 **The sun moves (Plan 16c, 2026-09-19):** each scenario states an apparent
 solar hour (`weather.timeOfDay`); the sun sits where it would over Leyte on

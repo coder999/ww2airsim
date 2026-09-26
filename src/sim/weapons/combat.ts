@@ -43,6 +43,13 @@ export type AircraftCombat = {
   readonly shots: number; readonly hits: number; readonly kills: number
   readonly killsByType: Readonly<Record<TargetType, number>>
   readonly lastHit: { readonly tick: number; readonly position: Vec3 } | null
+  /** The aircraft whose round, rocket or blast last damaged this one, or
+   *  `null` if nothing has. What `creditDownedAircraft` credits when this
+   *  aircraft goes down WITHOUT a killing hit -- a crash, a ditching, or an
+   *  overload break-up -- after being hit (Mark, 2026-09-25). Separate from
+   *  `damage.attacker`, which stays "the hit that destroyed it" because the
+   *  player's debrief reads it that way. */
+  readonly lastHitBy: string | null
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
@@ -91,7 +98,7 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null, killsByType: zeroKillsByType(),
+      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(),
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
@@ -554,7 +561,8 @@ export function stepCombat(
     const damage = system === null
       ? blastDamageAircraft(target.spec, rec.damage, amount, tick, owner)
       : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale)
-    records[target.id] = point === null ? { ...rec, damage } : { ...rec, damage, lastHit: { tick, position: point } }
+    const lastHitBy = owner === target.id ? rec.lastHitBy : owner
+    records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role)
   }
 
@@ -659,4 +667,56 @@ export function stepCombat(
   }
 
   return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage }
+}
+
+/** Down for good: destroyed by damage, or crashed/ditched. The same
+ *  definition as the mission layer's `isDestroyed` (Ruling R13). */
+export function isAircraftDown(
+  records: CombatState['aircraft'],
+  a: { readonly id: string; readonly impact: unknown },
+): boolean {
+  return a.impact !== null || (records[a.id]?.damage.destroyedAt ?? null) !== null
+}
+
+/**
+ * Credits a kill for every aircraft that went down THIS tick without a
+ * killing hit, to whoever last hit it (`AircraftCombat.lastHitBy`): Mark,
+ * 2026-09-25, "an enemy plane that is destroyed for any reason after being
+ * hit by the player should count as a kill". No time limit -- one hit is
+ * enough, however long before the loss.
+ *
+ * A killing hit sets `damage.attacker` and is credited on the spot by
+ * `stepCombat`, so it is skipped here; nothing else sets `attacker` (the
+ * overload break-up clears it). A downed aircraft stays down -- a destroyed
+ * one is no longer stepped, a crashed one keeps its first impact -- so the
+ * up-to-down transition happens once and so does the credit.
+ *
+ * `before`/`beforeAircraft` are the start of the tick, `after`/
+ * `afterAircraft` the end. An aircraft absent from `beforeAircraft` (spawned
+ * this tick) is skipped. Returns `after` itself when nothing was credited.
+ */
+export function creditDownedAircraft(
+  before: CombatState,
+  after: CombatState,
+  beforeAircraft: readonly CombatAircraft[],
+  afterAircraft: readonly CombatAircraft[],
+): CombatState {
+  let records: Record<string, AircraftCombat> | null = null
+  for (const a of afterAircraft) {
+    const rec = after.aircraft[a.id]
+    if (rec === undefined || rec.lastHitBy === null || rec.damage.attacker !== null) continue
+    if (!isAircraftDown(after.aircraft, a)) continue
+    const was = beforeAircraft.find((b) => b.id === a.id)
+    if (was === undefined || isAircraftDown(before.aircraft, was)) continue
+    records ??= { ...after.aircraft }
+    const shooter = records[rec.lastHitBy]
+    if (shooter === undefined) continue
+    const type = a.spec.role
+    records[rec.lastHitBy] = {
+      ...shooter,
+      kills: shooter.kills + 1,
+      killsByType: { ...shooter.killsByType, [type]: shooter.killsByType[type] + 1 },
+    }
+  }
+  return records === null ? after : { ...after, aircraft: records }
 }

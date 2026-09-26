@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "albedo": "terrain-albedo.ktx2",
+  "normal": "terrain-normal.ktx2",
+  "layers": [
+    {
+      "name": "sand",
+      "source": "aerial_beach_01",
+      "tileM": 30,
+      "meanLinear": [
+        0.28285,
+        0.23719,
+        0.19589
+      ]
+    },
+    {
+      "name": "grass",
+      "source": "leafy_grass",
+      "tileM": 2,
+      "meanLinear": [
+        0.32117,
+        0.23619,
+        0.10642
+      ]
+    },
+    {
+      "name": "dirt",
+      "source": "dirt_aerial_02",
+      "tileM": 20,
+      "meanLinear": [
+        0.20773,
+        0.11845,
+        0.05593
+      ]
+    },
+    {
+      "name": "jungle",
+      "source": "forest_leaves_02",
+      "tileM": 3,
+      "meanLinear": [
+        0.29577,
+        0.17863,
+        0.05739
+      ]
+    },
+    {
+      "name": "rock",
+      "source": "aerial_rocks_02",
+      "tileM": 50,
+      "meanLinear": [
+        0.17339,
+        0.12254,
+        0.05197
+      ]
+    }
+  ]
+}

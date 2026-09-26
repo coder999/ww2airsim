@@ -1,0 +1,7 @@
+# Data that `remote-run` mirrors to ryzen before each run, because a git
+# snapshot cannot carry it: gitignored caches and real Git LFS content.
+# One path or glob per line, from the repo root. The mechanism is in the
+# header of serverconfig/scripts/remote-run.
+content/terrain/L0.bin
+content/terrain/tiles
+tools/*/cache

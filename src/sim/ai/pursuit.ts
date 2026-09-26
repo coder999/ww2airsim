@@ -106,3 +106,18 @@ export function pursuitControls<M>(
   )
   return hasGunSolution(self, target) ? { ...controls, fire: true } : controls
 }
+
+/** The 7c spec §3.5 closure: how fast the range between `self` and `other`
+ *  is shrinking (m/s, positive while closing), from both velocities. 7b's
+ *  `DecisionFacts.closingRate` is only `self`'s velocity along the line of
+ *  sight, which stays near our own airspeed whenever the nose is on the
+ *  target, however fast the target is flying away. Measured 2026-09-26 on the
+ *  `pursuit-tail-chase` fixture against the scripted 7d evasion (green, clean
+ *  loadout, the aiLethality.test.ts item 3 world): at t = 1 s 7b's rate read 124 m/s
+ *  while the range was shrinking at 10 m/s, so 7b's rate called every
+ *  tail chase an overshoot. */
+export function closureRateMps<M>(self: AircraftEntity<M>, other: AircraftEntity<M>): number {
+  const to = sub(other.state.position, self.state.position)
+  const r = length(to)
+  return r < 1e-6 ? 0 : dot(to, sub(self.state.velocity, other.state.velocity)) / r
+}

@@ -67,13 +67,15 @@ Runtime (`src/render/`):
 
 ## Reference-GPU Tier 2
 
-**Not run.** Task 8 Step 1 (`wildcat.spec.ts` and `entities.spec.ts` on a
-spare slot) was excluded from this session by instruction, so Z1 has
-Tier 1 acceptance only. The runtime half it would cover (Tasks 5 to 7) has
-been exercised on the reference GPU only indirectly, by H1's Hangar run
-(`docs/handoff/2026-09-25-h1-hangar-library.md`: gear and propeller motion
-through `Airframe.update`, 6/6 passed). Tasks 1 to 4 are Node tooling and
-change nothing a browser loads.
+**Passed 10/10, run 2026-09-25 after the merge into `main` (`ac7f4f8`).** It ran on the
+RX 6700 XT through the desktop Playwright server, against the primary dev
+server serving `main`. The tests were `wildcat.spec.ts` (gear in flight),
+`entities.spec.ts` (task force motion, two Hellcats, **gpu p95 5.413 ms**
+at 1440p against the 6.0 ms budget, p50 5.240 ms) and `hangar.spec.ts` (6/6,
+now including the Zero, which is in service since the Z2 merge and drawn as
+the Wildcat). The runtime half (Tasks 5 to 7) had already been exercised
+indirectly by H1's Hangar run. Tasks 1 to 4 are Node tooling and change
+nothing a browser loads.
 
 ## What changed visibly
 
@@ -130,4 +132,4 @@ Execution departures from the plan's own steps, Tasks 1 to 4 and 8:
    amended, since Task 7 made it false.
 8. **README.** There is no F4F Wildcat paragraph to follow; the pointer sits
    after the Hangar Library paragraph.
-9. **Tier 2** was not run (above).
+9. **Tier 2** was run after the merge rather than on the branch (above).

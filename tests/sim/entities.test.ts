@@ -5,18 +5,15 @@ import {
 } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { v3, ZERO } from '../../src/sim/math/vec3.js'
+import { v3 } from '../../src/sim/math/vec3.js'
 import { createShipState } from '../../src/sim/world/ships.js'
 import { interpolateShip } from '../../src/sim/interpolate.js'
 import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
-import { GREEN_SKILL } from '../../src/sim/ai/pilot.js'
+import { GREEN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
 
-const PURSUE_NOW = {
-  maneuver: 'pursue' as const, nextRescoreS: 0,
-  observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0,
-}
+const PURSUE_NOW = initialDecision()
 // What `PURSUE_NOW` becomes after `advance()`'s Plan 7b dispatch runs its
 // very first rescore (tick 1, since `nextRescoreS: 0` is always <= tick*DT):
 // the maneuver is decided fresh, and `nextRescoreS` moves to `DT +
@@ -37,7 +34,7 @@ const PURSUE_NOW = {
 // ticks from a starting cursor of 0 it lands on this measured value -- not
 // itself a meaningful number, just mulberry32's cursor after 5 * 6 draws.
 const RESCORED_PURSUE = {
-  maneuver: 'pursue' as const, nextRescoreS: DT + GREEN_SKILL.reactionS,
+  ...initialDecision(), nextRescoreS: DT + GREEN_SKILL.reactionS,
   observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 3407366838,
 }
 

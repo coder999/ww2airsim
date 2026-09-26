@@ -38,6 +38,18 @@ import { isBehind } from './pursuitGeometry.js'
  * pursuer -- is a claim about the old start. Against the head-on merge the
  * evasion keys mean something else; re-measure, or retire the spec along
  * with the geometry, before reading its result as the Plan 7d bar.
+ *
+ * **7c, 2026-09-26.** The Tier 1 replica of this spec on the head-on start
+ * (keys from t = 0, the world frozen at the player's sea impact at
+ * 25.7-26.5 s) is never behind, before or after 7c. The 7d bar of record is
+ * now the Tier 1 replica on the frozen tail chase
+ * (`tests/render/aiLethality.test.ts`, item 3: behind at 18-19 s, pursuer
+ * alive). Result of this spec on the reference GPU after 7c: GREEN
+ * (2026-09-26, `ww2airsim-3` slot, 2560x1440: the post-poll screenshot is at
+ * tick 734, 12.2 s, in a 57-degree dive; player alive, 0 validation errors,
+ * gpu p95 3.563 ms over 968 samples). The two tiers still disagree, for the
+ * reason above: the browser flies the airborne world during the terrain load
+ * before any key.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range&${PILOT_SKILL_PARAM}=green`
 

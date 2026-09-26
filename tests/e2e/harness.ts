@@ -207,13 +207,13 @@ export async function flySweep(page: Page): Promise<void> {
   }
 
   // Throttle integrates its key and holds after release (controlsFromKeys,
-  // src/input/keyboard.ts), so this proves the ShiftLeft hold above actually
+  // src/input/keyboard.ts), so this proves the Equal hold above actually
   // reached `frame.controls` -- not just that the render loop kept ticking.
   // Round 1 review: `tick()` alone advances from `requestAnimationFrame`
   // whether or not a single key was ever delivered, so it cannot stand in
   // for this; it was the whole control-deflection phase that was unproven.
   const throttleAfter = await page.evaluate(() => (window as DiagWindow).__ww2!.controls().throttle)
-  expect(throttleAfter, 'throttle stayed at 0 -- ShiftLeft did not reach frame.controls').toBeGreaterThan(0)
+  expect(throttleAfter, 'throttle stayed at 0 -- Equal did not reach frame.controls').toBeGreaterThan(0)
 
   // The render loop must still have been advancing throughout -- if it had
   // stalled or thrown partway through the sweep, validationErrors would be
