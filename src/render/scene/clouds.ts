@@ -54,8 +54,8 @@ export { cloudDriftM }
  * Low still march every texel.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 16 },
-  medium: { cumulusSteps: 64, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
+  high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
+  medium: { cumulusSteps: 56, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
   low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25, updatePeriod: 1 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
@@ -259,14 +259,26 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
         const stepsF = steps.toFloat().toVar()
         const fullSpan = nearSpan.add(farSpan).toVar()
         const span = isCirrus.select(fullSpan, min(fullSpan, float(MAX_MARCH_M))).toVar()
-        const ds = span.div(stepsF).toVar()
-        // With the finer cumulus spacing, half-strength jitter hides the
-        // remaining bands without turning distant edges into pixel stipple.
-        const jitter = isCirrus.select(dither, dither.mul(0.5).add(0.25))
-        const walked = ds.mul(jitter).toVar()
+        const dsBase = span.div(stepsF).toVar()
+        // Cumulus silhouettes need neighboring rays to agree. A wide random
+        // start interval made thin VDB boundary density alternate between
+        // hit and miss, which the reduced-resolution upsample exposed as
+        // sparkling checkerboard curtains in forward flight. Keep a small
+        // centered jitter to break coherent step bands; cirrus remains fully
+        // jittered because its broad, nearly planar sheet does not have that
+        // silhouette failure mode.
+        const jitter = isCirrus.select(dither, dither.mul(0.125).add(0.4375))
+        const walked = dsBase.mul(jitter).toVar()
         // `name` is honoured at runtime (LoopNode.js: `param.name || getVarName(i)`)
         // but absent from @types/three 0.186's overloads, hence the casts.
-        Loop({ start: int(0), end: steps, type: 'int', condition: '<', name: 's' } as unknown as Node<'int'>, () => {
+        Loop({ start: int(0), end: steps, type: 'int', condition: '<', name: 's' } as unknown as Node<'int'>, (inputs) => {
+          const s = (inputs as unknown as { readonly s: Node<'int'> }).s
+          // Spend the same number of samples and cover the same span, but
+          // concentrate cumulus steps at the leading surface where a pilot
+          // can see marching bands during entry/exit. The arithmetic-series
+          // scale averages to 1: 0.35 near -> 1.65 far.
+          const progress = s.toFloat().div(max(stepsF.sub(1), 1))
+          const ds = isCirrus.select(dsBase, dsBase.mul(mix(float(0.35), float(1.65), progress))).toVar()
           If(walked.greaterThanEqual(span).or(transmittance.lessThan(OPAQUE_TRANSMITTANCE)), () => {
             Break()
           })

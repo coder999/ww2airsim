@@ -1,8 +1,8 @@
-import { CURL_NOISE_URL, WEATHER_MAP_URL, DETAIL_NOISE_URL, SHAPE_NOISE_URL } from '../content.js'
-import { curlByteLength, weatherByteLength, detailByteLength, shapeByteLength } from './noise.js'
+import { CUMULUS_VOLUME_URL, CURL_NOISE_URL, WEATHER_MAP_URL, DETAIL_NOISE_URL, SHAPE_NOISE_URL } from '../content.js'
+import { cumulusByteLength, curlByteLength, weatherByteLength, detailByteLength, shapeByteLength } from './noise.js'
 import { inflateIfGzipped } from '../gunzip.js'
 
-export type SkyNoise = { readonly shape: Uint8Array; readonly detail: Uint8Array; readonly curl: Uint8Array; readonly weather: Uint8Array }
+export type SkyNoise = { readonly shape: Uint8Array; readonly detail: Uint8Array; readonly curl: Uint8Array; readonly weather: Uint8Array; readonly cumulus: Uint8Array }
 
 /** Fetches and inflates the two volumes and the weather map; the length check makes a
  *  truncated or mis-built file fail here rather than as a sky full of
@@ -17,11 +17,12 @@ export async function loadSkyNoise(fetchImpl: typeof fetch = fetch): Promise<Sky
     if (data.length !== expected) throw new Error(`${url} inflates to ${data.length} bytes; expected ${expected}`)
     return data
   }
-  const [shape, detail, curl, weather] = await Promise.all([
+  const [shape, detail, curl, weather, cumulus] = await Promise.all([
     one(SHAPE_NOISE_URL, shapeByteLength()),
     one(DETAIL_NOISE_URL, detailByteLength()),
     one(CURL_NOISE_URL, curlByteLength()),
     one(WEATHER_MAP_URL, weatherByteLength()),
+    one(CUMULUS_VOLUME_URL, cumulusByteLength()),
   ])
-  return { shape, detail, curl, weather }
+  return { shape, detail, curl, weather, cumulus }
 }

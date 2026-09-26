@@ -3,8 +3,10 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { buildCurl, buildShape, createPermutation, perlinTileable, remap, worleyTileable } from '../../tools/sky/noise.js'
 import { buildWeather } from '../../tools/sky/weather.js'
-import { curlPath, detailPath, shapePath, weatherPath, loadCurl, loadDetail, loadShape, loadWeather } from '../../tools/sky/load.js'
-import { CURL_SIZE, DETAIL_SIZE, SHAPE_SIZE, WEATHER_SIZE, curlByteLength, detailByteLength, shapeByteLength, weatherByteLength } from '../../src/render/sky/noise.js'
+import { curlPath, detailPath, shapePath, weatherPath, loadCumulus, loadCurl, loadDetail, loadShape, loadWeather } from '../../tools/sky/load.js'
+import {
+  CURL_SIZE, DETAIL_SIZE, SHAPE_SIZE, WEATHER_CELL_REACH, WEATHER_CELL_SPACING_M, WEATHER_FEATURE_STEPS, WEATHER_RADIUS_M, WEATHER_SIZE, cumulusByteLength, curlByteLength, detailByteLength, shapeByteLength, weatherByteLength,
+} from '../../src/render/sky/noise.js'
 
 describe('tileable noise (Plan 16a)', () => {
   const perm = createPermutation(7)
@@ -66,8 +68,8 @@ describe('weather map (Cloud Fidelity II 3.3)', () => {
   const tile = 12_000 // 188 m texels: fast, and still several cells across
   const map = buildWeather(n, 5, tile)
   const at = (x: number, y: number, c: number) => map[(y * n + x) * 4 + c]!
-  it('is deterministic and RGBA', () => {
-    expect(map.length).toBe(n * n * 4)
+  it('is deterministic: two RGBA planes, winner then runner-up', () => {
+    expect(map.length).toBe(n * n * 8)
     expect(buildWeather(n, 5, tile)).toEqual(map)
     expect(buildWeather(n, 6, tile)).not.toEqual(map)
   })
@@ -77,17 +79,38 @@ describe('weather map (Cloud Fidelity II 3.3)', () => {
     // One 188 m texel of a 330 m+ bump: well under the full range.
     expect(worst).toBeLessThan(140)
   })
-  it('has separate clouds: peaks at 255-scale centers, gaps at zero, types and tops spread', () => {
+  it('decodes one centre per cloud: every texel of a cloud names the same feature point', () => {
+    // The shader's decode (cloudField.ts), in f32: the centre is the texel's
+    // grid cell minus the reach, plus G/B in 1/51-cell steps. A cloud whose
+    // texels disagreed would be cut into texel-sized blocks, the defect of
+    // the first 2026-09-25 GPU capture.
+    const cells = Math.round(tile / WEATHER_CELL_SPACING_M), cellM = tile / cells
+    const f = Math.fround
+    const centres = new Map<string, Set<string>>()
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const gx = Math.floor(f(f(2 * x + 1) * cells) / (2 * n)), gz = Math.floor(f(f(2 * y + 1) * cells) / (2 * n))
+      const cx = f(f((gx - WEATHER_CELL_REACH) * cellM) + f(at(x, y, 1) * f(cellM / WEATHER_FEATURE_STEPS)))
+      const cz = f(f((gz - WEATHER_CELL_REACH) * cellM) + f(at(x, y, 2) * f(cellM / WEATHER_FEATURE_STEPS)))
+      // Modulo the tile: a cloud straddling the edge is one cloud.
+      const key = `${((cx % tile) + tile) % tile | 0},${((cz % tile) + tile) % tile | 0}`
+      const seen = centres.get(key) ?? new Set<string>()
+      seen.add(`${at(x, y, 0)},${at(x, y, 3)}`)
+      centres.set(key, seen)
+      // The centre lies within reach of the texel, never across the tile.
+      const px = (x + 0.5) * (tile / n), pz = (y + 0.5) * (tile / n)
+      expect(Math.hypot(px - cx, pz - cz)).toBeLessThan(2 * WEATHER_RADIUS_M[1] + cellM)
+    }
+    // Each decoded centre carries one strength and one radius: it is one cloud.
+    for (const seen of centres.values()) expect(seen.size).toBe(1)
+    expect(centres.size).toBeGreaterThan(cells * cells * 0.5)
+    expect(centres.size).toBeLessThanOrEqual(cells * cells)
+  })
+  it('spreads strength and radius across the clouds', () => {
     const r = Array.from({ length: n * n }, (_, i) => map[i * 4]!)
+    const a = Array.from({ length: n * n }, (_, i) => map[i * 4 + 3]!)
     expect(Math.max(...r)).toBeGreaterThan(200)
-    // Gaps between clouds carry no potential at all.
-    expect(r.filter((v) => v === 0).length / r.length).toBeGreaterThan(0.03)
-    const g = Array.from({ length: n * n }, (_, i) => map[i * 4 + 1]!)
-    const b = Array.from({ length: n * n }, (_, i) => map[i * 4 + 2]!)
-    expect(Math.max(...g) - Math.min(...g)).toBeGreaterThan(100)
-    expect(Math.max(...b) - Math.min(...b)).toBeGreaterThan(150)
-    // A texel never has more potential than the peak of the cloud it belongs to.
-    for (let i = 0; i < n * n; i++) expect(map[i * 4]!).toBeLessThanOrEqual(map[i * 4 + 3]! + 1)
+    expect(Math.max(...r) - Math.min(...r)).toBeGreaterThan(100)
+    expect(Math.max(...a) - Math.min(...a)).toBeGreaterThan(150)
   })
 })
 
@@ -97,7 +120,7 @@ const COMMITTED_SHA256: Readonly<Record<string, string>> = {
   'shape.bin.gz': 'db3f0d914ecd9bc1e58e2f2a355b140550856a63be60c0bf7d0a74df0630930c',
   'detail.bin.gz': 'f77f343e6dd4b465041bf73f25baff1b2ab04ca6d34f2b9f366e59e54c15d044',
   'curl.bin.gz': '24a66985d15abe3d1005d76c245477221460a780260b239bce741f9e0054c970',
-  'weather.bin.gz': '4573e61f664e243b687f2ec4450acf7a01aa5e720c93b434178c2497491eaa71',
+  'weather.bin.gz': '3e514822e809731d1479f2007ef541f127de2b6f941ab9f3bdb231048b836af3',
 }
 describe('the committed noise', () => {
   it('has the size the loader expects and the hashes the build produced', () => {
@@ -108,11 +131,20 @@ describe('the committed noise', () => {
     expect(SHAPE_SIZE).toBe(128)
     expect(DETAIL_SIZE).toBe(64)
     expect(CURL_SIZE).toBe(128)
-    expect(WEATHER_SIZE).toBe(512)
+    expect(WEATHER_SIZE).toBe(1024)
     for (const [name, path] of [
       ['shape.bin.gz', shapePath()], ['detail.bin.gz', detailPath()], ['curl.bin.gz', curlPath()], ['weather.bin.gz', weatherPath()],
     ] as const) {
       expect(createHash('sha256').update(readFileSync(path)).digest('hex'), name).toBe(COMMITTED_SHA256[name])
     }
+  })
+  it('holds the cumulus volume tools/sky/cumulus.py builds', () => {
+    // Pinned on the INFLATED bytes: Python's gzip wrapper is not the one the
+    // TypeScript build uses, so the .gz hash would move with zlib versions.
+    // Paste from `zcat content/sky/cumulus.bin.gz | sha256sum` after
+    // `python3 tools/sky/cumulus.py`.
+    const raw = loadCumulus()
+    expect(raw.length).toBe(cumulusByteLength())
+    expect(createHash('sha256').update(raw).digest('hex')).toBe('305ab474550270210f67b28fc8339b4aefeaf82482c60944639dd5e8352f4dcf')
   })
 })

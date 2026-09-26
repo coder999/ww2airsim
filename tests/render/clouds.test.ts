@@ -5,10 +5,10 @@ import { FAR_FADE_START_M } from '../../src/render/scene/atmosphereShading.js'
 import { AP_MAX_DISTANCE_M } from '../../src/render/sky/atmosphereLuts.js'
 import { LOD } from '../../src/render/terrain/lod.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { loadCumulus, loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
-const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather() }
+const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather(), cumulus: loadCumulus() }
 
 describe('clouds (Plan 16a)', () => {
   it('has three tiers that march fewer steps as they descend', () => {
@@ -30,8 +30,10 @@ describe('clouds (Plan 16a)', () => {
     // plan's 6 light samples again, 2 of them on the detailed density, and
     // no distance light LOD.
     // Cloud Fidelity II §3.2: the 1-in-16 update buys high >= 128 steps.
+    // Medium 64 -> 56 on 2026-09-26 (cloud VDB coverage plan): a pilot
+    // inside a dense-deck cloud measured 8.42 ms at 4K against 8.33.
     expect(CLOUD_TIERS.high.cumulusSteps).toBeGreaterThanOrEqual(128)
-    expect([CLOUD_TIERS.high.cumulusSteps, CLOUD_TIERS.medium.cumulusSteps, CLOUD_TIERS.low.cumulusSteps]).toEqual([128, 64, 32])
+    expect([CLOUD_TIERS.high.cumulusSteps, CLOUD_TIERS.medium.cumulusSteps, CLOUD_TIERS.low.cumulusSteps]).toEqual([128, 56, 32])
     // The view march's work goes as resolutionScale^2 x cumulusSteps; a
     // lower tier must never be heavier (Task 11 fix 1: medium at 0.5 was
     // 1.36x high). Light samples never grow down the ladder either.
@@ -52,7 +54,7 @@ describe('clouds (Plan 16a)', () => {
     expect(CLOUD_TIERS.high.lightLodBandM).toBeNull()
     expect(CLOUD_TIERS.high.fineLightSteps).toBeGreaterThan(0)
     expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.5, 0.3, 0.25])
-    expect([CLOUD_TIERS.high.updatePeriod, CLOUD_TIERS.medium.updatePeriod, CLOUD_TIERS.low.updatePeriod]).toEqual([16, 1, 1])
+    expect([CLOUD_TIERS.high.updatePeriod, CLOUD_TIERS.medium.updatePeriod, CLOUD_TIERS.low.updatePeriod]).toEqual([8, 1, 1])
   })
   it('drifts with the wind, the velocity of the air, and stands still in calm', () => {
     expect(cloudDriftM(null, 100)).toEqual({ x: 0, z: 0 })
