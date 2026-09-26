@@ -1,5 +1,5 @@
 // src/render/hangar/stage.ts
-import { Box3, Color, GridHelper, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Scene, Sphere, Vector3, type Object3D } from 'three'
+import { AxesHelper, Box3, Color, GridHelper, Group, LineBasicMaterial, Mesh, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, Sphere, Vector3, type Object3D } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { applySun, createLighting, SUN_DIRECTION } from '../scene/lighting.js'
@@ -15,6 +15,45 @@ import { framingDistance, presetDirection, type CameraPreset } from './framing.j
 export const HANGAR_SUN_ELEVATION_DEG =
   (Math.atan2(SUN_DIRECTION.y, Math.hypot(SUN_DIRECTION.x, SUN_DIRECTION.z)) * 180) / Math.PI
 
+/** Every mesh material under `root`, on or off. Explicit both ways: the
+ *  model cache's clones share materials, so a model shown after wireframe
+ *  was turned off could otherwise still be wireframe (H2). */
+export function applyWireframe(root: Object3D, on: boolean): void {
+  root.traverse((o) => {
+    if (!(o instanceof Mesh)) return
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) if ('wireframe' in m) m.wireframe = on
+  })
+}
+
+/** Pivot gizmos (spec §8): an axes helper at each articulated node's origin,
+ *  drawn over the model so a pivot inside the fuselage still shows. */
+export function createGizmos(nodes: readonly Object3D[], size: number): Group {
+  const g = new Group()
+  g.name = 'hangar gizmos'
+  for (const n of nodes) {
+    const h = new AxesHelper(size)
+    h.name = `gizmo ${n.name}`
+    const mat = h.material as LineBasicMaterial
+    mat.depthTest = false
+    h.renderOrder = 999
+    g.add(h)
+  }
+  return g
+}
+
+const _p = new Vector3(), _q = new Quaternion(), _s = new Vector3()
+/** Each gizmo to its node's world position and orientation, at scale 1. */
+export function syncGizmos(gizmos: Group, nodes: readonly Object3D[]): void {
+  nodes.forEach((n, i) => {
+    const h = gizmos.children[i]
+    if (!h) return
+    n.updateWorldMatrix(true, false)
+    n.matrixWorld.decompose(_p, _q, _s)
+    h.position.copy(_p)
+    h.quaternion.copy(_q)
+  })
+}
+
 const VFOV_DEG = 35
 const AUTO_ROTATE_SPEED = 0.6
 
@@ -25,6 +64,12 @@ export interface HangarStage {
   /** Stops the turntable and makes the frame repeatable (Tier 2). */
   freeze(): void
   setModelVisible(visible: boolean): void
+  /** Wireframe on every model shown from now on, the current one included (H2). */
+  setWireframe(on: boolean): void
+  /** Pivot gizmos on these nodes; null or [] = off. show() clears them (H2). */
+  setGizmos(nodes: readonly Object3D[] | null): void
+  /** The turntable, on or off, without freezing anything else (H2). */
+  setAutoRotate(on: boolean): void
   /** The standing model's bounding-box size, meters (x length, y height, z span). */
   modelSize(): { x: number; y: number; z: number } | null
   render(): void
@@ -60,6 +105,19 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement)
   scene.add(holder)
   let current: Object3D | null = null
   let radius = 10
+  let wireframe = false
+  let gizmos: Group | null = null
+  let gizmoNodes: readonly Object3D[] = []
+  const setGizmos = (nodes: readonly Object3D[] | null): void => {
+    // AxesHelper is LineSegments, which disposeMeshTree skips; it frees itself.
+    if (gizmos) { scene.remove(gizmos); for (const h of gizmos.children) (h as AxesHelper).dispose() }
+    gizmos = null
+    gizmoNodes = nodes ?? []
+    if (gizmoNodes.length === 0) return
+    gizmos = createGizmos(gizmoNodes, radius * 0.08)
+    gizmos.visible = holder.visible
+    scene.add(gizmos)
+  }
   let preset: CameraPreset = 'three-quarter'
 
   const frame = (): void => {
@@ -91,13 +149,19 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement)
 
   return {
     show(model, kind): void {
-      if (current) holder.remove(current)
+      if (current) {
+        // Off before it goes: its materials are shared with the cached source.
+        applyWireframe(current, false)
+        holder.remove(current)
+      }
+      setGizmos(null)
       current = model
       if (model === null) {
         rebuildGround(null, 20)
         return
       }
       holder.add(model)
+      applyWireframe(model, wireframe)
       const box = new Box3().setFromObject(model)
       const sphere = box.getBoundingSphere(new Sphere())
       radius = Math.max(1, sphere.radius)
@@ -115,13 +179,23 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement)
       controls.enabled = false
       pipeline.setAntiAliasing('smaa')
     },
-    setModelVisible(visible): void { holder.visible = visible },
+    setModelVisible(visible): void {
+      holder.visible = visible
+      if (gizmos) gizmos.visible = visible
+    },
+    setWireframe(on): void {
+      wireframe = on
+      if (current) applyWireframe(current, on)
+    },
+    setGizmos,
+    setAutoRotate(on): void { controls.autoRotate = on },
     modelSize() {
       if (!current) return null
       const s = new Box3().setFromObject(current).getSize(new Vector3())
       return { x: s.x, y: s.y, z: s.z }
     },
     render(): void {
+      if (gizmos) syncGizmos(gizmos, gizmoNodes)
       controls.update()
       pipeline.render()
     },
