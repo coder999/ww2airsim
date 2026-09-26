@@ -165,6 +165,28 @@ describe('createOrdnance store models (O1)', () => {
     expect(freed).toBe(1)
   })
 
+  it('moves the motor flame to the rocket model\'s aft end, on its axis (not riding its back)', () => {
+    const o = createOrdnance(new Scene())
+    const flame = (o.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[])[2]!
+    // A rocket whose origin is its lug tops, like hvar.glb: x -0.7..0.9, y -0.16..-0.03.
+    const rocketGeometry = new BoxGeometry(1.6, 0.13, 0.13).translate(0.1, -0.095, 0)
+    o.setStoreModels({ geometry: new BoxGeometry(1.7, 0.5, 0.5), material: new MeshStandardMaterial() }, { geometry: rocketGeometry, material: new MeshStandardMaterial() })
+    rocketGeometry.computeBoundingBox()
+    const r = rocketGeometry.boundingBox!
+    flame.geometry.computeBoundingBox()
+    const f = flame.geometry.boundingBox!
+    expect(f.max.x).toBeLessThanOrEqual(r.min.x + 1e-6)
+    expect((f.min.y + f.max.y) / 2).toBeCloseTo((r.min.y + r.max.y) / 2, 6)
+    expect((f.min.z + f.max.z) / 2).toBeCloseTo((r.min.z + r.max.z) / 2, 6)
+  })
+
+  it('refuses a second swap rather than disposing the model cache\'s assets', () => {
+    const o = createOrdnance(new Scene())
+    const visual = () => ({ geometry: new BoxGeometry(1, 1, 1), material: new MeshStandardMaterial() })
+    o.setStoreModels(visual(), visual())
+    expect(() => o.setStoreModels(visual(), visual())).toThrow(/already/)
+  })
+
   it('view(): counts, triangles, and the first bomb projected into the camera', () => {
     const scene = new Scene()
     const o = createOrdnance(scene)

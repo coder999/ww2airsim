@@ -232,6 +232,7 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
   rocketGeometry.rotateZ(Math.PI / 2)
   const rocketMesh = makePool(rocketGeometry, new MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.6 }), ROCKET_CAPACITY)
   root.add(rocketMesh)
+  let swapped = false
   // The motor flame: a small unlit box at the rocket's own facing, like the
   // rocket itself but never touched by lighting -- it is a light source, the
   // same reasoning tracers.ts gives for its own `MeshBasicMaterial`.
@@ -320,13 +321,30 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
     },
     setStoreModels(bomb: StoreVisual, rocket: StoreVisual): void {
       // The pools' primitive geometry and material are this module's own; the store models'
-      // are the model cache's, held for the page's life and never disposed here.
+      // are the model cache's, held for the page's life and never disposed here -- so a second
+      // swap would dispose the cache's assets, and is refused.
+      if (swapped) throw new Error('createOrdnance.setStoreModels: store models already set; a second swap would dispose the model cache\'s geometry and material')
+      swapped = true
       for (const [mesh, v] of [[bombMesh, bomb], [rocketMesh, rocket]] as const) {
         mesh.geometry.dispose()
         ;(mesh.material as Material).dispose()
         mesh.geometry = v.geometry
         mesh.material = v.material
       }
+      // The flame box was centered on the old centered primitive; the store model's origin is its
+      // lug tops (hvar.ts), so move the flame (this module's own geometry, never the cache's) to
+      // the model's aft end, on its axis. The fins are symmetric about the axis, so the bbox
+      // center in y/z is the axis: for hvar.glb it is y = -0.0935, HVAR_AXIS_Y exactly
+      // (measured from hvarMesh() 2026-09-26).
+      // (computeBoundingBox only fills the geometry's derived bbox cache, as three does on its own.)
+      if (rocket.geometry.boundingBox === null) rocket.geometry.computeBoundingBox()
+      flameMesh.geometry.computeBoundingBox()
+      const r = rocket.geometry.boundingBox!, f = flameMesh.geometry.boundingBox!
+      flameMesh.geometry.translate(
+        r.min.x - (f.max.x - f.min.x) / 2 - (f.min.x + f.max.x) / 2,
+        (r.min.y + r.max.y) / 2 - (f.min.y + f.max.y) / 2,
+        (r.min.z + r.max.z) / 2 - (f.min.z + f.max.z) / 2,
+      )
     },
     view(camera: PerspectiveCamera, heightPx: number): OrdnanceView {
       const tris = (m: InstancedMesh): number => Math.floor((m.geometry.index?.count ?? m.geometry.getAttribute('position').count) / 3)
