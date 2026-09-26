@@ -24,6 +24,7 @@ import { createDebrief, debriefModel, destructionModel, killsSince, landingModel
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
+import { createBootProgress } from './bootProgress.js'
 import { applyMissionResultToRoster, loadRoster, saveRoster } from './roster.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
@@ -536,6 +537,10 @@ async function boot(): Promise<void> {
   // above) confirmed live via a `ReferenceError` a fast click actually threw
   // on the reference GPU. All six are hoisted above this call now, for
   // exactly that reason -- see their own comments for what each one needed.
+  // The title's loading strip (loading spec §A.2): created before the title
+  // so its first build shows the locked state, and advanced below at each
+  // stage this function already passes through.
+  const boot = createBootProgress()
   const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId, pilotId) => {
     chosenLoadout = loadout
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
@@ -617,14 +622,16 @@ async function boot(): Promise<void> {
       return
     }
     rebuildFrame()
-  }, quality.settings)
+  }, quality.settings, boot)
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
   // Timestamp queries also support one automatic ocean quality decision.
   // The external diagnostics hook remains development-only.
+  boot.begin('renderer')
   const { renderer, adapterVerdict } = await initRenderer(canvas, true)
+  boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
   renderer.shadowMap.enabled = true
@@ -998,6 +1005,7 @@ async function boot(): Promise<void> {
   // the ocean's materials, so the cloud field and the map exist before them.
   // The noise is fetched here rather than beside the bathymetry (16a) for
   // that reason; a clear-sky scenario still loads it (16a's reason stands).
+  boot.begin('sky')
   const skyNoiseLoading = loadSkyNoise()
   // Handled below by the `await`; this only stops a rejection during the
   // yield from being reported as unhandled before that `await` attaches.
@@ -1018,6 +1026,7 @@ async function boot(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
   irradianceTableMs = warmIrradianceTable()
   const skyNoise = await skyNoiseLoading
+  boot.end('sky')
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
@@ -1029,6 +1038,7 @@ async function boot(): Promise<void> {
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
   sunState = { ...sunState, timeOfDay: scenarioTimeOfDay }
+  boot.begin('surface')
   const cloudField = createCloudField(cloudLayers, skyNoise)
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
@@ -1095,6 +1105,7 @@ async function boot(): Promise<void> {
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
   oceanDepth = await loadDepth()
+  boot.end('surface')
   // Plan 16a. `?cloudTier=off` is the DEV control for measuring a scene
   // with and without the pass; the field itself was made above the terrain.
   const clouds = createClouds(cloudLayers, skyNoise, cloudField)
@@ -2191,7 +2202,14 @@ async function boot(): Promise<void> {
       tick: current.world.tick,
       adapter: adapterVerdict.summary,
     })
+    // The first frame built every material; the title can unlock.
+    if (!boot.ready) boot.end('shaders')
   }
+  // One paint BEFORE the first frame, which is the shader build (spec §A.1):
+  // rAF alone runs before that frame's paint, so without the setTimeout hop
+  // "Compiling shaders..." would not be on screen while the build blocks.
+  boot.begin('shaders')
+  await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
   // If the device went away while `boot` was still setting up, the failure
   // screen is already showing; starting a loop now would render onto a
   // disposed device behind it.

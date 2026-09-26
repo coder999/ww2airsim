@@ -222,7 +222,9 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
 
   it('passes that model to createTitleScreen as its settings parameter', () => {
     expect(source.match(/createTitleScreen\(/g)).toHaveLength(1)
-    expect(source).toContain('}, quality.settings)')
+    // Task 3 adds a fifth argument (the boot progress) after `quality.settings`;
+    // the closing paren moved but this must still be the fourth argument.
+    expect(source).toContain('}, quality.settings, boot)')
   })
 
   it('binds the model to the live tier setters', () => {

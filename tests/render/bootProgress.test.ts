@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BOOT_STAGES, createBootProgress, readyBootProgress } from '../../src/render/bootProgress.js'
 
@@ -50,5 +51,21 @@ describe('bootProgress (loading spec §A.2)', () => {
     expect(p.ready).toBe(true)
     expect(p.fraction).toBe(1)
     expect(calls).toBe(0)
+  })
+})
+
+describe('main.ts wires every boot stage (loading spec §A.2)', () => {
+  // A stage main.ts never begins leaves the title locked forever -- a
+  // silent failure no DOM-less test can see, so the source is checked the
+  // same way bootQuality.test.ts pins its title-screen argument.
+  const main = readFileSync(new URL('../../src/render/main.ts', import.meta.url), 'utf8')
+  for (const { stage } of BOOT_STAGES) {
+    it(`begins and ends '${stage}'`, () => {
+      expect(main).toContain(`boot.begin('${stage}')`)
+      expect(main).toContain(`boot.end('${stage}')`)
+    })
+  }
+  it('hands the boot progress to the title screen', () => {
+    expect(main).toMatch(/createTitleScreen\([\s\S]*?,\s*quality\.settings,\s*boot\)/)
   })
 })
