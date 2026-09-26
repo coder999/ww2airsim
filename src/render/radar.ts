@@ -1,6 +1,7 @@
 import { qRotate } from '../sim/math/quat.js'
 import { dot, length, sub, v3 } from '../sim/math/vec3.js'
 import type { AircraftEntity } from '../sim/loop.js'
+import { isAircraftDown, type CombatState } from '../sim/weapons/combat.js'
 
 /**
  * Radar scope math (Plan 17, design:
@@ -69,14 +70,18 @@ function bearingAndRangeMi<M>(
  * the sim yet, so "airborne" is the only filter available, and it is a
  * static spawn-time flag (`loop.ts`'s own doc comment on
  * `AircraftEntity.parked` -- an aircraft never transitions mid-flight).
+ * Nor does a downed one (`isAircraftDown`: crashed, ditched or destroyed --
+ * Mark, 2026-09-25, a crashed plane stayed on the scope). `records` is
+ * `World.combat.aircraft`, required so the production call cannot forget it.
  */
 export function radarContacts<M>(
   player: AircraftEntity<M>,
   others: readonly AircraftEntity<M>[],
   rangeMi: number,
+  records: CombatState['aircraft'],
 ): readonly RadarContact[] {
   return others
-    .filter((a) => a.id !== player.id && !a.parked)
+    .filter((a) => a.id !== player.id && !a.parked && !isAircraftDown(records, a))
     .map((a) => ({ id: a.id, ...bearingAndRangeMi(player, a) }))
     .filter((c) => c.rangeMi <= rangeMi)
     .sort((a, b) => a.rangeMi - b.rangeMi)

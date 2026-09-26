@@ -17,6 +17,7 @@ import { createWebAudioBackend } from '../audio/webAudio.js'
 import { audioInputsFrom } from './audio.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
+import { createAutopilotBadge } from './autopilotBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
@@ -1301,6 +1302,7 @@ async function boot(): Promise<void> {
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
+  const autopilotBadge = createAutopilotBadge(root)
   const pauseBadge = createPauseBadge(root)
   const paddlesBadge = createPaddlesBadge(root)
   // Ships in production, in both camera modes (Plan 6): ammunition and
@@ -1853,11 +1855,12 @@ async function boot(): Promise<void> {
     // paused. Contacts come from the same `current.world.aircraft` list
     // `aircraft()` diagnostics already reads.
     radarSweepRad = radarSweepAngle(current.world.tick * DT + current.world.accumulatorSeconds)
-    radarContactList = radarContacts(player, current.world.aircraft, selectedRadarRangeMi)
+    radarContactList = radarContacts(player, current.world.aircraft, selectedRadarRangeMi, current.world.combat.aircraft)
     updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude, current.world.wind)
     audio.update(audioInputsFrom(current))
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
+    autopilotBadge.setStatus(current.autopilot)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
     // Plan 6: every combat visual reads `World.combat` on THIS frame. The
