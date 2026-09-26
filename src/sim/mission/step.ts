@@ -5,7 +5,7 @@ import type { TerrainField } from '../world/terrain.js'
 import type { Airfield } from '../world/airfields.js'
 import type { Deck } from '../world/deck.js'
 import type { Vec3 } from '../math/vec3.js'
-import type { Station } from './schema.js'
+import type { Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
 
 /**
@@ -106,12 +106,26 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
   }
 }
 
+function conditionMet<M>(w: TriggerWhen, m: MissionState<M>, progress: readonly ObjectiveState[], c: Context<M>): boolean {
+  if ('at' in w) return c.t.tick >= ticksFor(w.at)
+  if ('completed' in w) {
+    const id = w.completed
+    return progress[m.objectives.findIndex((o) => o.id === id)]!.status === 'complete'
+  }
+  if ('failed' in w) {
+    const id = w.failed
+    return progress[m.objectives.findIndex((o) => o.id === id)]!.status === 'failed'
+  }
+  return c.alive && insideStation(w.enters, c.player.state.position)
+}
+
 /**
  * One tick of a mission (spec 2026-09-25 §1-§2), run by `advance` after
  * `stepCombat`. Pure. In order:
  *  1. the player's landing tracker (ruling R1), reset after each landing;
  *  2. objectives, one pass in file order (ruling R8);
- *  3. the landing's log entry and progress message (ruling R7).
+ *  3. the landing's log entry and progress message (ruling R7);
+ *  4. triggers, in file order, each once (spec §2.2).
  * Returns the SAME mission object when nothing changed.
  */
 export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionStep<M> {
@@ -170,9 +184,36 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     if (advanced !== null && advanced.count > 1) added.push({ tick: t.tick, kind: 'message', text: `${advanced.label} ${advanced.n} of ${advanced.count}` })
   }
 
-  if (recovery === m.recovery && progress === null && added.length === 0) return { mission: m, spawns: [] }
+  // 4. Triggers: after objectives, in file order, each once (spec §2.2).
+  //    `then` runs in list order; spawns are applied by `advance`, in the
+  //    order returned, at the end of this tick.
+  let fired: string[] | null = null
+  const spawns: string[] = []
+  for (const trigger of m.triggers) {
+    if ((fired ?? m.fired).includes(trigger.id)) continue
+    if (!conditionMet(trigger.when, m, progress ?? m.progress, c)) continue
+    fired ??= [...m.fired]
+    fired.push(trigger.id)
+    added.push({ tick: t.tick, kind: 'trigger', id: trigger.id })
+    for (const action of trigger.then) {
+      if ('spawn' in action) {
+        spawns.push(action.spawn)
+        added.push({ tick: t.tick, kind: 'spawn', group: action.spawn })
+      } else {
+        added.push({ tick: t.tick, kind: 'message', text: action.message })
+      }
+    }
+  }
+
+  if (recovery === m.recovery && progress === null && fired === null && added.length === 0) return { mission: m, spawns }
   return {
-    mission: { ...m, recovery, progress: progress ?? m.progress, log: added.length > 0 ? [...m.log, ...added] : m.log },
-    spawns: [],
+    mission: {
+      ...m,
+      recovery,
+      progress: progress ?? m.progress,
+      fired: fired ?? m.fired,
+      log: added.length > 0 ? [...m.log, ...added] : m.log,
+    },
+    spawns,
   }
 }
