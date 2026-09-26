@@ -146,7 +146,14 @@ describe('laidOut density (loading spec §A.3)', () => {
     const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
     const a = field.laidOut()
     const b = field.laidOut()
+    // `density`/`densityCoarse` are always-fresh `bind()` closures, so they
+    // are never `===` across calls even if the underlying laid-out `Fn` were
+    // wrongly memoized or shared -- this pair could never fail (fix round 2
+    // finding 2). `fns` exposes the actual laid-out `Fn` objects `bind()`
+    // wraps, so a shared/memoized `Fn` is exactly what THIS pair catches.
     expect(a.density).not.toBe(b.density)
     expect(a.densityCoarse).not.toBe(b.densityCoarse)
+    expect(a.fns.density).not.toBe(b.fns.density)
+    expect(a.fns.densityCoarse).not.toBe(b.fns.densityCoarse)
   })
 })

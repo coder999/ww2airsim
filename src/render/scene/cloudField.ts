@@ -227,8 +227,16 @@ export type CloudField = {
    * returns a new pair, and a pair must never be shared across materials
    * (three 0.186 caches a laid-out function's code by Fn identity with the
    * first material's binding names).
+   *
+   * `fns` exposes the two underlying laid-out TSL `Fn` objects themselves
+   * (before `bind()` closes over them), for the per-material-identity test
+   * ONLY (tests/render/cloudField.test.ts) -- comparing the returned
+   * `density`/`densityCoarse` closures cannot catch a memoized/shared `Fn`
+   * because `bind()` allocates a fresh closure on every call regardless, so
+   * `a.density !== b.density` is true even if both wrapped the SAME `Fn`.
+   * Production code has no reason to touch `fns`.
    */
-  laidOut(): { density: DensityFn; densityCoarse: DensityFn }
+  laidOut(): { density: DensityFn; densityCoarse: DensityFn; fns: { readonly density: unknown; readonly densityCoarse: unknown } }
   /** Lowest cumulus layer's [base, top] in metres, or null when the deck has no cumulus. */
   lowestCumulus(): { baseM: number; topM: number } | null
   update(eye: Vec3, driftSeconds: number, wind: Vec3 | null): void
@@ -495,7 +503,11 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
     shape, detail, cumulus, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
     density,
     densityCoarse,
-    laidOut: () => ({ density: bind(makeDensity(true, true)), densityCoarse: bind(makeDensity(false, true)) }),
+    laidOut: () => {
+      const rawDensity = makeDensity(true, true)
+      const rawDensityCoarse = makeDensity(false, true)
+      return { density: bind(rawDensity), densityCoarse: bind(rawDensityCoarse), fns: { density: rawDensity, densityCoarse: rawDensityCoarse } }
+    },
     lowestCumulus: () => (firstCumulus ? { baseM: firstCumulus.baseM, topM: firstCumulus.baseM + firstCumulus.thicknessM } : null),
     update(eye, driftSeconds, wind): void {
       eyeWorld.value.set(eye.x, eye.y, eye.z)
