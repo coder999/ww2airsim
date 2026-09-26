@@ -5,8 +5,8 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-09-26 at `66451b7`; §3.9 and the `setLayout` trap added with the
-boot-freeze fix. When you change the cloud system, update the
+on 2026-09-26 at E1 implementation head `28f50ea`; §3.10 records the effects
+dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
 ## 1. What ships (2026-09-26)
@@ -253,6 +253,18 @@ air kills happen against cloud, and a fireball in front of a cloud must keep
 its pixels rather than be marched over. Without `fxLimit` (`?fx=off`, or
 `?fxCloudLimit=off`) it is a JS-level branch, so every cloud node graph is
 built exactly as before.
+
+Reference-GPU acceptance at 2560×1440 counted warm fireball pixels in the
+same fixed view: **237 with the effects dense-depth limit, 0 with the limit
+disabled, and 357 in clear sky**. The limited result therefore preserves the
+foreground fireball, while the unlimited control lets the cloud march eat it.
+
+The fixed 3840×2160 `photo`/High view measured **16.102 ms p95 with
+`?fx=off` and 16.062 ms with effects High** (151 and 165 samples). The
+-0.039 ms difference is scheduling noise, not a speedup claim; the effects-on
+arm remains inside the 16.67 ms 4K budget. The full High in-cloud view is
+currently 20.328–20.580 ms against its 20.0 ms tripwire; current `main`
+reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 
 ## 4. Traps
 
