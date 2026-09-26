@@ -850,7 +850,9 @@ export function advance<M>(
     // pilot see another aircraft one tick into the future (entities design §3).
     // The per-pilot block is src/sim/ai/pilotTick.ts (7c).
     const aircraftAtStart = aircraft
-    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat }
+    // 7e: one side table per tick, the same for the pilots as for credit.
+    const sides = sidesOf(world, aircraftAtStart)
+    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships }
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
       return stepAircraftEntity(
@@ -859,8 +861,6 @@ export function advance<M>(
       )
     })
     const combatAtStart = combat
-    // 7e: one side table per tick, the same for credit as for the pilots.
-    const sides = sidesOf(world, aircraft)
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides)
     // After `stepCombat`, which is where an overload break-up happens, and
     // after every aircraft has stepped, which is where a crash happens: a loss

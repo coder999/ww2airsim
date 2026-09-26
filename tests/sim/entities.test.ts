@@ -33,8 +33,10 @@ const PURSUE_NOW = initialDecision()
 // magnitude (`applyControlNoise`'s own invariant, `noise.ts`), so after 5
 // ticks from a starting cursor of 0 it lands on this measured value -- not
 // itself a meaningful number, just mulberry32's cursor after 5 * 6 draws.
+// 7e: the first rescore also records the static target as `targetId`,
+// with mode `engage`.
 const RESCORED_PURSUE = {
-  ...initialDecision(), nextRescoreS: DT + GREEN_SKILL.reactionS,
+  ...initialDecision(), targetId: 'target', mode: 'engage' as const, nextRescoreS: DT + GREEN_SKILL.reactionS,
   observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 3407366838,
 }
 

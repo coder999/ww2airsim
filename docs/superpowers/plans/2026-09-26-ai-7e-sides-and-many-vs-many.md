@@ -268,11 +268,11 @@ Order inside `pilotTick` each tick:
 3. **Rescore with a target:** unchanged 7b/7c code (facts, intent, perception snapshot, maneuver selection).
 4. **Flight:** safety override first, then the maneuver (target) or loiter/ingress (no target).
 
-- [ ] **Step 1: Failing tests:** (a) a dynamic pilot among two hostiles picks one on tick 1 and `mode === 'engage'`; (b) **retarget within one tick of a death**: destroy the target through the combat record at tick N, and at tick N+1 `targetId` names the other hostile and the perception snapshot is the new one's; (c) a static target that dies: `targetId` null, mode `loiter`, `fire` never true afterwards, altitude held within 150 m over 20 s and never below `FLOOR_M`; (d) **order independence** with N = 6 dynamic pilots on two sides, 20 s through `advance`: reversing the array gives identical per-id state; (e) a `structuredClone` of that world at 10 s flies on bit-identically; (f) a dynamic pilot with nothing within 8 km loiters.
-- [ ] **Step 2: Run to verify it fails.**
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run** the new file plus `tests/sim/ai/*.test.ts`, `tests/sim/entities.test.ts`, `tests/sim/scenario.test.ts`. Digest probe: all eight rows equal Task 3's.
-- [ ] **Step 5: Commit** `7e Task 5: pilots choose their target, re-check it every tick, and loiter without one`.
+- [x] **Step 1: Failing tests:** (a) a dynamic pilot among two hostiles picks one on tick 1 and `mode === 'engage'`; (b) **retarget within one tick of a death**: destroy the target through the combat record at tick N, and at tick N+1 `targetId` names the other hostile and the perception snapshot is the new one's; (c) a static target that dies: `targetId` null, mode `loiter`, `fire` never true afterwards, altitude held within 150 m over 20 s and never below `FLOOR_M`; (d) **order independence** with N = 6 dynamic pilots on two sides, 20 s through `advance`: reversing the array gives identical per-id state; (e) a `structuredClone` of that world at 10 s flies on bit-identically; (f) a dynamic pilot with nothing within 8 km loiters.
+- [x] **Step 2: Run to verify it fails.**
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run** the new file plus `tests/sim/ai/*.test.ts`, `tests/sim/entities.test.ts`, `tests/sim/scenario.test.ts`. Digest probe: all eight rows equal Task 3's.
+- [x] **Step 5: Commit** `7e Task 5: pilots choose their target, re-check it every tick, and loiter without one`.
 
 ### Task 6: Hold fire
 
