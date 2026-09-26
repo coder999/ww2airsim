@@ -143,6 +143,8 @@ const CLOUD_EDGE_ALPHA_SPREAD = 0.1
  * At 0.9, a scheduled texel retained 81% of a vanished edge even after two
  * complete eight-frame update cycles, producing long-lived vertical ghosts. */
 const CLOUD_EDGE_ALPHA_MISMATCH = 0.12
+/** ...for clouds nearer than this; farther edges accumulate normally. */
+const MOVING_EDGE_MAX_DEPTH_M = 10_000
 const CLOUD_EDGE_HISTORY_BLEND = 0.25
 /** Maximum correction toward the current frame's compact spatial estimate
  * for texels whose expensive march is deferred. The opacity-scaled weight
@@ -514,7 +516,13 @@ class CloudPassNode extends TempNode<'vec4'> {
         const occluded = abs(prevStop.sub(expected)).div(max(expected, 1e-3)).greaterThan(DISOCCLUSION)
         const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
         const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not())
+        // Near silhouettes only: a far cloud's edge barely moves on screen,
+        // while its sub-texel hit/miss noise flips alpha every frame; with
+        // the short blend there it never accumulated, and the far edge of
+        // the deck flickered even while paused (Mark's flight, 2026-09-26:
+        // Low horizon band temporal std 1.66 gray levels, 0.77 without it).
         const movingEdge = abs(current.a.sub(history.a)).greaterThan(CLOUD_EDGE_ALPHA_MISMATCH)
+          .and(data.x.lessThan(MOVING_EDGE_MAX_DEPTH_M))
         const historyBlend = movingEdge.select(float(CLOUD_EDGE_HISTORY_BLEND), float(HISTORY_BLEND))
         output.assign(accept.select(mix(current, clamped, historyBlend), current))
       })
