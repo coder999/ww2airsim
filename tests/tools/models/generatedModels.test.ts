@@ -8,6 +8,7 @@ import { modelIO } from '../../../tools/models/document.js'
 import type { MeshData } from '../../../tools/models/generated/mesh.js'
 import { INSIGNIA_YELLOW } from '../../../tools/models/generated/colors.js'
 import { AN_M65_AXIS_Y, AN_M65_CITED, AN_M65_SEAT_X, anM65Parts } from '../../../tools/models/generated/an-m65.js'
+import { HVAR_AXIS_Y, HVAR_CITED, hvarParts } from '../../../tools/models/generated/hvar.js'
 
 const xs = (m: MeshData): number[] => m.positions.filter((_, i) => i % 3 === 0)
 const ys = (m: MeshData): number[] => m.positions.filter((_, i) => i % 3 === 1)
@@ -57,6 +58,23 @@ describe('AN-M65: measured dimensions within 1% of OP 1664 (O1, spec §7)', () =
     // 25.4 in box vs 18.8 in body + lugs: the box top sits ~0.05 m above the lug tops. This is
     // why Task 5's mount fit drops the store clear of the wing instead of hanging it on the skin.
     expect(Math.max(...ys(p.tail))).toBeGreaterThan(0)
+  })
+})
+
+describe('HVAR: measured dimensions within 1% of the cited figures (O1, spec §7)', () => {
+  const p = hvarParts()
+  it('overall length (NASM A19820116000: 68 in) and diameter (5 in)', () => {
+    const all = [...xs(p.body), ...xs(p.fins), ...xs(p.lugs)]
+    within1pct(extent(all), HVAR_CITED.overallLengthM, 'overall length')
+    within1pct(2 * maxRadius(p.body, HVAR_AXIS_Y), HVAR_CITED.diameterM, 'diameter')
+  })
+  it('fin span tip to tip 15.625 in, and its diagonal box is the museum\'s 11 in to the museum\'s whole-inch rounding', () => {
+    within1pct(2 * maxRadius(p.fins, HVAR_AXIS_Y), HVAR_CITED.finSpanM, 'fin span')
+    expect(Math.abs(extent(zs(p.fins)) - 11 * 0.0254), 'fin box vs NASM 11 x 11 in').toBeLessThan(0.5 * 0.0254)
+  })
+  it('the lug tops are the highest point of body and lugs; the X fins rise above them', () => {
+    for (const m of [p.body, p.lugs]) expect(Math.max(...ys(m))).toBeLessThanOrEqual(1e-12)
+    expect(Math.max(...ys(p.fins))).toBeGreaterThan(0)
   })
 })
 
