@@ -3035,7 +3035,7 @@ git commit -m "7c: the Immelmann replaces Extend's rejoin at corner speed; the l
 **Interfaces:**
 - Consumes: `splitSWorld()`, `level`, `pilotFor` and `runCanned` from `tests/sim/ai/maneuverWorlds.ts` (Tasks 8 and 10)
 
-- [ ] **Step 1: Write the tests.** Create `tests/sim/ai/determinism.test.ts`:
+- [x] **Step 1: Write the tests.** Create `tests/sim/ai/determinism.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -3098,18 +3098,18 @@ describe('7c determinism (spec §3.6, §7)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests.**
+- [x] **Step 2: Run the tests.**
 
 Run: `npx vitest run tests/sim/ai/determinism.test.ts tests/sim/ai/breakManeuvers.test.ts --maxWorkers=2`
 Expected: PASS. If the reversal test fails, find which pilot reads anything other than the start-of-tick snapshot and `ctx`. That is a real defect: fix it, and never weaken the test.
 
-- [ ] **Step 3: Bit-identity and the final sweep.**
+- [x] **Step 3: Bit-identity and the final sweep.**
 1. `npx tsx .superpowers/7c/hash.ts > .superpowers/7c/hash-final.txt`. The four no-pilot scenarios' full digests must equal `hash-task1.txt` (the Task 1 baseline, `main` at the start). Put the before and after table in the handoff.
 2. `npx vitest run tests/sim/golden/trajectory.test.ts tests/sim/landing.test.ts tests/sim/carrierLanding.test.ts --maxWorkers=2`. Expected: PASS with the inline snapshots unchanged (`git diff --stat tests/sim` shows no change to those files).
 3. `npx tsx tools/ai/lethality.ts` and `npx tsx tools/ai/lethality.ts 0.02`. Record both lines.
 4. `npx vitest run tests/render/aiLethality.test.ts tests/render/aiSafety.test.ts tests/render/aiReengage.test.ts tests/sim/pursuitMerge.test.ts tests/sim/zeroMerge.test.ts --maxWorkers=2`. Record every number the tests log or comment on, for the handoff's measured table.
 
-- [ ] **Step 4: Verify and commit.**
+- [x] **Step 4: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
