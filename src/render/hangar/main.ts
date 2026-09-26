@@ -4,10 +4,12 @@ import { showFailure, type FailureKind } from '../failure.js'
 import { buildCatalog, type CatalogEntry } from './catalog.js'
 import { loadHangarContent } from './contentIndex.js'
 import { loadHangarModel, type HangarModel, type PartPose } from './models.js'
+import { createBenchController } from './benchController.js'
+import { countsReport } from './budgets.js'
 import { figuresFor } from './stats.js'
 import { createStage } from './stage.js'
 import { createPanel } from './panel.js'
-import { mountBench } from './bench.js'
+import { mountBench, type BenchHandle, type DebugToggle } from './bench.js'
 import { benchEnabled } from './benchFlag.js'
 import { installHangarHooks, type HangarWindow } from './hooks.js'
 import { loadRegisteredAirframe } from '../scenarioEntities.js'
@@ -28,8 +30,10 @@ async function boot(): Promise<void> {
   const ready = new Promise<void>((r) => { resolveReady = r })
 
   let catalog: CatalogEntry[]
+  let content: ReturnType<typeof loadHangarContent>
   try {
-    catalog = buildCatalog(loadHangarContent())
+    content = loadHangarContent()
+    catalog = buildCatalog(content)
   } catch (e) {
     showFailure(root, 'bad-content', e instanceof Error ? e.message : String(e))
     return
@@ -59,7 +63,30 @@ async function boot(): Promise<void> {
   let selected: CatalogEntry | null = null
   let frozen = false
   const bench = benchEnabled(import.meta.env.DEV, location.search)
-  const pose = (p: PartPose): void => { model?.pose(p) }
+  let controller = createBenchController(null)
+  let benchUi: BenchHandle | null = null
+  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true }
+  const refreshCounts = (): void => { if (model) benchUi?.setCounts(countsReport(model.root, content.budgets)) }
+  const pose = (p: PartPose): void => {
+    model?.pose(controller.set(p))
+    benchUi?.sync(controller.state())
+    refreshCounts()
+  }
+  const onDebug = (which: DebugToggle, on: boolean): void => {
+    debug[which] = on
+    if (which === 'wireframe') stage.setWireframe(on)
+    else if (which === 'gizmos') stage.setGizmos(on ? model?.articulated ?? [] : null)
+    else stage.setAutoRotate(on)
+  }
+  // One frame of the bench: a running Cycle, then the model's own clock.
+  const step = (frameS: number): void => {
+    const p = controller.advance(frameS)
+    if (p) {
+      model?.pose(p)
+      benchUi?.sync(controller.state())
+    }
+    model?.update(frameS)
+  }
 
   const select = async (id: string): Promise<void> => {
     const entry = catalog.find((e) => e.library.id === id)
@@ -70,7 +97,17 @@ async function boot(): Promise<void> {
     selected = entry
     stage.show(model?.root ?? null, entry.subject === null ? null : entry.library.kind)
     panel.showCard(entry, figuresFor(entry), stage.modelSize())
-    if (bench) mountBench(panel.benchSlot, model?.parts ?? [], pose)
+    // A fresh controller per model: a new model starts at rest, never mid-cycle.
+    controller = createBenchController(entry.subject?.kind === 'aircraft' ? entry.subject.spec : null)
+    if (debug.gizmos) stage.setGizmos(model?.articulated ?? [])
+    if (bench) {
+      benchUi = mountBench(panel.benchSlot, model?.parts ?? [], entry.subject?.kind === 'aircraft', debug, {
+        onPose: pose,
+        onCycle: (part) => controller.startCycle(part),
+        onDebug,
+      })
+      refreshCounts()
+    }
   }
 
   const panel = createPanel(root, catalog, (id) => {
@@ -87,11 +124,16 @@ async function boot(): Promise<void> {
     entries: () => catalog.filter((e) => e.subject !== null).map((e) => e.library.id),
     select,
     pose,
-    tick: (frameS) => model?.update(frameS),
+    tick: step,
     camera: (p) => stage.setPreset(p),
-    freeze: () => { frozen = true; stage.freeze() },
+    freeze: () => { frozen = true; debug.turntable = false; stage.freeze() },
     setModelVisible: (v) => stage.setModelVisible(v),
     current: () => (selected ? { id: selected.library.id, kind: selected.library.kind, parts: model?.parts ?? [] } : null),
+    cycle: (part) => controller.startCycle(part),
+    bench: () => controller.state(),
+    setDebug: onDebug,
+    gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : []),
+    counts: () => (model ? countsReport(model.root, content.budgets) : null),
     validationErrors,
   })
 
@@ -101,7 +143,7 @@ async function boot(): Promise<void> {
   let last = performance.now()
   renderer.setAnimationLoop(() => {
     const now = performance.now()
-    if (!frozen) model?.update((now - last) / 1000)
+    if (!frozen) step((now - last) / 1000)
     last = now
     stage.render()
   })

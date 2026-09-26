@@ -21,7 +21,12 @@ export const HANGAR_SUN_ELEVATION_DEG =
 export function applyWireframe(root: Object3D, on: boolean): void {
   root.traverse((o) => {
     if (!(o instanceof Mesh)) return
-    for (const m of Array.isArray(o.material) ? o.material : [o.material]) if ('wireframe' in m) m.wireframe = on
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!('wireframe' in m) || m.wireframe === on) continue
+      m.wireframe = on
+      // WebGPU uploads the wireframe index only when the material rebuilds.
+      m.needsUpdate = true
+    }
   })
 }
 

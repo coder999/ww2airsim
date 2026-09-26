@@ -13,6 +13,20 @@ describe('applyWireframe', () => {
     applyWireframe(root, false)
     expect([shared.wireframe, (b.material as MeshStandardMaterial[])[0]!.wireframe]).toEqual([false, false])
   })
+
+  it('marks a material it changes for update, so WebGPU rebuilds its index buffer; leaves an unchanged one alone', () => {
+    // Without needsUpdate the WebGPU renderer draws with a wireframe index it
+    // never uploaded: "setIndexBuffer: parameter 1 is not of type GPUBuffer"
+    // (reference GPU, 2026-09-26).
+    const m = new MeshStandardMaterial()
+    const root = new Group(); root.add(new Mesh(new BoxGeometry(), m))
+    const v0 = m.version
+    applyWireframe(root, true)
+    expect(m.version).toBeGreaterThan(v0)
+    const v1 = m.version
+    applyWireframe(root, true)
+    expect(m.version).toBe(v1)
+  })
 })
 
 describe('gizmos', () => {
