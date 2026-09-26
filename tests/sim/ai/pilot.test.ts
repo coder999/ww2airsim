@@ -3,6 +3,7 @@ import {
   breakDesiredVelocity,
   extendDesiredVelocity,
   GREEN_SKILL,
+  REJOIN_OVERTAKE_MPS,
   SAFE_SEPARATION_M,
   VETERAN_SKILL,
 } from '../../../src/sim/ai/pilot.js'
@@ -70,6 +71,12 @@ describe('extendDesiredVelocity', () => {
     const toward = sub(threat.state.position, self.state.position)
     expect(dot(desired, toward)).toBeGreaterThan(0)
     expect(desired.y).toBeGreaterThan(0)
+  })
+
+  it('rejoins at no less than the threat\'s speed plus REJOIN_OVERTAKE_MPS, so the throttle goes up (7c R8)', () => {
+    const self = entity({ position: v3(0, 3000, 0), velocity: v3(90, 0, 0) })
+    const threat = entity({ position: v3(-1500, 3000, 0), velocity: v3(115, 0, 0) })
+    expect(length(extendDesiredVelocity(self, threat))).toBeCloseTo(115 + REJOIN_OVERTAKE_MPS, 9)
   })
 })
 

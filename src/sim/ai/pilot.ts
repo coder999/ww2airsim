@@ -122,6 +122,12 @@ export function initialDecision(): PilotDecisionState {
  *  just a type-only one that erases at compile time. */
 export const SAFE_SEPARATION_M = 1100 // 2x AI_GUN_RANGE_M (550m) as of this plan
 
+/** Extend's rejoin asks for at least the threat's speed plus this, so the
+ *  throttle law (`0.65 + (desired - current) x 0.012`) goes to full power
+ *  instead of settling at 0.65 while climbing. At 0.65 the rejoin decayed to
+ *  84 m/s and never closed (7c plan, "Measured", 2026-09-25). */
+export const REJOIN_OVERTAKE_MPS = 30
+
 /** Desired velocity for a pilot choosing to Extend: run away from the threat
  *  and trade altitude for airspeed rather than retreating level. Once
  *  safely clear (see SAFE_SEPARATION_M), rejoin the fight on a shallow
@@ -135,7 +141,7 @@ export function extendDesiredVelocity<M>(self: AircraftEntity<M>, threat: Aircra
     // indefinite, physically nonsensical dive.
     const toward = normalize(sub(threat.state.position, self.state.position))
     const climb = v3(toward.x, Math.max(toward.y, 0.1), toward.z)
-    return scale(normalize(climb), length(self.state.velocity))
+    return scale(normalize(climb), Math.max(length(self.state.velocity), length(threat.state.velocity) + REJOIN_OVERTAKE_MPS))
   }
   const away = normalize(separation)
   // Nose down for airspeed: bias the desired vector toward the horizon-minus,

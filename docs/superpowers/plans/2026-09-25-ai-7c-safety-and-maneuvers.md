@@ -1635,7 +1635,7 @@ git commit -m "7c: the AI safety envelope (G limit, symmetric negative-g floor, 
 **Interfaces:**
 - Produces: `REJOIN_OVERTAKE_MPS = 30` (`pilot.ts`) and `PURSUIT_FULL_POWER_BEYOND_M` (`maneuverFlight.ts`, equal to `AI_GUN_RANGE_M`)
 
-- [ ] **Step 1: Write the failing acceptance test.** This is the test the track ledger requires. Create `tests/render/aiReengage.test.ts`:
+- [x] **Step 1: Write the failing acceptance test.** This is the test the track ledger requires. Create `tests/render/aiReengage.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -1701,12 +1701,12 @@ describe('after a missed head-on pass, the pursuer re-engages and fires again', 
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails.**
+- [x] **Step 2: Run the test to verify it fails.**
 
 Run: `npx vitest run tests/render/aiReengage.test.ts --maxWorkers=2`
 Expected: FAIL with `never fired again` on most cases. The prototype measured 1 of 16 re-engaging with lift-vector steering alone.
 
-- [ ] **Step 3: Implement the full-power rejoin (R8).** In `src/sim/ai/pilot.ts`, add above `extendDesiredVelocity`:
+- [x] **Step 3: Implement the full-power rejoin (R8).** In `src/sim/ai/pilot.ts`, add above `extendDesiredVelocity`:
 
 ```ts
 /** Extend's rejoin asks for at least the threat's speed plus this, so the
@@ -1734,7 +1734,7 @@ Leave the direction and its comment as they are. Append to `tests/sim/ai/pilot.t
 
 Add `length` and `REJOIN_OVERTAKE_MPS` to the file's imports.
 
-- [ ] **Step 4: Implement full-power pursuit beyond gun range (R8).** In `src/sim/ai/maneuverFlight.ts`, import `AI_GUN_RANGE_M` from `./pursuit.js`, and `length` and `sub` from `../math/vec3.js`. Add:
+- [x] **Step 4: Implement full-power pursuit beyond gun range (R8).** In `src/sim/ai/maneuverFlight.ts`, import `AI_GUN_RANGE_M` from `./pursuit.js`, and `length` and `sub` from `../math/vec3.js`. Add:
 
 ```ts
 /** Beyond gun range the pursuer firewalls the throttle. Lead pursuit's
@@ -1748,16 +1748,16 @@ export const PURSUIT_FULL_POWER_BEYOND_M = AI_GUN_RANGE_M
 
 In `leadPursuitControls`, between `steered` and the return, add `const rangeM = length(sub(perceived.state.position, self.state.position))` and `const powered = rangeM > PURSUIT_FULL_POWER_BEYOND_M ? { ...steered, throttle: 1 } : steered`. Then return `hasGunSolution(self, perceived) ? { ...powered, fire: true } : powered`.
 
-- [ ] **Step 5: Run the tests.**
+- [x] **Step 5: Run the tests.**
 
 Run: `npx vitest run tests/render/aiReengage.test.ts tests/sim/ai tests/render/aiLethality.test.ts tests/render/aiSafety.test.ts tests/sim/pursuitMerge.test.ts tests/sim/zeroMerge.test.ts tests/sim/scenario.test.ts --maxWorkers=2`
 Expected: PASS. Log each case's `firstShotS` and record them in the header comment, replacing the prototype's numbers if yours differ. If any run exceeds 120 s, say so in the ledger. The budget of 150 s stays.
 
 The decision test "reproduces today's exact steering" still compares at 500 m, inside gun range, so full power does not apply there.
 
-- [ ] **Step 6: Digests.** Run `npx tsx .superpowers/7c/hash.ts > .superpowers/7c/hash-task6.txt`. The four no-pilot scenarios must still match `hash-task1.txt`. Task 7 compares its motion digests against this file.
+- [x] **Step 6: Digests.** Run `npx tsx .superpowers/7c/hash.ts > .superpowers/7c/hash-task6.txt`. The four no-pilot scenarios must still match `hash-task1.txt`. Task 7 compares its motion digests against this file.
 
-- [ ] **Step 7: Verify and commit.**
+- [x] **Step 7: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
