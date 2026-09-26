@@ -3,7 +3,7 @@ import {
   RGBAFormat, RedFormat, RenderTarget, Scene, Vector2, type PerspectiveCamera,
 } from 'three'
 import { NodeUpdateType, RendererUtils, TempNode, type Node, type NodeBuilder, type NodeFrame, type TextureNode, type WebGPURenderer } from 'three/webgpu'
-import { Fn, If, abs, clamp, float, floor, fract, ivec2, max, min, perspectiveDepthToViewZ, reference, screenCoordinate, select, texture, uniform, vec2, vec4 } from 'three/tsl'
+import { Fn, If, abs, clamp, float, floor, fract, ivec2, max, min, perspectiveDepthToViewZ, reference, screenCoordinate, texture, uniform, vec2, vec4 } from 'three/tsl'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { FOG_DISTANCE_M } from '../horizon.js'
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
@@ -89,6 +89,8 @@ class FxPassNode extends TempNode<'vec4'> {
     const quad = new PlaneGeometry(2, 2)
     this.geometry.setAttribute('position', quad.getAttribute('position'))
     this.geometry.setIndex(quad.getIndex())
+    // The attributes now belong to `geometry`; the quad itself is never uploaded.
+    quad.dispose()
     const { posSize, anim, tint, vel } = this.instances
     this.attributes = ([['fxPosSize', posSize], ['fxAnim', anim], ['fxTint', tint], ['fxVel', vel]] as const).map(([name, array]) => {
       const a = new InstancedBufferAttribute(array, 4)
@@ -170,13 +172,26 @@ class FxPassNode extends TempNode<'vec4'> {
     return composite() as unknown as Node<'vec4'>
   }
 
+  /** The cloud march limit (§4.2, Ruling R9): the dense view-Z of the fx
+   *  texel under a full-resolution pixel, or `FOG_DISTANCE_M` where the
+   *  accumulated alpha is at most `DENSE_ACCUMULATED_ALPHA`. Idle costs one
+   *  uniform branch (Ruling R12): both loads sit inside `If(active)`, not
+   *  merely on one side of a `select`. It builds `If`/`.toVar()`, so it must
+   *  be called inside a `Fn` body -- cloudPass.ts calls it only from
+   *  `minViewZAt` (inside the update and march `Fn`s) and from its composite
+   *  `Fn`. (`textureLoad` has no uniform-control-flow requirement.) */
   readonly limit: FxCloudLimit = {
     denseViewZAt: (fullPixel) => {
-      const t = clampTexel(ivec2(floor(fullPixel.div(this.u.span))), ivec2(this.lowMax))
-      const a = this.colorTex.load(t).a
-      const c = this.denseTex.load(t).x
-      const dense = this.active.greaterThan(0.5).and(a.greaterThan(DENSE_ACCUMULATED_ALPHA)).and(c.greaterThan(0))
-      return select(dense, float(CLOSENESS_SCALE_M).mul(float(1).div(max(c, 1e-6)).sub(1)), float(FOG_DISTANCE_M)) as unknown as Node<'float'>
+      const out = float(FOG_DISTANCE_M).toVar()
+      If(this.active.greaterThan(0.5), () => {
+        const t = clampTexel(ivec2(floor(fullPixel.div(this.u.span))), ivec2(this.lowMax)).toVar()
+        const a = this.colorTex.load(t).a
+        const c = this.denseTex.load(t).x.toVar()
+        If(a.greaterThan(DENSE_ACCUMULATED_ALPHA).and(c.greaterThan(0)), () => {
+          out.assign(float(CLOSENESS_SCALE_M).mul(float(1).div(max(c, 1e-6)).sub(1)))
+        })
+      })
+      return out as unknown as Node<'float'>
     },
   }
 
