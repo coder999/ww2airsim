@@ -19,6 +19,11 @@ describe('dossier formatting (dossier spec §B.4)', () => {
     const top = RANK_LADDER[RANK_LADDER.length - 1]!
     expect(nextRankProgress(top.threshold + 1)).toEqual({ next: null, fraction: 1 })
   })
+
+  it('a hand-edited negative cumulativeScore does not throw (fix round 2 finding 1): 0% progress toward the first rank', () => {
+    expect(nextRankProgress(-100)).toEqual({ next: RANK_LADDER[0], fraction: 0 })
+    expect(() => nextRankProgress(-1)).not.toThrow()
+  })
 })
 
 describe('dossierModel', () => {

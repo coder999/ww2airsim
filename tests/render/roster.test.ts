@@ -282,4 +282,50 @@ describe('migrate on read (dossier spec §B.3)', () => {
     const flown = applyMissionResult(createPilot('Ace'), 5, 'landed', zeroKillsByType(), facts())
     expect(importRoster(exportRoster([flown]))).toEqual([flown])
   })
+
+  describe('malformed log entries (fix round 2 finding 1)', () => {
+    const goodEntry = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+      at: '2026-09-25T20:00:00.000Z', scenarioId: 'leyte-cap', aircraft: 'F6F-5 Hellcat',
+      loadout: 'clean', outcome: 'trap', points: 40, killsByType: { fighter: 2 },
+      flightSeconds: 600, maxAltitudeM: 3000, maxTrueAirspeedMps: 150, ...over,
+    })
+
+    it('drops an entry missing a required string field instead of throwing', () => {
+      const rec = { ...legacy(), log: [goodEntry(), { ...goodEntry(), at: undefined }, { ...goodEntry(), scenarioId: 123 }] }
+      ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
+      expect(() => loadRoster()).not.toThrow()
+      const [p] = loadRoster()
+      expect(p!.log).toHaveLength(1)
+    })
+
+    it('drops an entry with an unknown outcome', () => {
+      const rec = { ...legacy(), log: [goodEntry({ outcome: 'exploded' })] }
+      ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
+      const [p] = loadRoster()
+      expect(p!.log).toEqual([])
+    })
+
+    it('zero-fills numeric fields and killsByType instead of throwing', () => {
+      const rec = { ...legacy(), log: [goodEntry({ points: 'a lot', maxAltitudeM: null, killsByType: { fighter: 'two' } })] }
+      ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
+      const [p] = loadRoster()
+      expect(p!.log[0]!.points).toBe(0)
+      expect(p!.log[0]!.maxAltitudeM).toBe(0)
+      expect(p!.log[0]!.killsByType).toEqual(zeroKillsByType())
+    })
+
+    it('falls back to the default loadout for an unrecognized loadout string', () => {
+      const rec = { ...legacy(), log: [goodEntry({ loadout: 'napalm' })] }
+      ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
+      const [p] = loadRoster()
+      expect(p!.log[0]!.loadout).toBe('both')
+    })
+
+    it('an entirely non-object entry is dropped, not thrown', () => {
+      const rec = { ...legacy(), log: [goodEntry(), 'not an object', null, 42] }
+      ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
+      const [p] = loadRoster()
+      expect(p!.log).toHaveLength(1)
+    })
+  })
 })

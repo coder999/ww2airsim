@@ -20,9 +20,17 @@ export const formatKnots = (mps: number): string => `${Math.round(mps * KT_PER_M
 export function nextRankProgress(score: number): { readonly next: Rank | null; readonly fraction: number } {
   const i = RANK_LADDER.findIndex((r) => r.threshold > score)
   if (i === -1) return { next: null, fraction: 1 }
+  // Fix round 2 finding 1: a hand-edited negative `cumulativeScore` makes
+  // `i` land on 0 (the ladder's own floor, ENS at threshold 0, is already
+  // `> score`) -- `RANK_LADDER[i - 1]` is then `RANK_LADDER[-1]`, `undefined`,
+  // and the old non-null assertion threw reading `.threshold` off it. There
+  // is no rank below the first, so read a below-floor score as 0% progress
+  // toward it rather than indexing before the ladder.
+  if (i === 0) return { next: RANK_LADDER[0]!, fraction: 0 }
   const prev = RANK_LADDER[i - 1]!
   const next = RANK_LADDER[i]!
-  return { next, fraction: (score - prev.threshold) / (next.threshold - prev.threshold) }
+  const fraction = (score - prev.threshold) / (next.threshold - prev.threshold)
+  return { next, fraction: Math.min(1, Math.max(0, fraction)) }
 }
 
 const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
@@ -96,6 +104,20 @@ export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => 
  */
 export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel: (id: string) => string, onClose: () => void): () => void {
   ensureStampFilter()
+  // Fix round 2 finding 3: `aria-modal="true"` on this panel is a promise to
+  // assistive tech, not an enforcement mechanism -- the title overlay's own
+  // content (roster rows, New pilot, etc.) sits right behind this panel in
+  // the same `host`, still in the Tab order and still clickable, because
+  // nothing in the DOM actually stops focus or a click from reaching it.
+  // Clicking sheet text (no focusable element under the pointer) drops focus
+  // to <body>, and a subsequent Tab/Enter/Space then reaches a title control
+  // behind the sheet. `inert` on every one of the host's PRE-EXISTING
+  // children (never on the panel this function is about to add) removes
+  // them from focus, Tab order and hit-testing for as long as the Dossier is
+  // up, restored on every close path -- a real Escape/Close AND `destroy()`.
+  const inertedSiblings = [...host.children].filter((c) => !c.hasAttribute('inert'))
+  for (const c of inertedSiblings) c.setAttribute('inert', '')
+  const restoreInert = (): void => { for (const c of inertedSiblings) c.removeAttribute('inert') }
   const m = dossierModel(pilot, scenarioLabel)
   const panel = document.createElement('div')
   panel.className = 'naval-comms'
@@ -170,6 +192,7 @@ export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel
     closed = true
     window.removeEventListener('keydown', onKey, true)
     panel.remove()
+    restoreInert()
     if (moveFocus) onClose()
   }
   const onKey = (e: KeyboardEvent): void => {

@@ -220,6 +220,51 @@ export function applyMissionResultToRoster(
 
 const STORAGE_KEY = 'ww2airsim.roster.v1'
 
+// Dossier spec §B.3, same zero-fill philosophy as `career` below.
+const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
+
+const LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'rockets', 'both']
+// titleScreen.ts's `DEFAULT_LOADOUT` ('both') is the canonical default;
+// duplicated here rather than imported because titleScreen.ts imports THIS
+// module (roster.ts) -- importing it back would be a cycle.
+const FALLBACK_LOADOUT: Loadout = 'both'
+const LOG_OUTCOMES: readonly LogOutcome[] = ['trap', 'field', 'ditched', 'killed']
+
+/**
+ * Fix round 2 finding 1: a hand-edited or future-format log entry used to be
+ * cast straight to `MissionLogEntry` with zero validation -- a missing/wrong-
+ * typed `outcome` then threw straight out of `dossier.ts`'s
+ * `OUTCOME_LABEL[e.outcome]` (undefined key) or `e.at.slice` (not a string),
+ * taking the whole Dossier down over one bad line, the same "one bad record
+ * kills the feature" class `validatePilot` itself exists to prevent for the
+ * pilot record as a whole. Same philosophy as `career` below: a malformed
+ * FIELD is zero-filled or dropped, never allowed to throw. A malformed
+ * ENTIRE entry (not just a field) is dropped outright -- there is no
+ * sensible default `at`/`scenarioId`/`aircraft`/`outcome` to invent for a
+ * mission log line that never really happened.
+ */
+function validateLogEntry(value: unknown): MissionLogEntry | null {
+  if (typeof value !== 'object' || value === null) return null
+  const e = value as Record<string, unknown>
+  if (typeof e.at !== 'string' || typeof e.scenarioId !== 'string' || typeof e.aircraft !== 'string') return null
+  if (typeof e.outcome !== 'string' || !LOG_OUTCOMES.includes(e.outcome as LogOutcome)) return null
+  const kbt = (typeof e.killsByType === 'object' && e.killsByType !== null ? e.killsByType : {}) as Record<string, unknown>
+  const killsByType = Object.fromEntries(TARGET_TYPES.map((t) => [t, num(kbt[t])])) as Readonly<Record<TargetType, number>>
+  const loadout = LOADOUTS.includes(e.loadout as Loadout) ? (e.loadout as Loadout) : FALLBACK_LOADOUT
+  return {
+    at: e.at,
+    scenarioId: e.scenarioId,
+    aircraft: e.aircraft,
+    loadout,
+    outcome: e.outcome as LogOutcome,
+    points: num(e.points),
+    killsByType,
+    flightSeconds: num(e.flightSeconds),
+    maxAltitudeM: num(e.maxAltitudeM),
+    maxTrueAirspeedMps: num(e.maxTrueAirspeedMps),
+  }
+}
+
 function validatePilot(value: unknown): PilotRecord {
   if (typeof value !== 'object' || value === null) throw new Error('pilot record is not an object')
   const v = value as Record<string, unknown>
@@ -245,7 +290,6 @@ function validatePilot(value: unknown): PilotRecord {
   // Dossier spec §B.3: pre-dossier records (and hand-edited partial ones)
   // are completed with zeros, never thrown -- a throw here empties the whole
   // roster through loadRoster's catch (review focus 4).
-  const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
   const c = (typeof v.career === 'object' && v.career !== null ? v.career : {}) as Record<string, unknown>
   const l = (typeof c.landings === 'object' && c.landings !== null ? c.landings : {}) as Record<string, unknown>
   const career: Career = {
@@ -254,7 +298,12 @@ function validatePilot(value: unknown): PilotRecord {
     maxAltitudeM: num(c.maxAltitudeM),
     maxTrueAirspeedMps: num(c.maxTrueAirspeedMps),
   }
-  const log = Array.isArray(v.log) ? (v.log as MissionLogEntry[]) : []
+  // Fix round 2 finding 1: each entry validated and zero-filled/dropped on
+  // its own -- one malformed line no longer takes the whole log (or the
+  // whole pilot) down with it.
+  const log = Array.isArray(v.log)
+    ? (v.log as unknown[]).map(validateLogEntry).filter((e): e is MissionLogEntry => e !== null)
+    : []
   return { ...(v as unknown as PilotRecord), career, log }
 }
 
