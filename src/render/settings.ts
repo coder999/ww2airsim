@@ -107,7 +107,7 @@ type Option<T> = { readonly value: T; readonly label: string; readonly note: str
  * the critique that started it).
  */
 export const RENDER_QUALITY_OPTIONS: readonly Option<QualityTierName>[] = [
-  { value: 'low', label: 'Low', note: 'Fastest. Reduced ocean and cloud detail, and no trees at all.' },
+  { value: 'low', label: 'Low', note: 'Fastest. Reduced ocean and cloud detail, no trees and plain ground.' },
   { value: 'medium', label: 'Medium', note: 'Balanced. Suits most machines.' },
   { value: 'high', label: 'High', note: 'Full ocean simulation, dense clouds, trees to the horizon.' },
 ]

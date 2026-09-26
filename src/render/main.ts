@@ -66,6 +66,7 @@ import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
+import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
@@ -878,6 +879,9 @@ async function boot(): Promise<void> {
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
       }),
+      // Visual realism §2.1: read through the same closure-after-boot shape as
+      // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
+      terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
       // Photoreal Task 6: explicit TRAA/motion history resets since boot.
       antiAliasing: () => ({ historyResets: framePipeline.historyResets() }),
       // Plan 16b: the shadow map read back at a world point, for the
@@ -998,6 +1002,13 @@ async function boot(): Promise<void> {
   // Handled below by the `await`; this only stops a rejection during the
   // yield from being reported as unhandled before that `await` attaches.
   skyNoiseLoading.catch(() => undefined)
+  // Visual realism §2.1 (plan Ruling 4): the terrain textures load before the
+  // terrain mesh is built, so the ring materials compile once with them. A
+  // failure is a warning and the procedural surface -- never fatal.
+  const forcedTerrainTextures = import.meta.env.DEV ? terrainTexturesFromQuery(location.search) : undefined
+  const surfaceTexturesLoading: Promise<SurfaceTextures | null> = forcedTerrainTextures === 'off'
+    ? Promise.resolve(null)
+    : loadSurfaceTextures(renderer).catch((err: unknown) => { console.warn('terrain textures unavailable; drawing the procedural surface:', err); return null })
   // Photoreal Task 9 fix 2: build the sky-irradiance table (sky/palette.ts,
   // ~0.3 s of CPU) HERE, during the async load phase, rather than lazily on
   // the first `atmospherePalette` call -- which is inside the frame loop, so
@@ -1037,7 +1048,11 @@ async function boot(): Promise<void> {
   // `finestFetchedLevelFor('low')` itself, a second source of truth that
   // happened to agree with this one only because both were the same
   // hardcoded literal.
-  const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow)
+  const surfaceTextures = await surfaceTexturesLoading
+  const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow, surfaceTextures)
+  // Scenery `low` draws the procedural surface (plan Ruling 3). `?terrainTextures=on`
+  // holds the textures on whatever the tier.
+  terrain.setSurfaceDetail(forcedTerrainTextures === 'on' || sceneryTier !== 'low')
   // Plan 13b. The raster and the terrain levels race; whichever lands
   // second finds the other ready. A failed fetch leaves the procedural
   // paint (surface.ts's `ready` uniform) and the daa1b39 forest, logged,
@@ -1142,6 +1157,7 @@ async function boot(): Promise<void> {
     if (forcedSceneryTier !== undefined) return
     sceneryTier = name
     vegetation?.setTier(name)
+    if (forcedTerrainTextures === undefined) terrain.setSurfaceDetail(name !== 'low')
   }
   let cloudPass: CloudPass | null = null
   /** `?cloudTier=` holds this one, including `off` -- which is a scene with no
