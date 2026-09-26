@@ -35,6 +35,8 @@ type Run = {
   shots: number; hits: number; minAglM: number; impacted: boolean
   /** The lowest height above the ground while over land (ground above 5 m). */
   minAglOverLandM: number
+  /** The highest ground the AI flew over, alive. */
+  maxGroundM: number
 }
 type ChaseSetup = {
   readonly terrain?: TerrainField | null
@@ -59,20 +61,29 @@ function lowChase(spec: AircraftSpec, skill: PilotSkill, cursor: number, targetH
   })
   let minAglM = Infinity
   let minAglOverLandM = Infinity
+  let maxGroundM = 0
   const w = runCanned(world, { t: holdHeight(targetHeightM, terrain, lookaheadS) }, CHASE_S, (w) => {
     const p = w.aircraft.find((a) => a.id === 'p')!
     if (p.impact !== null) return
     const h = heightAboveGround(p.state, terrain, [])
     minAglM = Math.min(minAglM, h)
-    if (groundAt(p.state.position.x) > 5) minAglOverLandM = Math.min(minAglOverLandM, h)
+    const ground = groundAt(p.state.position.x)
+    maxGroundM = Math.max(maxGroundM, ground)
+    if (ground > 5) minAglOverLandM = Math.min(minAglOverLandM, h)
   })
   const p = w.aircraft.find((a) => a.id === 'p')!
   const rec = w.combat.aircraft['p']!
-  return { shots: rec.shots, hits: rec.hits, minAglM, minAglOverLandM, impacted: p.impact !== null || minAglM <= 0 }
+  flown++
+  return { shots: rec.shots, hits: rec.hits, minAglM, minAglOverLandM, maxGroundM, impacted: p.impact !== null || minAglM <= 0 }
 }
 
 /** Every run's crash, over every world in this file: must be 0. */
 const crashes: string[] = []
+/** How many runs filled `crashes`, so the count below cannot pass on a
+ *  filtered run that flew none: 48 sea, 16 below 50 ft, 16 on the 8% ramp,
+ *  24 on steep ground. */
+let flown = 0
+const EXPECTED_RUNS = 104
 
 // Measured 2026-09-26 (`.superpowers/7c/t15r2-measure.ts`), 4 cursors each,
 // hits / lowest height above the sea (the F6F's 12 hits is the kill):
@@ -171,21 +182,25 @@ describe('the low chase over rising ground (7c Task 15, synthetic 8% ramp)', () 
  * No terrain impact in any of the 24 runs.
  */
 describe('the low chase over steep ground (7c Task 15, synthetic 30% ramp and 300 m ridge)', () => {
+  // The last field: how high the ground under the AI must reach, so the run
+  // provably flew over the high ground and did not turn away at its foot.
+  // Measured 2026-09-26: every run reached 450 m on both ramps (their top)
+  // and 290-291 m on the ridge (the crest at the level-3 sample spacing).
   const worlds = [
-    ['a 30% ramp, target 1.5 km ahead', terrainOf(3, (x) => Math.min(450, Math.max(0, (x - 3500) * 0.3))), 1500],
-    ['a 30% ramp, target 600 m ahead', terrainOf(3, (x) => Math.min(450, Math.max(0, (x - 4500) * 0.3))), 600],
-    ['a 300 m ridge, target 600 m ahead', terrainOf(3, (x) => Math.max(0, 300 - Math.abs(x - 5500) * 0.3)), 600],
+    ['a 30% ramp, target 1.5 km ahead', terrainOf(3, (x) => Math.min(450, Math.max(0, (x - 3500) * 0.3))), 1500, 400],
+    ['a 30% ramp, target 600 m ahead', terrainOf(3, (x) => Math.min(450, Math.max(0, (x - 4500) * 0.3))), 600, 400],
+    ['a 300 m ridge, target 600 m ahead', terrainOf(3, (x) => Math.max(0, 300 - Math.abs(x - 5500) * 0.3)), 600, 250],
   ] as const
-  for (const [world, terrain, targetX] of worlds) {
+  for (const [world, terrain, targetX, highGroundM] of worlds) {
     for (const [plane, spec] of AIRFRAMES) {
-      it(`veteran ${plane}, ${world}: no terrain impact, never below 50 ft, and it did cross the high ground`, () => {
+      it(`veteran ${plane}, ${world}: no terrain impact, never below 50 ft, and it reached the high ground`, () => {
         for (const cursor of CURSORS) {
           const r = lowChase(spec, VETERAN_SKILL, cursor, 60, { terrain, aiHeightM: 60, targetX, lookaheadS: 24 })
           const label = `veteran ${plane} ${world} cursor ${cursor}: ${JSON.stringify(r)}`
           if (r.impacted) crashes.push(label)
           expect(r.impacted, label).toBe(false)
           expect(r.minAglM, label).toBeGreaterThanOrEqual(PURSUIT_FLOOR_M - OVERSHOOT_M)
-          expect(Number.isFinite(r.minAglOverLandM), `${label}: never over the high ground, so this proved nothing`).toBe(true)
+          expect(r.maxGroundM, `${label}: the ground under it peaked below ${highGroundM} m, so it turned away before the high ground`).toBeGreaterThanOrEqual(highGroundM)
         }
       })
     }
@@ -194,6 +209,7 @@ describe('the low chase over steep ground (7c Task 15, synthetic 30% ramp and 30
 
 describe('the crash count over every low-chase world and cursor (7c Task 15)', () => {
   it('is 0', () => {
+    expect(flown, 'runs flown before this count (a filtered run proves nothing)').toBe(EXPECTED_RUNS)
     expect(crashes).toEqual([])
   })
 })

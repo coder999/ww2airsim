@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { EVASION, LOADOUTS, aircraftOf, flyFrames, passive, replicaWorld } from '../../tools/ai/replica.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
-import { FLOOR_M, PURSUIT_FLOOR_M } from '../../src/sim/ai/safety.js'
+import { FLOOR_BUFFER_M, FLOOR_M, PURSUIT_FLOOR_BELOW_TARGET_M, PURSUIT_FLOOR_M } from '../../src/sim/ai/safety.js'
+import { SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { advance, createWorldOf, type AircraftEntity } from '../../src/sim/loop.js'
@@ -14,7 +15,8 @@ const PURSUER = 'pursuer-1'
 /** Below PURSUIT_FLOOR_M the soak may dip while the recovery takes hold.
  *  Measured 2026-09-26: 0 needed (lowest 15.37 m against 15.24). */
 const SOAK_OVERSHOOT_M = 0
-/** The same for the low-target dive below: 0 needed (lowest 281.6 m). */
+/** The same for the low-target dive below: 0 needed (lowest 281.6 m, against
+ *  a floor of 216.1 m under its target's lowest 241.1 m). */
 const DIVE_OVERSHOOT_M = 0
 const G = 9.80665
 /** Load along body-up from two consecutive tick states: negative means the
@@ -46,12 +48,11 @@ describe('the safety soak: 120 s of the 7d evasion, both skills (7c spec §3.6)'
   // into the sea (-14.6 to -22.7 m).
   for (const [name, skill] of [['green', GREEN_SKILL], ['veteran', VETERAN_SKILL]] as const) {
     it.each(LOADOUTS)(`${name}, %s: no overload damage, never below the 50 ft pursuit floor or into the sea, peak load within gLimit`, (loadout) => {
-      const m = { peakG: 0, lowest: Infinity, recovered: 0, impacted: false }
+      const m = { peakG: 0, lowest: Infinity, recovered: 0 }
       const tailChase = loadFixtureScenarioBundle('pursuit-tail-chase')
       const f = flyFrames(replicaWorld(tailChase, loadout, 0, skill), EVASION, 120, (fr) => {
         const p = aircraftOf(fr, PURSUER)
         const rec = fr.world.combat.aircraft[PURSUER]!
-        if (p.impact !== null) m.impacted = true
         if (p.impact === null && rec.damage.destroyedAt === null) {
           m.peakG = Math.max(m.peakG, rec.stress.loadFactorG)
           m.lowest = Math.min(m.lowest, p.state.position.y)
@@ -63,7 +64,10 @@ describe('the safety soak: 120 s of the 7d evasion, both skills (7c spec §3.6)'
       expect(rec.damage.structure, `${name} ${loadout}`).toBe(1) // the player never fires, so any loss is self-inflicted
       // Restated per Mark's 2026-09-26 decision (Task 15 ruling): was FLOOR_M.
       expect(m.lowest, `${name} ${loadout}: lowest`).toBeGreaterThanOrEqual(PURSUIT_FLOOR_M - SOAK_OVERSHOOT_M)
-      expect(m.impacted, `${name} ${loadout}: impact`).toBe(false)
+      // "Never into the sea": this world has no terrain, so `advance` records
+      // no impact and the pursuer would fly on below the surface. The height
+      // itself carries the claim.
+      expect(m.lowest, `${name} ${loadout}: into the sea`).toBeGreaterThan(SEA_LEVEL_M)
       expect(m.peakG).toBeLessThanOrEqual(aircraftOf(f, PURSUER).spec.limits.gLimit)
       expect(m.recovered, 'the floor never had to act, so this soak proved nothing about it').toBeGreaterThan(0)
     })
@@ -103,7 +107,7 @@ describe('an AI Zero never cuts its own engine (Review Focus 1)', () => {
 })
 
 describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)', () => {
-  type Dive = { lowest: number; peakG: number; guarded: number; targetLowest: number; structure: number; impacted: boolean }
+  type Dive = { lowest: number; peakG: number; guarded: number; targetLowest: number; structure: number }
   const zero = loadAircraftSpec('a6m2-zero')
   const f6f = loadAircraftSpec('f6f-hellcat')
   /** A veteran Zero entering a 60° dive at 150 m/s from 2,500 m, after a
@@ -122,7 +126,7 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
       assistMemory: undefined, impact: null, parked: false,
     }
     let w = createWorldOf({ aircraft: [pilotZero, target], player: 't' })
-    const m = { lowest: Infinity, peakG: 0, guarded: 0, targetLowest: Infinity, impacted: false }
+    const m = { lowest: Infinity, peakG: 0, guarded: 0, targetLowest: Infinity }
     for (let i = 0; i < 30 * 60; i++) {
       w = advance(w, DT).world
       const z = w.aircraft.find((a) => a.id === 'z')!
@@ -130,7 +134,6 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
       m.targetLowest = Math.min(m.targetLowest, w.aircraft.find((a) => a.id === 't')!.state.position.y)
       m.peakG = Math.max(m.peakG, w.combat.aircraft['z']!.stress.loadFactorG)
       if (z.pilot!.decision.safety !== 'none') m.guarded++
-      if (z.impact !== null) m.impacted = true
     }
     return { ...m, structure: w.combat.aircraft['z']!.damage.structure }
   }
@@ -153,7 +156,7 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
   // 3.05 g, structure 1.000.
   it('pursuing a target at 550 m from a 60° dive at 150 m/s (the §3.2 floor, FLOOR_M)', () => {
     const m = dive(200, 550)
-    expect(m.targetLowest, 'the target must stay above the pursuit floor\'s reach').toBeGreaterThan(FLOOR_M + 125)
+    expect(m.targetLowest, 'the target must stay above the pursuit floor\'s reach').toBeGreaterThan(FLOOR_M + FLOOR_BUFFER_M + PURSUIT_FLOOR_BELOW_TARGET_M)
     expect(m.structure).toBe(1)
     expect(m.lowest).toBeGreaterThanOrEqual(FLOOR_M)
     expect(m.peakG).toBeLessThanOrEqual(zero.limits.gLimit)
@@ -168,8 +171,13 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
   it('pursuing a low target (300 m) from the same dive: no breakup, never below 50 ft, never into the sea', () => {
     const m = dive(1000, 300)
     expect(m.structure).toBe(1)
+    // The floor in force: PURSUIT_FLOOR_BELOW_TARGET_M under the target,
+    // which here is far above 50 ft.
+    expect(m.lowest).toBeGreaterThanOrEqual(m.targetLowest - PURSUIT_FLOOR_BELOW_TARGET_M - DIVE_OVERSHOOT_M)
     expect(m.lowest).toBeGreaterThanOrEqual(PURSUIT_FLOOR_M - DIVE_OVERSHOOT_M)
-    expect(m.impacted).toBe(false)
+    // "Never into the sea": no terrain, so no impact is recorded; the height
+    // carries the claim.
+    expect(m.lowest).toBeGreaterThan(SEA_LEVEL_M)
     expect(m.peakG).toBeLessThanOrEqual(zero.limits.gLimit)
   })
 })

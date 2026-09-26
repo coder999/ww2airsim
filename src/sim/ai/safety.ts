@@ -128,14 +128,13 @@ export function needsFloorRecovery(
   state: AircraftState, terrain: TerrainField | null, decks: readonly Deck[], triggerM: number = floorTriggerM(null),
   verticalAccelMps2 = 0,
 ): boolean {
-  const trigger = triggerM
   const h = heightAboveGround(state, terrain, decks)
-  if (h < trigger) return true
+  if (h < triggerM) return true
   const vy = state.velocity.y
-  if (vy < 0 && (h - trigger) / -vy < FLOOR_TIME_S) return true
+  if (vy < 0 && (h - triggerM) / -vy < FLOOR_TIME_S) return true
   if (triggerM >= floorTriggerM(null) || verticalAccelMps2 >= 0) return false
   const t = FLOOR_TIME_S
-  return h + vy * t + 0.5 * verticalAccelMps2 * t * t < trigger
+  return h + vy * t + 0.5 * verticalAccelMps2 * t * t < triggerM
 }
 
 export type SafetyOverride = { readonly mode: 'recover' | 'overspeed'; readonly controls: Controls }
