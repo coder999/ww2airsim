@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
 import { flatField, loadHangarModel, partSpecsFor } from '../../../src/render/hangar/models.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
+import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
 import { nodeHangarContent } from './content.js'
 
@@ -41,11 +42,25 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
 
   it('a ship and a building load with no articulated parts and a non-zero triangle count', async () => {
     for (const id of ['essex-cv', 'hangar']) {
-      const m = await loadHangarModel(byId(id))
+      // The ship loader is the game's (S1); a stub keeps GLTFLoader out of Node.
+      const m = await loadHangarModel(byId(id), undefined, async (spec) => createShipMesh(spec))
       expect(m!.parts, id).toEqual([])
       expect(m!.counts().triangles, id).toBeGreaterThan(0)
       m!.dispose()
     }
+  })
+
+  it("a ship loads through the game's ship loader, and disposes through its view", async () => {
+    const asked: string[] = []
+    let disposed = 0
+    const m = await loadHangarModel(byId('fletcher-dd'), undefined, async (spec) => {
+      asked.push(spec.id)
+      const v = createShipMesh(spec)
+      return { ...v, dispose: () => { disposed++; v.dispose() } }
+    })
+    expect(asked).toEqual(['fletcher-dd'])
+    m!.dispose()
+    expect(disposed).toBe(1)
   })
 
   it('"Not yet in service" loads nothing', async () => {

@@ -2742,7 +2742,7 @@ git commit -m "S1: view.model on ship specs, the ship model registry, and a load
 
 `main.ts` and the Hangar each build their own loader whose error sink is their own `validationErrors`, which Tier 2 asserts empty in both pages. This is the first task that changes what the game draws.
 
-- [ ] **Step 1: Change the tests first.** In `tests/render/scenarioEntities.test.ts`, add these imports after the `WILDCAT_MODEL_URL` import:
+- [x] **Step 1: Change the tests first.** In `tests/render/scenarioEntities.test.ts`, add these imports after the `WILDCAT_MODEL_URL` import:
 
 ```ts
 import { createShipMesh, createShipView } from '../../src/render/scene/ship.js'
@@ -2876,12 +2876,12 @@ Apply to `tests/render/hangar/models.test.ts`:
    })
 ```
 
-- [ ] **Step 2: Run them to see them fail.**
+- [x] **Step 2: Run them to see them fail.**
 
 Run: `npx vitest run tests/render/scenarioEntities.test.ts tests/render/hangar/models.test.ts --maxWorkers=2`
 Expected: FAIL. `buildScenarioEntities` ignores the ship loader, so the asked-for list is empty and no view has a model; `loadHangarModel` ignores its third argument.
 
-- [ ] **Step 3: Scenario entities.** `src/render/scenarioEntities.ts` becomes:
+- [x] **Step 3: Scenario entities.** `src/render/scenarioEntities.ts` becomes:
 
 ```ts
 import type { Scene } from 'three'
@@ -2986,7 +2986,7 @@ export async function buildScenarioEntities(
 }
 ```
 
-- [ ] **Step 4: `main.ts` and its diagnostics.** Apply to `src/render/main.ts` (re-find each anchor by its text, not its line number):
+- [x] **Step 4: `main.ts` and its diagnostics.** Apply to `src/render/main.ts` (re-find each anchor by its text, not its line number):
 
 ```diff
 --- a/src/render/main.ts
@@ -3062,7 +3062,7 @@ Apply to `src/render/diagnostics.ts`:
    /**
 ```
 
-- [ ] **Step 5: The Hangar's ships** (Open question 1). Apply to `src/render/hangar/models.ts`:
+- [x] **Step 5: The Hangar's ships** (Open question 1). Apply to `src/render/hangar/models.ts`:
 
 ```diff
 --- a/src/render/hangar/models.ts
@@ -3141,12 +3141,12 @@ Apply to `src/render/hangar/main.ts`:
      selected = entry
 ```
 
-- [ ] **Step 6: Run them to see them pass.**
+- [x] **Step 6: Run them to see them pass.**
 
 Run: `npx vitest run tests/render/scenarioEntities.test.ts tests/render/hangar/ tests/render/ship.test.ts tests/render/cloudShadow.test.ts --maxWorkers=2`
 Expected: PASS. `scenarioEntities.test.ts` has 16 tests (12 before), `hangar/models.test.ts` 7 (6 before).
 
-- [ ] **Step 7: Verify and commit.** Re-diff all five shared files against `HEAD`: only the hunks above.
+- [x] **Step 7: Verify and commit.** Re-diff all five shared files against `HEAD`: only the hunks above.
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
