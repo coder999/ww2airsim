@@ -286,6 +286,12 @@ at speed — at a fraction of the complexity. *Amended 2026-09-17: this said
 left 12–23 deg/s of roll at approach speeds; Mark chose the speed-proportional
 law on all three axes, accepting that it re-tunes the rudder.*
 
+*Amended 2026-09-25 (A6M plan Z2, Mark's decision 2026-09-25): two optional,
+data-driven terms any aircraft may set. `rates.controlFadeByEasMps` makes the
+controls heavy at speed (`controlFade`, `src/sim/flight/model.ts`).
+`engine.negativeGCutout` starves a float-carburetted engine under negative
+lift (`engineCutOut`). The F6F sets neither.*
+
 Additional behaviours:
 
 - Past `alpha_crit`, lift falls and a wing-drop moment is injected, giving a
@@ -322,6 +328,11 @@ Six .50-cal M2 with convergence distance, dispersion cone, ballistic drop,
 tracer every fifth round, and finite ammunition. Projectiles have
 time-of-flight; hitscan is explicitly rejected, because being forced to lead a
 crossing target is most of what makes gunnery satisfying.
+
+Per-gun types (`combat.gunTypes`, `guns[].type`, per-round `hitScale`) let
+one airplane carry a mixed battery. See `src/sim/weapons/gunTypes.ts`. The
+top-level ballistic is the primary one, which the AI leads with and the sight
+is harmonized to. *Added 2026-09-25 (A6M plan Z2).*
 
 Bombs, rockets, and torpedoes reuse the same projectile system with different
 data. Bomb count is a pre-flight loadout choice (§8, now in [`GAMEPLAY.md`](../../../GAMEPLAY.md#mission-selector)) and affects mass and drag.
@@ -629,6 +640,7 @@ happens next, and the **Plan** column for what a document means when it says
 | 13d | any | Dulag, villages and roads from OpenStreetMap | §4 | Complete 2026-09-24; [design](2026-09-18-land-cover-design.md) 2026-09-18, [handoff](../../handoff/2026-09-23-plan13d-places.md) |
 | 16 | any | Clouds | §4 | 16a volumetric layers + whiteout landed 2026-09-19 ([design](2026-09-19-clouds-design.md), [handoff](../../handoff/2026-09-19-plan16a-clouds.md)); 16b cloud shadows landed 2026-09-19 ([design](2026-09-19-cloud-shadows-design.md), [handoff](../../handoff/2026-09-19-plan16b-cloud-shadows.md)); 16c movable sun landed 2026-09-19 ([design](2026-09-19-sun-design.md), [handoff](../../handoff/2026-09-19-plan16c-sun.md)); cloud fidelity II (depth-reconstructed motion, amortized High march, weather-map cells, packed multiscale noise) landed 2026-09-25 ([design](2026-09-25-cloud-fidelity-ii-design.md), [handoff](../../handoff/2026-09-25-cloud-fidelity-ii.md)) |
 | 17 | any | Radar | — | Complete 2026-09-23; [design](2026-09-23-radar-design.md), [handoff](../../handoff/2026-09-23-plan17-radar.md) |
+| A6M Zero (Z1-Z3) | any | Second airframe: graded A6M2 flight model and mixed armament (Z2), model pipeline and runtime (Z1), the Zero on screen (Z3) | §5, §7 | Z2 complete 2026-09-25, headless, Tier 1 only ([design](2026-09-25-a6m-zero-design.md), [plan](../plans/2026-09-25-z2-zero-flight-model.md), [handoff](../../handoff/2026-09-25-z2-zero-flight-model.md)); the Zero is in no shipped scenario until Z3's zero-range. Z1 (model pipeline) not on `main` when Z2 finished; Z3 not started |
 
 Plan 10 is first because nothing acts on a crash today: `advance` records an
 `Impact` and deliberately stops there, and the sea is a picture rather than a

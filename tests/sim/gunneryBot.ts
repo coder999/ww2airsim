@@ -56,6 +56,10 @@ export type BotRun = {
   readonly hits: number
   readonly killS: number | null
   readonly playerLostS: number | null
+  /** The target's own gunnery over the run: rounds it fired, and hits it
+   *  scored (on anyone). For the AI plans that measure the pursuer. */
+  readonly opponentShots: number
+  readonly opponentHits: number
 }
 
 export function flyGunneryBot(start: World<undefined>, targetId: string, maxS: number): BotRun {
@@ -92,7 +96,11 @@ export function flyGunneryBot(start: World<undefined>, targetId: string, maxS: n
     const me2 = w.aircraft.find((a) => a.id === player)!
     if (cm[player]!.damage.destroyedAt !== null || me2.state.position.y < 0) { playerLostS = t; break }
   }
-  return { firstChanceS, chanceS, hits: w.combat.aircraft[player]!.hits, killS, playerLostS }
+  const opponent = w.combat.aircraft[targetId]!
+  return {
+    firstChanceS, chanceS, hits: w.combat.aircraft[player]!.hits, killS, playerLostS,
+    opponentShots: opponent.shots, opponentHits: opponent.hits,
+  }
 }
 
 /** Seed the pursuer's control-noise cursor, so a sweep samples the AI's own

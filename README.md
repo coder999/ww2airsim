@@ -141,6 +141,14 @@ reached — left as an open gameplay-balance decision rather than forced
 green. See the
 [handoff](docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md) for both.
 
+**The A6M Zero flies, headless (Z2, 2026-09-25):**
+`content/aircraft/a6m2-zero.json` is graded against the 1942 Navy trial of a
+captured A6M2. Its controls stiffen above 250 mph, its engine cuts out under
+negative g, and it carries two 7.7 mm guns and two 20 mm cannon with their own
+ballistics. It appears in no shipped scenario yet. See the
+[handoff](docs/handoff/2026-09-25-z2-zero-flight-model.md); master spec §15
+holds the status.
+
 **Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
 slot now shows a rotating, heading-up sweep with fading contact dots and a
 `Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own

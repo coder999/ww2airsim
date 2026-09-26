@@ -158,3 +158,42 @@ describe('AircraftSpec validation (spec §9)', () => {
     expect(() => parseAircraftSpec({ ...valid, role: 'bomber' })).not.toThrow()
   })
 })
+
+describe('optional reference tables (A6M plan Z2)', () => {
+  const withReference = (reference: Record<string, unknown>) => ({ ...valid, reference })
+
+  it('accepts a spec whose trial gives no take-off distance', () => {
+    const reference: Record<string, unknown> = { ...valid.reference }
+    delete reference['takeoffDistanceM']
+    expect(parseAircraftSpec(withReference(reference)).reference.takeoffDistanceM).toBeUndefined()
+  })
+
+  it('accepts level speed and climb tables by altitude', () => {
+    const spec = parseAircraftSpec(withReference({
+      ...valid.reference,
+      topSpeedByAltitudeM: [[0, 120.7], [1524, 128.3]],
+      climbRateByAltitudeM: [[4572, 12.09]],
+    }))
+    expect(spec.reference.topSpeedByAltitudeM).toEqual([[0, 120.7], [1524, 128.3]])
+    expect(spec.reference.climbRateByAltitudeM).toEqual([[4572, 12.09]])
+  })
+
+  it('rejects a table whose altitudes do not strictly increase', () => {
+    expect(() => parseAircraftSpec(withReference({ ...valid.reference, topSpeedByAltitudeM: [[1524, 128], [1524, 130]] })))
+      .toThrow(/topSpeedByAltitudeM.*strictly increase/)
+  })
+
+  it('rejects a negative altitude, a non-positive value, and an empty table', () => {
+    expect(() => parseAircraftSpec(withReference({ ...valid.reference, climbRateByAltitudeM: [[-1, 12]] }))).toThrow(/climbRateByAltitudeM/)
+    expect(() => parseAircraftSpec(withReference({ ...valid.reference, climbRateByAltitudeM: [[0, 0]] }))).toThrow(/climbRateByAltitudeM/)
+    expect(() => parseAircraftSpec(withReference({ ...valid.reference, climbRateByAltitudeM: [] }))).toThrow(/climbRateByAltitudeM/)
+  })
+
+  it('stays strict: a misspelled table name still fails', () => {
+    expect(() => parseAircraftSpec(withReference({ ...valid.reference, topSpeedByAltitude: [[0, 120]] }))).toThrow(/topSpeedByAltitude/)
+  })
+
+  it('the real F6F still carries its sourced take-off distance', () => {
+    expect(loadAircraftSpec('f6f-hellcat').reference.takeoffDistanceM).toBe(230.124)
+  })
+})

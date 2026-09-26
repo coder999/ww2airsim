@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { gunHarmonization } from '../../../src/sim/weapons/harmonization.js'
 import type { CombatSpec } from '../../../src/sim/weapons/schema.js'
+import { parseAircraftSpec } from '../../../src/sim/content.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -69,5 +70,33 @@ describe('gunHarmonization: where the guns put their rounds, seen from the eye',
     expect(gunHarmonization(mixed, eye).gunCount).toBe(combat.guns.length)
     expect(reference).toEqual(onlyThose)
     expect(() => gunHarmonization(mixed, eye, { referenceGuns: () => false })).toThrow(/no reference gun/)
+  })
+})
+
+describe('gunHarmonization with a mixed battery (A6M plan Z2)', () => {
+  const mixed = parseAircraftSpec({
+    ...f6f,
+    combat: {
+      ...combat,
+      gunTypes: { slow: { roundsPerMinute: 400, muzzleVelocityMps: 600, dragPerM: 0.000125, hitScale: 3 } },
+      guns: combat.guns.map((g, i) => (i === 0 || i === 3 ? { ...g, type: 'slow' } : g)),
+    },
+  }).combat!
+
+  it('leaves the F6F unchanged: the default is all six guns, identical to choosing them explicitly', () => {
+    const byDefault = gunHarmonization(combat, eye)
+    const explicit = gunHarmonization(combat, eye, { referenceGuns: () => true })
+    expect(byDefault.gunCount).toBe(6)
+    expect(byDefault.depressionRad).toBe(explicit.depressionRad)
+  })
+
+  it('by default harmonizes to the primary guns only, not a cannon-and-rifle average', () => {
+    expect(gunHarmonization(mixed, eye).gunCount).toBe(4)
+  })
+
+  it('flies each gun with its own ballistic: slower rounds need more depression', () => {
+    const slow = gunHarmonization(mixed, eye, { referenceGuns: (g) => g.type === 'slow' })
+    const primary = gunHarmonization(mixed, eye)
+    expect(slow.depressionRad).toBeGreaterThan(primary.depressionRad)
   })
 })

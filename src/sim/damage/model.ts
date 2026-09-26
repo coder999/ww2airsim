@@ -11,15 +11,19 @@ export const healthyDamage = (): Damage => ({
   leftGuns: 1, rightGuns: 1, destroyedAt: null, attacker: null,
 })
 
-export function damageFromHit(spec: AircraftSpec, before: Damage, system: DamageSystem, tick: number, attacker: string): Damage {
+/** `hitScale` (A6M spec §5) multiplies the target's `damagePerHit` for one
+ *  round: a 20 mm shell is 3, a 7.7 mm bullet 0.4. Default 1 is every hit
+ *  before per-gun types, bit for bit (x * 1 === x). */
+export function damageFromHit(spec: AircraftSpec, before: Damage, system: DamageSystem, tick: number, attacker: string, hitScale = 1): Damage {
   const c = spec.combat
   if (c === undefined || before.destroyedAt !== null) return before
-  const structure = Math.max(0, before.structure - c.damagePerHit / c.structureHp)
+  const amount = c.damagePerHit * hitScale
+  const structure = Math.max(0, before.structure - amount / c.structureHp)
   // Epsilon makes exactly twelve 10/120 hits lethal despite roundoff.
   const destroyed = structure < 1e-10
   return {
     ...before, structure: destroyed ? 0 : structure,
-    [system]: Math.max(0, before[system] - c.damagePerHit / c.subsystemHp),
+    [system]: Math.max(0, before[system] - amount / c.subsystemHp),
     destroyedAt: destroyed ? tick : null, attacker: destroyed ? attacker : before.attacker,
   }
 }

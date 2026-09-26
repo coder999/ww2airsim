@@ -1,0 +1,94 @@
+{
+  "id": "a6m2-zero",
+  "name": "Mitsubishi A6M2 Model 21 Zero",
+  "role": "fighter",
+  "geometry": { "wingAreaM2": 22.44, "wingSpanM": 12.0 },
+  "mass": { "emptyKg": 1680, "fuelCapacityKg": 395, "maxTakeoffKg": 2796 },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.017,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 701000,
+    "propEfficiency": 0.68,
+    "staticThrustN": 9400,
+    "windmillCd0": 0.034,
+    "negativeGCutout": true,
+    "powerFractionByAltitudeM": [[0, 1.0], [3000, 1.0], [4877, 0.92], [6096, 0.8], [7620, 0.66], [9144, 0.53], [11700, 0.37]]
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 80,
+    "maxPitchRateDegPerSec": 30,
+    "maxYawRateDegPerSec": 15,
+    "rateRefSpeedMps": 95,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15,
+    "controlFadeByEasMps": [[111.76, 1.0], [134.11, 0.35], [156.46, 0.2]]
+  },
+  "limits": { "diveSpeedMps": 166.67, "gLimit": 7.0 },
+  "gear": {
+    "travelSeconds": 10,
+    "dragAreaM2": 0.22,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "tailUpSpeedMps": 15,
+    "tailwheelYawRateDegPerSec": 5,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.48
+  },
+  "flap": { "travelSeconds": 5, "dragAreaM2": 0.43, "clIncrement": 0.389 },
+  "combat": {
+    "roundsPerMinute": 650,
+    "muzzleVelocityMps": 745,
+    "dragPerM": 0.00034,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 2,
+    "structureHp": 80,
+    "subsystemHp": 25,
+    "fuelLeakKgPerS": 1.5,
+    "engineDecayPerS": 0.05,
+    "gunTypes": {
+      "type97-7.7mm": { "roundsPerMinute": 650, "muzzleVelocityMps": 745, "dragPerM": 0.00034, "hitScale": 0.4 },
+      "type99-20mm": { "roundsPerMinute": 520, "muzzleVelocityMps": 600, "dragPerM": 0.000125, "hitScale": 3.0 }
+    },
+    "guns": [
+      { "position": [2.0, 0.55, -0.25], "rounds": 500, "group": "leftGuns", "type": "type97-7.7mm" },
+      { "position": [2.0, 0.55, 0.25], "rounds": 500, "group": "rightGuns", "type": "type97-7.7mm" },
+      { "position": [0.9, -0.15, -2.3], "rounds": 60, "group": "leftGuns", "type": "type99-20mm" },
+      { "position": [0.9, -0.15, 2.3], "rounds": 60, "group": "rightGuns", "type": "type99-20mm" }
+    ],
+    "zones": [
+      { "id": "engine", "center": [2.6, 0, 0], "halfSize": [1.3, 0.75, 0.75], "system": "engine" },
+      { "id": "fuel", "center": [0, 0, 0], "halfSize": [1.3, 0.75, 0.75], "system": "fuel" },
+      { "id": "tail", "center": [-2.7, 0, 0], "halfSize": [1.3, 0.5, 0.5], "system": "pitch" },
+      { "id": "rudder", "center": [-3.6, 0.9, 0], "halfSize": [0.7, 0.9, 0.2], "system": "yaw" },
+      { "id": "left-guns", "center": [0.3, -0.2, -2.6], "halfSize": [1.1, 0.3, 1.2], "system": "leftGuns" },
+      { "id": "right-guns", "center": [0.3, -0.2, 2.6], "halfSize": [1.1, 0.3, 1.2], "system": "rightGuns" },
+      { "id": "left-aileron", "center": [-0.3, -0.2, -5.0], "halfSize": [0.9, 0.3, 0.9], "system": "roll" },
+      { "id": "right-aileron", "center": [-0.3, -0.2, 5.0], "halfSize": [0.9, 0.3, 0.9], "system": "roll" }
+    ],
+    "source": "Armament: two Type 97 7.7 mm machine guns in the cowl with 500 rounds each, and two Type 99-1 20 mm cannon in the wings with 60 rounds each (AAF Materiel Command memo, 23 Oct 1942, a6m2-oct2342.pdf; Summary 85 agrees). Type 97: 745 m/s and 900 rpm free-firing, 600-700 rpm SYNCHRONIZED, 6.9 g bullet (English Wikipedia 'Type 97 aircraft machine gun', read 2026-09-25); the cowl guns fire through the propeller, so roundsPerMinute = 650, the middle of the synchronized range. Type 99-1 Model 1: 520 rpm, 600 m/s, 127-132 g shell (English Wikipedia 'Type 99 cannon', read 2026-09-25). The top-level roundsPerMinute, muzzleVelocityMps and dragPerM are the 7.7 mm's: the PRIMARY ballistic the AI leads with and the sight is harmonized to (A6M Zero spec §5). dragPerM values are ESTIMATES scaled from the F6F's .50 figure (0.00015) by frontal area over projectile mass: 7.7 mm x2.28 = 0.00034, 20 mm x0.83 = 0.000125. hitScale 0.4 and 3.0 are GAMEPLAY ESTIMATES (spec §5): a Hellcat's 12 lethal .50 hits become 4 cannon hits or 30 rifle-caliber ones. Survivability direction is SOURCED -- 'no armor, bullet proof glass, bullet proof fuel tanks' (23rd Fighter Group report on Zero P-5016, 6 Feb 1943) -- and the values are ESTIMATES: structureHp 80 against the F6F's 120 (8 .50 hits, not 12), subsystemHp 25 against 40, fuelLeakKgPerS 1.5 against 0.5. roundDamage 2 (against ships and structures) is an ESTIMATE, half the .50's. Convergence, dispersion, lifetime and engine decay are the F6F's gameplay estimates. Gun positions and hit zones are ESTIMATES scaled from the F6F's layout to a 12.0 m span and 9.06 m length; Z3 re-measures them from the built LOD0 mesh. Both cowl guns map to leftGuns/rightGuns by side, as spec §5 decided; there is no fuselage gun group."
+  },
+  "reference": {
+    "source": "Primary: USAAF Intelligence Service, Informational Intelligence Summary No. 85, December 1942, 'Flight Characteristics of the Japanese Zero Fighter' (wwiiaircraftperformance.org/japan/intelsum85-dec42.pdf), US Navy trials at San Diego of the captured 'Type Zero Mark I, Carrier Fighter, Model 2', calibrated performance table, gross weight 5,555 lb 'with a full military load' = testMassKg 2519.71. topSpeedMps = 326 mph at the CRITICAL ALTITUDE OF 16,000 FT: the table prints '10,000' twice, and the second, asterisked row is a typo for 16,000 -- the AAF Materiel Command memo of 23 Oct 1942 (a6m2-oct2342.pdf) puts the critical altitude at 16,000 ft, as does the Eglin conclusion ('maximum manifold pressure can be maintained from sea level to sixteen-thousand (16,000) feet'). topSpeedByAltitudeM = the same table's SL 270, 5k 287, 10k 305, 20k 321.5, 25k 315, 30k 306 mph. climbRateMps = 2,750 ft/min at sea level; climbRateByAltitudeM = 15k 2,380, 20k 1,810, 30k 850 ft/min. stallSpeedMps = 78 mph IAS clean, power off; stallSpeedFlapMps = 69 mph IAS gear and flaps down, power off; indicated airspeed, the same treatment as the F6F. No take-off distance is given ('Take-off is very rapid'), so takeoffDistanceM is absent and the Zero is graded by a direction card against the F6F instead (take-off speed 75 mph IAS, Wright Field Memorandum Report ENG-47-1673-A, 24 Nov 1943). gear.travelSeconds = 10 is SOURCED: ENG-47-1673-A, the gear retracts 'in about 10 seconds'. The tailwheel is non-steerable (Summary 85; ENG-47-1673-A): the schema requires a positive tailwheelYawRateDegPerSec, so 5 deg/s stands in for brake steering, an ESTIMATE. rollRateDegPerSec = 80 is an UNSOURCED ESTIMATE, the same status as the F6F's; no trial reports a number, only that 'the rate of roll at speeds under 250 M.P.H. is quite rapid' (ENG-47-1673-A). rates.rateRefSpeedMps = 95 is an ESTIMATE, lower than the F6F's 103 so the Zero reaches full control authority at a lower speed, which is the direction the trial reports describe at low speed. maxPitchRateDegPerSec, maxYawRateDegPerSec, weathercockSeconds, autoRudderGainPerDeg and stallLimiterSeconds are the F6F's values, ESTIMATES carried over so the two airplanes differ only where a source says they do. Secondary, read 2026-09-25 from English Wikipedia 'Mitsubishi A6M Zero', Specifications (A6M2 Type 0 Model 21), which cites The Great Book of Fighters and Aircraft Profile #129: span 12.0 m, wing area 22.44 sq m, empty 1,680 kg, maximum take-off 2,796 kg, Nakajima Sakae 12 of 700 kW (940 hp) for take-off (Summary 85 itself says 'estimated 900 H.P. at sixteen-thousand (16,000) feet'), never-exceed speed 600 km/h = limits.diveSpeedMps 166.67. limits.gLimit = 7.0 is an ESTIMATE; no source located states the design load factor. mass.fuelCapacityKg = 395: internal fuel 145 US gal (2 x 54 + 37, Summary 85) = 548.9 L at 0.72 kg/L; the belly tank is not carried. Internal fuel below testMassKg - emptyKg = 839.71 kg is expected: the harness loads pilot, oil and ammunition through fuelKg too (Ruling R31). aero.cySlopePerRad = 2.0 is Mark's arcade number on the F6F, kept identical so the two feel alike under rudder; see f6f-hellcat.json's source for its history. clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha and oswaldE are the F6F's shipped lift curve, ESTIMATES for this airframe. FITTED, NOT SOURCED (measured 2026-09-25 by the Z2 plan's sweep through tools/testcards/measure.ts at testMassKg): cd0 0.017, propEfficiency 0.68 and the power curve (flat to 3,000 m, 0.92 at 4,877 m, the upper points scaled by 0.92). The model has one power curve and no ram-air term; the trial's 16,000 ft critical altitude is a level-flight figure where ram holds manifold pressure up, and a curve flat to 4,877 m over-reads the climb at 15-30k ft by 44-63%. This fit trades a curve that falls early for a speed profile within 3.7% at every tabulated altitude and a climb within 22.4%, the climb bias sitting at the F6F's own +16.8% at sea level. staticThrustN = 9,400 N is the F6F's 20,000 N scaled by power (701/1491), an ESTIMATE. windmillCd0 = 2 x cd0, the F6F's rule. flap.clIncrement = 0.389 is DERIVED, as the F6F's is: (78/69)^2 = 1.2779 is the CLmax ratio the two sourced stalls imply, the shipped lift curve peaks at 1.400013, and 1.400013 x 0.2779 = 0.389. flap.dragAreaM2 = 0.43 and gear.dragAreaM2 = 0.22 are the F6F's estimates scaled by wing area (22.44/31.03); flap.travelSeconds = 5 is the F6F's estimate. gear.heightM = 2.48 is DERIVED from the chosen mesh (A6M Zero spec §2, 2026-09-25): hub y 129.2 to wheel contact y -1.71 source units at 0.01898 m per unit, with the thrust line level in the model's sitting pose. Z3 re-measures it from the built LOD0 mesh and re-runs the cards in the same commit. view.eyePointM = [-0.4, 0.85, 0] is an ESTIMATE, re-measured by Z3. rates.controlFadeByEasMps: the ANCHORS are sourced -- full authority to 250 mph IAS (ENG-47-1673-A: 'the rate of roll at speeds under 250 M.P.H. is quite rapid'), and 300 mph where Summary 85 says 'it is virtually impossible to reverse a turn' and both reports describe two-handed rolls -- and the FRACTIONS (0.35 at 300 mph, a floor of 0.2 from 350 mph) are ESTIMATES (A6M Zero spec §4.4). engine.negativeGCutout is SOURCED as a behavior (Eglin conclusions, 1942: 'Inability of the Zero engine to continue operating under negative acceleration') and modeled statelessly -- thrust is zero exactly while lift is negative, with no sputter-and-recover timer (A6M Zero spec §4.4).",
+    "testMassKg": 2519.71,
+    "topSpeedMps": 145.74,
+    "topSpeedAltitudeM": 4876.8,
+    "topSpeedByAltitudeM": [[0, 120.7], [1524, 128.3], [3048, 136.35], [6096, 143.72], [7620, 140.82], [9144, 136.79]],
+    "climbRateMps": 13.97,
+    "climbRateByAltitudeM": [[4572, 12.09], [6096, 9.19], [9144, 4.32]],
+    "stallSpeedMps": 34.87,
+    "stallSpeedFlapMps": 30.85,
+    "rollRateDegPerSec": 80
+  },
+  "view": { "eyePointM": [-0.4, 0.85, 0] }
+}
