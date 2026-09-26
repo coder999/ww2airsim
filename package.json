@@ -15,6 +15,7 @@
     "build": "vite build",
     "depcruise": "depcruise src --config .dependency-cruiser.cjs",
     "verify": "npm run typecheck && npm run lint && npm run depcruise && npm test",
+    "perf:furball": "tsx tests/sim/ai/furballCost.ts",
     "golden:regen": "tsx tools/golden/generate.ts",
     "bathy:build": "tsx tools/bathy/build.ts",
     "terrain:build": "tsx tools/terrain/build.ts",

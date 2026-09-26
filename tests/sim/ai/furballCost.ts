@@ -2,11 +2,11 @@
  * The 7e furball's tick cost (AI 7c spec §4.7: "p95 tick cost reported, with
  * a sanity ceiling of 2 ms"), measured UNCONTENDED. Run it alone:
  *
- *   npx tsx tests/sim/ai/furballCost.ts
+ *   npm run perf:furball
  *
  * Exits 1 over the 2 ms ceiling. A helper, not a test file: vitest does not
  * collect it, because a timing gate belongs on an idle machine. The suite's own soak
- * (tests/sim/ai/furball.test.ts) only keeps a gross tripwire, because under
+ * (tests/sim/ai/furball.test.ts) does not time ticks at all, because under
  * ryzen's full parallel suite the same measurement read 2.56 ms best-of-3
  * and 8.78 ms single-pass (2026-09-26) -- the machine, not the sim.
  *

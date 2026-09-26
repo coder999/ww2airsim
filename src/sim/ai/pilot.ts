@@ -154,6 +154,9 @@ export type PilotDecisionState = {
   /** 7e ingress progress (spec §4.5, ruling W7): the waypoint being flown
    *  to; `route.length` is the destination, `route.length + 1` the orbit. */
   readonly legIndex: number
+  /** 7e: the heading (atan2(v.z, v.x)) and altitude a loiter holds, latched
+   *  when it begins and cleared when a target is chosen; `null` otherwise. */
+  readonly loiter: { readonly headingRad: number; readonly altitudeM: number } | null
   readonly maneuver: PilotManeuver
   /** The maneuver flown this tick, chosen at rescore within 'maneuver'. */
   readonly named: ManeuverName
@@ -198,7 +201,7 @@ export function noiseSeedFor(id: string): number {
  *  clock, so a pilot created at any tick is correct (spec §4.5 item 3). */
 export function initialDecision(id?: string, mode: PilotMode = 'engage'): PilotDecisionState {
   return {
-    mode, targetId: null, legIndex: 0,
+    mode, targetId: null, legIndex: 0, loiter: null,
     maneuver: 'pursue', named: 'lead-pursuit', latch: null, nextRescoreS: 0,
     observedTargetPosition: ZERO, observedTargetVelocity: ZERO,
     noiseCursor: id === undefined ? 0 : noiseSeedFor(id), safety: 'none',

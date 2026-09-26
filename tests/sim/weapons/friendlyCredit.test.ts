@@ -6,6 +6,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import type { Side } from '../../../src/sim/sides.js'
 import { missionScore } from '../../../src/render/debrief.js'
+import { creditDownedAircraft, stepCombat } from '../../../src/sim/weapons/combat.js'
 import { TARGET_TYPES } from '../../../src/sim/weapons/targetType.js'
 import { flatField } from '../mission/fixture.js'
 
@@ -75,6 +76,37 @@ describe('friendly fire (7e spec §4.3)', () => {
     expect(me.friendlyKills).toBe(1)
     expect(me.kills).toBe(0)
     expect(me.killsByType.fighter).toBe(0)
+  })
+
+  it("a wingman's graze does not steal the player's kill: credit stays with the last enemy hitter", () => {
+    // Axis X was hit by the player earlier; its own wingman now grazes it.
+    let world = createWorldOf({
+      aircraft: [plane('f6f-1', v3(0, 1000, 800)), plane('x', v3(300, 1000, 0)), plane('wing', v3(0, 1000, 0))],
+      player: 'f6f-1',
+    })
+    world = {
+      ...world,
+      aircraft: world.aircraft.map((a) => a.id === 'wing' ? { ...a, controls: { ...a.controls, fire: true } } : a),
+      combat: { ...world.combat, aircraft: { ...world.combat.aircraft, x: { ...world.combat.aircraft['x']!, lastHitBy: 'f6f-1' } } },
+    }
+    for (let i = 0; i < 60 && world.combat.aircraft['wing']!.friendlyHits === 0; i++) world = advance(world, DT, still).world
+    expect(world.combat.aircraft['wing']!.friendlyHits).toBeGreaterThan(0)
+    expect(world.combat.aircraft['x']!.damage.destroyedAt).toBeNull()
+    expect(world.combat.aircraft['x']!.lastHitBy).toBe('f6f-1')
+    // X then goes down without a killing hit (a crash): the player's kill.
+    const crashed = world.aircraft.map((a) => a.id === 'x' ? { ...a, impact: { tick: world.tick } as unknown as AircraftEntity['impact'] } : a)
+    const after = creditDownedAircraft(world.combat, world.combat, world.aircraft, crashed, { 'f6f-1': 'allied', x: 'axis', wing: 'axis' })
+    expect(after.aircraft['f6f-1']!.kills).toBe(1)
+    expect(after.aircraft['wing']!.friendlyKills).toBe(0)
+  })
+
+  it('with no side table (a pre-7e stepCombat caller) a same-side hit credits exactly as before', () => {
+    let world = createWorldOf({ aircraft: [plane('a'), plane('b', v3(300, 1000, 0), v3(0, 0, 0), 'allied')], player: 'a' })
+    world = { ...world, aircraft: world.aircraft.map((x) => x.id === 'a' ? { ...x, controls: { ...x.controls, fire: true } } : x) }
+    let combat = world.combat
+    for (let tick = 1; tick <= 120; tick++) combat = stepCombat(combat, world.aircraft, [], [], null, null, [], tick, DT)
+    expect(combat.aircraft['a']!.hits).toBeGreaterThan(0)
+    expect(combat.aircraft['a']!.friendlyHits).toBe(0)
   })
 
   it('every new combat record starts with zero friendly hits and kills', () => {

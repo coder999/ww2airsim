@@ -44,7 +44,7 @@ export const INGRESS_THROTTLE_GAIN = 0.05
 
 /** The orbit at the destination. */
 export const ORBIT_RADIUS_M = 1500
-/** How far round the circle the orbit aims (see ingressDesiredVelocity). */
+/** How far around the circle the orbit aims (see ingressDesiredVelocity). */
 export const ORBIT_LEAD_RAD = Math.PI / 6
 
 type Goal = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
@@ -95,7 +95,7 @@ export function ingressDesiredVelocity<M>(self: AircraftEntity<M>, orders: Ingre
   let dz = goal.z - p.z
   if (legIndex > orders.route.length) {
     // Orbit, seen from above as a pure pursuit of the point ORBIT_LEAD_RAD
-    // round the circle ahead of this aircraft's own bearing from the center.
+    // around the circle ahead of this aircraft's own bearing from the center.
     const phi = Math.atan2(p.z - goal.z, p.x - goal.x) - ORBIT_LEAD_RAD
     dx = goal.x + ORBIT_RADIUS_M * Math.cos(phi) - p.x
     dz = goal.z + ORBIT_RADIUS_M * Math.sin(phi) - p.z
@@ -161,7 +161,12 @@ export function ingressAccepts<M>(
   return (c, rangeM) => {
     if (c.id === current && rangeM <= INGRESS_RELEASE_RANGE_M) return true
     if (rangeM <= INGRESS_ENGAGE_RANGE_M) return true
+    // The spec's gun-cone clause. Subsumed today: `hasGunSolution` is false
+    // beyond AI_GUN_RANGE_M (550 m), well inside the 3 km range rule. Kept so
+    // the rule stays the spec's if either range changes.
     if (hasGunSolution(c, self)) return true
+    // `lastHit.tick` is the latest hit by anyone, a friendly graze included,
+    // so this can extend the window for the last enemy hitter slightly.
     return record.lastHitBy === c.id && record.lastHit !== null && nowS - record.lastHit.tick * DT <= RECENT_HIT_S
   }
 }

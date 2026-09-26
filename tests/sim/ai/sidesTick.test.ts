@@ -105,16 +105,22 @@ describe('a static target that dies (7c handoff open item 4; ruling W3)', () => 
     expect(byId(w, 'pursuer').pilot!.decision.targetId).toBe('p')
     w = destroy(w, 'p')
     const shots = w.combat.aircraft['pursuer']!.shots
+    const startY = byId(w, 'pursuer').state.position.y
     let minY = Infinity
+    let maxY = -Infinity
     w = run(w, 20, (x) => {
       expect(byId(x, 'pursuer').controls.fire ?? false).toBe(false)
       minY = Math.min(minY, byId(x, 'pursuer').state.position.y)
+      maxY = Math.max(maxY, byId(x, 'pursuer').state.position.y)
     })
     const d = byId(w, 'pursuer').pilot!.decision
     expect(d.targetId).toBeNull()
     expect(d.mode).toBe('loiter')
     expect(w.combat.aircraft['pursuer']!.shots).toBe(shots)
-    expect(minY).toBeGreaterThan(ALT - 300)
+    expect(startY - minY).toBeLessThan(150)
+    expect(maxY - startY).toBeLessThan(150)
+    expect(minY).toBeGreaterThan(FLOOR_M)
+    expect(d.loiter).not.toBeNull()
   })
 })
 
@@ -127,10 +133,19 @@ describe('many pilots: order independence and serialization (Review Focus 5)', (
     ac('x2', v3(3200, ALT + 200, -200), v3(-120, 0, 0), 'axis', chooser(GREEN_SKILL, 'x2')),
     ac('x3', v3(3400, ALT - 200, 0), v3(-120, 0, 0), 'axis', chooser(GREEN_SKILL, 'x3')),
   ]
-  const fly = (list: AircraftEntity<undefined>[], seconds: number) => run(createWorldOf({ aircraft: list, player: 'p' }), seconds)
+  const fly = (list: AircraftEntity<undefined>[], seconds: number, each?: (w: World<undefined>) => void) => run(createWorldOf({ aircraft: list, player: 'p' }), seconds, each)
 
   it('reversing the array of six aircraft (five choosing pilots, two sides) changes nothing over 20 s', () => {
-    const normal = fly(six(), 20)
+    const targeted = new Set<string>()
+    const normal = fly(six(), 20, (x) => {
+      for (const a of x.aircraft) {
+        const t = a.pilot?.decision.targetId
+        if (t == null) continue
+        targeted.add(a.id)
+        // Never its own side.
+        expect(x.aircraft.find((b) => b.id === t)!.side ?? 'allied', `${a.id} -> ${t}`).not.toBe(a.side)
+      }
+    })
     const reversed = fly(six().reverse(), 20)
     for (const a of normal.aircraft) {
       const r = byId(reversed, a.id)
@@ -140,7 +155,7 @@ describe('many pilots: order independence and serialization (Review Focus 5)', (
     }
     expect(reversed.combat.aircraft).toEqual(normal.combat.aircraft)
     // Every pilot chose someone on the other side at some point.
-    for (const id of ['a1', 'a2', 'x1', 'x2', 'x3']) expect(byId(normal, id).pilot!.decision.mode, id).not.toBe('ingress')
+    expect([...targeted].sort()).toEqual(['a1', 'a2', 'x1', 'x2', 'x3'])
   })
 
   it('a structuredClone taken mid-fight flies on bit-identically', () => {

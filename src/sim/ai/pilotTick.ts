@@ -9,7 +9,7 @@ import { controlsForDesiredVelocity } from './controller.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
 import { friendlyInLineOfFire } from './holdFire.js'
 import { ingressAccepts, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
-import { loiterDesiredVelocity } from './loiter.js'
+import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
@@ -85,7 +85,12 @@ export function pilotTick<M>(
     if (chosen !== decision.targetId) {
       decision = { ...decision, targetId: chosen, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     }
-    decision = { ...decision, mode: chosen !== null ? 'engage' : pilot.ingress !== undefined ? 'ingress' : 'loiter' }
+    const mode = chosen !== null ? 'engage' : pilot.ingress !== undefined ? 'ingress' : 'loiter'
+    decision = {
+      ...decision, mode,
+      // Latched on entering a loiter, so it holds what it had, not a drift.
+      loiter: mode !== 'loiter' ? null : decision.loiter ?? loiterReference(a),
+    }
     target = chosen === null ? null : snapshot.find((c) => c.id === chosen)!
     if (target === null) {
       decision = { ...decision, nextRescoreS: ctx.nowS + pilot.skill.reactionS }
@@ -141,7 +146,7 @@ export function pilotTick<M>(
   if (target === null) {
     const orders = pilot.ingress
     const base = orders === undefined
-      ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a))
+      ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a, decision.loiter ?? loiterReference(a)))
       : decision.legIndex > orders.route.length
         ? ingressOrbitControls(a, orders, decision.legIndex, ctx.ships)
         : {

@@ -5,7 +5,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { length, sub, ZERO } from '../../../src/sim/math/vec3.js'
 import { hasGunSolution } from '../../../src/sim/ai/pursuit.js'
 import { GREEN_SKILL, noiseSeedFor } from '../../../src/sim/ai/pilot.js'
-import { INGRESS_ENGAGE_RANGE_M } from '../../../src/sim/ai/ingress.js'
+import { INGRESS_ENGAGE_RANGE_M, ingressAccepts } from '../../../src/sim/ai/ingress.js'
 import { spawnHeldGroup } from '../../../src/sim/mission/spawn.js'
 import { bundleForScenario } from '../../../tools/content/load.js'
 import { BASE, REACH_FAR, missionWorld, steps } from '../mission/fixture.js'
@@ -187,5 +187,45 @@ describe('ingress content (7e spec §4.5)', () => {
   it('the mission fixture still parses with no held-group changes', () => {
     expect(() => missionWorld({})).not.toThrow()
     expect(BASE.aircraft.length).toBe(2)
+  })
+})
+
+describe('ingressAccepts (7e spec §4.5, unit)', () => {
+  const w0 = build([PLAYER_FAR, RAIDER])
+  const self = raider(w0)
+  const rec = w0.combat.aircraft['raid-1']!
+  const contactAt = (id: string, rangeM: number) => ({ ...aircraftById(w0, 'f6f-1')!, id, state: { ...aircraftById(w0, 'f6f-1')!.state, position: { x: self.state.position.x + rangeM, y: self.state.position.y, z: self.state.position.z } } })
+  it('engages anything within 3 km, and nothing else unprovoked beyond it', () => {
+    const accept = ingressAccepts(self, rec, null, 100)
+    expect(accept(contactAt('c', 2999), 2999)).toBe(true)
+    expect(accept(contactAt('c', 3100), 3100)).toBe(false)
+  })
+  it('keeps its current target to 1.5 x the engage range (4.5 km), then lets it go', () => {
+    const accept = ingressAccepts(self, rec, 'c', 100)
+    expect(accept(contactAt('c', 4400), 4400)).toBe(true)
+    expect(accept(contactAt('c', 4600), 4600)).toBe(false)
+    expect(accept(contactAt('other', 4400), 4400)).toBe(false)
+  })
+  it('engages at any range a contact that hit it within the last 10 s', () => {
+    const hit = { ...rec, lastHitBy: 'c', lastHit: { tick: 600, position: self.state.position } }
+    expect(ingressAccepts(self, hit, null, 600 * DT + 9)(contactAt('c', 5000), 5000)).toBe(true)
+    expect(ingressAccepts(self, hit, null, 600 * DT + 11)(contactAt('c', 5000), 5000)).toBe(false)
+    expect(ingressAccepts(self, hit, null, 600 * DT + 9)(contactAt('d', 5000), 5000)).toBe(false)
+  })
+})
+
+describe('the raider resumes when its target leaves (7e spec §4.5 "or leaves")', () => {
+  it('lets an interceptor go past 4.5 km and resumes at the same legIndex', () => {
+    const INT = { id: 'int-1', spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [300, 3000, -9000], headingDeg: 180, speedMps: 130 }, pilot: { target: 'raid-1', skill: 'veteran' } }
+    let w = build([PLAYER_FAR, RAIDER, INT])
+    for (let i = 0; i < 60 * 60 && raider(w).pilot!.decision.mode !== 'engage'; i++) w = advance(w, DT).world
+    expect(raider(w).pilot!.decision.mode).toBe('engage')
+    const leg = raider(w).pilot!.decision.legIndex
+    // Teleport the interceptor 6 km away, flying away: it has left.
+    const r = raider(w).state.position
+    w = { ...w, aircraft: w.aircraft.map((a) => a.id !== 'int-1' ? a : { ...a, state: { ...a.state, position: { x: r.x + 6000, y: r.y, z: r.z } } }) }
+    for (let i = 0; i < 2 * 60; i++) w = advance(w, DT).world
+    expect(raider(w).pilot!.decision.mode).toBe('ingress')
+    expect(raider(w).pilot!.decision.legIndex).toBe(leg)
   })
 })

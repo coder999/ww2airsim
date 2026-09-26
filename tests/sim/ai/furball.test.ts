@@ -1,11 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { advance, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { PURSUIT_FLOOR_M } from '../../../src/sim/ai/safety.js'
 import { sidesOf } from '../../../src/sim/sides.js'
 import { LOADOUTS } from '../../../tools/ai/replica.js'
-import { FURBALL_TICK_CEILING_MS, furballTickCostMs } from './furballCost.js'
 import { loadScenarioBundle } from '../../../tools/content/load.js'
 
 /**
@@ -15,8 +14,8 @@ import { loadScenarioBundle } from '../../../tools/content/load.js'
  * on the player's six with the wingman 280 m behind its green; pair B comes
  * in head-on from 7 km.
  *
- * Why the wingman starts on a tail (measured 2026-09-26, `.superpowers/7e/
- * furball.ts`, recorded in the plan's rulings): with the spec's first layout
+ * Why the wingman starts on a tail (measured 2026-09-26, recorded as ruling R-F1
+ * in the plan): with the spec's first layout
  * (both pairs head-on from 6 km), no AI hit another in 300 s, and in 1v1
  * duels (veteran/green, head-on, tail at 1,500 m, crossing) no AI hit another
  * in 180 s. A maneuvering AI target is out of reach of today's AI gunnery,
@@ -47,10 +46,16 @@ function soak(loadout: (typeof LOADOUTS)[number] = 'clean'): Run {
 }
 
 describe('the furball soak (7e spec §4.7)', () => {
-  const run = soak()
-  const { world } = run
-  const sides = sidesOf(world, world.aircraft)
-  const ai = world.aircraft.filter((a) => a.pilot != null)
+  let run: Run
+  let world: World<undefined>
+  let sides: ReturnType<typeof sidesOf>
+  let ai: World<undefined>['aircraft'][number][]
+  beforeAll(() => {
+    run = soak()
+    world = run.world
+    sides = sidesOf(world, world.aircraft)
+    ai = world.aircraft.filter((a) => a.pilot != null)
+  })
 
   it('is bit-identical across two runs and never produces a NaN', () => {
     expect(run.nan).toBe(false)
@@ -114,16 +119,11 @@ describe('the furball soak (7e spec §4.7)', () => {
     console.log(`furball: ${hits} hits, ${friendlyHits} friendly, ${kills} kills`)
   })
 
-  // The spec's 2 ms sanity ceiling is `tests/sim/ai/furballCost.ts`, run
-  // uncontended (ruling R-F2): 1.008 ms best-of-3 p95 on nexus, 2026-09-26.
-  // In the parallel suite the same measurement read 2.56 ms on ryzen, the
-  // other workers' load, so here it is reported, with only a tripwire for a
-  // gross blow-up (a per-pilot scan gone quadratic).
-  it('reports p95 tick cost (the 2 ms gate is tests/sim/ai/furballCost.ts, run alone)', () => {
-    const r = furballTickCostMs()
-    console.log(`furball: p95 tick ${r.p95BestOf3.toFixed(3)} ms best of 3, ${r.p95Single.toFixed(3)} ms single pass, ${r.aircraft} aircraft`)
-    expect(r.p95BestOf3).toBeLessThan(5 * FURBALL_TICK_CEILING_MS)
-  })
+  // The spec's "p95 tick cost reported, with a sanity ceiling of 2 ms" is
+  // `npm run perf:furball` (tests/sim/ai/furballCost.ts), run on an idle
+  // machine, not here (ruling R-F2): the same measurement read 2.56 ms inside
+  // ryzen's full parallel suite and 0.774 ms alone on nexus (2026-09-26), so
+  // the suite's number is the other workers', not the sim's.
 
   it.each(LOADOUTS)('the opening bounce kill holds with the player\'s %s loadout', (loadout) => {
     let w = worldFromScenario(bundle, null, loadout)

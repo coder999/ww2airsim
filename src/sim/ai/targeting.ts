@@ -76,7 +76,8 @@ export function contactScore<M>(
     : Math.acos(Math.min(1, Math.max(-1, dot(c.state.velocity, toSelf) / (speed * rangeM)))) / Math.PI
   score += TAIL_BONUS_M * tailFraction
   for (const f of view.snapshot) {
-    if (f.id === self.id || f.pilot == null || f.pilot.decision.targetId !== c.id) continue
+    // A downed friendly keeps its last targetId; it engages nothing.
+    if (f.id === self.id || f.pilot == null || f.pilot.decision.targetId !== c.id || isAircraftDown(view.combat, f)) continue
     if (sameSide(view.sides, self.id, f.id)) score -= ENGAGED_PENALTY_M
   }
   if (c.id === opts.current) score += STICKY_BONUS_M

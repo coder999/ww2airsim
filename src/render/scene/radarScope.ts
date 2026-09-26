@@ -139,9 +139,9 @@ export function createRadarScope(): RadarScopeHandle {
     const dotLevel = float(0).toVar()
     const friendLevel = float(0).toVar()
     Loop({ start: int(0), end: contactCount, type: 'int', condition: '<' }, ({ i }) => {
-      // `uniformArray(..., 'vec2')` is typed `UniformArrayNode<string>` in
+      // `uniformArray(..., 'vec3')` is typed `UniformArrayNode<string>` in
       // @types/three 0.186 (clouds.ts hit the same trap for 'vec4'), so the
-      // element needs telling it is a vec2. Captured into vars before reuse:
+      // element needs telling it is a vec3. Captured into vars before reuse:
       // TSL re-emits an element lookup at every use (16a handoff trap 3,
       // still true here).
       const c = (contactData.element(i) as unknown as Node<'vec3'>).toVar()

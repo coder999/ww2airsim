@@ -12,6 +12,7 @@ import type { CloudLayer } from '../sim/scenario.js'
 import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
+import type { ManeuverName, PilotMode } from '../sim/ai/pilot.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 
 /**
@@ -175,8 +176,8 @@ export type Ww2Diagnostics = {
     /** Plan 7e (spec §4.4): the side (`sideOf`), and for an AI pilot its
      *  mode, named maneuver and target; `null` for an aircraft with no pilot. */
     readonly side: 'allied' | 'axis'
-    readonly mode: string | null
-    readonly maneuver: string | null
+    readonly mode: PilotMode | null
+    readonly maneuver: ManeuverName | null
     readonly targetId: string | null
   }[]
   /**

@@ -582,7 +582,12 @@ export function stepCombat(
     const damage = system === null
       ? blastDamageAircraft(target.spec, rec.damage, amount, tick, owner)
       : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale)
-    const lastHitBy = owner === target.id ? rec.lastHitBy : owner
+    // A hit by its own side (7e) or by itself is physical -- it still flashes
+    // (`lastHit`) -- but does not change who is credited if the aircraft goes
+    // down later: a wingman's graze must not steal the player's kill (Mark,
+    // 2026-09-25; whole-branch review, 2026-09-26).
+    const ownSide = owner === target.id || (sides !== null && sameSide(sides, owner, target.id))
+    const lastHitBy = ownSide ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
   }
