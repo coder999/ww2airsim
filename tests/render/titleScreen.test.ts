@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
   pilotButtonLabel, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
+  createTitleScreen,
   type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
 import { creditsLine } from '../../src/render/legend.js'
@@ -9,6 +10,7 @@ import { SCENARIO_ID } from '../../src/render/content.js'
 import { createPilot } from '../../src/render/roster.js'
 import { createSettingsModel } from '../../src/render/settings.js'
 import { ballotOption, radioGroup } from '../../src/render/ui/navalComms.js'
+import { readyBootProgress } from '../../src/render/bootProgress.js'
 
 describe('the title screen model (2026-09-19)', () => {
   it('names the two options Mark asked for, and a way back from About', () => {
@@ -252,5 +254,20 @@ describe('the title screen as two sequential memo forms', () => {
   it('shares the ballot helpers with Settings from navalComms.ts, not a second copy', () => {
     expect(typeof ballotOption).toBe('function')
     expect(typeof radioGroup).toBe('function')
+  })
+})
+
+describe('the loading strip (loading spec §A.2)', () => {
+  it('names the locked-state line', () => {
+    expect(titleModel().preparing).toBe('Preparing aircraft...')
+  })
+
+  it('accepts a boot progress as the fifth argument (type-level contract)', () => {
+    // main.ts passes createBootProgress(); omitting it means "already ready"
+    // (readyBootProgress). A regression that dropped the parameter fails tsc
+    // at main.ts's call site; this pins the parameter type here too.
+    type Params = Parameters<typeof createTitleScreen>
+    const boot: Params[4] = readyBootProgress()
+    expect(boot?.ready).toBe(true)
   })
 })

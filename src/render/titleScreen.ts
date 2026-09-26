@@ -4,6 +4,7 @@ import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord } from './roster.js'
 import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
+import { readyBootProgress, type BootProgress } from './bootProgress.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md;
@@ -42,6 +43,8 @@ export type TitleModel = {
   readonly credits: string
   readonly licence: string
   readonly repository: string
+  /** The loading strip's label while the boot is not yet ready (loading spec §A.2). */
+  readonly preparing: string
 }
 
 export function titleModel(): TitleModel {
@@ -69,6 +72,7 @@ export function titleModel(): TitleModel {
     credits: creditsLine(),
     licence: 'Source code: AGPL-3.0-or-later.',
     repository: 'https://github.com/coder999/ww2airsim',
+    preparing: 'Preparing aircraft...',
   }
 }
 
@@ -221,6 +225,16 @@ const NEW_PILOT_ERROR_STYLE =
 // section's own comment below).
 const ROW_SELECT_BUTTON_STYLE =
   'all:unset;display:block;width:100%;cursor:pointer;font:inherit;color:inherit;padding:2px 0'
+// The stripe runs on the compositor (a `transform` animation), so it keeps
+// moving while the main thread is blocked by a shader build -- the whole
+// reason for it (loading spec §A.2). The fill width only changes between
+// stages, when the thread is free to paint.
+const BOOT_STRIP_CSS = `
+[data-ww2-boot]{position:relative;height:6px;margin:10px 0 4px;background:rgba(0,0,0,.12);overflow:hidden}
+[data-ww2-boot] .fill{position:absolute;inset:0 auto 0 0;background:var(--ink-faint);transition:width .25s}
+[data-ww2-boot] .stripe{position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:ww2-boot-stripe 1.1s linear infinite;will-change:transform}
+@keyframes ww2-boot-stripe{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+`
 
 /**
  * One memo panel: a `.naval-comms` wrapper around a `.sheet`.
@@ -309,11 +323,17 @@ export function createTitleScreen(
    *  that this argument is actually passed, because omitting it is invisible
    *  on screen: the dialog looks and persists exactly the same. */
   settings: SettingsModel = createSettingsModel(),
+  /** The boot sequence's progress (loading spec §A.2). Until `ready`, every
+   *  control that starts or configures a flight is disabled and the strip is
+   *  shown; the Dossier is not locked (read-only). Defaults to already-ready
+   *  so a title built without it behaves exactly as before. */
+  boot: BootProgress = readyBootProgress(),
 ): TitleScreenHandle {
   const m = titleModel()
 
   let isUp = false
   let onKey: ((e: KeyboardEvent) => void) | null = null
+  let unsubscribeBoot: (() => void) | null = null
   // Rebuilt with the overlay on every `build()`; the MODEL above is not,
   // which is what makes a choice survive a return-to-title.
   let settingsDialog: SettingsDialogHandle | null = null
@@ -331,6 +351,8 @@ export function createTitleScreen(
     root.querySelector('[data-ww2-title]')?.remove()
     if (onKey) window.removeEventListener('keydown', onKey)
     onKey = null
+    unsubscribeBoot?.()
+    unsubscribeBoot = null
   }
 
   // Rebuilds the whole overlay from nothing -- both the initial build below
@@ -407,6 +429,25 @@ export function createTitleScreen(
     table.append(thead, tbody)
     tableScroll.appendChild(table)
     rosterSheet.appendChild(tableScroll)
+
+    const bootWrap = document.createElement('div')
+    const bootStyle = document.createElement('style')
+    bootStyle.textContent = BOOT_STRIP_CSS
+    const bootBar = document.createElement('div')
+    bootBar.dataset.ww2Boot = ''
+    bootBar.setAttribute('role', 'progressbar')
+    bootBar.setAttribute('aria-valuemin', '0')
+    bootBar.setAttribute('aria-valuemax', '100')
+    const bootFill = document.createElement('div')
+    bootFill.className = 'fill'
+    const bootStripe = document.createElement('div')
+    bootStripe.className = 'stripe'
+    bootBar.append(bootFill, bootStripe)
+    const bootLabel = document.createElement('p')
+    bootLabel.style.cssText = FLYING_AS_STYLE
+    bootLabel.setAttribute('aria-live', 'polite')
+    bootWrap.append(bootStyle, bootBar, bootLabel)
+    rosterSheet.appendChild(bootWrap)
 
     const flyingAs = document.createElement('p')
     flyingAs.style.cssText = FLYING_AS_STYLE
@@ -582,8 +623,8 @@ export function createTitleScreen(
       }
       flyingAs.textContent = selectedPilotLabel(pilot)
       routingPilot.textContent = sortiePilotLabel(pilot)
-      newGame.disabled = false
-      newGame.style.opacity = '1'
+      newGame.disabled = !boot.ready
+      newGame.style.opacity = boot.ready ? '1' : '.45'
     }
 
     const totalKills = (pilot: PilotRecord): number =>
@@ -784,6 +825,7 @@ export function createTitleScreen(
         closeAbout()
         return
       }
+      if (!boot.ready) return
       if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return
       if (aboutOpen()) return
       if (newPilotForm.style.display !== 'none') return
@@ -802,9 +844,48 @@ export function createTitleScreen(
       if (step === 'roster') advance()
       else start()
     }
+    // Everything that starts or configures a flight; the Dossier buttons are
+    // deliberately absent (read-only, plan ruling). `newGame` is handled by
+    // `applyBootLock` AND `selectPilot`, so it is enabled only when both a
+    // pilot is selected and the boot is ready.
+    const lockable = (): HTMLButtonElement[] => [
+      ...[...pilotRows.values()].map((r) => r.selectButton),
+      newPilotButton, newPilotConfirm, library, about, settingsButton,
+    ]
+    const applyBootLock = (): void => {
+      const locked = !boot.ready
+      overlay.dataset.ww2Ready = String(!locked)
+      for (const b of lockable()) {
+        b.disabled = locked
+        b.style.opacity = locked ? '.45' : ''
+      }
+      if (locked) {
+        newGame.disabled = true
+        newGame.style.opacity = '.45'
+      } else if (selectedPilotId !== null) {
+        newGame.disabled = false
+        newGame.style.opacity = '1'
+      }
+      bootWrap.style.display = locked ? 'block' : 'none'
+      bootFill.style.width = `${Math.round(boot.fraction * 100)}%`
+      bootBar.setAttribute('aria-valuenow', String(Math.round(boot.fraction * 100)))
+      bootLabel.textContent = boot.label
+    }
+    const wasLocked = !boot.ready
+    applyBootLock()
+    unsubscribeBoot?.()
+    unsubscribeBoot = boot.onChange(() => {
+      applyBootLock()
+      // The unlock moment: focus what the player most likely wants next.
+      if (boot.ready && wasLocked) {
+        const first = [...pilotRows.values()][0]
+        ;(first?.selectButton ?? newPilotButton).focus()
+      }
+    })
+
     window.addEventListener('keydown', onKey)
     isUp = true
-    newPilotButton.focus()
+    if (boot.ready) newPilotButton.focus()
   }
 
   build()
