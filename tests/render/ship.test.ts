@@ -260,4 +260,23 @@ describe('probeShipSurface (the Tier 2 deck probe, spec §9)', () => {
     expect(probeShipSurface(view, [{ x: 1000, z: -500 - bow }], 'world')[0]).toBeCloseTo(fd.heightM, 4)
     expect(probeShipSurface(view, [{ x: 0, z: 0 }], 'world')).toEqual([null])
   })
+
+  it('answers in sim metres under the floating origin, where the scene sits at minus the eye', () => {
+    // main.ts sets `scene.position` to `worldOffsetFor(eye)` every frame and
+    // adds each ship root straight to the scene. The first Tier 2 run
+    // (2026-09-26) read null under the parked airplane: the world points and
+    // the returned heights were in three's shifted frame, not the sim's.
+    const cv = loadShipSpec('essex-cv')
+    const fd = cv.flightDeck!
+    const view = createShipMesh(cv)
+    view.root.position.set(1000, 0, -500)
+    view.root.rotation.y = Math.PI / 2
+    const scene = new Group()
+    scene.position.set(-1000, -(fd.heightM + 3), 480) // the eye, on the deck
+    scene.add(view.root)
+    const bow = fd.lengthM / 2 - 5
+    expect(probeShipSurface(view, [{ x: 1000, z: -500 - bow }], 'world')[0]).toBeCloseTo(fd.heightM, 4)
+    expect(probeShipSurface(view, [{ x: bow, z: 0 }], 'ship')[0]).toBeCloseTo(fd.heightM, 4)
+    expect(probeShipSurface(view, [{ x: 0, z: 0 }], 'world')).toEqual([null])
+  })
 })
