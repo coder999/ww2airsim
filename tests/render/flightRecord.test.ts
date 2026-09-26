@@ -56,4 +56,22 @@ describe('main.ts records every flight segment (dossier spec §B.2)', () => {
   it('passes sortie facts at all three bank sites', () => {
     expect(main.match(/bankMissionResult\([^)]*sortieFacts\(/g)?.length).toBe(3)
   })
+  it('only steps the segment when the world clock actually advanced (review round 1, IMPORTANT 1)', () => {
+    // A paused/frozen/title-up frame feeds `advance` zero elapsed seconds
+    // (src/sim/loop.ts, src/render/frame.ts), so `world.tick` does not move
+    // -- stepping unconditionally would fold a frozen aircraft's altitude
+    // and speed into the segment's maxima on every one of those frames.
+    const guardIdx = main.indexOf('if (current.world.tick > segmentTick)')
+    const stepIdx = main.indexOf('segment = stepSegment(segment,')
+    const tickUpdateIdx = main.indexOf('segmentTick = current.world.tick')
+    expect(guardIdx).toBeGreaterThan(-1)
+    // The step call sits inside the guard...
+    expect(stepIdx).toBeGreaterThan(guardIdx)
+    // ...while `segmentTick` itself is still updated unconditionally, after
+    // the guarded step -- so it keeps tracking a held world's tick through
+    // the whole hold (keeping the guard false throughout, not just on the
+    // first held frame) and catches up in exactly one skipped sample when
+    // the world actually swaps.
+    expect(tickUpdateIdx).toBeGreaterThan(stepIdx)
+  })
 })

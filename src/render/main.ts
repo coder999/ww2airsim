@@ -1816,16 +1816,47 @@ async function boot(): Promise<void> {
     pendingFireRockets = false
     frame = current
     {
-      const { spec: pSpec, state: pState } = playerAircraft(current.world)
-      // The same ground the diagnostics hook's `groundHeightM` reads: terrain
-      // OR a carrier deck, so a trap's deck roll-out is not "airborne".
-      const ground = groundUnder(current.world.terrain, decksOf(current.world.ships), pState.position.x, pState.position.z)?.heightM ?? 0
-      segment = stepSegment(segment, {
-        ticksAdvanced: current.world.tick - segmentTick,
-        altitudeM: pState.position.y,
-        speedMps: length(airVelocity(pState, current.world.wind)),
-        airborne: !onGround(pSpec, pState, ground),
-      })
+      // Guarded on the world clock actually having moved: `advance` (Task 7
+      // review round 1) feeds a held world zero elapsed seconds whenever it
+      // is paused, frozen after an impact/destruction (debrief up), or the
+      // title/chart is over it -- `world.tick` does not change in any of
+      // those cases (confirmed by reading src/sim/loop.ts's `advance`: it
+      // returns the SAME world, tick included, when `elapsed === 0`, and
+      // src/render/frame.ts's `nextFrameState` zeroes `simElapsedSeconds`
+      // for exactly paused/holding frames). Stepping unconditionally would
+      // fold that frozen aircraft's altitude/speed into `segment`'s maxima
+      // every one of those frames -- e.g. a shot-down-at-5000m pilot who
+      // returns to the title and picks a new scenario would otherwise carry
+      // the old dive's peak speed into the NEXT sortie's log line, because
+      // `stepSegment` updates the maxima unconditionally regardless of
+      // `ticksAdvanced` (only `flightSeconds` is tick-gated).
+      //
+      // `segmentTick` itself is still updated every frame, guard or not, so
+      // it tracks `current.world.tick` through the whole held stretch and
+      // the guard is false throughout -- not just on the first held frame.
+      // It is deliberately NOT reset at any of the five `segment =
+      // EMPTY_SEGMENT` sites above: a reset world's `tick` restarts at 0,
+      // so if `segmentTick` were also reset to 0 right there, the OLD
+      // (still-loading, still-frozen) world's nonzero `tick` would satisfy
+      // `tick > segmentTick` on the very next frame and step the fresh
+      // `EMPTY_SEGMENT` against the stale frame one more time before the
+      // new world ever swaps in. Leaving `segmentTick` alone keeps the
+      // guard false until the swap actually happens (the new world's `tick`
+      // starts at/near 0, at or below the stale `segmentTick`), at the cost
+      // of one skipped sample on the swap frame itself -- the same frame
+      // `ticksAdvanced`'s negative-delta clamp (Task 5) already discarded.
+      if (current.world.tick > segmentTick) {
+        const { spec: pSpec, state: pState } = playerAircraft(current.world)
+        // The same ground the diagnostics hook's `groundHeightM` reads: terrain
+        // OR a carrier deck, so a trap's deck roll-out is not "airborne".
+        const ground = groundUnder(current.world.terrain, decksOf(current.world.ships), pState.position.x, pState.position.z)?.heightM ?? 0
+        segment = stepSegment(segment, {
+          ticksAdvanced: current.world.tick - segmentTick,
+          altitudeM: pState.position.y,
+          speedMps: length(airVelocity(pState, current.world.wind)),
+          airborne: !onGround(pSpec, pState, ground),
+        })
+      }
       segmentTick = current.world.tick
     }
     // Plan 9 Task 7: read fresh every frame, since `loadScenario` can
