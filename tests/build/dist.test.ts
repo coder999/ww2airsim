@@ -13,6 +13,7 @@ import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
 import { hasRealLevelFile } from '../../tools/terrain/load.js'
+import { loadModelEntries } from '../../tools/models/manifest.js'
 
 /**
  * The two Copernicus licence strings that must accompany the derived terrain
@@ -158,6 +159,12 @@ describe('the built artifact', () => {
       // strips the two bogus alphaMode:BLEND fields, shrinking the JSON
       // chunk by 40 bytes.
       expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(5_573_316)
+      // Ship models (ship-models spec §9): every ship entry's glb reaches
+      // dist/ whole. Compared with the committed file, not a literal: a
+      // rebuild is legitimate, and tests/tools/shipModels.test.ts re-measures it.
+      for (const e of loadModelEntries().filter((x) => x.ship !== undefined)) {
+        expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
+      }
       // Hangar spec §3: the library page, and one file per library entry.
       // `copyContent` copies content/library/ like any other content; the
       // page itself bundles the same files (contentIndex.ts), so this pins

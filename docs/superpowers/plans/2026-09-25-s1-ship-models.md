@@ -1935,7 +1935,7 @@ git commit -m "S1: the CV-6, Fletcher and Liberty entries, their fitted glbs, an
 
 This test reads the **committed** bytes and re-measures them against the **live** `content/ships/*.json`. It passes on its first run, because Task 3 built what it checks; the negative control in it (a raised deck) is what shows it bites.
 
-- [ ] **Step 1: Write the test.** `tests/tools/shipModels.test.ts`:
+- [x] **Step 1: Write the test.** `tests/tools/shipModels.test.ts`:
 
 ```ts
 // tests/tools/shipModels.test.ts
@@ -2030,12 +2030,12 @@ describe('fletcher-dd specifically', () => {
 })
 ```
 
-- [ ] **Step 2: Run it.**
+- [x] **Step 2: Run it.**
 
 Run: `npx vitest run tests/tools/shipModels.test.ts --maxWorkers=2`
 Expected: PASS, 16 tests. (Measured through a probe on this plan's scratch builds: every assertion held, `TrapBand` 9.25 m against 9.25 m re-measured, the Fletcher's antifouling top 0.0000.)
 
-- [ ] **Step 3: The build artifact.** In `tests/build/dist.test.ts`, add the import:
+- [x] **Step 3: The build artifact.** In `tests/build/dist.test.ts`, add the import:
 
 ```ts
 import { loadModelEntries } from '../../tools/models/manifest.js'
@@ -2055,7 +2055,7 @@ and, directly after the `expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size)
 Run, alone on the machine (it builds twice into `os.tmpdir()`): `flock /tmp/ww2airsim-fullsuite.lock npx vitest run tests/build/dist.test.ts --maxWorkers=2`
 Expected: PASS.
 
-- [ ] **Step 4: Verify and commit.** Re-diff `dist.test.ts` against `HEAD` first.
+- [x] **Step 4: Verify and commit.** Re-diff `dist.test.ts` against `HEAD` first.
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
