@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { COVERAGE_TABLE_SIZE, coverageThresholds, createCloudField, CUMULUS_SIGMA, DETAIL_TILE_M, remap, SHAPE_TILE_M, WEATHER_TILE_M } from '../../src/render/scene/cloudField.js'
+import { COVERAGE_TABLE_SIZE, coverageRadiusScale, cumulusFootprint, skyCoverageTable, createCloudField, CUMULUS_SIGMA, DETAIL_TILE_M, remap, SHAPE_TILE_M, WEATHER_TILE_M } from '../../src/render/scene/cloudField.js'
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
@@ -64,36 +64,49 @@ describe('cloud field (Plan 16b, extracted from the dome)', () => {
     expect(WEATHER_TILE_M).toBe(40_000)
     field.dispose()
   })
-  it('thresholds the map so a layer\'s coverage is the fraction of the map in cloud', () => {
-    const t = coverageThresholds(noise.weather)
-    expect(t).toHaveLength(COVERAGE_TABLE_SIZE)
+  it('thresholds the map so a layer\'s coverage is the fraction of the SKY in cloud', () => {
+    // src/sim/scenario.ts: a layer covers `coverage` of the sky. On the
+    // pre-coverage-table VDB branch free-flight's 0.45 drew 0.15 and nothing
+    // could exceed 0.245 (plan 2026-09-26-cloud-vdb-coverage).
+    const footprint = cumulusFootprint(noise.cumulus)
+    const table = skyCoverageTable(noise.weather, footprint)
+    expect(table.thresholds).toHaveLength(COVERAGE_TABLE_SIZE)
     // Monotonic: more coverage, lower threshold.
-    for (let k = 1; k < t.length; k++) expect(t[k]!).toBeLessThanOrEqual(t[k - 1]!)
-    const count = noise.weather.length / 4
-    const fractionAbove = (theta: number): number => {
-      let n = 0
-      for (let i = 0; i < count; i++) if (noise.weather[i * 4]! / 255 > theta) n++
-      return n / count
+    for (let k = 1; k < COVERAGE_TABLE_SIZE; k++) expect(table.thresholds[k]!).toBeLessThanOrEqual(table.thresholds[k - 1]!)
+    // Every shipped scenario's coverage is reachable with room to spare:
+    // free-flight 0.45, deck-quals 0.55.
+    for (let k = 0; k < COVERAGE_TABLE_SIZE; k++) {
+      const c = k / (COVERAGE_TABLE_SIZE - 1)
+      if (c <= 0.5625) expect(table.reachable[k]!, `coverage ${c}`).toBeGreaterThanOrEqual(c + 0.03)
     }
-    // Every table entry that can be met is met to within a byte's worth.
-    for (const c of [0.25, 0.4375, 0.5625, 0.625]) {
-      const k = c * (COVERAGE_TABLE_SIZE - 1)
-      expect(Number.isInteger(k)).toBe(true)
-      const theta = t[k]!
-      expect(fractionAbove(theta + 1 / 255)).toBeLessThanOrEqual(c + 1e-9)
-      expect(fractionAbove(theta - 1 / 255)).toBeGreaterThanOrEqual(c - 1e-9)
-    }
-    // Past the map's support the gaps stay clear rather than filling in.
-    expect(t[COVERAGE_TABLE_SIZE - 1]).toBe(0)
+    expect(table.reachable[COVERAGE_TABLE_SIZE - 1]!).toBeGreaterThan(0.6)
+    // Zero coverage leaves no cloud alive: the threshold clears every strength.
+    expect(table.thresholds[0]! + 0.045).toBeGreaterThan(1 - 1 / 255 - 0.03)
+    // A different sample of the same map lands on the same thresholds: the
+    // table is a property of the map, not of the twin's stride.
+    const dense = skyCoverageTable(noise.weather, footprint, COVERAGE_TABLE_SIZE, 1)
+    for (const k of [8, 14, 18]) expect(Math.abs(dense.thresholds[k]! - table.thresholds[k]!), `entry ${k}`).toBeLessThan(0.01)
   })
-  it('computes thresholds from a synthetic map exactly', () => {
-    // 4 texels with R = 0, 64, 128, 255: coverage 0.5 sits between 64 and 128.
-    const map = new Uint8Array([0, 0, 0, 0, 64, 0, 0, 0, 128, 0, 0, 0, 255, 0, 0, 0])
-    const t = coverageThresholds(map, 5)
-    expect(t[0]).toBeCloseTo(1, 6)
-    expect(t[2]! * 255).toBeGreaterThanOrEqual(64)
-    expect(t[2]! * 255).toBeLessThan(128)
-    expect(t[4]).toBe(0)
+  it('grows clouds with coverage so broken decks are merged cells', () => {
+    expect(coverageRadiusScale(0)).toBe(1)
+    expect(coverageRadiusScale(0.2)).toBe(1)
+    expect(coverageRadiusScale(0.65)).toBe(1.5)
+    expect(coverageRadiusScale(1)).toBe(1.5)
+    for (let c = 0.2; c < 0.65; c += 0.05) expect(coverageRadiusScale(c + 0.05)).toBeGreaterThan(coverageRadiusScale(c))
+  })
+  it('stores a runner-up plane holding a second, different cloud', () => {
+    const plane = WEATHER_SIZE * WEATHER_SIZE * 4
+    expect(noise.weather.length).toBe(plane * 2)
+    let seconds = 0
+    for (let i = 0; i < WEATHER_SIZE * WEATHER_SIZE; i++) {
+      const w = noise.weather.subarray(i * 4, i * 4 + 4), r = noise.weather.subarray(plane + i * 4, plane + i * 4 + 4)
+      if (r[0] === 0) { expect(r[1]! | r[2]! | r[3]!).toBe(0); continue }
+      seconds++
+      // A different cloud: not the winner's centre.
+      expect(r[1] === w[1] && r[2] === w[2]).toBe(false)
+    }
+    // At 1200 m spacing with 660-1900 m bumps, most of the sky has a second cloud in reach.
+    expect(seconds / (WEATHER_SIZE * WEATHER_SIZE)).toBeGreaterThan(0.5)
   })
   it('is imported only by the dome and the shadow pass: one field, two readers', () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'render')

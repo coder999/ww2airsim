@@ -55,7 +55,7 @@ export { cloudDriftM }
  */
 export const CLOUD_TIERS = {
   high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
-  medium: { cumulusSteps: 64, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
+  medium: { cumulusSteps: 56, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
   low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25, updatePeriod: 1 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS

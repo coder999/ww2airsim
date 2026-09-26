@@ -137,6 +137,8 @@ const DISOCCLUSION = 0.25
  * volumetric silhouette. Those texels update immediately: scene-depth
  * disocclusion cannot detect a cloud edge moving over clear sky. */
 const CLOUD_EDGE_DEPTH_MISMATCH = 0.2
+/** ...and the opacity spread across the same neighbors that makes it a silhouette. */
+const CLOUD_EDGE_ALPHA_SPREAD = 0.1
 /** Moving cloud silhouettes must converge much faster than static interiors.
  * At 0.9, a scheduled texel retained 81% of a vanished edge even after two
  * complete eight-frame update cycles, producing long-lived vertical ghosts. */
@@ -346,7 +348,7 @@ class CloudPassNode extends TempNode<'vec4'> {
       const cell = min(block.mul(this.updateGrid).add(this.updateOffset), this.lowSize.sub(1)).toVar()
       const minViewZ = minViewZAt(cell as unknown as Node<'vec2'>)
       const result = marchAt(cell as unknown as Node<'vec2'>, minViewZ)
-      return MarchOut(result.color, vec4(result.depth, minViewZ, 1, 0))
+      return MarchOut(result.color, vec4(result.depth, minViewZ, 1, result.color.a))
     })()
     this.updateMaterial.fragmentNode = mrt({ cloudColor: update.get('color'), cloudData: update.get('data') })
     this.updateMaterial.name = 'CloudUpdate'
@@ -381,12 +383,22 @@ class CloudPassNode extends TempNode<'vec4'> {
       const occluded = abs(prevStop.sub(expected)).div(max(expected, 1e-3)).greaterThan(DISOCCLUSION)
       const cloudDepthMin = float(previousData.x).toVar()
       const cloudDepthMax = float(previousData.x).toVar()
+      const alphaMin = float(previousData.w).toVar()
+      const alphaMax = float(previousData.w).toVar()
       for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
-        const d = this.prevMarchData.load(clampTexel(prevAt.add(ivec2(ox, oy)), lowMax)).x
-        cloudDepthMin.assign(min(cloudDepthMin, d))
-        cloudDepthMax.assign(max(cloudDepthMax, d))
+        const n = this.prevMarchData.load(clampTexel(prevAt.add(ivec2(ox, oy)), lowMax))
+        cloudDepthMin.assign(min(cloudDepthMin, n.x))
+        cloudDepthMax.assign(max(cloudDepthMax, n.x))
+        alphaMin.assign(min(alphaMin, n.w))
+        alphaMax.assign(max(alphaMax, n.w))
       }
+      // A silhouette is where depth AND opacity jump. Depth alone also jumps
+      // all through thin haze (the hit-weighted depth of a see-through ray
+      // is noisy), which marched every texel every frame with the pilot
+      // inside a cloud: 4K High in-deck 24.9 ms, 11.7 without the test
+      // (2026-09-26). The alpha is the march data's fourth channel.
       const cloudEdge = cloudDepthMax.sub(cloudDepthMin).div(max(cloudDepthMax, 1)).greaterThan(CLOUD_EDGE_DEPTH_MISMATCH)
+        .and(alphaMax.sub(alphaMin).greaterThan(CLOUD_EDGE_ALPHA_SPREAD))
       const uv = reprojected.uv
       const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
       const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not()).and(cloudEdge.not())
@@ -444,7 +456,7 @@ class CloudPassNode extends TempNode<'vec4'> {
           })
         })
       })
-      return MarchOut(color, vec4(cloudDepth, minViewZ, marched, 0))
+      return MarchOut(color, vec4(cloudDepth, minViewZ, marched, color.a))
     })()
     this.material.fragmentNode = mrt({ cloudColor: march.get('color'), cloudData: march.get('data') })
     this.material.name = 'CloudMarch'

@@ -68,8 +68,8 @@ describe('weather map (Cloud Fidelity II 3.3)', () => {
   const tile = 12_000 // 188 m texels: fast, and still several cells across
   const map = buildWeather(n, 5, tile)
   const at = (x: number, y: number, c: number) => map[(y * n + x) * 4 + c]!
-  it('is deterministic and RGBA', () => {
-    expect(map.length).toBe(n * n * 4)
+  it('is deterministic: two RGBA planes, winner then runner-up', () => {
+    expect(map.length).toBe(n * n * 8)
     expect(buildWeather(n, 5, tile)).toEqual(map)
     expect(buildWeather(n, 6, tile)).not.toEqual(map)
   })
@@ -120,7 +120,7 @@ const COMMITTED_SHA256: Readonly<Record<string, string>> = {
   'shape.bin.gz': 'db3f0d914ecd9bc1e58e2f2a355b140550856a63be60c0bf7d0a74df0630930c',
   'detail.bin.gz': 'f77f343e6dd4b465041bf73f25baff1b2ab04ca6d34f2b9f366e59e54c15d044',
   'curl.bin.gz': '24a66985d15abe3d1005d76c245477221460a780260b239bce741f9e0054c970',
-  'weather.bin.gz': 'c13066983559ebd0c56ab3e5983d9e12cecb69751c3acd060793e68abf37721f',
+  'weather.bin.gz': '3e514822e809731d1479f2007ef541f127de2b6f941ab9f3bdb231048b836af3',
 }
 describe('the committed noise', () => {
   it('has the size the loader expects and the hashes the build produced', () => {

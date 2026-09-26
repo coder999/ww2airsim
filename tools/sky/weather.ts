@@ -25,7 +25,12 @@ import { createPermutation, perlinTileable } from './noise.js'
  *
  * The winner is the cloud with the strongest compact bump (1 at its
  * centre, 0 at twice its radius) at the texel centre, or the nearest one
- * where no bump reaches. The shader samples this map NEAREST: a filtered
+ * where no bump reaches. A second plane of the same size and encoding
+ * follows the first: the RUNNER-UP, the second-strongest bump, all zero
+ * where none reaches. Without it a cloud that grows past the texels it
+ * wins is sliced off in a vertical wall at its neighbor's boundary: 9.5%
+ * of cloud area at the densest coverage, 1.3% with it (synthetic study,
+ * plan 2026-09-26-cloud-vdb-coverage). The shader samples this map NEAREST: a filtered
  * sample would blend two clouds' centres.
  *
  * A slow Perlin factor on each cell's strength clumps and gaps the deck over
@@ -68,14 +73,28 @@ export function buildWeather(size = WEATHER_SIZE, seed = 1947, tileM = WEATHER_T
   }
 
   const texel = tileM / size
-  const winner = new Int32Array(size * size)
-  const featureX = new Uint8Array(size * size), featureZ = new Uint8Array(size * size)
+  let peak = 0
+  for (let c = 0; c < n; c++) peak = Math.max(peak, strength[c]!)
+  const out = new Uint8Array(size * size * 8)
+  const runnerBase = size * size * 4
+  // One texel's cloud in the map's encoding: strength, the feature point
+  // relative to the texel's own grid cell minus the reach, the radius byte.
+  const encode = (at: number, c: number, ix: number, iz: number, gx: number, gz: number): void => {
+    const fX = Math.round((fx[c]! + (ix - wrap(ix, cells)) * spacing) / step) - (gx - WEATHER_CELL_REACH) * steps
+    const fZ = Math.round((fz[c]! + (iz - wrap(iz, cells)) * spacing) / step) - (gz - WEATHER_CELL_REACH) * steps
+    if (fX < 0 || fX > 255 || fZ < 0 || fZ > 255) throw new Error(`feature offset ${fX},${fZ} does not fit a byte`)
+    out[at] = Math.round(clamp01(strength[c]! / peak) * 255)
+    out[at + 1] = fX
+    out[at + 2] = fZ
+    out[at + 3] = radiusByte[c]!
+  }
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const px = (x + 0.5) * texel, pz = (y + 0.5) * texel
     // The texel's own grid cell, in integer arithmetic the shader repeats
     // exactly: floor((2x + 1) * cells / (2 * size)).
     const gx = Math.floor(((2 * x + 1) * cells) / (2 * size)), gz = Math.floor(((2 * y + 1) * cells) / (2 * size))
     let best = 0, bestCell = -1, bestIx = 0, bestIz = 0
+    let second = 0, secondCell = -1, secondIx = 0, secondIz = 0
     let nearest = Infinity, nearestCell = 0, nearestIx = 0, nearestIz = 0
     for (let dz = -reach; dz <= reach; dz++) for (let dx = -reach; dx <= reach; dx++) {
       const ix = gx + dx, iz = gz + dz
@@ -89,29 +108,19 @@ export function buildWeather(size = WEATHER_SIZE, seed = 1947, tileM = WEATHER_T
       const q = d2 / (4 * radius[c]! ** 2)
       if (q >= 1) continue
       const f = strength[c]! * (1 - q) ** 3
-      if (f > best) { best = f; bestCell = c; bestIx = ix; bestIz = iz }
+      if (f > best) {
+        second = best; secondCell = bestCell; secondIx = bestIx; secondIz = bestIz
+        best = f; bestCell = c; bestIx = ix; bestIz = iz
+      } else if (f > second) {
+        second = f; secondCell = c; secondIx = ix; secondIz = iz
+      }
     }
     const i = y * size + x
-    const c = bestCell >= 0 ? bestCell : nearestCell
-    const ix = bestCell >= 0 ? bestIx : nearestIx, iz = bestCell >= 0 ? bestIz : nearestIz
-    winner[i] = c
-    // Unwrapped feature position in steps, relative to cell gx - reach.
-    const fX = Math.round((fx[c]! + (ix - wrap(ix, cells)) * spacing) / step) - (gx - WEATHER_CELL_REACH) * steps
-    const fZ = Math.round((fz[c]! + (iz - wrap(iz, cells)) * spacing) / step) - (gz - WEATHER_CELL_REACH) * steps
-    if (fX < 0 || fX > 255 || fZ < 0 || fZ > 255) throw new Error(`feature offset ${fX},${fZ} does not fit a byte`)
-    featureX[i] = fX
-    featureZ[i] = fZ
-  }
-
-  let peak = 0
-  for (let c = 0; c < n; c++) peak = Math.max(peak, strength[c]!)
-  const out = new Uint8Array(size * size * 4)
-  for (let i = 0; i < size * size; i++) {
-    const c = winner[i]!
-    out[i * 4] = Math.round(clamp01(strength[c]! / peak) * 255)
-    out[i * 4 + 1] = featureX[i]!
-    out[i * 4 + 2] = featureZ[i]!
-    out[i * 4 + 3] = radiusByte[c]!
+    if (bestCell >= 0) encode(i * 4, bestCell, bestIx, bestIz, gx, gz)
+    else encode(i * 4, nearestCell, nearestIx, nearestIz, gx, gz)
+    // The runner-up plane: strength 0 (all four bytes) where no second
+    // bump reaches, which the shader reads as "no second cloud".
+    if (secondCell >= 0) encode(runnerBase + i * 4, secondCell, secondIx, secondIz, gx, gz)
   }
   return out
 }
