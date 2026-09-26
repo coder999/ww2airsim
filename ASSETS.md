@@ -20,9 +20,12 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/aircraft/wildcat.glb` | https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4 | rojatsu | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 
 `content/aircraft/wildcat.glb` is a texture-recompressed derivative of the
-Sketchfab download above, produced by `tools/models/build.ts` (`npm run
-models:build`) via `@gltf-transform/cli`'s `optimize` command -- textures
-resized to 1024x1024 and re-encoded as WebP, geometry untouched. Retrieved
+Sketchfab download above, produced 2026-09-24 by the first `tools/models/build.ts`
+via `@gltf-transform/cli`'s `optimize` command -- textures resized to
+1024x1024 and re-encoded as WebP, geometry untouched. That build is gone:
+its entry, `tools/models/entries/wildcat.json`, is `frozen`, so today's
+manifest-driven `npm run models:build` skips it rather than regenerate these
+bytes (Z1, 2026-09-25). Retrieved
 and verified rigged (separate, named landing-gear nodes with baked
 retraction keyframes) 2026-09-24. Node names used by
 `src/render/scene/wildcat.ts`: `Helice` (propeller), `GRP_Rueda_Der` /

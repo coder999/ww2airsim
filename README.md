@@ -187,6 +187,16 @@ The title's **Library** opens the separate Hangar catalog described in
 the remaining model-track work are recorded in
 [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
 
+**Models build from a manifest (Z1, 2026-09-25).** Each shipped glb has one
+entry in `tools/models/entries/*.json`; `npm run models:build` runs it through
+the glTF-Transform stages into `content/aircraft/` or `content/ships/`, and
+`npm run models:inspect -- <file.glb>` prints the node tree, counts and
+source-frame bounds an entry is written against. The Wildcat's entry is
+frozen, so a bare build skips it. The design is
+[A6M Zero spec §6](docs/superpowers/specs/2026-09-25-a6m-zero-design.md#6-the-model-pipeline-the-interface-lane-c-designs-against);
+see the [handoff](docs/handoff/2026-09-25-z1-model-pipeline.md); master spec
+§15 holds the status.
+
 **The rest of Plan 9 (roster, live scoring, dynamic scenario switching)
 landed 2026-09-23/24.** A pilot roster now sits ahead of the scenario/loadout
 pickers (persisted to `localStorage`, not the design doc's original
