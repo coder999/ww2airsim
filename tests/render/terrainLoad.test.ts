@@ -502,7 +502,10 @@ describe('terrain under the airplane', () => {
     expect(heightAt(afterFine.world.terrain!, -19_921.875, -11_718.75)).toBe(
       heightAt(createTerrainField(TERRAIN_HEADER, FINEST_FETCHED_LEVEL, fine), -19_921.875, -11_718.75),
     )
-  })
+    // Decoding the finest level alone takes 12 s on ryzen; inside a full
+    // `remote-run` suite it ran past the 30 s default twice in a row
+    // (2026-09-26, once `.remote-run-data` started mirroring the tiles).
+  }, 120_000)
 
   it('changes nothing else about the frame it is given', () => {
     // `withTerrain` runs once, mid-flight, on a frame the loop is already
