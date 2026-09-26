@@ -238,15 +238,39 @@ wheels.
   `motionBudget`, and the two sun sky checks, fail after the cloud VDB merge.
   They belong to `main`.
 - Deferred minors from the task reviews (ledger):
-  - `validatePilot` accepts `log[]` entries without validating them, so a
-    hand-edited entry that lacks `killsByType` would throw in the Dossier.
   - The main.ts wiring tests pin text counts only.
   - `thetaFor` runs on every density call, including light-march samples
     outside the slab.
-  - The `laidOut()` unit test checks identity only. The uniform-in-body
-    regression is guarded only by `clouds.spec.ts`'s WGSL-error check.
   - `titleScreen.ts` has a dead `unsubscribeBoot?.()`.
   - A local `const boot` shadows `async function boot()` in `main.ts`.
+- **Fix round 2 (final whole-branch review, 2026-09-26), all six findings
+  closed** -- see `.superpowers/sdd/2026-09-25-loading-and-dossier/final-fix-report.md`:
+  - `validatePilot` now validates every `log[]` entry field-by-field (drops
+    an entry with a bad `at`/`scenarioId`/`aircraft`/`outcome`, zero-fills
+    numeric fields and `killsByType`, falls back to the default loadout for
+    an unrecognized `loadout`) instead of casting the array unchecked -- the
+    minor above ("a hand-edited entry that lacks `killsByType` would throw
+    in the Dossier") is fixed. `nextRankProgress` no longer throws on a
+    negative `cumulativeScore` (reads as 0% progress toward the first rank).
+  - The `laidOut()` unit test could never fail: it compared `bind()`
+    closures, which are always fresh regardless of whether the underlying
+    `Fn` was memoized. `laidOut()` now also returns `fns` (the raw laid-out
+    `Fn` pair, doc-commented as test-only), and the test asserts identity on
+    those instead -- the "uniform-in-body regression" note above no longer
+    applies to THIS test (it never could have caught that class of bug).
+  - The Dossier now sets `inert` on the title overlay's other children while
+    open, restored on every close path including `destroy()` -- Tab/Enter/
+    Space could previously reach a title control behind the sheet after a
+    click on non-focusable sheet text dropped focus to `<body>`.
+  - The loading strip now fades (CSS opacity transition, ~300ms) before
+    hiding on the real "loading -> ready" transition, per spec §A.2. A title
+    rebuilt already-ready (return-to-title, New game) still hides it at
+    once with no fade, since it was never shown that build.
+  - `dossier.spec.ts` now also asserts Close (not just Escape) returns focus
+    to the row's Dossier button.
+  - The trap/field split is extracted to `landingKind()` in
+    `src/render/flightRecord.ts`, unit-tested for carrier/airfield/off-field,
+    with `main.ts` wired through it.
 
 ## Rulings made on Mark's behalf
 
