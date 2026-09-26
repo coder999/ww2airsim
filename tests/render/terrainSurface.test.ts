@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { clampDetailSlope, DETAIL_NORMAL_FAR_M, DETAIL_NORMAL_MAX_TILT_DEG, DETAIL_NORMAL_NEAR_M, DETAIL_NORMAL_SCALES, detailNormalFade } from '../../src/render/terrain/surface.js'
+import { albedoDetailFade, normalToSlope, ALBEDO_DETAIL_NEAR_M, ALBEDO_DETAIL_FAR_M } from '../../src/render/terrain/surfaceDetail.js'
 
 describe('terrain detail normal (photoreal Task 13)', () => {
   it('fades from full strength at 500 m to nothing at 2000 m', () => {
@@ -90,5 +91,35 @@ describe('composeSurface (visual realism §2.1: weights unchanged)', () => {
       const l: SurfaceLeaves<number> = { sand: v, grass: v, forest: v, soil: v, paddy: v, mangrove: v, rock: v, wetBank: v, water: v, road: v }
       expect(composeSurface(l, weights(1), mixN)).toBeCloseTo(v, 12)
     }
+  })
+})
+
+describe('albedoDetailFade', () => {
+  it('is 1 near, 0 far, monotone between, finite for junk', () => {
+    expect(albedoDetailFade(0)).toBe(1)
+    expect(albedoDetailFade(ALBEDO_DETAIL_NEAR_M)).toBe(1)
+    expect(albedoDetailFade(ALBEDO_DETAIL_FAR_M)).toBe(0)
+    expect(albedoDetailFade(1e7)).toBe(0)
+    expect(albedoDetailFade(Number.NaN)).toBe(1)
+    let prev = 1
+    for (let d = ALBEDO_DETAIL_NEAR_M; d <= ALBEDO_DETAIL_FAR_M; d += 100) { const f = albedoDetailFade(d); expect(f).toBeLessThanOrEqual(prev); prev = f }
+  })
+})
+
+describe('normalToSlope (plan Ruling 6: OpenGL normal maps, uv = worldXZ / tileM)', () => {
+  // A flat texel is (0.5, 0.5, 1).
+  it('flat texel -> zero slope', () => {
+    const [sx, sz] = normalToSlope([0.5, 0.5, 1])
+    expect(sx).toBeCloseTo(0, 6); expect(sz).toBeCloseTo(0, 6)
+  })
+  it('a normal leaning toward +x means the ground falls toward +x (dh/dx < 0)', () => {
+    expect(normalToSlope([0.75, 0.5, 0.95])[0]).toBeLessThan(0)
+  })
+  it('a normal leaning image-up (+G, which is -z) means the ground rises toward +z (dh/dz > 0)', () => {
+    expect(normalToSlope([0.5, 0.75, 0.95])[1]).toBeGreaterThan(0)
+  })
+  it('a grazing texel stays finite (nz floored)', () => {
+    const [sx, sz] = normalToSlope([1, 0.5, 0.5])
+    expect(Number.isFinite(sx) && Number.isFinite(sz)).toBe(true)
   })
 })

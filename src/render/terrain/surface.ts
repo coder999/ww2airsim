@@ -3,6 +3,9 @@ import { color, float, length, max, min, mix, smoothstep, texture, uniform, vec2
 import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
 import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
+// Type-only: surfaceDetail.ts imports runtime values from this module, so a
+// value import back would be a cycle.
+import type { SurfaceDetailNodes } from './surfaceDetail.js'
 
 export type CoverNodes = {
   readonly texture: DataTexture
@@ -165,8 +168,8 @@ export type SurfaceWeights<W> = {
   readonly forest: W; readonly soilPatch: W; readonly crop: W; readonly mangrove: W
   readonly beachToLand: W; readonly bare: W; readonly wetBank: W; readonly water: W; readonly road: W
 }
-/** What the weights blend between. Colors in `terrainSurfaceNode`; detail
- *  slopes in mesh.ts (visual realism §2.1). */
+/** What the weights blend between: colors, and with textures the texture
+ *  detail slopes too (visual realism §2.1), both in `terrainSurface`. */
 export type SurfaceLeaves<T> = {
   readonly sand: T; readonly grass: T; readonly forest: T; readonly soil: T; readonly paddy: T
   readonly mangrove: T; readonly rock: T; readonly wetBank: T; readonly water: T; readonly road: T
@@ -272,9 +275,43 @@ export function surfaceWeightNodes(xz: Node<'vec2'>, height: Node<'float'>, slop
   }
 }
 
-export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {
+export type TerrainSurface = { readonly albedo: Node<'vec3'>; readonly detailSlope: Node<'vec2'> | null }
+
+/** The terrain's albedo and, when there is texture detail, the texture
+ *  slope, both blended by ONE set of weights built once here. With no
+ *  `detail` this is exactly the procedural blend `terrainSurfaceNode` always
+ *  returned: same nodes, same order. */
+export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes, detail?: SurfaceDetailNodes): TerrainSurface {
   const noise = surfaceNoiseNodes(xz)
-  return composeSurface(terrainColorLeaves(xz, noise), surfaceWeightNodes(xz, height, slope, cover, noise), (a, b, t) => mix(a, b, t))
+  // Leaves before weights: the order terrainSurfaceNode's argument list
+  // built them in before this function existed.
+  const c = terrainColorLeaves(xz, noise)
+  const w = surfaceWeightNodes(xz, height, slope, cover, noise)
+  const mix3 = (a: Node<'vec3'>, b: Node<'vec3'>, t: Node<'float'>): Node<'vec3'> => mix(a, b, t)
+  if (!detail) return { albedo: composeSurface(c, w, mix3), detailSlope: null }
+  // Plan Ruling 1: the texture modulates, it does not replace. Leaves that
+  // share a material share its texture (paddy is grass, mangrove is jungle,
+  // the road is dirt); the river's wet bank and water stay procedural.
+  const albedo = composeSurface({
+    ...c,
+    sand: c.sand.mul(detail.ratio('sand')), grass: c.grass.mul(detail.ratio('grass')),
+    forest: c.forest.mul(detail.ratio('jungle')), soil: c.soil.mul(detail.ratio('dirt')),
+    paddy: c.paddy.mul(detail.ratio('grass')), mangrove: c.mangrove.mul(detail.ratio('jungle')),
+    rock: c.rock.mul(detail.ratio('rock')), road: c.road.mul(detail.ratio('dirt')),
+  }, w, mix3)
+  // The texture normals, blended by the SAME weights as the albedo.
+  const mix2 = (a: Node<'vec2'>, b: Node<'vec2'>, t: Node<'float'>): Node<'vec2'> => mix(a, b, t)
+  const zero = vec2(0, 0)
+  const detailSlope = composeSurface({
+    sand: detail.slope('sand'), grass: detail.slope('grass'), forest: detail.slope('jungle'), soil: detail.slope('dirt'),
+    paddy: detail.slope('grass'), mangrove: detail.slope('jungle'), rock: detail.slope('rock'),
+    wetBank: zero, water: zero, road: detail.slope('dirt'),
+  }, w, mix2)
+  return { albedo, detailSlope }
+}
+
+export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {
+  return terrainSurface(xz, height, slope, cover).albedo
 }
 
 /** The procedural colors, unchanged from 044dc75. */

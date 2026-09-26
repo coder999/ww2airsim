@@ -37,7 +37,9 @@ import {
   vec4,
 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
-import { createCoverNodes, detailNormalFadeNode, detailSlopeNode, terrainSurfaceNode, type CoverNodes } from './surface.js'
+import { clampSlopeNode, createCoverNodes, detailNormalFadeNode, detailSlopeNode, terrainSurface, type CoverNodes } from './surface.js'
+import { surfaceDetailNodes, type SurfaceDetailNodes } from './surfaceDetail.js'
+import type { SurfaceTextures } from './surfaceTextures.js'
 import { horizonSinkNode } from '../horizon.js'
 import { samplesAtLevel, type TerrainHeader } from '../../sim/world/schema.js'
 import { LOD, coarsestFetchedLevel, selectNodes } from './lod.js'
@@ -70,7 +72,14 @@ export type TerrainMesh = {
   /** Plan 13b: the land-cover raster, once fetched. */
   setCover(data: Uint8Array): void
   readonly cover: CoverNodes
+  /** Visual realism §2.1: swap every ring between the textured and the
+   *  procedural color graph. A no-op (procedural) without textures. */
+  setSurfaceDetail(enabled: boolean): void
+  /** True only when textures exist AND detail is enabled. */
+  readonly surfaceDetail: boolean
 }
+
+type RingMaterial = { readonly material: MeshBasicNodeMaterial; setDetail(on: boolean): void }
 
 /**
  * Which two pyramid levels a ring's patches read: its own, and the next
@@ -240,8 +249,9 @@ function createRingMaterial(
   halfExtentM: number,
   cameraXZ: UniformNode<'vec2', Vector2>,
   cover: CoverNodes,
-  shadow?: CloudShadowHandle,
-): MeshBasicNodeMaterial {
+  shadow: CloudShadowHandle | undefined,
+  textures: SurfaceTextures | null,
+): RingMaterial {
   const material = new MeshBasicNodeMaterial()
 
   // centreX, centreZ, edge length, morph -- one instance attribute rather
@@ -276,63 +286,93 @@ function createRingMaterial(
 
   const normal = normalize(vec3(field.y.negate(), 1, field.z.negate()))
   const slope = length(vec2(field.y, field.z))
-  const albedo = terrainSurfaceNode(varying(worldXZ), varying(heightM), varying(slope), cover)
-  // Photoreal Task 13: the shading normal carries a procedural detail bump
-  // (surface.ts `detailSlopeNode`, two scales of the albedo's value noise)
-  // faded out between 500 m and 2 km of eye distance. The mesh normal is a
-  // heightfield normal (y > 0 always), so dividing by y recovers
-  // (-dh/dx, 1, -dh/dz) and the detail slope adds to it exactly.
+  // Built once, outside the swappable color graph: both graphs and the
+  // texture detail's distance fade read it (camera-relative, see the aerial
+  // perspective note in `colorFor`).
   const eyeToVertex = modelWorldMatrix.mul(vec4(position, 1)).xyz
   const eyeDistanceM = length(eyeToVertex)
-  const meshNormal = varying(normal)
-  const detailSlope = detailSlopeNode(varying(worldXZ)).mul(detailNormalFadeNode(varying(eyeDistanceM)))
-  const shadingNormal = normalize(meshNormal.div(meshNormal.y).sub(vec3(detailSlope.x, 0, detailSlope.y)))
-  const sun = normalize(sunDirectionNode)
-  const lambert = clamp(dot(shadingNormal, sun), 0, 1)
-  // Plan 16b: cloud shadow scales the direct term only; the sky's ambient
-  // stays, so the ground under an opaque cloud is lit like a north slope.
-  // The terrain already has TRUE world coordinates (`worldXZ` from
-  // `nodeSpec`, `heightM` from the field), so it passes 'world' and the
-  // node adds no eye offset. `varying` so the lookup is per fragment.
-  const shadowT = shadow ? shadow.node(varying(vec3(worldXZ.x, heightM, worldXZ.y)), 'world') : float(1)
-  // Photoreal Task 9 (spec §4.3): Lambertian in scene units, albedo/pi x
-  // irradiance -- three's BRDF_Lambert, so the terrain and the lit materials
-  // parked on it agree. The ambient is the atmosphere's sky irradiance,
-  // mixed from the up- and down-facing values by the normal as three's
-  // HemisphereLight does (lighting.ts sets both from one palette). The up
-  // term includes the cumulus deck's scattered skylight, as the
-  // HemisphereLight's sky color does (photoreal Task 12, lighting.ts).
-  const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode), shadingNormal.y.mul(0.5).add(0.5))
-  const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT))))
 
-  // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
-  // interpolated like the old fog ramp: the LUT is 32x32 per slice and
-  // smooth, and a per-fragment lookup would cost two samples per 4K pixel.
-  // The scene is camera-relative, so the model-to-world transform of the
-  // displaced vertex IS the eye-to-vertex vector.
-  //
-  // The far-plane invariant: over the last 10% of the draw distance the
-  // final color blends toward what is behind the edge along the same ray --
-  // the sea at its own (further) distance below the true horizon, the sky
-  // above it (`farFadeTarget`) -- so the clip cannot be seen. `smoothstep`
-  // is exactly 1 at the distance.
-  const ap = varying(aerialPerspective(eyeToVertex, eyeDistanceM))
-  const fade = varying(farFadeWeight(eyeDistanceM))
-  const behind = varying(farFadeTarget(eyeToVertex))
-  const shaded = mix(lit.mul(ap.a).add(ap.rgb), behind, fade)
-  const vertexHeightM = varying(heightM)
+  // Visual realism §2.1: two color graphs, the procedural one and the
+  // textured one, built on demand and swapped by `setDetail` -- a real swap
+  // (the procedural graph has no texture nodes at all), so scenery `low`
+  // pays nothing for the textures (plan Ruling 3). A swap recompiles the
+  // pipeline once; it happens only from the Settings dialog. Everything
+  // above this line is the vertex stage, shared by both graphs and never
+  // rebuilt.
+  const colorFor = (detail: SurfaceDetailNodes | null): Node<'vec3'> => {
+    const surf = terrainSurface(varying(worldXZ), varying(heightM), varying(slope), cover, detail ?? undefined)
+    const albedo = surf.albedo
+    // Photoreal Task 13: the shading normal carries a procedural detail bump
+    // (surface.ts `detailSlopeNode`, two scales of the albedo's value noise)
+    // faded out between 500 m and 2 km of eye distance. The mesh normal is a
+    // heightfield normal (y > 0 always), so dividing by y recovers
+    // (-dh/dx, 1, -dh/dz) and the detail slope adds to it exactly.
+    //
+    // With textures, the texture normals' slope (blended by the albedo's own
+    // weights, surface.ts `terrainSurface`) adds to the procedural one, and
+    // the sum is clamped again so the combined tilt stays <= 12 deg.
+    // `detailSlopeNode` already clamps its own sum, so on the procedural path
+    // this is clamp(clamp(x)) = clamp(x): unchanged.
+    const meshNormal = varying(normal)
+    const procedural = detailSlopeNode(varying(worldXZ))
+    const summed = surf.detailSlope ? procedural.add(surf.detailSlope) : procedural
+    const detailSlope = clampSlopeNode(summed).mul(detailNormalFadeNode(varying(eyeDistanceM)))
+    const shadingNormal = normalize(meshNormal.div(meshNormal.y).sub(vec3(detailSlope.x, 0, detailSlope.y)))
+    const sun = normalize(sunDirectionNode)
+    const lambert = clamp(dot(shadingNormal, sun), 0, 1)
+    // Plan 16b: cloud shadow scales the direct term only; the sky's ambient
+    // stays, so the ground under an opaque cloud is lit like a north slope.
+    // The terrain already has TRUE world coordinates (`worldXZ` from
+    // `nodeSpec`, `heightM` from the field), so it passes 'world' and the
+    // node adds no eye offset. `varying` so the lookup is per fragment.
+    const shadowT = shadow ? shadow.node(varying(vec3(worldXZ.x, heightM, worldXZ.y)), 'world') : float(1)
+    // Photoreal Task 9 (spec §4.3): Lambertian in scene units, albedo/pi x
+    // irradiance -- three's BRDF_Lambert, so the terrain and the lit materials
+    // parked on it agree. The ambient is the atmosphere's sky irradiance,
+    // mixed from the up- and down-facing values by the normal as three's
+    // HemisphereLight does (lighting.ts sets both from one palette). The up
+    // term includes the cumulus deck's scattered skylight, as the
+    // HemisphereLight's sky color does (photoreal Task 12, lighting.ts).
+    const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode), shadingNormal.y.mul(0.5).add(0.5))
+    const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT))))
 
-  // The ocean owns water fragments. Discard the DEM's zero-elevation sea
-  // before shading so two overlapping surfaces never compete there. Both
-  // materials apply the shared curvature sink; the contour stays at h=0.
-  // `?cloudShadow=show` paints the transmittance instead of the ground.
-  const painted = shadow?.showing ? vec3(shadowT, shadowT, shadowT) : shaded
-  material.colorNode = Fn(() => {
-    Discard(vertexHeightM.lessThanEqual(0))
-    return painted
-  })()
+    // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
+    // interpolated like the old fog ramp: the LUT is 32x32 per slice and
+    // smooth, and a per-fragment lookup would cost two samples per 4K pixel.
+    // The scene is camera-relative, so the model-to-world transform of the
+    // displaced vertex IS the eye-to-vertex vector (`eyeToVertex`, above).
+    //
+    // The far-plane invariant: over the last 10% of the draw distance the
+    // final color blends toward what is behind the edge along the same ray --
+    // the sea at its own (further) distance below the true horizon, the sky
+    // above it (`farFadeTarget`) -- so the clip cannot be seen. `smoothstep`
+    // is exactly 1 at the distance.
+    const ap = varying(aerialPerspective(eyeToVertex, eyeDistanceM))
+    const fade = varying(farFadeWeight(eyeDistanceM))
+    const behind = varying(farFadeTarget(eyeToVertex))
+    const shaded = mix(lit.mul(ap.a).add(ap.rgb), behind, fade)
+    const vertexHeightM = varying(heightM)
 
-  return material
+    // The ocean owns water fragments. Discard the DEM's zero-elevation sea
+    // before shading so two overlapping surfaces never compete there. Both
+    // materials apply the shared curvature sink; the contour stays at h=0.
+    // `?cloudShadow=show` paints the transmittance instead of the ground.
+    const painted = shadow?.showing ? vec3(shadowT, shadowT, shadowT) : shaded
+    return Fn(() => {
+      Discard(vertexHeightM.lessThanEqual(0))
+      return painted
+    })()
+  }
+
+  let proceduralColor: Node<'vec3'> | null = null, texturedColor: Node<'vec3'> | null = null
+  const setDetail = (on: boolean): void => {
+    const next = on && textures
+      ? (texturedColor ??= colorFor(surfaceDetailNodes(textures, varying(worldXZ), varying(eyeDistanceM))))
+      : (proceduralColor ??= colorFor(null))
+    if (material.colorNode !== next) { material.colorNode = next; material.needsUpdate = true }
+  }
+  setDetail(textures !== null)
+  return { material, setDetail }
 }
 
 /** The unit grid every patch instances: `LOD.quadsPerNode` quads a side,
@@ -394,7 +434,12 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  * value for the network loop, which happened to agree only because both
  * were hardcoded to the same literal).
  */
-export function createTerrainMesh(header: TerrainHeader, finestLevel: number, shadow?: CloudShadowHandle): TerrainMesh {
+export function createTerrainMesh(
+  header: TerrainHeader,
+  finestLevel: number,
+  shadow?: CloudShadowHandle,
+  surfaceTextures: SurfaceTextures | null = null,
+): TerrainMesh {
   // Two world extents would be two worlds. `header` decides the texture sizes
   // and `sampleField`'s world->grid mapping below, but `update` calls
   // `selectNodes` with the DEFAULT `LOD`, whose `halfExtentM` comes from the
@@ -477,6 +522,9 @@ export function createTerrainMesh(header: TerrainHeader, finestLevel: number, sh
 
   const object = new Group()
   const geometries: InstancedBufferGeometry[] = []
+  const ringMaterials: RingMaterial[] = []
+  // True by default: without textures the getter is false anyway.
+  let detailEnabled = true
   for (let ring = 0; ring < LOD.rings; ring++) {
     const { fine, coarse } = sampleLevelsForRing(ring, finestLevel, coarsestLevel)
     const geometry = new InstancedBufferGeometry()
@@ -484,19 +532,19 @@ export function createTerrainMesh(header: TerrainHeader, finestLevel: number, sh
     geometry.setIndex(index)
     geometry.setAttribute('nodeSpec', newSpecAttribute(INITIAL_RING_CAPACITY))
     geometry.instanceCount = 0
-    const mesh = new Mesh(
-      geometry,
-      createRingMaterial(
-        levelTexture(fine),
-        samplesAtLevel(header, fine),
-        levelTexture(coarse),
-        samplesAtLevel(header, coarse),
-        header.halfExtentM,
-        cameraXZ,
-        cover,
-        shadow,
-      ),
+    const ringMaterial = createRingMaterial(
+      levelTexture(fine),
+      samplesAtLevel(header, fine),
+      levelTexture(coarse),
+      samplesAtLevel(header, coarse),
+      header.halfExtentM,
+      cameraXZ,
+      cover,
+      shadow,
+      surfaceTextures,
     )
+    ringMaterials.push(ringMaterial)
+    const mesh = new Mesh(geometry, ringMaterial.material)
     mesh.name = `terrain-ring-${ring}`
     // Every patch's real position comes from `nodeSpec`, which three knows
     // nothing about, so the geometry's own bounds are a half-metre cube at
@@ -529,6 +577,14 @@ export function createTerrainMesh(header: TerrainHeader, finestLevel: number, sh
       ;(cover.texture.image.data as Uint8Array).set(data)
       cover.texture.needsUpdate = true
       cover.ready.value = 1
+    },
+
+    setSurfaceDetail(enabled: boolean): void {
+      detailEnabled = enabled
+      for (const r of ringMaterials) r.setDetail(enabled)
+    },
+    get surfaceDetail(): boolean {
+      return detailEnabled && surfaceTextures !== null
     },
 
     setLevel(level: number, data: Int16Array): void {
