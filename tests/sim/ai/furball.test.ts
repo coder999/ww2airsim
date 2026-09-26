@@ -5,6 +5,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { PURSUIT_FLOOR_M } from '../../../src/sim/ai/safety.js'
 import { sidesOf } from '../../../src/sim/sides.js'
 import { LOADOUTS } from '../../../tools/ai/replica.js'
+import { FURBALL_TICK_CEILING_MS, furballTickCostMs } from './furballCost.js'
 import { loadScenarioBundle } from '../../../tools/content/load.js'
 
 /**
@@ -27,17 +28,14 @@ import { loadScenarioBundle } from '../../../tools/content/load.js'
 const bundle = loadScenarioBundle('furball-range')
 const SECONDS = 120
 
-type Run = { world: World<undefined>; minHeight: Record<string, number>; peakG: Record<string, number>; nan: boolean; tickMs: number[] }
+type Run = { world: World<undefined>; minHeight: Record<string, number>; peakG: Record<string, number>; nan: boolean }
 function soak(loadout: (typeof LOADOUTS)[number] = 'clean'): Run {
   let world = worldFromScenario(bundle, null, loadout)
   const minHeight: Record<string, number> = {}
   const peakG: Record<string, number> = {}
-  const tickMs: number[] = []
   let nan = false
   for (let i = 0; i < SECONDS * 60; i++) {
-    const t0 = performance.now()
     world = advance(world, DT).world
-    tickMs.push(performance.now() - t0)
     for (const a of world.aircraft) {
       const s = a.state
       if (![s.position.x, s.position.y, s.position.z, s.velocity.x, s.velocity.y, s.velocity.z].every(Number.isFinite)) nan = true
@@ -45,7 +43,7 @@ function soak(loadout: (typeof LOADOUTS)[number] = 'clean'): Run {
       peakG[a.id] = Math.max(peakG[a.id] ?? -Infinity, world.combat.aircraft[a.id]!.stress.loadFactorG)
     }
   }
-  return { world, minHeight, peakG, nan, tickMs }
+  return { world, minHeight, peakG, nan }
 }
 
 describe('the furball soak (7e spec §4.7)', () => {
@@ -116,11 +114,15 @@ describe('the furball soak (7e spec §4.7)', () => {
     console.log(`furball: ${hits} hits, ${friendlyHits} friendly, ${kills} kills`)
   })
 
-  it('reports p95 tick cost under the 2 ms sanity ceiling', () => {
-    const sorted = [...run.tickMs].sort((a, b) => a - b)
-    const p95 = sorted[Math.floor(sorted.length * 0.95)]!
-    console.log(`furball: p95 tick ${p95.toFixed(3)} ms over ${sorted.length} ticks, ${world.aircraft.length} aircraft`)
-    expect(p95).toBeLessThan(2)
+  // The spec's 2 ms sanity ceiling is `tests/sim/ai/furballCost.ts`, run
+  // uncontended (ruling R-F2): 1.008 ms best-of-3 p95 on nexus, 2026-09-26.
+  // In the parallel suite the same measurement read 2.56 ms on ryzen, the
+  // other workers' load, so here it is reported, with only a tripwire for a
+  // gross blow-up (a per-pilot scan gone quadratic).
+  it('reports p95 tick cost (the 2 ms gate is tests/sim/ai/furballCost.ts, run alone)', () => {
+    const r = furballTickCostMs()
+    console.log(`furball: p95 tick ${r.p95BestOf3.toFixed(3)} ms best of 3, ${r.p95Single.toFixed(3)} ms single pass, ${r.aircraft} aircraft`)
+    expect(r.p95BestOf3).toBeLessThan(5 * FURBALL_TICK_CEILING_MS)
   })
 
   it.each(LOADOUTS)('the opening bounce kill holds with the player\'s %s loadout', (loadout) => {
