@@ -239,7 +239,7 @@ Each ruling is a deviation from the spec or an addition to it, with the evidence
   - `aircraftOf(f, id)`, `rangeBetween(f, a, b)`, `playerDestroyed(f)`.
   - `passiveClose(world, pursuerId, maxS?): PassiveCloseRun`, where `PassiveCloseRun = { outcome: 'killed' | 'point-blank' | 'timeout'; tick: number; pursuerHits: number }`.
 
-- [ ] **Step 1: Merge `main` and record the baseline digests.** Run `git merge main`. If it conflicts, stop and report. Then write `.superpowers/7c/hash.ts`:
+- [x] **Step 1: Merge `main` and record the baseline digests.** Run `git merge main`. If it conflicts, stop and report. Then write `.superpowers/7c/hash.ts`:
 
 ```ts
 import { createHash } from 'node:crypto'
@@ -264,7 +264,7 @@ for (const id of ids) {
 
 Run `npx tsx .superpowers/7c/hash.ts | tee .superpowers/7c/hash-baseline.txt`. The full digests must match the table under "Measured". If they differ because `main` moved, the new values are the baseline. Record them in the ledger.
 
-- [ ] **Step 2: Write the harness.** Create `tools/ai/replica.ts`:
+- [x] **Step 2: Write the harness.** Create `tools/ai/replica.ts`:
 
 ```ts
 import { initialFrameStateFor, nextFrameState, type FrameState } from '../../src/render/frame.js'
@@ -363,7 +363,7 @@ export function passiveClose(world: World<undefined>, pursuerId: string, maxS = 
 }
 ```
 
-- [ ] **Step 3: Write the failing lethality tests.** Create `tests/render/aiLethality.test.ts`:
+- [x] **Step 3: Write the failing lethality tests.** Create `tests/render/aiLethality.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -444,14 +444,14 @@ describe('the 7d bar: a scripted evasion gets behind a green pursuer (item 3)', 
 })
 ```
 
-- [ ] **Step 4: Run the tests and check that only item 1 fails, and only for `both` at cursor 0.**
+- [x] **Step 4: Run the tests and check that only item 1 fails, and only for `both` at cursor 0.**
 
 Run: `npx vitest run tests/render/aiLethality.test.ts --maxWorkers=2`
 Expected: FAIL. Item 1 `both` reports `cursor 0: tick 517`. `clean`, `bombs` and `rockets` pass item 1, and items 2 and 3 pass for every loadout.
 
 If item 2 or item 3 fails at `HEAD`, stop and report it: the spec measured them green.
 
-- [ ] **Step 5: Retune.** In `src/sim/ai/pilot.ts`, replace `VETERAN_SKILL`'s `controlNoise` line and its comment block with:
+- [x] **Step 5: Retune.** In `src/sim/ai/pilot.ts`, replace `VETERAN_SKILL`'s `controlNoise` line and its comment block with:
 
 ```ts
   // 7c (Mark's ruling 2026-09-25, "tone the veteran down"): 0.02 -> 0.01.
@@ -470,7 +470,7 @@ If item 2 or item 3 fails at `HEAD`, stop and report it: the spec measured them 
   controlNoise: 0.01,
 ```
 
-- [ ] **Step 6: Move the hits test to green (R2).** In `tests/sim/scenario.test.ts`, "the pursuit pilot actually hits the target it is gated on, not just fires blind", replace `let world = worldFromScenario(pursuit, null)` with:
+- [x] **Step 6: Move the hits test to green (R2).** In `tests/sim/scenario.test.ts`, "the pursuit pilot actually hits the target it is gated on, not just fires blind", replace `let world = worldFromScenario(pursuit, null)` with:
 
 ```ts
     // 7c (2026-09-25): flown by a GREEN pursuer, by override, because the
@@ -486,7 +486,7 @@ If item 2 or item 3 fails at `HEAD`, stop and report it: the spec measured them 
 
 Leave the rest of the comment and the 12,000 budget as they are. Before the edit, the comment's opening already says why the budget stays loose.
 
-- [ ] **Step 7: Write the 128-run script.** Create `tools/ai/lethality.ts`:
+- [x] **Step 7: Write the 128-run script.** Create `tools/ai/lethality.ts`:
 
 ```ts
 import { readFileSync } from 'node:fs'
@@ -521,14 +521,14 @@ console.log(`controlNoise ${noise}: killed ${killed}/${runs}, mean hits ${(hits 
 
 Run it twice and record both lines in the ledger and in the constant's comment if they differ from the spec: `npx tsx tools/ai/lethality.ts` (the spec measured 0/128, mean 0.04, max 1) and `npx tsx tools/ai/lethality.ts 0.02` (the spec measured 4/128). The spec's cursor set is not recorded, so small differences are expected. A retune figure above 0 kills is not, so stop and report it.
 
-- [ ] **Step 8: Run the tests and check that they pass.**
+- [x] **Step 8: Run the tests and check that they pass.**
 
 Run: `npx vitest run tests/render/aiLethality.test.ts tests/sim/scenario.test.ts tests/sim/ai tests/sim/entities.test.ts tests/sim/pursuitMerge.test.ts tests/render/pursuitGeometry.test.ts --maxWorkers=2`
 Expected: PASS. `pursuitMerge.test.ts` still asserts at least 6 veteran kills out of 8, and the veteran now flies at 0.01. Record the count it logs.
 
-- [ ] **Step 9: Digests.** Run `npx tsx .superpowers/7c/hash.ts`. The four no-pilot scenarios and the green `pursuit-range` must match the baseline. `pursuit-range-veteran` and the tail-chase fixture must differ (their veteran changed). `zero-merge` (green) must match. Save the output as `.superpowers/7c/hash-task1.txt`.
+- [x] **Step 9: Digests.** Run `npx tsx .superpowers/7c/hash.ts`. The four no-pilot scenarios and the green `pursuit-range` must match the baseline. `pursuit-range-veteran` and the tail-chase fixture must differ (their veteran changed). `zero-merge` (green) must match. Save the output as `.superpowers/7c/hash-task1.txt`.
 
-- [ ] **Step 10: Verify and commit.**
+- [x] **Step 10: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0

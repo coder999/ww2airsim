@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseScenario, worldFromScenario, AIRBORNE_SPAWN_THROTTLE, PARKED_PLACEHOLDER_Y_M, type ScenarioBundle } from '../../src/sim/scenario.js'
-import { advance, playerAircraft } from '../../src/sim/loop.js'
+import { advance, playerAircraft, type World } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
 import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
@@ -210,7 +210,16 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     // that goes red on any future AI retune for reasons that have nothing to
     // do with that claim. It also still covers the slower rejoin-and-second-
     // pass path, which remains reachable.
-    let world = worldFromScenario(pursuit, null)
+    //
+    // 7c (2026-09-25): flown by a GREEN pursuer, by override, because the
+    // veteran retune (controlNoise 0.01) puts the veteran's first hit at tick
+    // 9912 against this 12,000 budget: the rounds pass low, so a steadier
+    // hand hits less (7c spec §1.2). The claim here, that the gate and the
+    // steering agree so rounds connect, does not depend on skill. Measured
+    // 2026-09-25: green's first shot is at tick 181 and its first hit at 370.
+    // The fixture stays frozen (it pins veteran for the other 7a/7b tests).
+    const start = worldFromScenario(pursuit, null)
+    let world: World<undefined> = { ...start, aircraft: start.aircraft.map((a) => a.pilot == null ? a : { ...a, pilot: { ...a.pilot, skill: GREEN_SKILL } }) }
     for (let i = 0; i < 2400 && world.combat.aircraft['pursuer-1']!.hits === 0; i++) {
       world = advance(world, DT * 5).world
     }

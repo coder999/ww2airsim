@@ -38,14 +38,20 @@ export const VETERAN_SKILL: PilotSkill = {
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
   disengageThreshold: -400,
-  // Measured 2026-09-24 on the reference GPU (pursuit-range, tail-chase
-  // geometry): sampling pursuer-1's headingRad every 500ms over ~9s (523
-  // ticks) of live Pursue steering, 0.02 produces a clean, MONOTONIC turn
-  // onto the intercept -- every sample-to-sample heading delta had the same
-  // sign (mean 0.185 deg/500ms, max 0.365 deg/500ms, steadily shrinking as
-  // it settles) -- imperceptible as jitter distinct from the turn itself.
-  // Kept unchanged from Task 1's starting value.
-  controlNoise: 0.02,
+  // 7c (Mark's ruling 2026-09-25, "tone the veteran down"): 0.02 -> 0.01.
+  // Measured 2026-09-25 through the production frame path against a passive
+  // player on the tail-chase fixture (tests/render/aiLethality.test.ts, and
+  // tools/ai/lethality.ts for the 128-run version). At 0.02 the veteran
+  // killed the passive player before point-blank range in 4 of 128 runs,
+  // including the reference GPU's red ai-maneuver run (`both` loadout, tick
+  // 517). At 0.01 it killed none, with a mean of 0.04 hits. The lever is
+  // this one because the AI's aim ignores gravity drop: a perfect aim streams
+  // 2.2 m under the target, so a SHAKIER hand is deadlier (0.04 -> 11/32
+  // kills, 0.08 -> 22/32). Green (0.15) is therefore the deadlier pilot
+  // against a straight-flying target. That inversion is the gunnery-honesty
+  // slice's to fix (spec Decisions, item 2). Still less than half of green's
+  // noise, as noise.test.ts and pilot.test.ts require.
+  controlNoise: 0.01,
 }
 
 export const GREEN_SKILL: PilotSkill = {
