@@ -59,10 +59,11 @@ describe('the debrief', () => {
 
   it('reports the figures that explain the outcome', () => {
     const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType())
-    const labels = m.figures.map((f) => f.label)
-    expect(labels).toContain('Impact speed')
-    expect(labels).toContain('Sink rate')
-    expect(labels).toContain('Bank')
+    expect(m.figures).toEqual([
+      { label: 'Impact speed', value: '90 mph' },
+      { label: 'Sink rate', value: '4 mph' },
+      { label: 'Bank', value: '0°' },
+    ])
   })
 
   it('explains unattributed structural failure and combat destruction', () => {
@@ -70,7 +71,8 @@ describe('the debrief', () => {
     const overload = destructionModel(state, null, zeroKillsByType())
     expect(overload.headline).toBe('KILLED')
     expect(overload.detail).toContain('structural overload')
-    expect(overload.figures).toContainEqual({ label: 'Altitude', value: '1500 m' })
+    expect(overload.figures).toContainEqual({ label: 'Final speed', value: '494 mph' })
+    expect(overload.figures).toContainEqual({ label: 'Altitude', value: '4921 ft' })
 
     const combat = destructionModel(state, 'bandit-1', zeroKillsByType())
     expect(combat.detail).toContain('combat')
@@ -79,7 +81,7 @@ describe('the debrief', () => {
   it('shows sink rate as a positive number, not the signed velocity it comes from', () => {
     // `verticalSpeedMps` is `velocity.y`, negative while descending (same
     // convention `contact.ts`'s `sinkingGently` gate uses) -- a 40 m/s dive
-    // must read "40 m/s", not "-40 m/s" next to the positive Impact speed
+    // must read "89 mph", not "-89 mph" next to the positive Impact speed
     // and Bank figures.
     const m = debriefModel(
       impact({ verticalSpeedMps: -40 }),
@@ -87,7 +89,7 @@ describe('the debrief', () => {
       zeroKillsByType(),
     )
     const sinkRate = m.figures.find((f) => f.label === 'Sink rate')
-    expect(sinkRate?.value).toBe('40 m/s')
+    expect(sinkRate?.value).toBe('89 mph')
   })
 
   it('names the airfield a landing was at', () => {
@@ -96,6 +98,19 @@ describe('the debrief', () => {
       zeroKillsByType(),
     )
     expect(m.figures).toContainEqual({ label: 'Landed at', value: 'Tacloban' })
+  })
+
+  it('uses imperial units for every landing figure', () => {
+    const m = landingModel(
+      { touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 1, at: null },
+      zeroKillsByType(),
+    )
+    expect(m.figures).toEqual([
+      { label: 'Landed at', value: 'off-field' },
+      { label: 'Touchdown sink', value: '3 mph' },
+      { label: 'Touchdown speed', value: '84 mph' },
+      { label: 'Roll-out', value: '1913 ft' },
+    ])
   })
 
   it('reports an off-field landing when the touchdown was outside any runway', () => {
