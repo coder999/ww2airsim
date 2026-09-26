@@ -1,7 +1,11 @@
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['node_modules', 'dist'] },
+  // tools/**/cache/ mirrors .gitignore's /tools/**/cache/: gitignored fetch
+  // caches (source tiles, vendored tool downloads) that are not our code and
+  // must never be linted. Only textures:build's KTX-Software cache has ever
+  // contained .js (its bundled docs), which is what surfaced this gap.
+  { ignores: ['node_modules', 'dist', 'tools/**/cache/**'] },
   ...tseslint.configs.recommended,
   {
     rules: {
