@@ -27,7 +27,7 @@ New or extended: `tests/render/hangar/budgets.test.ts`, `benchController.test.ts
 
 ## Reference-GPU Tier 2
 
-`tests/e2e/hangar.spec.ts` ran **11/11** on the RX 6700 XT against the primary
+`tests/e2e/hangar.spec.ts` ran **12/12** on the RX 6700 XT (11 before the final review's fix, below) against the primary
 slot. The Hangar page has no clouds or terrain, so the game page's slow cloud
 shader compile (see the S1 handoff) does not touch it.
 
@@ -52,6 +52,10 @@ Checks 1–3 and 5, and the layout and Library-button tests, still pass.
   type 'GPUBuffer'`) on the reference GPU. three 0.186 uploads the wireframe
   index only when a render object rebuilds, so `applyWireframe` sets
   `material.needsUpdate` whenever it changes the flag.
+- **The Turntable box went stale after a drag** (final review). OrbitControls
+  stops the turntable on a user drag, and the box stayed checked, so its first
+  click did nothing. The stage now reports the drag, and the bench unchecks
+  the box. Pinned by a Tier 2 test that drags the canvas.
 - **The bench overflowed the 380 px panel.** The Cycle button and "Rockets"
   were clipped off. The rows now wrap.
 
@@ -89,6 +93,20 @@ first thing the Hangar has caught on its own.
 
 H3 adds turret rows to `bench.ts`, `setTurret` to the ship view, and
 Tier 2 check 4.
+
+## Deferred from the final review (minor)
+
+- Pressing Cycle on one part while the other is cycling abandons the first
+  part partway: there is one cycle slot. Press it again to finish.
+- Tier 2 check 8's wireframe round trip selects models from different
+  sources, so it never exercises shared materials (Zero and Wildcat). Node's
+  `applyWireframe` test covers that case.
+- `sceneCounts` checks each mesh's own `visible`, not its parents'. No
+  Hangar model hides a group today.
+- A subtree built from two tagged glbs reads "No manifest budget". This is
+  not live yet; H3's turret split may make it live.
+- `probeArticulated` would miss a propeller whose 0.05 s step is an exact
+  multiple of 2π. This is theoretical.
 
 ## Traps
 

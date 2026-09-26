@@ -260,3 +260,22 @@ test("the title's Library button opens the hangar", async ({ page }) => {
   await page.waitForURL(/hangar\.html$/)
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
 })
+
+test('dragging to orbit stops the turntable, and its checkbox says so (H2 review)', async ({ page }) => {
+  await page.goto('/hangar.html?bench')
+  await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
+  await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
+  const box = page.getByRole('checkbox', { name: 'Turntable' })
+  await expect(box).toBeChecked()
+  const c = (await page.locator('#hangar-canvas').boundingBox())!
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(c.x + c.width / 2 + 120, c.y + c.height / 2, { steps: 5 })
+  await page.mouse.up()
+  await expect(box).not.toBeChecked()
+  // One click turns it back on, and a model switch keeps what the box says.
+  await box.click()
+  await expect(box).toBeChecked()
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('essex-cv'))
+  await expect(page.getByRole('checkbox', { name: 'Turntable' })).toBeChecked()
+})

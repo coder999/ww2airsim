@@ -114,7 +114,10 @@ async function boot(): Promise<void> {
     select(id).catch((e: unknown) => validationErrors.push(e instanceof Error ? e.message : String(e)))
   })
   root.appendChild(canvas)
-  const stage = createStage(renderer, canvas)
+  const stage = createStage(renderer, canvas, () => {
+    debug.turntable = false
+    benchUi?.setDebug('turntable', false)
+  })
   const fit = (): void => stage.resize(canvas.clientWidth, canvas.clientHeight)
   window.addEventListener('resize', fit)
   fit()
@@ -126,7 +129,7 @@ async function boot(): Promise<void> {
     pose,
     tick: step,
     camera: (p) => stage.setPreset(p),
-    freeze: () => { frozen = true; debug.turntable = false; stage.freeze() },
+    freeze: () => { frozen = true; debug.turntable = false; benchUi?.setDebug('turntable', false); stage.freeze() },
     setModelVisible: (v) => stage.setModelVisible(v),
     current: () => (selected ? { id: selected.library.id, kind: selected.library.kind, parts: model?.parts ?? [] } : null),
     cycle: (part) => controller.startCycle(part),

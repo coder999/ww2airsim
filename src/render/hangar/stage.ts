@@ -81,7 +81,8 @@ export interface HangarStage {
   resize(width: number, height: number): void
 }
 
-export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement): HangarStage {
+/** `onUserOrbit` fires when a drag stops the turntable, so the bench's Turntable box can follow (H2 review). */
+export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement, onUserOrbit: () => void = () => {}): HangarStage {
   const scene = new Scene()
   scene.background = new Color(0x2a2f36)
   warmIrradianceTable()
@@ -97,7 +98,10 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement)
   controls.autoRotate = true
   controls.autoRotateSpeed = AUTO_ROTATE_SPEED
   // The turntable turns until the user takes hold of it.
-  controls.addEventListener('start', () => { controls.autoRotate = false })
+  controls.addEventListener('start', () => {
+    if (controls.autoRotate) onUserOrbit()
+    controls.autoRotate = false
+  })
 
   const pipeline = createFramePipeline(renderer, scene, camera)
   pipeline.setExposure(exposureFor(HANGAR_SUN_ELEVATION_DEG))

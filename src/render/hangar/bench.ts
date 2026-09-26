@@ -23,6 +23,8 @@ export interface BenchHandle {
   /** Moves the controls to `s` without firing their handlers. */
   sync(s: BenchState): void
   setCounts(r: CountsReport): void
+  /** Sets a debug box without firing its handler (a drag stopped the turntable). */
+  setDebug(which: DebugToggle, on: boolean): void
 }
 
 const OVER_COLOR = '#c0392b'
@@ -104,7 +106,12 @@ export function mountBench(
   const debugRow = document.createElement('div')
   debugRow.style.cssText = 'margin:8px 0 4px'
   const toggles: readonly [DebugToggle, string][] = [['gizmos', 'Pivot gizmos'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable']]
-  for (const [which, label] of toggles) debugRow.appendChild(checkbox(label, debug[which], (on) => h.onDebug(which, on)).row)
+  const debugBoxes = new Map<DebugToggle, HTMLInputElement>()
+  for (const [which, label] of toggles) {
+    const { row, input } = checkbox(label, debug[which], (on) => h.onDebug(which, on))
+    debugBoxes.set(which, input)
+    debugRow.appendChild(row)
+  }
   slot.appendChild(debugRow)
 
   const counts = document.createElement('div')
@@ -122,6 +129,10 @@ export function mountBench(
       const b = stores.get('bombs'), r = stores.get('rockets')
       if (b) b.checked = s.bombs
       if (r) r.checked = s.rockets
+    },
+    setDebug(which, on): void {
+      const el = debugBoxes.get(which)
+      if (el) el.checked = on
     },
     setCounts(report): void {
       const t = countsText(report)
