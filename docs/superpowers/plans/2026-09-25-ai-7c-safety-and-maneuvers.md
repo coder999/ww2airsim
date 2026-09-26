@@ -548,7 +548,7 @@ git commit -m "7c: veteran controlNoise 0.02 -> 0.01, and the frame-path lethali
 - Produces: `type PilotTickContext = { readonly nowS: number; readonly terrain: TerrainField | null; readonly decks: readonly Deck[]; readonly wind: Vec3 | null; readonly combat: CombatState }`
 - Produces: `pilotTick<M>(a: AircraftEntity<M>, snapshot: readonly AircraftEntity<M>[], ctx: PilotTickContext): AircraftEntity<M>`. It returns `a` itself, the same object, when there is nothing to fly.
 
-- [ ] **Step 1: Write the failing tests.** Create `tests/sim/ai/pilotTick.test.ts`:
+- [x] **Step 1: Write the failing tests.** Create `tests/sim/ai/pilotTick.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -604,12 +604,12 @@ describe('pilotTick', () => {
 
 Before running, check the `impact` shape: `grep -n "export type Impact" -A6 src/sim/contact.ts src/sim/loop.ts`. If it differs, build a valid `Impact` literal instead of the cast.
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/pilotTick.test.ts --maxWorkers=2`
 Expected: FAIL, because `pilotTick.js` cannot be resolved.
 
-- [ ] **Step 3: Implement.** Create `src/sim/ai/pilotTick.ts`:
+- [x] **Step 3: Implement.** Create `src/sim/ai/pilotTick.ts`:
 
 ```ts
 import type { AircraftEntity } from '../loop.js'
@@ -683,14 +683,14 @@ In `src/sim/loop.ts`, replace `import { deriveFacts, decideManeuver, maneuverCon
 
 Keep the three-line comment above it ("Every AI reads this SAME start-of-tick array...") and add one line: `// The per-pilot block is src/sim/ai/pilotTick.ts (7c).`
 
-- [ ] **Step 4: Run the tests.**
+- [x] **Step 4: Run the tests.**
 
 Run: `npx vitest run tests/sim/ai tests/sim/entities.test.ts tests/sim/scenario.test.ts tests/render/aiLethality.test.ts --maxWorkers=2`
 Expected: PASS.
 
-- [ ] **Step 5: Bit-identity.** Run `npx tsx .superpowers/7c/hash.ts`. All eight lines, full and motion digests, must equal `.superpowers/7c/hash-task1.txt`. This is a pure move. Any difference is a bug in it: fix the move, never the baseline.
+- [x] **Step 5: Bit-identity.** Run `npx tsx .superpowers/7c/hash.ts`. All eight lines, full and motion digests, must equal `.superpowers/7c/hash-task1.txt`. This is a pure move. Any difference is a bug in it: fix the move, never the baseline.
 
-- [ ] **Step 6: Verify and commit.**
+- [x] **Step 6: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
