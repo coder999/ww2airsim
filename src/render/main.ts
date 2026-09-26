@@ -760,6 +760,7 @@ async function boot(): Promise<void> {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
       oceanTier: () => oceanTier.name,
+      fxTier: () => fxTier,
       // Task 9 (reference-GPU acceptance): whether `adaptOceanQuality`'s
       // ~180-frame probe has already resolved, or was pre-latched true by a
       // persisted choice at boot (`qualityChecked`, declared beside `quality`
@@ -1054,6 +1055,7 @@ async function boot(): Promise<void> {
   // resolved to before this plan existed. `?cloudTier=` still wins.
   cloudTier = forcedCloudTier ?? quality.current().clouds
   sceneryTier = forcedSceneryTier ?? quality.current().scenery
+  let fxTier: QualityTierName = quality.current().fx
   // Plan 16c: the scenario's hour, or the DEV override.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
@@ -1202,12 +1204,15 @@ async function boot(): Promise<void> {
     cloudPass?.setUpdatePeriod(CLOUD_TIERS[name].updatePeriod)
     shadow.setTier(name)
   }
+  /** Effects tier (E1). Task 9 moves the pool and the pass from here; until
+   *  then it only records the pick, so the Settings dialog is honest. */
+  const applyFxTier = (name: QualityTierName): void => { fxTier = name }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
   // read here and mutated below -- see that declaration for why.
   // Everything a tier moves now exists. This also applies anything picked
   // during boot's own awaits, when the dialog was already clickable and there
   // was nothing yet to apply it to.
-  quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier })
+  quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier, setFxTier: applyFxTier })
   const adaptOceanQuality = async (): Promise<void> => {
     // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
     // pipelines during flight; a DEV override holds the tier for comparison.

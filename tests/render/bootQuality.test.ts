@@ -28,18 +28,19 @@ beforeEach(() => {
   (globalThis as { window?: { localStorage: Storage } }).window = { localStorage: fakeLocalStorage() }
 })
 
-/** A recording stand-in for the three things a tier actually moves in
- *  `main.ts`: the ocean cascades, `vegetation.setTier`, and
- *  `clouds`/`shadow`. Every assertion below about "the pick took effect"
- *  reads THESE -- not the model's own snapshot, which would be true even if
- *  nothing were connected at all. */
-function recordingTargets(): QualityTargets & { readonly seen: { ocean: QualityTierName[]; scenery: QualityTierName[]; clouds: QualityTierName[] } } {
-  const seen = { ocean: [] as QualityTierName[], scenery: [] as QualityTierName[], clouds: [] as QualityTierName[] }
+/** A recording stand-in for the four things a tier actually moves in
+ *  `main.ts`: the ocean cascades, `vegetation.setTier`,
+ *  `clouds`/`shadow`, and the effects tier. Every assertion below about "the
+ *  pick took effect" reads THESE -- not the model's own snapshot, which
+ *  would be true even if nothing were connected at all. */
+function recordingTargets(): QualityTargets & { readonly seen: { ocean: QualityTierName[]; scenery: QualityTierName[]; clouds: QualityTierName[]; fx: QualityTierName[] } } {
+  const seen = { ocean: [] as QualityTierName[], scenery: [] as QualityTierName[], clouds: [] as QualityTierName[], fx: [] as QualityTierName[] }
   return {
     seen,
     setOceanTier: (t) => { seen.ocean.push(t) },
     setSceneryTier: (t) => { seen.scenery.push(t) },
     setCloudTier: (t) => { seen.clouds.push(t) },
+    setFxTier: (t) => { seen.fx.push(t) },
   }
 }
 
@@ -55,11 +56,13 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
     targets.seen.ocean.length = 0
     targets.seen.scenery.length = 0
     targets.seen.clouds.length = 0
+    targets.seen.fx.length = 0
 
     quality.settings.selectSimpleTier('low')
     expect(targets.seen.ocean).toEqual(['low'])
     expect(targets.seen.scenery).toEqual(['low'])
     expect(targets.seen.clouds).toEqual(['low'])
+    expect(targets.seen.fx).toEqual(['low'])
     // ...and it persisted too, which is the half that already worked.
     expect(loadQualitySettings()).toEqual(defaultQualitySettings('low'))
   })
@@ -74,7 +77,7 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
     expect(targets.seen.scenery.at(-1)).toBe('medium')
     expect(targets.seen.ocean.at(-1)).toBe('high')
     expect(targets.seen.clouds.at(-1)).toBe('high')
-    expect(quality.current()).toEqual({ ocean: 'high', scenery: 'medium', clouds: 'high' })
+    expect(quality.current()).toEqual({ ocean: 'high', scenery: 'medium', clouds: 'high', fx: 'high' })
   })
 
   it('applies a tier picked BEFORE bind, once there is something to apply it to', () => {
@@ -84,13 +87,13 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
     quality.settings.selectSimpleTier('medium')
     const targets = recordingTargets()
     quality.bind(targets)
-    expect(targets.seen).toEqual({ ocean: ['medium'], scenery: ['medium'], clouds: ['medium'] })
+    expect(targets.seen).toEqual({ ocean: ['medium'], scenery: ['medium'], clouds: ['medium'], fx: ['medium'] })
   })
 
   it('boots at the saved tiers and suppresses the probe entirely (spec §5 step 1)', () => {
-    saveQualitySettings({ ocean: 'low', scenery: 'medium', clouds: 'high' })
+    saveQualitySettings({ ocean: 'low', scenery: 'medium', clouds: 'high', fx: 'high' })
     const quality = createBootQuality()
-    expect(quality.current()).toEqual({ ocean: 'low', scenery: 'medium', clouds: 'high' })
+    expect(quality.current()).toEqual({ ocean: 'low', scenery: 'medium', clouds: 'high', fx: 'high' })
     expect(quality.probeSuppressed).toBe(true)
   })
 
@@ -109,6 +112,7 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
     expect(targets.seen.ocean.at(-1)).toBe('medium')
     expect(targets.seen.scenery.at(-1)).toBe('medium')
     expect(targets.seen.clouds.at(-1)).toBe('medium')
+    expect(targets.seen.fx.at(-1)).toBe('medium')
     expect(quality.current()).toEqual(defaultQualitySettings('medium'))
     // Saved, which is what makes the probe run once per BROWSER rather than
     // once per page load.
@@ -126,11 +130,12 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
     targets.seen.ocean.length = 0
     targets.seen.scenery.length = 0
     targets.seen.clouds.length = 0
+    targets.seen.fx.length = 0
 
     quality.applyProbeResult('low')
     // Nothing applied and nothing saved: a measurement may never overwrite a
     // deliberate choice.
-    expect(targets.seen).toEqual({ ocean: [], scenery: [], clouds: [] })
+    expect(targets.seen).toEqual({ ocean: [], scenery: [], clouds: [], fx: [] })
     expect(quality.current()).toEqual(defaultQualitySettings('high'))
     expect(loadQualitySettings()).toEqual(defaultQualitySettings('high'))
     // The stamp still tells the player what the machine measured.
@@ -229,6 +234,7 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
 
   it('binds the model to the live tier setters', () => {
     expect(source).toContain('quality.bind({ setOceanTier:')
+    expect(source).toContain('setFxTier: applyFxTier')
     expect(source).toContain('quality.applyProbeResult(next.name)')
     expect(source).toContain('let qualityChecked = quality.probeSuppressed')
   })

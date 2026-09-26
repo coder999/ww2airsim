@@ -22,7 +22,7 @@ describe('quality settings persistence', () => {
   })
 
   it('round-trips save/load', () => {
-    const settings: QualitySettings = { ocean: 'high', scenery: 'low', clouds: 'medium' }
+    const settings: QualitySettings = { ocean: 'high', scenery: 'low', clouds: 'medium', fx: 'low' }
     saveQualitySettings(settings)
     expect(loadQualitySettings()).toEqual(settings)
   })
@@ -43,12 +43,23 @@ describe('quality settings persistence', () => {
     expect(loadQualitySettings()).toBeNull()
   })
 
-  it('defaultQualitySettings repeats one tier three times', () => {
-    expect(defaultQualitySettings('medium')).toEqual({ ocean: 'medium', scenery: 'medium', clouds: 'medium' })
+  it('defaultQualitySettings repeats one tier four times', () => {
+    expect(defaultQualitySettings('medium')).toEqual({ ocean: 'medium', scenery: 'medium', clouds: 'medium', fx: 'medium' })
   })
 
   it('uniformTier: all-equal returns that tier, divergence returns null', () => {
-    expect(uniformTier({ ocean: 'high', scenery: 'high', clouds: 'high' })).toBe('high')
-    expect(uniformTier({ ocean: 'high', scenery: 'low', clouds: 'high' })).toBeNull()
+    expect(uniformTier({ ocean: 'high', scenery: 'high', clouds: 'high', fx: 'high' })).toBe('high')
+    expect(uniformTier({ ocean: 'high', scenery: 'low', clouds: 'high', fx: 'high' })).toBeNull()
+    expect(uniformTier({ ocean: 'high', scenery: 'high', clouds: 'high', fx: 'low' })).toBeNull()
+  })
+
+  it('a saved object from before fx existed loads with fx = clouds, not discarded (Ruling R15, Review Focus 1)', () => {
+    window.localStorage.setItem('ww2airsim.quality.v1', JSON.stringify({ ocean: 'high', scenery: 'medium', clouds: 'low' }))
+    expect(loadQualitySettings()).toEqual({ ocean: 'high', scenery: 'medium', clouds: 'low', fx: 'low' })
+  })
+
+  it('a stored fx that is not a tier is still rejected', () => {
+    window.localStorage.setItem('ww2airsim.quality.v1', JSON.stringify({ ocean: 'high', scenery: 'high', clouds: 'high', fx: 'ultra' }))
+    expect(loadQualitySettings()).toBeNull()
   })
 })

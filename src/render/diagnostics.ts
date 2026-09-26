@@ -11,6 +11,7 @@ import type { CombatDiagnostics } from './combatReadout.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
+import type { QualityTierName } from './quality.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 
@@ -270,6 +271,11 @@ export type Ww2Diagnostics = {
    *  simulation or the renderer reads, unlike the `FrameState` setter
    *  `assists` above deliberately does not offer. */
   readonly oceanTier: () => string
+  /** E1 Task 6: proves a Settings/probe fx pick reached `main.ts`'s own
+   *  `fxTier`, the way `oceanTier` above already proves it for the ocean.
+   *  Task 9 makes the pick move an actual pool and pass; until then this is
+   *  the only thing that reads the variable `applyFxTier` writes. */
+  readonly fxTier: () => QualityTierName
   /**
    * Whether `main.ts`'s `adaptOceanQuality` probe has already resolved this
    * page load -- `true` either because it measured (a fresh profile, once
