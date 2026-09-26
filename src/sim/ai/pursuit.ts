@@ -3,13 +3,15 @@ import { qRotate } from '../math/quat.js'
 import { add, dot, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import type { Controls } from '../flight/state.js'
 import { controlsForDesiredVelocity } from './controller.js'
-import type { PilotDecisionState, PilotSkill } from './pilot.js'
+import type { IngressOrders, PilotDecisionState, PilotSkill } from './pilot.js'
 
 export type PilotAssignment = {
   /** A static target: an aircraft id read from the common start-of-tick
    *  snapshot, on the opposite side (7e). `null`: the pilot chooses its own
    *  target at every rescore (7e spec §4.2, `targeting.ts`). */
   readonly target: string | null
+  /** 7e spec §4.5: an ingress pilot's orders. Excludes `target`. */
+  readonly ingress?: IngressOrders
   readonly skill: PilotSkill
   readonly decision: PilotDecisionState
 }

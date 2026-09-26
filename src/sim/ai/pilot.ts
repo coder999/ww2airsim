@@ -130,6 +130,16 @@ export type ManeuverLatch = {
   readonly lowestAltitudeM: number
 }
 
+/** One ingress waypoint (7e spec §4.5), world meters. The altitude and
+ *  speed are those of the leg flown TO it. */
+export type IngressWaypoint = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
+/** Where an ingress ends: a ship, read live every tick, or a fixed point (an
+ *  airfield's runway center, resolved when the world is built; ruling W6). */
+export type IngressDestination = { readonly kind: 'ship'; readonly id: string } | { readonly kind: 'point'; readonly x: number; readonly z: number }
+/** A raider's orders (7e spec §4.5): fly the route, then the destination,
+ *  then orbit it; fight only what attacks or comes close. */
+export type IngressOrders = { readonly route: readonly IngressWaypoint[]; readonly destination: IngressDestination | null }
+
 /** What a pilot is doing at the top level (7e spec §4.1). 7e flies
  *  `engage`, `ingress` (§4.5) and `loiter`; 7f fills in `formation`, 7g
  *  `rtb` and `landed`. */

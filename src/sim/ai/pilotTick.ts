@@ -8,6 +8,7 @@ import type { Side } from '../sides.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
 import { friendlyInLineOfFire } from './holdFire.js'
+import { ingressAccepts, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
 import { loiterDesiredVelocity } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
@@ -34,13 +35,15 @@ export type PilotTickContext = {
  *  target keeps its 7a/7b meaning -- any live aircraft in the snapshot, at
  *  any range (ruling W3) -- and is never replaced; otherwise the scorer picks. */
 function chooseTarget<M>(
-  a: AircraftEntity<M>, pilot: PilotAssignment, current: string | null, view: TargetingView<M>,
+  a: AircraftEntity<M>, pilot: PilotAssignment, current: string | null, view: TargetingView<M>, nowS: number,
 ): string | null {
   if (pilot.target !== null) {
     const fixed = view.snapshot.find((c) => c.id === pilot.target)
     return fixed === undefined || isAircraftDown(view.combat, fixed) ? null : fixed.id
   }
-  return selectTarget(a, view, { current, leaderId: null })
+  // An ingress pilot fights only what attacks it or comes close (§4.5).
+  const accept = pilot.ingress === undefined ? undefined : ingressAccepts(a, view.combat[a.id]!, current, nowS)
+  return selectTarget(a, view, accept === undefined ? { current, leaderId: null } : { current, leaderId: null, accept })
 }
 
 /**
@@ -78,11 +81,11 @@ export function pilotTick<M>(
     decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
   }
   if (lost || ctx.nowS >= decision.nextRescoreS) {
-    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view)
+    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS)
     if (chosen !== decision.targetId) {
       decision = { ...decision, targetId: chosen, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     }
-    decision = { ...decision, mode: chosen === null ? 'loiter' : 'engage' }
+    decision = { ...decision, mode: chosen !== null ? 'engage' : pilot.ingress !== undefined ? 'ingress' : 'loiter' }
     target = chosen === null ? null : snapshot.find((c) => c.id === chosen)!
     if (target === null) {
       decision = { ...decision, nextRescoreS: ctx.nowS + pilot.skill.reactionS }
@@ -107,6 +110,12 @@ export function pilotTick<M>(
       }
     }
   }
+  // 7e spec §4.5: route progress, checked every tick while on the route. An
+  // engaged raider keeps its legIndex and resumes there.
+  if (target === null && pilot.ingress !== undefined) {
+    const legIndex = nextLegIndex(a, pilot.ingress, decision.legIndex, ctx.ships)
+    if (legIndex !== decision.legIndex) decision = { ...decision, legIndex }
+  }
   // 7c spec §3.2: the envelope is checked every tick, after the rescore, and
   // outranks any maneuver. It never changes the 7b intent (ruling R11).
   // While the intent is Pursue, the floor follows the target, as perceived at
@@ -130,7 +139,15 @@ export function pilotTick<M>(
     }
   }
   if (target === null) {
-    const base = controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a))
+    const orders = pilot.ingress
+    const base = orders === undefined
+      ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a))
+      : decision.legIndex > orders.route.length
+        ? ingressOrbitControls(a, orders, decision.legIndex, ctx.ships)
+        : {
+            ...controlsForDesiredVelocity(a.state, a.spec, ingressDesiredVelocity(a, orders, decision.legIndex, ctx.ships)),
+            throttle: ingressThrottle(a, orders, decision.legIndex, ctx.ships),
+          }
     const { controls, cursor } = finishControls(a, base, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
     return { ...a, pilot: { ...pilot, decision: { ...decision, safety: 'none', latch: null, noiseCursor: cursor } }, controls }
   }
