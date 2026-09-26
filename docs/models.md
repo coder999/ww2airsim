@@ -112,3 +112,25 @@ sources (Hangar spec §4). Tier 1 checks the library against the rosters in
   - Cycle runs the gear
   - wireframe works
   - it is inside its manifest budget as drawn (check 10)
+
+## Authoring in Blender
+
+Where no cleanly licensed model exists, write an original one
+([model-roster spec](superpowers/specs/2026-09-26-model-roster-design.md)).
+A model is a script, `tools/models/blender/<id>.py`, built from
+`tools/models/blender/kit.py`. Read the kit's header for the frame and the
+determinism rules. `hangar.py` is the worked example, and its header shows
+how to cite each figure and label each estimate.
+
+```sh
+npx tsx tools/models/blender/cli.ts <id> [--key value ...]
+```
+
+This writes `content/models/candidates/<id>.glb` (gitignored) and prints its
+inspection. Blender must be exactly the version pinned in
+`tools/models/blender/run.ts`, and every run goes through that file's
+`runBlenderScript`: it is what makes a raising script fail. Tests that need
+Blender skip by name without it (ryzen has none, checked 2026-09-26), so run
+`tests/tools/models/blender/` on nexus. `tools/models/blender/preview.py`
+renders a glb to PNG for a handoff. Until M1 adds the manifest's `blender`
+source kind, a Blender model does not reach `models:build` or the Hangar.
