@@ -1,5 +1,5 @@
 // src/render/hangar/models.ts
-import { Group, Mesh, Vector3, type Object3D } from 'three'
+import { Box3, Group, Mesh, Vector3, type Object3D } from 'three'
 import type { Airframe, PartId } from '../scene/airframe.js'
 import { loadRegisteredAirframe, type LoadAirframe } from '../scenarioEntities.js'
 import { loadRegisteredShipView, type LoadShipView } from '../scene/shipModels.js'
@@ -7,6 +7,8 @@ import { batched, createBuildingMaterials, drawBuilding, makeCollector } from '.
 import { disposeMeshTree } from '../models/dispose.js'
 import type { StoreMounts } from '../scene/stores.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
+import { acquireModel, type ModelInstance } from '../models/modelCache.js'
+import { ordnanceModelUrl } from '../content.js'
 import type { CatalogEntry } from './catalog.js'
 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
@@ -161,14 +163,20 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
   }
 }
 
+/** Loads a store's own model by its store type id (O1). */
+export type LoadStore = (storeId: string) => Promise<ModelInstance>
+
+const loadRegisteredStore: LoadStore = (id) => acquireModel(ordnanceModelUrl(id))
+
 /**
  * The ONLY module that knows where geometry comes from (Hangar spec §7).
  * Aircraft load through Z1's registry, by `spec.view.model`, exactly as the
  * game does; ships through the ship-models loader (S1), also exactly as the
  * game does, boxes included when a spec has no model; buildings through
- * `drawBuilding` on a flat field. null = "Not yet in service".
+ * `drawBuilding` on a flat field; ordnance through the model cache, exactly
+ * as the game's in-flight pools do (O1). null = "Not yet in service".
  */
-export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe, loadShip: LoadShipView = loadRegisteredShipView): Promise<HangarModel | null> {
+export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe, loadShip: LoadShipView = loadRegisteredShipView, loadStore: LoadStore = loadRegisteredStore): Promise<HangarModel | null> {
   const s = entry.subject
   if (s === null) return null
   if (s.kind === 'aircraft') {
@@ -181,6 +189,15 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
     // Through the view's own dispose: a model view releases its shared instance.
     const view = await loadShip(s.spec)
     return { ...staticModel(view.root), dispose: () => view.dispose() }
+  }
+  if (s.kind === 'ordnance') {
+    // Its origin is the suspension point with the body below it: stand it clear of the pad.
+    const instance = await loadStore(s.storeId)
+    const stand = new Group()
+    stand.name = 'ordnance stand'
+    stand.add(instance.root)
+    stand.position.y = -new Box3().setFromObject(instance.root).min.y + 0.2
+    return { ...staticModel(stand), dispose: () => instance.release() }
   }
   // The largest footprint of this kind stands for all of them.
   const b = [...s.placements].sort((x, y) => y.building.widthM * y.building.lengthM - x.building.widthM * x.building.lengthM)[0]!.building

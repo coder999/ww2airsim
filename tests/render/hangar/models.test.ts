@@ -1,7 +1,7 @@
 // tests/render/hangar/models.test.ts
 import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
-import { Group, Object3D } from 'three'
+import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
@@ -82,6 +82,33 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   it('the flat field is height 0 everywhere', () => {
     const f = flatField()
     expect([heightAt(f, 0, 0), heightAt(f, 123.4, -56.7), heightAt(f, 5e5, 0)]).toEqual([0, 0, 0])
+  })
+})
+
+describe('the ordnance category (O1, Task 8)', () => {
+  it('an ordnance entry loads its store model through the injected loader, stands clear of the pad, and has no mounts', async () => {
+    const entry = catalog.find((e) => e.library.id === 'an-m65')!
+    const seen: string[] = []
+    const model = await loadHangarModel(entry, undefined, undefined, async (id) => {
+      seen.push(id)
+      const root = new Group()
+      root.add(new Mesh(new BoxGeometry(1.7, 0.5, 0.5).translate(0, -0.3, 0), new MeshStandardMaterial()))
+      return { root, node: () => root, release: () => {} }
+    })
+    expect(seen).toEqual(['an-m65'])
+    expect(new Box3().setFromObject(model!.root).min.y).toBeGreaterThanOrEqual(0)
+    expect(model!.parts).toEqual([])
+    expect(model!.mounts()).toEqual([])
+  })
+
+  it('an aircraft model reports one mount point per rack and rail of its spec; the Zero, with no stores, reports none', async () => {
+    // createHellcat() hangs meshes named with the same mount ids content uses (Task 6's HELLCAT_MOUNTS).
+    const hellcatEntry = byId('f6f-hellcat')
+    const m = await loadHangarModel(hellcatEntry, async () => createHellcat())
+    const spec = hellcatEntry.subject?.kind === 'aircraft' ? hellcatEntry.subject.spec : null
+    expect(m!.mounts().map((p) => p.id)).toEqual([...spec!.stores!.racks, ...spec!.stores!.rails].map((r) => r.id))
+    const zero = await loadHangarModel(byId('a6m-zero'), async () => createHellcat())
+    expect(zero!.mounts()).toEqual([])
   })
 })
 

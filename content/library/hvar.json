@@ -1,0 +1,13 @@
+{
+  "id": "hvar",
+  "name": "5-inch High Velocity Aircraft Rocket (HVAR)",
+  "kind": "ordnance",
+  "side": "allied",
+  "spec": "hvar",
+  "blurb": "The rocket on every strike loadout's rails. Its model is generated from the Smithsonian's measured example and the Navy's ordnance pamphlet.",
+  "history": "The HVAR, nicknamed Holy Moses, was a 5-inch unguided rocket developed at the California Institute of Technology for the Navy and first fired in 1944. A 5-inch motor gave it a much higher velocity than the earlier forward-firing rockets, so it flew flatter and hit harder, and it could pierce armor and concrete.\n\nFighters carried it on zero-length launchers under the wings, in pairs, and it saw heavy use against ships, bunkers and armor in the Pacific and in Europe. More than a million were built, and it stayed in service into the Korean War.",
+  "sources": [
+    { "title": "Rocket, Air-to-Surface, 5-inch, HVAR, National Air and Space Museum A19820116000", "url": "https://airandspace.si.edu/collection-objects/rocket-air-to-surface-5-inch-hvar/nasm_A19820116000", "read": "2026-09-26" },
+    { "title": "High Velocity Aircraft Rocket", "url": "https://en.wikipedia.org/wiki/High_Velocity_Aircraft_Rocket", "read": "2026-09-26" }
+  ]
+}

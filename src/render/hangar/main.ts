@@ -137,6 +137,7 @@ async function boot(): Promise<void> {
     setDebug: onDebug,
     gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : []),
     counts: () => (model ? countsReport(model.root, content.budgets) : null),
+    storeMounts: () => (model ? model.mounts().map((m) => ({ id: m.id, ndc: stage.project(m.world) })) : []),
     validationErrors,
   })
 

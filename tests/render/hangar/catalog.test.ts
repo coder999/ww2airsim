@@ -30,6 +30,21 @@ describe('buildCatalog', () => {
     expect(() => buildCatalog(bad)).toThrow(/ghost.*no-such-ship/)
   })
 
+  it('resolves an ordnance entry to its store type and every aircraft that carries it; ordnance sorts last', () => {
+    const catalog = buildCatalog(nodeHangarContent())
+    const bomb = catalog.find((e) => e.library.id === 'an-m65')!
+    expect(bomb.subject).toMatchObject({ kind: 'ordnance', storeId: 'an-m65', store: { kind: 'bomb' } })
+    const carriers = (bomb.subject as { carriers: readonly { id: string }[] }).carriers.map((a) => a.id).sort()
+    expect(carriers).toEqual(['f4f-wildcat', 'f6f-hellcat'])
+    expect(catalog.at(-1)!.library.kind).toBe('ordnance')
+  })
+
+  it('names a library ordnance entry whose store no aircraft carries', () => {
+    const c = nodeHangarContent()
+    const bad = { ...c, library: [...c.library, { ...c.library.find((e) => e.id === 'an-m65')!, id: 'x', spec: 'mk-13' }] }
+    expect(() => buildCatalog(bad)).toThrow(/no aircraft carries store "mk-13"/)
+  })
+
   it('filters by kind and side', () => {
     const jp = filterCatalog(catalog, { kind: 'ship', side: 'japanese' })
     expect(jp.length).toBeGreaterThan(0)

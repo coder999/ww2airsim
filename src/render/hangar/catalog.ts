@@ -1,5 +1,5 @@
 // src/render/hangar/catalog.ts
-import type { AircraftSpec } from '../../sim/flight/schema.js'
+import type { AircraftSpec, StoreType } from '../../sim/flight/schema.js'
 import type { ShipSpec } from '../../sim/world/ships.js'
 import type { Airfield, Building } from '../../sim/world/airfields.js'
 import { LIBRARY_KINDS, SIDES, type HangarContent, type LibraryEntry, type LibraryKind, type Side } from './library.js'
@@ -12,6 +12,7 @@ export type CatalogSubject =
   | { readonly kind: 'aircraft'; readonly spec: AircraftSpec }
   | { readonly kind: 'ship'; readonly spec: ShipSpec }
   | { readonly kind: 'building'; readonly buildingKind: Building['kind']; readonly placements: readonly Placement[] }
+  | { readonly kind: 'ordnance'; readonly storeId: string; readonly store: StoreType; readonly carriers: readonly AircraftSpec[] }
 
 export interface CatalogEntry {
   readonly library: LibraryEntry
@@ -30,6 +31,11 @@ function subjectFor(e: LibraryEntry, c: HangarContent): CatalogSubject | null {
     const spec = c.ships.find((s) => s.id === e.spec)
     if (!spec) throw new Error(`library ${e.id}: no ship spec "${e.spec}"`)
     return { kind: 'ship', spec }
+  }
+  if (e.kind === 'ordnance') {
+    const carriers = c.aircraft.filter((a) => a.stores !== undefined && Object.hasOwn(a.stores.types, e.spec!))
+    if (carriers.length === 0) throw new Error(`library ${e.id}: no aircraft carries store "${e.spec}"`)
+    return { kind: 'ordnance', storeId: e.spec!, store: carriers[0]!.stores!.types[e.spec!]!, carriers }
   }
   const placements = c.airfields.flatMap((airfield) => airfield.buildings.filter((b) => b.kind === e.spec).map((building) => ({ airfield, building })))
   if (placements.length === 0) throw new Error(`library ${e.id}: no building of kind "${e.spec}" in any content/bases file`)

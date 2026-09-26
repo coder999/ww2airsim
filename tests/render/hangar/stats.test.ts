@@ -42,6 +42,17 @@ describe('figuresFor (Hangar spec §5), against committed content', () => {
   })
 })
 
+describe('an ordnance card (Hangar spec §5)', () => {
+  it('an ordnance card: weight, filler or warhead, blast radius and damage as gameplay values, and who carries it', () => {
+    const catalog = buildCatalog(nodeHangarContent())
+    const labels = (id: string) => figuresFor(catalog.find((e) => e.library.id === id)!).map((f) => f.label)
+    expect(labels('an-m65')).toEqual(['Weight', 'Explosive filler', 'Blast radius', 'Damage', 'Carried by'])
+    expect(labels('hvar')).toEqual(['Weight', 'Warhead', 'Blast radius', 'Damage', 'Carried by'])
+    const blast = figuresFor(catalog.find((e) => e.library.id === 'hvar')!).find((f) => f.label === 'Blast radius')!
+    expect(blast.note).toBe('gameplay value, not a historical figure')
+  })
+})
+
 describe('the target-type mirror of src/sim/weapons/combat.ts', () => {
   it('ships: only carrier, cruiser and battleship score', () => {
     expect(['carrier', 'cruiser', 'battleship', 'escort', 'merchant'].map((r) => shipTargetType(r as never)))

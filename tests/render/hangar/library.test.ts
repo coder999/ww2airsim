@@ -8,6 +8,7 @@ const content = nodeHangarContent()
 const gameplay = readFileSync('GAMEPLAY.md', 'utf8')
 const entries = content.library
 const buildingKinds = [...new Set(content.airfields.flatMap((a) => a.buildings.map((b) => b.kind)))]
+const storeIds = [...new Set(content.aircraft.flatMap((a) => Object.keys(a.stores?.types ?? {})))]
 
 describe('content/library (Hangar spec §4.4)', () => {
   it('1. every file parses, and its id equals its basename', () => {
@@ -20,6 +21,7 @@ describe('content/library (Hangar spec §4.4)', () => {
       if (e.kind === 'aircraft') expect(content.aircraft.find((a) => a.id === e.spec)?.name, e.id).toBe(e.name)
       if (e.kind === 'ship') expect(content.ships.find((s) => s.id === e.spec)?.name, e.id).toBe(e.name)
       if (e.kind === 'building') expect(buildingKinds, e.id).toContain(e.spec)
+      if (e.kind === 'ordnance') expect(storeIds, e.id).toContain(e.spec)
     }
   })
 
@@ -28,6 +30,7 @@ describe('content/library (Hangar spec §4.4)', () => {
     for (const a of content.aircraft) expect(count('aircraft', a.id), `aircraft ${a.id}`).toBe(1)
     for (const s of content.ships) expect(count('ship', s.id), `ship ${s.id}`).toBe(1)
     for (const k of buildingKinds) expect(count('building', k), `building kind ${k}`).toBe(1)
+    for (const id of storeIds) expect(count('ordnance', id), `ordnance ${id}`).toBe(1)
   })
 
   it("4. every row of GAMEPLAY.md's aircraft, ship and building rosters has an entry", () => {
@@ -38,6 +41,7 @@ describe('content/library (Hangar spec §4.4)', () => {
     const kinds = new Set(entries.filter((e) => e.kind === 'building').map((e) => e.spec))
     for (const kind of rosterColumn(gameplay, 'Building roster', 0, 1)) expect(kinds, kind).toContain(kind)
     for (const row of rosterColumn(gameplay, 'Building roster', 1)) expect(named('building'), row).toContain(row)
+    for (const row of rosterColumn(gameplay, 'Ordnance roster')) expect(named('ordnance'), row).toContain(row)
   })
 
   it('5. no blurb carries a gameplay number', () => {
