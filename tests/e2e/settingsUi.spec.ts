@@ -378,7 +378,11 @@ test('roster screen composites its letterhead/stamp/table over the WebGPU canvas
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Composite Check Pilot')
   await title.getByRole('button', { name: 'Add' }).click()
-  await expect(title.getByRole('button', { name: /Composite Check Pilot/ })).toBeVisible()
+  // Scoped to the roster row's own button[aria-pressed] marker: a bare
+  // getByRole('button', { name: /Composite Check Pilot/ }) also matches
+  // that row's "Dossier: Composite Check Pilot" button and is a
+  // strict-mode violation (regression from the Dossier button, Tasks 2-8).
+  await expect(title.locator('button[aria-pressed]').filter({ hasText: 'Composite Check Pilot' })).toBeVisible()
 
   // `:visible`, not a bare class selector: the title overlay also contains
   // the Settings dialog's own hidden `.letterhead`/`.sheet` (built once,

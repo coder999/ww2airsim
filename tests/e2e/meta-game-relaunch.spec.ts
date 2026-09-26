@@ -181,7 +181,11 @@ test('land, return to title, New game, land again: a second debrief shows and th
   // -- Roster round trip proves the first bank actually landed in
   // `localStorage`, same as `meta-game.spec.ts`'s acceptance check.
   await expect(reshownTitle.getByRole('button', { name: /Relaunch Test Pilot — ENS — 500/ })).toBeVisible()
-  await reshownTitle.getByRole('button', { name: /Relaunch Test Pilot/ }).click()
+  // Scoped to the roster row's own button[aria-pressed] marker: a bare
+  // getByRole('button', { name: /Relaunch Test Pilot/ }) also matches that
+  // row's "Dossier: Relaunch Test Pilot" button and is a strict-mode
+  // violation (regression from the Dossier button, Tasks 2-8).
+  await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Relaunch Test Pilot' }).click()
   await reshownTitle.getByRole('button', { name: 'New game' }).click()
 
   // Same scenario -- this is `onNewGame`'s SAME-scenario branch (a direct
