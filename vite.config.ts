@@ -3,6 +3,25 @@ import { cp } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 
 /**
+ * Gitignored directories under `content/` that must never reach `dist/`:
+ * `terrain/tiles/` (see `copyContent` below), and `models/`, the staging area
+ * `tools/models/sketchfab-fetch.sh` downloads candidates into
+ * (131,197,993 bytes in the main checkout, measured 2026-09-25; A6M Zero
+ * spec §6.4). Committed models live in `content/aircraft/` and
+ * `content/ships/`, which are copied.
+ */
+export const EXCLUDED_CONTENT_DIRS: readonly string[] = ['terrain/tiles', 'models']
+
+/** `cp`'s filter for `contentRoot`. Returning false for a directory already
+ *  stops `cp` descending into it; the prefix test is the belt to those
+ *  braces, and is written against `dir + sep` so a sibling that merely starts
+ *  with the same name (`models-notes/`) is still copied. */
+export function contentCopyFilter(contentRoot: string): (source: string) => boolean {
+  const excluded = EXCLUDED_CONTENT_DIRS.map((d) => resolve(contentRoot, ...d.split('/')))
+  return (source) => !excluded.some((dir) => source === dir || source.startsWith(dir + sep))
+}
+
+/**
  * Copy `content/` into the build output.
  *
  * Ruling R20, closing the gap Ruling R14 recorded: the build exited 0 while
@@ -45,18 +64,10 @@ function copyContent(): Plugin {
       config = resolved
     },
     async closeBundle(): Promise<void> {
-      const tilesDir = resolve(config.root, 'content', 'terrain', 'tiles')
       await cp(
         resolve(config.root, 'content'),
         resolve(config.root, config.build.outDir, 'content'),
-        {
-          recursive: true,
-          // Returning false for the directory itself already stops `cp`
-          // descending into it; the prefix test is the belt to that braces,
-          // and is written against `dir + sep` so a sibling that merely
-          // starts with the same name is not caught by it.
-          filter: (source) => source !== tilesDir && !source.startsWith(tilesDir + sep),
-        },
+        { recursive: true, filter: contentCopyFilter(resolve(config.root, 'content')) },
       )
     },
   }

@@ -68,6 +68,12 @@ const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
  */
 const TERRAIN_TILES_PATH = 'content/terrain/tiles'
 const REPO_TERRAIN_TILES_DIR = fileURLToPath(new URL(`../../${TERRAIN_TILES_PATH}`, import.meta.url))
+/** The gitignored candidate-model staging area (`tools/models/sketchfab-fetch.sh`
+ *  writes there). Same guard as the tiles: asserted only where the source
+ *  directory exists, so a fresh clone cannot pass it for the wrong reason;
+ *  tests/build/contentFilter.test.ts pins the filter itself everywhere. */
+const CANDIDATE_MODELS_PATH = 'content/models'
+const REPO_CANDIDATE_MODELS_DIR = fileURLToPath(new URL(`../../${CANDIDATE_MODELS_PATH}`, import.meta.url))
 
 /**
  * Whether the repo's own `content/terrain/L0.bin` (the SOURCE `vite build`
@@ -279,6 +285,12 @@ describe('the built artifact', () => {
         expect(
           existsSync(join(outDir, TERRAIN_TILES_PATH)),
           'the build shipped tools/terrain/build.ts\'s scratch directory (vite.config.ts\'s content-copy filter)',
+        ).toBe(false)
+      }
+      if (existsSync(REPO_CANDIDATE_MODELS_DIR)) {
+        expect(
+          existsSync(join(outDir, CANDIDATE_MODELS_PATH)),
+          'the build shipped content/models/, the gitignored candidate staging area (vite.config.ts EXCLUDED_CONTENT_DIRS)',
         ).toBe(false)
       }
 
