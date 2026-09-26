@@ -107,6 +107,18 @@ E1 (effects) and O1 (ordnance models) execute in parallel from the same `242c35e
 - **W9. `furball-range` is in the title-screen picker** as "Furball (dev)", because `?scenario=` accepts only picker ids in production and the viewing checkpoint needs a URL. Cost if wrong: one line to remove.
 - **W10. `initialDecision()` without an id keeps cursor 0**, so the hand-built test pilots stay bit-identical. Only `pilotAssignmentFrom` (every scenario-built pilot, including held groups) seeds from the id.
 
+
+## Rulings made while executing (2026-09-26, defaults for an unattended run; the ledger has the measurements)
+
+- **R-E1. A static target is looked up from `pilot.target` every tick**, not from `decision.targetId`. A hand-built pilot whose decision never recorded a target still flies it. Cost if wrong: none; production pilots record it on tick 1.
+- **R-E2. The ingress flies its own speed law**, throttle = 0.7 + 0.05 × (leg speed − airspeed). The velocity controller's law (0.65 + 0.012 × error) settled 14 m/s short of a 130 m/s leg. Spec §4.5 says "the existing velocity controller"; steering still is, only the throttle is replaced. Cost if wrong: none found.
+- **R-E3. The ingress orbit flies the lift vector** (`controlsForLiftVector`), aiming 30° ahead on a 1,500 m circle. Through the velocity controller the orbit climbed 2,900 m in 230 s while asking for −10 m/s. Cost: the orbit banks about 63° (open item in the handoff).
+- **R-E4. The ingress altitude gain is 0.3/s**, not the 0.1/s first tried, which left a 36 m steady error.
+- **R-E5. A same-side or self hit does not overwrite `lastHitBy`** (whole-branch review), so a wingman's graze cannot take the player's crash credit. `lastHit` still records it, so it still flashes.
+- **R-E6. The loiter latches its heading and altitude on entry** (`decision.loiter`), as the ingress route does. Before this it re-read the current track every tick (review).
+- **R-F1. The furball's opening is a bounce.** With the spec's first layout (both axis pairs head-on) no AI hit another AI in 300 s. In 1v1 duels no AI hit a maneuvering AI in 180 s: the AI gunnery leads by target velocity and ignores drop, which is the deferred gunnery-honesty slice. So pair A starts 850 m on the player's six, with the veteran wingman 280 m behind its green. The kill comes at tick 24 in all four loadouts. The AI itself is unchanged. Cost if wrong: §4.7's AI-on-AI kill rests on the opening geometry; the fights after it do not resolve by kills until gunnery honesty lands.
+- **R-F2. The 2 ms tick-cost ceiling is `npm run perf:furball`**, run on an idle machine (best of three per pure tick): 0.78 ms. Inside ryzen's full parallel suite the same number read 2.56 ms, the load of the other workers. The soak therefore does not time ticks. Cost if wrong: a tick-cost regression shows only when someone runs the script.
+
 ---
 
 ### Task 1: Sides — `sideOf`, content, and the static-target check
@@ -363,8 +375,8 @@ Content (spec §4.6): the player plus one allied AI against two axis pairs (each
 - Create: `tests/e2e/furball.spec.ts`, `docs/handoff/2026-09-26-plan7e-sides.md`
 - Modify: master spec §15 row 7, `README.md`, 7c spec §4 only if a ruling changed its text
 
-- [ ] **Step 1: Tier 2 spec** (spec §4.7): `furball-range` boots; `__ww2.combat()` shows at least one kill between two AI aircraft (a destroyed AI whose `attacker` is another AI, opposite side); zero validation errors; gpu p95 < 6.0 ms at 2560×1440 with every airframe drawn.
-- [ ] **Step 2: Run it** on a free dev slot (`ss -ltnp` first; the `vite.config.ts` edit is local scratch), plus `ai-pursuit`, `ai-maneuver`, `ai-pursuit-difficulty` and `radar`, since the cursor and the radar moved.
-- [ ] **Step 3: `remote-run npm run verify`**, `rc=$?`.
-- [ ] **Step 4: Whole-branch review** by a fresh subagent; fix what it finds; re-verify.
-- [ ] **Step 5: Handoff, §15, README**; leave `furball-range` serving on the slot and assert 200; push the branch; email the handoff; append to the parallel-tracks ledger.
+- [x] **Step 1: Tier 2 spec** (spec §4.7): `furball-range` boots; `__ww2.combat()` shows at least one kill between two AI aircraft (a destroyed AI whose `attacker` is another AI, opposite side); zero validation errors; gpu p95 < 6.0 ms at 2560×1440 with every airframe drawn.
+- [x] **Step 2: Run it** on a free dev slot (`ss -ltnp` first; the `vite.config.ts` edit is local scratch), plus `ai-pursuit`, `ai-maneuver`, `ai-pursuit-difficulty` and `radar`, since the cursor and the radar moved.
+- [x] **Step 3: `remote-run npm run verify`**, `rc=$?`.
+- [x] **Step 4: Whole-branch review** by a fresh subagent; fix what it finds; re-verify.
+- [x] **Step 5: Handoff, §15, README**; leave `furball-range` serving on the slot and assert 200; push the branch; email the handoff; append to the parallel-tracks ledger.
