@@ -24,6 +24,9 @@ relevant section here in the same commit.
 - **Rendering:**
   - a raymarch at reduced resolution with temporal accumulation
     (`cloudPass.ts`);
+  - the march stops at the nearer of the scene depth and the effects'
+    dense depth (where effects alpha > 0.5), so a fireball in front of a
+    cloud keeps its pixels (E1, `src/render/fx/fxPass.ts`'s `cloudLimit`);
   - a density field shared with a sun-view shadow map
     (`cloudField.ts`, `cloudShadow.ts`). The march's `density` and
     `densityCoarse` are laid-out TSL `Fn`s, a fresh pair per material
@@ -63,6 +66,7 @@ relevant section here in the same commit.
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |
 | History targets | `src/render/scene/cloudHistory.ts` |
+| Effects dense depth, the cloud march limit's second input | `src/render/fx/fxPass.ts` (`FxCloudLimit`) |
 | Shadow map (sun-view transmittance) | `src/render/scene/cloudShadow.ts` |
 | Phase, multi-scatter, powder | `src/render/scene/cloudLighting.ts` |
 | Asset sizes and constants shared by build and loader | `src/render/sky/noise.ts` |
@@ -70,7 +74,7 @@ relevant section here in the same commit.
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
 | GPU gates | `tests/e2e/budget4k.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
-| DEV probes | `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `__ww2.clouds()`, `__ww2.cloudShadowAt(x,z)` |
+| DEV probes | `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()`, `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did
 
@@ -238,6 +242,17 @@ method and margin). Design: its spec §A.3.
 - **Not tried:** laying out `candidate` (inlined twice in the detailed
   density) and hoisting `thetaFor` to once per layer, if more headroom is
   wanted.
+
+### 3.10 Effects in front of clouds (E1, 2026-09-26)
+
+`minViewZAt` and the composite's `z` now take `min(…, denseViewZAt)`, the
+effects pass's dense depth (`src/render/fx/fxPass.ts`), so the march stops
+at a dense effect exactly as it stops at an opaque surface, and the
+composite matches that stop. The reason is ordnance-and-effects spec §4.2:
+air kills happen against cloud, and a fireball in front of a cloud must keep
+its pixels rather than be marched over. Without `fxLimit` (`?fx=off`, or
+`?fxCloudLimit=off`) it is a JS-level branch, so every cloud node graph is
+built exactly as before.
 
 ## 4. Traps
 
