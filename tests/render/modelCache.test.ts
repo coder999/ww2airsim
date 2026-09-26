@@ -26,6 +26,15 @@ function countingParse() {
 }
 
 describe('createModelCache', () => {
+  it('tags every instance root with the URL it was acquired from (Hangar budgets, H2)', async () => {
+    const cache = createModelCache(async () => new Group())
+    const a = await cache.acquire('/content/aircraft/wildcat.glb')
+    const b = await cache.acquire('/content/aircraft/wildcat.glb')
+    expect(a.root.userData.modelUrl).toBe('/content/aircraft/wildcat.glb')
+    expect(b.root.userData.modelUrl).toBe('/content/aircraft/wildcat.glb')
+    a.release(); b.release()
+  })
+
   it('parses a URL once, however many instances, concurrent or later', async () => {
     const { parse } = countingParse()
     const cache = createModelCache(parse)

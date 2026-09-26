@@ -47,7 +47,10 @@ export function partSpecsFor(parts: readonly PartId[]): PartSpec[] {
   return BENCH_PARTS.map((p) => ({ ...p, modeled: parts.includes(p.id) }))
 }
 
-/** Triangles and draw calls three.js issues for `root`: one draw per Mesh (per material group). */
+/** Triangles and draw calls three.js issues for `root`: one draw per visible
+ *  Mesh, or one per geometry group when its material is an array (three
+ *  splits by group only then; a BoxGeometry's six groups under one material
+ *  are one draw, which H1 counted as six until H2's budget readout, 2026-09-26). */
 export function sceneCounts(root: Object3D): { triangles: number; drawCalls: number } {
   let triangles = 0, drawCalls = 0
   root.traverse((o) => {
@@ -55,7 +58,7 @@ export function sceneCounts(root: Object3D): { triangles: number; drawCalls: num
     const g = o.geometry
     const count = g.index ? g.index.count : (g.getAttribute('position')?.count ?? 0)
     triangles += Math.floor(count / 3)
-    drawCalls += Math.max(1, g.groups.length)
+    drawCalls += Array.isArray(o.material) ? Math.max(1, g.groups.length) : 1
   })
   return { triangles, drawCalls }
 }

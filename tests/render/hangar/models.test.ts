@@ -1,7 +1,7 @@
 // tests/render/hangar/models.test.ts
 import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
-import { flatField, loadHangarModel, partSpecsFor } from '../../../src/render/hangar/models.js'
+import { flatField, loadHangarModel, partSpecsFor, sceneCounts } from '../../../src/render/hangar/models.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
@@ -9,6 +9,16 @@ import { nodeHangarContent } from './content.js'
 
 const catalog = buildCatalog(nodeHangarContent())
 const byId = (id: string) => catalog.find((e) => e.library.id === id)!
+
+describe('sceneCounts', () => {
+  it('draws a single-material mesh once whatever its groups, and a multi-material one per group', async () => {
+    const { BoxGeometry, Group, Mesh, MeshStandardMaterial } = await import('three')
+    const one = new Mesh(new BoxGeometry(), new MeshStandardMaterial()) // 6 groups, one material
+    const multi = new Mesh(new BoxGeometry(), Array.from({ length: 6 }, () => new MeshStandardMaterial()))
+    const root = new Group(); root.add(one, multi)
+    expect(sceneCounts(root)).toEqual({ triangles: 24, drawCalls: 7 })
+  })
+})
 
 describe('partSpecsFor', () => {
   it("reports every bench part, modeled only where the airframe's parts say so", () => {
