@@ -233,6 +233,15 @@ GPU p95 with zero validation errors. See the
 the Git LFS/CI tradeoff and the deliberately deferred asset-quality work;
 master spec §15 remains the authoritative status table.
 
+**Terrain surface textures landed 2026-09-26.** Five CC0 Poly Haven materials
+(sand, grass, dirt, jungle floor and rock) now add photographed albedo and normal
+detail under the existing land-cover blend. The 2.77 MB KTX2 arrays load before
+terrain creation, preserve the procedural average color, fade with distance and
+turn off entirely at scenery `low`; a failed texture load falls back to the old
+procedural ground. See the
+[plan](docs/superpowers/plans/2026-09-26-terrain-surface-textures.md),
+[handoff](docs/handoff/2026-09-26-terrain-textures.md) and master spec §15.
+
 **Clouds landed 2026-09-19 (Plan 16a):** volumetric cloud layers raymarched
 from two committed noise volumes, declared per scenario in `weather.clouds`
 (`free-flight` has a cumulus deck at 1,500 m and a cirrus sheet at 7,000 m;
