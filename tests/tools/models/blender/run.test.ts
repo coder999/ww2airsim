@@ -1,6 +1,6 @@
 // tests/tools/models/blender/run.test.ts
 import { describe, expect, it } from 'vitest'
-import { mkdtempSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { BLENDER_VERSION, HAVE_BLENDER, assertBlenderVersion, parseBlenderVersion, runBlenderScript } from '../../../../tools/models/blender/run.js'
@@ -52,5 +52,11 @@ describe.skipIf(!HAVE_BLENDER)('runBlenderScript against the real Blender', () =
     const s = script('silent.py', 'pass\n')
     expect(() => runBlenderScript(s, out)).toThrow(/wrote no/)
     expect(existsSync(out)).toBe(false)
+  }, 60_000)
+
+  it('leaves no __pycache__ beside the kit: a model script importing kit must not dirty the tree', () => {
+    rmSync('tools/models/blender/__pycache__', { recursive: true, force: true })
+    runBlenderScript('tests/tools/models/blender/fixtures/kit_probe.py', join(dir, 'probe.glb'))
+    expect(existsSync('tools/models/blender/__pycache__')).toBe(false)
   }, 60_000)
 })

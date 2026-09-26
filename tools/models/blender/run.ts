@@ -42,7 +42,11 @@ export function runBlenderScript(script: string, out: string, args: readonly str
   assertBlenderVersion(installedBlenderVersion(bin))
   mkdirSync(dirname(out), { recursive: true })
   rmSync(out, { force: true })
-  const r = spawnSync(bin, ['-b', '--factory-startup', '--python-exit-code', '1', '-P', script, '--', out, ...args], {
+  // No __pycache__ beside kit.py (an untracked file in every checkout). Blender's bundled
+  // Python ignores PYTHONDONTWRITEBYTECODE (measured 2026-09-26), so it is set in-process
+  // before the script runs; Blender handles its arguments in order.
+  const noBytecode = ['--python-expr', 'import sys; sys.dont_write_bytecode = True']
+  const r = spawnSync(bin, ['-b', '--factory-startup', '--python-exit-code', '1', ...noBytecode, '-P', script, '--', out, ...args], {
     encoding: 'utf8',
     env: { ...process.env, PYTHONHASHSEED: '0' },
     maxBuffer: 64 * 1024 * 1024,
