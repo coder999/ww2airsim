@@ -128,32 +128,42 @@ export function flyLowYoYo<M>(self: AircraftEntity<M>, perceived: AircraftEntity
  *  live, until level with the target, within PASS_RANGE_M, or past it: the
  *  target behind our 3/9 line while we descend. Phase 1 pulls up at the G
  *  budget until climbing at ZOOM_START_VY_MPS. Phase 2 zooms on a
- *  ZOOM_CLIMB_RAD line toward the target until the climb is spent
- *  (ZOOM_END_VY_MPS) or the height advantage is back (ATTACK_RUN_HEIGHT_M
- *  above the target, so the selector can start the next run).
+ *  ZOOM_CLIMB_RAD line toward the target until the energy advantage is
+ *  restored (the latched entry altitude, `entryAltitudeM`, regained) or the
+ *  climb is spent (under ZOOM_END_VY_MPS), whichever comes first.
+ *
+ *  The plan ended the zoom 300 m above the target instead, which capped the
+ *  zoom's own recovery near 300 m over the height lost: 0.47 of 623 m in the
+ *  earlier 600 m-above signature world, the rest only momentum after the
+ *  latch closed (measured 2026-09-26).
  *
  *  "Past it" is not the plan's range-opening test (`closureRateMps` < 0).
  *  Measured 2026-09-26 in the signature world (tests/sim/ai/attackRun.test.ts,
- *  90 s): with the range-rate test, 27 of 29 attack runs "passed" within
- *  1 s of entry, because a run re-entered above a target it had not caught
- *  opens the range from the start; phase 2's end is then already true, so
- *  the pilot flickered through all three phases every rescore instead of
- *  diving. Target-behind alone: 1 of 5. Target-behind while descending: 0
- *  of 4.
+ *  run for 90 s): with the range-rate test, 22 of 23 attack runs "passed"
+ *  within 1 s of entry, because a run re-entered above a target it has not
+ *  caught opens the range from the start; the zoom's end is then already
+ *  true, so the pilot flickered through all three phases every rescore and
+ *  never dived again. Target-behind, alone or while descending: 0 of 4. (In
+ *  the earlier 600 m-above world, target-behind alone flickered 1 of 5 and
+ *  target-behind while descending 0 of 4, so the descent clause stays.)
  *
  *  ATTACK_RUN_HEIGHT_M is spec §3.5's table value (300 m). The other four
  *  are the plan's values, kept; each swept 2026-09-26 in that world with
- *  everything else fixed, reading the first run's zoom recovery (height
- *  regained after its lowest point, over height lost; spec signature >= 0.6):
- *  - PASS_RANGE_M: 50, 100, 150 -> 0.756; 250 -> 0.754; 350 -> 0.738. The
- *    first run ends on "level with the target" at 235 m, so it rarely binds.
- *  - ZOOM_CLIMB_RAD: 15° -> 1.047; 30° -> 0.756; 45° -> 0.895; 60° -> 1.013.
- *    Every value meets the signature; 30° is kept rather than re-tuned on one
- *    world.
- *  - ZOOM_START_VY_MPS: 5, 10 -> 0.756; 20 -> 0.756; 40 -> 0.757.
- *  - ZOOM_END_VY_MPS: 0, 5, 15 -> 0.756 (the height test ends the zoom
- *    first, at 71 m/s of climb); 30 -> 0.717, because the zoom then ends the
- *    tick it starts. */
+ *  everything else fixed, reading the first run's recovery (height regained
+ *  after its lowest point, before the next run, over height lost; spec
+ *  signature >= 0.6), then in brackets the part regained before the latch
+ *  closed. In every row but the last the 20 s latch cap, not the zoom's own
+ *  end, closes the latch: the pass comes at 13.5 s.
+ *  - PASS_RANGE_M: 50, 100, 150 -> 0.869 (0.529); 250 -> 0.852 (0.552);
+ *    350 -> 0.952 (0.566). The first run ends on "level with the target" at
+ *    198 m, so 150 m does not bind there.
+ *  - ZOOM_CLIMB_RAD: 15° -> 0.923 (0.459); 30° -> 0.869 (0.529);
+ *    45° -> 0.827 (0.544); 60° -> 0.908 (0.565). Every value meets the
+ *    signature; 30° is kept rather than re-tuned on one world.
+ *  - ZOOM_START_VY_MPS: 5, 10 -> 0.868 (0.529); 20 -> 0.869 (0.529);
+ *    40 -> 0.870 (0.531).
+ *  - ZOOM_END_VY_MPS: 0, 5, 15 -> 0.869 (0.529); 30 -> 0.413, because the
+ *    zoom then ends the tick it starts and the next dive goes lower. */
 export const ATTACK_RUN_HEIGHT_M = 300
 export const PASS_RANGE_M = 150
 export const ZOOM_CLIMB_RAD = 30 * Math.PI / 180
@@ -162,27 +172,30 @@ export const ZOOM_END_VY_MPS = 5
 export function flyAttackRun<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
   const y = self.state.position.y
   const lowestAltitudeM = Math.min(latch.lowestAltitudeM, y)
+  const next = (phase: number): ManeuverLatch =>
+    phase === latch.phase && lowestAltitudeM === latch.lowestAltitudeM ? latch : { ...latch, lowestAltitudeM, phase }
   const to = sub(perceived.state.position, self.state.position)
   if (latch.phase === 0) {
     const rangeM = length(to)
     const passed = y <= perceived.state.position.y || rangeM < PASS_RANGE_M || (self.state.velocity.y < 0 && dot(to, self.state.velocity) < 0)
     const controls = { ...leadPursuitControls(self, perceived), throttle: 1 }
-    return { controls, latch: { ...latch, lowestAltitudeM, phase: passed ? 1 : 0 } }
+    return { controls, latch: next(passed ? 1 : 0) }
   }
   const n = loadFactorBudget(self.spec)
   if (latch.phase === 1) {
     const controls = controlsForLiftVector(self.state, self.spec, UP, n, 1)
-    return { controls, latch: { ...latch, lowestAltitudeM, phase: self.state.velocity.y >= ZOOM_START_VY_MPS ? 2 : 1 } }
+    return { controls, latch: next(self.state.velocity.y >= ZOOM_START_VY_MPS ? 2 : 1) }
   }
   const flat = length(v3(to.x, 0, to.z)) > 1e-6 ? normalize(v3(to.x, 0, to.z)) : normalize(v3(self.state.velocity.x, 0, self.state.velocity.z))
   const line = v3(flat.x * Math.cos(ZOOM_CLIMB_RAD), Math.sin(ZOOM_CLIMB_RAD), flat.z * Math.cos(ZOOM_CLIMB_RAD))
   const controls = { ...steerToward(self.state, self.spec, scale(line, Math.max(length(self.state.velocity), 60)), n), throttle: 1 }
-  const done = self.state.velocity.y <= ZOOM_END_VY_MPS || y >= perceived.state.position.y + ATTACK_RUN_HEIGHT_M
-  return { controls, latch: done ? null : { ...latch, lowestAltitudeM } }
+  const done = self.state.velocity.y < ZOOM_END_VY_MPS || y >= latch.entryAltitudeM
+  return { controls, latch: done ? null : next(2) }
 }
 
 /** A maneuver's controls this tick, and its latch afterwards: the same
- *  object while it continues, a new one on a phase change, null once it has
+ *  object while it continues unchanged, a new one when its data changes (a
+ *  phase change, or the attack run's new lowest altitude), null once it has
  *  ended. A non-phased maneuver returns null. */
 export type Flown = { readonly controls: Controls; readonly latch: ManeuverLatch | null }
 

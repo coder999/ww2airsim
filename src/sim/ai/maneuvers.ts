@@ -99,11 +99,11 @@ export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverNa
   const f = m.facts
   if (m.intent === 'pursue') {
     // The attack run also needs the target ahead of our 3/9 line. Without
-    // that, a new run opens the moment the last one's zoom ends, with the
-    // target behind, and turns back down after it: the first run then
-    // regains 0.505 of the height it lost instead of 0.756 (spec signature
-    // >= 0.6; measured 2026-09-26 in tests/sim/ai/attackRun.test.ts's world,
-    // run for 90 s). Lead pursuit brings the target ahead again first.
+    // that, a new run opens as soon as the latch closes, with the target
+    // behind, and turns back down after it: the first run then regains 0.561
+    // of the height it lost instead of 0.869 (spec signature >= 0.6;
+    // measured 2026-09-26 in tests/sim/ai/attackRun.test.ts's world). Lead
+    // pursuit brings the target ahead again first.
     if (has('attack-run') && m.envelope.pairing !== 'turnfight' && m.heightOverTargetM >= ATTACK_RUN_HEIGHT_M && !m.threatBehind) return 'attack-run'
     const turning = m.targetTurnRateRadPerS >= TARGET_TURNING_RAD_PER_S
     const overshoot = turning && f.rangeM < OVERSHOOT_RANGE_M && m.closureMps > OVERSHOOT_CLOSURE_MPS
