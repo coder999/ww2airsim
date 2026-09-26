@@ -838,6 +838,10 @@ export function advance<M>(
   let aircraft = world.aircraft
   let ships = world.ships
   const structures = world.structures
+  // Friendly fire (spec 2026-09-26 §4): structures never change side, so
+  // their table is built once per call; ships are rebuilt per tick below,
+  // because a held group can spawn one mid-flight.
+  const structureSides = sidesOf(world, structures)
   let combat = world.combat
   let mission = world.mission
   for (let i = 0; i < owedSteps; i++) {
@@ -878,7 +882,8 @@ export function advance<M>(
       )
     })
     const combatAtStart = combat
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides)
+    const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides)
     // After `stepCombat`, which is where an overload break-up happens, and
     // after every aircraft has stepped, which is where a crash happens: a loss
     // with no killing hit is credited to whoever last hit the airplane.

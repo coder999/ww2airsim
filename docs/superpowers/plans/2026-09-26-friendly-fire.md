@@ -124,7 +124,7 @@ Steps:
 - add tests in `tests/sim/weapons/friendlyFire.test.ts`.
 
 Steps:
-- [ ] Write failing tests. Unit tests use hand-built `stepCombat` inputs; production tests go through `worldFromScenario` and `advance`:
+- [x] Write failing tests. Unit tests use hand-built `stepCombat` inputs; production tests go through `worldFromScenario` and `advance`:
   - A round into an allied hull sets the shooter's `friendlyFire` to `{ kind: 'ship', target: 'cv-1', tick }` on the first hit, and a second hit does not overwrite it.
   - A bomb direct hit and a blast on an allied structure (kind `structure`) score no `structuresDestroyed` or `killsByType.building`, even when the id is in `enemyStructureIds`. The destruction goes to `friendlyKills`.
   - A blast on an allied aircraft is kind `aircraft` (7e's `friendlyHits` counts rounds only).
@@ -133,10 +133,10 @@ Steps:
   - An AI shooting an allied ship sets the AI's record, and the player's stays null (FF-9).
   - `targetSides: null` is the old behavior.
   - Measure the shipped gunnery sortie through `nextFrameState`: hold Space from the parked spot until target-1 dies. Tacloban's structures must take no damage and `friendlyFire` must stay null. If this fails, stop and re-rule FF-2.
-- [ ] Implement.
-- [ ] Run the touched tests, plus `tests/sim/weapons/*.test.ts` and `tests/sim/ai/sidesTick.test.ts`, with `--maxWorkers=2`.
-- [ ] Run the digest probe (stripped and motion equal).
-- [ ] Commit.
+- [x] Implement.
+- [x] Run the touched tests, plus `tests/sim/weapons/*.test.ts` and `tests/sim/ai/sidesTick.test.ts`, with `--maxWorkers=2`.
+- [x] Run the digest probe (stripped and motion equal).
+- [x] Commit.
 
 ### Task 3: The discharge debrief
 

@@ -21,6 +21,7 @@ import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
 import { zeroKillsByType, type TargetType } from './targetType.js'
 import { sameSide, type Side } from '../sides.js'
+import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -56,7 +57,16 @@ export type AircraftCombat = {
    *  `hits`, `kills` or `killsByType` (ruling W1), so Plan 9's score cannot
    *  reward a teamkill. Only counted when `stepCombat` is given sides. */
   readonly friendlyHits: number
+  /** Since the friendly-fire plan (2026-09-26, ruling FF-4) this also counts
+   *  own-side ships sunk and structures destroyed, never `shipsSunk`,
+   *  `structuresDestroyed` or `killsByType`. */
   readonly friendlyKills: number
+  /** The first damage this aircraft did to its own side, by round, bomb,
+   *  rocket or blast: an aircraft, ship or structure that was not already
+   *  destroyed, never itself. Set once, never overwritten. It is what
+   *  discharges the player (friendly-fire spec §4-§5). Only recorded when
+   *  `stepCombat` is given sides. */
+  readonly friendlyFire: FriendlyFire | null
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
@@ -105,7 +115,7 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0,
+      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
@@ -450,6 +460,12 @@ export function stepCombat(
    * caller that predates 7e) credits every hit as before.
    */
   sides: Readonly<Record<string, Side>> | null = null,
+  /**
+   * Friendly fire (spec 2026-09-26 §4): ship and structure sides by id, read
+   * against `sides[owner]`. `null` (every caller that predates it) records
+   * no friendly fire against either and credits them as before.
+   */
+  targetSides: TargetSides | null = null,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
@@ -549,6 +565,12 @@ export function stepCombat(
   // every test and reducer below. A hull still sinking blocks as it always did.
   const afloat = ships.filter(s => (shipDamage[s.id]?.sinkingFraction ?? 0) < 1)
 
+  /** Records `owner`'s first friendly fire (spec §4). */
+  const noteFriendlyFire = (owner: string, kind: FriendlyFireKind, target: string): void => {
+    const rec = records[owner]
+    if (rec !== undefined) records[owner] = withFriendlyFire(rec, { tick, kind, target })
+  }
+
   /** A kill by anything -- a round, a direct bomb, or blast -- lands on the
    *  owner's record; `hits` stays the gunnery statistic it has always been. */
   const creditAircraftDamage = (
@@ -589,6 +611,7 @@ export function stepCombat(
     const ownSide = owner === target.id || (sides !== null && sameSide(sides, owner, target.id))
     const lastHitBy = ownSide ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
+    if (ownSide && owner !== target.id && damage !== rec.damage) noteFriendlyFire(owner, 'aircraft', target.id)
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
   }
 
@@ -597,10 +620,17 @@ export function stepCombat(
     if (was === undefined) return
     const now = damageStructure(was, amount, tick, owner)
     structureDamage[s.id] = now
+    const friendly = ownSideTarget(sides, targetSides?.structures, owner, s.id)
+    if (friendly && was.destroyedTick === null) noteFriendlyFire(owner, 'structure', s.id)
     if (was.destroyedTick !== null || now.destroyedTick === null) return
-    if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
     const shooter = records[owner]
     if (shooter === undefined) return
+    // Own side: never RAZED or `killsByType` (ruling FF-4).
+    if (friendly) {
+      records[owner] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      return
+    }
+    if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
     const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : 'building'
     records[owner] = {
       ...shooter,
@@ -615,6 +645,7 @@ export function stepCombat(
     // `shipsSunk` is NOT credited here: a hull is sunk when it reaches the
     // bottom 90 s later, off the attacker this blow fixed (spec §3.6).
     shipDamage[ship.id] = damageShip(was, ship.spec.hullHp, amount, tick, owner)
+    if (was.destroyedTick === null && ownSideTarget(sides, targetSides?.ships, owner, ship.id)) noteFriendlyFire(owner, 'ship', ship.id)
   }
 
   /** Spec §3.4: every structure, hull and airplane whose BOX CENTER is within
@@ -680,6 +711,11 @@ export function stepCombat(
     if (sinkingFraction < 1 || d.attacker === null) continue
     const shooter = records[d.attacker]
     if (shooter === undefined) continue
+    // Own side on the bottom: a friendly kill, never scored (ruling FF-4).
+    if (ownSideTarget(sides, targetSides?.ships, d.attacker, id)) {
+      records[d.attacker] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      continue
+    }
     const role = shipRoleById.get(id)
     const targetType: TargetType | null =
       role === 'carrier' || role === 'cruiser' || role === 'battleship' ? role : null
