@@ -22,6 +22,10 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 
+Models authored in Blender (`tools/models/blender/`, model-roster spec) are
+original work, AGPL-3.0-or-later. Each gets its row here when it ships, from
+M1 on. M0's hangar is a gitignored candidate and ships nothing.
+
 `content/aircraft/wildcat.glb` is a texture-recompressed derivative of the
 Sketchfab download above, produced 2026-09-24 by the first `tools/models/build.ts`
 via `@gltf-transform/cli`'s `optimize` command -- textures resized to

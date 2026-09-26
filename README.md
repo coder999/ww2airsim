@@ -202,6 +202,14 @@ frozen, so a bare build skips it. The design is
 see the [handoff](docs/handoff/2026-09-25-z1-model-pipeline.md); master spec
 §15 holds the status.
 
+**Original models are authored in Blender (M0, 2026-09-26).** Where no
+cleanly licensed model exists, a script under `tools/models/blender/` builds
+one headlessly and byte-reproducibly; the barrel-roof hangar is the first.
+The roster plan that puts every Library object on screen is the
+[model-roster design](docs/superpowers/specs/2026-09-26-model-roster-design.md);
+see the [handoff](docs/handoff/2026-09-26-m0-blender-kit.md); master spec §15
+holds the status.
+
 **Ships draw licensed models (S1, 2026-09-25).** The three shipped ships
 (`essex-cv`, `fletcher-dd`, `type-b-maru`) are licensed models fitted at
 build time to their `content/ships/*.json`, so the sim stays authoritative
