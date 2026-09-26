@@ -1153,7 +1153,7 @@ git commit -m "S1: the pure ship fit (deck and hull fits, the deck grid, the ski
   - `stages/shipMaterials.ts`: `roleMaterial(doc, palette, role): Material` (named `ship:<role>`), `isRoleMaterial(m)`, `shipMaterials(doc, ship, flightDeckY)`.
   - `build.ts`: `runPipeline(doc, entry, shipSpec = loadShipSpec)`.
 
-- [ ] **Step 1: Write the failing test.** `tests/tools/models/shipStages.test.ts`:
+- [x] **Step 1: Write the failing test.** `tests/tools/models/shipStages.test.ts`:
 
 ```ts
 // tests/tools/models/shipStages.test.ts
@@ -1298,12 +1298,12 @@ describe('runBuild with a ship whose fit fails', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail.**
+- [x] **Step 2: Run it to see it fail.**
 
 Run: `npx vitest run tests/tools/models/shipStages.test.ts --maxWorkers=2`
 Expected: FAIL. `tools/models/stages/shipFit.js` does not resolve.
 
-- [ ] **Step 3: The `ship` block.** Apply to `tools/models/manifest.ts`:
+- [x] **Step 3: The `ship` block.** Apply to `tools/models/manifest.ts`:
 
 ```diff
 --- a/tools/models/manifest.ts
@@ -1380,7 +1380,7 @@ Expected: FAIL. `tools/models/stages/shipFit.js` does not resolve.
  export type ModelEntry = z.infer<typeof ModelEntrySchema>
 ```
 
-- [ ] **Step 4: The stages.** `tools/models/stages/shipMaterials.ts`:
+- [x] **Step 4: The stages.** `tools/models/stages/shipMaterials.ts`:
 
 ```ts
 // tools/models/stages/shipMaterials.ts
@@ -1625,7 +1625,7 @@ export function addShipMarkers(doc: Document, ship: ShipEntry, spec: ShipSpec, r
 }
 ```
 
-- [ ] **Step 5: The wiring.** Apply to `tools/models/build.ts`. The ship stages go after `normalizeDocument` and before `joinExcept`, as Z1's handoff says; the markers go after `prune` (departure 4):
+- [x] **Step 5: The wiring.** Apply to `tools/models/build.ts`. The ship stages go after `normalizeDocument` and before `joinExcept`, as Z1's handoff says; the markers go after `prune` (departure 4):
 
 ```diff
 --- a/tools/models/build.ts
@@ -1709,12 +1709,12 @@ export function addShipMarkers(doc: Document, ship: ShipEntry, spec: ShipSpec, r
      if (problems.length) {
 ```
 
-- [ ] **Step 6: Run the new tests and Z1's.**
+- [x] **Step 6: Run the new tests and Z1's.**
 
 Run: `npx vitest run tests/tools/models/ --maxWorkers=2`
 Expected: PASS, 44 tests in 7 files (Z1's 37, unchanged, plus these 7).
 
-- [ ] **Step 7: Verify and commit.** Re-diff `manifest.ts` and `build.ts` against `HEAD` first: only the hunks above.
+- [x] **Step 7: Verify and commit.** Re-diff `manifest.ts` and `build.ts` against `HEAD` first: only the hunks above.
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
