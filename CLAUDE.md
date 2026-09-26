@@ -35,6 +35,13 @@ not exist, and three conventions below were being missed for that reason).
   `main` releases nothing; the deploy command is in README's "Deployment".
 - `npm run verify` (typecheck, lint at zero warnings, depcruise, tests) ends
   every task. Capture `rc=$?` directly; never gate on a grepped pipeline.
+- **Full suites and `verify` go through `remote-run`** (`remote-run npm run
+  verify`), which runs them on ryzen's 32 threads. On nexus, run only the
+  files you are touching. Parallel full suites here have OOM-killed nexus.
+  How it works: `serverconfig/ryzen.md`, "WSL Ubuntu and compute offload".
+  Gitignored and LFS data reaches ryzen only if it is listed in
+  `.remote-run-data`. A new data-backed test whose data isn't listed there
+  shows up as a named skip on ryzen and passes on nexus.
 - `src/sim/` never imports `render/`, `input/`, `assists/`, `audio/`, Node
   core or a rendering library; `.dependency-cruiser.cjs` says why for each
   rule and `tests/architecture/boundary.test.ts` proves they bite.
