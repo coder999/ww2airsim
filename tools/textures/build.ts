@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { SURFACE_LAYERS, surfaceManifestSchema, type SurfaceManifest } from '../../src/render/terrain/surfaceManifest.js'
+import { fetchPinned } from './fetchPinned.js'
 import { readKtx2Header } from './ktx2.js'
 import { ktxBinary, TEXTURE_CACHE } from './ktxTool.js'
 import { TEXTURE_SOURCES } from './sources.js'
@@ -14,18 +14,6 @@ const VENDOR = fileURLToPath(new URL('../../content/vendor/basis/', import.meta.
 const THREE_BASIS = fileURLToPath(new URL('../../node_modules/three/examples/jsm/libs/basis/', import.meta.url))
 const ALBEDO_SIZE = 1024
 const NORMAL_SIZE = 512
-
-async function fetchPinned(url: string, md5: string): Promise<string> {
-  const file = join(TEXTURE_CACHE, url.split('/').pop()!)
-  if (!existsSync(file)) {
-    const res = await globalThis.fetch(url, { headers: { 'User-Agent': 'ww2airsim-textures-build' } })
-    if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`)
-    writeFileSync(file, new Uint8Array(await res.arrayBuffer()))
-  }
-  const got = createHash('md5').update(readFileSync(file)).digest('hex')
-  if (got !== md5) throw new Error(`${file}: md5 ${got}, expected ${md5}`)
-  return file
-}
 
 const toLinear = (c: number): number => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }
 
