@@ -246,11 +246,11 @@ export function selectTarget<M>(self: AircraftEntity<M>, view: TargetingView<M>,
 
 The weights are in meters of range, so a contact's score reads "how much nearer it is worth". Candidates: opposite side, not down (`isAircraftDown`), not parked, within `DETECTION_RANGE_M`. Ties break by id.
 
-- [ ] **Step 1: Failing tests, one per score term** (spec §4.7), each built as two otherwise-symmetric contacts where only that term differs, asserting the pick flips when the term is present: nearer; threat (the farther contact has me in its cone); leader threat; tail toward me; engaged-by-friendlies penalty; stickiness. Plus: same side, down, impacted, parked and out-of-range contacts are never picked; an exact tie picks the smaller id; reversing the snapshot changes nothing.
-- [ ] **Step 2: Run to verify it fails.**
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4: Run** — PASS.
-- [ ] **Step 5: Commit** `7e Task 4: target selection -- five score terms plus stickiness, ties by id`.
+- [x] **Step 1: Failing tests, one per score term** (spec §4.7), each built as two otherwise-symmetric contacts where only that term differs, asserting the pick flips when the term is present: nearer; threat (the farther contact has me in its cone); leader threat; tail toward me; engaged-by-friendlies penalty; stickiness. Plus: same side, down, impacted, parked and out-of-range contacts are never picked; an exact tie picks the smaller id; reversing the snapshot changes nothing.
+- [x] **Step 2: Run to verify it fails.**
+- [x] **Step 3: Implement.**
+- [x] **Step 4: Run** — PASS.
+- [x] **Step 5: Commit** `7e Task 4: target selection -- five score terms plus stickiness, ties by id`.
 
 ### Task 5: The pilot chooses, re-checks and loiters
 
