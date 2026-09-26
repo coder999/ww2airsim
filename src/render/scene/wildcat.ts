@@ -5,30 +5,11 @@ import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
-/**
- * The Wildcat model (content/aircraft/wildcat.glb, ASSETS.md) is authored
- * with local +Z as the nose -- confirmed 2026-09-24 by reading the world
- * position of the `Helice` (propeller) node (+Z) against `Timon_Prof` (the
- * tail/elevator, -Z) after a real Three.js load, not by assumption. Sim body
- * frame is +X forward (hellcat.ts's own doc comment). Rotating +90 degrees
- * about Y sends local (0,0,1) to world (1,0,0) -- verified against the same
- * measurement: it also sends the model's local +X (where `GRP_Rueda_Der`,
- * "right" in Spanish, sits at negative local X) to world -Z, i.e. sim's
- * right-hand side (+Z), matching hellcat.ts's stated "+Z right" convention.
- */
-export const WILDCAT_TO_SIM_ROTATION_Y = Math.PI / 2
+import { WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y } from './wildcatFrame.js'
 
-/** content/aircraft/f4f-wildcat.json's geometry.wingSpanM (Task 3 -- reused
- *  verbatim from the Hellcat's; this constant must be kept in sync with that
- *  file by hand, the same way hellcat.ts's own wing box hardcodes it, since
- *  this module has no content-loading path of its own either. */
-const TARGET_WINGSPAN_M = 13.06
-/** The model's own native wingspan, measured 2026-09-24 via
- *  `new THREE.Box3().setFromObject(scene)` on a real load (not a guess, and
- *  not derived from the raw glTF accessor bytes, which are in a different,
- *  pre-hierarchy unit space) -- see this plan's Task 5 for the method. */
-const WILDCAT_NATIVE_WINGSPAN_M = 15.658001068688918
-export const WILDCAT_SCALE = TARGET_WINGSPAN_M / WILDCAT_NATIVE_WINGSPAN_M
+/** The model-to-sim frame lives in wildcatFrame.ts (Node-safe for tools/models/mounts.ts);
+ *  re-exported so every importer of this module keeps working. */
+export { WILDCAT_DATUM_PITCH_RAD, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatToSimMatrix } from './wildcatFrame.js'
 
 interface GearPose { readonly pos: Vector3; readonly quat: Quaternion }
 interface GearPair { readonly der: GearPose; readonly izq: GearPose }
