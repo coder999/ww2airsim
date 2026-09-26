@@ -6,11 +6,25 @@
 export const SHAPE_SIZE = 128
 export const DETAIL_SIZE = 64
 export const CURL_SIZE = 128
-/** Weather map texels per side, and metres per repeat: 78 m per texel, so
- *  a 700 m-wide cloud spans ~9 texels of its own footprint. */
-export const WEATHER_SIZE = 512
+/** Cumulus archetype density, R8, indexed [x, y, z]: one procedural
+ *  cumulus (stacked spheres billowed by Worley noise), built by
+ *  tools/sky/cumulus.py (numpy seed 7), which also holds the DIMS copy of
+ *  this constant. */
+export const CUMULUS_DIMS = [250, 170, 307] as const
+/** Weather map texels per side, and metres per repeat: 39 m per texel. */
+export const WEATHER_SIZE = 1024
 export const WEATHER_TILE_M = 40_000
+/** Metres between feature points on the weather map's jittered grid (one
+ *  cloud per grid cell), and the footprint radius range of one cloud. */
+export const WEATHER_CELL_SPACING_M = 1500
+export const WEATHER_RADIUS_M: readonly [number, number] = [330, 950]
+/** Feature points are snapped to 1/51 of a cell. With the winning cloud at
+ *  most 2 cells from a texel's own cell, its position fits one byte
+ *  exactly: 5 cells x 51 steps = 255 (see tools/sky/weather.ts). */
+export const WEATHER_FEATURE_STEPS = 51
+export const WEATHER_CELL_REACH = 2
 export const shapeByteLength = (): number => SHAPE_SIZE ** 3 * 4
 export const detailByteLength = (): number => DETAIL_SIZE ** 3 * 4
 export const curlByteLength = (): number => CURL_SIZE ** 2 * 2
+export const cumulusByteLength = (): number => CUMULUS_DIMS[0] * CUMULUS_DIMS[1] * CUMULUS_DIMS[2]
 export const weatherByteLength = (): number => WEATHER_SIZE ** 2 * 4

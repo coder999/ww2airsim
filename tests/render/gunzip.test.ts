@@ -4,8 +4,8 @@ import { gunzipSync } from 'node:zlib'
 import { inflateIfGzipped } from '../../src/render/gunzip.js'
 import { loadSkyNoise } from '../../src/render/sky/load.js'
 import { loadCover } from '../../src/render/landcover/load.js'
-import { COVER_URL, CURL_NOISE_URL, WEATHER_MAP_URL, DETAIL_NOISE_URL, SHAPE_NOISE_URL } from '../../src/render/content.js'
-import { curlPath, weatherPath, detailPath, shapePath, loadShape } from '../../tools/sky/load.js'
+import { COVER_URL, CUMULUS_VOLUME_URL, CURL_NOISE_URL, WEATHER_MAP_URL, DETAIL_NOISE_URL, SHAPE_NOISE_URL } from '../../src/render/content.js'
+import { cumulusPath, curlPath, weatherPath, detailPath, shapePath, loadShape } from '../../tools/sky/load.js'
 import { coverPath } from '../../tools/landcover/load.js'
 
 /** A server that, like Vite's, inflates a `.gz` before handing it over. */
@@ -15,6 +15,7 @@ const inflatingServer: typeof fetch = async (input) => {
     : url.endsWith(DETAIL_NOISE_URL) ? detailPath()
     : url.endsWith(CURL_NOISE_URL) ? curlPath()
     : url.endsWith(WEATHER_MAP_URL) ? weatherPath()
+    : url.endsWith(CUMULUS_VOLUME_URL) ? cumulusPath()
     : url.endsWith(COVER_URL) ? coverPath()
     : null
   if (path === null) return new Response(null, { status: 404 })
@@ -27,6 +28,7 @@ const rawServer: typeof fetch = async (input) => {
     : url.endsWith(DETAIL_NOISE_URL) ? detailPath()
     : url.endsWith(CURL_NOISE_URL) ? curlPath()
     : url.endsWith(WEATHER_MAP_URL) ? weatherPath()
+    : url.endsWith(CUMULUS_VOLUME_URL) ? cumulusPath()
     : url.endsWith(COVER_URL) ? coverPath()
     : null
   if (path === null) return new Response(null, { status: 404 })
@@ -47,6 +49,8 @@ describe('inflateIfGzipped (2026-09-19)', () => {
     expect(viaInflating.detail).toEqual(viaRaw.detail)
     expect(viaInflating.curl).toEqual(viaRaw.curl)
     expect(viaInflating.weather).toEqual(viaRaw.weather)
+    // 13 MB: a byte compare, not toEqual's per-element diff (which timed out).
+    expect(Buffer.from(viaInflating.cumulus).equals(Buffer.from(viaRaw.cumulus))).toBe(true)
     // The dev server has inflated the land cover before every session since
     // 2026-09-18, and the old loader failed on it with a console warning.
     expect(await loadCover(inflatingServer)).toEqual(await loadCover(rawServer))

@@ -1,10 +1,13 @@
-import { Data3DTexture, DataTexture, LinearFilter, RGBAFormat, RGFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
+import { Data3DTexture, DataTexture, LinearFilter, NearestFilter, RedFormat, RGBAFormat, RGFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
 import type { Node, UniformNode, UniformArrayNode } from 'three/webgpu'
-import { Fn, If, abs, clamp, float, max, min, mix, pow, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
+import { Fn, If, abs, clamp, float, floor, fract, max, mix, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
-import { CURL_SIZE, DETAIL_SIZE, SHAPE_SIZE, WEATHER_SIZE, WEATHER_TILE_M } from '../sky/noise.js'
+import {
+  CUMULUS_DIMS, CURL_SIZE, DETAIL_SIZE, SHAPE_SIZE, WEATHER_CELL_REACH, WEATHER_CELL_SPACING_M, WEATHER_FEATURE_STEPS,
+  WEATHER_RADIUS_M, WEATHER_SIZE, WEATHER_TILE_M,
+} from '../sky/noise.js'
 
 /**
  * The cloud FIELD: the two noise volumes, the weather map (Cloud Fidelity II
@@ -29,18 +32,12 @@ export const DETAIL_TILE_M = 40
 export const CURL_TILE_M = 1280
 export const CURL_DISPLACEMENT_M = 24
 export { WEATHER_TILE_M }
-/** The lowest top a cloud can have, as a fraction of its layer's thickness:
- *  the weather map's B channel spans [WEATHER_TOP_MIN, 1] (Cloud Fidelity II
- *  §3.3). 0.3 of the free-flight deck's 900 m is a 270 m-deep humilis. */
-export const WEATHER_TOP_MIN = 0.3
-/** The layer's `coverage` is the fraction of SKY in cloud; the map fraction
- *  that yields it is larger, because each cloud's dome and the shape noise
- *  carve its footprint. Calibrated against the pre-§3.3 deck
- *  (above-deck-3200's cloud pixel fraction, progress ledger). */
-export const WEATHER_COVERAGE_GAIN = 1.5
 /** Metres over which a cloud's density ramps up from the layer base: the
  *  flat grey base every cloud of a layer shares. */
 export const CLOUD_BASE_RAMP_M = 40
+/** The shipped weather tile's grid: cells per side and metres per cell. */
+const WEATHER_CELLS = Math.round(WEATHER_TILE_M / WEATHER_CELL_SPACING_M)
+const WEATHER_CELL_M = WEATHER_TILE_M / WEATHER_CELLS
 /** Entries in the coverage -> threshold table, at coverage k / (N - 1). */
 export const COVERAGE_TABLE_SIZE = 33
 
@@ -88,14 +85,6 @@ export const KIND_CIRRUS = 1
 /** How far the detail noise eats into the base shape: the low edge of
  *  Schneider 2015's erosion remap (photoreal Task 10). */
 export const DETAIL_EROSION = 0.35
-/** Density gain on the thresholded base shape before erosion (photoreal
- *  Task 10) -- Schneider's density multiplier, used IN PLACE of his
- *  multiply-by-coverage. Without it the 0.35 erosion alone cut the columns
- *  reaching optical depth 0.3 at coverage 0.45 from 32% to 8% on a CPU twin
- *  of this function; with it they stay at 31%, edges steeper and bodies
- *  about twice as dense. Captured 2026-09-25: cloud pixels in the
- *  above-deck-3200 view 83% before, 75% after. */
-export const BODY_GAIN = 2
 
 /** Schneider 2015's remap: `v` linearly from [lo0, hi0] onto [lo1, hi1],
  *  unclamped. An empty input range returns `lo1` instead of dividing by 0. */
@@ -121,9 +110,10 @@ export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z:
 export type CloudField = {
   readonly shape: Data3DTexture
   readonly detail: Data3DTexture
+  readonly cumulus: Data3DTexture
   readonly curl: DataTexture
   /** The cumulus weather map (Cloud Fidelity II §3.3), RGBA: coverage
-   *  potential, cloud type, top height; tiled every `WEATHER_TILE_M`. */
+   *  potential, local cell X/Z, peak potential; tiled every `WEATHER_TILE_M`. */
   readonly weather: DataTexture
   /** [base, thickness, coverage, kind] per layer, padded to MAX_CLOUD_LAYERS, sorted by base. */
   readonly layerData: UniformArrayNode<string>
@@ -156,6 +146,16 @@ function volume(data: Uint8Array, size: number): Data3DTexture {
   return t
 }
 
+function scalarVolume(data: Uint8Array, width: number, height: number, depth: number): Data3DTexture {
+  const t = new Data3DTexture(data, width, height, depth)
+  t.format = RedFormat
+  t.type = UnsignedByteType
+  t.minFilter = t.magFilter = LinearFilter
+  t.unpackAlignment = 1
+  t.needsUpdate = true
+  return t
+}
+
 function curlPlane(data: Uint8Array, size: number): DataTexture {
   const t = new DataTexture(data, size, size)
   t.format = RGFormat
@@ -172,7 +172,12 @@ function plane(data: Uint8Array, size: number): DataTexture {
   t.format = RGBAFormat
   t.type = UnsignedByteType
   t.wrapS = t.wrapT = RepeatWrapping
-  t.minFilter = t.magFilter = LinearFilter
+  // Each weather texel names one winning Worley feature point. Filtering
+  // across a cell boundary blends two unrelated local coordinate frames and
+  // can invent a false, razor-thin cloud between them. At 1024² the nearest
+  // sample is still only ~39 m in world space; the linearly filtered 3D
+  // density volumes provide the visible surface continuity.
+  t.minFilter = t.magFilter = NearestFilter
   t.unpackAlignment = 1
   t.needsUpdate = true
   return t
@@ -182,9 +187,9 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
   const shape = volume(noise.shape, SHAPE_SIZE)
   const detail = volume(noise.detail, DETAIL_SIZE)
+  const cumulus = scalarVolume(noise.cumulus, CUMULUS_DIMS[0], CUMULUS_DIMS[1], CUMULUS_DIMS[2])
   const curl = curlPlane(noise.curl, CURL_SIZE)
   const weatherMap = plane(noise.weather, WEATHER_SIZE)
-  const thresholds = uniformArray(coverageThresholds(noise.weather), 'float')
 
   // Uniforms. Layers as [base, thickness, coverage, kind], padded to MAX.
   const layerData = uniformArray(
@@ -242,39 +247,60 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
         // column belongs to. Sampled at the SAME warped XZ the shape volume
         // uses (already wind-drifted), so a cloud's footprint never slides
         // against its body (the rule Plan 16d's coverage field set).
-        const wm = texture(weatherMap, warped.xz.div(WEATHER_TILE_M)).toVar()
-        // R thresholded at `theta` leaves exactly `coverage` of the map in
-        // cloud (coverageThresholds, measured from the map itself) ...
-        const at = min(coverage.mul(WEATHER_COVERAGE_GAIN), 1).mul(COVERAGE_TABLE_SIZE - 1).toVar()
-        const k = min(at.floor(), float(COVERAGE_TABLE_SIZE - 2)).toVar()
-        const k0 = (thresholds.element(k.toInt()) as unknown as Node<'float'>).toVar()
-        const k1 = (thresholds.element(k.toInt().add(1)) as unknown as Node<'float'>).toVar()
-        const theta = mix(k0, k1, saturate(at.sub(k))).toVar()
-        // ... and each surviving cloud reaches full coverage at its own
-        // centre (A, its peak): a dome footprint, not a mesa.
-        const cellCov = saturate(wm.r.sub(theta).div(max(wm.a.sub(theta), 0.02)))
-        // This cloud's own top, and the height within it: every cloud of a
-        // layer shares the flat base, each stops at its own top.
-        const topFrac = mix(float(WEATHER_TOP_MIN), float(1), wm.b)
+        // Nearest texel, addressed by index so its grid cell can be computed
+        // in the generator's exact integer arithmetic.
+        const tileXZ = fract(warped.xz.div(WEATHER_TILE_M)).mul(WEATHER_TILE_M).toVar()
+        const texelIdx = floor(tileXZ.div(WEATHER_TILE_M / WEATHER_SIZE)).toVar()
+        const wm = texture(weatherMap, texelIdx.add(0.5).div(WEATHER_SIZE)).toVar()
+        // R is the cloud's strength; G/B its centre in 1/51-cell steps from
+        // the texel's grid cell minus WEATHER_CELL_REACH; A its radius. Every
+        // texel of a cloud decodes to the same centre, so the local position
+        // below is continuous across texels (tools/sky/weather.ts).
+        const peak = wm.r
+        const gridCell = floor(texelIdx.mul(2).add(1).mul(WEATHER_CELLS).div(2 * WEATHER_SIZE))
+        const centre = gridCell.sub(WEATHER_CELL_REACH).mul(WEATHER_CELL_M)
+          .add(floor(wm.gb.mul(255).add(0.5)).mul(WEATHER_CELL_M / WEATHER_FEATURE_STEPS))
+        const radius = mix(float(WEATHER_RADIUS_M[0]), float(WEATHER_RADIUS_M[1]), wm.a)
+        const cellXZ = tileXZ.sub(centre).div(radius)
+        const variant = saturate(sin(peak.mul(43.1).add(0.7)).mul(0.5).add(0.5))
+        const topFrac = mix(float(0.42), float(1), variant)
         const cloudDepth = thickness.mul(topFrac)
         const hc = p.y.sub(base).div(cloudDepth).toVar()
-        If(cellCov.greaterThan(0).and(hc.lessThan(1)), () => {
-          // Schneider's type-driven vertical profile, here as the shape of
-          // the dome: the footprint narrows as sqrt(1 - hc^n). Stratus
-          // (type 0, n 8) keeps its width almost to a flat top, cumulus
-          // (0.5, n 2.5) is a rounded mound on a flat base, towering
-          // cumulus (1, n 5) a column with a rounded top.
-          const type = wm.g
-          const n = mix(mix(float(8), float(2.5), saturate(type.mul(2))), float(5), saturate(type.mul(2).sub(1)))
-          const shapeSample = texture3D(shape, warped.div(SHAPE_TILE_M))
+        const activeTheta = float(1).sub(coverage)
+        const alive = smoothstep(activeTheta, activeTheta.add(0.045), peak)
+        If(alive.greaterThan(0).and(hc.lessThan(1)), () => {
+          const type = variant
+          const morphologyP = warped.add(vec3(
+            sin(warped.z.div(4300).add(type.mul(5.7))).mul(hc).mul(260),
+            0,
+            sin(warped.x.div(5100).sub(type.mul(4.3))).mul(hc).mul(220),
+          ))
+          const shapeSample = texture3D(shape, morphologyP.div(SHAPE_TILE_M))
           const shapeFbm = shapeSample.g.mul(0.625).add(shapeSample.b.mul(0.25)).add(shapeSample.a.mul(0.125))
           const shapeValue = saturate(stretch(shapeSample.r).mul(mix(float(0.82), float(1.08), shapeFbm)))
-          // A flat base ramped over CLOUD_BASE_RAMP_M, a soft top.
+
+          // Sample the baked stacked-lobe archetype in the jittered cell's
+          // own coordinates. Rotation and scale come from the cell peak, so
+          // neighbouring instances do not present the same silhouette.
+          const scaleX = mix(float(0.78), float(1.18), saturate(sin(variant.mul(23.1)).mul(0.5).add(0.5)))
+          const scaleZ = mix(float(0.78), float(1.18), saturate(sin(variant.mul(17.7).add(1.9)).mul(0.5).add(0.5)))
+          const local = cellXZ
+          const angle = variant.mul(19.73).add(peak.mul(7.1))
+          const ca = sin(angle.add(1.5707963267948966)), sa = sin(angle)
+          const lx = local.x.mul(ca).sub(local.y.mul(sa)).div(scaleX)
+          const lz = local.x.mul(sa).add(local.y.mul(ca)).div(scaleZ)
+          const uvw = vec3(lx.mul(0.5).add(0.5), hc, lz.mul(0.5).add(0.5))
+          const inVolume = uvw.x.greaterThan(0).and(uvw.x.lessThan(1))
+            .and(uvw.y.greaterThan(0)).and(uvw.y.lessThan(1))
+            .and(uvw.z.greaterThan(0)).and(uvw.z.lessThan(1))
+          const stored = select(inVolume, texture3D(cumulus, uvw).r, float(0))
+          const sculpted = stored.add(shapeValue.sub(0.5).mul(mix(float(0.05), float(0.13), smoothstep(0.05, 0.8, hc))))
+
+          // The shared layer base remains flat, while the signed ellipsoid
+          // field and one Perlin-Worley read define the three-dimensional
+          // silhouette rather than thresholding a 2D radial disc.
           const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
-          const covH = cellCov.mul(pow(saturate(float(1).sub(pow(max(hc, 0), n))), 0.5))
-          // Schneider 2015's remap: coverage is the low edge, so the shape
-          // noise carves the footprint into billows; BODY_GAIN as before.
-          const body = saturate(remapNode(shapeValue.mul(gradient), float(1).sub(covH), float(1), float(0), float(1)).mul(BODY_GAIN)).toVar()
+          const body = smoothstep(0.015, 0.22, sculpted).mul(gradient).mul(alive).toVar()
           if (detailed) {
             // Erosion only lowers density, so where the base shape is empty
             // the detail volume is not read at all (photoreal Task 11).
@@ -300,7 +326,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
 
   const firstCumulus = sorted.find((l) => l.kind === 'cumulus')
   return {
-    shape, detail, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
+    shape, detail, cumulus, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
     // A TSL `Fn` is callable but not typed as the method above; the closure
     // gives the handle a plain function type.
     density: (p, base, thickness, coverage, kind) => density(p, base, thickness, coverage, kind),
@@ -314,6 +340,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
     dispose(): void {
       shape.dispose()
       detail.dispose()
+      cumulus.dispose()
       curl.dispose()
       weatherMap.dispose()
     },

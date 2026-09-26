@@ -17,3 +17,13 @@ II §3.3 (`tools/sky/weather.ts`): one Worley cell per cloud, with coverage
 potential, cloud type and top height. It replaced Plan 16d's 64² coverage
 field. Built the same way and under the same license by the same
 `npm run sky:build` command.
+
+`cumulus.bin.gz` (250x170x307 R8) is one procedural cumulus -- stacked
+spheres billowed by tiling Worley noise, flat base -- used as the archetype
+each weather-map cell's cloud is carved from. Built by
+`python3 tools/sky/cumulus.py` (numpy, seed 7), separately from
+`npm run sky:build` because numpy's seeded generator has no TypeScript
+equivalent here. Original, AGPL-3.0-or-later; no third-party density data.
+Its grid dimensions were chosen to match the eighth-resolution Walt Disney
+Animation Studios cloud data set, and nothing else was taken from that data
+set. `tests/tools/skyNoise.test.ts` pins the inflated bytes' SHA-256.

@@ -6,11 +6,11 @@ import { COVERAGE_TABLE_SIZE, coverageThresholds, createCloudField, CUMULUS_SIGM
 import { createClouds } from '../../src/render/scene/clouds.js'
 import { MAX_CLOUD_LAYERS } from '../../src/sim/scenario.js'
 import { loadScenario } from '../../tools/content/load.js'
-import { loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
+import { loadCumulus, loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { WEATHER_SIZE } from '../../src/render/sky/noise.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 
-const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather() }
+const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather(), cumulus: loadCumulus() }
 
 describe('cloud field (Plan 16b, extracted from the dome)', () => {
   it('holds the shipped decks sorted by base, padded to the maximum, and names the lowest cumulus', () => {
