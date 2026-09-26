@@ -372,6 +372,16 @@ Each image becomes a KTX2 texture array with one layer per frame, built with
 the existing `ktx create --layers` path (`tools/textures/`). It is loaded like
 `loadSurfaceTextures`.
 
+**Amended 2026-09-26, while planning E1:**
+
+- **The array layout changes.** WebGPU's default limit is 256 texture-array
+  layers. Six sheets of 64 frames do not fit one array. Each array layer
+  therefore holds one frame of every sheet as an atlas.
+- **All three images must be Basis-encoded.** three's KTX2 loader drops array
+  layers from uncompressed files.
+
+The E1 plan's rulings R7 and R8 record the measurements.
+
 ### 6.3 Size gates
 
 - About 64 frames at 256² per sheet.
@@ -438,8 +448,8 @@ At a checkpoint:
 | Plan | Delivers | Depends on |
 | --- | --- | --- |
 | **O1** Ordnance models | §2 | nothing |
-| **E1** Effects engine | §3, §4, §6.4; all six effects migrated; old code deleted | nothing |
-| **E2** Baked flipbooks | §6.1–6.3, six-way lighting, frame blending, fire emission, rocket flame | E1 |
+| **E1** Effects engine | §3, §4 (including six-way lighting, frame blending and fire emission, exercised on placeholder sheets), §6.4; all six effects migrated; old code deleted | nothing |
+| **E2** Baked flipbooks | §6.1–6.3: the Blender bakes replace the placeholder sheets; rocket flame; catalog tuning | E1 |
 | **E3** Water | §5 | E2 (`water-column`, `spray`) |
 
 O1 and E1 are independent and can run in parallel worktrees.
