@@ -1,0 +1,17 @@
+{
+  "id": "f4f-wildcat",
+  "name": "Grumman F4F-4 Wildcat",
+  "rosterName": "Grumman F4F Wildcat",
+  "kind": "aircraft",
+  "side": "allied",
+  "spec": "f4f-wildcat",
+  "blurb": "The rendered airframe every aircraft in the game uses today. It flies the Hellcat's placeholder numbers until it has its own trial data.",
+  "history": "The Grumman F4F Wildcat was an American carrier-based fighter that entered service in 1940 with the U.S. Navy and the British Royal Navy, which called it the Martlet. At the time of Pearl Harbor it was the best fighter the Navy and Marine Corps had, and it remained so until mid-1943. The F4F-4, which first met the Zero at Midway, added folding wings and a heavier gun battery without more engine power, and was more sluggish than the F4F-3 before it.\n\nFrom mid-1942 most Wildcats were built by General Motors' Eastern Aircraft Division. The F6F Hellcat replaced it in front-line service in 1943 and 1944, but FM-2 Wildcats flew from the escort carriers off Samar on 25 October 1944, strafing Japanese ships, the battleship Yamato's bridge among them.\n\nIn this game the Wildcat's flight figures are placeholders borrowed from the Hellcat.",
+  "sources": [
+    {
+      "title": "Grumman F4F Wildcat",
+      "url": "https://en.wikipedia.org/wiki/Grumman_F4F_Wildcat",
+      "read": "2026-09-25"
+    }
+  ]
+}

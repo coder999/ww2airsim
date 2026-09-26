@@ -1,0 +1,16 @@
+{
+  "id": "essex-cv",
+  "name": "Essex-class fleet carrier",
+  "kind": "ship",
+  "side": "allied",
+  "spec": "essex-cv",
+  "blurb": "The fleet carrier the player launches from and lands on.",
+  "history": "The Essex class was the 20th century's most numerous class of capital ship: 24 carriers were completed, in \"short-hull\" and \"long-hull\" versions, of 32 ordered. Fourteen saw combat in World War II, and none was lost to enemy action, although some were crippled by air attack.\n\nEssex-class carriers were the backbone of the U.S. Navy from mid-1943 through the Korean War. Most were later rebuilt, and Lexington was the last to retire, as a training carrier in 1991. Yorktown, Hornet, Lexington and Intrepid are preserved as museum ships.",
+  "sources": [
+    {
+      "title": "Essex-class aircraft carrier",
+      "url": "https://en.wikipedia.org/wiki/Essex-class_aircraft_carrier",
+      "read": "2026-09-25"
+    }
+  ]
+}

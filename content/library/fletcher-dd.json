@@ -1,0 +1,16 @@
+{
+  "id": "fletcher-dd",
+  "name": "Fletcher-class destroyer",
+  "kind": "ship",
+  "side": "allied",
+  "spec": "fletcher-dd",
+  "blurb": "The escort that screens the carrier task force. It sails with the fleet and does not score when sunk.",
+  "history": "The Fletcher class was the U.S. Navy's most numerous destroyer design of the war: 175 ships were commissioned between 1942 and 1944, built by shipyards across the United States. Each carried five 5-inch guns in single mounts and ten 21-inch torpedo tubes in two quintuple mounts.\n\nThe class served almost entirely in the Pacific. Off Samar on 25 October 1944, during the Battle of Leyte Gulf, USS Johnston and USS Hoel were sunk by Japanese battleship gunfire, Yamato's among it, while covering the escort carriers.",
+  "sources": [
+    {
+      "title": "Fletcher-class destroyer",
+      "url": "https://en.wikipedia.org/wiki/Fletcher-class_destroyer",
+      "read": "2026-09-25"
+    }
+  ]
+}

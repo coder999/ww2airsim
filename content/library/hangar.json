@@ -1,0 +1,16 @@
+{
+  "id": "hangar",
+  "name": "Hangar",
+  "kind": "building",
+  "side": "japanese",
+  "spec": "hangar",
+  "blurb": "A barrel-roofed aircraft hangar at Tacloban and Dulag, a Building target at an enemy-held field.",
+  "history": "A hangar is a building that holds aircraft, built of metal, wood or concrete. It protects them from weather and direct sunlight, and it is where they are maintained, repaired and stored. The Wright brothers kept their glider in a wooden hangar built in 1902 at Kill Devil Hills, North Carolina, and military air services adopted standard hangar designs before and during World War I.\n\nThe hangars in this game are generic, not models of any particular building at Tacloban or Dulag.",
+  "sources": [
+    {
+      "title": "Hangar",
+      "url": "https://en.wikipedia.org/wiki/Hangar",
+      "read": "2026-09-25"
+    }
+  ]
+}

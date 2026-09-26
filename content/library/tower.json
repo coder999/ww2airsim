@@ -1,0 +1,16 @@
+{
+  "id": "tower",
+  "name": "Control tower",
+  "kind": "building",
+  "side": "japanese",
+  "spec": "tower",
+  "blurb": "The timber control tower at Tacloban, a Building target at an enemy-held field.",
+  "history": "A control tower is where an airfield's controllers watch and direct the aircraft on and around it, and visual observation from the tower is still the main way the immediate airport area is controlled. In 1920 Croydon Airport near London became the first airport to introduce air traffic control, from a wooden hut about 15 feet high with windows on all four sides. The first airport traffic control tower in the United States opened in Cleveland in 1930.\n\nThe tower in this game is a generic timber structure, not a model of a particular tower.",
+  "sources": [
+    {
+      "title": "Air traffic control",
+      "url": "https://en.wikipedia.org/wiki/Air_traffic_control",
+      "read": "2026-09-25"
+    }
+  ]
+}

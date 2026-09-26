@@ -1,0 +1,22 @@
+{
+  "id": "type-b-maru",
+  "name": "Wartime Standard Type B cargo ship",
+  "rosterName": "Type B \"Maru\" transport",
+  "kind": "ship",
+  "side": "japanese",
+  "spec": "type-b-maru",
+  "blurb": "A hostile merchant transport, the target of strike missions. It does not score when sunk yet.",
+  "history": "Japan built standardized cargo ships during the war. Mimasaka Maru was one of 18 Wartime Standard Type B cargo ships laid down in 1943 and 1944, seven of them at the Tokyo yard of Ishikawajima Shipbuilding & Engineering. She was completed on 6 February 1944 for Nippon Yusen, and on 9 April 1944 the American submarine USS Seahorse torpedoed and sank her near the Mariana Islands.\n\nThe ship in this game is a generic wartime standard cargo ship, not any single vessel. \"Maru\", meaning \"circle\", is a word Japanese merchant ship names often end with, not the name of one ship.",
+  "sources": [
+    {
+      "title": "Japanese cargo ship Mimasaka Maru (1944)",
+      "url": "https://en.wikipedia.org/wiki/Japanese_cargo_ship_Mimasaka_Maru_(1944)",
+      "read": "2026-09-25"
+    },
+    {
+      "title": "Japanese ship-naming conventions",
+      "url": "https://en.wikipedia.org/wiki/Japanese_ship-naming_conventions",
+      "read": "2026-09-25"
+    }
+  ]
+}

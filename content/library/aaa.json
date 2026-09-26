@@ -1,0 +1,16 @@
+{
+  "id": "aaa",
+  "name": "Anti-aircraft battery",
+  "kind": "building",
+  "side": "japanese",
+  "spec": "aaa",
+  "blurb": "A gun emplacement at Tacloban. It scores as an AAA battery and does not fire back yet.",
+  "history": "Anti-aircraft warfare covers every measure meant to nullify or reduce hostile air action, from guns and their sensors to passive measures such as barrage balloons and camouflage. Until the 1950s, guns firing ballistic shells were the standard weapons, automatic cannon between 20 mm and 40 mm, such as the Oerlikon and the Bofors, were widely used against aircraft, and during World War II searchlights came under radar control.\n\nThe battery in this game is a generic gun emplacement, not a model of a particular weapon.",
+  "sources": [
+    {
+      "title": "Anti-aircraft warfare",
+      "url": "https://en.wikipedia.org/wiki/Anti-aircraft_warfare",
+      "read": "2026-09-25"
+    }
+  ]
+}
