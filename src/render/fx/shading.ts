@@ -13,7 +13,9 @@ export const DENSE_ACCUMULATED_ALPHA = 0.5
 /** Closeness c = 1 / (1 + viewZ / this): half at 1 km, ~0.01 at 100 km. */
 export const CLOSENESS_SCALE_M = 1000
 /** Scene-linear radiance of fire at emission 1: ~5x diffuse white under the
- *  noon sun (SUN_ILLUMINANCE 3.6 / pi = 1.15). Estimate; E2 tunes. */
+ *  noon sun (SUN_ILLUMINANCE 3.6 / pi = 1.15). Estimate; E2 tunes. It is
+ *  added outside coverage (`premultipliedOut`, Ruling R17), so faint fire
+ *  still blooms. */
 export const FIRE_RADIANCE = 6
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
@@ -32,3 +34,14 @@ export function sixWayLight(m: SixWayMaps, l: Vec3): number {
 export const fireRamp = (e: number): [number, number, number] => [FIRE_RADIANCE * e, FIRE_RADIANCE * 0.6 * e * e, FIRE_RADIANCE * 0.3 * e ** 4]
 /** The full-resolution pixel an fx texel stands for (Ruling R11). */
 export const fxTexelPixel = (texel: number, span: number, fullSize: number): number => Math.min(Math.floor((texel + 0.5) * span), fullSize - 1)
+type Rgb = readonly [number, number, number]
+/** The particle's premultiplied output (Ruling R17): lit radiance and haze are
+ *  premultiplied by coverage `a`; fire is added on top, hazed by `ap.a` and
+ *  scaled by `fade` (life alpha x soft x near, without the sheet's alpha: the
+ *  emission channel already shapes it). So fire keeps a large rgb at a small
+ *  `a` and reads as additive under the one "over" blend. `ap` = (inscatter rgb,
+ *  transmittance). */
+export function premultipliedOut(lit: Rgb, fire: Rgb, ap: readonly [number, number, number, number], a: number, fade: number): [number, number, number, number] {
+  const ch = (k: 0 | 1 | 2): number => (lit[k] * ap[3] + ap[k]) * a + fire[k] * ap[3] * fade
+  return [ch(0), ch(1), ch(2), a]
+}

@@ -104,11 +104,12 @@ function shade(i: FxMaterialInputs, v: ReturnType<typeof particleNodes>) {
   const ambient = skyUp.mul(A.b).add(skyIrradianceDownNode.mul(B.r)).add(skyUp.add(skyIrradianceDownNode).mul(0.125).mul(A.r.add(A.g).add(B.g).add(B.b)))
   const e = B.a.mul(v.tint.a)
   const fire = vec3(e, e.mul(e).mul(0.6), e.mul(e).mul(e).mul(e).mul(0.3)).mul(FIRE_RADIANCE)
-  const spriteRad = v.tint.rgb.mul(1 / Math.PI).mul(sunColorNode.mul(v.sunT).mul(direct).add(ambient)).add(fire)
+  const spriteLit = v.tint.rgb.mul(1 / Math.PI).mul(sunColorNode.mul(v.sunT).mul(direct).add(ambient))
   const sx = v.quadUv.x.mul(2).sub(1), sy = v.quadUv.y.mul(2).sub(1)
   const streakA = exp(sx.mul(sx).mul(-4)).mul(float(1).sub(abs(sy)))
-  const streakRad = v.tint.rgb.mul(1 / Math.PI).mul(sunColorNode.mul(v.sunT).mul(0.5).add(skyUp.add(skyIrradianceDownNode).mul(0.5)))
-    .add(v.tint.rgb.mul(v.tint.a).mul(FIRE_RADIANCE))
+  const streakLit = v.tint.rgb.mul(1 / Math.PI).mul(sunColorNode.mul(v.sunT).mul(0.5).add(skyUp.add(skyIrradianceDownNode).mul(0.5)))
+  // A streak's emissive spark, shaped by the streak itself (a sprite's fire is shaped by B.a).
+  const streakFire = v.tint.rgb.mul(v.tint.a).mul(FIRE_RADIANCE).mul(streakA)
   const isStreak = v.streak.greaterThan(0.5)
   // Soft particles and the depth test in one term (Ruling R11): the fx pass has no depth buffer.
   const full = ivec2(min(floor(floor(screenCoordinate.xy).add(0.5).mul(i.u.span)), i.u.fullMax))
@@ -116,9 +117,16 @@ function shade(i: FxMaterialInputs, v: ReturnType<typeof particleNodes>) {
   const soft = i.soft
     ? clamp(sceneZ.sub(v.viewZ).div(max(v.size.mul(SOFT_SIZE_FRACTION), SOFT_MIN_M)), 0, 1)
     : select(sceneZ.greaterThan(v.viewZ), float(1), float(0))
-  const a = select(isStreak, streakA, A.a).mul(v.alpha).mul(soft).mul(smoothstep(NEAR_FADE_START_M, NEAR_FADE_END_M, v.viewZ))
-  const radiance = select(isStreak, streakRad, spriteRad)
-  return { a, color: radiance.mul(v.ap.a).add(v.ap.rgb) }
+  const fade = v.alpha.mul(soft).mul(smoothstep(NEAR_FADE_START_M, NEAR_FADE_END_M, v.viewZ))
+  const a = select(isStreak, streakA, A.a).mul(fade)
+  const lit = select(isStreak, streakLit, spriteLit)
+  const emitted = select(isStreak, streakFire, fire)
+  // Premultiplied output, Ruling R17 (CPU twin: shading.ts premultipliedOut). Lit
+  // radiance and haze are premultiplied by coverage `a`; fire is added outside
+  // it, hazed by ap.a and scaled by `fade` only, so faint fire keeps a large rgb
+  // at a small alpha, reads as additive under the one "over" blend, and blooms.
+  const rgb = lit.mul(v.ap.a).add(v.ap.rgb).mul(a).add(emitted.mul(v.ap.a).mul(fade))
+  return { a, rgb }
 }
 
 function base(material: NodeMaterial): NodeMaterial {
@@ -135,7 +143,7 @@ export function createFxMaterials(i: FxMaterialInputs): { readonly particle: Nod
   const particle = base(new NodeMaterial())
   particle.name = 'FxParticle'
   particle.positionNode = pv.position
-  particle.fragmentNode = vec4(ps.color.mul(ps.a), ps.a)
+  particle.fragmentNode = vec4(ps.rgb, ps.a)
   particle.blendEquation = AddEquation
   particle.blendSrc = OneFactor; particle.blendDst = OneMinusSrcAlphaFactor
   particle.blendSrcAlpha = OneFactor; particle.blendDstAlpha = OneMinusSrcAlphaFactor

@@ -3,7 +3,7 @@ import { DataArrayTexture } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
 import { BLOOM_THRESHOLD } from '../../src/render/pipeline.js'
 import {
-  CLOSENESS_SCALE_M, decodeCloseness, encodeCloseness, fireRamp, fxTexelPixel, nearFade, sixWayLight, softFade,
+  CLOSENESS_SCALE_M, decodeCloseness, encodeCloseness, fireRamp, fxTexelPixel, nearFade, premultipliedOut, sixWayLight, softFade,
 } from '../../src/render/fx/shading.js'
 import { fallbackFxSheets, loadFxSheets } from '../../src/render/fx/sheets.js'
 import { FX_SHEETS, fxSheetManifestSchema } from '../../src/render/fx/sheetManifest.js'
@@ -46,6 +46,19 @@ describe('fx shading twins (effects design §4.1, §4.3)', () => {
     const hot = fireRamp(1)
     expect(Math.max(...hot)).toBeGreaterThan(BLOOM_THRESHOLD)
     expect(hot[0]).toBeGreaterThan(hot[1]); expect(hot[1]).toBeGreaterThan(hot[2]) // orange, not white
+  })
+
+  it('fire is added outside coverage: a faint sprite still blooms, and a faded one emits nothing (Ruling R17)', () => {
+    const clearAir = [0, 0, 0, 1] as const
+    const faint = premultipliedOut([0.5, 0.5, 0.5], fireRamp(1), clearAir, 0.05, 1)
+    expect(Math.max(faint[0], faint[1], faint[2])).toBeGreaterThan(BLOOM_THRESHOLD)
+    expect(faint[3]).toBe(0.05)
+    const gone = premultipliedOut([0.5, 0.5, 0.5], fireRamp(1), clearAir, 0, 0)
+    expect(gone).toEqual([0, 0, 0, 0])
+    // Lit smoke and haze stay premultiplied by coverage; fire is hazed by ap.a only.
+    const [r, , , a] = premultipliedOut([0.4, 0, 0], [2, 0, 0], [0.1, 0, 0, 0.5], 0.25, 0.5)
+    expect(r).toBeCloseTo((0.4 * 0.5 + 0.1) * 0.25 + 2 * 0.5 * 0.5, 12)
+    expect(a).toBe(0.25)
   })
 
   it('an fx texel reads the full-resolution pixel at its block center, clamped', () => {
