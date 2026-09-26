@@ -154,6 +154,24 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: 
   return Math.min((spec.engine.propEfficiency * power) / v, spec.engine.staticThrustN * throttle)
 }
 
+/**
+ * True while a float-carburetted engine is starved of fuel (A6M spec §4.4,
+ * Mark's decision 2026-09-25): `engine.negativeGCutout` is set and the wing's
+ * lift this step is negative. Eglin, 1942: "Inability of the Zero engine to
+ * continue operating under negative acceleration."
+ *
+ * STRICTLY negative. Zero lift -- a parked airplane, or any q = 0 -- keeps the
+ * engine running, or a Zero could never start its take-off roll.
+ *
+ * Stateless on purpose: no new AircraftState field, so no state migration and
+ * no golden churn. The real engine sputtered and caught again over about a
+ * second; a timer would model that and needs state. Windmilling-propeller
+ * drag still follows the throttle, not this flag: the spec cuts thrust only.
+ */
+export function engineCutOut(spec: AircraftSpec, liftN: number): boolean {
+  return spec.engine.negativeGCutout === true && liftN < 0
+}
+
 const DEG = Math.PI / 180
 
 /**
@@ -352,7 +370,7 @@ export function step(
     gearDragN(spec, state.gearFraction, q) +
     flapDragN(spec, state.flapFraction, q) +
     q * (spec.storesLoad?.dragAreaM2 ?? 0)
-  const thrustN = thrustMagnitude(spec, air, controls.throttle)
+  const thrustN = engineCutOut(spec, liftN) ? 0 : thrustMagnitude(spec, air, controls.throttle)
 
   const vdir = v > 1e-6 ? normalize(air.velocity) : forward
   // Lift acts perpendicular to the relative wind, in the plane of the body up axis.

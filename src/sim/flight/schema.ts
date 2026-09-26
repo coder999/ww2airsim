@@ -99,6 +99,10 @@ const AircraftSpecObject = z.object({
     /** Cd0 increment from a propeller that is not pulling, applied in full at
      *  closed throttle. See `windmillDragCd0` in src/sim/aero.ts. */
     windmillCd0: positive,
+    /** Optional: thrust is zero while the wing's lift is negative (a float
+     *  carburetor). Absent means false. See `engineCutOut` in
+     *  src/sim/flight/model.ts. */
+    negativeGCutout: z.boolean().optional(),
     powerFractionByAltitudeM: z
       .array(z.tuple([finite, fraction]))
       .min(2)
