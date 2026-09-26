@@ -5,6 +5,8 @@ import { parseAircraftSpec } from '../../../src/sim/content.js'
 import { liftCoefficient } from '../../../src/sim/aero.js'
 import { createState, step, angleOfAttack, engineCutOut, DT, type Controls } from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
+import { createTerrainField } from '../../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const zero = loadAircraftSpec('a6m2-zero')
@@ -59,4 +61,45 @@ describe('engine.negativeGCutout (A6M spec §4.4, the float carburetor)', () => 
     expect(engineCutOut(f6f, -1000)).toBe(false)
     expect(step(f6f, s0, FULL, { dt: DT, tick: 1 })).toEqual(step(f6fFalse, s0, FULL, { dt: DT, tick: 1 }))
   })
+
+  // Final review, Important 1 (2026-09-25): keyed on lift alone, a forward
+  // tap on the take-off roll (nose below the -1.19 deg zero-lift attitude)
+  // cut the engine; below tailUpSpeedMps the ground regime gates pitch to 0,
+  // so the nose could never come back up and the Zero sat on the runway at
+  // 12 m/s with no thrust, for good. On the wheels the ground reaction holds
+  // the airframe at positive g, so the float carburetor keeps its fuel.
+  it('keeps the engine on the wheels: a forward tap on the take-off roll does not strand the Zero', () => {
+    expect(engineCutOut(zero, -1000, true)).toBe(false)
+    expect(engineCutOut(zero, -1000, false)).toBe(true)
+    const field = createTerrainField(
+      parseTerrainHeader({ centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000, finestSamples: 8193, levels: 13, encoding: 'int16-decimetres' }),
+      12,
+      new Int16Array(9).fill(10),
+    )
+    const groundM = 1
+    let s = createState({ position: v3(0, groundM + zero.gear.heightM, 0), fuelKg: 300, gearFraction: 1 })
+    // A 0.6 s full push past 20 m/s, 5 s of hesitation with the stick
+    // centered (rate command holds the nose-down attitude), then a steady
+    // half pull. With the bug the dead engine decelerated the Zero through
+    // the hesitation (measured 20.9 -> 19.5 m/s), and a longer one (about
+    // 22 s) let it fall below tailUpSpeedMps, where the pull does nothing.
+    let pushTicks = 0
+    let pushEnd: number | null = null
+    let speedAtPushEnd = 0
+    let speedAfterHesitation: number | null = null
+    let airborneAt: number | null = null
+    for (let tick = 1; tick <= 60 * 40 && airborneAt === null; tick++) {
+      const pushing = length(s.velocity) > 20 && pushTicks < 36
+      if (pushing) pushTicks++
+      if (!pushing && pushTicks === 36 && pushEnd === null) { pushEnd = tick; speedAtPushEnd = length(s.velocity) }
+      if (pushEnd !== null && tick === pushEnd + 300) speedAfterHesitation = length(s.velocity)
+      const pitch = pushing ? -1 : pushEnd !== null && tick > pushEnd + 300 ? 0.5 : 0
+      s = step(zero, s, { pitch, roll: 0, yaw: 0, throttle: 1 }, { dt: DT, tick, terrain: field })
+      if (s.position.y - zero.gear.heightM - groundM > 5) airborneAt = tick
+    }
+    expect(pushTicks).toBe(36)
+    expect(speedAfterHesitation!, 'the engine still pulls with the nose below zero lift on the wheels').toBeGreaterThan(speedAtPushEnd + 5)
+    expect(airborneAt, 'lifted off within 40 s after a 0.6 s forward push').not.toBeNull()
+  })
 })
+

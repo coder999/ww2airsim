@@ -163,13 +163,20 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: 
  * STRICTLY negative. Zero lift -- a parked airplane, or any q = 0 -- keeps the
  * engine running, or a Zero could never start its take-off roll.
  *
+ * Never on the ground (`onGroundNow`, the wheels in contact at the start of
+ * the step): there the ground reaction holds the airframe at positive g
+ * whatever the wing does, so the carburetor is fed. Keyed on lift alone, a
+ * forward tap on the take-off roll put the nose below the zero-lift attitude,
+ * cut the engine, and -- with pitch gated to 0 below `tailUpSpeedMps` --
+ * stranded the Zero on the runway for good (Z2 final review, 2026-09-25).
+ *
  * Stateless on purpose: no new AircraftState field, so no state migration and
  * no golden churn. The real engine sputtered and caught again over about a
  * second; a timer would model that and needs state. Windmilling-propeller
  * drag still follows the throttle, not this flag: the spec cuts thrust only.
  */
-export function engineCutOut(spec: AircraftSpec, liftN: number): boolean {
-  return spec.engine.negativeGCutout === true && liftN < 0
+export function engineCutOut(spec: AircraftSpec, liftN: number, onGroundNow = false): boolean {
+  return spec.engine.negativeGCutout === true && liftN < 0 && !onGroundNow
 }
 
 const DEG = Math.PI / 180
@@ -370,7 +377,11 @@ export function step(
     gearDragN(spec, state.gearFraction, q) +
     flapDragN(spec, state.flapFraction, q) +
     q * (spec.storesLoad?.dragAreaM2 ?? 0)
-  const thrustN = engineCutOut(spec, liftN) ? 0 : thrustMagnitude(spec, air, controls.throttle)
+  // The ground test runs only for an engine that can cut out, so an aircraft
+  // without `negativeGCutout` does exactly the work it did before.
+  const starved = spec.engine.negativeGCutout === true &&
+    engineCutOut(spec, liftN, startGround !== null && onGround(spec, state, startGround.heightM))
+  const thrustN = starved ? 0 : thrustMagnitude(spec, air, controls.throttle)
 
   const vdir = v > 1e-6 ? normalize(air.velocity) : forward
   // Lift acts perpendicular to the relative wind, in the plane of the body up axis.
