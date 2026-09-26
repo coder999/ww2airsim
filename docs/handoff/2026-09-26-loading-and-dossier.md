@@ -10,9 +10,15 @@
 
 `main` was merged into the branch twice: `dde82ae` at the start and `393ad3e`
 before the cloud fix (Codex's cloud rewrite had landed on `main` by then).
-**`main` has moved again since `393ad3e`.** It includes `47d8293` ("full
-march jitter for cumulus"), which touches `cloudField.ts`/`clouds.ts`, so the
-final merge must re-check the laid-out density against that change.
+**Update 2026-09-26:** `main` was merged a third time, at the end, bringing
+in `47d8293` ("full march jitter for cumulus") and 17 other commits. Its
+only `cloudField.ts` change was a comment (the one conflict); the jitter
+edit is in `clouds.ts`'s view march, outside the density body. The laid-out
+density still reads no uniform in its body and `laidOut()` is still called
+once per `marchNode`. Re-measured on the merged code: `boot.spec.ts` longest
+task 1 080 ms, `clouds.spec.ts` 11/11 with no console or WGSL errors,
+`dossier.spec.ts` passes. The cloud side is recorded in `docs/clouds.md` §3.9
+and §4.
 
 ## What changed
 
@@ -136,10 +142,10 @@ the audio spec's deliberate `test.skip` and `cloudPixels.spec.ts` (no
 | --- | --- | --- | --- | --- |
 | cloudShadow: carrier deck darkens under overcast | 0 (> 5) | **pass** | -- | flake |
 | deckQuals: parked, sails with the carrier | 2.77 (> 3) | **pass** | -- | flake |
-| deckQuals: deck run 1440p p95 | 8.09 ms (< 6) | 8.08 ms | -- | fixed on `main` after `393ad3e`: `efeb470` moves this tripwire to 8.33 ms (clouds' cost) |
+| deckQuals: deck run 1440p p95 | 8.09 ms (< 6) | 8.08 ms | -- | fixed on `main` after `393ad3e` by `efeb470` (tripwire to 8.33 ms, clouds' cost); merged into the branch 2026-09-26, not rerun |
 | ships: deck-quals 1440p p95 | 7.70 ms (< 6) | -- | -- | same, `efeb470` |
 | entities: task force 1440p p95 | 7.13 ms (< 6) | -- | -- | same, `efeb470` |
-| deckQuals: rendered deck under the wheels (S1) | probe 0 hit nothing | same | -- | fixed on `main` after `393ad3e`: `b3abfe6` (the probe ignored the floating origin) |
+| deckQuals: rendered deck under the wheels (S1) | probe 0 hit nothing | same | -- | fixed on `main` after `393ad3e` by `b3abfe6` (the probe ignored the floating origin); merged into the branch 2026-09-26, not rerun |
 | motionBudget: 4K camera motion | 4.103 (≤ 3.745) | 4.113 | 4.110 | pre-existing |
 | sun: noon sky is blue | 164.4 (> 168.6) | 164.5 | 164.4 | pre-existing |
 | sun: twilight is dusk, not black | 7.70 (> 8) | 7.71 | 7.70 | pre-existing |

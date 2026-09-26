@@ -5,7 +5,8 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-09-26 at `66451b7`. When you change the cloud system, update the
+on 2026-09-26 at `66451b7`; §3.9 and the `setLayout` trap added with the
+boot-freeze fix. When you change the cloud system, update the
 relevant section here in the same commit.
 
 ## 1. What ships (2026-09-26)
@@ -24,7 +25,12 @@ relevant section here in the same commit.
   - a raymarch at reduced resolution with temporal accumulation
     (`cloudPass.ts`);
   - a density field shared with a sun-view shadow map
-    (`cloudField.ts`, `cloudShadow.ts`);
+    (`cloudField.ts`, `cloudShadow.ts`). The march's `density` and
+    `densityCoarse` are laid-out TSL `Fn`s, a fresh pair per material
+    (`CloudField.laidOut()`, called once per `marchNode`), and every uniform
+    they need arrives as an argument (`drifted`, `theta`). That took the
+    page-load freeze from ~39 s to a cold median of 1.24 s (§3.9, and the
+    `setLayout` trap in §4);
   - lighting from dual-lobe HG, three multi-scatter octaves and powder
     (`cloudLighting.ts`);
   - a movable sun (`sky/sun.ts`, `sky/palette.ts`).
@@ -214,6 +220,25 @@ Mark was on **Low**: the auto-tier incident, §5.
   and no fps loss in cloud. The High in-cloud stutter he reported before
   these fixes was not re-measured afterwards (§5).
 
+### 3.9 The boot freeze (2026-09-25/26, `worktree-loading-dossier`)
+
+Handoff: `docs/handoff/2026-09-26-loading-and-dossier.md` (measurements,
+method and margin). Design: its spec §A.3.
+
+- **Cause:** TSL inlines a layout-less `Fn` at every call site, and the
+  light march calls the density many times per step. Each inlined copy cost
+  2–3 s of three's JS graph build. The VDB rewrite's larger cumulus body
+  grew the longest boot task from 13 s to 39 s.
+- **Worked:** `density`/`densityCoarse` as laid-out `Fn`s, one pair per
+  material, uniforms passed in: 39 s → cold median 1 240 ms (gate
+  < 1 500 ms, `tests/e2e/boot.spec.ts`). Re-measured after merging §3.8's
+  full jitter: 1 080 ms.
+- **Failed:** one shared laid-out instance (WGSL validation error on the
+  second material); one instance per call (18.5 s). See §4.
+- **Not tried:** laying out `candidate` (inlined twice in the detailed
+  density) and hoisting `thetaFor` to once per layer, if more headroom is
+  wanted.
+
 ## 4. Traps
 
 **TSL and three r186**
@@ -235,8 +260,17 @@ Mark was on **Low**: the auto-tier incident, §5.
 - Portable 3D textures need RGBA8, so detail keeps a padding channel.
 - `Math.round` yields `-0`; add `+ 0`.
 - A layout-less `Fn` is inlined at every call site. The light march's
-  copies caused a ~39 s boot freeze. The fix, one laid-out `Fn` per
-  material, is on `worktree-loading-dossier` and not yet on `main` (§5).
+  copies caused a ~39 s boot freeze (§3.9).
+- **A laid-out `Fn` (`setLayout`) must be one instance per material and
+  must read no uniform in its body.** three 0.186's
+  `NodeBuilder.buildFunctionNode` caches a laid-out function's code per
+  backend, keyed by the `Fn` object, with the binding names the *first*
+  builder assigned. Share one across materials and the second fails WGSL
+  validation with `unresolved value 'nodeUniformN'`. A uniform captured
+  inside the body breaks the same way, so pass it in as an argument.
+  One instance per *call* compiles, but rebuilt boot to 18.5 s. Captured
+  textures are fine once the instance is per-material. Pattern:
+  `CloudField.laidOut()`.
 
 **Measurement**
 - **One capture is not a baseline.** Compare back-to-back captures only.
@@ -273,7 +307,7 @@ Mark was on **Low**: the auto-tier incident, §5.
 
 | # | Issue | State |
 | --- | --- | --- |
-| 1 | **Page-load freeze on `main`** (26–56 s TSL build). Fixed at 1.24 s cold on `worktree-loading-dossier` (`db044e1`) | Not merged; that branch's owner |
+| 1 | **Page-load freeze on `main`** (26–56 s TSL build). Fixed at 1.24 s cold on `worktree-loading-dossier` (`db044e1`, §3.9); `main` merged into that branch 2026-09-26 and re-measured at 1.08 s | Fixed on the branch; reaches `main` when the branch merges |
 | 2 | **Auto tier picks Low on Mark's desktop** (`docs/incidents/2026-09-20-low-tier-hides-trees.md`) | Open; Mark: "leave it for now" (2026-09-26) |
 | 3 | **Low shimmers at cloud edges** | Open, cosmetic, Low-only |
 | 4 | **High in-cloud frame pacing:** stutter reported, then "no apparent loss of fps" after the fixes | Unmeasured since the fixes |
@@ -287,8 +321,9 @@ Mark was on **Low**: the auto-tier incident, §5.
 
 In the order I would take them. Items marked (Mark) need his decision first.
 
-1. **Merge the boot-freeze fix** (issue 1) once its session finishes. The
-   pilot feels it on every load; it is not a cloud-branch change.
+1. **Merge the boot-freeze fix** (issue 1): `worktree-loading-dossier`
+   already contains `main` as of 2026-09-26 and is awaiting its whole-branch
+   review. The pilot feels it on every load; it is not a cloud-branch change.
 2. **Measure High in-cloud frame pacing** (issue 4): p50, p95 and p99, plus
    frame-to-frame deltas, in-deck on the reference GPU. If the variance is
    still large, the next lever is the amortized schedule inside cloud.
