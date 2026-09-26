@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createAirfield, AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { parseAirfield } from '../../src/sim/world/airfields.js'
 import { loadAirfield } from '../../tools/content/load.js'
-import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { healthyStructureDamage, type StructureDamage } from '../../src/sim/weapons/structures.js'
@@ -181,5 +181,12 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
     expect(group.getObjectByName('intact')!.visible).toBe(true)
     expect(group.getObjectByName('collapsed')!.visible).toBe(false)
     expect(group.getObjectByName('smoke')!.visible).toBe(false)
+  })
+
+  it('publishes one smoke anchor per content building, above its ground (E1 Ruling R13)', () => {
+    const tacloban = loadAirfield('tacloban')
+    const { smokeAnchors } = createAirfield(field, tacloban)
+    expect([...smokeAnchors.keys()].sort()).toEqual(tacloban.buildings.map((b) => b.id).sort())
+    for (const p of smokeAnchors.values()) expect(p.y).toBeGreaterThanOrEqual(heightAt(field, p.x, p.z))
   })
 })

@@ -1,4 +1,5 @@
 import { BoxGeometry, BufferAttribute, BufferGeometry, CylinderGeometry, Group, Mesh, type Object3D } from 'three'
+import type { Vec3 } from '../../sim/math/vec3.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
 import type { StructureDamage } from '../../sim/weapons/structures.js'
@@ -42,6 +43,9 @@ export type AirfieldHandle = {
   sync(structureDamage: Readonly<Record<string, StructureDamage>>): void
   /** Ages every collapsed building's smoke column by one frame. */
   update(dtSeconds: number): void
+  /** World metres, per content building id: where its collapse smoke rises
+   *  from, 2.5 m above the rendered building's ground (E1 Ruling R13). */
+  readonly smokeAnchors: ReadonlyMap<string, Vec3>
 }
 
 /** Scenery layout, runway-local metres (`x` across the strip, `z` along it).
@@ -162,6 +166,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     readonly collapsed: Object3D
     readonly smoke: ReturnType<typeof createSmokeColumn>
   }>()
+  const anchors = new Map<string, Vec3>()
   for (const b of airfield.buildings) {
     const collector = makeCollector()
     const { x, z } = at(b.x, b.z)
@@ -188,6 +193,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     smoke.object.name = 'smoke'
     smoke.object.position.set(x, y + 2.5, z)
     smoke.object.scale.setScalar(4)
+    anchors.set(b.id, { x, y: y + 2.5, z })
 
     const group = new Group()
     group.name = `structure:${b.id}`
@@ -209,6 +215,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     object.traverse((o) => { o.receiveShadow = true })
     return {
       object,
+      smokeAnchors: anchors,
       sync(structureDamage: Readonly<Record<string, StructureDamage>>): void {
         for (const [id, s] of structures) {
           const destroyed = (structureDamage[id]?.destroyedTick ?? null) !== null

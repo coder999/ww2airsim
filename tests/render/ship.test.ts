@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D } from 'three'
-import { createShipMesh, createShipView, probeShipSurface } from '../../src/render/scene/ship.js'
+import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Scene } from 'three'
+import { createShipMesh, createShipView, probeShipSurface, smokeOriginWorld } from '../../src/render/scene/ship.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { makeShipViewLoader, SHIP_MODELS } from '../../src/render/scene/shipModels.js'
 import { loadShipSpec } from '../../tools/content/load.js'
@@ -103,6 +103,19 @@ describe('createShipMesh', () => {
     expect(smoke.visible).toBe(true)
     setDamage(0, 0)
     expect(smoke.visible).toBe(false)
+  })
+
+  it('exposes its smoke origin in world metres, whatever the floating origin, sinking with the hull (E1 Ruling R13)', () => {
+    const view = createShipMesh(loadShipSpec('fletcher-dd'))
+    const scene = new Scene()
+    scene.add(view.root)
+    view.root.position.set(1200, 0, -800)
+    const at = (offset: { x: number; y: number; z: number }) => { scene.position.set(offset.x, offset.y, offset.z); return smokeOriginWorld(view, offset) }
+    const a = at({ x: 0, y: 0, z: 0 }), b = at({ x: -1200, y: -30, z: 800 })
+    expect(b.x).toBeCloseTo(a.x, 6); expect(b.y).toBeCloseTo(a.y, 6); expect(b.z).toBeCloseTo(a.z, 6)
+    expect(a.y).toBeGreaterThan(5)
+    view.setDamage(0, 0.5)
+    expect(at({ x: 0, y: 0, z: 0 }).y).toBeLessThan(a.y)
   })
 })
 

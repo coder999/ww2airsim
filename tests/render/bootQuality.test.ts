@@ -260,6 +260,8 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
     // ...and the live setters refuse to move a forced tier at all.
     expect(source).toMatch(/const applyOceanTier[\s\S]{0,400}?if \(forcedOceanTier !== undefined\) return/)
     expect(source).toMatch(/const applyCloudTier[\s\S]{0,400}?if \(forcedCloudTier !== undefined \|\| cloudTier === name\) return/)
+    expect(source).toContain("let fxTier: QualityTierName | 'off' = fxQuery.tier ?? quality.current().fx")
+    expect(source).toMatch(/const applyFxTier[\s\S]{0,400}?if \(fxQuery\.tier !== undefined \|\| fxTier === name\) return/)
   })
 
   it('keeps ?oceanTier= driving the scenery tier, which is what turns the trees off', () => {

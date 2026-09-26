@@ -1,4 +1,5 @@
-import { Box3, BoxGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Raycaster, Vector3, type Object3D } from 'three'
+import { Box3, BoxGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3 } from 'three'
+import type { Vec3 } from '../../sim/math/vec3.js'
 import type { ShipSpec } from '../../sim/world/ships.js'
 import { createEngineSmoke } from './smoke.js'
 import { disposeMeshTree } from '../models/dispose.js'
@@ -26,9 +27,20 @@ const TRAP_BAND_THICKNESS_M = 0.05
 export interface ShipView {
   readonly root: Object3D
   readonly model: string | null
+  /** An empty marker at the stack/SmokeOrigin, child of the hull group, so
+   *  it sinks and lists with the hull. fx reads it every frame (E1 R13). */
+  readonly smokeOrigin: Object3D
   setDamage(fire: number, sinkingFraction: number): void
   /** Idempotent. A model view RELEASES its shared instance; it never disposes it (modelCache.ts). */
   dispose(): void
+}
+
+/** The view's smoke origin in sim world metres. `worldOffset` must be what
+ *  `scene.position` holds this frame (main.ts sets it before posing ships). */
+export function smokeOriginWorld(view: ShipView, worldOffset: { readonly x: number; readonly y: number; readonly z: number }): Vec3 {
+  view.smokeOrigin.updateWorldMatrix(true, false)
+  const e = view.smokeOrigin.matrixWorld.elements
+  return { x: e[12]! - worldOffset.x, y: e[13]! - worldOffset.y, z: e[14]! - worldOffset.z }
 }
 
 /** The carrier's trap band, fromSternM..toSternM along a deck `lengthM` long, `halfWidthM` either side of the centerline. */
@@ -58,11 +70,16 @@ function finishView(root: Group, hullGroup: Group, smokeAt: { x: number; y: numb
   smoke.object.scale.setScalar(5)
   smoke.object.position.set(smokeAt.x, smokeAt.y, smokeAt.z)
   hullGroup.add(smoke.object)
+  const smokeOrigin = new Object3D()
+  smokeOrigin.name = 'smoke origin'
+  smokeOrigin.position.set(smokeAt.x, smokeAt.y, smokeAt.z)
+  hullGroup.add(smokeOrigin)
   root.traverse((o) => { o.receiveShadow = true }) // Plan 16b, see hellcat.ts
   let disposed = false
   return {
     root,
     model,
+    smokeOrigin,
     setDamage(fire: number, sinkingFraction: number): void {
       const sinking = Math.min(1, Math.max(0, sinkingFraction))
       hullGroup.position.y = -sinking * sinkDepthM
