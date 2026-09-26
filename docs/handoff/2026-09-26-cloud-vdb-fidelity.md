@@ -2,8 +2,8 @@
 
 **Branch:** `worktree-cloud-vdb-fidelity`, in the worktree
 `.codex/worktrees/cloud-vdb-fidelity`, served on `ww2airsim-2.windomlane.org`.
-It is not merged. Merging, and the §15 row and README paragraph that come
-with it, are Mark's call.
+Merged to `main` 2026-09-26 (Mark's go-ahead after his flight), with the
+§15 row and README paragraph.
 **Plan:** `docs/superpowers/plans/2026-09-26-cloud-vdb-coverage.md`.
 **Ledger:** `.superpowers/sdd/cloud-vdb-fidelity/progress.md` (gitignored).
 **Visual reference:** local tag `cloud-vdb-photo-2026-09-26`, the state of the
@@ -80,3 +80,14 @@ change (its `coverage: 0.45`) and Mark's call.
   three times in a row, then passed. The console was clean and terrain
   arrived at 2.5 s in an instrumented load.
 - Merge to `main`, then the §15 row and README paragraph: Mark's call.
+
+## Mark's flight (2026-09-26, after this handoff)
+
+Flying through a cumulus showed no degradation (120 fps held). Two defects
+remain, and they are the next work, in a fresh worktree:
+
+- **Stacked slices**: cloud sides read as stacked pancakes rather than one
+  continuous body, on every cloud. The suspect is the cumulus start-jitter
+  cut to 1/8 of a step.
+- **A flickering band near the horizon**, visible even while paused. Not yet
+  diagnosed, and not yet compared against pre-merge `main`.

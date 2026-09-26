@@ -268,6 +268,13 @@ fund 128 view steps, against the 60 Hz High budget. See the
 [handoff](docs/handoff/2026-09-25-cloud-fidelity-ii.md) for the reference-GPU
 numbers; master spec §15 holds the status.
 
+**Cloud VDB fidelity merged 2026-09-26:** every cumulus is carved from one
+baked procedural cloud (`tools/sky/cumulus.py`), rotated and scaled per
+weather cell, and a layer's `coverage` is again the fraction of sky it
+covers. Flying inside a cloud has its own 4K budget. See the
+[handoff](docs/handoff/2026-09-26-cloud-vdb-fidelity.md); master spec §15
+holds the status.
+
 **The sun moves (Plan 16c, 2026-09-19):** each scenario states an apparent
 solar hour (`weather.timeOfDay`); the sun sits where it would over Leyte on
 1944-10-20, creeps with the sim clock, and the sky, haze, lights, clouds, sea
