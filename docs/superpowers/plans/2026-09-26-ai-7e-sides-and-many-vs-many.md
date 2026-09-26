@@ -339,11 +339,11 @@ Content (spec §4.5): `pilot.ingress = { route: [{ x, z, altitudeM, speedMps }, 
 
 Content (spec §4.6): the player plus one allied AI against two axis pairs (each a veteran with a green), all airborne at 3,500 m over the gulf, every airframe `f6f-hellcat` until the Zero's content is swapped in. Every AI omits `target`, so every AI chooses.
 
-- [ ] **Step 1: Failing test, the 120 s furball soak** through production `advance` with a hands-off player at the scenario's spawn throttle (spec §4.7): two runs bit-identical; no NaN in any state; for every AI the §3.6 invariants (structure 1 unless hit, never below `FLOOR_M` unless pursuing, where the pursuit floor applies, no sea impact; peak `stress.loadFactorG` ≤ `limits.gLimit`); **at least one AI-on-AI kill by hits** (a destroyed AI whose `damage.attacker` is another AI); every credited kill's shooter on the opposite side of its victim; `friendlyKills` = 0 and `friendlyHits` under 5% of all hits; p95 tick cost reported and under the 2 ms sanity ceiling.
-- [ ] **Step 2: Run to verify it fails** (no scenario yet).
-- [ ] **Step 3: Write the content**; if the geometry produces no AI-on-AI kill in 120 s, adjust spawn geometry (never the AI) and record the measurement.
-- [ ] **Step 4: Run** the soak on nexus alone, then the title-screen and dist tests.
-- [ ] **Step 5: Commit** `7e Task 9: furball-range and the 120 s furball soak`.
+- [x] **Step 1: Failing test, the 120 s furball soak** through production `advance` with a hands-off player at the scenario's spawn throttle (spec §4.7): two runs bit-identical; no NaN in any state; for every AI the §3.6 invariants (structure 1 unless hit, never below `FLOOR_M` unless pursuing, where the pursuit floor applies, no sea impact; peak `stress.loadFactorG` ≤ `limits.gLimit`); **at least one AI-on-AI kill by hits** (a destroyed AI whose `damage.attacker` is another AI); every credited kill's shooter on the opposite side of its victim; `friendlyKills` = 0 and `friendlyHits` under 5% of all hits; p95 tick cost reported and under the 2 ms sanity ceiling.
+- [x] **Step 2: Run to verify it fails** (no scenario yet).
+- [x] **Step 3: Write the content**; if the geometry produces no AI-on-AI kill in 120 s, adjust spawn geometry (never the AI) and record the measurement.
+- [x] **Step 4: Run** the soak on nexus alone, then the title-screen and dist tests.
+- [x] **Step 5: Commit** `7e Task 9: furball-range and the 120 s furball soak`.
 
 ### Task 10: Radar friendly flag and the diagnostics
 

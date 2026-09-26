@@ -118,7 +118,7 @@ export const DEFAULT_LOADOUT: Loadout = 'both'
  * (terrain, ocean, sky, the panel). `isKnownScenarioId` below is what makes
  * accepting `?scenario=` in a PRODUCTION build safe either way: unlike
  * `scenarioIdFromQuery`'s format check alone, it rejects any well-formed id
- * that is not actually one of these six.
+ * that is not actually one of these.
  */
 export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
   { value: 'free-flight', label: 'Free Flight' },
@@ -127,6 +127,10 @@ export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label
   { value: 'pursuit-range', label: 'Air Combat' },
   { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran' },
   { value: 'strike-range', label: 'Strike Range' },
+  // Plan 7e's development furball (ruling W9): listed so `?scenario=` can
+  // boot it, which is how it is shown; "(dev)" because it is a test bed,
+  // not a mission.
+  { value: 'furball-range', label: 'Furball (dev)' },
 ]
 
 /** Whether `id` is one of `SCENARIO_OPTIONS` -- the whitelist that makes
