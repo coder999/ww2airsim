@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, percentile, waitForTerrain, type DiagWindow } from './harness.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 
@@ -169,4 +169,37 @@ test('the carrier deck reads as a lit surface: within 0.5-1.5x the runway under 
   // the fix measured, so cloud drift across the deck cannot flip it.
   expect(shadowed).toBeGreaterThan(5)
   expect(errors).toEqual([])
+})
+
+/**
+ * Ship models (S1, spec §9): the rendered deck of the LOADED, POSED carrier
+ * model is where the sim rests the wheels. `shipDeckProbe` ray-casts the
+ * ship's own view straight down, ignoring the airplane. Under the parked
+ * airplane it reads the origin and 1.7 m either side (half the F6F's main-gear
+ * track, an ESTIMATE; the sim has one contact point). In ship coordinates it
+ * reads the trap zone's center, where the band sits 0.05 m proud, and 5 m
+ * short of the bow. The deck is rigid, so the deck run adds nothing to these.
+ */
+test('the rendered carrier deck is where the sim rests the wheels (ship models S1)', async ({ page }) => {
+  const cvSpec = loadShipSpec('essex-cv')
+  const fd = cvSpec.flightDeck!, tz = cvSpec.trapZone!
+  const marks = [{ x: -fd.lengthM / 2 + (tz.fromSternM + tz.toSternM) / 2, z: 0 }, { x: fd.lengthM / 2 - 5, z: 0 }]
+  await page.goto(URL)
+  await waitForTerrain(page)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
+  const r = await page.evaluate((m) => {
+    const d = (window as DiagWindow).__ww2!
+    const me = d.aircraft().find((a) => a.id === 'f6f-1')!
+    const right = { x: Math.cos(me.headingRad), z: Math.sin(me.headingRad) }
+    const wheels = [0, -1.7, 1.7].map((s) => ({ x: me.x + s * right.x, z: me.z + s * right.z }))
+    return { models: d.shipModels(), deck: d.deck(), wheels: d.shipDeckProbe('cv-1', wheels, 'world'), marks: d.shipDeckProbe('cv-1', m, 'ship'), errors: d.validationErrors }
+  }, marks)
+  expect(r.models[0]).toBe('essex-cv')
+  expect(r.deck?.shipId).toBe('cv-1')
+  const simDeck = r.deck!.heightM
+  for (const [i, y] of [...r.wheels, ...r.marks].entries()) {
+    expect(y, `probe ${i} hit nothing`).not.toBeNull()
+    expect(Math.abs(y! - simDeck), `probe ${i}: rendered ${y} vs sim ${simDeck}`).toBeLessThanOrEqual(0.2)
+  }
+  expect(r.errors).toEqual([])
 })

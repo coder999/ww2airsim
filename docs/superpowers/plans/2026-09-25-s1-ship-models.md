@@ -3311,7 +3311,7 @@ git commit -m "S1: a Models credit line in the legend, generated from the model 
 
 Run by the executing agent, never by Mark, on the `ww2airsim-2` slot so the timings do not skew another session's.
 
-- [ ] **Step 1: Write the ship spec.** `tests/e2e/ships.spec.ts`:
+- [x] **Step 1: Write the ship spec.** `tests/e2e/ships.spec.ts`:
 
 ```ts
 // tests/e2e/ships.spec.ts
@@ -3391,7 +3391,7 @@ test.describe('broadsides and budgets at 1440p', () => {
 })
 ```
 
-- [ ] **Step 2: Add the deck probe to `tests/e2e/deckQuals.spec.ts`.** Extend its `tools/content/load.js` import to `import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'`, and append:
+- [x] **Step 2: Add the deck probe to `tests/e2e/deckQuals.spec.ts`.** Extend its `tools/content/load.js` import to `import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'`, and append:
 
 ```ts
 /**
@@ -3428,7 +3428,9 @@ test('the rendered carrier deck is where the sim rests the wheels (ship models S
 })
 ```
 
-- [ ] **Step 3: Typecheck and lint the specs** (Tier 2 is not in `vitest`, so this is their only static check): `npm run typecheck && npx eslint --max-warnings 0 tests/e2e/ships.spec.ts tests/e2e/deckQuals.spec.ts; rc=$?; echo "rc=$rc"`. Expected `rc=0`.
+- [x] **Step 3: Typecheck and lint the specs** (Tier 2 is not in `vitest`, so this is their only static check): `npm run typecheck && npx eslint --max-warnings 0 tests/e2e/ships.spec.ts tests/e2e/deckQuals.spec.ts; rc=$?; echo "rc=$rc"`. Expected `rc=0`.
+
+> **Execution note (2026-09-25):** Steps 1-3 are committed with the Task 9 commit. Steps 4-7 (the Tier 2 run, reading the PNGs, and any sanctioned palette retune) are **PENDING**: not run, because both spare dev-server slots were held by other sessions. Their boxes stay open until a run on the reference GPU ticks them.
 
 - [ ] **Step 4: Run Tier 2 on the spare slot.** The repo `CLAUDE.md` ("GPU work") and `README.md`'s "Tier 2: the GPU harness" are the authority. In this worktree, point `vite.config.ts`'s `TUNNEL_HOST` at `ww2airsim-2.windomlane.org` and its `server.port` at `5175`. That edit is local scratch: never commit it.
 
