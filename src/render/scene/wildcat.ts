@@ -5,11 +5,11 @@ import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
-import { WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y } from './wildcatFrame.js'
+import { wildcatCorrection } from './wildcatFrame.js'
 
 /** The model-to-sim frame lives in wildcatFrame.ts (Node-safe for tools/models/mounts.ts);
  *  re-exported so every importer of this module keeps working. */
-export { WILDCAT_DATUM_PITCH_RAD, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatToSimMatrix } from './wildcatFrame.js'
+export { WILDCAT_CORRECTION_NAME, WILDCAT_DATUM_PITCH_RAD, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatCorrection, wildcatToSimMatrix } from './wildcatFrame.js'
 
 interface GearPose { readonly pos: Vector3; readonly quat: Quaternion }
 interface GearPair { readonly der: GearPose; readonly izq: GearPose }
@@ -79,9 +79,8 @@ export async function loadWildcat(acquire: (url: string) => Promise<ModelInstanc
   // native-axis quirk from every consumer (scenarioEntities.ts, main.ts):
   // `root` below is posed directly in sim body-frame convention exactly the
   // way hellcat.ts's `root` always was.
-  const correction = new Group()
-  correction.rotation.y = WILDCAT_TO_SIM_ROTATION_Y
-  correction.scale.setScalar(WILDCAT_SCALE)
+  // Built in wildcatFrame.ts, the same source models:mounts measures through.
+  const correction = wildcatCorrection()
   correction.add(scene)
 
   const root = new Group()

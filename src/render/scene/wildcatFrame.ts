@@ -8,7 +8,7 @@
  * `Cannot read properties of undefined (reading 'BASE_URL')`). wildcat.ts
  * re-exports everything here.
  */
-import { Matrix4, Quaternion, Vector3 } from 'three'
+import { Group } from 'three'
 
 /**
  * The Wildcat model (content/aircraft/wildcat.glb, ASSETS.md) is authored
@@ -46,11 +46,28 @@ export const WILDCAT_SCALE = TARGET_WINGSPAN_M / WILDCAT_NATIVE_WINGSPAN_M
  */
 export const WILDCAT_DATUM_PITCH_RAD = 0.12789182382108172
 
-/** The correction group's matrix (rotation Y, uniform scale), column-major: model space to
- *  sim body frame. tools/models/mounts.ts slices the wing through exactly this. */
+/** The correction group's name, so tests can find it in a loaded airframe. */
+export const WILDCAT_CORRECTION_NAME = 'wildcat-correction'
+
+/**
+ * The ONE place the drawn Wildcat's model-to-sim correction is built: rotation Y and a
+ * uniform scale, no translation and no pitch. wildcat.ts wraps the loaded model in this
+ * group, and wildcatToSimMatrix() below reads its matrix, so the transform the mounts are
+ * measured through cannot drift from the one the airplane is drawn with.
+ * tests/render/wildcat.test.ts asserts a loaded airframe's group equals the matrix.
+ */
+export function wildcatCorrection(): Group {
+  const g = new Group()
+  g.name = WILDCAT_CORRECTION_NAME
+  g.rotation.y = WILDCAT_TO_SIM_ROTATION_Y
+  g.scale.setScalar(WILDCAT_SCALE)
+  return g
+}
+
+/** wildcatCorrection()'s matrix, column-major: model space to sim body frame.
+ *  tools/models/mounts.ts slices the wing through exactly this. */
 export function wildcatToSimMatrix(): number[] {
-  return new Matrix4().compose(
-    new Vector3(), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), WILDCAT_TO_SIM_ROTATION_Y),
-    new Vector3(WILDCAT_SCALE, WILDCAT_SCALE, WILDCAT_SCALE),
-  ).toArray()
+  const g = wildcatCorrection()
+  g.updateMatrix()
+  return g.matrix.toArray()
 }

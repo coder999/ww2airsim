@@ -1,7 +1,8 @@
 // tests/render/wildcat.test.ts
 import { describe, expect, it } from 'vitest'
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
-import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE } from '../../src/render/scene/wildcat.js'
+import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE, wildcatToSimMatrix } from '../../src/render/scene/wildcat.js'
+import { WILDCAT_CORRECTION_NAME } from '../../src/render/scene/wildcatFrame.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { WILDCAT_MODEL_URL } from '../../src/render/content.js'
 
@@ -58,6 +59,21 @@ describe('loadWildcat through the model cache (Z1)', () => {
     })
   }
   const still = { roll: 0, pitch: 0, yaw: 0 }
+
+  it('its correction group is exactly wildcatToSimMatrix(), the transform models:mounts slices the wing through (O1)', async () => {
+    const cache = syntheticCache()
+    const a = await loadWildcat((url) => cache.acquire(url))
+    const correction = a.root.getObjectByName(WILDCAT_CORRECTION_NAME)!
+    expect(correction, 'the correction group').toBeDefined()
+    // The correction group hangs straight off root and carries the drawn model.
+    expect(correction.parent).toBe(a.root)
+    expect(correction.getObjectByName('Helice')).toBeDefined()
+    a.root.updateMatrixWorld(true)
+    // Relative to root (the sim body frame), not merely the group's own local matrix.
+    const toSim = a.root.matrixWorld.clone().invert().multiply(correction.matrixWorld)
+    const expected = wildcatToSimMatrix()
+    toSim.elements.forEach((v, i) => expect(v, `element ${i}`).toBeCloseTo(expected[i]!, 12))
+  })
 
   it('declares prop, gear and stores, and no flaps', async () => {
     const cache = syntheticCache()

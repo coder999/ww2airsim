@@ -23,7 +23,7 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     expect(WILDCAT_DATUM_PITCH_RAD).toBeCloseTo(2 * Math.atan2(-qx!, qw!), 12)
   })
 
-  it('the slicing transform is exactly the correction group wildcat.ts builds', () => {
+  it('the slicing transform is rotation Y and uniform scale from the frame constants, with no translation (the loaded airframe\'s own correction group is checked against it in tests/render/wildcat.test.ts)', () => {
     const g = new Group()
     g.rotation.y = WILDCAT_TO_SIM_ROTATION_Y
     g.scale.setScalar(WILDCAT_SCALE)
