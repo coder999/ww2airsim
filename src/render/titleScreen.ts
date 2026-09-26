@@ -902,18 +902,31 @@ export function createTitleScreen(
         newGame.disabled = false
         newGame.style.opacity = '1'
       }
-      bootWrap.style.display = locked ? 'block' : 'none'
       bootFill.style.width = `${Math.round(boot.fraction * 100)}%`
       bootBar.setAttribute('aria-valuenow', String(Math.round(boot.fraction * 100)))
       bootLabel.textContent = boot.label
     }
     const wasLocked = !boot.ready
+    // The strip's own visibility is handled separately from the rest of
+    // applyBootLock (fix round 2 finding 4): a title built already ready
+    // (return-to-title, New game) hides it AT ONCE, no fade -- it was never
+    // shown this build, so there is nothing to fade FROM. Only the live
+    // "still loading -> ready" transition below fades.
+    bootWrap.style.display = wasLocked ? 'block' : 'none'
     applyBootLock()
     unsubscribeBoot?.()
     unsubscribeBoot = boot.onChange(() => {
       applyBootLock()
       // The unlock moment: focus what the player most likely wants next.
       if (boot.ready && wasLocked) {
+        // Spec §A.2: "the strip fades out", not the instant `display:none`
+        // fix round 2's finding 4 caught -- a CSS opacity transition, then
+        // hidden once it has fully faded. 300ms clears both Tier 2 budgets
+        // (dossier.spec.ts's 1s post-return-to-title check, boot.spec.ts's
+        // post-ready check) with room to spare.
+        bootWrap.style.transition = 'opacity .3s'
+        bootWrap.style.opacity = '0'
+        window.setTimeout(() => { bootWrap.style.display = 'none' }, 300)
         const first = [...pilotRows.values()][0]
         ;(first?.selectButton ?? newPilotButton).focus()
       }
