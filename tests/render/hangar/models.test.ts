@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
 import { Group, Object3D } from 'three'
 import { flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
-import { RACK_OFFSETS, RAIL_OFFSETS } from '../../../src/render/scene/stores.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
 import { nodeHangarContent } from './content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const catalog = buildCatalog(nodeHangarContent())
 const byId = (id: string) => catalog.find((e) => e.library.id === id)!
@@ -110,10 +110,11 @@ describe('stores on the bench', () => {
     const hellcat = createHellcat()
     const setStores = vi.spyOn(hellcat, 'setStores')
     const m = await loadHangarModel(byId('f6f-hellcat'), async () => hellcat)
+    const stores = loadAircraftSpec('f6f-hellcat').stores!
     m!.pose({ bombs: false })
-    expect(setStores).toHaveBeenLastCalledWith(0, RAIL_OFFSETS.length)
+    expect(setStores).toHaveBeenLastCalledWith(0, stores.rails.length)
     m!.pose({ rockets: false, bombs: true })
-    expect(setStores).toHaveBeenLastCalledWith(RACK_OFFSETS.length, 0)
+    expect(setStores).toHaveBeenLastCalledWith(stores.racks.length, 0)
   })
 
   it('an aircraft reports what its probe found; a ship reports nothing', async () => {

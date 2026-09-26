@@ -170,6 +170,10 @@ export const WILDCAT_MODEL_URL = `${import.meta.env.BASE_URL}${WILDCAT_MODEL_PAT
 export const shipModelPath = (id: string): string => `content/ships/${id}.glb`
 export const shipModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${shipModelPath(id)}`
 
+/** A generated store model (O1): content/ordnance/<id>.glb, id = the store type id in content. */
+export const ordnanceModelPath = (id: string): string => `content/ordnance/${id}.glb`
+export const ordnanceModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${ordnanceModelPath(id)}`
+
 /** Plan 16a's cloud noise volumes, gzipped on disk, inflated in the browser
  *  (src/render/sky/load.ts) exactly as the land-cover raster is. */
 export const SHAPE_NOISE_PATH = 'content/sky/shape.bin.gz'

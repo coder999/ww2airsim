@@ -1,11 +1,11 @@
 // src/render/hangar/models.ts
-import { Group, Mesh, type Object3D } from 'three'
+import { Group, Mesh, Vector3, type Object3D } from 'three'
 import type { Airframe, PartId } from '../scene/airframe.js'
 import { loadRegisteredAirframe, type LoadAirframe } from '../scenarioEntities.js'
 import { loadRegisteredShipView, type LoadShipView } from '../scene/shipModels.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector } from '../scene/buildings.js'
 import { disposeMeshTree } from '../models/dispose.js'
-import { RACK_OFFSETS, RAIL_OFFSETS } from '../scene/stores.js'
+import type { StoreMounts } from '../scene/stores.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
 import type { CatalogEntry } from './catalog.js'
 
@@ -35,6 +35,8 @@ export interface HangarModel {
   readonly parts: readonly PartSpec[]
   /** Nodes the bench actually moves (gear legs, propeller, flaps), found by probing; [] for ships and buildings. */
   readonly articulated: readonly Object3D[]
+  /** Each hung store's mount id and world position (O1); [] for ships, buildings and ordnance. */
+  mounts(): readonly { readonly id: string; readonly world: Vector3 }[]
   pose(p: PartPose): void
   /** Advances the model's own clock (propeller) by `frameS`. */
   update(frameS: number): void
@@ -106,6 +108,7 @@ function staticModel(root: Object3D): HangarModel {
     root,
     parts: [],
     articulated: [],
+    mounts: () => [],
     pose(): void {},
     update(): void {},
     counts: () => sceneCounts(root),
@@ -113,7 +116,7 @@ function staticModel(root: Object3D): HangarModel {
   }
 }
 
-function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
+function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMounts | undefined): HangarModel {
   // The airframe's origin is its CG on the thrust line; the stand lifts it
   // by the spec's own gear height so the wheels meet the y = 0 grid. A model
   // whose wheels do not meet the grid is a finding, which is the point.
@@ -132,6 +135,10 @@ function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
     root: stand,
     parts: partSpecsFor(airframe.parts),
     articulated,
+    mounts: () => [...(mounts?.racks ?? []), ...(mounts?.rails ?? [])].flatMap((m) => {
+      const o = airframe.root.getObjectByName(m.id)
+      return o ? [{ id: m.id, world: o.getWorldPosition(new Vector3()) }] : []
+    }),
     // Applied at once with frameS 0 (the propeller does not advance), so a
     // pose shows on a frozen page too; before this, it waited for the next
     // update, which a frozen page never runs (H1 Tier 2 check 2, 2026-09-25).
@@ -142,7 +149,7 @@ function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
       if (p.bombs !== undefined || p.rockets !== undefined) {
         bombs = p.bombs ?? bombs
         rockets = p.rockets ?? rockets
-        airframe.setStores(bombs ? RACK_OFFSETS.length : 0, rockets ? RAIL_OFFSETS.length : 0)
+        airframe.setStores(bombs ? mounts?.racks.length ?? 0 : 0, rockets ? mounts?.rails.length ?? 0 : 0)
       }
       apply(0)
     },
@@ -165,8 +172,8 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
   const s = entry.subject
   if (s === null) return null
   if (s.kind === 'aircraft') {
-    const airframe = await loadAirframe(s.spec.view.model)
-    const model = aircraftModel(airframe, s.spec.gear.heightM)
+    const airframe = await loadAirframe(s.spec.view.model, s.spec.stores)
+    const model = aircraftModel(airframe, s.spec.gear.heightM, s.spec.stores)
     model.update(0)
     return model
   }

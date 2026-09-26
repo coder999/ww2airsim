@@ -1,11 +1,12 @@
 // src/render/scene/wildcat.ts
 import { Group, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
-import { attachStores } from './stores.js'
+import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
+import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
-import { wildcatCorrection } from './wildcatFrame.js'
+import { WILDCAT_DATUM_PITCH_RAD, wildcatCorrection } from './wildcatFrame.js'
 
 /** The model-to-sim frame lives in wildcatFrame.ts (Node-safe for tools/models/mounts.ts);
  *  re-exported so every importer of this module keeps working. */
@@ -50,20 +51,13 @@ export function applyGearFraction(node: Object3D, down: GearPose, up: GearPose, 
   node.quaternion.slerpQuaternions(up.quat, down.quat, fraction)
 }
 
-/** Matches hellcat.ts's `dark` material exactly (color, roughness) --
- *  deliberately its own instance, not a shared import: sharing one material
- *  object would mean a future recolor of the Hellcat's trim silently
- *  recolors the Wildcat's ordnance too, a surprising coupling for one line
- *  saved. */
-const dark = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
-
 /**
  * One Wildcat. Loads through the shared model cache (A6M Zero spec §7.1): the
  * first call parses wildcat.glb, every later call clones that parse, and all
  * of them share its geometry, materials and 26 textures. `acquire` is
  * injectable so Node tests can hand in a synthetic instance.
  */
-export async function loadWildcat(acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
+export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
   const instance = await acquire(WILDCAT_MODEL_URL)
   const scene = instance.root
 
@@ -87,14 +81,29 @@ export async function loadWildcat(acquire: (url: string) => Promise<ModelInstanc
   root.add(correction)
   root.traverse((o) => { o.receiveShadow = true })
 
-  const stores = attachStores(root, dark)
+  // O1: stores hang from the FLYING spec's mounts (the sim's), as the generated models, parallel
+  // to the drawn datum. A spec with no stores (the Zero) hangs none. If a store model fails to
+  // load, the primitive stand-ins hang instead and the airplane still flies (Review Focus 2).
+  let hung: { setStores(b: number, r: number): void; dispose(): void } | null = null
+  let freeVisuals = (): void => {}
+  if (stores !== undefined) {
+    const ids = [...stores.racks, ...stores.rails].map((m) => m.store)
+    const visuals = await loadStoreVisuals(ids, WILDCAT_DATUM_PITCH_RAD, acquire).catch((e: unknown) => {
+      console.warn(`wildcat: store models failed (${e instanceof Error ? e.message : String(e)}); hanging primitive stand-ins`)
+      const trim = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
+      const p = primitiveStoreVisuals(stores, trim)
+      return { ...p, release: () => { p.dispose(); trim.dispose() } }
+    })
+    hung = attachStores(root, stores, visuals)
+    freeVisuals = visuals.release
+  }
   let disposed = false
 
   return {
     root,
     /** This model has no flap geometry at all (ASSETS.md, F4F plan Review Focus). */
-    parts: ['prop', 'gear', 'stores'],
-    setStores: stores.setStores,
+    parts: stores === undefined ? ['prop', 'gear'] : ['prop', 'gear', 'stores'],
+    setStores: (b, r) => { hung?.setStores(b, r) },
     update(u): void {
       propRad = propAngle(propRad, u.throttle, u.frameS)
       helice.rotation.z = heliceRestZ + propRad
@@ -104,7 +113,8 @@ export async function loadWildcat(acquire: (url: string) => Promise<ModelInstanc
     dispose(): void {
       if (disposed) return
       disposed = true
-      stores.dispose()
+      hung?.dispose()
+      freeVisuals()
       instance.release()
     },
   }
