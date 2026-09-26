@@ -20,7 +20,7 @@ import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
-import { sideOf, type Side } from './sides.js'
+import { sideOf, sidesOf, type Side } from './sides.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -859,11 +859,13 @@ export function advance<M>(
       )
     })
     const combatAtStart = combat
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage)
+    // 7e: one side table per tick, the same for credit as for the pilots.
+    const sides = sidesOf(world, aircraft)
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides)
     // After `stepCombat`, which is where an overload break-up happens, and
     // after every aircraft has stepped, which is where a crash happens: a loss
     // with no killing hit is credited to whoever last hit the airplane.
-    combat = creditDownedAircraft(combatAtStart, combat, aircraftAtStart, aircraft)
+    combat = creditDownedAircraft(combatAtStart, combat, aircraftAtStart, aircraft, sides)
     // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
     // them once per RENDERED frame, but this loop can run up to
     // MAX_STEPS_PER_FRAME substeps against that one frame's controls. Nothing

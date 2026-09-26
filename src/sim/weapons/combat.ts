@@ -20,6 +20,7 @@ import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
 import { zeroKillsByType, type TargetType } from './targetType.js'
+import { sameSide, type Side } from '../sides.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -50,6 +51,12 @@ export type AircraftCombat = {
    *  `damage.attacker`, which stays "the hit that destroyed it" because the
    *  player's debrief reads it that way. */
   readonly lastHitBy: string | null
+  /** Plan 7e (spec §4.3): rounds and kills this aircraft landed on its OWN
+   *  side, the player and its own blast included. Counted here and never in
+   *  `hits`, `kills` or `killsByType` (ruling W1), so Plan 9's score cannot
+   *  reward a teamkill. Only counted when `stepCombat` is given sides. */
+  readonly friendlyHits: number
+  readonly friendlyKills: number
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
@@ -98,7 +105,7 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(),
+      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
@@ -437,6 +444,12 @@ export function stepCombat(
    * unaffected until Task 6 threads a real persisted value in.
    */
   arcadeDamage = false,
+  /**
+   * Plan 7e: every aircraft's side, by id (`sidesOf`, src/sim/sides.ts),
+   * which decides whether a hit or kill is a friendly one. `null` (every
+   * caller that predates 7e) credits every hit as before.
+   */
+  sides: Readonly<Record<string, Side>> | null = null,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
@@ -539,12 +552,20 @@ export function stepCombat(
   /** A kill by anything -- a round, a direct bomb, or blast -- lands on the
    *  owner's record; `hits` stays the gunnery statistic it has always been. */
   const creditAircraftDamage = (
-    before_: Damage, after: Damage, owner: string, round: boolean, targetType: TargetType,
+    before_: Damage, after: Damage, owner: string, round: boolean, targetType: TargetType, targetId: string,
   ): void => {
     const shooter = records[owner]
     if (shooter === undefined) return
     const killed = before_.destroyedAt === null && after.destroyedAt !== null
     if (!round && !killed) return
+    if (sides !== null && sameSide(sides, owner, targetId)) {
+      records[owner] = {
+        ...shooter,
+        friendlyHits: shooter.friendlyHits + (round ? 1 : 0),
+        friendlyKills: shooter.friendlyKills + (killed ? 1 : 0),
+      }
+      return
+    }
     records[owner] = {
       ...shooter,
       hits: shooter.hits + (round ? 1 : 0),
@@ -563,7 +584,7 @@ export function stepCombat(
       : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale)
     const lastHitBy = owner === target.id ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
-    creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role)
+    creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
   }
 
   const damageStructureAt = (s: StructureEntity, amount: number, owner: string): void => {
@@ -694,12 +715,16 @@ export function isAircraftDown(
  * `before`/`beforeAircraft` are the start of the tick, `after`/
  * `afterAircraft` the end. An aircraft absent from `beforeAircraft` (spawned
  * this tick) is skipped. Returns `after` itself when nothing was credited.
+ *
+ * Plan 7e: with `sides`, a loss last hit by its own side is that shooter's
+ * `friendlyKills`, not a kill (spec §4.3).
  */
 export function creditDownedAircraft(
   before: CombatState,
   after: CombatState,
   beforeAircraft: readonly CombatAircraft[],
   afterAircraft: readonly CombatAircraft[],
+  sides: Readonly<Record<string, Side>> | null = null,
 ): CombatState {
   let records: Record<string, AircraftCombat> | null = null
   for (const a of afterAircraft) {
@@ -711,6 +736,10 @@ export function creditDownedAircraft(
     records ??= { ...after.aircraft }
     const shooter = records[rec.lastHitBy]
     if (shooter === undefined) continue
+    if (sides !== null && sameSide(sides, rec.lastHitBy, a.id)) {
+      records[rec.lastHitBy] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      continue
+    }
     const type = a.spec.role
     records[rec.lastHitBy] = {
       ...shooter,
