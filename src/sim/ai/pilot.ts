@@ -77,10 +77,13 @@ export const GREEN_SKILL: PilotSkill = {
   // Kept unchanged from Task 1's starting value; already >=2x
   // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
-  // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): green gets
-  // lag pursuit but neither yo-yo, since both are vertical maneuvers; nor
-  // the attack run (Task 9), which is a dive and a zoom.
-  repertoire: ['lead-pursuit', 'lag-pursuit', 'defensive-break', 'extend'],
+  // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): no yo-yo,
+  // attack run, split-S or Immelmann. 7c Task 14 (Mark, 2026-09-26: "remove
+  // lag pursuit from green pilots. green pilots should be beaten easily"): no
+  // lag pursuit either, so green flies 7b's three intent defaults. With lag,
+  // green selected it at 6.0 s and the 7d bar's scripted evasion never got
+  // behind it at two of four noise cursors (final review, 2026-09-26).
+  repertoire: ['lead-pursuit', 'defensive-break', 'extend'],
 }
 
 export type PilotManeuver = 'pursue' | 'extend' | 'break'

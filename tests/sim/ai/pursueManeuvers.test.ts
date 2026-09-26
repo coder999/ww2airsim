@@ -31,12 +31,17 @@ function overshootWorld(skill: typeof GREEN_SKILL, pilotSpeed = 170) {
 }
 
 describe('lag pursuit (7c spec §3.5)', () => {
+  // Green's parameters with lag pursuit added back: green lost it on
+  // 2026-09-26 (Mark: "green pilots should be beaten easily"), and the veteran
+  // flies the high yo-yo here instead. Same skill numbers as when this was
+  // measured, so the flight is the same one.
+  const LAG_PILOT = withRepertoire(GREEN_SKILL, [...GREEN_SKILL.repertoire, 'lag-pursuit'])
   // Measured 2026-09-26 (closure = the range rate, `closureRateMps`):
   // selected at the first rescore (tick 60) at 57.8 m/s of closure, ended on
   // LAG_END_CLOSURE_MPS at 14.9 m/s 3.3 s later, minimum range 245.1 m.
-  it('green, overshooting a turning target: selected, closure falls, range stays above MIN_ENGAGEMENT_RANGE_M', () => {
+  it('a green-parameter pilot with lag, overshooting a turning target: selected, closure falls, range stays above MIN_ENGAGEMENT_RANGE_M', () => {
     const m = { selected: false, entryClosure: 0, lastClosure: 0, minRange: Infinity }
-    runCanned(overshootWorld(GREEN_SKILL), { [T]: levelTurn(3, -1) }, 20, (w) => {
+    runCanned(overshootWorld(LAG_PILOT), { [T]: levelTurn(3, -1) }, 20, (w) => {
       const d = self(w).pilot!.decision
       if (d.named !== 'lag-pursuit') return
       const c = closureOf(self(w), other(w))
@@ -47,6 +52,12 @@ describe('lag pursuit (7c spec §3.5)', () => {
     expect(m.selected).toBe(true)
     expect(m.lastClosure).toBeLessThan(m.entryClosure)
     expect(m.minRange).toBeGreaterThan(MIN_ENGAGEMENT_RANGE_M)
+  })
+
+  it('shipped green, same world: never selects lag pursuit (Mark, 2026-09-26)', () => {
+    let lag = 0
+    runCanned(overshootWorld(GREEN_SKILL), { [T]: levelTurn(3, -1) }, 20, (w) => { if (self(w).pilot!.decision.named === 'lag-pursuit') lag++ })
+    expect(lag).toBe(0)
   })
 })
 

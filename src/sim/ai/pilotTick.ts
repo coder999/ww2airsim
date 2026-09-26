@@ -4,7 +4,7 @@ import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
 import type { Vec3 } from '../math/vec3.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
-import { interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
+import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER } from './pilot.js'
 import { finishControls, heightAboveGround, safetyOverride } from './safety.js'
 
@@ -56,8 +56,10 @@ export function pilotTick<M>(
     // A latched maneuver holds through the rescore: perception still
     // refreshes (7d), the choice does not (spec §3.5).
     if (decision.latch === null || interruptsLatch(decision.latch, intent, facts)) {
+      // The airframe's content may exclude maneuvers (7c Task 14): the Zero
+      // does not fly the Immelmann, whatever the pilot's skill.
       const named = selectManeuver(
-        maneuverFacts(a, target, facts, intent, heightAboveGround(a.state, ctx.terrain, ctx.decks)), pilot.skill.repertoire,
+        maneuverFacts(a, target, facts, intent, heightAboveGround(a.state, ctx.terrain, ctx.decks)), airframeRepertoire(pilot.skill, a.spec),
       )
       decision = { ...decision, maneuver: intent, named, latch: isPhased(named) ? openLatch(named, a, ctx.nowS) : null }
     }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { airframeEnvelope } from '../../../src/sim/ai/envelope.js'
 import { IMMELMANN_MIN_PATH_RAD } from '../../../src/sim/ai/maneuvers.js'
 import { SAFE_SEPARATION_M, VETERAN_SKILL, type ManeuverName } from '../../../src/sim/ai/pilot.js'
+import { pilotTick } from '../../../src/sim/ai/pilotTick.js'
+import type { AircraftSpec } from '../../../src/sim/flight/schema.js'
 import { createWorldOf, type World } from '../../../src/sim/loop.js'
 import { length, sub, v3 } from '../../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
@@ -16,16 +18,23 @@ const SET = ['lead-pursuit', 'defensive-break', 'extend', 'immelmann'] as Maneuv
  *  height), with the threat's nose away (no Break), and beyond
  *  SAFE_SEPARATION_M at or above corner speed, level, with the threat
  *  behind, which is the rejoin the Immelmann replaces. */
-function world(specId: string, speed: number) {
-  const spec = loadAircraftSpec(specId)
+function world(spec: AircraftSpec, speed: number, skill = withRepertoire(VETERAN_SKILL, SET)) {
   return createWorldOf({
     aircraft: [
-      level('p', spec, v3(0, 2400, 0), v3(speed, 0, 0), pilotFor('t', withRepertoire(VETERAN_SKILL, SET))),
+      level('p', spec, v3(0, 2400, 0), v3(speed, 0, 0), pilotFor('t', skill)),
       level('t', loadAircraftSpec('f6f-hellcat'), v3(-1300, 3000, 0), v3(-100, 0, 0)),
     ],
     player: 't',
   })
 }
+
+const f6f = loadAircraftSpec('f6f-hellcat')
+const zero = loadAircraftSpec('a6m2-zero')
+/** The Zero's airframe without its content exclusion (Task 14): what any
+ *  airframe with the Zero's envelope and no `ai` block flies. The maneuver's
+ *  own flight is still proven on it; the shipped Zero never enters it. */
+const zeroUnexcluded: AircraftSpec = { ...zero }
+delete zeroUnexcluded.ai
 
 describe('Immelmann (7c spec §3.5)', () => {
   // Prototype, 2026-09-25 (lift vector toward a loop center fixed at entry):
@@ -41,14 +50,13 @@ describe('Immelmann (7c spec §3.5)', () => {
   //     75.4 m/s (1.1 x stall = 38.4) at 10.45 s; peak 6.05 g; stall margin
   //     peaks at 0.686.
   // No §3.2 stall guard exists, so the stall margin is asserted here.
-  it.each([['f6f-hellcat', 140], ['a6m2-zero', 110]] as const)('%s from %d m/s: selected, reverses 150°+, gains height, exits at 1.1 x stall or faster', (specId, speed) => {
-    const spec = loadAircraftSpec(specId)
+  it.each([['f6f-hellcat', f6f, 140], ['a6m2-zero without its content exclusion', zeroUnexcluded, 110]] as const)('%s from %d m/s: selected, reverses 150°+, gains height, exits at 1.1 x stall or faster', (_label, spec, speed) => {
     const m = {
       entry: null as null | { heading: number; y: number },
       exit: null as null | { heading: number; y: number; speed: number },
       stallMargin: 0, peakG: 0,
     }
-    runCanned(world(specId, speed), { t: straight }, 25, (w) => {
+    runCanned(world(spec, speed), { t: straight }, 25, (w) => {
       const s = self(w)
       const d = s.pilot!.decision
       if (d.named === 'immelmann' && d.latch !== null && m.entry === null) m.entry = { heading: d.latch.entryHeadingRad, y: d.latch.entryAltitudeM }
@@ -76,9 +84,8 @@ describe('Immelmann (7c spec §3.5)', () => {
   // term a second half loop started there and turned it away from the
   // threat. The count below is the non-vacuity check: those rescores exist.
   it('one Immelmann per rejoin: with the threat ahead it is not flown again, though every other condition holds', () => {
-    const zero = loadAircraftSpec('a6m2-zero')
     const m = { selections: 0, prev: '' as string, exited: false, otherwiseQualifying: 0 }
-    runCanned(world('a6m2-zero', 110), { t: straight }, 30, (w) => {
+    runCanned(world(zeroUnexcluded, 110), { t: straight }, 30, (w) => {
       const s = self(w)
       const d = s.pilot!.decision
       if (d.named === 'immelmann' && m.prev !== 'immelmann') m.selections++
@@ -91,5 +98,28 @@ describe('Immelmann (7c spec §3.5)', () => {
     })
     expect(m.selections).toBe(1)
     expect(m.otherwiseQualifying).toBeGreaterThan(0)
+  })
+
+  // Mark's ruling, 2026-09-26: "suppress the immelman for the zero
+  // specifically but leave it available to other enemy plane AIs ... make it
+  // model-specific". The Zero's content (a6m2-zero.json, `ai.excludedManeuvers`)
+  // carries it, so no AI code names an airframe (spec §7). The unexcluded
+  // Zero above selects it at the first rescore of this very world.
+  it('the shipped Zero, flown as a full veteran in the same world, never selects the Immelmann', () => {
+    const counts = { shipped: 0, unexcluded: 0 }
+    runCanned(world(zero, 110, VETERAN_SKILL), { t: straight }, 25, (w) => { if (self(w).pilot!.decision.named === 'immelmann') counts.shipped++ })
+    runCanned(world(zeroUnexcluded, 110, VETERAN_SKILL), { t: straight }, 25, (w) => { if (self(w).pilot!.decision.named === 'immelmann') counts.unexcluded++ })
+    expect(counts.unexcluded).toBeGreaterThan(0)
+    expect(counts.shipped).toBe(0)
+  })
+
+  it('pilotTick reads the exclusion from the pilot\'s own airframe: one rescore, every other condition holding', () => {
+    const tickOnce = (spec: AircraftSpec) => {
+      const w = world(spec, 110, VETERAN_SKILL)
+      const p = self(w)
+      return pilotTick(p, w.aircraft, { nowS: 0, terrain: null, decks: [], wind: null, combat: w.combat }).pilot!.decision.named
+    }
+    expect(tickOnce(zeroUnexcluded)).toBe('immelmann')
+    expect(tickOnce(zero)).toBe('extend')
   })
 })

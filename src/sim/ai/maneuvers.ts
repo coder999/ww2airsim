@@ -1,8 +1,9 @@
 import type { AircraftEntity } from '../loop.js'
+import type { AircraftSpec } from '../flight/schema.js'
 import { add, length, sub, dot, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import type { DecisionFacts } from './decision.js'
 import { airframeEnvelope, relativeEnvelope, type RelativeEnvelope } from './envelope.js'
-import { DEFAULT_MANEUVER, INTENT_OF, SAFE_SEPARATION_M, type ManeuverLatch, type ManeuverName, type PilotManeuver } from './pilot.js'
+import { DEFAULT_MANEUVER, INTENT_OF, SAFE_SEPARATION_M, type ManeuverLatch, type ManeuverName, type PilotManeuver, type PilotSkill } from './pilot.js'
 import { ATTACK_RUN_HEIGHT_M } from './maneuverFlight.js'
 import { closureRateMps } from './pursuit.js'
 import { FLOOR_M, loadFactorBudget } from './safety.js'
@@ -148,6 +149,20 @@ export const SPLIT_S_MAX_SPEED_FRACTION = 0.6
  *    signature worlds (tests/sim/ai/immelmann.test.ts), which select it at
  *    the first rescore. */
 export const IMMELMANN_MIN_PATH_RAD = -5 * Math.PI / 180
+
+/**
+ * The repertoire a pilot flies in this airframe: its skill's, less whatever
+ * the airframe's own content excludes (`spec.ai.excludedManeuvers`, 7c Task
+ * 14). Generic on purpose: spec §7 forbids AI code naming an airframe, so the
+ * Zero's exclusion of the Immelmann (Mark, 2026-09-26) lives in its JSON.
+ * Pure and deterministic; returns the skill's own array when nothing is
+ * excluded, and never mutates the skill, which is shared data.
+ */
+export function airframeRepertoire(skill: PilotSkill, spec: AircraftSpec): readonly ManeuverName[] {
+  const excluded: readonly string[] | undefined = spec.ai?.excludedManeuvers
+  if (excluded === undefined || excluded.length === 0) return skill.repertoire
+  return skill.repertoire.filter((n) => !excluded.includes(n))
+}
 
 /** The named maneuver for this rescore. With nothing special in the picture
  *  it is the intent's default, which keeps 7b's regression floor. Task 8

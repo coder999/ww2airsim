@@ -119,9 +119,22 @@ describe('repertoire is skill data (7c spec §3.5; Mark 2026-09-25: green gets t
   })
 })
 
-describe('the finished repertoires (7c; Mark 2026-09-25: green gets the basic set)', () => {
-  it('green flies exactly lead and lag pursuit, the defensive break and the extend: nothing vertical', () => {
-    expect([...GREEN_SKILL.repertoire].sort()).toEqual(['defensive-break', 'extend', 'lag-pursuit', 'lead-pursuit'])
+describe('the finished repertoires (7c; Mark 2026-09-25 and 2026-09-26)', () => {
+  it('green flies exactly the three intent defaults: lead pursuit, the defensive break and the extend (7b\'s behavior)', () => {
+    expect([...GREEN_SKILL.repertoire].sort()).toEqual(['defensive-break', 'extend', 'lead-pursuit'])
+  })
+
+  // Mark's ruling, 2026-09-26: "remove lag pursuit from green pilots. green
+  // pilots should be beaten easily." It reverses his 2026-09-25 grant of lag
+  // pursuit to green: with it, green selected lag at 6.0 s and the 7d bar's
+  // scripted evasion never got behind it at noise cursors 7919 and 23757 (final
+  // review, 2026-09-26). His 2026-09-25 ruling "green never goes vertical"
+  // still stands, so neither yo-yo, the attack run, the split-S nor the
+  // Immelmann.
+  it('green has no lag pursuit and no vertical maneuver (Mark, 2026-09-26: green pilots should be beaten easily)', () => {
+    for (const n of ['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'split-s', 'immelmann'] as const) {
+      expect(GREEN_SKILL.repertoire).not.toContain(n)
+    }
   })
 
   it('veteran flies the whole library', () => {

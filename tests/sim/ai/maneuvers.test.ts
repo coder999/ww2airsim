@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  IMMELMANN_MIN_PATH_RAD, LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver,
+  IMMELMANN_MIN_PATH_RAD, LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch,
+  selectManeuver,
 } from '../../../src/sim/ai/maneuvers.js'
 import { deriveFacts } from '../../../src/sim/ai/decision.js'
-import { DEFAULT_MANEUVER, GREEN_SKILL, VETERAN_SKILL, initialDecision, type ManeuverLatch } from '../../../src/sim/ai/pilot.js'
+import { DEFAULT_MANEUVER, GREEN_SKILL, INTENT_OF, VETERAN_SKILL, initialDecision, type ManeuverLatch, type ManeuverName } from '../../../src/sim/ai/pilot.js'
+import { EXCLUDABLE_MANEUVERS } from '../../../src/sim/flight/schema.js'
 import { pilotTick } from '../../../src/sim/ai/pilotTick.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { createWorldOf, type AircraftEntity } from '../../../src/sim/loop.js'
@@ -76,9 +78,12 @@ describe('Pursue family selection (Task 8)', () => {
   const turning = { ...base, targetTurnRateRadPerS: 0.2 }
   const overshoot = { ...turning, closureMps: 60, facts: { ...base.facts, rangeM: 400 } }
 
-  it('overshoot risk with an energy margin: high yo-yo if in the repertoire, else lag', () => {
-    expect(selectManeuver({ ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: 100 } }, VETERAN_SKILL.repertoire)).toBe('high-yo-yo')
-    expect(selectManeuver({ ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: 100 } }, GREEN_SKILL.repertoire)).toBe('lag-pursuit')
+  it('overshoot risk with an energy margin: high yo-yo if in the repertoire, else lag, else lead', () => {
+    const margin = { ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: 100 } }
+    expect(selectManeuver(margin, VETERAN_SKILL.repertoire)).toBe('high-yo-yo')
+    expect(selectManeuver(margin, ['lead-pursuit', 'lag-pursuit'])).toBe('lag-pursuit')
+    // Green has no lag pursuit since Mark's ruling of 2026-09-26.
+    expect(selectManeuver(margin, GREEN_SKILL.repertoire)).toBe('lead-pursuit')
   })
 
   it('overshoot risk with no energy margin: lag', () => {
@@ -192,5 +197,44 @@ describe('Immelmann selection (Task 11)', () => {
     // The shallowest otherwise-qualifying dive in pursuit-range-veteran (-13.1°, 2026-09-26).
     expect(selectManeuver({ ...rejoin, selfFlightPathRad: -13.1 * Math.PI / 180 }, VETERAN_SKILL.repertoire)).toBe('extend')
     expect(selectManeuver({ ...rejoin, selfFlightPathRad: 0.3 }, VETERAN_SKILL.repertoire)).toBe('immelmann')
+  })
+})
+
+describe('a per-airframe maneuver exclusion, read from content (Task 14; Mark 2026-09-26)', () => {
+  const zero = loadAircraftSpec('a6m2-zero')
+  const base = factsFor('extend')
+  const rejoin = { ...base, selfSpeedMps: 140, selfCornerSpeedMps: 119.98, threatBehind: true, facts: { ...base.facts, rangeM: 1300 } }
+
+  it('the schema\'s literal list is exactly the ManeuverNames that are not an intent default', () => {
+    // src/sim/flight/ may not import src/sim/ai/, so the schema carries its
+    // own literal list; this pins it to ManeuverName in both directions. An
+    // intent default is left out on purpose: selectManeuver flies it listed
+    // or not, so excluding one would be a silent no-op.
+    const defaults = new Set<ManeuverName>(Object.values(DEFAULT_MANEUVER))
+    const expected = (Object.keys(INTENT_OF) as ManeuverName[]).filter((n) => !defaults.has(n)).sort()
+    expect([...EXCLUDABLE_MANEUVERS].sort()).toEqual(expected)
+    const asName: readonly ManeuverName[] = EXCLUDABLE_MANEUVERS
+    expect(asName.length).toBe(expected.length)
+  })
+
+  it('an airframe without the field gets the skill\'s own repertoire, the same array', () => {
+    expect(f6f.ai).toBeUndefined()
+    expect(airframeRepertoire(VETERAN_SKILL, f6f)).toBe(VETERAN_SKILL.repertoire)
+  })
+
+  it('an airframe that excludes a maneuver loses only that one, and the shared skill is not mutated', () => {
+    const before = [...VETERAN_SKILL.repertoire]
+    const got = airframeRepertoire(VETERAN_SKILL, zero)
+    expect(got).toEqual(VETERAN_SKILL.repertoire.filter((n) => n !== 'immelmann'))
+    expect(VETERAN_SKILL.repertoire).toEqual(before)
+    expect(airframeRepertoire(VETERAN_SKILL, zero)).toEqual(got)
+  })
+
+  it('the Zero never selects the Immelmann though every other condition holds; an airframe without the field still does', () => {
+    expect(selectManeuver(rejoin, airframeRepertoire(VETERAN_SKILL, f6f))).toBe('immelmann')
+    expect(selectManeuver(rejoin, airframeRepertoire(VETERAN_SKILL, zero))).toBe('extend')
+    const zeroWithoutField = { ...zero }
+    delete zeroWithoutField.ai
+    expect(selectManeuver(rejoin, airframeRepertoire(VETERAN_SKILL, zeroWithoutField))).toBe('immelmann')
   })
 })

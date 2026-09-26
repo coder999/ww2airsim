@@ -60,20 +60,34 @@ describe('the 7d bar: a scripted evasion gets behind a green pursuer (item 3)', 
   // 18-19 s in all four loadouts, pursuer structure 1.000 at that moment.
   // Stronger than the Tier 2 original, which cannot tell a live pursuer
   // from a wreck frozen in the air.
-  it.each(LOADOUTS)('%s: behind within 40 s, the player alive and the pursuer alive', (loadout) => {
-    const m = { behindS: null as number | null, structure: 0, destroyed: true }
-    flyFrames(replicaWorld(tailChase, loadout, 0, GREEN_SKILL), EVASION, 40, (f, i) => {
-      if (playerDestroyed(f)) throw new Error(`${loadout}: player destroyed at tick ${f.world.tick}`)
-      if (i < 7 * 60 || i % 60 !== 0) return false
-      if (!isBehind(diagOf(aircraftOf(f, f.world.player)), diagOf(aircraftOf(f, PURSUER)), 400, 45)) return false
-      const rec = f.world.combat.aircraft[PURSUER]!
-      m.behindS = i / 60
-      m.structure = rec.damage.structure
-      m.destroyed = rec.damage.destroyedAt !== null
-      return true
-    })
-    expect(m.behindS, `${loadout}: never behind`).not.toBeNull()
-    expect(m.destroyed).toBe(false)
-    expect(m.structure).toBeGreaterThan(0)
+  //
+  // All four noise cursors since 7c Task 14 (2026-09-26). Until then this ran
+  // cursor 0 only, and missed that green's lag pursuit (7c Task 8) had already
+  // broken the bar: at cursors 7919 and 23757 green selected lag at 6.0 s and
+  // the evasion was never behind it in 40 s (final review, 2026-09-26). Mark
+  // then removed lag from green ("green pilots should be beaten easily").
+  // Re-measured 2026-09-26 with that change (.superpowers/7c/t14bar.ts),
+  // behind at, in seconds, cursors 0 / 7919 / 15838 / 23757:
+  //   clean 18 / 18 / 18 / 18      bombs 19 / 19 / 19 / 19
+  //   rockets 19 / 19 / 18 / 19    both 19 / 20 / 19 / 20
+  // Pursuer structure 1.000 at that moment in all 16 runs.
+  // The 40 s budget leaves 20 s of headroom over the worst (20 s).
+  it.each(LOADOUTS)('%s: behind within 40 s at every noise cursor, the player alive and the pursuer alive', (loadout) => {
+    for (const cursor of CURSORS_4) {
+      const m = { behindS: null as number | null, structure: 0, destroyed: true }
+      flyFrames(replicaWorld(tailChase, loadout, cursor, GREEN_SKILL), EVASION, 40, (f, i) => {
+        if (playerDestroyed(f)) throw new Error(`${loadout}, cursor ${cursor}: player destroyed at tick ${f.world.tick}`)
+        if (i < 7 * 60 || i % 60 !== 0) return false
+        if (!isBehind(diagOf(aircraftOf(f, f.world.player)), diagOf(aircraftOf(f, PURSUER)), 400, 45)) return false
+        const rec = f.world.combat.aircraft[PURSUER]!
+        m.behindS = i / 60
+        m.structure = rec.damage.structure
+        m.destroyed = rec.damage.destroyedAt !== null
+        return true
+      })
+      expect(m.behindS, `${loadout}, cursor ${cursor}: never behind`).not.toBeNull()
+      expect(m.destroyed, `${loadout}, cursor ${cursor}: pursuer destroyed`).toBe(false)
+      expect(m.structure).toBeGreaterThan(0)
+    }
   })
 })
