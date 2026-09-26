@@ -13,11 +13,9 @@ plus this handoff's commit, on top of the plan (`1bfe201`) and Mark's rulings
 the design is
 [`2026-09-25-ship-models-design.md`](../superpowers/specs/2026-09-25-ship-models-design.md).
 
-**The reference-GPU Tier 2 has not been run.** Its specs are written,
-typechecked, linted and collected (Task 9 Steps 1 to 3). The run itself
-(Steps 4 to 7) is pending, because both spare dev-server slots were held by
-other sessions. See "Reference-GPU Tier 2" below for what to run and what
-each check should show.
+**Merged to `main` 2026-09-26** (fast-forward to `d57e277`, not pushed), then
+the reference-GPU Tier 2 ran on `main`; see "Reference-GPU Tier 2" below. It
+found one S1 defect (the deck probe's frame), fixed in `b3abfe6`.
 
 `content/aircraft/wildcat.glb` kept its bytes: sha256
 `3f7a6ccf…58d6e`, checked after every task and at the end.
@@ -57,48 +55,45 @@ centerline, at its forward end (the plan's 7.5 m, which Mark accepted as
 drawn). The heaviest scenario (deck-quals and free-flight: one carrier and
 two destroyers) draws 102,097 ship triangles.
 
-## Reference-GPU Tier 2: PENDING
+## Reference-GPU Tier 2 (2026-09-26, on `main` after the merge)
 
-Not run. To run it, follow the plan's Task 9 Step 4: point this worktree's
-`vite.config.ts` at `ww2airsim-2.windomlane.org` and port 5175 (local
-scratch, never committed), start `WW2AIRSIM_TUNNEL=1 npx vite --port 5175`,
-assert the host returns 200, then:
+Run on the RX 6700 XT against the primary slot (`ww2airsim.windomlane.org`,
+5173), after S1 was fast-forwarded onto `main` (`d57e277`) on Mark's call:
+S1 merged first, then its Tier 2 on `main`, which freed a dev slot.
 
-```sh
-PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim-2.windomlane.org \
-  npx playwright test tests/e2e/ships.spec.ts tests/e2e/deckQuals.spec.ts \
-  tests/e2e/hangar.spec.ts tests/e2e/entities.spec.ts tests/e2e/strike.spec.ts
-```
+| Check | Result |
+| --- | --- |
+| `ships.spec.ts`: every ship draws its model, zero validation errors | free-flight and deck-quals `[essex-cv, fletcher-dd, fletcher-dd]`, strike-range `[type-b-maru]`: pass (free-flight after one load-timeout retry, below) |
+| `ships.spec.ts`: 1440p gpu p95 | deck-quals 7.76-7.99 ms, strike-range 2.20-2.23 ms (tripwire 8.33, below) |
+| `deckQuals.spec.ts`: deck probe under the wheels and the two marks | **Failed on the first run, fixed** (`b3abfe6`): every probe read null. `probeShipSurface` worked in three's world frame, but `main.ts` shifts `scene` to minus the eye every frame (the floating origin), so the world points and the returned heights were not sim metres. Tier 1 missed it because its view had no shifted parent; `tests/render/ship.test.ts` now has one. Passes after the fix: all five within 0.2 m |
+| `deckQuals.spec.ts`: photoreal Task 12 deck/runway luminance | ratio **0.617** (0.64 with the boxes), shadowed deck 13.0 (floor 5). No palette retune needed |
+| `deckQuals.spec.ts`: park, sail, hook, deck run | pass; deck-run p95 8.21-8.26 ms |
+| `hangar.spec.ts` checks 1-3, 5, layout, Library button | 6/6, ships included in check 1's masks |
+| `entities.spec.ts`: the task force sails, two Hellcats | pass (after load-timeout retries) |
+| `entities.spec.ts`: 1440p gpu p95 | 7.2-7.4 ms; **2.34 ms with `cloudTier=off`**, all three ship models drawn |
+| `budget4k.spec.ts` deckquals (the real gate) | High 13.41 / 16.67, Medium 7.79 / 8.33; 13.0 / 7.90 before S1 |
+| `strike.spec.ts` | Still uncollectable (`import.meta.env` in `content.ts` under Node), as before S1 |
 
-What each should show:
+**The 1440p tripwires moved to 8.33 ms** (`efeb470`) in `deckQuals`, `ships`
+and `entities`: the rule the cloud VDB merge applied to `cloudShadow.spec.ts`'s
+deck run, missed in these three. The measurements above put the extra cost on
+the clouds, not the models; `budget4k.spec.ts` is the gate.
 
-- `ships.spec.ts`: `__ww2.shipModels()` is `[essex-cv, fletcher-dd,
-  fletcher-dd]` in free-flight and deck-quals and `[type-b-maru]` in
-  strike-range, with `validationErrors` empty; three Hangar broadsides are
-  written to `test-results/ships-<id>-side.png`; gpu p95 is under 6.0 ms at
-  1440p in deck-quals (parked on the deck) and strike-range (1.5 km short of
-  the freighter, 800 m up).
-- `deckQuals.spec.ts`: the new deck probe reads within 0.2 m of the sim's
-  `deck().heightM` at all five points (under the parked airplane and ±1.7 m
-  to either side, the trap zone's center, and 5 m short of the bow). The
-  existing tests hold, including photoreal Task 12's deck/runway luminance
-  ratio inside [0.5, 1.5] (0.64 with the boxes). If only that ratio fails,
-  the plan's Step 6 allows retuning `SHIP_PALETTES['usn-1944'].flightDeck`
-  and rebuilding `essex-cv`; nothing else may be retuned.
-- `hangar.spec.ts`: check 1 masks the three ship models at 2% to 80% of the
-  frame, with no validation errors.
-- `entities.spec.ts`: the task force sails, and its 1440p budget holds with
-  the models.
-- `strike.spec.ts`: unchanged, because the hit box did not move. It was
-  recorded as uncollectable before S1. If it still is, run it on `main` too
-  and record that as pre-existing.
+Captures read by the agent: the three Hangar broadsides (bows to +x, waterlines
+at the sea, nothing black or see-through, the Fletcher's rails as lattices;
+the CV-6 model is untextured and reads dark and flat beside the textured
+Liberty), `ships-deck-quals.png` (island to starboard; the deck is dark where
+the as-shipped cloud shadow falls) and `ships-strike-range.png`.
 
-Then read every PNG yourself (the broadsides, `ships-deck-quals.png`,
-`ships-strike-range.png`, `deck-quals-parked.png`). Check that the bow points
-toward +x, the island is to starboard, the waterline sits at the sea, no
-hull is black or see-through, and the Fletcher's railings show as lattices.
-Tick Task 9 Steps 4 to 7 in the plan, fill in this section and §15's row,
-and remove "Tier 1 only" from both.
+### Open, not S1's: a 25-45 s page load
+
+Every scenario now takes 26-56 s from navigation to `groundHeightM()`, against
+`waitForTerrain`'s 30 s, so several specs fail or pass by chance. A CDP profile
+of one load (2026-09-26): the network is done at ~1.8 s, then **43 of 56 s** is
+three's TSL `NodeBuilder.build` under `cloudPass.ts:373` `updateBefore` on the
+first frames, blocking the loop before it requests terrain L7-L1. It arrived
+with the cloud VDB merge (its handoff logged "3 flaky, all page-load
+timeouts"). Mark sees the same wait in his own browser.
 
 ## The interface S2 and H3 consume
 
@@ -161,7 +156,7 @@ Runtime (`src/render/`):
 The design-level departures are listed in the plan, under "Departures from
 the spec's wording" (items 1 to 23). The execution departures:
 
-1. **Tier 2 was not run** (above). §15's row says Tier 1 only, as Z1's does.
+1. **Tier 2 ran after the merge, on `main`**, not in the worktree before it (Mark, 2026-09-26).
 2. **The executor was killed mid-Task 7** when nexus restarted. The
    uncommitted Task 7 diff was intact and matched the plan's hunks exactly.
    The resumed session re-ran its named tests (87/87), ran the full suite
