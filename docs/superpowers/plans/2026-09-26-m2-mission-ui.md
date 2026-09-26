@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Viewing checkpoints: TO ASK MARK (suggested: final product only)**
+**Viewing checkpoints: final product only** (Mark, 2026-09-26)
 
-**Attended: TO ASK MARK**
+**Attended: no, run unattended** (default applied 2026-09-26; Mark accepted the plan with "looks good" and gave no separate answer, so this matches the 7e run)
 
-If neither is answered before execution starts and Mark cannot be asked, run unattended with the suggested checkpoint (repo `CLAUDE.md`, "How Mark works"): collect the Task 8 captures in the handoff.
+Collect the Task 8 captures in the handoff for Mark's final look (repo `CLAUDE.md`, "How Mark works").
 
 **Goal:** Make M1's headless mission engine visible and playable. The work covers:
 - a briefing on the title screen's orders memo, with the picker split into Missions and Ranges;
@@ -57,7 +57,7 @@ If an M2 step's search string no longer matches after the merge, find the equiva
 
 ---
 
-## Open questions for Mark (each has a proposed default; execution uses the default if unanswered)
+## Open questions for Mark: ANSWERED 2026-09-26, all five defaults accepted ("looks good")
 
 1. **Test fixtures: dev-only, or a playable mission?** M3 ships the first real missions, so M2 needs fixture scenarios to prove the UI on the GPU. **Default:** two fixture scenarios, `dev-mission-ui` and `dev-mission-circuit`. They are listed in the picker only in a DEV build, and a production build's `isKnownScenarioId` rejects them. The JSON is still copied into `dist/`, harmless and unreachable. The alternative is to ship `dev-mission-circuit` as a real "Field Carrier Landing Practice" training mission.
 2. **Objective line placement.** Spec §3 says "beside the top-center combat readout". That readout's width changes with its contents (one to nine fields; `combatReadoutLabel`), so a line beside it would move or collide as ammunition and stores change. **Default:** centered, under the autopilot badge, at `top: 72px`. Task 8 asserts it overlaps no other HUD element at 1440p and 1080p.
