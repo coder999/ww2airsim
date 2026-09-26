@@ -68,10 +68,9 @@ describe('an AI Zero never cuts its own engine (Review Focus 1)', () => {
   // comment names ("a green pilot's jitter can still nick the limit, which
   // is human"). Green's noiseStdDev (0.15) is 15x veteran's (0.01); veteran
   // still measures 0 in the same run. Not a control bug: fixing it would
-  // mean reordering noise before the floor clamp in `safety.ts`'s
-  // `finishControls`, a pipeline change outside this task's two files and
-  // this plan's ruling to make elsewhere if the nick rate needs tightening.
-  it.each([['green', GREEN_SKILL], ['veteran', VETERAN_SKILL]] as const)('%s: 120 s of zero-merge with no negative-lift tick', (name, skill) => {
+  // mean enforcing the floor after noise in `safety.ts`'s `finishControls`,
+  // an open decision for Mark (docs/handoff/2026-09-26-ai-7c.md).
+  it.each([['green', GREEN_SKILL], ['veteran', VETERAN_SKILL]] as const)('%s: 120 s of zero-merge, negative-lift ticks within the measured noise tolerance', (name, skill) => {
     const m = { negative: 0 }
     flyFrames(replicaWorld(loadFixtureScenarioBundle('zero-merge'), 'clean', 0, skill), passive, 120, (fr) => {
       const z = aircraftOf(fr, PURSUER)

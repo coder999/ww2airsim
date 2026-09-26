@@ -141,7 +141,7 @@ reached — left as an open gameplay-balance decision rather than forced
 green. See the
 [handoff](docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md) for both.
 
-**Plan 7c AI safety envelope and maneuver library landed 2026-09-26.** AI pilots can no longer overload their own airframe, fly into the sea or over-speed, and an AI Zero no longer cuts its own engine under negative g. After a missed head-on pass the pursuer now turns back and fights again, where before it flew away for good. Veterans fly the named maneuvers (yo-yos, lag pursuit, attack run, scissors, split-S, Immelmann), and greens fly the basic set. The veteran was toned down per Mark's ruling. See the [handoff](docs/handoff/2026-09-26-ai-7c.md); master spec §15 holds the status.
+**Plan 7c AI safety envelope and maneuver library is complete on branch `worktree-combat-track` (2026-09-26) but not merged: it is blocked on two decisions for Mark, listed first in the handoff's Open for Mark.** AI pilots can no longer overload their own airframe, fly into the sea or over-speed, and an AI Zero no longer cuts its own engine under negative g. After a missed head-on pass the pursuer now turns back and fights again, where before it flew away for good. Veterans fly the named maneuvers (yo-yos, lag pursuit, attack run, scissors, split-S, Immelmann), and greens fly the basic set. The veteran was toned down per Mark's ruling. See the [handoff](docs/handoff/2026-09-26-ai-7c.md); master spec §15 holds the status.
 
 **The A6M Zero flies, headless (Z2, 2026-09-25):**
 `content/aircraft/a6m2-zero.json` is graded against the 1942 Navy trial of a
