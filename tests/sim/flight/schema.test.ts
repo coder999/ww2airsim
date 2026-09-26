@@ -197,3 +197,38 @@ describe('optional reference tables (A6M plan Z2)', () => {
     expect(loadAircraftSpec('f6f-hellcat').reference.takeoffDistanceM).toBe(230.124)
   })
 })
+
+describe('optional ai block: a per-airframe maneuver exclusion (7c Task 14)', () => {
+  it('is optional: a spec without it parses, with no ai field', () => {
+    expect(parseAircraftSpec(valid).ai).toBeUndefined()
+  })
+
+  it('accepts a list of excludable maneuver names', () => {
+    expect(parseAircraftSpec({ ...valid, ai: { excludedManeuvers: ['immelmann', 'split-s'] } }).ai?.excludedManeuvers)
+      .toEqual(['immelmann', 'split-s'])
+  })
+
+  it('rejects a misspelled maneuver name, naming the field', () => {
+    expect(() => parseAircraftSpec({ ...valid, ai: { excludedManeuvers: ['immelman'] } })).toThrow(/excludedManeuvers/)
+  })
+
+  it('rejects an intent default, which selectManeuver flies whatever the list says', () => {
+    for (const n of ['lead-pursuit', 'defensive-break', 'extend']) {
+      expect(() => parseAircraftSpec({ ...valid, ai: { excludedManeuvers: [n] } })).toThrow(/excludedManeuvers/)
+    }
+  })
+
+  it('rejects a duplicate and an unknown key in the block', () => {
+    expect(() => parseAircraftSpec({ ...valid, ai: { excludedManeuvers: ['immelmann', 'immelmann'] } })).toThrow(/excludedManeuvers/)
+    expect(() => parseAircraftSpec({ ...valid, ai: { excludedManeuvers: [], hint: 'turnfight' } })).toThrow(/hint/)
+  })
+
+  // The reason lives in master spec §9's amendment (JSON has no comments):
+  // Mark's ruling 2026-09-26, "suppress the immelman for the zero
+  // specifically", measured by the 7c final review.
+  it('the shipped content: the Zero excludes exactly the Immelmann; the F6F and the F4F exclude nothing', () => {
+    expect(loadAircraftSpec('a6m2-zero').ai).toEqual({ excludedManeuvers: ['immelmann'] })
+    expect(loadAircraftSpec('f6f-hellcat').ai).toBeUndefined()
+    expect(loadAircraftSpec('f4f-wildcat').ai).toBeUndefined()
+  })
+})

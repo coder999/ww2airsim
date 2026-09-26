@@ -21,58 +21,31 @@ import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
  * near a dead target than the old unconditional Pursue, but closing that gap
  * is out of scope here.
  *
- * **RED as of 2026-09-24, for a real reason, measured -- not a harness
- * artifact.** Plan 7d's Task 4 attributed this spec's failure to
- * `requestAnimationFrame` throttling under fast `.poll()` traffic, with
- * `src/sim/loop.ts`'s `MAX_STEPS_PER_FRAME` dropping owed sim time and
- * `tick()` freezing at 517. The final-review fix wave re-measured it on the
- * reference GPU and that diagnosis does not survive: polling once a second
- * (the mitigation Task 4's own theory prescribes) reproduces the identical
- * freeze -- same tick 517, same 386 m range -- so the poll cadence is not in
- * the path at all. What actually happens, read straight off
- * `__ww2.combat()` once a second:
+ * **History.** RED from 2026-09-24: the veteran shot the passive player down
+ * at tick 517 (8.6 s, 386 m) before point-blank range. 7c's measurement (spec
+ * §1.1, 2026-09-25) found the trigger: 7d's noise PLUS the title screen's
+ * default `both` loadout, which every Tier 1 world lacked. The 7d handoff had
+ * blamed 7d alone. The veteran retune (controlNoise 0.01, Mark's ruling)
+ * resolved that: 0 of 128 passive-player runs killed.
  *
- *   tick 433  structure 1.000
- *   tick 494  structure 0.583
- *   tick 517  structure 0.000  destroyed: true   <- world stops here
+ * **7c, 2026-09-26: still a pass-through, by design.** On the head-on
+ * `pursuit-range`, the green pursuer passes the player at 21-22 m (headless,
+ * `both`), under this spec's 50 m floor. Making the AI dodge the pass (collision avoidance, or
+ * Break flown on the lift vector) clears the floor at 97-114 m, but the
+ * player's first-merge kill falls from 7/8 to 0/8: the merge Mark flew and
+ * liked on 2026-09-25. 7c kept the merge (ruling R4) and asked Mark (7c
+ * handoff, Open for Mark item 1). This spec's claim, a break-off rather than
+ * a pass-through at point-blank range, is proven at Tier 1 on the frozen
+ * tail-chase fixture (`tests/render/aiLethality.test.ts`, item 2), which no
+ * URL can load.
  *
- * **The pursuer shoots the player down at tick 517 (8.6 s), at 386 m, long
- * before the range ever reaches MIN_ENGAGEMENT_RANGE_M.** `frame.ts:617`
- * then holds the world (`holding` includes the player's `destroyedAt`), so
- * `tick()` freezes forever and the first `.poll()` can only time out. This
- * spec flies NO inputs -- the player is a passive, non-maneuvering target --
- * and the veteran pursuer is now lethal enough on its FIRST firing pass to
- * kill one. Attributed to Plan 7d on two pieces of evidence, neither a
- * re-run of the merge-base browser: this spec was green before this branch
- * and nothing in it changed, and Tier 1's own hit-budget measurement in
- * `tests/sim/scenario.test.ts` moved from tick 7430 (recorded for Plan 7b)
- * to tick 525 (re-measured 2026-09-24, three identical runs).
- *
- * So the point-blank break-off this spec gates is no longer REACHABLE in this
- * scenario with a passive player, and no change to the polling, the timeouts
- * or the thresholds can make it so. Fixing it means a deliberate decision --
- * re-tune veteran lethality, or fly this spec's player so it survives to the
- * merge -- which is Mark's call, not a test-mechanics one. Left red and
- * documented rather than loosened.
- *
- * **2026-09-25: the geometry this spec was written against moved.**
- * `pursuit-range` is now a head-on merge at 2.5 km with a GREEN pursuer (the
- * shootdown spike; `tests/sim/pursuitMerge.test.ts`), and the old tail chase
- * lives on only as the Tier 1 fixture
- * `tests/fixtures/scenarios/pursuit-tail-chase.json`. No URL parameter can
- * load a fixture (`?scenario=` is whitelisted to the title screen's list by
- * `isKnownScenarioId`), so this spec now runs against the head-on start.
- * Headless measurement of the new start with a passive player (2026-09-25,
- * `nextFrameState`, no keys): the green pursuer closes to 16 m at 10.4 s
- * and forces `extend` there -- so the point-blank break-off this spec gates
- * IS reached again -- but it never fires.
- *
- * **Reference GPU, 2026-09-25 (after merging to main): RED.** Closest range
- * 44.8 m against the floor of 50 m below. The veteran does no better: the
- * same headless passive-player probe on `pursuit-range-veteran` closes to
- * 11 m at 10.3 s. Neither skill breaks off a head-on pass above 50 m, so
- * pointing this spec at the veteran scenario would not turn it green. What
- * the AI should do at a head-on merge is 7c's question, not this spec's.
+ * **Reference GPU, 2026-09-26: this spec PASSED, and the pass is vacuous.**
+ * `atClosest` below is the first poll sample under MIN_ENGAGEMENT_RANGE_M,
+ * not the minimum. A per-frame sampler on the same slot, three runs, all
+ * identical: first sample under 120 m was 118.5 m at tick 595; the true
+ * closest was 22.1 m at tick 624, the Tier 1 prediction. The 2026-09-25 red
+ * (44.8 m) was most likely a sample that landed later in the pass (not
+ * re-measured). It is still a pass-through; see the 7c handoff, Open for Mark.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 

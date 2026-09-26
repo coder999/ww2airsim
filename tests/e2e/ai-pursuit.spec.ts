@@ -17,22 +17,19 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
  * -- a feature inert in the browser with its tests green -- is invisible
  * below this tier.
  *
- * **2026-09-25: the geometry this spec was written against moved.**
+ * **2026-09-25: the geometry moved; 7c made the second pass real.**
  * `pursuit-range` is now a head-on merge at 2.5 km with a GREEN pursuer (the
- * shootdown spike; `tests/sim/pursuitMerge.test.ts`), and the old tail chase
- * lives on only as the Tier 1 fixture
- * `tests/fixtures/scenarios/pursuit-tail-chase.json`. No URL parameter can
- * load a fixture (`?scenario=` is whitelisted to the title screen's list by
- * `isKnownScenarioId`), so this spec now runs against the head-on start.
- * Expect this spec RED on the new start: headless with a passive player
- * (2026-09-25), pursuer-1 turns within 0.2 s but fires ZERO rounds in 120 s
- * -- after the merge its decision layer picks `extend` and never leaves it
- * (range grows to 4.4 km). That is a Lane A finding in `src/sim/ai/`, not a
- * spec bug; this spec's claims need the fixture geometry or an AI fix.
+ * shootdown spike). At the merge, 7b's scorer picks Break (the player's nose
+ * is on the pursuer), so there is no head-on shot. Before 7c the pursuer then
+ * sat in Extend for good (0 rounds in 120 s); 7c's re-engagement
+ * (`tests/render/aiReengage.test.ts`) brings it back. Measured headless with
+ * the browser's `both` loadout: first post-merge shot at 68.8-83.9 s from
+ * spawn, and the hit within seconds. Hence the 150 s tracer window and the
+ * 60 s hit window. The claims are unchanged.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range`
 
-test.setTimeout(120_000)
+test.setTimeout(300_000)
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 const pursuer = (page: Page) =>
@@ -65,7 +62,7 @@ test('the assigned pilot turns onto a gun solution and fires through production 
 
   await expect
     .poll(() => combat(page).then((c) => c.tracers), {
-      timeout: 20_000,
+      timeout: 150_000,
       message: 'pursuer-1 never fired -- the AI gun gate did not reach frame.controls.fire',
     })
     .toBeGreaterThan(0)
@@ -79,7 +76,7 @@ test('the assigned pilot turns onto a gun solution and fires through production 
   // acceptance shot before that fix missed (1,002 rounds, zero hits).
   await expect
     .poll(() => combat(page).then((c) => c.player.structure), {
-      timeout: 20_000,
+      timeout: 60_000,
       message: 'pursuer-1 fired but never hit the player -- the gate and the steering disagree on where the nose is aimed',
     })
     .toBeLessThan(1)

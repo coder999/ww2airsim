@@ -16,7 +16,7 @@ import { decksOf } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
 import { buildStructures, type StructureEntity } from './weapons/structures.js'
 import type { PilotAssignment } from './ai/pursuit.js'
-import { deriveFacts, decideManeuver, maneuverControls } from './ai/decision.js'
+import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
@@ -834,37 +834,13 @@ export function advance<M>(
     // Every AI reads this SAME start-of-tick array. Commands are derived before
     // any aircraft is stepped, so reversing the entity array cannot let one
     // pilot see another aircraft one tick into the future (entities design §3).
+    // The per-pilot block is src/sim/ai/pilotTick.ts (7c).
     const aircraftAtStart = aircraft
+    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat }
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
-      let commanded = a
-      if (a.pilot != null && a.impact === null && record.damage.destroyedAt === null) {
-        const target = aircraftAtStart.find((candidate) => candidate.id === a.pilot!.target)
-        // `createWorldOf` rejects this state. The guard keeps a manually edited
-        // or future entity-removing world finite instead of fabricating a target.
-        if (target !== undefined) {
-          const nowS = tick * DT
-          let decision = a.pilot.decision
-          if (nowS >= decision.nextRescoreS) {
-            const facts = deriveFacts(
-              a, target,
-              1 - record.damage.structure,
-              a.state.fuelKg / a.spec.mass.fuelCapacityKg,
-            )
-            decision = {
-              ...decision,
-              maneuver: decideManeuver(facts, a.pilot.skill),
-              nextRescoreS: nowS + a.pilot.skill.reactionS,
-              observedTargetPosition: target.state.position,
-              observedTargetVelocity: target.state.velocity,
-            }
-          }
-          const { controls, decision: steered } = maneuverControls(a, target, decision, a.pilot.skill)
-          commanded = { ...a, pilot: { ...a.pilot, decision: steered }, controls }
-        }
-      }
       return stepAircraftEntity(
-        commanded, tick, world.terrain, world.wind, decks, stepper, assist,
+        pilotTick(a, aircraftAtStart, pilotContext), tick, world.terrain, world.wind, decks, stepper, assist,
         record.damage, record.stores,
       )
     })

@@ -66,6 +66,19 @@ const StoresSchema = z.object({
 export type StoreType = z.infer<typeof StoreTypeObject>
 export type Stores = z.infer<typeof StoresSchema>
 
+/**
+ * The named AI maneuvers an airframe's content may exclude (7c Task 14). A
+ * literal copy of `ManeuverName` (src/sim/ai/pilot.ts) minus the three intent
+ * defaults, because `src/sim/flight/` does not import `src/sim/ai/`:
+ * tests/sim/ai/maneuvers.test.ts pins this list to `ManeuverName` in both
+ * directions. The defaults are left out on purpose: `selectManeuver` flies
+ * them whether listed or not, so excluding one would be a silent no-op, and
+ * spec §9 wants malformed content to fail loudly instead.
+ */
+export const EXCLUDABLE_MANEUVERS = [
+  'lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'scissors', 'split-s', 'immelmann',
+] as const
+
 const AircraftSpecObject = z.object({
   combat: CombatSpecSchema.optional(),
   stores: StoresSchema.optional(),
@@ -410,6 +423,18 @@ const AircraftSpecObject = z.object({
      *  `climbRateMps`. Optional, for the same reason. */
     climbRateByAltitudeM: altitudeTable.optional(),
   }).strict(),
+  /**
+   * Optional per-airframe AI content (7c Task 14). Absent, an airframe flies
+   * exactly as before, so a new airframe still needs no AI content.
+   * `excludedManeuvers` are taken out of the pilot's repertoire when this
+   * airframe flies (src/sim/ai/maneuvers.ts, `airframeRepertoire`), whatever
+   * the pilot's skill; the shipped Zero excludes the Immelmann, and master
+   * spec §9's amendment records why.
+   */
+  ai: z.object({
+    excludedManeuvers: z.array(z.enum(EXCLUDABLE_MANEUVERS))
+      .refine((names) => new Set(names).size === names.length, { message: 'must not repeat a maneuver' }),
+  }).strict().optional(),
   /** Render-only data. `sim/` never reads this; it lives here because it is
    *  per-aircraft content and a second content file for one field would be
    *  over-engineering. Revisit if a second category of render-only data
