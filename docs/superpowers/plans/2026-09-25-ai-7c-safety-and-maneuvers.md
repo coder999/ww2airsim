@@ -1142,7 +1142,7 @@ git commit -m "7c: the lift-vector controller and steerToward (7c Task 4)"
 - Produces, from `maneuverFlight.ts`: `leadPursuitControls(self, perceived)`, `extendControls(self, perceived)`, `defensiveBreakControls(self, perceived)` and `intentControls(self, perceived, maneuver)`
 - Produces, from `decision.ts`: `maneuverControls(self, target, decision, skill, wind = null)`, which gains a trailing optional argument.
 
-- [ ] **Step 1: Write the failing unit tests.** Create `tests/sim/ai/safety.test.ts`:
+- [x] **Step 1: Write the failing unit tests.** Create `tests/sim/ai/safety.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -1244,12 +1244,12 @@ describe('safetyOverride and finishControls', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/safety.test.ts --maxWorkers=2`
 Expected: FAIL, because `safety.js` cannot be resolved.
 
-- [ ] **Step 3: Add `SafetyMode` and `initialDecision` to `pilot.ts`.** In `src/sim/ai/pilot.ts`, change the vec3 import to `import { cross, length, normalize, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'`. Then add, directly after `PilotManeuver`:
+- [x] **Step 3: Add `SafetyMode` and `initialDecision` to `pilot.ts`.** In `src/sim/ai/pilot.ts`, change the vec3 import to `import { cross, length, normalize, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'`. Then add, directly after `PilotManeuver`:
 
 ```ts
 /** Which safety override flew this tick (7c spec §3.2; ruling R11). It never
@@ -1276,7 +1276,7 @@ export function initialDecision(): PilotDecisionState {
 
 In `src/sim/scenario.ts`, `pilotAssignmentFrom`: import `initialDecision` next to `VETERAN_SKILL` and `GREEN_SKILL`, and replace the `decision: { ... }` literal with `decision: initialDecision(),`. Keep its comment: it moves above the call.
 
-- [ ] **Step 4: Implement `safety.ts`.** Create `src/sim/ai/safety.ts`:
+- [x] **Step 4: Implement `safety.ts`.** Create `src/sim/ai/safety.ts`:
 
 ```ts
 import type { AircraftSpec } from '../flight/schema.js'
@@ -1390,7 +1390,7 @@ export function finishControls<M>(
 }
 ```
 
-- [ ] **Step 5: Implement `maneuverFlight.ts`, and rewire `maneuverControls` and `pilotTick`.** Create `src/sim/ai/maneuverFlight.ts`:
+- [x] **Step 5: Implement `maneuverFlight.ts`, and rewire `maneuverControls` and `pilotTick`.** Create `src/sim/ai/maneuverFlight.ts`:
 
 ```ts
 import type { AircraftEntity } from '../loop.js'
@@ -1475,19 +1475,19 @@ In `src/sim/ai/pilotTick.ts`, import `safetyOverride` and `finishControls` from 
   return { ...a, pilot: { ...pilot, decision: steered }, controls }
 ```
 
-- [ ] **Step 6: Update the decision literals.** They now need `safety`.
+- [x] **Step 6: Update the decision literals.** They now need `safety`.
 - `tests/sim/entities.test.ts`: import `initialDecision` from `pilot.js`. Set `const PURSUE_NOW = initialDecision()`. Make `RESCORED_PURSUE` `{ ...initialDecision(), nextRescoreS: DT + GREEN_SKILL.reactionS, observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 3407366838 }`, and keep both comments.
 - `tests/sim/scenario.test.ts` lines 141, 154 and 162: replace each `decision: { maneuver: 'pursue', ... noiseCursor: 0 }` with `decision: initialDecision()`, and import it.
 - `tests/sim/ai/decision.test.ts`: in both `PilotDecisionState` literals, add `safety: 'none',` after `noiseCursor: 0,`. In "reproduces today's exact steering when the snapshot equals live state", change the expectation to `toEqual(limitLoadFactor(self.state, self.spec, pursuitControls(self, target)))`, and import `limitLoadFactor` from `safety.js`. Add a one-line comment: `// 7c: every AI command now passes the load-factor limiter; inside 60° of the nose steerToward IS the velocity controller.`
 - `tests/sim/ai/pursuit.test.ts`: `const PURSUE_NOW = initialDecision()`, with the import.
 - `tests/sim/ai/pilotTick.test.ts`: use `const decision = initialDecision()`. In the rescore test, pass `{ ...rescored, safety: 'none' as const }` to `maneuverControls`.
 
-- [ ] **Step 7: Run the unit tests.**
+- [x] **Step 7: Run the unit tests.**
 
 Run: `npx vitest run tests/sim/ai tests/sim/entities.test.ts tests/sim/scenario.test.ts --maxWorkers=2`
 Expected: PASS. If entities' `noiseCursor: 3407366838` moves, a noise draw was added or dropped. That is a bug: `finishControls` must call `applyControlNoise` exactly once per tick.
 
-- [ ] **Step 8: Write the frame-path safety tests.** Create `tests/render/aiSafety.test.ts`:
+- [x] **Step 8: Write the frame-path safety tests.** Create `tests/render/aiSafety.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -1586,14 +1586,14 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
 })
 ```
 
-- [ ] **Step 9: Run them, and measure.**
+- [x] **Step 9: Run them, and measure.**
 
 Run: `npx vitest run tests/render/aiSafety.test.ts --maxWorkers=2`
 Expected: PASS. Add a temporary `console.log(name, loadout, m)` and record the peaks and lows in the ledger and in each `describe`'s comment. Then remove the log.
 
 If the dive test fails on `lowest`, measure where it bottomed and why. A Zero at the 0.2 control-fade floor commands about 6°/s of pitch, which is 1.7 g at 156 m/s EAS (Z2 handoff), so an entry the guard cannot save is possible. Make the entry realistic (a steeper dive than an AI would choose is not a defect), and record what you changed and why. Do not change `FLOOR_*`.
 
-- [ ] **Step 10: Lower `zeroMerge.test.ts`'s floor (R9).** Change `toBeGreaterThanOrEqual(4)` to `toBeGreaterThanOrEqual(1)`. Append to the file's header comment:
+- [x] **Step 10: Lower `zeroMerge.test.ts`'s floor (R9).** Change `toBeGreaterThanOrEqual(4)` to `toBeGreaterThanOrEqual(1)`. Append to the file's header comment:
 
 ```ts
  * 7c (2026-09-25): the AI Zero no longer cuts its own engine. At HEAD it
@@ -1606,14 +1606,14 @@ If the dive test fails on `lowest`, measure where it bottomed and why. A Zero at
 
 Update item 1's comment in `tests/render/aiLethality.test.ts` with the numbers you measured: the prototype measured a mean of 0.13 hits with the envelope.
 
-- [ ] **Step 11: Run the regressions.**
+- [x] **Step 11: Run the regressions.**
 
 Run: `npx vitest run tests/render/aiLethality.test.ts tests/render/aiSafety.test.ts tests/sim/pursuitMerge.test.ts tests/sim/zeroMerge.test.ts tests/sim/scenario.test.ts tests/sim/entities.test.ts tests/sim/ai --maxWorkers=2`
 Expected: PASS. `pursuitMerge.test.ts` is Review Focus 4: the prototype measured 7/8 green and 8/8 veteran first-merge kills. A count below its floor of 6 means the merge changed. Stop and report that, with the count, and do not lower the floor.
 
-- [ ] **Step 12: Digests.** Run `npx tsx .superpowers/7c/hash.ts`. The four no-pilot scenarios must match `hash-task1.txt`. The four pilot worlds change. Save the output as `hash-task5.txt`.
+- [x] **Step 12: Digests.** Run `npx tsx .superpowers/7c/hash.ts`. The four no-pilot scenarios must match `hash-task1.txt`. The four pilot worlds change. Save the output as `hash-task5.txt`.
 
-- [ ] **Step 13: Verify and commit.**
+- [x] **Step 13: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0

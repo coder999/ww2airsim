@@ -8,6 +8,7 @@ import {
   type DecisionFacts,
 } from '../../../src/sim/ai/decision.js'
 import { pursuitControls } from '../../../src/sim/ai/pursuit.js'
+import { limitLoadFactor } from '../../../src/sim/ai/safety.js'
 import { GREEN_SKILL, VETERAN_SKILL, type PilotDecisionState } from '../../../src/sim/ai/pilot.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
@@ -169,7 +170,7 @@ describe('maneuverControls steers against the observed snapshot, not live target
     const decision: PilotDecisionState = {
       maneuver: 'pursue', nextRescoreS: 999,
       observedTargetPosition: v3(500, 3000, 0), observedTargetVelocity: snapshotVelocity,
-      noiseCursor: 0,
+      noiseCursor: 0, safety: 'none',
     }
     // Live target now flies a completely different heading than the snapshot.
     const liveTarget = entity('target', v3(500, 3000, 0), v3(100, 0, 0))
@@ -188,8 +189,9 @@ describe('maneuverControls steers against the observed snapshot, not live target
     const decision: PilotDecisionState = {
       maneuver: 'pursue', nextRescoreS: 999,
       observedTargetPosition: target.state.position, observedTargetVelocity: target.state.velocity,
-      noiseCursor: 0,
+      noiseCursor: 0, safety: 'none',
     }
-    expect(maneuverControls(self, target, decision, NO_NOISE).controls).toEqual(pursuitControls(self, target))
+    // 7c: every AI command now passes the load-factor limiter; inside 60° of the nose steerToward IS the velocity controller.
+    expect(maneuverControls(self, target, decision, NO_NOISE).controls).toEqual(limitLoadFactor(self.state, self.spec, pursuitControls(self, target)))
   })
 })

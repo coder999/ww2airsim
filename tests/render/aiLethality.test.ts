@@ -19,7 +19,10 @@ describe('a passive player survives to point-blank range (7c spec §3.1, item 1)
   // Measured 2026-09-25, VETERAN_SKILL.controlNoise 0.01: 16 of 16 reach
   // point-blank, at ticks 1153 (clean), 1202 (bombs), 1147 (rockets) and
   // 1193-1194 (both). 1 hit in all 16 runs (mean 0.06). At the shipped 0.02,
-  // `both` with cursor 0 is destroyed at tick 517.
+  // `both` with cursor 0 is destroyed at tick 517. Re-measured 2026-09-25
+  // with 7c's safety envelope (Task 5): unchanged, 16 of 16 at ticks 1153,
+  // 1202, 1147 and 1194, 1 hit in all 16 (mean 0.06; the prototype had
+  // measured 0.13). The 128-run tools/ai/lethality.ts: 0/128, mean 0.04.
   it.each(LOADOUTS)('%s: alive at the first tick inside MIN_ENGAGEMENT_RANGE_M, for four noise cursors', (loadout) => {
     for (const cursor of CURSORS_4) {
       const run = passiveClose(replicaWorld(tailChase, loadout, cursor), PURSUER)

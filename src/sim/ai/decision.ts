@@ -1,11 +1,10 @@
 import type { AircraftEntity } from '../loop.js'
 import { dot, length, sub, type Vec3 } from '../math/vec3.js'
 import type { Controls } from '../flight/state.js'
-import { controlsForDesiredVelocity } from './controller.js'
-import { AI_GUN_RANGE_M, hasGunSolution, pursuitControls } from './pursuit.js'
-import { breakDesiredVelocity, extendDesiredVelocity } from './pilot.js'
+import { AI_GUN_RANGE_M, hasGunSolution } from './pursuit.js'
+import { intentControls } from './maneuverFlight.js'
+import { finishControls } from './safety.js'
 import type { PilotDecisionState, PilotManeuver, PilotSkill } from './pilot.js'
-import { applyControlNoise } from './noise.js'
 
 const G_MPS2 = 9.80665
 
@@ -158,23 +157,24 @@ export function decideManeuver(facts: DecisionFacts, skill: PilotSkill): PilotMa
  *  the AI's second weakness alongside perception staleness. This is why the
  *  return shape grew from a bare `Controls`: the noise draw advances
  *  `decision.noiseCursor`, and that updated cursor has to travel back out to
- *  the caller (`loop.ts`) so the next tick's draw doesn't repeat. */
+ *  the caller (`loop.ts`) so the next tick's draw doesn't repeat.
+ *
+ *  7c: the clean steering comes from maneuverFlight.ts, then finishControls
+ *  applies the load-factor limiter and the overspeed throttle cut before the
+ *  noise (safety.ts). */
 export function maneuverControls<M>(
   self: AircraftEntity<M>,
   target: AircraftEntity<M>,
   decision: PilotDecisionState,
   skill: PilotSkill,
+  wind: Vec3 | null = null,
 ): { readonly controls: Controls; readonly decision: PilotDecisionState } {
   const perceived: AircraftEntity<M> = {
     ...target,
     state: { ...target.state, position: decision.observedTargetPosition, velocity: decision.observedTargetVelocity },
   }
-  const base = decision.maneuver === 'pursue'
-    ? pursuitControls(self, perceived)
-    : controlsForDesiredVelocity(
-        self.state, self.spec,
-        decision.maneuver === 'extend' ? extendDesiredVelocity(self, perceived) : breakDesiredVelocity(self, perceived),
-      )
-  const { controls, cursor } = applyControlNoise(base, skill.controlNoise, decision.noiseCursor)
+  const { controls, cursor } = finishControls(
+    self, intentControls(self, perceived, decision.maneuver), skill.controlNoise, decision.noiseCursor, wind,
+  )
   return { controls, decision: { ...decision, noiseCursor: cursor } }
 }

@@ -5,7 +5,7 @@ import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
 import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
-import { v3, ZERO } from '../../src/sim/math/vec3.js'
+import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
@@ -14,7 +14,7 @@ import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
-import { GREEN_SKILL, VETERAN_SKILL } from '../../src/sim/ai/pilot.js'
+import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
 /** The level a real page load actually flies over today -- see
@@ -138,7 +138,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     expect(pursuer.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), 0))
     expect(pursuer.parked).toBe(false)
     expect(pursuer.pilot).toEqual({
-      target: 'f6f-1', skill: VETERAN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0 },
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision(),
     })
   })
 
@@ -151,7 +151,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     const veteranWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(veteran) }, null)
     const veteranPursuer = veteranWorld.aircraft.find((a) => a.id === 'pursuer-1')!
     expect(veteranPursuer.pilot).toEqual({
-      target: 'f6f-1', skill: VETERAN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0 },
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision(),
     })
 
     const green = raw()
@@ -159,7 +159,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     const greenWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(green) }, null)
     const greenPursuer = greenWorld.aircraft.find((a) => a.id === 'pursuer-1')!
     expect(greenPursuer.pilot).toEqual({
-      target: 'f6f-1', skill: GREEN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0 },
+      target: 'f6f-1', skill: GREEN_SKILL, decision: initialDecision(),
     })
   })
 

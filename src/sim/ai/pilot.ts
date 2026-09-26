@@ -1,5 +1,5 @@
 import type { AircraftEntity } from '../loop.js'
-import { cross, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
+import { cross, length, normalize, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 
 export type PilotSkill = {
   /** Seconds between decision-layer rescores. Lower = reacts faster. This IS
@@ -77,6 +77,11 @@ export const GREEN_SKILL: PilotSkill = {
 
 export type PilotManeuver = 'pursue' | 'extend' | 'break'
 
+/** Which safety override flew this tick (7c spec §3.2; ruling R11). It never
+ *  changes `maneuver`, the 7b intent; it only says the envelope took the
+ *  stick. Plain data, for tests and diagnostics. */
+export type SafetyMode = 'none' | 'recover' | 'overspeed'
+
 export type PilotDecisionState = {
   readonly maneuver: PilotManeuver
   /** Sim time (tick * DT) at which the next rescore runs. */
@@ -92,6 +97,20 @@ export type PilotDecisionState = {
    *  every tick, not just at rescore, since noise is applied to
    *  `maneuverControls`'s output every tick regardless of maneuver. */
   readonly noiseCursor: number
+  /** This tick's safety override, or 'none'. Written every tick by pilotTick. */
+  readonly safety: SafetyMode
+}
+
+/** A fresh pilot's decision state: rescore on the first tick
+ *  (`nextRescoreS: 0` is always <= the first tick's time), so the placeholder
+ *  observations are never flown against. The one source for scenario.ts and
+ *  the tests. */
+export function initialDecision(): PilotDecisionState {
+  return {
+    maneuver: 'pursue', nextRescoreS: 0,
+    observedTargetPosition: ZERO, observedTargetVelocity: ZERO,
+    noiseCursor: 0, safety: 'none',
+  }
 }
 
 /** Beyond this separation, Extend has done its job -- see this file's Task 3

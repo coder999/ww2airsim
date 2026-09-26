@@ -4,6 +4,7 @@ import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
 import type { Vec3 } from '../math/vec3.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
+import { finishControls, safetyOverride } from './safety.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -48,6 +49,13 @@ export function pilotTick<M>(
       observedTargetVelocity: target.state.velocity,
     }
   }
-  const { controls, decision: steered } = maneuverControls(a, target, decision, pilot.skill)
+  // 7c spec §3.2: the envelope is checked every tick, after the rescore, and
+  // outranks any maneuver. It never changes the 7b intent (ruling R11).
+  const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind)
+  if (override !== null) {
+    const { controls, cursor } = finishControls(a, override.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
+    return { ...a, pilot: { ...pilot, decision: { ...decision, safety: override.mode, noiseCursor: cursor } }, controls }
+  }
+  const { controls, decision: steered } = maneuverControls(a, target, { ...decision, safety: 'none' }, pilot.skill, ctx.wind)
   return { ...a, pilot: { ...pilot, decision: steered }, controls }
 }
