@@ -1,3 +1,4 @@
+import { sidesOf } from '../../../src/sim/sides.js'
 import { describe, expect, it } from 'vitest'
 import { airframeEnvelope } from '../../../src/sim/ai/envelope.js'
 import { IMMELMANN_MIN_PATH_RAD } from '../../../src/sim/ai/maneuvers.js'
@@ -117,7 +118,7 @@ describe('Immelmann (7c spec §3.5)', () => {
     const tickOnce = (spec: AircraftSpec) => {
       const w = world(spec, 110, VETERAN_SKILL)
       const p = self(w)
-      return pilotTick(p, w.aircraft, { nowS: 0, terrain: null, decks: [], wind: null, combat: w.combat }).pilot!.decision.named
+      return pilotTick(p, w.aircraft, { nowS: 0, terrain: null, decks: [], wind: null, combat: w.combat, sides: sidesOf(w, w.aircraft), ships: [] }).pilot!.decision.named
     }
     expect(tickOnce(zeroUnexcluded)).toBe('immelmann')
     expect(tickOnce(zero)).toBe('extend')

@@ -1,6 +1,6 @@
 import {
   ClampToEdgeWrapping, LinearFilter, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, RenderTarget,
-  Scene, UnsignedByteType, Vector2, type Object3D,
+  Scene, UnsignedByteType, Vector3, type Object3D,
 } from 'three'
 import { MeshBasicNodeMaterial, type Node, type WebGPURenderer } from 'three/webgpu'
 import { Fn, If, Loop, atan, cos, float, int, length, max, sin, smoothstep, uniform, uniformArray, uv, vec2, vec3, vec4 } from 'three/tsl'
@@ -40,6 +40,8 @@ const DOT_RADIUS = 0.05
 // derivation. No behaviour change; this constant's value is unchanged.
 export const TRAIL_DIM = 0.55
 const GREEN = { r: 0.25, g: 1, b: 0.45 }
+/** Plan 7e (spec §4.4): the second tint, for a contact on the player's side. */
+export const FRIENDLY_TINT = { r: 0.35, g: 0.8, b: 1 }
 const TWO_PI = 2 * Math.PI
 
 /** Bearing/range -> the texel `readAt` reads, using the SAME placement math
@@ -94,11 +96,12 @@ export function createRadarScope(): RadarScopeHandle {
 
   const sweep = uniform(0)
   const selectedRangeMi = uniform(15)
-  // (bearingRad, rangeMi) per slot; rangeMi < 0 is the empty-slot sentinel,
-  // skipped by the `cRangeMi.greaterThanEqual(0)` guard below.
+  // (bearingRad, rangeMi, friendly 0/1) per slot; rangeMi < 0 is the
+  // empty-slot sentinel, skipped by the `cRangeMi.greaterThanEqual(0)` guard
+  // below.
   const contactData = uniformArray(
-    Array.from({ length: MAX_RADAR_CONTACTS }, () => new Vector2(0, -1)),
-    'vec2',
+    Array.from({ length: MAX_RADAR_CONTACTS }, () => new Vector3(0, -1, 0)),
+    'vec3',
   )
   const contactCount = uniform(0, 'int')
 
@@ -134,26 +137,29 @@ export function createRadarScope(): RadarScopeHandle {
     const trail = brightnessOf(angle).mul(TRAIL_DIM)
 
     const dotLevel = float(0).toVar()
+    const friendLevel = float(0).toVar()
     Loop({ start: int(0), end: contactCount, type: 'int', condition: '<' }, ({ i }) => {
-      // `uniformArray(..., 'vec2')` is typed `UniformArrayNode<string>` in
+      // `uniformArray(..., 'vec3')` is typed `UniformArrayNode<string>` in
       // @types/three 0.186 (clouds.ts hit the same trap for 'vec4'), so the
-      // element needs telling it is a vec2. Captured into vars before reuse:
+      // element needs telling it is a vec3. Captured into vars before reuse:
       // TSL re-emits an element lookup at every use (16a handoff trap 3,
       // still true here).
-      const c = (contactData.element(i) as unknown as Node<'vec2'>).toVar()
+      const c = (contactData.element(i) as unknown as Node<'vec3'>).toVar()
       const cBearing = c.x.toVar()
       const cRangeMi = c.y.toVar()
       If(cRangeMi.greaterThanEqual(0), () => {
         const cLocal = vec2(sin(cBearing), cos(cBearing)).mul(cRangeMi.div(selectedRangeMi)).mul(0.5).toVar()
         const d = length(local.sub(cLocal))
-        const intensity = smoothstep(DOT_RADIUS, 0, d).mul(brightnessOf(cBearing))
-        dotLevel.assign(max(dotLevel, intensity))
+        const intensity = smoothstep(DOT_RADIUS, 0, d).mul(brightnessOf(cBearing)).toVar()
+        If(c.z.greaterThan(0.5), () => { friendLevel.assign(max(friendLevel, intensity)) })
+          .Else(() => { dotLevel.assign(max(dotLevel, intensity)) })
       })
     })
 
     const level = max(trail, dotLevel).toVar()
     const inCircle = smoothstep(1.02, 0.98, dist)
-    const out = vec3(GREEN.r, GREEN.g, GREEN.b).mul(level).mul(inCircle)
+    const friend = vec3(FRIENDLY_TINT.r, FRIENDLY_TINT.g, FRIENDLY_TINT.b).mul(friendLevel)
+    const out = max(vec3(GREEN.r, GREEN.g, GREEN.b).mul(level), friend).mul(inCircle)
     return vec4(out, 1)
   })()
 
@@ -177,7 +183,7 @@ export function createRadarScope(): RadarScopeHandle {
       contactCount.value = contacts.length
       for (let i = 0; i < MAX_RADAR_CONTACTS; i++) {
         const c = contacts[i]
-        ;(contactData.array[i] as Vector2).set(c ? c.bearingRad : 0, c ? c.rangeMi : -1)
+        ;(contactData.array[i] as Vector3).set(c ? c.bearingRad : 0, c ? c.rangeMi : -1, c?.friendly === true ? 1 : 0)
       }
     },
     async readAt(renderer, bearingRad, rangeMi): Promise<number | null> {

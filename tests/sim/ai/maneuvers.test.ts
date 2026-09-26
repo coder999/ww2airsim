@@ -1,3 +1,4 @@
+import { sidesOf } from '../../../src/sim/sides.js'
 import { describe, expect, it } from 'vitest'
 import {
   IMMELMANN_MIN_PATH_RAD, LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch,
@@ -65,7 +66,7 @@ describe('the phase latch', () => {
   it('a safety override clears any latch and names the intent\'s default (ruling R11)', () => {
     const low = { ...at('s', v3(0, 350, 0), v3(120, -10, 0)), pilot: { target: 't', skill: GREEN_SKILL, decision: { ...initialDecision(), nextRescoreS: 99, maneuver: 'extend' as const, named: 'extend' as const, latch: latch('extend') } } }
     const w = createWorldOf({ aircraft: [low, neutralTarget], player: 't' })
-    const out = pilotTick(low, w.aircraft, { nowS: 1, terrain: null, decks: [], wind: null, combat: w.combat })
+    const out = pilotTick(low, w.aircraft, { nowS: 1, terrain: null, decks: [], wind: null, combat: w.combat, sides: sidesOf(w, w.aircraft), ships: [] })
     expect(out.pilot!.decision.safety).toBe('recover')
     expect(out.pilot!.decision.latch).toBeNull()
     expect(out.pilot!.decision.named).toBe('extend')

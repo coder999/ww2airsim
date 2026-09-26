@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  breakDesiredVelocity,
-  extendDesiredVelocity,
-  GREEN_SKILL,
-  REJOIN_OVERTAKE_MPS,
-  SAFE_SEPARATION_M,
-  VETERAN_SKILL,
-} from '../../../src/sim/ai/pilot.js'
+import { breakDesiredVelocity, extendDesiredVelocity, GREEN_SKILL, REJOIN_OVERTAKE_MPS, SAFE_SEPARATION_M, VETERAN_SKILL, noiseSeedFor, initialDecision } from '../../../src/sim/ai/pilot.js'
 import { AI_GUN_RANGE_M } from '../../../src/sim/ai/pursuit.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { dot, length, sub, v3 } from '../../../src/sim/math/vec3.js'
@@ -141,5 +134,34 @@ describe('the finished repertoires (7c; Mark 2026-09-25 and 2026-09-26)', () => 
     expect([...VETERAN_SKILL.repertoire].sort()).toEqual([
       'attack-run', 'defensive-break', 'extend', 'high-yo-yo', 'immelmann', 'lag-pursuit', 'lead-pursuit', 'low-yo-yo', 'scissors', 'split-s',
     ])
+  })
+})
+
+describe('7e pilot state (spec §4.1, §4.5 "Spawning at tick > 0")', () => {
+  it('noiseSeedFor is a fixed 32-bit FNV-1a hash of the id', () => {
+    // FNV-1a of the empty string is its offset basis; 'a' is a published vector.
+    expect(noiseSeedFor('')).toBe(0x811c9dc5)
+    expect(noiseSeedFor('a')).toBe(0xe40c292c)
+    for (const id of ['pursuer-1', 'bandit-1', 'bandit-2', 'raid-2']) {
+      const seed = noiseSeedFor(id)
+      expect(Number.isInteger(seed) && seed >= 0 && seed < 2 ** 32, id).toBe(true)
+      expect(noiseSeedFor(id)).toBe(seed)
+    }
+    expect(noiseSeedFor('bandit-1')).not.toBe(noiseSeedFor('bandit-2'))
+  })
+
+  it('initialDecision without an id keeps cursor 0 (hand-built pilots stay bit-identical); with one, seeds from it', () => {
+    expect(initialDecision().noiseCursor).toBe(0)
+    expect(initialDecision('bandit-1').noiseCursor).toBe(noiseSeedFor('bandit-1'))
+  })
+
+  it('a fresh pilot has no target, starts at leg 0, and engages unless told otherwise; nothing refers to the clock', () => {
+    const d = initialDecision('raid-2')
+    expect(d.targetId).toBeNull()
+    expect(d.legIndex).toBe(0)
+    expect(d.mode).toBe('engage')
+    expect(d.nextRescoreS).toBe(0)
+    expect(initialDecision('raid-2', 'ingress').mode).toBe('ingress')
+    expect(structuredClone(d)).toEqual(d)
   })
 })
