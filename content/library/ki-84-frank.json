@@ -1,0 +1,15 @@
+{
+  "id": "ki-84-frank",
+  "name": "Nakajima Ki-84 Frank",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "A late-war Army fighter with higher performance, planned as a hostile type.",
+  "history": "The Nakajima Ki-84 Hayate (\"gale\"), the Army Type 4 Fighter, reported by the Allies as \"Frank\", flew with the Imperial Japanese Army Air Service in the last two years of the war. It is generally considered the best Japanese fighter to serve in large numbers: fast, maneuverable and heavily armed, and, unlike many Japanese fighters, fitted with armor and self-sealing fuel tanks.\n\nThe Ki-84 entered service in March 1944. Its first major operation was the Battle of Leyte, where its small numbers limited its impact, and it went on to defend the home islands and the Ryukyus.",
+  "sources": [
+    {
+      "title": "Nakajima Ki-84 Hayate",
+      "url": "https://en.wikipedia.org/wiki/Nakajima_Ki-84_Hayate",
+      "read": "2026-09-25"
+    }
+  ]
+}

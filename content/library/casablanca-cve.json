@@ -1,0 +1,15 @@
+{
+  "id": "casablanca-cve",
+  "name": "Casablanca-class escort carrier",
+  "kind": "ship",
+  "side": "allied",
+  "blurb": "A small, slow escort carrier, planned for the Battle off Samar.",
+  "history": "The Casablanca class is the most numerous class of aircraft carrier ever built: fifty were laid down, launched and commissioned between November 1942 and July 1944, all at Kaiser's Vancouver yard in Washington. It was the first class designed from the keel up as an escort carrier, with only splinter plating for armor, and its crews called the ships \"jeep carriers\" or \"Kaiser Jeeps\".\n\nTheir finest hour came off Samar on 25 October 1944, when Taffy 3, six of these carriers with three destroyers and four destroyer escorts, fought the Japanese Center Force and, with aircraft from Taffy 1 and 2, turned it back from the Leyte Gulf landings. Five of the class were lost to enemy action during the war, and none survives today.",
+  "sources": [
+    {
+      "title": "Casablanca-class escort carrier",
+      "url": "https://en.wikipedia.org/wiki/Casablanca-class_escort_carrier",
+      "read": "2026-09-25"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "barracks-and-huts",
+  "name": "Barracks and huts",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "Planned targets that score as buildings.",
+  "history": "Barracks are buildings that house soldiers and other uniformed personnel. The word comes, through French and Italian, from the Spanish barraca, a soldier's tent, but barracks today are usually permanent buildings, from single blocks to whole complexes.\n\nTheir purpose is to keep soldiers apart from the civilian population and to reinforce discipline, training and esprit de corps.",
+  "sources": [
+    {
+      "title": "Barracks",
+      "url": "https://en.wikipedia.org/wiki/Barracks",
+      "read": "2026-09-25"
+    }
+  ]
+}

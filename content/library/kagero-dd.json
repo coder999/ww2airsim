@@ -1,0 +1,15 @@
+{
+  "id": "kagero-dd",
+  "name": "Kagero-class destroyer",
+  "kind": "ship",
+  "side": "japanese",
+  "blurb": "A fleet destroyer, planned as a hostile escort.",
+  "history": "The Kagero class was nineteen first-class destroyers built for the Imperial Japanese Navy in the 1930s. When they were introduced they were among the deadliest destroyers afloat, chiefly because of the range and power of their oxygen-fueled Type 93 \"Long Lance\" torpedoes.\n\nThey fought throughout the Pacific War, and all but one were lost. Off Samar on 25 October 1944, Yukikaze, Isokaze, Urakaze and Nowaki helped finish off the already crippled destroyer USS Johnston.",
+  "sources": [
+    {
+      "title": "Kagerō-class destroyer",
+      "url": "https://en.wikipedia.org/wiki/Kager%C5%8D-class_destroyer",
+      "read": "2026-09-25"
+    }
+  ]
+}

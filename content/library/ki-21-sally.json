@@ -1,0 +1,15 @@
+{
+  "id": "ki-21-sally",
+  "name": "Mitsubishi Ki-21 Sally",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "An Army twin-engine bomber, planned as a hostile type.",
+  "history": "The Mitsubishi Ki-21, the Army Type 97 Heavy Bomber, was reported by the Allies as \"Sally\" (and later \"Gwen\"). It first flew operations in the Second Sino-Japanese War and at Nomonhan.\n\nIn the first stages of the Pacific War it took part in the Malayan, Burmese, Dutch East Indies and New Guinea campaigns, and it attacked targets as far apart as western China, India and northern Australia.",
+  "sources": [
+    {
+      "title": "Mitsubishi Ki-21",
+      "url": "https://en.wikipedia.org/wiki/Mitsubishi_Ki-21",
+      "read": "2026-09-25"
+    }
+  ]
+}

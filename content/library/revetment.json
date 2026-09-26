@@ -1,0 +1,15 @@
+{
+  "id": "revetment",
+  "name": "Revetment",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "Planned cover for parked aircraft; not a target in itself.",
+  "history": "In military aviation, a revetment is a parking place for one or more aircraft with blast walls on three sides. The walls protect the neighbors as much as the aircraft inside: a fueled and armed aircraft that caught fire could otherwise set off its neighbors in a chain reaction, so the walls channel a blast upward and outward.\n\nDuring the Second World War, British fighter stations built E-shaped \"blast pens\", open to the sky, whose concrete and earth walls kept bomb blast and splinters off the parked aircraft.",
+  "sources": [
+    {
+      "title": "Revetment (aircraft)",
+      "url": "https://en.wikipedia.org/wiki/Revetment_(aircraft)",
+      "read": "2026-09-25"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "mogami-ca",
+  "name": "Mogami-class heavy cruiser",
+  "kind": "ship",
+  "side": "japanese",
+  "blurb": "A heavy cruiser, planned as a hostile surface target.",
+  "history": "The Mogami class was four cruisers built for the Imperial Japanese Navy in the 1930s. They were first classed as light cruisers under the London Naval Treaty's limits, but they were designed so that their 6-inch guns could be exchanged for 8-inch ones, and after Japan left the treaty system all four were rearmed and reclassified as heavy cruisers.\n\nThe survivors came together again at the Battle of Leyte Gulf in October 1944. Mogami, badly damaged by a collision with the cruiser Nachi, gunfire and air attack, was scuttled; Suzuya was scuttled after attacks by escort-carrier aircraft; and Kumano was sunk in November. All four ships of the class were lost.",
+  "sources": [
+    {
+      "title": "Mogami-class cruiser",
+      "url": "https://en.wikipedia.org/wiki/Mogami-class_cruiser",
+      "read": "2026-09-25"
+    }
+  ]
+}

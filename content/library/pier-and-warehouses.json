@@ -1,0 +1,15 @@
+{
+  "id": "pier-and-warehouses",
+  "name": "Pier and warehouses",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "A planned harbor target at a port town.",
+  "history": "A pier is a raised structure, usually on piles or pillars, that juts out from the shore over the water, giving boats a place to dock and passengers and cargo a way on and off. Its open structure lets tides and currents flow through, unlike the solid foundation of a quay.\n\nIn North America and Australia, where many ports were long built on the multiple-pier model, the word usually implies a cargo-handling facility.",
+  "sources": [
+    {
+      "title": "Pier",
+      "url": "https://en.wikipedia.org/wiki/Pier",
+      "read": "2026-09-25"
+    }
+  ]
+}

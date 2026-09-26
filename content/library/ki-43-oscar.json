@@ -1,0 +1,15 @@
+{
+  "id": "ki-43-oscar",
+  "name": "Nakajima Ki-43 Oscar",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "The Imperial Army's light fighter, planned as a hostile type.",
+  "history": "The Nakajima Ki-43 Hayabusa (\"peregrine falcon\"), the Army Type 1 Fighter, was a single-engine land-based fighter of the Imperial Japanese Army Air Service. Its Allied reporting name was \"Oscar\", but American pilots often called it the \"Army Zero\" for its resemblance to the Navy's A6M. It was the Army's first all-metal fighter with an enclosed cockpit and retractable landing gear.\n\nThe Ki-43 entered service in October 1941, just before Japan entered the war, and served on every front the Army air service fought on. Like the Zero, it was light and relatively easy to fly, and improved versions followed in December 1942 and the summer of 1944.",
+  "sources": [
+    {
+      "title": "Nakajima Ki-43 Hayabusa",
+      "url": "https://en.wikipedia.org/wiki/Nakajima_Ki-43_Hayabusa",
+      "read": "2026-09-25"
+    }
+  ]
+}

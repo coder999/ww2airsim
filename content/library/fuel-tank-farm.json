@@ -1,0 +1,20 @@
+{
+  "id": "fuel-tank-farm",
+  "name": "Fuel tank farm",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "A planned target that burns when destroyed.",
+  "history": "A tank farm, or oil depot, is a facility that stores oil, petroleum and petrochemical products and passes them on to their users or to other storage. It holds tanks above or below ground, with pumps, pipes between the tanks, and equipment for filling road tankers, barges or ships.\n\nThe vertical cylindrical steel tank that such farms use was pioneered by the Russian engineer Vladimir Shukhov, who showed in 1883 that the cylinder needs the least steel for the volume it holds.",
+  "sources": [
+    {
+      "title": "Oil terminal",
+      "url": "https://en.wikipedia.org/wiki/Oil_terminal",
+      "read": "2026-09-25"
+    },
+    {
+      "title": "Tank farm",
+      "url": "https://en.wikipedia.org/wiki/Tank_farm",
+      "read": "2026-09-25"
+    }
+  ]
+}

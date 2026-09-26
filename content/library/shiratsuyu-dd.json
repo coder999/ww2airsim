@@ -1,0 +1,15 @@
+{
+  "id": "shiratsuyu-dd",
+  "name": "Shiratsuyu-class destroyer",
+  "kind": "ship",
+  "side": "japanese",
+  "blurb": "A fleet destroyer, planned as a hostile escort.",
+  "history": "The Shiratsuyu class was ten first-class destroyers of the Imperial Japanese Navy, in service before and during World War II. Members of the class escorted carriers at the Coral Sea, and all ten served as escorts at Midway.\n\nIn October 1944 Shigure sailed in Admiral Nishimura's force at the Battle of Surigao Strait, part of the Battle of Leyte Gulf. When a U.S. battle line ambushed the force she took an 8-inch shell hit but was the only ship of the Southern Force to escape sinking. All ten ships of the class were sunk during the war.",
+  "sources": [
+    {
+      "title": "Shiratsuyu-class destroyer",
+      "url": "https://en.wikipedia.org/wiki/Shiratsuyu-class_destroyer",
+      "read": "2026-09-25"
+    }
+  ]
+}

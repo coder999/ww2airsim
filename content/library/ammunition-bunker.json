@@ -1,0 +1,15 @@
+{
+  "id": "ammunition-bunker",
+  "name": "Ammunition bunker",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "A planned target with a secondary explosion.",
+  "history": "A magazine is a place where ammunition or other explosives are stored; the word comes from the Arabic makhazin, \"storehouses\". A large store kept for later distribution is also called an ammunition dump.\n\nBecause one hit or accident on the ammunition could disable a whole gun battery, field magazines were set in pits or natural hollows or surrounded by sandbags or earthworks, and a battery might spread its ammunition across several of them.",
+  "sources": [
+    {
+      "title": "Magazine (artillery)",
+      "url": "https://en.wikipedia.org/wiki/Magazine_(artillery)",
+      "read": "2026-09-25"
+    }
+  ]
+}

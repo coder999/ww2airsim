@@ -1,0 +1,15 @@
+{
+  "id": "yamato-bb",
+  "name": "Yamato-class battleship",
+  "kind": "ship",
+  "side": "japanese",
+  "blurb": "The heaviest battleship afloat, planned as a hostile surface target.",
+  "history": "The Yamato class was two battleships of the Imperial Japanese Navy, Yamato and Musashi, commissioned in 1941 and 1942; a third hull was completed as the aircraft carrier Shinano. At nearly 72,000 long tons at full load they were the heaviest battleships ever built, and their nine 18.1-inch guns were the largest naval artillery ever fitted to a warship.\n\nFearing U.S. submarines and carriers, the Navy kept them mostly in base at Brunei, Truk and Kure. Musashi was sunk by air strikes during the Battle of Leyte Gulf in October 1944, and Yamato by air strikes in April 1945, on her way to Okinawa.",
+  "sources": [
+    {
+      "title": "Yamato-class battleship",
+      "url": "https://en.wikipedia.org/wiki/Yamato-class_battleship",
+      "read": "2026-09-25"
+    }
+  ]
+}

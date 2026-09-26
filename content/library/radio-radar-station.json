@@ -1,0 +1,15 @@
+{
+  "id": "radio-radar-station",
+  "name": "Radio / radar station",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "A planned strike objective.",
+  "history": "Radar uses radio waves to find the distance, direction and speed of aircraft, ships and other objects; the U.S. Navy coined the name in 1940, from \"radio detection and ranging\". Several countries developed it in secret for military use before and during World War II, Japan among those doing research before the war.\n\nBritain built its \"Chain Home\" stations, which detected and tracked aircraft, along its east and south coasts in time for the outbreak of war in 1939.",
+  "sources": [
+    {
+      "title": "Radar",
+      "url": "https://en.wikipedia.org/wiki/Radar",
+      "read": "2026-09-25"
+    }
+  ]
+}

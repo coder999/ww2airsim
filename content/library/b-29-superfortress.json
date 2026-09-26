@@ -1,0 +1,15 @@
+{
+  "id": "b-29-superfortress",
+  "name": "Boeing B-29 Superfortress",
+  "kind": "aircraft",
+  "side": "allied",
+  "blurb": "A pressurized heavy bomber, planned as an escort subject.",
+  "history": "The Boeing B-29 Superfortress was a four-engined heavy bomber designed for high-altitude strategic bombing, with a pressurized cabin, tricycle landing gear and a computer-controlled system that let gunners aim four remote turrets. It was one of the largest aircraft of the war, and its design and production cost more than the Manhattan Project.\n\nAgainst Japan it flew high-altitude raids, low-level night incendiary raids and mining missions to blockade Japanese waters. B-29s dropped the atomic bombs on Hiroshima and Nagasaki. 3,970 were built.",
+  "sources": [
+    {
+      "title": "Boeing B-29 Superfortress",
+      "url": "https://en.wikipedia.org/wiki/Boeing_B-29_Superfortress",
+      "read": "2026-09-25"
+    }
+  ]
+}

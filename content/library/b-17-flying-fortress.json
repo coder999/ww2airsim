@@ -1,0 +1,15 @@
+{
+  "id": "b-17-flying-fortress",
+  "name": "Boeing B-17 Flying Fortress",
+  "kind": "aircraft",
+  "side": "allied",
+  "blurb": "A four-engine heavy bomber, planned as the subject of escort missions.",
+  "history": "The Boeing B-17 Flying Fortress was a four-engined heavy bomber developed in the mid-1930s for the U.S. Army Air Corps: fast, high-flying and long-ranged, with heavy defensive armament at the expense of bomb load. It gained a reputation for bringing badly damaged crews home.\n\nThe B-17 saw early action in the Pacific War, raiding Japanese shipping and airfields, but it was used mainly in the daylight strategic bombing of Europe, where it dropped over 640,000 tons of the Allies' roughly 1.5 million. It dropped more bombs than any other aircraft of the war.",
+  "sources": [
+    {
+      "title": "Boeing B-17 Flying Fortress",
+      "url": "https://en.wikipedia.org/wiki/Boeing_B-17_Flying_Fortress",
+      "read": "2026-09-25"
+    }
+  ]
+}

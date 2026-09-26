@@ -1,0 +1,15 @@
+{
+  "id": "f4u-corsair",
+  "name": "Vought F4U Corsair",
+  "kind": "aircraft",
+  "side": "allied",
+  "blurb": "A gull-winged Navy and Marine fighter, planned as a player-flown and friendly type.",
+  "history": "The Vought F4U Corsair was designed as a carrier fighter and entered service in large numbers with the U.S. Navy and Marine Corps. Early trouble with carrier landings sent it first to land-based Marine and Navy squadrons, and the Grumman F6F Hellcat, which used the same Double Wasp engine, became the dominant carrier fighter instead.\n\nThe Corsair became one of the most capable carrier-based fighter-bombers of the war, and some Japanese pilots regarded it as the most formidable American fighter. Goodyear and Brewster also built it, and 12,571 were made between 1942 and 1953, the longest production run of any U.S. piston-engined fighter.",
+  "sources": [
+    {
+      "title": "Vought F4U Corsair",
+      "url": "https://en.wikipedia.org/wiki/Vought_F4U_Corsair",
+      "read": "2026-09-25"
+    }
+  ]
+}

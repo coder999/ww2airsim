@@ -1,0 +1,15 @@
+{
+  "id": "coastal-gun-battery",
+  "name": "Coastal gun battery",
+  "kind": "building",
+  "side": "japanese",
+  "blurb": "A planned hostile shore defense.",
+  "history": "Coastal artillery is the branch of the armed forces that works anti-ship guns and fixed batteries in coastal fortifications. From the Middle Ages until World War II, coastal and naval guns were among the most advanced and costly weapons of war.\n\nA long-held rule of thumb said one gun ashore equaled three naval guns of the same caliber, because a steady land mount aimed far more accurately, and walls or earth mounds usually protected it. After World War II, jet aircraft and guided missiles reduced its role and made fixed emplacements vulnerable.",
+  "sources": [
+    {
+      "title": "Coastal artillery",
+      "url": "https://en.wikipedia.org/wiki/Coastal_artillery",
+      "read": "2026-09-25"
+    }
+  ]
+}

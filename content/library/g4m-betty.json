@@ -1,0 +1,15 @@
+{
+  "id": "g4m-betty",
+  "name": "Mitsubishi G4M Betty",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "A twin-engine land-based bomber with defensive gunners, planned as a hostile type.",
+  "history": "The Mitsubishi G4M, the Navy Type 1 attack bomber, was the Imperial Japanese Navy's primary land-based bomber from 1941, reported by the Allies as \"Betty\". It had excellent range, bought with a flimsy structure and, in early versions, no armor or self-sealing fuel tanks; its own crews called it the \"cigar\", and Allied fighter pilots called it \"the Flying Lighter\".\n\nIt was the most widely produced Japanese bomber of the war and served in nearly every battle of the Pacific War. G4Ms and G3Ms sank HMS Prince of Wales and HMS Repulse in 1941, and later sank the heavy cruiser USS Chicago at Rennell Island.",
+  "sources": [
+    {
+      "title": "Mitsubishi G4M",
+      "url": "https://en.wikipedia.org/wiki/Mitsubishi_G4M",
+      "read": "2026-09-25"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "d3a-val",
+  "name": "Aichi D3A Val",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "A fixed-gear carrier dive bomber, planned as a hostile type.",
+  "history": "The Aichi D3A, the Navy Type 99 Carrier Bomber, was the Imperial Japanese Navy's primary dive bomber of the war, with an elliptical wing and fixed landing gear; the Allies called it \"Val\". It entered service in 1940 and flew from many of the Navy's carriers, Akagi, Kaga, Shokaku and Zuikaku among them.\n\nIt took part in almost every Navy action of the war, from Pearl Harbor and the first strikes on U.S. bases in the Philippines onward, and it sank more Allied warships than any other Axis aircraft.",
+  "sources": [
+    {
+      "title": "Aichi D3A",
+      "url": "https://en.wikipedia.org/wiki/Aichi_D3A",
+      "read": "2026-09-25"
+    }
+  ]
+}

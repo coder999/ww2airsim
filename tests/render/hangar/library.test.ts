@@ -1,9 +1,11 @@
 // tests/render/hangar/library.test.ts
 import { describe, expect, it } from 'vitest'
-import { gameplayNumbersIn, parseLibraryEntry } from '../../../src/render/hangar/library.js'
-import { libraryIds, loadLibraryEntry, nodeHangarContent } from './content.js'
+import { readFileSync } from 'node:fs'
+import { gameplayNumbersIn, parseLibraryEntry, rosterNameOf } from '../../../src/render/hangar/library.js'
+import { libraryIds, loadLibraryEntry, nodeHangarContent, rosterColumn } from './content.js'
 
 const content = nodeHangarContent()
+const gameplay = readFileSync('GAMEPLAY.md', 'utf8')
 const entries = content.library
 const buildingKinds = [...new Set(content.airfields.flatMap((a) => a.buildings.map((b) => b.kind)))]
 
@@ -26,6 +28,16 @@ describe('content/library (Hangar spec §4.4)', () => {
     for (const a of content.aircraft) expect(count('aircraft', a.id), `aircraft ${a.id}`).toBe(1)
     for (const s of content.ships) expect(count('ship', s.id), `ship ${s.id}`).toBe(1)
     for (const k of buildingKinds) expect(count('building', k), `building kind ${k}`).toBe(1)
+  })
+
+  it("4. every row of GAMEPLAY.md's aircraft, ship and building rosters has an entry", () => {
+    const named = (kind: string) => new Set(entries.filter((e) => e.kind === kind).map(rosterNameOf))
+    for (const row of rosterColumn(gameplay, 'Aircraft roster')) expect(named('aircraft'), row).toContain(row)
+    for (const row of rosterColumn(gameplay, 'Ship roster')) expect(named('ship'), row).toContain(row)
+    // The shipped-building table is placements of a kind: match its Kind column.
+    const kinds = new Set(entries.filter((e) => e.kind === 'building').map((e) => e.spec))
+    for (const kind of rosterColumn(gameplay, 'Building roster', 0, 1)) expect(kinds, kind).toContain(kind)
+    for (const row of rosterColumn(gameplay, 'Building roster', 1)) expect(named('building'), row).toContain(row)
   })
 
   it('5. no blurb carries a gameplay number', () => {

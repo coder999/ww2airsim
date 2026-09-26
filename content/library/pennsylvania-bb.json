@@ -1,0 +1,15 @@
+{
+  "id": "pennsylvania-bb",
+  "name": "Pennsylvania-class battleship",
+  "kind": "ship",
+  "side": "allied",
+  "blurb": "One of the older battleships, planned for Surigao Strait.",
+  "history": "The Pennsylvania class was two super-dreadnought battleships, Pennsylvania and Arizona, built for the U.S. Navy just before the First World War and armed with twelve 14-inch guns. Both were modernized between 1929 and 1931.\n\nBoth were at Pearl Harbor on 7 December 1941: Arizona was sunk by a magazine explosion and became a memorial, while Pennsylvania, in dry dock, was only lightly damaged. After a refit she served mostly as a shore bombardment ship, and she was present at the Battle of Surigao Strait, the last battle between battleships, though she did not engage.",
+  "sources": [
+    {
+      "title": "Pennsylvania-class battleship",
+      "url": "https://en.wikipedia.org/wiki/Pennsylvania-class_battleship",
+      "read": "2026-09-25"
+    }
+  ]
+}

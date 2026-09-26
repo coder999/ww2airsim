@@ -1,0 +1,15 @@
+{
+  "id": "cleveland-cl",
+  "name": "Cleveland-class light cruiser",
+  "kind": "ship",
+  "side": "allied",
+  "blurb": "A light cruiser, planned as a friendly escort.",
+  "history": "The Cleveland class was a group of light cruisers built for the U.S. Navy during World War II, armed with 6-inch guns, which the Navy favored for their rate of fire over the slower 8-inch. Fifty-two were ordered and 36 completed: 27 as cruisers and nine as Independence-class light aircraft carriers.\n\nLate in the war the added light anti-aircraft guns made the ships top-heavy. Most were deactivated within a few years of the war's end, though six became missile ships, and USS Little Rock survives as a museum ship.",
+  "sources": [
+    {
+      "title": "Cleveland-class cruiser",
+      "url": "https://en.wikipedia.org/wiki/Cleveland-class_cruiser",
+      "read": "2026-09-25"
+    }
+  ]
+}
