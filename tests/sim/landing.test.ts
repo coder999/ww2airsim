@@ -9,7 +9,7 @@ import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
-import { nextLandingTracking, NO_LANDING } from '../../src/render/landing.js'
+import { nextLandingTracking, NO_LANDING } from '../../src/sim/landing.js'
 import {
   supportedContact,
   GROUND_CONTACT_TOLERANCE_M,
@@ -184,7 +184,7 @@ describe('an approach flown into Tacloban', () => {
     expect(rest.position.y - f6f.gear.heightM - restGroundM).toBeLessThan(GROUND_CONTACT_TOLERANCE_M)
 
     expect(tracking.report, 'no landing report').not.toBeNull()
-    expect(tracking.report!.at).toEqual({ kind: 'airfield', name: 'Tacloban' })
+    expect(tracking.report!.at).toEqual({ kind: 'airfield', id: 'tacloban', name: 'Tacloban' })
 
     // Plan 8 generalizes the autopilot to a heading frame and a moving target.
     // Tacloban's heading is 0, and rotating by zero must be exact, so these

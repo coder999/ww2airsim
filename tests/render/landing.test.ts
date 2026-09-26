@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { initialFrameState, nextFrameState, acknowledgeLanding, type FrameState } from '../../src/render/frame.js'
-import { nextLandingTracking, NO_LANDING, AIRBORNE_LATCH_M, LANDED_SPEED_MPS } from '../../src/render/landing.js'
+import { nextLandingTracking, NO_LANDING, AIRBORNE_LATCH_M, LANDED_SPEED_MPS } from '../../src/sim/landing.js'
 import { landingModel } from '../../src/render/debrief.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { playerAircraft, withAircraftState } from '../../src/sim/loop.js'
@@ -146,7 +146,7 @@ describe('landing tracking', () => {
     const airborne = nextLandingTracking(f6f, NO_LANDING, at(c.x, c.z, 50), at(c.x, c.z, 50), field, [tacloban])
     const touched = nextLandingTracking(f6f, airborne, at(c.x, c.z, 5, -1), at(c.x, c.z, 0, -1), field, [tacloban])
     const stopped = nextLandingTracking(f6f, touched, at(c.x, c.z, 0, 0, 0.5), at(c.x, c.z, 0, 0, 0.5), field, [tacloban])
-    expect(stopped.report?.at).toEqual({ kind: 'airfield', name: 'Tacloban' })
+    expect(stopped.report?.at).toEqual({ kind: 'airfield', id: 'tacloban', name: 'Tacloban' })
 
     const offAirborne = nextLandingTracking(f6f, NO_LANDING, at(0, 0, 50), at(0, 0, 50), field, [tacloban])
     const offTouched = nextLandingTracking(f6f, offAirborne, at(0, 0, 5, -1), at(0, 0, 0, -1), field, [tacloban])
@@ -158,7 +158,7 @@ describe('landing tracking', () => {
 describe('the landing debrief', () => {
   it('congratulates the pilot and shows the touchdown figures', () => {
     const m = landingModel(
-      { touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, at: { kind: 'airfield', name: 'Tacloban' } },
+      { touchdownSinkMps: 1.35, touchdownSpeedMps: 37.7, rollOutM: 583, tick: 6600, at: { kind: 'airfield', id: 'tacloban', name: 'Tacloban' } },
       zeroKillsByType(),
     )
     expect(m.headline).toBe('LANDED')
@@ -185,7 +185,7 @@ it('credits a carrier only when touchdown and rest belong to the same ship', () 
   }
   const stopped = onWheels(0)
   const same = nextLandingTracking(f6f, tracking, stopped, stopped, null, [], [deck])
-  expect(same.report!.at).toEqual({ kind: 'carrier', name: 'cv-1' })
+  expect(same.report!.at).toEqual({ kind: 'carrier', id: 'cv-1', name: 'cv-1' })
   const other = nextLandingTracking(f6f, tracking, stopped, stopped, null, [], [{ ...deck, shipId: 'cv-2' }])
   expect(other.report).not.toBeNull()
   expect(other.report!.at).toBeNull()

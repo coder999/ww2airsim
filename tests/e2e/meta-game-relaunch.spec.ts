@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, waitForScenario, type DiagWindow } from './harness.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
-import { AIRBORNE_LATCH_M } from '../../src/render/landing.js'
+import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
 
 /**
  * Tier 2, whole-branch review finding C-1. `main.ts`'s `onNewGame` closure

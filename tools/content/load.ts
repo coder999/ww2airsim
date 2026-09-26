@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parseAircraftSpec } from '../../src/sim/content.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
-import { isParkedAircraft, isShipParked, parseScenario, type Scenario, type ScenarioBundle } from '../../src/sim/scenario.js'
+import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, type Scenario, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 
@@ -67,8 +67,8 @@ export function bundleForScenario(scenario: Scenario): ScenarioBundle {
     Object.fromEntries([...new Set(ids)].map((i) => [i, load(i)]))
   return {
     scenario,
-    aircraftSpecs: table(scenario.aircraft.map((a) => a.spec), loadAircraftSpec),
-    shipSpecs: table(scenario.ships.map((s) => s.spec), loadShipSpec),
+    aircraftSpecs: table(scenarioAircraftSpecIds(scenario), loadAircraftSpec),
+    shipSpecs: table(scenarioShipSpecIds(scenario), loadShipSpec),
     airfields: table([
       ...scenario.airfields,
       ...scenario.aircraft.flatMap((a) =>

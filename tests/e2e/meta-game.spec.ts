@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, percentile, waitForScenario, type DiagWindow } from './harness.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
-import { AIRBORNE_LATCH_M } from '../../src/render/landing.js'
+import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
 
 /**
  * Tier 2, Plan 9 Task 8: the whole meta-game acceptance, all three pieces

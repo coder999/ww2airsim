@@ -149,6 +149,14 @@ ballistics. It appears in no shipped scenario yet. See the
 [handoff](docs/handoff/2026-09-25-z2-zero-flight-model.md); master spec §15
 holds the status.
 
+**Missions have an engine, headless (M1, 2026-09-25):** a scenario that
+declares objectives now runs them in the sim every tick. There are seven
+objective kinds, triggers that fire once, and held groups that enter
+mid-flight, and only a landing at a named base earns a badge. No shipped
+scenario uses it until M3, and nothing shows it until M2. See the
+[handoff](docs/handoff/2026-09-25-m1-mission-engine.md); master spec §15
+holds the status.
+
 **Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
 slot now shows a rotating, heading-up sweep with fading contact dots and a
 `Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own

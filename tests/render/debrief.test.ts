@@ -92,7 +92,7 @@ describe('the debrief', () => {
 
   it('names the airfield a landing was at', () => {
     const m = landingModel(
-      { touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: { kind: 'airfield', name: 'Tacloban' } },
+      { touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: { kind: 'airfield', id: 'tacloban', name: 'Tacloban' } },
       zeroKillsByType(),
     )
     expect(m.figures).toContainEqual({ label: 'Landed at', value: 'Tacloban' })
@@ -108,7 +108,7 @@ describe('the debrief', () => {
 
   it('names the carrier a trap was aboard, by the ship class name when it is known', () => {
     const m = landingModel(
-      { touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', name: 'cv-1' } },
+      { touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' } },
       zeroKillsByType(),
       { 'cv-1': 'Essex-class fleet carrier' },
     )
@@ -120,7 +120,7 @@ describe('the debrief', () => {
 
   it('falls back to the ship id alone when no class name was passed', () => {
     const m = landingModel(
-      { touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', name: 'cv-1' } },
+      { touchdownSinkMps: 2.1, touchdownSpeedMps: 36, rollOutM: 34, tick: 1, at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' } },
       zeroKillsByType(),
     )
     expect(m.figures.find((f) => f.label === 'Landed at')!.value).toBe('cv-1')
