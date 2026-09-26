@@ -45,4 +45,11 @@ test('a landed sortie appears in the dossier; the title does not re-lock', async
   await page.keyboard.press('Escape')
   await expect(dossier).toBeHidden()
   await expect(title.getByRole('button', { name: 'Dossier: <b>Ace</b>' })).toBeFocused()
+
+  // Spec §B.5: Close (not just Escape) returns focus to the row's Dossier button.
+  await title.getByRole('button', { name: 'Dossier: <b>Ace</b>' }).click()
+  await expect(dossier).toBeVisible()
+  await dossier.getByRole('button', { name: 'Close' }).click()
+  await expect(dossier).toBeHidden()
+  await expect(title.getByRole('button', { name: 'Dossier: <b>Ace</b>' })).toBeFocused()
 })
