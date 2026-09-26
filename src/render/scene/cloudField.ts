@@ -270,15 +270,6 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
         const alive = smoothstep(activeTheta, activeTheta.add(0.045), peak)
         If(alive.greaterThan(0).and(hc.lessThan(1)), () => {
           const type = variant
-          const morphologyP = warped.add(vec3(
-            sin(warped.z.div(4300).add(type.mul(5.7))).mul(hc).mul(260),
-            0,
-            sin(warped.x.div(5100).sub(type.mul(4.3))).mul(hc).mul(220),
-          ))
-          const shapeSample = texture3D(shape, morphologyP.div(SHAPE_TILE_M))
-          const shapeFbm = shapeSample.g.mul(0.625).add(shapeSample.b.mul(0.25)).add(shapeSample.a.mul(0.125))
-          const shapeValue = saturate(stretch(shapeSample.r).mul(mix(float(0.82), float(1.08), shapeFbm)))
-
           // Sample the baked stacked-lobe archetype in the jittered cell's
           // own coordinates. Rotation and scale come from the cell peak, so
           // neighbouring instances do not present the same silhouette.
@@ -293,29 +284,43 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
           const inVolume = uvw.x.greaterThan(0).and(uvw.x.lessThan(1))
             .and(uvw.y.greaterThan(0)).and(uvw.y.lessThan(1))
             .and(uvw.z.greaterThan(0)).and(uvw.z.lessThan(1))
-          const stored = select(inVolume, texture3D(cumulus, uvw).r, float(0))
-          const sculpted = stored.add(shapeValue.sub(0.5).mul(mix(float(0.05), float(0.13), smoothstep(0.05, 0.8, hc))))
+          const stored = select(inVolume, texture3D(cumulus, uvw).r, float(0)).toVar()
+          // Where the archetype is empty there is no cloud: the shape noise
+          // only sculpts an existing body. Without this gate its +-0.065
+          // term filled every live cell's whole column with faint haze, and
+          // the shape volume was read there on every step.
+          If(stored.greaterThan(0), () => {
+            const morphologyP = warped.add(vec3(
+              sin(warped.z.div(4300).add(type.mul(5.7))).mul(hc).mul(260),
+              0,
+              sin(warped.x.div(5100).sub(type.mul(4.3))).mul(hc).mul(220),
+            ))
+            const shapeSample = texture3D(shape, morphologyP.div(SHAPE_TILE_M))
+            const shapeFbm = shapeSample.g.mul(0.625).add(shapeSample.b.mul(0.25)).add(shapeSample.a.mul(0.125))
+            const shapeValue = saturate(stretch(shapeSample.r).mul(mix(float(0.82), float(1.08), shapeFbm)))
+            const sculpted = stored.add(shapeValue.sub(0.5).mul(mix(float(0.05), float(0.13), smoothstep(0.05, 0.8, hc))))
 
-          // The shared layer base remains flat, while the signed ellipsoid
-          // field and one Perlin-Worley read define the three-dimensional
-          // silhouette rather than thresholding a 2D radial disc.
-          const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
-          const body = smoothstep(0.015, 0.22, sculpted).mul(gradient).mul(alive).toVar()
-          if (detailed) {
-            // Erosion only lowers density, so where the base shape is empty
-            // the detail volume is not read at all (photoreal Task 11).
-            If(body.greaterThan(0), () => {
-              const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
-              const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
-              const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
-              const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
-              // Wispy near each cloud's base, billowy above it.
-              const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
-              d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
-            })
-          } else {
-            d.assign(body)
-          }
+            // The shared layer base remains flat, while the signed ellipsoid
+            // field and one Perlin-Worley read define the three-dimensional
+            // silhouette rather than thresholding a 2D radial disc.
+            const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
+            const body = smoothstep(0.015, 0.22, sculpted).mul(gradient).mul(alive).toVar()
+            if (detailed) {
+              // Erosion only lowers density, so where the base shape is empty
+              // the detail volume is not read at all (photoreal Task 11).
+              If(body.greaterThan(0), () => {
+                const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
+                const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
+                const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
+                const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
+                // Wispy near each cloud's base, billowy above it.
+                const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
+                d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
+              })
+            } else {
+              d.assign(body)
+            }
+          })
         })
       })
     })

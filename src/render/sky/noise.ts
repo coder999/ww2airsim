@@ -7,10 +7,9 @@ export const SHAPE_SIZE = 128
 export const DETAIL_SIZE = 64
 export const CURL_SIZE = 128
 /** Cumulus archetype density, R8, indexed [x, y, z]: one procedural
- *  cumulus (stacked spheres billowed by Worley noise), built by
- *  tools/sky/cumulus.py (numpy seed 7), which also holds the DIMS copy of
- *  this constant. */
-export const CUMULUS_DIMS = [250, 170, 307] as const
+ *  cumulus (stacked spheres billowed by Worley noise), built at half its
+ *  generated resolution by tools/sky/cumulus.py (numpy seed 7). */
+export const CUMULUS_DIMS = [125, 85, 153] as const
 /** Weather map texels per side, and metres per repeat: 39 m per texel. */
 export const WEATHER_SIZE = 1024
 export const WEATHER_TILE_M = 40_000

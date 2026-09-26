@@ -49,7 +49,7 @@ describe('inflateIfGzipped (2026-09-19)', () => {
     expect(viaInflating.detail).toEqual(viaRaw.detail)
     expect(viaInflating.curl).toEqual(viaRaw.curl)
     expect(viaInflating.weather).toEqual(viaRaw.weather)
-    // 13 MB: a byte compare, not toEqual's per-element diff (which timed out).
+    // 1.6 MB: a byte compare, not toEqual's per-element diff (which timed out).
     expect(Buffer.from(viaInflating.cumulus).equals(Buffer.from(viaRaw.cumulus))).toBe(true)
     // The dev server has inflated the land cover before every session since
     // 2026-09-18, and the old loader failed on it with a console warning.

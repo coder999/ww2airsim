@@ -18,7 +18,8 @@ potential, cloud type and top height. It replaced Plan 16d's 64² coverage
 field. Built the same way and under the same license by the same
 `npm run sky:build` command.
 
-`cumulus.bin.gz` (250x170x307 R8) is one procedural cumulus -- stacked
+`cumulus.bin.gz` (125x85x153 R8, generated at 250x170x307 and box-filtered
+2x) is one procedural cumulus -- stacked
 spheres billowed by tiling Worley noise, flat base -- used as the archetype
 each weather-map cell's cloud is carved from. Built by
 `python3 tools/sky/cumulus.py` (numpy, seed 7), separately from

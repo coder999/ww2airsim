@@ -23,7 +23,7 @@ describe('loadSkyNoise (Plan 16a, extended in 16d)', () => {
     expect(noise.detail).toEqual(loadDetail())
     expect(noise.curl).toEqual(loadCurl())
     expect(noise.weather).toEqual(loadWeather())
-    // 13 MB: a byte compare, not toEqual's per-element diff.
+    // 1.6 MB: a byte compare, not toEqual's per-element diff.
     expect(Buffer.from(noise.cumulus).equals(Buffer.from(loadCumulus()))).toBe(true)
   }, 120_000)
   it('refuses a missing file loudly', async () => {

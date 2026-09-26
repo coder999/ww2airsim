@@ -145,6 +145,6 @@ describe('the committed noise', () => {
     // `python3 tools/sky/cumulus.py`.
     const raw = loadCumulus()
     expect(raw.length).toBe(cumulusByteLength())
-    expect(createHash('sha256').update(raw).digest('hex')).toBe('61a742cc90197a5db9a2628876d6cc18611c02cb74d21e307e796609171a6fbd')
+    expect(createHash('sha256').update(raw).digest('hex')).toBe('305ab474550270210f67b28fc8339b4aefeaf82482c60944639dd5e8352f4dcf')
   })
 })

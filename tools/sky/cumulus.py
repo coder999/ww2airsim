@@ -4,8 +4,12 @@
   python3 tools/sky/cumulus.py        # needs numpy only
 
 One procedural cumulus -- stacked spheres, billowed by tiling Worley noise,
-with a flat base -- written as R8 density indexed [x, y, z] (x fastest), the
-layout src/render/sky/noise.ts's CUMULUS_DIMS describes. Carried over
+with a flat base -- generated at 250x170x307 and box-filtered 2x to
+125x85x153 before it is written as R8 density indexed [x, y, z] (x fastest),
+the layout src/render/sky/noise.ts's CUMULUS_DIMS describes. Half resolution
+is 11.7 m per voxel, still far finer than the cloud march's steps; measured
+2026-09-26 on the reference GPU it cut the 4K Medium tier p95 by ~1.5 ms
+with no visible change in the capture views. Carried over
 unchanged from the cloud VDB spike's `generated()` (2026-09-25), which is
 where this volume was first made; that spike was never versioned, so this
 file is now the only copy of the generator.
@@ -23,7 +27,7 @@ import os
 
 import numpy as np
 
-DIMS = (250, 170, 307)  # keep in step with CUMULUS_DIMS in src/render/sky/noise.ts
+GEN_DIMS = (250, 170, 307)
 VOXEL_M = 1800.0 / 307
 SEED = 7
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'content', 'sky', 'cumulus.bin.gz')
@@ -120,7 +124,10 @@ def generated(shape, voxel_m, rng):
 
 
 def main():
-    vol = generated(DIMS, VOXEL_M, np.random.default_rng(SEED))
+    vol = generated(GEN_DIMS, VOXEL_M, np.random.default_rng(SEED))
+    # 2x box filter; an odd last voxel is dropped (the walls are empty).
+    nx, ny, nz = (d // 2 for d in vol.shape)  # 125, 85, 153: CUMULUS_DIMS in src/render/sky/noise.ts
+    vol = vol[: 2 * nx, : 2 * ny, : 2 * nz].reshape(nx, 2, ny, 2, nz, 2).mean(axis=(1, 3, 5))
     u8 = np.clip(vol * 255 + 0.5, 0, 255).astype(np.uint8)
     # x fastest, then y, then z: C-order of [z, y, x].
     raw = u8.transpose(2, 1, 0).tobytes()
