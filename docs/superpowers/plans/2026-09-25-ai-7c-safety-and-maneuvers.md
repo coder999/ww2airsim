@@ -204,6 +204,8 @@ Each ruling is a deviation from the spec or an addition to it, with the evidence
 
 ## Open for Mark (the plan's default is in bold)
 
+**Answered 2026-09-25: Mark accepted all four defaults.** The AI does not dodge the head-on pass: the merge stays, and `ai-maneuver.spec.ts` stays red by design with its header rewritten. The harder-to-kill AI Zero at the merge is accepted, and `zeroMerge.test.ts`'s kill floor drops from 4 to 1. `ai-pursuit-difficulty` is run and its result recorded; if it is red, its header names the Tier 1 fixture replica as the record for the 7d bar, and the spec is not loosened. Air Combat's second pass ships as measured. The questions are kept below as the record of what was decided and why.
+
 1. **Should the AI dodge the head-on pass?** Choosing avoidance turns `ai-maneuver.spec.ts` green, with a closest range of 97-114 m, but the player's first-merge kills fall from 7/8 to 0/8. **Default: no. Keep the merge Mark flew. `ai-maneuver` stays RED, with its header rewritten to say why.**
 2. **The AI Zero stops cutting its own engine, so it is harder to kill at the merge (2/8 against 8/8).** **Default: accept it, and lower `zeroMerge.test.ts`'s floor to ≥ 1 (R9).**
 3. **`ai-pursuit-difficulty.spec.ts` on the head-on start.** Tier 1 cannot reproduce its recorded green result, and its claim (a scripted break gets behind a tail-chasing green pursuer) belongs to the old tail chase. **Default: run it in Task 13 and record the result. If it is red, rewrite its header to name the Tier 1 fixture replica (`aiLethality.test.ts`, item 3) as the 7d bar of record. Do not loosen it.**
