@@ -46,12 +46,15 @@ test('a released bomb and a rocket pair draw the O1 store models in flight, and 
   await page.goto(URL_)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
   await startGame(page, { loadout: 'Both' })
-  await page.waitForTimeout(1000) // the store models load after boot; the pools swap when they land
+  // The store models load after boot; the pools swap when they land. view() reports the pool's
+  // geometry even with no bomb aloft, so wait for the swap itself rather than a fixed time.
+  const bombTriangles = await triangles('content/ordnance/an-m65.glb')
+  await expect.poll(async () => (await view(page)).bombTriangles, { timeout: 15_000 }).toBe(bombTriangles)
   await page.keyboard.press('KeyV')
   await page.waitForTimeout(1000) // about 5 m of fall: clear of the wing in the chase view
   const v = await view(page)
   expect(v.bombs).toBe(1)
-  expect(v.bombTriangles).toBe(await triangles('content/ordnance/an-m65.glb'))
+  expect(v.bombTriangles).toBe(bombTriangles)
   expect(v.bombNdc, 'the bomb projects into the camera').not.toBeNull()
   expect(Math.abs(v.bombNdc![0])).toBeLessThan(1)
   expect(Math.abs(v.bombNdc![1])).toBeLessThan(1)

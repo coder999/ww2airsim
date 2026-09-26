@@ -21,6 +21,7 @@ describe('attachStores (O1): the flying spec\'s mounts, the store models, the dr
       expect(o.position.toArray()).toEqual([...m.offset])
       expect(o.rotation.z).toBe(0.128)
       expect(o.geometry).toBe(v.byStore.get(m.store)!.geometry)
+      expect(o.receiveShadow, m.id).toBe(true)
     }
   })
 
@@ -61,6 +62,13 @@ describe('attachStores (O1): the flying spec\'s mounts, the store models, the dr
     const p = primitiveStoreVisuals(mounts, new MeshStandardMaterial())
     expect([...p.byStore.keys()].sort()).toEqual(['an-m65', 'hvar'])
     expect(p.pitchRad).toBe(0)
+    // Hung from their tops at the lug point, like the generated models, not half-sunk into the wing.
+    for (const id of ['an-m65', 'hvar']) {
+      const g = p.byStore.get(id)!.geometry
+      g.computeBoundingBox()
+      expect(g.boundingBox!.max.y, id).toBeCloseTo(0, 6)
+      expect(g.boundingBox!.min.y, id).toBeLessThan(-0.1)
+    }
     p.dispose()
   })
 })

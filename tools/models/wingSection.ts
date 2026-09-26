@@ -79,7 +79,8 @@ const round3 = (v: number): number => Math.round(v * 1000) / 1000
  * Hangs `store` (its origin at the lug tops, +X nose) at `chordFraction` of the chord from the
  * leading edge at station `z`, pitched `pitchRad` nose-up, and drops it the least whole
  * millimeters that leave every vertex under wing at least `minClearanceM` below the lower skin
- * at the vertex's own (x, z). Vertices ahead of the leading edge or behind the trailing edge
+ * at the vertex's own x, in the wing section at the vertex's z snapped to the nearest 0.05 m
+ * (sections are sliced on that grid, not at each vertex's exact z). Vertices ahead of the leading edge or behind the trailing edge
  * have no wing above them and do not constrain the drop.
  */
 export function fitMount(sectionAt: (z: number) => WingSection, z: number, chordFraction: number, pitchRad: number, store: MeshData, minClearanceM: number): MountFit {

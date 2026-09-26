@@ -12,10 +12,11 @@ export interface StoreVisual { readonly geometry: BufferGeometry; readonly mater
 export interface StoreVisuals { readonly byStore: ReadonlyMap<string, StoreVisual>; readonly pitchRad: number }
 
 /** The pre-O1 box and cylinder, for an airframe with no store models (hellcat.ts) or whose
- *  store models failed to load (wildcat.ts). Racks carry bombs and rails rockets, by construction. */
+ *  store models failed to load (wildcat.ts). Racks carry bombs and rails rockets, by construction.
+ *  Each hangs with its top at the origin (the lug point), the generated models' convention. */
 export function primitiveStoreVisuals(mounts: StoreMounts, material: Material): StoreVisuals & { dispose(): void } {
-  const bomb = new BoxGeometry(1.6, 0.5, 0.5)
-  const rocket = new CylinderGeometry(0.09, 0.09, 1.4, 8).rotateZ(Math.PI / 2)
+  const bomb = new BoxGeometry(1.6, 0.5, 0.5).translate(0, -0.25, 0)
+  const rocket = new CylinderGeometry(0.09, 0.09, 1.4, 8).rotateZ(Math.PI / 2).translate(0, -0.09, 0)
   const byStore = new Map<string, StoreVisual>()
   for (const m of mounts.racks) byStore.set(m.store, { geometry: bomb, material })
   for (const m of mounts.rails) byStore.set(m.store, { geometry: rocket, material })
@@ -34,6 +35,9 @@ export function attachStores(root: Object3D, mounts: StoreMounts, visuals: Store
     mesh.name = m.id
     mesh.position.set(...m.offset)
     mesh.rotation.z = visuals.pitchRad
+    // The airframe's own convention (wildcat.ts/hellcat.ts traverse `receiveShadow = true`, no
+    // castShadow): the sun's shadow node reaches only receivers, and stores attach after that traverse.
+    mesh.receiveShadow = true
     root.add(mesh)
     return mesh
   }
