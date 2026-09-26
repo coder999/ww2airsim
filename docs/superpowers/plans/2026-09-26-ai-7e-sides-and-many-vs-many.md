@@ -325,11 +325,11 @@ Content (spec §4.5): `pilot.ingress = { route: [{ x, z, altitudeM, speedMps }, 
 
 **Files:** Modify `src/sim/ai/autoPursuit.ts`; Test `tests/sim/ai/autoPursuit.test.ts`.
 
-- [ ] **Step 1: Failing test:** an allied AI 500 m away and an axis one 2 km away: `autoPursuitTarget` returns the axis one.
-- [ ] **Step 2: Run to verify it fails.**
-- [ ] **Step 3: Implement** with `sideOf`; fix the header comment that says the world has no friend/foe field.
-- [ ] **Step 4: Run.** Digests unchanged.
-- [ ] **Step 5: Commit** `7e Task 8: the pursuit autopilot chases only the other side`.
+- [x] **Step 1: Failing test:** an allied AI 500 m away and an axis one 2 km away: `autoPursuitTarget` returns the axis one.
+- [x] **Step 2: Run to verify it fails.**
+- [x] **Step 3: Implement** with `sideOf`; fix the header comment that says the world has no friend/foe field.
+- [x] **Step 4: Run.** Digests unchanged.
+- [x] **Step 5: Commit** `7e Task 8: the pursuit autopilot chases only the other side`.
 
 ### Task 9: `furball-range` and the furball soak
 
