@@ -3,6 +3,8 @@ import { length, sub, dot, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import type { DecisionFacts } from './decision.js'
 import { airframeEnvelope, relativeEnvelope, type RelativeEnvelope } from './envelope.js'
 import { DEFAULT_MANEUVER, INTENT_OF, type ManeuverLatch, type ManeuverName, type PilotManeuver } from './pilot.js'
+import { closureRateMps } from './pursuit.js'
+import { FLOOR_M } from './safety.js'
 
 /** Spec §3.5: a phased maneuver holds at most this long. */
 export const LATCH_CAP_S = 20
@@ -26,6 +28,10 @@ export type ManeuverFacts = {
   readonly threatBehind: boolean
   /** The angle between the two velocity vectors. */
   readonly velocityAngleRad: number
+  /** Spec §3.5's closure: the rate the range is shrinking, positive while
+   *  closing (`closureRateMps`). Not 7b's `facts.closingRate`, which is our
+   *  own velocity along the line of sight and ignores the target's motion. */
+  readonly closureMps: number
 }
 
 export function maneuverFacts<M>(
@@ -49,18 +55,37 @@ export function maneuverFacts<M>(
     targetTurnRateRadPerS: Math.hypot(target.state.bodyRates.y, target.state.bodyRates.z),
     threatBehind: dot(toTarget, self.state.velocity) < 0,
     velocityAngleRad: denom < 1e-9 ? 0 : Math.acos(Math.min(1, Math.max(-1, dot(self.state.velocity, target.state.velocity) / denom))),
+    closureMps: closureRateMps(self, target),
   }
 }
 
+/** Tuning values from spec §3.5's table; measured in the Task 8 signature
+ *  tests. A target is "turning" above about 3°/s. */
+export const TARGET_TURNING_RAD_PER_S = 0.05
+export const OVERSHOOT_RANGE_M = 600
+export const OVERSHOOT_CLOSURE_MPS = 40
+export const LOW_YOYO_RANGE_M = 400
+export const LOW_YOYO_HEIGHT_MARGIN_M = 500
+
 /** The named maneuver for this rescore. With nothing special in the picture
- *  it is the intent's default, which keeps 7b's regression floor. Tasks 8-11
- *  add one branch per maneuver. */
+ *  it is the intent's default, which keeps 7b's regression floor. Task 8
+ *  adds the Pursue family (lag pursuit, high yo-yo, low yo-yo); Tasks 9-11
+ *  add the rest. */
 export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverName[]): ManeuverName {
-  void repertoire
+  const has = (n: ManeuverName): boolean => repertoire.includes(n)
+  const f = m.facts
+  if (m.intent === 'pursue') {
+    const turning = m.targetTurnRateRadPerS >= TARGET_TURNING_RAD_PER_S
+    const overshoot = turning && f.rangeM < OVERSHOOT_RANGE_M && m.closureMps > OVERSHOOT_CLOSURE_MPS
+    if (overshoot && has('high-yo-yo') && f.relativeEnergyJPerKg >= 0) return 'high-yo-yo'
+    if (overshoot && has('lag-pursuit')) return 'lag-pursuit'
+    if (turning && has('low-yo-yo') && f.rangeM > LOW_YOYO_RANGE_M && m.closureMps < 0 &&
+        m.heightAboveGroundM >= FLOOR_M + LOW_YOYO_HEIGHT_MARGIN_M) return 'low-yo-yo'
+  }
   return DEFAULT_MANEUVER[m.intent]
 }
 
-const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>([])
+const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo'])
 export const isPhased = (name: ManeuverName): boolean => PHASED.has(name)
 
 export const latchExpired = (latch: ManeuverLatch, nowS: number): boolean => nowS - latch.enteredAtS >= LATCH_CAP_S

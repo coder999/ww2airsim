@@ -1,0 +1,71 @@
+import { advance, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
+import { DT } from '../../../src/sim/flight/model.js'
+import type { AircraftSpec } from '../../../src/sim/flight/schema.js'
+import { createState, type Controls } from '../../../src/sim/flight/state.js'
+import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
+import { add, cross, normalize, scale, v3, type Vec3 } from '../../../src/sim/math/vec3.js'
+import { controlsForDesiredVelocity } from '../../../src/sim/ai/controller.js'
+import { controlsForLiftVector } from '../../../src/sim/ai/liftVector.js'
+import { closureRateMps, pursuitDesiredVelocity, type PilotAssignment } from '../../../src/sim/ai/pursuit.js'
+import { initialDecision, type ManeuverName, type PilotSkill } from '../../../src/sim/ai/pilot.js'
+
+/**
+ * Canned geometries for the 7c maneuver signatures (spec §3.6): one AI pilot
+ * in production `advance`, against a scripted aircraft. Each test asserts that
+ * the maneuver was SELECTED and that its physical signature HAPPENED: two
+ * different claims (7a's "fires" versus "hits" lesson).
+ */
+export function level(id: string, spec: AircraftSpec, position: Vec3, velocity: Vec3, pilot?: PilotAssignment): AircraftEntity<undefined> {
+  const state = createState({ position, velocity, attitude: qFromAxisAngle(v3(0, 1, 0), Math.atan2(-velocity.z, velocity.x)) })
+  // exactOptionalPropertyTypes rejects `pilot: undefined` against `pilot?:
+  // PilotAssignment | null` (the field's own type doesn't list `undefined`),
+  // so the key is omitted entirely rather than set to undefined.
+  return {
+    id, spec, state, previous: state, controls: { roll: 0, pitch: 0, yaw: 0, throttle: 0.7 }, assistMemory: undefined, impact: null, parked: false,
+    ...(pilot !== undefined ? { pilot } : {}),
+  }
+}
+
+export const pilotFor = (target: string, skill: PilotSkill, nextRescoreS = 0): PilotAssignment =>
+  ({ target, skill, decision: { ...initialDecision(), nextRescoreS } })
+
+/** A skill whose repertoire is exactly `names`, so a test isolates one maneuver. */
+export const withRepertoire = (skill: PilotSkill, names: readonly ManeuverName[]): PilotSkill => ({ ...skill, repertoire: names })
+
+export type ScriptedFlight = (self: AircraftEntity<undefined>, world: World<undefined>) => Controls
+export const straight: ScriptedFlight = () => ({ roll: 0, pitch: 0, yaw: 0, throttle: 0.7 })
+
+/** A sustained level turn at `n` g, left (-1) or right (+1). */
+export const levelTurn = (n: number, side: 1 | -1): ScriptedFlight => (a) => {
+  const right = normalize(cross(a.state.velocity, v3(0, 1, 0)))
+  const lift = add(v3(0, 1, 0), scale(right, side * Math.sqrt(Math.max(0, n * n - 1))))
+  return controlsForLiftVector(a.state, a.spec, lift, n, 1)
+}
+
+/** Lead pursuit of `targetId`, never firing: a scripted attacker. */
+export const chase = (targetId: string): ScriptedFlight => (a, w) =>
+  controlsForDesiredVelocity(a.state, a.spec, pursuitDesiredVelocity(a, w.aircraft.find((x) => x.id === targetId)!))
+
+/** Advance `seconds`, applying each scripted aircraft's controls before
+ *  every tick. `onTick` sees the world after each tick. */
+export function runCanned(
+  world: World<undefined>, scripts: Readonly<Record<string, ScriptedFlight>>, seconds: number,
+  onTick: (w: World<undefined>) => void,
+): World<undefined> {
+  let w = world
+  for (let i = 0; i < Math.round(seconds / DT); i++) {
+    for (const [id, script] of Object.entries(scripts)) {
+      w = withControls(w, id, script(w.aircraft.find((a) => a.id === id)!, w))
+    }
+    w = advance(w, DT).world
+    onTick(w)
+  }
+  return w
+}
+
+/** Spec §3.5's closure, the rate the range is shrinking (production's
+ *  `closureRateMps`, live state on both sides). Not 7b's `closingRate`,
+ *  which reads only our own velocity along the line of sight. */
+export const closureOf = (self: AircraftEntity<undefined>, other: AircraftEntity<undefined>): number => closureRateMps(self, other)
+
+export const headingChangeRad = (from: number, to: number): number => Math.abs(Math.atan2(Math.sin(to - from), Math.cos(to - from)))

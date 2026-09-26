@@ -2143,7 +2143,7 @@ git commit -m "7c: named maneuvers, repertoire as skill data, and the phase latc
   - `runCanned(world, scripts, seconds, onTick): World`
   - `closureOf(self, other)` and `headingChangeRad(from, to)`
 
-- [ ] **Step 1: The canned-world helpers.** Create `tests/sim/ai/maneuverWorlds.ts`:
+- [x] **Step 1: The canned-world helpers.** Create `tests/sim/ai/maneuverWorlds.ts`:
 
 ```ts
 import { advance, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
@@ -2215,7 +2215,7 @@ export function closureOf(self: AircraftEntity<undefined>, other: AircraftEntity
 export const headingChangeRad = (from: number, to: number): number => Math.abs(Math.atan2(Math.sin(to - from), Math.cos(to - from)))
 ```
 
-- [ ] **Step 2: Write the failing selector unit tests.** Append to `tests/sim/ai/maneuvers.test.ts`:
+- [x] **Step 2: Write the failing selector unit tests.** Append to `tests/sim/ai/maneuvers.test.ts`:
 
 ```ts
 describe('Pursue family selection (Task 8)', () => {
@@ -2249,7 +2249,7 @@ describe('Pursue family selection (Task 8)', () => {
 })
 ```
 
-- [ ] **Step 3: Write the failing signature tests.** Create `tests/sim/ai/pursueManeuvers.test.ts`:
+- [x] **Step 3: Write the failing signature tests.** Create `tests/sim/ai/pursueManeuvers.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -2343,14 +2343,14 @@ describe('low yo-yo', () => {
 })
 ```
 
-- [ ] **Step 4: Run the tests to verify they fail.**
+- [x] **Step 4: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/maneuvers.test.ts tests/sim/ai/pursueManeuvers.test.ts --maxWorkers=2`
 Expected: FAIL. TypeScript rejects `'high-yo-yo'` as a `ManeuverName`, and the selector returns only the defaults.
 
-- [ ] **Step 5: Names and repertoire.** In `pilot.ts`, extend `ManeuverName` with `| 'lag-pursuit' | 'high-yo-yo' | 'low-yo-yo'`. Add `'lag-pursuit': 'pursue', 'high-yo-yo': 'pursue', 'low-yo-yo': 'pursue'` to `INTENT_OF`. Set `GREEN_SKILL.repertoire = ['lead-pursuit', 'lag-pursuit', 'defensive-break', 'extend']` (Mark, 2026-09-25: green never goes vertical). Add all three to `VETERAN_SKILL.repertoire`.
+- [x] **Step 5: Names and repertoire.** In `pilot.ts`, extend `ManeuverName` with `| 'lag-pursuit' | 'high-yo-yo' | 'low-yo-yo'`. Add `'lag-pursuit': 'pursue', 'high-yo-yo': 'pursue', 'low-yo-yo': 'pursue'` to `INTENT_OF`. Set `GREEN_SKILL.repertoire = ['lead-pursuit', 'lag-pursuit', 'defensive-break', 'extend']` (Mark, 2026-09-25: green never goes vertical). Add all three to `VETERAN_SKILL.repertoire`.
 
-- [ ] **Step 6: Selection.** In `maneuvers.ts`, remove `void repertoire`, and add:
+- [x] **Step 6: Selection.** In `maneuvers.ts`, remove `void repertoire`, and add:
 
 ```ts
 /** Tuning values from spec §3.5's table; measured in the Task 8 signature
@@ -2380,7 +2380,7 @@ Import `FLOOR_M` from `./safety.js`. Replace `selectManeuver`'s body with:
 
 Set `PHASED` to `new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo'])`. Lag pursuit is latched per ruling R12.
 
-- [ ] **Step 7: The flights.** In `maneuverFlight.ts`, add the imports `add`, `dot`, `normalize`, `scale` and `v3` from `../math/vec3.js`, and `controlsForLiftVector` from `./liftVector.js`. Add:
+- [x] **Step 7: The flights.** In `maneuverFlight.ts`, add the imports `add`, `dot`, `normalize`, `scale` and `v3` from `../math/vec3.js`, and `controlsForLiftVector` from `./liftVector.js`. Add:
 
 ```ts
 const UP = v3(0, 1, 0)
@@ -2454,19 +2454,19 @@ In `flyManeuver`, add these cases. A latched maneuver always has its latch, and 
 
 `pilotTick` guarantees the invariant, because `openLatch` runs whenever `isPhased(named)`. If the repo's lint rules forbid the non-null assertion, guard instead with `if (decision.latch === null) return { controls: leadPursuitControls(self, perceived), latch: null }` above the switch, for the phased names only.
 
-- [ ] **Step 8: Run the tests, and measure.**
+- [x] **Step 8: Run the tests, and measure.**
 
 Run: `npx vitest run tests/sim/ai/maneuvers.test.ts tests/sim/ai/pursueManeuvers.test.ts --maxWorkers=2`
 Expected: PASS. Log each signature's numbers (entry and exit closure, climb, dip), then write them into each `it`'s comment with today's date, and remove the log.
 
 If a test fails on selection, follow `overshootWorld`'s comment: move the start geometry and record the move in the ledger. If it fails on the signature, the flight is wrong. Fix the flight function, and only change its tuning constant with a measured reason in the constant's comment.
 
-- [ ] **Step 9: The regression gate.**
+- [x] **Step 9: The regression gate.**
 
 Run: `npx vitest run tests/render/aiLethality.test.ts tests/render/aiSafety.test.ts tests/render/aiReengage.test.ts tests/sim/pursuitMerge.test.ts tests/sim/zeroMerge.test.ts tests/sim/scenario.test.ts tests/sim/entities.test.ts --maxWorkers=2`
 Expected: PASS. Green now flies lag pursuit in the 7d evasion, which is a turning target. Item 3's time-behind and the soak's peaks may move. Record the new values, and stop and report if a gate goes red.
 
-- [ ] **Step 10: Verify and commit.**
+- [x] **Step 10: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0

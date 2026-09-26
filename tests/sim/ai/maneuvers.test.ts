@@ -70,3 +70,33 @@ describe('the phase latch', () => {
     expect(out.pilot!.decision.maneuver).toBe('extend')
   })
 })
+
+describe('Pursue family selection (Task 8)', () => {
+  const base = factsFor('pursue')
+  const turning = { ...base, targetTurnRateRadPerS: 0.2 }
+  const overshoot = { ...turning, closureMps: 60, facts: { ...base.facts, rangeM: 400 } }
+
+  it('overshoot risk with an energy margin: high yo-yo if in the repertoire, else lag', () => {
+    expect(selectManeuver({ ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: 100 } }, VETERAN_SKILL.repertoire)).toBe('high-yo-yo')
+    expect(selectManeuver({ ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: 100 } }, GREEN_SKILL.repertoire)).toBe('lag-pursuit')
+  })
+
+  it('overshoot risk with no energy margin: lag', () => {
+    expect(selectManeuver({ ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: -100 } }, VETERAN_SKILL.repertoire)).toBe('lag-pursuit')
+  })
+
+  it('no overshoot unless the target is turning', () => {
+    expect(selectManeuver({ ...overshoot, targetTurnRateRadPerS: 0 }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('falling behind a turning target, with height to spare: low yo-yo; without the height: lead', () => {
+    const behind = { ...turning, closureMps: -10, facts: { ...base.facts, rangeM: 700 } }
+    expect(selectManeuver({ ...behind, heightAboveGroundM: 3000 }, VETERAN_SKILL.repertoire)).toBe('low-yo-yo')
+    expect(selectManeuver({ ...behind, heightAboveGroundM: 700 }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver({ ...behind, heightAboveGroundM: 3000 }, GREEN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('all three are phased', () => {
+    for (const n of ['lag-pursuit', 'high-yo-yo', 'low-yo-yo'] as const) expect(isPhased(n)).toBe(true)
+  })
+})
