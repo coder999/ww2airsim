@@ -87,7 +87,7 @@ describe('the 7d bar: a scripted evasion gets behind a green pursuer (item 3)', 
       })
       expect(m.behindS, `${loadout}, cursor ${cursor}: never behind`).not.toBeNull()
       expect(m.destroyed, `${loadout}, cursor ${cursor}: pursuer destroyed`).toBe(false)
-      expect(m.structure).toBeGreaterThan(0)
+      expect(m.structure, `${loadout}, cursor ${cursor}: pursuer structure`).toBeGreaterThan(0)
     }
   })
 })

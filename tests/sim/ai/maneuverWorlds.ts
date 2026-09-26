@@ -8,6 +8,7 @@ import { controlsForDesiredVelocity } from '../../../src/sim/ai/controller.js'
 import { controlsForLiftVector } from '../../../src/sim/ai/liftVector.js'
 import { closureRateMps, pursuitDesiredVelocity, type PilotAssignment } from '../../../src/sim/ai/pursuit.js'
 import { VETERAN_SKILL, initialDecision, type ManeuverName, type PilotSkill } from '../../../src/sim/ai/pilot.js'
+import { heightAt, type TerrainField } from '../../../src/sim/world/terrain.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 /**
@@ -41,6 +42,20 @@ export const levelTurn = (n: number, side: 1 | -1): ScriptedFlight => (a) => {
   const right = normalize(cross(a.state.velocity, v3(0, 1, 0)))
   const lift = add(v3(0, 1, 0), scale(right, side * Math.sqrt(Math.max(0, n * n - 1))))
   return controlsForLiftVector(a.state, a.spec, lift, n, 1)
+}
+
+/** A target that holds `heightM` above the highest ground on its straight +x
+ *  track over the next `lookaheadS`, flying at `speedMps`, so it climbs
+ *  before rising ground rather than into it (7c Task 15's low chase). With `terrain` null
+ *  the ground is the sea. A scripted player: `level()` alone, hands-off, sinks
+ *  (a Hellcat from 150 m reaches -52 m in 90 s, measured 2026-09-26). */
+export const holdHeight = (heightM: number, terrain: TerrainField | null = null, lookaheadS = 6, speedMps = 110): ScriptedFlight => (a) => {
+  const p = a.state.position
+  let ground = 0
+  for (let s = 0; s <= lookaheadS && terrain !== null; s += 2) ground = Math.max(ground, heightAt(terrain, p.x + speedMps * s, p.z))
+  const vy = Math.min(15, Math.max(-8, ground + heightM - p.y))
+  const c = controlsForDesiredVelocity(a.state, a.spec, v3(Math.sqrt(speedMps * speedMps - vy * vy), vy, 0))
+  return vy > 2 ? { ...c, throttle: 1 } : c
 }
 
 /** Lead pursuit of `targetId`, never firing: a scripted attacker. */

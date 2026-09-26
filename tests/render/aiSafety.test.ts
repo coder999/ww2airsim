@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { EVASION, LOADOUTS, aircraftOf, flyFrames, passive, replicaWorld } from '../../tools/ai/replica.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
-import { FLOOR_M } from '../../src/sim/ai/safety.js'
+import { FLOOR_M, PURSUIT_FLOOR_M } from '../../src/sim/ai/safety.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { advance, createWorldOf, type AircraftEntity } from '../../src/sim/loop.js'
@@ -11,6 +11,11 @@ import { dot, scale, sub, v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const PURSUER = 'pursuer-1'
+/** Below PURSUIT_FLOOR_M the soak may dip while the recovery takes hold.
+ *  Measured 2026-09-26: 0 needed (lowest 15.37 m against 15.24). */
+const SOAK_OVERSHOOT_M = 0
+/** The same for the low-target dive below: 0 needed (lowest 281.6 m). */
+const DIVE_OVERSHOOT_M = 0
 const G = 9.80665
 /** Load along body-up from two consecutive tick states: negative means the
  *  wing is pushing, and a float-carburetted engine is starving. */
@@ -27,13 +32,26 @@ describe('the safety soak: 120 s of the 7d evasion, both skills (7c spec §3.6)'
   // 6.85-6.86 g (veteran); lowest 354.8-361.6 m; the floor acted on
   // 3,031-3,215 ticks per run. At HEAD the pursuer overloaded
   // itself to destruction (ticks 2135-2695) and followed the player to -2,842 m.
+  //
+  // Restated 2026-09-26 (7c Task 15): Mark's decision that day, "ai chases
+  // you unless under 50 *feet*", lowers the floor during pursuit to follow
+  // the target down to PURSUIT_FLOOR_M, and the controller ruled this gate
+  // be restated to it (Task 15 ruling, option 1). The player here dives
+  // through the sea (no terrain, so no impact is recorded) to -12,411 to
+  // -13,347 m, passing 400 m at 24.8-25.8 s, so the pursuer now holds at its
+  // 50 ft floor instead of FLOOR_M. Measured 2026-09-26: lowest 15.37-15.47 m
+  // in all 8, never into the sea; structure 1.000 in all 8; the floor acted
+  // on 2,649-3,044 ticks per run (`.superpowers/7c/t15-soak.ts`). With the floor
+  // alone, before the acceleration term in `needsFloorRecovery`, all 8 went
+  // into the sea (-14.6 to -22.7 m).
   for (const [name, skill] of [['green', GREEN_SKILL], ['veteran', VETERAN_SKILL]] as const) {
-    it.each(LOADOUTS)(`${name}, %s: no overload damage, never below FLOOR_M, peak load within gLimit`, (loadout) => {
-      const m = { peakG: 0, lowest: Infinity, recovered: 0 }
+    it.each(LOADOUTS)(`${name}, %s: no overload damage, never below the 50 ft pursuit floor or into the sea, peak load within gLimit`, (loadout) => {
+      const m = { peakG: 0, lowest: Infinity, recovered: 0, impacted: false }
       const tailChase = loadFixtureScenarioBundle('pursuit-tail-chase')
       const f = flyFrames(replicaWorld(tailChase, loadout, 0, skill), EVASION, 120, (fr) => {
         const p = aircraftOf(fr, PURSUER)
         const rec = fr.world.combat.aircraft[PURSUER]!
+        if (p.impact !== null) m.impacted = true
         if (p.impact === null && rec.damage.destroyedAt === null) {
           m.peakG = Math.max(m.peakG, rec.stress.loadFactorG)
           m.lowest = Math.min(m.lowest, p.state.position.y)
@@ -43,7 +61,9 @@ describe('the safety soak: 120 s of the 7d evasion, both skills (7c spec §3.6)'
       })
       const rec = f.world.combat.aircraft[PURSUER]!
       expect(rec.damage.structure, `${name} ${loadout}`).toBe(1) // the player never fires, so any loss is self-inflicted
-      expect(m.lowest).toBeGreaterThanOrEqual(FLOOR_M)
+      // Restated per Mark's 2026-09-26 decision (Task 15 ruling): was FLOOR_M.
+      expect(m.lowest, `${name} ${loadout}: lowest`).toBeGreaterThanOrEqual(PURSUIT_FLOOR_M - SOAK_OVERSHOOT_M)
+      expect(m.impacted, `${name} ${loadout}: impact`).toBe(false)
       expect(m.peakG).toBeLessThanOrEqual(aircraftOf(f, PURSUER).spec.limits.gLimit)
       expect(m.recovered, 'the floor never had to act, so this soak proved nothing about it').toBeGreaterThan(0)
     })
@@ -83,19 +103,15 @@ describe('an AI Zero never cuts its own engine (Review Focus 1)', () => {
 })
 
 describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)', () => {
-  // Entry: a 60° dive at 150 m/s from 2,500 m after a target flying level at
-  // 300 m, 1 km ahead. The plan's first geometry (target at 500 m, 2.5 km
-  // ahead) is a shallow line the Zero pulls out of unaided (lowest 772 m,
-  // 2.95 g), so the guard never acted and the test proved nothing about it.
-  // Measured 2026-09-25 with this entry: the floor held the stick for 197
-  // ticks and the overspeed pull-out for 53, top speed 158.4 m/s against a
-  // 166.67 m/s dive limit, lowest 415 m, peak 3.05 g, structure 1.000.
-  it('pursuing a low target from a 60° dive at 150 m/s', () => {
-    const zero = loadAircraftSpec('a6m2-zero')
-    const f6f = loadAircraftSpec('f6f-hellcat')
+  type Dive = { lowest: number; peakG: number; guarded: number; targetLowest: number; structure: number; impacted: boolean }
+  const zero = loadAircraftSpec('a6m2-zero')
+  const f6f = loadAircraftSpec('f6f-hellcat')
+  /** A veteran Zero entering a 60° dive at 150 m/s from 2,500 m, after a
+   *  hands-off Hellcat flying at `targetY`, `targetX` ahead. 30 s. */
+  function dive(targetX: number, targetY: number): Dive {
     const pitch = -60 * Math.PI / 180
     const zs = createState({ position: v3(0, 2500, 0), velocity: v3(150 * Math.cos(pitch), 150 * Math.sin(pitch), 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitch) })
-    const ts = createState({ position: v3(1000, 300, 0), velocity: v3(120, 0, 0) })
+    const ts = createState({ position: v3(targetX, targetY, 0), velocity: v3(120, 0, 0) })
     const pilotZero: AircraftEntity<undefined> = {
       id: 'z', spec: zero, state: zs, previous: zs, controls: { roll: 0, pitch: 0, yaw: 0, throttle: 1 },
       assistMemory: undefined, impact: null, parked: false,
@@ -106,17 +122,54 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
       assistMemory: undefined, impact: null, parked: false,
     }
     let w = createWorldOf({ aircraft: [pilotZero, target], player: 't' })
-    const m = { lowest: Infinity, peakG: 0, guarded: 0 }
+    const m = { lowest: Infinity, peakG: 0, guarded: 0, targetLowest: Infinity, impacted: false }
     for (let i = 0; i < 30 * 60; i++) {
       w = advance(w, DT).world
       const z = w.aircraft.find((a) => a.id === 'z')!
       m.lowest = Math.min(m.lowest, z.state.position.y)
+      m.targetLowest = Math.min(m.targetLowest, w.aircraft.find((a) => a.id === 't')!.state.position.y)
       m.peakG = Math.max(m.peakG, w.combat.aircraft['z']!.stress.loadFactorG)
       if (z.pilot!.decision.safety !== 'none') m.guarded++
+      if (z.impact !== null) m.impacted = true
     }
-    expect(w.combat.aircraft['z']!.damage.structure).toBe(1)
+    return { ...m, structure: w.combat.aircraft['z']!.damage.structure }
+  }
+
+  // The plan's first geometry (target at 500 m, 2.5 km ahead) is a shallow
+  // line the Zero pulls out of unaided (lowest 772 m, 2.95 g), so the guard
+  // never acted and the test proved nothing about it.
+  //
+  // Moved 2026-09-26 (7c Task 15): the target was at 300 m, 1 km ahead. Since
+  // Mark's 50 ft decision a target that low lowers the pursuit floor, so this
+  // case would no longer test FLOOR_M; it is the sibling below. The target
+  // now starts at 550 m, 200 m ahead, and sinks no lower than 488.9 m, so
+  // the floor stays FLOOR_M throughout (it follows only a target under
+  // 425 m). Measured 2026-09-26: the floor held the stick for 134 ticks and
+  // the overspeed pull-out for 228, top speed 160.1 m/s against a 166.67 m/s
+  // dive limit, lowest 474.3 m, peak 3.20 g, structure 1.000. (Targets at
+  // 550-700 m, 400-1,000 m ahead, never needed the floor: the lead pursuit
+  // shallows the dive on its own.) The old geometry measured 2026-09-25:
+  // floor 197 ticks, overspeed 53, top speed 158.4 m/s, lowest 415 m, peak
+  // 3.05 g, structure 1.000.
+  it('pursuing a target at 550 m from a 60° dive at 150 m/s (the §3.2 floor, FLOOR_M)', () => {
+    const m = dive(200, 550)
+    expect(m.targetLowest, 'the target must stay above the pursuit floor\'s reach').toBeGreaterThan(FLOOR_M + 125)
+    expect(m.structure).toBe(1)
     expect(m.lowest).toBeGreaterThanOrEqual(FLOOR_M)
     expect(m.peakG).toBeLessThanOrEqual(zero.limits.gLimit)
     expect(m.guarded).toBeGreaterThan(0)
+  })
+
+  // The sibling (7c Task 15): the old geometry, a target at 300 m, 1 km
+  // ahead, sinking hands-off to 241.1 m. Under Mark's 2026-09-26 decision the
+  // floor follows it down, so FLOOR_M no longer applies. Measured 2026-09-26:
+  // lowest 281.6 m, the overspeed pull-out for 54 ticks, the floor 0, peak
+  // 3.05 g, top speed 158.5 m/s, structure 1.000.
+  it('pursuing a low target (300 m) from the same dive: no breakup, never below 50 ft, never into the sea', () => {
+    const m = dive(1000, 300)
+    expect(m.structure).toBe(1)
+    expect(m.lowest).toBeGreaterThanOrEqual(PURSUIT_FLOOR_M - DIVE_OVERSHOOT_M)
+    expect(m.impacted).toBe(false)
+    expect(m.peakG).toBeLessThanOrEqual(zero.limits.gLimit)
   })
 })

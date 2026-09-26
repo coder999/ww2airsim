@@ -3,7 +3,7 @@ import type { AircraftState, Controls } from '../flight/state.js'
 import type { AircraftEntity } from '../loop.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
-import { airVelocity } from '../flight/model.js'
+import { DT, airVelocity } from '../flight/model.js'
 import { groundUnder } from '../world/ground.js'
 import { SEA_LEVEL_M } from '../world/terrain.js'
 import { length, v3, type Vec3 } from '../math/vec3.js'
@@ -34,6 +34,24 @@ export const FLOOR_TIME_S = 4
  *  542 m. Without the guard: structure 0. */
 export const OVERSPEED_THROTTLE_CUT = 0.9
 export const OVERSPEED_RECOVER = 0.95
+/** Mark's decision, 2026-09-26: "ai chases you unless under 50 *feet*. 500
+ *  meters is still pretty high". 50 ft above the ground under the AI. While
+ *  the intent is Pursue, the floor follows the target down to this and no
+ *  lower (`floorTriggerM`). Mark chose it: it is not a tuning value. */
+export const PURSUIT_FLOOR_M = 50 * 0.3048
+/** How far below the pursued target's height the pursuit floor sits. A
+ *  tuning value, swept 2026-09-26 (7c Task 15) in tests/sim/ai/lowChase.test.ts's
+ *  sea worlds (targets holding 150, 60, 20 m; F6F and Zero, green and
+ *  veteran, 4 cursors, 90 s), floor alone:
+ *  - 0 (floor at the target's height): the veteran F6F rides the floor above
+ *    the target and scores 0 hits at 150, 60 and 20 m in all 4 cursors while
+ *    firing 552-1,302 rounds.
+ *  - 10 and 25: every F6F run kills (12 hits) at 150 and 60 m; 25 also hits
+ *    in every F6F run at 20 m (4-12). Lowest points about 5 m under the target.
+ *  - 50, 100, 1,000: the same hits with deeper dips (veteran F6F, cursor
+ *    7919, to 15.06 m chasing a 60 m target; 51-99 m chasing a 150 m one).
+ *  25 is kept. */
+export const PURSUIT_FLOOR_BELOW_TARGET_M = 25
 
 const UP = v3(0, 1, 0)
 
@@ -64,19 +82,60 @@ export function limitLoadFactor(state: AircraftState, spec: AircraftSpec, contro
 /** Height above what is under the aircraft: a deck, the terrain, or sea
  *  level where terrain is null (spec §3.2). */
 export function heightAboveGround(state: AircraftState, terrain: TerrainField | null, decks: readonly Deck[]): number {
-  const under = groundUnder(terrain, decks, state.position.x, state.position.z)
-  return state.position.y - (under?.heightM ?? SEA_LEVEL_M)
+  return heightAboveGroundAt(state.position, terrain, decks)
 }
 
-/** Below FLOOR_M + FLOOR_BUFFER_M, or within FLOOR_TIME_S of reaching it at
- *  the current sink rate. Stateless: it clears itself once the aircraft is
- *  above that height and no longer descending. */
-export function needsFloorRecovery(state: AircraftState, terrain: TerrainField | null, decks: readonly Deck[]): boolean {
-  const trigger = FLOOR_M + FLOOR_BUFFER_M
+/** Height of a point above what is under it; `heightAboveGround` for a
+ *  position alone (the pursued target as the pilot last perceived it). */
+export function heightAboveGroundAt(position: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): number {
+  const under = groundUnder(terrain, decks, position.x, position.z)
+  return position.y - (under?.heightM ?? SEA_LEVEL_M)
+}
+
+/** The height above the ground at which the floor recovery starts.
+ *  `pursuedTargetHeightM` is the pursued target's height above its own
+ *  ground, or null for every intent but Pursue. Without one it is today's
+ *  FLOOR_M + FLOOR_BUFFER_M. With one it follows the target down
+ *  (PURSUIT_FLOOR_BELOW_TARGET_M under it) and stops at PURSUIT_FLOOR_M,
+ *  Mark's 50 ft: a target lower than that is not chased lower. It never
+ *  rises above today's trigger, so a pursuit of a high target is exactly
+ *  what it was. */
+export function floorTriggerM(pursuedTargetHeightM: number | null): number {
+  const today = FLOOR_M + FLOOR_BUFFER_M
+  if (pursuedTargetHeightM === null) return today
+  return Math.min(today, Math.max(PURSUIT_FLOOR_M, pursuedTargetHeightM - PURSUIT_FLOOR_BELOW_TARGET_M))
+}
+
+/** Below `triggerM` (by default FLOOR_M + FLOOR_BUFFER_M), or within
+ *  FLOOR_TIME_S of reaching it at the current sink rate. Stateless: it
+ *  clears itself once the aircraft is above that height and no longer
+ *  descending.
+ *
+ *  Below today's trigger only (the pursuit floor), it also projects the
+ *  current downward acceleration `verticalAccelMps2` over FLOOR_TIME_S:
+ *  h + vy·T + ½·a·T² under the trigger. Found and measured 2026-09-26 (7c
+ *  Task 15) in aiSafety's soak, whose player dives through the sea: the
+ *  pursuer tops a loop at 139.6 m inverted, pulling about 3 g toward the
+ *  target below. The sink-rate check cannot fire on an aircraft climbing or
+ *  level, so the recovery began at 127.2 m, vy -31 m/s, still inverted; it
+ *  rolled upright for about 1.3 s and bottomed at -22.7 m. With the floor
+ *  alone all 8 soak runs went into the sea (-14.6 to -22.7 m); with this
+ *  term all 8 hold 15.37-15.47 m, and the 80 low-chase runs' lowest point
+ *  rises from 15.81 to 17.1 m, 0 crashes either way. Its cost: a veteran
+ *  F6F chasing a target at 20 m holds about 25 m and scores 0 hits (4-12
+ *  without it). Today's floor is unchanged, so no other intent sees it. */
+export function needsFloorRecovery(
+  state: AircraftState, terrain: TerrainField | null, decks: readonly Deck[], triggerM: number = floorTriggerM(null),
+  verticalAccelMps2 = 0,
+): boolean {
+  const trigger = triggerM
   const h = heightAboveGround(state, terrain, decks)
   if (h < trigger) return true
   const vy = state.velocity.y
-  return vy < 0 && (h - trigger) / -vy < FLOOR_TIME_S
+  if (vy < 0 && (h - trigger) / -vy < FLOOR_TIME_S) return true
+  if (triggerM >= floorTriggerM(null) || verticalAccelMps2 >= 0) return false
+  const t = FLOOR_TIME_S
+  return h + vy * t + 0.5 * verticalAccelMps2 * t * t < trigger
 }
 
 export type SafetyOverride = { readonly mode: 'recover' | 'overspeed'; readonly controls: Controls }
@@ -86,9 +145,13 @@ export type SafetyOverride = { readonly mode: 'recover' | 'overspeed'; readonly 
  *  Never fires. */
 export function safetyOverride<M>(
   self: AircraftEntity<M>, terrain: TerrainField | null, decks: readonly Deck[], wind: Vec3 | null,
+  floorM: number = floorTriggerM(null),
 ): SafetyOverride | null {
   const n = loadFactorBudget(self.spec)
-  if (needsFloorRecovery(self.state, terrain, decks)) {
+  // The vertical acceleration over the last tick; 0 on a world's first tick
+  // (or after a `withState` reset), when `previous` is the state itself.
+  const ay = self.previous.tick === self.state.tick - 1 ? (self.state.velocity.y - self.previous.velocity.y) / DT : 0
+  if (needsFloorRecovery(self.state, terrain, decks, floorM, ay)) {
     return { mode: 'recover', controls: controlsForLiftVector(self.state, self.spec, UP, n, 1) }
   }
   const airspeed = length(airVelocity(self.state, wind))

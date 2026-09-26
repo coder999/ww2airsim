@@ -6,7 +6,7 @@ import type { Vec3 } from '../math/vec3.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER } from './pilot.js'
-import { finishControls, heightAboveGround, safetyOverride } from './safety.js'
+import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -66,7 +66,12 @@ export function pilotTick<M>(
   }
   // 7c spec §3.2: the envelope is checked every tick, after the rescore, and
   // outranks any maneuver. It never changes the 7b intent (ruling R11).
-  const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind)
+  // While the intent is Pursue, the floor follows the target, as perceived at
+  // the last rescore, down to 50 ft (Mark, 2026-09-26; `floorTriggerM`).
+  // Every other intent keeps FLOOR_M.
+  const pursuedHeightM = decision.maneuver === 'pursue'
+    ? heightAboveGroundAt(decision.observedTargetPosition, ctx.terrain, ctx.decks) : null
+  const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind, floorTriggerM(pursuedHeightM))
   if (override !== null) {
     const { controls, cursor } = finishControls(a, override.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
     return {

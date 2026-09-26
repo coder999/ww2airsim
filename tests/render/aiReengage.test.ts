@@ -27,9 +27,10 @@ import { VETERAN_SKILL, type PilotSkill } from '../../src/sim/ai/pilot.js'
  *   zero-merge (AI Zero)      106.9-125.2 / 86.7-100.3
  *
  * 7c Task 14 (Mark, 2026-09-26): green lost lag pursuit, and the Zero's
- * content excludes the Immelmann. Every first-shot and first-hit figure above
- * is unchanged by either, to 0.1 s (.superpowers/7c/t14re.ts): none of these
- * runs flew a lag-pursuit or Immelmann tick before.
+ * content excludes the Immelmann. Every first-shot figure above is unchanged
+ * by either, to 0.1 s (.superpowers/7c/t14re.ts): none of these runs flew a
+ * lag-pursuit or Immelmann tick before. The first-hit figures were first
+ * measured after Task 14; no earlier first-hit baseline was recorded.
  *
  * The last row, zero-merge flown as a veteran, is the one the Zero's
  * exclusion fixes. With the Immelmann (final review, 2026-09-26) the clean
