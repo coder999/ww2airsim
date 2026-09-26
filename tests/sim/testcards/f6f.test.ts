@@ -228,8 +228,9 @@ describe('F6F-5 flight test card', () => {
   // 4% is the re-measured tolerance: 1.5x headroom over the measured 2.590%.
   // Tighter than the 10% this replaced two days ago and looser than the 2% it
   // replaces today, for a model that now measures the right configuration.
+  // Non-null: optional since Z2 (the A6M has no sourced figure); schema.test.ts pins that the F6F still carries 230.124 m.
   it('rolls to its documented full-flaps take-off distance, flown as the trial was: full flaps', () => {
-    const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS, 1), ref.takeoffDistanceM, 0.04)
+    const r = within(measureTakeoffRun(f6f, TAKEOFF_SPEED_MPS, 1), ref.takeoffDistanceM!, 0.04)
     expect(r.pass, `takeoff roll ${r.actual.toFixed(1)} m vs reference ${r.expected} (${(r.err * 100).toFixed(1)}% off)`).toBe(true)
   })
 

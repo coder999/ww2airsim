@@ -18,6 +18,14 @@ import { CombatSpecSchema } from '../weapons/schema.js'
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
 const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
 const fraction = finite.refine((n) => n > 0 && n <= 1, { message: 'must be in (0, 1]' })
+/** `[altitudeM, value]` rows copied from a trial table: altitude at or above
+ *  sea level and strictly increasing, value positive. */
+const altitudeTable = z
+  .array(z.tuple([finite.refine((n) => n >= 0, { message: 'altitude must be at or above sea level' }), positive]))
+  .min(1)
+  .refine((rows) => rows.every((r, i) => i === 0 || r[0] > rows[i - 1]![0]), {
+    message: 'altitudes must strictly increase',
+  })
 
 /**
  * One carriable store -- a bomb or a rocket -- as content, mirroring
@@ -367,10 +375,19 @@ const AircraftSpecObject = z.object({
     stallSpeedFlapMps: positive,
     rollRateDegPerSec: positive,
     /** Ground-roll distance the cited trial measured for take-off, metres.
-     *  The model has no flaps, no rolling friction and no ground effect, so
-     *  the card grading this is expected to run a bit short of the trial
-     *  figure -- see the tolerance comment on that card in f6f.test.ts. */
-    takeoffDistanceM: positive,
+     *  OPTIONAL since the A6M plan (Z2, 2026-09-25): the Zero's primary
+     *  sources say only "Take-off is very rapid", so it carries no figure and
+     *  gets a direction card against the F6F instead. The F6F keeps its
+     *  sourced value and its card; see the tolerance comment on that card in
+     *  f6f.test.ts. */
+    takeoffDistanceM: positive.optional(),
+    /** Level top speed, m/s, at further altitudes from the SAME trial table
+     *  as `topSpeedMps`. Graded by that aircraft's own card file. Optional:
+     *  the F6F's Patuxent table is graded at its critical altitude only. */
+    topSpeedByAltitudeM: altitudeTable.optional(),
+    /** Rate of climb, m/s, at further altitudes from the same trial table as
+     *  `climbRateMps`. Optional, for the same reason. */
+    climbRateByAltitudeM: altitudeTable.optional(),
   }).strict(),
   /** Render-only data. `sim/` never reads this; it lives here because it is
    *  per-aircraft content and a second content file for one field would be
