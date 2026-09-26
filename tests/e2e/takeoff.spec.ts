@@ -73,7 +73,7 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   expect(Math.hypot(start.x - TACLOBAN_RUNWAY_CENTRE.x, start.z - TACLOBAN_RUNWAY_CENTRE.z)).toBeLessThan(1)
 
   // Phase 1: full throttle, no pitch input, until it has rolled far enough to
-  // rotate. `ShiftLeft` integrates the throttle and holds it after release
+  // rotate. `Equal` integrates the throttle and holds it after release
   // (`controlsFromKeys`, src/input/keyboard.ts), so it stays down for the
   // whole flight from here.
   await page.keyboard.down('Equal')

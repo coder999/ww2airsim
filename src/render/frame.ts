@@ -12,6 +12,7 @@ import type { TerrainField } from '../sim/world/terrain.js'
 import { buildStructures } from '../sim/weapons/structures.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
+import { autoPursuit } from '../sim/ai/autoPursuit.js'
 import {
   assistFor,
   DEFAULT_ASSIST_SETTINGS,
@@ -147,6 +148,12 @@ export type FrameState = {
   readonly dropBombPressed: boolean
   /** The rocket-fire key's twin of `dropBombPressed`. */
   readonly fireRocketsPressed: boolean
+  /** The pursuit autopilot (src/sim/ai/autoPursuit.ts): `null` while its key
+   *  is up or it cannot engage (on the ground, paused); otherwise what it is
+   *  steering at, where `target: null` means no enemy qualifies and it is
+   *  holding a level heading. Held, not a lever: nothing here carries it into
+   *  the next frame, it is recomputed from the key every frame. */
+  readonly autopilot: { readonly target: string | null } | null
   /**
    * Whether the simulation is paused (Mark, 2026-09-17: "esc key pauses
    * game"). Applied the same way triple time is, to the frame delta: a paused
@@ -279,6 +286,7 @@ export function initialFrameStateFor(
     throttleCutPressed: false,
     dropBombPressed: false,
     fireRocketsPressed: false,
+    autopilot: null,
     paused: false,
     pausePressed: false,
     landing: NO_LANDING,
@@ -485,8 +493,19 @@ export function nextFrameState(
   // frame's `prev.controls.throttle` is then 0, the ramp continues from
   // there. Edge-triggered so a held key cannot pin the throttle shut.
   const throttleCutDown = BINDINGS.throttleCut.some((c) => pressed.has(c))
-  const controlsAxes =
+  const cutAxes =
     throttleCutDown && !prev.throttleCutPressed ? { ...ramped, throttle: 0 } : ramped
+  // The autopilot takes the stick -- roll, pitch, yaw -- and leaves throttle
+  // and trigger with the pilot. Read from `prev.world`, the state these
+  // controls will be applied to. Its output becomes `controls`, so on release
+  // the keyboard ramp continues from wherever it left the stick rather than
+  // snapping to centre.
+  const autopilotDown = BINDINGS.autopilot.some((c) => pressed.has(c))
+  const autopilotCommand = autopilotDown && !paused ? autoPursuit(prev.world) : null
+  const controlsAxes =
+    autopilotCommand === null
+      ? cutAxes
+      : { ...cutAxes, roll: autopilotCommand.roll, pitch: autopilotCommand.pitch, yaw: autopilotCommand.yaw }
 
   // Edge-triggered exactly like the camera cycle and the assist toggles
   // above: the gear is a lever that stays where it is left, not a switch
@@ -676,6 +695,7 @@ export function nextFrameState(
     throttleCutPressed: throttleCutDown,
     dropBombPressed: dropBombKeyDown,
     fireRocketsPressed: fireRocketsKeyDown,
+    autopilot: autopilotCommand === null ? null : { target: autopilotCommand.target },
     paused,
     pausePressed: pauseDown,
     landing,
