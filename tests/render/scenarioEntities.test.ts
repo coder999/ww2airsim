@@ -224,3 +224,11 @@ describe('buildScenarioEntities and the model cache (Z1)', () => {
     expect(cache.refCount(WILDCAT_MODEL_URL)).toBe(second.airframes.length)
   })
 })
+
+describe('per-spec model selection (Z1)', () => {
+  it("loads each aircraft by its own spec's view.model", async () => {
+    const asked: string[] = []
+    await buildScenarioEntities(new Scene(), deckQuals, null, async (id) => { asked.push(id); return createHellcat() })
+    expect(asked).toEqual(deckQuals.aircraft.map((a) => a.spec.view.model))
+  })
+})

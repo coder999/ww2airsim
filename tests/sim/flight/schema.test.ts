@@ -41,7 +41,7 @@ const valid = {
     climbRateMps: 17, stallSpeedMps: 38, stallSpeedFlapMps: 33, rollRateDegPerSec: 80,
     takeoffDistanceM: 230,
   },
-  view: { eyePointM: [1.2, 0.9, 0] },
+  view: { eyePointM: [1.2, 0.9, 0], model: 'wildcat' },
 }
 
 describe('AircraftSpec validation (spec §9)', () => {
@@ -56,8 +56,13 @@ describe('AircraftSpec validation (spec §9)', () => {
   })
 
   it('rejects an eye point that is not three finite numbers', () => {
-    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1] } })).toThrow(/eyePointM/)
-    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1, NaN] } })).toThrow(/eyePointM/)
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1], model: 'wildcat' } })).toThrow(/eyePointM/)
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [0, 1, NaN], model: 'wildcat' } })).toThrow(/eyePointM/)
+  })
+
+  it('requires view.model, a lowercase model id', () => {
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [1.2, 0.9, 0] } })).toThrow(/model/)
+    expect(() => parseAircraftSpec({ ...valid, view: { eyePointM: [1.2, 0.9, 0], model: 'Wildcat' } })).toThrow(/lowercase model id/)
   })
 
   it('rejects NaN rather than letting it reach the integrator', () => {

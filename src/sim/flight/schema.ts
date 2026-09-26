@@ -379,6 +379,12 @@ const AircraftSpecObject = z.object({
   view: z.object({
     /** Pilot's eye, metres in body frame: +X forward, +Y up, +Z right. */
     eyePointM: z.tuple([finite, finite, finite]),
+    /** Which 3D model draws this aircraft: a key of
+     *  `src/render/scene/airframes.ts`'s registry (A6M Zero spec §7.2).
+     *  Required, so a spec cannot silently render as some other airplane;
+     *  tests/render/airframes.test.ts checks every content file names a
+     *  registered id. */
+    model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase model id' }),
   }).strict(),
 }).strict()
 

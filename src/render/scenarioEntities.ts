@@ -1,7 +1,7 @@
 import type { Scene } from 'three'
 import { createShipMesh } from './scene/ship.js'
 import { createEngineSmoke } from './scene/smoke.js'
-import { loadWildcat } from './scene/wildcat.js'
+import { airframeFor } from './scene/airframes.js'
 import type { Airframe } from './scene/airframe.js'
 import { disposeMeshTree } from './models/dispose.js'
 import type { World } from '../sim/loop.js'
@@ -22,6 +22,12 @@ export interface ScenarioEntities {
   readonly smokes: readonly ReturnType<typeof createEngineSmoke>[]
   readonly player: Airframe
 }
+
+/** Builds the airframe a spec's `view.model` names. Injectable so tests
+ *  substitute a cheap synchronous stand-in and never run GLTFLoader in Node. */
+export type LoadAirframe = (modelId: string) => Promise<Airframe>
+
+export const loadRegisteredAirframe: LoadAirframe = (modelId) => airframeFor(modelId)()
 
 /**
  * Builds one airframe mesh per `world.aircraft` entry and one hull per
@@ -46,9 +52,9 @@ export async function buildScenarioEntities(
   previous: ScenarioEntities | null,
   // Defaulted for production; tests substitute a cheap synchronous stand-in
   // (createHellcat) so they never run a real GLTFLoader parse in Node.
-  loadAirframe: () => Promise<Airframe> = loadWildcat,
+  loadAirframe: LoadAirframe = loadRegisteredAirframe,
 ): Promise<ScenarioEntities> {
-  const settled = await Promise.allSettled(world.aircraft.map(() => loadAirframe()))
+  const settled = await Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model)))
   const failed = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed !== undefined) {
     for (const r of settled) if (r.status === 'fulfilled') r.value.dispose()
