@@ -192,6 +192,10 @@ export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z:
   return wind === null ? { x: 0, z: 0 } : { x: wind.x * seconds, z: wind.z * seconds }
 }
 
+/** A cloud density sampler: density in [0, 1] at a TRUE world point for one
+ *  layer, 0 outside its slab. */
+export type DensityFn = (p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>) => Node<'float'>
+
 export type CloudField = {
   readonly shape: Data3DTexture
   readonly detail: Data3DTexture
@@ -208,12 +212,31 @@ export type CloudField = {
   /** The sorted layers, for CPU-side questions (which is the lowest cumulus). */
   readonly layers: readonly CloudLayer[]
   /** Density in [0, 1] at a TRUE world point for one layer; 0 outside its slab. */
-  density(p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>): Node<'float'>
+  readonly density: DensityFn
   /** `density` without the cumulus detail erosion (one volume read fewer):
    *  the cheap sample for the cloud light march (photoreal Task 11), where
    *  the shadow a 5 m erosion texel casts is below what a 60 m+ light step
    *  resolves anyway (Schneider 2015 does the same). Cirrus is unchanged. */
-  densityCoarse(p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>): Node<'float'>
+  readonly densityCoarse: DensityFn
+  /**
+   * `density`/`densityCoarse` as laid-out TSL functions (loading spec §A.3):
+   * emitted once per shader as WGSL functions instead of inlined at every
+   * call site -- inlining more copies in the light march was the boot
+   * freeze (12 s when the spec measured it, 39 s after the stacked-lobe
+   * cumulus rewrite, 2026-09-26). Call it ONCE PER MATERIAL: each call
+   * returns a new pair, and a pair must never be shared across materials
+   * (three 0.186 caches a laid-out function's code by Fn identity with the
+   * first material's binding names).
+   *
+   * `fns` exposes the two underlying laid-out TSL `Fn` objects themselves
+   * (before `bind()` closes over them), for the per-material-identity test
+   * ONLY (tests/render/cloudField.test.ts) -- comparing the returned
+   * `density`/`densityCoarse` closures cannot catch a memoized/shared `Fn`
+   * because `bind()` allocates a fresh closure on every call regardless, so
+   * `a.density !== b.density` is true even if both wrapped the SAME `Fn`.
+   * Production code has no reason to touch `fns`.
+   */
+  laidOut(): { density: DensityFn; densityCoarse: DensityFn; fns: { readonly density: unknown; readonly densityCoarse: unknown } }
   /** Lowest cumulus layer's [base, top] in metres, or null when the deck has no cumulus. */
   lowestCumulus(): { baseM: number; topM: number } | null
   update(eye: Vec3, driftSeconds: number, wind: Vec3 | null): void
@@ -293,165 +316,198 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const drift = uniform(new Vector2())
 
   /** Density in [0, 1] at a world point for one layer; 0 outside the slab.
-   *  `detailed` false skips the detail erosion (`densityCoarse`). */
-  const makeDensity = (detailed: boolean) => Fn(([p, base, thickness, coverage, kind]: [Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>]) => {
-    const h = p.y.sub(base).div(thickness)
-    const inside = h.greaterThan(0).and(h.lessThan(1))
-    const d = float(0).toVar()
-    If(inside, () => {
-      const drifted = vec3(p.x.add(drift.x), p.y, p.z.add(drift.y))
-      // The committed volume spans 110..247 of 255 (the Perlin-Worley remap
-      // lifts the low end on purpose); stretched back to 0..1 here so
-      // `coverage` means the fraction of sky it names.
-      const stretch = (v: Node<'float'>): Node<'float'> => clamp(v.sub(SHAPE_MIN).div(SHAPE_MAX - SHAPE_MIN), 0, 1)
-      // Coverage thresholds the shape: what survives above 1 - coverage is
-      // cloud. `cov` is a parameter now (Plan 16d), not the closed-over
-      // layer scalar directly, so cumulus can pass a spatially-modulated
-      // value while cirrus keeps passing the plain layer scalar unchanged.
-      const threshold = (shapeValue: Node<'float'>, cov: Node<'float'>): Node<'float'> =>
-        clamp(shapeValue.sub(float(1).sub(cov)).div(max(cov, 0.001)), 0, 1)
-      // ONE branch samples, never both: a `mix` of the two kinds after
-      // sampling cost every cumulus step three volume reads instead of one
-      // (3.9 ms against the 2.5 ms budget, 2026-09-19).
-      If(kind.greaterThan(0.5), () => {
-        // Cirrus: the same volume stretched along the east axis over a tile
-        // three times wider, times a second coarser sample so the 1.5 km
-        // Worley cells cannot read as a grid from below. A thin band.
-        // Untouched by Plan 16d: no coverage modulation for cirrus (spec §1).
-        const streaks = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 9), 1 / SHAPE_TILE_M, 1 / (SHAPE_TILE_M * 3)))).r
-        const sheet = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 4), 1 / (SHAPE_TILE_M * 2), 1 / (SHAPE_TILE_M * 5))).add(0.37)).r
-        const gradient = smoothstep(0, 0.3, h).mul(smoothstep(1, 0.7, h))
-        d.assign(threshold(stretch(streaks.mul(0.6).add(sheet.mul(0.4))), coverage).mul(gradient).mul(0.6))
-      }).Else(() => {
-        // Cumulus: flat-bottomed, rounded on top, edges eroded by the detail
-        // volume, strongest near the base and the edge (Schneider 2015).
-        // Slowly warp the horizontal coordinates at two unequal scales:
-        // the same tiling shape volume must not line up in repeating distant rows.
-        const warped = vec3(
-          drifted.x.add(sin(drifted.z.div(7300).add(drifted.x.div(17000))).mul(1800)),
-          drifted.y,
-          drifted.z.add(sin(drifted.x.div(9100).sub(drifted.z.div(13000))).mul(1800)),
-        )
-        // Cloud Fidelity II §3.3: the weather map says which cloud this
-        // column belongs to. Sampled at the SAME warped XZ the shape volume
-        // uses (already wind-drifted), so a cloud's footprint never slides
-        // against its body (the rule Plan 16d's coverage field set).
-        // Nearest texel, addressed by index so its grid cell can be computed
-        // in the generator's exact integer arithmetic.
-        const tileXZ = fract(warped.xz.div(WEATHER_TILE_M)).mul(WEATHER_TILE_M).toVar()
-        const texelIdx = floor(tileXZ.div(WEATHER_TILE_M / WEATHER_SIZE)).toVar()
-        const weatherUv = texelIdx.add(0.5).div(WEATHER_SIZE).toVar()
-        // Coverage -> strength threshold, from the sky-fraction twin
-        // (skyCoverageTable), and the coverage-grown radius
-        // (coverageRadiusScale, repeated here).
-        const at = coverage.mul(COVERAGE_TABLE_SIZE - 1).toVar()
-        const k = min(at.floor(), float(COVERAGE_TABLE_SIZE - 2)).toVar()
-        const k0 = (thresholds.element(k.toInt()) as unknown as Node<'float'>).toVar()
-        const k1 = (thresholds.element(k.toInt().add(1)) as unknown as Node<'float'>).toVar()
-        const theta = mix(k0, k1, saturate(at.sub(k))).toVar()
-        const grow = float(1).add(smoothstep(0.2, 0.65, coverage).mul(0.5)).toVar()
-        const cellOrigin = floor(texelIdx.mul(2).add(1).mul(WEATHER_CELLS).div(2 * WEATHER_SIZE))
-          .sub(WEATHER_CELL_REACH).mul(WEATHER_CELL_M).toVar()
-        // One of the texel's two clouds (winner, runner-up). R is its
-        // strength; G/B its centre in 1/51-cell steps from the texel's grid
-        // cell minus WEATHER_CELL_REACH; A its radius. Every texel of a
-        // cloud decodes to the same centre, so the local position is
-        // continuous across texels (tools/sky/weather.ts). A runner-up of
-        // strength 0 is never alive.
-        const candidate = (wm: Node<'vec4'>) => {
-          const peak = wm.r
-          const centre = cellOrigin.add(floor(wm.gb.mul(255).add(0.5)).mul(WEATHER_CELL_M / WEATHER_FEATURE_STEPS))
-          const radius = mix(float(WEATHER_RADIUS_M[0]), float(WEATHER_RADIUS_M[1]), wm.a).mul(grow)
-          const local = tileXZ.sub(centre).div(radius)
-          const variant = saturate(sin(peak.mul(43.1).add(0.7)).mul(0.5).add(0.5)).toVar()
-          const hc = p.y.sub(base).div(thickness.mul(mix(float(0.42), float(1), variant))).toVar()
-          const alive = smoothstep(theta, theta.add(CLOUD_ALIVE_RAMP), peak).toVar()
-          // The baked stacked-lobe archetype in the cloud's own frame.
-          // Rotation and scale come from its strength, so neighbours do not
-          // present the same silhouette.
-          const scaleX = mix(float(0.78), float(1.18), saturate(sin(variant.mul(23.1)).mul(0.5).add(0.5)))
-          const scaleZ = mix(float(0.78), float(1.18), saturate(sin(variant.mul(17.7).add(1.9)).mul(0.5).add(0.5)))
-          const angle = variant.mul(19.73).add(peak.mul(7.1))
-          const ca = sin(angle.add(1.5707963267948966)), sa = sin(angle)
-          const lx = local.x.mul(ca).sub(local.y.mul(sa)).div(scaleX)
-          const lz = local.x.mul(sa).add(local.y.mul(ca)).div(scaleZ)
-          const uvw = vec3(lx.mul(0.5).add(0.5), hc, lz.mul(0.5).add(0.5))
-          const inVolume = uvw.x.greaterThan(0).and(uvw.x.lessThan(1))
-            .and(uvw.y.greaterThan(0)).and(uvw.y.lessThan(1))
-            .and(uvw.z.greaterThan(0)).and(uvw.z.lessThan(1))
-          const stored = float(0).toVar()
-          If(alive.greaterThan(0).and(inVolume), () => { stored.assign(texture3D(cumulus, uvw).r) })
-          return { stored, alive, hc, variant }
-        }
-        const first = candidate(texture(weatherMap, weatherUv))
-        let stored: Node<'float'> = first.stored, alive: Node<'float'> = first.alive
-        let hc: Node<'float'> = first.hc, type: Node<'float'> = first.variant
-        if (detailed) {
-          // The denser of the two draws this point: a cloud that grows past
-          // the texels it wins is not sliced off at its neighbour's
-          // boundary. The coarse density (the light march's, seven reads a
-          // step) keeps the winner only: a runner-up matters only at the
-          // seams, and there it would change a shadow, not a silhouette.
-          // Measured 2026-09-26 at 4K High in-deck: 32.5 ms p95 with both.
-          const second = candidate(texture(runnerMap, weatherUv))
-          const useSecond = second.stored.mul(second.alive).greaterThan(first.stored.mul(first.alive)).toVar()
-          stored = select(useSecond, second.stored, first.stored).toVar()
-          alive = select(useSecond, second.alive, first.alive).toVar()
-          hc = select(useSecond, second.hc, first.hc).toVar()
-          type = select(useSecond, second.variant, first.variant).toVar()
-        }
-        If(alive.greaterThan(0), () => {
-          // Where the archetype is empty there is no cloud: the shape noise
-          // only sculpts an existing body. Without this gate its +-0.065
-          // term filled every live cell's whole column with faint haze, and
-          // the shape volume was read there on every step.
-          If(stored.greaterThan(0), () => {
-            const morphologyP = warped.add(vec3(
-              sin(warped.z.div(4300).add(type.mul(5.7))).mul(hc).mul(260),
-              0,
-              sin(warped.x.div(5100).sub(type.mul(4.3))).mul(hc).mul(220),
-            ))
-            const shapeSample = texture3D(shape, morphologyP.div(SHAPE_TILE_M))
-            const shapeFbm = shapeSample.g.mul(0.625).add(shapeSample.b.mul(0.25)).add(shapeSample.a.mul(0.125))
-            const shapeValue = saturate(stretch(shapeSample.r).mul(mix(float(0.82), float(1.08), shapeFbm)))
-            const sculpted = stored.add(shapeValue.sub(0.5).mul(mix(float(0.05), float(0.13), smoothstep(0.05, 0.8, hc))))
+   *  `detailed` false skips the detail erosion (`densityCoarse`); `layout`
+   *  true makes it a laid-out WGSL function rather than inlined (`laidOut`).
+   *  The body reads no uniform: `drifted` and `theta` arrive as parameters
+   *  (`driftedOf`, `thetaFor`), because a laid-out Fn's code is cached with
+   *  the first material's uniform binding names. Textures are fine inside
+   *  it as long as the instance is per-material (verified 2026-09-25). */
+  const makeDensity = (detailed: boolean, layout: boolean) => {
+    const fn = Fn(([p, drifted, base, thickness, coverage, kind, theta]: [Node<'vec3'>, Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>]) => {
+      const h = p.y.sub(base).div(thickness)
+      const inside = h.greaterThan(0).and(h.lessThan(1))
+      const d = float(0).toVar()
+      If(inside, () => {
+        // The committed volume spans 110..247 of 255 (the Perlin-Worley remap
+        // lifts the low end on purpose); stretched back to 0..1 here so
+        // `coverage` means the fraction of sky it names.
+        const stretch = (v: Node<'float'>): Node<'float'> => clamp(v.sub(SHAPE_MIN).div(SHAPE_MAX - SHAPE_MIN), 0, 1)
+        // Coverage thresholds the shape: what survives above 1 - coverage is
+        // cloud. `cov` is a parameter now (Plan 16d), not the closed-over
+        // layer scalar directly, so cumulus can pass a spatially-modulated
+        // value while cirrus keeps passing the plain layer scalar unchanged.
+        const threshold = (shapeValue: Node<'float'>, cov: Node<'float'>): Node<'float'> =>
+          clamp(shapeValue.sub(float(1).sub(cov)).div(max(cov, 0.001)), 0, 1)
+        // ONE branch samples, never both: a `mix` of the two kinds after
+        // sampling cost every cumulus step three volume reads instead of one
+        // (3.9 ms against the 2.5 ms budget, 2026-09-19).
+        If(kind.greaterThan(0.5), () => {
+          // Cirrus: the same volume stretched along the east axis over a tile
+          // three times wider, times a second coarser sample so the 1.5 km
+          // Worley cells cannot read as a grid from below. A thin band.
+          // Untouched by Plan 16d: no coverage modulation for cirrus (spec §1).
+          const streaks = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 9), 1 / SHAPE_TILE_M, 1 / (SHAPE_TILE_M * 3)))).r
+          const sheet = texture3D(shape, drifted.mul(vec3(1 / (SHAPE_TILE_M * 4), 1 / (SHAPE_TILE_M * 2), 1 / (SHAPE_TILE_M * 5))).add(0.37)).r
+          const gradient = smoothstep(0, 0.3, h).mul(smoothstep(1, 0.7, h))
+          d.assign(threshold(stretch(streaks.mul(0.6).add(sheet.mul(0.4))), coverage).mul(gradient).mul(0.6))
+        }).Else(() => {
+          // Cumulus: flat-bottomed, rounded on top, edges eroded by the detail
+          // volume, strongest near the base and the edge (Schneider 2015).
+          // Slowly warp the horizontal coordinates at two unequal scales:
+          // the same tiling shape volume must not line up in repeating distant rows.
+          const warped = vec3(
+            drifted.x.add(sin(drifted.z.div(7300).add(drifted.x.div(17000))).mul(1800)),
+            drifted.y,
+            drifted.z.add(sin(drifted.x.div(9100).sub(drifted.z.div(13000))).mul(1800)),
+          )
+          // Cloud Fidelity II §3.3: the weather map says which cloud this
+          // column belongs to. Sampled at the SAME warped XZ the shape volume
+          // uses (already wind-drifted), so a cloud's footprint never slides
+          // against its body (the rule Plan 16d's coverage field set).
+          // Nearest texel, addressed by index so its grid cell can be computed
+          // in the generator's exact integer arithmetic.
+          const tileXZ = fract(warped.xz.div(WEATHER_TILE_M)).mul(WEATHER_TILE_M).toVar()
+          const texelIdx = floor(tileXZ.div(WEATHER_TILE_M / WEATHER_SIZE)).toVar()
+          const weatherUv = texelIdx.add(0.5).div(WEATHER_SIZE).toVar()
+          // Coverage -> strength threshold `theta` is a parameter (`thetaFor`);
+          // the coverage-grown radius repeats coverageRadiusScale here.
+          const grow = float(1).add(smoothstep(0.2, 0.65, coverage).mul(0.5)).toVar()
+          const cellOrigin = floor(texelIdx.mul(2).add(1).mul(WEATHER_CELLS).div(2 * WEATHER_SIZE))
+            .sub(WEATHER_CELL_REACH).mul(WEATHER_CELL_M).toVar()
+          // One of the texel's two clouds (winner, runner-up). R is its
+          // strength; G/B its centre in 1/51-cell steps from the texel's grid
+          // cell minus WEATHER_CELL_REACH; A its radius. Every texel of a
+          // cloud decodes to the same centre, so the local position is
+          // continuous across texels (tools/sky/weather.ts). A runner-up of
+          // strength 0 is never alive.
+          const candidate = (wm: Node<'vec4'>) => {
+            const peak = wm.r
+            const centre = cellOrigin.add(floor(wm.gb.mul(255).add(0.5)).mul(WEATHER_CELL_M / WEATHER_FEATURE_STEPS))
+            const radius = mix(float(WEATHER_RADIUS_M[0]), float(WEATHER_RADIUS_M[1]), wm.a).mul(grow)
+            const local = tileXZ.sub(centre).div(radius)
+            const variant = saturate(sin(peak.mul(43.1).add(0.7)).mul(0.5).add(0.5)).toVar()
+            const hc = p.y.sub(base).div(thickness.mul(mix(float(0.42), float(1), variant))).toVar()
+            const alive = smoothstep(theta, theta.add(CLOUD_ALIVE_RAMP), peak).toVar()
+            // The baked stacked-lobe archetype in the cloud's own frame.
+            // Rotation and scale come from its strength, so neighbours do not
+            // present the same silhouette.
+            const scaleX = mix(float(0.78), float(1.18), saturate(sin(variant.mul(23.1)).mul(0.5).add(0.5)))
+            const scaleZ = mix(float(0.78), float(1.18), saturate(sin(variant.mul(17.7).add(1.9)).mul(0.5).add(0.5)))
+            const angle = variant.mul(19.73).add(peak.mul(7.1))
+            const ca = sin(angle.add(1.5707963267948966)), sa = sin(angle)
+            const lx = local.x.mul(ca).sub(local.y.mul(sa)).div(scaleX)
+            const lz = local.x.mul(sa).add(local.y.mul(ca)).div(scaleZ)
+            const uvw = vec3(lx.mul(0.5).add(0.5), hc, lz.mul(0.5).add(0.5))
+            const inVolume = uvw.x.greaterThan(0).and(uvw.x.lessThan(1))
+              .and(uvw.y.greaterThan(0)).and(uvw.y.lessThan(1))
+              .and(uvw.z.greaterThan(0)).and(uvw.z.lessThan(1))
+            const stored = float(0).toVar()
+            If(alive.greaterThan(0).and(inVolume), () => { stored.assign(texture3D(cumulus, uvw).r) })
+            return { stored, alive, hc, variant }
+          }
+          const first = candidate(texture(weatherMap, weatherUv))
+          let stored: Node<'float'> = first.stored, alive: Node<'float'> = first.alive
+          let hc: Node<'float'> = first.hc, type: Node<'float'> = first.variant
+          if (detailed) {
+            // The denser of the two draws this point: a cloud that grows past
+            // the texels it wins is not sliced off at its neighbour's
+            // boundary. The coarse density (the light march's, seven reads a
+            // step) keeps the winner only: a runner-up matters only at the
+            // seams, and there it would change a shadow, not a silhouette.
+            // Measured 2026-09-26 at 4K High in-deck: 32.5 ms p95 with both.
+            const second = candidate(texture(runnerMap, weatherUv))
+            const useSecond = second.stored.mul(second.alive).greaterThan(first.stored.mul(first.alive)).toVar()
+            stored = select(useSecond, second.stored, first.stored).toVar()
+            alive = select(useSecond, second.alive, first.alive).toVar()
+            hc = select(useSecond, second.hc, first.hc).toVar()
+            type = select(useSecond, second.variant, first.variant).toVar()
+          }
+          If(alive.greaterThan(0), () => {
+            // Where the archetype is empty there is no cloud: the shape noise
+            // only sculpts an existing body. Without this gate its +-0.065
+            // term filled every live cell's whole column with faint haze, and
+            // the shape volume was read there on every step.
+            If(stored.greaterThan(0), () => {
+              const morphologyP = warped.add(vec3(
+                sin(warped.z.div(4300).add(type.mul(5.7))).mul(hc).mul(260),
+                0,
+                sin(warped.x.div(5100).sub(type.mul(4.3))).mul(hc).mul(220),
+              ))
+              const shapeSample = texture3D(shape, morphologyP.div(SHAPE_TILE_M))
+              const shapeFbm = shapeSample.g.mul(0.625).add(shapeSample.b.mul(0.25)).add(shapeSample.a.mul(0.125))
+              const shapeValue = saturate(stretch(shapeSample.r).mul(mix(float(0.82), float(1.08), shapeFbm)))
+              const sculpted = stored.add(shapeValue.sub(0.5).mul(mix(float(0.05), float(0.13), smoothstep(0.05, 0.8, hc))))
 
-            // The shared layer base remains flat, while the signed ellipsoid
-            // field and one Perlin-Worley read define the three-dimensional
-            // silhouette rather than thresholding a 2D radial disc.
-            const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
-            const body = smoothstep(0.015, 0.22, sculpted).mul(gradient).mul(alive).toVar()
-            if (detailed) {
-              // Erosion only lowers density, so where the base shape is empty
-              // the detail volume is not read at all (photoreal Task 11).
-              If(body.greaterThan(0), () => {
-                const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
-                const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
-                const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
-                const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
-                // Wispy near each cloud's base, billowy above it.
-                const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
-                d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
-              })
-            } else {
-              d.assign(body)
-            }
+              // The shared layer base remains flat, while the signed ellipsoid
+              // field and one Perlin-Worley read define the three-dimensional
+              // silhouette rather than thresholding a 2D radial disc.
+              const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
+              const body = smoothstep(0.015, 0.22, sculpted).mul(gradient).mul(alive).toVar()
+              if (detailed) {
+                // Erosion only lowers density, so where the base shape is empty
+                // the detail volume is not read at all (photoreal Task 11).
+                If(body.greaterThan(0), () => {
+                  const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
+                  const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
+                  const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
+                  const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
+                  // Wispy near each cloud's base, billowy above it.
+                  const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
+                  d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
+                })
+              } else {
+                d.assign(body)
+              }
+            })
           })
         })
       })
+      return d
     })
-    return d
-  })
-  const density = makeDensity(true)
-  const densityCoarse = makeDensity(false)
+    if (layout) {
+      fn.setLayout({
+        name: detailed ? 'cloudDensity' : 'cloudDensityCoarse',
+        type: 'float',
+        inputs: [
+          { name: 'p', type: 'vec3' },
+          { name: 'drifted', type: 'vec3' },
+          { name: 'base', type: 'float' },
+          { name: 'thickness', type: 'float' },
+          { name: 'coverage', type: 'float' },
+          { name: 'kind', type: 'float' },
+          { name: 'theta', type: 'float' },
+        ],
+      })
+    }
+    return fn
+  }
+  /** The coverage -> strength threshold, from the sky-fraction twin
+   *  (skyCoverageTable), read at the call site from the `thresholds`
+   *  uniform array. Only cumulus uses it; cirrus ignores it. */
+  const thetaFor = (coverage: Node<'float'>): Node<'float'> => {
+    const at = coverage.mul(COVERAGE_TABLE_SIZE - 1).toVar()
+    const k = min(at.floor(), float(COVERAGE_TABLE_SIZE - 2)).toVar()
+    const k0 = (thresholds.element(k.toInt()) as unknown as Node<'float'>).toVar()
+    const k1 = (thresholds.element(k.toInt().add(1)) as unknown as Node<'float'>).toVar()
+    return mix(k0, k1, saturate(at.sub(k)))
+  }
+  /** Where the noise has drifted to, from the `drift` uniform. */
+  const driftedOf = (p: Node<'vec3'>): Node<'vec3'> => vec3(p.x.add(drift.x), p.y, p.z.add(drift.y))
+  const bind = (fn: ReturnType<typeof makeDensity>): DensityFn =>
+    (p, base, thickness, coverage, kind) => fn(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage))
+  const density = bind(makeDensity(true, false))
+  const densityCoarse = bind(makeDensity(false, false))
 
   const firstCumulus = sorted.find((l) => l.kind === 'cumulus')
   return {
     shape, detail, cumulus, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
-    // A TSL `Fn` is callable but not typed as the method above; the closure
-    // gives the handle a plain function type.
-    density: (p, base, thickness, coverage, kind) => density(p, base, thickness, coverage, kind),
-    densityCoarse: (p, base, thickness, coverage, kind) => densityCoarse(p, base, thickness, coverage, kind),
+    density,
+    densityCoarse,
+    laidOut: () => {
+      const rawDensity = makeDensity(true, true)
+      const rawDensityCoarse = makeDensity(false, true)
+      return { density: bind(rawDensity), densityCoarse: bind(rawDensityCoarse), fns: { density: rawDensity, densityCoarse: rawDensityCoarse } }
+    },
     lowestCumulus: () => (firstCumulus ? { baseM: firstCumulus.baseM, topM: firstCumulus.baseM + firstCumulus.thicknessM } : null),
     update(eye, driftSeconds, wind): void {
       eyeWorld.value.set(eye.x, eye.y, eye.z)

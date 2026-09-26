@@ -235,6 +235,13 @@ session). [Handoff](docs/handoff/2026-09-23-plan9-meta-game.md). Open:
 roster export/import has no UI wiring yet (needs a replace-vs-merge design
 decision first); badge content (no scenario declares an objective yet).
 
+**A loading strip and a pilot Dossier landed 2026-09-26.** The title shows
+boot progress and keeps its controls locked until the world is ready, and the
+freeze that made it look unclickable is gone. Each roster row opens a Dossier
+with the pilot's service record and mission log. See the
+[handoff](docs/handoff/2026-09-26-loading-and-dossier.md) for the measured
+figures; master spec §15 (row 9) holds the status.
+
 **The UI-realism plan landed 2026-09-24.** The title screen now has persisted
 Render Quality, Asset Quality and Damage Model settings; the roster, settings
 and debrief use the Naval Communications visual system; and L0/L1 terrain now

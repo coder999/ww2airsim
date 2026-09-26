@@ -137,3 +137,23 @@ describe('remap (photoreal Task 10, Schneider 2015)', () => {
     expect(remap(0.7, 0.4, 0.4, 0.25, 1)).toBe(0.25)
   })
 })
+
+describe('laidOut density (loading spec §A.3)', () => {
+  it('returns a fresh Fn pair per call, so no two materials share one', () => {
+    // three 0.186 caches a laid-out Fn's code per backend by Fn identity,
+    // with the FIRST builder's binding names; sharing one across materials
+    // fails WGSL validation ("unresolved value 'nodeUniform3'").
+    const field = createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
+    const a = field.laidOut()
+    const b = field.laidOut()
+    // `density`/`densityCoarse` are always-fresh `bind()` closures, so they
+    // are never `===` across calls even if the underlying laid-out `Fn` were
+    // wrongly memoized or shared -- this pair could never fail (fix round 2
+    // finding 2). `fns` exposes the actual laid-out `Fn` objects `bind()`
+    // wraps, so a shared/memoized `Fn` is exactly what THIS pair catches.
+    expect(a.density).not.toBe(b.density)
+    expect(a.densityCoarse).not.toBe(b.densityCoarse)
+    expect(a.fns.density).not.toBe(b.fns.density)
+    expect(a.fns.densityCoarse).not.toBe(b.fns.densityCoarse)
+  })
+})

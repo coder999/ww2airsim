@@ -168,7 +168,11 @@ test('return to title after an in-place scenario switch preselects the scenario 
   // pilot selected again, so the roster persisted across the crash/return
   // trip (`saveRoster`, roster.ts) is what makes the SAME pilot pickable
   // here rather than needing another "New pilot" round trip.
-  await reshownTitle.getByRole('button', { name: /Regression Test/ }).click()
+  // Scoped to the roster row's own button[aria-pressed] marker (set only by
+  // makePilotButton): since the Dossier sheet landed, a bare
+  // getByRole('button', { name: /Regression Test/ }) also matches that
+  // row's "Dossier: Regression Test" button and is a strict-mode violation.
+  await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Regression Test' }).click()
   await reshownTitle.getByRole('button', { name: 'New game' }).click()
   const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
   // The fix: Gunnery Range, what is ACTUALLY loaded -- not Free Flight, what

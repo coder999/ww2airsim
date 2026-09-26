@@ -26,7 +26,9 @@ import { createDebrief, debriefModel, destructionModel, killsSince, landingModel
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
-import { applyMissionResultToRoster, loadRoster, saveRoster } from './roster.js'
+import { createBootProgress } from './bootProgress.js'
+import { applyMissionResultToRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
@@ -77,10 +79,10 @@ import { loadScenarioBundle } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import { buildStructures } from '../sim/weapons/structures.js'
 import type { Loadout } from '../sim/weapons/stores.js'
-import { step, DT } from '../sim/flight/model.js'
+import { airVelocity, step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import type { TerrainField } from '../sim/world/terrain.js'
-import { supportedContact } from '../sim/ground.js'
+import { onGround, supportedContact } from '../sim/ground.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
@@ -96,7 +98,7 @@ import {
   spawnPositionFromQuery,
 } from './spawn.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
-import { v3, type Vec3 } from '../sim/math/vec3.js'
+import { length, v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 import { antiAliasingFromQuery, createFramePipeline, sharpenFromQuery } from './pipeline.js'
@@ -258,6 +260,11 @@ async function boot(): Promise<void> {
    * alongside `roster`/`currentPilotId` above, for the same reason.
    */
   let scoredThroughKillsByType = zeroKillsByType()
+  /** The flight since the last New game / Restart / bank (dossier spec
+   *  §B.2); reset at exactly the places `scoredThroughKillsByType` is, so a
+   *  land -> Continue -> crash logs two segments that do not overlap. */
+  let segment: FlightSegment = EMPTY_SEGMENT
+  let segmentTick = 0
   // `Scene()`'s constructor has no side effects of its own (confirmed when
   // this was first moved, pre-Task-7-round-2, a little later than here), so
   // hoisting it further, alongside `loadScenario` below which needs it to
@@ -542,6 +549,10 @@ async function boot(): Promise<void> {
   // above) confirmed live via a `ReferenceError` a fast click actually threw
   // on the reference GPU. All six are hoisted above this call now, for
   // exactly that reason -- see their own comments for what each one needed.
+  // The title's loading strip (loading spec §A.2): created before the title
+  // so its first build shows the locked state, and advanced below at each
+  // stage this function already passes through.
+  const boot = createBootProgress()
   const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId, pilotId) => {
     chosenLoadout = loadout
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
@@ -555,6 +566,7 @@ async function boot(): Promise<void> {
     roster = loadRoster()
     currentPilotId = pilotId
     scoredThroughKillsByType = zeroKillsByType()
+    segment = EMPTY_SEGMENT
     // A click is the user gesture the autoplay policy wants; this is the
     // first-visit resume the audio handoff left open. Called unconditionally
     // and BEFORE either branch below, for the same reason the keydown
@@ -623,14 +635,16 @@ async function boot(): Promise<void> {
       return
     }
     rebuildFrame()
-  }, quality.settings)
+  }, quality.settings, boot)
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
   // Timestamp queries also support one automatic ocean quality decision.
   // The external diagnostics hook remains development-only.
+  boot.begin('renderer')
   const { renderer, adapterVerdict } = await initRenderer(canvas, true)
+  boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
   renderer.shadowMap.enabled = true
@@ -1011,6 +1025,7 @@ async function boot(): Promise<void> {
   // the ocean's materials, so the cloud field and the map exist before them.
   // The noise is fetched here rather than beside the bathymetry (16a) for
   // that reason; a clear-sky scenario still loads it (16a's reason stands).
+  boot.begin('sky')
   const skyNoiseLoading = loadSkyNoise()
   // Handled below by the `await`; this only stops a rejection during the
   // yield from being reported as unhandled before that `await` attaches.
@@ -1031,6 +1046,7 @@ async function boot(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
   irradianceTableMs = warmIrradianceTable()
   const skyNoise = await skyNoiseLoading
+  boot.end('sky')
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
@@ -1042,6 +1058,7 @@ async function boot(): Promise<void> {
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
   sunState = { ...sunState, timeOfDay: scenarioTimeOfDay }
+  boot.begin('surface')
   const cloudField = createCloudField(cloudLayers, skyNoise)
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
@@ -1108,6 +1125,7 @@ async function boot(): Promise<void> {
   const oceanTime = import.meta.env.DEV ? oceanTimeFromQuery(location.search) : undefined
   cascades = await Promise.all(cascadeOptions(beaufort, oceanTier.n, oceanTier.cascades).map(options => createOceanCompute(renderer, options)))
   oceanDepth = await loadDepth()
+  boot.end('surface')
   // Plan 16a. `?cloudTier=off` is the DEV control for measuring a scene
   // with and without the pass; the field itself was made above the terrain.
   const clouds = createClouds(cloudLayers, skyNoise, cloudField)
@@ -1376,6 +1394,7 @@ async function boot(): Promise<void> {
     // does not call `startSortie` again -- Restart is a redo of the SAME
     // sortie already counted, not a new one.
     scoredThroughKillsByType = zeroKillsByType()
+    segment = EMPTY_SEGMENT
   })
   /** Passed to every `debrief.show(...)` call below as the "Return to title"
    *  handler (design §1) -- constant across all three outcomes, unlike
@@ -1402,6 +1421,17 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
+  /** Assembles this bank's dossier record (dossier spec §B.2) from the flight
+   *  `segment` just flown plus whatever main.ts already tracks live -- the
+   *  scenario, aircraft and loadout in play right now. */
+  const sortieFacts = (outcome: LogOutcome, world: FrameState['world']): SortieFacts => ({
+    at: new Date().toISOString(),
+    scenarioId: requestedScenarioId,
+    aircraft: playerAircraft(world).spec.name,
+    loadout: chosenLoadout,
+    outcome,
+    segment,
+  })
   /**
    * Applies one mission's score to whichever pilot is flying and persists the
    * roster immediately, so both this debrief's own figures and the title
@@ -1424,10 +1454,11 @@ async function boot(): Promise<void> {
     scoreTotal: number,
     outcome: 'landed' | 'ditched' | 'killed',
     killsSinceLastBank: Readonly<Record<TargetType, number>>,
+    sortie: SortieFacts,
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     if (currentPilotId === null) return null
     const before = roster.find((p) => p.id === currentPilotId) ?? null
-    roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank)
+    roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null
@@ -1797,6 +1828,50 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     frame = current
+    {
+      // Guarded on the world clock actually having moved: `advance` (Task 7
+      // review round 1) feeds a held world zero elapsed seconds whenever it
+      // is paused, frozen after an impact/destruction (debrief up), or the
+      // title/chart is over it -- `world.tick` does not change in any of
+      // those cases (confirmed by reading src/sim/loop.ts's `advance`: it
+      // returns the SAME world, tick included, when `elapsed === 0`, and
+      // src/render/frame.ts's `nextFrameState` zeroes `simElapsedSeconds`
+      // for exactly paused/holding frames). Stepping unconditionally would
+      // fold that frozen aircraft's altitude/speed into `segment`'s maxima
+      // every one of those frames -- e.g. a shot-down-at-5000m pilot who
+      // returns to the title and picks a new scenario would otherwise carry
+      // the old dive's peak speed into the NEXT sortie's log line, because
+      // `stepSegment` updates the maxima unconditionally regardless of
+      // `ticksAdvanced` (only `flightSeconds` is tick-gated).
+      //
+      // `segmentTick` itself is still updated every frame, guard or not, so
+      // it tracks `current.world.tick` through the whole held stretch and
+      // the guard is false throughout -- not just on the first held frame.
+      // It is deliberately NOT reset at any of the five `segment =
+      // EMPTY_SEGMENT` sites above: a reset world's `tick` restarts at 0,
+      // so if `segmentTick` were also reset to 0 right there, the OLD
+      // (still-loading, still-frozen) world's nonzero `tick` would satisfy
+      // `tick > segmentTick` on the very next frame and step the fresh
+      // `EMPTY_SEGMENT` against the stale frame one more time before the
+      // new world ever swaps in. Leaving `segmentTick` alone keeps the
+      // guard false until the swap actually happens (the new world's `tick`
+      // starts at/near 0, at or below the stale `segmentTick`), at the cost
+      // of one skipped sample on the swap frame itself -- the same frame
+      // `ticksAdvanced`'s negative-delta clamp (Task 5) already discarded.
+      if (current.world.tick > segmentTick) {
+        const { spec: pSpec, state: pState } = playerAircraft(current.world)
+        // The same ground the diagnostics hook's `groundHeightM` reads: terrain
+        // OR a carrier deck, so a trap's deck roll-out is not "airborne".
+        const ground = groundUnder(current.world.terrain, decksOf(current.world.ships), pState.position.x, pState.position.z)?.heightM ?? 0
+        segment = stepSegment(segment, {
+          ticksAdvanced: current.world.tick - segmentTick,
+          altitudeM: pState.position.y,
+          speedMps: length(airVelocity(pState, current.world.wind)),
+          airborne: !onGround(pSpec, pState, ground),
+        })
+      }
+      segmentTick = current.world.tick
+    }
     // Plan 9 Task 7: read fresh every frame, since `loadScenario` can
     // reassign `scenarioEntities` wholesale between one frame and the next
     // (a scenario switch) -- the same reason `sunState`/`radarSweepRad` are
@@ -1966,7 +2041,13 @@ async function boot(): Promise<void> {
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = debriefModel(hit, player.state, killsSinceLastBank)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, hit.kind === 'ditched' ? 'ditched' : 'killed', killsSinceLastBank)
+      const banked = bankMissionResult(
+        model.score.total,
+        hit.kind === 'ditched' ? 'ditched' : 'killed',
+        killsSinceLastBank,
+        sortieFacts(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world),
+      )
+      segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
     }
     // Gunfire and structural overload can destroy the player before contact.
@@ -1982,7 +2063,8 @@ async function boot(): Promise<void> {
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = destructionModel(player.state, playerDamage.attacker, killsSinceLastBank)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank)
+      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world))
+      segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
     }
     // A landing, raised once and holding the world under the dialog through
@@ -1998,7 +2080,13 @@ async function boot(): Promise<void> {
         Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
       )
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'landed', killsSinceLastBank)
+      const banked = bankMissionResult(
+        model.score.total,
+        'landed',
+        killsSinceLastBank,
+        sortieFacts(landingKind(current.landing.report), current.world),
+      )
+      segment = EMPTY_SEGMENT
       showDebrief(model, banked, () => {
         frame = acknowledgeLanding(frame!)
         landingShown = false
@@ -2204,7 +2292,14 @@ async function boot(): Promise<void> {
       tick: current.world.tick,
       adapter: adapterVerdict.summary,
     })
+    // The first frame built every material; the title can unlock.
+    if (!boot.ready) boot.end('shaders')
   }
+  // One paint BEFORE the first frame, which is the shader build (spec §A.1):
+  // rAF alone runs before that frame's paint, so without the setTimeout hop
+  // "Compiling shaders..." would not be on screen while the build blocks.
+  boot.begin('shaders')
+  await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
   // If the device went away while `boot` was still setting up, the failure
   // screen is already showing; starting a loop now would render onto a
   // disposed device behind it.

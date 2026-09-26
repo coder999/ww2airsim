@@ -78,8 +78,14 @@ The main menu is a roster of pilot records:
 
 ```
 name, rank, cumulativeScore, missionsFlown, sorties,
-kills (by type), badges[], status: 'active' | 'kia', resurrections
+kills (by type), badges[], status: 'active' | 'kia', resurrections,
+career { flightSeconds, landings { trap, field, ditched },
+         maxAltitudeM, maxTrueAirspeedMps },
+log[] (the latest 200 debriefs)
 ```
+
+Each roster row's **Dossier** button opens that pilot's service record,
+kills, badges and mission log (`src/render/dossier.ts`).
 
 **Resurrection** flips `status` from `kia` back to `active` and increments
 `resurrections`. It does not erase the death. The roster stays simultaneously
@@ -87,8 +93,11 @@ honest and forgiving.
 
 ### Persistence
 
-IndexedDB, with explicit JSON export and import so a pilot survives a cleared
-browser. Save/load round-trip equality is a property test (master spec §11). Server-side
+`localStorage`, key `ww2airsim.roster.v1` (`src/render/roster.ts`; the
+original IndexedDB plan was dropped, Mark's call, 2026-09-23). Records from
+before the Dossier load with a zeroed `career` and an empty `log`. JSON
+export and import exist in `roster.ts` so a pilot can survive a cleared
+browser, but no UI calls them yet (master spec §15, row 9). Save/load round-trip equality is a property test (master spec §11). Server-side
 sync against existing auth infrastructure is possible later but is not worth
 the coupling now.
 

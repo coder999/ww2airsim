@@ -1,7 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, waitForScenario, type DiagWindow } from './harness.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
-import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
+import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow } from './harness.js'
 
 /**
  * Tier 2, Plan 9 Task 8: the whole meta-game acceptance, all three pieces
@@ -34,18 +32,9 @@ import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
  * (the first was gunnery-range itself) -- the minimum design §7 asks for to
  * catch a leaked-mesh regression a single switch would not surface.
  */
-const f6f = loadAircraftSpec('f6f-hellcat')
-
 test.setTimeout(240_000)
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
-const heightAboveGroundM = (page: Page) =>
-  page.evaluate(([gearHeightM]) => {
-    const d = (window as DiagWindow).__ww2!
-    const groundM = d.groundHeightM()
-    if (groundM === null) return null
-    return d.aircraftPositionM().y - gearHeightM - groundM
-  }, [f6f.gear.heightM] as const)
 
 test('roster, live scoring and a dynamic scenario switch all work together in one session', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
@@ -90,110 +79,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   expect(target1.destroyed, 'the credited kill was not target-1').toBe(true)
   console.log(`meta-game: target-1 destroyed after ${afterKill.player.shots} shots, ${afterKill.player.hits} hits`)
 
-  // -- Take off. Same roll/rotate shape `takeoff.spec.ts` already proved on
-  // the default free-flight spawn; there is no aircraft-vs-aircraft
-  // collision in this sim (`weapons/combat.ts`'s ray-based hit path is the
-  // only one), so rolling through target-1's now-wrecked parking spot is
-  // not a hazard.
-  const start = await page.evaluate(() => {
-    const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-    return { x: p.x, z: p.z }
-  })
-  await page.keyboard.down('Equal')
-  await page.waitForFunction(
-    ([sx, sz]) => {
-      const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-      return Math.hypot(p.x - sx, p.z - sz) > 380
-    },
-    [start.x, start.z] as const,
-    { timeout: 90_000 },
-  )
-  await page.keyboard.down('ArrowDown')
-  await page.waitForTimeout(1500)
-  await page.keyboard.up('ArrowDown')
-
-  // Airborne, and past the SAME latch `nextLandingTracking` itself uses to
-  // decide the flight ever left the ground -- clearing only
-  // `GROUND_CONTACT_TOLERANCE_M` would leave `LandingTracking.airborne`
-  // false and this flight would never produce a `report` at all.
-  await page.waitForFunction(
-    ([gearHeightM, latchM]) => {
-      const d = (window as DiagWindow).__ww2!
-      const groundM = d.groundHeightM()
-      if (groundM === null) return false
-      return !d.supportedContact() && d.aircraftPositionM().y - gearHeightM - groundM > latchM
-    },
-    [f6f.gear.heightM, AIRBORNE_LATCH_M] as const,
-    { timeout: 30_000 },
-  )
-  console.log(`meta-game: cleared the latch at ${(await heightAboveGroundM(page))?.toFixed(1)} m`)
-
-  // -- Land. `nextLandingTracking` only needs the wheels to come back down
-  // gently (below `MAX_SUPPORTED_SINK_MPS`), not a stabilized approach, so
-  // this is a short, controlled descent rather than a circuit:
-  //
-  // 1. Throttle to idle and a brief nose-down pulse (ArrowUp = pitchDown) --
-  //    measured live on the reference GPU (this task, 2026-09-24): a plain
-  //    neutral-pitch glide after the rotate above keeps CLIMBING on
-  //    momentum for several seconds (throttle alone is not enough), and a
-  //    longer/harder nose-down pulse (1.2 s, tried first) dives in at
-  //    -11 m/s and crashes -- both measured, not guessed.
-  // 2. A small closed loop below 8 m: a brief nose-up (ArrowDown) tap
-  //    whenever the sink rate exceeds 2 m/s, the same flare a real landing
-  //    needs and hand-scripting a single fixed pitch pulse cannot reliably
-  //    produce, because how much altitude the nose-down pulse in step 1
-  //    trades for speed is not exactly repeatable. Measured result:
-  //    touchdown sink 1.3 m/s, speed 46.5 m/s, well inside
-  //    `MAX_SUPPORTED_SINK_MPS` (4.0) and the stall-speed gate.
-  await page.keyboard.up('Equal')
-  await page.keyboard.down('Minus')
-  await page.keyboard.down('ArrowUp')
-  await page.waitForTimeout(500)
-  await page.keyboard.up('ArrowUp')
-  let lastHeightM: number | null = null
-  for (let i = 0; i < 40; i++) {
-    await page.waitForTimeout(300)
-    const s = await page.evaluate(
-      ([gearHeightM]) => {
-        const d = (window as DiagWindow).__ww2!
-        const groundM = d.groundHeightM()
-        return {
-          heightM: groundM === null ? null : d.aircraftPositionM().y - gearHeightM - groundM,
-          supported: d.supportedContact(),
-          impact: d.impact(),
-        }
-      },
-      [f6f.gear.heightM] as const,
-    )
-    if (s.supported || s.impact !== null) break
-    const sinkMps = lastHeightM === null || s.heightM === null ? null : (lastHeightM - s.heightM) / 0.3
-    lastHeightM = s.heightM
-    if (s.heightM !== null && s.heightM < 8 && sinkMps !== null && sinkMps > 2) {
-      await page.keyboard.down('ArrowDown')
-      await page.waitForTimeout(250)
-      await page.keyboard.up('ArrowDown')
-    }
-  }
-  await page.keyboard.up('Minus')
-
-  await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), {
-      timeout: 15_000,
-      message: 'never came back down',
-    })
-    .toBe(true)
-  expect(
-    await page.evaluate(() => (window as DiagWindow).__ww2!.impact()),
-    'the touchdown was a crash, not a landing',
-  ).toBeNull()
-  console.log('meta-game: back on the wheels, not a crash')
-
-  // Stop: cut the throttle the rest of the way (`KeyM`, one press to zero)
-  // and hold the brakes until the debrief actually appears.
-  await page.keyboard.press('KeyM')
-  await page.keyboard.down('KeyB')
-  await debriefDialog(page).waitFor({ timeout: 30_000 })
-  await page.keyboard.up('KeyB')
+  await hopAndLand(page)
 
   await expect(debriefDialog(page)).toContainText('LANDED')
   // -- Real, non-zero score, banked with the 1.0 "landed" multiplier: one
@@ -212,7 +98,12 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   // -- Roster round trip: the SAME pilot, with the updated total, read back
   // from `localStorage` by `show()` -- not a fresh, zeroed entry.
   await expect(reshownTitle.getByRole('button', { name: /Meta Acceptance Pilot — ENS — 500/ })).toBeVisible()
-  await reshownTitle.getByRole('button', { name: /Meta Acceptance Pilot/ }).click()
+  // Scoped to the roster row's own marker (`button[aria-pressed]`, set only
+  // by `makePilotButton`): since the Dossier sheet landed, a bare
+  // `getByRole('button', { name: /Meta Acceptance Pilot/ })` also matches
+  // that row's "Dossier: Meta Acceptance Pilot" button and is a strict-mode
+  // violation -- the same marker `startGame` in harness.ts already uses.
+  await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Meta Acceptance Pilot' }).click()
   await reshownTitle.getByRole('button', { name: 'New game' }).click()
 
   // -- Second in-session switch: gunnery-range -> pursuit-range ("Air

@@ -79,7 +79,13 @@ test('two sequential forms: New game opens Sortie Orders, Back keeps the pilot, 
   // Back: Form 1 again, the pilot still selected.
   await title.getByRole('button', { name: 'Back' }).click()
   await expect(title.getByText('Form 1 of 2')).toBeVisible()
-  await expect(title.getByRole('button', { name: /Form Flow Pilot/ })).toHaveAttribute('aria-pressed', 'true')
+  // Scoped to the roster row's own button[aria-pressed] marker: a bare
+  // getByRole('button', { name: /Form Flow Pilot/ }) also matches that
+  // row's "Dossier: Form Flow Pilot" button and is a strict-mode violation
+  // (regression from the Dossier button, Tasks 2-8).
+  await expect(
+    title.locator('button[aria-pressed]').filter({ hasText: 'Form Flow Pilot' }),
+  ).toHaveAttribute('aria-pressed', 'true')
   await expect(newGame).toBeEnabled()
 
   await newGame.click()
