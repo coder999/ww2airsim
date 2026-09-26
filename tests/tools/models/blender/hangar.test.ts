@@ -83,4 +83,39 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
     expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad1.glb'), ['--width', '-5'])).toThrow(/--width must be > 0/)
     expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad2.glb'), ['--length', 'abc'])).toThrow(/--length must be a number/)
   })
+
+  it('no coplanar overlap at the rear: in the end plane, above the walls, only the vault rim ring', () => {
+    // A gable face flush with the rim draws a dark seam (seen in the M0 Cycles capture) and
+    // z-fights in the game. The rim is a half-elliptic ring between the outer (w/2, rise) and
+    // inner (w/2 - t, rise - t) curves; any other face in that plane adds area beyond it.
+    const node = findNode(doc, 'hangar_steel')
+    const m = node.getWorldMatrix()
+    const halfL = cited.lengthM / 2
+    let area = 0
+    for (const prim of node.getMesh()!.listPrimitives()) {
+      const pos = prim.getAttribute('POSITION')!, idx = prim.getIndices()!
+      for (let i = 0; i < idx.getCount(); i += 3) {
+        const v = [0, 1, 2].map((k) => {
+          const [x, y, z] = pos.getElement(idx.getScalar(i + k), [0, 0, 0]) as number[]
+          return [m[0]! * x! + m[4]! * y! + m[8]! * z! + m[12]!, m[1]! * x! + m[5]! * y! + m[9]! * z! + m[13]!, m[2]! * x! + m[6]! * y! + m[10]! * z! + m[14]!]
+        })
+        if (!v.every((p) => Math.abs(p[2]! + halfL) < 1e-4 && p[1]! >= 5.5 - 1e-4)) continue
+        const [a, b, c] = v as [number[], number[], number[]]
+        area += Math.abs((b[0]! - a[0]!) * (c[1]! - a[1]!) - (c[0]! - a[0]!) * (b[1]! - a[1]!)) / 2
+      }
+    }
+    const w2 = cited.widthM / 2, rise = cited.widthM * 0.25, t = 0.3
+    const ring = (Math.PI / 2) * (w2 * rise - (w2 - t) * (rise - t))
+    expect(area, 'end-plane area above the walls').toBeLessThanOrEqual(ring * 1.001)
+    expect(area).toBeGreaterThan(ring * 0.95)
+  })
+
+  it('renders a 1280x800 preview PNG of the built glb', () => {
+    const png = join(dir, 'front.png')
+    runBlenderScript('tools/models/blender/preview.py', png, ['--glb', a, '--view', 'front'])
+    const bytes = readFileSync(png)
+    expect(bytes.subarray(1, 4).toString('ascii')).toBe('PNG')
+    expect(bytes.readUInt32BE(16)).toBe(1280)
+    expect(bytes.readUInt32BE(20)).toBe(800)
+  }, 60_000)
 })
