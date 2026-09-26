@@ -135,9 +135,21 @@ collected against a 120 minimum, cloud cost 4.958 ms unmodified vs 4.934 ms
 fixed): desktop contention, not the change. `cloudShadow.ts` keeps the inline
 `field.density` (one call site, not in the freeze).
 
+*Re-measured 2026-09-26 (see the
+[handoff](../../handoff/2026-09-26-loading-and-dossier.md)):* the table above
+predates main's Codex cloud rewrite (`a0ed535`..`58e61f3`), merged into this
+branch before the fix. On the merged code the freeze was **38 978 ms**
+(`boot.spec.ts`, longest task before ready), and the same fix, applied to the
+rewritten `cloudField.ts`, brought it to a cold-cache median of **1 240 ms**
+over 10 fresh-browser runs (max 1 401).
+
 Visual output must not change: a fixed-seed cloud frame is captured before
 and after on the reference GPU and pixel-diffed (max channel delta ≤ 2, to
 allow for a function-call vs inlined floating-point ordering difference).
+*As applied 2026-09-26:* a max-channel gate proved unusable -- two captures
+of the same unmodified shader differ by up to 188 (the HUD fps readout) --
+so acceptance was judged against a measured before-vs-before noise floor
+(mean and p99.9 channel delta); the figures are in the handoff.
 
 **Coordination:** A.3 edits `cloudField.ts` and one line of `clouds.ts`,
 which the Codex `cloud-vdb-fidelity` worktree also changes. A.3 lands last and
@@ -192,10 +204,12 @@ export type MissionLogEntry = {
 - Outcome: `bankMissionResult`'s `'landed'` splits on the landing report --
   `report.at?.kind === 'carrier'` is a `trap`, anything else (named field or
   off-field) is `field`. `'ditched'` and `'killed'` pass through.
-- True airspeed is `|state.velocity|`: the sim has no wind (verified
-  2026-09-25, no wind term in `src/sim/flight/`), so ground-frame speed is
-  airspeed. If wind is ever added this becomes `|velocity − wind|`; the
-  accumulator's test names that assumption.
+- True airspeed is air-relative: `length(airVelocity(state, world.wind))`
+  (`airVelocity`, `src/sim/flight/model.ts`). *Corrected 2026-09-26:* the
+  first draft said the sim has no wind and used `|state.velocity|`; that was
+  false -- a scenario wind has been coupled since Plan 8 (commit `56ff8b4`,
+  `world.wind`), so ground speed differs from airspeed by the scenario wind.
+  `stepSegment` records whatever air-relative speed `main.ts` passes it.
 
 ### B.2 Collection
 
@@ -247,7 +261,7 @@ roster with that row's Dossier button focused; Escape closes it.
 
 ### B.5 Acceptance
 
-Tier 1: `stepSegment` (peaks, airborne-only seconds, the no-wind note);
+Tier 1: `stepSegment` (peaks, airborne-only seconds, the caller-supplied air-relative speed);
 `applyMissionResult` appends, trims at 200 and keeps `career` totals past the
 trim; trap vs field split; migrate-on-read of a v1 record without `career`/
 `log`; export → import round trip with a populated log; the dossier model's
