@@ -94,15 +94,11 @@ describe('createShipMesh', () => {
     expect(root.visible).toBe(false) // fully sunk
   })
 
-  it('setDamage shows a smoke plume scaled by fire, reusing the engine-smoke curve (Plan 6b Task 8)', () => {
+  it("setDamage draws no smoke of its own: the fire is E1's, from smokeOrigin", () => {
     const dd = loadShipSpec('fletcher-dd')
     const { root, setDamage } = createShipMesh(dd)
-    const smoke = root.getObjectByName('ship smoke')!
-    expect(smoke.visible).toBe(false) // no fire yet
-    setDamage(1, 0)
-    expect(smoke.visible).toBe(true)
-    setDamage(0, 0)
-    expect(smoke.visible).toBe(false)
+    expect(root.getObjectByName('ship smoke')).toBeUndefined()
+    expect(() => setDamage(1, 0)).not.toThrow()
   })
 
   it('exposes its smoke origin in world metres, whatever the floating origin, sinking with the hull (E1 Ruling R13)', () => {
@@ -146,14 +142,14 @@ function syntheticShip(opts: { trapBand?: boolean; smoke?: boolean } = {}): Obje
 describe('ship models (ship-models spec §3, §6)', () => {
   const cv = loadShipSpec('essex-cv'), dd = loadShipSpec('fletcher-dd')
 
-  it('a model view hangs the instance unmoved in hull group, smokes at SmokeOrigin, and sinks by its top plus 2 m about the keel', async () => {
+  it('a model view hangs the instance unmoved in hull group, has its smokeOrigin at SmokeOrigin, and sinks by its top plus 2 m about the keel', async () => {
     const cache = createModelCache(async () => syntheticShip())
     const view = createShipView(dd, 'fletcher-dd', await cache.acquire('x.glb'))
     const hullGroup = view.root.getObjectByName('hull group')!
     expect(view.model).toBe('fletcher-dd')
     const box = new Box3().setFromObject(hullGroup.children[0]!)
     expect([box.min.x, box.max.x, box.max.y]).toEqual([-50, 50, 30]) // unmoved: bow +x, waterline 0
-    expect(view.root.getObjectByName('ship smoke')!.position.toArray()).toEqual([-4, 18, 1])
+    expect(view.smokeOrigin.position.toArray()).toEqual([-4, 18, 1])
     view.setDamage(0, 0.5)
     expect(hullGroup.position.y).toBeCloseTo(-0.5 * (30 + 2), 9)
     expect(hullGroup.rotation.x).toBeCloseTo(-4 * Math.PI / 180, 12)
@@ -183,7 +179,7 @@ describe('ship models (ship-models spec §3, §6)', () => {
     expect(hullA.material).toBe(hullB.material)
   })
 
-  it('dispose releases the instance (never disposes shared materials) and frees the smoke and band it owns', async () => {
+  it('dispose releases the instance (never disposes shared materials) and frees the band it owns', async () => {
     const cache = createModelCache(async () => syntheticShip({ trapBand: true }))
     const view = createShipView(cv, 'essex-cv', await cache.acquire('cv.glb'))
     const other = createShipView(cv, 'essex-cv', await cache.acquire('cv.glb'))
@@ -202,11 +198,7 @@ describe('ship models (ship-models spec §3, §6)', () => {
   it('the boxes still sink by their own top plus 2 m, and carry no model id', () => {
     const view = createShipMesh(dd)
     const hullGroup = view.root.getObjectByName('hull group')!
-    // The hull's own top, without the smoke plume, which rides above it.
-    const smoke = hullGroup.getObjectByName('ship smoke')!
-    hullGroup.remove(smoke)
     const top = new Box3().setFromObject(hullGroup).max.y
-    hullGroup.add(smoke)
     expect(top).toBe(21) // the escort's stack: deck 6 + superstructure 7 + stack 8
     view.setDamage(0, 1)
     expect(view.model).toBeNull()

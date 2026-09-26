@@ -10,9 +10,9 @@ import type { RecipeId } from './catalog.js'
 
 /**
  * Sim state -> effect events (ordnance-and-effects design §3.2). Pure. One
- * call per rendered frame. Edge memory follows `hitFlash.ts`'s old rule
- * (`nextHitFlashes`, deleted in E1 Task 10): a tick that moves backwards is
- * a new flight, and the old flight's edges are forgotten with it.
+ * call per rendered frame. Edge memory follows the same rule the old
+ * per-effect edge detectors used (deleted in E1 Task 10): a tick that moves
+ * backwards is a new flight, and the old flight's edges are forgotten with it.
  */
 export type FxTrigger = { readonly recipe: RecipeId; readonly position: Vec3; readonly velocity: Vec3 }
 export type FxSustained = { readonly key: string; readonly recipe: RecipeId; readonly intensity: number; readonly position: Vec3; readonly velocity: Vec3 }

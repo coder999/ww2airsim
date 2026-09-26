@@ -111,8 +111,8 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   'round.deck': { emitters: [sparks(4), { mode: 'burst', sheet: 'dust', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.5, 1.5], alpha: 0.5, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
   'round.structure': { emitters: [sparks(4), { mode: 'burst', sheet: 'dust', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.5, 1.5], alpha: 0.5, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
   'round.ship': { emitters: [sparks(4), { mode: 'burst', sheet: 'smoke', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.5, 1.5], alpha: 0.4, tint: SMOKE, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
-  // Ruling R4: today's hitFlash 'hit' (2.5 m, 0.25 s, hitFlash.ts flashAppearance).
-  'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1, 2.5], [0.2, 0.3]), radiusM: 0 }], source: 'hitFlash.ts flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
+  // Ruling R4: the pre-E1 renderer's own 'hit' flash (2.5 m, 0.25 s), deleted in E1 Task 10.
+  'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1, 2.5], [0.2, 0.3]), radiusM: 0 }], source: 'pre-E1 flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
   'crash.land': { emitters: [fireball(8, [18, 40], [1.4, 2]), ejecta(50), column(8, 30, [12, 40])], source: ESTIMATE },
   'crash.water': { emitters: [waterColumn(6, [10, 26]), crown(30), surge(20)], source: ESTIMATE },
   'crash.deck': { emitters: [fireball(6, [12, 28], [1.2, 1.8]), sparks(20), column(6, 20, [8, 26])], source: ESTIMATE },

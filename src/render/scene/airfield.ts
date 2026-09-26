@@ -3,14 +3,7 @@ import type { Vec3 } from '../../sim/math/vec3.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
 import type { StructureDamage } from '../../sim/weapons/structures.js'
-import { createSmokeColumn } from '../ordnance.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector, weathered } from './buildings.js'
-
-/** How long a collapsed building's smoke column fades over, seconds (spec
- *  §4: "a 60 s fading smoke column"). Longer than an ordnance impact's own
- *  `IMPACT_LIFETIME_S` (20 s, `ordnance.ts`) -- a razed building smoulders
- *  longer than the bomb that razed it flashes. */
-const COLLAPSE_SMOKE_LIFETIME_S = 60
 
 /** What `createAirfield` hands back (Plan 6b Task 8, fixed post-Task-8): the
  *  scene object, plus the per-structure update path -- following `ship.ts`'s
@@ -34,15 +27,13 @@ export type AirfieldHandle = {
    *  structure belongs to exactly one airfield; `main.ts` calls this on
    *  every airfield with the full map rather than tracking which owns
    *  which). Idempotent in both directions: repeating the same destroyed or
-   *  the same healthy state does not restart the smoke column or re-hide an
-   *  already-hidden one. Forward (destroyed) keeps the existing 60 s smoke
-   *  fade, started once on the transition into collapsed; backward (only
-   *  reachable via Restart, since nothing else heals a structure) hides the
-   *  collapsed geometry and smoke immediately -- Restart is a hard reset,
-   *  not an animation. */
+   *  the same healthy state re-sets the same visibility rather than
+   *  restarting anything. Backward (only reachable via Restart, since
+   *  nothing else heals a structure) hides the collapsed geometry
+   *  immediately -- Restart is a hard reset, not an animation. The collapse's
+   *  dust and smoke are E1's `structure.collapse` recipe, anchored at
+   *  `smokeAnchors`. */
   sync(structureDamage: Readonly<Record<string, StructureDamage>>): void
-  /** Ages every collapsed building's smoke column by one frame. */
-  update(dtSeconds: number): void
   /** World metres, per content building id: where its collapse smoke rises
    *  from, 2.5 m above the rendered building's ground (E1 Ruling R13). */
   readonly smokeAnchors: ReadonlyMap<string, Vec3>
@@ -151,20 +142,20 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   // `batched()` has merged every building of the same material into one
   // mesh. Huts, never a strike target, still go through `shared` below. It
   // returns the building's ground height so the caller can place the
-  // collapsed rubble and smoke column at the same spot. `drawBuilding`
-  // itself moved to `buildings.ts` (Plan 13d Task 3, so `towns.ts` can call
-  // it too); `at()` now runs here, before the call, rather than inside it.
+  // collapsed rubble at the same spot. `drawBuilding` itself moved to
+  // `buildings.ts` (Plan 13d Task 3, so `towns.ts` can call it too); `at()`
+  // now runs here, before the call, rather than inside it.
 
   // Every content building gets its OWN group -- `intact` (this building's
   // own merge, via `batched`, of exactly the geometry `drawBuilding` just
-  // built for it), `collapsed` (a low broken box, hidden until destroyed,
+  // built for it) and `collapsed` (a low broken box, hidden until destroyed,
   // sharing this file's own `concrete` weathered material rather than a new
-  // one), and `smoke` (`ordnance.ts`'s `createSmokeColumn`, reused rather
-  // than reimplemented). `structures` is the lookup `sync` uses.
+  // one). `structures` is the lookup `sync` uses. The collapse's dust and
+  // smoke are E1's `structure.collapse` recipe, anchored at `smokeAnchors`
+  // rather than rendered here.
   const structures = new Map<string, {
     readonly intact: Object3D
     readonly collapsed: Object3D
-    readonly smoke: ReturnType<typeof createSmokeColumn>
   }>()
   const anchors = new Map<string, Vec3>()
   for (const b of airfield.buildings) {
@@ -189,17 +180,13 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     chunk.receiveShadow = true
     collapsed.add(chunk)
 
-    const smoke = createSmokeColumn()
-    smoke.object.name = 'smoke'
-    smoke.object.position.set(x, y + 2.5, z)
-    smoke.object.scale.setScalar(4)
     anchors.set(b.id, { x, y: y + 2.5, z })
 
     const group = new Group()
     group.name = `structure:${b.id}`
-    group.add(intact, collapsed, smoke.object)
+    group.add(intact, collapsed)
     root.add(group)
-    structures.set(b.id, { intact, collapsed, smoke })
+    structures.set(b.id, { intact, collapsed })
   }
   for (const h of AIRFIELD_HUTS) {
     const { x, z } = at(h.x, h.z)
@@ -210,8 +197,8 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
     const object = batched(root, shared.batches)
     // A blanket pass, not per-piece: `batched()` already sets this on its own
     // merged meshes (buildings' `intact` included), but the hand-built
-    // `collapsed` rubble and the smoke puffs need it too, and re-setting an
-    // already-true flag is harmless (Plan 16b, see hellcat.ts).
+    // `collapsed` rubble needs it too, and re-setting an already-true flag
+    // is harmless (Plan 16b, see hellcat.ts).
     object.traverse((o) => { o.receiveShadow = true })
     return {
       object,
@@ -222,12 +209,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
           if (destroyed === s.collapsed.visible) continue // already in the right state
           s.intact.visible = !destroyed
           s.collapsed.visible = destroyed
-          if (destroyed) s.smoke.start(COLLAPSE_SMOKE_LIFETIME_S)
-          else s.smoke.object.visible = false // Restart is a hard reset, not a fade-out
         }
-      },
-      update(dtSeconds: number): void {
-        for (const s of structures.values()) s.smoke.update(dtSeconds)
       },
     }
   }

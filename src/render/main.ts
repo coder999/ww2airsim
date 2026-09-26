@@ -24,7 +24,6 @@ import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
-import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
 import { applyMissionResultToRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
@@ -50,8 +49,7 @@ import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
-import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
-import { createOrdnance, nextOrdnanceImpacts, NO_ORDNANCE_MEMORY, type OrdnanceMemory } from './ordnance.js'
+import { createOrdnance } from './ordnance.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
 import { BINDINGS } from '../input/bindings.js'
@@ -300,7 +298,7 @@ async function boot(): Promise<void> {
   // nothing else ever needs a later scenario's world.
   let scenarioWorld: World<undefined> | null = null
   let spawnedAt: Vec3 | null = null
-  // `airframes`/`shipHandles`/`smokes`/`player`, together --
+  // `airframes`/`shipHandles`/`player`, together --
   // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
   // construction and disposal reasoning.
   let scenarioEntities: ScenarioEntities | null = null
@@ -319,7 +317,7 @@ async function boot(): Promise<void> {
    * Fetches one scenario's content bundle and rebuilds everything sized to
    * its entity lists: `scenarioWorld` (read once, below, for the player's
    * aircraft spec), the spawn point, and `scenarioEntities` --
-   * `airframes`/`shipHandles`/`smokes`/`player`
+   * `airframes`/`shipHandles`/`player`
    * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
    * are NOT rebuilt here (design doc §5: every scenario sits in the same
    * Leyte Gulf tangent plane, so none of that is scenario content), and
@@ -1273,27 +1271,20 @@ async function boot(): Promise<void> {
   // The clouds are no longer in the scene: photoreal Task 3 moved the march
   // into a reduced-resolution pass composited after it (`cloudPass`, below
   // `framePipeline`).
-  // `airframes`/`shipHandles`/`smokes`/`player` are already in
-  // `scenarioEntities` -- built by the first `loadScenario` call, above,
-  // from this same `scene` and this same `scenarioWorld`'s entity lists
-  // (`buildScenarioEntities`, `scenarioEntities.ts`, has the construction
-  // reasoning: world order, the smoke-per-airframe child, and picking the
-  // player's `Airframe` out by id rather than assuming index 0). The render
-  // loop, below, destructures `scenarioEntities` fresh every frame -- Plan 9
-  // Task 7 -- so a later `loadScenario` call is picked up with no further
-  // plumbing here.
+  // `airframes`/`shipHandles`/`player` are already in `scenarioEntities` --
+  // built by the first `loadScenario` call, above, from this same `scene`
+  // and this same `scenarioWorld`'s entity lists (`buildScenarioEntities`,
+  // `scenarioEntities.ts`, has the construction reasoning: world order, and
+  // picking the player's `Airframe` out by id rather than assuming index 0).
+  // The render loop, below, destructures `scenarioEntities` fresh every
+  // frame -- Plan 9 Task 7 -- so a later `loadScenario` call is picked up
+  // with no further plumbing here.
   const tracers = createTracers()
   scene.add(tracers.object)
-  const hitFlashes = createHitFlashes()
-  scene.add(hitFlashes.object)
-  // Ordnance in flight and its impacts (Plan 6b Task 8): `createOrdnance`
-  // adds its own pools to `scene` itself, unlike the pools above, which hand
-  // their `object` back for the caller to add. Like `tracers`/`hitFlashes`,
+  // Ordnance in flight (Plan 6b Task 8, impacts migrated to E1's fx/): pools
   // sized independently of any scenario's entity list -- nothing here is
   // rebuilt on a scenario switch either.
   const ordnance = createOrdnance(scene)
-  let ordnanceMemory: OrdnanceMemory = NO_ORDNANCE_MEMORY
-  let flashMemory: FlashMemory = NO_FLASH_MEMORY
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -1467,8 +1458,6 @@ async function boot(): Promise<void> {
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
    *  Restart. */
   let landingShown = false
-  const impactEffect = createImpactEffect()
-  scene.add(impactEffect.object)
   /** The tick of the impact the debrief is currently showing, so the modal is
    *  raised once rather than rebuilt sixty times a second. */
   let shownImpactTick: number | null = null
@@ -1576,8 +1565,8 @@ async function boot(): Promise<void> {
    * radar-range-cycling keydown handler for that session, both gated on it
    * elsewhere in this file.
    *
-   * Declared here, after every variable it touches (`debrief`, `impactEffect`,
-   * `hitFlashes`, `shownImpactTick`, `shownDestructionTick`, `landingShown`,
+   * Declared here, after every variable it touches (`debrief`,
+   * `shownImpactTick`, `shownDestructionTick`, `landingShown`,
    * `postImpactOceanSeconds`) rather than hoisted to the top of `boot` with
    * `frame`/`buildWorld`/`roster` -- unlike those, nothing here needs the
    * TDZ-safety hoist: there is no `await` anywhere between `frame`'s own
@@ -1598,8 +1587,6 @@ async function boot(): Promise<void> {
    */
   const resetFlightUi = (): void => {
     debrief.hide()
-    impactEffect.hide()
-    hitFlashes.hide()
     shownImpactTick = null
     shownDestructionTick = null
     landingShown = false
@@ -1963,7 +1950,7 @@ async function boot(): Promise<void> {
     // lines down) -- naming this field the same thing as ScenarioEntities'
     // own `player: Airframe` would be a duplicate `const player` in one
     // scope, not a shadow (both are declared in this same function body).
-    const { airframes, shipHandles, smokes, player: playerAirframe } = scenarioEntities!
+    const { airframes, shipHandles, player: playerAirframe } = scenarioEntities!
     const player = playerAircraft(current.world)
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -2047,25 +2034,13 @@ async function boot(): Promise<void> {
     autopilotBadge.setStatus(current.autopilot)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
-    // Plan 6: every combat visual reads `World.combat` on THIS frame. The
-    // readout and tracers are stateless views of it; the flashes are an
-    // edge detector with its own memory (hitFlash.ts) because a hit's
-    // record persists on the entity every frame afterward.
+    // Plan 6: the readout and tracers are stateless views of World.combat;
+    // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
     tracers.update(current.world.combat.projectiles)
-    const flashes = nextHitFlashes(flashMemory, current.world.combat, current.world.aircraft, current.world.tick)
-    flashMemory = flashes.memory
-    for (const event of flashes.events) hitFlashes.fire(event)
-    current.world.aircraft.forEach((a, i) => {
-      const damage = current.world.combat.aircraft[a.id]!.damage
-      smokes[i]!.set(damage.engine, damage.destroyedAt !== null)
-    })
     // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
     // sinking/burning and structure collapse -- all stateless views of
-    // `World.combat` except the impact pool, which (like the flashes above)
-    // is an edge detector: a projectile leaving `combat.projectiles` is the
-    // only signal a bomb or rocket detonated (`nextOrdnanceImpacts`'s own
-    // doc comment).
+    // `World.combat`.
     current.world.aircraft.forEach((a, i) => {
       const stores = current.world.combat.aircraft[a.id]?.stores
       if (stores !== undefined) airframes[i]!.setStores(stores.bombs, stores.rockets)
@@ -2080,11 +2055,7 @@ async function boot(): Promise<void> {
       const playerControls = a.id === current.world.player ? current.controls : null
       airframes[i]!.update(airframeUpdateFor(a, playerControls, current.poses[i]!.position, current.eye.position, frameMs / 1000))
     })
-    ordnance.update(current.world.combat.projectiles, current.eye.position)
-    ordnance.updateEffects(frameMs / 1000)
-    const ordnanceImpacts = nextOrdnanceImpacts(ordnanceMemory, current.world.combat.projectiles, current.world.tick)
-    ordnanceMemory = ordnanceImpacts.memory
-    for (const event of ordnanceImpacts.events) ordnance.spawnImpact(event.kind, event.position)
+    ordnance.update(current.world.combat.projectiles)
     current.world.ships.forEach((s, i) => {
       const damage = current.world.combat.ships[s.id]
       if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
@@ -2099,7 +2070,6 @@ async function boot(): Promise<void> {
     // rather than tracking which airfield owns which structure; a handle
     // ignores ids it does not own.
     for (const h of airfieldHandles) h.sync(current.world.combat.structures)
-    for (const h of airfieldHandles) h.update(frameMs / 1000)
     // E1: every effect reads World.combat through one pure edge detector
     // (fx/events.ts), one seeded pool (fx/system.ts) and one pass (fx/fxPass.ts).
     if (fxSystem !== null && fxPass !== null) {
@@ -2129,17 +2099,6 @@ async function boot(): Promise<void> {
     const hit = player.impact
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
-      // Raw world metres, NOT `+ worldOffset`: `impactEffect.object` is a
-      // child of `scene`, and `scene.position` is set to `worldOffset` every
-      // frame just above, which already applies the camera-relative shift
-      // once for every child -- the airframe, the sky and the terrain mesh
-      // all set their positions the same way. Adding `worldOffset` here too
-      // would apply it twice. The position is deliberately set once, at fire
-      // time, and never refreshed: the effect is anchored at a fixed world
-      // point, and `scene.position` moving each frame is what keeps it there
-      // as the camera flies away.
-      impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
-      impactEffect.fire(hit.surface)
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = debriefModel(hit, player.state, killsSinceLastBank)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
@@ -2195,9 +2154,6 @@ async function boot(): Promise<void> {
         debrief.hide()
       })
     }
-    impactEffect.object.quaternion.copy(camera.quaternion)
-    impactEffect.update(frameMs / 1000)
-    hitFlashes.update(frameMs / 1000, camera.quaternion)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's
