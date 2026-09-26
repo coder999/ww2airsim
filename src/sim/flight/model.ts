@@ -1,6 +1,7 @@
 import { type Vec3, v3, add, sub, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
 import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
+import { piecewiseLinear } from '../math/piecewise.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor, sideForceN, attachedFlowFraction } from '../aero.js'
 import {
   gearAfter,
@@ -132,16 +133,7 @@ export function angleOfAttack(state: AircraftState): number {
 }
 
 function powerFractionAt(spec: AircraftSpec, altitudeM: number): number {
-  const pts = spec.engine.powerFractionByAltitudeM
-  if (altitudeM <= pts[0]![0]) return pts[0]![1]
-  const last = pts[pts.length - 1]!
-  if (altitudeM >= last[0]) return last[1]
-  for (let i = 1; i < pts.length; i++) {
-    const [h1, f1] = pts[i]!
-    const [h0, f0] = pts[i - 1]!
-    if (altitudeM <= h1) return f0 + ((f1 - f0) * (altitudeM - h0)) / (h1 - h0)
-  }
-  return last[1]
+  return piecewiseLinear(spec.engine.powerFractionByAltitudeM, altitudeM)
 }
 
 /** Clamps to [lo, hi], and maps any non-finite input to 0 rather than letting
@@ -195,11 +187,37 @@ export function rateAuthority(spec: AircraftSpec, q: number): number {
   return Math.min(1, Math.sqrt(Math.max(0, q) / qRef))
 }
 
+/** Equivalent airspeed, m/s: the speed that gives dynamic pressure `q` at
+ *  sea-level density. What an airspeed indicator reads, less instrument and
+ *  position error, which is how the Zero's sources quote their speeds. */
+export function equivalentAirspeedMps(q: number): number {
+  return Math.sqrt((2 * Math.max(0, q)) / densityAt(0))
+}
+
+/**
+ * The share of the pilot's commanded rates that heavy controls still allow at
+ * dynamic pressure `q`, from `rates.controlFadeByEasMps` (A6M spec §4.4,
+ * Mark's decision 2026-09-25). Exactly 1 when the field is absent, so an
+ * aircraft that does not set it commands the same bits as before.
+ *
+ * It exists because `rateAuthority` stays at 1 at any speed above the
+ * reference speed, so nothing could make the controls heavy at high speed.
+ * The Zero's trial reports say they were ("above 300 M.P.H. all maneuvers
+ * become increasingly difficult", ENG-47-1673-A).
+ *
+ * Applied to the pilot's commands only, never to the weathercock: a heavy
+ * stick does not weaken the fin.
+ */
+export function controlFade(spec: AircraftSpec, q: number): number {
+  const fade = spec.rates.controlFadeByEasMps
+  return fade === undefined ? 1 : piecewiseLinear(fade, equivalentAirspeedMps(q))
+}
+
 /** Shared by `commandedBodyRates` and `step`, which both need it but must not
  *  recompute rho/v/q a second time when `step` already has them in hand
  *  (this is the hottest function in the project). */
 function ratesFromDynamicPressure(spec: AircraftSpec, q: number, controls: Controls): Vec3 {
-  const authority = rateAuthority(spec, q)
+  const authority = rateAuthority(spec, q) * controlFade(spec, q)
 
   const clamp = (n: number) => clampFinite(n, -1, 1)
   return v3(

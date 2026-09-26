@@ -258,6 +258,23 @@ const AircraftSpecObject = z.object({
      * Task 6 -- Mark flying it -- is expected to revise.
      */
     stallLimiterSeconds: positive,
+    /**
+     * Optional `[easMps, fraction]` table multiplying the pilot's commanded
+     * roll, pitch and yaw rates -- controls that stiffen at speed. Read
+     * through `controlFade` in src/sim/flight/model.ts, which says why it
+     * exists. Speeds strictly increase and fractions never rise, because a
+     * stick does not get lighter as the airplane goes faster.
+     */
+    controlFadeByEasMps: z
+      .array(z.tuple([positive, fraction]))
+      .min(2)
+      .refine((pts) => pts.every((p, i) => i === 0 || p[0] > pts[i - 1]![0]), {
+        message: 'control fade speeds must strictly increase',
+      })
+      .refine((pts) => pts.every((p, i) => i === 0 || p[1] <= pts[i - 1]![1]), {
+        message: 'control fade fractions must not rise with speed',
+      })
+      .optional(),
       }).strict(),
   limits: z.object({ diveSpeedMps: positive, gLimit: positive }).strict(),
   /** Landing gear: travel time, the drag it costs extended, rolling and

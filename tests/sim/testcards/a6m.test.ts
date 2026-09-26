@@ -95,3 +95,13 @@ describe('A6M2 Model 21 flight test card (Informational Intelligence Summary No.
     expect(r.pass, `roll ${r.actual.toFixed(3)} deg/s vs ${r.expected}`).toBe(true)
   })
 })
+
+describe('A6M2: controls stiffen at high speed (Eglin: "slow rate of roll of the Zero at high speeds")', () => {
+  // Fraction from content: 1.0 to 111.76 m/s (250 mph), 0.35 at 134.11
+  // (300 mph), 0.2 from 156.46 (350 mph). At 150 m/s that is
+  // 0.35 - 0.15 * (150 - 134.11) / 22.35 = 0.24336, times 80 deg/s.
+  it('rolls at 80 deg/s under 250 mph and about 19.5 deg/s at 150 m/s', () => {
+    expect(measureRollRate(zero, 0, 111.76)).toBeCloseTo(80, 0)
+    expect(measureRollRate(zero, 0, 150)).toBeCloseTo(80 * 0.24336, 0)
+  })
+})
