@@ -343,6 +343,12 @@ export function createTitleScreen(
   // Rebuilt with the overlay on every `build()`; the MODEL above is not,
   // which is what makes a choice survive a return-to-title.
   let settingsDialog: SettingsDialogHandle | null = null
+  // The open Dossier's `destroy()`, if one is up (fix round 1, IMPORTANT 1)
+  // -- same reason `settingsDialog` is tracked here: it owns a `window`
+  // keydown listener `hide()` must tear down, or it outlives the overlay
+  // that held it and keeps swallowing Escape/Enter for the rest of the
+  // session.
+  let openDossierClose: (() => void) | null = null
 
   const hide = (): void => {
     if (!isUp) return
@@ -354,6 +360,11 @@ export function createTitleScreen(
     settings.close()
     settingsDialog?.destroy()
     settingsDialog = null
+    // Same leak, same fix, for the Dossier -- `destroy()` (not a plain
+    // close) so it does NOT try to refocus the row button this overlay is
+    // about to remove.
+    openDossierClose?.()
+    openDossierClose = null
     root.querySelector('[data-ww2-title]')?.remove()
     if (onKey) window.removeEventListener('keydown', onKey)
     onKey = null
@@ -693,9 +704,17 @@ export function createTitleScreen(
       const dossierButton = inkButton('Dossier')
       dossierButton.setAttribute('aria-label', `Dossier: ${pilot.name}`)
       dossierButton.addEventListener('click', () => {
+        // Re-entrancy guard (fix round 1, IMPORTANT 2): a double-click (or a
+        // click on a different row's Dossier button while one is already
+        // open) must not stack a second panel -- Close on the top one would
+        // then leave the other alive with its own live keydown listener.
+        if (openDossierClose !== null) return
         // Re-read so a record banked since this row was built is shown.
         const fresh = loadRoster().find((p) => p.id === pilot.id) ?? pilot
-        openDossier(overlay, fresh, scenarioLabel, () => dossierButton.focus())
+        openDossierClose = openDossier(overlay, fresh, scenarioLabel, () => {
+          openDossierClose = null
+          dossierButton.focus()
+        })
       })
       dossierCell.appendChild(dossierButton)
 

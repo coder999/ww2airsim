@@ -81,7 +81,20 @@ export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => 
   }
 }
 
-export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel: (id: string) => string, onClose: () => void): void {
+/**
+ * Opens the Dossier over `host` and returns a `destroy()` the caller MUST
+ * invoke if it tears the host down out from under this panel (fix round 1,
+ * IMPORTANT 1) -- titleScreen.ts's `hide()` calls it the same way it already
+ * calls `settingsDialog?.destroy()`, because this function's own capture-
+ * phase `window` keydown listener has no other way to know the overlay it
+ * lives in is gone. Without that, a return-to-title (or New game) while the
+ * Dossier is open leaves the listener attached to `window` forever, and it
+ * keeps calling `stopPropagation()` on every later Escape/Enter -- including
+ * ones from the title's own `onKey` or in-flight input -- for the rest of
+ * the session. `destroy()` does NOT call `onClose` (the row button it would
+ * focus is itself being torn down); only a real Escape or Close click does.
+ */
+export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel: (id: string) => string, onClose: () => void): () => void {
   ensureStampFilter()
   const m = dossierModel(pilot, scenarioLabel)
   const panel = document.createElement('div')
@@ -147,15 +160,34 @@ export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel
   panel.appendChild(sheet)
   host.appendChild(panel)
 
-  const done = (): void => { window.removeEventListener('keydown', onKey, true); panel.remove(); onClose() }
+  // Idempotent and gated so a Close click racing an Escape keydown (or a
+  // caller-driven `destroy()` after the user already closed it) can't
+  // double-fire `onClose` -- fix round 1, IMPORTANT 1's teardown path calls
+  // this from `hide()` without knowing whether the panel is already closed.
+  let closed = false
+  const done = (moveFocus: boolean): void => {
+    if (closed) return
+    closed = true
+    window.removeEventListener('keydown', onKey, true)
+    panel.remove()
+    if (moveFocus) onClose()
+  }
   const onKey = (e: KeyboardEvent): void => {
     if (e.code !== 'Escape' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return
     // Capture phase + stop: neither Escape nor Enter may reach the title's
     // own onKey (which would advance or launch) while the dossier is open.
     e.stopPropagation()
-    if (e.code === 'Escape') { e.preventDefault(); done() }
+    if (e.code === 'Escape') { e.preventDefault(); done(true) }
   }
+  // Tab trap (optional item, done while here): Close is the panel's only
+  // focusable control, so keeping Tab and Shift+Tab from leaving it is just
+  // re-focusing Close on either -- no separate first/last-element tracking
+  // needed the way a multi-control dialog would require.
+  close.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); close.focus() }
+  })
   window.addEventListener('keydown', onKey, true)
-  close.addEventListener('click', done)
+  close.addEventListener('click', () => done(true))
   close.focus()
+  return () => done(false)
 }

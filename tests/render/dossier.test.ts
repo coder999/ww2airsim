@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { dossierModel, formatFeet, formatHours, formatKnots, nextRankProgress } from '../../src/render/dossier.js'
+import { dossierModel, formatFeet, formatHours, formatKnots, nextRankProgress, openDossier } from '../../src/render/dossier.js'
 import { RANK_LADDER, applyMissionResult, createPilot } from '../../src/render/roster.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 
@@ -43,5 +44,35 @@ describe('dossierModel', () => {
     expect(m.log.map((r) => r.scenario)).toEqual(['Scenario b', 'Scenario a'])
     expect(m.log[0]!.kills).toBe(2)
     expect(m.kills).toContainEqual(['Fighter', 2])
+  })
+})
+
+describe('openDossier lifecycle (Task 8 review fix round 1)', () => {
+  // IMPORTANT 1: the orphaned capture-phase `window` keydown listener this
+  // fixes is only reachable through a real return-to-title, which needs a
+  // browser `window` this node-environment suite does not have (Tier 2's
+  // tests/e2e/dossier.spec.ts covers open/Escape/focus-return). What IS
+  // pinnable here is the type-level contract titleScreen.ts's fix depends
+  // on: `openDossier` must return a destroy function, not `void`, or the
+  // `hide()` wiring that tracks it fails to compile.
+  it('returns a destroy function, so a caller can tear it down without user input', () => {
+    type Return = ReturnType<typeof openDossier>
+    const destroy: Return = () => {}
+    expect(typeof destroy).toBe('function')
+  })
+
+  const src = readFileSync(new URL('../../src/render/dossier.ts', import.meta.url), 'utf8')
+
+  it('the returned destroy() does not move focus (onClose only fires on a real Close/Escape)', () => {
+    expect(src).toContain('return () => done(false)')
+  })
+
+  it('Close and Escape both request the focus-move path', () => {
+    expect(src).toContain("close.addEventListener('click', () => done(true))")
+    expect(src).toMatch(/Escape'.*done\(true\)/)
+  })
+
+  it('done() is idempotent, so destroy() after an already-closed panel is a no-op', () => {
+    expect(src).toContain('if (closed) return')
   })
 })

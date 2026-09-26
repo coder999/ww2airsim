@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
@@ -269,5 +270,29 @@ describe('the loading strip (loading spec §A.2)', () => {
     type Params = Parameters<typeof createTitleScreen>
     const boot: Params[4] = readyBootProgress()
     expect(boot?.ready).toBe(true)
+  })
+})
+
+describe('Dossier lifecycle wiring (Task 8 review fix round 1)', () => {
+  // Neither leak is DOM-observable in this node-environment suite -- both
+  // need a real `window` and a real return-to-title/double-click to
+  // reproduce (Tier 2's job, see tests/e2e/dossier.spec.ts) -- so this pins
+  // the source wiring the same way tests/render/bootProgress.test.ts pins
+  // main.ts's stage calls: a regression that drops either line compiles and
+  // passes every other test, but leaks a `window` keydown listener (a
+  // return-to-title while the Dossier is open) or stacks two panels (a
+  // double-click on a Dossier button).
+  const src = readFileSync(new URL('../../src/render/titleScreen.ts', import.meta.url), 'utf8')
+
+  it("hide() destroys any open Dossier, the same way it destroys the settings dialog", () => {
+    expect(src).toMatch(/openDossierClose\?\.\(\)\s*\n\s*openDossierClose = null/)
+  })
+
+  it('the Dossier button click guards against opening a second panel', () => {
+    expect(src).toContain('if (openDossierClose !== null) return')
+  })
+
+  it("a closed Dossier's onClose clears the tracked handle before refocusing the row", () => {
+    expect(src).toMatch(/openDossierClose = null\s*\n\s*dossierButton\.focus\(\)/)
   })
 })
