@@ -2,6 +2,8 @@
 
 **`view.model` is not set.** Z1 had not landed on `main` when Z2 finished (checked 2026-09-25: `main`'s `src/sim/flight/schema.ts` has no `view.model`), so `content/aircraft/a6m2-zero.json` carries no `model` key; with `view` still `.strict()`, one would fail to load. **Whichever of Z1 and Z2 merges second adds `"model": "wildcat"` to the Zero's `view` block** (or `"a6m2-zero"` if Z1's registry already registers that id; Z3 flips it). Z1's registry-coverage test ("every `content/aircraft/*.json` names a registered model") fails loudly until someone does.
 
+*Resolved 2026-09-25 at the merge into `main`: Z1 landed first, so the Z2 merge set `"model": "wildcat"`. The Zero renders as the Wildcat stand-in until Z3.*
+
 Branch `worktree-combat-track`, cut from `main` at `d68a652` (`git merge main` at the start was already up to date). Not merged, not pushed. Plan: [2026-09-25-z2-zero-flight-model.md](../superpowers/plans/2026-09-25-z2-zero-flight-model.md). Spec: [2026-09-25-a6m-zero-design.md](../superpowers/specs/2026-09-25-a6m-zero-design.md) §4, §5, §11 "Z2".
 
 ## What changed

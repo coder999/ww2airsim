@@ -1,9 +1,11 @@
 {
   "id": "a6m-zero",
-  "name": "Mitsubishi A6M Zero",
+  "name": "Mitsubishi A6M2 Model 21 Zero",
+  "rosterName": "Mitsubishi A6M Zero",
   "kind": "aircraft",
   "side": "japanese",
-  "blurb": "The Imperial Navy's carrier fighter and the game's first hostile airframe.",
+  "spec": "a6m2-zero",
+  "blurb": "The Imperial Navy's carrier fighter and the game's first hostile airframe. It is drawn with the Wildcat model until a Zero model is built.",
   "history": "The Mitsubishi A6M, the Navy Type 0 carrier fighter, served the Imperial Japanese Navy from 1940 to 1945. Its pilots called it the Reisen, the zero fighter, after the last digit of the imperial year 2600 (1940); the Allied reporting name was \"Zeke\". When it appeared it was considered the most capable carrier fighter in the world, combining maneuverability, speed, firepower and very long range.\n\nBy mid-1942 new Allied tactics and equipment let pilots meet it on equal terms. It had no armor or self-sealing tanks, and without boosted controls it was hard to maneuver at high speed. By 1944 it was outdated, yet it stayed in front-line service to the end of the war, late in the war in kamikaze attacks, and Japan built more Zeros than any other combat aircraft.",
   "sources": [
     {
