@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import {
-  RANK_LADDER, applyMissionResult, createPilot, exportRoster, importRoster,
-  loadRoster, rankFor, saveRoster, startSortie, type PilotRecord,
+  RANK_LADDER, ZERO_CAREER, MISSION_LOG_CAP,
+  applyMissionResult, applyMissionResultToRoster, createPilot, exportRoster, importRoster,
+  loadRoster, rankFor, saveRoster, startSortie, type PilotRecord, type SortieFacts,
 } from '../../src/render/roster.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 
@@ -181,5 +182,104 @@ describe('pilot lifecycle', () => {
   it('whole-branch review I-4: dying again while already kia (e.g. Restart into another death) stays kia', () => {
     const kia: PilotRecord = { ...createPilot('Boyington'), status: 'kia' }
     expect(applyMissionResult(kia, 0, 'killed').status).toBe('kia')
+  })
+})
+
+const facts = (over: Partial<SortieFacts> = {}): SortieFacts => ({
+  at: '2026-09-25T20:00:00.000Z', scenarioId: 'leyte-cap', aircraft: 'F6F-5 Hellcat', loadout: 'clean',
+  outcome: 'field', segment: { flightSeconds: 600, maxAltitudeM: 3000, maxTrueAirspeedMps: 150 }, ...over,
+})
+
+describe('career and mission log (dossier spec §B.1)', () => {
+  it('a new pilot starts with a zero career and an empty log', () => {
+    const p = createPilot('Ace')
+    expect(p.career).toEqual(ZERO_CAREER)
+    expect(p.log).toEqual([])
+  })
+
+  it('appends one log entry and folds the segment into career totals', () => {
+    const p = applyMissionResult(createPilot('Ace'), 500, 'landed', zeroKillsByType(), facts({ outcome: 'trap' }))
+    expect(p.log).toHaveLength(1)
+    expect(p.log[0]).toMatchObject({ outcome: 'trap', points: 500, flightSeconds: 600, aircraft: 'F6F-5 Hellcat' })
+    expect(p.career.flightSeconds).toBe(600)
+    expect(p.career.landings).toEqual({ trap: 1, field: 0, ditched: 0 })
+    expect(p.career.maxAltitudeM).toBe(3000)
+  })
+
+  it('a killed sortie logs but counts no landing; peaks keep the career maximum', () => {
+    let p = applyMissionResult(createPilot('Ace'), 0, 'landed', zeroKillsByType(), facts())
+    p = applyMissionResult(p, 0, 'killed', zeroKillsByType(), facts({ outcome: 'killed', segment: { flightSeconds: 10, maxAltitudeM: 100, maxTrueAirspeedMps: 200 } }))
+    expect(p.career.landings).toEqual({ trap: 0, field: 1, ditched: 0 })
+    expect(p.career.maxAltitudeM).toBe(3000)
+    expect(p.career.maxTrueAirspeedMps).toBe(200)
+    expect(p.career.flightSeconds).toBe(610)
+  })
+
+  it('without sortie facts nothing is logged (existing callers unchanged)', () => {
+    const p = applyMissionResult(createPilot('Ace'), 100, 'landed')
+    expect(p.log).toEqual([])
+    expect(p.career).toEqual(ZERO_CAREER)
+  })
+
+  it('caps the log at 200, dropping the oldest, and keeps career totals past the cap', () => {
+    let p = createPilot('Ace')
+    for (let i = 0; i < MISSION_LOG_CAP + 5; i++) {
+      p = applyMissionResult(p, 1, 'landed', zeroKillsByType(), facts({ at: `2026-09-25T00:00:${String(i % 60).padStart(2, '0')}.${String(i).padStart(3, '0')}Z` }))
+    }
+    expect(p.log).toHaveLength(MISSION_LOG_CAP)
+    expect(p.log[0]!.at).toContain('.005Z')
+    expect(p.career.landings.field).toBe(MISSION_LOG_CAP + 5)
+    expect(p.career.flightSeconds).toBe(600 * (MISSION_LOG_CAP + 5))
+  })
+
+  it('land -> continue -> crash banks two separate log lines (review focus 2)', () => {
+    const p0 = createPilot('Ace')
+    let roster: readonly PilotRecord[] = [p0]
+    roster = applyMissionResultToRoster(roster, p0.id, 100, 'landed', zeroKillsByType(), facts({ segment: { flightSeconds: 300, maxAltitudeM: 1000, maxTrueAirspeedMps: 90 } }))
+    roster = applyMissionResultToRoster(roster, p0.id, 0, 'killed', zeroKillsByType(), facts({ outcome: 'killed', segment: { flightSeconds: 40, maxAltitudeM: 400, maxTrueAirspeedMps: 120 } }))
+    const p = roster[0]!
+    expect(p.log.map((e) => [e.outcome, e.flightSeconds])).toEqual([['field', 300], ['killed', 40]])
+    expect(p.career.flightSeconds).toBe(340)
+  })
+})
+
+describe('migrate on read (dossier spec §B.3)', () => {
+  beforeEach(() => {
+    const store = new Map<string, string>()
+    ;(globalThis as { window?: unknown }).window = {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => { store.set(key, value) },
+        clear: () => store.clear(),
+      },
+    }
+  })
+
+  const legacy = (): Record<string, unknown> => {
+    const rest = createPilot('Old Timer') as unknown as Record<string, unknown>
+    delete rest.career
+    delete rest.log
+    return { ...rest, cumulativeScore: 9000, sorties: 7 }
+  }
+
+  it('a pre-dossier record loads with a zero career and an empty log, keeping its score', () => {
+    ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([legacy()]))
+    const [p] = loadRoster()
+    expect(p!.career).toEqual(ZERO_CAREER)
+    expect(p!.log).toEqual([])
+    expect(p!.cumulativeScore).toBe(9000)
+  })
+
+  it('a partial career (landings missing a key) is zero-filled, not a thrown roster (review focus 4)', () => {
+    const rec = { ...legacy(), career: { flightSeconds: 12, landings: { trap: 2 }, maxAltitudeM: 5 }, log: [] }
+    ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
+    const [p] = loadRoster()
+    expect(p!.career).toEqual({ flightSeconds: 12, landings: { trap: 2, field: 0, ditched: 0 }, maxAltitudeM: 5, maxTrueAirspeedMps: 0 })
+  })
+
+  it('a pre-dossier export still imports; a populated log round-trips', () => {
+    expect(importRoster(JSON.stringify([legacy()]))[0]!.log).toEqual([])
+    const flown = applyMissionResult(createPilot('Ace'), 5, 'landed', zeroKillsByType(), facts())
+    expect(importRoster(exportRoster([flown]))).toEqual([flown])
   })
 })

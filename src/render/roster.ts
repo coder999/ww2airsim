@@ -1,5 +1,7 @@
 import { addKillsByType, TARGET_TYPES, zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
+import type { Loadout } from '../sim/weapons/stores.js'
 import type { RecoveryOutcome } from './debrief.js'
+import type { FlightSegment } from './flightRecord.js'
 
 export type Rank = { readonly abbrev: string; readonly name: string; readonly threshold: number }
 
@@ -28,6 +30,50 @@ export function rankFor(cumulativeScore: number): Rank {
   return current
 }
 
+export type LandingKind = 'trap' | 'field' | 'ditched'
+export type LogOutcome = LandingKind | 'killed'
+
+/** Career totals (dossier spec §B.1) -- stored, never derived from `log`,
+ *  so they survive the 200-entry log cap intact. */
+export type Career = {
+  readonly flightSeconds: number
+  readonly landings: Readonly<Record<LandingKind, number>>
+  readonly maxAltitudeM: number
+  readonly maxTrueAirspeedMps: number
+}
+
+export const ZERO_CAREER: Career = { flightSeconds: 0, landings: { trap: 0, field: 0, ditched: 0 }, maxAltitudeM: 0, maxTrueAirspeedMps: 0 }
+
+/** One banked sortie's line in the pilot's mission log (dossier spec §B.1). */
+export type MissionLogEntry = {
+  readonly at: string
+  readonly scenarioId: string
+  readonly aircraft: string
+  readonly loadout: Loadout
+  readonly outcome: LogOutcome
+  readonly points: number
+  readonly killsByType: Readonly<Record<TargetType, number>>
+  readonly flightSeconds: number
+  readonly maxAltitudeM: number
+  readonly maxTrueAirspeedMps: number
+}
+
+/** The facts about a sortie `applyMissionResult` needs to bank a log entry
+ *  and fold career totals -- optional so every existing caller that only
+ *  cares about score/rank/status keeps compiling. */
+export type SortieFacts = {
+  readonly at: string
+  readonly scenarioId: string
+  readonly aircraft: string
+  readonly loadout: Loadout
+  readonly outcome: LogOutcome
+  readonly segment: FlightSegment
+}
+
+/** Oldest entry dropped past this cap; `career` totals are stored
+ *  separately and are unaffected by the cap. */
+export const MISSION_LOG_CAP = 200
+
 export type PilotRecord = {
   readonly id: string
   readonly name: string
@@ -39,6 +85,8 @@ export type PilotRecord = {
   readonly badges: readonly string[]
   readonly status: 'active' | 'kia'
   readonly resurrections: number
+  readonly career: Career
+  readonly log: readonly MissionLogEntry[]
 }
 
 export function createPilot(name: string): PilotRecord {
@@ -62,6 +110,8 @@ export function createPilot(name: string): PilotRecord {
     badges: [],
     status: 'active',
     resurrections: 0,
+    career: ZERO_CAREER,
+    log: [],
   }
 }
 
@@ -99,11 +149,31 @@ export function startSortie(pilot: PilotRecord): PilotRecord {
  * resurrection `startSortie` already counted when New Game was pressed with
  * a `kia` pilot selected.
  */
+/** Folds one sortie's facts into career totals (dossier spec §B.1):
+ *  `flightSeconds` accumulates, `landings` counts only non-`killed`
+ *  outcomes, and the two peaks keep the career maximum. */
+function foldCareer(c: Career, s: SortieFacts): Career {
+  return {
+    flightSeconds: c.flightSeconds + s.segment.flightSeconds,
+    landings: s.outcome === 'killed' ? c.landings : { ...c.landings, [s.outcome]: c.landings[s.outcome] + 1 },
+    maxAltitudeM: Math.max(c.maxAltitudeM, s.segment.maxAltitudeM),
+    maxTrueAirspeedMps: Math.max(c.maxTrueAirspeedMps, s.segment.maxTrueAirspeedMps),
+  }
+}
+
+function logEntry(s: SortieFacts, points: number, kills: Readonly<Record<TargetType, number>>): MissionLogEntry {
+  return {
+    at: s.at, scenarioId: s.scenarioId, aircraft: s.aircraft, loadout: s.loadout, outcome: s.outcome,
+    points, killsByType: kills, ...s.segment,
+  }
+}
+
 export function applyMissionResult(
   pilot: PilotRecord,
   scoreTotal: number,
   outcome: RecoveryOutcome,
   killsSinceLastBank: Readonly<Record<TargetType, number>> = zeroKillsByType(),
+  sortie?: SortieFacts,
 ): PilotRecord {
   const cumulativeScore = pilot.cumulativeScore + scoreTotal
   return {
@@ -119,6 +189,10 @@ export function applyMissionResult(
     // own "mission" by that same logic. Undocumented before this review.
     killsByType: addKillsByType(pilot.killsByType, killsSinceLastBank),
     status: outcome === 'killed' ? 'kia' : 'active',
+    ...(sortie === undefined ? {} : {
+      career: foldCareer(pilot.career, sortie),
+      log: [...pilot.log, logEntry(sortie, scoreTotal, killsSinceLastBank)].slice(-MISSION_LOG_CAP),
+    }),
   }
 }
 
@@ -139,8 +213,9 @@ export function applyMissionResultToRoster(
   scoreTotal: number,
   outcome: RecoveryOutcome,
   killsSinceLastBank?: Readonly<Record<TargetType, number>>,
+  sortie?: SortieFacts,
 ): readonly PilotRecord[] {
-  return roster.map((p) => (p.id === pilotId ? applyMissionResult(p, scoreTotal, outcome, killsSinceLastBank) : p))
+  return roster.map((p) => (p.id === pilotId ? applyMissionResult(p, scoreTotal, outcome, killsSinceLastBank, sortie) : p))
 }
 
 const STORAGE_KEY = 'ww2airsim.roster.v1'
@@ -167,7 +242,20 @@ function validatePilot(value: unknown): PilotRecord {
   for (const t of TARGET_TYPES) {
     if (typeof killsByType[t] !== 'number') throw new Error(`killsByType missing "${t}"`)
   }
-  return v as unknown as PilotRecord
+  // Dossier spec §B.3: pre-dossier records (and hand-edited partial ones)
+  // are completed with zeros, never thrown -- a throw here empties the whole
+  // roster through loadRoster's catch (review focus 4).
+  const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
+  const c = (typeof v.career === 'object' && v.career !== null ? v.career : {}) as Record<string, unknown>
+  const l = (typeof c.landings === 'object' && c.landings !== null ? c.landings : {}) as Record<string, unknown>
+  const career: Career = {
+    flightSeconds: num(c.flightSeconds),
+    landings: { trap: num(l.trap), field: num(l.field), ditched: num(l.ditched) },
+    maxAltitudeM: num(c.maxAltitudeM),
+    maxTrueAirspeedMps: num(c.maxTrueAirspeedMps),
+  }
+  const log = Array.isArray(v.log) ? (v.log as MissionLogEntry[]) : []
+  return { ...(v as unknown as PilotRecord), career, log }
 }
 
 /**
