@@ -28,6 +28,10 @@ const BuildingObject = z
     widthM: positive,
     lengthM: positive,
     hp: positive,
+    /** Mission group tags (spec 2026-09-25 §2.1, e.g. `dulag-hangars`), so an
+     *  objective can name a set of buildings. Optional; no shipped base
+     *  carried any before M3. */
+    tags: z.array(z.string().min(1)).min(1).optional(),
   })
   .strict()
 export type Building = z.infer<typeof BuildingObject>
