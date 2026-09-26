@@ -1791,7 +1791,7 @@ git commit -m "7c: the pursuer re-engages after a missed head-on pass: full-powe
 - Produces, from `maneuverFlight.ts`: `type Flown = { controls: Controls; latch: ManeuverLatch | null }` and `flyManeuver(self, perceived, decision, nowS): Flown`
 - Produces, from `decision.ts`: `maneuverControls(self, target, decision, skill, wind = null, nowS = 0)`
 
-- [ ] **Step 1: Write the failing tests.** Create `tests/sim/ai/maneuvers.test.ts`:
+- [x] **Step 1: Write the failing tests.** Create `tests/sim/ai/maneuvers.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -1880,12 +1880,12 @@ describe('repertoire is skill data (7c spec §3.5; Mark 2026-09-25: green gets t
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/maneuvers.test.ts tests/sim/ai/pilot.test.ts --maxWorkers=2`
 Expected: FAIL, because `maneuvers.js` cannot be resolved.
 
-- [ ] **Step 3: The types and data in `pilot.ts`.** Add after `SafetyMode`:
+- [x] **Step 3: The types and data in `pilot.ts`.** Add after `SafetyMode`:
 
 ```ts
 /** A named maneuver (7c spec §3.5). Each belongs to one 7b intent
@@ -1937,7 +1937,7 @@ const decision: PilotDecisionState = {
 
 The second literal follows the same pattern. Remove the now-duplicated `noiseCursor` and `safety` keys.
 
-- [ ] **Step 4: `maneuvers.ts`.** Create `src/sim/ai/maneuvers.ts`:
+- [x] **Step 4: `maneuvers.ts`.** Create `src/sim/ai/maneuvers.ts`:
 
 ```ts
 import type { AircraftEntity } from '../loop.js'
@@ -2035,7 +2035,7 @@ export function openLatch<M>(name: ManeuverName, self: AircraftEntity<M>, nowS: 
 
 (The `void` lines keep lint quiet until Tasks 8 and 10 use `repertoire` and `v3`. Each of those tasks removes its `void`.)
 
-- [ ] **Step 5: `flyManeuver`.** In `src/sim/ai/maneuverFlight.ts`, import `type ManeuverLatch` and `type PilotDecisionState` from `./pilot.js`, and add:
+- [x] **Step 5: `flyManeuver`.** In `src/sim/ai/maneuverFlight.ts`, import `type ManeuverLatch` and `type PilotDecisionState` from `./pilot.js`, and add:
 
 ```ts
 /** A maneuver's controls this tick, and its latch afterwards: the same
@@ -2057,7 +2057,7 @@ export function flyManeuver<M>(
 
 Delete `intentControls`, since its only caller is `maneuverControls`. Remove the now-unused `type PilotManeuver` from the `pilot.js` import.
 
-- [ ] **Step 6: `maneuverControls` flies `named`.** In `decision.ts`, import `flyManeuver` (and no longer `intentControls`) and `DEFAULT_MANEUVER`. Replace the body after `perceived` with:
+- [x] **Step 6: `maneuverControls` flies `named`.** In `decision.ts`, import `flyManeuver` (and no longer `intentControls`) and `DEFAULT_MANEUVER`. Replace the body after `perceived` with:
 
 ```ts
   const flown = flyManeuver(self, perceived, decision, nowS)
@@ -2074,7 +2074,7 @@ Delete `intentControls`, since its only caller is `maneuverControls`. Remove the
 
 Add the parameter `nowS = 0` after `wind`.
 
-- [ ] **Step 7: `pilotTick` selects, holds and interrupts.** In `pilotTick.ts`:
+- [x] **Step 7: `pilotTick` selects, holds and interrupts.** In `pilotTick.ts`:
 1. Import `maneuverFacts`, `selectManeuver`, `isPhased`, `openLatch`, `latchExpired` and `interruptsLatch` from `./maneuvers.js`.
 2. Import `heightAboveGround` alongside the other `./safety.js` imports.
 3. Import `DEFAULT_MANEUVER` from `./pilot.js`.
@@ -2108,14 +2108,14 @@ Add the parameter `nowS = 0` after `wind`.
 5. In the override branch, add `latch: null, named: DEFAULT_MANEUVER[decision.maneuver],` to the returned decision.
 6. Pass `ctx.nowS` as `maneuverControls`'s sixth argument.
 
-- [ ] **Step 8: Run the tests.**
+- [x] **Step 8: Run the tests.**
 
 Run: `npx vitest run tests/sim/ai tests/sim/entities.test.ts tests/sim/scenario.test.ts tests/render/aiLethality.test.ts tests/render/aiReengage.test.ts --maxWorkers=2`
 Expected: PASS.
 
-- [ ] **Step 9: Behavior-neutral check.** Run `npx tsx .superpowers/7c/hash.ts`. Every **motion** digest (the second column) must equal `.superpowers/7c/hash-task6.txt`'s. The full digests of the pilot scenarios change, because the pilot now carries `named` and `latch` and the skill carries `repertoire`. The four no-pilot scenarios must keep both digests. A moved motion digest means this task changed flight: find why before committing.
+- [x] **Step 9: Behavior-neutral check.** Run `npx tsx .superpowers/7c/hash.ts`. Every **motion** digest (the second column) must equal `.superpowers/7c/hash-task6.txt`'s. The full digests of the pilot scenarios change, because the pilot now carries `named` and `latch` and the skill carries `repertoire`. The four no-pilot scenarios must keep both digests. A moved motion digest means this task changed flight: find why before committing.
 
-- [ ] **Step 10: Verify and commit.**
+- [x] **Step 10: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0

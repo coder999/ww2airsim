@@ -110,3 +110,11 @@ describe('breakDesiredVelocity', () => {
     expect(Math.abs(dot(desired, self.state.velocity))).toBeLessThan(1e-6 * length(desired) * length(self.state.velocity) + 1)
   })
 })
+
+describe('repertoire is skill data (7c spec §3.5; Mark 2026-09-25: green gets the basic set)', () => {
+  it('both presets carry the three intent defaults', () => {
+    for (const skill of [GREEN_SKILL, VETERAN_SKILL]) {
+      for (const n of ['lead-pursuit', 'defensive-break', 'extend'] as const) expect(skill.repertoire).toContain(n)
+    }
+  })
+})

@@ -4,7 +4,9 @@ import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
 import type { Vec3 } from '../math/vec3.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
-import { finishControls, safetyOverride } from './safety.js'
+import { interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
+import { DEFAULT_MANEUVER } from './pilot.js'
+import { finishControls, heightAboveGround, safetyOverride } from './safety.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -39,14 +41,25 @@ export function pilotTick<M>(
   const target = snapshot.find((candidate) => candidate.id === pilot.target)
   if (target === undefined) return a
   let decision = pilot.decision
+  if (decision.latch !== null && latchExpired(decision.latch, ctx.nowS)) {
+    decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
+  }
   if (ctx.nowS >= decision.nextRescoreS) {
     const facts = deriveFacts(a, target, 1 - record.damage.structure, a.state.fuelKg / a.spec.mass.fuelCapacityKg)
+    const intent = decideManeuver(facts, pilot.skill)
     decision = {
       ...decision,
-      maneuver: decideManeuver(facts, pilot.skill),
       nextRescoreS: ctx.nowS + pilot.skill.reactionS,
       observedTargetPosition: target.state.position,
       observedTargetVelocity: target.state.velocity,
+    }
+    // A latched maneuver holds through the rescore: perception still
+    // refreshes (7d), the choice does not (spec §3.5).
+    if (decision.latch === null || interruptsLatch(decision.latch, intent, facts)) {
+      const named = selectManeuver(
+        maneuverFacts(a, target, facts, intent, heightAboveGround(a.state, ctx.terrain, ctx.decks)), pilot.skill.repertoire,
+      )
+      decision = { ...decision, maneuver: intent, named, latch: isPhased(named) ? openLatch(named, a, ctx.nowS) : null }
     }
   }
   // 7c spec §3.2: the envelope is checked every tick, after the rescore, and
@@ -54,8 +67,18 @@ export function pilotTick<M>(
   const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind)
   if (override !== null) {
     const { controls, cursor } = finishControls(a, override.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
-    return { ...a, pilot: { ...pilot, decision: { ...decision, safety: override.mode, noiseCursor: cursor } }, controls }
+    return {
+      ...a,
+      pilot: {
+        ...pilot,
+        decision: {
+          ...decision, safety: override.mode, noiseCursor: cursor,
+          latch: null, named: DEFAULT_MANEUVER[decision.maneuver],
+        },
+      },
+      controls,
+    }
   }
-  const { controls, decision: steered } = maneuverControls(a, target, { ...decision, safety: 'none' }, pilot.skill, ctx.wind)
+  const { controls, decision: steered } = maneuverControls(a, target, { ...decision, safety: 'none' }, pilot.skill, ctx.wind, ctx.nowS)
   return { ...a, pilot: { ...pilot, decision: steered }, controls }
 }

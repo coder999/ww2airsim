@@ -2,9 +2,9 @@ import type { AircraftEntity } from '../loop.js'
 import { dot, length, sub, type Vec3 } from '../math/vec3.js'
 import type { Controls } from '../flight/state.js'
 import { AI_GUN_RANGE_M, hasGunSolution } from './pursuit.js'
-import { intentControls } from './maneuverFlight.js'
+import { flyManeuver } from './maneuverFlight.js'
 import { finishControls } from './safety.js'
-import type { PilotDecisionState, PilotManeuver, PilotSkill } from './pilot.js'
+import { DEFAULT_MANEUVER, type PilotDecisionState, type PilotManeuver, type PilotSkill } from './pilot.js'
 
 const G_MPS2 = 9.80665
 
@@ -168,13 +168,20 @@ export function maneuverControls<M>(
   decision: PilotDecisionState,
   skill: PilotSkill,
   wind: Vec3 | null = null,
+  nowS = 0,
 ): { readonly controls: Controls; readonly decision: PilotDecisionState } {
   const perceived: AircraftEntity<M> = {
     ...target,
     state: { ...target.state, position: decision.observedTargetPosition, velocity: decision.observedTargetVelocity },
   }
-  const { controls, cursor } = finishControls(
-    self, intentControls(self, perceived, decision.maneuver), skill.controlNoise, decision.noiseCursor, wind,
-  )
-  return { controls, decision: { ...decision, noiseCursor: cursor } }
+  const flown = flyManeuver(self, perceived, decision, nowS)
+  const { controls, cursor } = finishControls(self, flown.controls, skill.controlNoise, decision.noiseCursor, wind)
+  const ended = decision.latch !== null && flown.latch === null
+  return {
+    controls,
+    decision: {
+      ...decision, noiseCursor: cursor, latch: flown.latch,
+      named: ended ? DEFAULT_MANEUVER[decision.maneuver] : decision.named,
+    },
+  }
 }

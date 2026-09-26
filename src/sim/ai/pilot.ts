@@ -31,6 +31,9 @@ export type PilotSkill = {
    *  pattern-matching on this file's other, inverted field (Plan 7b's own
    *  gunneryAccuracy bug, spec §3). */
   readonly controlNoise: number
+  /** Which named maneuvers this pilot flies (master spec §7: "green versus
+   *  veteran is data"). The intent defaults are always flown, listed or not. */
+  readonly repertoire: readonly ManeuverName[]
 }
 
 export const VETERAN_SKILL: PilotSkill = {
@@ -38,6 +41,7 @@ export const VETERAN_SKILL: PilotSkill = {
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
   disengageThreshold: -400,
+  repertoire: ['lead-pursuit', 'defensive-break', 'extend'],
   // 7c (Mark's ruling 2026-09-25, "tone the veteran down"): 0.02 -> 0.01.
   // Measured 2026-09-25 through the production frame path against a passive
   // player on the tail-chase fixture (tests/render/aiLethality.test.ts, and
@@ -73,6 +77,7 @@ export const GREEN_SKILL: PilotSkill = {
   // Kept unchanged from Task 1's starting value; already >=2x
   // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
+  repertoire: ['lead-pursuit', 'defensive-break', 'extend'],
 }
 
 export type PilotManeuver = 'pursue' | 'extend' | 'break'
@@ -82,8 +87,44 @@ export type PilotManeuver = 'pursue' | 'extend' | 'break'
  *  stick. Plain data, for tests and diagnostics. */
 export type SafetyMode = 'none' | 'recover' | 'overspeed'
 
+/** A named maneuver (7c spec §3.5). Each belongs to one 7b intent
+ *  (`INTENT_OF`). Tasks 8-11 of the 7c plan add the rest of the library. */
+export type ManeuverName = 'lead-pursuit' | 'defensive-break' | 'extend'
+
+export const DEFAULT_MANEUVER: Readonly<Record<PilotManeuver, ManeuverName>> = {
+  pursue: 'lead-pursuit', break: 'defensive-break', extend: 'extend',
+}
+export const INTENT_OF: Readonly<Record<ManeuverName, PilotManeuver>> = {
+  'lead-pursuit': 'pursue', 'defensive-break': 'break', extend: 'extend',
+}
+
+/**
+ * A phased maneuver's memory (7c spec §3.5): once entered it holds until its
+ * own end condition or LATCH_CAP_S, through rescores, so a split-S is not
+ * re-decided halfway through every 0.3 s. Plain data. Nothing here refers to
+ * the world clock at creation: `enteredAtS` is written only on entry.
+ */
+export type ManeuverLatch = {
+  readonly name: ManeuverName
+  readonly phase: number
+  readonly enteredAtS: number
+  /** atan2(v.z, v.x) of the velocity at entry. */
+  readonly entryHeadingRad: number
+  readonly entryAltitudeM: number
+  /** Split-S and Immelmann: the loop's center, fixed at entry. ZERO otherwise. */
+  readonly loopCenter: Vec3
+  /** Scissors: roll-direction reversals so far, and the threat's last side (+1 right, -1 left, 0 unknown). */
+  readonly reversals: number
+  readonly lastSide: number
+  /** Attack run: the lowest altitude reached, for the zoom's recovery. */
+  readonly lowestAltitudeM: number
+}
+
 export type PilotDecisionState = {
   readonly maneuver: PilotManeuver
+  /** The maneuver flown this tick, chosen at rescore within 'maneuver'. */
+  readonly named: ManeuverName
+  readonly latch: ManeuverLatch | null
   /** Sim time (tick * DT) at which the next rescore runs. */
   readonly nextRescoreS: number
   /** The target's position/velocity as of the last rescore -- what the
@@ -107,7 +148,7 @@ export type PilotDecisionState = {
  *  the tests. */
 export function initialDecision(): PilotDecisionState {
   return {
-    maneuver: 'pursue', nextRescoreS: 0,
+    maneuver: 'pursue', named: 'lead-pursuit', latch: null, nextRescoreS: 0,
     observedTargetPosition: ZERO, observedTargetVelocity: ZERO,
     noiseCursor: 0, safety: 'none',
   }

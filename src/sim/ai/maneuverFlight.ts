@@ -4,7 +4,7 @@ import { length, sub } from '../math/vec3.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { steerToward } from './liftVector.js'
 import { AI_GUN_RANGE_M, hasGunSolution, pursuitDesiredVelocity } from './pursuit.js'
-import { breakDesiredVelocity, extendDesiredVelocity, type PilotManeuver } from './pilot.js'
+import { breakDesiredVelocity, extendDesiredVelocity, type ManeuverLatch, type PilotDecisionState } from './pilot.js'
 import { loadFactorBudget } from './safety.js'
 
 /**
@@ -43,10 +43,18 @@ export function defensiveBreakControls<M>(self: AircraftEntity<M>, perceived: Ai
   return controlsForDesiredVelocity(self.state, self.spec, breakDesiredVelocity(self, perceived))
 }
 
-export function intentControls<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, maneuver: PilotManeuver): Controls {
-  switch (maneuver) {
-    case 'pursue': return leadPursuitControls(self, perceived)
-    case 'extend': return extendControls(self, perceived)
-    case 'break': return defensiveBreakControls(self, perceived)
+/** A maneuver's controls this tick, and its latch afterwards: the same
+ *  object while it continues, a new one on a phase change, null once it has
+ *  ended. A non-phased maneuver returns null. */
+export type Flown = { readonly controls: Controls; readonly latch: ManeuverLatch | null }
+
+export function flyManeuver<M>(
+  self: AircraftEntity<M>, perceived: AircraftEntity<M>, decision: PilotDecisionState, nowS: number,
+): Flown {
+  void nowS
+  switch (decision.named) {
+    case 'lead-pursuit': return { controls: leadPursuitControls(self, perceived), latch: null }
+    case 'extend': return { controls: extendControls(self, perceived), latch: null }
+    case 'defensive-break': return { controls: defensiveBreakControls(self, perceived), latch: null }
   }
 }
