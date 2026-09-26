@@ -4,6 +4,7 @@ import { parseShipSpec } from '../../sim/world/ships.js'
 import { parseAirfield } from '../../sim/world/airfields.js'
 import { parseLibraryEntry } from './library.js'
 import type { HangarContent } from './catalog.js'
+import { parseBudgets } from './budgets.js'
 
 /**
  * The page's content, bundled at build time by Vite's glob import rather
@@ -17,6 +18,8 @@ const library = import.meta.glob('/content/library/*.json', { eager: true, impor
 const aircraft = import.meta.glob('/content/aircraft/*.json', { eager: true, import: 'default' })
 const ships = import.meta.glob('/content/ships/*.json', { eager: true, import: 'default' })
 const bases = import.meta.glob('/content/bases/*.json', { eager: true, import: 'default' })
+// The model manifest's entries, for their budgets only (budgets.ts says why not manifest.ts).
+const modelEntries = import.meta.glob('/tools/models/entries/*.json', { eager: true, import: 'default' })
 
 function parseAll<T>(files: Record<string, unknown>, parse: (raw: unknown) => T): T[] {
   return Object.entries(files).sort(([a], [b]) => a.localeCompare(b)).map(([path, raw]) => {
@@ -34,5 +37,6 @@ export function loadHangarContent(): HangarContent {
     aircraft: parseAll(aircraft, parseAircraftSpec),
     ships: parseAll(ships, parseShipSpec),
     airfields: parseAll(bases, parseAirfield),
+    budgets: parseBudgets(modelEntries),
   }
 }

@@ -1,4 +1,4 @@
-import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Raycaster, Vector3, type Object3D } from 'three'
+import { Box3, BoxGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Raycaster, Vector3, type Object3D } from 'three'
 import type { ShipSpec } from '../../sim/world/ships.js'
 import { createEngineSmoke } from './smoke.js'
 import { disposeMeshTree } from '../models/dispose.js'
@@ -206,7 +206,7 @@ export function createShipView(spec: ShipSpec, modelId: string, instance: ModelI
 }
 
 /**
- * The world height of the topmost rendered surface of `view` straight below
+ * The sim-world height of the topmost rendered surface of `view` straight below
  * each point, or null where the ray misses it (ship-models spec §9: the Tier 2
  * proof that what the eye lands on is what the sim rests the wheels on, in the
  * real renderer and not only in Node math). `'ship'` points are in the ship's
@@ -221,10 +221,18 @@ export function probeShipSurface(view: ShipView, points: readonly { readonly x: 
   const above = new Box3().setFromObject(hullGroup).max.y + 10
   const ray = new Raycaster()
   const down = new Vector3(0, -1, 0)
+  // The sim's world is the root's PARENT frame: in the game that is `scene`,
+  // which main.ts shifts to minus the eye every frame (the floating origin),
+  // so three's world coordinates are not sim metres. Points go in through the
+  // parent's matrix and heights come back out through its inverse. The shift
+  // is a pure translation, so "down" is the same in both frames.
+  const simToThree = view.root.parent?.matrixWorld.clone() ?? new Matrix4()
+  const threeToSim = simToThree.clone().invert()
   return points.map((p) => {
-    const origin = space === 'ship' ? new Vector3(p.x, 0, p.z).applyMatrix4(view.root.matrixWorld) : new Vector3(p.x, 0, p.z)
+    const origin = new Vector3(p.x, 0, p.z).applyMatrix4(space === 'ship' ? view.root.matrixWorld : simToThree)
     origin.y = above
     ray.set(origin, down)
-    return ray.intersectObjects(targets, true)[0]?.point.y ?? null
+    const hit = ray.intersectObjects(targets, true)[0]
+    return hit ? hit.point.clone().applyMatrix4(threeToSim).y : null
   })
 }

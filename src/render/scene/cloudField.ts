@@ -346,7 +346,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
           // Cumulus: flat-bottomed, rounded on top, edges eroded by the detail
           // volume, strongest near the base and the edge (Schneider 2015).
           // Slowly warp the horizontal coordinates at two unequal scales:
-          // the same 6 km volume must not line up in repeating distant rows.
+          // the same tiling shape volume must not line up in repeating distant rows.
           const warped = vec3(
             drifted.x.add(sin(drifted.z.div(7300).add(drifted.x.div(17000))).mul(1800)),
             drifted.y,

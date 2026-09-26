@@ -5,15 +5,16 @@ import { loadRegisteredAirframe, type LoadAirframe } from '../scenarioEntities.j
 import { loadRegisteredShipView, type LoadShipView } from '../scene/shipModels.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector } from '../scene/buildings.js'
 import { disposeMeshTree } from '../models/dispose.js'
+import { RACK_OFFSETS, RAIL_OFFSETS } from '../scene/stores.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
 import type { CatalogEntry } from './catalog.js'
 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
- *  the propeller; H2 adds stores and Cycle, H3 turrets. */
+ *  the propeller; H2 adds stores (and Cycle, in the bench); H3 turrets. */
 export interface PartSpec {
-  readonly id: 'gear' | 'flaps' | 'prop'
+  readonly id: 'gear' | 'flaps' | 'prop' | 'stores'
   readonly label: string
-  readonly kind: 'fraction' | 'rate'
+  readonly kind: 'fraction' | 'rate' | 'toggle'
   readonly range: readonly [number, number]
   /** false = the model has no such geometry: the row reads "not modeled". */
   readonly modeled: boolean
@@ -23,11 +24,17 @@ export interface PartPose {
   readonly gearFraction?: number
   readonly flapFraction?: number
   readonly throttle?: number
+  /** Bombs on the racks (true) or dropped (false); H2. */
+  readonly bombs?: boolean
+  /** Rockets on the rails (true) or fired (false); H2. */
+  readonly rockets?: boolean
 }
 
 export interface HangarModel {
   readonly root: Object3D
   readonly parts: readonly PartSpec[]
+  /** Nodes the bench actually moves (gear legs, propeller, flaps), found by probing; [] for ships and buildings. */
+  readonly articulated: readonly Object3D[]
   pose(p: PartPose): void
   /** Advances the model's own clock (propeller) by `frameS`. */
   update(frameS: number): void
@@ -39,6 +46,7 @@ const BENCH_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
   { id: 'gear', label: 'Landing gear', kind: 'fraction', range: [0, 1] },
   { id: 'flaps', label: 'Flaps', kind: 'fraction', range: [0, 1] },
   { id: 'prop', label: 'Throttle (propeller)', kind: 'rate', range: [0, 1] },
+  { id: 'stores', label: 'Stores', kind: 'toggle', range: [0, 1] },
 ]
 
 /** One row per bench part, `modeled` read off the airframe's own `parts`
@@ -47,7 +55,10 @@ export function partSpecsFor(parts: readonly PartId[]): PartSpec[] {
   return BENCH_PARTS.map((p) => ({ ...p, modeled: parts.includes(p.id) }))
 }
 
-/** Triangles and draw calls three.js issues for `root`: one draw per Mesh (per material group). */
+/** Triangles and draw calls three.js issues for `root`: one draw per visible
+ *  Mesh, or one per geometry group when its material is an array (three
+ *  splits by group only then; a BoxGeometry's six groups under one material
+ *  are one draw, which H1 counted as six until H2's budget readout, 2026-09-26). */
 export function sceneCounts(root: Object3D): { triangles: number; drawCalls: number } {
   let triangles = 0, drawCalls = 0
   root.traverse((o) => {
@@ -55,7 +66,7 @@ export function sceneCounts(root: Object3D): { triangles: number; drawCalls: num
     const g = o.geometry
     const count = g.index ? g.index.count : (g.getAttribute('position')?.count ?? 0)
     triangles += Math.floor(count / 3)
-    drawCalls += Math.max(1, g.groups.length)
+    drawCalls += Array.isArray(o.material) ? Math.max(1, g.groups.length) : 1
   })
   return { triangles, drawCalls }
 }
@@ -68,10 +79,33 @@ export function flatField(): TerrainField {
   )
 }
 
+/**
+ * The nodes a pose actually moves (the bench's pivot gizmos, spec §8): every
+ * node's LOCAL transform is read at rest (gear down, flaps up), again with
+ * gear up, flaps down and a propeller step, and the ones that changed are
+ * returned. Probing what moves, rather than trusting a name list, is the
+ * point: a wrong pivot shows as a gizmo in the wrong place. Leaves gear and
+ * flaps at rest; the propeller keeps its advanced angle, which is cosmetic.
+ */
+export function probeArticulated(root: Object3D, drive: (u: { gearFraction: number; flapFraction: number; throttle: number; frameS: number }) => void): Object3D[] {
+  const read = (): Map<Object3D, string> => {
+    const m = new Map<Object3D, string>()
+    root.traverse((o) => m.set(o, [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()].map((v) => v.toFixed(6)).join(',')))
+    return m
+  }
+  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, frameS: 0 })
+  const before = read()
+  drive({ gearFraction: 0, flapFraction: 1, throttle: 1, frameS: 0.05 })
+  const after = read()
+  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, frameS: 0 })
+  return [...before].filter(([o, k]) => after.get(o) !== k).map(([o]) => o)
+}
+
 function staticModel(root: Object3D): HangarModel {
   return {
     root,
     parts: [],
+    articulated: [],
     pose(): void {},
     update(): void {},
     counts: () => sceneCounts(root),
@@ -88,12 +122,16 @@ function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
   stand.position.y = gearHeightM
   stand.add(airframe.root)
   let gearFraction = 1, flapFraction = 0, throttle = 0
+  let bombs = true, rockets = true
   const apply = (frameS: number): void => {
     airframe.update({ gearFraction, flapFraction, throttle, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS, cameraDistanceM: 0 })
   }
+  const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }))
+  apply(0)
   return {
     root: stand,
     parts: partSpecsFor(airframe.parts),
+    articulated,
     // Applied at once with frameS 0 (the propeller does not advance), so a
     // pose shows on a frozen page too; before this, it waited for the next
     // update, which a frozen page never runs (H1 Tier 2 check 2, 2026-09-25).
@@ -101,6 +139,11 @@ function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
       if (p.gearFraction !== undefined) gearFraction = p.gearFraction
       if (p.flapFraction !== undefined) flapFraction = p.flapFraction
       if (p.throttle !== undefined) throttle = p.throttle
+      if (p.bombs !== undefined || p.rockets !== undefined) {
+        bombs = p.bombs ?? bombs
+        rockets = p.rockets ?? rockets
+        airframe.setStores(bombs ? RACK_OFFSETS.length : 0, rockets ? RAIL_OFFSETS.length : 0)
+      }
       apply(0)
     },
     update(frameS): void {

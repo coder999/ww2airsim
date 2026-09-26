@@ -62,6 +62,9 @@ export function createModelCache(parse: ParseModel = parseGltf): ModelCache {
         throw error
       }
       const root = source.clone(true)
+      // Which glb this subtree came from: the Hangar's budget readout counts
+      // these subtrees apart from runtime additions such as stores (H2).
+      root.userData.modelUrl = url
       let released = false
       return {
         root,

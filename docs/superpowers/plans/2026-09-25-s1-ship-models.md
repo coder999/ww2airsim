@@ -3432,7 +3432,7 @@ test('the rendered carrier deck is where the sim rests the wheels (ship models S
 
 > **Execution note (2026-09-25):** Steps 1-3 are committed with the Task 9 commit. Steps 4-7 (the Tier 2 run, reading the PNGs, and any sanctioned palette retune) are **PENDING**: not run, because both spare dev-server slots were held by other sessions. Their boxes stay open until a run on the reference GPU ticks them.
 
-- [ ] **Step 4: Run Tier 2 on the spare slot.** The repo `CLAUDE.md` ("GPU work") and `README.md`'s "Tier 2: the GPU harness" are the authority. In this worktree, point `vite.config.ts`'s `TUNNEL_HOST` at `ww2airsim-2.windomlane.org` and its `server.port` at `5175`. That edit is local scratch: never commit it.
+- [x] **Step 4: Run Tier 2 on the spare slot.** The repo `CLAUDE.md` ("GPU work") and `README.md`'s "Tier 2: the GPU harness" are the authority. In this worktree, point `vite.config.ts`'s `TUNNEL_HOST` at `ww2airsim-2.windomlane.org` and its `server.port` at `5175`. That edit is local scratch: never commit it.
 
 ```bash
 WW2AIRSIM_TUNNEL=1 npx vite --port 5175 &
@@ -3448,11 +3448,11 @@ Expected `rc=0`:
 - `entities.spec.ts`: the task force sails, and the 1440p budget over it holds with the models.
 - `strike.spec.ts`: unchanged, because the hit box did not move (spec §9). Photoreal's Task 1 report recorded this spec as uncollectable before S1. If it still is, run it on `main` too and record the same result there as pre-existing, not an S1 failure.
 
-- [ ] **Step 5: Look at every PNG yourself** (`test-results/ships-*-side.png`, `ships-deck-quals.png`, `ships-strike-range.png`, `deck-quals-parked.png`): bow toward +x, the island to starboard, the waterline at the sea, no black or see-through hull, the Fletcher's railings as lattices and not sheet steel. Never argue about a picture you have not looked at. Record what you saw in the ledger.
+- [x] **Step 5: Look at every PNG yourself** (`test-results/ships-*-side.png`, `ships-deck-quals.png`, `ships-strike-range.png`, `deck-quals-parked.png`): bow toward +x, the island to starboard, the waterline at the sea, no black or see-through hull, the Fletcher's railings as lattices and not sheet steel. Never argue about a picture you have not looked at. Record what you saw in the ledger.
 
-- [ ] **Step 6: If a check fails, report it red with its numbers.** Do not re-tune to pass, with one sanctioned exception (spec §5.4): if only the Task 12 luminance ratio leaves [0.5, 1.5], adjust `SHIP_PALETTES['usn-1944'].flightDeck` in `shipPalette.ts`, rebuild with `npm run models:build -- essex-cv`, re-run Tier 1 (`tests/tools/shipModels.test.ts`, `tests/tools/models/outputs.test.ts`) and this step, and record the old and new colors and ratios. Never re-baseline the gate.
+- [x] **Step 6: If a check fails, report it red with its numbers.** Do not re-tune to pass, with one sanctioned exception (spec §5.4): if only the Task 12 luminance ratio leaves [0.5, 1.5], adjust `SHIP_PALETTES['usn-1944'].flightDeck` in `shipPalette.ts`, rebuild with `npm run models:build -- essex-cv`, re-run Tier 1 (`tests/tools/shipModels.test.ts`, `tests/tools/models/outputs.test.ts`) and this step, and record the old and new colors and ratios. Never re-baseline the gate.
 
-- [ ] **Step 7: Clean up and commit.** Stop the dev server. Restore `vite.config.ts`: `git diff vite.config.ts` must be empty.
+- [x] **Step 7: Clean up and commit.** Stop the dev server. Restore `vite.config.ts`: `git diff vite.config.ts` must be empty.
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
@@ -3470,7 +3470,7 @@ git commit -m "S1: Tier 2 for the ship models: drawn with no errors, broadsides,
 - Create: `docs/handoff/<today>-s1-ship-models.md`
 - Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15), `README.md`, `docs/superpowers/specs/2026-09-24-visual-realism-pass-design.md` (§3.3), `docs/superpowers/specs/2026-09-25-hangar-library-design.md` (§12, H2 item 4; only if Open question 1 kept its default)
 
-- [ ] **Step 1: The handoff**, `docs/handoff/<today>-s1-ship-models.md`. It must contain:
+- [x] **Step 1: The handoff**, `docs/handoff/<today>-s1-ship-models.md`. It must contain:
   1. **First paragraph:** what shipped (three fitted ship models, drawn in the game and the Hangar, with a loud box fallback) and on which branch and commits.
   2. **Measured results:** each ship's built bytes, triangles and draw calls; the CV-6's `rx`, `ry`, `sy/sx`, `kWaterline`, `kDeck`, overall length, deck grid shares and trap-lane width; the Liberty's keel and pinned ratio. Whatever differs from this plan's table, say so.
   3. **Tier 2 results, with numbers:** each p95, each deck-probe reading, the luminance ratio, and what the broadsides showed.
@@ -3482,14 +3482,14 @@ git commit -m "S1: Tier 2 for the ship models: drawn with no errors, broadsides,
      - The markers are added after `prune`; a stage added between them and `prune` would lose them.
      - The raw inputs are gitignored in `tools/models/cache/`; a fresh clone re-fetches them with `sketchfab-fetch.sh`.
   7. **The departures,** pointing at this plan's list rather than restating it, plus any execution departures from its steps.
-- [ ] **Step 2: Master spec §15.** Add this row directly after the "A6M Zero (Z1-Z3)" row, with the real date and results:
+- [x] **Step 2: Master spec §15.** Add this row directly after the "A6M Zero (Z1-Z3)" row, with the real date and results:
 
 `| Ship models (S1-S2) | any | Licensed ship models fitted to the sim's ShipSpecs: the three shipped ships (S1), the rest of the roster (S2) | §4, §10 | S1 complete YYYY-MM-DD with Tier 1 and reference-GPU Tier 2 ([design](2026-09-25-ship-models-design.md), [plan](../plans/2026-09-25-s1-ship-models.md), [handoff](../../handoff/YYYY-MM-DD-s1-ship-models.md)): the CV-6 as the Essex, the Fletcher, the Liberty as the Type B maru; box fallback kept. S2 open |`
 
-- [ ] **Step 3: README.** After the "Models build from a manifest (Z1…)" paragraph, add one paragraph: the three shipped ships are licensed models fitted at build time to their `content/ships/*.json`, so the sim stays authoritative; a model that fails to load draws the procedural boxes and says so in `validationErrors`; for status, see master spec §15. Do not restate the order.
-- [ ] **Step 4: The superseded section.** At the top of the visual-realism spec's §3.3, add one dated line: `**Superseded 2026-09-25** by [the ship-models design](2026-09-25-ship-models-design.md) §0; S1 shipped the models on <today> ([handoff](../../handoff/<today>-s1-ship-models.md)).`
-- [ ] **Step 5: The Hangar spec** (only if Open question 1 kept its default). At §12's H2 item 4, add: `Done in S1 (<today>): src/render/hangar/models.ts loads ships through makeShipViewLoader.`
-- [ ] **Step 6: Verify and commit.**
+- [x] **Step 3: README.** After the "Models build from a manifest (Z1…)" paragraph, add one paragraph: the three shipped ships are licensed models fitted at build time to their `content/ships/*.json`, so the sim stays authoritative; a model that fails to load draws the procedural boxes and says so in `validationErrors`; for status, see master spec §15. Do not restate the order.
+- [x] **Step 4: The superseded section.** At the top of the visual-realism spec's §3.3, add one dated line: `**Superseded 2026-09-25** by [the ship-models design](2026-09-25-ship-models-design.md) §0; S1 shipped the models on <today> ([handoff](../../handoff/<today>-s1-ship-models.md)).`
+- [x] **Step 5: The Hangar spec** (only if Open question 1 kept its default). At §12's H2 item 4, add: `Done in S1 (<today>): src/render/hangar/models.ts loads ships through makeShipViewLoader.`
+- [x] **Step 6: Verify and commit.**
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"

@@ -188,6 +188,9 @@ The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
 the remaining model-track work are recorded in
 [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
+`hangar.html?bench` is the articulation test bench (H2, 2026-09-26; see the
+[handoff](docs/handoff/2026-09-26-h2-hangar-bench.md)), and
+[`docs/models.md`](docs/models.md) is the runbook for adding a model.
 
 **Models build from a manifest (Z1, 2026-09-25).** Each shipped glb has one
 entry in `tools/models/entries/*.json`; `npm run models:build` runs it through
@@ -278,12 +281,14 @@ directly. The pass cost 0.16–0.40 ms at high, 1440p. See the
 
 **Cloud fidelity II landed 2026-09-25:** a weather map makes cumulus
 separate cells with flat bases and varied tops, carved by packed multiscale
-noise and a curl field; High updates one cloud pixel in sixteen per frame to
-fund 128 view steps, against the 60 Hz High budget. See the
+noise and a curl field; High amortizes its march over several frames to
+fund 128 view steps, against the 60 Hz High budget (the current tier values
+live in `CLOUD_TIERS`, `src/render/scene/clouds.ts`). See the
 [handoff](docs/handoff/2026-09-25-cloud-fidelity-ii.md) for the reference-GPU
 numbers; master spec §15 holds the status.
 
-**Cloud VDB fidelity merged 2026-09-26:** every cumulus is carved from one
+**Cloud VDB fidelity merged 2026-09-26** (the cloud system's standing
+reference is [docs/clouds.md](docs/clouds.md)): every cumulus is carved from one
 baked procedural cloud (`tools/sky/cumulus.py`), rotated and scaled per
 weather cell, and a layer's `coverage` is again the fraction of sky it
 covers. Flying inside a cloud has its own 4K budget. See the

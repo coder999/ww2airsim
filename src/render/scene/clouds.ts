@@ -51,7 +51,9 @@ export { cloudDriftM }
  * per 4x4 block per frame (cloudPass.ts), and High spends the saving on 128
  * view steps. in-deck-1900 p95 at 4K: 11.2 ms at 96 steps, 13.4 / 13.8 ms at
  * 128, 16.0 ms at 128 with 8 light / 4 fine (rejected: no margin). Medium and
- * Low still march every texel.
+ * Low still march every texel. Cloud VDB fidelity (2026-09-26, Codex) moved
+ * High to `updatePeriod: 8` (one texel per 4x2 block): at 16 the deferred-
+ * edge correction blends a coarser 4x4 grid in. See docs/clouds.md.
  */
 export const CLOUD_TIERS = {
   high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
@@ -69,7 +71,7 @@ export function cloudTierFromQuery(search: string): CloudTierName | 'off' | unde
   throw new Error(`${CLOUD_TIER_PARAM}: ${JSON.stringify(raw)} is not a cloud tier`)
 }
 
-/** Bound cumulus sampling to 6 km (62.5 m steps at high since photoreal Task 11), after finding the actual curved
+/** Bound cumulus sampling to 6 km (46.9 m mean steps at high's 128), after finding the actual curved
  * layer entry. Capping the old widened flat slab marched empty foreground
  * air and erased distant clouds. Cirrus keeps its full thin-sheet span. */
 const MAX_MARCH_M = 6000
@@ -261,14 +263,16 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
         const fullSpan = nearSpan.add(farSpan).toVar()
         const span = isCirrus.select(fullSpan, min(fullSpan, float(MAX_MARCH_M))).toVar()
         const dsBase = span.div(stepsF).toVar()
-        // Cumulus silhouettes need neighboring rays to agree. A wide random
-        // start interval made thin VDB boundary density alternate between
-        // hit and miss, which the reduced-resolution upsample exposed as
-        // sparkling checkerboard curtains in forward flight. Keep a small
-        // centered jitter to break coherent step bands; cirrus remains fully
-        // jittered because its broad, nearly planar sheet does not have that
-        // silhouette failure mode.
-        const jitter = isCirrus.select(dither, dither.mul(0.125).add(0.4375))
+        // Full-step jitter for cumulus too, as for cirrus. Codex's 1/8-step
+        // start interval (against boundary sparkle at reduced resolution)
+        // left every step at nearly the same depth in neighbouring rays, and
+        // the march's steps showed as stacked horizontal slices on every
+        // cloud's sides -- worst at Low, 32 steps (Mark's flight,
+        // 2026-09-26). Half-step jitter (the 2026-09-19 distance refinement's) still left
+        // streaks at Low; full jitter trades them for fine edge grain the
+        // temporal resolve averages, and the distant-edge stipple guard
+        // (clouds.spec.ts) reads 0.19 against its limit of 3.
+        const jitter = isCirrus.select(dither, dither)
         const walked = dsBase.mul(jitter).toVar()
         // `name` is honoured at runtime (LoopNode.js: `param.name || getVarName(i)`)
         // but absent from @types/three 0.186's overloads, hence the casts.

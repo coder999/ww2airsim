@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 import type { ShipSpec } from '../../sim/world/ships.js'
 import type { Airfield } from '../../sim/world/airfields.js'
+import type { BudgetTable } from './budgets.js'
 
 /**
  * One file per object, `content/library/<id>.json` (Hangar spec §4.1). Prose
@@ -71,4 +72,6 @@ export interface HangarContent {
   readonly aircraft: readonly AircraftSpec[]
   readonly ships: readonly ShipSpec[]
   readonly airfields: readonly Airfield[]
+  /** Each shipped model's manifest budget, by output path (H2). */
+  readonly budgets: BudgetTable
 }
