@@ -1,4 +1,5 @@
 import { DT } from '../sim/flight/model.js'
+import type { LandingAt } from '../sim/landing.js'
 
 /**
  * One scored stretch of flight, from a New game / Restart / previous bank
@@ -29,4 +30,16 @@ export function stepSegment(s: FlightSegment, sample: SegmentSample): FlightSegm
     maxAltitudeM: Math.max(s.maxAltitudeM, sample.altitudeM),
     maxTrueAirspeedMps: Math.max(s.maxTrueAirspeedMps, sample.speedMps),
   }
+}
+
+/**
+ * The trap-vs-field split for a completed landing (dossier spec §B.5):
+ * a carrier touchdown banks as `'trap'`, everything else -- a real airfield
+ * OR an off-field landing (`at: null`, no field or deck under the touchdown)
+ * -- banks as `'field'`. Extracted from main.ts's inline ternary (fix round
+ * 2 finding 6) so it has a Tier 1 test of its own; main.ts still does the
+ * wiring (tests/render/flightRecord.test.ts's own site-count checks that).
+ */
+export function landingKind(report: { readonly at: LandingAt | null }): 'trap' | 'field' {
+  return report.at?.kind === 'carrier' ? 'trap' : 'field'
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { EMPTY_SEGMENT, stepSegment } from '../../src/render/flightRecord.js'
+import { EMPTY_SEGMENT, landingKind, stepSegment } from '../../src/render/flightRecord.js'
 import { DT } from '../../src/sim/flight/model.js'
 
 const air = { altitudeM: 1000, speedMps: 100, airborne: true }
@@ -38,6 +38,18 @@ describe('flight segment (dossier spec §B.2)', () => {
   it('ignores a negative tick delta (a Restart rewinds the world clock)', () => {
     const s = stepSegment(EMPTY_SEGMENT, { ...air, ticksAdvanced: -500 })
     expect(s.flightSeconds).toBe(0)
+  })
+})
+
+describe('landingKind (dossier spec §B.5, fix round 2 finding 6)', () => {
+  it('a carrier touchdown is a trap', () => {
+    expect(landingKind({ at: { kind: 'carrier', id: 'cv-1', name: 'Essex' } })).toBe('trap')
+  })
+  it('an airfield touchdown is a field landing', () => {
+    expect(landingKind({ at: { kind: 'airfield', id: 'tacloban', name: 'Tacloban' } })).toBe('field')
+  })
+  it('an off-field touchdown (no field or deck under it) is a field landing', () => {
+    expect(landingKind({ at: null })).toBe('field')
   })
 })
 

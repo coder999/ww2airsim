@@ -28,7 +28,7 @@ import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
 import { applyMissionResultToRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
-import { EMPTY_SEGMENT, stepSegment, type FlightSegment } from './flightRecord.js'
+import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
@@ -2084,7 +2084,7 @@ async function boot(): Promise<void> {
         model.score.total,
         'landed',
         killsSinceLastBank,
-        sortieFacts(current.landing.report.at?.kind === 'carrier' ? 'trap' : 'field', current.world),
+        sortieFacts(landingKind(current.landing.report), current.world),
       )
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, () => {
