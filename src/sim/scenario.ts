@@ -64,15 +64,15 @@ const SideField = z.enum(['allied', 'axis']).optional()
 /** Maps a parsed scenario's `pilot` content to a runtime `PilotAssignment`,
  *  seeding the initial decision state -- every already-shipped scenario
  *  omits `skill`, so the `'green'` default reproduces its exact behavior. */
-function pilotAssignmentFrom(pilot: z.infer<typeof PilotObject> | undefined): PilotAssignment | null {
+function pilotAssignmentFrom(id: string, pilot: z.infer<typeof PilotObject> | undefined): PilotAssignment | null {
   if (pilot === undefined) return null
   return {
     target: pilot.target ?? null,
     skill: pilot.skill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL,
     // Immediately overwritten at the first rescore (nextRescoreS: 0
-    // guarantees tick 1 triggers one) -- a fixed, knowable seed, same
-    // convention as nextRescoreS's own starting value.
-    decision: initialDecision(),
+    // guarantees tick 1 triggers one). The noise cursor is seeded from the
+    // entity id (7e spec §4.5 item 2), not a shared constant.
+    decision: initialDecision(id),
   }
 }
 
@@ -424,7 +424,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
     return {
       id: a.id, spec, state, previous: state,
       controls: { ...NEUTRAL, throttle: a.airborneAt.throttle ?? AIRBORNE_SPAWN_THROTTLE },
-      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.pilot),
+      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.id, a.pilot),
       ...sideFrom(a),
     }
   }
@@ -446,7 +446,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
       gearFraction: 1,
     })
     const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot), ...sideFrom(a) }
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot), ...sideFrom(a) }
   }
   const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
   const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
@@ -458,7 +458,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
     gearFraction: 1,
   })
   const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot), ...sideFrom(a) }
+  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot), ...sideFrom(a) }
 }
 
 /** Everything a mission objective may name (spec §2.1): start and held

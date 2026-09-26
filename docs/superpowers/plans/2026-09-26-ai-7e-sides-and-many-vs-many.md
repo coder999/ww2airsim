@@ -208,11 +208,11 @@ export function sameSide(sides: Readonly<Record<string, Side>>, a: string, b: st
 **Interfaces:**
 - Produces: `type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter'`; `PilotDecisionState.mode`, `.targetId: string | null`, `.legIndex: number`; `noiseSeedFor(id: string): number` (FNV-1a, 32-bit); `initialDecision(id?: string, mode: PilotMode = 'engage')`.
 
-- [ ] **Step 1: Failing tests:** `noiseSeedFor` is a fixed function of the id (pin two values), differs for `bandit-1`/`bandit-2`, and returns an unsigned 32-bit integer; `initialDecision()` keeps cursor 0; a scenario-built pilot's cursor is `noiseSeedFor(id)`, its `targetId` is `null`, `legIndex` 0 and mode `engage`.
-- [ ] **Step 2: Run to verify it fails.**
-- [ ] **Step 3: Implement** (7c spec §4.5 "Spawning at tick > 0", items 2 and 3).
-- [ ] **Step 4: Re-run the gates the cursor moves** (7c handoff §8): `tests/render/aiLethality.test.ts`, `tests/render/aiReengage.test.ts`, `tests/render/aiSafety.test.ts`, `tests/sim/pursuitMerge.test.ts`, `tests/sim/zeroMerge.test.ts`, `tests/sim/ai/lowChase.test.ts` on ryzen (`remote-run npx vitest run <files>`). Then run item 3 of `aiLethality.test.ts` once at `pursuer-1`'s new cursor with a probe (`.superpowers/7e/item3-cursor.ts`) and record the time-behind in the ledger. Digest probe: only the piloted rows' full and motion digests move.
-- [ ] **Step 5: Commit** `7e Task 3: targetId, mode and legIndex; the noise cursor is seeded from the entity id`.
+- [x] **Step 1: Failing tests:** `noiseSeedFor` is a fixed function of the id (pin two values), differs for `bandit-1`/`bandit-2`, and returns an unsigned 32-bit integer; `initialDecision()` keeps cursor 0; a scenario-built pilot's cursor is `noiseSeedFor(id)`, its `targetId` is `null`, `legIndex` 0 and mode `engage`.
+- [x] **Step 2: Run to verify it fails.**
+- [x] **Step 3: Implement** (7c spec §4.5 "Spawning at tick > 0", items 2 and 3).
+- [x] **Step 4: Re-run the gates the cursor moves** (7c handoff §8): `tests/render/aiLethality.test.ts`, `tests/render/aiReengage.test.ts`, `tests/render/aiSafety.test.ts`, `tests/sim/pursuitMerge.test.ts`, `tests/sim/zeroMerge.test.ts`, `tests/sim/ai/lowChase.test.ts` on ryzen (`remote-run npx vitest run <files>`). Then run item 3 of `aiLethality.test.ts` once at `pursuer-1`'s new cursor with a probe (`.superpowers/7e/item3-cursor.ts`) and record the time-behind in the ledger. Digest probe: only the piloted rows' full and motion digests move.
+- [x] **Step 5: Commit** `7e Task 3: targetId, mode and legIndex; the noise cursor is seeded from the entity id`.
 
 ### Task 4: Target selection
 
