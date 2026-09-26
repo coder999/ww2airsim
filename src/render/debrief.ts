@@ -148,7 +148,13 @@ export type DebriefModel = {
   readonly promotedTo?: string
 }
 
-const MPH_PER_MPS = 2.23694
+// The simulation remains SI internally. The debrief is a 1943 US Navy form,
+// so its pilot-facing figures use the same imperial units as the instruments.
+const MPH_PER_MPS = 1 / 0.44704
+const FT_PER_M = 1 / 0.3048
+
+const mph = (mps: number): string => `${Math.round(mps * MPH_PER_MPS)} mph`
+const feet = (metres: number): string => `${Math.round(metres * FT_PER_M)} ft`
 
 /** What the debrief says about a landing (Mark, 2026-09-17: "successful
  *  landing - nice job! (or similar)"). Pure, like `debriefModel`.
@@ -160,7 +166,6 @@ export function landingModel(
   killsSinceLastBank: Readonly<Record<TargetType, number>>,
   shipNames: Readonly<Record<string, string>> = {},
 ): DebriefModel {
-  const mph = (mps: number) => Math.round(mps * MPH_PER_MPS)
   const landedAt = (): string => {
     if (report.at === null) return 'off-field'
     if (report.at.kind !== 'carrier') return report.at.name
@@ -177,12 +182,9 @@ export function landingModel(
     detail: 'Nice job. You brought her back in one piece.',
     figures: [
       { label: 'Landed at', value: landedAt() },
-      { label: 'Touchdown sink', value: `${report.touchdownSinkMps.toFixed(1)} m/s` },
-      {
-        label: 'Touchdown speed',
-        value: `${report.touchdownSpeedMps.toFixed(1)} m/s (${mph(report.touchdownSpeedMps)} mph)`,
-      },
-      { label: 'Roll-out', value: `${Math.round(report.rollOutM)} m` },
+      { label: 'Touchdown sink', value: mph(report.touchdownSinkMps) },
+      { label: 'Touchdown speed', value: mph(report.touchdownSpeedMps) },
+      { label: 'Roll-out', value: feet(report.rollOutM) },
     ],
     score: missionScore(killsSinceLastBank, 'landed'),
     continueLabel: 'Continue',
@@ -199,12 +201,12 @@ export function debriefModel(
 ): DebriefModel {
   const { rollRad } = attitudeAngles(state)
   const figures: DebriefFigure[] = [
-    { label: 'Impact speed', value: `${Math.round(length(state.velocity))} m/s` },
+    { label: 'Impact speed', value: mph(length(state.velocity)) },
     // Sink is a negative `velocity.y` (same sign convention `contact.ts`'s
     // `sinkingGently` gate checks); negated here so the figure reads as a
     // positive sink rate instead of a confusing minus sign next to two
     // positive figures.
-    { label: 'Sink rate', value: `${Math.round(-impact.verticalSpeedMps)} m/s` },
+    { label: 'Sink rate', value: mph(-impact.verticalSpeedMps) },
     { label: 'Bank', value: `${Math.round((rollRad * 180) / Math.PI)}°` },
   ]
 
@@ -252,8 +254,8 @@ export function destructionModel(
       ? 'The airframe failed under structural overload.'
       : 'The aircraft was destroyed in combat.',
     figures: [
-      { label: 'Final speed', value: `${Math.round(length(state.velocity))} m/s` },
-      { label: 'Altitude', value: `${Math.round(state.position.y)} m` },
+      { label: 'Final speed', value: mph(length(state.velocity)) },
+      { label: 'Altitude', value: feet(state.position.y) },
     ],
     score: missionScore(killsSinceLastBank, 'killed'),
     outcome: 'killed',
