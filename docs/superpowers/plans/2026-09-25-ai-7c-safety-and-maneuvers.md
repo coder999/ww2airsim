@@ -2883,7 +2883,7 @@ git commit -m "7c: scissors and split-S, and the envelope gate that keeps a Hell
 - Produces: `ManeuverName` gains `'immelmann'` (Extend), and `VETERAN_SKILL.repertoire` gains it. This completes the library.
 - Produces, from `maneuverFlight.ts`: `IMMELMANN_UPRIGHT_COS = cos 30°` and `flyImmelmann`
 
-- [ ] **Step 1: Write the failing tests.** Append to `tests/sim/ai/maneuvers.test.ts`:
+- [x] **Step 1: Write the failing tests.** Append to `tests/sim/ai/maneuvers.test.ts`:
 
 ```ts
 describe('Immelmann selection (Task 11)', () => {
@@ -2971,12 +2971,12 @@ describe('Immelmann (7c spec §3.5)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/maneuvers.test.ts tests/sim/ai/immelmann.test.ts tests/sim/ai/pilot.test.ts --maxWorkers=2`
 Expected: FAIL: `'immelmann'` is unknown.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 - In `pilot.ts`: add `| 'immelmann'` to `ManeuverName`, add `immelmann: 'extend'` to `INTENT_OF`, and add `'immelmann'` to `VETERAN_SKILL.repertoire`.
 - In `maneuvers.ts`: import `SAFE_SEPARATION_M` from `./pilot.js`, add `'immelmann'` to `PHASED`, and add before the final `return`:
 
@@ -3008,16 +3008,16 @@ export function flyImmelmann<M>(self: AircraftEntity<M>, _perceived: AircraftEnt
 
 Add `case 'immelmann': return flyImmelmann(self, perceived, decision.latch!)` to `flyManeuver`. The switch is now exhaustive over all ten names.
 
-- [ ] **Step 4: Run the tests and measure.** Run the command from Step 2, and expect PASS. Record each airframe's heading change, height gain and exit speed in the test comment. The Zero measured 152° in the prototype, just over 150°. If it falls short, report the measured value with the phase-0 exit condition, and do not loosen the 150° bar: that is spec §3.5's signature.
+- [x] **Step 4: Run the tests and measure.** Run the command from Step 2, and expect PASS. Record each airframe's heading change, height gain and exit speed in the test comment. The Zero measured 152° in the prototype, just over 150°. If it falls short, report the measured value with the phase-0 exit condition, and do not loosen the 150° bar: that is spec §3.5's signature.
 
-- [ ] **Step 5: Re-measure the re-engagement.** The veteran may now Immelmann on its rejoin.
+- [x] **Step 5: Re-measure the re-engagement.** The veteran may now Immelmann on its rejoin.
 
 Run: `npx vitest run tests/render/aiReengage.test.ts --maxWorkers=2` with a temporary log of `firstShotS` per case.
 Expected: PASS. Replace the veteran rows in the header comment with the new numbers, and count how many veteran runs flew an Immelmann (`named === 'immelmann'` at any tick). Remove the log.
 
-- [ ] **Step 6: The regression gate.** Run Task 8 Step 9's command, plus `npx tsx tools/ai/lethality.ts`. Expected: PASS, and 0 kills out of 128. Record the line.
+- [x] **Step 6: The regression gate.** Run Task 8 Step 9's command, plus `npx tsx tools/ai/lethality.ts`. Expected: PASS, and 0 kills out of 128. Record the line.
 
-- [ ] **Step 7: Verify and commit.**
+- [x] **Step 7: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0

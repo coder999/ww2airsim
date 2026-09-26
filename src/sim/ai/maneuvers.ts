@@ -2,7 +2,7 @@ import type { AircraftEntity } from '../loop.js'
 import { add, length, sub, dot, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import type { DecisionFacts } from './decision.js'
 import { airframeEnvelope, relativeEnvelope, type RelativeEnvelope } from './envelope.js'
-import { DEFAULT_MANEUVER, INTENT_OF, type ManeuverLatch, type ManeuverName, type PilotManeuver } from './pilot.js'
+import { DEFAULT_MANEUVER, INTENT_OF, SAFE_SEPARATION_M, type ManeuverLatch, type ManeuverName, type PilotManeuver } from './pilot.js'
 import { ATTACK_RUN_HEIGHT_M } from './maneuverFlight.js'
 import { closureRateMps } from './pursuit.js'
 import { FLOOR_M, loadFactorBudget } from './safety.js'
@@ -17,6 +17,8 @@ export type ManeuverFacts = {
   readonly facts: DecisionFacts
   readonly envelope: RelativeEnvelope
   readonly selfSpeedMps: number
+  /** Our flight-path angle: radians above the horizon, negative in a dive. */
+  readonly selfFlightPathRad: number
   readonly targetSpeedMps: number
   readonly selfCornerSpeedMps: number
   readonly targetCornerSpeedMps: number
@@ -48,6 +50,7 @@ export function maneuverFacts<M>(
     intent, facts,
     envelope: relativeEnvelope(mine, theirs),
     selfSpeedMps, targetSpeedMps,
+    selfFlightPathRad: Math.asin(Math.min(1, Math.max(-1, self.state.velocity.y / Math.max(selfSpeedMps, 1e-9)))),
     selfCornerSpeedMps: mine.cornerSpeedMps,
     targetCornerSpeedMps: theirs.cornerSpeedMps,
     selfDiveSpeedMps: mine.diveSpeedMps,
@@ -122,12 +125,36 @@ export const SCISSORS_ANGLE_RAD = 45 * Math.PI / 180
 export const SPLIT_S_MIN_HEIGHT_M = 1500
 export const SPLIT_S_MAX_SPEED_FRACTION = 0.6
 
+/** The Immelmann's entry: from near-level flight, the flight path at or
+ *  above this. Spec §3.5 has it replace Extend's shallow-climb rejoin; a
+ *  pilot still in Extend's dive is not in that rejoin, and a "half loop"
+ *  from a 40° dive is a 220° pitch change. Measured 2026-09-26:
+ *  - Without this term, every veteran run of pursuit-range-veteran (4
+ *    cursors x clean/both, passive player) selected the Immelmann at
+ *    15.7-17.2 s, 1.1 km out, in Extend's 13-42° dive. It exited about
+ *    2.4 km out at about 76 m/s, still on Extend, and the first post-merge
+ *    shot slipped from 90.0-111.7 s (clean) and 70.2-72.9 s (both) to
+ *    133.4-138.1 s and 122.4-130.0 s; clean cursor 23757 never fired within
+ *    aiReengage's 150 s budget.
+ *  - Method: those 8 runs and the 8 tail-chase fixture runs, flown for 150 s
+ *    with the Immelmann taken out of the repertoire (HEAD's trajectory),
+ *    reading the flight path at every rescore that meets every other
+ *    Immelmann condition. There are 55 such rescores, all in
+ *    pursuit-range-veteran, at -42.0° to -13.1°; the tail chase has none.
+ *    So any value above -13.1° leaves those runs exactly as they were, and
+ *    the veteran flies no Immelmann there (0 ticks). At -15°, clean cursor 0
+ *    flew one and never fired again. -5° is kept: 8° clear of the steepest
+ *    shipped entry it must reject, and 5° below the level entry of the
+ *    signature worlds (tests/sim/ai/immelmann.test.ts), which select it at
+ *    the first rescore. */
+export const IMMELMANN_MIN_PATH_RAD = -5 * Math.PI / 180
+
 /** The named maneuver for this rescore. With nothing special in the picture
  *  it is the intent's default, which keeps 7b's regression floor. Task 8
  *  adds the Pursue family (lag pursuit, high yo-yo, low yo-yo), Task 9 the
  *  attack run, which outranks them all when the height is there and the
  *  pairing is not a turnfight (spec §3.5's envelope gate), Task 10 the
- *  Break family (scissors, split-S); Task 11 adds the Immelmann. */
+ *  Break family (scissors, split-S), Task 11 the Immelmann (Extend). */
 export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverName[]): ManeuverName {
   const has = (n: ManeuverName): boolean => repertoire.includes(n)
   const f = m.facts
@@ -158,10 +185,22 @@ export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverNa
     if (has('split-s') && f.threatAstern && m.threatBehind && m.heightAboveGroundM >= SPLIT_S_MIN_HEIGHT_M &&
         m.selfSpeedMps < SPLIT_S_MAX_SPEED_FRACTION * m.selfDiveSpeedMps) return 'split-s'
   }
+  // The Immelmann replaces Extend's shallow-climb rejoin (the part of
+  // extendDesiredVelocity beyond SAFE_SEPARATION_M) when there is the speed
+  // for a half loop: at or above corner speed (spec §3.5), from near-level
+  // flight (IMMELMANN_MIN_PATH_RAD). It also needs the threat behind our 3/9
+  // line, which the plan's condition left out: the half loop reverses the
+  // heading, so it is the rejoin only while we are running away. Without
+  // it, a veteran Zero that had already Immelmanned back toward the threat
+  // (tests/sim/ai/immelmann.test.ts's world) reached corner speed again 12 s
+  // after the first one ended, still on Extend, and a second half loop
+  // turned it away from the threat (measured 2026-09-26).
+  if (m.intent === 'extend' && has('immelmann') && m.threatBehind && f.rangeM > SAFE_SEPARATION_M &&
+      m.selfSpeedMps >= m.selfCornerSpeedMps && m.selfFlightPathRad >= IMMELMANN_MIN_PATH_RAD) return 'immelmann'
   return DEFAULT_MANEUVER[m.intent]
 }
 
-const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'scissors', 'split-s'])
+const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'scissors', 'split-s', 'immelmann'])
 export const isPhased = (name: ManeuverName): boolean => PHASED.has(name)
 
 export const latchExpired = (latch: ManeuverLatch, nowS: number): boolean => nowS - latch.enteredAtS >= LATCH_CAP_S
@@ -180,9 +219,11 @@ export const loopRadiusM = (speedMps: number, loadFactorG: number): number =>
 export function openLatch<M>(name: ManeuverName, self: AircraftEntity<M>, nowS: number): ManeuverLatch {
   const v = self.state.velocity
   // The split-S pulls through around a center one loop radius below the
-  // entry point, at the G budget, fixed here so the pull is not re-aimed.
+  // entry point, the Immelmann around a center one loop radius above it, both at
+  // the G budget. The center is fixed here so the pull is not re-aimed.
   const r = loopRadiusM(length(v), loadFactorBudget(self.spec))
-  const loopCenter: Vec3 = name === 'split-s' ? add(self.state.position, v3(0, -r, 0)) : ZERO
+  const pos = self.state.position
+  const loopCenter: Vec3 = name === 'split-s' ? add(pos, v3(0, -r, 0)) : name === 'immelmann' ? add(pos, v3(0, r, 0)) : ZERO
   return {
     name, phase: 0, enteredAtS: nowS,
     entryHeadingRad: Math.atan2(v.z, v.x),

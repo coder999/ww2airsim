@@ -118,3 +118,15 @@ describe('repertoire is skill data (7c spec §3.5; Mark 2026-09-25: green gets t
     }
   })
 })
+
+describe('the finished repertoires (7c; Mark 2026-09-25: green gets the basic set)', () => {
+  it('green flies exactly lead and lag pursuit, the defensive break and the extend: nothing vertical', () => {
+    expect([...GREEN_SKILL.repertoire].sort()).toEqual(['defensive-break', 'extend', 'lag-pursuit', 'lead-pursuit'])
+  })
+
+  it('veteran flies the whole library', () => {
+    expect([...VETERAN_SKILL.repertoire].sort()).toEqual([
+      'attack-run', 'defensive-break', 'extend', 'high-yo-yo', 'immelmann', 'lag-pursuit', 'lead-pursuit', 'low-yo-yo', 'scissors', 'split-s',
+    ])
+  })
+})

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver,
+  IMMELMANN_MIN_PATH_RAD, LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver,
 } from '../../../src/sim/ai/maneuvers.js'
 import { deriveFacts } from '../../../src/sim/ai/decision.js'
 import { DEFAULT_MANEUVER, GREEN_SKILL, VETERAN_SKILL, initialDecision, type ManeuverLatch } from '../../../src/sim/ai/pilot.js'
@@ -162,5 +162,35 @@ describe('Break family selection (Task 10)', () => {
     expect(selectManeuver({ ...splitPicture, heightAboveGroundM: 1499 }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
     expect(selectManeuver({ ...splitPicture, selfSpeedMps: 130 }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
     expect(selectManeuver({ ...splitPicture, threatBehind: false }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+  })
+})
+
+describe('Immelmann selection (Task 11)', () => {
+  const base = factsFor('extend')
+  // threatBehind is not in the plan's condition (see selectManeuver); the
+  // plain picture's target is ahead, so the rejoin sets it.
+  const rejoin = { ...base, selfSpeedMps: 140, selfCornerSpeedMps: 119.98, threatBehind: true, facts: { ...base.facts, rangeM: 1300 } }
+
+  it('replaces Extend\'s rejoin beyond SAFE_SEPARATION_M at or above corner speed', () => {
+    expect(selectManeuver(rejoin, VETERAN_SKILL.repertoire)).toBe('immelmann')
+  })
+
+  it('not below corner speed, not inside SAFE_SEPARATION_M, not for green', () => {
+    expect(selectManeuver({ ...rejoin, selfSpeedMps: 110 }, VETERAN_SKILL.repertoire)).toBe('extend')
+    expect(selectManeuver({ ...rejoin, facts: { ...rejoin.facts, rangeM: 900 } }, VETERAN_SKILL.repertoire)).toBe('extend')
+    expect(selectManeuver(rejoin, GREEN_SKILL.repertoire)).toBe('extend')
+  })
+
+  it('not with the threat ahead of our 3/9 line: the reversal would turn us away from it', () => {
+    expect(selectManeuver({ ...rejoin, threatBehind: false }, VETERAN_SKILL.repertoire)).toBe('extend')
+  })
+
+  it('only from near-level flight: not in Extend\'s dive (IMMELMANN_MIN_PATH_RAD)', () => {
+    expect(rejoin.selfFlightPathRad).toBe(0)
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: IMMELMANN_MIN_PATH_RAD }, VETERAN_SKILL.repertoire)).toBe('immelmann')
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: IMMELMANN_MIN_PATH_RAD - 1e-3 }, VETERAN_SKILL.repertoire)).toBe('extend')
+    // The shallowest otherwise-qualifying dive in pursuit-range-veteran (-13.1°, 2026-09-26).
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: -13.1 * Math.PI / 180 }, VETERAN_SKILL.repertoire)).toBe('extend')
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: 0.3 }, VETERAN_SKILL.repertoire)).toBe('immelmann')
   })
 })

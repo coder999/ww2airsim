@@ -19,6 +19,14 @@ import type { ScenarioBundle } from '../../src/sim/scenario.js'
  *   zero-merge (AI Zero)      104.9-118.9 / 75.8-90.9
  * Every run went on to kill the passive player, all within the 150 s budget
  * (worst case 118.9 s, zero-merge clean).
+ *
+ * Re-measured 2026-09-26 after 7c Task 11 (the veteran's Immelmann): every
+ * row above is unchanged, to 0.1 s. The veteran flew 0 Immelmann ticks in
+ * all 8 pursuit-range-veteran runs: its only otherwise-qualifying rejoin
+ * rescores are in Extend's dive, at -42.0° to -13.1°, below
+ * IMMELMANN_MIN_PATH_RAD (-5°). Without that term every veteran run flew
+ * one, fired first at 133.4-138.1 / 122.4-130.0 s, and clean cursor 23757
+ * never fired within the budget.
  */
 const REENGAGE_BUDGET_S = 150
 const PURSUER = 'pursuer-1'

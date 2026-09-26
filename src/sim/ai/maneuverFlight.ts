@@ -290,6 +290,48 @@ export function flySplitS<M>(self: AircraftEntity<M>, _perceived: AircraftEntity
   return { controls, latch: turned && level ? null : latch }
 }
 
+/** Immelmann (spec §3.5): replaces Extend's shallow-climb rejoin at or above
+ *  corner speed. Phase 0 is a half loop up around the center fixed at entry
+ *  (`openLatch`), at the G budget and full power, until the heading has
+ *  reversed by REVERSAL_DONE_RAD with the nose back near level
+ *  (IMMELMANN_TOP_MAX_CLIMB). Phase 1 rolls upright at 1 g. It ends upright,
+ *  pointing back at the threat. Never fires: Extend never does (7b).
+ *
+ *  IMMELMANN_UPRIGHT_COS (body-up within 30° of vertical) is the plan's
+ *  value, kept. Measured 2026-09-26 in the signature world with
+ *  IMMELMANN_TOP_MAX_CLIMB at 0.2, the roll-out (phase 1) takes 2.61 s on
+ *  the F6F and 3.00 s on the Zero; peak load factor over the whole maneuver
+ *  is 6.42 g (limit 7.5) and 6.05 g (limit 7). */
+export const IMMELMANN_UPRIGHT_COS = Math.cos(30 * Math.PI / 180)
+/** Phase 0 ends at the top of the loop: the heading reversed AND the climb
+ *  component (velocity.y / speed) back under this. The plan ended it on the
+ *  heading alone, which flips 180° the moment the airplane passes the
+ *  vertical: measured 2026-09-26 in the signature world, the F6F entered
+ *  phase 1 at 4.25 s pointing straight up (vy 101.6 of 102.1 m/s), rolled to
+ *  lift-up at 1 g and hung; the Zero exited at 22.4 m/s, below 1.1 x stall.
+ *  Swept 2026-09-26 in that world (tests/sim/ai/immelmann.test.ts), reading
+ *  heading change / height gained / exit speed, F6F from 140 m/s then Zero
+ *  from 110 m/s:
+ *  - 0: 173.3° / 428 m / 92.6 m/s; 172.0° / 349 m / 81.1 m/s
+ *  - 0.1: 174.0° / 448 / 90.2; 171.7° / 369 / 78.1
+ *  - 0.2: 174.6° / 466 / 88.0; 171.5° / 386 / 75.4
+ *  - 0.3: 175.1° / 483 / 85.9; 171.2° / 400 / 73.0
+ *  - 0.5: 175.9° / 512 / 82.3; 170.2° / 428 / 68.2
+ *  Every value meets the signature. 0.2 mirrors the split-S's
+ *  LEVEL_EXIT_MIN_CLIMB (-0.2) and rolls out near the top of the loop. */
+export const IMMELMANN_TOP_MAX_CLIMB = 0.2
+export function flyImmelmann<M>(self: AircraftEntity<M>, _perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
+  if (latch.phase === 0) {
+    const controls = controlsForLiftVector(self.state, self.spec, sub(latch.loopCenter, self.state.position), loadFactorBudget(self.spec), 1)
+    const v = self.state.velocity
+    const turned = headingChange(latch.entryHeadingRad, headingOf(v)) >= REVERSAL_DONE_RAD
+    const top = v.y / Math.max(length(v), 1e-6) < IMMELMANN_TOP_MAX_CLIMB
+    return { controls, latch: turned && top ? { ...latch, phase: 1 } : latch }
+  }
+  const controls = controlsForLiftVector(self.state, self.spec, UP, 1, 1)
+  return { controls, latch: qRotate(self.state.attitude, UP).y > IMMELMANN_UPRIGHT_COS ? null : latch }
+}
+
 /** A maneuver's controls this tick, and its latch afterwards: the same
  *  object while it continues unchanged, a new one when its data changes (a
  *  phase change, or the attack run's new lowest altitude), null once it has
@@ -310,5 +352,6 @@ export function flyManeuver<M>(
     case 'attack-run': return flyAttackRun(self, perceived, decision.latch!)
     case 'scissors': return flyScissors(self, perceived, decision.latch!)
     case 'split-s': return flySplitS(self, perceived, decision.latch!)
+    case 'immelmann': return flyImmelmann(self, perceived, decision.latch!)
   }
 }
