@@ -17,6 +17,7 @@ import { groundUnder } from './world/ground.js'
 import { buildStructures, type StructureEntity } from './weapons/structures.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './ai/decision.js'
+import type { MissionState } from './mission/state.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -409,6 +410,14 @@ export interface World<M = undefined> {
   /** Scenario wind, the velocity of the air; `null` is calm. Static for the
    *  flight, in `World` because `advance` builds every `SimContext` from it. */
   readonly wind: Vec3 | null
+  /**
+   * The mission in flight (spec 2026-09-25 §1), or `null` for a scenario
+   * with no objectives. `null` selects the exact pre-M1 code path in
+   * `advance`: the per-tick mission hook is skipped, not run as a no-op,
+   * which is what the bit-identity gate (the digest probe in
+   * docs/superpowers/plans/2026-09-25-m1-mission-engine.md) measures.
+   */
+  readonly mission: MissionState<M> | null
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -518,6 +527,10 @@ export function createWorldOf<M>(parts: {
    *  built before this parameter existed, and every call site but
    *  `worldFromScenario`. */
   readonly enemyAirfields?: readonly string[] | undefined
+  /** The mission, built by `worldFromScenario` when its scenario declares
+   *  objectives. Absent means `null`, matching every world built before M1
+   *  and every call site but `worldFromScenario`. */
+  readonly mission?: MissionState<M> | null
 }): World<M> {
   const ships = parts.ships ?? []
   const seen = new Set<EntityId>()
@@ -571,6 +584,7 @@ export function createWorldOf<M>(parts: {
     airfields: parts.airfields ?? [],
     terrain: parts.terrain ?? null,
     wind: parts.wind ?? null,
+    mission: parts.mission ?? null,
     accumulatorSeconds: 0,
   }
 }

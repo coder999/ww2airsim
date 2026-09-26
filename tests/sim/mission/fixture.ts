@@ -1,5 +1,10 @@
 import { createTerrainField, type TerrainField } from '../../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
+import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
+import { bundleForScenario } from '../../../tools/content/load.js'
+import { advance, type World } from '../../../src/sim/loop.js'
+import { DT } from '../../../src/sim/flight/model.js'
+import type { ObjectiveState } from '../../../src/sim/mission/state.js'
 
 /**
  * One small mission world, inline so a test can read it on one screen. Not
@@ -43,4 +48,30 @@ export function flatField(heightM: number): TerrainField {
     12,
     new Int16Array(9).fill(heightM * 10),
   )
+}
+
+/** The world `worldFromScenario` builds for `BASE` + `patch`. */
+export function missionWorld(patch: Record<string, unknown>, terrain: TerrainField | null = null): World<undefined> {
+  return worldFromScenario(bundleForScenario(parseScenario(scenario(patch))), terrain)
+}
+
+/** `n` production ticks, one `advance(world, DT)` each. */
+export function steps<M>(world: World<M>, n: number): World<M> {
+  let w = world
+  for (let i = 0; i < n; i++) w = advance(w, DT).world
+  return w
+}
+
+export function progressOf<M>(world: World<M>, id: string): ObjectiveState {
+  const m = world.mission!
+  return m.progress[m.objectives.findIndex((o) => o.id === id)]!
+}
+
+/** As tests/sim/loop.test.ts: `advance` must not write into what it is handed. */
+export function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value) && !ArrayBuffer.isView(value)) {
+    Object.freeze(value)
+    for (const key of Object.getOwnPropertyNames(value)) deepFreeze((value as Record<string, unknown>)[key])
+  }
+  return value
 }

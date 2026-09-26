@@ -13,6 +13,8 @@ import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from '
 import { GREEN_SKILL, VETERAN_SKILL } from './ai/pilot.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { BadgeObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
+import { createMission, type Taggable } from './mission/create.js'
+import type { HeldGroup, MissionState } from './mission/state.js'
 
 /**
  * A scenario says where everything starts (spec §7). It is the data contract
@@ -364,6 +366,99 @@ function lookup<T>(table: Readonly<Record<string, T>>, key: string, kind: string
   return v
 }
 
+/** One scenario ship as a `ShipEntity`: a start ship, or a held one built
+ *  at world creation (missions M1). Moved out of `worldFromScenario`
+ *  verbatim. */
+function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainField | null): ShipEntity {
+  const spec = lookup(bundle.shipSpecs, sh.spec, 'ship spec')
+  const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps }
+  if (terrain !== null) assertLoopOverWater(sh.id, orders, terrain)
+  const first = orders.waypoints[0]!
+  // A moving ship's heading comes from its first two waypoints, same as
+  // always. An anchored ship (speedMps 0, Plan 6b's maru) may carry only
+  // ONE waypoint -- the schema now allows it -- so there is no second
+  // point to bear toward; heading 0 is an arbitrary but finite, stable
+  // default, safe because `stepShip`'s own zero-speed pinning (Plan 6b
+  // Task 1) never reads heading into a nonzero velocity for such a ship.
+  const second = orders.waypoints[1] ?? first
+  const state = createShipState({
+    position: v3(first.x, SEA_LEVEL_M, first.z),
+    headingRad: second === first ? 0 : bearingTo(first, second),
+    speedMps: sh.speedMps,
+    waypoint: 1,
+  })
+  return { id: sh.id, spec, state, previous: state, orders }
+}
+
+/** One scenario aircraft as an `AircraftEntity`: a start aircraft, or a
+ *  held one built at world creation (missions M1). Moved out of
+ *  `worldFromScenario` verbatim. */
+function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: readonly ShipEntity[]): AircraftEntity<undefined> {
+  const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
+  if (!isParkedAircraft(a)) {
+    const [x, y, z] = a.airborneAt.position
+    const headingRad = a.airborneAt.headingDeg * Math.PI / 180
+    const state = createState({
+      position: v3(x, y, z),
+      velocity: v3(
+        Math.sin(headingRad) * a.airborneAt.speedMps,
+        0,
+        -Math.cos(headingRad) * a.airborneAt.speedMps,
+      ),
+      attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - headingRad),
+    })
+    return {
+      id: a.id, spec, state, previous: state,
+      controls: { ...NEUTRAL, throttle: a.airborneAt.throttle ?? AIRBORNE_SPAWN_THROTTLE },
+      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.pilot),
+    }
+  }
+  const parkedAt = a.parkedAt
+  if (isShipParked(parkedAt)) {
+    const ship = ships.find((sh) => sh.id === parkedAt.ship)
+    if (ship === undefined) throw new Error(`scenario parks "${a.id}" on ship "${parkedAt.ship}", which is not in the scenario`)
+    const deck = deckOf(ship)
+    if (deck === null) throw new Error(`scenario parks "${a.id}" on "${ship.id}", which has no flight deck`)
+    const { x, z } = parkedAt.spot
+    if (Math.abs(x) > deck.widthM / 2 || Math.abs(z) > deck.lengthM / 2) {
+      throw new Error(`scenario parks "${a.id}" off the deck of "${ship.id}": spot (${x}, ${z}) on a ${deck.widthM} x ${deck.lengthM} m deck`)
+    }
+    const at = deckWorld(deck, x, z)
+    const state = createState({
+      position: v3(at.x, deck.center.y + spec.gear.heightM, at.z),
+      velocity: groundUnder(null, [deck], at.x, at.z)!.velocity,
+      attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad),
+      gearFraction: 1,
+    })
+    const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
+  }
+  const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
+  const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
+  const at = localToWorld(field, spot.x, spot.z)
+  const state = createState({
+    position: v3(at.x, PARKED_PLACEHOLDER_Y_M, at.z),
+    velocity: v3(0, 0, 0),
+    attitude: parkedAttitude(field),
+    gearFraction: 1,
+  })
+  const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
+  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
+}
+
+/** Everything a mission objective may name (spec §2.1): start and held
+ *  aircraft and ships with their scenario tags, and every building of the
+ *  scenario's `airfields` (the ones `buildStructures` turns into world
+ *  structures) with its base-content tags. */
+function missionEntities(bundle: ScenarioBundle): Taggable[] {
+  const s = bundle.scenario
+  const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
+  const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
+  const buildings = s.airfields.flatMap((a) => lookup(bundle.airfields, a, 'airfield').buildings)
+  return [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips, ...buildings]
+    .map((e) => ({ id: e.id, tags: e.tags ?? [] }))
+}
+
 /**
  * The initial `World`. Pure; `terrain` may be `null` (the browser has none
  * at boot) in which case the ship loops are not checked here -- the Tier 1
@@ -380,83 +475,40 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
   const s = bundle.scenario
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
 
-  const ships: ShipEntity[] = s.ships.map((sh) => {
-    const spec = lookup(bundle.shipSpecs, sh.spec, 'ship spec')
-    const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps }
-    if (terrain !== null) assertLoopOverWater(sh.id, orders, terrain)
-    const first = orders.waypoints[0]!
-    // A moving ship's heading comes from its first two waypoints, same as
-    // always. An anchored ship (speedMps 0, Plan 6b's maru) may carry only
-    // ONE waypoint -- the schema now allows it -- so there is no second
-    // point to bear toward; heading 0 is an arbitrary but finite, stable
-    // default, safe because `stepShip`'s own zero-speed pinning (Plan 6b
-    // Task 1) never reads heading into a nonzero velocity for such a ship.
-    const second = orders.waypoints[1] ?? first
-    const state = createShipState({
-      position: v3(first.x, SEA_LEVEL_M, first.z),
-      headingRad: second === first ? 0 : bearingTo(first, second),
-      speedMps: sh.speedMps,
-      waypoint: 1,
-    })
-    return { id: sh.id, spec, state, previous: state, orders }
-  })
+  const ships: ShipEntity[] = s.ships.map((sh) => buildShip(bundle, sh, terrain))
 
-  const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => {
-    const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
-    if (!isParkedAircraft(a)) {
-      const [x, y, z] = a.airborneAt.position
-      const headingRad = a.airborneAt.headingDeg * Math.PI / 180
-      const state = createState({
-        position: v3(x, y, z),
-        velocity: v3(
-          Math.sin(headingRad) * a.airborneAt.speedMps,
-          0,
-          -Math.cos(headingRad) * a.airborneAt.speedMps,
-        ),
-        attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - headingRad),
-      })
-      return {
-        id: a.id, spec, state, previous: state,
-        controls: { ...NEUTRAL, throttle: a.airborneAt.throttle ?? AIRBORNE_SPAWN_THROTTLE },
-        assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.pilot),
-      }
-    }
-    const parkedAt = a.parkedAt
-    if (isShipParked(parkedAt)) {
-      const ship = ships.find((sh) => sh.id === parkedAt.ship)
-      if (ship === undefined) throw new Error(`scenario parks "${a.id}" on ship "${parkedAt.ship}", which is not in the scenario`)
-      const deck = deckOf(ship)
-      if (deck === null) throw new Error(`scenario parks "${a.id}" on "${ship.id}", which has no flight deck`)
-      const { x, z } = parkedAt.spot
-      if (Math.abs(x) > deck.widthM / 2 || Math.abs(z) > deck.lengthM / 2) {
-        throw new Error(`scenario parks "${a.id}" off the deck of "${ship.id}": spot (${x}, ${z}) on a ${deck.widthM} x ${deck.lengthM} m deck`)
-      }
-      const at = deckWorld(deck, x, z)
-      const state = createState({
-        position: v3(at.x, deck.center.y + spec.gear.heightM, at.z),
-        velocity: groundUnder(null, [deck], at.x, at.z)!.velocity,
-        attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad),
-        gearFraction: 1,
-      })
-      const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-      return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
-    }
-    const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
-    const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
-    const at = localToWorld(field, spot.x, spot.z)
-    const state = createState({
-      position: v3(at.x, PARKED_PLACEHOLDER_Y_M, at.z),
-      velocity: v3(0, 0, 0),
-      attitude: parkedAttitude(field),
-      gearFraction: 1,
-    })
-    const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
-  })
+  const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => buildAircraft(bundle, a, ships))
 
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
   const stores: Record<string, StoresState> = Object.fromEntries(
     aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : emptyStores]),
   )
-  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields })
+  // Missions (spec 2026-09-25). Held groups are built NOW, by the same
+  // functions as the start entities, so a spawn is exactly what
+  // `worldFromScenario` would have built (spec §1); a scenario without
+  // objectives builds none of this and passes `mission: null`.
+  let mission: MissionState<undefined> | null = null
+  if (s.objectives !== undefined) {
+    for (const o of s.objectives) {
+      if (o.kind !== 'land') continue
+      const ship = ships.find((sh) => sh.id === o.at)
+      if (ship !== undefined && deckOf(ship) === null) {
+        throw new Error(`scenario "${s.id}": objective "${o.id}" lands on "${o.at}", which has no flight deck`)
+      }
+    }
+    const held: HeldGroup<undefined>[] = (s.heldGroups ?? []).map((g) => ({
+      id: g.id,
+      aircraft: (g.aircraft ?? []).map((a) => buildAircraft(bundle, a, ships)),
+      ships: (g.ships ?? []).map((sh) => buildShip(bundle, sh, terrain)),
+    }))
+    mission = createMission<undefined>({
+      scenarioId: s.id,
+      objectives: s.objectives,
+      triggers: s.triggers ?? [],
+      badge: s.badge ?? null,
+      held,
+      entities: missionEntities(bundle),
+    })
+  }
+  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, mission })
 }
