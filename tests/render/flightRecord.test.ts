@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { EMPTY_SEGMENT, stepSegment } from '../../src/render/flightRecord.js'
 import { DT } from '../../src/sim/flight/model.js'
@@ -37,5 +38,22 @@ describe('flight segment (dossier spec §B.2)', () => {
   it('ignores a negative tick delta (a Restart rewinds the world clock)', () => {
     const s = stepSegment(EMPTY_SEGMENT, { ...air, ticksAdvanced: -500 })
     expect(s.flightSeconds).toBe(0)
+  })
+})
+
+describe('main.ts records every flight segment (dossier spec §B.2)', () => {
+  const main = readFileSync(new URL('../../src/render/main.ts', import.meta.url), 'utf8')
+  it('steps the segment every frame and resets it wherever the kill baseline resets', () => {
+    expect(main).toContain('segment = stepSegment(segment,')
+    // Indented ASSIGNMENTS only -- the two `let` declarations do not match
+    // the whitespace-then-name anchor. 5 today: New game, Restart, and the
+    // three bank sites.
+    const killResets = main.match(/^\s+scoredThroughKillsByType = /gm)?.length ?? 0
+    const segResets = main.match(/^\s+segment = EMPTY_SEGMENT/gm)?.length ?? 0
+    expect(killResets).toBe(5)
+    expect(segResets).toBe(killResets)
+  })
+  it('passes sortie facts at all three bank sites', () => {
+    expect(main.match(/bankMissionResult\([^)]*sortieFacts\(/g)?.length).toBe(3)
   })
 })
