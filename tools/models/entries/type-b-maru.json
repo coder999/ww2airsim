@@ -1,0 +1,25 @@
+{
+  "id": "type-b-maru",
+  "input": "tools/models/cache/liberty-ship.glb",
+  "output": "content/ships/type-b-maru.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26",
+    "uid": "a1db8e8414464c5d8b11383e202fcf26",
+    "author": "AlanTinka",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+z", "up": "+y", "origin": [-0.0003, 0.0075, 0], "fit": { "extent": "length", "meters": 112 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 4000000, "maxTriangles": 45000, "maxDrawCalls": 4 },
+  "ship": {
+    "spec": "type-b-maru",
+    "fit": "hull",
+    "kind": "full-hull",
+    "palette": "usn-1944",
+    "otherMaterials": "keep",
+    "smokeOrigin": [-1, 15, 0],
+    "bow": { "pinnedNarrowEnd": 0.938, "evidence": "rudder and propeller at -x, raked stem and anchors at +x, ensign aft (side render 2026-09-25)" },
+    "keelM": -5.348
+  }
+}

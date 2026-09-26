@@ -1736,7 +1736,7 @@ git commit -m "S1: the ship block, the shipFit and shipMaterials stages, ship ma
 - Consumes: Task 2's `ship` block and stages.
 - Produces: the three committed glbs at `content/ships/<id>.glb`, each carrying `asset.extras.shipFit`, a `SmokeOrigin` node, and for `essex-cv` a `TrapBand` node with `extras.halfWidthM`.
 
-- [ ] **Step 1: Put the raw inputs where the entries read them.** `tools/models/cache/` is gitignored (`/tools/**/cache/`) and does not exist in this worktree yet.
+- [x] **Step 1: Put the raw inputs where the entries read them.** `tools/models/cache/` is gitignored (`/tools/**/cache/`) and does not exist in this worktree yet.
 
 ```bash
 mkdir -p tools/models/cache
@@ -1751,7 +1751,7 @@ EOF
 
 Expected: three `OK` lines. If a file is missing, re-fetch it with `tools/models/sketchfab-fetch.sh <uid> <name>` (uids in the entries below; the token comes from 1Password and the script never prints it), then re-check. **If a hash differs, stop and report it:** every number in this plan was measured on these bytes.
 
-- [ ] **Step 2: Re-read each license from the API, and cross-check the provenance the file carries.** A download is not a license check (`ASSETS.md`).
+- [x] **Step 2: Re-read each license from the API, and cross-check the provenance the file carries.** A download is not a license check (`ASSETS.md`).
 
 ```bash
 for u in bf79e093d4c94b0eb02097c178dd6e98 5cddc3309139413e8c08462c8741b884 a1db8e8414464c5d8b11383e202fcf26; do
@@ -1764,7 +1764,7 @@ done
 
 Expected: `KTKloss by True None`, `hellomynameis.jeffz by True None`, `AlanTinka by True None`; each `asset.extras` names the same author and `CC-BY-4.0`. Record both outputs in the ledger. **Anything other than `by`, downloadable and unpriced: stop and report.** Spec §4.4 says a model that fails is replaced by its §2 alternate, never forced; that is Mark's call.
 
-- [ ] **Step 3: Write the entries.** The numbers are this plan's measurements (above).
+- [x] **Step 3: Write the entries.** The numbers are this plan's measurements (above).
 
 `tools/models/entries/essex-cv.json`:
 
@@ -1859,7 +1859,7 @@ Expected: `KTKloss by True None`, `hellomynameis.jeffz by True None`, `AlanTinka
 }
 ```
 
-- [ ] **Step 4: Build them, by id.** Never a bare `models:build` (the frozen Wildcat is skipped by one, but by id is the rule here), and never `--force`.
+- [x] **Step 4: Build them, by id.** Never a bare `models:build` (the frozen Wildcat is skipped by one, but by id is the rule here), and never `--force`.
 
 Run: `npm run models:build -- essex-cv fletcher-dd type-b-maru`
 Expected, measured with this plan's drafts on 2026-09-25:
@@ -1872,14 +1872,14 @@ built type-b-maru -> content/ships/type-b-maru.glb: 2900088 bytes, 42735 triangl
 
 A `FAILED <id>, nothing written: …` line names the tolerance and its measured value. Do not loosen a tolerance or edit a sim number to pass it: stop and report (spec §4.4). A few bytes' difference from the figures above is not a failure, but record it.
 
-- [ ] **Step 5: Confirm nothing else moved.**
+- [x] **Step 5: Confirm nothing else moved.**
 
 ```bash
 sha256sum content/aircraft/wildcat.glb   # 3f7a6ccff7ea1e2f1362cfa44f9b13dbba1fea4130d015dbd4c3d9b704d58d6e
 git status --short                       # the three entries and the three glbs, nothing else
 ```
 
-- [ ] **Step 6: `ASSETS.md`.** In the "3D models" table, add these three rows after the `wildcat.glb` row:
+- [x] **Step 6: `ASSETS.md`.** In the "3D models" table, add these three rows after the `wildcat.glb` row:
 
 ```markdown
 | `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
@@ -1908,12 +1908,12 @@ as the fallback for a ship with no model.
 
 In "Candidate models", delete the `fletcher-dd.glb` row: it is no longer a candidate.
 
-- [ ] **Step 7: Run Z1's committed-output tests on the new entries.**
+- [x] **Step 7: Run Z1's committed-output tests on the new entries.**
 
 Run: `npx vitest run tests/tools/models/outputs.test.ts --maxWorkers=2`
 Expected: PASS, 13 tests (3 per entry across 4 entries, and the Wildcat's clip): each ship glb exists, meets its budget and extensions, carries its provenance, and has its `ASSETS.md` row.
 
-- [ ] **Step 8: Record, verify and commit.** Write the three build lines, the license output and the hashes into the ledger.
+- [x] **Step 8: Record, verify and commit.** Write the three build lines, the license output and the hashes into the ledger.
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"

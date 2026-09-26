@@ -1,0 +1,29 @@
+{
+  "id": "fletcher-dd",
+  "input": "tools/models/cache/fletcher-dd.glb",
+  "output": "content/ships/fletcher-dd.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884",
+    "uid": "5cddc3309139413e8c08462c8741b884",
+    "author": "JZHU",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0.0021, 0, 0], "fit": { "extent": "length", "meters": 114.8 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "fletcher-dd",
+    "fit": "hull",
+    "kind": "full-hull",
+    "palette": "usn-1944",
+    "materials": {
+      "hullgrey": "hull", "deck": "deck", "hullred": "antifouling", "hulldark": "boot",
+      "mesh": "mask", "mesh1": "mask", "mesh2": "mask", "radar": "mask"
+    },
+    "otherMaterials": "fitting",
+    "smokeOrigin": [8.5, 15, 0],
+    "bow": "narrow-end",
+    "keelM": -3.885
+  }
+}
