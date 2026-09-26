@@ -351,11 +351,11 @@ Content (spec §4.6): the player plus one allied AI against two axis pairs (each
 - Modify: `src/render/radar.ts` (`RadarContact.friendly`), `src/render/scene/radarScope.ts` (a second tint), `src/render/main.ts` (`aircraft()` rows), `src/render/diagnostics.ts` (row type), `src/render/combatReadout.ts` (rows gain `kills`, `friendlyKills`, `attacker`)
 - Test: `tests/render/radar.test.ts`, `tests/render/combatReadout.test.ts`
 
-- [ ] **Step 1: Failing tests:** `radarContacts` marks an allied contact `friendly: true` and an axis one `false`, relative to the player's own side; `combatDiagnosticsFor` rows carry `kills`, `friendlyKills`, `attacker`.
-- [ ] **Step 2: Run to verify it fails.**
-- [ ] **Step 3: Implement.** The scope keeps green for hostiles and draws friendlies cyan (`0.35, 0.8, 1.0`); `readAt` still returns the green channel. `__ww2.aircraft()` rows gain `side`, `mode`, `maneuver`, `targetId` (null without a pilot).
-- [ ] **Step 4: Run** radar, radarScope, combatReadout tests; typecheck.
-- [ ] **Step 5: Commit** `7e Task 10: radar friendly tint and 7e diagnostics`.
+- [x] **Step 1: Failing tests:** `radarContacts` marks an allied contact `friendly: true` and an axis one `false`, relative to the player's own side; `combatDiagnosticsFor` rows carry `kills`, `friendlyKills`, `attacker`.
+- [x] **Step 2: Run to verify it fails.**
+- [x] **Step 3: Implement.** The scope keeps green for hostiles and draws friendlies cyan (`0.35, 0.8, 1.0`); `readAt` still returns the green channel. `__ww2.aircraft()` rows gain `side`, `mode`, `maneuver`, `targetId` (null without a pilot).
+- [x] **Step 4: Run** radar, radarScope, combatReadout tests; typecheck.
+- [x] **Step 5: Commit** `7e Task 10: radar friendly tint and 7e diagnostics`.
 
 ### Task 11: Tier 2, verify, docs, review
 

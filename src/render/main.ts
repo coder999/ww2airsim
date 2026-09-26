@@ -87,6 +87,7 @@ import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
 import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
+import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
@@ -844,6 +845,11 @@ async function boot(): Promise<void> {
             y: a.state.position.y,
             z: a.state.position.z,
             headingRad: Math.atan2(forward.x, -forward.z),
+            // Plan 7e (spec §4.4).
+            side: sideOf(frame!.world, a),
+            mode: a.pilot?.decision.mode ?? null,
+            maneuver: a.pilot?.decision.named ?? null,
+            targetId: a.pilot?.decision.targetId ?? null,
           }
         }),
       // Same `??`-guard as the rest: before the first frame exists there is

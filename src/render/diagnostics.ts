@@ -172,6 +172,12 @@ export type Ww2Diagnostics = {
    */
   readonly aircraft: () => readonly {
     readonly id: string; readonly x: number; readonly y: number; readonly z: number; readonly headingRad: number
+    /** Plan 7e (spec §4.4): the side (`sideOf`), and for an AI pilot its
+     *  mode, named maneuver and target; `null` for an aircraft with no pilot. */
+    readonly side: 'allied' | 'axis'
+    readonly mode: string | null
+    readonly maneuver: string | null
+    readonly targetId: string | null
   }[]
   /**
    * Whether the wheels are currently carrying the airplane -- `supportedContact`
