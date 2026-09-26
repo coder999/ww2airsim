@@ -91,3 +91,16 @@ remain, and they are the next work, in a fresh worktree:
   cut to 1/8 of a step.
 - **A flickering band near the horizon**, visible even while paused. Not yet
   diagnosed, and not yet compared against pre-merge `main`.
+
+### Follow-up fixes (merged 2026-09-26, `e37c0a1`)
+
+The screenshot was taken at **Low**, the tier Mark's Chrome auto-picks (the
+open 2026-09-20 incident, which Mark chose to leave for now). Two fixes:
+
+- Slices: the cumulus start jitter goes back to a full step (it was 1/8).
+- Horizon band: the resolve's moving-edge rule now applies only to clouds
+  nearer than 10 km. Frozen-scene flicker at Low: 1.66 → 0.78 gray levels.
+
+Mark flew it: "huge improvements on both fronts", usable. High shows no
+flicker and no fps loss in cloud. Low still shimmers at cloud edges; that
+stays open.
