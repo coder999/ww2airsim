@@ -3,6 +3,7 @@ import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord } from './roster.js'
+import { openDossier } from './dossier.js'
 import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
 
@@ -133,6 +134,11 @@ export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label
 export function isKnownScenarioId(id: string): boolean {
   return SCENARIO_OPTIONS.some((option) => option.value === id)
 }
+
+/** A scenario id's player-facing label (dossier spec §B.4's Mission Log
+ *  column), falling back to the raw id for one this build no longer ships
+ *  (an old log entry referencing a retired scenario). */
+const scenarioLabel = (id: string): string => SCENARIO_OPTIONS.find((o) => o.value === id)?.label ?? id
 
 /**
  * The text on each pilot's entry in the roster list (design §3: "a list...
@@ -419,7 +425,7 @@ export function createTitleScreen(
     table.className = 'form-table'
     const thead = document.createElement('thead')
     const headRow = document.createElement('tr')
-    for (const label of ['Name', 'Rank', 'Score', 'Sorties', 'Kills', 'Status']) {
+    for (const label of ['Name', 'Rank', 'Score', 'Sorties', 'Kills', 'Status', '']) {
       const th = document.createElement('th')
       th.textContent = label
       headRow.appendChild(th)
@@ -682,7 +688,18 @@ export function createTitleScreen(
       statusChip.textContent = isKia ? 'K.I.A.' : 'Active'
       statusCell.appendChild(statusChip)
 
-      pilotRow.append(nameCell, rankCell, scoreCell, sortiesCell, killsCell, statusCell)
+      // Read-only, so never boot-locked (plan ruling): not in `lockable()`.
+      const dossierCell = document.createElement('td')
+      const dossierButton = inkButton('Dossier')
+      dossierButton.setAttribute('aria-label', `Dossier: ${pilot.name}`)
+      dossierButton.addEventListener('click', () => {
+        // Re-read so a record banked since this row was built is shown.
+        const fresh = loadRoster().find((p) => p.id === pilot.id) ?? pilot
+        openDossier(overlay, fresh, scenarioLabel, () => dossierButton.focus())
+      })
+      dossierCell.appendChild(dossierButton)
+
+      pilotRow.append(nameCell, rankCell, scoreCell, sortiesCell, killsCell, statusCell, dossierCell)
       pilotRows.set(pilot.id, { row: pilotRow, selectButton })
       return pilotRow
     }
