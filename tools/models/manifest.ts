@@ -46,6 +46,31 @@ const SplitSchema = z.object({
   pivot: PivotSchema.optional(),
 }).strict()
 
+const SketchfabSourceSchema = z.object({
+  kind: z.literal('sketchfab'),
+  url: z.string().url().startsWith('https://sketchfab.com/3d-models/'),
+  uid: z.string().regex(/^[0-9a-f]{32}$/),
+  author: z.string().min(1),
+  license: z.enum(['CC-BY-4.0', 'CC0-1.0']),
+}).strict()
+
+/** A model built by our own script from cited dimensions (O1, ordnance spec §2.2). The
+ *  generator owns geometry, materials and textures; the entry names it and its citation. */
+const GeneratedSourceSchema = z.object({
+  kind: z.literal('generated'),
+  generator: z.string().regex(/^tools\/models\/generated\/[a-z0-9-]+\.ts$/, { message: 'generator must be tools/models/generated/<name>.ts' }),
+  dimensions: z.string().min(1),
+  license: z.literal('AGPL-3.0-or-later'),
+}).strict()
+
+/** Entries written before O1 carry no `kind`: they are Sketchfab downloads. */
+const SourceSchema = z.preprocess(
+  (s) => (s !== null && typeof s === 'object' && !('kind' in s) ? { kind: 'sketchfab', ...s } : s),
+  z.discriminatedUnion('kind', [SketchfabSourceSchema, GeneratedSourceSchema]),
+)
+export type SketchfabSource = z.infer<typeof SketchfabSourceSchema>
+export type GeneratedSource = z.infer<typeof GeneratedSourceSchema>
+
 const shipRole = z.enum(SHIP_ROLES)
 
 /**
@@ -79,16 +104,12 @@ export type ShipEntry = z.infer<typeof ShipSchema>
 export const ModelEntrySchema = z.object({
   /** Unique, and the output file's basename. */
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
-  /** The raw download, gitignored by `/tools/**\/cache/`. */
-  input: z.string().regex(/^tools\/models\/cache\/[^/]+\.glb$/),
-  /** Committed. Aircraft go to content/aircraft/, ships to content/ships/. */
-  output: z.string().regex(/^content\/(aircraft|ships)\/[a-z0-9-]+\.glb$/),
-  source: z.object({
-    url: z.string().url().startsWith('https://sketchfab.com/3d-models/'),
-    uid: z.string().regex(/^[0-9a-f]{32}$/),
-    author: z.string().min(1),
-    license: z.enum(['CC-BY-4.0', 'CC0-1.0']),
-  }).strict(),
+  /** The raw download (Sketchfab entries only), gitignored by `/tools/**\/cache/`. */
+  input: z.string().regex(/^tools\/models\/cache\/[^/]+\.glb$/).optional(),
+  /** Committed. Aircraft go to content/aircraft/, ships to content/ships/, ordnance to
+   *  content/ordnance/ (generated only). */
+  output: z.string().regex(/^content\/(aircraft|ships|ordnance)\/[a-z0-9-]+\.glb$/),
+  source: SourceSchema,
   /** Why this entry's committed output must not be regenerated, if it must not. A frozen
    *  entry is skipped by a bare `models:build` and refused by `models:build -- <id>`
    *  unless `--force` is given. */
@@ -120,7 +141,20 @@ export const ModelEntrySchema = z.object({
 }).strict().superRefine((e, ctx) => {
   const fail = (path: (string | number)[], message: string): void => { ctx.addIssue({ code: z.ZodIssueCode.custom, path, message }) }
   if (e.output.replace(/^.*\//, '').replace(/\.glb$/, '') !== e.id) fail(['output'], `basename must equal id "${e.id}"`)
-  if (!e.source.url.endsWith(e.source.uid)) fail(['source', 'uid'], 'must be the last segment of source.url')
+  if (e.source.kind === 'sketchfab') {
+    if (!e.source.url.endsWith(e.source.uid)) fail(['source', 'uid'], 'must be the last segment of source.url')
+    if (e.input === undefined) fail(['input'], 'a sketchfab entry needs its raw input')
+  } else {
+    for (const k of ['input', 'normalize', 'simplify', 'ship', 'noseNode', 'frozen'] as const) {
+      if (e[k] !== undefined) fail([k], `a generated entry takes no ${k}: its generator owns the geometry`)
+    }
+    for (const k of ['keep', 'split', 'remove'] as const) {
+      if (e[k].length > 0) fail([k], `a generated entry takes no ${k}: its generator owns the geometry`)
+    }
+  }
+  if (e.output.startsWith('content/ordnance/') !== (e.source.kind === 'generated')) {
+    fail(['output'], 'content/ordnance/ outputs are generated, and only generated entries write there (O1)')
+  }
   if (e.normalize && e.normalize.forward[1] === e.normalize.up[1]) fail(['normalize', 'up'], 'must not be parallel to forward')
   const outNames = [...e.keep.map((k) => k.as ?? k.node), ...e.split.map((s) => s.name)]
   const dup = outNames.find((n, i) => outNames.indexOf(n) !== i)

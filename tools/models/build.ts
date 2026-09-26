@@ -1,9 +1,8 @@
 // tools/models/build.ts
 /**
- * `npm run models:build -- [<id>...] [--force]`: raw download in
- * tools/models/cache/ (gitignored) -> committed glb in content/aircraft/ or
- * content/ships/, driven by one `tools/models/entries/<id>.json` per model
- * (A6M Zero spec §6).
+ * `npm run models:build -- [<id>...] [--force]`: raw download or a generator
+ * -> committed glb in content/aircraft/, content/ships/ or content/ordnance/,
+ * driven by one `tools/models/entries/<id>.json` per model (A6M Zero spec §6).
  *
  * LOAD-BEARING: no stage compresses geometry. No EXT_meshopt_compression and
  * no Draco: GLTFLoader has no decoder wired in this project, and the
@@ -34,6 +33,7 @@ import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
 import { shipMaterials } from './stages/shipMaterials.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
+import { GENERATORS } from './generated/registry.js'
 
 export const ALLOWED_REQUIRED_EXTENSIONS: readonly string[] = ['EXT_texture_webp']
 
@@ -48,6 +48,7 @@ export function partNames(entry: ModelEntry): string[] {
 
 /** Every stage, in order, on a document already read. Mutates and returns it. */
 export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec): Promise<Document> {
+  if (entry.source.kind !== 'sketchfab') throw new Error(`${entry.id}: runPipeline is for Sketchfab entries; a generated entry goes through finishGenerated`)
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   const splitNames = new Set(entry.split.map((s) => s.name))
   // 1. remove (source nodes)
@@ -85,6 +86,18 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
   const asset = doc.getRoot().getAsset()
   asset.extras = { ...(asset.extras ?? {}), source: entry.source.url, author: entry.source.author, license: entry.source.license }
+  return doc
+}
+
+/** A generated entry's whole pipeline after its generator (O1): prune, then the provenance
+ *  every output carries. The generator already wrote geometry, one material and WebP
+ *  textures; nothing here re-encodes them, so its bytes are its own. */
+export async function finishGenerated(doc: Document, entry: ModelEntry): Promise<Document> {
+  if (entry.source.kind !== 'generated') throw new Error(`${entry.id}: finishGenerated needs a generated entry`)
+  doc.setLogger(new Logger(Logger.Verbosity.WARN))
+  await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
+  const asset = doc.getRoot().getAsset()
+  asset.extras = { ...(asset.extras ?? {}), source: 'generated', generator: entry.source.generator, dimensions: entry.source.dimensions, license: entry.source.license }
   return doc
 }
 
@@ -127,6 +140,7 @@ export interface BuildDeps {
   write(path: string, bytes: Uint8Array): void
   encode(doc: Document): Promise<Uint8Array>
   log(line: string): void
+  generate(generator: string): Promise<Document>
 }
 
 /** The driver, with its file system injected so tests never touch the disk.
@@ -148,14 +162,16 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
       if (explicit) failed = true
       continue
     }
-    if (!deps.exists(entry.input)) {
+    if (entry.source.kind === 'sketchfab' && !deps.exists(entry.input!)) {
       deps.log(`${explicit ? 'missing' : 'skipped'} ${entry.id}: raw input ${entry.input} is not here; re-fetch with tools/models/sketchfab-fetch.sh ${entry.source.uid} <name> and copy it there`)
       if (explicit) failed = true
       continue
     }
     let doc: Document
     try {
-      doc = await runPipeline(await deps.read(entry.input), entry)
+      doc = entry.source.kind === 'generated'
+        ? await finishGenerated(await deps.generate(entry.source.generator), entry)
+        : await runPipeline(await deps.read(entry.input!), entry)
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails
       // this entry by name and writes nothing; the rest still build.
@@ -185,6 +201,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     write: (p, bytes) => writeFileSync(p, bytes),
     encode: (doc) => io.writeBinary(doc),
     log: (line) => console.log(line),
+    generate: async (g) => { const run = GENERATORS[g]; if (!run) throw new Error(`no generator registered for ${g} in tools/models/generated/registry.ts`); return run() },
   })
   process.exit(code)
 }
