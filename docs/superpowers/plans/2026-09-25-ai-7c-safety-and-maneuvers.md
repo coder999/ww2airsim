@@ -3134,9 +3134,9 @@ git commit -m "7c: determinism, array-order and mid-maneuver structuredClone tes
 | `ai-maneuver.spec.ts` | RED: closest 44.8 m against a 50 m floor | **RED, by design (ruling R4, Open for Mark item 1)** | The merge still passes at 21-22 m headless (`both`). Its point-blank break-off claim is proven at Tier 1 on the fixture (`aiLethality.test.ts` item 2). |
 | `ai-pursuit-difficulty.spec.ts` | GREEN | **Unknown; run it and record the result (Open for Mark item 3)** | The Tier 1 head-on replica is never behind, before or after 7c. The recorded green is not reproducible at Tier 1. |
 
-- [ ] **Step 1: Merge `main`.** Run `git merge main`, resolve by keeping both sides, and re-diff `loop.ts` and `scenario.ts` against `HEAD`. Then run the verification command. Re-run the hash probe: the four no-pilot digests may change only if `main`'s own merge moved them. If so, compare this branch against `main`'s own probe output, and record both.
+- [x] **Step 1: Merge `main`.** Run `git merge main`, resolve by keeping both sides, and re-diff `loop.ts` and `scenario.ts` against `HEAD`. Then run the verification command. Re-run the hash probe: the four no-pilot digests may change only if `main`'s own merge moved them. If so, compare this branch against `main`'s own probe output, and record both.
 
-- [ ] **Step 2: Re-time `ai-pursuit.spec.ts`.**
+- [x] **Step 2: Re-time `ai-pursuit.spec.ts`.**
 1. Change `test.setTimeout(120_000)` to `test.setTimeout(300_000)`.
 2. Change the tracer poll's `timeout: 20_000` to `timeout: 150_000`, and the structure poll's to `timeout: 60_000`. Leave the heading poll at 20 s.
 3. Replace the paragraph that begins `**2026-09-25: the geometry this spec was written against moved.**` with:
@@ -3153,7 +3153,7 @@ git commit -m "7c: determinism, array-order and mid-maneuver structuredClone tes
  * 60 s hit window. The claims are unchanged.
 ```
 
-- [ ] **Step 3: Rewrite `ai-maneuver.spec.ts`'s header.** Replace the block from `**RED as of 2026-09-24, for a real reason, measured` through the end of the `**Reference GPU, 2026-09-25 (after merging to main): RED.**` paragraph with:
+- [x] **Step 3: Rewrite `ai-maneuver.spec.ts`'s header.** Replace the block from `**RED as of 2026-09-24, for a real reason, measured` through the end of the `**Reference GPU, 2026-09-25 (after merging to main): RED.**` paragraph with:
 
 ```ts
  * **History.** RED from 2026-09-24: the veteran shot the passive player down
@@ -3177,7 +3177,7 @@ git commit -m "7c: determinism, array-order and mid-maneuver structuredClone tes
 
 Replace `<DATE>` with the real date. No code in this spec changes.
 
-- [ ] **Step 4: Add a 7c note to `ai-pursuit-difficulty.spec.ts`'s header,** after the 2026-09-25 paragraph:
+- [x] **Step 4: Add a 7c note to `ai-pursuit-difficulty.spec.ts`'s header,** after the 2026-09-25 paragraph:
 
 ```ts
  * **7c, <DATE>.** The Tier 1 replica of this spec on the head-on start (keys
@@ -3190,7 +3190,7 @@ Replace `<DATE>` with the real date. No code in this spec changes.
 
 Replace `<RESULT>` with what Step 5 measures.
 
-- [ ] **Step 5: Run Tier 2 on the reference GPU.** Follow the repo `CLAUDE.md`'s "GPU work" section.
+- [x] **Step 5: Run Tier 2 on the reference GPU.** Follow the repo `CLAUDE.md`'s "GPU work" section.
 1. Pick a free dev-server slot (`ww2airsim-2`, port 5175, or `ww2airsim-3`, port 5174). Point this worktree's `vite.config.ts` at it (`TUNNEL_HOST` and `server.port`). That edit is local scratch: never commit it, and revert it after.
 2. Start the dev server: `WW2AIRSIM_TUNNEL=1 npx vite --port 5175` (run in the background).
 3. Confirm the slot is up: `curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim-2.windomlane.org/` must print `200`.
@@ -3202,7 +3202,7 @@ Replace `<RESULT>` with what Step 5 measures.
 7. `ai-pursuit` must pass. `ai-maneuver` is expected to fail only on its closest-range assertion. If it fails on anything else (validation errors, p95 at or above 6.0 ms, or never closing below 120 m), that is a real finding: report it.
 8. Stop the dev server and revert `vite.config.ts`.
 
-- [ ] **Step 6: Write the handoff,** `docs/handoff/<YYYY-MM-DD>-ai-7c.md`, in this order:
+- [x] **Step 6: Write the handoff,** `docs/handoff/<YYYY-MM-DD>-ai-7c.md`, in this order:
 1. What changed: one bullet per commit, with its SHA.
 2. Every ruling R1-R13, one line each with its evidence.
 3. The measured tables. Re-engagement per case and loadout; lethality (the 16-run and 128-run versions); the safety soak (peak G, lowest point, structure); the maneuver signatures; the gunnery bot's first-merge kills; and the AI Zero's negative-lift ticks, before and after.
@@ -3213,15 +3213,15 @@ Replace `<RESULT>` with what Step 5 measures.
 8. For 7e: `pilotTick` is the file to grow. `spawnHeldGroup` (M1) is the insertion path for the spawn-at-tick-3000 test, and `pilotAssignmentFrom` still seeds `initialDecision()`, which rescores on the first tick. The id-seeded noise cursor will change `pursuer-1`'s trajectory, so re-run the three lethality tests and `aiReengage.test.ts`.
 9. For the gunnery-honesty slice: the drop term and relative-velocity lead make the AI deadlier. Re-run `tools/ai/lethality.ts` and all of the above.
 
-- [ ] **Step 7: Update the master spec.**
+- [x] **Step 7: Update the master spec.**
 1. In §9, after the `aiHint: 'boom-and-zoom' | 'turnfight',` line's block, add: *Amended <DATE> (Plan 7c): `aiHint` is not authored. It is derived from `geometry`, `mass`, `engine`, `limits` and `reference` by `relativeEnvelope` (`src/sim/ai/envelope.ts`), so a new airframe needs no AI content.*
 2. In §15, replace the Plan 7 row's final clause, `7c (the rest of the maneuver library, formation, landing AI, teams) not started`, with: `7c (veteran retune, AI safety envelope, re-engagement after a missed merge, lift-vector controller, named maneuver library) landed <DATE> with Tier 1 acceptance and reference-GPU Tier 2 ([design](2026-09-25-ai-7c-design.md), [plan](../plans/2026-09-25-ai-7c-safety-and-maneuvers.md), [handoff](../../handoff/<YYYY-MM-DD>-ai-7c.md)); ai-maneuver.spec.ts stays red by design pending Mark's ruling on dodging the head-on pass. 7e (sides), 7f (formation), 7g (landing AI) not started`. Also update the row's status cell from `14 — 7a/7b/7d complete` to `14 — 7a/7b/7c/7d complete`.
 
-- [ ] **Step 8: Add a README paragraph** after the Plan 7d one:
+- [x] **Step 8: Add a README paragraph** after the Plan 7d one:
 
 `**Plan 7c AI safety envelope and maneuver library landed <DATE>.** AI pilots can no longer overload their own airframe, fly into the sea or over-speed, and an AI Zero no longer cuts its own engine under negative g. After a missed head-on pass the pursuer now turns back and fights again, where before it flew away for good. Veterans fly the named maneuvers (yo-yos, lag pursuit, attack run, scissors, split-S, Immelmann), and greens fly the basic set. The veteran was toned down per Mark's ruling. See the [handoff](docs/handoff/<YYYY-MM-DD>-ai-7c.md); master spec §15 holds the status.`
 
-- [ ] **Step 9: Verify, commit and email.**
+- [x] **Step 9: Verify, commit and email.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
