@@ -3169,7 +3169,7 @@ git commit -m "S1: ships load through the model cache in the game and the Hangar
 
 Spec §13 item 3, approved: one "Models:" line in the legend's credits, generated from the entries, each author linked to the model and the license linked to the deed. It covers the Wildcat, which has had no in-app credit, as well as the ships, and Z3's Zero joins it by adding its entry.
 
-- [ ] **Step 1: Write the failing test.** `tests/render/modelCredits.test.ts`:
+- [x] **Step 1: Write the failing test.** `tests/render/modelCredits.test.ts`:
 
 ```ts
 // tests/render/modelCredits.test.ts
@@ -3201,12 +3201,12 @@ describe('the models credit line (ship-models spec §10)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail.**
+- [x] **Step 2: Run it to see it fail.**
 
 Run: `npx vitest run tests/render/modelCredits.test.ts --maxWorkers=2`
 Expected: FAIL. `modelCredits.js` does not resolve.
 
-- [ ] **Step 3: Implement.** `src/render/modelCredits.ts`:
+- [x] **Step 3: Implement.** `src/render/modelCredits.ts`:
 
 ```ts
 // src/render/modelCredits.ts
@@ -3285,12 +3285,12 @@ Apply to `src/render/legend.ts`:
    let open = true
 ```
 
-- [ ] **Step 4: Run it to see it pass.**
+- [x] **Step 4: Run it to see it pass.**
 
 Run: `npx vitest run tests/render/modelCredits.test.ts tests/render/legend.test.ts --maxWorkers=2`
 Expected: PASS, 3 and 10 tests. The line reads `Models: KTKloss, JZHU, AlanTinka, rojatsu (CC BY 4.0)`: entry files in name order.
 
-- [ ] **Step 5: Verify and commit.**
+- [x] **Step 5: Verify and commit.**
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
