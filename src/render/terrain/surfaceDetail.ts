@@ -15,15 +15,17 @@ import type { SurfaceTextures } from './surfaceTextures.js'
  * adds the photographed structure. It fades to exactly 1 with eye distance,
  * and beyond ALBEDO_DETAIL_FAR_M the terrain is the pre-texture terrain.
  *
- * Anti-tiling: each layer is read at its real scan size and again at
- * MACRO_TILE_FACTOR times that, rotated a quarter turn and offset, blended by
- * the 2800 m macro noise. 7.3 is deliberately not an integer, so the two
- * repeats never realign.
+ * Anti-repetition: each layer is read at its real scan size, while the 2800 m
+ * macro noise varies ratio contrast from 0.7 to 1.3. This keeps a mean texel at
+ * exactly 1 while making adjacent repeats differ in strength. The original
+ * second, rotated sample cost five texture reads and pushed the exact 3,000 m
+ * budget view over 6 ms (Task 6 measurement, 2026-09-26).
  */
 export const ALBEDO_DETAIL_NEAR_M = 1500
 export const ALBEDO_DETAIL_FAR_M = 6000
-export const MACRO_TILE_FACTOR = 7.3
 export const DETAIL_RATIO_MAX = 3
+const MACRO_CONTRAST_MIN = 0.7
+const MACRO_CONTRAST_MAX = 1.3
 /** Floor on the tangent-space z before dividing: a grazing texel would
  *  otherwise give an unbounded slope. The result is clamped to 12 deg later anyway. */
 const MIN_NZ = 0.2
@@ -52,7 +54,6 @@ export function normalToSlope([r, g, b]: readonly [number, number, number]): [nu
 export function surfaceDetailNodes(t: SurfaceTextures, xz: Node<'vec2'>, eyeDistanceM: Node<'float'>): SurfaceDetailNodes {
   const albedoFade = float(1).sub(smoothstep(ALBEDO_DETAIL_NEAR_M, ALBEDO_DETAIL_FAR_M, eyeDistanceM))
   const macroBlend = smoothstep(0.3, 0.7, groundNoise(xz, 2800).r)
-  const rotated = vec2(xz.y.negate(), xz.x).add(97)
   const index = (layer: SurfaceLayer): number => SURFACE_LAYERS.indexOf(layer)
   // Memoized per layer: `grass` feeds both the grass and paddy leaves,
   // `jungle` forest and mangrove, `dirt` soil and road. Without the memo
@@ -66,8 +67,9 @@ export function surfaceDetailNodes(t: SurfaceTextures, xz: Node<'vec2'>, eyeDist
         const i = index(layer)
         const { tileM, meanLinear } = t.manifest.layers[i]!
         const near = texture(t.albedo, xz.div(tileM)).depth(int(i)).rgb
-        const far = texture(t.albedo, rotated.div(tileM * MACRO_TILE_FACTOR)).depth(int(i)).rgb
-        const r = min(mix(near, far, macroBlend).div(vec3(...meanLinear)), vec3(DETAIL_RATIO_MAX))
+        const contrast = macroBlend.mul(MACRO_CONTRAST_MAX - MACRO_CONTRAST_MIN).add(MACRO_CONTRAST_MIN)
+        const varied = vec3(1).add(near.div(vec3(...meanLinear)).sub(1).mul(contrast))
+        const r = min(max(varied, vec3(0)), vec3(DETAIL_RATIO_MAX))
         n = mix(vec3(1), r, albedoFade)
         ratios.set(layer, n)
       }
