@@ -28,6 +28,7 @@ const current = (page: Page) => page.evaluate(() => (window as HangarWindow).__h
 const pose = (page: Page, p: PartPose) => page.evaluate((q) => (window as HangarWindow).__hangar!.pose(q), p)
 const visible = (page: Page, v: boolean) => page.evaluate((x) => (window as HangarWindow).__hangar!.setModelVisible(x), v)
 const hasPart = (c: Current, id: string) => c.parts.some((p) => p.id === id && p.modeled)
+const setDebug = (page: Page, which: 'wireframe' | 'gizmos' | 'turntable', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
 
 /** Three animation frames, so a pose or camera change has reached the canvas. */
 const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
@@ -150,6 +151,90 @@ test.describe('the Hangar', () => {
       const lum = (await masks(page, v.empty, [v.model])).luminance[0]!
       expect(lum / refLum, `${id} luminance ratio`).toBeGreaterThanOrEqual(0.5)
       expect(lum / refLum, `${id} luminance ratio`).toBeLessThanOrEqual(1.5)
+    }
+  })
+
+  test('6. every modeled stores part shows: stores on and off differ (front view)', async ({ page }) => {
+    for (const id of await entries(page)) {
+      await select(page, id)
+      if (!hasPart(await current(page), 'stores')) continue
+      const { empty, model: on } = await view(page, id, 'front', { bombs: true, rockets: true })
+      await pose(page, { bombs: false, rockets: false })
+      const off = await shot(page)
+      const m = await masks(page, empty, [on, off])
+      console.log(`stores ${id}: xor ${m.xor01} of ${m.areas[0]} (${((100 * m.xor01) / m.areas[0]!).toFixed(2)}%)`)
+      expect(m.xor01 / m.areas[0]!, id).toBeGreaterThanOrEqual(0.005)
+    }
+  })
+
+  test("7. Cycle (the real button) takes the gear up over the spec's travel, ending where the slider's up end does", async ({ page }) => {
+    for (const id of await entries(page)) {
+      await select(page, id)
+      if (!hasPart(await current(page), 'gear')) continue
+      const { empty, model: down } = await view(page, id, 'front', { gearFraction: 1 })
+      await pose(page, { gearFraction: 0 })
+      const up = await shot(page)
+      await pose(page, { gearFraction: 1 })
+      await page.getByRole('button', { name: 'Cycle landing gear' }).click()
+      // 10 s at 60 Hz covers every shipped spec's gear.travelSeconds (7 s).
+      await page.evaluate(() => { for (let i = 0; i < 600; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      expect(await page.evaluate(() => (window as HangarWindow).__hangar!.bench()), id).toMatchObject({ gearFraction: 0, cycling: null })
+      const cycled = await shot(page)
+      const vsUp = await masks(page, empty, [cycled, up])
+      const vsDown = await masks(page, empty, [cycled, down])
+      console.log(`cycle ${id}: vs up ${vsUp.xor01}/${vsUp.areas[1]}, vs down ${vsDown.xor01}/${vsDown.areas[1]}`)
+      expect(vsUp.xor01 / vsUp.areas[1]!, `${id} vs up`).toBeLessThanOrEqual(0.002)
+      expect(vsDown.xor01 / vsDown.areas[1]!, `${id} vs down`).toBeGreaterThanOrEqual(0.01)
+    }
+  })
+
+  test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
+    const ids = await entries(page)
+    for (const id of ids) {
+      const { empty, model: solid } = await view(page, id, 'three-quarter')
+      await setDebug(page, 'wireframe', true)
+      const wire = await shot(page)
+      await setDebug(page, 'wireframe', false)
+      const m = await masks(page, empty, [solid, wire])
+      console.log(`wireframe ${id}: ${((100 * m.xor01) / m.areas[0]!).toFixed(2)}%`)
+      expect(m.xor01 / m.areas[0]!, id).toBeGreaterThanOrEqual(0.05)
+    }
+    // Clones share materials: off must really be off after a round trip.
+    const { empty, model: first } = await view(page, ids[0]!, 'three-quarter')
+    await setDebug(page, 'wireframe', true)
+    await select(page, ids[1]!)
+    await setDebug(page, 'wireframe', false)
+    const { model: again } = await view(page, ids[0]!, 'three-quarter')
+    const m = await masks(page, empty, [first, again])
+    expect(m.xor01 / m.areas[0]!).toBeLessThanOrEqual(0.002)
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
+
+  test("9. the Wildcat's pivot gizmos are its two wheel legs and its propeller, and they draw", async ({ page }) => {
+    const { empty, model: plain } = await view(page, 'f4f-wildcat', 'three-quarter')
+    await setDebug(page, 'gizmos', true)
+    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice'])
+    const withGizmos = await shot(page)
+    const m = await masks(page, empty, [plain, withGizmos])
+    expect(m.xor01).toBeGreaterThan(0)
+    await setDebug(page, 'gizmos', false)
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
+
+  test('10. every committed model is inside its manifest budget as drawn, and the readout says so', async ({ page }) => {
+    for (const id of await entries(page)) {
+      await select(page, id)
+      const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
+      console.log(`counts ${id}: ${JSON.stringify(r)}`)
+      if (r?.budget) {
+        expect(r.over, id).toBe(false)
+        expect(await page.locator('[data-over]').getAttribute('data-over'), id).toBe('false')
+      }
+    }
+    // The four registered models have budgets; the Zero draws as the Wildcat.
+    for (const id of ['f4f-wildcat', 'essex-cv', 'fletcher-dd', 'type-b-maru']) {
+      await select(page, id)
+      expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
   })
 })
