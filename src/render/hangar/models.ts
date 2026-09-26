@@ -23,6 +23,10 @@ export interface PartPose {
   readonly gearFraction?: number
   readonly flapFraction?: number
   readonly throttle?: number
+  /** Bombs on the racks (true) or dropped (false); H2. */
+  readonly bombs?: boolean
+  /** Rockets on the rails (true) or fired (false); H2. */
+  readonly rockets?: boolean
 }
 
 export interface HangarModel {
