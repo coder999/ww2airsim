@@ -2081,7 +2081,7 @@ git commit -m "S1: Tier 1 on the committed ship glbs against the live ShipSpecs,
 
 Photoreal Task 12 has landed (`1fd81d1`) and did not edit `ship.ts` (spec §5.4's sequencing is met). The boxes keep their exact colors: the palette's `hull` and `flightDeck` are the two literals `ship.ts` drew before.
 
-- [ ] **Step 1: Change the tests first.** In `tests/render/ship.test.ts`, replace the imports with:
+- [x] **Step 1: Change the tests first.** In `tests/render/ship.test.ts`, replace the imports with:
 
 ```ts
 import { describe, it, expect, vi } from 'vitest'
@@ -2219,12 +2219,12 @@ describe('probeShipSurface (the Tier 2 deck probe, spec §9)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail.**
+- [x] **Step 2: Run it to see it fail.**
 
 Run: `npx vitest run tests/render/ship.test.ts --maxWorkers=2`
 Expected: FAIL. `createShipView` and `probeShipSurface` are not exported, and the list test reads `rotation.x` as 0.
 
-- [ ] **Step 3: Implement.** `src/render/scene/ship.ts` becomes:
+- [x] **Step 3: Implement.** `src/render/scene/ship.ts` becomes:
 
 ```ts
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Raycaster, Vector3, type Object3D } from 'three'
@@ -2459,12 +2459,12 @@ export function probeShipSurface(view: ShipView, points: readonly { readonly x: 
 }
 ```
 
-- [ ] **Step 4: Run it, and the files that build boxes.**
+- [x] **Step 4: Run it, and the files that build boxes.**
 
 Run: `npx vitest run tests/render/ship.test.ts tests/render/scenarioEntities.test.ts tests/render/cloudShadow.test.ts tests/render/hangar/models.test.ts --maxWorkers=2`
 Expected: PASS. `ship.test.ts` has 13 tests (7 before, plus 5 model-view tests and the deck probe). The others are unchanged: `scenarioEntities.ts` still builds boxes, and a `ShipView` still has `root` and `setDamage`.
 
-- [ ] **Step 5: Verify and commit.**
+- [x] **Step 5: Verify and commit.**
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
