@@ -402,7 +402,8 @@ Each one runs in its own worktree, ends with `npm run verify` at `rc=0`
 ### H2: Lane B registries and the full bench (about 6 tasks; after Z1 merges)
 
 1. `models.ts` switched to `airframes.ts` / `acquireModel`, with
-   `Airframe.parts` (or the fallback table, per Open item 1).
+   `Airframe.parts` (or the fallback table, per Open item 1). Done in H1
+   (2026-09-25).
 2. Flap and stores controls, and Cycle.
 3. Pivot gizmos, wireframe, and counts against the budget.
 4. Ships through Lane C's loader, if S1 has merged. Otherwise this task moves

@@ -102,6 +102,7 @@ license sidecar in the gitignored `content/models/candidates/` (token from
 1Password `hal9000/sketchfab-api`, never printed; verified 2026-09-25). Do not
 tell Mark a model "needs a manual download". A download is not a license
 check: vet and record it per `ASSETS.md` before promoting anything.
+The whole ingest, from search to a Hangar check, is `docs/models.md`.
 
 ## Conventions
 

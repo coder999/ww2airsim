@@ -188,6 +188,9 @@ The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
 the remaining model-track work are recorded in
 [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
+`hangar.html?bench` is the articulation test bench (H2, 2026-09-26; see the
+[handoff](docs/handoff/2026-09-26-h2-hangar-bench.md)), and
+[`docs/models.md`](docs/models.md) is the runbook for adding a model.
 
 **Models build from a manifest (Z1, 2026-09-25).** Each shipped glb has one
 entry in `tools/models/entries/*.json`; `npm run models:build` runs it through

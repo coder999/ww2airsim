@@ -84,7 +84,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   `HangarContent.budgets: BudgetTable`. `ModelInstance.root.userData.modelUrl === url` for every acquired instance.
 - Consumes: `sceneCounts(root)` from `src/render/hangar/models.ts` (existing: one draw per visible `Mesh` per material group, triangles from index or position count).
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
   Append to `tests/render/modelCache.test.ts` (follow the file's existing stub-parse pattern; it already builds a cache with `createModelCache(async () => someObject3D)`):
 
@@ -170,12 +170,12 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   })
   ```
 
-- [ ] **Step 2: Run them to see them fail.**
+- [x] **Step 2: Run them to see them fail.**
 
   Run: `npx vitest run tests/render/modelCache.test.ts tests/render/hangar/budgets.test.ts --maxWorkers=2`
   Expected: FAIL. `budgets.js` does not exist, and `userData.modelUrl` is `undefined`.
 
-- [ ] **Step 3: Tag the instance.** In `modelCache.ts`, right after `const root = source.clone(true)`:
+- [x] **Step 3: Tag the instance.** In `modelCache.ts`, right after `const root = source.clone(true)`:
 
   ```ts
       // Which glb this subtree came from: the Hangar's budget readout counts
@@ -183,7 +183,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
       root.userData.modelUrl = url
   ```
 
-- [ ] **Step 4: Write `src/render/hangar/budgets.ts`.**
+- [x] **Step 4: Write `src/render/hangar/budgets.ts`.**
 
   ```ts
   // src/render/hangar/budgets.ts
@@ -260,19 +260,19 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
 
   If `sceneCounts` importing from `models.ts` creates a cycle once Task 3 imports `budgets.ts` from `models.ts` (depcruise's `no-circular` will say so), move `sceneCounts` into `budgets.ts` and re-export it from `models.ts` for its existing callers.
 
-- [ ] **Step 5: Carry the table in `HangarContent`.** In `catalog.ts`, add `readonly budgets: BudgetTable` to `HangarContent` (import the type from `./budgets.js`). In `contentIndex.ts`:
+- [x] **Step 5: Carry the table in `HangarContent`.** In `catalog.ts`, add `readonly budgets: BudgetTable` to `HangarContent` (import the type from `./budgets.js`). In `contentIndex.ts`:
 
   ```ts
   const modelEntries = import.meta.glob('/tools/models/entries/*.json', { eager: true, import: 'default' })
   ```
   and add `budgets: parseBudgets(modelEntries)` to the object `loadHangarContent` returns. In `tests/render/hangar/content.ts`'s `nodeHangarContent`, add `budgets: parseBudgets(Object.fromEntries(readdirSync('tools/models/entries').filter((f) => f.endsWith('.json')).map((f) => [f, JSON.parse(readFileSync(\`tools/models/entries/${f}\`, 'utf8'))])))`.
 
-- [ ] **Step 6: Run the tests, typecheck and lint.**
+- [x] **Step 6: Run the tests, typecheck and lint.**
 
   Run: `npx vitest run tests/render/modelCache.test.ts tests/render/hangar/ --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/models/modelCache.ts src/render/hangar tests/render/hangar tests/render/modelCache.test.ts --max-warnings 0 && npx depcruise src --config .dependency-cruiser.cjs`
   Expected: PASS, no warnings, no violations.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
   ```bash
   git diff HEAD --stat   # only this task's files
   git add src/render/models/modelCache.ts src/render/hangar/budgets.ts src/render/hangar/contentIndex.ts src/render/hangar/catalog.ts tests/render/hangar/content.ts tests/render/hangar/budgets.test.ts tests/render/modelCache.test.ts
@@ -310,7 +310,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   export function createBenchController(spec: AircraftSpec | null): BenchController
   ```
 
-- [ ] **Step 1: Write the failing test.** `tests/render/hangar/benchController.test.ts`:
+- [x] **Step 1: Write the failing test.** `tests/render/hangar/benchController.test.ts`:
 
   ```ts
   import { describe, expect, it } from 'vitest'
@@ -384,11 +384,11 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   })
   ```
 
-- [ ] **Step 2: Run it to see it fail.** `npx vitest run tests/render/hangar/benchController.test.ts --maxWorkers=2`. Expected: FAIL, module not found.
+- [x] **Step 2: Run it to see it fail.** `npx vitest run tests/render/hangar/benchController.test.ts --maxWorkers=2`. Expected: FAIL, module not found.
 
-- [ ] **Step 3: Add `bombs` and `rockets` to `PartPose`** in `models.ts`, each with a one-line doc comment: `/** Stores on the racks (true) or dropped (false); H2. */`.
+- [x] **Step 3: Add `bombs` and `rockets` to `PartPose`** in `models.ts`, each with a one-line doc comment: `/** Stores on the racks (true) or dropped (false); H2. */`.
 
-- [ ] **Step 4: Write `benchController.ts`.**
+- [x] **Step 4: Write `benchController.ts`.**
 
   ```ts
   // src/render/hangar/benchController.ts
@@ -451,11 +451,11 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   }
   ```
 
-- [ ] **Step 5: Run it, typecheck, lint.** `npx vitest run tests/render/hangar/benchController.test.ts --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/hangar tests/render/hangar --max-warnings 0`. Expected: PASS.
+- [x] **Step 5: Run it, typecheck, lint.** `npx vitest run tests/render/hangar/benchController.test.ts --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/hangar tests/render/hangar --max-warnings 0`. Expected: PASS.
 
   If "runs the gear up ... travelSeconds" fails by one frame of floating-point accumulation (fraction ~1e-15 above 0 after exactly `travelSeconds`), that is why the test stops 0.1 s short and then runs 0.2 s; do not loosen it further. Report anything else red.
 
-- [ ] **Step 6: Commit.** `git add src/render/hangar/benchController.ts src/render/hangar/models.ts tests/render/hangar/benchController.test.ts && git commit -m "H2: the bench controller: Cycle through the sim's own gear and flap transit, stores toggles (H2 Task 2)"`
+- [x] **Step 6: Commit.** `git add src/render/hangar/benchController.ts src/render/hangar/models.ts tests/render/hangar/benchController.test.ts && git commit -m "H2: the bench controller: Cycle through the sim's own gear and flap transit, stores toggles (H2 Task 2)"`
 
 ---
 
@@ -485,7 +485,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   ```
   `partSpecsFor(parts)` returns four rows in the order gear, flaps, prop, stores.
 
-- [ ] **Step 1: Write the failing tests.** In `tests/render/hangar/models.test.ts`:
+- [x] **Step 1: Write the failing tests.** In `tests/render/hangar/models.test.ts`:
   - Update the existing `partSpecsFor` expectation to `[['gear', true], ['flaps', false], ['prop', true], ['stores', true]]`.
   - Add:
 
@@ -534,9 +534,9 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   })
   ```
 
-- [ ] **Step 2: Run to see them fail.** `npx vitest run tests/render/hangar/models.test.ts --maxWorkers=2`. Expected: FAIL (`probeArticulated` not exported, the stores row missing).
+- [x] **Step 2: Run to see them fail.** `npx vitest run tests/render/hangar/models.test.ts --maxWorkers=2`. Expected: FAIL (`probeArticulated` not exported, the stores row missing).
 
-- [ ] **Step 3: Implement in `models.ts`.**
+- [x] **Step 3: Implement in `models.ts`.**
   - Extend `PartSpec` as in Interfaces, and add `{ id: 'stores', label: 'Stores', kind: 'toggle', range: [0, 1] }` as the last `BENCH_PARTS` row. Update the `PartSpec` doc comment: "H2 adds stores; H3 turrets."
   - Add:
 
@@ -566,9 +566,9 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   - In `aircraftModel`: track `bombs = true, rockets = true`; in `pose`, when `p.bombs` or `p.rockets` is defined, update them and call `airframe.setStores(bombs ? RACK_OFFSETS.length : 0, rockets ? RAIL_OFFSETS.length : 0)`. Compute `articulated` once, before returning: `const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }))`, then `apply(0)` so the model's own state (gear 1, flaps 0) is what shows. Add `articulated` to the returned object.
   - `staticModel` returns `articulated: []`.
 
-- [ ] **Step 4: Run, typecheck, lint.** `npx vitest run tests/render/hangar/ --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/hangar tests/render/hangar --max-warnings 0`. Expected: PASS.
+- [x] **Step 4: Run, typecheck, lint.** `npx vitest run tests/render/hangar/ --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/hangar tests/render/hangar --max-warnings 0`. Expected: PASS.
 
-- [ ] **Step 5: Commit.** `git add src/render/hangar/models.ts tests/render/hangar/models.test.ts && git commit -m "H2: stores on the bench, and the articulated-node probe behind the pivot gizmos (H2 Task 3)"`
+- [x] **Step 5: Commit.** `git add src/render/hangar/models.ts tests/render/hangar/models.test.ts && git commit -m "H2: stores on the bench, and the articulated-node probe behind the pivot gizmos (H2 Task 3)"`
 
 ---
 
@@ -591,7 +591,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   ```
   `createStage` itself needs WebGPU and stays Tier 2 only; the three pure functions above are what Node tests.
 
-- [ ] **Step 1: Write the failing test.** `tests/render/hangar/stage.test.ts`:
+- [x] **Step 1: Write the failing test.** `tests/render/hangar/stage.test.ts`:
 
   ```ts
   import { describe, expect, it } from 'vitest'
@@ -627,9 +627,9 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   })
   ```
 
-- [ ] **Step 2: Run to see it fail.** `npx vitest run tests/render/hangar/stage.test.ts --maxWorkers=2`. Expected: FAIL (not exported).
+- [x] **Step 2: Run to see it fail.** `npx vitest run tests/render/hangar/stage.test.ts --maxWorkers=2`. Expected: FAIL (not exported).
 
-- [ ] **Step 3: Implement in `stage.ts`.**
+- [x] **Step 3: Implement in `stage.ts`.**
 
   ```ts
   /** Every mesh material under `root`, on or off. Explicit both ways: the
@@ -681,9 +681,9 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   - `setModelVisible(v)` also sets `gizmos.visible = v` when gizmos exist, so the Tier 2 empty frame holds no gizmo.
   Add the three members to the `HangarStage` interface with one-line doc comments.
 
-- [ ] **Step 4: Run, typecheck, lint.** `npx vitest run tests/render/hangar/stage.test.ts --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/hangar tests/render/hangar --max-warnings 0`. Expected: PASS. (Importing `stage.ts` in Node pulls `pipeline.ts`, `OrbitControls` and the lighting modules; if that import fails in Node, move the three pure functions to a new `src/render/hangar/stageHelpers.ts`, import them from there in both `stage.ts` and the test, and record the move in the ledger.)
+- [x] **Step 4: Run, typecheck, lint.** `npx vitest run tests/render/hangar/stage.test.ts --maxWorkers=2 && npx tsc --noEmit && npx eslint src/render/hangar tests/render/hangar --max-warnings 0`. Expected: PASS. (Importing `stage.ts` in Node pulls `pipeline.ts`, `OrbitControls` and the lighting modules; if that import fails in Node, move the three pure functions to a new `src/render/hangar/stageHelpers.ts`, import them from there in both `stage.ts` and the test, and record the move in the ledger.)
 
-- [ ] **Step 5: Commit.** `git add src/render/hangar/stage.ts tests/render/hangar/stage.test.ts && git commit -m "H2: wireframe, pivot gizmos and the turntable switch on the stage (H2 Task 4)"`
+- [x] **Step 5: Commit.** `git add src/render/hangar/stage.ts tests/render/hangar/stage.test.ts && git commit -m "H2: wireframe, pivot gizmos and the turntable switch on the stage (H2 Task 4)"`
 
 ---
 
@@ -715,7 +715,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   counts(): CountsReport | null
   ```
 
-- [ ] **Step 1: Rewrite `bench.ts`.** Structure, top to bottom inside `slot`:
+- [x] **Step 1: Rewrite `bench.ts`.** Structure, top to bottom inside `slot`:
   1. Title "Test bench".
   2. One row per `PartSpec`:
      - not modeled: the label and "not modeled", opacity .45 (as today);
@@ -728,9 +728,9 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   - `setCounts(r)` replaces the counts block's lines.
   - The debug row and counts block show for every model (ships and buildings too); the part rows only for parts that exist. Update the file's doc comment: H2 complete, H3 adds turret rows.
 
-- [ ] **Step 2: Extend `hooks.ts`** with the five members in Interfaces, each with a one-line doc comment. Import `CyclePart`, `BenchState` from `./benchController.js`, `DebugToggle` from `./bench.js` and `CountsReport` from `./budgets.js` (all `import type`).
+- [x] **Step 2: Extend `hooks.ts`** with the five members in Interfaces, each with a one-line doc comment. Import `CyclePart`, `BenchState` from `./benchController.js`, `DebugToggle` from `./bench.js` and `CountsReport` from `./budgets.js` (all `import type`).
 
-- [ ] **Step 3: Wire `main.ts`.**
+- [x] **Step 3: Wire `main.ts`.**
   - Keep `content` (the `loadHangarContent()` result) so `content.budgets` is reachable.
   - State: `let controller = createBenchController(null)`, `let benchUi: BenchHandle | null = null`, `const debug = { wireframe: false, gizmos: false, turntable: true }`.
   - `applyPose(p)`: `const q = controller.set(p); model?.pose(q); benchUi?.sync(controller.state()); refreshCounts()`.
@@ -742,11 +742,11 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   - New hooks: `cycle: (part) => controller.startCycle(part)`, `bench: () => controller.state()`, `setDebug: onDebug`, `gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : [])`, `counts: () => (model ? countsReport(model.root, content.budgets) : null)`.
   - `freeze()` keeps its meaning (Tier 2): it also sets `debug.turntable = false`.
 
-- [ ] **Step 4: Typecheck, lint, run the hangar tests.** `npx tsc --noEmit && npx eslint src/render/hangar --max-warnings 0 && npx vitest run tests/render/hangar/ --maxWorkers=2`. Expected: PASS.
+- [x] **Step 4: Typecheck, lint, run the hangar tests.** `npx tsc --noEmit && npx eslint src/render/hangar --max-warnings 0 && npx vitest run tests/render/hangar/ --maxWorkers=2`. Expected: PASS.
 
-- [ ] **Step 5: Look at it.** With the primary dev server up (`curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/hangar.html` → `200`), write a throwaway spec under `tests/e2e/_probe/` that opens `/hangar.html?bench`, selects `f4f-wildcat`, turns on gizmos and wireframe, and saves `page.screenshot()` to `test-results/h2-bench-wildcat.png`; one more for `essex-cv`. Run it on the reference GPU (the command is in Task 6, Step 2). **Read both PNGs.** Check: the bench shows Landing gear with Cycle, Flaps "not modeled", Throttle, Bombs and Rockets, the Debug row, and the counts lines; three gizmos sit at the two wheel legs and the propeller hub; the carrier's counts read against its budget. Delete `tests/e2e/_probe/` afterwards.
+- [x] **Step 5: Look at it.** With the primary dev server up (`curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/hangar.html` → `200`), write a throwaway spec under `tests/e2e/_probe/` that opens `/hangar.html?bench`, selects `f4f-wildcat`, turns on gizmos and wireframe, and saves `page.screenshot()` to `test-results/h2-bench-wildcat.png`; one more for `essex-cv`. Run it on the reference GPU (the command is in Task 6, Step 2). **Read both PNGs.** Check: the bench shows Landing gear with Cycle, Flaps "not modeled", Throttle, Bombs and Rockets, the Debug row, and the counts lines; three gizmos sit at the two wheel legs and the propeller hub; the carrier's counts read against its budget. Delete `tests/e2e/_probe/` afterwards.
 
-- [ ] **Step 6: Commit.** `git diff HEAD --stat` (only these three files), then `git add src/render/hangar/bench.ts src/render/hangar/main.ts src/render/hangar/hooks.ts && git commit -m "H2: the full bench panel (Cycle, stores, gizmos, wireframe, turntable, counts against budget) and its hooks (H2 Task 5)"`
+- [x] **Step 6: Commit.** `git diff HEAD --stat` (only these three files), then `git add src/render/hangar/bench.ts src/render/hangar/main.ts src/render/hangar/hooks.ts && git commit -m "H2: the full bench panel (Cycle, stores, gizmos, wireframe, turntable, counts against budget) and its hooks (H2 Task 5)"`
 
 ---
 
@@ -758,7 +758,7 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
 **Interfaces:**
 - Consumes: the Task 5 hooks and the bench's aria-labels ("Cycle landing gear", "Bombs", "Rockets").
 
-- [ ] **Step 1: Add the checks** inside `test.describe('the Hangar', ...)`, reusing the file's `view`, `masks`, `shot`, `select`, `current`, `pose`, `visible` and `hasPart` helpers. Add `const setDebug = (page: Page, w: string, on: boolean) => page.evaluate(([x, y]) => (window as HangarWindow).__hangar!.setDebug(x as 'wireframe' | 'gizmos' | 'turntable', y as boolean), [w, on] as const)`.
+- [x] **Step 1: Add the checks** inside `test.describe('the Hangar', ...)`, reusing the file's `view`, `masks`, `shot`, `select`, `current`, `pose`, `visible` and `hasPart` helpers. Add `const setDebug = (page: Page, w: string, on: boolean) => page.evaluate(([x, y]) => (window as HangarWindow).__hangar!.setDebug(x as 'wireframe' | 'gizmos' | 'turntable', y as boolean), [w, on] as const)`.
 
   ```ts
   test('6. every modeled stores part shows: stores on and off differ (front view)', async ({ page }) => {
@@ -845,16 +845,16 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
   ```
   Confirm the library ids used above (`f4f-wildcat`, `essex-cv`, `fletcher-dd`, `type-b-maru`) with `ls content/library/` before running. If one differs, use the real id and record the correction in the ledger.
 
-- [ ] **Step 2: Run on the reference GPU.** The Hangar page loads no clouds or terrain, so the primary slot is fine (the game page's 25–45 s cloud-shader load, see the S1 handoff, does not apply here). Assert `https://ww2airsim.windomlane.org/hangar.html` returns `200` and that `ss -ltn | grep 39001` shows the Playwright tunnel, then:
+- [x] **Step 2: Run on the reference GPU.** The Hangar page loads no clouds or terrain, so the primary slot is fine (the game page's 25–45 s cloud-shader load, see the S1 handoff, does not apply here). Assert `https://ww2airsim.windomlane.org/hangar.html` returns `200` and that `ss -ltn | grep 39001` shows the Playwright tunnel, then:
   ```sh
   flock -w 600 /tmp/ww2airsim-tier2.lock env PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org \
     npx playwright test tests/e2e/hangar.spec.ts --reporter=list; echo "rc=$?"
   ```
   Expected: checks 1–3, 5 and 6–10 pass, with the layout and Library-button tests. Record every logged number (stores xor %, counts per model) in the ledger.
 
-- [ ] **Step 3: If a check is red, report it with its numbers.** Do not lower a threshold to pass. The thresholds were chosen before measuring: 0.5% for stores (the eight stores are small against the airframe from the front), 1% and 0.2% for Cycle (check 2's 1% gear floor, and a tolerance for anti-aliasing noise between two renders of the same pose), and 5% for wireframe. If a measured value misses one, stop and ask Mark with the number in hand.
+- [x] **Step 3: If a check is red, report it with its numbers.** Do not lower a threshold to pass. The thresholds were chosen before measuring: 0.5% for stores (the eight stores are small against the airframe from the front), 1% and 0.2% for Cycle (check 2's 1% gear floor, and a tolerance for anti-aliasing noise between two renders of the same pose), and 5% for wireframe. If a measured value misses one, stop and ask Mark with the number in hand.
 
-- [ ] **Step 4: Commit.** `git add tests/e2e/hangar.spec.ts && git commit -m "H2: Tier 2 checks 6-10: stores, Cycle, wireframe, gizmos and budgets on the reference GPU (H2 Task 6)"`
+- [x] **Step 4: Commit.** `git add tests/e2e/hangar.spec.ts && git commit -m "H2: Tier 2 checks 6-10: stores, Cycle, wireframe, gizmos and budgets on the reference GPU (H2 Task 6)"`
 
 ---
 
@@ -868,17 +868,17 @@ Facts the tasks depend on (all read from the code, 2026-09-26):
 - Modify: `README.md` (one paragraph pointing at §15)
 - Create: `docs/handoff/2026-09-26-h2-hangar-bench.md` (use the real date when executed)
 
-- [ ] **Step 1: `docs/models.md`**, the nine steps of spec §11, each naming the real command or file. Verify each exists before writing it: `tools/models/sketchfab-fetch.sh`, `npm run models:inspect`, `npm run models:build -- <id>` (`grep '"models:' package.json`), `tools/models/entries/`, `src/render/scene/airframes.ts` (aircraft `view.model` registry), `src/render/scene/shipModels.ts`'s `SHIP_MODELS` (ships: the spec §11 text says `content/ships/models.json`, which does not exist; S1 registered ships in `SHIP_MODELS`, so write that and say so in one line), `content/library/`, `hangar.html?bench`, `tests/e2e/hangar.spec.ts`. Link `tools/models/manifest.ts` and `docs/superpowers/specs/2026-09-25-a6m-zero-design.md` §6 for the entry fields instead of restating them. Add a "Check" line saying Tier 2 check 10 fails a model drawn over its manifest budget. Date the file's claims ("verified <date>").
+- [x] **Step 1: `docs/models.md`**, the nine steps of spec §11, each naming the real command or file. Verify each exists before writing it: `tools/models/sketchfab-fetch.sh`, `npm run models:inspect`, `npm run models:build -- <id>` (`grep '"models:' package.json`), `tools/models/entries/`, `src/render/scene/airframes.ts` (aircraft `view.model` registry), `src/render/scene/shipModels.ts`'s `SHIP_MODELS` (ships: the spec §11 text says `content/ships/models.json`, which does not exist; S1 registered ships in `SHIP_MODELS`, so write that and say so in one line), `content/library/`, `hangar.html?bench`, `tests/e2e/hangar.spec.ts`. Link `tools/models/manifest.ts` and `docs/superpowers/specs/2026-09-25-a6m-zero-design.md` §6 for the entry fields instead of restating them. Add a "Check" line saying Tier 2 check 10 fails a model drawn over its manifest budget. Date the file's claims ("verified <date>").
 
-- [ ] **Step 2: CLAUDE.md**: at the end of "Fetching third-party models", add: `The whole ingest, from search to a Hangar check, is docs/models.md.`
+- [x] **Step 2: CLAUDE.md**: at the end of "Fetching third-party models", add: `The whole ingest, from search to a Hangar check, is docs/models.md.`
 
-- [ ] **Step 3: The Hangar spec §12 H2**: after items 1 and 4, add `Done in H1 (2026-09-25).` and keep S1's existing note on item 4.
+- [x] **Step 3: The Hangar spec §12 H2**: after items 1 and 4, add `Done in H1 (2026-09-25).` and keep S1's existing note on item 4.
 
-- [ ] **Step 4: Full verification.** `remote-run npm run verify; echo "rc=$?"`. Expected `rc=0`. If a test outside `src/render/hangar` fails, check it against `main` before this plan (see the S1 handoff for the known terrainLoad timeout, now fixed) and report it.
+- [x] **Step 4: Full verification.** `remote-run npm run verify; echo "rc=$?"`. Expected `rc=0`. If a test outside `src/render/hangar` fails, check it against `main` before this plan (see the S1 handoff for the known terrainLoad timeout, now fixed) and report it.
 
-- [ ] **Step 5: The handoff** `docs/handoff/<date>-h2-hangar-bench.md`: what shipped, the Tier 2 numbers from Task 6, departures, traps (clones share materials; the probe leaves the prop angle advanced; the budget table is the page's own parse, pinned by `budgets.test.ts`), and what H3 consumes (`PartSpec.kind`, `BenchHandle`, `HangarModel.articulated`, `setDebug`). **§15's Hangar row**: "H2 complete <date> with Tier 1 and reference-GPU Tier 2 (checks 1–3, 5–10)", with plan and handoff links; H3 (turrets) open. **README**: one paragraph pointing at §15 and the handoff.
+- [x] **Step 5: The handoff** `docs/handoff/<date>-h2-hangar-bench.md`: what shipped, the Tier 2 numbers from Task 6, departures, traps (clones share materials; the probe leaves the prop angle advanced; the budget table is the page's own parse, pinned by `budgets.test.ts`), and what H3 consumes (`PartSpec.kind`, `BenchHandle`, `HangarModel.articulated`, `setDebug`). **§15's Hangar row**: "H2 complete <date> with Tier 1 and reference-GPU Tier 2 (checks 1–3, 5–10)", with plan and handoff links; H3 (turrets) open. **README**: one paragraph pointing at §15 and the handoff.
 
-- [ ] **Step 6: Commit and email.**
+- [x] **Step 6: Commit and email.**
   ```bash
   git diff HEAD --stat
   git add docs/models.md CLAUDE.md docs/superpowers/specs/2026-09-25-hangar-library-design.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md README.md docs/handoff/
