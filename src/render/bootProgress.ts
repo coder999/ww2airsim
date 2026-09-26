@@ -5,18 +5,20 @@
  * paint through -- the strip's moving stripe (a compositor-driven CSS
  * transform, titleScreen.ts) is what shows it is still alive in between.
  *
- * Weights are from the 2026-09-25 boot measurement (spec §A.1), re-measured
- * after the cloud-shader fix (spec §A.3). Terrain is deliberately absent:
+ * Weights are proportional to each stage's measured duration after the
+ * cloud-shader fix (spec §A.3): median of 8 cold-cache boots on the
+ * reference GPU, 2026-09-26 -- renderer 305 ms, sky 439, surface 422,
+ * shaders 1 165 (the handoff has every run). Terrain is deliberately absent:
  * it loads after the render loop starts and a ground spawn is held until it
  * lands (plan ruling, spec §A.2).
  */
 export type BootStage = 'renderer' | 'sky' | 'surface' | 'shaders'
 
 export const BOOT_STAGES: readonly { readonly stage: BootStage; readonly weight: number; readonly label: string }[] = [
-  { stage: 'renderer', weight: 1, label: 'Starting the graphics device...' },
-  { stage: 'sky', weight: 2, label: 'Loading the sky...' },
-  { stage: 'surface', weight: 2, label: 'Loading the ocean and land...' },
-  { stage: 'shaders', weight: 3, label: 'Compiling shaders...' },
+  { stage: 'renderer', weight: 2, label: 'Starting the graphics device...' },
+  { stage: 'sky', weight: 3, label: 'Loading the sky...' },
+  { stage: 'surface', weight: 3, label: 'Loading the ocean and land...' },
+  { stage: 'shaders', weight: 8, label: 'Compiling shaders...' },
 ]
 
 const IDLE_LABEL = 'Preparing aircraft...'
