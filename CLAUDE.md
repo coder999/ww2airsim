@@ -18,6 +18,9 @@ not exist, and three conventions below were being missed for that reason).
    open ones before touching what they name.
 5. `.superpowers/sdd/<plan>/progress.md` (gitignored) — the executing agent's
    rulings ledger. Write one for any plan you execute.
+6. For cloud work, `docs/clouds.md` — what ships, what was tried and with
+   what result, the traps, and the open issues. Update it in the same commit
+   as any cloud change.
 
 ## This checkout
 
