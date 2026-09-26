@@ -93,14 +93,25 @@ export const LOW_YOYO_HEIGHT_MARGIN_M = 500
  *  threat within 300 m, both below corner speed, turnAdvantage >= 1;
  *  split-S: threat astern in gun range, >= 1,500 m above ground, airspeed
  *  < 0.6 x dive limit). SCISSORS_ANGLE_RAD is the plan's reading of the
- *  table's "low angle-off", as the angle between the two velocities; not
- *  swept.
+ *  table's "low angle-off", as the angle between the two velocities, kept
+ *  at 45° on these measurements (2026-09-26):
+ *  - Entry sweep: the Hellcat's starting heading in the scissors signature
+ *    world turned toward the Zero by 0, 15, 30, 40 and 44°. Every one
+ *    selects the scissors at tick 1 and meets the signature: 2 reversals,
+ *    ends with the Hellcat ahead at 11.9-14.4 s, lowest speed 38.0-50.9 m/s.
+ *    At 46° and 60°, tick 1 rejects it. A later rescore picks it (ticks 93
+ *    and 112), and it runs to the 20 s cap with the Hellcat still behind,
+ *    at 22.0-25.2 m/s.
+ *  - Load-bearing: in the swapped 120 s run, 75 of the Hellcat's 269 Break
+ *    rescores meet every scissors condition but the angle and the gate,
+ *    at 1.9-121.8°. 60 of them are at 45° or more, so the angle term
+ *    rejects them. The other 15 (1.9-42.8°) are the gate's.
  *
  *  Measured 2026-09-26 at the first rescore of the signature worlds
  *  (tests/sim/ai/breakManeuvers.test.ts). Scissors: 153 m, 0.00° between
  *  the velocities, Zero 88 m/s against a 92.26 m/s corner, Hellcat 100
  *  against 119.98, turnAdvantage 1.596 (turnfight). Swapped, the Hellcat
- *  reads 0.627 (boom-and-zoom). Over its 120 s run, 18 of its 314 Break
+ *  reads 0.627 (boom-and-zoom). Over its 120 s run, 15 of its 269 Break
  *  rescores meet every other scissors condition, so the envelope gate is
  *  what keeps it out. Split-S: 250 m, threat astern and behind, 3,000 m up,
  *  110 m/s against 0.6 x 216 = 129.6. None of the four shipped pilot

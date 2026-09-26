@@ -197,10 +197,15 @@ export function flyAttackRun<M>(self: AircraftEntity<M>, perceived: AircraftEnti
 const headingOf = (v: { readonly x: number; readonly z: number }): number => Math.atan2(v.z, v.x)
 const headingChange = (from: number, to: number): number => Math.abs(Math.atan2(Math.sin(to - from), Math.cos(to - from)))
 
-/** Scissors (spec §3.5): a level turn toward the threat's side of our
- *  flight path, banked SCISSORS_BANK_RAD (2 g at 60°) at SCISSORS_THROTTLE,
- *  reversing into the threat each time it crosses behind us to the other
- *  side, so we slow and it slides ahead. Ends once the threat is ahead of
+/** Scissors (spec §3.5): a turn toward the threat's side of our flight
+ *  path, the lift vector set for a 60° / 2 g level turn (SCISSORS_BANK_RAD)
+ *  at SCISSORS_THROTTLE, reversing into the threat each time it crosses
+ *  behind us to the other side, so we slow and it slides ahead. It is not
+ *  held level: in the signature world below, the Zero climbs 262 m
+ *  (3,000 -> 3,262 m) and ends at 38.0 m/s pulling about 1 g, because the
+ *  2 g lift runs out as it slows. Its stall margin, load factor over
+ *  (V / stall speed)^2, peaks at 0.83 (measured 2026-09-26; no §3.2 stall
+ *  guard exists). Ends once the threat is ahead of
  *  our 3/9 line (or at the 20 s latch cap). The latch records the threat's
  *  side (+1 right, -1 left, in the horizontal plane) and counts each
  *  change as a reversal.
@@ -214,7 +219,7 @@ const headingChange = (from: number, to: number): number => Math.abs(Math.atan2(
  *  down to 38 m/s with the Hellcat still behind it.
  *
  *  SCISSORS_BANK_RAD, swept 2026-09-26 in that world at throttle 0.3, 0.4
- *  and 0.5, as a level-turn load factor: 1.5, 1.75, 2, 2.25, 2.5 and 3 g all
+ *  and 0.5, as the load factor of the equivalent level turn: 1.5, 1.75, 2, 2.25, 2.5 and 3 g all
  *  give 2 reversals inside 12 s and end with the Hellcat ahead (12.2-19.7 s).
  *  The Zero's lowest speed during the maneuver falls with the G: 59.2, 49.2,
  *  38.0, 28.1, 22.8, 28.6 m/s at throttle 0.4. Its stall speed is 34.87 m/s,

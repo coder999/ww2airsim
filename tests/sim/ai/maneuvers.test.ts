@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  LATCH_CAP_S, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver,
+  LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver,
 } from '../../../src/sim/ai/maneuvers.js'
 import { deriveFacts } from '../../../src/sim/ai/decision.js'
 import { DEFAULT_MANEUVER, GREEN_SKILL, VETERAN_SKILL, initialDecision, type ManeuverLatch } from '../../../src/sim/ai/pilot.js'
@@ -139,6 +139,14 @@ describe('Break family selection (Task 10)', () => {
     expect(selectManeuver({ ...scissorsPicture, envelope: { ...scissorsPicture.envelope, turnAdvantage: 0.63, pairing: 'boom-and-zoom' } }, VETERAN_SKILL.repertoire)).not.toBe('scissors')
     expect(selectManeuver({ ...scissorsPicture, targetSpeedMps: 130 }, VETERAN_SKILL.repertoire)).not.toBe('scissors')
     expect(selectManeuver(scissorsPicture, GREEN_SKILL.repertoire)).toBe('defensive-break')
+  })
+
+  it('no scissors at a high angle-off, at or above our own corner speed, out of range, or with the threat ahead', () => {
+    const not = (p: typeof scissorsPicture) => expect(selectManeuver(p, VETERAN_SKILL.repertoire)).not.toBe('scissors')
+    not({ ...scissorsPicture, velocityAngleRad: SCISSORS_ANGLE_RAD + 0.01 })
+    not({ ...scissorsPicture, selfSpeedMps: scissorsPicture.selfCornerSpeedMps })
+    not({ ...scissorsPicture, facts: { ...scissorsPicture.facts, rangeM: SCISSORS_RANGE_M } })
+    not({ ...scissorsPicture, threatBehind: false })
   })
 
   const splitPicture = {

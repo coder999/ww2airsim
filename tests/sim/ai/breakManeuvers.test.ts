@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { flyScissors, flySplitS } from '../../../src/sim/ai/maneuverFlight.js'
-import { loopRadiusM, openLatch } from '../../../src/sim/ai/maneuvers.js'
+import { decideManeuver, deriveFacts } from '../../../src/sim/ai/decision.js'
+import { loopRadiusM, maneuverFacts, openLatch, selectManeuver } from '../../../src/sim/ai/maneuvers.js'
 import { VETERAN_SKILL, type ManeuverLatch } from '../../../src/sim/ai/pilot.js'
-import { FLOOR_M, loadFactorBudget } from '../../../src/sim/ai/safety.js'
+import { FLOOR_M, heightAboveGround, loadFactorBudget } from '../../../src/sim/ai/safety.js'
 import { createWorldOf, type World } from '../../../src/sim/loop.js'
-import { dot, sub, v3, ZERO } from '../../../src/sim/math/vec3.js'
+import { dot, length, sub, v3, ZERO } from '../../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { BREAK_SET, chase, headingChangeRad, level, pilotFor, runCanned, splitSWorld, straight, withRepertoire } from './maneuverWorlds.js'
 
@@ -72,9 +73,11 @@ describe('scissors, and the envelope gate (7c spec §3.6)', () => {
    *  (right), the latch counting the same 2; ended on its own at 14.4 s
    *  (tick 864) with the Hellcat abeam, ahead of the Zero's 3/9 line. Peak
    *  2.04 g; lowest speed 38.0 m/s (stall 34.87). Reversals, the threat
-   *  passing and the end are all read on this one selection. */
+   *  passing and the end are all read on this one selection. Stall margin,
+   *  load factor over (V / stall speed)^2, peaks at 0.832 (2026-09-26): no
+   *  §3.2 stall guard exists, so the test asserts it stays under 1. */
   it('a veteran Zero chased by a Hellcat: selected, at least 2 roll reversals in 12 s, and the Hellcat ends up ahead', () => {
-    const m = { enteredTick: null as number | null, endTick: null as number | null, reversals: 0, latchReversals: 0, lastSign: 0, threatAhead: false }
+    const m = { enteredTick: null as number | null, endTick: null as number | null, reversals: 0, latchReversals: 0, lastSign: 0, threatAhead: false, stallMargin: 0 }
     runCanned(scissorsWorld(zero, 88, f6f, 100), { t: chase('p') }, 30, (w) => {
       const s = self(w)
       const d = s.pilot!.decision
@@ -90,6 +93,8 @@ describe('scissors, and the envelope gate (7c spec §3.6)', () => {
         return
       }
       m.latchReversals = d.latch!.reversals
+      const g = w.combat.aircraft['p']!.stress.loadFactorG
+      m.stallMargin = Math.max(m.stallMargin, g / (length(s.state.velocity) / zero.reference.stallSpeedMps) ** 2)
       const r = s.controls.roll
       if (w.tick - m.enteredTick <= 12 * 60 && Math.abs(r) >= 0.5) {
         const sign = Math.sign(r)
@@ -103,17 +108,35 @@ describe('scissors, and the envelope gate (7c spec §3.6)', () => {
     expect(m.reversals).toBeGreaterThanOrEqual(2)
     expect(m.latchReversals).toBeGreaterThanOrEqual(2)
     expect(m.threatAhead).toBe(true)
+    expect(m.stallMargin).toBeLessThan(1)
   })
 
   /** Measured 2026-09-26: the Hellcat reads turnAdvantage 0.627
-   *  (boom-and-zoom) against the Zero. Over these 120 s, 18 of its 314 Break
+   *  (boom-and-zoom) against the Zero. Over these 120 s, 15 of its 269 Break
    *  rescores meet every other scissors condition (the first at tick 37),
-   *  so it is the envelope gate, not the geometry, that keeps it out. */
+   *  so it is the envelope gate, not the geometry, that keeps it out. The
+   *  test counts them (at each rescore, from the start-of-tick snapshot the
+   *  pilot saw, with the turn advantage inverted), so it cannot pass
+   *  vacuously on a geometry that never qualifies. */
   it('a veteran Hellcat chased by a Zero never enters a scissors in 120 s: a boom-and-zoom airframe does not turn with a better turner', () => {
-    let scissorsTicks = 0
-    runCanned(scissorsWorld(f6f, 100, zero, 88), { t: chase('p') }, 120, (w) => {
-      if (self(w).pilot!.decision.named === 'scissors') scissorsTicks++
+    let scissorsTicks = 0, eligibleButForGate = 0
+    const start = scissorsWorld(f6f, 100, zero, 88)
+    let before = start
+    runCanned(start, { t: chase('p') }, 120, (w) => {
+      const d = self(w).pilot!.decision
+      if (d.named === 'scissors') scissorsTicks++
+      if (d.nextRescoreS !== self(before).pilot!.decision.nextRescoreS) {
+        // A rescore ran this tick, on `before`: would the geometry alone pick a scissors?
+        const p = self(before), t = other(before)
+        const facts = deriveFacts(p, t, 1 - before.combat.aircraft['p']!.damage.structure, p.state.fuelKg / p.spec.mass.fuelCapacityKg)
+        const intent = decideManeuver(facts, p.pilot!.skill)
+        const mf = maneuverFacts(p, t, facts, intent, heightAboveGround(p.state, null, []))
+        const inverted = { ...mf, envelope: { ...mf.envelope, turnAdvantage: 1 / mf.envelope.turnAdvantage } }
+        if (intent === 'break' && selectManeuver(inverted, BREAK_SET) === 'scissors') eligibleButForGate++
+      }
+      before = w
     })
+    expect(eligibleButForGate).toBeGreaterThan(0)
     expect(scissorsTicks).toBe(0)
   })
 })
