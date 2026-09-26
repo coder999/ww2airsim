@@ -59,8 +59,28 @@ export function maneuverFacts<M>(
   }
 }
 
-/** Tuning values from spec §3.5's table; measured in the Task 8 signature
- *  tests. A target is "turning" above about 3°/s. */
+/** The Pursue family's entry values. Closure is the range rate
+ *  (`closureMps`), not 7b's `closingRate`.
+ *
+ *  OVERSHOOT_RANGE_M, OVERSHOOT_CLOSURE_MPS, LOW_YOYO_RANGE_M and
+ *  LOW_YOYO_HEIGHT_MARGIN_M are spec §3.5's table values (range < 600 m,
+ *  closure > 40 m/s; range > 400 m, closure < 0, floor + 500 m). Measured
+ *  2026-09-26 in production `advance`: the lag and high yo-yo signature
+ *  worlds (tests/sim/ai/pursueManeuvers.test.ts) select at the first rescore
+ *  at 391 m and 57.7-57.8 m/s; the low yo-yo world at 700 m and about
+ *  -10 m/s, 3150 m up. Against the scripted 7d evasion (aiLethality item 3),
+ *  green's highest range rate at a rescore with the target turning inside
+ *  600 m is 39.7 m/s (clean), 38.1 (rockets), 35.4 (bombs), 34.0 (both), all
+ *  at the 6.0 s rescore, so it never selects lag pursuit there: a thin
+ *  margin, accepted for now and put to Mark.
+ *
+ *  TARGET_TURNING_RAD_PER_S is |body pitch and yaw rate|, about 3°/s.
+ *  Measured 2026-09-26 on the same airframe: a scripted straight-and-level
+ *  target reads 0.000; a scripted 3 g level turn reads 0.216 at the 1 s
+ *  rescore and 0.24-0.30 after; the 7d evasion reads at least 0.253
+ *  (both) / 0.319 (clean) while its keys are held (0.5-7 s) and at most
+ *  0.025-0.028 once it flies hands-off (8-60 s). 0.05 sits about 2x above
+ *  the hands-off drift and 5x below the gentlest keyed turn. */
 export const TARGET_TURNING_RAD_PER_S = 0.05
 export const OVERSHOOT_RANGE_M = 600
 export const OVERSHOOT_CLOSURE_MPS = 40

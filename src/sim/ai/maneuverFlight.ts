@@ -55,6 +55,14 @@ const withGate = <M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, c: C
  *  green held lag pursuit to the 20 s latch cap against the 7d evasion
  *  (measured 2026-09-26 through the production frame path, the
  *  aiLethality.test.ts item 3 world). */
+/** Measured 2026-09-26 in the lag signature world (green, 170 m/s into a
+ *  110 m/s target in a 3 g turn, 450 m ahead), sweeping this value with
+ *  everything else fixed: 50 m ends at 15.7 m/s after 3.45 s, min range
+ *  237.6 m; 100 m, 3.40 s, 240.2 m; 150 m, 3.28 s, 245.1 m; 200 m, 2.85 s,
+ *  258.0 m; 300 m, 1.92 s, 301.8 m. All five meet the signature; the aim
+ *  point barely matters here, and 150 m (the mid value) is kept.
+ *  LAG_END_CLOSURE_MPS is spec §3.5's exit (closure < 15 m/s); at 150 m the
+ *  maneuver ends at 14.9 m/s, from 57.8 m/s at entry. */
 export const LAG_DISTANCE_M = 150
 export const LAG_END_CLOSURE_MPS = 15
 export function flyLagPursuit<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
@@ -70,7 +78,11 @@ export function flyLagPursuit<M>(self: AircraftEntity<M>, perceived: AircraftEnt
 /** High yo-yo: phase 0 pulls the lift vector above the target's plane at the
  *  G budget and full power until HIGH_YOYO_CLIMB_M is gained; phase 1 rolls
  *  back down into lead pursuit. Ends within YOYO_TAIL_ANGLE_RAD of the
- *  target's tail. */
+ *  target's tail. HIGH_YOYO_CLIMB_M and the 30° tail angle are spec §3.5's
+ *  signature and exit. Measured 2026-09-26 in the high yo-yo signature world:
+ *  101.9 m climbed, closure 57.7 -> -22.7 m/s, ended 23.9° off the tail at
+ *  3.58 s. Converting that geometry into a shot is lead pursuit's job, and it
+ *  cannot against a target still pulling 3 g (see that test's comment). */
 export const HIGH_YOYO_CLIMB_M = 100
 export const YOYO_TAIL_ANGLE_RAD = 30 * Math.PI / 180
 function nearTail<M>(self: AircraftEntity<M>, target: AircraftEntity<M>): boolean {
@@ -93,6 +105,14 @@ export function flyHighYoYo<M>(self: AircraftEntity<M>, perceived: AircraftEntit
 /** Low yo-yo: the nose inside the target's turn and below its plane, the lead
  *  line tipped down by LOW_YOYO_DROP of its speed, full power, gun gate
  *  live. Ends once closure (the range rate) turns positive. */
+/** Measured 2026-09-26 in the low yo-yo signature world (veteran, 115 m/s,
+ *  700 m behind a 125 m/s target in a 3 g turn, 150 m above it), sweeping
+ *  this value with everything else fixed. Descent before closure turns
+ *  positive: 0 gives 4.6 m (closure positive at tick 152); 0.1, 6.6 m (145);
+ *  0.25, 9.6 m (141); 0.4, 11.2 m (139); 0.6, 11.7 m (139). 0.25 takes most
+ *  of the gain and more buys almost nothing, so it is kept. The effect is
+ *  small in this world: the lead line already points down at a target
+ *  150 m below. */
 export const LOW_YOYO_DROP = 0.25
 export function flyLowYoYo<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
   const lead = pursuitDesiredVelocity(self, perceived)

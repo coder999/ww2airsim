@@ -2127,6 +2127,8 @@ git commit -m "7c: named maneuvers, repertoire as skill data, and the phase latc
 
 ### Task 8: Pursue family: lag pursuit, high yo-yo, low yo-yo
 
+> Superseded by 550ae00: selection and exits use the range rate `closureRateMps`, not the `f.closingRate` / 7b closing rate in the snippets below; see the Round 2 report (`.superpowers/sdd/2026-09-25-ai-7c-safety-and-maneuvers/task-8-report.md`).
+
 **Files:**
 - Create: `tests/sim/ai/maneuverWorlds.ts`, `tests/sim/ai/pursueManeuvers.test.ts`
 - Modify: `src/sim/ai/pilot.ts` (names, tables, repertoires), `src/sim/ai/maneuvers.ts` (the selector and `PHASED`) and `src/sim/ai/maneuverFlight.ts` (three flights)

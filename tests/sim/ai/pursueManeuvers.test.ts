@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { GREEN_SKILL, VETERAN_SKILL, type ManeuverName } from '../../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../../src/sim/ai/decision.js'
 import { hasGunSolution } from '../../../src/sim/ai/pursuit.js'
-import { createWorldOf, type World } from '../../../src/sim/loop.js'
-import { length, sub, v3 } from '../../../src/sim/math/vec3.js'
+import { LATCH_CAP_S } from '../../../src/sim/ai/maneuvers.js'
+import { YOYO_TAIL_ANGLE_RAD } from '../../../src/sim/ai/maneuverFlight.js'
+import { DT } from '../../../src/sim/flight/model.js'
+import { createWorldOf, type AircraftEntity, type World } from '../../../src/sim/loop.js'
+import { dot, length, scale, sub, v3 } from '../../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { closureOf, level, levelTurn, pilotFor, runCanned, straight, withRepertoire, type ScriptedFlight } from './maneuverWorlds.js'
 
@@ -30,7 +33,7 @@ function overshootWorld(skill: typeof GREEN_SKILL, pilotSpeed = 170) {
 describe('lag pursuit (7c spec §3.5)', () => {
   // Measured 2026-09-26 (closure = the range rate, `closureRateMps`):
   // selected at the first rescore (tick 60) at 57.8 m/s of closure, ended on
-  // LAG_END_CLOSURE_MPS at 14.9 m/s about 3.4 s later, minimum range 245.1 m.
+  // LAG_END_CLOSURE_MPS at 14.9 m/s 3.3 s later, minimum range 245.1 m.
   it('green, overshooting a turning target: selected, closure falls, range stays above MIN_ENGAGEMENT_RANGE_M', () => {
     const m = { selected: false, entryClosure: 0, lastClosure: 0, minRange: Infinity }
     runCanned(overshootWorld(GREEN_SKILL), { [T]: levelTurn(3, -1) }, 20, (w) => {
@@ -48,37 +51,81 @@ describe('lag pursuit (7c spec §3.5)', () => {
 })
 
 describe('high yo-yo', () => {
-  // The target turns for 6 s and then flies straight, rather than turning for
-  // the whole 25 s: `levelTurn(3, -1)` cannot be sustained by the scripted
-  // Hellcat, which bled from 110 to 72 m/s by 16 s and to 36 m/s by 24 s
-  // (measured 2026-09-26 in this world, target airspeed logged per tick), so after about 15 s the
-  // "turning target" is a stalled airframe on its lift-vector controller,
-  // not a bandit. This changes the scripted target, not `overshootWorld`'s
-  // start, any threshold or the flight. Measured 2026-09-26: selected at the
-  // first rescore (57.7 m/s of closure), climbed 101.9 m (3002.5 -> 3104.4,
-  // peak at tick 214), closure fell to -22.7 m/s, the gun cone reopened at
-  // tick 1079 (18.0 s).
-  const turnThenLevel = (seconds: number): ScriptedFlight => {
+  // Measured 2026-09-26 in this world with the brief's flight.
+  //
+  // The target flies `levelTurn(3, -1)` until its airspeed first falls below
+  // TURN_FLOOR_MPS, then straight. 85 m/s is the slowest the scripted Hellcat
+  // still holds its commanded 3 g: flown alone from 110 m/s at 3000 m it held
+  // 2.89-2.96 g down to 83.5 m/s, then 2.83 g at 81.8 m/s, 1.92 g at
+  // 71.6 m/s, 0.76 g at 50 m/s. Below the floor it is a stalling airframe on a
+  // lift-vector controller, not a bandit. Here it eases at tick 755 (12.6 s).
+  //
+  // The yo-yo: selected at the first rescore at 57.7 m/s of closure, climbs
+  // 101.9 m, closure falls to -22.7 m/s, and the latch ends at tick 215
+  // (3.58 s) on spec §3.5's exit, 23.9° off the tail, while the target is
+  // still turning.
+  //
+  // Known 7b limitation, measured the same day: lead pursuit cannot then
+  // convert against a target still pulling a sustained 3 g. Its velocity
+  // controller banks at most 70° (about 2.9 g level). It turned at
+  // 0.12-0.16 rad/s against the target's 0.31 and circled 100-250 m above
+  // with the target 41-73° off the nose, until the target eased. The gun cone
+  // returned at tick 1564, 13.5 s after the target eased, so
+  // CONE_AFTER_EASING_S = 16 leaves 2.5 s of headroom. This test therefore
+  // proves the yo-yo sets up the geometry, not that it converts against a
+  // sustained max-g turner. The limitation is reported to Mark separately and
+  // is not fixed in Task 8.
+  const TURN_FLOOR_MPS = 85
+  const CONE_AFTER_EASING_S = 16
+  /** `levelTurn(3, -1)` until the airspeed first falls below `floorMps`,
+   *  then straight; `easedTick` records when. */
+  const turnWhileFast = (floorMps: number) => {
     const turn = levelTurn(3, -1)
-    return (a, w) => (w.tick < seconds * 60 ? turn(a, w) : straight(a, w))
+    const state = { easedTick: null as number | null }
+    const flight: ScriptedFlight = (a, w) => {
+      if (state.easedTick === null && length(a.state.velocity) < floorMps) state.easedTick = w.tick
+      return state.easedTick === null ? turn(a, w) : straight(a, w)
+    }
+    return { flight, state }
+  }
+  const angleOffTailRad = (pursuer: AircraftEntity<undefined>, target: AircraftEntity<undefined>): number => {
+    const back = scale(target.state.velocity, -1)
+    const toPursuer = sub(pursuer.state.position, target.state.position)
+    return Math.acos(Math.min(1, Math.max(-1, dot(back, toPursuer) / (length(back) * length(toPursuer)))))
   }
 
-  it('veteran with energy to spare: selected, climbs at least 100 m, closure falls, then the gun cone comes back', () => {
+  it('veteran with energy to spare: selected, climbs at least 100 m, closure falls, ends inside 30° of the tail while the target turns, and the cone returns once it eases', () => {
     const skill = withRepertoire(VETERAN_SKILL, ['lead-pursuit', 'high-yo-yo', 'defensive-break', 'extend'] as ManeuverName[])
-    const m = { selected: false, entryY: 0, peakY: -Infinity, peakTick: 0, entryClosure: 0, minClosure: Infinity, coneAfterPeak: false }
-    runCanned(overshootWorld(skill), { [T]: turnThenLevel(6) }, 25, (w) => {
+    const target = turnWhileFast(TURN_FLOOR_MPS)
+    const m = {
+      selected: false, entryTick: 0, entryY: 0, peakY: -Infinity, entryClosure: 0, minClosure: Infinity,
+      endTick: null as number | null, endAngleOffRad: NaN, coneTick: null as number | null,
+    }
+    runCanned(overshootWorld(skill), { [T]: target.flight }, 35, (w) => {
       const s = self(w)
       if (s.pilot!.decision.named === 'high-yo-yo') {
-        if (!m.selected) { m.selected = true; m.entryY = s.state.position.y; m.entryClosure = closureOf(s, other(w)) }
-        if (s.state.position.y > m.peakY) { m.peakY = s.state.position.y; m.peakTick = w.tick }
+        if (!m.selected) { m.selected = true; m.entryTick = w.tick; m.entryY = s.state.position.y; m.entryClosure = closureOf(s, other(w)) }
+        m.peakY = Math.max(m.peakY, s.state.position.y)
         m.minClosure = Math.min(m.minClosure, closureOf(s, other(w)))
+      } else if (m.selected && m.endTick === null) {
+        m.endTick = w.tick
+        m.endAngleOffRad = angleOffTailRad(s, other(w))
       }
-      if (m.selected && w.tick > m.peakTick && hasGunSolution(s, other(w))) m.coneAfterPeak = true
+      if (m.coneTick === null && target.state.easedTick !== null && hasGunSolution(s, other(w))) m.coneTick = w.tick
     })
+    const eased = target.state.easedTick
     expect(m.selected).toBe(true)
     expect(m.peakY - m.entryY).toBeGreaterThanOrEqual(100)
     expect(m.minClosure).toBeLessThan(m.entryClosure)
-    expect(m.coneAfterPeak).toBe(true)
+    // (c) ended on the spec's exit, not the latch cap, while the target still turned
+    expect(m.endTick).not.toBeNull()
+    expect((m.endTick! - m.entryTick) * DT).toBeLessThan(LATCH_CAP_S)
+    expect(m.endAngleOffRad).toBeLessThan(YOYO_TAIL_ANGLE_RAD)
+    expect(eased, 'the target never eased out of its turn').not.toBeNull()
+    expect(m.endTick!).toBeLessThan(eased!)
+    // (d) the gun cone returns within CONE_AFTER_EASING_S of the target easing
+    expect(m.coneTick, 'no gun cone after the target eased').not.toBeNull()
+    expect((m.coneTick! - eased!) * DT).toBeLessThanOrEqual(CONE_AFTER_EASING_S)
   })
 })
 
