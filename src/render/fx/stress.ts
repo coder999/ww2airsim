@@ -16,6 +16,9 @@ export type FxStressScene = {
 }
 /** Spec §4.5: "about 300 m from the target". */
 export const STRESS_RANGE_M = 300
+/** Close enough for the Tier 2 capture to resolve a one-pixel ground edge.
+ *  The §4.5 budget scene continues to use STRESS_RANGE_M. */
+const SMOKE_BASE_RANGE_M = 40
 
 export function stressScene(name: FxStressName, eye: Vec3, look: Vec3, groundAt: (x: number, z: number) => number): FxStressScene {
   const h = Math.hypot(look.x, look.z) || 1
@@ -44,7 +47,7 @@ export function stressScene(name: FxStressName, eye: Vec3, look: Vec3, groundAt:
     case 'bomb-land': return { ...empty, triggers: [t('bomb.land', center)], anchors: [{ name: 'center', position: center }] }
     case 'bomb-water': return { ...empty, triggers: [t('bomb.water', center)], anchors: [{ name: 'center', position: center }] }
     case 'air-kill': { const p = ahead(400); return { ...empty, triggers: [t('kill.air', p)], sustained: [s('kill', 'kill.air', p)], anchors: [{ name: 'kill', position: p }] } }
-    case 'smoke-base': return { ...empty, sustained: [s('base', 'structure.collapse', center)], anchors: [{ name: 'base', position: center }] }
+    case 'smoke-base': { const base = ground(SMOKE_BASE_RANGE_M, 0); return { ...empty, sustained: [s('base', 'structure.collapse', base)], anchors: [{ name: 'base', position: base }] } }
     case 'cloud-fireball': { const p = ahead(800); return { ...empty, triggers: [t('kill.air', p)], anchors: [{ name: 'fireball', position: p }] } }
     case 'eye-smoke': return { ...empty, sustained: [s('plume', 'ship.fire', ahead(5)), s('column', 'structure.collapse', v3(eye.x, eye.y - 3, eye.z))], anchors: [] }
     case 'none': return empty
