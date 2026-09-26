@@ -1,117 +1,166 @@
+// tools/models/build.ts
 /**
- * Compresses a raw, third-party glTF download (cached under tools/models/cache/,
- * gitignored, never committed) into the small, committed asset the browser
- * actually fetches. Mirrors tools/terrain/build.ts's raw-cache-to-committed-
- * output split: the input here is 73.9 MB, 99.8% of it uncompressed embedded
- * PNG/JPEG textures (measured 2026-09-24 -- 27 images, several 14-17 MB each),
- * and committing that raw would make this repo's single largest tracked file
- * by a wide margin for no reason texture recompression doesn't already fix.
+ * `npm run models:build -- [<id>...] [--force]`: raw download in
+ * tools/models/cache/ (gitignored) -> committed glb in content/aircraft/ or
+ * content/ships/, driven by one `tools/models/entries/<id>.json` per model
+ * (A6M Zero spec §6).
  *
- * Texture-only pass deliberately: `--no-simplify` and `--compress false`
- * disable meshoptimizer simplification AND `optimize`'s own default geometry/
- * animation compression (its `--compress` flag defaults to `"meshopt"` when
- * omitted -- easy to miss, since simplify and compress are separate concerns
- * with separate flags, and this file's own instructions previously named only
- * the first one). Three.js's `GLTFLoader` throws at runtime if a required
- * extension like `EXT_meshopt_compression` has no matching decoder wired up,
- * and this project has none, so `--compress false` is load-bearing, not
- * cosmetic. With both disabled, the exact node names and animation keyframes
- * this project's render code depends on (src/render/scene/wildcat.ts) are as
- * close to the source download as possible. Re-run the node/animation
- * inspection below after any future change to this script's flags.
+ * LOAD-BEARING: no stage compresses geometry. No EXT_meshopt_compression and
+ * no Draco: GLTFLoader has no decoder wired in this project, and the
+ * Wildcat's first build was unloadable at runtime for exactly that reason
+ * (20bcaa4). `checkOutput` fails any output whose extensionsRequired holds
+ * anything but EXT_texture_webp.
+ *
+ * With no id, builds every entry whose raw input exists locally, skips
+ * frozen entries, and names every entry it skipped and why.
  */
-import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { getBounds, prune } from '@gltf-transform/functions'
+import { Logger, type Document } from '@gltf-transform/core'
+import { loadModelEntries, type ModelEntry } from './manifest.js'
+import { findNode, modelIO } from './document.js'
+import { measureDocument, type ModelMeasure } from './measure.js'
+import { removeNodes } from './stages/remove.js'
+import { splitByBox } from './stages/split.js'
+import { collapseKept } from './stages/collapse.js'
+import { pivotNode } from './stages/pivot.js'
+import { normalizeDocument } from './stages/normalize.js'
+import { simplifyDocument } from './stages/simplify.js'
+import { joinExcept } from './stages/join.js'
+import { compressTextures } from './stages/textures.js'
+import { forceOpaque } from './stages/opaque.js'
 
-const INPUT = 'tools/models/cache/grumman_f4f_wildcat_airplane.glb'
-const OUTPUT = 'content/aircraft/wildcat.glb'
+export const ALLOWED_REQUIRED_EXTENSIONS: readonly string[] = ['EXT_texture_webp']
 
-/**
- * The raw Sketchfab download sets `alphaMode: BLEND` on Chasis_MAT (the
- * wheel-well/hull cover) and Cabina_MAT (the canopy) -- confirmed by reading
- * the untouched download directly, so `optimize` above does not introduce
- * this, only carries it through. Neither material's base-color texture has
- * any fully- or mostly-transparent pixels (alpha only dips to ~55% over a
- * small fraction of each texture): the signature of a baked AO/dirt mask
- * left in the alpha channel by the artist's tool, not intended glass or
- * cutout geometry. Three.js's GLTFLoader turns BLEND into `transparent:
- * true, depthWrite: false` regardless of the actual opacity values, which
- * produces a camera-angle/background-dependent see-through artifact on the
- * hull -- reported by Mark 2026-09-24 flying against open sky. This project
- * has no aircraft with intentionally transparent geometry today (hellcat.ts's
- * canopy is the same opaque `dark` material as the rest of that airframe),
- * so every material is forced OPAQUE rather than only the two known-bad
- * ones, catching the same defect in a future re-export under different
- * material names.
- *
- * Implemented as a direct .glb binary patch rather than pulling in
- * `@gltf-transform/core` as a scripting dependency for one field: this
- * project already reads this exact chunk layout at runtime (`wildcat.ts`'s
- * own tests) and it is simpler than round-tripping a webp-textured document
- * through a library that expects to decode image data it never needs to
- * touch here. glTF binary layout is header(12) + JSON chunk(8-byte header +
- * padded data) + BIN chunk(8-byte header + padded data), per the glTF 2.0
- * spec.
- */
-export function forceOpaqueMaterials(glbPath: string): void {
-  const buf = readFileSync(glbPath)
-  const jsonLength = buf.readUInt32LE(12)
-  const jsonChunkType = buf.readUInt32LE(16)
-  const doc = JSON.parse(buf.subarray(20, 20 + jsonLength).toString('utf8'))
-  for (const material of doc.materials ?? []) {
-    delete material.alphaMode
-    delete material.alphaCutoff
-  }
-  const newJsonBytes = Buffer.from(JSON.stringify(doc), 'utf8')
-  const pad = (4 - (newJsonBytes.length % 4)) % 4
-  const paddedJson = Buffer.concat([newJsonBytes, Buffer.alloc(pad, 0x20)])
-
-  const binChunkStart = 20 + jsonLength
-  const binChunkLength = buf.readUInt32LE(binChunkStart)
-  // Sliced including its own 8-byte chunk header, so it round-trips
-  // unchanged -- no need to read chunkType out separately.
-  const binChunk = buf.subarray(binChunkStart, binChunkStart + 8 + binChunkLength)
-
-  const header = Buffer.alloc(12)
-  header.writeUInt32LE(buf.readUInt32LE(0), 0) // magic
-  header.writeUInt32LE(buf.readUInt32LE(4), 4) // version
-  header.writeUInt32LE(12 + 8 + paddedJson.length + binChunk.length, 8) // total length
-
-  const jsonChunkHeader = Buffer.alloc(8)
-  jsonChunkHeader.writeUInt32LE(paddedJson.length, 0)
-  jsonChunkHeader.writeUInt32LE(jsonChunkType, 4)
-
-  writeFileSync(glbPath, Buffer.concat([header, jsonChunkHeader, paddedJson, binChunk]))
+/** The names of an entry's articulated output nodes: keep `as` names and
+ *  split names that are not removed. */
+export function partNames(entry: ModelEntry): string[] {
+  return [
+    ...entry.keep.map((k) => k.as ?? k.node),
+    ...entry.split.map((s) => s.name).filter((n) => !entry.remove.includes(n)),
+  ]
 }
 
-export function buildWildcatModel(): void {
-  if (!existsSync(INPUT)) {
-    throw new Error(
-      `${INPUT} is missing. It is a gitignored raw download (CC-BY 4.0, ` +
-      'rojatsu, see ASSETS.md) and must be fetched by hand from Sketchfab ' +
-      '(login required) before this script can run -- there is no automated ' +
-      're-fetch path, unlike tools/terrain/fetch.ts.',
-    )
+/** Every stage, in order, on a document already read. Mutates and returns it. */
+export async function runPipeline(doc: Document, entry: ModelEntry): Promise<Document> {
+  doc.setLogger(new Logger(Logger.Verbosity.WARN))
+  const splitNames = new Set(entry.split.map((s) => s.name))
+  // 1. remove (source nodes)
+  removeNodes(doc, entry.remove.filter((n) => !splitNames.has(n)))
+  // Presence of every kept node, before anything renames it.
+  for (const k of entry.keep) findNode(doc, k.node)
+  // 2. split, then drop the split names `remove` lists
+  for (const s of entry.split) splitByBox(doc, s)
+  removeNodes(doc, entry.remove.filter((n) => splitNames.has(n)))
+  // simplify (moved ahead of join: see stages/simplify.ts)
+  if (entry.simplify) await simplifyDocument(doc, entry.simplify)
+  if (entry.normalize) {
+    // collapse + 3. pivot + 4. normalize
+    for (const k of entry.keep) {
+      const node = collapseKept(doc, k)
+      if (k.pivot) pivotNode(doc, node, k.pivot)
+    }
+    for (const s of entry.split) {
+      if (s.pivot && !entry.remove.includes(s.name)) pivotNode(doc, findNode(doc, s.name), s.pivot)
+    }
+    normalizeDocument(doc, entry.normalize)
   }
-  mkdirSync(dirname(OUTPUT), { recursive: true })
-  execFileSync(
-    'npx',
-    ['--yes', '@gltf-transform/cli', 'optimize', INPUT, OUTPUT,
-      '--texture-compress', 'webp',
-      '--texture-size', '1024',
-      '--no-simplify',
-      '--compress', 'false'],
-    { stdio: 'inherit' },
-  )
-  forceOpaqueMaterials(OUTPUT)
+  // 5. join everything except the parts
+  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
+  // 6. textures, 7. opaque
+  await compressTextures(doc, entry.textures.maxSize)
+  if (entry.opaque) forceOpaque(doc)
+  await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
+  // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
+  const asset = doc.getRoot().getAsset()
+  asset.extras = { ...(asset.extras ?? {}), source: entry.source.url, author: entry.source.author, license: entry.source.license }
+  return doc
 }
 
-// Matches tools/terrain/build.ts's own entrypoint guard exactly (fileURLToPath
-// against process.argv[1], not a raw file:// string comparison, which mishandles
-// paths with spaces/special characters).
-const isMain = process.argv[1] === fileURLToPath(import.meta.url)
-if (isMain) {
-  buildWildcatModel()
+/** Every way an output can break its entry's contract, as messages naming the
+ *  measured value and the limit. Empty = acceptable. Used by the build (before
+ *  anything is written) and by the committed-output tests. */
+export function checkOutput(doc: Document, byteLength: number, entry: ModelEntry): string[] {
+  const m: ModelMeasure = measureDocument(doc)
+  const out: string[] = []
+  const b = entry.budget
+  if (byteLength > b.maxBytes) out.push(`${byteLength} bytes > budget ${b.maxBytes}`)
+  if (m.triangles > b.maxTriangles) out.push(`${m.triangles} triangles > budget ${b.maxTriangles}`)
+  if (m.drawCalls > b.maxDrawCalls) out.push(`${m.drawCalls} draw calls > budget ${b.maxDrawCalls}`)
+  const badExt = m.extensionsRequired.filter((e) => !ALLOWED_REQUIRED_EXTENSIONS.includes(e))
+  if (badExt.length) out.push(`extensionsRequired has ${badExt.join(', ')}: GLTFLoader has no decoder for it`)
+  if (entry.opaque && m.blendMaterials.length) out.push(`BLEND materials: ${m.blendMaterials.join(', ')}`)
+  if (m.maxTextureSize > entry.textures.maxSize) out.push(`a ${m.maxTextureSize}px texture > maxSize ${entry.textures.maxSize}`)
+  const names = doc.getRoot().listNodes().map((n) => n.getName())
+  for (const p of partNames(entry)) {
+    const count = names.filter((n) => n === p).length
+    if (count !== 1) out.push(`part "${p}": expected exactly one node, found ${count}`)
+  }
+  if (entry.noseNode !== undefined && names.includes(entry.noseNode)) {
+    const centerX = (name: string): number => { const bb = getBounds(findNode(doc, name)); return (bb.min[0] + bb.max[0]) / 2 }
+    const nose = centerX(entry.noseNode)
+    const ahead = doc.getRoot().listNodes().filter((n) => n.getMesh() && n.getName() !== entry.noseNode && centerX(n.getName()) >= nose)
+    if (ahead.length) out.push(`noseNode "${entry.noseNode}" is not the frontmost part: ${ahead.map((n) => n.getName()).join(', ')} center at or ahead of it`)
+  }
+  return out
+}
+
+export interface BuildDeps {
+  exists(path: string): boolean
+  read(path: string): Promise<Document>
+  write(path: string, bytes: Uint8Array): void
+  encode(doc: Document): Promise<Uint8Array>
+  log(line: string): void
+}
+
+/** The driver, with its file system injected so tests never touch the disk.
+ *  Returns the process exit code. */
+export async function runBuild(entries: readonly ModelEntry[], argv: readonly string[], deps: BuildDeps): Promise<number> {
+  const force = argv.includes('--force')
+  const ids = argv.filter((a) => a !== '--force')
+  const unknown = ids.filter((id) => !entries.some((e) => e.id === id))
+  if (unknown.length) {
+    deps.log(`unknown model id: ${unknown.join(', ')} (entries: ${entries.map((e) => e.id).join(', ')})`)
+    return 1
+  }
+  const explicit = ids.length > 0
+  const chosen = explicit ? entries.filter((e) => ids.includes(e.id)) : entries
+  let failed = false
+  for (const entry of chosen) {
+    if (entry.frozen !== undefined && !(explicit && force)) {
+      deps.log(`${explicit ? 'refused' : 'skipped'} ${entry.id}: frozen (${entry.frozen})${explicit ? '; pass --force to rebuild it anyway' : ''}`)
+      if (explicit) failed = true
+      continue
+    }
+    if (!deps.exists(entry.input)) {
+      deps.log(`${explicit ? 'missing' : 'skipped'} ${entry.id}: raw input ${entry.input} is not here; re-fetch with tools/models/sketchfab-fetch.sh ${entry.source.uid} <name> and copy it there`)
+      if (explicit) failed = true
+      continue
+    }
+    const doc = await runPipeline(await deps.read(entry.input), entry)
+    const bytes = await deps.encode(doc)
+    const problems = checkOutput(doc, bytes.byteLength, entry)
+    if (problems.length) {
+      deps.log(`FAILED ${entry.id}, nothing written: ${problems.join('; ')}`)
+      failed = true
+      continue
+    }
+    deps.write(entry.output, bytes)
+    const m = measureDocument(doc)
+    deps.log(`built ${entry.id} -> ${entry.output}: ${bytes.byteLength} bytes, ${m.triangles} triangles, ${m.drawCalls} draw calls`)
+  }
+  return failed ? 1 : 0
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const io = modelIO()
+  const code = await runBuild(loadModelEntries(), process.argv.slice(2), {
+    exists: existsSync,
+    read: async (p) => io.readBinary(new Uint8Array(readFileSync(p))),
+    write: (p, bytes) => writeFileSync(p, bytes),
+    encode: (doc) => io.writeBinary(doc),
+    log: (line) => console.log(line),
+  })
+  process.exit(code)
 }

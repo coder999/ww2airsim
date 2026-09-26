@@ -1,0 +1,15 @@
+{
+  "id": "wildcat",
+  "input": "tools/models/cache/grumman_f4f_wildcat_airplane.glb",
+  "output": "content/aircraft/wildcat.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4",
+    "uid": "ac26b8bf6be44ba7b903ca7fbdedf7e4",
+    "author": "rojatsu",
+    "license": "CC-BY-4.0"
+  },
+  "frozen": "wildcat.ts poses GRP_Rueda_* with gear poses measured in this file's own node space (2026-09-24), and tests/build/dist.test.ts pins its 5,573,316 bytes; a rebuild through join would change both",
+  "keep": [{ "node": "Helice" }, { "node": "GRP_Rueda_Der" }, { "node": "GRP_Rueda_Izq" }],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "budget": { "maxBytes": 5600000, "maxTriangles": 101000, "maxDrawCalls": 47 }
+}
