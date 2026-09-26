@@ -25,10 +25,13 @@ WALL_T = 0.35
 SHELL_T = 0.3
 DOOR_T = 0.15
 GABLE_INSET = 0.05
+# Below 4 m the 0.3 m shell turns inside out (rise = width/4) and the door leaves cross.
+# The smallest real placement is Dulag's 12 x 16 m shed.
+MIN_SIZE_M = 4.0
 
 out, opts = kit.cli_args()
-width = kit.positive(opts, 'width', 34)
-length = kit.positive(opts, 'length', 42)
+width = kit.positive(opts, 'width', 34, MIN_SIZE_M)
+length = kit.positive(opts, 'length', 42, MIN_SIZE_M)
 rise = width * RISE_PER_WIDTH
 
 m = kit.Model('hangar')

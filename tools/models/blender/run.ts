@@ -25,11 +25,21 @@ export function installedBlenderVersion(bin = 'blender'): string | null {
   return parseBlenderVersion(r.stdout)
 }
 
-/** Present at any version. A wrong version must fail a test, not skip it. */
-export const HAVE_BLENDER = installedBlenderVersion() !== null
+/** Only a missing executable is absent. A present Blender that is broken or of the
+ *  wrong version must make the Blender suites run and fail, not skip. */
+export function blenderPresent(bin = 'blender'): boolean {
+  const r = spawnSync(bin, ['--version'], { encoding: 'utf8' })
+  return (r.error as NodeJS.ErrnoException | undefined)?.code !== 'ENOENT'
+}
+
+export const HAVE_BLENDER = blenderPresent()
+
+/** A hung Blender would block an unattended run forever: spawnSync cannot be interrupted
+ *  by a test timeout. The hangar takes about a second; a Cycles preview a few. */
+export const BLENDER_TIMEOUT_MS = 300_000
 
 export function assertBlenderVersion(found: string | null): void {
-  if (found === null) throw new Error(`blender not found on PATH; models need Blender ${BLENDER_VERSION}`)
+  if (found === null) throw new Error(`blender not found on PATH or did not report a version; models need Blender ${BLENDER_VERSION}`)
   if (found !== BLENDER_VERSION) {
     throw new Error(`blender ${found} found; models need exactly ${BLENDER_VERSION} (another exporter version changes the bytes)`)
   }
@@ -38,7 +48,7 @@ export function assertBlenderVersion(found: string | null): void {
 const tail = (s: string): string => s.trim().split('\n').slice(-25).join('\n')
 
 /** Runs `script` headless as `blender ... -P script -- out ...args`; throws unless it exits 0 AND writes `out`. */
-export function runBlenderScript(script: string, out: string, args: readonly string[] = [], bin = 'blender'): void {
+export function runBlenderScript(script: string, out: string, args: readonly string[] = [], bin = 'blender', timeoutMs = BLENDER_TIMEOUT_MS): void {
   assertBlenderVersion(installedBlenderVersion(bin))
   mkdirSync(dirname(out), { recursive: true })
   rmSync(out, { force: true })
@@ -50,7 +60,11 @@ export function runBlenderScript(script: string, out: string, args: readonly str
     encoding: 'utf8',
     env: { ...process.env, PYTHONHASHSEED: '0' },
     maxBuffer: 64 * 1024 * 1024,
+    timeout: timeoutMs,
   })
+  if ((r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || r.signal !== null) {
+    throw new Error(`blender ${script} timed out after ${timeoutMs} ms (${r.signal ?? 'killed'})`)
+  }
   if (r.error) throw r.error
   const log = `${r.stdout}\n${r.stderr}`
   if (r.status !== 0) throw new Error(`blender ${script} exited ${r.status}:\n${tail(log)}`)

@@ -24,18 +24,34 @@ PALETTE = {
 }
 
 
+# The keys cli_args parsed, and those a script has read. Model.export refuses to write
+# while any given key was never read, so a typo (--widht) cannot build the default model.
+_given = set()
+_read = set()
+
+
 def cli_args():
-    """(output path, {key: value}) from everything after `--`."""
+    """(output path, {key: value}) from everything after `--`. A key given twice is an error."""
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     if not argv:
         raise ValueError('usage: blender -b -P <script> -- <out.glb> [--key value ...]')
     out, rest = argv[0], argv[1:]
     if len(rest) % 2 or any(not k.startswith('--') for k in rest[::2]):
         raise ValueError(f'arguments must be --key value pairs, got {rest}')
-    return out, {k[2:]: v for k, v in zip(rest[::2], rest[1::2])}
+    opts = {}
+    for k, v in zip(rest[::2], rest[1::2]):
+        if k[2:] in opts:
+            raise ValueError(f'{k} given twice')
+        opts[k[2:]] = v
+    _given.clear()
+    _given.update(opts)
+    _read.clear()
+    return out, opts
 
 
-def positive(opts, key, default):
+def positive(opts, key, default, minimum=None):
+    """A finite number > 0 (and >= minimum, if given) from --key, else default."""
+    _read.add(key)
     raw = opts.get(key, default)
     try:
         v = float(raw)
@@ -43,7 +59,14 @@ def positive(opts, key, default):
         raise ValueError(f'--{key} must be a number, got {raw!r}') from None
     if not math.isfinite(v) or v <= 0:
         raise ValueError(f'--{key} must be > 0, got {raw!r}')
+    if minimum is not None and v < minimum:
+        raise ValueError(f'--{key} must be at least {minimum:g} m, got {raw!r}')
     return v
+
+
+def _require(ok, message):
+    if not ok:
+        raise ValueError(message)
 
 
 def _srgb_to_linear(c):
@@ -90,6 +113,9 @@ class Model:
     def barrel_vault(self, role, spring, width, rise, length, thickness, segments, node=None):
         """Half-elliptic shell over the springing line: outer semi-axes (width/2, rise),
         inner inset by `thickness`, open at both ends except for the rims."""
+        _require(width > 0 and rise > 0 and length > 0, f'barrel_vault: width, rise and length must be > 0, got {width}, {rise}, {length}')
+        _require(0 < thickness < min(width / 2, rise), f'barrel_vault: thickness {thickness} must be > 0 and < min(width/2, rise) = {min(width / 2, rise)}')
+        _require(segments >= 2, f'barrel_vault: segments must be >= 2, got {segments}')
         x, y, z = spring
         n = segments
         ring = lambda a, rx, ry, zz: (x + math.cos(a) * rx, y + math.sin(a) * ry, zz)
@@ -110,6 +136,8 @@ class Model:
     def arch_gable(self, role, base, width, wall, rise, thickness, segments, node=None):
         """An end wall: a rectangle `wall` high under a half-ellipse `rise` high, as a slab
         `thickness` deep along z, centered on base z. The outline is convex."""
+        _require(width > 0 and rise > 0 and thickness > 0 and wall >= 0, f'arch_gable: width, rise, thickness must be > 0 and wall >= 0, got {width}, {rise}, {thickness}, {wall}')
+        _require(segments >= 2, f'arch_gable: segments must be >= 2, got {segments}')
         x, y, z = base
         outline = [(x + width / 2, y)]
         outline += [(x + math.cos(math.pi * i / segments) * width / 2, y + wall + math.sin(math.pi * i / segments) * rise)
@@ -125,6 +153,9 @@ class Model:
         self._part(role, front + back, f, node)
 
     def export(self, path):
+        unread = sorted(_given - _read)
+        if unread:
+            raise ValueError(f'unknown argument --{unread[0]}; this model reads {sorted(_read) or "none"}')
         bpy.ops.wm.read_factory_settings(use_empty=True)
         scene = bpy.context.scene
         root = bpy.data.objects.new(self.name, None)

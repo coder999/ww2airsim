@@ -58,7 +58,7 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
     within1pct(bb.max[2] - bb.min[2], cited.lengthM + 1, 'slab length')
   })
 
-  it('is open at +z and closed at -z: the door leaves stand at the +z end only', () => {
+  it('the door leaves stand at the open +z end only', () => {
     const doors = getBounds(findNode(doc, 'hangar_dark'))
     expect(doors.min[2]).toBeGreaterThan(cited.lengthM / 2 - 1)
   })
@@ -82,6 +82,34 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
   it('refuses bad arguments by name', () => {
     expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad1.glb'), ['--width', '-5'])).toThrow(/--width must be > 0/)
     expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad2.glb'), ['--length', 'abc'])).toThrow(/--length must be a number/)
+    // Positive but too small: the shell would turn inside out and the doors cross.
+    expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad3.glb'), ['--width', '1'])).toThrow(/--width must be at least 4/)
+    // A typo must not build the default model.
+    expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad4.glb'), ['--widht', '22'])).toThrow(/unknown argument --widht/)
+    expect(() => runBlenderScript(blenderScriptFor('hangar'), join(dir, 'bad5.glb'), ['--width', '22', '--width', '30'])).toThrow(/--width given twice/)
+  })
+
+  it('the rear gable closes the back between the walls, below the vault', () => {
+    const node = findNode(doc, 'hangar_steel')
+    const m = node.getWorldMatrix()
+    const halfL = cited.lengthM / 2, inner = cited.widthM / 2 - 0.35
+    let area = 0
+    for (const prim of node.getMesh()!.listPrimitives()) {
+      const pos = prim.getAttribute('POSITION')!, idx = prim.getIndices()!
+      for (let i = 0; i < idx.getCount(); i += 3) {
+        const v = [0, 1, 2].map((k) => {
+          const [x, y, z] = pos.getElement(idx.getScalar(i + k), [0, 0, 0]) as number[]
+          return [m[0]! * x! + m[4]! * y! + m[8]! * z! + m[12]!, m[1]! * x! + m[5]! * y! + m[9]! * z! + m[13]!, m[2]! * x! + m[6]! * y! + m[10]! * z! + m[14]!]
+        })
+        // Faces facing +-z, within 0.5 m of the rear end: the gable's two broad faces.
+        if (!v.every((p) => p[2]! < -halfL + 0.5 && Math.abs(v[0]![2]! - p[2]!) < 1e-6)) continue
+        const [a, b, c] = v as [number[], number[], number[]]
+        const cx = (a[0]! + b[0]! + c[0]!) / 3, cy = (a[1]! + b[1]! + c[1]!) / 3
+        if (Math.abs(cx) < inner && cy < 5.5) area += Math.abs((b[0]! - a[0]!) * (c[1]! - a[1]!) - (c[0]! - a[0]!) * (b[1]! - a[1]!)) / 2
+      }
+    }
+    // Two broad faces, each covering the wall-high rectangle between the walls.
+    expect(area).toBeGreaterThan(2 * 0.9 * (2 * inner) * 5.5)
   })
 
   it('no coplanar overlap at the rear: in the end plane, above the walls, only the vault rim ring', () => {
