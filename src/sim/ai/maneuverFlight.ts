@@ -122,6 +122,65 @@ export function flyLowYoYo<M>(self: AircraftEntity<M>, perceived: AircraftEntity
   return { controls, latch: closureRateMps(self, perceived) > 0 ? null : latch }
 }
 
+/** Attack run (spec §3.5): for a boom-and-zoom or neutral pairing with a
+ *  height advantage (the selector also wants the target ahead of our 3/9
+ *  line). Phase 0 dives onto the lead point at full power with the gun gate
+ *  live, until level with the target, within PASS_RANGE_M, or past it: the
+ *  target behind our 3/9 line while we descend. Phase 1 pulls up at the G
+ *  budget until climbing at ZOOM_START_VY_MPS. Phase 2 zooms on a
+ *  ZOOM_CLIMB_RAD line toward the target until the climb is spent
+ *  (ZOOM_END_VY_MPS) or the height advantage is back (ATTACK_RUN_HEIGHT_M
+ *  above the target, so the selector can start the next run).
+ *
+ *  "Past it" is not the plan's range-opening test (`closureRateMps` < 0).
+ *  Measured 2026-09-26 in the signature world (tests/sim/ai/attackRun.test.ts,
+ *  90 s): with the range-rate test, 27 of 29 attack runs "passed" within
+ *  1 s of entry, because a run re-entered above a target it had not caught
+ *  opens the range from the start; phase 2's end is then already true, so
+ *  the pilot flickered through all three phases every rescore instead of
+ *  diving. Target-behind alone: 1 of 5. Target-behind while descending: 0
+ *  of 4.
+ *
+ *  ATTACK_RUN_HEIGHT_M is spec §3.5's table value (300 m). The other four
+ *  are the plan's values, kept; each swept 2026-09-26 in that world with
+ *  everything else fixed, reading the first run's zoom recovery (height
+ *  regained after its lowest point, over height lost; spec signature >= 0.6):
+ *  - PASS_RANGE_M: 50, 100, 150 -> 0.756; 250 -> 0.754; 350 -> 0.738. The
+ *    first run ends on "level with the target" at 235 m, so it rarely binds.
+ *  - ZOOM_CLIMB_RAD: 15° -> 1.047; 30° -> 0.756; 45° -> 0.895; 60° -> 1.013.
+ *    Every value meets the signature; 30° is kept rather than re-tuned on one
+ *    world.
+ *  - ZOOM_START_VY_MPS: 5, 10 -> 0.756; 20 -> 0.756; 40 -> 0.757.
+ *  - ZOOM_END_VY_MPS: 0, 5, 15 -> 0.756 (the height test ends the zoom
+ *    first, at 71 m/s of climb); 30 -> 0.717, because the zoom then ends the
+ *    tick it starts. */
+export const ATTACK_RUN_HEIGHT_M = 300
+export const PASS_RANGE_M = 150
+export const ZOOM_CLIMB_RAD = 30 * Math.PI / 180
+export const ZOOM_START_VY_MPS = 20
+export const ZOOM_END_VY_MPS = 5
+export function flyAttackRun<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>, latch: ManeuverLatch): Flown {
+  const y = self.state.position.y
+  const lowestAltitudeM = Math.min(latch.lowestAltitudeM, y)
+  const to = sub(perceived.state.position, self.state.position)
+  if (latch.phase === 0) {
+    const rangeM = length(to)
+    const passed = y <= perceived.state.position.y || rangeM < PASS_RANGE_M || (self.state.velocity.y < 0 && dot(to, self.state.velocity) < 0)
+    const controls = { ...leadPursuitControls(self, perceived), throttle: 1 }
+    return { controls, latch: { ...latch, lowestAltitudeM, phase: passed ? 1 : 0 } }
+  }
+  const n = loadFactorBudget(self.spec)
+  if (latch.phase === 1) {
+    const controls = controlsForLiftVector(self.state, self.spec, UP, n, 1)
+    return { controls, latch: { ...latch, lowestAltitudeM, phase: self.state.velocity.y >= ZOOM_START_VY_MPS ? 2 : 1 } }
+  }
+  const flat = length(v3(to.x, 0, to.z)) > 1e-6 ? normalize(v3(to.x, 0, to.z)) : normalize(v3(self.state.velocity.x, 0, self.state.velocity.z))
+  const line = v3(flat.x * Math.cos(ZOOM_CLIMB_RAD), Math.sin(ZOOM_CLIMB_RAD), flat.z * Math.cos(ZOOM_CLIMB_RAD))
+  const controls = { ...steerToward(self.state, self.spec, scale(line, Math.max(length(self.state.velocity), 60)), n), throttle: 1 }
+  const done = self.state.velocity.y <= ZOOM_END_VY_MPS || y >= perceived.state.position.y + ATTACK_RUN_HEIGHT_M
+  return { controls, latch: done ? null : { ...latch, lowestAltitudeM } }
+}
+
 /** A maneuver's controls this tick, and its latch afterwards: the same
  *  object while it continues, a new one on a phase change, null once it has
  *  ended. A non-phased maneuver returns null. */
@@ -138,5 +197,6 @@ export function flyManeuver<M>(
     case 'lag-pursuit': return flyLagPursuit(self, perceived, decision.latch!)
     case 'high-yo-yo': return flyHighYoYo(self, perceived, decision.latch!)
     case 'low-yo-yo': return flyLowYoYo(self, perceived, decision.latch!)
+    case 'attack-run': return flyAttackRun(self, perceived, decision.latch!)
   }
 }

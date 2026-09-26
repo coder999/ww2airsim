@@ -100,3 +100,24 @@ describe('Pursue family selection (Task 8)', () => {
     for (const n of ['lag-pursuit', 'high-yo-yo', 'low-yo-yo'] as const) expect(isPhased(n)).toBe(true)
   })
 })
+
+describe('attack run selection (Task 9)', () => {
+  const base = factsFor('pursue')
+  const high = { ...base, heightOverTargetM: 300 }
+
+  it('boom-and-zoom or neutral, 300 m or more above the target: attack run', () => {
+    expect(selectManeuver({ ...high, envelope: { ...base.envelope, pairing: 'boom-and-zoom' } }, VETERAN_SKILL.repertoire)).toBe('attack-run')
+    expect(selectManeuver({ ...high, envelope: { ...base.envelope, pairing: 'neutral' } }, VETERAN_SKILL.repertoire)).toBe('attack-run')
+  })
+
+  it('never for a better turner, never below 300 m of height advantage, never for green, never with the target behind', () => {
+    expect(selectManeuver({ ...high, envelope: { ...base.envelope, pairing: 'turnfight' } }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver({ ...base, heightOverTargetM: 299 }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver(high, GREEN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver({ ...high, threatBehind: true }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('is phased', () => {
+    expect(isPhased('attack-run')).toBe(true)
+  })
+})

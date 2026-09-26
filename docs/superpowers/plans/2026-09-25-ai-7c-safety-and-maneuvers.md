@@ -2488,7 +2488,7 @@ git commit -m "7c: lag pursuit, high yo-yo and low yo-yo, each selected and flow
 - Produces: `ManeuverName` gains `'attack-run'` (Pursue), and `VETERAN_SKILL.repertoire` gains it. Green's does not: an attack run is vertical.
 - Produces, from `maneuverFlight.ts`: `ATTACK_RUN_HEIGHT_M = 300`, `PASS_RANGE_M = 150`, `ZOOM_CLIMB_RAD = 30°`, `ZOOM_START_VY_MPS = 20`, `ZOOM_END_VY_MPS = 5` and `flyAttackRun`
 
-- [ ] **Step 1: Write the failing tests.** Append to `tests/sim/ai/maneuvers.test.ts`:
+- [x] **Step 1: Write the failing tests.** Append to `tests/sim/ai/maneuvers.test.ts`:
 
 ```ts
 describe('attack run selection (Task 9)', () => {
@@ -2556,12 +2556,12 @@ describe('attack run (7c spec §3.5)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/maneuvers.test.ts tests/sim/ai/attackRun.test.ts --maxWorkers=2`
 Expected: FAIL: `'attack-run'` is not a `ManeuverName`.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 - In `pilot.ts`: add `| 'attack-run'` to `ManeuverName`, add `'attack-run': 'pursue'` to `INTENT_OF`, and add `'attack-run'` to `VETERAN_SKILL.repertoire`.
 - In `maneuvers.ts`: import `ATTACK_RUN_HEIGHT_M` from `./maneuverFlight.js`, add `'attack-run'` to `PHASED`, and make this the FIRST line inside `if (m.intent === 'pursue') {`:
 
@@ -2608,11 +2608,11 @@ export function flyAttackRun<M>(self: AircraftEntity<M>, perceived: AircraftEnti
 
 Add `case 'attack-run': return flyAttackRun(self, perceived, decision.latch!)` to `flyManeuver`.
 
-- [ ] **Step 4: Run the tests and measure.** Run the command from Step 2, and expect PASS. Record the entry height, the lowest point, the zoom's recovery fraction and the tick of the first shot in the test's comment, with today's date. Follow Task 8 Step 8's rule if selection or the signature fails.
+- [x] **Step 4: Run the tests and measure.** Run the command from Step 2, and expect PASS. Record the entry height, the lowest point, the zoom's recovery fraction and the tick of the first shot in the test's comment, with today's date. Follow Task 8 Step 8's rule if selection or the signature fails.
 
-- [ ] **Step 5: The regression gate.** Run Task 8 Step 9's command. Expected: PASS. `pursuit-range` starts level, so no shipped scenario should select an attack run. Confirm that by counting `named === 'attack-run'` ticks in a 120 s run of both shipped pursuit scenarios; expect 0, and record the count.
+- [x] **Step 5: The regression gate.** Run Task 8 Step 9's command. Expected: PASS. `pursuit-range` starts level, so no shipped scenario should select an attack run. Confirm that by counting `named === 'attack-run'` ticks in a 120 s run of both shipped pursuit scenarios; expect 0, and record the count.
 
-- [ ] **Step 6: Verify and commit.**
+- [x] **Step 6: Verify and commit.**
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0

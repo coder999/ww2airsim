@@ -41,7 +41,7 @@ export const VETERAN_SKILL: PilotSkill = {
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
   disengageThreshold: -400,
-  repertoire: ['lead-pursuit', 'lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'defensive-break', 'extend'],
+  repertoire: ['lead-pursuit', 'lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'defensive-break', 'extend'],
   // 7c (Mark's ruling 2026-09-25, "tone the veteran down"): 0.02 -> 0.01.
   // Measured 2026-09-25 through the production frame path against a passive
   // player on the tail-chase fixture (tests/render/aiLethality.test.ts, and
@@ -78,7 +78,8 @@ export const GREEN_SKILL: PilotSkill = {
   // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
   // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): green gets
-  // lag pursuit but neither yo-yo, since both are vertical maneuvers.
+  // lag pursuit but neither yo-yo, since both are vertical maneuvers; nor
+  // the attack run (Task 9), which is a dive and a zoom.
   repertoire: ['lead-pursuit', 'lag-pursuit', 'defensive-break', 'extend'],
 }
 
@@ -91,14 +92,14 @@ export type SafetyMode = 'none' | 'recover' | 'overspeed'
 
 /** A named maneuver (7c spec §3.5). Each belongs to one 7b intent
  *  (`INTENT_OF`). Tasks 8-11 of the 7c plan add the rest of the library. */
-export type ManeuverName = 'lead-pursuit' | 'defensive-break' | 'extend' | 'lag-pursuit' | 'high-yo-yo' | 'low-yo-yo'
+export type ManeuverName = 'lead-pursuit' | 'defensive-break' | 'extend' | 'lag-pursuit' | 'high-yo-yo' | 'low-yo-yo' | 'attack-run'
 
 export const DEFAULT_MANEUVER: Readonly<Record<PilotManeuver, ManeuverName>> = {
   pursue: 'lead-pursuit', break: 'defensive-break', extend: 'extend',
 }
 export const INTENT_OF: Readonly<Record<ManeuverName, PilotManeuver>> = {
   'lead-pursuit': 'pursue', 'defensive-break': 'break', extend: 'extend',
-  'lag-pursuit': 'pursue', 'high-yo-yo': 'pursue', 'low-yo-yo': 'pursue',
+  'lag-pursuit': 'pursue', 'high-yo-yo': 'pursue', 'low-yo-yo': 'pursue', 'attack-run': 'pursue',
 }
 
 /**

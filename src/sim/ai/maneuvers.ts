@@ -3,6 +3,7 @@ import { length, sub, dot, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import type { DecisionFacts } from './decision.js'
 import { airframeEnvelope, relativeEnvelope, type RelativeEnvelope } from './envelope.js'
 import { DEFAULT_MANEUVER, INTENT_OF, type ManeuverLatch, type ManeuverName, type PilotManeuver } from './pilot.js'
+import { ATTACK_RUN_HEIGHT_M } from './maneuverFlight.js'
 import { closureRateMps } from './pursuit.js'
 import { FLOOR_M } from './safety.js'
 
@@ -89,12 +90,21 @@ export const LOW_YOYO_HEIGHT_MARGIN_M = 500
 
 /** The named maneuver for this rescore. With nothing special in the picture
  *  it is the intent's default, which keeps 7b's regression floor. Task 8
- *  adds the Pursue family (lag pursuit, high yo-yo, low yo-yo); Tasks 9-11
- *  add the rest. */
+ *  adds the Pursue family (lag pursuit, high yo-yo, low yo-yo), Task 9 the
+ *  attack run, which outranks them all when the height is there and the
+ *  pairing is not a turnfight (spec §3.5's envelope gate); Tasks 10-11 add
+ *  the rest. */
 export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverName[]): ManeuverName {
   const has = (n: ManeuverName): boolean => repertoire.includes(n)
   const f = m.facts
   if (m.intent === 'pursue') {
+    // The attack run also needs the target ahead of our 3/9 line. Without
+    // that, a new run opens the moment the last one's zoom ends, with the
+    // target behind, and turns back down after it: the first run then
+    // regains 0.505 of the height it lost instead of 0.756 (spec signature
+    // >= 0.6; measured 2026-09-26 in tests/sim/ai/attackRun.test.ts's world,
+    // run for 90 s). Lead pursuit brings the target ahead again first.
+    if (has('attack-run') && m.envelope.pairing !== 'turnfight' && m.heightOverTargetM >= ATTACK_RUN_HEIGHT_M && !m.threatBehind) return 'attack-run'
     const turning = m.targetTurnRateRadPerS >= TARGET_TURNING_RAD_PER_S
     const overshoot = turning && f.rangeM < OVERSHOOT_RANGE_M && m.closureMps > OVERSHOOT_CLOSURE_MPS
     if (overshoot && has('high-yo-yo') && f.relativeEnergyJPerKg >= 0) return 'high-yo-yo'
@@ -105,7 +115,7 @@ export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverNa
   return DEFAULT_MANEUVER[m.intent]
 }
 
-const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo'])
+const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run'])
 export const isPhased = (name: ManeuverName): boolean => PHASED.has(name)
 
 export const latchExpired = (latch: ManeuverLatch, nowS: number): boolean => nowS - latch.enteredAtS >= LATCH_CAP_S
