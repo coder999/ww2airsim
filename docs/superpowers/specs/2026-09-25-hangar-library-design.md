@@ -406,7 +406,7 @@ Each one runs in its own worktree, ends with `npm run verify` at `rc=0`
 2. Flap and stores controls, and Cycle.
 3. Pivot gizmos, wireframe, and counts against the budget.
 4. Ships through Lane C's loader, if S1 has merged. Otherwise this task moves
-   to H3.
+   to H3. Done in S1 (2026-09-25): src/render/hangar/models.ts loads ships through makeShipViewLoader.
 5. `docs/models.md` and the CLAUDE.md pointer.
 6. Handoff.
 

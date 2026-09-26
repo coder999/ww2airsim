@@ -149,6 +149,8 @@ replaced.
 
 ### 3.3 Ships — real curved hull geometry (priority)
 
+**Superseded 2026-09-25** by [the ship-models design](2026-09-25-ship-models-design.md) §0; S1 shipped the models on 2026-09-25 ([handoff](../../handoff/2026-09-25-s1-ship-models.md)).
+
 Different treatment than buildings, per Mark's explicit call: a boxy hull
 is a much more visually jarring simplification for a ship than a boxy
 building is for a structure, so this gets real geometric investment, not

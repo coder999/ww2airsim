@@ -197,6 +197,14 @@ frozen, so a bare build skips it. The design is
 see the [handoff](docs/handoff/2026-09-25-z1-model-pipeline.md); master spec
 §15 holds the status.
 
+**Ships draw licensed models (S1, 2026-09-25).** The three shipped ships
+(`essex-cv`, `fletcher-dd`, `type-b-maru`) are licensed models fitted at
+build time to their `content/ships/*.json`, so the sim stays authoritative
+and Tier 1 fails if a spec moves under a committed glb. A model that fails
+to load draws the procedural boxes and says so in `validationErrors`. See
+the [handoff](docs/handoff/2026-09-25-s1-ship-models.md); master spec §15
+holds the status.
+
 **The rest of Plan 9 (roster, live scoring, dynamic scenario switching)
 landed 2026-09-23/24.** A pilot roster now sits ahead of the scenario/loadout
 pickers (persisted to `localStorage`, not the design doc's original
