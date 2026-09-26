@@ -713,7 +713,7 @@ git commit -m "7c: the per-pilot block becomes pilotTick, bit-identical (7c Task
 - Produces: `relativeEnvelope(self: AirframeEnvelope, target: AirframeEnvelope): RelativeEnvelope`
 - Produces: `TURNFIGHT_THRESHOLD = 1.1`, `BOOM_AND_ZOOM_THRESHOLD = 0.9`
 
-- [ ] **Step 1: Write the failing tests.** Create `tests/sim/ai/envelope.test.ts`:
+- [x] **Step 1: Write the failing tests.** Create `tests/sim/ai/envelope.test.ts`:
 
 ```ts
 import { readdirSync, readFileSync } from 'node:fs'
@@ -789,12 +789,12 @@ describe('no AI code names an airframe (7c spec §7)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/envelope.test.ts --maxWorkers=2`
 Expected: FAIL: `envelope.js` cannot be resolved. The airframe-id test passes already.
 
-- [ ] **Step 3: Implement.** Create `src/sim/ai/envelope.ts`:
+- [x] **Step 3: Implement.** Create `src/sim/ai/envelope.ts`:
 
 ```ts
 import type { AircraftSpec } from '../flight/schema.js'
@@ -867,9 +867,9 @@ export function relativeEnvelope(self: AirframeEnvelope, target: AirframeEnvelop
 
 Check the field names first: `grep -n "wingAreaM2\|maxPowerW\|propEfficiency" src/sim/flight/schema.ts`.
 
-- [ ] **Step 4: Run the tests to verify they pass.** Run the command from Step 2. Expected: PASS.
+- [x] **Step 4: Run the tests to verify they pass.** Run the command from Step 2. Expected: PASS.
 
-- [ ] **Step 5: Verify and commit.** Nothing flies differently. Run the hash probe and confirm that it equals `hash-task1.txt`.
+- [x] **Step 5: Verify and commit.** Nothing flies differently. Run the hash probe and confirm that it equals `hash-task1.txt`.
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
