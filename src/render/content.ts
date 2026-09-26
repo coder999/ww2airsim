@@ -164,6 +164,12 @@ export const TITLE_ART_BYTES = 2_077_706
 export const WILDCAT_MODEL_PATH = 'content/aircraft/wildcat.glb'
 export const WILDCAT_MODEL_URL = `${import.meta.env.BASE_URL}${WILDCAT_MODEL_PATH}`
 
+/** A ship's committed model (ship-models spec §3.2): one glb per ship spec id,
+ *  built by `tools/models/entries/<id>.json`. `shipModels.ts` fetches the URL;
+ *  tests/build/dist.test.ts checks the path, so the two cannot name different files. */
+export const shipModelPath = (id: string): string => `content/ships/${id}.glb`
+export const shipModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${shipModelPath(id)}`
+
 /** Plan 16a's cloud noise volumes, gzipped on disk, inflated in the browser
  *  (src/render/sky/load.ts) exactly as the land-cover raster is. */
 export const SHAPE_NOISE_PATH = 'content/sky/shape.bin.gz'

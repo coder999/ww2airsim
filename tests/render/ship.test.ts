@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { createShipMesh, createShipView, probeShipSurface } from '../../src/render/scene/ship.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
+import { makeShipViewLoader, SHIP_MODELS } from '../../src/render/scene/shipModels.js'
 import { loadShipSpec } from '../../tools/content/load.js'
 
 /**
@@ -197,6 +198,49 @@ describe('ship models (ship-models spec §3, §6)', () => {
     view.setDamage(0, 1)
     expect(view.model).toBeNull()
     expect(view.root.getObjectByName('hull group')!.position.y).toBeCloseTo(-(top + 2), 9)
+  })
+})
+
+describe('makeShipViewLoader: the loud fallback (spec §3.4)', () => {
+  const dd = loadShipSpec('fletcher-dd')
+
+  it('no view.model draws the boxes and reports nothing', async () => {
+    const errors: string[] = []
+    const view = await makeShipViewLoader((m) => errors.push(m), async () => { throw new Error('never asked') })({ ...dd, view: undefined })
+    expect(view.model).toBeNull()
+    expect(errors).toEqual([])
+  })
+
+  it('a registered model loads through the cache by its registry URL', async () => {
+    const asked: string[] = []
+    const cache = createModelCache(async (url) => { asked.push(url); return syntheticShip() })
+    const view = await makeShipViewLoader(() => {}, (url) => cache.acquire(url))(dd)
+    expect(view.model).toBe('fletcher-dd')
+    expect(asked).toEqual([SHIP_MODELS['fletcher-dd']!.url])
+  })
+
+  it('a model that fails to load draws the boxes AND reports it, naming the ship and the model', async () => {
+    const errors: string[] = []
+    const view = await makeShipViewLoader((m) => errors.push(m), async () => { throw new Error('404 Not Found') })(dd)
+    expect(view.model).toBeNull()
+    expect(errors).toEqual([expect.stringMatching(/^ship fletcher-dd: model "fletcher-dd" failed.*404 Not Found/)])
+  })
+
+  it('a model missing SmokeOrigin is released, drawn as boxes, and reported', async () => {
+    const errors: string[] = []
+    const cache = createModelCache(async () => syntheticShip({ smoke: false }))
+    const view = await makeShipViewLoader((m) => errors.push(m), (url) => cache.acquire(url))(dd)
+    expect(view.model).toBeNull()
+    expect(cache.refCount(SHIP_MODELS['fletcher-dd']!.url)).toBe(0)
+    expect(errors[0]).toMatch(/required node "SmokeOrigin" not found/)
+  })
+
+  it('an unregistered or prototype-named model id is reported, never looked up on Object.prototype', async () => {
+    for (const id of ['nope', 'constructor']) {
+      const errors: string[] = []
+      await makeShipViewLoader((m) => errors.push(m))({ ...dd, view: { model: id } })
+      expect(errors[0]).toMatch(new RegExp(`no ship model "${id}" \\(registered: essex-cv, fletcher-dd, type-b-maru\\)`))
+    }
   })
 })
 

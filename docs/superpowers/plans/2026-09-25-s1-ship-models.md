@@ -2490,7 +2490,7 @@ git commit -m "S1: ShipView, the model path, a list about the keel, sink by the 
 
 After this task the three specs name their models, but nothing loads them yet: `scenarioEntities.ts` and the Hangar still call `createShipMesh` until Task 7.
 
-- [ ] **Step 1: Write the failing tests.** `tests/render/shipModels.test.ts`:
+- [x] **Step 1: Write the failing tests.** `tests/render/shipModels.test.ts`:
 
 ```ts
 // tests/render/shipModels.test.ts
@@ -2594,12 +2594,12 @@ describe('the render-only view block (ship-models spec §3.1)', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to see them fail.**
+- [x] **Step 2: Run them to see them fail.**
 
 Run: `npx vitest run tests/render/shipModels.test.ts tests/render/ship.test.ts tests/sim/world/ships.test.ts --maxWorkers=2`
 Expected: FAIL. `shipModels.js` does not resolve, and `parseShipSpec` rejects the `view` key.
 
-- [ ] **Step 3: The schema key and the content.** Apply to `src/sim/world/ships.ts`:
+- [x] **Step 3: The schema key and the content.** Apply to `src/sim/world/ships.ts`:
 
 ```diff
 --- a/src/sim/world/ships.ts
@@ -2652,7 +2652,7 @@ Apply to `src/render/content.ts`:
  export const SHAPE_NOISE_PATH = 'content/sky/shape.bin.gz'
 ```
 
-- [ ] **Step 4: The registry and the loader.** `src/render/scene/shipModels.ts`:
+- [x] **Step 4: The registry and the loader.** `src/render/scene/shipModels.ts`:
 
 ```ts
 // src/render/scene/shipModels.ts
@@ -2712,12 +2712,12 @@ export function makeShipViewLoader(reportError: (message: string) => void, acqui
 export const loadRegisteredShipView: LoadShipView = makeShipViewLoader((message) => { console.error(message) })
 ```
 
-- [ ] **Step 5: Run them to see them pass.**
+- [x] **Step 5: Run them to see them pass.**
 
 Run: `npx vitest run tests/render/shipModels.test.ts tests/render/ship.test.ts tests/sim/world/ships.test.ts tests/render/hangar/ --maxWorkers=2`
 Expected: PASS. `shipModels.test.ts` has 4 tests, `ship.test.ts` 18. The Hangar tests still pass: its content parses the new key through the same schema.
 
-- [ ] **Step 6: Verify and commit.** Re-diff `ships.ts`, the three JSONs and `content.ts` against `HEAD`: only the lines above.
+- [x] **Step 6: Verify and commit.** Re-diff `ships.ts`, the three JSONs and `content.ts` against `HEAD`: only the lines above.
 
 ```bash
 flock /tmp/ww2airsim-fullsuite.lock sh -c 'npm run typecheck && npm run lint && npm run depcruise && npx vitest run --maxWorkers=2'; rc=$?; echo "rc=$rc"
