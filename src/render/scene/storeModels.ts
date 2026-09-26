@@ -23,6 +23,13 @@ export async function loadStoreVisuals(storeIds: readonly string[], pitchRad: nu
     throw failed.reason
   }
   const instances = settled.map((r) => (r as PromiseFulfilledResult<ModelInstance>).value)
-  const byStore = new Map(ids.map((id, i) => [id, storeMeshOf(instances[i]!.root, id)] as const))
-  return { byStore, pitchRad, release: () => { for (const i of instances) i.release() } }
+  const release = (): void => { for (const i of instances) i.release() }
+  try {
+    // A bad glb (not exactly one mesh) is a failure too: release everything, as above.
+    const byStore = new Map(ids.map((id, i) => [id, storeMeshOf(instances[i]!.root, id)] as const))
+    return { byStore, pitchRad, release }
+  } catch (e) {
+    release()
+    throw e
+  }
 }

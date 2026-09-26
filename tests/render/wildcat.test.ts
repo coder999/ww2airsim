@@ -1,5 +1,5 @@
 // tests/render/wildcat.test.ts
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
 import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, WILDCAT_DATUM_PITCH_RAD, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE, wildcatToSimMatrix } from '../../src/render/scene/wildcat.js'
 import { WILDCAT_CORRECTION_NAME } from '../../src/render/scene/wildcatFrame.js'
@@ -139,11 +139,22 @@ describe('loadWildcat stores (O1)', () => {
   })
 
   it('a store model that fails to load falls back to primitive stores; the airframe still loads', async () => {
-    const cache = syntheticCache({ failOrdnance: true })
-    const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
-    const rack = a.root.getObjectByName(f6fMounts.racks[0]!.id) as Mesh
-    expect(rack.geometry.type).toBe('BoxGeometry')
-    expect(rack.rotation.z).toBe(0)
-    a.dispose()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const cache = syntheticCache({ failOrdnance: true })
+      const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
+      expect(warn).toHaveBeenCalledOnce()
+      expect(String(warn.mock.calls[0]![0])).toMatch(/store models failed \(404 .*\/ordnance\/.*\); hanging primitive stand-ins/)
+      // Nothing of the failed load is still held.
+      expect(cache.refCount(ordnanceModelUrl('an-m65'))).toBe(0)
+      expect(cache.refCount(ordnanceModelUrl('hvar'))).toBe(0)
+      const rack = a.root.getObjectByName(f6fMounts.racks[0]!.id) as Mesh
+      expect(rack.geometry.type).toBe('BoxGeometry')
+      expect(rack.rotation.z).toBe(0)
+      a.dispose()
+      expect(cache.refCount(WILDCAT_MODEL_URL)).toBe(0)
+    } finally {
+      warn.mockRestore()
+    }
   })
 })

@@ -94,7 +94,14 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       const p = primitiveStoreVisuals(stores, trim)
       return { ...p, release: () => { p.dispose(); trim.dispose() } }
     })
-    hung = attachStores(root, stores, visuals)
+    try {
+      hung = attachStores(root, stores, visuals)
+    } catch (e) {
+      // Nothing is returned to own them, so free the visuals and the airframe here.
+      visuals.release()
+      instance.release()
+      throw e
+    }
     freeVisuals = visuals.release
   }
   let disposed = false
