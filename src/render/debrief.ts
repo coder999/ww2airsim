@@ -40,6 +40,12 @@ const POINTS_BY_TARGET_TYPE: Readonly<Record<TargetType, number>> = {
   carrier: 5000,
 }
 
+/** The point value of one kill of type `t`. Exported (Hangar spec §5) so the
+ *  library's cards read THIS table rather than a copy of it. */
+export function pointsForTargetType(t: TargetType): number {
+  return POINTS_BY_TARGET_TYPE[t]
+}
+
 const TARGET_LABEL: Readonly<Record<TargetType, string>> = {
   fighter: 'Fighter',
   bomber: 'Bomber',
@@ -49,6 +55,11 @@ const TARGET_LABEL: Readonly<Record<TargetType, string>> = {
   runway: 'Runway',
   building: 'Building',
   carrier: 'Carrier',
+}
+
+/** The debrief's row label for type `t`, exported for the same reason. */
+export function targetLabel(t: TargetType): string {
+  return TARGET_LABEL[t]
 }
 
 /**
