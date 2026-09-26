@@ -891,7 +891,7 @@ git commit -m "7c: the airframe envelope, derived from spec fields; the Zero rea
 - Produces: `controlsForLiftVector(state, spec, liftDirection: Vec3, loadFactorG: number, throttle: number): Controls`
 - Produces: `steerToward(state, spec, desiredVelocity: Vec3, loadFactorG: number): Controls`, and `LIFT_VECTOR_HANDOFF_RAD = 60°`
 
-- [ ] **Step 1: Write the failing tests.** Create `tests/sim/ai/liftVector.test.ts`:
+- [x] **Step 1: Write the failing tests.** Create `tests/sim/ai/liftVector.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -992,12 +992,12 @@ describe('steerToward', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail.**
+- [x] **Step 2: Run the tests to verify they fail.**
 
 Run: `npx vitest run tests/sim/ai/liftVector.test.ts --maxWorkers=2`
 Expected: FAIL, because `liftVector.js` cannot be resolved.
 
-- [ ] **Step 3: Implement.** Create `src/sim/ai/liftVector.ts`:
+- [x] **Step 3: Implement.** Create `src/sim/ai/liftVector.ts`:
 
 ```ts
 import type { AircraftSpec } from '../flight/schema.js'
@@ -1103,9 +1103,9 @@ export function steerToward(state: AircraftState, spec: AircraftSpec, desiredVel
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass.** Run the command from Step 2. Expected: PASS. If the Zero fade test fails, check that 150 m/s at sea level is above the fade's 250 mph EAS knee: 111.76 m/s, per `a6m2-zero.json`'s `controlFadeByEasMps`.
+- [x] **Step 4: Run the tests to verify they pass.** Run the command from Step 2. Expected: PASS. If the Zero fade test fails, check that 150 m/s at sea level is above the fade's 250 mph EAS knee: 111.76 m/s, per `a6m2-zero.json`'s `controlFadeByEasMps`.
 
-- [ ] **Step 5: Verify and commit.** The hash must still equal `hash-task1.txt`, because nothing calls this file yet.
+- [x] **Step 5: Verify and commit.** The hash must still equal `hash-task1.txt`, because nothing calls this file yet.
 
 ```bash
 npm run typecheck && npm run lint && npm run depcruise && flock /tmp/ww2airsim-fullsuite.lock npx vitest run --maxWorkers=2; rc=$?; echo "rc=$rc"   # rc=0
