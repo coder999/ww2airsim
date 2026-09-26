@@ -21,7 +21,7 @@ const ROUTE = [
 ]
 const PLAYER_FAR = { id: 'f6f-1', spec: 'f6f-hellcat', airborneAt: { position: [60000, 3000, 60000], headingDeg: 90, speedMps: 120 } }
 const RAIDER = { id: 'raid-1', spec: 'f6f-hellcat', airborneAt: { position: [0, 3000, 0], headingDeg: 0, speedMps: 130 }, pilot: { skill: 'green', ingress: { route: ROUTE, destination: { ship: 'cv-1' } } } }
-const CARRIER = { id: 'cv-1', spec: 'essex-cv', waypoints: [[-8000, -48000], [-8000, -60000]], speedMps: 10 }
+const CARRIER = { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[-8000, -48000], [-8000, -60000]], speedMps: 10 }
 const raw = (aircraft: unknown[]) => ({ id: 'ingress-test', player: 'f6f-1', airfields: ['tacloban'], aircraft, ships: [CARRIER], weather: { windFromDeg: 0, windMps: 0 } })
 const build = (aircraft: unknown[]) => worldFromScenario(bundleForScenario(parseScenario(raw(aircraft))), null)
 const raider = (w: World<undefined>) => aircraftById(w, 'raid-1')!

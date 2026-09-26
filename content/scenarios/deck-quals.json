@@ -35,6 +35,7 @@
     {
       "id": "cv-1",
       "spec": "essex-cv",
+      "side": "allied",
       "waypoints": [
         [
           -9084,
@@ -58,6 +59,7 @@
     {
       "id": "dd-1",
       "spec": "fletcher-dd",
+      "side": "allied",
       "waypoints": [
         [
           -8872,
@@ -81,6 +83,7 @@
     {
       "id": "dd-2",
       "spec": "fletcher-dd",
+      "side": "allied",
       "waypoints": [
         [
           -9296,

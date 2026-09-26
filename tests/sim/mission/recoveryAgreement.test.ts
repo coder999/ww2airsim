@@ -24,7 +24,7 @@ import { NORTH, flatField } from './fixture.js'
  */
 const GEAR_M = loadAircraftSpec('f6f-hellcat').gear.heightM
 const TAC = loadAirfield('tacloban').runway.center
-const CV_1 = { id: 'cv-1', spec: 'essex-cv', waypoints: [[-25629, -16479]], speedMps: 0 }
+const CV_1 = { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[-25629, -16479]], speedMps: 0 }
 const FRAME = 1 / 60
 const NO_KEYS: ReadonlySet<string> = new Set()
 const kills = zeroKillsByType()

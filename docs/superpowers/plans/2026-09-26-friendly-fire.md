@@ -89,7 +89,7 @@ Each ruling is listed with what it costs if it is wrong.
 - add tests in `tests/sim/sides.test.ts`, plus fixture sides in `tests/sim/ai/ingress.test.ts` and `tests/sim/mission/recoveryAgreement.test.ts` where they land on or raid `cv-1`.
 
 Steps:
-- [ ] Write failing tests:
+- [x] Write failing tests:
   - `sideOf` on a ship without a side is axis, and with `side: 'allied'` is allied;
   - `airfieldSideOf(airfield, overrides)`: an override wins, then the base `side`, then axis;
   - a structure takes its airfield's side through `createWorldOf`;
@@ -100,16 +100,16 @@ Steps:
     - `land` at an axis ship or field;
     - an ingress destination on the raider's side;
     - an `airfieldSides` key that is not an airfield (schema).
-- [ ] Implement:
+- [x] Implement:
   - `airfieldSideOf`;
   - `ScenarioShipObject.side`, `ScenarioShape.airfieldSides` and the airfield `side`;
   - `buildShip` spreads `side` only when content has one, as `sideFrom` does;
   - `createWorldOf` stamps structure `side` and throws on a friendly enemy airfield;
   - `checkScenarioSides(bundle)` is called by `worldFromScenario`.
-- [ ] Set the content sides (spec §3).
-- [ ] Run the touched tests with `--maxWorkers=2`.
-- [ ] Run the digest probe. Stripped and motion must equal the baseline.
-- [ ] Commit.
+- [x] Set the content sides (spec §3).
+- [x] Run the touched tests with `--maxWorkers=2`.
+- [x] Run the digest probe. Stripped and motion must equal the baseline.
+- [x] Commit.
 
 ### Task 2: Friendly-fire record and own-side credit
 

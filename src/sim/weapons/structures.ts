@@ -1,6 +1,7 @@
 import { v3, type Vec3 } from '../math/vec3.js'
 import { localToWorld, runwayHeadingRad, type Airfield } from '../world/airfields.js'
 import { heightAt, type TerrainField } from '../world/terrain.js'
+import type { Side } from '../sides.js'
 
 /** A strike target derived from airfield content, never stepped (spec §3.5:
  *  "no motion, no aging"). Built once at world creation from EVERY airfield's
@@ -14,6 +15,9 @@ export type StructureEntity = {
   readonly headingRad: number
   readonly halfSize: { readonly x: number; readonly y: number; readonly z: number }
   readonly hp: number
+  /** Its airfield's side (friendly-fire spec §2), stamped by `createWorldOf`
+   *  through `airfieldSideOf`; absent reads as axis through `sideOf`. */
+  readonly side?: Side
 }
 
 /** A generous, content-independent height: buildings are never modelled

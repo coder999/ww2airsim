@@ -15,7 +15,8 @@ import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
  *
  * - the player flies east from the origin at 3,000 m
  * - `bandit-1` (tag `raid`) flies east 20 km north of it, so the two never meet
- * - an Essex (`cv-1`) and two marus (tag `convoy`) lie at anchor
+ * - an Essex (`cv-1`, allied: a land objective on it must be the player's
+ *   side, friendly-fire spec §3) and two marus (tag `convoy`) lie at anchor
  * - Tacloban and Dulag are both loaded, so structure ids resolve
  * - no pilots: the controls are authoritative, so no AI moves anything
  *   unasked
@@ -29,7 +30,7 @@ export const BASE = {
     { id: 'bandit-1', spec: 'f6f-hellcat', tags: ['raid'], airborneAt: { position: [0, 3000, -20000], headingDeg: 90, speedMps: 120 } },
   ],
   ships: [
-    { id: 'cv-1', spec: 'essex-cv', waypoints: [[-25629, -16479]], speedMps: 0 },
+    { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[-25629, -16479]], speedMps: 0 },
     { id: 'maru-1', spec: 'type-b-maru', tags: ['convoy'], waypoints: [[-25000, -10000]], speedMps: 0 },
     { id: 'maru-2', spec: 'type-b-maru', tags: ['convoy'], waypoints: [[-25000, -9000]], speedMps: 0 },
   ],
