@@ -88,16 +88,23 @@ function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
   stand.position.y = gearHeightM
   stand.add(airframe.root)
   let gearFraction = 1, flapFraction = 0, throttle = 0
+  const apply = (frameS: number): void => {
+    airframe.update({ gearFraction, flapFraction, throttle, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS, cameraDistanceM: 0 })
+  }
   return {
     root: stand,
     parts: partSpecsFor(airframe.parts),
+    // Applied at once with frameS 0 (the propeller does not advance), so a
+    // pose shows on a frozen page too; before this, it waited for the next
+    // update, which a frozen page never runs (H1 Tier 2 check 2, 2026-09-25).
     pose(p): void {
       if (p.gearFraction !== undefined) gearFraction = p.gearFraction
       if (p.flapFraction !== undefined) flapFraction = p.flapFraction
       if (p.throttle !== undefined) throttle = p.throttle
+      apply(0)
     },
     update(frameS): void {
-      airframe.update({ gearFraction, flapFraction, throttle, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS, cameraDistanceM: 0 })
+      apply(frameS)
     },
     counts: () => sceneCounts(stand),
     dispose: () => airframe.dispose(),

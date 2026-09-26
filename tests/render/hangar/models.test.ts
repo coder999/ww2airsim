@@ -31,6 +31,14 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
     expect(m!.parts.find((p) => p.id === 'gear')!.modeled).toBe(false)
   })
 
+  it('pose applies at once, without advancing the clock, so a frozen page still shows it (Tier 2 check 2)', async () => {
+    const hellcat = createHellcat()
+    const update = vi.spyOn(hellcat, 'update')
+    const m = await loadHangarModel(byId('f6f-hellcat'), async () => hellcat)
+    m!.pose({ gearFraction: 0 })
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ gearFraction: 0, frameS: 0 }))
+  })
+
   it('a ship and a building load with no articulated parts and a non-zero triangle count', async () => {
     for (const id of ['essex-cv', 'hangar']) {
       const m = await loadHangarModel(byId(id))

@@ -31,11 +31,20 @@ async function boot(): Promise<void> {
     return
   }
 
-  root.style.cssText = 'display:grid;grid-template-columns:380px 1fr;height:100%'
+  // minmax(0, ...) on both tracks: a grid item's default min size is its
+  // content, so the canvas's own pixel width would otherwise widen its column
+  // past the window and the panel would grow to the list's full height
+  // (measured 2026-09-25: canvas right edge at 1660 px in a 1280 px window).
+  root.style.cssText = 'display:grid;grid-template-columns:380px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%'
   const canvas = document.createElement('canvas')
   canvas.id = 'hangar-canvas'
-  canvas.style.cssText = 'width:100%;height:100%;display:block'
+  canvas.style.cssText = 'width:100%;height:100%;display:block;min-width:0;min-height:0'
   const { renderer, adapterVerdict } = await initRenderer(canvas)
+  // initRenderer sizes the canvas to the whole window, inline style included
+  // (renderer.ts's setSize); here it fills its grid column instead, and fit()
+  // below sizes the drawing buffer from that.
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
   if (adapterVerdict.severity === 'fail') {
     showFailure(root, 'software-adapter', adapterVerdict.summary)
     return

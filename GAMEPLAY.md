@@ -103,6 +103,20 @@ performance decision, not decoration.
 Post-mission: targets destroyed with per-item points, mission total, recovery
 multiplier applied, banked total, badges awarded, and any promotion.
 
+## Library
+
+`hangar.html` ("Library" on the title's first form) shows every aircraft,
+ship and building in the rosters below: a turntable model, the gameplay
+figures (hit points, speed, armament, points), read live from the game's own
+content so they cannot go stale, and a short sourced history of the real
+thing. A roster row with no game content yet shows as **Not yet in
+service**, with its history and no model or figures; the card fills in when
+its spec and model land. Stand-ins are disclosed on the card.
+
+The rosters below are checked against `content/library/` by a test: a row
+added here without a library file fails the suite. Design:
+[hangar spec](docs/superpowers/specs/2026-09-25-hangar-library-design.md).
+
 ## Aircraft roster
 
 

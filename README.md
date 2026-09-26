@@ -166,6 +166,11 @@ their own memo underneath both. The KIA-pilot resurrection now happens on
 Launch, not New game. `src/render/titleScreen.ts` is authoritative; the e2e
 harness's `startGame` walks both forms.
 
+The title's **Library** opens the separate Hangar catalog described in
+[GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
+the remaining model-track work are recorded in
+[master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
+
 **The rest of Plan 9 (roster, live scoring, dynamic scenario switching)
 landed 2026-09-23/24.** A pilot roster now sits ahead of the scenario/loadout
 pickers (persisted to `localStorage`, not the design doc's original

@@ -31,8 +31,11 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   const panel = el('div', 'naval-comms hangar-panel')
   panel.setAttribute('role', 'region')
   panel.setAttribute('aria-label', 'Library')
+  // The panel fills its grid cell and the sheet scrolls inside it, rather
+  // than the page growing to the list's height.
+  panel.style.cssText = 'min-height:0;overflow:hidden;padding:16px'
   const sheet = el('div', 'sheet')
-  sheet.style.cssText = 'height:100%;box-sizing:border-box;overflow-y:auto;padding:14px 16px'
+  sheet.style.cssText = 'flex:1 1 0;min-height:0;width:100%;box-sizing:border-box;overflow-y:auto;padding:14px 16px'
   panel.appendChild(sheet)
 
   const header = el('div', 'letterhead')
