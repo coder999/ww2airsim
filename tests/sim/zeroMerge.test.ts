@@ -17,6 +17,13 @@ import { flyGunneryBot, withNoiseCursor } from './gunneryBot.js'
  * 8/8 kills at 9.07-9.57 s, 8 hits each, and the AI Zero fired 0 rounds
  * (0 hits) in every run -- the pursuer-never-fires open item the gunnery
  * handoff hands to 7c, not a Zero property.
+ *
+ * 7c (2026-09-25): the AI Zero no longer cuts its own engine. At HEAD it
+ * pushed negative g through 176 ticks (2.9 s) of the approach, and with the
+ * engine starved the bot killed it 8/8. With 7c's 0 g floor its engine keeps
+ * running, and the bot kills it at the merge in 2 of 8 runs (measured with
+ * the prototype envelope). The floor is lowered to 1, which is ruling R9,
+ * Open for Mark item 2.
  */
 const CURSORS = [0, 7919, 15838, 23757, 31676, 39595, 47514, 55433]
 
@@ -36,6 +43,6 @@ describe('zero-merge: F6F player against an AI Zero, head-on', () => {
       expect(Number.isFinite(r.opponentShots) && Number.isFinite(r.opponentHits)).toBe(true)
     }
     console.log('zero-merge runs', JSON.stringify(runs))
-    expect(runs.filter((r) => r.killS !== null).length).toBeGreaterThanOrEqual(4)
+    expect(runs.filter((r) => r.killS !== null).length).toBeGreaterThanOrEqual(1)
   })
 })

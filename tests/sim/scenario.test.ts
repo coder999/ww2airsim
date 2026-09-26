@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { parseScenario, worldFromScenario, AIRBORNE_SPAWN_THROTTLE, PARKED_PLACEHOLDER_Y_M, type ScenarioBundle } from '../../src/sim/scenario.js'
-import { advance, playerAircraft } from '../../src/sim/loop.js'
+import { advance, playerAircraft, type World } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
 import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
-import { v3, ZERO } from '../../src/sim/math/vec3.js'
+import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
@@ -14,7 +14,7 @@ import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
-import { GREEN_SKILL, VETERAN_SKILL } from '../../src/sim/ai/pilot.js'
+import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
 /** The level a real page load actually flies over today -- see
@@ -138,7 +138,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     expect(pursuer.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), 0))
     expect(pursuer.parked).toBe(false)
     expect(pursuer.pilot).toEqual({
-      target: 'f6f-1', skill: VETERAN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0 },
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision(),
     })
   })
 
@@ -151,7 +151,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     const veteranWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(veteran) }, null)
     const veteranPursuer = veteranWorld.aircraft.find((a) => a.id === 'pursuer-1')!
     expect(veteranPursuer.pilot).toEqual({
-      target: 'f6f-1', skill: VETERAN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0 },
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision(),
     })
 
     const green = raw()
@@ -159,7 +159,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     const greenWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(green) }, null)
     const greenPursuer = greenWorld.aircraft.find((a) => a.id === 'pursuer-1')!
     expect(greenPursuer.pilot).toEqual({
-      target: 'f6f-1', skill: GREEN_SKILL, decision: { maneuver: 'pursue', nextRescoreS: 0, observedTargetPosition: ZERO, observedTargetVelocity: ZERO, noiseCursor: 0 },
+      target: 'f6f-1', skill: GREEN_SKILL, decision: initialDecision(),
     })
   })
 
@@ -210,7 +210,16 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     // that goes red on any future AI retune for reasons that have nothing to
     // do with that claim. It also still covers the slower rejoin-and-second-
     // pass path, which remains reachable.
-    let world = worldFromScenario(pursuit, null)
+    //
+    // 7c (2026-09-25): flown by a GREEN pursuer, by override, because the
+    // veteran retune (controlNoise 0.01) puts the veteran's first hit at tick
+    // 9912 against this 12,000 budget: the rounds pass low, so a steadier
+    // hand hits less (7c spec §1.2). The claim here, that the gate and the
+    // steering agree so rounds connect, does not depend on skill. Measured
+    // 2026-09-25: green's first shot is at tick 181 and its first hit at 370.
+    // The fixture stays frozen (it pins veteran for the other 7a/7b tests).
+    const start = worldFromScenario(pursuit, null)
+    let world: World<undefined> = { ...start, aircraft: start.aircraft.map((a) => a.pilot == null ? a : { ...a, pilot: { ...a.pilot, skill: GREEN_SKILL } }) }
     for (let i = 0; i < 2400 && world.combat.aircraft['pursuer-1']!.hits === 0; i++) {
       world = advance(world, DT * 5).world
     }

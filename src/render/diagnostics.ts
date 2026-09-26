@@ -339,6 +339,10 @@ export type Ww2Diagnostics = {
      *  boot (first frame, resizes, every discontinuity reset); 0 with no pass. */
     readonly historyResets: number
   }
+  /** Visual realism §2.1: whether the terrain textures loaded this boot, and
+   *  whether the ring materials are drawing them (false at scenery `low`,
+   *  under `?terrainTextures=off`, or after a failed load). */
+  readonly terrainSurface: () => { readonly texturesLoaded: boolean; readonly detail: boolean }
   /** Photoreal Task 6: explicit TRAA (and world-fixed motion) history resets
    *  since boot -- the same discontinuities the cloud history resets on. */
   readonly antiAliasing: () => { readonly historyResets: number }

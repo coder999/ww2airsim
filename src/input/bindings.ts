@@ -13,11 +13,10 @@ export const BINDINGS = {
   // for it, and he moved throttle to `=` and `-` exclusively at the same time.
   yawLeft: ['KeyZ'],
   yawRight: ['KeyX'],
-  // `=` and `-` exclusively (Mark, 2026-09-17). Shift was throttle-up and is
-  // now unbound -- every test and both Tier 2 specs drove the throttle with
-  // `ShiftLeft` and were updated in the same commit. `keyLabel('ShiftLeft')`
-  // stays in `legend.ts`: it is a label for any key code, not a claim that
-  // Shift is bound.
+  // `=` and `-` exclusively (Mark, 2026-09-17). Shift was throttle-up -- every
+  // test and both Tier 2 specs drove the throttle with `ShiftLeft` and were
+  // updated in the same commit. Shift is now the autopilot (`autopilot`
+  // below, 2026-09-25).
   // The keypad's + and - too (Mark, 2026-09-17): the same lever from either
   // side of the keyboard, where a keypad exists.
   throttleUp: ['Equal', 'NumpadAdd'],
@@ -103,6 +102,12 @@ export const BINDINGS = {
   // A bare letter for the reason `throttleDown` documents: no modifier a
   // browser can intercept.
   toggleMute: ['KeyQ'],
+  // The pursuit autopilot (Mark, 2026-09-25): HELD, like the brakes -- the
+  // stick is flown toward the nearest enemy only while the key is down (see
+  // src/sim/ai/autoPursuit.ts). He asked for `A`, which is WASD roll-left, and
+  // chose Shift instead: free since throttle moved to `=`/`-` on 2026-09-17
+  // (`throttleUp` above), and both Shifts, so either hand can hold it.
+  autopilot: ['ShiftLeft', 'ShiftRight'],
   // Plan 17. `Tab` for the radar range: free (not one of the letters/codes
   // any other binding claims), and its browser default -- shifting page
   // focus -- has nothing here to usefully land on, so `preventDefault` in

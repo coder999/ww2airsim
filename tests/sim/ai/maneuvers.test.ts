@@ -1,0 +1,240 @@
+import { describe, expect, it } from 'vitest'
+import {
+  IMMELMANN_MIN_PATH_RAD, LATCH_CAP_S, SCISSORS_ANGLE_RAD, SCISSORS_RANGE_M, airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch,
+  selectManeuver,
+} from '../../../src/sim/ai/maneuvers.js'
+import { deriveFacts } from '../../../src/sim/ai/decision.js'
+import { DEFAULT_MANEUVER, GREEN_SKILL, INTENT_OF, VETERAN_SKILL, initialDecision, type ManeuverLatch, type ManeuverName } from '../../../src/sim/ai/pilot.js'
+import { EXCLUDABLE_MANEUVERS } from '../../../src/sim/flight/schema.js'
+import { pilotTick } from '../../../src/sim/ai/pilotTick.js'
+import { createState } from '../../../src/sim/flight/state.js'
+import { createWorldOf, type AircraftEntity } from '../../../src/sim/loop.js'
+import { v3, ZERO } from '../../../src/sim/math/vec3.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
+
+const f6f = loadAircraftSpec('f6f-hellcat')
+const at = (id: string, position = v3(0, 3000, 0), velocity = v3(120, 0, 0)): AircraftEntity<undefined> => {
+  const state = createState({ position, velocity })
+  return { id, spec: f6f, state, previous: state, controls: { roll: 0, pitch: 0, yaw: 0, throttle: 0.7 }, assistMemory: undefined, impact: null, parked: false }
+}
+const self = at('s')
+const neutralTarget = at('t', v3(400, 3000, 0), v3(120, 0, 0))
+const factsFor = (intent: 'pursue' | 'extend' | 'break') =>
+  maneuverFacts(self, neutralTarget, deriveFacts(self, neutralTarget, 0, 1), intent, 3000)
+const latch = (name: ManeuverLatch['name'], enteredAtS = 0): ManeuverLatch =>
+  ({ name, phase: 0, enteredAtS, entryHeadingRad: 0, entryAltitudeM: 3000, loopCenter: ZERO, reversals: 0, lastSide: 0, lowestAltitudeM: 3000 })
+
+describe('selectManeuver: 7b\'s intent in, a named maneuver out (7c spec §3.5)', () => {
+  it('a plain picture gives each intent its default, which is 7b\'s regression floor', () => {
+    for (const intent of ['pursue', 'extend', 'break'] as const) {
+      expect(selectManeuver(factsFor(intent), VETERAN_SKILL.repertoire)).toBe(DEFAULT_MANEUVER[intent])
+    }
+  })
+
+  it('an empty repertoire still flies the defaults', () => {
+    expect(selectManeuver(factsFor('pursue'), [])).toBe('lead-pursuit')
+  })
+})
+
+describe('the phase latch', () => {
+  it('expires at LATCH_CAP_S', () => {
+    expect(latchExpired(latch('extend', 5), 5 + LATCH_CAP_S - 1e-9)).toBe(false)
+    expect(latchExpired(latch('extend', 5), 5 + LATCH_CAP_S)).toBe(true)
+  })
+
+  it('only a Break forced by a threat astern interrupts a non-Break latch', () => {
+    const threat = { ...deriveFacts(self, neutralTarget, 0, 1), threatAstern: true }
+    const calm = { ...threat, threatAstern: false }
+    expect(interruptsLatch(latch('extend'), 'break', threat)).toBe(true)
+    expect(interruptsLatch(latch('extend'), 'break', calm)).toBe(false)
+    expect(interruptsLatch(latch('extend'), 'pursue', threat)).toBe(false)
+    expect(interruptsLatch(latch('defensive-break'), 'break', threat)).toBe(false)
+  })
+
+  it('opens with the entry heading and altitude, phase 0, as plain data', () => {
+    const l = openLatch('extend', at('s', v3(0, 2500, 0), v3(0, 0, 100)), 7)
+    expect(l).toMatchObject({ name: 'extend', phase: 0, enteredAtS: 7, entryAltitudeM: 2500, reversals: 0, lastSide: 0 })
+    expect(l.entryHeadingRad).toBeCloseTo(Math.PI / 2, 12)
+    expect(structuredClone(l)).toEqual(l)
+  })
+
+  it('the three defaults are not phased', () => {
+    for (const n of ['lead-pursuit', 'defensive-break', 'extend'] as const) expect(isPhased(n)).toBe(false)
+  })
+
+  it('a safety override clears any latch and names the intent\'s default (ruling R11)', () => {
+    const low = { ...at('s', v3(0, 350, 0), v3(120, -10, 0)), pilot: { target: 't', skill: GREEN_SKILL, decision: { ...initialDecision(), nextRescoreS: 99, maneuver: 'extend' as const, named: 'extend' as const, latch: latch('extend') } } }
+    const w = createWorldOf({ aircraft: [low, neutralTarget], player: 't' })
+    const out = pilotTick(low, w.aircraft, { nowS: 1, terrain: null, decks: [], wind: null, combat: w.combat })
+    expect(out.pilot!.decision.safety).toBe('recover')
+    expect(out.pilot!.decision.latch).toBeNull()
+    expect(out.pilot!.decision.named).toBe('extend')
+    expect(out.pilot!.decision.maneuver).toBe('extend')
+  })
+})
+
+describe('Pursue family selection (Task 8)', () => {
+  const base = factsFor('pursue')
+  const turning = { ...base, targetTurnRateRadPerS: 0.2 }
+  const overshoot = { ...turning, closureMps: 60, facts: { ...base.facts, rangeM: 400 } }
+
+  it('overshoot risk with an energy margin: high yo-yo if in the repertoire, else lag, else lead', () => {
+    const margin = { ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: 100 } }
+    expect(selectManeuver(margin, VETERAN_SKILL.repertoire)).toBe('high-yo-yo')
+    expect(selectManeuver(margin, ['lead-pursuit', 'lag-pursuit'])).toBe('lag-pursuit')
+    // Green has no lag pursuit since Mark's ruling of 2026-09-26.
+    expect(selectManeuver(margin, GREEN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('overshoot risk with no energy margin: lag', () => {
+    expect(selectManeuver({ ...overshoot, facts: { ...overshoot.facts, relativeEnergyJPerKg: -100 } }, VETERAN_SKILL.repertoire)).toBe('lag-pursuit')
+  })
+
+  it('no overshoot unless the target is turning', () => {
+    expect(selectManeuver({ ...overshoot, targetTurnRateRadPerS: 0 }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('falling behind a turning target, with height to spare: low yo-yo; without the height: lead', () => {
+    const behind = { ...turning, closureMps: -10, facts: { ...base.facts, rangeM: 700 } }
+    expect(selectManeuver({ ...behind, heightAboveGroundM: 3000 }, VETERAN_SKILL.repertoire)).toBe('low-yo-yo')
+    expect(selectManeuver({ ...behind, heightAboveGroundM: 700 }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver({ ...behind, heightAboveGroundM: 3000 }, GREEN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('all three are phased', () => {
+    for (const n of ['lag-pursuit', 'high-yo-yo', 'low-yo-yo'] as const) expect(isPhased(n)).toBe(true)
+  })
+})
+
+describe('attack run selection (Task 9)', () => {
+  const base = factsFor('pursue')
+  const high = { ...base, heightOverTargetM: 300 }
+
+  it('boom-and-zoom or neutral, 300 m or more above the target: attack run', () => {
+    expect(selectManeuver({ ...high, envelope: { ...base.envelope, pairing: 'boom-and-zoom' } }, VETERAN_SKILL.repertoire)).toBe('attack-run')
+    expect(selectManeuver({ ...high, envelope: { ...base.envelope, pairing: 'neutral' } }, VETERAN_SKILL.repertoire)).toBe('attack-run')
+  })
+
+  it('never for a better turner, never below 300 m of height advantage, never for green, never with the target behind', () => {
+    expect(selectManeuver({ ...high, envelope: { ...base.envelope, pairing: 'turnfight' } }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver({ ...base, heightOverTargetM: 299 }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver(high, GREEN_SKILL.repertoire)).toBe('lead-pursuit')
+    expect(selectManeuver({ ...high, threatBehind: true }, VETERAN_SKILL.repertoire)).toBe('lead-pursuit')
+  })
+
+  it('is phased', () => {
+    expect(isPhased('attack-run')).toBe(true)
+  })
+})
+
+describe('Break family selection (Task 10)', () => {
+  const base = factsFor('break')
+  const scissorsPicture = {
+    ...base, threatBehind: true, velocityAngleRad: 0.1, selfSpeedMps: 88, targetSpeedMps: 100,
+    selfCornerSpeedMps: 92.26, targetCornerSpeedMps: 119.98,
+    facts: { ...base.facts, rangeM: 150 },
+    envelope: { ...base.envelope, turnAdvantage: 1.6, pairing: 'turnfight' as const },
+  }
+
+  it('scissors: threat close behind, near-parallel, both below corner speed, and we out-turn it', () => {
+    expect(selectManeuver(scissorsPicture, VETERAN_SKILL.repertoire)).toBe('scissors')
+  })
+
+  it('no scissors against a better turner (the envelope gate), nor above corner speed, nor for green', () => {
+    expect(selectManeuver({ ...scissorsPicture, envelope: { ...scissorsPicture.envelope, turnAdvantage: 0.63, pairing: 'boom-and-zoom' } }, VETERAN_SKILL.repertoire)).not.toBe('scissors')
+    expect(selectManeuver({ ...scissorsPicture, targetSpeedMps: 130 }, VETERAN_SKILL.repertoire)).not.toBe('scissors')
+    expect(selectManeuver(scissorsPicture, GREEN_SKILL.repertoire)).toBe('defensive-break')
+  })
+
+  it('no scissors at a high angle-off, at or above our own corner speed, out of range, or with the threat ahead', () => {
+    const not = (p: typeof scissorsPicture) => expect(selectManeuver(p, VETERAN_SKILL.repertoire)).not.toBe('scissors')
+    not({ ...scissorsPicture, velocityAngleRad: SCISSORS_ANGLE_RAD + 0.01 })
+    not({ ...scissorsPicture, selfSpeedMps: scissorsPicture.selfCornerSpeedMps })
+    not({ ...scissorsPicture, facts: { ...scissorsPicture.facts, rangeM: SCISSORS_RANGE_M } })
+    not({ ...scissorsPicture, threatBehind: false })
+  })
+
+  const splitPicture = {
+    ...base, threatBehind: true, heightAboveGroundM: 3000, selfSpeedMps: 110, selfDiveSpeedMps: 216,
+    facts: { ...base.facts, threatAstern: true, rangeM: 250 },
+  }
+
+  it('split-S: threat astern in gun range, height to spare, below 0.6 x the dive limit', () => {
+    expect(selectManeuver(splitPicture, VETERAN_SKILL.repertoire)).toBe('split-s')
+  })
+
+  it('no split-S below 1,500 m, too fast, or with the threat AHEAD (a head-on pass, ruling R12)', () => {
+    expect(selectManeuver({ ...splitPicture, heightAboveGroundM: 1499 }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+    expect(selectManeuver({ ...splitPicture, selfSpeedMps: 130 }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+    expect(selectManeuver({ ...splitPicture, threatBehind: false }, VETERAN_SKILL.repertoire)).toBe('defensive-break')
+  })
+})
+
+describe('Immelmann selection (Task 11)', () => {
+  const base = factsFor('extend')
+  // threatBehind is not in the plan's condition (see selectManeuver); the
+  // plain picture's target is ahead, so the rejoin sets it.
+  const rejoin = { ...base, selfSpeedMps: 140, selfCornerSpeedMps: 119.98, threatBehind: true, facts: { ...base.facts, rangeM: 1300 } }
+
+  it('replaces Extend\'s rejoin beyond SAFE_SEPARATION_M at or above corner speed', () => {
+    expect(selectManeuver(rejoin, VETERAN_SKILL.repertoire)).toBe('immelmann')
+  })
+
+  it('not below corner speed, not inside SAFE_SEPARATION_M, not for green', () => {
+    expect(selectManeuver({ ...rejoin, selfSpeedMps: 110 }, VETERAN_SKILL.repertoire)).toBe('extend')
+    expect(selectManeuver({ ...rejoin, facts: { ...rejoin.facts, rangeM: 900 } }, VETERAN_SKILL.repertoire)).toBe('extend')
+    expect(selectManeuver(rejoin, GREEN_SKILL.repertoire)).toBe('extend')
+  })
+
+  it('not with the threat ahead of our 3/9 line: the reversal would turn us away from it', () => {
+    expect(selectManeuver({ ...rejoin, threatBehind: false }, VETERAN_SKILL.repertoire)).toBe('extend')
+  })
+
+  it('only from near-level flight: not in Extend\'s dive (IMMELMANN_MIN_PATH_RAD)', () => {
+    expect(rejoin.selfFlightPathRad).toBe(0)
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: IMMELMANN_MIN_PATH_RAD }, VETERAN_SKILL.repertoire)).toBe('immelmann')
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: IMMELMANN_MIN_PATH_RAD - 1e-3 }, VETERAN_SKILL.repertoire)).toBe('extend')
+    // The shallowest otherwise-qualifying dive in pursuit-range-veteran (-13.1°, 2026-09-26).
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: -13.1 * Math.PI / 180 }, VETERAN_SKILL.repertoire)).toBe('extend')
+    expect(selectManeuver({ ...rejoin, selfFlightPathRad: 0.3 }, VETERAN_SKILL.repertoire)).toBe('immelmann')
+  })
+})
+
+describe('a per-airframe maneuver exclusion, read from content (Task 14; Mark 2026-09-26)', () => {
+  const zero = loadAircraftSpec('a6m2-zero')
+  const base = factsFor('extend')
+  const rejoin = { ...base, selfSpeedMps: 140, selfCornerSpeedMps: 119.98, threatBehind: true, facts: { ...base.facts, rangeM: 1300 } }
+
+  it('the schema\'s literal list is exactly the ManeuverNames that are not an intent default', () => {
+    // src/sim/flight/ may not import src/sim/ai/, so the schema carries its
+    // own literal list; this pins it to ManeuverName in both directions. An
+    // intent default is left out on purpose: selectManeuver flies it listed
+    // or not, so excluding one would be a silent no-op.
+    const defaults = new Set<ManeuverName>(Object.values(DEFAULT_MANEUVER))
+    const expected = (Object.keys(INTENT_OF) as ManeuverName[]).filter((n) => !defaults.has(n)).sort()
+    expect([...EXCLUDABLE_MANEUVERS].sort()).toEqual(expected)
+    const asName: readonly ManeuverName[] = EXCLUDABLE_MANEUVERS
+    expect(asName.length).toBe(expected.length)
+  })
+
+  it('an airframe without the field gets the skill\'s own repertoire, the same array', () => {
+    expect(f6f.ai).toBeUndefined()
+    expect(airframeRepertoire(VETERAN_SKILL, f6f)).toBe(VETERAN_SKILL.repertoire)
+  })
+
+  it('an airframe that excludes a maneuver loses only that one, and the shared skill is not mutated', () => {
+    const before = [...VETERAN_SKILL.repertoire]
+    const got = airframeRepertoire(VETERAN_SKILL, zero)
+    expect(got).toEqual(VETERAN_SKILL.repertoire.filter((n) => n !== 'immelmann'))
+    expect(VETERAN_SKILL.repertoire).toEqual(before)
+    expect(airframeRepertoire(VETERAN_SKILL, zero)).toEqual(got)
+  })
+
+  it('the Zero never selects the Immelmann though every other condition holds; an airframe without the field still does', () => {
+    expect(selectManeuver(rejoin, airframeRepertoire(VETERAN_SKILL, f6f))).toBe('immelmann')
+    expect(selectManeuver(rejoin, airframeRepertoire(VETERAN_SKILL, zero))).toBe('extend')
+    const zeroWithoutField = { ...zero }
+    delete zeroWithoutField.ai
+    expect(selectManeuver(rejoin, airframeRepertoire(VETERAN_SKILL, zeroWithoutField))).toBe('immelmann')
+  })
+})

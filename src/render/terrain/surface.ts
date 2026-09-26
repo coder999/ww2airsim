@@ -3,6 +3,9 @@ import { color, float, length, max, min, mix, smoothstep, texture, uniform, vec2
 import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
 import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
+// Type-only: surfaceDetail.ts imports runtime values from this module, so a
+// value import back would be a cycle.
+import type { SurfaceDetailNodes } from './surfaceDetail.js'
 
 export type CoverNodes = {
   readonly texture: DataTexture
@@ -150,7 +153,7 @@ export function detailSlopeNode(xz: Node<'vec2'>): Node<'vec2'> {
 
 /** Scales a slope vector down to at most tan(`DETAIL_NORMAL_MAX_TILT_DEG`);
  *  `clampDetailSlope` is its CPU twin. */
-function clampSlopeNode(slope: Node<'vec2'>): Node<'vec2'> {
+export function clampSlopeNode(slope: Node<'vec2'>): Node<'vec2'> {
   return slope.mul(min(float(1), float(MAX_DETAIL_SLOPE).div(max(length(slope), 1e-6))))
 }
 export function clampDetailSlope(sx: number, sz: number): [number, number] {
@@ -159,16 +162,52 @@ export function clampDetailSlope(sx: number, sz: number): [number, number] {
   return [sx * k, sz * k]
 }
 
-export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {
-  const macro = groundNoise(xz, 2800).r
-  const patches = groundNoise(vec2(xz.y.negate(), xz.x).add(173), 610).g
-  const canopy = groundNoise(xz, 180).g
-  const grain = groundNoise(xz, 18).b
-  const sand = mix(color(0x958567), color(0xd6c49b), groundNoise(xz, 95).g)
-    .mul(grain.mul(0.16).add(0.92))
-  const grass = mix(color(0x626746), color(0x89915b), patches).mul(grain.mul(0.15).add(0.94))
-  const forest = mix(color(0x294534), color(0x546847), canopy)
-    .mul(macro.mul(0.4).add(0.8))
+/** Every weight the terrain blend uses, by name. `surfaceWeightNodes` builds
+ *  them as TSL; tests build them as numbers. */
+export type SurfaceWeights<W> = {
+  readonly forest: W; readonly soilPatch: W; readonly crop: W; readonly mangrove: W
+  readonly beachToLand: W; readonly bare: W; readonly wetBank: W; readonly water: W; readonly road: W
+}
+/** What the weights blend between: colors, and with textures the texture
+ *  detail slopes too (visual realism §2.1), both in `terrainSurface`. */
+export type SurfaceLeaves<T> = {
+  readonly sand: T; readonly grass: T; readonly forest: T; readonly soil: T; readonly paddy: T
+  readonly mangrove: T; readonly rock: T; readonly wetBank: T; readonly water: T; readonly road: T
+}
+
+/**
+ * The terrain blend's ORDER, and only its order: the chain of mix() calls
+ * that used to be written inline in `terrainSurfaceNode` (044dc75), operand
+ * for operand. Generic over the mix so a CPU test runs this exact code on
+ * numbers against a transcription of the old chain (terrainSurface.test.ts)
+ * -- there is no headless TSL evaluator, so that is the only way to prove
+ * the split changed nothing. Every weight is a lerp factor in [0, 1], which
+ * makes the chain a partition of unity: equal leaves come back unchanged.
+ * The texture detail relies on that (surfaceDetail.ts).
+ */
+export function composeSurface<T, W>(l: SurfaceLeaves<T>, w: SurfaceWeights<W>, mixOp: (a: T, b: T, t: W) => T): T {
+  // Soil patches blend in AFTER the grass/forest mix -- see the history in
+  // surfaceWeightNodes' `soilPatch` for why the order matters.
+  const grassOrForest = mixOp(l.grass, l.forest, w.forest)
+  const withSoilPatches = mixOp(grassOrForest, l.soil, w.soilPatch)
+  const land = mixOp(mixOp(withSoilPatches, l.paddy, w.crop), l.mangrove, w.mangrove)
+  const ground = mixOp(mixOp(l.sand, land, w.beachToLand), l.rock, w.bare)
+  const wet = mixOp(ground, l.wetBank, w.wetBank)
+  const withWater = mixOp(wet, l.water, w.water)
+  // Road last: at the ~145 texels where the highway crosses a river the road
+  // wins, which is what a bridge should look like (measured 2026-09-24).
+  return mixOp(withWater, l.road, w.road)
+}
+
+export type SurfaceNoise = { readonly macro: Node<'float'>; readonly patches: Node<'float'> }
+/** The two noise reads both the weights and the colors use. Built once per
+ *  material: TSL dedupes by node identity, so building them twice would add
+ *  two texture lookups per fragment. */
+export function surfaceNoiseNodes(xz: Node<'vec2'>): SurfaceNoise {
+  return { macro: groundNoise(xz, 2800).r, patches: groundNoise(vec2(xz.y.negate(), xz.x).add(173), 610).g }
+}
+
+export function surfaceWeightNodes(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes, { macro, patches }: SurfaceNoise): SurfaceWeights<Node<'float'>> {
   // Row 0 of the raster is north (z = -half) and DataTexture row 0 sits at
   // v = 0, so v grows with z and no flip is needed. The raster is
   // NODE-centred, not cell-centred: sample 0 sits exactly on the west/north
@@ -195,14 +234,7 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   // 2026-09-18: tree=0.3/mangrove=0.3/open=0.4 landed at ~0.42 forest / 0.28
   // open / 0.30 mangrove instead of 0.3 / 0.4 / 0.3).
   const proceduralForest = max(smoothstep(0.38, 0.64, macro), smoothstep(70, 220, height))
-  const forestWeight = mix(proceduralForest, fractions.r, cover.ready)
-  const cropWeight = fractions.g.mul(cover.ready)
-  const mangroveWeight = fractions.b.mul(cover.ready)
-  const soil = mix(color(0x655644), color(0x8b795b), groundNoise(xz, 150).g)
-  // Paddies: a pale yellow-green with the patch noise at field scale, so the
-  // Leyte Valley reads as fields from 3,000 m, which is the job (design §1).
-  const paddy = mix(color(0x8a9a4e), color(0xb8b56a), groundNoise(vec2(xz.y, xz.x.negate()), 240).g)
-  const mangrove = color(0x24402a)
+  const forest = mix(proceduralForest, fractions.r, cover.ready)
   // Soil patches blend in AFTER the grass/forest mix, weighted by
   // `1 - forestWeight`, exactly as daa1b39 did -- not before it, as an
   // earlier version of this function had it (via a `mix(grass, soil, ...)`
@@ -216,23 +248,13 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   // graphs exists in this repo, so this is a code-construction argument
   // (same expression, same operand order as daa1b39), not a pinned pixel
   // measurement -- see the covering-test note in scenery.test.ts.
-  const grassOrForest = mix(grass, forest, forestWeight)
-  const withSoilPatches = mix(grassOrForest, soil,
-    smoothstep(0.74, 0.9, patches).mul(float(1).sub(forestWeight)).mul(0.45))
-  const land = mix(mix(withSoilPatches, paddy, cropWeight), mangrove, mangroveWeight)
-  const rock = mix(color(0x696c62), color(0x9a9585), groundNoise(xz, 220).g)
-    .mul(groundNoise(xz, 26).g.mul(0.35).add(0.82))
+  const soilPatch = smoothstep(0.74, 0.9, patches).mul(float(1).sub(forest)).mul(0.45)
   // Tropical summits remain vegetated; steep faces expose rock. No snow line.
   const bare = max(smoothstep(0.48, 1.05, slope), smoothstep(950, 1400, height).mul(0.5))
   const beachToLand = smoothstep(0.4, 2.3, height.add(patches.sub(0.5).mul(0.6)))
-  const ground = mix(mix(sand, land, beachToLand), rock, bare)
   const rivers = riverMask()
   const riverUv = xz.sub(vec2(rivers.minX, rivers.minZ)).div(vec2(rivers.width, rivers.depth))
   const riverRoadMask = texture(rivers.texture, riverUv)
-  const mask = riverRoadMask.r
-  const wetBank = mix(ground, color(0x68664b), smoothstep(0.05, 0.5, mask).mul(0.8))
-  const water = mix(color(0x345455), color(0x65796d), groundNoise(xz, 55).g)
-  const withWater = mix(wetBank, water, smoothstep(0.45, 0.85, mask))
   // Road: the Maharlika Highway alignment, painted into the mask's green
   // channel by rivers.ts's `paint`. Blended in after water, following the
   // same smoothstep-weighted mix() convention as the river/paddy/mangrove
@@ -243,7 +265,71 @@ export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slop
   // river crossings. Blending the road on last is still the right order at
   // those ~145 crossing texels: the road colour wins, which is what a
   // bridge should look like.
-  const roadWeight = smoothstep(0.05, 0.5, riverRoadMask.g)
-  const roadColour = vec3(0.42, 0.36, 0.27) // dry earth, matching the design's own description
-  return mix(withWater, roadColour, roadWeight)
+  return {
+    forest, soilPatch, bare, beachToLand,
+    crop: fractions.g.mul(cover.ready),
+    mangrove: fractions.b.mul(cover.ready),
+    wetBank: smoothstep(0.05, 0.5, riverRoadMask.r).mul(0.8),
+    water: smoothstep(0.45, 0.85, riverRoadMask.r),
+    road: smoothstep(0.05, 0.5, riverRoadMask.g),
+  }
+}
+
+export type TerrainSurface = { readonly albedo: Node<'vec3'>; readonly detailSlope: Node<'vec2'> | null }
+
+/** The terrain's albedo and, when there is texture detail, the texture
+ *  slope, both blended by ONE set of weights built once here. With no
+ *  `detail` this is exactly the procedural blend `terrainSurfaceNode` always
+ *  returned: same nodes, same order. */
+export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes, detail?: SurfaceDetailNodes): TerrainSurface {
+  const noise = surfaceNoiseNodes(xz)
+  // Leaves before weights: the order terrainSurfaceNode's argument list
+  // built them in before this function existed.
+  const c = terrainColorLeaves(xz, noise)
+  const w = surfaceWeightNodes(xz, height, slope, cover, noise)
+  const mix3 = (a: Node<'vec3'>, b: Node<'vec3'>, t: Node<'float'>): Node<'vec3'> => mix(a, b, t)
+  if (!detail) return { albedo: composeSurface(c, w, mix3), detailSlope: null }
+  // Plan Ruling 1: the texture modulates, it does not replace. Leaves that
+  // share a material share its texture (paddy is grass, mangrove is jungle,
+  // the road is dirt); the river's wet bank and water stay procedural.
+  const albedo = composeSurface({
+    ...c,
+    sand: c.sand.mul(detail.ratio('sand')), grass: c.grass.mul(detail.ratio('grass')),
+    forest: c.forest.mul(detail.ratio('jungle')), soil: c.soil.mul(detail.ratio('dirt')),
+    paddy: c.paddy.mul(detail.ratio('grass')), mangrove: c.mangrove.mul(detail.ratio('jungle')),
+    rock: c.rock.mul(detail.ratio('rock')), road: c.road.mul(detail.ratio('dirt')),
+  }, w, mix3)
+  // The texture normals, blended by the SAME weights as the albedo.
+  const mix2 = (a: Node<'vec2'>, b: Node<'vec2'>, t: Node<'float'>): Node<'vec2'> => mix(a, b, t)
+  const zero = vec2(0, 0)
+  const detailSlope = composeSurface({
+    sand: detail.slope('sand'), grass: detail.slope('grass'), forest: detail.slope('jungle'), soil: detail.slope('dirt'),
+    paddy: detail.slope('grass'), mangrove: detail.slope('jungle'), rock: detail.slope('rock'),
+    wetBank: zero, water: zero, road: detail.slope('dirt'),
+  }, w, mix2)
+  return { albedo, detailSlope }
+}
+
+export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {
+  return terrainSurface(xz, height, slope, cover).albedo
+}
+
+/** The procedural colors, unchanged from 044dc75. */
+export function terrainColorLeaves(xz: Node<'vec2'>, { macro, patches }: SurfaceNoise): SurfaceLeaves<Node<'vec3'>> {
+  const canopy = groundNoise(xz, 180).g
+  const grain = groundNoise(xz, 18).b
+  return {
+    sand: mix(color(0x958567), color(0xd6c49b), groundNoise(xz, 95).g).mul(grain.mul(0.16).add(0.92)),
+    grass: mix(color(0x626746), color(0x89915b), patches).mul(grain.mul(0.15).add(0.94)),
+    forest: mix(color(0x294534), color(0x546847), canopy).mul(macro.mul(0.4).add(0.8)),
+    soil: mix(color(0x655644), color(0x8b795b), groundNoise(xz, 150).g),
+    // Paddies: a pale yellow-green with the patch noise at field scale, so the
+    // Leyte Valley reads as fields from 3,000 m, which is the job (design §1).
+    paddy: mix(color(0x8a9a4e), color(0xb8b56a), groundNoise(vec2(xz.y, xz.x.negate()), 240).g),
+    mangrove: color(0x24402a).rgb,
+    rock: mix(color(0x696c62), color(0x9a9585), groundNoise(xz, 220).g).mul(groundNoise(xz, 26).g.mul(0.35).add(0.82)),
+    wetBank: color(0x68664b).rgb,
+    water: mix(color(0x345455), color(0x65796d), groundNoise(xz, 55).g),
+    road: vec3(0.42, 0.36, 0.27), // dry earth, matching the design's own description
+  }
 }

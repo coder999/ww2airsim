@@ -50,7 +50,11 @@ describe.each([
       expect(r.firstChanceS!, `cursor ${CURSORS[i]}`).toBeLessThan(15)
     }
     // Measured 2026-09-25: green 7/8 kills, veteran 8/8, all but one at the
-    // first merge (8.5-9.3 s). Asserted as a floor, not tuned to the count.
+    // first merge (8.5-9.3 s). Re-measured 2026-09-26 at 7c Task 10: green
+    // 7/8, veteran 7/8 (kills 9.05-9.52 s). pursuit-range-veteran's motion
+    // digest is unchanged from 7c Task 6 through Task 10, so the veteran's
+    // drift came at or before Task 6. Asserted as a floor, not tuned to the
+    // count.
     expect(runs.filter((r) => r.killS !== null).length).toBeGreaterThanOrEqual(6)
   })
 })

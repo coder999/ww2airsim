@@ -1,5 +1,5 @@
 import type { AircraftEntity } from '../loop.js'
-import { cross, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
+import { cross, length, normalize, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 
 export type PilotSkill = {
   /** Seconds between decision-layer rescores. Lower = reacts faster. This IS
@@ -31,6 +31,9 @@ export type PilotSkill = {
    *  pattern-matching on this file's other, inverted field (Plan 7b's own
    *  gunneryAccuracy bug, spec §3). */
   readonly controlNoise: number
+  /** Which named maneuvers this pilot flies (master spec §7: "green versus
+   *  veteran is data"). The intent defaults are always flown, listed or not. */
+  readonly repertoire: readonly ManeuverName[]
 }
 
 export const VETERAN_SKILL: PilotSkill = {
@@ -38,14 +41,21 @@ export const VETERAN_SKILL: PilotSkill = {
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
   disengageThreshold: -400,
-  // Measured 2026-09-24 on the reference GPU (pursuit-range, tail-chase
-  // geometry): sampling pursuer-1's headingRad every 500ms over ~9s (523
-  // ticks) of live Pursue steering, 0.02 produces a clean, MONOTONIC turn
-  // onto the intercept -- every sample-to-sample heading delta had the same
-  // sign (mean 0.185 deg/500ms, max 0.365 deg/500ms, steadily shrinking as
-  // it settles) -- imperceptible as jitter distinct from the turn itself.
-  // Kept unchanged from Task 1's starting value.
-  controlNoise: 0.02,
+  repertoire: ['lead-pursuit', 'lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'defensive-break', 'scissors', 'split-s', 'extend', 'immelmann'],
+  // 7c (Mark's ruling 2026-09-25, "tone the veteran down"): 0.02 -> 0.01.
+  // Measured 2026-09-25 through the production frame path against a passive
+  // player on the tail-chase fixture (tests/render/aiLethality.test.ts, and
+  // tools/ai/lethality.ts for the 128-run version). At 0.02 the veteran
+  // killed the passive player before point-blank range in 4 of 128 runs,
+  // including the reference GPU's red ai-maneuver run (`both` loadout, tick
+  // 517). At 0.01 it killed none, with a mean of 0.04 hits. The lever is
+  // this one because the AI's aim ignores gravity drop: a perfect aim streams
+  // 2.2 m under the target, so a SHAKIER hand is deadlier (0.04 -> 11/32
+  // kills, 0.08 -> 22/32). Green (0.15) is therefore the deadlier pilot
+  // against a straight-flying target. That inversion is the gunnery-honesty
+  // slice's to fix (spec Decisions, item 2). Still less than half of green's
+  // noise, as noise.test.ts and pilot.test.ts require.
+  controlNoise: 0.01,
 }
 
 export const GREEN_SKILL: PilotSkill = {
@@ -67,12 +77,64 @@ export const GREEN_SKILL: PilotSkill = {
   // Kept unchanged from Task 1's starting value; already >=2x
   // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
+  // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): no yo-yo,
+  // attack run, split-S or Immelmann. 7c Task 14 (Mark, 2026-09-26: "remove
+  // lag pursuit from green pilots. green pilots should be beaten easily"): no
+  // lag pursuit either, so green flies 7b's three intent defaults. With lag,
+  // green selected it at 6.0 s and the 7d bar's scripted evasion never got
+  // behind it at two of four noise cursors (final review, 2026-09-26).
+  repertoire: ['lead-pursuit', 'defensive-break', 'extend'],
 }
 
 export type PilotManeuver = 'pursue' | 'extend' | 'break'
 
+/** Which safety override flew this tick (7c spec §3.2; ruling R11). It never
+ *  changes `maneuver`, the 7b intent; it only says the envelope took the
+ *  stick. Plain data, for tests and diagnostics. */
+export type SafetyMode = 'none' | 'recover' | 'overspeed'
+
+/** A named maneuver (7c spec §3.5). Each belongs to one 7b intent
+ *  (`INTENT_OF`). Tasks 8-11 of the 7c plan add the rest of the library. */
+export type ManeuverName =
+  | 'lead-pursuit' | 'defensive-break' | 'extend' | 'lag-pursuit' | 'high-yo-yo' | 'low-yo-yo' | 'attack-run'
+  | 'scissors' | 'split-s' | 'immelmann'
+
+export const DEFAULT_MANEUVER: Readonly<Record<PilotManeuver, ManeuverName>> = {
+  pursue: 'lead-pursuit', break: 'defensive-break', extend: 'extend',
+}
+export const INTENT_OF: Readonly<Record<ManeuverName, PilotManeuver>> = {
+  'lead-pursuit': 'pursue', 'defensive-break': 'break', extend: 'extend',
+  'lag-pursuit': 'pursue', 'high-yo-yo': 'pursue', 'low-yo-yo': 'pursue', 'attack-run': 'pursue',
+  scissors: 'break', 'split-s': 'break', immelmann: 'extend',
+}
+
+/**
+ * A phased maneuver's memory (7c spec §3.5): once entered it holds until its
+ * own end condition or LATCH_CAP_S, through rescores, so a split-S is not
+ * re-decided halfway through every 0.3 s. Plain data. Nothing here refers to
+ * the world clock at creation: `enteredAtS` is written only on entry.
+ */
+export type ManeuverLatch = {
+  readonly name: ManeuverName
+  readonly phase: number
+  readonly enteredAtS: number
+  /** atan2(v.z, v.x) of the velocity at entry. */
+  readonly entryHeadingRad: number
+  readonly entryAltitudeM: number
+  /** Split-S and Immelmann: the loop's center, fixed at entry. ZERO otherwise. */
+  readonly loopCenter: Vec3
+  /** Scissors: roll-direction reversals so far, and the threat's last side (+1 right, -1 left, 0 unknown). */
+  readonly reversals: number
+  readonly lastSide: number
+  /** Attack run: the lowest altitude reached, for the zoom's recovery. */
+  readonly lowestAltitudeM: number
+}
+
 export type PilotDecisionState = {
   readonly maneuver: PilotManeuver
+  /** The maneuver flown this tick, chosen at rescore within 'maneuver'. */
+  readonly named: ManeuverName
+  readonly latch: ManeuverLatch | null
   /** Sim time (tick * DT) at which the next rescore runs. */
   readonly nextRescoreS: number
   /** The target's position/velocity as of the last rescore -- what the
@@ -86,6 +148,20 @@ export type PilotDecisionState = {
    *  every tick, not just at rescore, since noise is applied to
    *  `maneuverControls`'s output every tick regardless of maneuver. */
   readonly noiseCursor: number
+  /** This tick's safety override, or 'none'. Written every tick by pilotTick. */
+  readonly safety: SafetyMode
+}
+
+/** A fresh pilot's decision state: rescore on the first tick
+ *  (`nextRescoreS: 0` is always <= the first tick's time), so the placeholder
+ *  observations are never flown against. The one source for scenario.ts and
+ *  the tests. */
+export function initialDecision(): PilotDecisionState {
+  return {
+    maneuver: 'pursue', named: 'lead-pursuit', latch: null, nextRescoreS: 0,
+    observedTargetPosition: ZERO, observedTargetVelocity: ZERO,
+    noiseCursor: 0, safety: 'none',
+  }
 }
 
 /** Beyond this separation, Extend has done its job -- see this file's Task 3
@@ -96,6 +172,12 @@ export type PilotDecisionState = {
  *  back from pursuit.ts would be a real runtime circular dependency, not
  *  just a type-only one that erases at compile time. */
 export const SAFE_SEPARATION_M = 1100 // 2x AI_GUN_RANGE_M (550m) as of this plan
+
+/** Extend's rejoin asks for at least the threat's speed plus this, so the
+ *  throttle law (`0.65 + (desired - current) x 0.012`) goes to full power
+ *  instead of settling at 0.65 while climbing. At 0.65 the rejoin decayed to
+ *  84 m/s and never closed (7c plan, "Measured", 2026-09-25). */
+export const REJOIN_OVERTAKE_MPS = 30
 
 /** Desired velocity for a pilot choosing to Extend: run away from the threat
  *  and trade altitude for airspeed rather than retreating level. Once
@@ -110,7 +192,7 @@ export function extendDesiredVelocity<M>(self: AircraftEntity<M>, threat: Aircra
     // indefinite, physically nonsensical dive.
     const toward = normalize(sub(threat.state.position, self.state.position))
     const climb = v3(toward.x, Math.max(toward.y, 0.1), toward.z)
-    return scale(normalize(climb), length(self.state.velocity))
+    return scale(normalize(climb), Math.max(length(self.state.velocity), length(threat.state.velocity) + REJOIN_OVERTAKE_MPS))
   }
   const away = normalize(separation)
   // Nose down for airspeed: bias the desired vector toward the horizon-minus,

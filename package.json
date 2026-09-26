@@ -20,6 +20,7 @@
     "terrain:build": "tsx tools/terrain/build.ts",
     "landcover:build": "tsx tools/landcover/build.ts",
     "sky:build": "tsx tools/sky/build.ts",
+    "textures:build": "tsx tools/textures/build.ts",
     "models:build": "tsx tools/models/build.ts",
     "models:inspect": "tsx tools/models/inspect.ts",
     "audio:rocket-whoosh": "tsx tools/audio/synthesizeRocketWhoosh.ts",
