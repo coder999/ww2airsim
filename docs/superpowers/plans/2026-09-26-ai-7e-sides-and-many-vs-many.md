@@ -283,11 +283,11 @@ Order inside `pilotTick` each tick:
 **Interfaces:**
 - Produces: `HOLD_FIRE_CONE_RAD = 2 * AI_GUN_CONE_RAD`, `HOLD_FIRE_BEYOND_TARGET_M = 100`, `friendlyInLineOfFire(self, targetRangeM, view): boolean`.
 
-- [ ] **Step 1: Failing tests:** unit cases (ahead in cone, beside the cone, beyond target + 100 m, a down friendly, an enemy in the cone); and **a friendly that crosses the line of fire** in production `advance`: a veteran on a straight target's tail, gun solution held, and an allied aircraft flown across between them. Assert the shooter's `shots` stop rising for the ticks the crosser is inside the cone, rise again after, and the crosser takes zero hits and `friendlyHits` stays 0.
-- [ ] **Step 2: Run to verify it fails.**
-- [ ] **Step 3: Implement** in `pilotTick`: after `maneuverControls`, if `controls.fire` and `friendlyInLineOfFire(...)`, clear `fire`.
-- [ ] **Step 4: Run.** Digests equal Task 5's (no shipped scenario has a friendly AI).
-- [ ] **Step 5: Commit** `7e Task 6: hold fire while a same-side aircraft is in the line of fire`.
+- [x] **Step 1: Failing tests:** unit cases (ahead in cone, beside the cone, beyond target + 100 m, a down friendly, an enemy in the cone); and **a friendly that crosses the line of fire** in production `advance`: a veteran on a straight target's tail, gun solution held, and an allied aircraft flown across between them. Assert the shooter's `shots` stop rising for the ticks the crosser is inside the cone, rise again after, and the crosser takes zero hits and `friendlyHits` stays 0.
+- [x] **Step 2: Run to verify it fails.**
+- [x] **Step 3: Implement** in `pilotTick`: after `maneuverControls`, if `controls.fire` and `friendlyInLineOfFire(...)`, clear `fire`.
+- [x] **Step 4: Run.** Digests equal Task 5's (no shipped scenario has a friendly AI).
+- [x] **Step 5: Commit** `7e Task 6: hold fire while a same-side aircraft is in the line of fire`.
 
 ### Task 7: The ingress pilot
 

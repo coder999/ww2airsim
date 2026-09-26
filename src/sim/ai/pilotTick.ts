@@ -3,10 +3,11 @@ import type { CombatState } from '../weapons/combat.js'
 import { isAircraftDown } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
-import type { Vec3 } from '../math/vec3.js'
+import { length, sub, type Vec3 } from '../math/vec3.js'
 import type { Side } from '../sides.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
+import { friendlyInLineOfFire } from './holdFire.js'
 import { loiterDesiredVelocity } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
@@ -134,5 +135,8 @@ export function pilotTick<M>(
     return { ...a, pilot: { ...pilot, decision: { ...decision, safety: 'none', latch: null, noiseCursor: cursor } }, controls }
   }
   const { controls, decision: steered } = maneuverControls(a, target, { ...decision, safety: 'none' }, pilot.skill, ctx.wind, ctx.nowS)
-  return { ...a, pilot: { ...pilot, decision: steered }, controls }
+  // 7e spec §4.3: hold fire while a friendly is in the line of fire. Against
+  // the live range to the target, like the friendlies' own positions.
+  const holdFire = controls.fire === true && friendlyInLineOfFire(a, length(sub(target.state.position, a.state.position)), view)
+  return { ...a, pilot: { ...pilot, decision: steered }, controls: holdFire ? { ...controls, fire: false } : controls }
 }
