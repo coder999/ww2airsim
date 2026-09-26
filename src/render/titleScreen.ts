@@ -31,6 +31,9 @@ export type TitleModel = {
   /** Form 2's way back to Form 1. */
   readonly back: string
   readonly about: string
+  /** Form 1's link to the object library, hangar.html (Hangar spec §3). */
+  readonly library: string
+  readonly libraryHref: string
   readonly settings: string
   readonly close: string
   readonly aboutKicker: string
@@ -47,6 +50,8 @@ export function titleModel(): TitleModel {
     launch: 'Launch',
     back: 'Back',
     about: 'About project',
+    library: 'Library',
+    libraryHref: `${import.meta.env.BASE_URL}hangar.html`,
     settings: 'Settings',
     close: 'Close',
     aboutKicker: 'Project Office',
@@ -677,7 +682,11 @@ export function createTitleScreen(
     newPilotError.style.cssText = NEW_PILOT_ERROR_STYLE
 
     rosterSheet.append(newPilotButton, newPilotForm, newPilotError)
-    rosterSheet.appendChild(buttonRow(newGame))
+    // A plain link, not a mode: the library is its own page (Hangar spec §3),
+    // and navigating away drops this page's state the same way a reload does.
+    const library = inkButton(m.library)
+    library.addEventListener('click', () => { window.location.href = m.libraryHref })
+    rosterSheet.appendChild(buttonRow(library, newGame))
 
     const openNewPilotForm = (): void => {
       newPilotButton.style.display = 'none'
