@@ -2,7 +2,9 @@ import { Group, PerspectiveCamera, Scene } from 'three'
 import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
-import { buildScenarioEntities, type ScenarioEntities } from './scenarioEntities.js'
+import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
+import { makeShipViewLoader } from './scene/shipModels.js'
+import { probeShipSurface } from './scene/ship.js'
 import { airframeUpdateFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
@@ -126,6 +128,10 @@ const root = document.getElementById('app')!
 // here -- but it is real, so it is named rather than left for someone else
 // to rediscover.
 const validationErrors: string[] = []
+
+/** Ship models load through the shared cache; one that fails draws boxes AND lands in
+ *  `validationErrors`, which Tier 2 asserts empty (ship-models spec §3.4). */
+const loadShips = makeShipViewLoader((message) => { validationErrors.push(message) })
 
 /**
  * Frame intervals, milliseconds, since the last `window.__ww2.resetFrameTimes()`
@@ -358,7 +364,7 @@ async function boot(): Promise<void> {
     // The nullable binding the diagnostics hook above closes over, now that
     // there is an answer to put in it.
     spawnPosition = nextSpawnedAt
-    scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities)
+    scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
   }
   /**
    * The live flight, `null` until boot's own first `initialFrameStateFor`
@@ -863,6 +869,13 @@ async function boot(): Promise<void> {
         const p = playerAircraft(frame.world).state
         const g = groundUnder(frame.world.terrain, decksOf(frame.world.ships), p.position.x, p.position.z)
         return g?.deck ? { shipId: g.deck.shipId, heightM: g.heightM, velocity: g.velocity } : null
+      },
+      // Ship-models spec §9. `shipHandles` is built in `world.ships` order (buildScenarioEntities).
+      shipModels: () => scenarioEntities?.shipHandles.map((h) => h.model) ?? [],
+      shipDeckProbe: (shipId, points, space) => {
+        const i = frame?.world.ships.findIndex((s) => s.id === shipId) ?? -1
+        const view = i >= 0 ? scenarioEntities?.shipHandles[i] : undefined
+        return view ? probeShipSurface(view, points, space) : points.map(() => null)
       },
       // The world wind, the velocity of the air; `null` is calm (Plan 8).
       wind: () => frame?.world.wind ?? null,

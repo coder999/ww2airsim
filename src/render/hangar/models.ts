@@ -2,7 +2,7 @@
 import { Group, Mesh, type Object3D } from 'three'
 import type { Airframe, PartId } from '../scene/airframe.js'
 import { loadRegisteredAirframe, type LoadAirframe } from '../scenarioEntities.js'
-import { createShipMesh } from '../scene/ship.js'
+import { loadRegisteredShipView, type LoadShipView } from '../scene/shipModels.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector } from '../scene/buildings.js'
 import { disposeMeshTree } from '../models/dispose.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
@@ -114,11 +114,11 @@ function aircraftModel(airframe: Airframe, gearHeightM: number): HangarModel {
 /**
  * The ONLY module that knows where geometry comes from (Hangar spec §7).
  * Aircraft load through Z1's registry, by `spec.view.model`, exactly as the
- * game does; ships through `createShipMesh`; buildings through
- * `drawBuilding` on a flat field. H2 swaps ships to Lane C's loader here and
- * nowhere else. null = "Not yet in service".
+ * game does; ships through the ship-models loader (S1), also exactly as the
+ * game does, boxes included when a spec has no model; buildings through
+ * `drawBuilding` on a flat field. null = "Not yet in service".
  */
-export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe): Promise<HangarModel | null> {
+export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe, loadShip: LoadShipView = loadRegisteredShipView): Promise<HangarModel | null> {
   const s = entry.subject
   if (s === null) return null
   if (s.kind === 'aircraft') {
@@ -127,7 +127,11 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
     model.update(0)
     return model
   }
-  if (s.kind === 'ship') return staticModel(createShipMesh(s.spec).root)
+  if (s.kind === 'ship') {
+    // Through the view's own dispose: a model view releases its shared instance.
+    const view = await loadShip(s.spec)
+    return { ...staticModel(view.root), dispose: () => view.dispose() }
+  }
   // The largest footprint of this kind stands for all of them.
   const b = [...s.placements].sort((x, y) => y.building.widthM * y.building.lengthM - x.building.widthM * x.building.lengthM)[0]!.building
   const collector = makeCollector()

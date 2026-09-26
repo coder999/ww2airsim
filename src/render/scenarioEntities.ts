@@ -1,5 +1,6 @@
 import type { Scene } from 'three'
-import { createShipMesh } from './scene/ship.js'
+import type { ShipView } from './scene/ship.js'
+import { loadRegisteredShipView, type LoadShipView } from './scene/shipModels.js'
 import { createEngineSmoke } from './scene/smoke.js'
 import { airframeFor } from './scene/airframes.js'
 import type { Airframe } from './scene/airframe.js'
@@ -18,7 +19,7 @@ export { disposeMeshTree }
  */
 export interface ScenarioEntities {
   readonly airframes: readonly Airframe[]
-  readonly shipHandles: readonly ReturnType<typeof createShipMesh>[]
+  readonly shipHandles: readonly ShipView[]
   readonly smokes: readonly ReturnType<typeof createEngineSmoke>[]
   readonly player: Airframe
 }
@@ -39,10 +40,10 @@ export const loadRegisteredAirframe: LoadAirframe = (modelId) => airframeFor(mod
  * content (design doc §5), and are untouched by this function and its
  * caller alike.
  *
- * `previous`, when given, is torn down AFTER the new airframes have loaded:
- * each airframe through its own `dispose()` (which releases its shared model
- * instance, never walks it -- modelCache.ts), each smoke trail and hull
- * through `disposeMeshTree`. Loading first means a model both scenarios use
+ * `previous`, when given, is torn down AFTER the new airframes and ships have
+ * loaded: each airframe and each ship through its own `dispose()` (which
+ * releases a shared model instance, never walks it -- modelCache.ts), each
+ * smoke trail through `disposeMeshTree`. Loading first means a model both scenarios use
  * keeps its one parse through the switch, and a load that fails leaves the
  * running scenario exactly as it was.
  */
@@ -53,14 +54,22 @@ export async function buildScenarioEntities(
   // Defaulted for production; tests substitute a cheap synchronous stand-in
   // (createHellcat) so they never run a real GLTFLoader parse in Node.
   loadAirframe: LoadAirframe = loadRegisteredAirframe,
+  // Ship-models spec §3.3-3.4: never rejects; a model that fails draws boxes
+  // and reports through the loader's own sink (main.ts passes validationErrors).
+  loadShip: LoadShipView = loadRegisteredShipView,
 ): Promise<ScenarioEntities> {
-  const settled = await Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model)))
-  const failed = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+  const [settled, shipSettled] = await Promise.all([
+    Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model))),
+    Promise.allSettled(world.ships.map((s) => loadShip(s.spec))),
+  ])
+  const failed = [...settled, ...shipSettled].find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed !== undefined) {
     for (const r of settled) if (r.status === 'fulfilled') r.value.dispose()
+    for (const r of shipSettled) if (r.status === 'fulfilled') r.value.dispose()
     throw failed.reason
   }
   const airframes = settled.map((r) => (r as PromiseFulfilledResult<Airframe>).value)
+  const shipHandles = shipSettled.map((r) => (r as PromiseFulfilledResult<ShipView>).value)
 
   if (previous !== null) {
     previous.airframes.forEach((a, i) => {
@@ -68,9 +77,12 @@ export async function buildScenarioEntities(
       disposeMeshTree(previous.smokes[i]!.object)
       a.dispose()
     })
+    // Through each view's own dispose(): a model view RELEASES its shared
+    // instance. disposeMeshTree on its root would free geometry and materials
+    // every other instance of that glb is still drawing (modelCache.ts).
     for (const handle of previous.shipHandles) {
-      disposeMeshTree(handle.root)
       scene.remove(handle.root)
+      handle.dispose()
     }
   }
 
@@ -82,7 +94,6 @@ export async function buildScenarioEntities(
   })
   const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
   const player = airframes[playerIndex]!
-  const shipHandles = world.ships.map((ship) => createShipMesh(ship.spec))
   for (const h of shipHandles) scene.add(h.root)
 
   return { airframes, shipHandles, smokes, player }

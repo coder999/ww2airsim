@@ -20,6 +20,7 @@
     "cutRangeM": 120,
     "waveOffRangeM": 250
   },
+  "view": { "model": "essex-cv" },
   "reference": {
     "source": "lengthM (872 ft overall, short-hull group), beamM (93 ft waterline), deckWidthM (147 ft 6 in / 147.5 ft maximum beam at flight-deck level) and maxSpeedMps (33 kn) from the English Wikipedia article 'Essex-class aircraft carrier', read 2026-09-18. flightDeck.lengthM and widthM are the 862 ft x 108 ft flight deck of the early (short-hull) ships, from globalsecurity.org 'CV-9 Essex Class - Original Design' and the same Wikipedia article, read 2026-09-18 (Plan 8). flightDeck.heightM and deckHeightM are the SAME ESTIMATE of the flight deck above the waterline: searched 2026-09-18 (Wikipedia, globalsecurity.org, naval-encyclopedia.com), no freeboard figure was found, only the hangar's 17 ft 6 in overhead; it decides only where the surface is. trapZone is an ESTIMATE laid over globalsecurity's 'sixteen wire MK 4 arresting gear ... spaced from the stern to just aft of the island' with the island near the deck's midpoint (Plan 8 design section 10). paddles are CHOICES, tuned by flying (Plan 8 design section 7). turnRateRadPerS (1 deg/s, about a 440 m turning radius at 15 kn) is an ESTIMATE; no tactical diameter was found. hullHp is a gameplay choice (Plan 6b)."
   }

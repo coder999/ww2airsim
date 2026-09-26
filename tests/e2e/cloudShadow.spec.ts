@@ -187,7 +187,13 @@ test('the carrier deck, a plain lit material, darkens under the overcast: the su
   expect(await errors(page)).toEqual([])
 })
 
-test('deck run with shadows on stays under 6 ms', async ({ page }) => {
+// A 1440p regression tripwire, like clouds.spec.ts's: the 4K suite
+// (budget4k.spec.ts) is the performance gate since the 60 Hz High decision.
+// Cloud Fidelity II §3.4 moved the other 1440p tripwires from 6.0 to the
+// superseded 120 Hz frame, 8.33 ms; this one was missed until the cloud VDB
+// coverage work's denser deck measured 6.28-6.98 ms here (4K deckquals:
+// High 13.0 / 16.67, Medium 7.9 / 8.33), 2026-09-26.
+test('deck run with shadows on stays below the superseded 120 Hz frame', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(`/?${SCENARIO_PARAM}=deck-quals`)
   await waitForTerrain(page)
@@ -198,7 +204,7 @@ test('deck run with shadows on stays under 6 ms', async ({ page }) => {
   await page.keyboard.up('Equal')
   console.log(`deck run with shadows gpu p95 ${run.p95.toFixed(3)} ms (${run.n})`)
   expect(run.n).toBeGreaterThan(120)
-  expect(run.p95).toBeLessThan(6.0)
+  expect(run.p95).toBeLessThan(8.33)
   await page.screenshot({ path: 'test-results/cloud-shadow-deck-run.png' })
   expect(await errors(page)).toEqual([])
 })

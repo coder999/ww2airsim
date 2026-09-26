@@ -30,6 +30,10 @@ import { simplifyDocument } from './stages/simplify.js'
 import { joinExcept } from './stages/join.js'
 import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
+import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
+import { shipMaterials } from './stages/shipMaterials.js'
+import { loadShipSpec } from '../content/load.js'
+import type { ShipSpec } from '../../src/sim/world/ships.js'
 
 export const ALLOWED_REQUIRED_EXTENSIONS: readonly string[] = ['EXT_texture_webp']
 
@@ -43,7 +47,7 @@ export function partNames(entry: ModelEntry): string[] {
 }
 
 /** Every stage, in order, on a document already read. Mutates and returns it. */
-export async function runPipeline(doc: Document, entry: ModelEntry): Promise<Document> {
+export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec): Promise<Document> {
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   const splitNames = new Set(entry.split.map((s) => s.name))
   // 1. remove (source nodes)
@@ -66,12 +70,18 @@ export async function runPipeline(doc: Document, entry: ModelEntry): Promise<Doc
     }
     normalizeDocument(doc, entry.normalize)
   }
+  // Ships (ship-models spec §4-§5): the residual fit and skirt, then the palette roles.
+  const ship = entry.ship ? { block: entry.ship, spec: shipSpec(entry.ship.spec) } : null
+  const fitted = ship ? shipFitStage(doc, ship.block, ship.spec) : null
+  if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY)
   // 5. join everything except the parts
   await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
   // 6. textures, 7. opaque
   await compressTextures(doc, entry.textures.maxSize)
   if (entry.opaque) forceOpaque(doc)
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
+  // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
+  if (ship && fitted) addShipMarkers(doc, ship.block, ship.spec, fitted)
   // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
   const asset = doc.getRoot().getAsset()
   asset.extras = { ...(asset.extras ?? {}), source: entry.source.url, author: entry.source.author, license: entry.source.license }
@@ -90,12 +100,17 @@ export function checkOutput(doc: Document, byteLength: number, entry: ModelEntry
   if (m.drawCalls > b.maxDrawCalls) out.push(`${m.drawCalls} draw calls > budget ${b.maxDrawCalls}`)
   const badExt = m.extensionsRequired.filter((e) => !ALLOWED_REQUIRED_EXTENSIONS.includes(e))
   if (badExt.length) out.push(`extensionsRequired has ${badExt.join(', ')}: GLTFLoader has no decoder for it`)
-  if (entry.opaque && m.blendMaterials.length) out.push(`BLEND materials: ${m.blendMaterials.join(', ')}`)
+  if ((entry.opaque || entry.ship) && m.blendMaterials.length) out.push(`BLEND materials: ${m.blendMaterials.join(', ')}`)
   if (m.maxTextureSize > entry.textures.maxSize) out.push(`a ${m.maxTextureSize}px texture > maxSize ${entry.textures.maxSize}`)
   const names = doc.getRoot().listNodes().map((n) => n.getName())
   for (const p of partNames(entry)) {
     const count = names.filter((n) => n === p).length
     if (count !== 1) out.push(`part "${p}": expected exactly one node, found ${count}`)
+  }
+  if (entry.ship) {
+    const metallic = doc.getRoot().listMaterials().filter((mat) => mat.getMetallicFactor() !== 0).map((mat) => mat.getName())
+    if (metallic.length) out.push(`metallicFactor is not 0: ${metallic.join(', ')}`)
+    if (names.filter((n) => n === 'SmokeOrigin').length !== 1) out.push('a ship needs exactly one SmokeOrigin node')
   }
   if (entry.noseNode !== undefined && names.includes(entry.noseNode)) {
     const centerX = (name: string): number => { const bb = getBounds(findNode(doc, name)); return (bb.min[0] + bb.max[0]) / 2 }
@@ -138,7 +153,16 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
       if (explicit) failed = true
       continue
     }
-    const doc = await runPipeline(await deps.read(entry.input), entry)
+    let doc: Document
+    try {
+      doc = await runPipeline(await deps.read(entry.input), entry)
+    } catch (error) {
+      // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails
+      // this entry by name and writes nothing; the rest still build.
+      deps.log(`FAILED ${entry.id}, nothing written: ${error instanceof Error ? error.message : String(error)}`)
+      failed = true
+      continue
+    }
     const bytes = await deps.encode(doc)
     const problems = checkOutput(doc, bytes.byteLength, entry)
     if (problems.length) {

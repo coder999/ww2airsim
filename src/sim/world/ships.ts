@@ -62,6 +62,10 @@ const ShipSpecObject = z
       .refine((z) => z.toSternM > z.fromSternM, { message: 'toSternM must exceed fromSternM', path: ['toSternM'] })
       .optional(),
     paddles: PaddlesObject.optional(),
+    /** Render-only; `sim/` never reads it (ship-models spec §3.1). `model` is a key of
+     *  src/render/scene/shipModels.ts's registry. Optional: a spec without it is drawn
+     *  as the procedural boxes, a supported state. */
+    view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase model id' }) }).strict().optional(),
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()

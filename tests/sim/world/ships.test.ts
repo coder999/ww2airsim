@@ -226,3 +226,12 @@ describe('ship hit points and roles', () => {
     expect(Number.isFinite(s.headingRad)).toBe(true)
   })
 })
+
+describe('the render-only view block (ship-models spec §3.1)', () => {
+  it('is optional and strict, and names a lowercase model id', () => {
+    expect(parseShipSpec({ ...cv, view: undefined }).view).toBeUndefined()
+    expect(parseShipSpec({ ...cv, view: { model: 'essex-cv' } }).view).toEqual({ model: 'essex-cv' })
+    expect(() => parseShipSpec({ ...cv, view: { model: 'Essex CV' } })).toThrow(/view\.model: must be a lowercase model id/)
+    expect(() => parseShipSpec({ ...cv, view: { model: 'essex-cv', lod: 1 } })).toThrow(/view: Unrecognized key/)
+  })
+})

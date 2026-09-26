@@ -10,6 +10,8 @@ import { createPanel } from './panel.js'
 import { mountBench } from './bench.js'
 import { benchEnabled } from './benchFlag.js'
 import { installHangarHooks, type HangarWindow } from './hooks.js'
+import { loadRegisteredAirframe } from '../scenarioEntities.js'
+import { makeShipViewLoader } from '../scene/shipModels.js'
 
 /**
  * hangar.html's entry: the object library and articulation bench (Hangar
@@ -20,6 +22,8 @@ const root = document.getElementById('app')!
 
 async function boot(): Promise<void> {
   const validationErrors: string[] = []
+  // A ship model that fails draws boxes and lands here, which Tier 2 check 1 asserts empty (ship-models spec §3.4).
+  const loadShips = makeShipViewLoader((message) => { validationErrors.push(message) })
   let resolveReady!: () => void
   const ready = new Promise<void>((r) => { resolveReady = r })
 
@@ -60,7 +64,7 @@ async function boot(): Promise<void> {
   const select = async (id: string): Promise<void> => {
     const entry = catalog.find((e) => e.library.id === id)
     if (!entry) throw new Error(`hangar: no library entry "${id}"`)
-    const next = await loadHangarModel(entry)
+    const next = await loadHangarModel(entry, loadRegisteredAirframe, loadShips)
     model?.dispose()
     model = next
     selected = entry

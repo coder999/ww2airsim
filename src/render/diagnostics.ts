@@ -294,6 +294,16 @@ export type Ww2Diagnostics = {
   readonly paddles: () => PaddlesCue | null
   /** The deck under the player's wheels, or `null` (Plan 8). */
   readonly deck: () => { readonly shipId: string; readonly heightM: number; readonly velocity: Vec3 } | null
+  /** Each ship's drawn model id, in world order, or null where the procedural boxes are drawn (ship-models spec §9). */
+  readonly shipModels: () => readonly (string | null)[]
+  /**
+   * The world height of the topmost rendered surface of ship `shipId` straight
+   * below each point, read from the loaded, posed view (`probeShipSurface`,
+   * ship.ts); null where a ray misses it. Ship-models spec §9: Tier 2 compares
+   * it with `deck().heightM`, so a deck that floats or sinks under the wheels
+   * fails in the real renderer, not only in Node math.
+   */
+  readonly shipDeckProbe: (shipId: string, points: readonly { readonly x: number; readonly z: number }[], space: 'ship' | 'world') => readonly (number | null)[]
   /** The world wind, the velocity of the air; `null` is calm (Plan 8). */
   readonly wind: () => Vec3 | null
   /**

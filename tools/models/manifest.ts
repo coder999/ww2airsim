@@ -2,6 +2,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { z } from 'zod'
+import { SHIP_PALETTES, SHIP_ROLES, type ShipPaletteId } from '../../src/render/scene/shipPalette.js'
 
 /**
  * One JSON file per shipped model, under `tools/models/entries/`
@@ -45,6 +46,36 @@ const SplitSchema = z.object({
   pivot: PivotSchema.optional(),
 }).strict()
 
+const shipRole = z.enum(SHIP_ROLES)
+
+/**
+ * A ship's fit to its ShipSpec and its paint (ship-models spec §4.1). Only
+ * `content/ships/` outputs carry it, and they must.
+ */
+const ShipSchema = z.object({
+  /** The content/ships/<spec>.json the model is fitted to; the sim is authoritative (§4). */
+  spec: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
+  /** `deck`: a carrier, fitted to flightDeck. `hull`: length from normalize, beam at the waterline. */
+  fit: z.enum(['deck', 'hull']),
+  /** `waterline`: cut flat at y = 0, gets a skirt. `full-hull`: keeps its own underwater hull. */
+  kind: z.enum(['waterline', 'full-hull']),
+  palette: z.enum(Object.keys(SHIP_PALETTES) as [ShipPaletteId, ...ShipPaletteId[]]),
+  /** Per source material: a palette role, `keep` (its textures, metalness 0) or `mask` (a lattice, alpha MASK 0.5). */
+  materials: z.record(z.string().min(1), z.union([shipRole, z.enum(['keep', 'mask'])])).default({}),
+  /** Every material `materials` does not name. `classify`: split by geometry (§5.1). */
+  otherMaterials: z.union([shipRole, z.enum(['classify', 'keep'])]),
+  /** Fitted meters, +x bow: where the damage smoke rises (a funnel top). */
+  smokeOrigin: vec3,
+  /** How the output proves its bow is at +x (§4.2). A pinned ratio records a hull form the narrow-end rule cannot read. */
+  bow: z.union([
+    z.enum(['narrow-end', 'island-starboard']),
+    z.object({ pinnedNarrowEnd: positive, evidence: z.string().min(1) }).strict(),
+  ]),
+  /** full-hull only: the keel's fitted depth, measured once and pinned, so a moved waterline origin fails. */
+  keelM: finite.optional(),
+}).strict()
+export type ShipEntry = z.infer<typeof ShipSchema>
+
 export const ModelEntrySchema = z.object({
   /** Unique, and the output file's basename. */
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -84,6 +115,8 @@ export const ModelEntrySchema = z.object({
   budget: z.object({ maxBytes: positiveInt, maxTriangles: positiveInt, maxDrawCalls: positiveInt }).strict(),
   /** An output node whose center must be the scene's max-X point. */
   noseNode: z.string().min(1).optional(),
+  /** Ships only (ship-models spec §4.1). */
+  ship: ShipSchema.optional(),
 }).strict().superRefine((e, ctx) => {
   const fail = (path: (string | number)[], message: string): void => { ctx.addIssue({ code: z.ZodIssueCode.custom, path, message }) }
   if (e.output.replace(/^.*\//, '').replace(/\.glb$/, '') !== e.id) fail(['output'], `basename must equal id "${e.id}"`)
@@ -101,6 +134,15 @@ export const ModelEntrySchema = z.object({
   }
   e.remove.forEach((r, i) => { if (e.keep.some((k) => k.node === r || k.as === r)) fail(['remove', i], `"${r}" is also kept`) })
   if (e.noseNode !== undefined && !outNames.includes(e.noseNode)) fail(['noseNode'], `"${e.noseNode}" is not a keep or split output name`)
+  const toShips = e.output.startsWith('content/ships/')
+  if (toShips && !e.ship) fail(['ship'], 'a content/ships/ output needs a ship block')
+  if (e.ship) {
+    if (!toShips) fail(['ship'], 'only a content/ships/ output takes a ship block')
+    if (!e.normalize) fail(['normalize'], 'a ship needs normalize: the fit runs on its output')
+    if (e.opaque) fail(['opaque'], 'must be false for a ship: shipMaterials owns alpha (§5.3)')
+    if ((e.ship.fit === 'deck') !== (e.ship.bow === 'island-starboard')) fail(['ship', 'bow'], 'a carrier (fit "deck") proves its bow by "island-starboard", and only a carrier does')
+    if ((e.ship.kind === 'full-hull') !== (e.ship.keelM !== undefined)) fail(['ship', 'keelM'], 'required for a full-hull model, and only for one')
+  }
 })
 
 export type ModelEntry = z.infer<typeof ModelEntrySchema>

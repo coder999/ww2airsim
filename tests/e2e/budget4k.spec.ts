@@ -16,6 +16,16 @@ import { VIEWS, withParams } from './views.js'
  * medium ocean has its own budget case, ocean.spec.ts).
  */
 const BUDGET_4K_P95_MS = { high: 16.67, medium: 8.33 } as const
+/**
+ * Flying INSIDE a cloud has its own limit (Mark's decision, 2026-09-26).
+ * Since the cloud VDB coverage work made the deck dense, in-deck-1900 puts
+ * the camera inside a cloud, where every ray marches through haze with a
+ * full light march: measured 18.9 ms High, 8.39 Medium at 4K. Mark chose
+ * to keep the look and accept ~53 fps there over trimming quality
+ * everywhere. Every other view keeps the tier budget above.
+ */
+const IN_CLOUD_VIEWS: ReadonlySet<string> = new Set(['in-deck-1900'])
+const IN_CLOUD_BUDGET_4K_P95_MS = { high: 20.0, medium: 9.0 } as const
 test.setTimeout(120_000)
 const consoleErrors: string[] = []
 test.beforeEach(({ page }) => {
@@ -42,7 +52,7 @@ for (const tier of ['high', 'medium'] as const) {
       const { p95, n } = await frameP95(page)
       console.log(`BUDGET4K ${tier} ${view.name} p95=${p95.toFixed(3)} n=${n}`)
       expect(n).toBeGreaterThan(30)
-      expect(p95).toBeLessThanOrEqual(BUDGET_4K_P95_MS[tier])
+      expect(p95).toBeLessThanOrEqual((IN_CLOUD_VIEWS.has(view.name) ? IN_CLOUD_BUDGET_4K_P95_MS : BUDGET_4K_P95_MS)[tier])
     })
   }
 }

@@ -1,0 +1,24 @@
+{
+  "id": "essex-cv",
+  "input": "tools/models/cache/enterprise-cv6.glb",
+  "output": "content/ships/essex-cv.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98",
+    "uid": "bf79e093d4c94b0eb02097c178dd6e98",
+    "author": "KTKloss",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, 0.6621], "fit": { "extent": "length", "meters": 265.8 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 1500000, "maxTriangles": 60000, "maxDrawCalls": 8 },
+  "ship": {
+    "spec": "essex-cv",
+    "fit": "deck",
+    "kind": "waterline",
+    "palette": "usn-1944",
+    "otherMaterials": "classify",
+    "smokeOrigin": [6, 32.5, 15],
+    "bow": "island-starboard"
+  }
+}
