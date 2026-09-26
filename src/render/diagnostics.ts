@@ -8,6 +8,7 @@ import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
 import type { CombatDiagnostics } from './combatReadout.js'
+import type { OrdnanceView } from './ordnance.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
@@ -335,6 +336,10 @@ export type Ww2Diagnostics = {
    *  count (Plan 6), from `World.combat` -- `combatDiagnosticsFor` in
    *  combatReadout.ts. `null` before the first frame exists. */
   readonly combat: () => CombatDiagnostics | null
+  /** The in-flight bomb and rocket pools (O1): instance counts, the triangles each pool's
+   *  geometry has (a generated store model, or the primitive stand-in before it loads), and
+   *  where the first bomb is on screen. Tier 2 (tests/e2e/ordnance.spec.ts) reads it. */
+  readonly ordnanceView: () => OrdnanceView
   /** The radar scope's live state (Plan 17): the currently selected range,
    *  the sweep's current angle, and every contact it is showing. `null`
    *  before the first frame exists, the same guard `impact`/`combat` use. */

@@ -43,6 +43,7 @@ import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
 import { createOrdnance, nextOrdnanceImpacts, NO_ORDNANCE_MEMORY, type OrdnanceMemory } from './ordnance.js'
+import { loadStoreVisuals } from './scene/storeModels.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
 import { BINDINGS } from '../input/bindings.js'
@@ -898,6 +899,9 @@ async function boot(): Promise<void> {
       // current frame's `World.combat` by the same adapter the readout's
       // tests cover. `null` before the first frame, like `impact`.
       combat: () => (frame ? combatDiagnosticsFor(frame) : null),
+      // O1: what the in-flight bomb/rocket pools are drawing this frame, for Tier 2
+      // (tests/e2e/ordnance.spec.ts, Task 9).
+      ordnanceView: () => ordnance.view(camera, window.innerHeight),
       // Plan 16a: which deck is up and at what tier; `off` under `?cloudTier=off`.
       clouds: () => ({
         layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
@@ -1256,6 +1260,15 @@ async function boot(): Promise<void> {
   // sized independently of any scenario's entity list -- nothing here is
   // rebuilt on a scenario switch either.
   const ordnance = createOrdnance(scene)
+  // O1: the in-flight pools draw the player's store models once they load; until then, and
+  // if they fail, the primitive stand-ins, with the failure on __ww2.validationErrors.
+  const bombStore = spec.stores?.racks[0]?.store
+  const rocketStore = spec.stores?.rails[0]?.store
+  if (bombStore !== undefined && rocketStore !== undefined) {
+    loadStoreVisuals([bombStore, rocketStore], 0)
+      .then((v) => { ordnance.setStoreModels(v.byStore.get(bombStore)!, v.byStore.get(rocketStore)!) })
+      .catch((e: unknown) => { validationErrors.push(`store models: ${e instanceof Error ? e.message : String(e)}`) })
+  }
   let ordnanceMemory: OrdnanceMemory = NO_ORDNANCE_MEMORY
   let flashMemory: FlashMemory = NO_FLASH_MEMORY
 

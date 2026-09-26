@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { InstancedMesh, Mesh, PlaneGeometry, Scene } from 'three'
+import { BoxGeometry, InstancedMesh, Mesh, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Scene } from 'three'
 import {
   BOMB_CAPACITY, ROCKET_CAPACITY, SMOKE_CAPACITY, ROCKET_BURN_S, IMPACT_LIFETIME_S,
   createOrdnance, createSmokeColumn, ordnanceInstances, flameInstances,
@@ -145,5 +145,45 @@ describe('createSmokeColumn (Plan 6b Task 8, shared by ordnance impacts and airf
     expect(column.object.visible).toBe(true)
     column.update(5)
     expect(column.object.visible).toBe(false)
+  })
+})
+
+describe('createOrdnance store models (O1)', () => {
+  const bombAt = (x: number) => ({ id: 1, owner: 'a', kind: 'bomb' as const, position: { x, y: 0, z: -20 }, previous: { x, y: 0, z: -20 }, velocity: { x: 100, y: 0, z: 0 }, lifeS: 10, tracer: false, ageS: 0.5 })
+
+  it('swaps both pools onto the store geometry and material, and frees the primitive geometry it replaced', () => {
+    const o = createOrdnance(new Scene())
+    const pools = o.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[]
+    let freed = 0
+    pools[0]!.geometry.addEventListener('dispose', () => { freed++ })
+    const bomb = { geometry: new BoxGeometry(1.7, 0.5, 0.5), material: new MeshStandardMaterial() }
+    const rocket = { geometry: new BoxGeometry(1.7, 0.13, 0.13), material: new MeshStandardMaterial() }
+    o.setStoreModels(bomb, rocket)
+    expect(pools[0]!.geometry).toBe(bomb.geometry)
+    expect(pools[0]!.material).toBe(bomb.material)
+    expect(pools[1]!.geometry).toBe(rocket.geometry)
+    expect(freed).toBe(1)
+  })
+
+  it('view(): counts, triangles, and the first bomb projected into the camera', () => {
+    const scene = new Scene()
+    const o = createOrdnance(scene)
+    o.setStoreModels({ geometry: new BoxGeometry(1.7, 0.5, 0.5), material: new MeshStandardMaterial() }, { geometry: new BoxGeometry(1, 1, 1), material: new MeshStandardMaterial() })
+    o.update([bombAt(0)] as never, { x: 0, y: 0, z: 0 })
+    scene.updateMatrixWorld(true)
+    const camera = new PerspectiveCamera(60, 16 / 9, 0.1, 1000)
+    camera.updateMatrixWorld(true)
+    const v = o.view(camera, 1440)
+    expect(v.bombs).toBe(1)
+    expect(v.rockets).toBe(0)
+    expect(v.bombTriangles).toBe(12)
+    expect(v.bombNdc![0]).toBeCloseTo(0, 6)
+    expect(v.bombNdc![1]).toBeCloseTo(0, 6)
+    expect(v.bombRadiusPx!).toBeGreaterThan(10)
+  })
+
+  it('view() with no bomb aloft reports null position', () => {
+    const o = createOrdnance(new Scene())
+    expect(o.view(new PerspectiveCamera(), 1440).bombNdc).toBeNull()
   })
 })
