@@ -1,7 +1,9 @@
 // tests/render/hangar/models.test.ts
 import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
-import { flatField, loadHangarModel, partSpecsFor, sceneCounts } from '../../../src/render/hangar/models.js'
+import { Group, Object3D } from 'three'
+import { flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
+import { RACK_OFFSETS, RAIL_OFFSETS } from '../../../src/render/scene/stores.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
@@ -23,7 +25,7 @@ describe('sceneCounts', () => {
 describe('partSpecsFor', () => {
   it("reports every bench part, modeled only where the airframe's parts say so", () => {
     const rows = partSpecsFor(['prop', 'gear', 'stores'])
-    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['prop', true]])
+    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['prop', true], ['stores', true]])
   })
 })
 
@@ -80,5 +82,44 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   it('the flat field is height 0 everywhere', () => {
     const f = flatField()
     expect([heightAt(f, 0, 0), heightAt(f, 123.4, -56.7), heightAt(f, 5e5, 0)]).toEqual([0, 0, 0])
+  })
+})
+
+describe('probeArticulated', () => {
+  it('finds exactly the nodes a pose moves, and leaves the model at rest', () => {
+    const root = new Group()
+    const leg = new Object3D(); leg.name = 'leg'
+    const prop = new Object3D(); prop.name = 'prop'
+    const still = new Object3D(); still.name = 'still'
+    const child = new Object3D(); child.name = 'child-of-leg' // moves in world, not locally
+    leg.add(child); root.add(leg, prop, still)
+    let rest = true
+    const drive = (u: { gearFraction: number; flapFraction: number; throttle: number; frameS: number }): void => {
+      leg.position.y = u.gearFraction
+      prop.rotation.z += u.throttle * u.frameS * 40
+      rest = u.gearFraction === 1 && u.flapFraction === 0
+    }
+    expect(probeArticulated(root, drive).map((o) => o.name).sort()).toEqual(['leg', 'prop'])
+    expect(rest).toBe(true)
+    expect(leg.position.y).toBe(1)
+  })
+})
+
+describe('stores on the bench', () => {
+  it('toggles hand setStores full racks or empty ones', async () => {
+    const hellcat = createHellcat()
+    const setStores = vi.spyOn(hellcat, 'setStores')
+    const m = await loadHangarModel(byId('f6f-hellcat'), async () => hellcat)
+    m!.pose({ bombs: false })
+    expect(setStores).toHaveBeenLastCalledWith(0, RAIL_OFFSETS.length)
+    m!.pose({ rockets: false, bombs: true })
+    expect(setStores).toHaveBeenLastCalledWith(RACK_OFFSETS.length, 0)
+  })
+
+  it('an aircraft reports what its probe found; a ship reports nothing', async () => {
+    const m = await loadHangarModel(byId('f6f-hellcat'), async () => createHellcat())
+    expect(m!.articulated.length).toBeGreaterThan(0) // the stub's propeller
+    const s = await loadHangarModel(byId('essex-cv'), undefined, async (spec) => createShipMesh(spec))
+    expect(s!.articulated).toEqual([])
   })
 })
