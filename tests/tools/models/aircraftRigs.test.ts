@@ -56,6 +56,12 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     }
   })
 
+  it('drives every part the glb names: no pivoted part is left out of the rig and silently static', () => {
+    const inGlb = doc.getRoot().listNodes().map((n) => n.getName()).filter((n) => PART_NAME.test(n)).sort()
+    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets].sort()
+    expect(inGlb).toEqual(inRig)
+  })
+
   it('every propeller spins about body x and is N-fold symmetric about its pivot (Review Focus 1)', () => {
     for (const p of rig.props) {
       const { point, axis } = pivotOf(one(doc, p.node))
