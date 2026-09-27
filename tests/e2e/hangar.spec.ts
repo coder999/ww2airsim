@@ -8,7 +8,7 @@ import type { CameraPreset } from '../../src/render/hangar/framing.js'
  * Tier 2, the Hangar (spec §10): every model "renders, articulates and is
  * lit sanely", by pixel masks against an empty frame with the camera frozen.
  * Only the canvas is captured (`#hangar-canvas`); the panel sits beside it,
- * not over it. Run on any free dev-server slot (O1 ran it on ww2airsim-2).
+ * not over it. Run on any free dev-server slot.
  * Nothing here is a timing budget.
  */
 
@@ -262,11 +262,24 @@ test.describe('the Hangar', () => {
         expect(await page.locator('[data-over]').getAttribute('data-over'), id).toBe('false')
       }
     }
-    // The four registered models have budgets; the Zero draws as the Wildcat.
-    for (const id of ['f4f-wildcat', 'essex-cv', 'fletcher-dd', 'type-b-maru']) {
+    // The registered models have budgets; the Zero draws as the Wildcat.
+    for (const id of ['f4f-wildcat', 'essex-cv', 'fletcher-dd', 'type-b-maru', 'hangar']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
+    // R1: the hangar is drawn from its Blender model, not drawBuilding's boxes.
+    await select(page, 'hangar')
+    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.modelUrl ?? '').toMatch(/content\/buildings\/hangar\.glb$/)
+  })
+
+  test('12. the list marks exactly the entries it cannot draw, and every other one is drawn (R1)', async ({ page }) => {
+    const buttons = page.locator('ul[aria-label="Objects"] button')
+    const all = await buttons.count()
+    const notDrawn = await buttons.filter({ hasText: '(not yet in service)' }).count()
+    const ids = await entries(page)
+    expect(all - notDrawn).toBe(ids.length)
+    for (const id of ids) await expect(page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`)).not.toContainText('(not yet in service)')
+    expect(notDrawn).toBeGreaterThan(0)
   })
 
   /**
