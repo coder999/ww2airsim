@@ -85,6 +85,12 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   await expect(readout).toContainText('FRIENDLY FIRE')
   await expect(readout).not.toContainText('CEASE FIRE')
   await page.screenshot({ path: 'test-results/friendly-fire-warning.png' })
+  // The call clears after RADIO_SHOW_MS (5 s). The wait is also load-bearing:
+  // the dive below was measured starting ~5 s after the hit (when the
+  // readout's old transient call cleared), and started at once it bottoms
+  // out in a phugoid 70-140 m above the sea instead of going in (probe on
+  // the reference GPU, 2026-09-27, identical on main).
+  await expect(page.getByRole('status', { name: 'Radio' })).toBeHidden({ timeout: 15_000 })
 
   // -- Dive into the sea: pitchDown is ArrowUp (src/input/bindings.ts).
   await page.keyboard.down('ArrowUp')
