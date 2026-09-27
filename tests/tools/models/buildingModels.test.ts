@@ -12,13 +12,14 @@ import { loadModelEntries, type ModelEntry } from '../../../tools/models/manifes
 import { findNode, meshNodes, modelIO, onlyScene } from '../../../tools/models/document.js'
 import { measureDocument } from '../../../tools/models/measure.js'
 import { coplanarOverlaps, scriptConstant, worldTriangles } from './buildingGeometry.js'
+import { AIRFIELD_HUTS } from '../../../src/render/scene/airfield.js'
 
 /** Spec §4.4. An entry may budget above it only with a measured reason, here and in the ledger. */
 const BUILDING_BUDGET = { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4 } as const
 const RAISED: Readonly<Record<string, string>> = {}
 
 /** Every building R4 authored. Each task appends its own. */
-const R4_BUILDINGS: readonly string[] = ['tower', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'ammunition-bunker', 'revetment']
+const R4_BUILDINGS: readonly string[] = ['tower', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'ammunition-bunker', 'revetment', 'barracks-and-huts']
 
 /** H3's turret names (Hangar spec §9). A building's are numbered +x to -x, then -z to +z (R4 ruling). */
 const TURRETS: Readonly<Record<string, readonly string[]>> = {
@@ -104,5 +105,13 @@ describe("footprints the sim owns (content/bases, the sim is authoritative)", ()
     const src = scriptOf(id)
     expect(scriptConstant(src, 'FOOTPRINT_X_M')).toBe(b!.widthM + padM)
     expect(scriptConstant(src, 'FOOTPRINT_Z_M')).toBe(b!.lengthM + padM)
+  })
+
+  it("barracks-and-huts: the barracks is the game's own decorative hut, AIRFIELD_HUTS (the scenery is authoritative)", () => {
+    const [hut] = AIRFIELD_HUTS
+    expect(AIRFIELD_HUTS.every((h) => h.width === hut.width && h.length === hut.length)).toBe(true)
+    const src = scriptOf('barracks-and-huts')
+    expect(scriptConstant(src, 'BARRACKS_WIDTH_M')).toBe(hut.width)
+    expect(scriptConstant(src, 'BARRACKS_LENGTH_M')).toBe(hut.length)
   })
 })
