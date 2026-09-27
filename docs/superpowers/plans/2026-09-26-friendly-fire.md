@@ -213,15 +213,15 @@ Steps:
 - create `tests/e2e/friendly-fire.spec.ts` and `docs/superpowers/notes/2026-09-26-friendly-fire-for-m2.md`.
 
 Steps:
-- [ ] Write a Tier 1 test (in `tests/render/discharge.test.ts`): through `nextFrameState` with Space held, the allied Hellcat takes a friendly hit within 2 s, `friendlyFire.kind` is `aircraft`, and the axis Hellcat is untouched.
-- [ ] Write the Tier 2 spec. It covers:
+- [x] Write a Tier 1 test (in `tests/render/discharge.test.ts`): through `nextFrameState` with Space held, the allied Hellcat takes a friendly hit within 2 s, `friendlyFire.kind` is `aircraft`, and the axis Hellcat is untouched.
+- [x] Write the Tier 2 spec. It covers:
   - the roster flow, the scenario, and holding Space until `friendlyFire`;
   - the readout text, and a capture;
   - a dive into the sea, the debrief DISHONORABLE DISCHARGE and `score 0`, and a capture;
   - Return to title, the roster row DISCHARGED, and the Dossier "Discharged", with a capture;
   - zero validation errors and gpu p95 under 6.0 ms.
-- [ ] Write the M2 note: the event, the proposed `nextRadioLine` feed merge by tick, the badge denial, and the readout's transient segment to drop.
-- [ ] Commit.
+- [x] Write the M2 note: the event, the proposed `nextRadioLine` feed merge by tick, the badge denial, and the readout's transient segment to drop.
+- [x] Commit.
 
 ### Task 7: Verify, Tier 2, review, and handoff
 

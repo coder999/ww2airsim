@@ -11,6 +11,7 @@ import type { Projectile } from '../../src/sim/weapons/combat.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
+import { initialFrameStateFor, nextFrameState } from '../../src/render/frame.js'
 
 /**
  * Dishonorable discharge at every flight end that produces a debrief
@@ -115,5 +116,23 @@ describe('withDischarge (spec §5)', () => {
   it('friendlyFireRadio is the first hit, keyed by its tick', () => {
     expect(friendlyFireRadio(enemyOnly)).toBeNull()
     expect(friendlyFireRadio(discharged)).toEqual({ tick: 2, text: FRIENDLY_FIRE_RADIO })
+  })
+})
+
+describe('friendly-fire-range (Task 6): Space hits the allied Hellcat ahead through production nextFrameState', () => {
+  it('within 2 s the allied wingman takes a friendly hit, and the axis Hellcat is untouched', () => {
+    const w0 = worldFromScenario(loadScenarioBundle('friendly-fire-range'), null)
+    let f = initialFrameStateFor(w0)
+    const space = new Set(['Space'])
+    let ticks = 0
+    for (; ticks < 120 && friendlyFireOf(f.world) === null; ticks++) f = nextFrameState(f, DT, space)
+    const ff = friendlyFireOf(f.world)
+    expect(ff, `no friendly fire after ${ticks} ticks`).not.toBeNull()
+    expect(ff!.kind).toBe('aircraft')
+    expect(ff!.target).toBe('ally-1')
+    expect(f.world.combat.aircraft['ally-1']!.damage.structure).toBeLessThan(1)
+    expect(f.world.combat.aircraft['bandit-1']!.damage.structure).toBe(1)
+    expect(f.world.combat.aircraft['bandit-1']!.damage.attacker).toBeNull()
+    expect(friendlyFireRadio(f.world)).toEqual({ tick: ff!.tick, text: FRIENDLY_FIRE_RADIO })
   })
 })

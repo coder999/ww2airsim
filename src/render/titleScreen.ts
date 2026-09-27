@@ -131,6 +131,9 @@ export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label
   // boot it, which is how it is shown; "(dev)" because it is a test bed,
   // not a mission.
   { value: 'furball-range', label: 'Furball (dev)' },
+  // Friendly-fire ruling FF-10: the discharge test bed, listed for the same
+  // reason as the furball.
+  { value: 'friendly-fire-range', label: 'Friendly Fire (dev)' },
 ]
 
 /** Whether `id` is one of `SCENARIO_OPTIONS` -- the whitelist that makes
