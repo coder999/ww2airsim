@@ -98,6 +98,13 @@ AN-M65 and HVAR models hang on the Wildcat and fly. The
 [handoff](docs/handoff/2026-09-26-o1-ordnance-models.md) records what was
 measured and what is open; master spec §15 holds the status.
 
+**R1 roster pipeline landed 2026-09-26 on a branch awaiting merge:** an
+original Blender model now ships through `npm run models:build`, and the
+Hangar draws any Library entry's own model, in the game or not. The first
+is the barrel-roof hangar. The
+[handoff](docs/handoff/2026-09-26-r1-roster-pipeline.md) records what was
+measured; master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
