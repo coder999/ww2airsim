@@ -655,7 +655,7 @@ git commit -m "7f Task 3: wingmen hold station, turn and rejoin through pilotTic
 - Consumes: `hasGunSolution` (`pursuit.ts`), `RECENT_HIT_S` (`ingress.ts`), `AircraftCombat` (`weapons/combat.ts`), `DT` (`flight/model.ts`).
 - Produces: `COVER_RANGE_M`, `COVER_RELEASE_RANGE_M`, `COVER_LATCH_S`; `wingmanAccepts<M>(self, leader, record: AircraftCombat, current: string | null, nowS: number): (c: AircraftEntity<M>, rangeM: number) => boolean`; `leaderIsFighting<M>(leader): boolean`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // tests/sim/ai/formationCover.test.ts
@@ -734,12 +734,12 @@ describe('the player leads: fire opens trail cover (7f spec §4)', () => {
 
 Note on the escort's last assertion: AI gunnery against a target that is not flying straight is weak today (furball ruling R-F1; the gunnery-honesty slice is not 7f). The attacker here is chasing straight, which is the geometry today's AI can hit. If every other assertion passes and `lastHitBy` is still not `'wing-1'` after 120 s, **do not tune AI gunnery.** Record the closest range and the shots fired, and stop and report. Mark decides whether the spec's "takes hits" becomes "fires within gun solution".
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/ai/formationCover.test.ts --maxWorkers=2`
 Expected: FAIL. With no filter, the wingman takes the 6 km contact, and nothing opens the cover latch.
 
-- [ ] **Step 3: Append the cover rule to `formation.ts`**
+- [x] **Step 3: Append the cover rule to `formation.ts`**
 
 The four `import` lines go into the file's top import block, merged with the existing ones. The rest is appended.
 
@@ -783,7 +783,7 @@ export function wingmanAccepts<M>(
 
 Check `formation.ts` → `ingress.ts` → `pursuit.ts` for an import cycle with `npx depcruise src --config .dependency-cruiser.cjs` in Step 5. `ingress.ts` does not import `formation.ts`, so there should be none.
 
-- [ ] **Step 4: Wire the rule and the latch into `pilotTick`**
+- [x] **Step 4: Wire the rule and the latch into `pilotTick`**
 
 Give `chooseTarget` a `leader` parameter and use the filter:
 
@@ -809,12 +809,12 @@ Pass `leader` at the call site. Right after `let decision = pilot.decision`, ope
   if (leader !== null && leaderIsFighting(leader)) decision = { ...decision, coverUntilS: ctx.nowS + COVER_LATCH_S }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `npx vitest run tests/sim/ai/formationCover.test.ts tests/sim/ai/formationFlight.test.ts tests/sim/ai/targeting.test.ts --maxWorkers=2; echo rc=$?; npx depcruise src --config .dependency-cruiser.cjs; echo depcruise rc=$?`
 Expected: PASS, both `rc=0` (subject to the escort-hits note above).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ai/formation.ts src/sim/ai/pilotTick.ts tests/sim/ai/formationCover.test.ts

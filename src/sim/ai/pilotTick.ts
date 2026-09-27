@@ -13,7 +13,7 @@ import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
-import { formationControls } from './formation.js'
+import { COVER_LATCH_S, formationControls, leaderIsFighting, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { selectTarget, type TargetingView } from './targeting.js'
 
@@ -37,10 +37,16 @@ export type PilotTickContext = {
  *  any range (ruling W3) -- and is never replaced; otherwise the scorer picks. */
 function chooseTarget<M>(
   a: AircraftEntity<M>, pilot: PilotAssignment, current: string | null, view: TargetingView<M>, nowS: number,
+  leader: AircraftEntity<M> | null,
 ): string | null {
   if (pilot.target !== null) {
     const fixed = view.snapshot.find((c) => c.id === pilot.target)
     return fixed === undefined || isAircraftDown(view.combat, fixed) ? null : fixed.id
+  }
+  // 7f spec §4: a wingman fights what threatens its leader or itself, and
+  // passes the leader so 7e's LEADER_THREAT_BONUS_M applies.
+  if (leader !== null) {
+    return selectTarget(a, view, { current, leaderId: leader.id, accept: wingmanAccepts(a, leader, view.combat[a.id]!, current, nowS) })
   }
   // An ingress pilot fights only what attacks it or comes close (§4.5).
   const accept = pilot.ingress === undefined ? undefined : ingressAccepts(a, view.combat[a.id]!, current, nowS)
@@ -77,6 +83,8 @@ export function pilotTick<M>(
   const leaderEntity = pilot.formation === undefined ? undefined : snapshot.find((c) => c.id === pilot.formation!.leader)
   const leader = leaderEntity !== undefined && !isAircraftDown(ctx.combat.aircraft, leaderEntity) ? leaderEntity : null
   let decision: PilotDecisionState = pilot.decision
+  // 7f spec §4: trail cover holds COVER_LATCH_S past the leader's last shot or engagement.
+  if (leader !== null && leaderIsFighting(leader)) decision = { ...decision, coverUntilS: ctx.nowS + COVER_LATCH_S }
   // A static target is checked from the assignment itself, so a pilot whose
   // decision has not recorded it yet (a hand-built one) still flies it.
   const heldId = pilot.target ?? decision.targetId
@@ -87,7 +95,7 @@ export function pilotTick<M>(
     decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
   }
   if (lost || ctx.nowS >= decision.nextRescoreS) {
-    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS)
+    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
     if (chosen !== decision.targetId) {
       decision = { ...decision, targetId: chosen, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     }
