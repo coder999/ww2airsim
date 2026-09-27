@@ -3,14 +3,16 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { Group } from 'three'
 import { modelIO, findNode } from '../../../tools/models/document.js'
-import { fitStores, wildcatSectionAt, MIN_CLEARANCE_M, WILDCAT_GLB_PATH } from '../../../tools/models/mounts.js'
+import { datumPitchFor, fitStores, sectionAtFor, MIN_CLEARANCE_M, WILDCAT_GLB_PATH } from '../../../tools/models/mounts.js'
 import { WILDCAT_DATUM_PITCH_RAD, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatToSimMatrix } from '../../../src/render/scene/wildcat.js'
 import { WILDCAT_MODEL_PATH } from '../../../src/render/content.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
-const drawnAsWildcat = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
-  .filter((s) => s.view.model === 'wildcat' && s.stores !== undefined)
-const sectionAt = await wildcatSectionAt()
+// Every stores-carrying spec, measured on the wing of the model it DRAWS (sortie forms A4 gave
+// the Hellcat its own R3 model, so it no longer shares the Wildcat's mounts).
+const withStores = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
+  .filter((s) => s.stores !== undefined)
+const sections = new Map(await Promise.all([...new Set(withStores.map((s) => s.view.model))].map(async (m) => [m, await sectionAtFor(m)] as const)))
 
 describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
   it('mounts.ts slices the same glb the game draws (its own path constant, because content.ts cannot load under tsx)', () => {
@@ -31,15 +33,18 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     wildcatToSimMatrix().forEach((v, i) => expect(v).toBeCloseTo(g.matrix.elements[i]!, 12))
   })
 
-  it('covers both stores-carrying specs drawn as the Wildcat, and they agree', () => {
-    expect(drawnAsWildcat.map((s) => s.id).sort()).toEqual(['f4f-wildcat', 'f6f-hellcat'])
-    const [a, b] = drawnAsWildcat
-    expect(a!.stores!.racks.map((m) => m.offset)).toEqual(b!.stores!.racks.map((m) => m.offset))
-    expect(a!.stores!.rails.map((m) => m.offset)).toEqual(b!.stores!.rails.map((m) => m.offset))
+  it('covers both stores-carrying specs, each on the model it draws (A4: the Hellcat on its own)', () => {
+    expect(withStores.map((s) => [s.id, s.view.model]).sort()).toEqual([['f4f-wildcat', 'wildcat'], ['f6f-hellcat', 'f6f-hellcat']])
   })
 
-  it.each(drawnAsWildcat.map((s) => [s.id, s] as const))('%s: every offset is where `npm run models:mounts` hangs it, inside the chord, clear of the skin', (_id, spec) => {
-    const fits = fitStores(sectionAt, spec.stores!)
+  it('an R3 model is sliced in its own frame, level: pitch 0; the Wildcat keeps its datum pitch', async () => {
+    expect(datumPitchFor('f6f-hellcat')).toBe(0)
+    expect(datumPitchFor('wildcat')).toBe(WILDCAT_DATUM_PITCH_RAD)
+    await expect(sectionAtFor('no-such-model')).rejects.toThrow(/no-such-model/)
+  })
+
+  it.each(withStores.map((s) => [s.id, s] as const))('%s: every offset is where `npm run models:mounts` hangs it on its own model, inside the chord, clear of the skin', (_id, spec) => {
+    const fits = fitStores(sections.get(spec.view.model)!, spec.stores!, datumPitchFor(spec.view.model))
     const all = [...spec.stores!.racks.map((m, i) => [m, fits.racks[i]!] as const), ...spec.stores!.rails.map((m, i) => [m, fits.rails[i]!] as const)]
     for (const [m, f] of all) {
       m.offset.forEach((v, k) => expect(Math.abs(v - f.offset[k]!), `${m.id}[${k}]: content ${v}, measured ${f.offset[k]} (re-run npm run models:mounts)`).toBeLessThanOrEqual(0.002))

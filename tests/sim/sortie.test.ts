@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadAircraftSpec, loadScenario, loadScenarioBundle } from '../../tools/content/load.js'
+import { bundleForScenario, loadAircraftSpec, loadScenario, loadScenarioBundle } from '../../tools/content/load.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { ALL_LOADOUTS, DEV_STORES_SPEC_ID, DEV_STORES_SUFFIX, eligibleAircraft, eligibleLoadouts, isDevSortie, needsDevStores, sortieBundle, sortieRulesBroken, startKindOf, validateSortie, withPlayerSpec, type StartKind } from '../../src/sim/sortie.js'
 import { readdirSync } from 'node:fs'
@@ -109,5 +109,15 @@ describe('a Dev-stores Zero releases a real bomb (headless release proof)', () =
     const after = advance(held, DT, still).world
     expect(after.combat.projectiles.filter((p) => p.kind === 'bomb')).toHaveLength(1)
     expect(after.combat.aircraft[after.player]!.stores).toEqual({ bombs: 1, rockets: 0 })
+  })
+})
+
+describe('the swap end to end (Task 3)', () => {
+  it('deck-quals flown in the Wildcat with both: the player flies the Wildcat, carrying 2 bombs and 6 rockets', () => {
+    const bundle = bundleForScenario(withPlayerSpec(loadScenario('deck-quals'), 'f4f-wildcat'))
+    const w = worldFromScenario(sortieBundle(bundle, 'both', loadAircraftSpec(DEV_STORES_SPEC_ID).stores), null, 'both')
+    const player = w.aircraft.find((a) => a.id === w.player)!
+    expect(player.spec.id).toBe('f4f-wildcat')
+    expect(w.combat.aircraft[w.player]!.stores).toEqual({ bombs: 2, rockets: 6 })
   })
 })

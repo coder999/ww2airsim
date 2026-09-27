@@ -9,7 +9,7 @@ import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
-import type { StartKind } from '../sim/sortie.js'
+import type { SortieChoice, StartKind } from '../sim/sortie.js'
 import { DEFAULT_LOADOUT } from './sortieFlow.js'
 
 /**
@@ -398,7 +398,8 @@ export function createTitleScreen(
    *  initial value stale before a return-to-title ever shows the picker
    *  again -- see `TitleScreenHandle.show`'s own doc comment. */
   currentScenarioId: string,
-  onNewGame: (loadout: Loadout, scenarioId: string, pilotId: string) => void,
+  /** One sortie (sortie spec, Wiring). `pilotId` is null only for a quick launch (A6). */
+  onNewGame: (choice: SortieChoice, pilotId: string | null) => void,
   /** The Settings dialog's model. Optional so this file owns a working
    *  dialog on its own: with nothing passed, every pick still persists, it
    *  simply takes effect on the next page load rather than live. `main.ts`
@@ -980,7 +981,8 @@ export function createTitleScreen(
       pilots[pilotIndex] = startSortie(pilots[pilotIndex]!)
       saveRoster(pilots)
       hide()
-      onNewGame(selectedLoadout, selectedScenarioId, pilotId)
+      // Task 5 of the sortie-forms plan replaces this with the four forms' draft.
+      onNewGame({ scenarioId: selectedScenarioId, aircraftSpec: 'f6f-hellcat', loadout: selectedLoadout, dev: false }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)

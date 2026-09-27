@@ -6,7 +6,7 @@
   "side": "allied",
   "model": { "kind": "aircraft", "id": "f6f-hellcat" },
   "spec": "f6f-hellcat",
-  "blurb": "The player's fighter, flown from the carrier and from Tacloban. The Hangar shows a Hellcat model; in flight the game still draws it with the Wildcat's, whose gear height, store mounts and eye point its numbers are fitted to.",
+  "blurb": "The player's fighter, flown from the carrier and from Tacloban. The game draws it in flight with the same model the Hangar shows, its wheels and weapon racks fitted to that model.",
   "history": "The Grumman F6F Hellcat was designed to replace the F4F Wildcat and to counter the Mitsubishi A6M Zero, and it became the U.S. Navy's dominant fighter in the second half of the Pacific War. It used the Pratt & Whitney R-2800 Double Wasp, the engine of the Corsair and the P-47 Thunderbolt.\n\nThe Hellcat first fought on 31 August 1943, in raids on Marcus Island. It was the main Navy fighter in the Battle of the Philippine Sea, which aircrews nicknamed the \"Great Marianas Turkey Shoot\". In total 12,275 were built in just over two years, and Hellcats were credited with 5,223 enemy aircraft destroyed, more than any other Allied naval aircraft.\n\nIn the game the Hellcat is still drawn with the Wildcat's model; only the Hangar shows the Hellcat's own.",
   "sources": [
     {

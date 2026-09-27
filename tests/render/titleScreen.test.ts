@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, expectTypeOf } from 'vitest'
+import type { SortieChoice } from '../../src/sim/sortie.js'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
   pilotButtonLabel, pilotStatusChip, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
@@ -212,20 +213,11 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
     expect(isValidPilotName('   ')).toBe(false)
   })
 
-  it('onNewGame receives the selected pilot\'s id as a third argument (type-level contract)', () => {
-    // The actual DOM wiring that calls `onNewGame(loadout, scenarioId,
-    // pilotId)` on the New game click / Enter key lives in
-    // `createTitleScreen`, which needs a real `document` to exercise (this
-    // suite runs in `node`, per this file's own established convention
-    // above). What's provable here without a DOM is the contract itself: a
-    // callback of this shape type-checks, which `npx tsc --noEmit` also
-    // gates on `createTitleScreen`'s own call site inside `start()`.
-    const onNewGame = (loadout: string, scenarioId: string, pilotId: string): void => {
-      expect(typeof loadout).toBe('string')
-      expect(typeof scenarioId).toBe('string')
-      expect(typeof pilotId).toBe('string')
-    }
-    onNewGame('both', 'free-flight', 'pilot-1-1')
+  it('onNewGame receives one SortieChoice and the pilot id, null only for a quick launch (type-level contract, sortie forms)', () => {
+    // The DOM that calls it lives in `createTitleScreen` (this suite runs in
+    // `node`); the contract is checked against the real signature, so a
+    // change to either side fails here and at `tsc --noEmit`.
+    expectTypeOf<Parameters<typeof createTitleScreen>[2]>().toEqualTypeOf<(choice: SortieChoice, pilotId: string | null) => void>()
   })
 
   it('show() requires the currently-loaded scenario id, not a zero-arg call (type-level contract, Plan 9 Task 7 bugfix)', () => {

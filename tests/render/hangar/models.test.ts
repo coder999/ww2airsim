@@ -200,7 +200,7 @@ describe("an entry's own model (R1)", () => {
     const m = await loadHangarModel(hellcat, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
     expect(asked).toEqual([['f6f-hellcat', undefined]])
     expect(m!.mounts()).toEqual([])
-    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('wildcat') // the game still draws the Wildcat
+    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat') // sortie forms A4: the game now draws the same model
   })
 
   it('a ship model and a vehicle model go through the display loader too', async () => {
