@@ -7,7 +7,10 @@ back, so a script never thinks in Blender axes. (x, y, z) -> Blender (x, -z, y) 
 rotation (det +1), so face winding survives both ways.
 
 Determinism: no randomness; parts accumulate in plain lists and become Blender
-objects only at export, one per node, created in sorted name order.
+objects only at export, one per node, created in sorted name order. The building
+parts (R4) are wound outward and checked by `tests/tools/models/blender/kitBuildings.test.ts`;
+R2's `cylinder`, `tapered_box` and `turret` wind inward (open item, R4 handoff) and
+no building calls them.
 """
 import math
 import sys
@@ -21,6 +24,9 @@ PALETTE = {
     'concrete': (0x8D / 255, 0x89 / 255, 0x78 / 255),
     'dark': (0x17 / 255, 0x26 / 255, 0x24 / 255),
     'timber': (0x61 / 255, 0x51 / 255, 0x3C / 255),
+    # Buildings (R4). Packed earth and sandbags; no counterpart in buildings.ts, so a
+    # modeling choice, not the game's own color.
+    'earth': (0x7A / 255, 0x6A / 255, 0x4C / 255),
     # Neutral authoring colors. A ship entry maps these named roles to its
     # selected gameplay palette during the shared model pipeline.
     'hull': (0x5C / 255, 0x66 / 255, 0x70 / 255),
@@ -502,6 +508,140 @@ class Model:
             zz = cz + (b - (barrels - 1) / 2) * radius * 0.35
             self.box(role, (cx + facing * (0.6 * radius + barrel_length / 2), cy + up * 0.45 * height - gauge / 2, zz),
                      (barrel_length, gauge, gauge), key)
+
+    # --- Building parts (R4). Every one is wound outward: kitBuildings.test.ts checks it. ---
+
+    def frustum(self, role, base, lower, upper, height, node=None):
+        """A closed truncated rectangular pyramid standing on base (x, y, z): `lower` (x size,
+        z size) at y, `upper` at y + height, both centered. A mound, a berm or a blast wall;
+        upper == lower is a box."""
+        _require(height > 0 and min(*lower, *upper) > 0, f'frustum: height and every width must be > 0, got {height}, {lower}, {upper}')
+        _require(upper[0] <= lower[0] and upper[1] <= lower[1], f'frustum: upper {upper} must not exceed lower {lower}')
+        x, y, z = base
+        lx, lz, ux, uz = lower[0] / 2, lower[1] / 2, upper[0] / 2, upper[1] / 2
+        v = [(x - lx, y, z - lz), (x + lx, y, z - lz), (x + lx, y, z + lz), (x - lx, y, z + lz),
+             (x - ux, y + height, z - uz), (x + ux, y + height, z - uz),
+             (x + ux, y + height, z + uz), (x - ux, y + height, z + uz)]
+        f = [(0, 1, 2, 3), (4, 7, 6, 5), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
+        self._part(role, v, f, node)
+
+    def gable_roof(self, role, base, width, length, rise, overhang=0.0, node=None):
+        """A closed triangular prism: eaves at base y, the ridge `rise` above it along z, over a
+        width (x) by length (z) plan grown by `overhang` on every side."""
+        _require(width > 0 and length > 0 and rise > 0 and overhang >= 0,
+                 f'gable_roof: width, length and rise must be > 0 and overhang >= 0, got {width}, {length}, {rise}, {overhang}')
+        x, y, z = base
+        hw, hl = width / 2 + overhang, length / 2 + overhang
+        v = [(x - hw, y, z - hl), (x + hw, y, z - hl), (x, y + rise, z - hl),
+             (x - hw, y, z + hl), (x + hw, y, z + hl), (x, y + rise, z + hl)]
+        f = [(0, 2, 1), (3, 4, 5), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5)]
+        self._part(role, v, f, node)
+
+    def tank(self, role, base, radius, height, roof_rise=0.0, segments=24, node=None):
+        """A vertical cylinder standing on base (x, y, z), closed below, with a cone roof rising
+        `roof_rise` to its apex, or a flat top at 0. A fuel tank, a pedestal, a floor disc.
+        A multiple of 4 segments puts vertices on both axes, so the extents are exact."""
+        _require(radius > 0 and height > 0 and roof_rise >= 0, f'tank: radius and height must be > 0 and roof_rise >= 0, got {radius}, {height}, {roof_rise}')
+        _require(isinstance(segments, int) and segments >= 3, f'tank: segments must be an integer >= 3, got {segments}')
+        x, y, z = base
+        n = segments
+        ring = lambda yy: [(x + math.cos(2 * math.pi * i / n) * radius, yy, z + math.sin(2 * math.pi * i / n) * radius) for i in range(n)]
+        v = ring(y) + ring(y + height)
+        f = [tuple(range(n))]                                    # floor, faces -y
+        for i in range(n):
+            j = (i + 1) % n
+            f.append((i, n + i, n + j, j))                       # wall, faces out
+        if roof_rise == 0:
+            f.append(tuple(reversed(range(n, 2 * n))))           # flat top, faces +y
+        else:
+            v.append((x, y + height + roof_rise, z))
+            for i in range(n):
+                f.append((n + i, 2 * n, n + (i + 1) % n))        # cone, faces out and up
+        self._part(role, v, f, node)
+
+    def sandbag_ring(self, role, center, inner_radius, thickness, height, batter=0.0, segments=16, node=None):
+        """A closed annular parapet on center (x, y, z): `thickness` across at its foot, its outer
+        face leaning in by `batter` at the top. A gun pit's sandbags or a concrete emplacement."""
+        _require(inner_radius > 0 and thickness > 0 and height > 0,
+                 f'sandbag_ring: inner_radius, thickness and height must be > 0, got {inner_radius}, {thickness}, {height}')
+        _require(0 <= batter < thickness, f'sandbag_ring: batter {batter:g} must be >= 0 and < thickness {thickness:g}')
+        _require(isinstance(segments, int) and segments >= 3, f'sandbag_ring: segments must be an integer >= 3, got {segments}')
+        x, y, z = center
+        n = segments
+        ring = lambda r, yy: [(x + math.cos(2 * math.pi * i / n) * r, yy, z + math.sin(2 * math.pi * i / n) * r) for i in range(n)]
+        ro, rt = inner_radius + thickness, inner_radius + thickness - batter
+        v = ring(inner_radius, y) + ring(ro, y) + ring(rt, y + height) + ring(inner_radius, y + height)
+        A, B, C, D = 0, n, 2 * n, 3 * n   # inner foot, outer foot, outer top, inner top
+        f = []
+        for i in range(n):
+            j = (i + 1) % n
+            f.append((B + i, C + i, C + j, B + j))   # outer face, away from the axis
+            f.append((D + i, D + j, C + j, C + i))   # top, faces +y
+            f.append((A + i, A + j, D + j, D + i))   # inner face, toward the axis
+            f.append((A + i, B + i, B + j, A + j))   # foot, faces -y
+        self._part(role, v, f, node)
+
+    def strut(self, role, p0, p1, radius, end_radius=None, sides=4, node=None):
+        """A closed prism from p0 to p1 with `sides` faces, circumradius `radius` at p0 and
+        `end_radius` (default: the same) at p1. A brace, a pipe, a mast member, a gun tube."""
+        end_radius = radius if end_radius is None else end_radius
+        _require(radius > 0 and end_radius > 0, f'strut: radii must be > 0, got {radius}, {end_radius}')
+        _require(isinstance(sides, int) and sides >= 3, f'strut: sides must be an integer >= 3, got {sides}')
+        _require(any(abs(b - a) > 1e-9 for a, b in zip(p0, p1)), f'strut: p0 and p1 must differ, got {p0}, {p1}')
+        d = _unit(tuple(b - a for a, b in zip(p0, p1)))
+        helper = (1.0, 0.0, 0.0) if abs(d[1]) > 0.9 else (0.0, 1.0, 0.0)
+        u = _unit(_cross(helper, d))
+        w = _cross(d, u)   # (u, w, d) right-handed: rings run counterclockwise about d
+        v = []
+        for p, r in ((p0, radius), (p1, end_radius)):
+            for k in range(sides):
+                c, s = math.cos(2 * math.pi * k / sides) * r, math.sin(2 * math.pi * k / sides) * r
+                v.append(tuple(p[i] + c * u[i] + s * w[i] for i in range(3)))
+        n = sides
+        f = [tuple(reversed(range(n))), tuple(range(n, 2 * n))]   # p0 cap faces -d, p1 cap +d
+        for k in range(n):
+            j = (k + 1) % n
+            f.append((k, j, n + j, n + k))
+        self._part(role, v, f, node)
+
+    def gun_barrel(self, role, breech, azimuth_deg, elevation_deg, length, radius, muzzle_radius=None, sides=8, node=None):
+        """A gun tube from its breech: azimuth 0 is +x, positive turns toward -z (counterclockwise
+        seen from above); elevation lifts it. With sides a multiple of 4 and elevation <= 64 deg,
+        its top is exactly muzzle y + muzzle radius x cos(elevation)."""
+        _require(-5 <= elevation_deg <= 85, f'gun_barrel: elevation must be in [-5, 85] degrees, got {elevation_deg:g}')
+        _require(length > 0, f'gun_barrel: length must be > 0, got {length}')
+        az, el = math.radians(azimuth_deg), math.radians(elevation_deg)
+        d = (math.cos(el) * math.cos(az), math.sin(el), -math.cos(el) * math.sin(az))
+        muzzle = tuple(b + length * c for b, c in zip(breech, d))
+        self.strut(role, breech, muzzle, radius, radius if muzzle_radius is None else muzzle_radius, sides, node)
+
+    def lattice_mast(self, role, base, base_width, top_width, height, panels, member, node=None):
+        """A square, tapered lattice tower on base (x, y, z): four corner legs, a horizontal ring at
+        the foot, at every panel joint and at the top, and an X of braces on each face of each panel.
+        Every member is a square strut `member` across its flats."""
+        _require(0 < top_width <= base_width, f'lattice_mast: top_width must be > 0 and <= base_width, got {top_width}, {base_width}')
+        _require(height > 0, f'lattice_mast: height must be > 0, got {height}')
+        _require(isinstance(panels, int) and panels >= 1, f'lattice_mast: panels must be an integer >= 1, got {panels}')
+        _require(0 < member < top_width / 2, f'lattice_mast: member must be > 0 and < top_width / 2, got {member}')
+        x, y, z = base
+        r = member / math.sqrt(2)   # a 4-sided strut's circumradius for `member` across the flats
+
+        def corner(k, level):
+            t = level / panels
+            h = (base_width + (top_width - base_width) * t) / 2
+            sx, sz = ((-1, -1), (1, -1), (1, 1), (-1, 1))[k]
+            return (x + sx * h, y + height * t, z + sz * h)
+
+        for k in range(4):
+            self.strut(role, corner(k, 0), corner(k, panels), r, r, 4, node)
+        for level in range(panels + 1):
+            for k in range(4):
+                self.strut(role, corner(k, level), corner((k + 1) % 4, level), r, r, 4, node)
+        for level in range(panels):
+            for k in range(4):
+                j = (k + 1) % 4
+                self.strut(role, corner(k, level), corner(j, level + 1), r, r, 4, node)
+                self.strut(role, corner(j, level), corner(k, level + 1), r, r, 4, node)
 
     def export(self, path):
         unread = sorted(_given - _read)
