@@ -20,6 +20,13 @@ function pivotOf(n: Node): { point: Vec3; axis: Vec3 } {
 }
 const MAIN = new Set(['GearL', 'GearR'])
 
+/** How far a retracted leg may rise above the static airframe over its folded footprint. */
+const SKIN_SLACK_M = 0.05
+/** Legs known to fold through the skin, each with its measured excess (m) as a ceiling: the list only shrinks.
+ *  The F6F's real legs turn 90 deg to lie flat as they swing aft; the pivot schema bakes one ±x/y/z axis, so the
+ *  rig swings them only, and each wheel stands 0.47 m proud of the wing (R3 ledger, review of batch C). */
+const THROUGH_SKIN: Readonly<Record<string, number>> = { 'f6f-hellcat/GearL': 0.48, 'f6f-hellcat/GearR': 0.48 }
+
 /** Turning a leg to its up angle: how far its centroid rises, and how far it moves the declared way. */
 function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig): { up: number; along: number; height: number } {
   const b = bounds(points)
@@ -101,6 +108,25 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
       const r = retraction(pts, point, axis, g)
       expect(r.up, `${g.node} rises`).toBeGreaterThan(0.25 * r.height)
       expect(r.along, `${g.node} moves ${g.retracts}`).toBeGreaterThan(0.25 * r.height)
+    }
+  })
+
+  it('every retracted leg stays under the airframe skin over its folded footprint (Review Focus 4)', () => {
+    const skin = doc.getRoot().listNodes().filter((n) => n.getMesh() && !PART_NAME.test(n.getName())).flatMap((n) => worldPositions(n))
+    for (const g of rig.gear) {
+      const node = one(doc, g.node)
+      const { point, axis } = pivotOf(node)
+      const up = bounds(worldPositions(node).map((p) => rotateAbout(p, point, axis, (g.upAngleDeg * Math.PI) / 180)))
+      const over = skin.filter((p) => p[0] >= up.min[0] && p[0] <= up.max[0] && p[2] >= up.min[2] && p[2] <= up.max[2])
+      expect(over.length, `${g.node}: no airframe over its folded footprint`).toBeGreaterThan(0)
+      const excess = up.max[1] - Math.max(...over.map((p) => p[1]))
+      const known = THROUGH_SKIN[`${id}/${g.node}`]
+      const msg = `${g.node} at ${g.upAngleDeg} deg rises ${excess.toFixed(3)} m above the skin over it`
+      if (known === undefined) expect(excess, msg).toBeLessThanOrEqual(SKIN_SLACK_M)
+      else {
+        expect(excess, `${msg}: a THROUGH_SKIN entry that no longer applies must be deleted`).toBeGreaterThan(SKIN_SLACK_M)
+        expect(excess, msg).toBeLessThanOrEqual(known)
+      }
     }
   })
 

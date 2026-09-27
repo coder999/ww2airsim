@@ -56,8 +56,12 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     // position is fused and stays static (P14; R3 ledger, Task 11).
     props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }, { node: 'Prop3', blades: 3 }, { node: 'Prop4', blades: 3 }],
     gear: [
-      { node: 'GearL', upAngleDeg: 90, retracts: 'forward', source: 'B-17 main legs retract forward into the inboard nacelles, wheels partly exposed; the angle is an ESTIMATE' },
-      { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'as GearL' },
+      // 60, not 90: the oleo is raked 23 deg forward at rest, and 90 swung the lower drag link 0.6 m out through
+      // the nacelle top; at 60 the wheel lies in the nacelle, its bottom at the nacelle's. The upper drag link is not
+      // in the leg: rigid, it swung 1.7 m above the wing, so it stays static where the real one folds (R3 ledger,
+      // review of batch C; aircraftRigs.test.ts checks every leg against the skin over it).
+      { node: 'GearL', upAngleDeg: 60, retracts: 'forward', source: 'B-17 main legs retract forward into the inboard nacelles, wheels partly exposed; the angle is an ESTIMATE' },
+      { node: 'GearR', upAngleDeg: 60, retracts: 'forward', source: 'as GearL' },
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3'],
