@@ -17,7 +17,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { getBounds, prune } from '@gltf-transform/functions'
-import { Logger, type Document } from '@gltf-transform/core'
+import { Logger, type Document, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
 import { BLENDER_VERSION, blenderPresent, runBlenderScript } from './blender/run.js'
 import type { BlenderSource, SketchfabSource } from './manifest.js'
@@ -147,9 +147,10 @@ export function checkOutput(doc: Document, byteLength: number, entry: ModelEntry
     if (names.filter((n) => n === 'SmokeOrigin').length !== 1) out.push('a ship needs exactly one SmokeOrigin node')
   }
   if (entry.noseNode !== undefined && names.includes(entry.noseNode)) {
-    const centerX = (name: string): number => { const bb = getBounds(findNode(doc, name)); return (bb.min[0] + bb.max[0]) / 2 }
-    const nose = centerX(entry.noseNode)
-    const ahead = doc.getRoot().listNodes().filter((n) => n.getMesh() && n.getName() !== entry.noseNode && centerX(n.getName()) >= nose)
+    // By node, not by name: join may leave two non-part nodes sharing a mesh name (R3's F6F, 2026-09-27).
+    const centerX = (node: Node): number => { const bb = getBounds(node); return (bb.min[0] + bb.max[0]) / 2 }
+    const nose = centerX(findNode(doc, entry.noseNode))
+    const ahead = doc.getRoot().listNodes().filter((n) => n.getMesh() && n.getName() !== entry.noseNode && centerX(n) >= nose)
     if (ahead.length) out.push(`noseNode "${entry.noseNode}" is not the frontmost part: ${ahead.map((n) => n.getName()).join(', ')} center at or ahead of it`)
   }
   return out

@@ -19,6 +19,7 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `src/render/scene/ship.ts` | original procedural hulls, built from the class dimensions in `content/ships/` | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/wildcat.glb` | https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4 | rojatsu | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/a6m2-zero.glb` | https://sketchfab.com/3d-models/mitsubishi-a6m2-zero-zeke-d701787b75fa4c979792b0c0c14221e2 | SavinienBerault | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/f6f-hellcat.glb` | https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
@@ -93,7 +94,6 @@ triangle count after glTF import.
 | `type97-chi-ha.glb` | https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6 | snrnsrk5 | CC-BY 4.0 | 4k | Low-poly, textured |
 | `willys-mb-jeep.glb` | https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98 | MattyNL | CC-BY 4.0 | 19k | Made by the uploader for the Darkest Hour mod, not ripped from it |
 | `f4u.glb` | https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284 | manilov.ap | CC-BY 4.0 | 30k | Same author and set as `f6f.glb`, `ki43.glb`, `p38-lightning.glb` |
-| `f6f.glb` | https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e | manilov.ap | CC-BY 4.0 | 37k | 276 separate meshes |
 | `ki43.glb` | https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6 | manilov.ap | CC-BY 4.0 | 19k | |
 | `aichi_d3a_val.glb` | https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501 | helijah | CC-BY 4.0 | 293k | FlightGear modeler; needs decimation |
 | `boeing_b-17_flying_fortress.glb` | https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5 | helijah | CC-BY 4.0 | 763k | FlightGear modeler; needs heavy decimation |

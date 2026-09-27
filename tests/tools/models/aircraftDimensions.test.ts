@@ -18,6 +18,7 @@ interface Cited {
  *  length proves it depicts this variant; a Blender model is built from both, so both hold to 1%. */
 const CITED: Readonly<Record<string, Cited>> = {
   'a6m2-zero': { spanM: 12.0, lengthM: 9.06, tolerance: 0.06, source: "English Wikipedia 'Mitsubishi A6M Zero', Specifications (A6M2 Type 0 Model 21), read 2026-09-25, as content/aircraft/a6m2-zero.json cites it. Tolerance 6%, not 4%: the chosen model measures 9.52 m at a 12.0 m span (R3 plan, P10)" },
+  'f6f-hellcat': { spanM: 13.06, lengthM: 10.24, tolerance: 0.04, source: "English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5 Hellcat), read 2026-09-27" },
 }
 
 const aircraft = loadModelEntries().filter((e) => e.output.startsWith('content/aircraft/') && e.id !== 'wildcat')

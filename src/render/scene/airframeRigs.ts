@@ -50,4 +50,13 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'f6f-hellcat': {
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE of the motion: F6F main legs swing aft into the wing, turning 90 deg to lie flat; modeled as the swing alone' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE of the motion: as GearL' },
+      { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE' },
+    ],
+    turrets: [],
+  },
 }
