@@ -5,7 +5,7 @@ import { getBounds } from '@gltf-transform/functions'
 import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { nodeBuildDeps, runBuild } from '../../../tools/models/build.js'
 import { HAVE_BLENDER } from '../../../tools/models/blender/run.js'
-import { modelIO } from '../../../tools/models/document.js'
+import { findNode, modelIO } from '../../../tools/models/document.js'
 
 const blenderEntries = loadModelEntries().filter((e) => e.source.kind === 'blender')
 const sha = (b: Uint8Array): string => createHash('sha256').update(b).digest('hex')
@@ -30,6 +30,31 @@ describe('blender entries (R1)', () => {
     // Height (5.5 m wall + width x 0.25 rise) is hangar.py's own ESTIMATE, not a cited figure; only the footprint is cited.
     within1pct(bb.max[1], 5.5 + cited.widthM * 0.25, 'height: wall + rise')
     expect(bb.min[1]).toBeCloseTo(-0.3, 4)
+  })
+
+  it('the three R2 ship scripts and committed outputs carry their cited dimensions', async () => {
+    expect(blenderEntries.map((e) => e.id)).toEqual(expect.arrayContaining(['pennsylvania-bb', 'kagero-dd', 'casablanca-cve']))
+
+    const penn = await modelIO().readBinary(new Uint8Array(readFileSync('content/ships/pennsylvania-bb.glb')))
+    const pennBounds = getBounds(penn.getRoot().listScenes()[0]!)
+    within1pct(pennBounds.max[0] - pennBounds.min[0], 185.32, 'Pennsylvania overall length')
+    within1pct(pennBounds.max[2] - pennBounds.min[2], 32.39, 'Pennsylvania post-modernization beam')
+    expect(['Turret1', 'Turret2', 'Turret3', 'Turret4'].map((n) => findNode(penn, n).getName()))
+      .toEqual(['Turret1', 'Turret2', 'Turret3', 'Turret4'])
+
+    const kagero = await modelIO().readBinary(new Uint8Array(readFileSync('content/ships/kagero-dd.glb')))
+    const kageroBounds = getBounds(kagero.getRoot().listScenes()[0]!)
+    within1pct(kageroBounds.max[0] - kageroBounds.min[0], 118.5, 'Kagero overall length')
+    within1pct(kageroBounds.max[2] - kageroBounds.min[2], 10.8, 'Kagero beam')
+    within1pct(-kageroBounds.min[1], 3.76, 'Kagero design draft')
+    expect(['Turret1', 'Turret2', 'Turret3'].map((n) => findNode(kagero, n).getName()))
+      .toEqual(['Turret1', 'Turret2', 'Turret3'])
+
+    const casablanca = await modelIO().readBinary(new Uint8Array(readFileSync('content/ships/casablanca-cve.glb')))
+    const deck = getBounds(findNode(casablanca, 'FlightDeck'))
+    within1pct(deck.max[0] - deck.min[0], 145.69, 'Casablanca flight-deck length')
+    within1pct(deck.max[2] - deck.min[2], 24.38, 'Casablanca flight-deck width')
+    within1pct(deck.max[1], 12.0, 'Casablanca flight-deck height')
   })
 })
 
