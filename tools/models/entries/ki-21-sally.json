@@ -1,0 +1,20 @@
+{
+  "id": "ki-21-sally",
+  "output": "content/aircraft/ki-21-sally.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/ki-21-sally.py",
+    "dimensions": "span 22.5 m, length 16 m, wing area 69.9 m2, 3-bladed propellers and one dorsal turret: English Wikipedia 'Mitsubishi Ki-21', Specifications (Ki-21-IIb), read 2026-09-27; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 22.5 } },
+  "keep": [
+    { "node": "Prop1", "pivot": { "point": [3.203398, -0.255225, -3.6], "axis": "+x" } },
+    { "node": "Prop2", "pivot": { "point": [3.203398, -0.255225, 3.6], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.547398, -0.895225, -3.6], "axis": "+z" } },
+    { "node": "GearR", "pivot": { "point": [0.547398, -0.895225, 3.6], "axis": "+z" } },
+    { "node": "Turret1", "pivot": { "point": [-1.808, 0.944, 0], "axis": "+y" } }
+  ],
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 5000000, "maxTriangles": 100000, "maxDrawCalls": 47 }
+}
