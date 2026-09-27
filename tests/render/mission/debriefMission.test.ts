@@ -69,7 +69,16 @@ describe('missionDebrief (M2 R9)', () => {
 
   it('a failed protect: "<label>: failed — no badge"', () => {
     const PROTECT = { id: 'convoy', label: 'Convoy', priority: 'primary', kind: 'protect', targets: ['convoy'], maxLost: 1 }
-    let w = missionWorld({ objectives: [PROTECT, RECOVER] })
+    // A protect target must be on the player's side (M3-R10): a friendly
+    // convoy, not the fixture's default axis marus.
+    let w = missionWorld({
+      ships: [
+        { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[-25629, -16479]], speedMps: 0 },
+        { id: 'maru-1', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -10000]], speedMps: 0 },
+        { id: 'maru-2', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -9000]], speedMps: 0 },
+      ],
+      objectives: [PROTECT, RECOVER],
+    })
     w = steps(destroyShip(w, 'maru-1'), 1)
     w = steps(destroyShip(w, 'maru-2'), 1)
     w = landOnCarrier(w)

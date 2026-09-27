@@ -1,11 +1,12 @@
 import { NO_LANDING } from '../landing.js'
 import type { EntityId } from '../loop.js'
+import type { Side } from '../sides.js'
 import type { Badge, Objective, Trigger } from './schema.js'
 import type { HeldGroup, MissionState, ObjectiveState, ResolvedObjective } from './state.js'
 
 /** Anything an objective may name: an aircraft or ship (start or held) or
- *  an airfield structure, with its group tags. */
-export type Taggable = { readonly id: EntityId; readonly tags: readonly string[] }
+ *  an airfield structure, with its group tags and side. */
+export type Taggable = { readonly id: EntityId; readonly tags: readonly string[]; readonly side: Side }
 
 /**
  * `refs` (entity ids and/or tags) to entity ids, deduplicated in first-seen
@@ -28,6 +29,7 @@ export function resolveRefs(scenarioId: string, where: string, refs: readonly st
 
 export function createMission<M>(input: {
   readonly scenarioId: string
+  readonly playerSide: Side
   readonly objectives: readonly Objective[]
   readonly triggers: readonly Trigger[]
   readonly badge: Badge | null
@@ -35,6 +37,17 @@ export function createMission<M>(input: {
   readonly entities: readonly Taggable[]
 }): MissionState<M> {
   const resolve = (where: string, refs: readonly string[]) => resolveRefs(input.scenarioId, where, refs, input.entities)
+  const sideOfId = new Map(input.entities.map((e) => [e.id, e.side]))
+  function requireSide(where: string, ids: readonly EntityId[], want: 'same' | 'opposite'): void {
+    for (const id of ids) {
+      const side = sideOfId.get(id)!
+      const ok = want === 'same' ? side === input.playerSide : side !== input.playerSide
+      if (!ok) {
+        throw new Error(`scenario "${input.scenarioId}": ${where} names "${id}", which is ${side}; ` +
+          (want === 'same' ? 'a protect target must be on the player\'s side' : 'a destroy target or deny hostile must be on the other side'))
+      }
+    }
+  }
   const objectives: ResolvedObjective[] = input.objectives.map((o) => {
     const where = `objective "${o.id}"`
     switch (o.kind) {
@@ -43,10 +56,19 @@ export function createMission<M>(input: {
         if (o.count !== undefined && o.count > resolved.length) {
           throw new Error(`scenario "${input.scenarioId}": ${where} asks for ${o.count} of ${resolved.length} targets`)
         }
+        requireSide(where, resolved, 'opposite')
         return { ...o, resolved }
       }
-      case 'protect': return { ...o, resolved: resolve(where, o.targets) }
-      case 'deny': return { ...o, resolved: resolve(where, o.hostiles) }
+      case 'protect': {
+        const resolved = resolve(where, o.targets)
+        requireSide(where, resolved, 'same')
+        return { ...o, resolved }
+      }
+      case 'deny': {
+        const resolved = resolve(where, o.hostiles)
+        requireSide(where, resolved, 'opposite')
+        return { ...o, resolved }
+      }
       default: return { ...o, resolved: [] }
     }
   })

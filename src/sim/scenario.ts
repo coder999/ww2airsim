@@ -11,7 +11,7 @@ import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from '
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, type IngressOrders } from './ai/pilot.js'
-import { sideOf } from './sides.js'
+import { airfieldSideOf, sideOf } from './sides.js'
 import { checkScenarioSides } from './sidesCheck.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
@@ -555,9 +555,14 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
   const s = bundle.scenario
   const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
   const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
-  const buildings = s.airfields.flatMap((a) => lookup(bundle.airfields, a, 'airfield').buildings)
-  return [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips, ...buildings]
-    .map((e) => ({ id: e.id, tags: e.tags ?? [] }))
+  const vehicles = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips]
+    .map((e) => ({ id: e.id, tags: e.tags ?? [], side: sideOf(s, e) }))
+  const buildings = s.airfields.flatMap((a) => {
+    const field = lookup(bundle.airfields, a, 'airfield')
+    const side = airfieldSideOf(field, s.airfieldSides)
+    return field.buildings.map((b) => ({ id: b.id, tags: b.tags ?? [], side }))
+  })
+  return [...vehicles, ...buildings]
 }
 
 /**
@@ -604,6 +609,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     }))
     mission = createMission<undefined>({
       scenarioId: s.id,
+      playerSide: sideOf(s, s.aircraft.find((a) => a.id === s.player)!),
       objectives: s.objectives,
       triggers: s.triggers ?? [],
       badge: s.badge ?? null,

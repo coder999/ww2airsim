@@ -102,16 +102,16 @@ describe('triggers (spec 2026-09-25 §2.2)', () => {
       let w = missionWorld({
         objectives: [
           { id: 'kill', label: 'Kill', priority: 'primary', kind: 'destroy', targets: ['raid'] },
-          { id: 'convoy', label: 'Convoy', priority: 'secondary', kind: 'protect', targets: ['convoy'] },
+          { id: 'carrier', label: 'Carrier', priority: 'secondary', kind: 'protect', targets: ['cv-1'] },
         ],
         triggers: [
           { id: 'launch', when: { at: 0.5 }, then: [{ spawn: 'wave-1' }, { message: 'Inbound' }] },
-          { id: 'lost', when: { failed: 'convoy' }, then: [{ message: 'Convoy hit' }] },
+          { id: 'lost', when: { failed: 'carrier' }, then: [{ message: 'Carrier hit' }] },
         ],
         heldGroups: [{ id: 'wave-1', aircraft: [RAID_2] }],
       })
       w = steps(w, 40)
-      w = steps(destroyShip(w, 'maru-2'), 200)
+      w = steps(destroyShip(w, 'cv-1'), 200)
       return w
     }
     const a = run()

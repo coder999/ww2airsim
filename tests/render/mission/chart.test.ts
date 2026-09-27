@@ -64,7 +64,15 @@ describe('objectiveMarks', () => {
 
   it('an active protect marks its targets "protect"', () => {
     const PROTECT = { id: 'convoy-obj', label: 'Convoy', priority: 'primary', kind: 'protect', targets: ['convoy'] }
-    const w = missionWorld({ objectives: [PROTECT] })
+    // A protect target must be on the player's side (M3-R10): a friendly
+    // convoy, not the fixture's default axis marus.
+    const w = missionWorld({
+      ships: [
+        { id: 'maru-1', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -10000]], speedMps: 0 },
+        { id: 'maru-2', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -9000]], speedMps: 0 },
+      ],
+      objectives: [PROTECT],
+    })
     expect(objectiveMarks(w).targets).toEqual(new Map([['maru-1', 'protect'], ['maru-2', 'protect']]))
   })
 
@@ -111,12 +119,14 @@ describe('objectiveMarks', () => {
   })
 
   it('a structure target gives a structure point at its position, targetable', () => {
-    const DESTROY = { id: 'strike', label: 'Strike', priority: 'primary', kind: 'destroy', targets: ['tacloban-tower'] }
+    // A destroy target must be on the other side (M3-R10): Dulag is axis, so
+    // its hangar, not Tacloban's (allied) tower.
+    const DESTROY = { id: 'strike', label: 'Strike', priority: 'primary', kind: 'destroy', targets: ['dulag-hangar-1'] }
     const w = missionWorld({ objectives: [DESTROY] })
-    const structure = w.structures.find((s) => s.id === 'tacloban-tower')!
+    const structure = w.structures.find((s) => s.id === 'dulag-hangar-1')!
     expect(objectiveMarks(w).structures).toEqual([
       {
-        id: 'structure:tacloban-tower', kind: 'structure', label: 'tacloban-tower',
+        id: 'structure:dulag-hangar-1', kind: 'structure', label: 'dulag-hangar-1',
         x: structure.position.x, z: structure.position.z, targetable: true, objective: 'destroy',
       },
     ])
@@ -131,7 +141,14 @@ describe('objectiveMarks', () => {
     expect(objectiveMarks(w)).toEqual({ targets: new Map(), stations: [], structures: [] })
 
     const PROTECT = { id: 'convoy-obj', label: 'Convoy', priority: 'primary', kind: 'protect', targets: ['convoy'], maxLost: 0 }
-    let failed = missionWorld({ objectives: [PROTECT] })
+    // A protect target must be on the player's side (M3-R10).
+    let failed = missionWorld({
+      ships: [
+        { id: 'maru-1', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -10000]], speedMps: 0 },
+        { id: 'maru-2', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -9000]], speedMps: 0 },
+      ],
+      objectives: [PROTECT],
+    })
     failed = steps(destroyShip(failed, 'maru-1'), 1)
     expect(failed.mission!.progress[0]!.status).toBe('failed')
     expect(objectiveMarks(failed)).toEqual({ targets: new Map(), stations: [], structures: [] })
@@ -165,10 +182,11 @@ describe('objectiveMarks', () => {
   })
 
   it('a destroyed structure stops being marked, same as an aircraft or ship', () => {
-    const DESTROY = { id: 'strike', label: 'Strike', priority: 'primary', kind: 'destroy', targets: ['tacloban-tower'] }
+    // A destroy target must be on the other side (M3-R10): Dulag is axis.
+    const DESTROY = { id: 'strike', label: 'Strike', priority: 'primary', kind: 'destroy', targets: ['dulag-hangar-1'] }
     let w = missionWorld({ objectives: [DESTROY] })
     expect(objectiveMarks(w).structures).toHaveLength(1)
-    w = steps(destroyStructure(w, 'tacloban-tower'), 1)
+    w = steps(destroyStructure(w, 'dulag-hangar-1'), 1)
     expect(objectiveMarks(w).structures).toHaveLength(0)
   })
 })

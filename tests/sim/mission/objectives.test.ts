@@ -43,10 +43,18 @@ describe('destroy', () => {
 
 describe('protect', () => {
   it('fails the moment losses exceed maxLost, announces it, and the flight goes on (spec §0.6)', () => {
-    let w = missionWorld({ objectives: [
-      { id: 'convoy', label: 'Convoy', priority: 'primary', kind: 'protect', targets: ['convoy'], maxLost: 1 },
-      { ...REACH_FAR },
-    ] })
+    let w = missionWorld({
+      // A protect target must be on the player's side (M3-R10): a friendly
+      // convoy, not the fixture's default axis marus.
+      ships: [
+        { id: 'maru-1', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -10000]], speedMps: 0 },
+        { id: 'maru-2', spec: 'type-b-maru', tags: ['convoy'], side: 'allied', waypoints: [[-25000, -9000]], speedMps: 0 },
+      ],
+      objectives: [
+        { id: 'convoy', label: 'Convoy', priority: 'primary', kind: 'protect', targets: ['convoy'], maxLost: 1 },
+        { ...REACH_FAR },
+      ],
+    })
     w = steps(destroyShip(w, 'maru-1'), 1)
     expect(progressOf(w, 'convoy')).toEqual({ status: 'active', count: 1, heldTicks: 0 })
     w = steps(destroyShip(w, 'maru-2'), 1)
