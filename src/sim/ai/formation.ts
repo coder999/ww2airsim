@@ -27,16 +27,43 @@ export const STATIONS: Readonly<Record<FormationSlot, Station>> = {
 /** Trail cover while the leader fights (spec §4, from the 7c design §5). */
 export const TRAIL_COVER: Station = { aftM: 500, rightM: 0, upM: 200 }
 
-/** Desired closure per meter of station error, 1/s. Tuning value (Task 3 measures it). */
-export const CLOSURE_GAIN_PER_S = 0.15
+/** Desired closure per meter of station error, 1/s. Measured 2026-09-27 (Task
+ *  3, `.superpowers/7f/sweep.ts` against `tests/sim/ai/formationFlight.test.ts`):
+ *  swept 0.03-0.8 against the straight-and-level, turn, ahead-of-station and
+ *  rejoin scenarios. Above about 0.1 the pull is already clamped to
+ *  MAX_CLOSURE_MPS for every error this file's tests use (0.1 x 400 m = 40),
+ *  so higher gains request the same closure and change nothing; below it
+ *  the request undershoots the clamp and every RMS gets worse (0.03: 171 m
+ *  straight-line RMS; 0.1: 84 m). 0.1 is also the only value that clears the
+ *  ahead-of-station bound (<50 m: 0.03->95 m, 0.05->76 m, 0.08->50 m,
+ *  0.1->44 m, 0.15->80 m -- non-monotonic, since a stronger pull overshoots
+ *  the station and has to reverse). Kept at 0.1. */
+export const CLOSURE_GAIN_PER_S = 0.1
 /** The closure the law may add to the leader's velocity (spec §3). */
 export const MAX_CLOSURE_MPS = 40
 /** The vertical part of the desired velocity is clamped to this, as ingress does. */
 export const MAX_FORMATION_VERTICAL_MPS = 10
-/** The desired speed never drops below this multiple of clean stall (Review Focus 1). */
+/** The desired speed never drops below this multiple of clean stall (Review
+ *  Focus 1). Measured 2026-09-27 (Task 3, `.superpowers/7f/measure.ts`): the
+ *  1.5 km-ahead scenario is the only one that ever drives the desired speed
+ *  toward the floor (a wingman ahead of station must slow down), and it
+ *  never triggers the floor at 1.3 -- `aheadStallOk` (measured minimum speed
+ *  above 1.2x stall) is true at every CLOSURE_GAIN_PER_S / throttle
+ *  combination tried. Kept unchanged from Task 2's starting value; not
+ *  re-tuned because nothing measured needed it to move. */
 export const MIN_SPEED_STALL_FACTOR = 1.3
-/** throttle = base + gain x (desired speed - airspeed), like `ingressThrottle`. Tuning values (Task 3). */
-export const FORMATION_THROTTLE_BASE = 0.7
+/** throttle = base + gain x (desired speed - airspeed), like `ingressThrottle`.
+ *  Measured 2026-09-27 (Task 3, `.superpowers/7f/sweep.ts`): BASE swept
+ *  0.7/0.85/1.0 and GAIN 0.03-0.2 at CLOSURE_GAIN_PER_S = 0.1. Desired speed
+ *  already exceeds airspeed by 30-40 m/s whenever a wingman is closing, so
+ *  throttle saturates to 1.0 within one tick at every GAIN tried -- GAIN
+ *  only matters near the station, where it damps the settle. BASE = 0.85
+ *  reduced ahead-of-station final error from 44 m (at 0.7) to 21 m and
+ *  straight-line RMS from 84 m to 79 m; 1.0 was no better (22 m / 79 m) and
+ *  removes the margin `formationThrottle`'s clamp already provides. Settled
+ *  on BASE = 0.85, GAIN = 0.05 (0.03 and 0.1 were both within a few meters
+ *  on every scenario). */
+export const FORMATION_THROTTLE_BASE = 0.85
 export const FORMATION_THROTTLE_GAIN = 0.05
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n))

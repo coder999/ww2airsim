@@ -482,7 +482,7 @@ git commit -m "7f Task 2: stations in the leader heading frame and the one stati
 - Consumes: `formationControls`, `stationErrorM` (Task 2); `FormationOrders` (Task 1).
 - Produces: `pilotTick` flies `mode: 'formation'`. `formationWorlds.ts` exports `buildFormation(aircraft: unknown[], extra?: Record<string, unknown>): World<undefined>`, `PLAYER_EAST`, `wingman(id, leader, slot, pos, side?)`, `rmsStationError(world, scripts, seconds, id, leaderId, slot, fromS)`. Later tasks import these.
 
-- [ ] **Step 1: Write the fixture module**
+- [x] **Step 1: Write the fixture module**
 
 ```ts
 // tests/sim/ai/formationWorlds.ts
@@ -528,7 +528,7 @@ export function rmsStationError(world: World<undefined>, scripts: Readonly<Recor
 }
 ```
 
-- [ ] **Step 2: Write the failing flight tests**
+- [x] **Step 2: Write the failing flight tests**
 
 ```ts
 // tests/sim/ai/formationFlight.test.ts
@@ -586,12 +586,12 @@ describe('a wingman holds station on the player (7f spec §3)', () => {
 })
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/ai/formationFlight.test.ts --maxWorkers=2`
 Expected: FAIL. The wingman's first rescore sets its mode to `loiter` (no target, no ingress), so the mode assertion or the RMS fails.
 
-- [ ] **Step 4: Add the formation branch to `pilotTick`**
+- [x] **Step 4: Add the formation branch to `pilotTick`**
 
 In `src/sim/ai/pilotTick.ts`, import `formationControls` from `./formation.js`. Then make three edits.
 
@@ -625,18 +625,18 @@ In `src/sim/ai/pilotTick.ts`, import `formationControls` from `./formation.js`. 
 
 Update the doc comment's numbered list: step 4 gains "or, for a wingman with no target, its station (7f)".
 
-- [ ] **Step 5: Run and tune against the spec's bounds**
+- [x] **Step 5: Run and tune against the spec's bounds**
 
 Run: `npx vitest run tests/sim/ai/formationFlight.test.ts tests/sim/ai/formation.test.ts --maxWorkers=2; echo rc=$?`
 
 If a bound fails, tune `CLOSURE_GAIN_PER_S` and `FORMATION_THROTTLE_*` in `formation.ts`, never the bound. Write a throwaway probe under `.superpowers/7f/` (gitignored) that prints RMS and join time per gain. Once all pass, update each constant's comment with the measured values and the date, e.g. `// Measured 2026-09-2x: slot 1 straight RMS 11 m, turn RMS 34 m, rejoin 52 s.` If no gain meets a bound after an honest sweep (at least 3 values per constant), stop and report the measured table. Do not loosen a bound unasked.
 
-- [ ] **Step 6: Run the AI suite files most likely to move**
+- [x] **Step 6: Run the AI suite files most likely to move**
 
 Run: `npx vitest run tests/sim/ai/pilotTick.test.ts tests/sim/ai/sidesTick.test.ts tests/sim/ai/ingress.test.ts --maxWorkers=2; echo rc=$?`
 Expected: PASS. No existing content has a wingman, so nothing else changes.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/sim/ai/pilotTick.ts src/sim/ai/formation.ts tests/sim/ai/formationWorlds.ts tests/sim/ai/formationFlight.test.ts
