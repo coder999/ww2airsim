@@ -132,6 +132,7 @@ whoosh (Plan 6b Task 10; see `content/audio/NOTICE.md`).
 | layer 2 (dirt) | https://polyhaven.com/a/dirt_aerial_02 | Rob Tuytel | CC0 |
 | layer 3 (jungle floor) | https://polyhaven.com/a/forest_leaves_02 | Rob Tuytel | CC0 |
 | layer 4 (rock) | https://polyhaven.com/a/aerial_rocks_02 | Rob Tuytel | CC0 |
+| `content/fx/fx-light-a.ktx2`, `fx-light-b.ktx2`, `fx-motion.ktx2`, `sheets.json` (placeholder flipbooks, built by `tools/fx/build.ts`) | generated in code from seeded noise, no source material | authored for this project | AGPL-3.0-or-later |
 | `content/vendor/basis/basis_transcoder.{js,wasm}` (copied from three r186 `examples/jsm/libs/basis/`) | https://github.com/BinomialLLC/basis_universal | Binomial LLC | Apache-2.0 |
 
 ## Fonts

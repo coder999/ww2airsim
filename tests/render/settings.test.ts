@@ -84,8 +84,9 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
     // The Simple row: the three render-quality tiers, worst-to-best order as
     // the prototype shows them.
     expect(RENDER_QUALITY_OPTIONS.map((o) => o.value)).toEqual(['low', 'medium', 'high'])
-    // The Advanced disclosure: the three systems that can now diverge.
-    expect(ADVANCED_SYSTEMS.map((s) => s.value)).toEqual(['ocean', 'scenery', 'clouds'])
+    // The Advanced disclosure: the four systems that can now diverge.
+    expect(ADVANCED_SYSTEMS.map((s) => s.value)).toEqual(['ocean', 'scenery', 'clouds', 'fx'])
+    expect(ADVANCED_SYSTEMS.at(-1)!.label).toBe('Effects')
     // Advanced is collapsed by default (spec §6).
     expect(model.snapshot().advancedExpanded).toBe(false)
     model.toggleAdvanced()
@@ -111,7 +112,7 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
     const model = createSettingsModel({ onQualityChange: (q) => applied.push(`${q.ocean}/${q.scenery}/${q.clouds}`) })
     model.selectSimpleTier('medium')
 
-    expect(model.snapshot().quality).toEqual({ ocean: 'medium', scenery: 'medium', clouds: 'medium' })
+    expect(model.snapshot().quality).toEqual({ ocean: 'medium', scenery: 'medium', clouds: 'medium', fx: 'medium' })
     expect(model.snapshot().simpleTier).toBe('medium')
     // Applied live (main.ts's setTier calls) AND persisted immediately -- no
     // Save button exists (spec §6, naval-comms spec §1).
@@ -125,11 +126,11 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
     const model = createSettingsModel()
     model.selectSimpleTier('high')
     model.selectSystemTier('scenery', 'low')
-    expect(model.snapshot().quality).toEqual({ ocean: 'high', scenery: 'low', clouds: 'high' })
+    expect(model.snapshot().quality).toEqual({ ocean: 'high', scenery: 'low', clouds: 'high', fx: 'high' })
 
     model.selectSystemTier('clouds', 'medium')
-    expect(model.snapshot().quality).toEqual({ ocean: 'high', scenery: 'low', clouds: 'medium' })
-    expect(loadQualitySettings()).toEqual({ ocean: 'high', scenery: 'low', clouds: 'medium' })
+    expect(model.snapshot().quality).toEqual({ ocean: 'high', scenery: 'low', clouds: 'medium', fx: 'high' })
+    expect(loadQualitySettings()).toEqual({ ocean: 'high', scenery: 'low', clouds: 'medium', fx: 'high' })
 
     // And the Simple row still overrides all three at once.
     model.selectSimpleTier('low')
@@ -161,12 +162,12 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
   })
 
   it('a model built with settings already persisted starts able to reset', () => {
-    saveQualitySettings({ ocean: 'medium', scenery: 'low', clouds: 'medium' })
+    saveQualitySettings({ ocean: 'medium', scenery: 'low', clouds: 'medium', fx: 'medium' })
     saveAssetQualityTier('high')
     saveDamageModel('arcade')
     const model = createSettingsModel()
     const s = model.snapshot()
-    expect(s.quality).toEqual({ ocean: 'medium', scenery: 'low', clouds: 'medium' })
+    expect(s.quality).toEqual({ ocean: 'medium', scenery: 'low', clouds: 'medium', fx: 'medium' })
     expect(s.assetQuality).toBe('high')
     expect(s.damageModel).toBe('arcade')
     expect(s.canReset).toBe(true)

@@ -124,7 +124,7 @@ test('an explicit Simple-row pick persists across a reload, with no second probe
   // itself, not a race with the probe, is what persists.
   await dlg.getByRole('radiogroup', { name: 'Render quality' }).getByRole('radio', { name: /Low\b/ }).click()
   const saved = await page.evaluate(() => window.localStorage.getItem('ww2airsim.quality.v1'))
-  expect(JSON.parse(saved!)).toEqual({ ocean: 'low', scenery: 'low', clouds: 'low' })
+  expect(JSON.parse(saved!)).toEqual({ ocean: 'low', scenery: 'low', clouds: 'low', fx: 'low' })
 
   await page.reload()
   await waitForTerrainOnly(page)
@@ -236,7 +236,7 @@ test('Advanced Scenery override to Low changes only Scenery: Ocean and Clouds st
   await sceneryGroup.getByRole('radio', { name: 'Low' }).click()
 
   const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('ww2airsim.quality.v1')!))
-  expect(saved).toEqual({ ocean: 'high', scenery: 'low', clouds: 'high' })
+  expect(saved).toEqual({ ocean: 'high', scenery: 'low', clouds: 'high', fx: 'high' })
   // The Simple row must show no single selection once the three diverge.
   const simpleRadios = dlg.getByRole('radiogroup', { name: 'Render quality' }).getByRole('radio')
   await expect(simpleRadios).toHaveCount(3)

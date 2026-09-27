@@ -28,18 +28,20 @@ import { createSettingsModel, type SettingsModel } from './settings.js'
 
 /**
  * What a tier actually moves, as `main.ts` implements it: the ocean cascades
- * (an async rebuild), `vegetation.setTier`, and `clouds`/`shadow`'s tier.
+ * (an async rebuild), `vegetation.setTier`, `clouds`/`shadow`'s tier, and the
+ * effects pool and pass.
  *
  * Tier NAMES, not `OCEAN_TIERS` entries, so this module stays free of the
  * renderer: `main.ts` maps the name onto its own tier tables. Each setter is
  * expected to be idempotent and to be a no-op under its DEV query override --
  * `?oceanTier=`/`?cloudTier=` must keep winning over a saved setting (spec §5
- * step 2), and `bind` below calls all three unconditionally.
+ * step 2), and `bind` below calls all four unconditionally.
  */
 export type QualityTargets = {
   readonly setOceanTier: (tier: QualityTierName) => void
   readonly setSceneryTier: (tier: QualityTierName) => void
   readonly setCloudTier: (tier: QualityTierName) => void
+  readonly setFxTier: (tier: QualityTierName) => void
 }
 
 export type BootQuality = {
@@ -107,6 +109,7 @@ export function createBootQuality(): BootQuality {
     targets.setOceanTier(q.ocean)
     targets.setSceneryTier(q.scenery)
     targets.setCloudTier(q.clouds)
+    targets.setFxTier(q.fx)
   }
 
   let arcade = false

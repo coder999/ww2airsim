@@ -20,6 +20,7 @@ import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
 import { zeroKillsByType, type TargetType } from './targetType.js'
+import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.js'
 import { sameSide, type Side } from '../sides.js'
 
 export const MAX_PROJECTILES = 4096
@@ -93,6 +94,10 @@ export type CombatState = {
   readonly poolSaturated: number
   readonly ships: Readonly<Record<string, ShipDamage>>
   readonly structures: Readonly<Record<string, StructureDamage>>
+  /** Every detonation, and every bomb/rocket `lifeS` expiry, oldest first,
+   *  bounded (`IMPACT_RING_CAPACITY`). Written here, read only by the
+   *  renderer's effects (ordnance-and-effects design §3.1). */
+  readonly impacts: readonly CombatImpact[]
 }
 export function createCombat(
   aircraft: readonly CombatAircraft[],
@@ -112,6 +117,7 @@ export function createCombat(
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
     structures: Object.fromEntries(structures.map(s => [s.id, healthyStructureDamage(s.hp)])),
+    impacts: [],
   }
 }
 
@@ -227,7 +233,7 @@ const hullCenter = (ship: CombatShip): Vec3 => add(ship.state.position, v3(0, sh
  *  nearest one be chosen by comparing distances rather than by trying the
  *  kinds in a fixed order (spec §3.4). */
 type Contact =
-  | { readonly t: number; readonly kind: 'ground' }
+  | { readonly t: number; readonly kind: 'ground'; readonly sea: boolean }
   | { readonly t: number; readonly kind: 'aircraft'; readonly aircraft: CombatAircraft; readonly system: DamageSystem }
   | { readonly t: number; readonly kind: 'ship'; readonly ship: CombatShip }
   | { readonly t: number; readonly kind: 'structure'; readonly structure: StructureEntity }
@@ -238,9 +244,9 @@ function nearestContact(
 ): Contact | null {
   const candidates: Contact[] = []
   const ground = groundHit(p.previous, p.position, terrain, decks)
-  if (ground !== null) candidates.push({ t: ground, kind: 'ground' })
+  if (ground !== null) candidates.push({ t: ground, kind: 'ground', sea: false })
   const sea = seaHit(p.previous, p.position, terrain, decks)
-  if (sea !== null) candidates.push({ t: sea, kind: 'ground' })
+  if (sea !== null) candidates.push({ t: sea, kind: 'ground', sea: true })
   for (const a of aircraft) {
     if (a.id === p.owner || a.spec.combat === undefined) continue
     const began = add(a.previous.position, scale(sub(a.state.position, a.previous.position), start))
@@ -264,6 +270,19 @@ function nearestContact(
   let nearest: Contact | null = null
   for (const c of candidates) if (nearest === null || c.t < nearest.t) nearest = c
   return nearest
+}
+
+/** What a contact was ON, for the impacts ring only -- no damage rule reads
+ *  this. The sea plane is always water; the heightfield/deck contact asks
+ *  `groundUnder` at the contact point, whose `surface` already tells a deck
+ *  from land from seabed ('water'). */
+function contactSurface(c: Contact, point: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): ImpactSurface {
+  switch (c.kind) {
+    case 'aircraft': return 'aircraft'
+    case 'ship': return 'ship'
+    case 'structure': return 'structure'
+    case 'ground': return c.sea ? 'water' : groundUnder(terrain, decks, point.x, point.z)?.surface ?? 'land'
+  }
 }
 
 /** Reduces a building, floors it at zero, and freezes the first tick it
@@ -543,6 +562,7 @@ export function stepCombat(
   }
 
   const alive: Projectile[] = []
+  const impacts: CombatImpact[] = []
   const specs = new Map(aircraft.map(a => [a.id, a.spec]))
   // A hull on the bottom "no longer blocks or takes anything" (spec §3.6), so
   // it leaves the candidate list entirely rather than being special-cased in
@@ -657,12 +677,15 @@ export function stepCombat(
     const contact = nearestContact(p, shot.start, aircraft, afloat, structures, terrain, decks)
     if (contact === null) {
       if (p.lifeS > 1e-12) alive.push(p)
+      // Ruling R3: only ordnance expiries are recorded.
+      else if (p.kind !== 'round') impacts.push({ tick, cause: p.kind, outcome: 'expired', surface: 'air', point: p.position })
       continue
     }
     // A bomb that has not armed is a dud: removed, and nothing takes anything
-    // (spec §3.4).
+    // (spec §3.4). Nor is it an impact (E1 Ruling R2).
     if (p.kind === 'bomb' && store !== null && p.ageS < (store.armS ?? 0)) continue
     const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
+    impacts.push({ tick, cause: p.kind, outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point })
     const damage = store === null ? source.roundDamage : store.damage
     if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
@@ -692,7 +715,7 @@ export function stepCombat(
     }
   }
 
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts) }
 }
 
 /** Down for good: destroyed by damage, or crashed/ditched. The same

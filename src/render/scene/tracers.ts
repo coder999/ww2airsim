@@ -67,9 +67,8 @@ export function createTracers(capacity = TRACER_CAPACITY): {
 } {
   // A unit box along +X, scaled per instance to the streak's length. The
   // 0.18 m cross-section is a legibility choice at 1440p, not a calibre.
-  // `MeshBasicMaterial`, unlit, for the same reason `impactEffect.ts` uses it:
-  // a tracer is its own light source, and the material path already exists
-  // under this renderer.
+  // `MeshBasicMaterial`, unlit: a tracer is a light source, so lighting must
+  // not touch it.
   const mesh = new InstancedMesh(new BoxGeometry(1, 0.18, 0.18), new MeshBasicMaterial({ color: 0xffc46b }), capacity)
   // Instances are scattered over kilometres; the mesh's own bounding sphere
   // would be wrong every frame, so never let it cull the whole set.

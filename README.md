@@ -83,6 +83,16 @@ damage were the remaining Plan 6 items at that handoff; see the
 [handoff](docs/handoff/2026-09-22-plan6b-strike.md) for what was actually
 measured and what is still open, and master spec §15 for the status.
 
+**E1 effects engine is complete and merged into `main` (2026-09-26):**
+every armed detonation is reported through a bounded, bit-identical
+simulation ring, and one lit, soft, pooled particle system now owns bomb,
+rocket, shell, crash, aircraft, ship, and structure effects. Dense smoke stops
+the cloud march; quality tiers, failed-sheet fallback, restart cleanup, and
+paired reference-GPU cost gates are covered. The shipped flipbooks are
+code-generated placeholders for E2, not final art. See the
+[E1 handoff](docs/handoff/2026-09-26-e1-effects-engine.md) for captures,
+measurements, merge notes, and the two shared baseline tripwires.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with

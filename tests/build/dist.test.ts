@@ -139,6 +139,7 @@ describe('the built artifact', () => {
         'content/bases/dulag.json',
         'content/ships/essex-cv.json',
         'content/ships/fletcher-dd.json',
+        'content/fx/sheets.json',
       ]) {
         const raw = readFileSync(join(outDir, path), 'utf8')
         expect(() => JSON.parse(raw), path).not.toThrow()

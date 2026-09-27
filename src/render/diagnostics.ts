@@ -11,6 +11,7 @@ import type { CombatDiagnostics } from './combatReadout.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
+import type { FxStressName } from './fx/stress.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
 import type { ManeuverName, PilotMode } from '../sim/ai/pilot.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
@@ -360,6 +361,12 @@ export type Ww2Diagnostics = {
    *  whether the ring materials are drawing them (false at scenery `low`,
    *  under `?terrainTextures=off`, or after a failed load). */
   readonly terrainSurface: () => { readonly texturesLoaded: boolean; readonly detail: boolean }
+  /** E1: the effects pool and pass. `tier` is 'off' under ?fx=off; `cpuMs` is
+   *  the last frame's events + step + instance write, in milliseconds. */
+  readonly fx: () => { readonly tier: string; readonly capacity: number; readonly live: number; readonly drawn: number; readonly sheetsFallback: boolean; readonly cpuMs: number }
+  /** E1 DEV: clear the pool and inject a named scene relative to the eye
+   *  (fx/stress.ts). Anchors are CSS pixels of the named world points. */
+  readonly fxStress: (name: FxStressName) => { readonly anchors: readonly { readonly name: string; readonly x: number; readonly y: number }[] }
   /** Photoreal Task 6: explicit TRAA (and world-fixed motion) history resets
    *  since boot -- the same discontinuities the cloud history resets on. */
   readonly antiAliasing: () => { readonly historyResets: number }
