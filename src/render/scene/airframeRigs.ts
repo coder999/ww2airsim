@@ -80,6 +80,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'g4m-betty': {
+    // Two 4-blade props, each four blade islands exactly 4-fold symmetric about the nacelle axis.
+    // The download is a wheels-up flying model with no gear at all, so no gear is rigged. Turret1 is
+    // the dorsal blister, a clean island; the tail gun position is fused into the fuselage and stays
+    // static (P14; R3 ledger, Task 10).
+    props: [{ node: 'Prop1', blades: 4 }, { node: 'Prop2', blades: 4 }],
+    gear: [],
+    turrets: ['Turret1'],
+  },
   'ki-43-oscar': {
     // A translucent 3-blade motion-blur disc plus its spinner, as the Corsair's: symmetryTolerance
     // is the metric's 2% cap and the hub-offset check carries Review Focus 1 (R3 ledger, Task 7).

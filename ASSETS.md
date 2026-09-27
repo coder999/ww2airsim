@@ -23,6 +23,7 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/aircraft/f4u-corsair.glb` | https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284 | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/ki-43-oscar.glb` | https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6 | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/d3a-val.glb` | https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501 | helijah | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/g4m-betty.glb` | https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368 | Jec (@Jec_Games) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
@@ -97,7 +98,6 @@ triangle count after glTF import.
 | `type97-chi-ha.glb` | https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6 | snrnsrk5 | CC-BY 4.0 | 4k | Low-poly, textured |
 | `willys-mb-jeep.glb` | https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98 | MattyNL | CC-BY 4.0 | 19k | Made by the uploader for the Darkest Hour mod, not ripped from it |
 | `boeing_b-17_flying_fortress.glb` | https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5 | helijah | CC-BY 4.0 | 763k | FlightGear modeler; needs heavy decimation |
-| `mitsubishi_g4m.glb` | https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368 | Jec (@Jec_Games) | CC-BY 4.0 | 3k | Low-poly game asset |
 | `a6m_zero.glb` | https://sketchfab.com/3d-models/a6m-zero-dfc211d9a0684d90b3f0d09ec560e97f | zdw930 | CC-BY 4.0 | 5k | **Authorship uncertain:** no origin stated, and the account also posts a "Do-17z-7 Reskin". Prefer `a6m3-zero-lowpoly.glb` |
 | `boeing_b-29_superfortress.glb` | https://sketchfab.com/3d-models/boeing-b-29-superfortress-5b051209bff445ff88eab3bd94fdfdfd | Spark_Customs | CC-BY 4.0 | 45k | **Suspect, do not ship as-is:** this account's Essex carrier says "Imported from Free3D" (a personal-use license), and its uploads span unrelated aircraft and cars with no tags |
 
