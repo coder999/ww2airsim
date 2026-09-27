@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
-import { debriefDialog, diveToSea, hopClear, landAndStop, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, diveToSea, hopClear, waitForScenario, type DiagWindow } from './harness.js'
 import { loadScenario } from '../../tools/content/load.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
@@ -115,28 +115,21 @@ const reasonRows = (debrief: Locator) =>
   )
 
 /**
- * Airfield Strike parks the player at Tacloban's runway center, facing north
- * with 750 m of strip ahead. The harness hop cannot come back down on it:
- * measured on the reference GPU 2026-09-27, it lifts off about 455 m along
- * and touches down about 410 m past the north end, on the beach, then rolls
- * into the sea (Ditched in one run, destroyed -- Killed -- in another). A
- * landing ON Tacloban needs a circuit, which approach.spec.ts rules out for
- * this tier ("a fragile test of the harness rather than of the game"); the
- * Tacloban landing with the hangars standing is flown headless in
- * tests/sim/mission/missions/airfield-strike.test.ts. What this test keeps
- * is the rest of the verdict: Hangars and Recover are still incomplete and
- * are listed as reasons.
- *
- * The verdict accepts only the two outcomes measured, Ditched and Killed
- * (controller ruling T8-R1). A survivable off-field stop has never been
- * produced by this hop, so it fails here loudly and gets a fresh ruling
- * rather than passing unseen.
+ * Airfield Strike ends in a dive, not a landing (controller ruling T8-R2,
+ * 2026-09-27). The player parks at Tacloban's runway center with 750 m of
+ * strip ahead, and the harness hop overruns it: measured on the reference
+ * GPU, it lifts off about 455 m along and comes down about 410 m past the
+ * north end, on the beach or in the surf. That ended Ditched, Killed, or a
+ * crash before the wheels took weight (`landAndStop`'s "never came back
+ * down"), so a `landAndStop` ending was flaky. A real recovery at Tacloban,
+ * with the hangars standing, is flown headless in
+ * tests/sim/mission/missions/airfield-strike.test.ts. This test keeps
+ * `hopClear` so that the takeoff objective completes, then `diveToSea`.
  */
-test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; a hop earns no badge', async ({ page }) => {
+test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; take off, then into the ground earns no badge', async ({ page }) => {
   const id = 'airfield-strike'
   const title = await orders(page, 'Airfield Strike Pilot')
   const s = await briefingFor(page, title, id, 'Airfield Strike')
-  // The recommendation is Both, the loadout the harness hop is measured at.
   await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Both' })).toHaveAttribute('aria-checked', 'true')
   await launched(page, title, id)
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
@@ -146,18 +139,17 @@ test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; a h
   await chartListsObjectives(page, s, id)
 
   await hopClear(page)
-  await landAndStop(page, 'debrief')
+  await expect(objectiveLine(page)).toHaveText('HANGARS 0/2')
+  await diveToSea(page)
+  await page.keyboard.up(BINDINGS.throttleUp[0])
   await debriefShows(page, id, [
     ['Take off', 'COMPLETE'],
     ['Hangars', 'INCOMPLETE'],
     ['AAA (secondary)', 'INCOMPLETE'],
     ['Recover', 'INCOMPLETE'],
+    ['Badge', 'Killed — no badge'],
   ])
-  const debrief = debriefDialog(page)
-  const verdict = (await figureRows(debrief)).find(([label]) => label === 'Badge')?.[1]
-  console.log(`airfield strike verdict: ${verdict}`)
-  expect(verdict).toMatch(/^(Ditched|Killed) — no badge$/)
-  expect(await reasonRows(debrief)).toEqual(['Hangars: incomplete', 'Recover: incomplete'])
+  expect(await reasonRows(debriefDialog(page))).toEqual(['Hangars: incomplete', 'Recover: incomplete'])
 })
 
 test('Convoy Strike: briefing, CONVOY 0/2, the vector call, chart; into the sea earns no badge', async ({ page }) => {
