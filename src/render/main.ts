@@ -2045,7 +2045,11 @@ async function boot(): Promise<void> {
     autopilotBadge.setStatus(current.autopilot)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
-    missionHud.update(current.world.mission, frameMs, current.paused)
+    // T3-R1: freezes the radio countdown under pause and while any debrief is
+    // up -- the same impact/destroyedAt/landingShown signals `openNavigationChart`
+    // (above) already reads to recognise a debrief is showing.
+    const debriefUp = player.impact !== null || current.world.combat.aircraft[current.world.player]!.damage.destroyedAt !== null || landingShown
+    missionHud.update(current.world.mission, frameMs, current.paused || debriefUp)
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
