@@ -5,7 +5,7 @@ import { qRotate } from '../math/quat.js'
 import { add, sub, scale, length, normalize, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { SEA_LEVEL_M, type TerrainField } from '../world/terrain.js'
 import { groundUnder } from '../world/ground.js'
-import type { Deck } from '../world/deck.js'
+import { insideDeck, type Deck } from '../world/deck.js'
 import { onGround } from '../ground.js'
 import { healthyDamage, damageFromHit, type Damage } from '../damage/model.js'
 import {
@@ -164,14 +164,21 @@ export function burnedVelocity(v: Vec3, burnDeltaVMps: number, burnS: number, ag
 export const SINK_SECONDS = 90
 
 /** Bounded terrain samples at <= 2 m, then bisection of the first crossing.
- * Aircraft and hulls use swept boxes below; they never use endpoint samples. */
-function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): number | null {
-  if (terrain === null && decks.length === 0) return null
+ * Aircraft and hulls use swept boxes below; they never use endpoint samples.
+ *
+ * Terrain only. Flight decks are `deckHit`'s: queried through `groundUnder`
+ * with its decks, a deck read as solid all the way down to the sea, and
+ * because the deck (32.9 m on an Essex) overhangs the hull (28.3 m beam) a
+ * round from abeam below the deck edge died on that column and never reached
+ * the hull (measured 2026-09-26; Mark: the Essex "should be able to be
+ * damaged by rounds that hit below flight deck"). */
+function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
+  if (terrain === null) return null
   const delta = sub(to, from)
   const steps = Math.max(1, Math.ceil(length(delta) / 2))
   const below = (t: number): boolean => {
     const p = add(from, scale(delta, t))
-    const g = groundUnder(terrain, decks, p.x, p.z)
+    const g = groundUnder(terrain, [], p.x, p.z)
     return g !== null && p.y <= g.heightM
   }
   if (below(0)) return 0
@@ -195,13 +202,32 @@ function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: re
  * no terrain field yet. Spec §3.4 lists "sea level" as its own candidate for
  * exactly that reason. Closed form, not sampled: the surface is a plane.
  */
-function seaHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): number | null {
+function seaHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
   if (from.y <= SEA_LEVEL_M || to.y > SEA_LEVEL_M) return null
   const t = (from.y - SEA_LEVEL_M) / (from.y - to.y)
   const point = add(from, scale(sub(to, from), t))
-  const under = groundUnder(terrain, decks, point.x, point.z)
-  // Land (or a deck) above the waterline here: `groundHit` owns that contact.
+  const under = groundUnder(terrain, [], point.x, point.z)
+  // Land above the waterline here: `groundHit` owns that contact. Under a
+  // deck's overhang the water is still water: the hull box, which starts at
+  // the waterline, is what a round meets before it (Mark: "not below water
+  // line").
   return under === null || under.heightM <= SEA_LEVEL_M ? t : null
+}
+
+/** Where the segment crosses a flight deck's surface from above, closed form
+ *  like `seaHit`: the first such crossing inside a deck rectangle, with the
+ *  deck's ship id. Only the top surface stops a round; below it, the hull box
+ *  (`hullHit`) is what the round meets. */
+function deckHit(from: Vec3, to: Vec3, decks: readonly Deck[]): { readonly t: number; readonly shipId: string } | null {
+  let best: { t: number; shipId: string } | null = null
+  for (const deck of decks) {
+    const top = deck.center.y
+    if (from.y <= top || to.y > top) continue
+    const t = (from.y - top) / (from.y - to.y)
+    const point = add(from, scale(sub(to, from), t))
+    if (insideDeck(deck, point.x, point.z) && (best === null || t < best.t)) best = { t, shipId: deck.shipId }
+  }
+  return best
 }
 
 /** A structure's box is axis-aligned in its airfield's frame, so a contact
@@ -247,10 +273,17 @@ function nearestContact(
   structures: readonly StructureEntity[], terrain: TerrainField | null, decks: readonly Deck[],
 ): Contact | null {
   const candidates: Contact[] = []
-  const ground = groundHit(p.previous, p.position, terrain, decks)
+  const ground = groundHit(p.previous, p.position, terrain)
   if (ground !== null) candidates.push({ t: ground, kind: 'ground' })
-  const sea = seaHit(p.previous, p.position, terrain, decks)
+  const sea = seaHit(p.previous, p.position, terrain)
   if (sea !== null) candidates.push({ t: sea, kind: 'ground' })
+  // A flight deck is part of its ship: a round on the deck, overhang
+  // included, hits the ship. A deck whose ship is no longer afloat is ground.
+  const onDeck = deckHit(p.previous, p.position, decks)
+  if (onDeck !== null) {
+    const ship = ships.find((s) => s.id === onDeck.shipId)
+    candidates.push(ship === undefined ? { t: onDeck.t, kind: 'ground' } : { t: onDeck.t, kind: 'ship', ship })
+  }
   for (const a of aircraft) {
     if (a.id === p.owner || a.spec.combat === undefined) continue
     const began = add(a.previous.position, scale(sub(a.state.position, a.previous.position), start))

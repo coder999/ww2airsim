@@ -46,11 +46,12 @@ The plan's header: final-product viewing checkpoint, unattended.
    - Every scenario launched from the title therefore flies under free-flight's cumulus and cirrus, even one that declares no clouds.
    - This also costs GPU: friendly-fire-range at 800 m reads 6.9 ms p95 under the leaked deck, against 2.0 ms without it.
    - It belongs to the cloud system (`docs/clouds.md`), so it is not fixed here.
-3. **An Essex cannot be hurt by rounds that meet it below the flight-deck edge** (found in Task 2, measured 2026-09-26, pre-existing).
-   - The 32.9 m deck overhangs the 28.3 m hull box, and `groundHit` reads the deck as ground.
-   - Strafing `cv-1` from above discharges the pilot; skimming its side does not.
-   - Bombs and rockets hurt it through blast.
-   - The cause is in the contact code (`nearestContact`).
+3. **RESOLVED (Mark, 2026-09-26): an Essex now takes rounds below its flight deck, and not below the waterline.**
+   - The cause: a flight deck read as solid all the way down, and the deck (32.9 m) overhangs the hull (28.3 m), so a round from abeam died on that column before reaching the hull.
+   - A deck now stops a round only where it crosses the deck's top surface from above (`deckHit`, closed form). That crossing is a hit on the ship, overhang included.
+   - Below the deck, the hull box, which starts at the waterline, is what a round meets. The sea stops any round that reaches it first.
+   - Tests: `tests/sim/weapons/hullBelowDeck.test.ts`. It passes 8 of 8; on the old code, 4 fail (abeam at 5, 10 and 15 m, and the overhang).
+   - Weapons, strike and contact tests pass, and all nine digests are unchanged.
 4. **`npx playwright test <name>` currently collects nothing.** `strike.spec.ts` imports `src/render/content.ts`, which reads `import.meta.env` and cannot load in Node, and one unloadable file aborts collection of every file. Passing spec *paths* works. This is pre-existing and not changed here.
 5. **Deferred minors from the review.**
    - `friendly-fire.spec.ts`: a failure message says "the axis Hellcat was hit" for an assertion that it was *not* hit.
