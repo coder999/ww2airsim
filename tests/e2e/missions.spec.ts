@@ -4,12 +4,13 @@ import { loadScenario } from '../../tools/content/load.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
 /**
- * Tier 2, M3: the three shipped missions end to end on the reference GPU.
+ * Tier 2, M3 and M4: the shipped missions end to end on the reference GPU.
  * Each test picks its mission on Sortie Orders with a new pilot, checks the
  * briefing, launches, checks the objective line, the opening radio call and
  * the chart, then ends the flight its own way and checks the debrief. The
  * nine captures (briefing, chart and debrief per mission) go to the M3
- * handoff for Mark's final look.
+ * handoff for Mark's final look. M4 adds a fourth, Combat Air Patrol, whose
+ * three captures go to the M4 handoff.
  *
  * Every expected string is read from the mission's own content file (the
  * situation, the objective labels, the `at: 1` message, the badge), so a
@@ -22,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
@@ -67,8 +68,14 @@ async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
     expect(rows, `briefing row for ${o.label}`).toContainEqual([o.label, o.priority === 'primary' ? 'PRIMARY' : 'SECONDARY'])
   }
   expect(rows).toContainEqual(['Badge', s.badge!.name])
-  await page.screenshot({ path: `test-results/m3-${id}-briefing.png` })
+  await page.screenshot({ path: `test-results/${shot(id, 'briefing')}` })
   return s
+}
+
+/** M3's captures are `m3-<id>-<what>.png`; M4's CAP captures are
+ *  `m4-cap-<what>.png`, the names its plan and handoff use. */
+function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
+  return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
 /** After Launch: the scenario is live and the entities exist. */
@@ -91,7 +98,7 @@ async function chartListsObjectives(page: Page, s: ReturnType<typeof loadScenari
   const chart = page.getByRole('dialog', { name: 'Navigation chart' })
   const list = chart.getByLabel('Objectives')
   for (const o of s.objectives!) await expect(list).toContainText(o.label)
-  await page.screenshot({ path: `test-results/m3-${id}-chart.png` })
+  await page.screenshot({ path: `test-results/${shot(id, 'chart')}` })
   await page.keyboard.press(BINDINGS.toggleMissionMap[0])
   await expect(chart).toBeHidden()
 }
@@ -102,7 +109,8 @@ async function debriefShows(page: Page, id: Id, expected: readonly (readonly [st
   await expect(debrief).toBeVisible()
   const rows = await figureRows(debrief)
   for (const row of expected) expect(rows, `debrief row ${row[0]}`).toContainEqual([...row])
-  await page.screenshot({ path: `test-results/m3-${id}-debrief.png` })
+  await page.screenshot({ path: `test-results/${shot(id, 'debrief')}` })
+  return rows
 }
 
 /**
@@ -209,4 +217,69 @@ test('Carrier Qualification: briefing, LAUNCH, Paddles call, chart; a deck run t
     ['Trap', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
+})
+
+/** A trigger's radio message, by trigger id, from the content file. */
+function triggerCall(s: ReturnType<typeof loadScenario>, id: string): string {
+  const t = s.triggers!.find((x) => x.id === id)!
+  const m = t.then.find((a) => 'message' in a)!
+  return (m as { message: string }).message
+}
+
+/**
+ * M4 Task 2: Combat Air Patrol starts airborne on station (M4-R1), so there
+ * is no takeoff: the hold counts from the first ticks. The objective line
+ * follows `objectiveLineLabel`'s hold format, `CAP STATION 45/180 S`
+ * (tests/render/mission/hud.test.ts), built here from the content's label
+ * and seconds. Wave 1 spawns at 60 s (its `at` trigger), so this test waits
+ * for it in real time, checks that only its two raiders are drawn, and that
+ * the chart marks them as targets. A steep dive is a crash, not a ditching
+ * (M3 T8-D1, controller ruling M4-PF3), so the badge row reads Killed. The
+ * hold may or may not have finished by the dive, so the CAP station row is
+ * asserted to be one of the two stamps, not a fixed one.
+ */
+test('Combat Air Patrol: briefing, CAP STATION n/180 S, CIC call, wave 1 spawns and is charted; into the sea earns no badge', async ({ page }) => {
+  const id = 'combat-air-patrol'
+  const title = await orders(page, 'Combat Air Patrol Pilot')
+  const s = await briefingFor(page, title, id, 'Combat Air Patrol')
+  await launched(page, title, id)
+
+  const station = s.objectives!.find((o) => o.id === 'station')!
+  if (station.kind !== 'hold') throw new Error(`station is a ${station.kind}, not a hold`)
+  const holdLine = new RegExp(`^${station.label.toUpperCase()} (\\d+)/${station.seconds} S$`)
+  await expect(objectiveLine(page)).toHaveText(holdLine)
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  // The hold is counting on screen, not just shown at 0.
+  await expect.poll(async () => Number(holdLine.exec((await objectiveLine(page).textContent()) ?? '')?.[1] ?? -1), { timeout: 20_000 }).toBeGreaterThan(0)
+
+  await expect.poll(async () => (await mission(page))!.spawned, { timeout: 90_000 }).toEqual(['wave-1'])
+  const meshes = (await mission(page))!.meshes
+  expect(meshes).toContainEqual({ id: 'raid-1', visible: true })
+  expect(meshes).toContainEqual({ id: 'raid-2', visible: true })
+  expect(meshes).toContainEqual({ id: 'raid-3', visible: false })
+  expect(meshes).toContainEqual({ id: 'raid-4', visible: false })
+  await expect(radioLine(page)).toHaveText(triggerCall(s, 'wave-1'), { timeout: 10_000 })
+
+  // The chart: every objective listed, wave 1's raiders marked as targets
+  // (a `destroy`/`deny` mark makes an aircraft a clickable destination,
+  // missionMap.ts), wave 2's not on it at all yet.
+  await page.keyboard.press(BINDINGS.toggleMissionMap[0])
+  const chart = page.getByRole('dialog', { name: 'Navigation chart' })
+  const list = chart.getByLabel('Objectives')
+  for (const o of s.objectives!) await expect(list).toContainText(o.label)
+  for (const raider of ['raid-1', 'raid-2']) {
+    await expect(chart.getByRole('button', { name: `Set ${raider} as navigation destination`, exact: true })).toBeVisible()
+  }
+  for (const raider of ['raid-3', 'raid-4']) {
+    await expect(chart.getByRole('button', { name: `Set ${raider} as navigation destination`, exact: true })).toHaveCount(0)
+  }
+  await page.screenshot({ path: `test-results/${shot(id, 'chart')}` })
+  await page.keyboard.press(BINDINGS.toggleMissionMap[0])
+  await expect(chart).toBeHidden()
+
+  await diveToSea(page)
+  const rows = await debriefShows(page, id, [['Badge', 'Killed — no badge']])
+  const cap = rows.filter(([label]) => label === station.label)
+  expect(cap, 'one CAP station row').toHaveLength(1)
+  expect(['COMPLETE', 'INCOMPLETE']).toContain(cap[0]![1])
 })
