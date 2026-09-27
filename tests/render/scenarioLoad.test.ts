@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { loadScenarioBundle } from '../../src/render/scenarioLoad.js'
+import { loadScenarioBundle, loadScenarioFile } from '../../src/render/scenarioLoad.js'
 import { loadScenarioBundle as loadViaNode } from '../../tools/content/load.js'
 
 /** A fetch that serves the repo's content/ directory from disk. */
@@ -47,5 +47,9 @@ describe('loadScenarioBundle (browser twin)', () => {
       String(input).endsWith('scenarios/held-twin.json') ? new Response(JSON.stringify(heldScenario), { status: 200 }) : diskFetch(input)
     const bundle = await loadScenarioBundle('held-twin', withHeld)
     expect(Object.keys(bundle.shipSpecs)).toEqual(['fletcher-dd'])
+  })
+
+  it('loads the scenario file alone (M2 briefing)', async () => {
+    expect((await loadScenarioFile('dev-mission-ui', diskFetch)).briefing?.loadout).toBe('clean')
   })
 })

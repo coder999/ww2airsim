@@ -75,3 +75,18 @@ export type Trigger = z.infer<typeof TriggerObject>
 
 export const BadgeObject = z.object({ id, name: z.string().min(1) }).strict()
 export type Badge = z.infer<typeof BadgeObject>
+
+/** The four loadouts the title offers (src/sim/weapons/stores.ts `Loadout`);
+ *  `scenario.ts` asserts the two agree at the type level. */
+export const LoadoutObject = z.enum(['clean', 'bombs', 'rockets', 'both'])
+
+/** Display only (M2): what the title's orders memo shows for a mission.
+ *  `loadout` is the recommended one, preselected but changeable (spec §3). */
+export const BriefingObject = z.object({ situation: z.string().min(1), loadout: LoadoutObject }).strict()
+export type Briefing = z.infer<typeof BriefingObject>
+
+/** Display only (M2): a short historical-context paragraph written for the
+ *  game, and its public-domain sources as citation strings (spec §6.3:
+ *  "every historical note carries at least one citation"). */
+export const HistoryObject = z.object({ text: z.string().min(1), sources: z.array(z.string().min(1)).min(1) }).strict()
+export type History = z.infer<typeof HistoryObject>

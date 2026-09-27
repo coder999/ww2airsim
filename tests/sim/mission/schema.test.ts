@@ -98,3 +98,34 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
     expect(bundleForScenario(s).shipSpecs['fletcher-dd']).toBeDefined()
   })
 })
+
+describe('briefing and history (M2, ruling R6)', () => {
+  // NOTE (deviation from the task brief's verbatim snippet): the brief used
+  // `kind: 'takeoff', from: 'tacloban'`, but BASE's player starts airborne
+  // (tests/sim/mission/fixture.ts), so checkMission's pre-existing
+  // takeoff-placement rule rejects any takeoff objective here regardless of
+  // briefing/history -- unrelated to what this describe block tests. Using
+  // a `land` objective at the same airfield keeps "an objectives array
+  // exists" true without tripping that unrelated rule.
+  const objectives = [{ id: 'up', label: 'Recover', priority: 'primary', kind: 'land', at: 'tacloban' }]
+  const briefing = { situation: 'Fly the pattern.', loadout: 'clean' }
+  const history = { text: 'Inspired by …', sources: ['Cannon, Leyte: The Return to the Philippines (1954), ch. 5'] }
+
+  it('parses a mission with a briefing and a history', () => {
+    const s = parseScenario(scenario({ objectives, briefing, history }))
+    expect(s.briefing).toEqual(briefing)
+    expect(s.history).toEqual(history)
+  })
+  it('keeps both optional: M1 missions without them still parse', () => {
+    expect(parseScenario(scenario({ objectives })).briefing).toBeUndefined()
+  })
+  it('rejects a briefing or history without objectives', () => {
+    expect(() => parseScenario(scenario({ briefing }))).toThrow(/briefing needs objectives/)
+    expect(() => parseScenario(scenario({ history }))).toThrow(/history needs objectives/)
+  })
+  it('rejects an unknown loadout, an empty source list, and extra keys', () => {
+    expect(() => parseScenario(scenario({ objectives, briefing: { ...briefing, loadout: 'torpedo' } }))).toThrow()
+    expect(() => parseScenario(scenario({ objectives, history: { ...history, sources: [] } }))).toThrow()
+    expect(() => parseScenario(scenario({ objectives, briefing: { ...briefing, weather: 'fair' } }))).toThrow()
+  })
+})

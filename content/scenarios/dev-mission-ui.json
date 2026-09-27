@@ -1,0 +1,25 @@
+{
+  "id": "dev-mission-ui",
+  "player": "f6f-1",
+  "airfields": ["tacloban"],
+  "aircraft": [
+    { "id": "f6f-1", "spec": "f6f-hellcat", "parkedAt": { "airfield": "tacloban", "spot": { "x": 0, "z": 300 } }, "chocked": false },
+    { "id": "target-1", "spec": "f6f-hellcat", "tags": ["targets"], "parkedAt": { "airfield": "tacloban", "spot": { "x": -35, "z": -200 } }, "chocked": true }
+  ],
+  "ships": [],
+  "weather": { "windFromDeg": 90, "windMps": 6, "timeOfDay": 14 },
+  "objectives": [
+    { "id": "up", "label": "Take off", "priority": "primary", "kind": "takeoff", "from": "tacloban" },
+    { "id": "home", "label": "Recover", "priority": "primary", "kind": "land", "at": "tacloban", "after": "up" },
+    { "id": "range", "label": "Target", "priority": "secondary", "kind": "destroy", "targets": ["targets"] }
+  ],
+  "triggers": [
+    { "id": "hello", "when": { "at": 1 }, "then": [{ "message": "Tower: cleared for takeoff." }] },
+    { "id": "company", "when": { "completed": "up" }, "then": [{ "spawn": "drone" }, { "message": "Tower: a friendly is passing overhead." }] }
+  ],
+  "heldGroups": [
+    { "id": "drone", "aircraft": [{ "id": "drone-1", "spec": "f6f-hellcat", "airborneAt": { "position": [-29666, 600, -46605], "headingDeg": 0, "speedMps": 80 } }] }
+  ],
+  "badge": { "id": "dev-ui-wings", "name": "UI Fixture Wings (dev)" },
+  "briefing": { "situation": "DEV FIXTURE. Take off from Tacloban, fly a circuit, and land. A friendly passes overhead once you are airborne.", "loadout": "clean" }
+}

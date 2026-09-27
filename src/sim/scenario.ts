@@ -13,9 +13,14 @@ import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from '
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, type IngressOrders } from './ai/pilot.js'
 import { sideOf } from './sides.js'
 import type { PilotAssignment } from './ai/pursuit.js'
-import { BadgeObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
+import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
+
+/** The mission schema's loadout enum and the weapons module's `Loadout` type
+ *  must name the same four values; a mismatch here is a compile error. */
+const _loadouts: z.infer<typeof LoadoutObject> extends Loadout ? (Loadout extends z.infer<typeof LoadoutObject> ? true : never) : never = true
+void _loadouts
 
 /**
  * A scenario says where everything starts (spec §7). It is the data contract
@@ -197,11 +202,14 @@ const ScenarioShape = z.object({
   }).strict(),
   /** Missions (spec 2026-09-25 §2). Present together or not at all:
    *  `checkMission` rejects triggers, held groups or a badge without
-   *  objectives. */
+   *  objectives. `briefing` and `history` are display-only (M2); `World`
+   *  never sees them. */
   objectives: z.array(ObjectiveObject).min(1).optional(),
   triggers: z.array(TriggerObject).min(1).optional(),
   heldGroups: z.array(HeldGroupObject).min(1).optional(),
   badge: BadgeObject.optional(),
+  briefing: BriefingObject.optional(),
+  history: HistoryObject.optional(),
 }).strict()
 
 const ScenarioObject = ScenarioShape
@@ -268,6 +276,8 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if (s.triggers !== undefined) issue('triggers need objectives: a scenario without objectives is not a mission', ['triggers'])
     if (s.heldGroups !== undefined) issue('heldGroups need objectives: a scenario without objectives is not a mission', ['heldGroups'])
     if (s.badge !== undefined) issue('badge needs objectives: a scenario without objectives is not a mission', ['badge'])
+    if (s.briefing !== undefined) issue('briefing needs objectives: a scenario without objectives is not a mission', ['briefing'])
+    if (s.history !== undefined) issue('history needs objectives: a scenario without objectives is not a mission', ['history'])
     return
   }
   const objectives = s.objectives

@@ -1,5 +1,5 @@
 import { parseAircraftSpec } from '../sim/content.js'
-import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, type ScenarioBundle } from '../sim/scenario.js'
+import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { parseAirfield } from '../sim/world/airfields.js'
 import { parseShipSpec } from '../sim/world/ships.js'
 import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl } from './content.js'
@@ -20,13 +20,22 @@ import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl } from './content.js'
  * `main.ts` routes it to the bad-content failure screen, where the operator
  * needs to know WHICH file 404'd -- five are fetched here, not one.
  */
+/** The scenario file alone, parsed: what the title's briefing needs (M2)
+ *  without fetching the specs and bases a flight needs. Same error text as
+ *  the bundle loader for a failed fetch. */
+export async function loadScenarioFile(id: string, fetchImpl: typeof fetch = fetch): Promise<Scenario> {
+  const res = await fetchImpl(scenarioUrl(id))
+  if (!res.ok) throw new Error(`Failed to fetch content ${scenarioUrl(id)}: ${res.status} ${res.statusText}`)
+  return parseScenario(await res.json())
+}
+
 export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch): Promise<ScenarioBundle> {
   const json = async (url: string): Promise<unknown> => {
     const res = await fetchImpl(url)
     if (!res.ok) throw new Error(`Failed to fetch content ${url}: ${res.status} ${res.statusText}`)
     return res.json() as Promise<unknown>
   }
-  const scenario = parseScenario(await json(scenarioUrl(id)))
+  const scenario = await loadScenarioFile(id, fetchImpl)
   // Deduplicated and fetched in parallel: the free-flight scenario names one
   // aircraft spec twice (two Hellcats) and Tacloban twice (the strip and both
   // parked airplanes), so the naive form would ask for the same file four
