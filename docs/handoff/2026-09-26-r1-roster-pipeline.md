@@ -9,8 +9,8 @@ The plan is
 [`2026-09-26-r1-roster-pipeline.md`](../superpowers/plans/2026-09-26-r1-roster-pipeline.md).
 
 This work is **complete on branch `worktree-r1-roster`, not merged into
-`main`**; merging is Mark's call. Commits `52c2ddb`..`06aa24c` sit on `main`
-at `ca75093`.
+`main`**; merging is Mark's call. Commits `52c2ddb`..`e1ed885` (this
+handoff's commit included) sit on `main` at `fe461c8`.
 
 ## What shipped
 
@@ -49,10 +49,11 @@ at `ca75093`.
   note); an entry with only a `model` is `display-only`, "not in the game
   yet"; an entry with neither is `not-drawn`, "not yet in service".
 - **The not-yet-drawn allowlist stands at 25** (`NOT_YET_DRAWN` /
-  `CEILING` in `tests/render/hangar/roster.test.ts`), one shorter than
-  before R1 because the hangar came off the list. Every later roster plan
-  removes the entries it draws and lowers `CEILING` to match; R5 deletes
-  both.
+  `CEILING` in `tests/render/hangar/roster.test.ts`): the 23 Library
+  entries with no spec, plus the 2 new vehicle entries. The hangar was
+  never on it — it always had a spec, so it was never undrawable. Every
+  later roster plan removes the entries it draws and lowers `CEILING` to
+  match; R5 deletes both.
 
 ## Tier 1
 
@@ -126,8 +127,9 @@ must print `200`.
   behavioral gate.
 - **R0's kit still lacks the hull part.** Per the R0 (M0) handoff's
   rulings, R0 built only `box`, `barrel_vault` and `arch_gable`; the hull
-  goes to M2 (R2), the fuselage/wing/propeller to M3, and the gable roof,
-  tank, sandbag ring, gun barrel and lattice mast to M4.
+  goes to R2, the fuselage/wing/propeller to R3, and the gable roof,
+  tank, sandbag ring, gun barrel and lattice mast to R4 (the R0 handoff
+  calls them M2-M4).
 - **Two open decisions from the final review's "declined to judge"**, both
   unresolved because neither case exists in R1:
   - An aircraft entry that carries both a spec and its own `model`: the
