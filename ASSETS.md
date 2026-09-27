@@ -28,6 +28,7 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/aircraft/ki-84-frank.glb` | authored in Blender by `tools/models/blender/ki-84-frank.py` from the cited dimensions in its header (English Wikipedia, Ki-84-Ia specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/ki-21-sally.glb` | authored in Blender by `tools/models/blender/ki-21-sally.py` from the cited dimensions in its header (English Wikipedia, Ki-21-IIb specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/b-29-superfortress.glb` | authored in Blender by `tools/models/blender/b-29-superfortress.py` from the cited dimensions in its header (English Wikipedia, B-29 specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
+| `content/aircraft/p-38-lightning.glb` | authored in Blender by `tools/models/blender/p-38-lightning.py` from the cited dimensions in its header (English Wikipedia, P-38L specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
@@ -95,7 +96,6 @@ triangle count after glTF import.
 | --- | --- | --- | --- | --- | --- |
 | `f6f-hellcat-lowpoly.glb` | https://sketchfab.com/3d-models/f6f-hellcat-5b0151482fa745d5ade945be7963262e | snrnsrk5 | CC-BY 4.0 | 2k | Low-poly, textured |
 | `a6m3-zero-lowpoly.glb` | https://sketchfab.com/3d-models/mitsubishi-a6m3-zero-cb9fa84167ac4efa9d8aebcab133f7f3 | Mamoru_Morimoto | CC-BY 4.0 | 1k | Low-poly |
-| `p38-lightning.glb` | https://sketchfab.com/3d-models/p38-7eab500310604fd996b116f9cd7520a7 | manilov.ap | CC-BY 4.0 | 114k | Untextured |
 | `bomb-m64-500lb.glb` | https://sketchfab.com/3d-models/low-poly-wwii-style-500lb-bomb-c6f4e1adb6f940ae83d0386e79d5ca1c | Pippa (@Planetrix23) | CC-BY 4.0 | 1k | US M64 |
 | `torpedo-bliss-leavitt-mk2.glb` | https://sketchfab.com/3d-models/torpedo-mk2-993688382c4a41489a11d26814c72178 | AlanTinka | CC-BY 4.0 | 121k | A 1904-era ship torpedo, not the aerial Mk 13 |
 | `flag-rising-sun.glb` | https://sketchfab.com/3d-models/flag-of-the-rising-sun-japanese-flag-77ae0df787c445818849a787c0a0ca85 | Mamoru_Morimoto | CC-BY 4.0 | 8k | IJN naval ensign |
@@ -114,6 +114,7 @@ All require author credit under CC-BY 4.0
 - B-29 (Escou): not downloadable, sold on Fab.
 - Everything by kriss50, KojfDiscord, lxyun_2 and oiopu: self-declared game rips or re-uploads.
 - bsterling's USS Cleveland: relabeled CC-BY, but the original was CC-BY-NC.
+- P-38 (manilov.ap, `p38-lightning.glb`, CC-BY 4.0), checked 2026-09-27: license and authorship fine, but fitted to the P-38L's cited 15.85 m span it is 12.13 m long, +5.2% over the cited 11.53 m (R3's 4% tolerance), and no variant matches. `content/aircraft/p-38-lightning.glb` is an original Blender model instead.
 
 ## Textures and audio
 

@@ -27,6 +27,7 @@ const CITED: Readonly<Record<string, Cited>> = {
   'ki-21-sally': { spanM: 22.5, lengthM: 16.0, tolerance: 0.01, source: "English Wikipedia 'Mitsubishi Ki-21', Specifications (Ki-21-IIb), read 2026-09-27" },
   'ki-43-oscar': { spanM: 10.84, lengthM: 8.92, tolerance: 0.04, source: "English Wikipedia 'Nakajima Ki-43 Hayabusa', Specifications (Ki-43-IIb), read 2026-09-27" },
   'ki-84-frank': { spanM: 11.238, lengthM: 9.92, tolerance: 0.01, source: "English Wikipedia 'Nakajima Ki-84 Hayate', Specifications (Ki-84-Ia), read 2026-09-27" },
+  'p-38-lightning': { spanM: 15.85, lengthM: 11.53, tolerance: 0.01, source: "English Wikipedia 'Lockheed P-38 Lightning', Specifications (P-38L): span 52 ft 0 in, length 37 ft 10 in, read 2026-09-27. An original Blender model: the Sketchfab pick measured +5.2% long at this span (R3 ledger, Task 8)" },
 }
 
 const aircraft = loadModelEntries().filter((e) => e.output.startsWith('content/aircraft/') && e.id !== 'wildcat')

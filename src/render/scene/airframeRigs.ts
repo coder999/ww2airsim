@@ -149,4 +149,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'p-38-lightning': {
+    // An original Blender model (p-38-lightning.py), the fallback for manilov.ap's download (+5.2% long,
+    // R3 ledger, Task 8): the kit's propellers are exactly 3-fold symmetric. Tricycle gear, every leg aft.
+    props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'P-38 main legs retract aft into the booms; the angle is an ESTIMATE (p-38-lightning.py header)' },
+      { node: 'GearNose', upAngleDeg: -90, retracts: 'aft', source: 'P-38 nose leg retracts aft; the angle is an ESTIMATE (p-38-lightning.py header)' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'as GearL' },
+    ],
+    turrets: [],
+  },
 }

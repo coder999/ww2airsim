@@ -3,6 +3,7 @@
   "name": "Lockheed P-38 Lightning",
   "kind": "aircraft",
   "side": "allied",
+  "model": { "kind": "aircraft", "id": "p-38-lightning" },
   "blurb": "A twin-boom Army fighter, planned as a player-flown and friendly type.",
   "history": "The Lockheed P-38 Lightning was a single-seat, twin-engined fighter built for the U.S. Army Air Corps, with a distinctive twin-boom layout and a central nacelle holding the cockpit and guns. Turbochargers on both engines made it one of the earliest Allied fighters to perform well at high altitude, and it also served as a fighter-bomber, night fighter, long-range escort and, with cameras in place of guns, a reconnaissance aircraft.\n\nIn the South West Pacific the P-38 was the Army Air Forces' main long-range fighter until large numbers of P-51D Mustangs arrived near the war's end. America's top aces, Richard Bong and Thomas McGuire among them, flew it.",
   "sources": [
