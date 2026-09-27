@@ -44,21 +44,23 @@ leads with `CEASE FIRE! YOU'RE HITTING FRIENDLIES!` for
 - **keep** the persistent `FRIENDLY FIRE` tag: it tells the pilot the flight
   is already forfeit, which the radio line does not.
 
-## 4. Deny the badge on a discharged flight
+## 4. Deny the badge on a forfeit sortie
 
-A discharged debrief scores zero and has no Continue (`withDischarge`,
-`DebriefModel.discharge`). M2 awards a badge through `withMissionDebrief` and
-a `badgeId` passed to `bankMissionResult`. A discharged flight must earn no
-badge:
+A friendly-fire debrief scores zero and has no Continue (`withDischarge`).
+Every one carries `DebriefModel.forfeit`; a survivor's also carries
+`discharge`, while a death keeps KILLED (Mark, 2026-09-26: the dead cannot be
+discharged). M2 awards a badge through `withMissionDebrief` and a `badgeId`
+passed to `bankMissionResult`. A forfeit sortie must earn no badge:
 
 - in `withMissionDebrief` (or at its three call sites), award nothing when
-  `model.discharge !== undefined`, and say so in the objectives block;
+  `model.forfeit !== undefined`, and say so in the objectives block;
 - apply `withDischarge` and `withMissionDebrief` in one fixed order at all
   three sites, so the discharge overlay is what is shown.
 
 ## 5. Merge point in `main.ts`
 
-Both branches add a trailing parameter to `bankMissionResult`: friendly fire
-adds `discharged: boolean`, and M2 adds `badgeId`. Whichever merges second
-takes both, and `dischargeInRoster` (`src/render/roster.ts`) must not write a
-badge.
+Friendly fire (merged to `main` 2026-09-26) gave `bankMissionResult` a
+trailing `friendlyFire: 'discharged' | 'forfeit' | null` parameter, computed
+by `friendlyFireBank(model)`; M2 adds `badgeId`. M2 takes both. Neither
+`dischargeInRoster` (`src/render/roster.ts`) nor the forfeit path, which
+banks 0 points and no kills, may write a badge.

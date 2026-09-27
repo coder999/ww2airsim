@@ -2,7 +2,7 @@
 
 Dated 2026-09-26. Branch `worktree-friendly-fire`, worktree
 `.claude/worktrees/friendly-fire`, cut from `main` at `7d8dc22` (which includes
-Plan 7e). **Not merged.** Spec
+Plan 7e). **Merged to `main` 2026-09-26** (`c7c73a3`, after `main` was merged into the branch in `843e5a4` and re-verified); the branch and worktree were then removed. Spec
 [`2026-09-26-friendly-fire-design.md`](../superpowers/specs/2026-09-26-friendly-fire-design.md),
 plan [`2026-09-26-friendly-fire.md`](../superpowers/plans/2026-09-26-friendly-fire.md).
 The plan's header: final-product viewing checkpoint, unattended.
@@ -69,10 +69,7 @@ The plan's header: final-product viewing checkpoint, unattended.
    - `friendly-fire.spec.ts`: a failure message says "the axis Hellcat was hit" for an assertion that it was *not* hit.
    - *Resolved 2026-09-26 by Mark's FF-6 amendment:* the Dossier log no longer disagrees with the career after a forfeit, because a discharge no longer takes back what an earlier landing banked.
 8. **Spec §9 leftover:** mission `destroy` objectives aimed at an allied entity are unchecked (for M3/M4).
-9. **Viewing:** `https://ww2airsim-2.windomlane.org/?scenario=friendly-fire-range` (returned 200 at handoff).
-   - Boot it by URL, for the cloud reason in item 2.
-   - For `f6f-2`'s new spot, use `https://ww2airsim-2.windomlane.org/` (free-flight).
-   - The page is served live from this worktree's dev server on port 5175, with a local-only `vite.config.ts` edit. That server stops if nexus reboots.
+9. **Viewing:** on the primary dev server, which serves `main`: `https://ww2airsim.windomlane.org/?scenario=friendly-fire-range` (airborne) and `?scenario=friendly-fire-field` (parked). Boot them by URL, for the cloud reason in item 2. For `f6f-2`'s new spot, fly free-flight from `https://ww2airsim.windomlane.org/`. Slot 2 was released at the merge.
 
 ## 4. Rulings
 
@@ -90,5 +87,17 @@ FF-1 to FF-10 are in the plan. Rulings made during execution are in the ledger (
 
 ## 5. Merging
 
-- **E1 (now on `main`):** only `src/render/main.ts` conflicts (`git merge-tree`, 2026-09-26). The impact debrief site is the likely hunk, where E1 removed `impactEffect`. Keep E1's removal and this branch's `withDischarge(...)` and `discharged` argument. `combat.ts`, `dist.test.ts`, README and §15 merge cleanly.
-- **M2 (not yet executed):** see [the note for M2](../superpowers/notes/2026-09-26-friendly-fire-for-m2.md). It covers the radio line feed, dropping the readout's transient segment, denying the badge on a discharged flight, and the shared trailing parameter on `bankMissionResult`.
+Done 2026-09-26. `main` (E1, O1, the R1 plan) was merged into the branch first (`843e5a4`). There were two conflicts:
+
+- `combat.ts` `nearestContact` keeps `deckHit` and the terrain-only `groundHit`/`seaHit`, and takes E1's `sea` flag on ground contacts.
+- `main.ts` keeps E1's readout comment and the readout's tick argument.
+
+After that merge:
+
+- The digest probe matched `main` for 7 of 9 runs; free-flight and deck-quals differ, from the `f6f-2` move.
+- `remote-run npm run verify` returned rc=0: 248 files, 2,566 passed, 21 skipped.
+- Tier 2 passed: `friendly-fire.spec.ts` 2 of 2 (2.487 and 2.282 ms), plus `meta-game` and `meta-game-relaunch`.
+
+The branch was then merged to `main` as `c7c73a3`, whose tree is identical to the verified branch head.
+
+- **M2 (not yet executed):** see [the note for M2](../superpowers/notes/2026-09-26-friendly-fire-for-m2.md). It covers the radio line feed, dropping the readout's transient segment, denying the badge on a discharged or forfeit sortie, and the `friendlyFire` trailing parameter on `bankMissionResult`.
