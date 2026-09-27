@@ -1,0 +1,12 @@
+{
+  "id": "revetment",
+  "output": "content/buildings/revetment.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/revetment.py",
+    "dimensions": "a generic single-fighter revetment; every figure is an ESTIMATE labeled in the script's header (no dimensional primary source found, searched 2026-09-27)",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
+}
