@@ -24,6 +24,7 @@ import { createAutopilotBadge } from './autopilotBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud } from './mission/hud.js'
+import { landingDisposition } from './mission/landingFlow.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
@@ -1467,6 +1468,8 @@ async function boot(): Promise<void> {
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
    *  Restart. */
   let landingShown = false
+  /** The mission landing tick already handled (M2 R2); -1 before any. */
+  let handledLandingTick = -1
   /** The tick of the impact the debrief is currently showing, so the modal is
    *  raised once rather than rebuilt sixty times a second. */
   let shownImpactTick: number | null = null
@@ -1599,6 +1602,7 @@ async function boot(): Promise<void> {
     shownImpactTick = null
     shownDestructionTick = null
     landingShown = false
+    handledLandingTick = -1
     postImpactOceanSeconds = 0
     // Photoreal Task 4: a new life is a new view; the cloud history of the
     // old one must not be reprojected into it. The teleport test in the
@@ -2148,27 +2152,35 @@ async function boot(): Promise<void> {
     // the pause rather than through a second freeze (frame.ts's `paused`).
     // Continue releases both; Restart goes through the handler above.
     if (current.landing.report !== null && !landingShown) {
-      landingShown = true
-      frame = withPaused(current, true)
-      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const model = landingModel(
-        current.landing.report,
-        killsSinceLastBank,
-        Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
-      )
-      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(
-        model.score.total,
-        'landed',
-        killsSinceLastBank,
-        sortieFacts(landingKind(current.landing.report), current.world),
-      )
-      segment = EMPTY_SEGMENT
-      showDebrief(model, banked, () => {
-        frame = acknowledgeLanding(frame!)
-        landingShown = false
-        debrief.hide()
-      })
+      const landing = landingDisposition(current.world.mission, handledLandingTick)
+      handledLandingTick = landing.tick
+      if (landing.kind === 'intermediate') {
+        // Spec §2.4: the engine logged "<label> n of count" for the radio line;
+        // the flight goes on, unpaused and unbanked (M2 R3).
+        frame = acknowledgeLanding(current)
+      } else {
+        landingShown = true
+        frame = withPaused(current, true)
+        const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
+        const model = landingModel(
+          current.landing.report,
+          killsSinceLastBank,
+          Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
+        )
+        scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
+        const banked = bankMissionResult(
+          model.score.total,
+          'landed',
+          killsSinceLastBank,
+          sortieFacts(landingKind(current.landing.report), current.world),
+        )
+        segment = EMPTY_SEGMENT
+        showDebrief(model, banked, () => {
+          frame = acknowledgeLanding(frame!)
+          landingShown = false
+          debrief.hide()
+        })
+      }
     }
 
     // The sky dome's colour only depends on view direction, but its geometry
