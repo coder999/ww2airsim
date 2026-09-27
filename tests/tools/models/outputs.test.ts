@@ -6,7 +6,7 @@ import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { modelIO } from '../../../tools/models/document.js'
 import { measureDocument } from '../../../tools/models/measure.js'
 
-const LICENSE_LABEL = { 'CC-BY-4.0': 'CC-BY 4.0', 'CC0-1.0': 'CC0 1.0', 'AGPL-3.0-or-later': 'AGPL-3.0-or-later' } as const
+const LICENSE_LABEL = { 'CC-BY-4.0': 'CC-BY 4.0', 'CC0-1.0': 'CC0 1.0' } as const
 const entries = loadModelEntries()
 const assets = readFileSync('ASSETS.md', 'utf8')
 
