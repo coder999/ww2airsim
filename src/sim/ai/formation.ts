@@ -1,5 +1,6 @@
 import type { AircraftEntity } from '../loop.js'
 import type { Controls } from '../flight/state.js'
+import { DT } from '../flight/model.js'
 import { qRotate } from '../math/quat.js'
 import { add, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import { controlsForDesiredVelocity } from './controller.js'
@@ -27,44 +28,70 @@ export const STATIONS: Readonly<Record<FormationSlot, Station>> = {
 /** Trail cover while the leader fights (spec §4, from the 7c design §5). */
 export const TRAIL_COVER: Station = { aftM: 500, rightM: 0, upM: 200 }
 
-/** Desired closure per meter of station error, 1/s. Measured 2026-09-27 (Task
- *  3, `.superpowers/7f/sweep.ts` against `tests/sim/ai/formationFlight.test.ts`):
- *  swept 0.03-0.8 against the straight-and-level, turn, ahead-of-station and
- *  rejoin scenarios. Above about 0.1 the pull is already clamped to
- *  MAX_CLOSURE_MPS for every error this file's tests use (0.1 x 400 m = 40),
- *  so higher gains request the same closure and change nothing; below it
- *  the request undershoots the clamp and every RMS gets worse (0.03: 171 m
- *  straight-line RMS; 0.1: 84 m). 0.1 is also the only value that clears the
- *  ahead-of-station bound (<50 m: 0.03->95 m, 0.05->76 m, 0.08->50 m,
- *  0.1->44 m, 0.15->80 m -- non-monotonic, since a stronger pull overshoots
- *  the station and has to reverse). Kept at 0.1. */
-export const CLOSURE_GAIN_PER_S = 0.1
-/** The closure the law may add to the leader's velocity (spec §3). */
+/* Tuning method for the constants below (Task 3 round 2, 2026-09-27):
+ * `.superpowers/7f/r2sweep.sh` sets one constant at a time away from the
+ * chosen set and runs `r2measure.ts`, the `formationFlight.test.ts`
+ * scenarios with the leader at 110 m/s. Figures read: straight-and-level
+ * RMS for slots 1/2/3, turn RMS for slots 1/2, rejoin time, and the
+ * ahead-of-station final error. Chosen set: 11.6/11.3/18.4 m, 16.2/18.2 m,
+ * 75.8 s, 6.2 m (bounds 25 m, 60 m, 90 s, 50 m). */
+
+/** Desired closure per meter of horizontal station error, 1/s. Measured
+ *  2026-09-27 (method above):
+ *  0.1 -> 17/17/14 m, 24/26 m, 84 s, 11 m; 0.15 -> 13/13/18, 19/21, 77 s;
+ *  0.2 -> 12/11/18, 16/18, 76 s, 6 m; 0.3 -> 12/11/17, 14/16, 75 s, 5 m.
+ *  Round 1's 80 m straight-line floor was not this gain: it was a steady
+ *  offset (wingman 40 m ahead of and 35 m below station) from the throttle
+ *  law and the vertical sink, see FORMATION_THROTTLE_GAIN and
+ *  VERTICAL_GAIN_PER_S. 0.2 sits mid-plateau. */
+export const CLOSURE_GAIN_PER_S = 0.2
+/** The closure the law may add to the leader's velocity (spec §3). Measured
+ *  2026-09-27 (method above): 30 -> rejoin 81 s, 40 -> 76 s, 60 ->
+ *  76 s (the Hellcat's own acceleration limits it past 40), and ahead-of-
+ *  station minimum speed 83/73/64 m/s. Kept at the spec's 40. */
 export const MAX_CLOSURE_MPS = 40
-/** The vertical part of the desired velocity is clamped to this, as ingress does. */
-export const MAX_FORMATION_VERTICAL_MPS = 10
+/** The vertical part of the desired velocity is clamped to this, as ingress
+ *  does. Measured 2026-09-27 (method above):
+ *  10 -> turn RMS 35/115 m, 15 -> 17/21 m, 25 -> 16/18 m, 40 -> 16/18 m.
+ *  In a 30-degree bank the velocity controller's pitch loop reads part of
+ *  the turn as climb (the lateral heading error projects onto the banked
+ *  body's up axis), so holding height through a turn needs more than 10 m/s
+ *  of commanded descent; round 1's turn climbed 300 m above station at 10. */
+export const MAX_FORMATION_VERTICAL_MPS = 25
+/** Desired climb per meter of height error, 1/s: stiffer than the horizontal
+ *  gain, like `holdHeight`'s 1/s. Commanding level flight, the velocity
+ *  controller sinks ~3 m/s at 110 m/s (it aims the nose, not the velocity
+ *  vector), so at 0.1 the wingman settled 35 m below station (round 2
+ *  diagnosis, `.superpowers/7f/r2diag.ts`, 2026-09-27); at 1 it settles
+ *  ~3 m low. Measured 2026-09-27 (method above): 0.5 -> 13/13/19, 23/28 m;
+ *  1 -> 12/11/18, 16/18 m; 2 -> 11/11/18, 14/15 m. 1 kept: 2 buys 1-3 m. */
+export const VERTICAL_GAIN_PER_S = 1
+/** The heading lead through a leader's turn, as a fraction of the bank the
+ *  turn needs. `controlsForDesiredVelocity` banks 1.6 x its heading error,
+ *  so a wingman fed the leader's own velocity trails in heading by 1/1.6
+ *  (0.625) of the bank: 7-10 degrees in the 30-degree turn (round 2
+ *  diagnosis, `.superpowers/7f/r2turn.ts`, 2026-09-27). Measured 2026-09-27
+ *  (method above), turn RMS: 0 -> 170/275 m, 0.5 -> 25/26 m, 0.55 ->
+ *  15/16 m, 0.6 -> 16/18 m, 0.65 -> 27/31 m, 0.7 -> 40/46 m. 0.6: inside
+ *  the band that clears 60 m with room, next to the controller's 0.625. */
+export const TURN_LEAD_PER_BANK = 0.6
+const STANDARD_GRAVITY_MPS2 = 9.80665
 /** The desired speed never drops below this multiple of clean stall (Review
- *  Focus 1). Measured 2026-09-27 (Task 3, `.superpowers/7f/measure.ts`): the
- *  1.5 km-ahead scenario is the only one that ever drives the desired speed
- *  toward the floor (a wingman ahead of station must slow down), and it
- *  never triggers the floor at 1.3 -- `aheadStallOk` (measured minimum speed
- *  above 1.2x stall) is true at every CLOSURE_GAIN_PER_S / throttle
- *  combination tried. Kept unchanged from Task 2's starting value; not
- *  re-tuned because nothing measured needed it to move. */
+ *  Focus 1). Measured 2026-09-27 (method above): 1.2, 1.3 and 1.5
+ *  give identical results; the ahead-of-station wingman's minimum speed is
+ *  73 m/s against a 53 m/s (1.2 x stall) bound, so the floor never binds in
+ *  these scenarios. Kept at Task 2's 1.3. */
 export const MIN_SPEED_STALL_FACTOR = 1.3
 /** throttle = base + gain x (desired speed - airspeed), like `ingressThrottle`.
- *  Measured 2026-09-27 (Task 3, `.superpowers/7f/sweep.ts`): BASE swept
- *  0.7/0.85/1.0 and GAIN 0.03-0.2 at CLOSURE_GAIN_PER_S = 0.1. Desired speed
- *  already exceeds airspeed by 30-40 m/s whenever a wingman is closing, so
- *  throttle saturates to 1.0 within one tick at every GAIN tried -- GAIN
- *  only matters near the station, where it damps the settle. BASE = 0.85
- *  reduced ahead-of-station final error from 44 m (at 0.7) to 21 m and
- *  straight-line RMS from 84 m to 79 m; 1.0 was no better (22 m / 79 m) and
- *  removes the margin `formationThrottle`'s clamp already provides. Settled
- *  on BASE = 0.85, GAIN = 0.05 (0.03 and 0.1 were both within a few meters
- *  on every scenario). */
+ *  Measured 2026-09-27 (method above): GAIN 0.05 -> straight 26/25/29 m,
+ *  ahead 18 m; 0.1 -> 14/14/21, 10 m; 0.2 -> 12/11/18, 6 m; 0.4 ->
+ *  12/11/18, 5 m. At round 1's 0.05 the law needed a 3.6 m/s speed deficit
+ *  to reach the ~0.67 throttle that holds 110 m/s, which the position loop
+ *  could only supply as a 40 m along-track offset. BASE 0.65 -> 11/11/18,
+ *  14/18 m, ahead 4 m; 0.85 -> 12/11/18, 16/18 m, 6 m; 1.0 -> 13/13/20,
+ *  19/19 m, 9 m: flat, so BASE stays 0.85. */
 export const FORMATION_THROTTLE_BASE = 0.85
-export const FORMATION_THROTTLE_GAIN = 0.05
+export const FORMATION_THROTTLE_GAIN = 0.2
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n))
 
@@ -95,14 +122,44 @@ export function stationPoint<M>(leader: AircraftEntity<M>, station: Station): Ve
   return v3(p.x - station.aftM * fx - station.rightM * fz, p.y + station.upM, p.z - station.aftM * fz + station.rightM * fx)
 }
 
-/** The leader's velocity plus a clamped proportional pull toward the station
- *  (spec §3). The same law rejoins from far away. */
+/** The leader's horizontal turn rate, rad/s (positive turns +x toward +z,
+ *  i.e. right), from its last tick's heading change: `previous` is the
+ *  state one tick before `state`. Zero with (almost) no horizontal speed. */
+export function leaderTurnRate<M>(leader: AircraftEntity<M>): number {
+  const v = leader.state.velocity, p = leader.previous.velocity
+  if (Math.hypot(v.x, v.z) < 1 || Math.hypot(p.x, p.z) < 1) return 0
+  const d = Math.atan2(v.z, v.x) - Math.atan2(p.z, p.x)
+  return Math.atan2(Math.sin(d), Math.cos(d)) / DT
+}
+
+/** How far ahead to lead the leader's turn, rad: TURN_LEAD_PER_BANK x the
+ *  bank a level turn at this rate and speed needs, atan(v w / g). */
+const turnLeadRad = <M>(leader: AircraftEntity<M>, w: number): number =>
+  TURN_LEAD_PER_BANK * Math.atan(Math.hypot(leader.state.velocity.x, leader.state.velocity.z) * w / STANDARD_GRAVITY_MPS2)
+
+/** Rotate `v`'s horizontal part by `rad` about world up (the same sense as
+ *  `leaderTurnRate`). */
+const yaw = (v: Vec3, rad: number): Vec3 => {
+  const c = Math.cos(rad), s = Math.sin(rad)
+  return v3(v.x * c - v.z * s, v.y, v.x * s + v.z * c)
+}
+
+/** The leader's velocity plus a clamped correction toward the station (spec
+ *  §3). The leader-velocity term is fed forward through the leader's turn:
+ *  the station's own velocity (the leader's, plus the turn swinging the
+ *  station around it), led ahead through the turn (`turnLeadRad`) so the
+ *  velocity controller banks with the leader instead of after it. The
+ *  correction is proportional on the station error, stiffer vertically.
+ *  The same law rejoins from far away. */
 export function stationDesiredVelocity<M>(self: AircraftEntity<M>, leader: AircraftEntity<M>, station: Station): Vec3 {
-  const err = sub(stationPoint(leader, station), self.state.position)
-  let pull = scale(err, CLOSURE_GAIN_PER_S)
+  const sp = stationPoint(leader, station)
+  const err = sub(sp, self.state.position)
+  const w = leaderTurnRate(leader)
+  const arm = sub(sp, leader.state.position)
+  const lv = yaw(add(leader.state.velocity, v3(-w * arm.z, 0, w * arm.x)), turnLeadRad(leader, w))
+  let pull = v3(err.x * CLOSURE_GAIN_PER_S, err.y * VERTICAL_GAIN_PER_S, err.z * CLOSURE_GAIN_PER_S)
   const n = length(pull)
   if (n > MAX_CLOSURE_MPS) pull = scale(pull, MAX_CLOSURE_MPS / n)
-  const lv = leader.state.velocity
   let desired = add(lv, v3(pull.x, clamp(pull.y, -MAX_FORMATION_VERTICAL_MPS - lv.y, MAX_FORMATION_VERTICAL_MPS - lv.y), pull.z))
   const minSpeed = MIN_SPEED_STALL_FACTOR * self.spec.reference.stallSpeedMps
   const speed = length(desired)

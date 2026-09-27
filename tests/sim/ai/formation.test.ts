@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { length, sub, v3 } from '../../../src/sim/math/vec3.js'
-import { MAX_CLOSURE_MPS, MIN_SPEED_STALL_FACTOR, STATIONS, TRAIL_COVER, stationDesiredVelocity, stationErrorM, stationPoint } from '../../../src/sim/ai/formation.js'
+import { MAX_CLOSURE_MPS, MAX_FORMATION_VERTICAL_MPS, MIN_SPEED_STALL_FACTOR, leaderTurnRate, STATIONS, TRAIL_COVER, stationDesiredVelocity, stationErrorM, stationPoint } from '../../../src/sim/ai/formation.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { level } from './maneuverWorlds.js'
 
@@ -51,7 +51,18 @@ describe('the station-keeping law (7f spec §3)', () => {
 
   it('clamps the vertical correction', () => {
     const d = stationDesiredVelocity(east(-80, 100, 1000), east(0), STATIONS[1])
-    expect(d.y).toBeLessThanOrEqual(10 + 1e-9)
+    expect(d.y).toBeLessThanOrEqual(MAX_FORMATION_VERTICAL_MPS + 1e-9)
     expect(length(sub(d, v3(120, 0, 0)))).toBeLessThanOrEqual(MAX_CLOSURE_MPS + 1e-9)
+  })
+
+  it('leads a turning leader: asks to turn with it, not after it', () => {
+    const leader = east(0)
+    // Turning right (+x toward +z) at 0.05 rad/s: the last tick's heading was 0.05 x DT less.
+    const prevHeading = -0.05 / 60
+    const turning = { ...leader, previous: { ...leader.state, velocity: v3(120 * Math.cos(prevHeading), 0, 120 * Math.sin(prevHeading)) } }
+    expect(leaderTurnRate(turning)).toBeCloseTo(0.05, 6)
+    const d = stationDesiredVelocity(east(-80, 100), turning, STATIONS[1])
+    expect(d.z).toBeGreaterThan(0)
+    expect(stationDesiredVelocity(east(-80, 100), leader, STATIONS[1]).z).toBe(0)
   })
 })
