@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import type { Document } from '@gltf-transform/core'
-import { checkOutput, finishGenerated, runBuild, runPipeline, type BuildDeps } from '../../../tools/models/build.js'
+import { blenderIntermediate, checkOutput, finishGenerated, runBuild, runPipeline, type BuildDeps } from '../../../tools/models/build.js'
 import { parseModelEntry, type ModelEntry } from '../../../tools/models/manifest.js'
 import { findNode, modelIO } from '../../../tools/models/document.js'
 import { measureDocument, nodeTriangles } from '../../../tools/models/measure.js'
@@ -93,17 +93,19 @@ function toyBomb(): Document {
   return doc
 }
 
-function fakeDeps(present: string[]) {
-  const lines: string[] = [], written: string[] = [], generated: string[] = []
+function fakeDeps(present: string[], haveBlender = true) {
+  const lines: string[] = [], written: string[] = [], generated: string[] = [], reads: string[] = [], blenderRuns: string[] = []
   const deps: BuildDeps = {
     exists: (p) => present.includes(p),
-    read: async () => toyPlane(),
+    read: async (p) => { reads.push(p); return toyPlane() },
     write: (p) => { written.push(p) },
     encode: (doc) => modelIO().writeBinary(doc),
     log: (l) => { lines.push(l) },
     generate: async () => { generated.push('called'); return toyBomb() },
+    haveBlender: () => haveBlender,
+    blender: (script, out) => { blenderRuns.push(`${script} -> ${out}`) },
   }
-  return { deps, lines, written, generated }
+  return { deps, lines, written, generated, reads, blenderRuns }
 }
 
 const genEntry = parseModelEntry({
@@ -177,5 +179,49 @@ describe('generated entries in the build (O1)', () => {
     const f = fakeDeps([])
     expect(await runBuild([tight], ['toy-bomb'], f.deps)).toBe(1)
     expect(f.lines[0]).toMatch(/^FAILED toy-bomb, nothing written: 12 triangles > budget 11/)
+  })
+})
+
+const shedEntry = parseModelEntry({
+  id: 'toy-shed', output: 'content/buildings/toy-shed.glb',
+  source: { kind: 'blender', script: 'tools/models/blender/toy-shed.py', dimensions: 'test figures', license: 'AGPL-3.0-or-later' },
+  textures: { maxSize: 512, format: 'webp' },
+  budget: { maxBytes: 100_000, maxTriangles: 100, maxDrawCalls: 3 },
+})
+
+describe('blender entries in the build (R1)', () => {
+  it('runs the script into tools/models/cache/<id>.glb, reads that file, and writes the output with its provenance', async () => {
+    const f = fakeDeps([])
+    expect(await runBuild([shedEntry], ['toy-shed'], f.deps)).toBe(0)
+    expect(blenderIntermediate('toy-shed')).toBe('tools/models/cache/toy-shed.glb')
+    expect(f.blenderRuns).toEqual(['tools/models/blender/toy-shed.py -> tools/models/cache/toy-shed.glb'])
+    expect(f.reads).toEqual(['tools/models/cache/toy-shed.glb'])
+    expect(f.written).toEqual(['content/buildings/toy-shed.glb'])
+    const doc = await runPipeline(toyPlane(), shedEntry)
+    expect(doc.getRoot().getAsset().extras).toMatchObject({ source: 'blender', script: 'tools/models/blender/toy-shed.py', dimensions: 'test figures', license: 'AGPL-3.0-or-later' })
+  })
+
+  it('with no Blender: a bare build skips it by name, an explicit one exits 1, and neither runs or writes anything', async () => {
+    const bare = fakeDeps([], false)
+    expect(await runBuild([shedEntry], [], bare.deps)).toBe(0)
+    expect(bare.lines).toEqual(['skipped toy-shed: no blender on PATH; build it on a host with Blender 5.0.1 (nexus)'])
+    const explicit = fakeDeps([], false)
+    expect(await runBuild([shedEntry], ['toy-shed'], explicit.deps)).toBe(1)
+    expect(explicit.lines[0]).toMatch(/^missing toy-shed: no blender on PATH/)
+    expect([...bare.blenderRuns, ...explicit.blenderRuns, ...bare.written, ...explicit.written]).toEqual([])
+  })
+
+  it('a script that fails (a raise, or the wrong Blender) fails that entry by name, writes nothing, and the rest still build', async () => {
+    const f = fakeDeps([entry.input!])
+    f.deps.blender = () => { throw new Error('blender 4.2.3 found; models need exactly 5.0.1') }
+    expect(await runBuild([shedEntry, entry], ['toy-shed', 'toy'], f.deps)).toBe(1)
+    expect(f.lines[0]).toBe('FAILED toy-shed, nothing written: blender 4.2.3 found; models need exactly 5.0.1')
+    expect(f.written).toEqual(['content/aircraft/toy.glb'])
+  })
+
+  it('Sketchfab and generated builds never run Blender', async () => {
+    const f = fakeDeps([entry.input!])
+    expect(await runBuild([entry, genEntry], ['toy', 'toy-bomb'], f.deps)).toBe(0)
+    expect(f.blenderRuns).toEqual([])
   })
 })
