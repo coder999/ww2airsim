@@ -15,11 +15,10 @@ import { nodeHangarContent } from './content.js'
  */
 const NOT_YET_DRAWN = [
   'ammunition-bunker', 'barracks-and-huts',
-  'fuel-tank-farm',
   'pier-and-warehouses',
   'radio-radar-station', 'revetment', 'type97-chi-ha', 'willys-mb-jeep',
 ]
-const CEILING = 8
+const CEILING = 7
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
