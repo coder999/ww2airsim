@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
-  pilotButtonLabel, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
+  pilotButtonLabel, pilotStatusChip, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
   createTitleScreen,
   type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
@@ -162,6 +162,15 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
 
     const kia = { ...active, status: 'kia' as const }
     expect(pilotButtonLabel(kia)).toContain('KIA')
+  })
+
+  it('friendly-fire spec §6: a discharged pilot reads DISCHARGED on the button and the status chip', () => {
+    const d = { ...createPilot('Boyington'), status: 'discharged' as const }
+    expect(pilotButtonLabel(d)).toContain('— DISCHARGED')
+    expect(pilotButtonLabel(d)).not.toContain('KIA')
+    expect(pilotStatusChip('discharged')).toEqual({ text: 'DISCHARGED', color: '--stamp-red' })
+    expect(pilotStatusChip('kia')).toEqual({ text: 'K.I.A.', color: '--stamp-red' })
+    expect(pilotStatusChip('active')).toEqual({ text: 'Active', color: '--stamp-black' })
   })
 
   it('labels the selected-pilot header with the pilot\'s name and full rank name', () => {

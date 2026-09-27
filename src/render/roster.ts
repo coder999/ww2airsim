@@ -56,6 +56,9 @@ export type MissionLogEntry = {
   readonly flightSeconds: number
   readonly maxAltitudeM: number
   readonly maxTrueAirspeedMps: number
+  /** Set only on a flight forfeit for friendly fire (friendly-fire spec §6);
+   *  absent on every other entry, so older logs need no migration. */
+  readonly discharged?: true
 }
 
 /** The facts about a sortie `applyMissionResult` needs to bank a log entry
@@ -74,6 +77,9 @@ export type SortieFacts = {
  *  separately and are unaffected by the cap. */
 export const MISSION_LOG_CAP = 200
 
+export type PilotStatus = 'active' | 'kia' | 'discharged'
+const PILOT_STATUSES: readonly PilotStatus[] = ['active', 'kia', 'discharged']
+
 export type PilotRecord = {
   readonly id: string
   readonly name: string
@@ -83,7 +89,7 @@ export type PilotRecord = {
   readonly sorties: number
   readonly killsByType: Readonly<Record<TargetType, number>>
   readonly badges: readonly string[]
-  readonly status: 'active' | 'kia'
+  readonly status: PilotStatus
   readonly resurrections: number
   readonly career: Career
   readonly log: readonly MissionLogEntry[]
@@ -120,7 +126,9 @@ export function startSortie(pilot: PilotRecord): PilotRecord {
     ...pilot,
     sorties: pilot.sorties + 1,
     status: 'active',
-    resurrections: pilot.status === 'kia' ? pilot.resurrections + 1 : pilot.resurrections,
+    // Discharge resurrects exactly as K.I.A. does, on one shared counter
+    // (friendly-fire spec §6, ruling FF-7).
+    resurrections: pilot.status === 'active' ? pilot.resurrections : pilot.resurrections + 1,
   }
 }
 
@@ -161,10 +169,10 @@ function foldCareer(c: Career, s: SortieFacts): Career {
   }
 }
 
-function logEntry(s: SortieFacts, points: number, kills: Readonly<Record<TargetType, number>>): MissionLogEntry {
+function logEntry(s: SortieFacts, points: number, kills: Readonly<Record<TargetType, number>>, discharged = false): MissionLogEntry {
   return {
     at: s.at, scenarioId: s.scenarioId, aircraft: s.aircraft, loadout: s.loadout, outcome: s.outcome,
-    points, killsByType: kills, ...s.segment,
+    points, killsByType: kills, ...s.segment, ...(discharged ? { discharged: true as const } : {}),
   }
 }
 
@@ -194,6 +202,64 @@ export function applyMissionResult(
       log: [...pilot.log, logEntry(sortie, scoreTotal, killsSinceLastBank)].slice(-MISSION_LOG_CAP),
     }),
   }
+}
+
+/** What earlier debriefs of a discharged flight already banked (a landing
+ *  followed by Continue): taken back off the career by `dischargePilot`. */
+export type Forfeit = {
+  readonly points: number
+  readonly killsByType: Readonly<Record<TargetType, number>>
+}
+
+/**
+ * Banks a flight forfeit for friendly fire (friendly-fire spec §6, rulings
+ * FF-6 and FF-7). It is the discharge counterpart of `applyMissionResult`:
+ *
+ * - nothing is scored, and `forfeit` (what this same flight banked at an
+ *   earlier debrief) is subtracted, never below zero; the rank is recomputed,
+ *   so a pilot can lose rank;
+ * - `missionsFlown` counts it, and the physical career folds as usual:
+ *   hours, landings and peaks all really happened;
+ * - the log entry shows 0 points, zero kills and `discharged: true`;
+ * - `status` is `discharged` whatever the physical outcome, death included.
+ *
+ * `outcome` is the physical recovery, kept for symmetry with
+ * `applyMissionResult`; the log's outcome comes from `sortie`.
+ */
+export function dischargePilot(
+  pilot: PilotRecord,
+  _outcome: RecoveryOutcome,
+  forfeit: Forfeit,
+  sortie?: SortieFacts,
+): PilotRecord {
+  const cumulativeScore = Math.max(0, pilot.cumulativeScore - forfeit.points)
+  const killsByType = Object.fromEntries(
+    TARGET_TYPES.map((t) => [t, Math.max(0, pilot.killsByType[t] - forfeit.killsByType[t])]),
+  ) as Readonly<Record<TargetType, number>>
+  return {
+    ...pilot,
+    cumulativeScore,
+    rank: rankFor(cumulativeScore),
+    missionsFlown: pilot.missionsFlown + 1,
+    killsByType,
+    status: 'discharged',
+    ...(sortie === undefined ? {} : {
+      career: foldCareer(pilot.career, sortie),
+      log: [...pilot.log, logEntry(sortie, 0, zeroKillsByType(), true)].slice(-MISSION_LOG_CAP),
+    }),
+  }
+}
+
+/** `dischargePilot` applied to whichever roster entry has `pilotId`, the
+ *  discharge twin of `applyMissionResultToRoster`. */
+export function dischargeInRoster(
+  roster: readonly PilotRecord[],
+  pilotId: string,
+  outcome: RecoveryOutcome,
+  forfeit: Forfeit,
+  sortie?: SortieFacts,
+): readonly PilotRecord[] {
+  return roster.map((p) => (p.id === pilotId ? dischargePilot(p, outcome, forfeit, sortie) : p))
 }
 
 /**
@@ -262,6 +328,8 @@ function validateLogEntry(value: unknown): MissionLogEntry | null {
     flightSeconds: num(e.flightSeconds),
     maxAltitudeM: num(e.maxAltitudeM),
     maxTrueAirspeedMps: num(e.maxTrueAirspeedMps),
+    // Kept only when exactly `true`; anything else drops the flag, not the entry.
+    ...(e.discharged === true ? { discharged: true as const } : {}),
   }
 }
 
@@ -304,7 +372,10 @@ function validatePilot(value: unknown): PilotRecord {
   const log = Array.isArray(v.log)
     ? (v.log as unknown[]).map(validateLogEntry).filter((e): e is MissionLogEntry => e !== null)
     : []
-  return { ...(v as unknown as PilotRecord), career, log }
+  // Friendly-fire spec §6: an unknown status (hand-edited, or a future
+  // format) reads as active rather than throwing the whole roster away.
+  const status = PILOT_STATUSES.includes(v.status as PilotStatus) ? (v.status as PilotStatus) : 'active'
+  return { ...(v as unknown as PilotRecord), status, career, log }
 }
 
 /**

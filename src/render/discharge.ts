@@ -60,7 +60,8 @@ export function withDischarge<M>(model: DebriefModel, world: World<M>): DebriefM
   const target = friendlyTargetLabel(world, ff)
   // `exactOptionalPropertyTypes`: the flight cannot go on, so the key is
   // dropped rather than set to undefined.
-  const { continueLabel: _dropped, ...rest } = model
+  const { continueLabel, ...rest } = model
+  void continueLabel
   return {
     ...rest,
     headline: DISCHARGE_HEADLINE,

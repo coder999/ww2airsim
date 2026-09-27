@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import {
   RANK_LADDER, ZERO_CAREER, MISSION_LOG_CAP,
-  applyMissionResult, applyMissionResultToRoster, createPilot, exportRoster, importRoster,
+  applyMissionResult, applyMissionResultToRoster, createPilot, dischargeInRoster, dischargePilot, exportRoster, importRoster,
   loadRoster, rankFor, saveRoster, startSortie, type PilotRecord, type SortieFacts,
 } from '../../src/render/roster.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
@@ -326,6 +326,106 @@ describe('migrate on read (dossier spec §B.3)', () => {
       ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify([rec]))
       const [p] = loadRoster()
       expect(p!.log).toHaveLength(1)
+    })
+  })
+})
+
+describe('dishonorable discharge (friendly-fire spec §6)', () => {
+  // 2,000 banked earlier, then one flight: land at Tacloban with a kill
+  // (+1,000, crossing LTJG), Continue, then fire on his own side. The whole
+  // flight is forfeit (ruling FF-6), so the landing's 1,000 and its kill come
+  // back off the career and the rank drops back to ENS.
+  const flown = (): PilotRecord => {
+    const p: PilotRecord = { ...createPilot('Boyington'), cumulativeScore: 2_000, killsByType: { ...zeroKillsByType(), fighter: 2 } }
+    return applyMissionResult(p, 1_000, 'landed', { ...zeroKillsByType(), fighter: 1 }, facts())
+  }
+  const forfeit = { points: 1_000, killsByType: { ...zeroKillsByType(), fighter: 1 } }
+
+  it('dischargePilot marks DISCHARGED, scores nothing, takes back the flight, recomputes rank and logs 0 points', () => {
+    const before = flown()
+    expect(before.rank.abbrev).toBe('LTJG')
+    const seg = { flightSeconds: 120, maxAltitudeM: 4000, maxTrueAirspeedMps: 180 }
+    const d = dischargePilot(before, 'killed', forfeit, facts({ outcome: 'killed', segment: seg }))
+    expect(d.status).toBe('discharged')
+    expect(d.cumulativeScore).toBe(2_000)
+    expect(d.rank.abbrev).toBe('ENS')
+    expect(d.killsByType.fighter).toBe(2)
+    expect(d.missionsFlown).toBe(before.missionsFlown + 1)
+    expect(d.career.flightSeconds).toBe(before.career.flightSeconds + 120)
+    expect(d.career.maxAltitudeM).toBe(4000)
+    expect(d.career.landings).toEqual(before.career.landings) // killed: no landing
+    const last = d.log[d.log.length - 1]!
+    expect(last.points).toBe(0)
+    expect(last.killsByType).toEqual(zeroKillsByType())
+    expect(last.discharged).toBe(true)
+    expect(last.outcome).toBe('killed')
+    expect(d.log).toHaveLength(before.log.length + 1)
+  })
+
+  it('a discharged landing still folds the landing into the physical career', () => {
+    const d = dischargePilot(createPilot('Ace'), 'landed', { points: 0, killsByType: zeroKillsByType() }, facts())
+    expect(d.career.landings.field).toBe(1)
+    expect(d.status).toBe('discharged')
+  })
+
+  it('a forfeit never takes the career below zero', () => {
+    const d = dischargePilot(createPilot('Ace'), 'landed', { points: 500, killsByType: { ...zeroKillsByType(), fighter: 3 } })
+    expect(d.cumulativeScore).toBe(0)
+    expect(d.killsByType.fighter).toBe(0)
+  })
+
+  it('dischargeInRoster touches only the named pilot', () => {
+    const a = createPilot('A')
+    const b = createPilot('B')
+    const out = dischargeInRoster([a, b], b.id, 'landed', { points: 0, killsByType: zeroKillsByType() })
+    expect(out[0]).toBe(a)
+    expect(out[1]!.status).toBe('discharged')
+  })
+
+  it('startSortie resurrects a discharged pilot, counting one resurrection', () => {
+    const d: PilotRecord = { ...createPilot('Boyington'), status: 'discharged', resurrections: 2 }
+    const r = startSortie(d)
+    expect(r.status).toBe('active')
+    expect(r.resurrections).toBe(3)
+  })
+
+  it('a Restart-ed flight that ends cleanly clears discharged, as it clears kia', () => {
+    const d: PilotRecord = { ...createPilot('Boyington'), status: 'discharged' }
+    expect(applyMissionResult(d, 100, 'landed').status).toBe('active')
+    expect(applyMissionResult(d, 0, 'killed').status).toBe('kia')
+  })
+
+  describe('stored records', () => {
+    beforeEach(() => {
+      const store = new Map<string, string>()
+      ;(globalThis as { window?: unknown }).window = {
+        localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v) } },
+      }
+    })
+    const put = (recs: unknown[]): void => {
+      ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem('ww2airsim.roster.v1', JSON.stringify(recs))
+    }
+
+    it('an unknown status loads as active, without throwing', () => {
+      put([{ ...createPilot('Odd'), status: 'bogus' }])
+      const roster = loadRoster()
+      expect(roster).toHaveLength(1)
+      expect(roster[0]!.status).toBe('active')
+    })
+
+    it('a discharged pilot round-trips, discharged log flag included', () => {
+      const d = dischargePilot(flown(), 'killed', forfeit, facts({ outcome: 'killed' }))
+      put([d])
+      expect(loadRoster()).toEqual([d])
+      expect(importRoster(exportRoster([d]))).toEqual([d])
+    })
+
+    it('a log entry whose discharged is not exactly true keeps the entry and drops the flag', () => {
+      const d = dischargePilot(createPilot('Ace'), 'landed', { points: 0, killsByType: zeroKillsByType() }, facts())
+      put([{ ...d, log: [{ ...d.log[0]!, discharged: 'yes' }] }])
+      const [p] = loadRoster()
+      expect(p!.log).toHaveLength(1)
+      expect('discharged' in p!.log[0]!).toBe(false)
     })
   })
 })

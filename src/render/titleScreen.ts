@@ -2,7 +2,7 @@ import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
-import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord } from './roster.js'
+import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
 import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
@@ -156,8 +156,18 @@ export function pilotButtonLabel(pilot: PilotRecord): string {
   // Game would resurrect (design §2) from one still flying. Appended, not a
   // separate figure, matching this label's existing terse "name — rank —
   // score" shape.
-  const status = pilot.status === 'kia' ? ' — KIA' : ''
+  const status = STATUS_SUFFIX[pilot.status]
   return `${pilot.name} — ${pilot.rank.abbrev} — ${pilot.cumulativeScore}${status}`
+}
+
+const STATUS_SUFFIX: Readonly<Record<PilotStatus, string>> = { active: '', kia: ' — KIA', discharged: ' — DISCHARGED' }
+
+/** The roster table's status chip: its text and its stamp color. A discharge
+ *  (friendly-fire spec §6) is stamped red, like a death. */
+export function pilotStatusChip(status: PilotStatus): { readonly text: string; readonly color: '--stamp-red' | '--stamp-black' } {
+  if (status === 'kia') return { text: 'K.I.A.', color: '--stamp-red' }
+  if (status === 'discharged') return { text: 'DISCHARGED', color: '--stamp-red' }
+  return { text: 'Active', color: '--stamp-black' }
 }
 
 /**
@@ -697,10 +707,9 @@ export function createTitleScreen(
       statusCell.className = 'center'
       const statusChip = document.createElement('span')
       statusChip.className = 'stamp-chip'
-      const isKia = pilot.status === 'kia'
-      const statusColor = isKia ? '--stamp-red' : '--stamp-black'
-      statusChip.style.cssText = `color:var(${statusColor});border-color:var(${statusColor})`
-      statusChip.textContent = isKia ? 'K.I.A.' : 'Active'
+      const chip = pilotStatusChip(pilot.status)
+      statusChip.style.cssText = `color:var(${chip.color});border-color:var(${chip.color})`
+      statusChip.textContent = chip.text
       statusCell.appendChild(statusChip)
 
       // Read-only, so never boot-locked (plan ruling): not in `lockable()`.

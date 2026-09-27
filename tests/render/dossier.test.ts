@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { dossierModel, formatFeet, formatHours, formatKnots, nextRankProgress, openDossier } from '../../src/render/dossier.js'
-import { RANK_LADDER, applyMissionResult, createPilot } from '../../src/render/roster.js'
+import { RANK_LADDER, applyMissionResult, createPilot, dischargePilot } from '../../src/render/roster.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 
 const label = (id: string): string => `Scenario ${id}`
@@ -49,6 +49,20 @@ describe('dossierModel', () => {
     expect(m.log.map((r) => r.scenario)).toEqual(['Scenario b', 'Scenario a'])
     expect(m.log[0]!.kills).toBe(2)
     expect(m.kills).toContainEqual(['Fighter', 2])
+  })
+})
+
+describe('dossierModel for a discharged pilot (friendly-fire spec §6)', () => {
+  it('shows Discharged, the resurrection count, and the discharged log line', () => {
+    const seg = { flightSeconds: 600, maxAltitudeM: 3000, maxTrueAirspeedMps: 150 }
+    let p = createPilot('Ace')
+    p = applyMissionResult(p, 100, 'landed', zeroKillsByType(), { at: '2026-09-20T10:00:00.000Z', scenarioId: 'a', aircraft: 'F6F-5 Hellcat', loadout: 'clean', outcome: 'trap', segment: seg })
+    p = dischargePilot(p, 'landed', { points: 0, killsByType: zeroKillsByType() }, { at: '2026-09-21T10:00:00.000Z', scenarioId: 'b', aircraft: 'F6F-5 Hellcat', loadout: 'both', outcome: 'field', segment: seg })
+    expect(dossierModel(p, label).header.status).toBe('Discharged')
+    const m = dossierModel({ ...p, resurrections: 2 }, label)
+    expect(m.header.status).toBe('Discharged · resurrected 2×')
+    expect(m.log[0]!.outcome).toBe('Field landing · Discharged')
+    expect(m.log[1]!.outcome).toBe('Trap')
   })
 })
 

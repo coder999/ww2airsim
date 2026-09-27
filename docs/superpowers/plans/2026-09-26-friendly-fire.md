@@ -169,15 +169,15 @@ Steps:
 - add tests in `tests/render/roster.test.ts`, `tests/render/dossier.test.ts` and `tests/render/titleScreen.test.ts`.
 
 Steps:
-- [ ] Write failing tests:
+- [x] Write failing tests:
   - `dischargePilot` sets `discharged`, adds 0 points, subtracts the forfeit points and kills, recomputes rank, increments `missionsFlown`, folds the career and logs 0 points and zero kills with `discharged: true`.
   - `startSortie` on a discharged pilot gives `active` with `resurrections` + 1.
   - A Restart-ed clean landing clears `discharged`.
   - Validation: a stored `status: 'bogus'` loads as active without throwing; a stored `discharged` pilot round-trips; a log entry with `discharged: 'yes'` drops the flag, not the entry.
   - The Dossier shows "Discharged" (with "resurrected n×") and the log outcome "Field landing · Discharged".
   - The title label and the chip read DISCHARGED.
-- [ ] Implement.
-- [ ] Commit.
+- [x] Implement.
+- [x] Commit.
 
 ### Task 5: `main.ts` wiring and the radio warning on the combat readout
 
