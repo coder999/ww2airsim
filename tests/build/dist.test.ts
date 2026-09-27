@@ -171,6 +171,10 @@ describe('the built artifact', () => {
       for (const e of loadModelEntries().filter((x) => x.source.kind === 'generated')) {
         expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
       }
+      // R1: Blender models reach dist/ whole (copyContent copies content/buildings/ and content/vehicles/).
+      for (const e of loadModelEntries().filter((x) => x.source.kind === 'blender')) {
+        expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
+      }
       // Hangar spec §3: the library page, and one file per library entry.
       // `copyContent` copies content/library/ like any other content; the
       // page itself bundles the same files (contentIndex.ts), so this pins
