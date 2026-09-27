@@ -494,15 +494,15 @@ async function boot(): Promise<void> {
   // whitelisted before the title screen exists so the scenario picker can
   // preselect it. `?scenario=` now reaches production too -- the DEV-only
   // gate that used to sit here is gone, and `isKnownScenarioId` is what
-  // makes that safe: any format-valid id that is not a `scenarioOptions`
-  // row (the `dev-` fixtures only in DEV) fails here, before anything loads,
+  // makes that safe: any format-valid id that is not a `SCENARIO_OPTIONS`
+  // row (Dev-only test beds included, sortie spec A2) fails here, before anything loads,
   // rather than reaching `loadScenarioBundle` and failing on a missing file.
   // This one synchronous check does not touch the "title screen before
   // anything slow" ordering below -- there is nothing to await here.
   let requestedScenarioId: string
   try {
     requestedScenarioId = scenarioIdFromQuery(window.location.search, SCENARIO_ID)
-    if (!isKnownScenarioId(requestedScenarioId, import.meta.env.DEV)) {
+    if (!isKnownScenarioId(requestedScenarioId)) {
       throw new Error(`scenario: ${JSON.stringify(requestedScenarioId)} is not a scenario this build ships`)
     }
   } catch (err) {

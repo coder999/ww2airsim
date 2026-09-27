@@ -9,6 +9,8 @@ import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
+import type { StartKind } from '../sim/sortie.js'
+import { DEFAULT_LOADOUT } from './sortieFlow.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md;
@@ -102,28 +104,35 @@ export const LOADOUT_OPTIONS: readonly { readonly value: Loadout; readonly label
   { value: 'rockets', label: 'Rockets' },
   { value: 'both', label: 'Both' },
 ]
-export const DEFAULT_LOADOUT: Loadout = 'both'
+// Moved to sortieFlow.ts (the form model owns the default, SF-R4); re-exported so main.ts's import is unchanged.
+export { DEFAULT_LOADOUT }
 
-/** One row of the scenario picker. `kind` and, for a mission, `badge`
- *  restate two facts from the scenario file (M2 R5): the picker needs both
- *  before any file is fetched -- the Missions/Ranges split and the AWARDED
- *  stamp -- and `tests/render/mission/options.test.ts` asserts they agree
- *  with `content/scenarios/`, and that every file there is listed. */
+/** One row of the scenario picker. `kind`, a mission's `badge`, `start`,
+ *  `aircraft` and a mission's `recommendedLoadout` restate facts from the
+ *  scenario file (M2 R5, sortie ruling SF-R7): the forms need them before any
+ *  file is fetched, and `tests/render/mission/options.test.ts` asserts they
+ *  agree with `content/scenarios/`, and that every file there is listed.
+ *  `dev` marks a test bed, listed only while Dev is checked (sortie spec A1);
+ *  `description` is a range's Form 2 text (a mission shows its briefing). */
 export type ScenarioOption = {
   readonly value: string
   readonly label: string
   readonly kind: 'mission' | 'range'
   readonly badge?: Badge
+  readonly dev: boolean
+  readonly start: StartKind
+  readonly aircraft: string
+  readonly recommendedLoadout?: Loadout
+  readonly description?: string
 }
 
 /**
- * The scenario picker's production options: every `content/scenarios/<id>.json`
- * this build ships, in the order shown (the `dev-` fixtures are in
- * `DEV_SCENARIO_OPTIONS` below). Player-facing labels, not the raw content
- * ids -- `pursuit-range` reads "Air Combat" here, matching how Mark actually
- * refers to it, not the file stem. Every row carries `kind`, and a mission
- * row its `badge`; `tests/render/mission/options.test.ts` pins both against
- * the files.
+ * The scenario picker's options: every `content/scenarios/<id>.json` this
+ * build ships, in the order shown, Dev-only test beds included (`dev: true`,
+ * sortie spec A1; `scenarioOptions(false)` hides them). Player-facing labels,
+ * not the raw content ids -- `pursuit-range` reads "Air Combat" here,
+ * matching how Mark actually refers to it, not the file stem. The restated
+ * facts are pinned against the files by `tests/render/mission/options.test.ts`.
  *
  * This is what `?scenario=` (spawn.ts's `SCENARIO_PARAM`) was always meant
  * to be replaced by (that file's own doc comment named this exact picker).
@@ -139,63 +148,55 @@ export type ScenarioOption = {
  * that is not actually one of these.
  */
 export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
-  { value: 'free-flight', label: 'Free Flight', kind: 'range' },
-  { value: 'deck-quals', label: 'Deck Quals', kind: 'range' },
-  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range' },
-  { value: 'pursuit-range', label: 'Air Combat', kind: 'range' },
-  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range' },
-  { value: 'strike-range', label: 'Strike Range', kind: 'range' },
-  // Plan 7e's development furball (ruling W9): listed so `?scenario=` can
-  // boot it, which is how it is shown; "(dev)" because it is a test bed,
-  // not a mission. It ships in production: the DEV-only rule is the `dev-`
-  // id prefix, not the label.
-  { value: 'furball-range', label: 'Furball (dev)', kind: 'range' },
-  // Friendly-fire ruling FF-10: the discharge test bed, listed for the same
-  // reason as the furball.
-  { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range' },
+  { value: 'free-flight', label: 'Free Flight', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban with the Essex task group offshore. No objectives: fly anywhere.' },
+  { value: 'deck-quals', label: 'Deck Quals', kind: 'range', dev: false, start: 'carrier', aircraft: 'f6f-hellcat', description: "Spotted on the Essex's deck. Practice launches and traps; no objectives." },
+  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban beside two parked Hellcat targets for gun practice.' },
+  { value: 'pursuit-range', label: 'Air Combat', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Airborne, with a green-skill fighter on your tail. Shake it or shoot it down.' },
+  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'As Air Combat, against a veteran-skill pursuer.' },
+  { value: 'strike-range', label: 'Strike Range', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban, with a Japanese cargo ship and enemy airfield targets for bomb and rocket practice.' },
+  // Plan 7e's development furball (ruling W9): a test bed, so Dev-only (A1);
+  // `?scenario=` still reaches it (A2). "(dev)" stays in the label (SF-R8).
+  { value: 'furball-range', label: 'Furball (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7e): airborne with an allied wingman against four enemy fighters, so AI fights AI.' },
+  // Friendly-fire ruling FF-10: the discharge test bed, Dev-only like the furball.
+  { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): airborne near an allied Hellcat, an enemy Hellcat, the Essex and a cargo ship.' },
   // The survivable half: parked on Tacloban's runway behind a parked allied
   // Hellcat, so a hop and a landing end in the discharge (FF-7 as amended).
-  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range' },
+  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): parked at Tacloban behind a parked allied Hellcat.' },
   // M3's missions. The picker shows missions first whatever their place here.
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).
-  { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' } },
-  { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' } },
-  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' } },
+  { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   // M4. "Air Combat" above is not a substring of this label, so e2e's
   // substring selectors still find one row each.
-  { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' } },
+  { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  // M2's two fixture missions, Dev-only like every test bed (A1).
+  { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
 ]
 
-/** M2's two fixture missions (open question 1): `dev-`-prefixed, and offered
- *  only by a DEV build (`scenarioOptions(true)`). */
-export const DEV_SCENARIO_OPTIONS: readonly ScenarioOption[] = [
-  { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' } },
-  { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' } },
-]
-
-/** The picker's rows for this build: production's, plus the fixtures in DEV. */
+/** The picker's rows: every row with Dev, the non-dev rows without (A1). */
 export function scenarioOptions(dev: boolean): readonly ScenarioOption[] {
-  return dev ? [...SCENARIO_OPTIONS, ...DEV_SCENARIO_OPTIONS] : SCENARIO_OPTIONS
+  return dev ? SCENARIO_OPTIONS : SCENARIO_OPTIONS.filter((o) => !o.dev)
 }
-
-/** Whether `id` is one of `scenarioOptions(dev)` -- the whitelist that makes
- *  `?scenario=` safe to honor in production (main.ts), not just DEV. */
-export function isKnownScenarioId(id: string, dev = false): boolean {
-  return scenarioOptions(dev).some((option) => option.value === id)
+/** Whether `id` is a scenario this build ships -- the `?scenario=` whitelist.
+ *  Dev-only scenarios included (A2): a link may reach a test bed. */
+export function isKnownScenarioId(id: string): boolean {
+  return SCENARIO_OPTIONS.some((option) => option.value === id)
 }
 
 /** A badge id's display name (M2 R4: the roster stores ids), falling back to
  *  the raw id for a badge whose mission this build no longer ships. */
 export function badgeName(id: string): string {
-  return scenarioOptions(true).find((o) => o.badge?.id === id)?.badge?.name ?? id
+  return SCENARIO_OPTIONS.find((o) => o.badge?.id === id)?.badge?.name ?? id
 }
 
 /** A scenario id's player-facing label (dossier spec §B.4's Mission Log
  *  column), falling back to the raw id for one this build no longer ships
- *  (an old log entry referencing a retired scenario). Searches the DEV rows
- *  too, so a fixture's log row reads its label. */
-const scenarioLabel = (id: string): string => scenarioOptions(true).find((o) => o.value === id)?.label ?? id
+ *  (an old log entry referencing a retired scenario). Searches the Dev-only
+ *  rows too, so a fixture's log row reads its label. */
+const scenarioLabel = (id: string): string => SCENARIO_OPTIONS.find((o) => o.value === id)?.label ?? id
 
 /** What Form 2's scenario picker offers, and how it fetches a mission's
  *  briefing. `loadScenario: null` fetches nothing (no briefing panel). */
