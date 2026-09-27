@@ -218,6 +218,19 @@ export function applyMissionResultToRoster(
   return roster.map((p) => (p.id === pilotId ? applyMissionResult(p, scoreTotal, outcome, killsSinceLastBank, sortie) : p))
 }
 
+/** Records a mission badge by id (M2 R4). Idempotent: a second success
+ *  on the same mission adds nothing. */
+export function awardBadge(p: PilotRecord, id: string): PilotRecord {
+  return p.badges.includes(id) ? p : { ...p, badges: [...p.badges, id] }
+}
+
+/** `awardBadge` applied to whichever roster entry has `pilotId`, leaving
+ *  every other pilot untouched -- same "find this pilot" shape as
+ *  `applyMissionResultToRoster` above. */
+export function awardBadgeInRoster(r: readonly PilotRecord[], pilotId: string, id: string): readonly PilotRecord[] {
+  return r.map((p) => (p.id === pilotId ? awardBadge(p, id) : p))
+}
+
 const STORAGE_KEY = 'ww2airsim.roster.v1'
 
 // Dossier spec §B.3, same zero-fill philosophy as `career` below.

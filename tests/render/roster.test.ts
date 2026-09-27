@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import {
   RANK_LADDER, ZERO_CAREER, MISSION_LOG_CAP,
-  applyMissionResult, applyMissionResultToRoster, createPilot, exportRoster, importRoster,
+  applyMissionResult, applyMissionResultToRoster, awardBadge, awardBadgeInRoster, createPilot, exportRoster, importRoster,
   loadRoster, rankFor, saveRoster, startSortie, type PilotRecord, type SortieFacts,
 } from '../../src/render/roster.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
@@ -113,6 +113,37 @@ describe('roster persistence', () => {
   it('importRoster throws on a rank not in the ladder', () => {
     const pilot = { ...createPilot('Boyington'), rank: { abbrev: 'XYZ', name: 'Not A Rank', threshold: 0 } }
     expect(() => importRoster(JSON.stringify([pilot]))).toThrow()
+  })
+
+  it('a roster with badges round-trips through save/export and load/import (spec §5)', () => {
+    const pilot = awardBadge(createPilot('Boyington'), 'cq')
+    expect(importRoster(exportRoster([pilot]))).toEqual([pilot])
+    saveRoster([pilot])
+    expect(loadRoster()).toEqual([pilot])
+  })
+})
+
+describe('awardBadge / awardBadgeInRoster (M2 R4)', () => {
+  it('awardBadge appends once and is idempotent', () => {
+    const pilot = createPilot('Boyington')
+    const once = awardBadge(pilot, 'cq')
+    expect(once.badges).toEqual(['cq'])
+    const twice = awardBadge(once, 'cq')
+    expect(twice.badges).toEqual(['cq'])
+    expect(twice).toBe(once)
+  })
+
+  it('a second, different badge appends alongside the first', () => {
+    const pilot = awardBadge(createPilot('Boyington'), 'cq')
+    expect(awardBadge(pilot, 'ace').badges).toEqual(['cq', 'ace'])
+  })
+
+  it('awardBadgeInRoster touches only that pilot', () => {
+    const a = createPilot('Boyington')
+    const b = createPilot('McCampbell')
+    const roster = awardBadgeInRoster([a, b], a.id, 'cq')
+    expect(roster.find((p) => p.id === a.id)!.badges).toEqual(['cq'])
+    expect(roster.find((p) => p.id === b.id)).toBe(b)
   })
 })
 

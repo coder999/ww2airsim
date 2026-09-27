@@ -5,6 +5,7 @@ import { attitudeAngles } from '../sim/flight/attitude.js'
 import { length } from '../sim/math/vec3.js'
 import type { LandingReport } from '../sim/landing.js'
 import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
+import type { DebriefMission } from './mission/debriefMission.js'
 
 export type ScoreRow = {
   readonly target: string
@@ -146,6 +147,8 @@ export type DebriefModel = {
    */
   readonly bankedTotal?: number
   readonly promotedTo?: string
+  /** M2: present only for a mission world (`withMissionDebrief`). */
+  readonly mission?: DebriefMission
 }
 
 // The simulation remains SI internally. The debrief is a 1943 US Navy form,
@@ -554,6 +557,30 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       }
       table.append(thead, tbody)
       sheet.appendChild(table)
+
+      // ---- Objectives (M2 R9) -- only for a mission world; a plain flight
+      // (`model.mission` absent) shows no such block. ----
+      if (model.mission !== undefined) {
+        const mission = model.mission
+        sheet.appendChild(sectionTitle('Objectives'))
+        for (const o of mission.objectives) {
+          const label = o.priority === 'secondary' ? `${o.label} (secondary)` : o.label
+          sheet.appendChild(figureRow(label, o.final.toUpperCase()))
+        }
+        // Success reads as a stamp, matching the outcome stamp above --
+        // otherwise the verdict is a plain row, followed by one row per
+        // remaining reason (`more`).
+        const success = mission.verdict === 'MISSION COMPLETE' || mission.verdict.startsWith('BADGE AWARDED: ')
+        if (success) {
+          const verdictStamp = document.createElement('div')
+          verdictStamp.className = 'stamp stamp--md stamp--blue stamp--rotate-1'
+          verdictStamp.textContent = mission.verdict
+          sheet.appendChild(verdictStamp)
+        } else {
+          sheet.appendChild(figureRow('Badge', mission.verdict))
+          for (const reason of mission.more) sheet.appendChild(plainRow(reason))
+        }
+      }
 
       // ---- Actions. Unchanged from before this restyle: a crash offers
       // Restart + Return to title, a landing adds Continue -- see this

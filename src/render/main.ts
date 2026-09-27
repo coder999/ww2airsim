@@ -25,11 +25,12 @@ import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud } from './mission/hud.js'
 import { landingDisposition } from './mission/landingFlow.js'
+import { withMissionDebrief } from './mission/debriefMission.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
-import { applyMissionResultToRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { applyMissionResultToRoster, awardBadgeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
@@ -1509,10 +1510,12 @@ async function boot(): Promise<void> {
     outcome: 'landed' | 'ditched' | 'killed',
     killsSinceLastBank: Readonly<Record<TargetType, number>>,
     sortie: SortieFacts,
+    badgeId: string | null,
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     if (currentPilotId === null) return null
     const before = roster.find((p) => p.id === currentPilotId) ?? null
     roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
+    if (badgeId !== null) roster = awardBadgeInRoster(roster, currentPilotId, badgeId)
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null
@@ -2120,13 +2123,14 @@ async function boot(): Promise<void> {
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const model = debriefModel(hit, player.state, killsSinceLastBank)
+      const { model, badgeId } = withMissionDebrief(debriefModel(hit, player.state, killsSinceLastBank), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
       const banked = bankMissionResult(
         model.score.total,
         hit.kind === 'ditched' ? 'ditched' : 'killed',
         killsSinceLastBank,
         sortieFacts(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world),
+        badgeId,
       )
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
@@ -2142,9 +2146,9 @@ async function boot(): Promise<void> {
     ) {
       shownDestructionTick = playerDamage.destroyedAt
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const model = destructionModel(player.state, playerDamage.attacker, killsSinceLastBank)
+      const { model, badgeId } = withMissionDebrief(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world))
+      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), badgeId)
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
     }
@@ -2162,10 +2166,13 @@ async function boot(): Promise<void> {
         landingShown = true
         frame = withPaused(current, true)
         const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-        const model = landingModel(
-          current.landing.report,
-          killsSinceLastBank,
-          Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
+        const { model, badgeId } = withMissionDebrief(
+          landingModel(
+            current.landing.report,
+            killsSinceLastBank,
+            Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
+          ),
+          current.world,
         )
         scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
         const banked = bankMissionResult(
@@ -2173,6 +2180,7 @@ async function boot(): Promise<void> {
           'landed',
           killsSinceLastBank,
           sortieFacts(landingKind(current.landing.report), current.world),
+          badgeId,
         )
         segment = EMPTY_SEGMENT
         showDebrief(model, banked, () => {

@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { debriefModel, destructionModel, killsSince, landingModel, missionScore } from '../../src/render/debrief.js'
+import { withMissionDebrief } from '../../src/render/mission/debriefMission.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import type { Impact } from '../../src/sim/loop.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { applyMissionResultToRoster, createPilot, type PilotRecord } from '../../src/render/roster.js'
+import { deckOf, deckWorld } from '../../src/sim/world/deck.js'
+import { landOnce, missionWorld } from '../sim/mission/fixture.js'
 
 const impact = (over: Partial<Impact> = {}): Impact => ({
   tick: 1200,
@@ -252,5 +255,35 @@ describe('the land -> continue -> one more kill -> land again sequence (Plan 9 T
     // the first time and 2 again the second, i.e. never wrongly doubled, but
     // also never wrongly stuck at 1).
     expect(roster[0]!.killsByType.fighter).toBe(2)
+  })
+})
+
+describe('withMissionDebrief', () => {
+  const RECOVER = { id: 'home', label: 'Recover', priority: 'primary', kind: 'land', at: 'cv-1' }
+
+  it('sets mission and a badge id on a mission world where the badge was earned', () => {
+    let w = missionWorld({ objectives: [RECOVER], badge: { id: 'cq', name: 'Carrier Qualified' } })
+    const deck = deckOf(w.ships.find((s) => s.id === 'cv-1')!)!
+    const p = deckWorld(deck, 0, 0)
+    w = landOnce(w, p.x, deck.center.y, p.z)
+    const model = landingModel(
+      { touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' } },
+      zeroKillsByType(),
+    )
+    const { model: withMission, badgeId } = withMissionDebrief(model, w)
+    expect(withMission.mission).toBeDefined()
+    expect(withMission.mission!.verdict).toBe('BADGE AWARDED: Carrier Qualified')
+    expect(badgeId).toBe('cq')
+  })
+
+  it('returns the SAME model object and a null badge id for a mission-less world', () => {
+    const w = missionWorld({})
+    const model = landingModel(
+      { touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: null },
+      zeroKillsByType(),
+    )
+    const result = withMissionDebrief(model, w)
+    expect(result.model).toBe(model)
+    expect(result.badgeId).toBeNull()
   })
 })
