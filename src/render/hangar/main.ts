@@ -6,6 +6,7 @@ import { loadHangarContent } from './contentIndex.js'
 import { loadHangarModel, type HangarModel, type PartPose } from './models.js'
 import { createBenchController } from './benchController.js'
 import { countsReport } from './budgets.js'
+import { modelSource } from './provenance.js'
 import { figuresFor } from './stats.js'
 import { createStage } from './stage.js'
 import { createPanel } from './panel.js'
@@ -96,7 +97,7 @@ async function boot(): Promise<void> {
     model = next
     selected = entry
     stage.show(model?.root ?? null, drawable(entry) ? entry.library.kind : null)
-    panel.showCard(entry, figuresFor(entry), stage.modelSize())
+    panel.showCard(entry, figuresFor(entry), stage.modelSize(), model ? modelSource(model.root, content.provenance) : null)
     // A fresh controller per model: a new model starts at rest, never mid-cycle.
     controller = createBenchController(entry.subject?.kind === 'aircraft' ? entry.subject.spec : null)
     if (debug.gizmos) stage.setGizmos(model?.articulated ?? [])

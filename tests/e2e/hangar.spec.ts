@@ -337,6 +337,30 @@ test.describe('the Hangar', () => {
     await setDebug(page, 'gizmos', false)
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
+
+  test("14. the card's Model row says where the model came from, and the Origin filter splits ours from downloads", async ({ page }) => {
+    const row = page.getByRole('table', { name: 'Figures' }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Model', exact: true }) })
+    await select(page, 'f4u-corsair')
+    await expect(row).toContainText('Sketchfab download by manilov.ap (CC BY 4.0)')
+    await expect(row.getByRole('link', { name: 'manilov.ap' })).toHaveAttribute('href', /^https:\/\/sketchfab\.com\/3d-models\/f4u-/)
+    await select(page, 'ki-84-frank')
+    await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
+    await select(page, 'tower')
+    await expect(row).toContainText('Drawn in code (no model file)')
+    // The Origin filter: ours (Blender, generated, drawn in code) versus downloads.
+    const listed = (id: string) => page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`)
+    const origin = page.getByRole('combobox', { name: 'Origin' })
+    await origin.selectOption('internal')
+    await expect(listed('ki-84-frank')).toHaveCount(1)
+    await expect(listed('f4u-corsair')).toHaveCount(0)
+    await origin.selectOption('external')
+    await expect(listed('f4u-corsair')).toHaveCount(1)
+    await expect(listed('ki-84-frank')).toHaveCount(0)
+    await origin.selectOption('all')
+    await expect(listed('ki-84-frank')).toHaveCount(1)
+    // Three filters must not push the sheet sideways (the Origin select once ran off its edge).
+    expect(await page.locator('.hangar-panel .sheet').evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0)
+  })
 })
 
 test('the canvas and the panel fit the window: nothing renders off-screen', async ({ page }) => {

@@ -136,7 +136,7 @@ An entry the plan now draws must come off `NOT_YET_DRAWN` in
   the model against its budget and turns red when it is over.
 - **Assert:** run `tests/e2e/hangar.spec.ts` on the reference GPU (the
   command is in README's "Tier 2: the GPU harness"). A new library entry is
-  picked up automatically. Checks 1–3, 5–10, 12 and 13 cover the following:
+  picked up automatically. Checks 1–3, 5–10 and 12–14 cover the following:
   - it renders
   - its gear, propeller and stores move
   - it responds to light like the Wildcat (lit over unlit, in its own paint; R3)
@@ -146,6 +146,8 @@ An entry the plan now draws must come off `NOT_YET_DRAWN` in
   - the list marks exactly the entries it cannot draw, and every other one
     is drawn (check 12, R1)
   - every rigged aircraft's gizmos are its props and legs (check 13, R3)
+  - its card's Model row names where it came from, from its entry's `source`,
+    and the Origin filter lists it as internal or external (check 14)
 
 ## Generated models
 

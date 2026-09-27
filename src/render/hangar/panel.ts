@@ -1,18 +1,21 @@
 // src/render/hangar/panel.ts
 import { ensureStampFilter } from '../ui/navalComms.js'
-import { filterCatalog, FILTER_KINDS, FILTER_SIDES, listLabel, statusNote, type CatalogEntry, type CatalogFilter } from './catalog.js'
+import { filterCatalog, FILTER_KINDS, FILTER_ORIGINS, FILTER_SIDES, listLabel, statusNote, type CatalogEntry, type CatalogFilter } from './catalog.js'
 import { historyParagraphs } from './library.js'
 import type { Figure } from './stats.js'
+import { provenanceText, type ModelProvenance } from './provenance.js'
 
 export interface HangarPanel {
-  /** Shows the info card for `entry` with its computed figures. */
-  showCard(entry: CatalogEntry, figures: readonly Figure[], modelSize: { x: number; y: number; z: number } | null): void
+  /** Shows the info card for `entry` with its computed figures. `source` is where its model came
+   *  from: a manifest entry, `'code'` for one drawn in code with no model file, or null for none. */
+  showCard(entry: CatalogEntry, figures: readonly Figure[], modelSize: { x: number; y: number; z: number } | null, source: ModelProvenance | 'code' | null): void
   /** The element the bench (bench.ts) mounts into, under the card. */
   readonly benchSlot: HTMLElement
 }
 
 const KIND_LABEL: Readonly<Record<string, string>> = { all: 'All', aircraft: 'Aircraft', ship: 'Ships', building: 'Buildings', vehicle: 'Vehicles', ordnance: 'Ordnance' }
 const SIDE_LABEL: Readonly<Record<string, string>> = { all: 'Both sides', allied: 'Allied', japanese: 'Japanese' }
+const ORIGIN_LABEL: Readonly<Record<string, string>> = { all: 'All origins', internal: 'Internal', external: 'External' }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag)
@@ -22,7 +25,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 }
 
 /**
- * The list, its two filters and the info card (Hangar spec §2), in the
+ * The list, its three filters and the info card (Hangar spec §2), in the
  * Naval Communications style the title screen uses. `onSelect` is called with
  * a library id; main.ts loads the model and calls `showCard`.
  */
@@ -44,9 +47,9 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   back.href = import.meta.env.BASE_URL
   sheet.append(header, back)
 
-  let filter: CatalogFilter = { kind: 'all', side: 'all' }
+  let filter: CatalogFilter = { kind: 'all', side: 'all', origin: 'all' }
   const filters = el('div')
-  filters.style.cssText = 'display:flex;gap:8px;margin:10px 0'
+  filters.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:10px 0'
   const select = (options: readonly string[], labels: Readonly<Record<string, string>>, name: string, onChange: (v: string) => void) => {
     const s = el('select')
     s.setAttribute('aria-label', name)
@@ -61,6 +64,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   filters.append(
     select(FILTER_KINDS, KIND_LABEL, 'Kind', (v) => { filter = { ...filter, kind: v as CatalogFilter['kind'] }; renderList() }),
     select(FILTER_SIDES, SIDE_LABEL, 'Side', (v) => { filter = { ...filter, side: v as CatalogFilter['side'] }; renderList() }),
+    select(FILTER_ORIGINS, ORIGIN_LABEL, 'Origin', (v) => { filter = { ...filter, origin: v as CatalogFilter['origin'] }; renderList() }),
   )
   const list = el('ul')
   list.setAttribute('aria-label', 'Objects')
@@ -85,14 +89,14 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
 
   return {
     benchSlot,
-    showCard(entry, figures, modelSize): void {
+    showCard(entry, figures, modelSize, source): void {
       const l = entry.library
       const rows: HTMLElement[] = [
         el('div', 'form-section-title', l.name),
         el('div', 'fine-print', `${l.side === 'allied' ? 'Allied' : 'Japanese'} ${l.kind}${statusNote(entry) === null ? '' : ` · ${statusNote(entry)}`}`),
         el('p', undefined, l.blurb),
       ]
-      if (figures.length > 0) {
+      if (figures.length > 0 || modelSize || source) {
         const table = el('table', 'form-table')
         table.setAttribute('aria-label', 'Figures')
         for (const f of figures) {
@@ -103,6 +107,23 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
         if (modelSize) {
           const tr = el('tr')
           tr.append(el('th', undefined, 'Model size'), el('td', undefined, `${modelSize.x.toFixed(1)} × ${modelSize.z.toFixed(1)} × ${modelSize.y.toFixed(1)} m (length × width × height)`))
+          table.appendChild(tr)
+        }
+        if (source) {
+          const td = el('td')
+          if (source === 'code') td.textContent = 'Drawn in code (no model file)'
+          else if (source.kind === 'sketchfab') {
+            // The author links to the download, as CC BY asks (the legend credits them in one line).
+            const a = el('a', undefined, source.author)
+            a.href = source.url
+            a.target = '_blank'
+            a.rel = 'noopener'
+            a.style.color = 'inherit'
+            const [before, after] = provenanceText(source).split(source.author) as [string, string]
+            td.append(before, a, after)
+          } else td.textContent = provenanceText(source)
+          const tr = el('tr')
+          tr.append(el('th', undefined, 'Model'), td)
           table.appendChild(tr)
         }
         rows.push(table)

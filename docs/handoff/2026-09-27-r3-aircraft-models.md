@@ -40,7 +40,18 @@ captures below).
   - check 7 skips display-only aircraft, and asserts they have no Cycle
     button;
   - check 10 covers every registered model;
-  - check 5 was redesigned (see "Departures").
+  - check 5 was redesigned (see "Departures");
+  - new check 14: the card's Model row and the Origin filter.
+- **Where each model came from, in the Hangar** (Mark asked, 2026-09-27):
+  - The card has a **Model** row, read from the entry's `source`: "Sketchfab
+    download by <author> (CC BY 4.0)" with the author linked to the
+    download, "Original Blender model", "Original model generated in code",
+    or "Drawn in code (no model file)".
+  - The list has a third filter, **Origin**: All origins, Internal (Blender,
+    generated, or drawn in code) and External (downloads). Entries with
+    nothing drawn yet show only under "All origins".
+  - Verify after this change: rc=0, 2,890 passed, 1 skipped. Hangar Tier 2:
+    19/19.
 
 | id | source | bytes / tris / draws | budget | length vs cited | removed | rigged | fused / static |
 | --- | --- | --- | --- | --- | --- | --- | --- |

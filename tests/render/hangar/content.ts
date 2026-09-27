@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { loadAircraftSpec, loadAirfield, loadShipSpec } from '../../../tools/content/load.js'
 import { parseLibraryEntry, type HangarContent, type LibraryEntry } from '../../../src/render/hangar/library.js'
 import { parseBudgets } from '../../../src/render/hangar/budgets.js'
+import { parseProvenance } from '../../../src/render/hangar/provenance.js'
 
 const ids = (dir: string): string[] => readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => f.replace(/\.json$/, ''))
 
@@ -18,6 +19,7 @@ export function nodeHangarContent(): HangarContent {
     ships: ids('content/ships').map(loadShipSpec),
     airfields: ids('content/bases').map(loadAirfield),
     budgets: parseBudgets(Object.fromEntries(ids('tools/models/entries').map((id) => [id, JSON.parse(readFileSync(`tools/models/entries/${id}.json`, 'utf8')) as unknown]))),
+    provenance: parseProvenance(Object.fromEntries(ids('tools/models/entries').map((id) => [id, JSON.parse(readFileSync(`tools/models/entries/${id}.json`, 'utf8')) as unknown]))),
   }
 }
 
