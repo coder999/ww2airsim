@@ -1,0 +1,16 @@
+{
+  "id": "shiratsuyu-dd",
+  "name": "Shiratsuyu-class destroyer",
+  "role": "escort",
+  "lengthM": 107.5,
+  "beamM": 9.9,
+  "deckWidthM": 9.9,
+  "deckHeightM": 5.0,
+  "maxSpeedMps": 17.49,
+  "turnRateRadPerS": 0.05236,
+  "hullHp": 160,
+  "view": { "model": "shiratsuyu-dd" },
+  "reference": {
+    "source": "lengthM (107.5 m overall), beamM (9.9 m) and maxSpeedMps (34 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Shiratsuyu-class destroyer', read 2026-09-26. Japanese Monograph 145, an official postwar translation, records six Shiratsuyu-class ships in the 1931 construction program (primary class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (3 deg/s, Fletcher's existing gameplay figure) are ESTIMATES. hullHp equals the Fletcher's 160 as a gameplay choice."
+  }
+}

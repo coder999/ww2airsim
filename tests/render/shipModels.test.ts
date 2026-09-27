@@ -22,12 +22,13 @@ describe('the ship model registry (ship-models spec §3.1)', () => {
     }
   })
 
-  it('the three shipped specs name their models (S1)', () => {
-    expect(['essex-cv', 'fletcher-dd', 'type-b-maru'].map((id) => loadShipSpec(id).view?.model)).toEqual(['essex-cv', 'fletcher-dd', 'type-b-maru'])
+  it('the complete ten-ship roster names exactly the complete registry (R2)', () => {
+    expect(shipIds).toEqual(Object.keys(SHIP_MODELS))
+    expect(shipIds.map((id) => loadShipSpec(id).view?.model)).toEqual(shipIds)
   })
 
   it('an unregistered or prototype-named id throws, naming the registry', () => {
-    expect(() => shipModelUrlFor('nope')).toThrow(/no ship model "nope" \(registered: essex-cv, fletcher-dd, type-b-maru\)/)
+    expect(() => shipModelUrlFor('nope')).toThrow(new RegExp(`no ship model "nope" \\(registered: ${Object.keys(SHIP_MODELS).join(', ')}\\)`))
     expect(() => shipModelUrlFor('constructor')).toThrow(/no ship model "constructor"/)
   })
 })

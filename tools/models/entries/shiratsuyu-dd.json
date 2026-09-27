@@ -1,0 +1,26 @@
+{
+  "id": "shiratsuyu-dd",
+  "input": "tools/models/cache/shiratsuyu-dd-samidare.glb",
+  "output": "content/ships/shiratsuyu-dd.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/samidare-destroyer-b37939147c854e61857f5b248f9efd29",
+    "uid": "b37939147c854e61857f5b248f9efd29",
+    "author": "everlasting17th",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [-6.0155, -0.2, 0], "fit": { "extent": "length", "meters": 107.5 } },
+  "simplify": { "ratio": 0.1, "error": 0.003 },
+  "textures": { "maxSize": 256, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 4000000, "maxTriangles": 70000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "shiratsuyu-dd",
+    "fit": "hull",
+    "kind": "full-hull",
+    "keelM": -3.5,
+    "palette": "ijn",
+    "otherMaterials": "keep",
+    "smokeOrigin": [12, 11, 0],
+    "bow": "narrow-end"
+  }
+}

@@ -55,7 +55,7 @@ describe('the ship block in ModelEntrySchema', () => {
     expect(bad({ ship: { ...carrierEntry.ship, bow: 'narrow-end' } })).toThrow(/island-starboard/)
     expect(bad({ ship: { ...carrierEntry.ship, kind: 'full-hull' } })).toThrow(/keelM/)
     expect(bad({ ship: { ...carrierEntry.ship, otherMaterials: 'paint' } })).toThrow()
-    expect(bad({ ship: { ...carrierEntry.ship, palette: 'ijn' } })).toThrow()
+    expect(bad({ ship: { ...carrierEntry.ship, palette: 'not-a-palette' } })).toThrow(/palette/)
   })
 })
 

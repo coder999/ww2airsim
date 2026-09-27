@@ -20,19 +20,23 @@ const ships = loadModelEntries().filter((e) => e.ship !== undefined)
 const read = async (path: string) => modelIO().readBinary(new Uint8Array(readFileSync(path)))
 
 describe('the committed ship models', () => {
-  it('are the three S1 ships', () => {
-    expect(ships.map((e) => e.id)).toEqual(['essex-cv', 'fletcher-dd', 'type-b-maru'])
+  it('are S1\'s three and R2\'s seven: the complete Library roster', () => {
+    expect(ships.map((e) => e.id)).toEqual([
+      'casablanca-cve', 'cleveland-cl', 'essex-cv', 'fletcher-dd', 'kagero-dd',
+      'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb',
+    ])
   })
 })
 
 describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s', (_id, entry) => {
   const ship = entry.ship!
 
-  it('names the entry\'s author inside the file (§9 item 1)', async () => {
+  it('names the entry\'s author, or its Blender script, inside the file (§9 item 1)', async () => {
     const extras = (await read(entry.output)).getRoot().getAsset().extras as Record<string, unknown>
     const source = entry.source
-    if (source.kind !== 'sketchfab') throw new Error(`${entry.id}: a ship entry is a Sketchfab download`)
-    expect(extras['author']).toBe(source.author)
+    if (source.kind === 'sketchfab') expect(extras['author']).toBe(source.author)
+    else if (source.kind === 'blender') expect([extras['source'], extras['script']]).toEqual(['blender', source.script])
+    else throw new Error(`${entry.id}: a ship entry is a Sketchfab download or a Blender script`)
   })
 
   it('records a fit whose residuals lie inside §4.4\'s design ranges', async () => {

@@ -78,9 +78,10 @@ describe('generated entries (O1)', () => {
     expect(() => parseModelEntry(noInput)).toThrow(/needs its raw input/)
   })
 
-  it('parses every committed Sketchfab entry exactly as before O1, plus kind "sketchfab"', () => {
+  it('keeps every pre-O1 Sketchfab entry exactly shaped, plus kind "sketchfab"', () => {
     const before = JSON.parse(readFileSync('tests/tools/models/fixtures/entries-before-o1.json', 'utf8')) as { id: string; source: object }[]
-    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab')
+    const beforeIds = new Set(before.map((e) => e.id))
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id))
     expect(now).toEqual(before.map((e) => ({ ...e, source: { kind: 'sketchfab', ...e.source } })))
   })
 })

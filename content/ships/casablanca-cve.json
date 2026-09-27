@@ -1,0 +1,27 @@
+{
+  "id": "casablanca-cve",
+  "name": "Casablanca-class escort carrier",
+  "role": "carrier",
+  "lengthM": 156.13,
+  "beamM": 19.86,
+  "deckWidthM": 32.94,
+  "deckHeightM": 12.0,
+  "maxSpeedMps": 9.93,
+  "turnRateRadPerS": 0.02618,
+  "hullHp": 400,
+  "flightDeck": { "lengthM": 145.69, "widthM": 24.38, "heightM": 12.0 },
+  "trapZone": { "fromSternM": 20, "toSternM": 80 },
+  "paddles": {
+    "glideslopeDeg": 3.5,
+    "glideslopeToleranceDeg": 0.7,
+    "speedBandMps": 3,
+    "coneHalfAngleDeg": 20,
+    "maxRangeM": 2500,
+    "cutRangeM": 120,
+    "waveOffRangeM": 250
+  },
+  "view": { "model": "casablanca-cve" },
+  "reference": {
+    "source": "lengthM (512 ft 3 in overall) and maxSpeedMps (19.3 kn, converted with 1 kn = 0.514444 m/s) from the U.S. Navy's 'Evolution of Aircraft Carriers' (primary service publication), read 2026-09-26. beamM (65 ft 2 in waterline), deckWidthM (108 ft 1 in maximum), and flightDeck 478 ft x 80 ft from the English Wikipedia article 'Casablanca-class escort carrier', read 2026-09-26. deckHeightM is an ESTIMATE; trapZone and paddles reuse Plan 8 gameplay choices scaled to the shorter deck; turnRateRadPerS (1.5 deg/s) is an ESTIMATE. hullHp is a gameplay choice between the merchant's 240 and Essex's 600."
+  }
+}

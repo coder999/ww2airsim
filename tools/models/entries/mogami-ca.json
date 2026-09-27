@@ -1,0 +1,24 @@
+{
+  "id": "mogami-ca",
+  "input": "tools/models/cache/mogami-ca.glb",
+  "output": "content/ships/mogami-ca.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/ijn-mogami-model-for-14000-printing-89ccafb8c0884b868d806d7654f0fa71",
+    "uid": "89ccafb8c0884b868d806d7654f0fa71",
+    "author": "KTKloss",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "-z", "up": "+y", "origin": [0, -0.05, -0.132], "fit": { "extent": "length", "meters": 200.6 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "mogami-ca",
+    "fit": "hull",
+    "kind": "waterline",
+    "palette": "ijn",
+    "otherMaterials": "classify",
+    "smokeOrigin": [0, 20.39, 0],
+    "bow": "narrow-end"
+  }
+}
