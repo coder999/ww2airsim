@@ -30,6 +30,8 @@ import { pivotNode } from './stages/pivot.js'
 import { normalizeDocument } from './stages/normalize.js'
 import { simplifyDocument } from './stages/simplify.js'
 import { joinExcept } from './stages/join.js'
+import { yawScene } from './stages/yaw.js'
+import { dedupMaterials } from './stages/dedup.js'
 import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
 import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
@@ -66,6 +68,8 @@ function provenance(s: SketchfabSource | BlenderSource): Record<string, string> 
 export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec): Promise<Document> {
   if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
+  // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
+  if (entry.normalize?.yawDeg !== undefined) yawScene(doc, entry.normalize.up, entry.normalize.yawDeg)
   const splitNames = new Set(entry.split.map((s) => s.name))
   // 1. remove (source nodes)
   removeNodes(doc, entry.remove.filter((n) => !splitNames.has(n)))
@@ -91,6 +95,7 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   const ship = entry.ship ? { block: entry.ship, spec: shipSpec(entry.ship.spec) } : null
   const fitted = ship ? shipFitStage(doc, ship.block, ship.spec) : null
   if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY)
+  if (entry.dedupMaterials) await dedupMaterials(doc)
   // 5. join everything except the parts
   await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
   // 6. textures, 7. opaque
