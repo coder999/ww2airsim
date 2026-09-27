@@ -50,6 +50,18 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'b-17-flying-fortress': {
+    // Each prop is its three blade islands (exactly 3-fold symmetric); the spinners stay static in
+    // the body, as the F6F's. Turrets are the three that are clean islands: chin, top, ball. The tail
+    // position is fused and stays static (P14; R3 ledger, Task 11).
+    props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }, { node: 'Prop3', blades: 3 }, { node: 'Prop4', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: 90, retracts: 'forward', source: 'B-17 main legs retract forward into the inboard nacelles, wheels partly exposed; the angle is an ESTIMATE' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'as GearL' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
+    ],
+    turrets: ['Turret1', 'Turret2', 'Turret3'],
+  },
   'd3a-val': {
     // Real blade geometry, but the download's three blades are not modeled at 120 deg (one sits
     // ~0.07 source units off its orbit), so symmetryError reads its 2% cap about any hub; the hub is

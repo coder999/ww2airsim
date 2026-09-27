@@ -1,0 +1,319 @@
+{
+  "id": "b-17-flying-fortress",
+  "input": "tools/models/cache/boeing_b-17_flying_fortress.glb",
+  "output": "content/aircraft/b-17-flying-fortress.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5",
+    "uid": "927f07f6ddcf470ab0387ce5829024d5",
+    "author": "helijah",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": {
+    "forward": "-x",
+    "up": "+y",
+    "origin": [
+      -4.221,
+      -0.585,
+      0
+    ],
+    "fit": {
+      "extent": "span",
+      "meters": 31.62
+    }
+  },
+  "split": [
+    {
+      "name": "Prop1",
+      "select": "components",
+      "boxMin": [
+        -7.95,
+        -2.0,
+        4.9
+      ],
+      "boxMax": [
+        -7.73,
+        0.8,
+        8.1
+      ],
+      "pivot": {
+        "point": [
+          -7.849,
+          -0.184,
+          6.505
+        ],
+        "axis": "-x"
+      }
+    },
+    {
+      "name": "Prop2",
+      "select": "components",
+      "boxMin": [
+        -8.55,
+        -2.4,
+        1.45
+      ],
+      "boxMax": [
+        -8.3,
+        0.4,
+        4.6
+      ],
+      "pivot": {
+        "point": [
+          -8.431,
+          -0.585,
+          3.021
+        ],
+        "axis": "-x"
+      }
+    },
+    {
+      "name": "Prop3",
+      "select": "components",
+      "boxMin": [
+        -8.55,
+        -2.4,
+        -4.6
+      ],
+      "boxMax": [
+        -8.3,
+        0.4,
+        -1.45
+      ],
+      "pivot": {
+        "point": [
+          -8.431,
+          -0.585,
+          -3.021
+        ],
+        "axis": "-x"
+      }
+    },
+    {
+      "name": "Prop4",
+      "select": "components",
+      "boxMin": [
+        -7.95,
+        -2.0,
+        -8.1
+      ],
+      "boxMax": [
+        -7.73,
+        0.8,
+        -4.9
+      ],
+      "pivot": {
+        "point": [
+          -7.849,
+          -0.184,
+          -6.505
+        ],
+        "axis": "-x"
+      }
+    },
+    {
+      "name": "GearL",
+      "select": "components",
+      "boxMin": [
+        -7.35,
+        -3.2,
+        2.65
+      ],
+      "boxMax": [
+        -4.6,
+        -0.6,
+        3.5
+      ],
+      "pivot": {
+        "point": [
+          -4.745,
+          -0.728,
+          2.78
+        ],
+        "axis": "-z"
+      }
+    },
+    {
+      "name": "GearR",
+      "select": "components",
+      "boxMin": [
+        -7.35,
+        -3.2,
+        -3.5
+      ],
+      "boxMax": [
+        -4.6,
+        -0.6,
+        -2.65
+      ],
+      "pivot": {
+        "point": [
+          -4.745,
+          -0.728,
+          -2.78
+        ],
+        "axis": "-z"
+      }
+    },
+    {
+      "name": "Tailwheel",
+      "select": "components",
+      "boxMin": [
+        5.4,
+        -1.75,
+        -0.3
+      ],
+      "boxMax": [
+        6.4,
+        -0.9,
+        0.3
+      ],
+      "pivot": {
+        "point": [
+          5.986,
+          -1.135,
+          0
+        ],
+        "axis": "-z"
+      }
+    },
+    {
+      "name": "Turret1",
+      "select": "components",
+      "boxMin": [
+        -11.1,
+        -1.9,
+        -0.55
+      ],
+      "boxMax": [
+        -9.5,
+        -0.95,
+        0.55
+      ],
+      "pivot": {
+        "point": [
+          -10.076,
+          -1.348,
+          0
+        ],
+        "axis": "+y"
+      }
+    },
+    {
+      "name": "Turret2",
+      "select": "components",
+      "boxMin": [
+        -6.6,
+        1.1,
+        -0.55
+      ],
+      "boxMax": [
+        -5.0,
+        1.9,
+        0.55
+      ],
+      "pivot": {
+        "point": [
+          -6.022,
+          1.407,
+          0
+        ],
+        "axis": "+y"
+      }
+    },
+    {
+      "name": "Turret3",
+      "select": "components",
+      "boxMin": [
+        -0.8,
+        -2.15,
+        -0.65
+      ],
+      "boxMax": [
+        1.05,
+        -1.0,
+        0.65
+      ],
+      "pivot": {
+        "point": [
+          -0.165,
+          -1.598,
+          0
+        ],
+        "axis": "+y"
+      }
+    }
+  ],
+  "remove": [
+    "Object_3",
+    "Object_4",
+    "Object_6",
+    "Object_7",
+    "Object_8",
+    "Object_9",
+    "Object_10",
+    "Object_11",
+    "Object_12",
+    "Object_13",
+    "Object_29",
+    "Object_30",
+    "Object_34",
+    "Object_35",
+    "Object_36",
+    "Object_37",
+    "Object_38",
+    "Object_39",
+    "Object_48",
+    "Object_49",
+    "Object_50",
+    "Object_18",
+    "Object_19",
+    "Object_21",
+    "Object_22",
+    "Object_24",
+    "Object_25",
+    "Object_27",
+    "Object_28"
+  ],
+  "simplify": {
+    "ratio": 0.1,
+    "error": 0.05,
+    "perNode": {
+      "Object_5": 1,
+      "Object_14": 1,
+      "Object_15": 1,
+      "Object_16": 1,
+      "Object_31": 1,
+      "Object_32": 1,
+      "Object_33": 1,
+      "Object_40": 1,
+      "Object_41": 1,
+      "Object_42": 1,
+      "Object_43": 1,
+      "Object_44": 1,
+      "Object_45": 1,
+      "Object_46": 1,
+      "Object_47": 1,
+      "Object_51": 1,
+      "Prop1": 1,
+      "Prop2": 1,
+      "Prop3": 1,
+      "Prop4": 1,
+      "GearL": 1,
+      "GearR": 1,
+      "Tailwheel": 1,
+      "Turret1": 1,
+      "Turret2": 1,
+      "Turret3": 1
+    }
+  },
+  "textures": {
+    "maxSize": 1024,
+    "format": "webp"
+  },
+  "opaque": false,
+  "budget": {
+    "maxBytes": 5000000,
+    "maxTriangles": 100000,
+    "maxDrawCalls": 47
+  }
+}
