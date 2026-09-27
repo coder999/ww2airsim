@@ -1,10 +1,11 @@
 import {
-  BoxGeometry, CylinderGeometry, Group, InstancedMesh, Matrix4,
-  MeshBasicMaterial, MeshStandardMaterial, Quaternion, Scene, Vector3, type Object3D,
+  BoxGeometry, type BufferGeometry, CylinderGeometry, Group, InstancedMesh, type Material, Matrix4,
+  MeshBasicMaterial, MeshStandardMaterial, type PerspectiveCamera, Quaternion, Scene, Vector3, type Object3D,
 } from 'three'
 import type { Projectile } from '../sim/weapons/combat.js'
 import { length, v3, type Vec3 } from '../sim/math/vec3.js'
 import { quatFromXTo } from './scene/tracers.js'
+import type { StoreVisual } from './scene/stores.js'
 
 /**
  * Ordnance in flight (Plan 6b Task 8), read from `World.combat.projectiles`
@@ -21,6 +22,10 @@ import { quatFromXTo } from './scene/tracers.js'
  *
  * Impacts are drawn by src/render/fx (E1): the sim reports them
  * (World.combat.impacts).
+ *
+ * Bombs and rockets draw the O1 store models once `setStoreModels` is called; the primitive
+ * box and cylinder are the stand-ins until then. Before O1 the bomb box was long along Z while
+ * facing aimed +X, so it flew broadside.
  */
 export const BOMB_CAPACITY = 8
 export const ROCKET_CAPACITY = 32
@@ -30,9 +35,8 @@ export const ROCKET_CAPACITY = 32
  * `Projectile` carries no store-type field (only `kind`), so this cannot be
  * read off `content/aircraft/f6f-hellcat.json`'s `stores.types.hvar.burnS`
  * at runtime -- it is mirrored from that figure (1.0 s, itself an estimate
- * per that file's own `stores.source`) the same way `hellcat.ts` mirrors
- * rack/rail offsets, and will drift silently if that content value ever
- * changes.
+ * per that file's own `stores.source`), and will drift silently if that
+ * content value ever changes.
  */
 export const ROCKET_BURN_S = 1.0
 
@@ -69,7 +73,7 @@ export function flameInstances(projectiles: readonly Projectile[], capacity: num
   return out
 }
 
-function makePool(geometry: BoxGeometry | CylinderGeometry, material: MeshStandardMaterial | MeshBasicMaterial, capacity: number): InstancedMesh {
+function makePool(geometry: BufferGeometry, material: Material, capacity: number): InstancedMesh {
   const mesh = new InstancedMesh(geometry, material, capacity)
   // Instances are scattered over kilometres, like tracers.ts's pool -- never
   // let the mesh's own (wrong) bounding sphere cull the whole set.
@@ -79,11 +83,27 @@ function makePool(geometry: BoxGeometry | CylinderGeometry, material: MeshStanda
   return mesh
 }
 
+/** What the in-flight bomb and rocket pools are drawing this frame, for the O1 Tier 2 diagnostic
+ *  (`__ww2.ordnanceView`). */
+export interface OrdnanceView {
+  readonly bombs: number; readonly rockets: number
+  readonly bombTriangles: number; readonly rocketTriangles: number
+  /** NDC of the first live bomb's bounding-sphere center; null when none is drawn. */
+  readonly bombNdc: readonly [number, number] | null
+  /** That sphere's projected radius in pixels, for a viewport `heightPx` tall. */
+  readonly bombRadiusPx: number | null
+}
+
 export type OrdnanceHandle = {
   readonly object: Object3D
   /** Positions every live bomb/rocket/flame instance from this frame's
    *  projectile list. */
   update(projectiles: readonly Projectile[]): void
+  /** Swaps the bomb and rocket pools onto the generated store models (O1), disposing the
+   *  primitive stand-in geometry/material they replace. */
+  setStoreModels(bomb: StoreVisual, rocket: StoreVisual): void
+  /** What the pools are drawing this frame, for the Tier 2 diagnostic (`__ww2.ordnanceView`). */
+  view(camera: PerspectiveCamera, heightPx: number): OrdnanceView
 }
 
 export function createOrdnance(scene: Scene): OrdnanceHandle {
@@ -97,6 +117,7 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
   rocketGeometry.rotateZ(Math.PI / 2)
   const rocketMesh = makePool(rocketGeometry, new MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.6 }), ROCKET_CAPACITY)
   root.add(rocketMesh)
+  let swapped = false
   // The motor flame: a small unlit box at the rocket's own facing, like the
   // rocket itself but never touched by lighting -- it is a light source, the
   // same reasoning tracers.ts gives for its own `MeshBasicMaterial`.
@@ -109,6 +130,10 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
   const positionV = new Vector3()
   const rotationQ = new Quaternion()
   const unitScale = new Vector3(1, 1, 1)
+  // Hoisted for view(), the same reasoning as the temporaries above.
+  const probe = new Matrix4()
+  const center = new Vector3()
+  const eyeV = new Vector3()
   const apply = (mesh: InstancedMesh, instances: readonly OrdnanceInstance[]): void => {
     instances.forEach((inst, i) => {
       positionV.set(inst.position.x, inst.position.y, inst.position.z)
@@ -126,6 +151,48 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
       apply(bombMesh, ordnanceInstances(projectiles, 'bomb', BOMB_CAPACITY))
       apply(rocketMesh, ordnanceInstances(projectiles, 'rocket', ROCKET_CAPACITY))
       apply(flameMesh, flameInstances(projectiles, ROCKET_CAPACITY))
+    },
+    setStoreModels(bomb: StoreVisual, rocket: StoreVisual): void {
+      // The pools' primitive geometry and material are this module's own; the store models'
+      // are the model cache's, held for the page's life and never disposed here -- so a second
+      // swap would dispose the cache's assets, and is refused.
+      if (swapped) throw new Error('createOrdnance.setStoreModels: store models already set; a second swap would dispose the model cache\'s geometry and material')
+      swapped = true
+      for (const [mesh, v] of [[bombMesh, bomb], [rocketMesh, rocket]] as const) {
+        mesh.geometry.dispose()
+        ;(mesh.material as Material).dispose()
+        mesh.geometry = v.geometry
+        mesh.material = v.material
+      }
+      // The flame box was centered on the old centered primitive; the store model's origin is its
+      // lug tops (hvar.ts), so move the flame (this module's own geometry, never the cache's) to
+      // the model's aft end, on its axis. The fins are symmetric about the axis, so the bbox
+      // center in y/z is the axis: for hvar.glb it is y = -0.0935, HVAR_AXIS_Y exactly
+      // (measured from hvarMesh() 2026-09-26).
+      // (computeBoundingBox only fills the geometry's derived bbox cache, as three does on its own.)
+      if (rocket.geometry.boundingBox === null) rocket.geometry.computeBoundingBox()
+      flameMesh.geometry.computeBoundingBox()
+      const r = rocket.geometry.boundingBox!, f = flameMesh.geometry.boundingBox!
+      flameMesh.geometry.translate(
+        r.min.x - (f.max.x - f.min.x) / 2 - (f.min.x + f.max.x) / 2,
+        (r.min.y + r.max.y) / 2 - (f.min.y + f.max.y) / 2,
+        (r.min.z + r.max.z) / 2 - (f.min.z + f.max.z) / 2,
+      )
+    },
+    view(camera: PerspectiveCamera, heightPx: number): OrdnanceView {
+      const tris = (m: InstancedMesh): number => Math.floor((m.geometry.index?.count ?? m.geometry.getAttribute('position').count) / 3)
+      let bombNdc: [number, number] | null = null, bombRadiusPx: number | null = null
+      if (bombMesh.count > 0) {
+        const g = bombMesh.geometry
+        if (g.boundingSphere === null) g.computeBoundingSphere()
+        bombMesh.getMatrixAt(0, probe)
+        center.copy(g.boundingSphere!.center).applyMatrix4(probe).applyMatrix4(bombMesh.matrixWorld)
+        const dist = center.distanceTo(camera.getWorldPosition(eyeV))
+        const ndc = center.clone().project(camera)
+        bombNdc = [ndc.x, ndc.y]
+        bombRadiusPx = (g.boundingSphere!.radius / (dist * Math.tan((camera.fov * Math.PI) / 360))) * (heightPx / 2)
+      }
+      return { bombs: bombMesh.count, rockets: rocketMesh.count, bombTriangles: tris(bombMesh), rocketTriangles: tris(rocketMesh), bombNdc, bombRadiusPx }
     },
   }
 }

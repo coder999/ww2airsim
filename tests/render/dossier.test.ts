@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { dossierModel, formatFeet, formatHours, formatKnots, nextRankProgress, openDossier } from '../../src/render/dossier.js'
-import { RANK_LADDER, applyMissionResult, createPilot, type PilotRecord } from '../../src/render/roster.js'
+import { RANK_LADDER, applyMissionResult, createPilot, dischargePilot, type PilotRecord } from '../../src/render/roster.js'
 import { badgeName } from '../../src/render/titleScreen.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 
@@ -61,6 +61,20 @@ describe('dossierModel badge names (M2 R4)', () => {
   it('shows an unknown badge id raw, and the raw id when no namer is passed', () => {
     expect(dossierModel(pilotWith(['retired-badge']), label, badgeName).badges).toEqual(['retired-badge'])
     expect(dossierModel(pilotWith(['dev-ui-wings']), label).badges).toEqual(['dev-ui-wings'])
+  })
+})
+
+describe('dossierModel for a discharged pilot (friendly-fire spec §6)', () => {
+  it('shows Discharged, the resurrection count, and the discharged log line', () => {
+    const seg = { flightSeconds: 600, maxAltitudeM: 3000, maxTrueAirspeedMps: 150 }
+    let p = createPilot('Ace')
+    p = applyMissionResult(p, 100, 'landed', zeroKillsByType(), { at: '2026-09-20T10:00:00.000Z', scenarioId: 'a', aircraft: 'F6F-5 Hellcat', loadout: 'clean', outcome: 'trap', segment: seg })
+    p = dischargePilot(p, 'landed', { at: '2026-09-21T10:00:00.000Z', scenarioId: 'b', aircraft: 'F6F-5 Hellcat', loadout: 'both', outcome: 'field', segment: seg })
+    expect(dossierModel(p, label).header.status).toBe('Discharged')
+    const m = dossierModel({ ...p, resurrections: 2 }, label)
+    expect(m.header.status).toBe('Discharged · resurrected 2×')
+    expect(m.log[0]!.outcome).toBe('Field landing · Discharged')
+    expect(m.log[1]!.outcome).toBe('Trap')
   })
 })
 

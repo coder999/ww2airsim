@@ -135,6 +135,8 @@ describe('the built artifact', () => {
         'content/scenarios/pursuit-range.json',
         'content/scenarios/pursuit-range-veteran.json',
         'content/scenarios/furball-range.json',
+        'content/scenarios/friendly-fire-range.json',
+        'content/scenarios/friendly-fire-field.json',
         'content/bases/tacloban.json',
         'content/bases/dulag.json',
         'content/ships/essex-cv.json',
@@ -165,6 +167,14 @@ describe('the built artifact', () => {
       // dist/ whole. Compared with the committed file, not a literal: a
       // rebuild is legitimate, and tests/tools/shipModels.test.ts re-measures it.
       for (const e of loadModelEntries().filter((x) => x.ship !== undefined)) {
+        expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
+      }
+      // O1: generated store models reach dist/ whole (copyContent copies content/ordnance/).
+      for (const e of loadModelEntries().filter((x) => x.source.kind === 'generated')) {
+        expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
+      }
+      // R1: Blender models reach dist/ whole (copyContent copies content/buildings/ and content/vehicles/).
+      for (const e of loadModelEntries().filter((x) => x.source.kind === 'blender')) {
         expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
       }
       // Hangar spec §3: the library page, and one file per library entry.

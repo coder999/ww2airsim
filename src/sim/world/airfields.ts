@@ -55,6 +55,11 @@ const AirfieldObject = z
      *  convention as `runway`/`apron`/`clearing`. Decorative huts are NOT
      *  here — see `AIRFIELD_HUTS` in `src/render/scene/airfield.ts`. */
     buildings: z.array(BuildingObject).min(1),
+    /** Who holds the field, which every one of its `buildings` takes
+     *  (friendly-fire spec §2, ruling FF-1). Absent means axis (`sideOf`'s
+     *  default for anything not the player); a scenario may override it with
+     *  `airfieldSides`. Read through `airfieldSideOf`, src/sim/sides.ts. */
+    side: z.enum(['allied', 'axis']).optional(),
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()

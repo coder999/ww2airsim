@@ -149,6 +149,21 @@ export type DebriefModel = {
   readonly promotedTo?: string
   /** M2: present only for a mission world (`withMissionDebrief`). */
   readonly mission?: DebriefMission
+  /**
+   * Present when the player damaged his own side this flight (friendly-fire
+   * spec §5): `withDischarge` (src/render/discharge.ts) sets it, along with
+   * the DISHONORABLE DISCHARGE headline, a zero score and no Continue. It is
+   * an overlay, so `outcome` stays the physical recovery (ruling FF-5).
+   * `target` is the display name of the first thing hit.
+   */
+  readonly discharge?: { readonly target: string }
+  /**
+   * Present whenever the player damaged his own side this sortie, dead or
+   * alive: the score is zero and the recovery line reads "— forfeit (×0)".
+   * `discharge` is set as well only when he survived (ruling FF-7 as amended
+   * by Mark 2026-09-26: the dead cannot be discharged).
+   */
+  readonly forfeit?: { readonly target: string }
 }
 
 // The simulation remains SI internally. The debrief is a 1943 US Navy form,
@@ -450,9 +465,11 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         killed: 'stamp--red',
       }
       const stamp = document.createElement('div')
+      // A discharge (friendly-fire spec §5) is stamped red whatever the
+      // physical recovery was.
       stamp.className =
-        `stamp stamp--lg stamp-corner ${stampColorClass[model.outcome]} ` +
-        (model.outcome === 'killed' ? 'stamp--rotate-2' : 'stamp--rotate-1')
+        `stamp stamp--lg stamp-corner ${model.discharge !== undefined ? 'stamp--red' : stampColorClass[model.outcome]} ` +
+        (model.outcome === 'killed' || model.discharge !== undefined ? 'stamp--rotate-2' : 'stamp--rotate-1')
       stamp.textContent = model.headline
       sheet.appendChild(stamp)
 
@@ -510,7 +527,9 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       // the prototype predates them and shows no example of its own.
       // `plainRow`, not `figureRow`, for the first two: see that function's
       // own comment on why the exact wording matters.
-      sheet.appendChild(plainRow(`Recovery: ${RECOVERY_LABEL[model.outcome]} (×${model.score.multiplier})`))
+      sheet.appendChild(plainRow(model.forfeit !== undefined
+        ? `Recovery: ${RECOVERY_LABEL[model.outcome]} — forfeit (×0)`
+        : `Recovery: ${RECOVERY_LABEL[model.outcome]} (×${model.score.multiplier})`))
       if (model.bankedTotal !== undefined) {
         sheet.appendChild(plainRow(`Banked total: ${model.bankedTotal}`))
       }

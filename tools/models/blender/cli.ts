@@ -2,8 +2,8 @@
 /**
  * `npx tsx tools/models/blender/cli.ts <id> [--key value ...]` builds
  * tools/models/blender/<id>.py into the gitignored content/models/candidates/<id>.glb
- * and prints what it measured. M0 only: M1's `blender` source kind moves building
- * into `npm run models:build` (model-roster spec §4.1).
+ * and prints what it measured. For iterating on a candidate. A shipped model builds
+ * through `npm run models:build` as a `blender` entry (R1, model-roster spec §4.1).
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

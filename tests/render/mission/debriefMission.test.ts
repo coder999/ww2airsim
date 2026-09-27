@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { missionDebrief } from '../../../src/render/mission/debriefMission.js'
+import { missionDebrief, withMissionDebrief } from '../../../src/render/mission/debriefMission.js'
+import type { DebriefModel } from '../../../src/render/debrief.js'
 import { deckOf, deckWorld } from '../../../src/sim/world/deck.js'
 import type { Impact, World } from '../../../src/sim/loop.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
@@ -86,5 +87,37 @@ describe('missionDebrief (M2 R9)', () => {
       { label: 'Recover', priority: 'primary', final: 'complete' },
       { label: 'Target', priority: 'secondary', final: 'incomplete' },
     ])
+  })
+})
+
+describe('withMissionDebrief on a forfeit sortie (friendly-fire note for M2, §4)', () => {
+  const plain = { headline: 'LANDED' } as unknown as DebriefModel
+  const forfeit = { headline: 'DISHONORABLE DISCHARGE', forfeit: { target: 'F6F-5 Hellcat f6f-2' } } as unknown as DebriefModel
+
+  it('a success that was not forfeit awards the badge', () => {
+    const w = landOnCarrier(missionWorld({ objectives: [RECOVER], badge: CQ_BADGE }))
+    const r = withMissionDebrief(plain, w)
+    expect(r.badgeId).toBe('cq')
+    expect(r.model.mission!.verdict).toBe('BADGE AWARDED: Carrier Qualified')
+  })
+
+  it('the same success after friendly fire awards nothing, and the verdict says why', () => {
+    const w = landOnCarrier(missionWorld({ objectives: [RECOVER], badge: CQ_BADGE }))
+    const r = withMissionDebrief(forfeit, w)
+    expect(r.badgeId).toBeNull()
+    expect(r.model.mission!.badge).toBeNull()
+    expect(r.model.mission!.verdict).toBe('Friendly fire: sortie forfeit — no badge')
+    expect(r.model.mission!.objectives.map((o) => o.final)).toEqual(['complete'])
+    // The discharge overlay is what shows: withMissionDebrief keeps the model's own fields.
+    expect(r.model.headline).toBe('DISHONORABLE DISCHARGE')
+  })
+
+  it('a forfeit sortie that also failed lists the mission reasons after the forfeit', () => {
+    const w = withImpact(missionWorld({ objectives: [RECOVER], badge: CQ_BADGE }), 'ditched')
+    const r = withMissionDebrief(forfeit, w)
+    expect(r.badgeId).toBeNull()
+    expect(r.model.mission!.verdict).toBe('Friendly fire: sortie forfeit — no badge')
+    const unforfeit = missionDebrief(w)!
+    expect(r.model.mission!.more).toEqual([unforfeit.verdict.replace(' — no badge', ''), ...unforfeit.more])
   })
 })

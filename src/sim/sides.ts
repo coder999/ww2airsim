@@ -1,7 +1,9 @@
 /**
  * Sides (AI 7c spec §4.1, Plan 7e). A scenario aircraft may say
  * `"side": "allied" | "axis"`; `sideOf` is the one place the default is
- * applied. The mission engine reads `side` and never redefines it (spec §8).
+ * applied. Since the friendly-fire plan (2026-09-26) ships (`ships[].side`)
+ * and structures (their airfield's side, `airfieldSideOf`) read through it
+ * too. The mission engine reads `side` and never redefines it (spec §8).
  * Imports nothing, so `weapons/` and `ai/` can both read it.
  */
 export type Side = 'allied' | 'axis'
@@ -12,6 +14,19 @@ export type Sided = { readonly id: string; readonly side?: Side | undefined }
  *  range's parked Hellcats still score, `pursuer-1` is still hostile). */
 export function sideOf(world: { readonly player: string }, a: Sided): Side {
   return a.side ?? (a.id === world.player ? 'allied' : 'axis')
+}
+
+/**
+ * An airfield's side, which every one of its structures takes (friendly-fire
+ * spec §2, ruling FF-1): the scenario's `airfieldSides` override, else the
+ * base content's own `side`, else axis -- `sideOf`'s default for anything
+ * that is not the player.
+ */
+export function airfieldSideOf(
+  airfield: { readonly id: string; readonly side?: Side | undefined },
+  overrides?: Readonly<Record<string, Side>>,
+): Side {
+  return overrides?.[airfield.id] ?? airfield.side ?? 'axis'
 }
 
 /** Every aircraft's side, by id. `advance` builds this once per tick and

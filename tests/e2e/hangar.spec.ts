@@ -8,8 +8,8 @@ import type { CameraPreset } from '../../src/render/hangar/framing.js'
  * Tier 2, the Hangar (spec §10): every model "renders, articulates and is
  * lit sanely", by pixel masks against an empty frame with the camera frozen.
  * Only the canvas is captured (`#hangar-canvas`); the panel sits beside it,
- * not over it. Run on the ww2airsim-3 slot (Hangar spec §13). Nothing here is
- * a timing budget.
+ * not over it. Run on any free dev-server slot.
+ * Nothing here is a timing budget.
  */
 
 type Frame = Buffer
@@ -92,6 +92,37 @@ async function masks(page: Page, empty: Frame, frames: Frame[]): Promise<{ areas
     if (sets.length >= 2) for (let p = 0; p < total; p++) if (sets[0]![p] !== sets[1]![p]) xor01++
     return { areas, luminance, total, xor01 }
   }, { empty64: empty.toString('base64'), frames64: frames.map((f) => f.toString('base64')) })
+}
+
+/**
+ * For each NDC point: 0 if its pixel is in the model-vs-empty mask, k if the first mask pixel
+ * is k px straight up (k <= reachPx), -1 if none. The frames are the canvas only. Decodes its
+ * own frames: `page.evaluate` closures are serialized, so it cannot share `masks`' decoder.
+ */
+async function maskReach(page: Page, empty: Frame, model: Frame, ndcs: readonly (readonly [number, number])[], reachPx: number): Promise<number[]> {
+  return page.evaluate(async ({ empty64, model64, ndcs, reachPx }) => {
+    const decode = async (b64: string) => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob())
+      const c = document.createElement('canvas')
+      c.width = bitmap.width
+      c.height = bitmap.height
+      const ctx = c.getContext('2d')!
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      return { data: ctx.getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height }
+    }
+    const e = await decode(empty64), m = await decode(model64)
+    const inMask = (x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= m.w || y >= m.h) return false
+      const p = (y * m.w + x) * 4
+      return Math.abs(m.data[p]! - e.data[p]!) + Math.abs(m.data[p + 1]! - e.data[p + 1]!) + Math.abs(m.data[p + 2]! - e.data[p + 2]!) > 24
+    }
+    return ndcs.map(([nx, ny]) => {
+      const x = Math.round(((nx + 1) / 2) * m.w), y = Math.round(((1 - ny) / 2) * m.h)
+      for (let k = 0; k <= reachPx; k++) if (inMask(x, y - k)) return k
+      return -1
+    })
+  }, { empty64: empty.toString('base64'), model64: model.toString('base64'), ndcs, reachPx })
 }
 
 test.describe('the Hangar', () => {
@@ -231,10 +262,40 @@ test.describe('the Hangar', () => {
         expect(await page.locator('[data-over]').getAttribute('data-over'), id).toBe('false')
       }
     }
-    // The four registered models have budgets; the Zero draws as the Wildcat.
-    for (const id of ['f4f-wildcat', 'essex-cv', 'fletcher-dd', 'type-b-maru']) {
+    // The registered models have budgets; the Zero draws as the Wildcat.
+    for (const id of ['f4f-wildcat', 'essex-cv', 'fletcher-dd', 'type-b-maru', 'hangar']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
+    }
+    // R1: the hangar is drawn from its Blender model, not drawBuilding's boxes.
+    await select(page, 'hangar')
+    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.modelUrl ?? '').toMatch(/content\/buildings\/hangar\.glb$/)
+  })
+
+  test('12. the list marks exactly the entries it cannot draw, and every other one is drawn (R1)', async ({ page }) => {
+    const buttons = page.locator('ul[aria-label="Objects"] button')
+    const all = await buttons.count()
+    const notDrawn = await buttons.filter({ hasText: '(not yet in service)' }).count()
+    const ids = await entries(page)
+    expect(all - notDrawn).toBe(ids.length)
+    for (const id of ids) await expect(page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`)).not.toContainText('(not yet in service)')
+    expect(notDrawn).toBeGreaterThan(0)
+  })
+
+  /**
+   * The stores are posed off, so the mask is the airframe alone. From above, a mount on the
+   * airframe is inside the wing's silhouette; the 1 px reach absorbs rounding. From the side,
+   * the lug point sits one drop (about 0.05-0.12 m, 2-5 px) under the lower skin. Before O1 the
+   * rack points were 1.9 m low, about 70 px, and fail.
+   */
+  test("11. the Wildcat's stores hang on its wing: from above every mount lies on the airframe, from the side each meets it within 10 px (O1)", async ({ page }) => {
+    for (const [preset, reach] of [['top', 1], ['side', 10]] as const) {
+      const { empty, model } = await view(page, 'f4f-wildcat', preset, { bombs: false, rockets: false })
+      const mounts = await page.evaluate(() => (window as HangarWindow).__hangar!.storeMounts())
+      expect(mounts).toHaveLength(8)
+      const hits = await maskReach(page, empty, model, mounts.map((m) => m.ndc), reach)
+      console.log(`check 11 ${preset}: ${mounts.map((m, i) => `${m.id} ${hits[i]}`).join(', ')}`)
+      mounts.forEach((m, i) => expect(hits[i], `${preset} ${m.id}`).toBeGreaterThanOrEqual(0))
     }
   })
 })

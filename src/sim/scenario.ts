@@ -12,6 +12,7 @@ import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, type IngressOrders } from './ai/pilot.js'
 import { sideOf } from './sides.js'
+import { checkScenarioSides } from './sidesCheck.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
@@ -158,6 +159,9 @@ const ScenarioShipObject = z.object({
   waypoints: z.array(z.tuple([finite, finite])).min(1),
   speedMps: finite,
   tags: tagList,
+  /** Friendly fire (spec 2026-09-26 §2): absent means axis, through
+   *  `sideOf`, the same default 7e gave every aircraft but the player. */
+  side: SideField,
 }).strict().refine((s) => s.speedMps === 0 || s.waypoints.length >= 2, {
   message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
 })
@@ -182,6 +186,10 @@ const ScenarioShape = z.object({
    *  structures count toward the `RAZED` counter. Absent means none do --
    *  matching every scenario shipped before this field existed. */
   enemyAirfields: z.array(id).optional(),
+  /** Per-scenario override of an airfield's side (friendly-fire spec §2,
+   *  ruling FF-1): a mission can fly from a field its base content calls
+   *  axis. Absent keeps each base's own `side`. */
+  airfieldSides: z.record(id, z.enum(['allied', 'axis'])).optional(),
   aircraft: z.array(ScenarioAircraftObject).min(1),
   ships: z.array(ScenarioShipObject),
   /** Steady wind, meteorological convention: the true bearing it blows FROM,
@@ -215,6 +223,9 @@ const ScenarioShape = z.object({
 const ScenarioObject = ScenarioShape
   .refine((s) => (s.enemyAirfields ?? []).every((e) => s.airfields.includes(e)), {
     message: 'every enemyAirfields entry must be one of airfields', path: ['enemyAirfields'],
+  })
+  .refine((s) => Object.keys(s.airfieldSides ?? {}).every((a) => s.airfields.includes(a)), {
+    message: 'every airfieldSides key must be one of airfields', path: ['airfieldSides'],
   })
   .superRefine((s, ctx) => {
     const byId = new Map(s.aircraft.map((a) => [a.id, a]))
@@ -450,7 +461,7 @@ function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainFie
     speedMps: sh.speedMps,
     waypoint: 1,
   })
-  return { id: sh.id, spec, state, previous: state, orders }
+  return { id: sh.id, spec, state, previous: state, orders, ...(sh.side === undefined ? {} : { side: sh.side }) }
 }
 
 /** The entity's `side`, only when the content says one, so a scenario
@@ -512,6 +523,28 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
   })
   const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
   return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields), ...sideFrom(a) }
+}
+
+/** The friendly-fire spec's scenario-load side checks (§3), over the start
+ *  and held entities as content. */
+function checkSides(s: Scenario, airfields: readonly Airfield[]): void {
+  const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
+  const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
+  checkScenarioSides({
+    scenarioId: s.id,
+    player: s.player,
+    aircraft: [...s.aircraft, ...heldAircraft].map((a) => ({
+      id: a.id,
+      ...sideFrom(a),
+      parkedOnShip: isParkedAircraft(a) && isShipParked(a.parkedAt) ? a.parkedAt.ship : null,
+      ingressShip: a.pilot?.ingress?.destination !== undefined && 'ship' in a.pilot.ingress.destination
+        ? a.pilot.ingress.destination.ship : null,
+    })),
+    ships: [...s.ships, ...heldShips],
+    airfields,
+    airfieldSides: s.airfieldSides,
+    landAt: (s.objectives ?? []).flatMap((o) => (o.kind === 'land' ? [{ objective: o.id, at: o.at }] : [])),
+  })
 }
 
 /** Everything a mission objective may name (spec §2.1): start and held
@@ -578,5 +611,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       entities: missionEntities(bundle),
     })
   }
-  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, mission })
+  checkSides(s, airfields)
+  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
 }

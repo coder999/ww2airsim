@@ -58,7 +58,7 @@ describe('the combat readout (Plan 6)', () => {
     const d = combatDiagnosticsFor(frame)
     expect(d.player).toEqual({
       shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
-      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0,
+      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0, friendlyFire: null,
       stress: {
         loadFactorG: 1, airspeedMps: 120, overG: false, overspeed: false,
         peakLoadFactorG: 1, peakAirspeedMps: 120,
@@ -94,5 +94,27 @@ describe('the combat readout (Plan 6)', () => {
     expect(combatReadoutLabel(razedTwo)).toBe('AMMO 2400   HITS 0   KILLS 0   RAZED 2   HP 100%')
     const both = { ...rec, shipsSunk: 1, structuresDestroyed: 2 }
     expect(combatReadoutLabel(both)).toBe('AMMO 2400   HITS 0   KILLS 0   SUNK 1   RAZED 2   HP 100%')
+  })
+})
+
+describe('the friendly-fire tag on the readout (friendly-fire spec §7, ruling FF-8; the transient call moved to the radio line in M2)', () => {
+  const ff = { tick: 1_000, kind: 'ship' as const, target: 'cv-1' }
+  const fired = () => ({ ...armed(), friendlyFire: ff })
+  const clean = 'AMMO 2400   HITS 0   KILLS 0   HP 100%'
+
+  it('is a persistent FRIENDLY FIRE tag from the hit on; the radio call itself plays on the radio line (M2, radioFeed)', () => {
+    expect(combatReadoutLabel(fired())).toBe(`FRIENDLY FIRE   ${clean}`)
+    expect(combatReadoutLabel(fired())).not.toContain('CEASE FIRE')
+  })
+
+  it('without friendly fire the label is byte-identical to before', () => {
+    expect(combatReadoutLabel(armed())).toBe(clean)
+  })
+
+  it('diagnostics expose the first friendly fire', () => {
+    const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+    const player = frame.world.player
+    const hit = { ...frame, world: { ...frame.world, combat: { ...frame.world.combat, aircraft: { ...frame.world.combat.aircraft, [player]: { ...frame.world.combat.aircraft[player]!, friendlyFire: ff } } } } }
+    expect(combatDiagnosticsFor(hit).player.friendlyFire).toEqual(ff)
   })
 })

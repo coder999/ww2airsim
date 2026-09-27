@@ -1,0 +1,12 @@
+{
+  "id": "hangar",
+  "output": "content/buildings/hangar.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/hangar.py",
+    "dimensions": "footprint 34 x 42 m from content/bases/tacloban.json, tacloban-hangar-1 (read 2026-09-26); wall height, roof rise and thicknesses are ESTIMATES from src/render/scene/buildings.ts, each labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
+}

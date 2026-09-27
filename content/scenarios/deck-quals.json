@@ -21,11 +21,12 @@
     {
       "id": "f6f-2",
       "spec": "f6f-hellcat",
+      "side": "axis",
       "parkedAt": {
         "airfield": "tacloban",
         "spot": {
-          "x": -90,
-          "z": 100
+          "x": 40,
+          "z": -500
         }
       },
       "chocked": true
@@ -35,6 +36,7 @@
     {
       "id": "cv-1",
       "spec": "essex-cv",
+      "side": "allied",
       "waypoints": [
         [
           -9084,
@@ -58,6 +60,7 @@
     {
       "id": "dd-1",
       "spec": "fletcher-dd",
+      "side": "allied",
       "waypoints": [
         [
           -8872,
@@ -81,6 +84,7 @@
     {
       "id": "dd-2",
       "spec": "fletcher-dd",
+      "side": "allied",
       "waypoints": [
         [
           -9296,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { MissionState, ObjectiveState, ResolvedObjective } from '../../../src/sim/mission/state.js'
-import { NO_RADIO, RADIO_SHOW_MS, missionDiagnostics, nextRadioLine, objectiveLineLabel } from '../../../src/render/mission/hud.js'
+import { NO_RADIO, RADIO_SHOW_MS, missionDiagnostics, nextRadioLine, objectiveLineLabel, radioFeed } from '../../../src/render/mission/hud.js'
 
 /** Builds a `MissionState` from a list of (objective, progress) pairs, so
  *  each test can hand-write just the fields it cares about (brief: "spread
@@ -147,6 +147,38 @@ describe('nextRadioLine (M2 R8, open question 4)', () => {
   it('a shorter log resets (Restart): the new first message shows', () => {
     const r = nextRadioLine({ seen: 2, text: 'Trap 1 of 3', remainingMs: 100 }, [{ text: 'fresh' }], 16)
     expect(r).toEqual({ seen: 1, text: 'fresh', remainingMs: RADIO_SHOW_MS })
+  })
+})
+
+describe('radioFeed: the friendly-fire call joins the radio line (friendly-fire note for M2, §2)', () => {
+  const log = [
+    { tick: 10, kind: 'message', text: 'Tower: cleared for takeoff.' },
+    { tick: 40, kind: 'landing', at: null, advanced: null, intermediate: false },
+    { tick: 90, kind: 'message', text: 'Tower: a friendly is passing overhead.' },
+  ]
+  const m = { log } as unknown as Parameters<typeof radioFeed>[0]
+  const cease = { tick: 50, text: "Cease fire! Cease fire! You're hitting friendlies!" }
+
+  it('is the mission messages alone without friendly fire', () => {
+    expect(radioFeed(m, null).map((x) => x.text)).toEqual(['Tower: cleared for takeoff.', 'Tower: a friendly is passing overhead.'])
+  })
+  it('merges the call in by tick', () => {
+    expect(radioFeed(m, cease).map((x) => x.text)).toEqual(['Tower: cleared for takeoff.', cease.text, 'Tower: a friendly is passing overhead.'])
+  })
+  it('a same-tick call follows the mission message', () => {
+    expect(radioFeed(m, { ...cease, tick: 10 }).map((x) => x.text)).toEqual(['Tower: cleared for takeoff.', cease.text, 'Tower: a friendly is passing overhead.'])
+  })
+  it('carries the call on a flight with no mission (friendly-fire-range has none)', () => {
+    expect(radioFeed(null, cease).map((x) => x.text)).toEqual([cease.text])
+    expect(radioFeed(null, null)).toEqual([])
+  })
+  it('the feed only ever grows as the flight goes on, so the seen count stays valid', () => {
+    // Before the call (tick 30: one message logged), then after it (the call at 50, the second message at 90).
+    const early = { log: log.slice(0, 1) } as unknown as Parameters<typeof radioFeed>[0]
+    let r = nextRadioLine(NO_RADIO, radioFeed(early, null), 16)
+    r = nextRadioLine(r, radioFeed(early, null), RADIO_SHOW_MS)
+    r = nextRadioLine(r, radioFeed(m, cease), 16)
+    expect(r.text).toBe(cease.text)
   })
 })
 

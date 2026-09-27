@@ -69,9 +69,13 @@ const terrain = createTerrainField(
 )
 const hangar1GroundM = heightAt(terrain, hangar1World.x, hangar1World.z)
 /**
- * At a 400 m run-in the shipped HVAR falls about 10.7 m. The rail is below the
- * aircraft origin, so ground + 17 m puts the rocket through the 10 m-tall box.
- * Both numbers are measured from the shipped terrain/closed form, not eyeballed.
+ * At a 400 m run-in the shipped HVAR falls about 10.7 m. Both numbers are
+ * measured from the shipped terrain/closed form, not eyeballed. Since O1
+ * (2026-09-26) the rails sit on the drawn Wildcat's wing, 1.31-1.40 m ABOVE
+ * the aircraft origin (they were 0.4 m below it), so from ground + 17 m the
+ * rocket leaves at about ground + 18.4 m and reaches the box at about 7.7 m
+ * (about 5.9 m before O1), still inside the 10 m-tall box. That is by
+ * arithmetic; Tier 2 (O1 Task 9) confirms it.
  */
 const DULAG_RUN_IN_M = 400
 const DULAG_ATTACK_ALTITUDE_M = hangar1GroundM + 17

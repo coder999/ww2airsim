@@ -1,6 +1,7 @@
 // tests/tools/models/manifest.test.ts
 import { describe, expect, it } from 'vitest'
-import { parseModelEntry } from '../../../tools/models/manifest.js'
+import { readFileSync } from 'node:fs'
+import { loadModelEntries, parseModelEntry } from '../../../tools/models/manifest.js'
 
 const valid = {
   id: 'test-plane',
@@ -41,5 +42,84 @@ describe('ModelEntrySchema', () => {
     ['a zero budget', { ...valid, budget: { ...valid.budget, maxDrawCalls: 0 } }, /maxDrawCalls/],
   ])('rejects %s', (_label, raw, message) => {
     expect(() => parseModelEntry(raw)).toThrow(message)
+  })
+})
+
+const generated = {
+  id: 'test-bomb',
+  output: 'content/ordnance/test-bomb.glb',
+  source: { kind: 'generated', generator: 'tools/models/generated/test-bomb.ts', dimensions: 'OP 1664 p. 390', license: 'AGPL-3.0-or-later' },
+  textures: { maxSize: 512, format: 'webp' },
+  budget: { maxBytes: 1000, maxTriangles: 100, maxDrawCalls: 1 },
+}
+
+describe('generated entries (O1)', () => {
+  it('accepts a generated entry with no input, and names its kind', () => {
+    const e = parseModelEntry(generated)
+    expect(e.source.kind).toBe('generated')
+    expect(e.input).toBeUndefined()
+  })
+
+  it.each([
+    ['an input', { ...generated, input: 'tools/models/cache/x.glb' }, /takes no input/],
+    ['keep nodes', { ...generated, keep: [{ node: 'A' }] }, /takes no keep/],
+    ['a normalize block', { ...generated, normalize: valid.normalize }, /takes no normalize/],
+    ['a CC license', { ...generated, source: { ...generated.source, license: 'CC0-1.0' } }, /license/],
+    ['a generator outside tools/models/generated/', { ...generated, source: { ...generated.source, generator: 'tools/x.ts' } }, /generator/],
+    ['an unknown source kind', { ...generated, source: { ...generated.source, kind: 'fab' } }, /kind/],
+  ])('rejects a generated entry with %s', (_label, raw, message) => {
+    expect(() => parseModelEntry(raw)).toThrow(message)
+  })
+
+  it('rejects a Sketchfab entry writing to content/ordnance/, and one with no input', () => {
+    expect(() => parseModelEntry({ ...valid, id: 'x', output: 'content/ordnance/x.glb' })).toThrow(/content\/ordnance/)
+    const { input, ...noInput } = valid
+    void input
+    expect(() => parseModelEntry(noInput)).toThrow(/needs its raw input/)
+  })
+
+  it('parses every committed Sketchfab entry exactly as before O1, plus kind "sketchfab"', () => {
+    const before = JSON.parse(readFileSync('tests/tools/models/fixtures/entries-before-o1.json', 'utf8')) as { id: string; source: object }[]
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab')
+    expect(now).toEqual(before.map((e) => ({ ...e, source: { kind: 'sketchfab', ...e.source } })))
+  })
+})
+
+const blender = {
+  id: 'test-shed',
+  output: 'content/buildings/test-shed.glb',
+  source: { kind: 'blender', script: 'tools/models/blender/test-shed.py', dimensions: 'footprint from content/bases/x.json (read 2026-09-26)', license: 'AGPL-3.0-or-later' },
+  textures: { maxSize: 512, format: 'webp' },
+  budget: { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4 },
+}
+
+describe('blender entries (R1, model-roster spec §4.1)', () => {
+  it('accepts a blender entry with no input, and keeps the Sketchfab geometry fields open to it', () => {
+    const e = parseModelEntry(blender)
+    expect(e.source.kind).toBe('blender')
+    expect(e.input).toBeUndefined()
+    const withStages = parseModelEntry({ ...blender, normalize: valid.normalize, keep: [{ node: 'Prop' }], noseNode: 'Prop' })
+    expect(withStages.keep).toHaveLength(1)
+  })
+
+  it('accepts content/buildings/ and content/vehicles/ outputs, from any source but generated', () => {
+    expect(parseModelEntry({ ...blender, id: 'jeep', output: 'content/vehicles/jeep.glb' }).output).toBe('content/vehicles/jeep.glb')
+    expect(parseModelEntry({ ...valid, id: 'tank', output: 'content/vehicles/tank.glb', split: [], remove: [] }).output).toBe('content/vehicles/tank.glb')
+  })
+
+  it.each([
+    ['an input', { ...blender, input: 'tools/models/cache/test-shed.glb' }, /blender entry takes no input/],
+    ['a script outside tools/models/blender/', { ...blender, source: { ...blender.source, script: 'tools/x.py' } }, /script must be tools\/models\/blender/],
+    ['the kit module as its script', { ...blender, source: { ...blender.source, script: 'tools/models/blender/kit.py' } }, /kit module/],
+    ['the preview module as its script', { ...blender, source: { ...blender.source, script: 'tools/models/blender/preview.py' } }, /kit module/],
+    ['a CC license', { ...blender, source: { ...blender.source, license: 'CC-BY-4.0' } }, /license/],
+    ['an ordnance output', { ...blender, id: 'b', output: 'content/ordnance/b.glb' }, /content\/ordnance/],
+    ['an output folder that does not exist', { ...blender, id: 'p', output: 'content/props/p.glb' }, /output/],
+  ])('rejects a blender entry with %s', (_label, raw, message) => {
+    expect(() => parseModelEntry(raw)).toThrow(message)
+  })
+
+  it('still refuses geometry fields on a generated entry', () => {
+    expect(() => parseModelEntry({ ...generated, keep: [{ node: 'A' }] })).toThrow(/takes no keep/)
   })
 })

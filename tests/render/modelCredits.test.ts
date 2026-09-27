@@ -16,8 +16,8 @@ describe('the models credit line (ship-models spec §10)', () => {
 
   it("the page's bundled credits are exactly the entries on disk, so no model ships uncredited", () => {
     expect(MODEL_CREDITS).toEqual(modelCredits(loadModelEntries()))
-    for (const e of loadModelEntries().filter((x) => x.source.license === 'CC-BY-4.0')) {
-      expect(MODEL_CREDITS.map((c) => c.url), e.id).toContain(e.source.url)
+    for (const e of loadModelEntries().filter((x) => x.source.kind === 'sketchfab' && x.source.license === 'CC-BY-4.0')) {
+      if (e.source.kind === 'sketchfab') expect(MODEL_CREDITS.map((c) => c.url), e.id).toContain(e.source.url)
     }
   })
 

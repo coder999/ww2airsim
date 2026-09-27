@@ -146,11 +146,11 @@ describe('release', () => {
       c = step(c, [a], { tick })
       racks.push(...c.projectiles.slice(before).map(p => sub(p.previous, position)))
     }
-    expect(racks.map(o => o.z)).toEqual([-2.6, 2.6])
-    for (const o of racks) {
-      expect(o.y).toBeCloseTo(-0.55, 9) // 1,500 m of altitude eats the last digits
-      expect(o.x).toBeCloseTo(0.4, 9)
-    }
+    expect(racks.map(o => o.z)).toEqual(stores.racks.map(m => m.offset[2]))
+    racks.forEach((o, i) => {
+      expect(o.y).toBeCloseTo(stores.racks[i]!.offset[1], 9) // 1,500 m of altitude eats the last digits
+      expect(o.x).toBeCloseTo(stores.racks[i]!.offset[0], 9)
+    })
 
     const r = air('f6f-1', position, v3(120, 0, 0), salvo)
     let q = armed([r])
@@ -183,7 +183,7 @@ describe('ordnance flight', () => {
     const a = air('f6f-1', position, v3(120, 0, 0), drop)
     let c = step(armed([a]), [a])
     const spawn = c.projectiles[0]!
-    const start = add(position, v3(0.4, -0.55, -2.6))
+    const start = add(position, v3(...stores.racks[0]!.offset))
     expect(spawn.previous).toEqual(start)
 
     let reference = flyProjectile(
@@ -227,9 +227,12 @@ describe('ordnance flight', () => {
     // 17.67 s of fall, 2,066 m downrange, 202.9 m/s at the water. The note's
     // own "about 1,200 m" estimate was written without running it and has
     // been corrected to these figures; the 200 m/s estimate was right.
-    expect(tick).toBe(1060)
-    expect(last.position.x).toBeCloseTo(2066.5, 0)
-    expect(length(last.velocity)).toBeCloseTo(202.9, 0)
+    // Re-measured 2026-09-26 (O1) after the rack offsets moved to the drawn
+    // Wildcat's wing: 1061 ticks, 2,069.6 m downrange, 203.0 m/s; before O1
+    // it was 1060 / 2,066.5 / 202.9.
+    expect(tick).toBe(1061)
+    expect(last.position.x).toBeCloseTo(2069.6, 0)
+    expect(length(last.velocity)).toBeCloseTo(203.0, 0)
   })
 
   it('pins the 100 m loaded-airframe run-in used by the browser bombing pass', () => {

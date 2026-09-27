@@ -77,6 +77,8 @@ export interface HangarStage {
   setAutoRotate(on: boolean): void
   /** The standing model's bounding-box size, meters (x length, y height, z span). */
   modelSize(): { x: number; y: number; z: number } | null
+  /** `world` through the stage camera, in NDC (O1, Tier 2 check 11). */
+  project(world: Vector3): readonly [number, number]
   render(): void
   resize(width: number, height: number): void
 }
@@ -202,6 +204,11 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       if (!current) return null
       const s = new Box3().setFromObject(current).getSize(new Vector3())
       return { x: s.x, y: s.y, z: s.z }
+    },
+    project(world): readonly [number, number] {
+      camera.updateMatrixWorld()
+      const p = world.clone().project(camera)
+      return [p.x, p.y]
     },
     render(): void {
       if (gizmos) syncGizmos(gizmos, gizmoNodes)

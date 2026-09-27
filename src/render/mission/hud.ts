@@ -28,6 +28,21 @@ export function objectiveLineLabel<M>(m: MissionState<M> | null): string | null 
   return primaries.every(({ p }) => p.status === 'complete') ? 'OBJECTIVES COMPLETE' : null
 }
 
+/**
+ * What the radio line plays: the mission's messages, with the friendly-fire
+ * call (`friendlyFireRadio`, src/render/discharge.ts) merged in by tick --
+ * after any mission message of the same tick. Works without a mission: the
+ * friendly-fire test ranges have none. Both sources are append-only as the
+ * flight goes on (the call is set once, at a tick no later than now), so the
+ * feed only grows and `RadioLine.seen` stays a valid count.
+ */
+export function radioFeed<M>(m: MissionState<M> | null, friendlyFire: { readonly tick: number; readonly text: string } | null): readonly { readonly text: string }[] {
+  const messages = m === null ? [] : radioMessages(m)
+  if (friendlyFire === null) return messages
+  const at = messages.findIndex((x) => x.tick > friendlyFire.tick)
+  return at < 0 ? [...messages, friendlyFire] : [...messages.slice(0, at), friendlyFire, ...messages.slice(at)]
+}
+
 export const RADIO_SHOW_MS = 5000
 export type RadioLine = { readonly seen: number; readonly text: string | null; readonly remainingMs: number }
 export const NO_RADIO: RadioLine = { seen: 0, text: null, remainingMs: 0 }
@@ -42,7 +57,7 @@ export function nextRadioLine(r: RadioLine, messages: readonly { readonly text: 
 }
 
 export type MissionHudHandle = {
-  update<M>(m: MissionState<M> | null, frameMs: number, paused: boolean): void
+  update<M>(m: MissionState<M> | null, frameMs: number, paused: boolean, friendlyFire?: { readonly tick: number; readonly text: string } | null): void
   reset(): void
   text(): { objective: string | null; radio: string | null }
 }
@@ -76,7 +91,7 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
   let shownRadio: string | null = null
 
   return {
-    update<M>(m: MissionState<M> | null, frameMs: number, paused: boolean): void {
+    update<M>(m: MissionState<M> | null, frameMs: number, paused: boolean, friendlyFire: { readonly tick: number; readonly text: string } | null = null): void {
       const objective = objectiveLineLabel(m)
       if (objective !== shownObjective) {
         shownObjective = objective
@@ -84,7 +99,7 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
         objectiveEl.style.display = objective === null ? 'none' : 'block'
       }
 
-      radio = nextRadioLine(radio, m === null ? [] : radioMessages(m), paused ? 0 : frameMs)
+      radio = nextRadioLine(radio, radioFeed(m, friendlyFire), paused ? 0 : frameMs)
       if (radio.text !== shownRadio) {
         shownRadio = radio.text
         radioEl.textContent = radio.text ?? ''

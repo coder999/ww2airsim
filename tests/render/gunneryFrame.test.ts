@@ -84,7 +84,7 @@ describe('Space fires through nextFrameState (Plan 6)', () => {
     const d = combatDiagnosticsFor(restarted)
     expect(d.player).toEqual({
       shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
-      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0,
+      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0, friendlyFire: null,
       stress: {
         loadFactorG: 1, airspeedMps: 0, overG: false, overspeed: false,
         peakLoadFactorG: 1, peakAirspeedMps: 0,

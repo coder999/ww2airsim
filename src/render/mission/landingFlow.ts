@@ -6,9 +6,11 @@ import { lastLanding, type MissionState } from '../../sim/mission/state.js'
  * the MISSION's log, never the frame (ruling R2): the mission records the
  * landing on or before the frame that raises `landing.report` (measured
  * 2026-09-26 at 1 and 3 ticks per frame). Anything else is a debrief.
+ * So is any landing after friendly fire (`forfeit`): that flight is over,
+ * and its debrief is the discharge (src/render/discharge.ts, no Continue).
  */
-export function landingDisposition<M>(m: MissionState<M> | null, handledTick: number): { readonly kind: 'debrief' | 'intermediate'; readonly tick: number } {
+export function landingDisposition<M>(m: MissionState<M> | null, handledTick: number, forfeit = false): { readonly kind: 'debrief' | 'intermediate'; readonly tick: number } {
   const l = m === null ? undefined : lastLanding(m)
   if (l === undefined || l.tick <= handledTick) return { kind: 'debrief', tick: handledTick }
-  return { kind: l.intermediate ? 'intermediate' : 'debrief', tick: l.tick }
+  return { kind: l.intermediate && !forfeit ? 'intermediate' : 'debrief', tick: l.tick }
 }

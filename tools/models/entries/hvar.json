@@ -1,0 +1,12 @@
+{
+  "id": "hvar",
+  "output": "content/ordnance/hvar.glb",
+  "source": {
+    "kind": "generated",
+    "generator": "tools/models/generated/hvar.ts",
+    "dimensions": "Smithsonian NASM A19820116000: 68 x 11 x 11 in, cruciform rectangular fins, ogival nose; OP 1664 (Bureau of Ordnance, 1947) p. 170: 5.0 in head and motor, 51.4 in motor; English Wikipedia 'High Velocity Aircraft Rocket': 15.625 in fin span (uncited there; corroborated by NASM's 11 in box = span / sqrt 2). Read 2026-09-26. Every other figure is an ESTIMATE in the generator's header.",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 400000, "maxTriangles": 2000, "maxDrawCalls": 1 }
+}

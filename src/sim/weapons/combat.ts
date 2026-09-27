@@ -5,7 +5,7 @@ import { qRotate } from '../math/quat.js'
 import { add, sub, scale, length, normalize, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { SEA_LEVEL_M, type TerrainField } from '../world/terrain.js'
 import { groundUnder } from '../world/ground.js'
-import type { Deck } from '../world/deck.js'
+import { insideDeck, type Deck } from '../world/deck.js'
 import { onGround } from '../ground.js'
 import { healthyDamage, damageFromHit, type Damage } from '../damage/model.js'
 import {
@@ -22,6 +22,7 @@ import { healthyStructureDamage, type StructureDamage, type StructureEntity } fr
 import { zeroKillsByType, type TargetType } from './targetType.js'
 import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.js'
 import { sameSide, type Side } from '../sides.js'
+import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -57,7 +58,16 @@ export type AircraftCombat = {
    *  `hits`, `kills` or `killsByType` (ruling W1), so Plan 9's score cannot
    *  reward a teamkill. Only counted when `stepCombat` is given sides. */
   readonly friendlyHits: number
+  /** Since the friendly-fire plan (2026-09-26, ruling FF-4) this also counts
+   *  own-side ships sunk and structures destroyed, never `shipsSunk`,
+   *  `structuresDestroyed` or `killsByType`. */
   readonly friendlyKills: number
+  /** The first damage this aircraft did to its own side, by round, bomb,
+   *  rocket or blast: an aircraft, ship or structure that was not already
+   *  destroyed, never itself. Set once, never overwritten. It is what
+   *  discharges the player (friendly-fire spec §4-§5). Only recorded when
+   *  `stepCombat` is given sides. */
+  readonly friendlyFire: FriendlyFire | null
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
@@ -110,7 +120,7 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0,
+      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
@@ -160,14 +170,21 @@ export function burnedVelocity(v: Vec3, burnDeltaVMps: number, burnS: number, ag
 export const SINK_SECONDS = 90
 
 /** Bounded terrain samples at <= 2 m, then bisection of the first crossing.
- * Aircraft and hulls use swept boxes below; they never use endpoint samples. */
-function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): number | null {
-  if (terrain === null && decks.length === 0) return null
+ * Aircraft and hulls use swept boxes below; they never use endpoint samples.
+ *
+ * Terrain only. Flight decks are `deckHit`'s: queried through `groundUnder`
+ * with its decks, a deck read as solid all the way down to the sea, and
+ * because the deck (32.9 m on an Essex) overhangs the hull (28.3 m beam) a
+ * round from abeam below the deck edge died on that column and never reached
+ * the hull (measured 2026-09-26; Mark: the Essex "should be able to be
+ * damaged by rounds that hit below flight deck"). */
+function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
+  if (terrain === null) return null
   const delta = sub(to, from)
   const steps = Math.max(1, Math.ceil(length(delta) / 2))
   const below = (t: number): boolean => {
     const p = add(from, scale(delta, t))
-    const g = groundUnder(terrain, decks, p.x, p.z)
+    const g = groundUnder(terrain, [], p.x, p.z)
     return g !== null && p.y <= g.heightM
   }
   if (below(0)) return 0
@@ -191,13 +208,32 @@ function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: re
  * no terrain field yet. Spec §3.4 lists "sea level" as its own candidate for
  * exactly that reason. Closed form, not sampled: the surface is a plane.
  */
-function seaHit(from: Vec3, to: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): number | null {
+function seaHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
   if (from.y <= SEA_LEVEL_M || to.y > SEA_LEVEL_M) return null
   const t = (from.y - SEA_LEVEL_M) / (from.y - to.y)
   const point = add(from, scale(sub(to, from), t))
-  const under = groundUnder(terrain, decks, point.x, point.z)
-  // Land (or a deck) above the waterline here: `groundHit` owns that contact.
+  const under = groundUnder(terrain, [], point.x, point.z)
+  // Land above the waterline here: `groundHit` owns that contact. Under a
+  // deck's overhang the water is still water: the hull box, which starts at
+  // the waterline, is what a round meets before it (Mark: "not below water
+  // line").
   return under === null || under.heightM <= SEA_LEVEL_M ? t : null
+}
+
+/** Where the segment crosses a flight deck's surface from above, closed form
+ *  like `seaHit`: the first such crossing inside a deck rectangle, with the
+ *  deck's ship id. Only the top surface stops a round; below it, the hull box
+ *  (`hullHit`) is what the round meets. */
+function deckHit(from: Vec3, to: Vec3, decks: readonly Deck[]): { readonly t: number; readonly shipId: string } | null {
+  let best: { t: number; shipId: string } | null = null
+  for (const deck of decks) {
+    const top = deck.center.y
+    if (from.y <= top || to.y > top) continue
+    const t = (from.y - top) / (from.y - to.y)
+    const point = add(from, scale(sub(to, from), t))
+    if (insideDeck(deck, point.x, point.z) && (best === null || t < best.t)) best = { t, shipId: deck.shipId }
+  }
+  return best
 }
 
 /** A structure's box is axis-aligned in its airfield's frame, so a contact
@@ -243,10 +279,17 @@ function nearestContact(
   structures: readonly StructureEntity[], terrain: TerrainField | null, decks: readonly Deck[],
 ): Contact | null {
   const candidates: Contact[] = []
-  const ground = groundHit(p.previous, p.position, terrain, decks)
+  const ground = groundHit(p.previous, p.position, terrain)
   if (ground !== null) candidates.push({ t: ground, kind: 'ground', sea: false })
-  const sea = seaHit(p.previous, p.position, terrain, decks)
+  const sea = seaHit(p.previous, p.position, terrain)
   if (sea !== null) candidates.push({ t: sea, kind: 'ground', sea: true })
+  // A flight deck is part of its ship: a round on the deck, overhang
+  // included, hits the ship. A deck whose ship is no longer afloat is ground.
+  const onDeck = deckHit(p.previous, p.position, decks)
+  if (onDeck !== null) {
+    const ship = ships.find((s) => s.id === onDeck.shipId)
+    candidates.push(ship === undefined ? { t: onDeck.t, kind: 'ground', sea: false } : { t: onDeck.t, kind: 'ship', ship })
+  }
   for (const a of aircraft) {
     if (a.id === p.owner || a.spec.combat === undefined) continue
     const began = add(a.previous.position, scale(sub(a.state.position, a.previous.position), start))
@@ -406,7 +449,7 @@ function releaseBomb(a: CombatAircraft, stores: StoresState, cursor: number): Re
 /** Rails outermost first, by how far out the rail is rather than by its order
  *  in content, so "the outermost remaining pair" (spec §3.2) survives a
  *  content file that lists its rails in another order. */
-const railOrder = (rails: readonly { readonly offset: readonly [number, number, number] }[]): readonly number[] =>
+export const railOrder = (rails: readonly { readonly offset: readonly [number, number, number] }[]): readonly number[] =>
   rails.map((_, i) => i).sort((x, y) => Math.abs(rails[y]!.offset[2]) - Math.abs(rails[x]!.offset[2]) || x - y)
 
 /**
@@ -469,6 +512,12 @@ export function stepCombat(
    * caller that predates 7e) credits every hit as before.
    */
   sides: Readonly<Record<string, Side>> | null = null,
+  /**
+   * Friendly fire (spec 2026-09-26 §4): ship and structure sides by id, read
+   * against `sides[owner]`. `null` (every caller that predates it) records
+   * no friendly fire against either and credits them as before.
+   */
+  targetSides: TargetSides | null = null,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
@@ -569,6 +618,12 @@ export function stepCombat(
   // every test and reducer below. A hull still sinking blocks as it always did.
   const afloat = ships.filter(s => (shipDamage[s.id]?.sinkingFraction ?? 0) < 1)
 
+  /** Records `owner`'s first friendly fire (spec §4). */
+  const noteFriendlyFire = (owner: string, kind: FriendlyFireKind, target: string): void => {
+    const rec = records[owner]
+    if (rec !== undefined) records[owner] = withFriendlyFire(rec, { tick, kind, target })
+  }
+
   /** A kill by anything -- a round, a direct bomb, or blast -- lands on the
    *  owner's record; `hits` stays the gunnery statistic it has always been. */
   const creditAircraftDamage = (
@@ -609,6 +664,7 @@ export function stepCombat(
     const ownSide = owner === target.id || (sides !== null && sameSide(sides, owner, target.id))
     const lastHitBy = ownSide ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
+    if (ownSide && owner !== target.id && damage !== rec.damage) noteFriendlyFire(owner, 'aircraft', target.id)
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
   }
 
@@ -617,10 +673,17 @@ export function stepCombat(
     if (was === undefined) return
     const now = damageStructure(was, amount, tick, owner)
     structureDamage[s.id] = now
+    const friendly = ownSideTarget(sides, targetSides?.structures, owner, s.id)
+    if (friendly && was.destroyedTick === null) noteFriendlyFire(owner, 'structure', s.id)
     if (was.destroyedTick !== null || now.destroyedTick === null) return
-    if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
     const shooter = records[owner]
     if (shooter === undefined) return
+    // Own side: never RAZED or `killsByType` (ruling FF-4).
+    if (friendly) {
+      records[owner] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      return
+    }
+    if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
     const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : 'building'
     records[owner] = {
       ...shooter,
@@ -635,6 +698,7 @@ export function stepCombat(
     // `shipsSunk` is NOT credited here: a hull is sunk when it reaches the
     // bottom 90 s later, off the attacker this blow fixed (spec §3.6).
     shipDamage[ship.id] = damageShip(was, ship.spec.hullHp, amount, tick, owner)
+    if (was.destroyedTick === null && ownSideTarget(sides, targetSides?.ships, owner, ship.id)) noteFriendlyFire(owner, 'ship', ship.id)
   }
 
   /** Spec §3.4: every structure, hull and airplane whose BOX CENTER is within
@@ -703,6 +767,11 @@ export function stepCombat(
     if (sinkingFraction < 1 || d.attacker === null) continue
     const shooter = records[d.attacker]
     if (shooter === undefined) continue
+    // Own side on the bottom: a friendly kill, never scored (ruling FF-4).
+    if (ownSideTarget(sides, targetSides?.ships, d.attacker, id)) {
+      records[d.attacker] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      continue
+    }
     const role = shipRoleById.get(id)
     const targetType: TargetType | null =
       role === 'carrier' || role === 'cruiser' || role === 'battleship' ? role : null

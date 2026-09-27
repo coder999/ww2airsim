@@ -1,7 +1,7 @@
 // src/render/hangar/main.ts
 import { initRenderer, normalizeGpuError } from '../renderer.js'
 import { showFailure, type FailureKind } from '../failure.js'
-import { buildCatalog, type CatalogEntry } from './catalog.js'
+import { buildCatalog, drawable, type CatalogEntry } from './catalog.js'
 import { loadHangarContent } from './contentIndex.js'
 import { loadHangarModel, type HangarModel, type PartPose } from './models.js'
 import { createBenchController } from './benchController.js'
@@ -95,7 +95,7 @@ async function boot(): Promise<void> {
     model?.dispose()
     model = next
     selected = entry
-    stage.show(model?.root ?? null, entry.subject === null ? null : entry.library.kind)
+    stage.show(model?.root ?? null, drawable(entry) ? entry.library.kind : null)
     panel.showCard(entry, figuresFor(entry), stage.modelSize())
     // A fresh controller per model: a new model starts at rest, never mid-cycle.
     controller = createBenchController(entry.subject?.kind === 'aircraft' ? entry.subject.spec : null)
@@ -124,7 +124,7 @@ async function boot(): Promise<void> {
 
   installHangarHooks(window as HangarWindow, {
     ready,
-    entries: () => catalog.filter((e) => e.subject !== null).map((e) => e.library.id),
+    entries: () => catalog.filter(drawable).map((e) => e.library.id),
     select,
     pose,
     tick: step,
@@ -137,10 +137,11 @@ async function boot(): Promise<void> {
     setDebug: onDebug,
     gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : []),
     counts: () => (model ? countsReport(model.root, content.budgets) : null),
+    storeMounts: () => (model ? model.mounts().map((m) => ({ id: m.id, ndc: stage.project(m.world) })) : []),
     validationErrors,
   })
 
-  const first = catalog.find((e) => e.subject !== null)
+  const first = catalog.find(drawable)
   if (first) await select(first.library.id)
 
   let last = performance.now()

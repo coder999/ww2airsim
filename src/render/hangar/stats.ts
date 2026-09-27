@@ -44,7 +44,8 @@ function withNote(f: Omit<Figure, 'note'>, note: string | undefined): Figure {
   return note === undefined ? f : { ...f, note }
 }
 
-/** The card's figures, all read from sim content (Hangar spec §5). [] for "Not yet in service". */
+/** The card's figures, all read from sim content (Hangar spec §5). [] for an entry with no sim
+ *  spec, including a display-only model (R1). */
 export function figuresFor(entry: CatalogEntry): Figure[] {
   const s = entry.subject
   if (s === null) return []
@@ -77,6 +78,16 @@ export function figuresFor(entry: CatalogEntry): Figure[] {
       { label: 'Top speed', value: `${one(sh.maxSpeedMps * KN_PER_MPS)} kn (${one(sh.maxSpeedMps)} m/s)` },
       pointsFigure('Points when sunk', shipTargetType(sh.role)),
     ]
+  }
+  if (s.kind === 'ordnance') {
+    const t = s.store
+    const out: Figure[] = [{ label: 'Weight', value: `${int(t.massKg)} kg (${int(t.massKg / 0.45359237)} lb)` }]
+    if (t.fillerKg !== undefined) out.push({ label: 'Explosive filler', value: `${one(t.fillerKg)} kg` })
+    if (t.warheadKg !== undefined) out.push({ label: 'Warhead', value: `${one(t.warheadKg)} kg` })
+    out.push({ label: 'Blast radius', value: `${int(t.blastRadiusM)} m`, note: GAMEPLAY_VALUE })
+    out.push({ label: 'Damage', value: int(t.damage), note: GAMEPLAY_VALUE })
+    out.push({ label: 'Carried by', value: s.carriers.map((a) => a.name).join(', ') })
+    return out
   }
   const hps = s.placements.map((p) => p.building.hp)
   const lo = Math.min(...hps), hi = Math.max(...hps)

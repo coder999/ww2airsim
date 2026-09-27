@@ -1,0 +1,12 @@
+{
+  "id": "an-m65",
+  "output": "content/ordnance/an-m65.glb",
+  "source": {
+    "kind": "generated",
+    "generator": "tools/models/generated/an-m65.ts",
+    "dimensions": "OP 1664, U.S. Explosive Ordnance (Bureau of Ordnance, 28 May 1947), Vol. 2 Ch. 17: over-all 67.1 in, body 53.1 in, diameter 18.8 in, tail 18.5 in long and 25.4 in wide (p. 390), dual lugs 14 in apart (p. 384), olive drab with 1 in yellow bands (p. 385); Australian War Memorial C285409 for the nose band's station. Read 2026-09-26. Every other figure is an ESTIMATE in the generator's header.",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 400000, "maxTriangles": 4000, "maxDrawCalls": 1 }
+}

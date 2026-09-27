@@ -14,6 +14,7 @@
 import type { Damage } from '../sim/damage/model.js'
 import type { StructuralStress } from '../sim/damage/overload.js'
 import type { AircraftCombat } from '../sim/weapons/combat.js'
+import type { FriendlyFire } from '../sim/weapons/friendlyFire.js'
 import { SYSTEMS, type DamageSystem } from '../sim/weapons/schema.js'
 import type { FrameState } from './frame.js'
 
@@ -35,7 +36,12 @@ export const ammoRemaining = (rec: AircraftCombat): number => rec.guns.reduce((s
  */
 export function combatReadoutLabel(rec: AircraftCombat | undefined): string | null {
   if (rec === undefined || rec.guns.length === 0) return null
-  const parts = [`AMMO ${ammoRemaining(rec)}`]
+  const parts: string[] = []
+  // Friendly fire (spec §7, ruling FF-8): a tag from the first friendly hit
+  // on, so the pilot knows the sortie is forfeit. The "Cease fire!" call
+  // itself plays on M2's radio line (mission/hud.ts `radioFeed`).
+  if (rec.friendlyFire !== null) parts.push('FRIENDLY FIRE')
+  parts.push(`AMMO ${ammoRemaining(rec)}`)
   // Bomb and rocket stores, beside the gun ammo they are carried alongside --
   // absent for a clean airplane, or once every store is gone (spec §4:
   // "the stores remaining (`B 2  R 6`) in the readout while any are
@@ -75,6 +81,8 @@ export type CombatDiagnostics = {
     readonly shipsSunk: number
     readonly structuresDestroyed: number
     readonly stress: StructuralStress
+    /** The player's first friendly damage, or null (friendly-fire spec §4). */
+    readonly friendlyFire: FriendlyFire | null
   }
   readonly aircraft: readonly {
     readonly id: string
@@ -108,6 +116,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       shipsSunk: player.shipsSunk,
       structuresDestroyed: player.structuresDestroyed,
       stress: { ...player.stress },
+      friendlyFire: player.friendlyFire,
     },
     aircraft: frame.world.aircraft.map((a) => {
       const rec = combat.aircraft[a.id]!

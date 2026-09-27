@@ -115,7 +115,7 @@ multiplier applied, banked total, badges awarded, and any promotion.
 ## Library
 
 `hangar.html` ("Library" on the title's first form) shows every aircraft,
-ship and building in the rosters below: a turntable model, the gameplay
+ship, building and store in the rosters below: a turntable model, the gameplay
 figures (hit points, speed, armament, points), read live from the game's own
 content so they cannot go stale, and a short sourced history of the real
 thing. A roster row with no game content yet shows as **Not yet in
@@ -244,6 +244,16 @@ checked against.
 | --- | --- |
 | Type 97 Chi-Ha medium tank | Hostile ground target |
 | Willys MB jeep | Friendly airfield scenery |
+
+## Ordnance roster
+
+Stores the aircraft carry. Each has a Library card whose model is generated from cited
+dimensions ([ordnance spec §2](docs/superpowers/specs/2026-09-26-ordnance-and-effects-design.md)).
+
+| Store | Kind |
+| --- | --- |
+| AN-M65 1,000 lb general-purpose bomb | bomb |
+| 5-inch High Velocity Aircraft Rocket (HVAR) | rocket |
 
 ## Scenarios
 

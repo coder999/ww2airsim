@@ -8,7 +8,7 @@
  * the legend meets WorldCover's the same way (legend.ts). Before this, the
  * committed Wildcat (CC BY, rojatsu) had no in-app credit at all.
  */
-export interface CreditSource { readonly source: { readonly url: string; readonly author: string; readonly license: string } }
+export interface CreditSource { readonly source: { readonly license: string; readonly url?: string; readonly author?: string } }
 export interface ModelCredit { readonly author: string; readonly url: string }
 
 /** One credit per CC BY entry, in the order given, once per source URL (two entries built from one download credit it once). */
@@ -16,7 +16,7 @@ export function modelCredits(entries: readonly CreditSource[]): ModelCredit[] {
   const seen = new Set<string>()
   const out: ModelCredit[] = []
   for (const e of entries) {
-    if (e.source.license !== 'CC-BY-4.0' || seen.has(e.source.url)) continue
+    if (e.source.license !== 'CC-BY-4.0' || e.source.url === undefined || e.source.author === undefined || seen.has(e.source.url)) continue
     seen.add(e.source.url)
     out.push({ author: e.source.author, url: e.source.url })
   }

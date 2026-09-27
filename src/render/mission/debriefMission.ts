@@ -16,11 +16,17 @@ export type DebriefMission = {
   readonly badge: Badge | null
 }
 
+/** The verdict's first reason on a sortie forfeit to friendly fire
+ *  (src/render/discharge.ts): it earns no badge whatever the objectives say. */
+export const FORFEIT_REASON = 'Friendly fire: sortie forfeit'
+
 /**
  * Builds the debrief's mission block from the world the debrief is being
  * raised for. `null` for a world with no mission (`world.mission === null`).
+ * A `forfeit` sortie (friendly fire) awards no badge: `FORFEIT_REASON` leads
+ * the reasons, and the mission's own reasons, if any, follow it.
  */
-export function missionDebrief<M>(world: World<M>): DebriefMission | null {
+export function missionDebrief<M>(world: World<M>, forfeit = false): DebriefMission | null {
   if (world.mission === null) return null
   const recovery = recoveryOf(world)
   // Every debrief is raised by a landing, an impact or a destruction, so
@@ -29,10 +35,10 @@ export function missionDebrief<M>(world: World<M>): DebriefMission | null {
   if (recovery === null) throw new Error('missionDebrief: a debrief with no recovery the mission can see')
   const o = missionOutcome(world.mission, recovery)
   const objectives = o.objectives.map(({ label, priority, final }) => ({ label, priority, final }))
-  if (o.result === 'success') {
+  if (o.result === 'success' && !forfeit) {
     return { objectives, verdict: o.badge === null ? 'MISSION COMPLETE' : `BADGE AWARDED: ${o.badge.name}`, more: [], badge: o.badge }
   }
-  const [first, ...rest] = o.reasons
+  const [first, ...rest] = forfeit ? [FORFEIT_REASON, ...(o.result === 'success' ? [] : o.reasons)] : o.reasons
   return { objectives, verdict: `${first!} — no badge`, more: rest, badge: null }
 }
 
@@ -41,8 +47,10 @@ export function missionDebrief<M>(world: World<M>): DebriefMission | null {
  * badge id `main.ts` should award to the roster, if any. A mission-less
  * world returns the SAME model object (no `mission` field added) and a
  * `null` badge id, so a plain flight's debrief renders exactly as before.
+ * Apply it AFTER `withDischarge`: a forfeit model (`model.forfeit`) earns no
+ * badge, and the discharge overlay's own fields pass through unchanged.
  */
 export function withMissionDebrief<M>(model: DebriefModel, world: World<M>): { readonly model: DebriefModel; readonly badgeId: string | null } {
-  const mission = missionDebrief(world)
+  const mission = missionDebrief(world, model.forfeit !== undefined)
   return mission === null ? { model, badgeId: null } : { model: { ...model, mission }, badgeId: mission.badge?.id ?? null }
 }

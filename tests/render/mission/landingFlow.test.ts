@@ -35,6 +35,12 @@ describe('landingDisposition (M2 R2)', () => {
     expect(d.kind).toBe('debrief')
     expect(d.tick).toBe(10)
   })
+  it('debrief for an intermediate landing after friendly fire: a forfeit flight has no Continue (friendly-fire note for M2)', () => {
+    const m = { log: [{ tick: 10, kind: 'landing', at: null, advanced: 'circuit', intermediate: true }] } as unknown as MissionState<unknown>
+    const d = landingDisposition(m, -1, true)
+    expect(d.kind).toBe('debrief')
+    expect(d.tick).toBe(10)
+  })
 })
 
 // Measured (probe .superpowers/m2-plan/landing-order.ts): the mission logs a

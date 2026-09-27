@@ -30,7 +30,8 @@ import { createDebrief, debriefModel, destructionModel, killsSince, landingModel
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, scenarioOptions } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
-import { applyMissionResultToRoster, awardBadgeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { applyMissionResultToRoster, awardBadgeInRoster, dischargeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
@@ -54,6 +55,7 @@ import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type Atm
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createOrdnance } from './ordnance.js'
+import { loadStoreVisuals } from './scene/storeModels.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
 import { BINDINGS } from '../input/bindings.js'
@@ -919,6 +921,9 @@ async function boot(): Promise<void> {
       // current frame's `World.combat` by the same adapter the readout's
       // tests cover. `null` before the first frame, like `impact`.
       combat: () => (frame ? combatDiagnosticsFor(frame) : null),
+      // O1: what the in-flight bomb/rocket pools are drawing this frame, for Tier 2
+      // (tests/e2e/ordnance.spec.ts, Task 9).
+      ordnanceView: () => ordnance.view(camera, window.innerHeight),
       // Plan 16a: which deck is up and at what tier; `off` under `?cloudTier=off`.
       clouds: () => ({
         layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
@@ -1297,6 +1302,15 @@ async function boot(): Promise<void> {
   // sized independently of any scenario's entity list -- nothing here is
   // rebuilt on a scenario switch either.
   const ordnance = createOrdnance(scene)
+  // O1: the in-flight pools draw the player's store models once they load; until then, and
+  // if they fail, the primitive stand-ins, with the failure on __ww2.validationErrors.
+  const bombStore = spec.stores?.racks[0]?.store
+  const rocketStore = spec.stores?.rails[0]?.store
+  if (bombStore !== undefined && rocketStore !== undefined) {
+    loadStoreVisuals([bombStore, rocketStore], 0)
+      .then((v) => { ordnance.setStoreModels(v.byStore.get(bombStore)!, v.byStore.get(rocketStore)!) })
+      .catch((e: unknown) => { validationErrors.push(`store models: ${e instanceof Error ? e.message : String(e)}`) })
+  }
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -1507,21 +1521,37 @@ async function boot(): Promise<void> {
    * somehow is not found (unreachable in practice: `currentPilotId` only
    * ever comes from a pilot actually in `roster`).
    */
+  /** How a debrief banks after friendly fire: a survivor is discharged, a
+   *  death is only forfeit, and a clean sortie is neither. */
+  const friendlyFireBank = (model: DebriefModel): 'discharged' | 'forfeit' | null =>
+    model.discharge !== undefined ? 'discharged' : model.forfeit !== undefined ? 'forfeit' : null
   const bankMissionResult = (
     scoreTotal: number,
     outcome: 'landed' | 'ditched' | 'killed',
     killsSinceLastBank: Readonly<Record<TargetType, number>>,
     sortie: SortieFacts,
+    friendlyFire: 'discharged' | 'forfeit' | null,
     badgeId: string | null,
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
+    const discharged = friendlyFire === 'discharged'
     if (currentPilotId === null) return null
     const before = roster.find((p) => p.id === currentPilotId) ?? null
-    roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
-    if (badgeId !== null) roster = awardBadgeInRoster(roster, currentPilotId, badgeId)
+    // Friendly fire (spec §6, FF-6 as amended by Mark 2026-09-26): only this
+    // sortie is forfeit; what an earlier landing banked stays banked.
+    // A friendly-fire death banks K.I.A. with nothing credited: the dead are
+    // not discharged, but the sortie is still forfeit (FF-7 as amended).
+    roster = discharged
+      ? dischargeInRoster(roster, currentPilotId, outcome, sortie)
+      : friendlyFire === 'forfeit'
+        ? applyMissionResultToRoster(roster, currentPilotId, 0, outcome, zeroKillsByType(), sortie)
+        : applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
+    // M2: a forfeit sortie never writes a badge (withMissionDebrief already
+    // returns none for one; this guard keeps the roster rule in one place).
+    if (badgeId !== null && friendlyFire === null) roster = awardBadgeInRoster(roster, currentPilotId, badgeId)
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null
-    const promotedTo = before !== null && before.rank.abbrev !== after.rank.abbrev ? after.rank.name : undefined
+    const promotedTo = !discharged && before !== null && before.rank.abbrev !== after.rank.abbrev ? after.rank.name : undefined
     return { bankedTotal: after.cumulativeScore, promotedTo }
   }
   /**
@@ -2058,7 +2088,7 @@ async function boot(): Promise<void> {
     // up -- the same impact/destroyedAt/landingShown signals `openNavigationChart`
     // (above) already reads to recognise a debrief is showing.
     const debriefUp = player.impact !== null || current.world.combat.aircraft[current.world.player]!.damage.destroyedAt !== null || landingShown
-    missionHud.update(current.world.mission, frameMs, current.paused || debriefUp)
+    missionHud.update(current.world.mission, frameMs, current.paused || debriefUp, friendlyFireRadio(current.world))
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
@@ -2125,13 +2155,14 @@ async function boot(): Promise<void> {
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(debriefModel(hit, player.state, killsSinceLastBank), current.world)
+      const { model, badgeId } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
       const banked = bankMissionResult(
         model.score.total,
         hit.kind === 'ditched' ? 'ditched' : 'killed',
         killsSinceLastBank,
         sortieFacts(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world),
+        friendlyFireBank(model),
         badgeId,
       )
       segment = EMPTY_SEGMENT
@@ -2148,9 +2179,9 @@ async function boot(): Promise<void> {
     ) {
       shownDestructionTick = playerDamage.destroyedAt
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank), current.world)
+      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank), current.world), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), badgeId)
+      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
     }
@@ -2158,7 +2189,7 @@ async function boot(): Promise<void> {
     // the pause rather than through a second freeze (frame.ts's `paused`).
     // Continue releases both; Restart goes through the handler above.
     if (current.landing.report !== null && !landingShown) {
-      const landing = landingDisposition(current.world.mission, handledLandingTick)
+      const landing = landingDisposition(current.world.mission, handledLandingTick, friendlyFireOf(current.world) !== null)
       handledLandingTick = landing.tick
       if (landing.kind === 'intermediate') {
         // Spec §2.4: the engine logged "<label> n of count" for the radio line;
@@ -2169,11 +2200,11 @@ async function boot(): Promise<void> {
         frame = withPaused(current, true)
         const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
         const { model, badgeId } = withMissionDebrief(
-          landingModel(
+          withDischarge(landingModel(
             current.landing.report,
             killsSinceLastBank,
             Object.fromEntries(current.world.ships.map((s) => [s.id, s.spec.name])),
-          ),
+          ), current.world),
           current.world,
         )
         scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
@@ -2182,6 +2213,7 @@ async function boot(): Promise<void> {
           'landed',
           killsSinceLastBank,
           sortieFacts(landingKind(current.landing.report), current.world),
+          friendlyFireBank(model),
           badgeId,
         )
         segment = EMPTY_SEGMENT
