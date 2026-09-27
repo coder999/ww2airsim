@@ -78,8 +78,12 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
   return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
-/** After Launch: the scenario is live and the entities exist. */
-async function launched(page: Page, title: Locator, id: Id) {
+/** After Launch: the scenario is live and the entities exist. `atOrdnance`
+ *  runs on Form 4, before Launch (the loadout lives there since the sortie forms). */
+async function launched(page: Page, title: Locator, id: Id, atOrdnance?: (title: Locator) => Promise<void>) {
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await atOrdnance?.(title)
   await title.getByRole('button', { name: 'Launch' }).click()
   await waitForScenario(page, id)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 60_000 })
@@ -138,8 +142,9 @@ test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; tak
   const id = 'airfield-strike'
   const title = await orders(page, 'Airfield Strike Pilot')
   const s = await briefingFor(page, title, id, 'Airfield Strike')
-  await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Both' })).toHaveAttribute('aria-checked', 'true')
-  await launched(page, title, id)
+  await launched(page, title, id, async (t) => {
+    await expect(t.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Both' })).toHaveAttribute('aria-checked', 'true')
+  })
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
 
   await expect(objectiveLine(page)).toHaveText('TAKE OFF · HANGARS 0/2')

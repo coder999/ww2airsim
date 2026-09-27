@@ -86,8 +86,8 @@ export async function waitForTerrain(page: Page): Promise<void> {
 }
 
 /**
- * Presses New game on the title screen (2026-09-19), which holds the world
- * until it is pressed. `waitForTerrain` calls this, so every spec goes
+ * Walks the title screen's four forms (2026-09-19; sortie forms 2026-09-27),
+ * which hold the world until Launch. `waitForTerrain` calls this, so every spec goes
  * through the shipped title rather than a DEV bypass; a spec that waits on
  * the tick directly instead (ocean.spec.ts) calls it itself. A no-op once
  * the title is gone.
@@ -105,7 +105,20 @@ export async function waitForTerrain(page: Page): Promise<void> {
  * fixed, recognizable name, matching the sequence `scenarioPicker.spec.ts`'s
  * "Regression Test" case already exercised by hand before this fix existed.
  */
-export async function startGame(page: Page, options: { readonly loadout?: string } = {}): Promise<void> {
+/**
+ * A radio row's whole label (AD-1), as a name matcher. Not `exact: true`: a
+ * checked ballot row's accessible name carries its box's mark ("✕ Free
+ * Flight"), which an exact match would miss. Anchored at the end, so "Air
+ * Combat" does not also match "Air Combat: Veteran".
+ */
+export function wholeLabel(label: string): RegExp {
+  return new RegExp(`(^|\\s)${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+}
+
+export async function startGame(
+  page: Page,
+  options: { readonly scenario?: string; readonly aircraft?: string; readonly loadout?: string; readonly dev?: boolean } = {},
+): Promise<void> {
   const title = page.getByRole('dialog', { name: 'Title' })
   const newGame = title.getByRole('button', { name: 'New game' })
   if (!(await newGame.isVisible())) return
@@ -119,15 +132,46 @@ export async function startGame(page: Page, options: { readonly loadout?: string
     await title.getByRole('button', { name: 'Add' }).click()
   }
 
-  // Two sequential forms (titleScreen.ts): New game only advances from the
-  // roster to Sortie Orders, and Launch starts the flight. The mission and
-  // loadout defaults are already selected on Form 2, so a bare Launch is the
-  // production default; `loadout` picks an Armament row first.
+  // Four sequential forms (sortie spec): Dev on Form 1, then New game to the
+  // mission, Next to the aircraft, Next to the armament, Launch. Every form
+  // opens on its default, so with no options this flies exactly the sortie a
+  // bare Launch did before the forms. `scenario` is the row's WHOLE label
+  // (AD-1: "Air Combat" is part of "Air Combat: Veteran"); `aircraft` and
+  // `loadout` may be a distinctive part of one ('Zero'; 'Both' for "Both (recommended)").
+  if (options.dev === true) await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
   await newGame.click()
-  if (options.loadout !== undefined) {
-    await title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: options.loadout }).check()
-  }
+  if (options.scenario !== undefined) await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: wholeLabel(options.scenario) }).check()
+  await title.getByRole('button', { name: 'Next' }).click()
+  if (options.aircraft !== undefined) await title.getByRole('radiogroup', { name: 'Aircraft' }).getByRole('radio', { name: options.aircraft }).check()
+  await title.getByRole('button', { name: 'Next' }).click()
+  if (options.loadout !== undefined) await title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: options.loadout }).check()
   await title.getByRole('button', { name: 'Launch' }).click()
+}
+
+/**
+ * From Form 2 with its mission picked: Next to the aircraft, Next to the
+ * armament, Launch -- each form on its default. `title` is the Title dialog
+ * locator a spec already holds (a reshown title after a flight included).
+ */
+export async function launchFromOrders(title: Locator): Promise<void> {
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
+}
+
+/**
+ * The quick launch (sortie spec A6): straight into flight, no title, a Dev
+ * sortie that records nothing. Ids, not labels. For specs about flight,
+ * rendering or AI; specs about the forms, scoring or the roster keep
+ * `startGame`.
+ */
+export async function quickLaunch(page: Page, o: { readonly scenario: string; readonly aircraft?: string; readonly loadout?: string }): Promise<void> {
+  const q = new URLSearchParams({ scenario: o.scenario })
+  q.append('launch', '')
+  if (o.aircraft !== undefined) q.set('aircraft', o.aircraft)
+  if (o.loadout !== undefined) q.set('loadout', o.loadout)
+  await page.goto(`/?${q.toString()}`)
+  await waitForScenario(page, o.scenario)
 }
 
 /** Everything the assertions below need, in one round trip. */
