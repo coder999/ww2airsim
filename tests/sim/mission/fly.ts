@@ -13,7 +13,7 @@
 import { existsSync } from 'node:fs'
 import { hasRealLevelFile, loadTerrainHeader, loadTerrainLevel, terrainHeaderPath } from '../../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../../src/render/content.js'
-import { createTerrainField, heightAt, type TerrainField } from '../../../src/sim/world/terrain.js'
+import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../../src/sim/world/terrain.js'
 import { advance, playerAircraft, withAircraftState, withControls, type World } from '../../../src/sim/loop.js'
 import { createState, DT, type AircraftState, type Controls } from '../../../src/sim/flight/model.js'
 import { deckOf, deckWorld, decksOf } from '../../../src/sim/world/deck.js'
@@ -22,7 +22,7 @@ import { runwayHeadingRad } from '../../../src/sim/world/airfields.js'
 import { approachControls, VREF_STALL_MULTIPLE } from '../../../tools/autopilot/approach.js'
 import { ticksFor } from '../../../src/sim/mission/state.js'
 import { attitudeAngles } from '../../../src/sim/flight/attitude.js'
-import { qFromAxisAngle, type Quat } from '../../../src/sim/math/quat.js'
+import { qFromAxisAngle, qMul, type Quat } from '../../../src/sim/math/quat.js'
 import { v3, sub, length } from '../../../src/sim/math/vec3.js'
 
 /** `carrierLanding.test.ts`'s level: the one a real page load flies over. */
@@ -328,4 +328,30 @@ export function destroyNow<M>(w: World<M>, ids: readonly string[], by: string = 
     }
   }
   return { ...w, combat }
+}
+
+/**
+ * The staged ditch (M3 Task 4; exported for M4 by ruling M4-PF2): the player
+ * 1 m over the water at `at`, northbound, wings level, nose 5 deg up, 45 m/s,
+ * no sink. Returns that world, just before water contact, with no impact
+ * check; the caller steps it (throttle closed) to the contact and checks the
+ * surface is water (`heightAt` at `at` at or below `SEA_LEVEL_M`).
+ *
+ * Why this staging (measured 2026-09-27): `contactOutcome`
+ * (src/sim/contact.ts) calls a water contact a ditching only with pitch in
+ * [-2, 12] deg, sink at most 3 m/s and speed at most 1.2 x the clean stall
+ * (52.6 m/s). A 5 m drop, nose down 20 deg at 60 m/s, hits at 15.3 m/s of
+ * sink ("destroyed", which `recoveryOf` reads as Killed). Even this attitude
+ * arrives at 3.55 m/s of sink from 5 m (destroyed), 2.78 m/s from 2 m, and
+ * 2.19 m/s from 1 m (ditched, the margin kept).
+ */
+export const DITCH = { heightM: 1, speedMps: 45, sinkMps: 0, pitchDeg: 5 } as const
+
+export function stageDitch(w: World<undefined>, at: { readonly x: number; readonly z: number }): World<undefined> {
+  return withAircraftState(w, w.player, createState({
+    position: v3(at.x, SEA_LEVEL_M + DITCH.heightM, at.z),
+    velocity: v3(0, -DITCH.sinkMps, -DITCH.speedMps),
+    attitude: qMul(headingAttitude(0), qFromAxisAngle(v3(0, 0, 1), (DITCH.pitchDeg * Math.PI) / 180)),
+    tick: w.tick,
+  }))
 }

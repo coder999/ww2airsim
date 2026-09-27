@@ -1,0 +1,370 @@
+{
+  "id": "combat-air-patrol",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          -14537,
+          3000,
+          -36349
+        ],
+        "headingDeg": 330,
+        "speedMps": 120
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "cv-1",
+      "spec": "essex-cv",
+      "side": "allied",
+      "waypoints": [
+        [
+          -9084,
+          -28558
+        ],
+        [
+          -13444,
+          -41903
+        ],
+        [
+          -19988,
+          -44130
+        ],
+        [
+          -15631,
+          -30784
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "dd-1",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -8872,
+          -28770
+        ],
+        [
+          -13232,
+          -42115
+        ],
+        [
+          -19776,
+          -44342
+        ],
+        [
+          -15419,
+          -30996
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "dd-2",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -9296,
+          -28346
+        ],
+        [
+          -13656,
+          -41691
+        ],
+        [
+          -20200,
+          -43918
+        ],
+        [
+          -15843,
+          -30572
+        ]
+      ],
+      "speedMps": 7.717
+    }
+  ],
+  "weather": {
+    "windFromDeg": 342,
+    "windMps": 7.717,
+    "timeOfDay": 16.5,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1000,
+        "thicknessM": 800,
+        "coverage": 0.55
+      },
+      {
+        "kind": "cirrus",
+        "baseM": 7000,
+        "thicknessM": 300,
+        "coverage": 0.35
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "station",
+      "label": "CAP station",
+      "priority": "primary",
+      "kind": "hold",
+      "point": {
+        "x": -14537,
+        "z": -36349
+      },
+      "radiusM": 10000,
+      "altitudeM": [
+        1500,
+        5000
+      ],
+      "seconds": 180
+    },
+    {
+      "id": "raid",
+      "label": "Raid",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "raid"
+      ],
+      "after": "station"
+    },
+    {
+      "id": "shield",
+      "label": "Keep the raid off",
+      "priority": "primary",
+      "kind": "deny",
+      "hostiles": [
+        "raid"
+      ],
+      "around": "cv-1",
+      "radiusM": 5000
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "cv-1",
+      "after": "raid"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "orders",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Essex CIC: Hold CAP over the task group, angels ten. Raid expected from the northwest."
+        }
+      ]
+    },
+    {
+      "id": "wave-1",
+      "when": {
+        "at": 60
+      },
+      "then": [
+        {
+          "spawn": "wave-1"
+        },
+        {
+          "message": "Essex CIC: Bogeys bearing three-three-eight, twenty miles, angels eleven, closing."
+        }
+      ]
+    },
+    {
+      "id": "wave-2",
+      "when": {
+        "at": 240
+      },
+      "then": [
+        {
+          "spawn": "wave-2"
+        },
+        {
+          "message": "Essex CIC: Second raid bearing three-three-six, twenty-two miles."
+        }
+      ]
+    },
+    {
+      "id": "splashed",
+      "when": {
+        "completed": "raid"
+      },
+      "then": [
+        {
+          "message": "Essex CIC: All raiders splashed. Bring it aboard."
+        }
+      ]
+    }
+  ],
+  "heldGroups": [
+    {
+      "id": "wave-1",
+      "aircraft": [
+        {
+          "id": "raid-1",
+          "spec": "a6m2-zero",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -29550,
+              3500,
+              -73340
+            ],
+            "headingDeg": 160,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -20000,
+                  "z": -52000,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "ship": "cv-1"
+              }
+            }
+          }
+        },
+        {
+          "id": "raid-2",
+          "spec": "a6m2-zero",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -29350,
+              3500,
+              -73540
+            ],
+            "headingDeg": 160,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -20000,
+                  "z": -52000,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "ship": "cv-1"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wave-2",
+      "aircraft": [
+        {
+          "id": "raid-3",
+          "spec": "a6m2-zero",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -31550,
+              3500,
+              -74340
+            ],
+            "headingDeg": 160,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -20000,
+                  "z": -52000,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "ship": "cv-1"
+              }
+            }
+          }
+        },
+        {
+          "id": "raid-4",
+          "spec": "a6m2-zero",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -31350,
+              3500,
+              -74540
+            ],
+            "headingDeg": 160,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -20000,
+                  "z": -52000,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "ship": "cv-1"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "combat-air-patrol",
+    "name": "Combat Air Patrol"
+  },
+  "briefing": {
+    "situation": "You are flying combat air patrol over the Essex task group. Hold the station overhead for three minutes, then destroy the raiders before any of them gets within five kilometers of the carrier. Two waves are expected from the northwest. Recover aboard the Essex.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "On 24 October 1944, as the Battle of Leyte Gulf opened, Japanese land-based aircraft from airfields on Luzon attacked the carriers of Task Force 38 cruising off that island. Commander David McCampbell, leading the Essex's Air Group 15, went after one raid of some sixty aircraft with a single wingman and was credited with nine of them that morning; for this fight and an earlier one he received the Medal of Honor. Not every raider was stopped: a single bomb that got through that morning set the light carrier Princeton afire, and she was lost that evening. This mission is inspired by those fights rather than a reconstruction of them. They took place off Luzon, north of this map, and here they are staged over Leyte. The Zeros stand in for the mixed bombers and escorts of the real raids.",
+    "sources": [
+      "Naval History and Heritage Command, NH 106328, U.S. Navy Fighting Squadron Fifteen (VF-15), with the Medal of Honor citation of Commander David McCampbell as printed in \"Medal of Honor, 1861-1949, The Navy\", page 223: https://www.history.navy.mil/our-collections/photography/us-people/m/mccampbell-david/nh-106328.html",
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Princeton IV (CV-23)\" (the light carrier CVL-23): https://www.history.navy.mil/research/histories/ship-histories/danfs/p/princeton-iv.html",
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Essex IV (CV-9)\": https://www.history.navy.mil/research/histories/ship-histories/danfs/e/essex-iv.html"
+    ]
+  }
+}

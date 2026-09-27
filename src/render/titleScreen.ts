@@ -162,6 +162,9 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' } },
   { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' } },
   { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' } },
+  // M4. "Air Combat" above is not a substring of this label, so e2e's
+  // substring selectors still find one row each.
+  { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' } },
 ]
 
 /** M2's two fixture missions (open question 1): `dev-`-prefixed, and offered

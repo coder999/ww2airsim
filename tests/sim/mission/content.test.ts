@@ -7,7 +7,7 @@ const IDS = readdirSync(new URL('../../../content/scenarios/', import.meta.url))
   .filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
 
 /** Every scenario id that ships a mission (has `objectives`) and is not a
- *  `dev-` test fixture -- the three M3 missions, per PF1. */
+ *  `dev-` test fixture -- the three M3 missions (PF1) and M4's one. */
 const MISSION_IDS = IDS.filter((id) => !id.startsWith('dev-'))
   .filter((id) => loadScenario(id).objectives !== undefined)
 
@@ -19,9 +19,9 @@ const YEAR_OR_URL = /\b1[89]\d\d\b|\b20\d\d\b|https:\/\//
  *  so this builds every shipped scenario, missions included once M3 adds
  *  them, on every run. */
 describe('every shipped scenario', () => {
-  it('is found (14 before M4: 11 scenarios at the P3 baseline, plus 3 missions)', () => {
-    expect(IDS.length).toBeGreaterThanOrEqual(14)
-    expect(IDS).toEqual(expect.arrayContaining(['deck-quals-mission', 'airfield-strike', 'convoy-strike']))
+  it('is found (15: 11 scenarios at the P3 baseline, 3 M3 missions and M4\'s Combat Air Patrol)', () => {
+    expect(IDS.length).toBeGreaterThanOrEqual(15)
+    expect(IDS).toEqual(expect.arrayContaining(['deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol']))
   })
 
   it.each(IDS)('%s builds, and has a mission exactly when it declares objectives', (id) => {
@@ -37,8 +37,8 @@ describe('every shipped scenario', () => {
  *  reconstruction, with sources a player can actually look up. `dev-mission-*`
  *  fixtures are excluded by their `dev-` prefix; they are not shipped content. */
 describe('every mission is honest content', () => {
-  it('found the three shipped missions', () => {
-    expect(MISSION_IDS).toEqual(['airfield-strike', 'convoy-strike', 'deck-quals-mission'])
+  it('found the four shipped missions', () => {
+    expect(MISSION_IDS).toEqual(['airfield-strike', 'combat-air-patrol', 'convoy-strike', 'deck-quals-mission'])
   })
 
   it.each(MISSION_IDS)('%s cites lookupable, non-empty sources', (id) => {
