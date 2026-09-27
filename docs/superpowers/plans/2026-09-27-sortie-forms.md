@@ -82,6 +82,20 @@ Each is a decision made while writing this plan, stated with its cost if wrong. 
 - **SF-R8. The "(dev)" labels stay.** Tier 2 selects rows by label substring, and the suffix tells a sandbox player what they are looking at. Cost: none.
 - **SF-R9. A quick launch creates the title, then hides it immediately.** It does not skip building it. `title.up()` gates the world in many places. "Return to title" after a quick launch must work normally. Cost: one hidden DOM build per quick launch.
 
+## Addenda (2026-09-27, second-session review, approved by Mark)
+
+A second session drafted a plan for the same spec and compared it with this one. This plan stands; these three items are added to it.
+
+- **AD-1. The harness picks the mission by exact label.**
+  - Why: `startGame`'s Scenario pick matches by partial name, and "Air Combat" is part of "Air Combat: Veteran". The first spec that asks for Air Combat would hit a Playwright ambiguity error. `meta-game.spec.ts:116` already works around this with `exact: true`.
+  - Where: only the **Scenario** pick gets `exact: true`. The Aircraft pick stays partial, because Task 8 selects `'Zero'` and the three aircraft labels are distinct. The Loadout pick must stay partial, because Task 5 labels a row `Both (recommended)` and specs select it as `'Both'`. Applied in Task 7 Step 1.
+  - Cost if wrong: one option on one line.
+- **AD-2. A KIA or discharged pilot launching a Dev sortie is not resurrected.**
+  - Why: Task 4 skips `startSortie` in `titleScreen.ts`'s `start()` for a Dev sortie, and `startSortie` is where a `kia`/`discharged` pilot flips back to `active` and `resurrections` grows (`src/render/roster.ts`, `startSortie`). That skip lives in the title's DOM layer, which the Node suite cannot reach. Task 4's byte-identical-roster tests cover only the bank after the flight, not this launch-time write.
+  - Where: added as Task 8 test 7.
+  - Cost if wrong: one Tier 2 test.
+- **AD-3 (optional, the executor's call; record the choice in the ledger).** `titleScreen.ts` is about 1,100 lines before this plan, and Task 5 builds three more forms in it. Forms 2-4 may instead go in their own module, `src/render/sortie/sortieForms.ts`, with `titleScreen.ts` composing it. Do this only if it keeps Task 5's diff clearer. Either way, the control names Task 7 depends on don't change.
+
 ## Review Focus
 
 1. **Dev unchecked after picking a Dev-only scenario, an enemy aircraft or an unfit loadout.** Expected: each later choice falls back in order, with nothing left pointing at something no longer offered. *Task 2, `reconcile` tests.*
@@ -898,7 +912,7 @@ Each is a decision made while writing this plan, stated with its cost if wrong. 
   export async function quickLaunch(page: Page, o: { readonly scenario: string; readonly aircraft?: string; readonly loadout?: string }): Promise<void>
   ```
 
-  Here `scenario` and `aircraft` are row **labels**, as the specs already select by label; `quickLaunch` takes ids.
+  Here `scenario` and `aircraft` are row **labels**, as the specs already select by label; `quickLaunch` takes ids. `scenario` must be the **exact, full** label (AD-1); `aircraft` may be a distinctive part of one.
 
 - [ ] **Step 1: Rewrite `startGame`.** Keep the pilot-selection half verbatim. After `newGame.click()`:
 
@@ -908,7 +922,9 @@ Each is a decision made while writing this plan, stated with its cost if wrong. 
     await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
     await title.getByRole('button', { name: 'New game' }).click()
   }
-  if (options.scenario !== undefined) await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: options.scenario }).check()
+  // AD-1: exact, because "Air Combat" is a substring of "Air Combat: Veteran". Aircraft and Loadout stay substring
+  // matches on purpose ('Zero'; 'Both' for 'Both (recommended)').
+  if (options.scenario !== undefined) await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: options.scenario, exact: true }).check()
   await title.getByRole('button', { name: 'Next' }).click()
   if (options.aircraft !== undefined) await title.getByRole('radiogroup', { name: 'Aircraft' }).getByRole('radio', { name: options.aircraft }).check()
   await title.getByRole('button', { name: 'Next' }).click()
@@ -964,6 +980,15 @@ Each is a decision made while writing this plan, stated with its cost if wrong. 
      - `localStorage`'s roster is unchanged from before the launch.
   5. **Invalidation on Dev uncheck.** Check Dev, pick Furball, go Back to Form 1, uncheck Dev, press New game. The Scenario radiogroup has no `Furball` row, and `Free Flight` is selected.
   6. **Captures:** one screenshot of each of the four forms, at 2560×1440, into `test-results/sortie-form-<n>.png`.
+  7. **AD-2: a KIA pilot launching a Dev sortie stays KIA.**
+     - Enlist `Fallen Pilot` through the forms (the `New pilot` path in `startGame`). Leave the title without launching.
+     - Mark the pilot KIA in storage the way the app stores it: `page.evaluate` reads `localStorage['ww2airsim.roster.v1']`, sets that pilot's `status` to `'kia'`, writes it back, and reloads the page.
+     - Record the pilot's `resurrections`.
+     - Select the pilot. Check Dev. Pick `Free Flight` and the Zero with `Bombs`, which is illegal without Dev and so makes a genuine Dev sortie. Launch.
+     - Once flying, read the roster from `localStorage`: the pilot's `status` is still `'kia'` and `resurrections` is unchanged.
+     - Return to title: the pilot's row still shows `K.I.A.`
+     - Repeat with `status: 'discharged'`, expecting `DISCHARGED`.
+     - Control case, which proves the test can see a resurrection: the same KIA pilot launching the default non-Dev sortie comes back `'active'` with `resurrections + 1`.
 
 - [ ] **Step 2: Run the Tier 2 suite on the reference GPU**, twice, the M4 way: `tests/e2e/sortie.spec.ts` plus every file Task 7 touched. Record both rc values and durations. Then run the full `npm run test:tier2` once through the spare slot, and record rc and any pre-existing failures, checked against `main`. Also run the GPU budget spec (gpu p95 < 6.0 ms at 1440p). The Hellcat's own model replaces the Wildcat's in every default scenario, so record the p95 before and after.
 
@@ -977,7 +1002,7 @@ Each is a decision made while writing this plan, stated with its cost if wrong. 
 - [ ] **Step 4: Write the handoff.** Follow M4's shape:
   1. what changed, commit by commit;
   2. measured numbers: verify counts, Tier 2 runs, GPU p95 before and after;
-  3. rulings: SF-R1 to SF-R9 plus execution rulings from the ledger, **with SF-R6 called out for Mark's decision**;
+  3. rulings: SF-R1 to SF-R9, the addenda AD-1 to AD-3 (say which way AD-3 went), and execution rulings from the ledger, **with SF-R6 called out for Mark's decision**;
   4. Tier 2 and captures;
   5. open items.
 
