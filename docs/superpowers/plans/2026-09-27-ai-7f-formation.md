@@ -70,7 +70,7 @@
 **Interfaces:**
 - Produces: `type FormationSlot = 1 | 2 | 3`; `type FormationOrders = { readonly leader: string; readonly slot: FormationSlot }` (both in `pilot.ts`); `PilotAssignment.formation?: FormationOrders`; `PilotDecisionState.coverUntilS?: number`. A scenario wingman's initial `decision.mode` is `'formation'`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // tests/sim/ai/formationSchema.test.ts
@@ -138,12 +138,12 @@ describe('pilot.leader and pilot.slot (7f spec §1)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/ai/formationSchema.test.ts --maxWorkers=2`
 Expected: FAIL. `leader` is an unrecognized key under `.strict()`.
 
-- [ ] **Step 3: Add the runtime types**
+- [x] **Step 3: Add the runtime types**
 
 In `src/sim/ai/pilot.ts`, after `IngressOrders`:
 
@@ -170,7 +170,7 @@ In `src/sim/ai/pursuit.ts`, import `FormationOrders` alongside the existing type
   readonly formation?: FormationOrders
 ```
 
-- [ ] **Step 4: Add the schema, the refines and the mapping**
+- [x] **Step 4: Add the schema, the refines and the mapping**
 
 In `src/sim/scenario.ts`, replace `PilotObject` with:
 
@@ -253,12 +253,12 @@ In `checkMission`'s held-group loop, after the `for (const [ai, a] ...)` loop an
 
 Note: a slot taken by a starting wingman and again by a held wingman of the same starting leader is not caught, because each call keeps its own `taken` set. Accept this: no content does it, and the flight is still sane (two aircraft share a station, and collisions are not modeled).
 
-- [ ] **Step 5: Run the new tests, then the scenario and AI suites that parse content**
+- [x] **Step 5: Run the new tests, then the scenario and AI suites that parse content**
 
 Run: `npx vitest run tests/sim/ai/formationSchema.test.ts tests/sim/scenario.test.ts tests/sim/ai/pilot.test.ts --maxWorkers=2; echo rc=$?`
 Expected: all PASS, `rc=0`. If a message regex misses, fix the message in `scenario.ts`, not the test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ai/pilot.ts src/sim/ai/pursuit.ts src/sim/scenario.ts tests/sim/ai/formationSchema.test.ts

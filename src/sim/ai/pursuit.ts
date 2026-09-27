@@ -3,7 +3,7 @@ import { qRotate } from '../math/quat.js'
 import { add, dot, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import type { Controls } from '../flight/state.js'
 import { controlsForDesiredVelocity } from './controller.js'
-import type { IngressOrders, PilotDecisionState, PilotSkill } from './pilot.js'
+import type { FormationOrders, IngressOrders, PilotDecisionState, PilotSkill } from './pilot.js'
 
 export type PilotAssignment = {
   /** A static target: an aircraft id read from the common start-of-tick
@@ -12,6 +12,8 @@ export type PilotAssignment = {
   readonly target: string | null
   /** 7e spec §4.5: an ingress pilot's orders. Excludes `target`. */
   readonly ingress?: IngressOrders
+  /** 7f spec §1: a wingman's leader and slot. Excludes `target` and `ingress`. */
+  readonly formation?: FormationOrders
   readonly skill: PilotSkill
   readonly decision: PilotDecisionState
 }

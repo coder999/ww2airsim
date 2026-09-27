@@ -140,6 +140,12 @@ export type IngressDestination = { readonly kind: 'ship'; readonly id: string } 
  *  then orbit it; fight only what attacks or comes close. */
 export type IngressOrders = { readonly route: readonly IngressWaypoint[]; readonly destination: IngressDestination | null }
 
+/** 7f spec §1-2: a wingman's station number in its leader's formation. */
+export type FormationSlot = 1 | 2 | 3
+/** 7f spec §1: a wingman's orders. The leader is a same-side aircraft,
+ *  possibly the player, that is not itself a wingman (no chains). */
+export type FormationOrders = { readonly leader: string; readonly slot: FormationSlot }
+
 /** What a pilot is doing at the top level (7e spec §4.1). 7e flies
  *  `engage`, `ingress` (§4.5) and `loiter`; 7f fills in `formation`, 7g
  *  `rtb` and `landed`. */
@@ -176,6 +182,9 @@ export type PilotDecisionState = {
   readonly noiseCursor: number
   /** This tick's safety override, or 'none'. Written every tick by pilotTick. */
   readonly safety: SafetyMode
+  /** 7f spec §4: sim time until which a wingman flies trail cover, opened
+   *  while its leader fires or engages. Absent (every non-wingman) means 0. */
+  readonly coverUntilS?: number
 }
 
 /** 32-bit FNV-1a of an entity id: the seed of that pilot's noise cursor
