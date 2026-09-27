@@ -192,15 +192,15 @@ Steps:
 - add tests in `tests/render/combatReadout.test.ts` and `tests/render/discharge.test.ts`.
 
 Steps:
-- [ ] Write failing tests:
+- [x] Write failing tests:
   - the label shows `CEASE FIRE! YOU'RE HITTING FRIENDLIES!` first from the hit tick until 300 ticks after it, and then `FRIENDLY FIRE`;
   - with no friendly fire the label is byte-identical to before;
   - `friendlyFireRadio` gives `{ tick, text }` or null;
   - diagnostics expose `friendlyFire`.
-- [ ] Implement.
-- [ ] Wire `main.ts` in place. Touch only the three debrief sites, `bankMissionResult`, the two baseline resets and the `setRecord` call.
-- [ ] Run `npx tsc --noEmit -p .` locally, then the touched tests.
-- [ ] Commit.
+- [x] Implement.
+- [x] Wire `main.ts` in place. Touch only the three debrief sites, `bankMissionResult`, the two baseline resets and the `setRecord` call.
+- [x] Run `npx tsc --noEmit -p .` locally, then the touched tests.
+- [x] Commit.
 
 ### Task 6: The `friendly-fire-range` scenario, Tier 2 spec, and the M2 note
 
