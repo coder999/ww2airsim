@@ -177,6 +177,10 @@ describe('the built artifact', () => {
       for (const e of loadModelEntries().filter((x) => x.source.kind === 'blender')) {
         expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
       }
+      // R3: every aircraft model reaches dist/ whole (the Wildcat's exact bytes are pinned above).
+      for (const e of loadModelEntries().filter((x) => x.output.startsWith('content/aircraft/'))) {
+        expect(statSync(join(outDir, e.output)).size, e.output).toBe(statSync(e.output).size)
+      }
       // Hangar spec §3: the library page, and one file per library entry.
       // `copyContent` copies content/library/ like any other content; the
       // page itself bundles the same files (contentIndex.ts), so this pins

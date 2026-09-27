@@ -1,0 +1,24 @@
+{
+  "id": "a6m2-zero",
+  "input": "tools/models/cache/a6m2-zeke.glb",
+  "output": "content/aircraft/a6m2-zero.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/mitsubishi-a6m2-zero-zeke-d701787b75fa4c979792b0c0c14221e2",
+    "uid": "d701787b75fa4c979792b0c0c14221e2",
+    "author": "SavinienBerault",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [158.001, 129.2, -6.3], "fit": { "extent": "span", "meters": 12.0 } },
+  "keep": [
+    { "node": "Rotor", "as": "Prop", "pivot": { "point": [269.662, 125.957, -6.253], "axis": "+x" } },
+    { "node": "Leg d", "as": "GearR", "pivot": { "point": [172.051, 89.177, 101.241], "axis": "+x" } },
+    { "node": "Leg g", "as": "GearL", "pivot": { "point": [172.051, 89.177, -112.837], "axis": "+x" } }
+  ],
+  "split": [
+    { "name": "Tailwheel", "select": "components", "boxMin": [-182, -4, -25], "boxMax": [-153, 21, 13], "pivot": { "point": [-173.976, 20.748, -7.426], "axis": "+z" } }
+  ],
+  "simplify": { "ratio": 0.45, "error": 0.001, "perNode": { "Rotor": 1, "Verriere": 0.15, "Leg d": 0.5, "Leg g": 0.5 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "budget": { "maxBytes": 5600000, "maxTriangles": 100000, "maxDrawCalls": 12 },
+  "noseNode": "Prop"
+}

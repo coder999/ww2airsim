@@ -37,4 +37,17 @@ export interface AirframeRig {
 export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+)$/
 
 export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
+  'a6m2-zero': {
+    // symmetryError reads its 2% cap on this mesh about any hub: its spinner's ring count is not a
+    // multiple of 3 and its top blade is modeled bent ~9 units aft, so no vertex orbit closes. The
+    // hub is the spinner's bounds center instead, and the hub-offset check in aircraftRigs.test.ts
+    // carries Review Focus 1 for this prop (R3 ledger, Task 4 ruling).
+    props: [{ node: 'Prop', blades: 3, symmetryTolerance: 0.02 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'Summary 85: retracts 90 deg inward to the line of flight (A6M Zero spec §7.3)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'Summary 85: retracts 90 deg inward to the line of flight (A6M Zero spec §7.3)' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE: Summary 85 says only "fully retractable" (A6M Zero spec §7.3)' },
+    ],
+    turrets: [],
+  },
 }

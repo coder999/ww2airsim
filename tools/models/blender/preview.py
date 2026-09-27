@@ -1,7 +1,7 @@
 # tools/models/blender/preview.py
 """Renders a glb to a PNG for a handoff: Cycles on the CPU (nexus is headless; 0.3 s for a
 cube at 16 samples, measured 2026-09-26). Not a gate; the Hangar's Tier 2 is the gate from M1 on.
-Usage: blender -b --factory-startup --python-exit-code 1 -P preview.py -- <out.png> --glb <in.glb> [--view front|rear]
+Usage: blender -b --factory-startup --python-exit-code 1 -P preview.py -- <out.png> --glb <in.glb> [--view front|rear|below]
 """
 import math
 import os
@@ -14,8 +14,8 @@ from mathutils import Vector  # noqa: E402
 
 out, opts = kit.cli_args()
 view = opts.get('view', 'front')
-if view not in ('front', 'rear'):
-    raise ValueError(f'--view must be front or rear, got {view!r}')
+if view not in ('front', 'rear', 'below'):
+    raise ValueError(f'--view must be front, rear or below, got {view!r}')
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=opts['glb'])
@@ -36,10 +36,11 @@ world.use_nodes = True
 world.node_tree.nodes['Background'].inputs['Color'].default_value = (0.55, 0.65, 0.8, 1.0)
 scene.world = world
 
-ground = bpy.data.meshes.new('ground')
-g = radius * 6
-ground.from_pydata([(-g, -g, lo.z), (g, -g, lo.z), (g, g, lo.z), (-g, g, lo.z)], [], [(0, 1, 2, 3)])
-scene.collection.objects.link(bpy.data.objects.new('ground', ground))
+if view != 'below':
+    ground = bpy.data.meshes.new('ground')
+    g = radius * 6
+    ground.from_pydata([(-g, -g, lo.z), (g, -g, lo.z), (g, g, lo.z), (-g, g, lo.z)], [], [(0, 1, 2, 3)])
+    scene.collection.objects.link(bpy.data.objects.new('ground', ground))
 
 sun = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN'))
 sun.data.energy = 3.0
@@ -50,7 +51,11 @@ scene.collection.objects.link(sun)
 side = -1 if view == 'front' else 1
 cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam'))
 # ~3.6 bounding radii out: the default 50 mm lens (about 40 degrees wide) then frames the whole model.
-cam.location = center + Vector((radius * 1.8, side * radius * 2.8, radius * 1.3))
+if view == 'below':
+    # Beneath and a little forward and aside, looking up at the belly (R3: the Zero's drop-tank cut).
+    cam.location = center + Vector((radius * 1.2, -radius * 1.6, -radius * 3.0))
+else:
+    cam.location = center + Vector((radius * 1.8, side * radius * 2.8, radius * 1.3))
 scene.collection.objects.link(cam)
 target = bpy.data.objects.new('target', None)
 target.location = center

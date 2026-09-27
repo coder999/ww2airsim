@@ -24,6 +24,7 @@ describe('the airframe registry (A6M Zero spec §7.2)', () => {
   })
 
   it('registers every rigged model (R3), and the Wildcat keeps its own module', () => {
+    expect(Object.keys(AIRFRAME_RIGS).length, 'no rig rows: this check would pass vacuously').toBeGreaterThan(0)
     for (const id of Object.keys(AIRFRAME_RIGS)) expect(Object.hasOwn(AIRFRAME_MODELS, id), id).toBe(true)
     expect(Object.hasOwn(AIRFRAME_RIGS, 'wildcat')).toBe(false)
   })
