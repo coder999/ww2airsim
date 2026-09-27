@@ -116,4 +116,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'ki-84-frank': {
+    // An original Blender model (ki-84-frank.py): the kit's propeller is exactly 4-fold symmetric,
+    // so the default 1% tolerance holds with nothing waived. Every retraction is an ESTIMATE.
+    props: [{ node: 'Prop', blades: 4 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE (ki-84-frank.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE (ki-84-frank.py header)' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (ki-84-frank.py header)' },
+    ],
+    turrets: [],
+  },
 }

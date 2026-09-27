@@ -24,6 +24,7 @@ const CITED: Readonly<Record<string, Cited>> = {
   'f4u-corsair': { spanM: 12.5, lengthM: 10.26, tolerance: 0.04, source: "English Wikipedia 'Vought F4U Corsair', Specifications (F4U-4): span 41 ft 0 in, length 33 ft 8 in, read 2026-09-27. The model is an F4U-1A (its fuselage node is f4u1fuse; framed raised canopy; a 3-blade prop texture), for which the article gives no figures; the -1's span differs by 1 cm and its length (33 ft 4.5 in) by 0.9%, inside the 4% (R3 ledger, Task 6)" },
   'g4m-betty': { spanM: 24.89, lengthM: 19.97, tolerance: 0.04, source: "English Wikipedia 'Mitsubishi G4M', Specifications (G4M1 Model 11), read 2026-09-27" },
   'ki-43-oscar': { spanM: 10.84, lengthM: 8.92, tolerance: 0.04, source: "English Wikipedia 'Nakajima Ki-43 Hayabusa', Specifications (Ki-43-IIb), read 2026-09-27" },
+  'ki-84-frank': { spanM: 11.238, lengthM: 9.92, tolerance: 0.01, source: "English Wikipedia 'Nakajima Ki-84 Hayate', Specifications (Ki-84-Ia), read 2026-09-27" },
 }
 
 const aircraft = loadModelEntries().filter((e) => e.output.startsWith('content/aircraft/') && e.id !== 'wildcat')
