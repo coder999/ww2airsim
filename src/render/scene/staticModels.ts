@@ -11,6 +11,7 @@ export type StaticModelKind = 'building' | 'vehicle'
 export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<string, { readonly url: string }>>>> = {
   building: {
     aaa: { url: staticModelUrl('building', 'aaa') },
+    'coastal-gun-battery': { url: staticModelUrl('building', 'coastal-gun-battery') },
     hangar: { url: staticModelUrl('building', 'hangar') },
     tower: { url: staticModelUrl('building', 'tower') },
   },

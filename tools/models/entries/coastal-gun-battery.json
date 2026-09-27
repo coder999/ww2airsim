@@ -1,0 +1,13 @@
+{
+  "id": "coastal-gun-battery",
+  "output": "content/buildings/coastal-gun-battery.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/coastal-gun-battery.py",
+    "dimensions": "5.3848 m barrel from U.S. War Department TM-E 30-480 (1944), chapter IX, section III.4.c, page 237 (read 2026-09-27); every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "keep": [{ "node": "Turret1" }, { "node": "Turret2" }],
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
+}
