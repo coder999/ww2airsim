@@ -19,7 +19,7 @@ const BUILDING_BUDGET = { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4
 const RAISED: Readonly<Record<string, string>> = {}
 
 /** Every building R4 authored. Each task appends its own. */
-const R4_BUILDINGS: readonly string[] = ['tower', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'ammunition-bunker', 'revetment', 'barracks-and-huts']
+const R4_BUILDINGS: readonly string[] = ['tower', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'ammunition-bunker', 'revetment', 'barracks-and-huts', 'pier-and-warehouses']
 
 /** H3's turret names (Hangar spec §9). A building's are numbered +x to -x, then -z to +z (R4 ruling). */
 const TURRETS: Readonly<Record<string, readonly string[]>> = {

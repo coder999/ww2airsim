@@ -14,10 +14,9 @@ import { nodeHangarContent } from './content.js'
  * and this test then asserts none remain. The list may shrink, never grow.
  */
 const NOT_YET_DRAWN = [
-  'pier-and-warehouses',
   'radio-radar-station', 'type97-chi-ha', 'willys-mb-jeep',
 ]
-const CEILING = 4
+const CEILING = 3
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',

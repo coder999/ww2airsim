@@ -48,6 +48,7 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/buildings/fuel-tank-farm.glb` | authored in Blender by `tools/models/blender/fuel-tank-farm.py`; every figure is an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 | `content/buildings/ammunition-bunker.glb` | authored in Blender by `tools/models/blender/ammunition-bunker.py`; every figure is an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 | `content/buildings/barracks-and-huts.glb` | authored in Blender by `tools/models/blender/barracks-and-huts.py`; barracks footprint from src/render/scene/airfield.ts (AIRFIELD_HUTS), every other figure an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
+| `content/buildings/pier-and-warehouses.glb` | authored in Blender by `tools/models/blender/pier-and-warehouses.py`; every figure is an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 | `content/buildings/revetment.glb` | authored in Blender by `tools/models/blender/revetment.py`; every figure is an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 
 Models authored in Blender (`tools/models/blender/`, model-roster spec) are

@@ -16,6 +16,7 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     'coastal-gun-battery': { url: staticModelUrl('building', 'coastal-gun-battery') },
     'fuel-tank-farm': { url: staticModelUrl('building', 'fuel-tank-farm') },
     hangar: { url: staticModelUrl('building', 'hangar') },
+    'pier-and-warehouses': { url: staticModelUrl('building', 'pier-and-warehouses') },
     revetment: { url: staticModelUrl('building', 'revetment') },
     tower: { url: staticModelUrl('building', 'tower') },
   },
