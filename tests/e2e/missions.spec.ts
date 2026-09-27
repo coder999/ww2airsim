@@ -1,0 +1,215 @@
+import { test, expect, type Locator, type Page } from '@playwright/test'
+import { debriefDialog, diveToSea, hopClear, landAndStop, waitForScenario, type DiagWindow } from './harness.js'
+import { loadScenario } from '../../tools/content/load.js'
+import { BINDINGS } from '../../src/input/bindings.js'
+
+/**
+ * Tier 2, M3: the three shipped missions end to end on the reference GPU.
+ * Each test picks its mission on Sortie Orders with a new pilot, checks the
+ * briefing, launches, checks the objective line, the opening radio call and
+ * the chart, then ends the flight its own way and checks the debrief. The
+ * nine captures (briefing, chart and debrief per mission) go to the M3
+ * handoff for Mark's final look.
+ *
+ * Every expected string is read from the mission's own content file (the
+ * situation, the objective labels, the `at: 1` message, the badge), so a
+ * content edit cannot leave a stale literal here. The objective-line text
+ * follows the format `tests/render/mission/hud.test.ts` pins.
+ *
+ * None of these flights earns a badge, on purpose: a successful strike or
+ * three traps are flown headless (tests/sim/mission/missions/*.test.ts).
+ * What only this tier proves is that the shipped files reach the screen.
+ */
+test.setTimeout(300_000)
+
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike'
+
+const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
+const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
+const mission = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.mission())
+
+/** The same new-pilot path to Sortie Orders as mission-ui.spec.ts's. */
+async function orders(page: Page, pilot: string): Promise<Locator> {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto('/')
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await title.getByRole('button', { name: 'New pilot' }).click()
+  await title.getByPlaceholder('Pilot name').fill(pilot)
+  await title.getByRole('button', { name: 'Add' }).click()
+  await title.getByRole('button', { name: 'New game' }).click()
+  return title
+}
+
+/** Every `figureRow` (src/render/ui/navalComms.ts: a div of a label span
+ *  and a value strong) under `root`, as [label, value] pairs. Matching the
+ *  pair, not a substring, is what makes "Launch is PRIMARY" an assertion:
+ *  the situation paragraph also contains "Launch". */
+const figureRows = (root: Locator) =>
+  root.locator('div:has(> span + strong)').evaluateAll((rows) =>
+    rows.map((r) => [r.querySelector(':scope > span')!.textContent ?? '', r.querySelector(':scope > strong')!.textContent ?? '']),
+  )
+
+/**
+ * Picks the mission, asserts its briefing against the content file, and
+ * captures it. The briefing is fetched after the pick (briefingRequest,
+ * src/render/mission/briefing.ts), so the first assertion waits for it.
+ */
+async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
+  const s = loadScenario(id)
+  await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: label, exact: true }).check()
+  const briefing = title.getByRole('region', { name: 'Briefing' })
+  const firstSentence = s.briefing!.situation.split(/(?<=\.) /)[0]!
+  await expect(briefing).toContainText(firstSentence)
+  await expect(briefing).toContainText('Background')
+  await expect(briefing).toContainText('Sources:')
+  const rows = await figureRows(briefing)
+  for (const o of s.objectives!) {
+    expect(rows, `briefing row for ${o.label}`).toContainEqual([o.label, o.priority === 'primary' ? 'PRIMARY' : 'SECONDARY'])
+  }
+  expect(rows).toContainEqual(['Badge', s.badge!.name])
+  await page.screenshot({ path: `test-results/m3-${id}-briefing.png` })
+  return s
+}
+
+/** After Launch: the scenario is live and the entities exist. */
+async function launched(page: Page, title: Locator, id: Id) {
+  await title.getByRole('button', { name: 'Launch' }).click()
+  await waitForScenario(page, id)
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 60_000 })
+}
+
+/** The `at: 1` trigger's message: the opening radio call. */
+function openingCall(s: ReturnType<typeof loadScenario>): string {
+  const t = s.triggers!.find((x) => 'at' in x.when && x.when.at === 1)!
+  const m = t.then.find((a) => 'message' in a)!
+  return (m as { message: string }).message
+}
+
+/** The chart (P) lists every objective; captured, then closed. */
+async function chartListsObjectives(page: Page, s: ReturnType<typeof loadScenario>, id: Id) {
+  await page.keyboard.press(BINDINGS.toggleMissionMap[0])
+  const chart = page.getByRole('dialog', { name: 'Navigation chart' })
+  const list = chart.getByLabel('Objectives')
+  for (const o of s.objectives!) await expect(list).toContainText(o.label)
+  await page.screenshot({ path: `test-results/m3-${id}-chart.png` })
+  await page.keyboard.press(BINDINGS.toggleMissionMap[0])
+  await expect(chart).toBeHidden()
+}
+
+/** The debrief's objective rows and verdict, then the capture. */
+async function debriefShows(page: Page, id: Id, expected: readonly (readonly [string, string])[]) {
+  const debrief = debriefDialog(page)
+  await expect(debrief).toBeVisible()
+  const rows = await figureRows(debrief)
+  for (const row of expected) expect(rows, `debrief row ${row[0]}`).toContainEqual([...row])
+  await page.screenshot({ path: `test-results/m3-${id}-debrief.png` })
+}
+
+/**
+ * The debrief's reason rows after the verdict (`plainRow`, src/render/debrief.ts:
+ * a div with text and no children), in order.
+ */
+const reasonRows = (debrief: Locator) =>
+  debrief.locator('div').evaluateAll((els) =>
+    els.filter((e) => e.children.length === 0 && /: (incomplete|failed)$/.test(e.textContent ?? '')).map((e) => e.textContent ?? ''),
+  )
+
+/**
+ * Airfield Strike parks the player at Tacloban's runway center, facing north
+ * with 750 m of strip ahead. The harness hop cannot come back down on it:
+ * measured on the reference GPU 2026-09-27, it lifts off about 455 m along
+ * and touches down about 410 m past the north end, on the beach, then rolls
+ * into the sea (Ditched in one run, destroyed -- Killed -- in another). A
+ * landing ON Tacloban needs a circuit, which approach.spec.ts rules out for
+ * this tier ("a fragile test of the harness rather than of the game"); the
+ * Tacloban landing with the hangars standing is flown headless in
+ * tests/sim/mission/missions/airfield-strike.test.ts. What this test keeps
+ * is the rest of the verdict: whatever ended the flight, Hangars and
+ * Recover are still incomplete and are listed as reasons.
+ */
+test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; a hop earns no badge', async ({ page }) => {
+  const id = 'airfield-strike'
+  const title = await orders(page, 'Airfield Strike Pilot')
+  const s = await briefingFor(page, title, id, 'Airfield Strike')
+  // The recommendation is Both, the loadout the harness hop is measured at.
+  await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Both' })).toHaveAttribute('aria-checked', 'true')
+  await launched(page, title, id)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
+
+  await expect(objectiveLine(page)).toHaveText('TAKE OFF · HANGARS 0/2')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+
+  await hopClear(page)
+  await landAndStop(page, 'debrief')
+  await debriefShows(page, id, [
+    ['Take off', 'COMPLETE'],
+    ['Hangars', 'INCOMPLETE'],
+    ['AAA (secondary)', 'INCOMPLETE'],
+    ['Recover', 'INCOMPLETE'],
+  ])
+  const debrief = debriefDialog(page)
+  const verdict = (await figureRows(debrief)).find(([label]) => label === 'Badge')?.[1]
+  console.log(`airfield strike verdict: ${verdict}`)
+  expect(verdict).toMatch(/^(Ditched|Killed|Landed off-field) — no badge$/)
+  expect(await reasonRows(debrief)).toEqual(['Hangars: incomplete', 'Recover: incomplete'])
+})
+
+test('Convoy Strike: briefing, CONVOY 0/2, the vector call, chart; into the sea earns no badge', async ({ page }) => {
+  const id = 'convoy-strike'
+  const title = await orders(page, 'Convoy Strike Pilot')
+  const s = await briefingFor(page, title, id, 'Convoy Strike')
+  await launched(page, title, id)
+
+  await expect(objectiveLine(page)).toHaveText('CONVOY 0/2')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+
+  await diveToSea(page)
+  await debriefShows(page, id, [
+    ['Convoy', 'INCOMPLETE'],
+    ['Whole convoy (secondary)', 'INCOMPLETE'],
+    ['Recover', 'INCOMPLETE'],
+    // A steep dive is a crash, not a ditching (harness.ts, diveToSea).
+    ['Badge', 'Killed — no badge'],
+  ])
+})
+
+test('Carrier Qualification: briefing, LAUNCH, Paddles call, chart; a deck run to DOWNWIND, then into the sea', async ({ page }) => {
+  const id = 'deck-quals-mission'
+  const title = await orders(page, 'Carrier Qual Pilot')
+  const s = await briefingFor(page, title, id, 'Carrier Qualification')
+  await launched(page, title, id)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
+  expect((await page.evaluate(() => (window as DiagWindow).__ww2!.deck()))?.shipId).toBe('cv-1')
+
+  await expect(objectiveLine(page)).toHaveText('LAUNCH')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+
+  // The Measured deck run (globals.md): flaps down, full throttle, rotate
+  // well along the deck -- deckQuals.spec.ts's timing, 241 m from the bow.
+  await page.keyboard.press(BINDINGS.toggleFlaps[0])
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.controls().flapDown)).toBe(true)
+  await page.keyboard.down(BINDINGS.throttleUp[0])
+  await page.waitForTimeout(9000)
+  await page.keyboard.down(BINDINGS.pitchUp[0])
+  await page.waitForTimeout(1200)
+  await page.keyboard.up(BINDINGS.pitchUp[0])
+  await page.waitForFunction(
+    () => ((window as DiagWindow).__ww2!.mission()?.log ?? []).some((e) => e.kind === 'objective' && e.id === 'up' && e.status === 'complete'),
+    undefined,
+    { timeout: 30_000 },
+  )
+  expect((await mission(page))!.log.some((e) => e.kind === 'objective' && e.id === 'up' && e.status === 'complete')).toBe(true)
+  await expect(objectiveLine(page)).toHaveText('DOWNWIND')
+
+  await diveToSea(page)
+  await page.keyboard.up(BINDINGS.throttleUp[0])
+  await debriefShows(page, id, [
+    ['Launch', 'COMPLETE'],
+    ['Downwind', 'INCOMPLETE'],
+    ['Trap', 'INCOMPLETE'],
+    ['Badge', 'Killed — no badge'],
+  ])
+})

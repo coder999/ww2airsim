@@ -3,6 +3,7 @@ import type { Ww2Diagnostics } from '../../src/render/diagnostics.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
+import { BINDINGS } from '../../src/input/bindings.js'
 
 /** `window.__ww2` in a dev build (src/render/diagnostics.ts, main.ts). One
  *  shared type with the app rather than a copy declared here: Task 15 review,
@@ -398,4 +399,48 @@ export async function landAndStop(page: Page, until: 'debrief' | 'stopped'): Pro
     )
   }
   await page.keyboard.up('KeyB')
+}
+
+/** The sink rate `diveToSea` pushes for, m/s: steep enough to reach the
+ *  surface from Convoy Strike's 3,000 m start well inside its timeout. */
+const DIVE_SINK_MPS = 60
+
+/**
+ * Ends a flight by flying it into the surface, and returns once the debrief
+ * is open (M3 Task 8). Pitch-down is `BINDINGS.pitchDown`'s first key rather
+ * than a literal, so a rebind cannot leave this holding a dead key.
+ *
+ * It is a closed loop on sink rate, not a held key: measured on the
+ * reference GPU 2026-09-27, holding pitch-down from Convoy Strike's start
+ * (3,000 m, 120 m/s) flies outside loops -- 2,960 m down to 2,140 m and back
+ * up to 2,880 m, twice in 40 s -- and never reaches the ground. So the key
+ * is held only while the airplane sinks slower than `DIVE_SINK_MPS`.
+ *
+ * A steep, fast arrival is a crash, not a ditching: `contactOutcome`
+ * (src/sim/contact.ts) wants wings level, nose up, a gentle sink and
+ * near-stall speed. So the debrief this produces reads "Killed".
+ */
+export async function diveToSea(page: Page, timeoutMs = 120_000): Promise<void> {
+  const key = BINDINGS.pitchDown[0]
+  const debrief = debriefDialog(page)
+  const deadline = Date.now() + timeoutMs
+  let held = false
+  let last = await page.evaluate(() => ({ y: (window as DiagWindow).__ww2!.aircraftPositionM().y, t: performance.now() }))
+  try {
+    while (!(await debrief.isVisible())) {
+      if (Date.now() > deadline) throw new Error(`diveToSea: no debrief after ${timeoutMs} ms, y = ${last.y.toFixed(0)} m`)
+      await page.waitForTimeout(200)
+      const now = await page.evaluate(() => ({ y: (window as DiagWindow).__ww2!.aircraftPositionM().y, t: performance.now() }))
+      const sinkMps = ((last.y - now.y) * 1000) / Math.max(1, now.t - last.t)
+      last = now
+      const want = sinkMps < DIVE_SINK_MPS
+      if (want !== held) {
+        if (want) await page.keyboard.down(key)
+        else await page.keyboard.up(key)
+        held = want
+      }
+    }
+  } finally {
+    if (held) await page.keyboard.up(key)
+  }
 }
