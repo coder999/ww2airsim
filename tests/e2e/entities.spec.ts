@@ -36,14 +36,15 @@ test('the task force sails: every ship moves by speed * elapsed, with zero WebGP
   await page.screenshot({ path: 'test-results/entities-task-force.png' })
 })
 
-test('two Hellcats exist and the parked one is on the apron', async ({ page }) => {
+test('two Hellcats exist and the parked one is at Tacloban', async ({ page }) => {
   await page.goto('/')
   await waitForTerrain(page)
   const aircraft = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft())
   expect(aircraft.map((item) => item.id)).toEqual(['f6f-1', 'f6f-2'])
   const tacloban = bundle.airfields.tacloban!.runway.center
   const wingman = aircraft[1]!
-  expect(Math.hypot(wingman.x - tacloban.x, wingman.z - tacloban.z)).toBeLessThan(300)
+  // 502 m up the strip since Mark's ruling of 2026-09-26 (moved clear of the allied hangars).
+  expect(Math.hypot(wingman.x - tacloban.x, wingman.z - tacloban.z)).toBeLessThan(600)
 })
 
 test.describe('frame-time budget with entities', () => {

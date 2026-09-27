@@ -35,6 +35,7 @@ export function nextRankProgress(score: number): { readonly next: Rank | null; r
 
 const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 const OUTCOME_LABEL = { trap: 'Trap', field: 'Field landing', ditched: 'Ditched', killed: 'Killed' } as const
+const STATUS_LABEL = { active: 'Active', kia: 'K.I.A.', discharged: 'Discharged' } as const
 
 export type DossierLogRow = {
   readonly date: string; readonly scenario: string; readonly aircraft: string; readonly outcome: string
@@ -53,7 +54,7 @@ export type DossierModel = {
 export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => string): DossierModel {
   const { next, fraction } = nextRankProgress(pilot.cumulativeScore)
   const c = pilot.career
-  const status = pilot.status === 'kia' ? 'K.I.A.' : 'Active'
+  const status = STATUS_LABEL[pilot.status]
   return {
     header: {
       name: pilot.name,
@@ -79,7 +80,7 @@ export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => 
       date: e.at.slice(0, 10),
       scenario: scenarioLabel(e.scenarioId),
       aircraft: e.aircraft,
-      outcome: OUTCOME_LABEL[e.outcome],
+      outcome: e.discharged === true ? `${OUTCOME_LABEL[e.outcome]} · Discharged` : OUTCOME_LABEL[e.outcome],
       points: e.points,
       kills: Object.values(e.killsByType).reduce((s, n) => s + n, 0),
       time: formatHours(e.flightSeconds),

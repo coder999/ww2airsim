@@ -20,7 +20,7 @@ import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
-import { sideOf, sidesOf, type Side } from './sides.js'
+import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -356,6 +356,9 @@ export interface ShipEntity {
   readonly state: ShipState
   readonly previous: ShipState
   readonly orders: ShipOrders
+  /** Friendly fire (spec 2026-09-26 §2): content's `"side"`, present only
+   *  when the scenario says one; read through `sideOf` (absent: axis). */
+  readonly side?: Side
 }
 
 export interface World<M = undefined> {
@@ -536,6 +539,9 @@ export function createWorldOf<M>(parts: {
    *  built before this parameter existed, and every call site but
    *  `worldFromScenario`. */
   readonly enemyAirfields?: readonly string[] | undefined
+  /** Per-scenario airfield side overrides (friendly-fire spec §2); each
+   *  structure takes `airfieldSideOf(its airfield, this)`. */
+  readonly airfieldSides?: Readonly<Record<string, Side>> | undefined
   /** The mission, built by `worldFromScenario` when its scenario declares
    *  objectives. Absent means `null`, matching every world built before M1
    *  and every call site but `worldFromScenario`. */
@@ -576,8 +582,19 @@ export function createWorldOf<M>(parts: {
       throw new Error(`createWorldOf: pilot "${a.id}" targets "${target}" on its own side`)
     }
   }
+  // Friendly fire (spec §2-§3): every structure takes its airfield's side,
+  // and an enemy airfield on the player's own side is a content error --
+  // its structures would count toward RAZED and discharge the pilot at once.
+  const airfieldSide = new Map((parts.airfields ?? []).map((a) => [a.id, airfieldSideOf(a, parts.airfieldSides)]))
   const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)
+    .map((s) => ({ ...s, side: airfieldSide.get(s.airfield) ?? 'axis' }))
   const enemyAirfields = parts.enemyAirfields ?? []
+  const playerSide = sideOf(parts, parts.aircraft.find((a) => a.id === parts.player)!)
+  for (const e of enemyAirfields) {
+    if (airfieldSide.get(e) === playerSide) {
+      throw new Error(`createWorldOf: enemy airfield "${e}" is on the player's own side (${playerSide})`)
+    }
+  }
   const enemyStructureIds = new Set(structures.filter(s => enemyAirfields.includes(s.airfield)).map(s => s.id))
   return {
     tick: 0,
@@ -821,6 +838,10 @@ export function advance<M>(
   let aircraft = world.aircraft
   let ships = world.ships
   const structures = world.structures
+  // Friendly fire (spec 2026-09-26 §4): structures never change side, so
+  // their table is built once per call; ships are rebuilt per tick below,
+  // because a held group can spawn one mid-flight.
+  const structureSides = sidesOf(world, structures)
   let combat = world.combat
   let mission = world.mission
   for (let i = 0; i < owedSteps; i++) {
@@ -861,7 +882,8 @@ export function advance<M>(
       )
     })
     const combatAtStart = combat
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides)
+    const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides)
     // After `stepCombat`, which is where an overload break-up happens, and
     // after every aircraft has stepped, which is where a crash happens: a loss
     // with no killing hit is credited to whoever last hit the airplane.

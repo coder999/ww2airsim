@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
-  pilotButtonLabel, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
+  pilotButtonLabel, pilotStatusChip, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
   createTitleScreen,
   type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
@@ -111,6 +111,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
+      'friendly-fire-range', 'friendly-fire-field',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -127,6 +128,8 @@ describe('the title screen scenario picker', () => {
     expect(labels['pursuit-range-veteran']).toBe('Air Combat: Veteran')
     expect(labels['strike-range']).toBe('Strike Range')
     expect(labels['furball-range']).toBe('Furball (dev)')
+    expect(labels['friendly-fire-range']).toBe('Friendly Fire (dev)')
+    expect(labels['friendly-fire-field']).toBe('Friendly Fire: Field (dev)')
   })
 
   it('isKnownScenarioId accepts only ids the picker actually lists', () => {
@@ -162,6 +165,15 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
 
     const kia = { ...active, status: 'kia' as const }
     expect(pilotButtonLabel(kia)).toContain('KIA')
+  })
+
+  it('friendly-fire spec §6: a discharged pilot reads DISCHARGED on the button and the status chip', () => {
+    const d = { ...createPilot('Boyington'), status: 'discharged' as const }
+    expect(pilotButtonLabel(d)).toContain('— DISCHARGED')
+    expect(pilotButtonLabel(d)).not.toContain('KIA')
+    expect(pilotStatusChip('discharged')).toEqual({ text: 'DISCHARGED', color: '--stamp-red' })
+    expect(pilotStatusChip('kia')).toEqual({ text: 'K.I.A.', color: '--stamp-red' })
+    expect(pilotStatusChip('active')).toEqual({ text: 'Active', color: '--stamp-black' })
   })
 
   it('labels the selected-pilot header with the pilot\'s name and full rank name', () => {

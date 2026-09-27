@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { combatDiagnosticsFor, combatReadoutLabel, damagedSystems } from '../../src/render/combatReadout.js'
+import { FRIENDLY_FIRE_WARNING_TICKS, combatDiagnosticsFor, combatReadoutLabel, damagedSystems } from '../../src/render/combatReadout.js'
 import { initialFrameState } from '../../src/render/frame.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
@@ -58,7 +58,7 @@ describe('the combat readout (Plan 6)', () => {
     const d = combatDiagnosticsFor(frame)
     expect(d.player).toEqual({
       shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
-      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0,
+      stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0, friendlyFire: null,
       stress: {
         loadFactorG: 1, airspeedMps: 120, overG: false, overspeed: false,
         peakLoadFactorG: 1, peakAirspeedMps: 120,
@@ -94,5 +94,41 @@ describe('the combat readout (Plan 6)', () => {
     expect(combatReadoutLabel(razedTwo)).toBe('AMMO 2400   HITS 0   KILLS 0   RAZED 2   HP 100%')
     const both = { ...rec, shipsSunk: 1, structuresDestroyed: 2 }
     expect(combatReadoutLabel(both)).toBe('AMMO 2400   HITS 0   KILLS 0   SUNK 1   RAZED 2   HP 100%')
+  })
+})
+
+describe('the friendly-fire warning on the readout (friendly-fire spec §7, ruling FF-8)', () => {
+  const ff = { tick: 1_000, kind: 'ship' as const, target: 'cv-1' }
+  const fired = () => ({ ...armed(), friendlyFire: ff })
+  const clean = 'AMMO 2400   HITS 0   KILLS 0   HP 100%'
+
+  it('is 300 ticks, 5 s of sim time', () => {
+    expect(FRIENDLY_FIRE_WARNING_TICKS).toBe(300)
+  })
+
+  it('leads with the radio call from the hit tick until 300 ticks after it', () => {
+    for (const tick of [1_000, 1_150, 1_299]) {
+      expect(combatReadoutLabel(fired(), tick), String(tick)).toBe(`CEASE FIRE! YOU'RE HITTING FRIENDLIES!   ${clean}`)
+    }
+  })
+
+  it('then carries a persistent FRIENDLY FIRE tag', () => {
+    for (const tick of [1_300, 5_000]) {
+      expect(combatReadoutLabel(fired(), tick), String(tick)).toBe(`FRIENDLY FIRE   ${clean}`)
+    }
+    // No tick given: the moment is unknown, so only the tag.
+    expect(combatReadoutLabel(fired())).toBe(`FRIENDLY FIRE   ${clean}`)
+  })
+
+  it('without friendly fire the label is byte-identical to before, at any tick', () => {
+    expect(combatReadoutLabel(armed(), 1_100)).toBe(clean)
+    expect(combatReadoutLabel(armed())).toBe(clean)
+  })
+
+  it('diagnostics expose the first friendly fire', () => {
+    const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+    const player = frame.world.player
+    const hit = { ...frame, world: { ...frame.world, combat: { ...frame.world.combat, aircraft: { ...frame.world.combat.aircraft, [player]: { ...frame.world.combat.aircraft[player]!, friendlyFire: ff } } } } }
+    expect(combatDiagnosticsFor(hit).player.friendlyFire).toEqual(ff)
   })
 })

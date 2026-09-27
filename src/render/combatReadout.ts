@@ -14,6 +14,7 @@
 import type { Damage } from '../sim/damage/model.js'
 import type { StructuralStress } from '../sim/damage/overload.js'
 import type { AircraftCombat } from '../sim/weapons/combat.js'
+import type { FriendlyFire } from '../sim/weapons/friendlyFire.js'
 import { SYSTEMS, type DamageSystem } from '../sim/weapons/schema.js'
 import type { FrameState } from './frame.js'
 
@@ -28,14 +29,27 @@ export const damagedSystems = (damage: Damage): readonly DamageSystem[] => SYSTE
 /** Rounds remaining across every gun. */
 export const ammoRemaining = (rec: AircraftCombat): number => rec.guns.reduce((sum, g) => sum + g.ammo, 0)
 
+/** How long the radio call leads the readout after the first friendly hit:
+ *  5 s of sim time at the fixed 60 Hz tick (friendly-fire spec §7). */
+export const FRIENDLY_FIRE_WARNING_TICKS = 300
+
 /**
  * One line of text, or `null` for an airplane with no guns -- an unarmed
  * fixture, or a scenario whose player flies an unarmed spec, shows nothing
  * rather than a row of zeros.
  */
-export function combatReadoutLabel(rec: AircraftCombat | undefined): string | null {
+export function combatReadoutLabel(rec: AircraftCombat | undefined, tick?: number): string | null {
   if (rec === undefined || rec.guns.length === 0) return null
-  const parts = [`AMMO ${ammoRemaining(rec)}`]
+  const parts: string[] = []
+  // Friendly fire (spec §7, ruling FF-8): the radio call leads for
+  // FRIENDLY_FIRE_WARNING_TICKS, then a tag stays so the pilot knows the
+  // sortie is forfeit. Without a tick the moment is unknown: tag only.
+  const ff = rec.friendlyFire
+  if (ff !== null) {
+    const fresh = tick !== undefined && tick >= ff.tick && tick < ff.tick + FRIENDLY_FIRE_WARNING_TICKS
+    parts.push(fresh ? "CEASE FIRE! YOU'RE HITTING FRIENDLIES!" : 'FRIENDLY FIRE')
+  }
+  parts.push(`AMMO ${ammoRemaining(rec)}`)
   // Bomb and rocket stores, beside the gun ammo they are carried alongside --
   // absent for a clean airplane, or once every store is gone (spec §4:
   // "the stores remaining (`B 2  R 6`) in the readout while any are
@@ -75,6 +89,8 @@ export type CombatDiagnostics = {
     readonly shipsSunk: number
     readonly structuresDestroyed: number
     readonly stress: StructuralStress
+    /** The player's first friendly damage, or null (friendly-fire spec §4). */
+    readonly friendlyFire: FriendlyFire | null
   }
   readonly aircraft: readonly {
     readonly id: string
@@ -108,6 +124,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       shipsSunk: player.shipsSunk,
       structuresDestroyed: player.structuresDestroyed,
       stress: { ...player.stress },
+      friendlyFire: player.friendlyFire,
     },
     aircraft: frame.world.aircraft.map((a) => {
       const rec = combat.aircraft[a.id]!
@@ -122,7 +139,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
   }
 }
 
-export type CombatReadoutHandle = { setRecord(rec: AircraftCombat | undefined): void }
+export type CombatReadoutHandle = { setRecord(rec: AircraftCombat | undefined, tick?: number): void }
 
 export function createCombatReadout(root: HTMLElement): CombatReadoutHandle {
   const el = document.createElement('div')
@@ -135,8 +152,8 @@ export function createCombatReadout(root: HTMLElement): CombatReadoutHandle {
   root.appendChild(el)
   let shown: string | null = null
   return {
-    setRecord(rec: AircraftCombat | undefined): void {
-      const label = combatReadoutLabel(rec)
+    setRecord(rec: AircraftCombat | undefined, tick?: number): void {
+      const label = combatReadoutLabel(rec, tick)
       if (label === shown) return
       shown = label
       el.textContent = label ?? ''
