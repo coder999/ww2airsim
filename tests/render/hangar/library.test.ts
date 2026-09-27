@@ -61,10 +61,10 @@ describe('LibraryEntrySchema', () => {
     ['four history paragraphs', { ...valid, history: 'a\n\nb\n\nc\n\nd' }, /1 to 3 paragraphs/],
     ['no sources', { ...valid, sources: [] }, /sources/],
     ['a read date that is not ISO', { ...valid, sources: [{ ...valid.sources[0], read: '25 Sep 2026' }] }, /read/],
-    ['a model of another kind', { ...valid, model: { kind: 'aircraft', id: 'wildcat' } }, /entry's own kind "ship"/],
+    ['a model of another kind', { ...valid, model: { kind: 'aircraft', id: 'wildcat' } }, /entry's own kind \\"ship\\"/],
     ['a model with an unknown kind', { ...valid, model: { kind: 'tank', id: 'x' } }, /model/],
     ['a vehicle with a spec', { ...valid, kind: 'vehicle', spec: 'jeep' }, /no vehicle is in the sim/],
-    ['a model on an ordnance entry', { ...valid, kind: 'ordnance', spec: 'an-m65', model: { kind: 'building', id: 'hangar' } }, /entry's own kind "ordnance"/],
+    ['a model on an ordnance entry', { ...valid, kind: 'ordnance', spec: 'an-m65', model: { kind: 'building', id: 'hangar' } }, /entry's own kind \\"ordnance\\"/],
   ])('rejects %s', (_l, raw, message) => {
     expect(() => parseLibraryEntry(raw)).toThrow(message)
   })
