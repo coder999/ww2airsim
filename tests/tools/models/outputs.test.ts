@@ -6,7 +6,7 @@ import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { modelIO } from '../../../tools/models/document.js'
 import { measureDocument } from '../../../tools/models/measure.js'
 
-const LICENSE_LABEL = { 'CC-BY-4.0': 'CC-BY 4.0', 'CC0-1.0': 'CC0 1.0' } as const
+const LICENSE_LABEL = { 'CC-BY-4.0': 'CC-BY 4.0', 'CC0-1.0': 'CC0 1.0', 'AGPL-3.0-or-later': 'AGPL-3.0-or-later' } as const
 const entries = loadModelEntries()
 const assets = readFileSync('ASSETS.md', 'utf8')
 
@@ -20,8 +20,13 @@ describe.each(entries.map((e) => [e.id, e] as const))('committed output %s', (_i
   it('carries its provenance inside the file', async () => {
     const doc = await modelIO().readBinary(new Uint8Array(readFileSync(entry.output)))
     const extras = doc.getRoot().getAsset().extras as Record<string, unknown>
-    if (entry.source.kind === 'generated') {
-      expect(extras).toMatchObject({ source: 'generated', generator: entry.source.generator, license: 'AGPL-3.0-or-later' })
+    if (entry.source.kind === 'generated' || entry.source.kind === 'blender') {
+      expect(extras).toMatchObject({ source: entry.source.kind, license: 'AGPL-3.0-or-later' })
+      if (entry.source.kind === 'generated') {
+        expect(extras).toMatchObject({ generator: entry.source.generator })
+      } else {
+        expect(extras).toMatchObject({ script: entry.source.script })
+      }
     } else {
       expect(extras['source']).toBe(entry.source.url)
       expect(String(extras['license'])).toMatch(new RegExp(`^${entry.source.license}`))
@@ -33,6 +38,9 @@ describe.each(entries.map((e) => [e.id, e] as const))('committed output %s', (_i
     expect(row, `no ASSETS.md row for ${entry.output}`).toBeDefined()
     if (entry.source.kind === 'generated') {
       expect(row).toContain(entry.source.generator)
+      expect(row).toContain('AGPL-3.0-or-later')
+    } else if (entry.source.kind === 'blender') {
+      expect(row).toContain(entry.source.script)
       expect(row).toContain('AGPL-3.0-or-later')
     } else {
       expect(row).toContain(entry.source.url)

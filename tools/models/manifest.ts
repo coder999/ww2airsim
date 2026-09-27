@@ -63,13 +63,24 @@ const GeneratedSourceSchema = z.object({
   license: z.literal('AGPL-3.0-or-later'),
 }).strict()
 
+/** An original model authored in Blender (model-roster spec §4.1). The script writes a raw glb
+ *  to tools/models/cache/<id>.glb, which then runs the same stages a Sketchfab download does,
+ *  so an entry may use normalize, keep, split and the rest. */
+const BlenderSourceSchema = z.object({
+  kind: z.literal('blender'),
+  script: z.string().regex(/^tools\/models\/blender\/[a-z0-9-]+\.py$/, { message: 'script must be tools/models/blender/<name>.py' }),
+  dimensions: z.string().min(1),
+  license: z.literal('AGPL-3.0-or-later'),
+}).strict()
+
 /** Entries written before O1 carry no `kind`: they are Sketchfab downloads. */
 const SourceSchema = z.preprocess(
   (s) => (s !== null && typeof s === 'object' && !('kind' in s) ? { kind: 'sketchfab', ...s } : s),
-  z.discriminatedUnion('kind', [SketchfabSourceSchema, GeneratedSourceSchema]),
+  z.discriminatedUnion('kind', [SketchfabSourceSchema, GeneratedSourceSchema, BlenderSourceSchema]),
 )
 export type SketchfabSource = z.infer<typeof SketchfabSourceSchema>
 export type GeneratedSource = z.infer<typeof GeneratedSourceSchema>
+export type BlenderSource = z.infer<typeof BlenderSourceSchema>
 
 const shipRole = z.enum(SHIP_ROLES)
 
@@ -106,9 +117,10 @@ export const ModelEntrySchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   /** The raw download (Sketchfab entries only), gitignored by `/tools/**\/cache/`. */
   input: z.string().regex(/^tools\/models\/cache\/[^/]+\.glb$/).optional(),
-  /** Committed. Aircraft go to content/aircraft/, ships to content/ships/, ordnance to
-   *  content/ordnance/ (generated only). */
-  output: z.string().regex(/^content\/(aircraft|ships|ordnance)\/[a-z0-9-]+\.glb$/),
+  /** Committed. Aircraft to content/aircraft/, ships to content/ships/, ordnance to
+   *  content/ordnance/ (generated only), and the Library-only buildings and vehicles to
+   *  content/buildings/ and content/vehicles/ (R1). */
+  output: z.string().regex(/^content\/(aircraft|ships|ordnance|buildings|vehicles)\/[a-z0-9-]+\.glb$/),
   source: SourceSchema,
   /** Why this entry's committed output must not be regenerated, if it must not. A frozen
    *  entry is skipped by a bare `models:build` and refused by `models:build -- <id>`
@@ -144,13 +156,16 @@ export const ModelEntrySchema = z.object({
   if (e.source.kind === 'sketchfab') {
     if (!e.source.url.endsWith(e.source.uid)) fail(['source', 'uid'], 'must be the last segment of source.url')
     if (e.input === undefined) fail(['input'], 'a sketchfab entry needs its raw input')
-  } else {
+  } else if (e.source.kind === 'generated') {
     for (const k of ['input', 'normalize', 'simplify', 'ship', 'noseNode', 'frozen'] as const) {
       if (e[k] !== undefined) fail([k], `a generated entry takes no ${k}: its generator owns the geometry`)
     }
     for (const k of ['keep', 'split', 'remove'] as const) {
       if (e[k].length > 0) fail([k], `a generated entry takes no ${k}: its generator owns the geometry`)
     }
+  } else {
+    if (e.input !== undefined) fail(['input'], 'a blender entry takes no input: the build writes its raw glb to tools/models/cache/<id>.glb')
+    if (/\/(kit|preview)\.py$/.test(e.source.script)) fail(['source', 'script'], 'kit.py and preview.py are kit modules, not models')
   }
   if (e.output.startsWith('content/ordnance/') !== (e.source.kind === 'generated')) {
     fail(['output'], 'content/ordnance/ outputs are generated, and only generated entries write there (O1)')
