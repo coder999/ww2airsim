@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { MissionState, ObjectiveState, ResolvedObjective } from '../../../src/sim/mission/state.js'
-import { NO_RADIO, RADIO_SHOW_MS, nextRadioLine, objectiveLineLabel } from '../../../src/render/mission/hud.js'
+import { NO_RADIO, RADIO_SHOW_MS, missionDiagnostics, nextRadioLine, objectiveLineLabel } from '../../../src/render/mission/hud.js'
 
 /** Builds a `MissionState` from a list of (objective, progress) pairs, so
  *  each test can hand-write just the fields it cares about (brief: "spread
@@ -147,5 +147,24 @@ describe('nextRadioLine (M2 R8, open question 4)', () => {
   it('a shorter log resets (Restart): the new first message shows', () => {
     const r = nextRadioLine({ seen: 2, text: 'Trap 1 of 3', remainingMs: 100 }, [{ text: 'fresh' }], 16)
     expect(r).toEqual({ seen: 1, text: 'fresh', remainingMs: RADIO_SHOW_MS })
+  })
+})
+
+describe('missionDiagnostics (M2 Task 8, `__ww2.mission`)', () => {
+  const shown = { text: () => ({ objective: 'RECOVER', radio: 'Tower: a friendly is passing overhead.' }) }
+  const held = (visible: boolean) => ({ held: { airframes: new Map([['drone-1', { root: { visible } }]]) } })
+
+  it('is null without a mission or before the scenario entities exist', () => {
+    expect(missionDiagnostics(null, shown, held(false))).toBeNull()
+    expect(missionDiagnostics(missionOf([]), shown, null)).toBeNull()
+  })
+
+  it('reports the shown lines, the log, the spawned groups and each held mesh by id', () => {
+    const log = [{ tick: 3, kind: 'spawn', group: 'drone' }] as const
+    const m = { ...missionOf([]), log, spawned: ['drone'] } as unknown as MissionState<undefined>
+    expect(missionDiagnostics(m, shown, held(true))).toEqual({
+      objective: 'RECOVER', radio: 'Tower: a friendly is passing overhead.', log, spawned: ['drone'],
+      meshes: [{ id: 'drone-1', visible: true }],
+    })
   })
 })

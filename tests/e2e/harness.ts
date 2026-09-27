@@ -252,15 +252,29 @@ const heightAboveGroundM = (page: Page) =>
 /**
  * Rotates off a gunnery-range parking spot, hops just clear of the airborne
  * latch, and settles back down to a real physics landing, ending with the
- * debrief dialog visible. Extracted from `meta-game.spec.ts` (Plan 9 Task 8)
- * in Plan-loading-dossier Task 9 so `dossier.spec.ts` can reuse the same
- * measured hop rather than a second, independently-drifting copy.
+ * debrief dialog visible: `hopClear` then `landAndStop(page, 'debrief')`.
+ * Extracted from `meta-game.spec.ts` (Plan 9 Task 8) in Plan-loading-dossier
+ * Task 9 so `dossier.spec.ts` can reuse the same measured hop rather than a
+ * second, independently-drifting copy; split in two by M2 Task 8 so
+ * `mission-ui.spec.ts` can act between takeoff and landing, and land without
+ * a debrief (an intermediate landing).
  *
  * Starts parked on a strip with the title gone and terrain loaded; the
  * caller is responsible for getting there (`waitForScenario` + the
  * `groundHeightM`/`supportedContact` polls).
  */
 export async function hopAndLand(page: Page): Promise<void> {
+  await hopClear(page)
+  await landAndStop(page, 'debrief')
+}
+
+/** The mission log's landing entries so far; 0 without a mission. */
+const landingCount = (page: Page) =>
+  page.evaluate(() => ((window as DiagWindow).__ww2!.mission()?.log ?? []).filter((e) => e.kind === 'landing').length)
+
+/** `hopAndLand`'s first half: the takeoff roll, the rotate, and the climb
+ *  just past `AIRBORNE_LATCH_M`. Ends airborne at full throttle. */
+export async function hopClear(page: Page): Promise<void> {
   // -- Take off. Same roll/rotate shape `takeoff.spec.ts` already proved on
   // the default free-flight spawn; there is no aircraft-vs-aircraft
   // collision in this sim (`weapons/combat.ts`'s ray-based hit path is the
@@ -297,6 +311,19 @@ export async function hopAndLand(page: Page): Promise<void> {
     { timeout: 30_000 },
   )
   console.log(`hopAndLand: cleared the latch at ${(await heightAboveGroundM(page))?.toFixed(1)} m`)
+}
+
+/**
+ * `hopAndLand`'s second half, from wherever `hopClear` left the airplane: a
+ * short controlled descent to a real touchdown, then throttle off and brakes
+ * held until `until`: the debrief dialog, or (`'stopped'`) the mission log
+ * recording a NEW landing -- more landing entries than when this call began
+ * (controller ruling PF9: "any landing" would return at once on a second
+ * landing). The mission logs its landing when the airplane comes to rest
+ * below `LANDED_SPEED_MPS`, the same moment the debrief would otherwise open.
+ */
+export async function landAndStop(page: Page, until: 'debrief' | 'stopped'): Promise<void> {
+  const landingsBefore = await landingCount(page)
 
   // -- Land. `nextLandingTracking` only needs the wheels to come back down
   // gently (below `MAX_SUPPORTED_SINK_MPS`), not a stabilized approach, so
@@ -359,9 +386,16 @@ export async function hopAndLand(page: Page): Promise<void> {
   console.log('hopAndLand: back on the wheels, not a crash')
 
   // Stop: cut the throttle the rest of the way (`KeyM`, one press to zero)
-  // and hold the brakes until the debrief actually appears.
+  // and hold the brakes until `until` (see this function's doc comment).
   await page.keyboard.press('KeyM')
   await page.keyboard.down('KeyB')
-  await debriefDialog(page).waitFor({ timeout: 30_000 })
+  if (until === 'debrief') await debriefDialog(page).waitFor({ timeout: 30_000 })
+  else {
+    await page.waitForFunction(
+      (before) => ((window as DiagWindow).__ww2!.mission()?.log ?? []).filter((e) => e.kind === 'landing').length > before,
+      landingsBefore,
+      { timeout: 30_000 },
+    )
+  }
   await page.keyboard.up('KeyB')
 }

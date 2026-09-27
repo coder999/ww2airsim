@@ -1040,6 +1040,13 @@ These are claims to re-check, not premises.
 
 ### Task 8: Tier 2 on the reference GPU
 
+> **Amended during execution (2026-09-26, measured on the reference GPU).** The Task 1 fixture JSON and the spec below changed in three ways:
+> - **Calm weather.** Both `dev-mission-*` fixtures are now calm (`windFromDeg 0, windMps 0`). The 12 kt crosswind from 090 weathervaned the takeoff roll into the sea. The same wind as a pure headwind kept the hop airborne past the harness's landing window. The spec reads the briefing's wind text from the fixture through `conditionsFor`, so it holds no literal.
+> - **Parking spot.** The player now parks at spot `z: 700`, not `z: 300`. From 300 the hop touches down about 40 m past the strip's north end, which is off-field and completes no `land` objective.
+> - **Loadout.** Each test first asserts that the recommended Clean loadout was preselected, then switches to Both. The hop is measured at Both; a clean airplane balloons and does not come back down.
+>
+> `strike.spec.ts` is out of the regression set because it fails at collection on `main` too. Rulings T8-R1 to R4 are in the handoff.
+
 **Files:**
 - Modify: `src/render/diagnostics.ts` (`Ww2Diagnostics.mission`), `src/render/main.ts` (the `__ww2` entry)
 - Modify: `tests/e2e/harness.ts` (`hopClear`, `landAndStop`)

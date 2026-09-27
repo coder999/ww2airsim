@@ -3,11 +3,11 @@
   "player": "f6f-1",
   "airfields": ["tacloban"],
   "aircraft": [
-    { "id": "f6f-1", "spec": "f6f-hellcat", "parkedAt": { "airfield": "tacloban", "spot": { "x": 0, "z": 300 } }, "chocked": false },
+    { "id": "f6f-1", "spec": "f6f-hellcat", "parkedAt": { "airfield": "tacloban", "spot": { "x": 0, "z": 700 } }, "chocked": false },
     { "id": "target-1", "spec": "f6f-hellcat", "tags": ["targets"], "parkedAt": { "airfield": "tacloban", "spot": { "x": -35, "z": -200 } }, "chocked": true }
   ],
   "ships": [],
-  "weather": { "windFromDeg": 90, "windMps": 6, "timeOfDay": 14 },
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 14 },
   "objectives": [
     { "id": "up", "label": "Take off", "priority": "primary", "kind": "takeoff", "from": "tacloban" },
     { "id": "home", "label": "Recover", "priority": "primary", "kind": "land", "at": "tacloban", "after": "up" },

@@ -15,6 +15,7 @@ import type { FxStressName } from './fx/stress.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
 import type { ManeuverName, PilotMode } from '../sim/ai/pilot.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
+import type { MissionDiagnostics } from './mission/hud.js'
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -367,6 +368,11 @@ export type Ww2Diagnostics = {
   /** E1 DEV: clear the pool and inject a named scene relative to the eye
    *  (fx/stress.ts). Anchors are CSS pixels of the named world points. */
   readonly fxStress: (name: FxStressName) => { readonly anchors: readonly { readonly name: string; readonly x: number; readonly y: number }[] }
+  /** M2: the mission UI, for tests/e2e/mission-ui.spec.ts -- the objective
+   *  and radio lines as shown, the mission's log and spawned held groups, and
+   *  each held-group mesh by entity id with its visibility (M2 R1). `null`
+   *  without a mission (`missionDiagnostics`, mission/hud.ts). */
+  readonly mission: () => MissionDiagnostics | null
   /** Photoreal Task 6: explicit TRAA (and world-fixed motion) history resets
    *  since boot -- the same discontinuities the cloud history resets on. */
   readonly antiAliasing: () => { readonly historyResets: number }

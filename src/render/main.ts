@@ -23,7 +23,7 @@ import { createTimeBadge } from './timeBadge.js'
 import { createAutopilotBadge } from './autopilotBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
-import { createMissionHud } from './mission/hud.js'
+import { createMissionHud, missionDiagnostics } from './mission/hud.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
@@ -936,6 +936,8 @@ async function boot(): Promise<void> {
         drawn: fxPass?.count() ?? 0, sheetsFallback: fxSheets?.fallback ?? false, cpuMs: fxCpuMs,
       }),
       fxStress: (name) => startFxStress(name),
+      // M2: `missionHud` is declared later in boot(); this runs only after boot, as `clouds` reads `cloudPass`.
+      mission: () => missionDiagnostics(frame?.world.mission ?? null, missionHud, scenarioEntities),
       // Photoreal Task 6: explicit TRAA/motion history resets since boot.
       antiAliasing: () => ({ historyResets: framePipeline.historyResets() }),
       // Plan 16b: the shadow map read back at a world point, for the

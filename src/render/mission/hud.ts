@@ -4,7 +4,7 @@
  * it. Both read `World.mission` only; neither owns any sim state.
  */
 import { DT } from '../../sim/flight/model.js'
-import { radioMessages, type MissionState } from '../../sim/mission/state.js'
+import { radioMessages, type MissionLogEntry, type MissionState } from '../../sim/mission/state.js'
 
 const MAX_SHOWN = 2
 
@@ -103,5 +103,32 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
     text(): { objective: string | null; radio: string | null } {
       return { objective: shownObjective, radio: shownRadio }
     },
+  }
+}
+
+/** `window.__ww2.mission()` (diagnostics.ts), for tests/e2e/mission-ui.spec.ts:
+ *  what the two HUD lines are showing, the mission's log and spawned groups,
+ *  and every held-group mesh by entity id with its visibility (M2 R1). */
+export type MissionDiagnostics = {
+  readonly objective: string | null
+  readonly radio: string | null
+  readonly log: readonly MissionLogEntry[]
+  readonly spawned: readonly string[]
+  readonly meshes: readonly { readonly id: string; readonly visible: boolean }[]
+}
+
+/** Builds `MissionDiagnostics` here rather than inline in main.ts's `__ww2`
+ *  object, which keeps main.ts to one call (the M2 footprint constraint).
+ *  `null` without a mission, or before the scenario's entities are built. */
+export function missionDiagnostics<M>(
+  m: MissionState<M> | null,
+  hud: Pick<MissionHudHandle, 'text'>,
+  entities: { readonly held: { readonly airframes: ReadonlyMap<string, { readonly root: { readonly visible: boolean } }> } } | null,
+): MissionDiagnostics | null {
+  if (m === null || entities === null) return null
+  const shown = hud.text()
+  return {
+    objective: shown.objective, radio: shown.radio, log: m.log, spawned: m.spawned,
+    meshes: [...entities.held.airframes].map(([id, a]) => ({ id, visible: a.root.visible })),
   }
 }
