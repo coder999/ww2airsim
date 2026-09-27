@@ -20,6 +20,7 @@ const CITED: Readonly<Record<string, Cited>> = {
   'a6m2-zero': { spanM: 12.0, lengthM: 9.06, tolerance: 0.06, source: "English Wikipedia 'Mitsubishi A6M Zero', Specifications (A6M2 Type 0 Model 21), read 2026-09-25, as content/aircraft/a6m2-zero.json cites it. Tolerance 6%, not 4%: the chosen model measures 9.52 m at a 12.0 m span (R3 plan, P10)" },
   'f6f-hellcat': { spanM: 13.06, lengthM: 10.24, tolerance: 0.04, source: "English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5 Hellcat), read 2026-09-27" },
   'f4u-corsair': { spanM: 12.5, lengthM: 10.26, tolerance: 0.04, source: "English Wikipedia 'Vought F4U Corsair', Specifications (F4U-4): span 41 ft 0 in, length 33 ft 8 in, read 2026-09-27. The model is an F4U-1A (its fuselage node is f4u1fuse; framed raised canopy; a 3-blade prop texture), for which the article gives no figures; the -1's span differs by 1 cm and its length (33 ft 4.5 in) by 0.9%, inside the 4% (R3 ledger, Task 6)" },
+  'ki-43-oscar': { spanM: 10.84, lengthM: 8.92, tolerance: 0.04, source: "English Wikipedia 'Nakajima Ki-43 Hayabusa', Specifications (Ki-43-IIb), read 2026-09-27" },
 }
 
 const aircraft = loadModelEntries().filter((e) => e.output.startsWith('content/aircraft/') && e.id !== 'wildcat')

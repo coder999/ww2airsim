@@ -71,4 +71,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'ki-43-oscar': {
+    // A translucent 3-blade motion-blur disc plus its spinner, as the Corsair's: symmetryTolerance
+    // is the metric's 2% cap and the hub-offset check carries Review Focus 1 (R3 ledger, Task 7).
+    // The Ki-43-II's three blades (English Wikipedia, read 2026-09-27) match the disc's texture.
+    props: [{ node: 'Prop', blades: 3, symmetryTolerance: 0.02 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'Ki-43 main gear retracts inward into the wing; the angle is an ESTIMATE' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
+    ],
+    turrets: [],
+  },
 }

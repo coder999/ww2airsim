@@ -16,10 +16,10 @@ import { nodeHangarContent } from './content.js'
 const NOT_YET_DRAWN = [
   'ammunition-bunker', 'b-17-flying-fortress', 'b-29-superfortress', 'barracks-and-huts',
   'coastal-gun-battery', 'd3a-val', 'fuel-tank-farm', 'g4m-betty',
-  'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'pier-and-warehouses',
+  'ki-21-sally', 'ki-84-frank', 'p-38-lightning', 'pier-and-warehouses',
   'radio-radar-station', 'revetment', 'type97-chi-ha', 'willys-mb-jeep',
 ]
-const CEILING = 17
+const CEILING = 16
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
