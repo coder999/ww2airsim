@@ -46,6 +46,7 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/buildings/aaa.glb` | authored in Blender by `tools/models/blender/aaa.py`; footprint from content/bases/tacloban.json (tacloban-aaa-1), barrel length from the Type 96 25 mm AT/AA gun article, every other figure an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 | `content/buildings/coastal-gun-battery.glb` | authored in Blender by `tools/models/blender/coastal-gun-battery.py`; barrel length from U.S. War Department TM-E 30-480 (1944), every other figure an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 | `content/buildings/fuel-tank-farm.glb` | authored in Blender by `tools/models/blender/fuel-tank-farm.py`; every figure is an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
+| `content/buildings/ammunition-bunker.glb` | authored in Blender by `tools/models/blender/ammunition-bunker.py`; every figure is an ESTIMATE labeled in the script's header | authored for this project | AGPL-3.0-or-later |
 
 Models authored in Blender (`tools/models/blender/`, model-roster spec) are
 original work, AGPL-3.0-or-later. Each gets its row here when it ships.
