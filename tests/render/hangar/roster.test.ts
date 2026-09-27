@@ -15,13 +15,11 @@ import { nodeHangarContent } from './content.js'
  */
 const NOT_YET_DRAWN = [
   'ammunition-bunker', 'b-17-flying-fortress', 'b-29-superfortress', 'barracks-and-huts',
-  'casablanca-cve', 'cleveland-cl', 'coastal-gun-battery', 'd3a-val', 'f4u-corsair',
-  'fuel-tank-farm', 'g4m-betty', 'kagero-dd', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank',
-  'mogami-ca', 'p-38-lightning', 'pennsylvania-bb', 'pier-and-warehouses',
-  'radio-radar-station', 'revetment', 'shiratsuyu-dd', 'type97-chi-ha', 'willys-mb-jeep',
-  'yamato-bb',
+  'coastal-gun-battery', 'd3a-val', 'f4u-corsair', 'fuel-tank-farm', 'g4m-betty',
+  'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'pier-and-warehouses',
+  'radio-radar-station', 'revetment', 'type97-chi-ha', 'willys-mb-jeep',
 ]
-const CEILING = 25
+const CEILING = 18
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
@@ -63,5 +61,12 @@ describe("every Library entry's own model resolves (spec §4.3)", () => {
     expect(refProblem({ kind: 'building', id: 'nope' }, entries)).toBe('building model "nope" is not registered')
     expect(refProblem({ kind: 'vehicle', id: 'hangar' }, entries)).toBe('vehicle model "hangar" is not registered')
     expect(refProblem({ kind: 'aircraft', id: 'constructor' }, entries)).toBe('aircraft model "constructor" is not registered')
+  })
+
+  it('every ship Library entry resolves through its authoritative ShipSpec', () => {
+    for (const e of content.library.filter((entry) => entry.kind === 'ship')) {
+      expect(e.spec, e.id).toBe(e.id)
+      expect(drawable(catalog.find((entry) => entry.library.id === e.id)!)).toBe(true)
+    }
   })
 })
