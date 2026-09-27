@@ -832,7 +832,7 @@ git commit -m "7f Task 4: cover triggers on a threat to the leader; escort, sand
 **Interfaces:**
 - Produces: `leaderlessPilot<M>(pilot: PilotAssignment, leader: AircraftEntity<M> | undefined, nowS: number): PilotAssignment`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // tests/sim/ai/formationLeader.test.ts
@@ -908,12 +908,12 @@ describe('a parked leader (7f spec §4)', () => {
 
 The parked case covers "loiters while parked". "Joins once airborne" is covered by the mode rule (`!leader.parked`, Task 3) plus Task 3's rejoin test. A take-off script here would be a second test of 11a's ground physics.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/ai/formationLeader.test.ts --maxWorkers=2`
 Expected: FAIL. The wingman keeps `formation` and never takes on the route.
 
-- [ ] **Step 3: Append `leaderlessPilot` to `formation.ts`**
+- [x] **Step 3: Append `leaderlessPilot` to `formation.ts`**
 
 The `import type` line goes into the top import block.
 
@@ -934,7 +934,7 @@ export function leaderlessPilot<M>(pilot: PilotAssignment, leader: AircraftEntit
 }
 ```
 
-- [ ] **Step 4: Use it at the top of `pilotTick`**
+- [x] **Step 4: Use it at the top of `pilotTick`**
 
 Change `const pilot = a.pilot` to `let pilot = a.pilot`. Replace Task 3's leader resolution (a) with:
 
@@ -951,12 +951,12 @@ Change `const pilot = a.pilot` to `let pilot = a.pilot`. Replace Task 3's leader
 
 It must run before `let decision: PilotDecisionState = pilot.decision`, so the forced rescore is read. Type narrowing: after the early `return a`, TypeScript keeps `pilot` as `PilotAssignment` through the reassignment. If it widens, annotate `let pilot: PilotAssignment = a.pilot` after the guard.
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `npx vitest run tests/sim/ai/formationLeader.test.ts tests/sim/ai/formationCover.test.ts tests/sim/ai/formationFlight.test.ts --maxWorkers=2; echo rc=$?`
 Expected: PASS, `rc=0`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ai/formation.ts src/sim/ai/pilotTick.ts tests/sim/ai/formationLeader.test.ts

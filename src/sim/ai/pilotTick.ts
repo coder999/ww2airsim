@@ -13,7 +13,7 @@ import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
-import { COVER_LATCH_S, formationControls, leaderIsFighting, wingmanAccepts } from './formation.js'
+import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { selectTarget, type TargetingView } from './targeting.js'
 
@@ -73,15 +73,19 @@ export function pilotTick<M>(
   snapshot: readonly AircraftEntity<M>[],
   ctx: PilotTickContext,
 ): AircraftEntity<M> {
-  const pilot = a.pilot
+  let pilot = a.pilot
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
   const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides }
-  // 7f spec §3: a wingman's leader, read from the start-of-tick snapshot.
-  // A down or missing leader is Task 5's; until then it is simply absent.
-  const leaderEntity = pilot.formation === undefined ? undefined : snapshot.find((c) => c.id === pilot.formation!.leader)
-  const leader = leaderEntity !== undefined && !isAircraftDown(ctx.combat.aircraft, leaderEntity) ? leaderEntity : null
+  // 7f spec §3-4: a wingman's leader, from the start-of-tick snapshot. A
+  // down or missing leader hands the wingman its own orders (spec §4).
+  let leader: AircraftEntity<M> | null = null
+  if (pilot.formation !== undefined) {
+    const l = snapshot.find((c) => c.id === pilot!.formation!.leader)
+    if (l === undefined || isAircraftDown(ctx.combat.aircraft, l)) pilot = leaderlessPilot(pilot, l, ctx.nowS)
+    else leader = l
+  }
   let decision: PilotDecisionState = pilot.decision
   // 7f spec §4: trail cover holds COVER_LATCH_S past the leader's last shot or engagement.
   if (leader !== null && leaderIsFighting(leader)) decision = { ...decision, coverUntilS: ctx.nowS + COVER_LATCH_S }

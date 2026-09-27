@@ -7,7 +7,7 @@ import type { AircraftCombat } from '../weapons/combat.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { RECENT_HIT_S } from './ingress.js'
 import type { FormationSlot } from './pilot.js'
-import { hasGunSolution } from './pursuit.js'
+import { hasGunSolution, type PilotAssignment } from './pursuit.js'
 
 /**
  * Formation flying (7f spec, 2026-09-27): stations in the leader's heading
@@ -216,4 +216,17 @@ export function wingmanAccepts<M>(
     if (leader.pilot?.decision.targetId === c.id) return true
     return record.lastHitBy === c.id && record.lastHit !== null && nowS - record.lastHit.tick * DT <= RECENT_HIT_S
   }
+}
+
+/**
+ * A wingman whose leader is down or gone flies on alone (spec §4). It takes
+ * on the leader's ingress orders, if any, at the leader's legIndex, so a
+ * raider pair that loses its leader still reaches the carrier. A choice is
+ * forced this tick (`nextRescoreS = nowS`).
+ */
+export function leaderlessPilot<M>(pilot: PilotAssignment, leader: AircraftEntity<M> | undefined, nowS: number): PilotAssignment {
+  const decision = { ...pilot.decision, nextRescoreS: nowS }
+  const orders = leader?.pilot?.ingress
+  const alone: PilotAssignment = { target: pilot.target, skill: pilot.skill, decision }
+  return orders === undefined ? alone : { ...alone, ingress: orders, decision: { ...decision, legIndex: leader!.pilot!.decision.legIndex } }
 }
