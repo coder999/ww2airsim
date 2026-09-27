@@ -132,6 +132,63 @@ describe('buildScenarioEntities', () => {
   })
 })
 
+describe('held-group meshes (M2 R1)', () => {
+  const missionUi: World<undefined> = worldFromScenario(loadScenarioBundle('dev-mission-ui'), null, 'clean')
+
+  it('builds held-group meshes at load, hidden, keyed by id (M2 R1)', async () => {
+    const scene = new Scene()
+    const e = await buildScenarioEntities(scene, missionUi, null, stubAirframe, stubShips)
+    expect(e.airframes).toHaveLength(2) // f6f-1, target-1
+    expect([...e.held.airframes.keys()]).toEqual(['drone-1'])
+    expect(e.held.ships.size).toBe(0)
+    const drone = e.held.airframes.get('drone-1')!
+    expect(drone.root.visible).toBe(false)
+    expect(scene.children).toContain(drone.root)
+  })
+
+  it('loads each held aircraft by its own spec\'s view.model', async () => {
+    const asked: string[] = []
+    await buildScenarioEntities(new Scene(), missionUi, null, async (id) => { asked.push(id); return createHellcat() }, stubShips)
+    const held = missionUi.mission!.held.flatMap((g) => g.aircraft)
+    expect(asked).toEqual([...missionUi.aircraft, ...held].map((a) => a.spec.view.model))
+  })
+
+  it('disposes held meshes with the rest on a switch', async () => {
+    const scene = new Scene()
+    const before = await buildScenarioEntities(scene, missionUi, null, stubAirframe, stubShips)
+    const drone = before.held.airframes.get('drone-1')!
+    const spy = vi.spyOn(drone, 'dispose')
+    await buildScenarioEntities(scene, strikeRange, before, stubAirframe, stubShips)
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(scene.children).not.toContain(drone.root)
+  })
+
+  it('if a held aircraft fails to load, every loaded view is disposed and the previous scenario is untouched', async () => {
+    const scene = new Scene()
+    const before = await buildScenarioEntities(scene, strikeRange, null, stubAirframe, stubShips)
+    const disposeSpies: ReturnType<typeof vi.fn>[] = []
+    let calls = 0
+    const failsOnHeld = async () => {
+      calls++
+      if (calls === missionUi.aircraft.length + 1) throw new Error('held model 404')
+      const a = createHellcat()
+      const spy = vi.fn(a.dispose)
+      disposeSpies.push(spy)
+      return { ...a, dispose: spy }
+    }
+    await expect(buildScenarioEntities(scene, missionUi, before, failsOnHeld, stubShips)).rejects.toThrow('held model 404')
+    expect(disposeSpies).toHaveLength(missionUi.aircraft.length)
+    for (const spy of disposeSpies) expect(spy).toHaveBeenCalledTimes(1)
+    for (const h of [...before.airframes, ...before.shipHandles]) expect(scene.children).toContain(h.root)
+  })
+
+  it('a scenario without a mission has empty held maps', async () => {
+    const e = await buildScenarioEntities(new Scene(), strikeRange, null, stubAirframe, stubShips)
+    expect(e.held.airframes.size).toBe(0)
+    expect(e.held.ships.size).toBe(0)
+  })
+})
+
 describe('disposeMeshTree', () => {
   it('disposes every mesh geometry (and material) in a subtree', async () => {
     const scene = new Scene()

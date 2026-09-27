@@ -3,6 +3,7 @@ import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
+import { entityViews } from './mission/entityViews.js'
 import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
 import { airframeUpdateFor } from './airframeUpdate.js'
@@ -1956,7 +1957,8 @@ async function boot(): Promise<void> {
     // lines down) -- naming this field the same thing as ScenarioEntities'
     // own `player: Airframe` would be a duplicate `const player` in one
     // scope, not a shadow (both are declared in this same function body).
-    const { airframes, shipHandles, player: playerAirframe } = scenarioEntities!
+    // M2 R1: world-ordered, including spawned held entities (entityViews.ts).
+    const { airframes, shipHandles, player: playerAirframe } = entityViews(scenarioEntities!, current.world)
     const player = playerAircraft(current.world)
 
     // Camera-relative: the world moves, the camera stays at the origin. float32

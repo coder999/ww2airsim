@@ -20,6 +20,10 @@ export interface ScenarioEntities {
   readonly airframes: readonly Airframe[]
   readonly shipHandles: readonly ShipView[]
   readonly player: Airframe
+  /** A mission's held-group meshes, keyed by entity id (M2 R1): world order
+   *  cannot index them, since `spawnInto` appends in trigger order.
+   *  `entityViews` (mission/entityViews.ts) merges them into world order. */
+  readonly held: { readonly airframes: ReadonlyMap<string, Airframe>; readonly ships: ReadonlyMap<string, ShipView> }
 }
 
 /** Builds the airframe a spec's `view.model` names. Injectable so tests
@@ -36,6 +40,11 @@ export const loadRegisteredAirframe: LoadAirframe = (modelId) => airframeFor(mod
  * sky: those are world geography, not scenario content (design doc §5), and
  * are untouched by this function and its caller alike.
  *
+ * A mission's held-group meshes are built here at load too, added to the
+ * scene hidden, and shown only once their entity spawns (M2 R1). They are
+ * keyed by id rather than appended to the world-order arrays, because
+ * `spawnInto` appends held entities in trigger order, not `heldGroups` order.
+ *
  * `previous`, when given, is torn down AFTER the new airframes and ships have
  * loaded: each airframe and each ship through its own `dispose()` (which
  * releases a shared model instance, never walks it -- modelCache.ts). Loading
@@ -45,7 +54,7 @@ export const loadRegisteredAirframe: LoadAirframe = (modelId) => airframeFor(mod
  */
 export async function buildScenarioEntities(
   scene: Scene,
-  world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player'>,
+  world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player' | 'mission'>,
   previous: ScenarioEntities | null,
   // Defaulted for production; tests substitute a cheap synchronous stand-in
   // (createHellcat) so they never run a real GLTFLoader parse in Node.
@@ -54,18 +63,24 @@ export async function buildScenarioEntities(
   // and reports through the loader's own sink (main.ts passes validationErrors).
   loadShip: LoadShipView = loadRegisteredShipView,
 ): Promise<ScenarioEntities> {
-  const [settled, shipSettled] = await Promise.all([
+  const heldAircraft = (world.mission?.held ?? []).flatMap((g) => g.aircraft)
+  const heldShips = (world.mission?.held ?? []).flatMap((g) => g.ships)
+  const [settled, shipSettled, heldSettled, heldShipSettled] = await Promise.all([
     Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model))),
     Promise.allSettled(world.ships.map((s) => loadShip(s.spec))),
+    Promise.allSettled(heldAircraft.map((a) => loadAirframe(a.spec.view.model))),
+    Promise.allSettled(heldShips.map((s) => loadShip(s.spec))),
   ])
-  const failed = [...settled, ...shipSettled].find((r): r is PromiseRejectedResult => r.status === 'rejected')
+  const all = [...settled, ...shipSettled, ...heldSettled, ...heldShipSettled]
+  const failed = all.find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed !== undefined) {
-    for (const r of settled) if (r.status === 'fulfilled') r.value.dispose()
-    for (const r of shipSettled) if (r.status === 'fulfilled') r.value.dispose()
+    for (const r of all) if (r.status === 'fulfilled') r.value.dispose()
     throw failed.reason
   }
   const airframes = settled.map((r) => (r as PromiseFulfilledResult<Airframe>).value)
   const shipHandles = shipSettled.map((r) => (r as PromiseFulfilledResult<ShipView>).value)
+  const heldAirframes = heldSettled.map((r) => (r as PromiseFulfilledResult<Airframe>).value)
+  const heldShipHandles = heldShipSettled.map((r) => (r as PromiseFulfilledResult<ShipView>).value)
 
   if (previous !== null) {
     previous.airframes.forEach((a) => {
@@ -75,9 +90,13 @@ export async function buildScenarioEntities(
     // Through each view's own dispose(): a model view RELEASES its shared
     // instance. disposeMeshTree on its root would free geometry and materials
     // every other instance of that glb is still drawing (modelCache.ts).
-    for (const handle of previous.shipHandles) {
+    for (const handle of [...previous.shipHandles, ...previous.held.ships.values()]) {
       scene.remove(handle.root)
       handle.dispose()
+    }
+    for (const a of previous.held.airframes.values()) {
+      scene.remove(a.root)
+      a.dispose()
     }
   }
 
@@ -85,6 +104,18 @@ export async function buildScenarioEntities(
   const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
   const player = airframes[playerIndex]!
   for (const h of shipHandles) scene.add(h.root)
+  for (const h of [...heldAirframes, ...heldShipHandles]) {
+    h.root.visible = false
+    scene.add(h.root)
+  }
 
-  return { airframes, shipHandles, player }
+  return {
+    airframes,
+    shipHandles,
+    player,
+    held: {
+      airframes: new Map(heldAircraft.map((a, i) => [a.id, heldAirframes[i]!])),
+      ships: new Map(heldShips.map((s, i) => [s.id, heldShipHandles[i]!])),
+    },
+  }
 }
