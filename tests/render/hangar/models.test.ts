@@ -188,10 +188,16 @@ describe("an entry's own model (R1)", () => {
   it('a ship model and a vehicle model go through the display loader too', async () => {
     const c = nodeHangarContent()
     const cruiser = { ...c.library.find((e) => e.id === 'cleveland-cl')!, model: { kind: 'ship' as const, id: 'essex-cv' } }
-    const seen: unknown[] = []
-    const entry = buildCatalog({ ...c, library: [cruiser] })[0]!
-    await loadHangarModel(entry, undefined, undefined, undefined, async (ref) => { seen.push(ref); return instance().inst })
-    expect(seen).toEqual([{ kind: 'ship', id: 'essex-cv' }])
+    const seenShip: unknown[] = []
+    const shipEntry = buildCatalog({ ...c, library: [cruiser] })[0]!
+    await loadHangarModel(shipEntry, undefined, undefined, undefined, async (ref) => { seenShip.push(ref); return instance().inst })
+    expect(seenShip).toEqual([{ kind: 'ship', id: 'essex-cv' }])
+
+    const tank = { ...c.library.find((e) => e.id === 'type97-chi-ha')!, model: { kind: 'vehicle' as const, id: 'type97-chi-ha' } }
+    const seenVehicle: unknown[] = []
+    const vehicleEntry = buildCatalog({ ...c, library: [tank] })[0]!
+    await loadHangarModel(vehicleEntry, undefined, undefined, undefined, async (ref) => { seenVehicle.push(ref); return instance().inst })
+    expect(seenVehicle).toEqual([{ kind: 'vehicle', id: 'type97-chi-ha' }])
   })
 
   it('displayModelUrl resolves ships and static models through their registries, and refuses an aircraft', () => {

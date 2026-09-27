@@ -27,6 +27,7 @@ describe('blender entries (R1)', () => {
     // The slab is the footprint plus 1 m (hangar.py), and its top is the ground plane.
     within1pct(bb.max[0] - bb.min[0], cited.widthM + 1, 'slab width (x)')
     within1pct(bb.max[2] - bb.min[2], cited.lengthM + 1, 'slab length (z)')
+    // Height (5.5 m wall + width x 0.25 rise) is hangar.py's own ESTIMATE, not a cited figure; only the footprint is cited.
     within1pct(bb.max[1], 5.5 + cited.widthM * 0.25, 'height: wall + rise')
     expect(bb.min[1]).toBeCloseTo(-0.3, 4)
   })

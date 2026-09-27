@@ -86,6 +86,10 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   set `view.model` in `content/ships/<spec>.json`. The Hangar spec names a
   `content/ships/models.json` for this, but that file was never created; S1
   registered ships in `SHIP_MODELS` instead.
+- **Buildings and vehicles:** add the id to `STATIC_MODELS` in
+  [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts).
+  They have no sim spec and no `view.model`; the Hangar draws them in place
+  of one, through a Library entry's `model` (R1, step 8).
 
 Tier 1 fails if a spec names a model id that is not registered.
 
@@ -94,6 +98,15 @@ Tier 1 fails if a spec names a model id that is not registered.
 Add `content/library/<id>.json` with a name, blurb, history and dated
 sources (Hangar spec §4). Tier 1 checks the library against the rosters in
 `GAMEPLAY.md`.
+
+An entry may also carry an optional `model: { "kind", "id" }` (R1), where
+`kind` must equal the entry's own kind (`aircraft`, `ship`, `building` or
+`vehicle`). The Hangar draws it in place of the spec's `view.model`; with no
+spec, the entry reads "not in the game yet" instead of "not yet in service".
+Tier 1 checks that every `model` resolves: it is registered (step 7), has a
+manifest entry, sits in the right output folder, and its glb is committed.
+An entry the plan now draws must come off `NOT_YET_DRAWN` in
+`tests/render/hangar/roster.test.ts`, with `CEILING` lowered to match.
 
 ## 9. Check
 
@@ -105,13 +118,15 @@ sources (Hangar spec §4). Tier 1 checks the library against the rosters in
   the model against its budget and turns red when it is over.
 - **Assert:** run `tests/e2e/hangar.spec.ts` on the reference GPU (the
   command is in README's "Tier 2: the GPU harness"). A new library entry is
-  picked up automatically. Checks 1–3 and 5–10 cover the following:
+  picked up automatically. Checks 1–3, 5–10 and 12 cover the following:
   - it renders
   - its gear, propeller and stores move
   - it is lit like the Wildcat
   - Cycle runs the gear
   - wireframe works
   - it is inside its manifest budget as drawn (check 10)
+  - the list marks exactly the entries it cannot draw, and every other one
+    is drawn (check 12, R1)
 
 ## Generated models
 
