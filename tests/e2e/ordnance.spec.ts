@@ -50,8 +50,17 @@ test('a released bomb and a rocket pair draw the O1 store models in flight, and 
   // geometry even with no bomb aloft, so wait for the swap itself rather than a fixed time.
   const bombTriangles = await triangles('content/ordnance/an-m65.glb')
   await expect.poll(async () => (await view(page)).bombTriangles, { timeout: 15_000 }).toBe(bombTriangles)
+  // Wait in sim ticks, not wall time, then pause: in the chase view the falling bomb crosses
+  // 100-200 px during one remote screenshot, so an unpaused view() and the capture disagree
+  // (measured 2026-09-26 on the reference GPU: contrast 0.000 with the bomb drawn 0.3 NDC
+  // lower than sampled). At 75 ticks the bomb is below the tailplane, over open sea, and its
+  // 3r ring clears both the tail and the HUD bar (at 50 it still overlaps the tailplane; at 90 the ring reaches the bar).
+  const tick = () => page.evaluate(() => (window as DiagWindow).__ww2!.tick())
   await page.keyboard.press('KeyV')
-  await page.waitForTimeout(1000) // about 5 m of fall: clear of the wing in the chase view
+  const released = await tick()
+  await expect.poll(tick, { timeout: 10_000, intervals: [10] }).toBeGreaterThanOrEqual(released + 75)
+  await page.keyboard.press('Escape')
+  const pausedAt = await tick()
   const v = await view(page)
   expect(v.bombs).toBe(1)
   expect(v.bombTriangles).toBe(bombTriangles)
@@ -61,8 +70,14 @@ test('a released bomb and a rocket pair draw the O1 store models in flight, and 
   const shot = await page.screenshot({ path: 'test-results/o1-bomb-in-flight.png' })
   const contrast = await blobContrast(page, shot, v.bombNdc!, v.bombRadiusPx!)
   console.log(`bomb at ndc ${v.bombNdc!.map((n) => n.toFixed(3)).join(', ')}, radius ${v.bombRadiusPx!.toFixed(1)} px, contrast ${contrast.toFixed(3)}`)
-  expect(contrast).toBeGreaterThan(0.3)
+  // The disc is the bounding sphere's, sized by the bomb's 2.2 m length, and the chase view sees
+  // it nearly tail-on: the 0.47 m body and box tail fill about a sixth of it (0.164-0.170 over
+  // three runs, 2026-09-26, reference GPU). Empty sea measured 0.000. Half the measured share.
+  expect(contrast).toBeGreaterThan(0.08)
+  expect(await view(page), 'paused: the capture saw the sampled frame').toEqual(v)
+  expect(await tick()).toBe(pausedAt)
 
+  await page.keyboard.press('Escape')
   await page.keyboard.press('KeyE')
   await expect.poll(async () => (await view(page)).rockets, { timeout: 2_000 }).toBeGreaterThanOrEqual(2)
   expect((await view(page)).rocketTriangles).toBe(await triangles('content/ordnance/hvar.glb'))
