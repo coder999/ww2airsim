@@ -12,6 +12,8 @@
 
 **Worktree:** `/home/mark/projects/ww2airsim-worktrees/ai-7f-formation`, branch `worktree-ai-7f-formation`, cut from `main` at `134fe22`. Every command below runs from there.
 
+**Execution (Mark, 2026-09-27):** subagent-driven. **Viewing checkpoint:** the final product only: Furball with Dev checked after Task 7, and Task 9's fixture once the sortie forms land. **Unattended:** run to completion without stopping; put the checkpoint captures in the handoff. The stop-and-report conditions in Tasks 3, 4 and 7 still apply. At one of those, finish the other tasks and report in the handoff.
+
 ## Global Constraints
 
 - Everything new in `sim/` imports only from `sim/`. `.dependency-cruiser.cjs` is untouched and `tests/architecture/boundary.test.ts` must still pass.
