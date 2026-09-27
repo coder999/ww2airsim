@@ -285,7 +285,7 @@ git commit -m "7f Task 1: pilot.leader and pilot.slot, validated by name; Format
   - `stationErrorM<M>(self: AircraftEntity<M>, leader: AircraftEntity<M>, slot: FormationSlot): number`
   - constants `CLOSURE_GAIN_PER_S`, `MAX_CLOSURE_MPS`, `MAX_FORMATION_VERTICAL_MPS`, `MIN_SPEED_STALL_FACTOR`, `FORMATION_THROTTLE_BASE`, `FORMATION_THROTTLE_GAIN`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // tests/sim/ai/formation.test.ts
@@ -348,12 +348,12 @@ describe('the station-keeping law (7f spec §3)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `npx vitest run tests/sim/ai/formation.test.ts --maxWorkers=2`
 Expected: FAIL, "Cannot find module .../formation.js".
 
-- [ ] **Step 3: Implement `formation.ts` (geometry and law only; Task 4 and 5 append to it)**
+- [x] **Step 3: Implement `formation.ts` (geometry and law only; Task 4 and 5 append to it)**
 
 ```ts
 // src/sim/ai/formation.ts
@@ -457,12 +457,12 @@ export function stationErrorM<M>(self: AircraftEntity<M>, leader: AircraftEntity
 
 Check the "clamps the vertical correction" test against the code: the vertical clamp limits `lv.y + pull.y` to ±10 m/s. If a test expectation and the code disagree, the spec wins (§3: clamped like ingress). Fix whichever one departs from it.
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `npx vitest run tests/sim/ai/formation.test.ts --maxWorkers=2; echo rc=$?`
 Expected: PASS, `rc=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/sim/ai/formation.ts tests/sim/ai/formation.test.ts
