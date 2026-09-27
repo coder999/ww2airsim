@@ -59,6 +59,10 @@ describe('respot (M3-R1..R3)', () => {
     expect(w.mission!.log.some((e) => e.kind === 'message' && e.text === RESPOT_MESSAGE)).toBe(true)
   })
 
+  it('the radio line says the deck crew raised the hook (ruling F-C1)', () => {
+    expect(RESPOT_MESSAGE).toBe('Flight deck: respotted for launch, hook up. Launch when ready.')
+  })
+
   it('no respot after the FINAL trap (count reached)', () => {
     let w = trappedAt(deckWorldOf({ objectives: [TRAPS_FINAL] }))
     w = steps(w, ticksFor(RESPOT_DELAY_S))
@@ -85,7 +89,31 @@ describe('respot (M3-R1..R3)', () => {
     expect(w.mission!.log.some((e) => e.kind === 'respot')).toBe(false)
   })
 
-  it('hook-down roll after respot re-arrests in the zone and logs no landing (Review Focus 1)', () => {
+  it('after a respot, a full-throttle roll with the hook UP gets airborne, never arrested (ruling F-C1)', () => {
+    // The frame raises the hook lever on every respot (src/render/frame.ts,
+    // `respotHandledTick`), so this is the roll a player makes by default.
+    let w = trappedAt(deckWorldOf())
+    w = steps(w, ticksFor(RESPOT_DELAY_S))
+    expect(w.mission!.log.some((e) => e.kind === 'respot')).toBe(true)
+    let arrested = false
+    let airborne = false
+    const deckY = playerAircraft(w).state.position.y
+    for (let i = 0; i < ticksFor(20) && !airborne; i++) {
+      // The plan's Measured deck-run law (fly.ts `deckRun`): pull 0.6 above
+      // 38 m/s (ground speed here: the fixture is calm and the ship at anchor).
+      const v = playerAircraft(w).state.velocity
+      w = withControls(w, w.player, { pitch: Math.hypot(v.x, v.z) > 38 ? 0.6 : 0, roll: 0, yaw: 0, throttle: 1, gearDown: true, hookDown: false, flapDown: true, brake: 0 })
+      w = steps(w, 1)
+      const s = playerAircraft(w).state
+      if (s.arrested) arrested = true
+      if (s.position.y - deckY > 10) airborne = true
+    }
+    expect(arrested).toBe(false)
+    expect(airborne).toBe(true)
+    expect(playerAircraft(w).impact).toBeNull()
+  })
+
+  it('a player who deliberately re-lowers the hook on deck after a respot re-arrests in the zone and logs no landing (documented, ruling F-C1)', () => {
     let w = trappedAt(deckWorldOf())
     w = steps(w, ticksFor(RESPOT_DELAY_S))
     const landingsBefore = w.mission!.log.filter((e) => e.kind === 'landing').length

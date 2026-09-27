@@ -12,7 +12,10 @@ import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
 export type RespotOrder = { readonly ship: string; readonly spot: { readonly x: number; readonly z: number } }
 /** Seconds from the landing (logged at rest) to the respot (M3-R2). */
 export const RESPOT_DELAY_S = 3
-export const RESPOT_MESSAGE = 'Flight deck: respotted for launch. Raise your hook before you roll.'
+/** The deck crew clears the wire: the frame raises the hook lever on each
+ *  respot (ruling F-C1, 2026-09-27; `FrameState.respotHandledTick` in
+ *  src/render/frame.ts), so the line reports it rather than asking for it. */
+export const RESPOT_MESSAGE = 'Flight deck: respotted for launch, hook up. Launch when ready.'
 
 /** An airplane at rest on `spot` of `deck`, facing the bow, gear down,
  *  moving with the deck. `buildAircraft`'s ship-parked start, moved here

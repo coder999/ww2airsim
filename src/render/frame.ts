@@ -137,6 +137,16 @@ export type FrameState = {
   /** The tailhook lever, edge-triggered exactly like the flap lever (Plan 8). */
   readonly hookDown: boolean
   readonly hookPressed: boolean
+  /** The tick of the newest mission `respot` this frame has already
+   *  answered by raising the hook lever, or -1 for none (ruling F-C1,
+   *  2026-09-27). The respot spot is aft of the trap zone and a trap never
+   *  releases on the deck (model.ts), so a respot with the hook left down
+   *  re-arrests on the roll: the deck crew clears the wire. "Newer than
+   *  handled", as `landingDisposition` (src/render/mission/landingFlow.ts)
+   *  does for landings, so each respot raises the lever exactly once and a
+   *  later H press lowers it again. Restart builds a new frame, which
+   *  starts from the new world's log. */
+  readonly respotHandledTick: number
   /** Whether the throttle-cut key was down last frame, for edge detection:
    *  the chop fires once per press, and a held `M` must not keep re-zeroing
    *  a throttle the pilot is trying to open again. */
@@ -244,6 +254,13 @@ function posesFor(
   return { poses, shipPoses, render: poses[playerIndex]! }
 }
 
+/** The tick of the newest `respot` in the world's mission log, or -1. */
+function lastRespotTick(world: World<undefined>): number {
+  const log = world.mission?.log ?? []
+  for (let i = log.length - 1; i >= 0; i--) if (log[i]!.kind === 'respot') return log[i]!.tick
+  return -1
+}
+
 /**
  * The general entry point (Plan 12): a `FrameState` for a `World` that may
  * carry any number of aircraft and ships. `groundSpawn` and `gearDown` are
@@ -283,6 +300,7 @@ export function initialFrameStateFor(
     flapPressed: false,
     hookDown: false,
     hookPressed: false,
+    respotHandledTick: lastRespotTick(world),
     throttleCutPressed: false,
     dropBombPressed: false,
     fireRocketsPressed: false,
@@ -519,10 +537,16 @@ export function nextFrameState(
   const flapDown =
     flapKeyDown && !prev.flapPressed ? !prev.flapDown : prev.flapDown
 
-  // The tailhook lever, edge-triggered identically (Plan 8).
+  // The tailhook lever, edge-triggered identically (Plan 8). A respot the
+  // mission logged since the last one handled raises it first (ruling F-C1,
+  // `FrameState.respotHandledTick`); a press on this same frame then acts on
+  // the raised lever.
+  const respotTick = lastRespotTick(prev.world)
+  const respotted = respotTick > prev.respotHandledTick
+  const hookLever = respotted ? false : prev.hookDown
   const hookKeyDown = BINDINGS.toggleHook.some((c) => pressed.has(c))
   const hookDown =
-    hookKeyDown && !prev.hookPressed ? !prev.hookDown : prev.hookDown
+    hookKeyDown && !prev.hookPressed ? !hookLever : hookLever
 
   // Release controls (Plan 6b Task 4): a PULSE, not a lever like the gear/flap/
   // hook above. At render rates above the fixed 60 Hz simulation rate, the
@@ -692,6 +716,7 @@ export function nextFrameState(
     flapPressed: flapKeyDown,
     hookDown,
     hookPressed: hookKeyDown,
+    respotHandledTick: respotted ? respotTick : prev.respotHandledTick,
     throttleCutPressed: throttleCutDown,
     dropBombPressed: dropBombKeyDown,
     fireRocketsPressed: fireRocketsKeyDown,
