@@ -30,8 +30,11 @@ export type MissionStep<M> = { readonly mission: MissionState<M>; readonly spawn
 
 /** Ruling R13: an aircraft is destroyed by damage or by any impact; a ship
  *  or structure by its `destroyedTick`; an entity with no combat record (an
- *  unspawned held one) is not destroyed. */
-export function isDestroyed<M>(t: MissionTick<M>, id: EntityId): boolean {
+ *  unspawned held one) is not destroyed. Takes only the fields it reads
+ *  (`combat`, `aircraft`), not a full `MissionTick`, so the M2 navigation
+ *  chart (`src/render/mission/chart.ts`) can call it from a `World`, which
+ *  has no `decks` field, without building a fake one. */
+export function isDestroyed<M>(t: Pick<MissionTick<M>, 'combat' | 'aircraft'>, id: EntityId): boolean {
   const aircraft = t.combat.aircraft[id]
   if (aircraft !== undefined) {
     if (aircraft.damage.destroyedAt !== null) return true

@@ -2,9 +2,11 @@ import { playerAircraft, type World } from '../sim/loop.js'
 import { localToWorld } from '../sim/world/airfields.js'
 import { BINDINGS } from '../input/bindings.js'
 import { keyLabel } from './legend.js'
+import { objectiveMarks, objectiveRows } from './mission/chart.js'
+import { figureRow, sectionTitle } from './ui/navalComms.js'
 
 /** A point the Plan 14 navigation chart can draw from the live world. */
-export type MapPointKind = 'player' | 'airfield' | 'carrier' | 'ship' | 'aircraft'
+export type MapPointKind = 'player' | 'airfield' | 'carrier' | 'ship' | 'aircraft' | 'structure' | 'station'
 
 export type MapPoint = {
   /** Kind-prefixed rather than a raw entity id: a future base and ship may
@@ -17,6 +19,11 @@ export type MapPoint = {
   /** Friendly recovery points are selectable; the initial scenario has no
    * enemy/objective content to pretend is a navigation target. */
   readonly targetable: boolean
+  /** Set by an active mission objective (Task 7, spec §5): `destroy`/`deny`
+   *  targets and `protect` targets get their marker colored accordingly. */
+  readonly objective?: 'destroy' | 'protect' | 'station'
+  /** A `station` point's ring radius, in world meters. */
+  readonly radiusM?: number
 }
 
 /** Chart-space bounds in world meters. +x is east, +z is south. */
@@ -48,6 +55,11 @@ const CHART_PADDING_FRACTION = 0.12
  */
 export function mapPoints<M>(world: World<M>): readonly MapPoint[] {
   const player = playerAircraft(world)
+  const marks = objectiveMarks(world)
+  const objectiveOf = (id: string): { readonly objective: 'destroy' | 'protect' } | Record<string, never> => {
+    const objective = marks.targets.get(id)
+    return objective === undefined ? {} : { objective }
+  }
   return [
     {
       id: `player:${player.id}`,
@@ -74,7 +86,8 @@ export function mapPoints<M>(world: World<M>): readonly MapPoint[] {
       label: ship.spec.name,
       x: ship.state.position.x,
       z: ship.state.position.z,
-      targetable: ship.spec.role === 'carrier',
+      targetable: ship.spec.role === 'carrier' || marks.targets.has(ship.id),
+      ...objectiveOf(ship.id),
     })),
     ...world.aircraft
       .filter((aircraft) => aircraft.id !== player.id)
@@ -84,8 +97,11 @@ export function mapPoints<M>(world: World<M>): readonly MapPoint[] {
         label: aircraft.id,
         x: aircraft.state.position.x,
         z: aircraft.state.position.z,
-        targetable: false,
+        targetable: marks.targets.has(aircraft.id),
+        ...objectiveOf(aircraft.id),
       })),
+    ...marks.structures,
+    ...marks.stations,
   ]
 }
 
@@ -274,16 +290,24 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
   instruction.textContent = 'Select an airfield or carrier for course and range. North is up.'
   panel.appendChild(instruction)
 
+  const objectivesList = document.createElement('div')
+  objectivesList.setAttribute('aria-label', 'Objectives')
+  objectivesList.style.cssText = 'margin-top:10px'
+  panel.appendChild(objectivesList)
+
   const drawMarker = <M>(
     world: World<M>,
     point: MapPoint,
     projection: ChartProjection,
     caption: LabelPlacement,
     selectedId: string | null,
+    bounds: ChartBounds,
   ): void => {
     const marker = svgElement('g')
     const selected = point.id === selectedId
     const color =
+      point.objective === 'destroy' ? '#ff8a6a' :
+      point.objective === 'protect' ? '#ffd27a' :
       point.kind === 'player' ? '#ffe16a' : point.kind === 'airfield' ? '#7ce0a3' : point.kind === 'carrier' ? '#89c7ff' : '#c3cbd4'
 
     if (point.targetable) {
@@ -307,21 +331,34 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       marker.setAttribute('pointer-events', 'none')
     }
 
-    const dot = svgElement(point.kind === 'airfield' ? 'rect' : 'circle')
-    if (point.kind === 'airfield') {
-      dot.setAttribute('x', String(projection.x - 6))
-      dot.setAttribute('y', String(projection.y - 6))
-      dot.setAttribute('width', '12')
-      dot.setAttribute('height', '12')
+    if (point.kind === 'station') {
+      const edge = projectPoint({ x: point.x + (point.radiusM ?? 0), z: point.z }, bounds, CHART_WIDTH, CHART_HEIGHT)
+      const ring = svgElement('circle')
+      ring.setAttribute('cx', String(projection.x))
+      ring.setAttribute('cy', String(projection.y))
+      ring.setAttribute('r', String(edge.x - projection.x))
+      ring.setAttribute('fill', 'none')
+      ring.setAttribute('stroke', color)
+      ring.setAttribute('stroke-width', selected ? '3' : '2')
+      ring.setAttribute('stroke-dasharray', '6 5')
+      marker.appendChild(ring)
     } else {
-      dot.setAttribute('cx', String(projection.x))
-      dot.setAttribute('cy', String(projection.y))
-      dot.setAttribute('r', point.kind === 'player' ? '8' : '6')
+      const dot = svgElement(point.kind === 'airfield' ? 'rect' : 'circle')
+      if (point.kind === 'airfield') {
+        dot.setAttribute('x', String(projection.x - 6))
+        dot.setAttribute('y', String(projection.y - 6))
+        dot.setAttribute('width', '12')
+        dot.setAttribute('height', '12')
+      } else {
+        dot.setAttribute('cx', String(projection.x))
+        dot.setAttribute('cy', String(projection.y))
+        dot.setAttribute('r', point.kind === 'player' ? '8' : '6')
+      }
+      dot.setAttribute('fill', color)
+      dot.setAttribute('stroke', selected ? '#ffffff' : '#0e151c')
+      dot.setAttribute('stroke-width', selected ? '4' : '2')
+      marker.appendChild(dot)
     }
-    dot.setAttribute('fill', color)
-    dot.setAttribute('stroke', selected ? '#ffffff' : '#0e151c')
-    dot.setAttribute('stroke-width', selected ? '4' : '2')
-    marker.appendChild(dot)
 
     const label = svgElement('text')
     label.setAttribute('x', String(caption.x))
@@ -372,7 +409,14 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       projections.map((projection, index) => ({ ...projection, label: points[index]!.label })),
       CHART_HEIGHT,
     )
-    points.forEach((point, index) => drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null))
+    points.forEach((point, index) => drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null, bounds))
+
+    const rows = objectiveRows(world.mission)
+    objectivesList.replaceChildren()
+    if (rows.length > 0) {
+      objectivesList.appendChild(sectionTitle('OBJECTIVES'))
+      for (const row of rows) objectivesList.appendChild(figureRow(`${row.label} (${row.priority})`, row.status))
+    }
   }
   let shownTick: number | null = null
   let shownSelectedId: string | null = null

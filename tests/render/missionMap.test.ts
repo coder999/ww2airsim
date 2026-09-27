@@ -41,6 +41,15 @@ describe('the Plan 14 navigation chart model', () => {
     expect(points).toContainEqual(expect.objectContaining({ id: 'aircraft:f6f-2', kind: 'aircraft', targetable: false }))
   })
 
+  it('marks an active destroy objective\'s resolved target, and leaves a mission-less world unchanged', () => {
+    const missionWorld = worldFromScenario(loadScenarioBundle('dev-mission-ui'), null)
+    const points = mapPoints(missionWorld)
+    expect(points).toContainEqual(expect.objectContaining({ id: 'aircraft:target-1', objective: 'destroy', targetable: true }))
+
+    // free-flight has no mission: today's exact expectations still pass, untouched.
+    expect(mapPoints(world)).toHaveLength(7)
+  })
+
   it('reads a carrier position from its live state, not a static waypoint', () => {
     const ships = world.ships.map((ship) =>
       ship.id === 'cv-1'
