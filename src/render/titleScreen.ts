@@ -161,6 +161,7 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // substring, and the range above keeps that name (M3-R5).
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' } },
   { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' } },
+  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' } },
 ]
 
 /** M2's two fixture missions (open question 1): `dev-`-prefixed, and offered

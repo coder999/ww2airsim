@@ -111,7 +111,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission', 'airfield-strike',
+      'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission', 'airfield-strike', 'convoy-strike',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -132,6 +132,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['friendly-fire-field']).toBe('Friendly Fire: Field (dev)')
     expect(labels['deck-quals-mission']).toBe('Carrier Qualification')
     expect(labels['airfield-strike']).toBe('Airfield Strike')
+    expect(labels['convoy-strike']).toBe('Convoy Strike')
   })
 
   it('no other label contains "Deck Quals": e2e selectors match by substring (M3-R5)', () => {
@@ -143,6 +144,7 @@ describe('the title screen scenario picker', () => {
       .toEqual([
         ['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }],
         ['airfield-strike', { id: 'airfield-strike', name: 'Airfield Strike' }],
+        ['convoy-strike', { id: 'convoy-strike', name: 'Convoy Strike' }],
       ])
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'range').some((o) => o.badge !== undefined)).toBe(false)
   })

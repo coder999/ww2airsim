@@ -1,0 +1,211 @@
+{
+  "id": "convoy-strike",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          -64000,
+          3000,
+          -12000
+        ],
+        "headingDeg": 210,
+        "speedMps": 120
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "maru-1",
+      "spec": "type-b-maru",
+      "tags": [
+        "convoy"
+      ],
+      "waypoints": [
+        [
+          -84000,
+          22000
+        ],
+        [
+          -73000,
+          -9000
+        ],
+        [
+          -71000,
+          -8000
+        ],
+        [
+          -82000,
+          23000
+        ]
+      ],
+      "speedMps": 4.1
+    },
+    {
+      "id": "maru-2",
+      "spec": "type-b-maru",
+      "tags": [
+        "convoy"
+      ],
+      "waypoints": [
+        [
+          -84150,
+          22450
+        ],
+        [
+          -73150,
+          -8550
+        ],
+        [
+          -71150,
+          -7550
+        ],
+        [
+          -82150,
+          23450
+        ]
+      ],
+      "speedMps": 4.1
+    },
+    {
+      "id": "maru-3",
+      "spec": "type-b-maru",
+      "tags": [
+        "convoy"
+      ],
+      "waypoints": [
+        [
+          -84300,
+          22900
+        ],
+        [
+          -73300,
+          -8100
+        ],
+        [
+          -71300,
+          -7100
+        ],
+        [
+          -82300,
+          23900
+        ]
+      ],
+      "speedMps": 4.1
+    },
+    {
+      "id": "escort-1",
+      "spec": "kagero-dd",
+      "tags": [
+        "escort"
+      ],
+      "waypoints": [
+        [
+          -83400,
+          21700
+        ],
+        [
+          -72400,
+          -9300
+        ],
+        [
+          -70400,
+          -8300
+        ],
+        [
+          -81400,
+          22700
+        ]
+      ],
+      "speedMps": 4.1
+    }
+  ],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 5,
+    "timeOfDay": 15,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 900,
+        "thicknessM": 900,
+        "coverage": 0.45
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "sink",
+      "label": "Convoy",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "convoy"
+      ],
+      "count": 2
+    },
+    {
+      "id": "all",
+      "label": "Whole convoy",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": [
+        "convoy"
+      ]
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "sink"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "vector",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Base: convoy of three marus with one destroyer, heading for Ormoc Bay. Steer two-one-zero."
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "when": {
+        "completed": "sink"
+      },
+      "then": [
+        {
+          "message": "Strike lead: two down. Home to Tacloban when you're dry."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "convoy-strike",
+    "name": "Convoy Strike"
+  },
+  "briefing": {
+    "situation": "A Japanese reinforcement convoy — three transports and a destroyer — is crossing the Camotes Sea for Ormoc Bay. You are already over the mountains of western Leyte. Sink at least two of the transports, then recover at Tacloban. Two bombs and six rockets: one bomb and three rockets will sink a transport.",
+    "loadout": "both"
+  },
+  "history": {
+    "text": "After the landings, Japan reinforced its Leyte garrison through Ormoc, the port on the island's west coast: between 23 October and 11 December 1944 it sent nine convoys of transports and escort vessels there, several of them from Manila, and American aircraft struck them again and again. Early on 11 November 1944, carrier planes of Task Force 38 caught one of those convoys as it prepared to enter Ormoc Bay from the Camotes Sea, and accounted for all of its transports and four of its seven escorting destroyers. This mission is inspired by those attacks rather than a reconstruction of any one of them: its convoy sails the Camotes Sea approach to Ormoc Bay, as they did, but its ships, numbers and date are the game's.",
+    "sources": [
+      "M. Hamlin Cannon, Leyte: The Return to the Philippines (Washington: Office of the Chief of Military History, 1954; CMH Pub 5-9-1), U.S. Army Center of Military History: https://www.history.army.mil/html/books/005/5-9-1/CMH_Pub_5-9-1.pdf",
+      "Cannon, Leyte, Chapter VI, \"The Japanese Reaction\" (\"The Japanese Reinforce the Leyte Garrison\": nine convoys to Ormoc, 23 October-11 December; the convoys from Manila), HyperWar transcription: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-6.html",
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Ticonderoga IV (CV-14)\" (the 11 November 1944 strike on the convoy entering Ormoc Bay from the Camotes Sea): https://www.history.navy.mil/research/histories/ship-histories/danfs/t/ticonderoga-cv-14-iv.html",
+      "Naval History and Heritage Command, H-Gram 040-2, \"Leyte, Ormoc Bay, Mindoro\" (the reinforcement convoys to Ormoc Bay; Task Force 38's strike of 11 November 1944): https://www.history.navy.mil/about-us/leadership/director/directors-corner/h-grams/h-gram-040/h-040-2.html"
+    ]
+  }
+}
