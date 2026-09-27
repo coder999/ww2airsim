@@ -145,6 +145,9 @@ export type DebriefModel = {
    * present-and-equal-to-the-old-rank, so `show()` can render it
    * conditionally the same way it already does `continueLabel`.
    */
+  /** A Dev sortie (sortie spec A5): scored and shown in full, banked
+   *  nowhere. Rendered as `DEV_SORTIE_STAMP` under the headline. */
+  readonly notRecorded?: true
   readonly bankedTotal?: number
   readonly promotedTo?: string
   /** M2: present only for a mission world (`withMissionDebrief`). */
@@ -486,6 +489,9 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       letterheadText.append(letterheadKicker, letterheadTitle)
       letterhead.appendChild(letterheadText)
       sheet.appendChild(letterhead)
+      // Sortie spec A5: said first, so the figures below read as what WOULD
+      // have been earned.
+      if (model.notRecorded === true) sheet.appendChild(plainRow(DEV_SORTIE_STAMP))
 
       // Routing header (naval-comms spec §3's `.routing`) -- decorative
       // message-form flavor, the same register as `settings.ts`'s "FORM
@@ -629,4 +635,11 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       backdrop.style.display = 'none'
     },
   }
+}
+
+export const DEV_SORTIE_STAMP = 'Dev sortie: not recorded'
+
+/** The debrief of a Dev sortie carries the stamp; any other model is returned as it was. */
+export function withNotRecorded(model: DebriefModel, devSortie: boolean): DebriefModel {
+  return devSortie ? { ...model, notRecorded: true } : model
 }

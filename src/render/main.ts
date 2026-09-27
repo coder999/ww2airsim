@@ -26,11 +26,12 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud, missionDiagnostics } from './mission/hud.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
-import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
+import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, scenarioOptions, SCENARIO_OPTIONS } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
-import { applyMissionResultToRoster, awardBadgeInRoster, dischargeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
@@ -533,6 +534,15 @@ async function boot(): Promise<void> {
   // so a boot world is what it was before the sortie forms.
   const bootOption = SCENARIO_OPTIONS.find((o) => o.value === requestedScenarioId)!
   let chosen: SortieChoice = { scenarioId: requestedScenarioId, aircraftSpec: bootOption.aircraft, loadout: DEFAULT_LOADOUT, dev: bootOption.dev }
+  // Sortie spec A5: whether the flight in progress NEEDED Dev, which is what
+  // gates recording (not whether the box was checked). Set by `onNewGame`
+  // from the loaded bundle; `false` until a sortie is launched, when no pilot
+  // is flying and nothing banks anyway.
+  let devSortie = false
+  // SF-R6: a DEV-build-only switch that records a Dev sortie anyway, read once.
+  const recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(window.location.search, true) : false
+  const sortieNeededDev = (choice: SortieChoice): boolean =>
+    sortieIsDev(SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)!, bundle!.aircraftSpecs[choice.aircraftSpec]!, choice.loadout, false)
 
   /**
    * The Settings dialog's model and the boot sequence's side of it
@@ -671,14 +681,15 @@ async function boot(): Promise<void> {
       // above) and the same shape `loadTerrainProgressively`'s `.catch` below
       // already uses: a mid-game fetch failure is the same "content the build
       // was supposed to ship" fault, just discovered later than boot.
-      void loadScenario(choice).then(rebuildFrame).catch((err: unknown) => {
+      void loadScenario(choice).then(() => { devSortie = sortieNeededDev(choice); rebuildFrame() }).catch((err: unknown) => {
         loop?.stop()
         showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
       })
       return
     }
+    devSortie = sortieNeededDev(choice)
     rebuildFrame()
-  }, quality.settings, boot, { options: scenarioOptions(import.meta.env.DEV), loadScenario: (id) => loadScenarioFile(id) })
+  }, quality.settings, boot, { options: scenarioOptions(import.meta.env.DEV), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
@@ -1564,19 +1575,13 @@ async function boot(): Promise<void> {
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     const discharged = friendlyFire === 'discharged'
     if (currentPilotId === null) return null
+    // A Dev sortie (sortie spec A5) banks nothing: `bankSortie` hands the same
+    // roster back, so there is nothing to save and no figure to show.
+    const devUnrecorded = devSortie && !recordDevSorties
     const before = roster.find((p) => p.id === currentPilotId) ?? null
-    // Friendly fire (spec §6, FF-6 as amended by Mark 2026-09-26): only this
-    // sortie is forfeit; what an earlier landing banked stays banked.
-    // A friendly-fire death banks K.I.A. with nothing credited: the dead are
-    // not discharged, but the sortie is still forfeit (FF-7 as amended).
-    roster = discharged
-      ? dischargeInRoster(roster, currentPilotId, outcome, sortie)
-      : friendlyFire === 'forfeit'
-        ? applyMissionResultToRoster(roster, currentPilotId, 0, outcome, zeroKillsByType(), sortie)
-        : applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
-    // M2: a forfeit sortie never writes a badge (withMissionDebrief already
-    // returns none for one; this guard keeps the roster rule in one place).
-    if (badgeId !== null && friendlyFire === null) roster = awardBadgeInRoster(roster, currentPilotId, badgeId)
+    const next = bankSortie(roster, currentPilotId, { devSortie: devUnrecorded, scoreTotal, outcome, killsSinceLastBank, sortie, friendlyFire, badgeId })
+    if (next === roster) return null
+    roster = next
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null
@@ -1601,10 +1606,13 @@ async function boot(): Promise<void> {
     // different things under this tsconfig, and `DebriefModel.promotedTo` is
     // typed as absent-or-string, not string-or-undefined (matching
     // `continueLabel`'s existing convention on the same type).
+    // The one merge point for all three sites, so the Dev stamp (sortie spec
+    // A5) reaches every debrief without a fourth copy at each call.
+    const shown = withNotRecorded(model, devSortie && !recordDevSorties)
     debrief.show(
       banked === null
-        ? model
-        : { ...model, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
+        ? shown
+        : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
       onContinue,
       returnToTitle,
     )

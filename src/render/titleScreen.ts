@@ -417,6 +417,9 @@ export function createTitleScreen(
   /** The picker's rows and the briefing loader (M2 Task 6). `main.ts` passes
    *  `scenarioOptions(import.meta.env.DEV)` and `loadScenarioFile`. */
   missions: TitleMissions = PRODUCTION_MISSIONS,
+  /** SF-R6: `?recordDevSorties` in a DEV build, so a Dev sortie's launch-time
+   *  write happens too; `main.ts` passes it. */
+  recordDevSorties = false,
 ): TitleScreenHandle {
   const m = titleModel()
 
@@ -977,12 +980,18 @@ export function createTitleScreen(
       // and counting the resurrection happens exactly here, the moment the
       // sortie is LAUNCHED with that pilot selected -- not on selection, and
       // not on New game's step to Form 2, either of which would count a pilot
-      // merely looked at.
-      pilots[pilotIndex] = startSortie(pilots[pilotIndex]!)
-      saveRoster(pilots)
+      // merely looked at. A Dev sortie (sortie spec A5) writes nothing, not
+      // even this: a K.I.A. pilot flying one stays K.I.A.
+      // Task 5 of the sortie-forms plan replaces the placeholder aircraft and
+      // this Dev test with the draft and `sortieIsDev`; until then the only
+      // way a sortie here can need Dev is a Dev-only scenario.
+      const devSortie = SCENARIO_OPTIONS.find((o) => o.value === selectedScenarioId)?.dev === true
+      if (!devSortie || recordDevSorties) {
+        pilots[pilotIndex] = startSortie(pilots[pilotIndex]!)
+        saveRoster(pilots)
+      }
       hide()
-      // Task 5 of the sortie-forms plan replaces this with the four forms' draft.
-      onNewGame({ scenarioId: selectedScenarioId, aircraftSpec: 'f6f-hellcat', loadout: selectedLoadout, dev: false }, pilotId)
+      onNewGame({ scenarioId: selectedScenarioId, aircraftSpec: 'f6f-hellcat', loadout: selectedLoadout, dev: devSortie }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)
