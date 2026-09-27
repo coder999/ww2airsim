@@ -231,6 +231,7 @@ const ScenarioShape = z.object({
 }).strict()
 
 type AnyAircraft = z.infer<typeof ScenarioAircraftObject>
+
 /**
  * 7f spec §1: every leader rule, reported by name, for the starting aircraft
  * and every held group. A starting pilot may name a starting aircraft as
@@ -256,7 +257,6 @@ function checkFormations(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx)
   }
 }
 
-type AnyAircraft = z.infer<typeof ScenarioAircraftObject>
 /** One list's leader rules. `visible` is what this list's pilots may name
  *  as leader; `at` locates each entry; `taken` is `checkFormations`'
  *  scenario-wide slot set, added to here. */
