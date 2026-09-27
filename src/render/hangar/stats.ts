@@ -44,7 +44,8 @@ function withNote(f: Omit<Figure, 'note'>, note: string | undefined): Figure {
   return note === undefined ? f : { ...f, note }
 }
 
-/** The card's figures, all read from sim content (Hangar spec §5). [] for "Not yet in service". */
+/** The card's figures, all read from sim content (Hangar spec §5). [] for an entry with no sim
+ *  spec, including a display-only model (R1). */
 export function figuresFor(entry: CatalogEntry): Figure[] {
   const s = entry.subject
   if (s === null) return []

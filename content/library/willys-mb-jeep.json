@@ -1,0 +1,11 @@
+{
+  "id": "willys-mb-jeep",
+  "name": "Willys MB jeep",
+  "kind": "vehicle",
+  "side": "allied",
+  "blurb": "The U.S. Army's small four-wheel-drive truck, listed as friendly airfield scenery. It is not in the game yet.",
+  "history": "The Willys MB, officially the U.S. Army Truck, 1/4-ton, 4x4, Command Reconnaissance, was built from 1941 to 1945. Willys-Overland built it as the MB and Ford built it to the same design as the GPW, more than 359,000 and 277,000 respectively. It was powered by Willys' four-cylinder \"Go Devil\" engine.\n\nThe jeep served in every theater of the Second World War and again in Korea.",
+  "sources": [
+    { "title": "Willys MB", "url": "https://en.wikipedia.org/wiki/Willys_MB", "read": "2026-09-26" }
+  ]
+}

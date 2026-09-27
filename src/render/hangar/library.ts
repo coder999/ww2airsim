@@ -10,8 +10,13 @@ import type { BudgetTable } from './budgets.js'
  * only: every figure a card shows is read from sim content at load (§4.2,
  * `stats.ts`), so a gameplay rebalance can never leave the library wrong.
  */
-export const LIBRARY_KINDS = ['aircraft', 'ship', 'building', 'ordnance'] as const
+export const LIBRARY_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'ordnance'] as const
 export type LibraryKind = (typeof LIBRARY_KINDS)[number]
+/** The kinds that can carry their own model (model-roster spec §4.3). Ordnance draws its store
+ *  model by its spec (O1), so it takes none. */
+export const MODEL_KINDS = ['aircraft', 'ship', 'building', 'vehicle'] as const
+export type ModelKind = (typeof MODEL_KINDS)[number]
+export interface ModelRef { readonly kind: ModelKind; readonly id: string }
 export const SIDES = ['allied', 'japanese'] as const
 export type Side = (typeof SIDES)[number]
 
@@ -26,8 +31,12 @@ export const LibraryEntrySchema = z.object({
   rosterName: z.string().min(1).optional(),
   kind: z.enum(LIBRARY_KINDS),
   side: z.enum(SIDES),
-  /** Sim spec id: an aircraft or ship id, a building `kind`, or a store type id (ordnance). Absent = "Not yet in service" (§4.3). */
+  /** Sim spec id: an aircraft or ship id, a building `kind`, or a store type id (ordnance). A vehicle never has one. Absent and no `model` = "Not yet in service" (§4.3). */
   spec: z.string().min(1).optional(),
+  /** A model the Hangar draws for this entry, in place of the spec's `view.model` (model-roster
+   *  spec §4.3). With no `spec`, the entry is drawn but is "not in the game yet". The id resolves
+   *  in AIRFRAME_MODELS, SHIP_MODELS or STATIC_MODELS by kind (tests/render/hangar/roster.test.ts). */
+  model: z.object({ kind: z.enum(MODEL_KINDS), id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict().optional(),
   /** One or two sentences: what it is in this game. Never a gameplay number (§4.2). */
   blurb: z.string().min(1),
   /** One to three short paragraphs, separated by a blank line: the real thing. */
@@ -41,6 +50,8 @@ export const LibraryEntrySchema = z.object({
 }).strict().superRefine((e, ctx) => {
   const n = historyParagraphs(e.history).length
   if (n < 1 || n > 3) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['history'], message: `must be 1 to 3 paragraphs, found ${n}` })
+  if (e.model !== undefined && e.model.kind !== e.kind) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['model', 'kind'], message: `must be the entry's own kind "${e.kind}"` })
+  if (e.kind === 'vehicle' && e.spec !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['spec'], message: 'no vehicle is in the sim: a vehicle entry takes no spec' })
 })
 
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>

@@ -1,6 +1,6 @@
 // src/render/hangar/panel.ts
 import { ensureStampFilter } from '../ui/navalComms.js'
-import { filterCatalog, FILTER_KINDS, FILTER_SIDES, type CatalogEntry, type CatalogFilter } from './catalog.js'
+import { filterCatalog, FILTER_KINDS, FILTER_SIDES, listLabel, statusNote, type CatalogEntry, type CatalogFilter } from './catalog.js'
 import { historyParagraphs } from './library.js'
 import type { Figure } from './stats.js'
 
@@ -11,7 +11,7 @@ export interface HangarPanel {
   readonly benchSlot: HTMLElement
 }
 
-const KIND_LABEL: Readonly<Record<string, string>> = { all: 'All', aircraft: 'Aircraft', ship: 'Ships', building: 'Buildings', ordnance: 'Ordnance' }
+const KIND_LABEL: Readonly<Record<string, string>> = { all: 'All', aircraft: 'Aircraft', ship: 'Ships', building: 'Buildings', vehicle: 'Vehicles', ordnance: 'Ordnance' }
 const SIDE_LABEL: Readonly<Record<string, string>> = { all: 'Both sides', allied: 'Allied', japanese: 'Japanese' }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -73,7 +73,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   function renderList(): void {
     list.replaceChildren(...filterCatalog(catalog, filter).map((e) => {
       const li = el('li')
-      const b = el('button', 'ink-button', e.subject === null ? `${e.library.name} (not yet in service)` : e.library.name)
+      const b = el('button', 'ink-button', listLabel(e))
       b.dataset['id'] = e.library.id
       b.style.cssText = 'width:100%;text-align:left;margin:2px 0'
       b.addEventListener('click', () => onSelect(e.library.id))
@@ -89,7 +89,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
       const l = entry.library
       const rows: HTMLElement[] = [
         el('div', 'form-section-title', l.name),
-        el('div', 'fine-print', `${l.side === 'allied' ? 'Allied' : 'Japanese'} ${l.kind}${entry.subject === null ? ' · Not yet in service' : ''}`),
+        el('div', 'fine-print', `${l.side === 'allied' ? 'Allied' : 'Japanese'} ${l.kind}${statusNote(entry) === null ? '' : ` · ${statusNote(entry)}`}`),
         el('p', undefined, l.blurb),
       ]
       if (figures.length > 0) {

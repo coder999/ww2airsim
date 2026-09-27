@@ -33,7 +33,7 @@ describe('content/library (Hangar spec §4.4)', () => {
     for (const id of storeIds) expect(count('ordnance', id), `ordnance ${id}`).toBe(1)
   })
 
-  it("4. every row of GAMEPLAY.md's aircraft, ship and building rosters has an entry", () => {
+  it("4. every row of GAMEPLAY.md's aircraft, ship, building, ordnance and vehicle rosters has an entry", () => {
     const named = (kind: string) => new Set(entries.filter((e) => e.kind === kind).map(rosterNameOf))
     for (const row of rosterColumn(gameplay, 'Aircraft roster')) expect(named('aircraft'), row).toContain(row)
     for (const row of rosterColumn(gameplay, 'Ship roster')) expect(named('ship'), row).toContain(row)
@@ -42,6 +42,7 @@ describe('content/library (Hangar spec §4.4)', () => {
     for (const kind of rosterColumn(gameplay, 'Building roster', 0, 1)) expect(kinds, kind).toContain(kind)
     for (const row of rosterColumn(gameplay, 'Building roster', 1)) expect(named('building'), row).toContain(row)
     for (const row of rosterColumn(gameplay, 'Ordnance roster')) expect(named('ordnance'), row).toContain(row)
+    for (const row of rosterColumn(gameplay, 'Vehicle roster')) expect(named('vehicle'), row).toContain(row)
   })
 
   it('5. no blurb carries a gameplay number', () => {
@@ -60,8 +61,17 @@ describe('LibraryEntrySchema', () => {
     ['four history paragraphs', { ...valid, history: 'a\n\nb\n\nc\n\nd' }, /1 to 3 paragraphs/],
     ['no sources', { ...valid, sources: [] }, /sources/],
     ['a read date that is not ISO', { ...valid, sources: [{ ...valid.sources[0], read: '25 Sep 2026' }] }, /read/],
+    ['a model of another kind', { ...valid, model: { kind: 'aircraft', id: 'wildcat' } }, /entry's own kind \\"ship\\"/],
+    ['a model with an unknown kind', { ...valid, model: { kind: 'tank', id: 'x' } }, /model/],
+    ['a vehicle with a spec', { ...valid, kind: 'vehicle', spec: 'jeep' }, /no vehicle is in the sim/],
+    ['a model on an ordnance entry', { ...valid, kind: 'ordnance', spec: 'an-m65', model: { kind: 'building', id: 'hangar' } }, /entry's own kind \\"ordnance\\"/],
   ])('rejects %s', (_l, raw, message) => {
     expect(() => parseLibraryEntry(raw)).toThrow(message)
+  })
+
+  it('accepts a model of its own kind, with or without a spec', () => {
+    expect(parseLibraryEntry({ ...valid, model: { kind: 'ship', id: 'essex-cv' } }).model).toEqual({ kind: 'ship', id: 'essex-cv' })
+    expect(parseLibraryEntry({ ...valid, kind: 'vehicle', model: { kind: 'vehicle', id: 'jeep' } }).kind).toBe('vehicle')
   })
 
   it('gameplayNumbersIn catches a number with a unit, and only that', () => {

@@ -2,12 +2,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D } from 'three'
-import { flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
+import { displayModelUrl, flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
 import { nodeHangarContent } from './content.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
+import { staticModelUrl, shipModelUrl } from '../../../src/render/content.js'
+import type { ModelInstance } from '../../../src/render/models/modelCache.js'
 
 const catalog = buildCatalog(nodeHangarContent())
 const byId = (id: string) => catalog.find((e) => e.library.id === id)!
@@ -53,7 +55,7 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 
   it('a ship and a building load with no articulated parts and a non-zero triangle count', async () => {
-    for (const id of ['essex-cv', 'hangar']) {
+    for (const id of ['essex-cv', 'tower']) {
       // The ship loader is the game's (S1); a stub keeps GLTFLoader out of Node.
       const m = await loadHangarModel(byId(id), undefined, async (spec) => createShipMesh(spec))
       expect(m!.parts, id).toEqual([])
@@ -149,5 +151,59 @@ describe('stores on the bench', () => {
     expect(m!.articulated.length).toBeGreaterThan(0) // the stub's propeller
     const s = await loadHangarModel(byId('essex-cv'), undefined, async (spec) => createShipMesh(spec))
     expect(s!.articulated).toEqual([])
+  })
+})
+
+describe("an entry's own model (R1)", () => {
+  const instance = (h = 5): { inst: ModelInstance; released: () => number } => {
+    let n = 0
+    const root = new Group()
+    root.add(new Mesh(new BoxGeometry(10, h, 10).translate(0, h / 2, 0), new MeshStandardMaterial()))
+    return { inst: { root, node: () => root, release: () => { n++ } }, released: () => n }
+  }
+
+  it('the hangar, with a spec and a model, draws the model through the display loader, not drawBuilding, and releases it', async () => {
+    const seen: unknown[] = []
+    const { inst, released } = instance()
+    const m = await loadHangarModel(byId('hangar'), undefined, undefined, undefined, async (ref) => { seen.push(ref); return inst })
+    expect(seen).toEqual([{ kind: 'building', id: 'hangar' }])
+    expect(m!.root).toBe(inst.root) // the display model itself stands on the pad; drawBuilding never ran
+    expect(m!.parts).toEqual([])
+    m!.dispose()
+    expect(released()).toBe(1)
+  })
+
+  it('a spec-less aircraft model loads by its id with no stores, stands on the pad by its bounds, and has no mounts', async () => {
+    const c = nodeHangarContent()
+    const corsair = { ...c.library.find((e) => e.id === 'f4u-corsair')!, model: { kind: 'aircraft' as const, id: 'wildcat' } }
+    const entry = buildCatalog({ ...c, library: [corsair] })[0]!
+    const asked: [string, unknown][] = []
+    const m = await loadHangarModel(entry, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
+    expect(asked).toEqual([['wildcat', undefined]])
+    expect(new Box3().setFromObject(m!.root).min.y).toBeCloseTo(0, 6)
+    expect(m!.mounts()).toEqual([])
+    expect(m!.parts.find((p) => p.id === 'prop')!.modeled).toBe(true)
+  })
+
+  it('a ship model and a vehicle model go through the display loader too', async () => {
+    const c = nodeHangarContent()
+    const cruiser = { ...c.library.find((e) => e.id === 'cleveland-cl')!, model: { kind: 'ship' as const, id: 'essex-cv' } }
+    const seenShip: unknown[] = []
+    const shipEntry = buildCatalog({ ...c, library: [cruiser] })[0]!
+    await loadHangarModel(shipEntry, undefined, undefined, undefined, async (ref) => { seenShip.push(ref); return instance().inst })
+    expect(seenShip).toEqual([{ kind: 'ship', id: 'essex-cv' }])
+
+    const tank = { ...c.library.find((e) => e.id === 'type97-chi-ha')!, model: { kind: 'vehicle' as const, id: 'type97-chi-ha' } }
+    const seenVehicle: unknown[] = []
+    const vehicleEntry = buildCatalog({ ...c, library: [tank] })[0]!
+    await loadHangarModel(vehicleEntry, undefined, undefined, undefined, async (ref) => { seenVehicle.push(ref); return instance().inst })
+    expect(seenVehicle).toEqual([{ kind: 'vehicle', id: 'type97-chi-ha' }])
+  })
+
+  it('displayModelUrl resolves ships and static models through their registries, and refuses an aircraft', () => {
+    expect(displayModelUrl({ kind: 'ship', id: 'essex-cv' })).toBe(shipModelUrl('essex-cv'))
+    expect(displayModelUrl({ kind: 'building', id: 'hangar' })).toBe(staticModelUrl('building', 'hangar'))
+    expect(() => displayModelUrl({ kind: 'building', id: 'nope' })).toThrow(/no building model "nope"/)
+    expect(() => displayModelUrl({ kind: 'aircraft', id: 'wildcat' })).toThrow(/airframe registry/)
   })
 })

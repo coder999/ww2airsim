@@ -1,0 +1,67 @@
+import { describe, expect, it } from 'vitest'
+import { existsSync } from 'node:fs'
+import { buildCatalog, drawable } from '../../../src/render/hangar/catalog.js'
+import type { ModelRef } from '../../../src/render/hangar/library.js'
+import { AIRFRAME_MODELS } from '../../../src/render/scene/airframes.js'
+import { SHIP_MODELS } from '../../../src/render/scene/shipModels.js'
+import { STATIC_MODELS } from '../../../src/render/scene/staticModels.js'
+import { loadModelEntries, type ModelEntry } from '../../../tools/models/manifest.js'
+import { nodeHangarContent } from './content.js'
+
+/**
+ * Library entries the Hangar cannot draw yet (model-roster spec §1: "done is an assertion").
+ * Each roster plan removes the entries it models and lowers CEILING to match; R5 deletes both,
+ * and this test then asserts none remain. The list may shrink, never grow.
+ */
+const NOT_YET_DRAWN = [
+  'ammunition-bunker', 'b-17-flying-fortress', 'b-29-superfortress', 'barracks-and-huts',
+  'casablanca-cve', 'cleveland-cl', 'coastal-gun-battery', 'd3a-val', 'f4u-corsair',
+  'fuel-tank-farm', 'g4m-betty', 'kagero-dd', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank',
+  'mogami-ca', 'p-38-lightning', 'pennsylvania-bb', 'pier-and-warehouses',
+  'radio-radar-station', 'revetment', 'shiratsuyu-dd', 'type97-chi-ha', 'willys-mb-jeep',
+  'yamato-bb',
+]
+const CEILING = 25
+
+const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
+  aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
+}
+
+/** Why `ref` does not resolve to a registered model with its manifest entry and committed glb; null if it does. */
+function refProblem(ref: ModelRef, entries: readonly ModelEntry[]): string | null {
+  const registered = ref.kind === 'aircraft' ? Object.hasOwn(AIRFRAME_MODELS, ref.id)
+    : ref.kind === 'ship' ? Object.hasOwn(SHIP_MODELS, ref.id)
+      : Object.hasOwn(STATIC_MODELS[ref.kind], ref.id)
+  if (!registered) return `${ref.kind} model "${ref.id}" is not registered`
+  const entry = entries.find((e) => e.id === ref.id)
+  if (!entry) return `${ref.kind} model "${ref.id}" has no tools/models/entries/${ref.id}.json`
+  if (!entry.output.startsWith(FOLDER[ref.kind])) return `${ref.kind} model "${ref.id}" writes ${entry.output}, not under ${FOLDER[ref.kind]}`
+  if (!existsSync(entry.output)) return `${entry.output} is not committed`
+  return null
+}
+
+const content = nodeHangarContent()
+const catalog = buildCatalog(content)
+const entries = loadModelEntries()
+
+describe('the roster is done when this list is empty (model-roster spec §1)', () => {
+  it('exactly the allowlisted entries are the ones the Hangar cannot draw', () => {
+    expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id).sort()).toEqual([...NOT_YET_DRAWN].sort())
+  })
+
+  it('the allowlist never grows', () => {
+    expect(NOT_YET_DRAWN.length).toBeLessThanOrEqual(CEILING)
+  })
+})
+
+describe("every Library entry's own model resolves (spec §4.3)", () => {
+  it.each(content.library.filter((e) => e.model !== undefined).map((e) => [e.id, e.model!] as const))('%s', (_id, ref) => {
+    expect(refProblem(ref, entries)).toBeNull()
+  })
+
+  it('names what is wrong with a bad reference', () => {
+    expect(refProblem({ kind: 'building', id: 'nope' }, entries)).toBe('building model "nope" is not registered')
+    expect(refProblem({ kind: 'vehicle', id: 'hangar' }, entries)).toBe('vehicle model "hangar" is not registered')
+    expect(refProblem({ kind: 'aircraft', id: 'constructor' }, entries)).toBe('aircraft model "constructor" is not registered')
+  })
+})

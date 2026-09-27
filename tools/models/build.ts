@@ -1,7 +1,7 @@
 // tools/models/build.ts
 /**
- * `npm run models:build -- [<id>...] [--force]`: raw download or a generator
- * -> committed glb in content/aircraft/, content/ships/ or content/ordnance/,
+ * `npm run models:build -- [<id>...] [--force]`: raw download, a generator or a Blender
+ * script -> committed glb in content/aircraft/, ships/, ordnance/, buildings/ or vehicles/,
  * driven by one `tools/models/entries/<id>.json` per model (A6M Zero spec §6).
  *
  * LOAD-BEARING: no stage compresses geometry. No EXT_meshopt_compression and
@@ -11,13 +11,16 @@
  * anything but EXT_texture_webp.
  *
  * With no id, builds every entry whose raw input exists locally, skips
- * frozen entries, and names every entry it skipped and why.
+ * frozen entries, and names every entry it skipped and why. A blender entry
+ * is skipped, and named, where no Blender is on PATH.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { getBounds, prune } from '@gltf-transform/functions'
 import { Logger, type Document } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
+import { BLENDER_VERSION, blenderPresent, runBlenderScript } from './blender/run.js'
+import type { BlenderSource, SketchfabSource } from './manifest.js'
 import { findNode, modelIO } from './document.js'
 import { measureDocument, type ModelMeasure } from './measure.js'
 import { removeNodes } from './stages/remove.js'
@@ -46,9 +49,22 @@ export function partNames(entry: ModelEntry): string[] {
   ]
 }
 
+/** Where a blender entry's raw glb lands before the stages run (gitignored by /tools/**\/cache/). */
+export function blenderIntermediate(id: string): string {
+  return `tools/models/cache/${id}.glb`
+}
+
+/** What travels inside the output file (checked by tests/tools/models/outputs.test.ts). The
+ *  Sketchfab keys stay in their pre-R1 order: TOY_SHA256_BEFORE_O1 pins the bytes. */
+function provenance(s: SketchfabSource | BlenderSource): Record<string, string> {
+  return s.kind === 'sketchfab'
+    ? { source: s.url, author: s.author, license: s.license }
+    : { source: 'blender', script: s.script, dimensions: s.dimensions, license: s.license }
+}
+
 /** Every stage, in order, on a document already read. Mutates and returns it. */
 export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec): Promise<Document> {
-  if (entry.source.kind !== 'sketchfab') throw new Error(`${entry.id}: runPipeline is for Sketchfab entries; a generated entry goes through finishGenerated`)
+  if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   const splitNames = new Set(entry.split.map((s) => s.name))
   // 1. remove (source nodes)
@@ -85,7 +101,7 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   if (ship && fitted) addShipMarkers(doc, ship.block, ship.spec, fitted)
   // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
   const asset = doc.getRoot().getAsset()
-  asset.extras = { ...(asset.extras ?? {}), source: entry.source.url, author: entry.source.author, license: entry.source.license }
+  asset.extras = { ...(asset.extras ?? {}), ...provenance(entry.source) }
   return doc
 }
 
@@ -141,6 +157,10 @@ export interface BuildDeps {
   encode(doc: Document): Promise<Uint8Array>
   log(line: string): void
   generate(generator: string): Promise<Document>
+  /** Whether a `blender` executable is on PATH (run.ts's blenderPresent). */
+  haveBlender(): boolean
+  /** Runs one Blender model script into `out` (run.ts's runBlenderScript). Throws on any failure. */
+  blender(script: string, out: string): void
 }
 
 /** The driver, with its file system injected so tests never touch the disk.
@@ -167,11 +187,23 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
       if (explicit) failed = true
       continue
     }
+    if (entry.source.kind === 'blender' && !deps.haveBlender()) {
+      deps.log(`${explicit ? 'missing' : 'skipped'} ${entry.id}: no blender on PATH; build it on a host with Blender ${BLENDER_VERSION} (nexus)`)
+      if (explicit) failed = true
+      continue
+    }
     let doc: Document
     try {
-      doc = entry.source.kind === 'generated'
-        ? await finishGenerated(await deps.generate(entry.source.generator), entry)
-        : await runPipeline(await deps.read(entry.input!), entry)
+      const source = entry.source
+      if (source.kind === 'generated') {
+        doc = await finishGenerated(await deps.generate(source.generator), entry)
+      } else if (source.kind === 'blender') {
+        // Blender runs are serial (spec §4.1): this loop awaits each entry before the next.
+        deps.blender(source.script, blenderIntermediate(entry.id))
+        doc = await runPipeline(await deps.read(blenderIntermediate(entry.id)), entry)
+      } else {
+        doc = await runPipeline(await deps.read(entry.input!), entry)
+      }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails
       // this entry by name and writes nothing; the rest still build.
@@ -193,15 +225,21 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
   return failed ? 1 : 0
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+/** The real deps: the disk, the glTF writer, the generator registry and Blender. */
+export function nodeBuildDeps(): BuildDeps {
   const io = modelIO()
-  const code = await runBuild(loadModelEntries(), process.argv.slice(2), {
+  return {
     exists: existsSync,
     read: async (p) => io.readBinary(new Uint8Array(readFileSync(p))),
     write: (p, bytes) => writeFileSync(p, bytes),
     encode: (doc) => io.writeBinary(doc),
     log: (line) => console.log(line),
     generate: async (g) => { const run = GENERATORS[g]; if (!run) throw new Error(`no generator registered for ${g} in tools/models/generated/registry.ts`); return run() },
-  })
-  process.exit(code)
+    haveBlender: () => blenderPresent(),
+    blender: (script, out) => runBlenderScript(script, out),
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  process.exit(await runBuild(loadModelEntries(), process.argv.slice(2), nodeBuildDeps()))
 }
