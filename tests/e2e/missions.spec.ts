@@ -124,8 +124,13 @@ const reasonRows = (debrief: Locator) =>
  * this tier ("a fragile test of the harness rather than of the game"); the
  * Tacloban landing with the hangars standing is flown headless in
  * tests/sim/mission/missions/airfield-strike.test.ts. What this test keeps
- * is the rest of the verdict: whatever ended the flight, Hangars and
- * Recover are still incomplete and are listed as reasons.
+ * is the rest of the verdict: Hangars and Recover are still incomplete and
+ * are listed as reasons.
+ *
+ * The verdict accepts only the two outcomes measured, Ditched and Killed
+ * (controller ruling T8-R1). A survivable off-field stop has never been
+ * produced by this hop, so it fails here loudly and gets a fresh ruling
+ * rather than passing unseen.
  */
 test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; a hop earns no badge', async ({ page }) => {
   const id = 'airfield-strike'
@@ -151,7 +156,7 @@ test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; a h
   const debrief = debriefDialog(page)
   const verdict = (await figureRows(debrief)).find(([label]) => label === 'Badge')?.[1]
   console.log(`airfield strike verdict: ${verdict}`)
-  expect(verdict).toMatch(/^(Ditched|Killed|Landed off-field) — no badge$/)
+  expect(verdict).toMatch(/^(Ditched|Killed) — no badge$/)
   expect(await reasonRows(debrief)).toEqual(['Hangars: incomplete', 'Recover: incomplete'])
 })
 
