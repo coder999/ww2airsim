@@ -59,6 +59,6 @@ describe('scenarioOptions, badgeName and the production default (M2 R4, PF15)', 
     expect(badgeName('retired-badge')).toBe('retired-badge')
   })
   it('the title with no missions argument offers the production ranges and fetches no briefing', () => {
-    expect(PRODUCTION_MISSIONS).toEqual({ options: SCENARIO_OPTIONS, loadScenario: null })
+    expect(PRODUCTION_MISSIONS).toEqual({ options: SCENARIO_OPTIONS, flyable: [], ordnanceNames: {}, loadScenario: null })
   })
 })

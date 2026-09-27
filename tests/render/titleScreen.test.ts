@@ -244,24 +244,25 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
   })
 })
 
-describe('the title screen as two sequential memo forms', () => {
+describe('the title screen as four sequential memo forms (sortie spec)', () => {
   // The DOM (step switching, Back, Enter) needs a `document`, which this
   // suite's `node` environment lacks; `tests/e2e/title.spec.ts` drives it.
   // What is pinned here is the text the two forms and the buttons that move
   // between them are built from, the same split as every block above.
-  it('names the button that leaves form 2 for the flight, and the way back to form 1', () => {
+  it('names the buttons that move between the forms, the one that launches, and the Dev checkbox', () => {
     const m = titleModel()
     expect(m.newGame).toBe('New game')
+    expect(m.next).toBe('Next')
     expect(m.launch).toBe('Launch')
     expect(m.back).toBe('Back')
+    expect(m.dev).toBe('Dev — unlocks everything')
   })
 
-  it('numbers the two forms "of 2" and gives each its own letterhead', () => {
-    expect(TITLE_FORMS.roster.number).toBe('Form 1 of 2')
-    expect(TITLE_FORMS.orders.number).toBe('Form 2 of 2')
-    expect(TITLE_FORMS.roster.title).toBe('Squadron Roster')
-    expect(TITLE_FORMS.orders.title).toBe('Sortie Orders')
-    expect(TITLE_FORMS.orders.kicker).not.toBe(TITLE_FORMS.roster.kicker)
+  it('numbers the four forms "of 4" and gives each its own letterhead', () => {
+    expect(Object.keys(TITLE_FORMS)).toEqual(['roster', 'orders', 'aircraft', 'ordnance'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.number)).toEqual(['Form 1 of 4', 'Form 2 of 4', 'Form 3 of 4', 'Form 4 of 4'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.title)).toEqual(['Squadron Roster', 'Sortie Orders', 'Aircraft Assignment', 'Ordnance Requisition'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.kicker)).toEqual(['Bureau of Naval Personnel', 'Flight Operations', 'Bureau of Aeronautics', 'Bureau of Ordnance'])
   })
 
   it('gives the About memo its own letterhead', () => {

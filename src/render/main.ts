@@ -28,7 +28,8 @@ import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
-import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, scenarioOptions, SCENARIO_OPTIONS } from './titleScreen.js'
+import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
+import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { createBootProgress } from './bootProgress.js'
 import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
@@ -689,7 +690,7 @@ async function boot(): Promise<void> {
     }
     devSortie = sortieNeededDev(choice)
     rebuildFrame()
-  }, quality.settings, boot, { options: scenarioOptions(import.meta.env.DEV), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
+  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
