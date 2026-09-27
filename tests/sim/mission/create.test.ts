@@ -19,15 +19,16 @@ describe('createMission (spec 2026-09-25 §1, §2)', () => {
   })
 
   it('resolves a structure tag carried by the base content', () => {
+    // dulag.json carries the tags itself since M3 Task 5 (2026-09-27); the
+    // AAA batteries' own tag keeps them out of this set.
     const bundle = bundleForScenario(parseScenario(scenario({ objectives: [destroy(['dulag-hangars'])] })))
-    const dulag = bundle.airfields['dulag']!
-    const tagged = { ...bundle, airfields: { ...bundle.airfields, dulag: { ...dulag, buildings: dulag.buildings.map((b) => ({ ...b, tags: ['dulag-hangars'] })) } } }
-    expect(worldFromScenario(tagged, null).mission!.objectives[0]!.resolved).toEqual(['dulag-hangar-1', 'dulag-hangar-2'])
+    expect(worldFromScenario(bundle, null).mission!.objectives[0]!.resolved).toEqual(['dulag-hangar-1', 'dulag-hangar-2'])
   })
 
   it('fails the load when a tag or id matches nothing (spec §2.1: a parse error, not an empty set)', () => {
-    expect(() => missionWorld({ objectives: [destroy(['dulag-aaa'])] }))
-      .toThrow('scenario "mission-fixture": objective "kill" names "dulag-aaa", which matches no entity id or tag')
+    // Was 'dulag-aaa' until M3 Task 5 (2026-09-27) made that a real tag.
+    expect(() => missionWorld({ objectives: [destroy(['dulag-tower'])] }))
+      .toThrow('scenario "mission-fixture": objective "kill" names "dulag-tower", which matches no entity id or tag')
   })
 
   it('fails the load when a string is both an id and a tag', () => {

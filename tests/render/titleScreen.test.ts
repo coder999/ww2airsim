@@ -111,7 +111,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission',
+      'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission', 'airfield-strike',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -131,6 +131,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['friendly-fire-range']).toBe('Friendly Fire (dev)')
     expect(labels['friendly-fire-field']).toBe('Friendly Fire: Field (dev)')
     expect(labels['deck-quals-mission']).toBe('Carrier Qualification')
+    expect(labels['airfield-strike']).toBe('Airfield Strike')
   })
 
   it('no other label contains "Deck Quals": e2e selectors match by substring (M3-R5)', () => {
@@ -139,7 +140,10 @@ describe('the title screen scenario picker', () => {
 
   it('production ships exactly the M3 missions, each with its badge; every other row is a range (M2 R5)', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission').map((o) => [o.value, o.badge]))
-      .toEqual([['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }]])
+      .toEqual([
+        ['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }],
+        ['airfield-strike', { id: 'airfield-strike', name: 'Airfield Strike' }],
+      ])
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'range').some((o) => o.badge !== undefined)).toBe(false)
   })
 
@@ -148,7 +152,7 @@ describe('the title screen scenario picker', () => {
       expect(isKnownScenarioId(option.value)).toBe(true)
     }
     // A well-formed id (passes scenarioIdFromQuery's character check) that
-    // simply is not one of the five shipped scenarios -- the case format
+    // simply is not one of the scenarios the picker lists -- the case format
     // validation alone cannot catch, and the reason this function exists
     // rather than reusing scenarioIdFromQuery's regex a second time.
     expect(isKnownScenarioId('not-a-real-scenario')).toBe(false)

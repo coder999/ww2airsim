@@ -58,8 +58,13 @@ describe('airfield buildings (Plan 6b: moved from a module constant into content
   it('Dulag carries its own smaller table now, per its content note (Plan 13d Task 4)', () => {
     const dulag = loadAirfield('dulag')
     const tacloban = loadAirfield('tacloban')
-    expect(dulag.buildings).toHaveLength(2)
+    // Two hangars are the historical account (Plan 13d Task 4); the two AAA
+    // batteries are M3 Task 5's labeled gameplay content (2026-09-27).
+    expect(dulag.buildings.filter((b) => b.kind === 'hangar')).toHaveLength(2)
+    expect(dulag.buildings.filter((b) => b.kind === 'aaa')).toHaveLength(2)
+    expect(dulag.buildings).toHaveLength(4)
     expect(dulag.buildings.length).toBeLessThan(tacloban.buildings.length)
+    expect(dulag.reference.source).toMatch(/GAMEPLAY CONTENT, not history/)
     expect(dulag.reference.source).toMatch(/Plan 13d/)
   })
 
@@ -78,7 +83,7 @@ describe('airfield buildings (Plan 6b: moved from a module constant into content
     // building/hut pass for every base -- Dulag's taxiways/stores/windsock
     // stay gated on `airfield.apron !== null` (Plan 13d Task 4 generalized
     // that check off Dulag's own `apron: null`), but its content buildings
-    // (2, since Plan 13d Task 4) plus the 3 huts now draw, so the group is
+    // (2 since Plan 13d Task 4, 4 since M3 Task 5) plus the 3 huts now draw, so the group is
     // no longer empty.
     const dulag = loadAirfield('dulag')
     const { object } = createAirfield(field, dulag)

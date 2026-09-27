@@ -198,6 +198,7 @@ What can be shot, verified against `content/bases/` and
 | Anti-aircraft battery | `aaa` | AAA battery | 30 | Tacloban ×1; does not fire back yet |
 | Hangar | `hangar` | Building | 90 | Dulag ×1 (22×28 m) |
 | Maintenance shed | `hangar` | Building | 50 | Dulag ×1 (12×16 m) |
+| Anti-aircraft battery | `aaa` | AAA battery | 30 | Dulag ×2; gameplay content (missions spec §4.2); does not fire back yet |
 
 Hit points are gameplay choices, not historical figures. One bomb or three
 rockets razes a 120-HP hangar; strafing works too but takes 30 rounds. Razing only counts toward a mission's
@@ -206,8 +207,13 @@ rockets razes a 120-HP hangar; strafing works too but takes 30 rounds. Razing on
 nothing. The numbers and the reasoning are in the
 [strike design](docs/superpowers/specs/2026-09-20-strike-design.md) §3.5–3.6.
 
-Dulag's two buildings are deliberate: it was a hastily-established fighter
-strip in October 1944, so it has no tower and no AAA (Plan 13d).
+Dulag's hangar and maintenance shed are the historical account: it was a
+hastily-established fighter strip in October 1944, so it has no tower
+(Plan 13d). Its two AAA batteries are **gameplay content, not history**,
+added for Airfield Strike's secondary objective (missions spec
+[2026-09-25](docs/superpowers/specs/2026-09-25-missions-design.md) §4.2) at
+Tacloban's emplacement size and HP; `dulag.json`'s `reference.source` says
+the same (M3 Task 5, 2026-09-27).
 
 Scenery that is drawn but cannot be hit: town and village huts (from
 OpenStreetMap settlements), the Tacloban service apron and stores, drums,

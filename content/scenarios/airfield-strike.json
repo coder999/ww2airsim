@@ -1,0 +1,177 @@
+{
+  "id": "airfield-strike",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban",
+    "dulag"
+  ],
+  "enemyAirfields": [
+    "dulag"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": "runwayCenter"
+      },
+      "chocked": false
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 3,
+    "timeOfDay": 7.5,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 600,
+        "coverage": 0.3
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "up",
+      "label": "Take off",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "tacloban"
+    },
+    {
+      "id": "hangars",
+      "label": "Hangars",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "dulag-hangars"
+      ]
+    },
+    {
+      "id": "flak",
+      "label": "AAA",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": [
+        "dulag-aaa"
+      ]
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "hangars"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "cleared",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Tacloban tower: cleared for takeoff. Dulag strip is thirty kilometers south."
+        }
+      ]
+    },
+    {
+      "id": "scramble",
+      "when": {
+        "enters": {
+          "point": {
+            "x": -31629,
+            "z": -16479
+          },
+          "radiusM": 8000
+        }
+      },
+      "then": [
+        {
+          "spawn": "defenders"
+        },
+        {
+          "message": "Strike lead: bandits scrambling off Dulag!"
+        }
+      ]
+    },
+    {
+      "id": "egress",
+      "when": {
+        "completed": "hangars"
+      },
+      "then": [
+        {
+          "message": "Strike lead: hangars are down. Head home to Tacloban."
+        }
+      ]
+    }
+  ],
+  "heldGroups": [
+    {
+      "id": "defenders",
+      "aircraft": [
+        {
+          "id": "defender-1",
+          "spec": "f6f-hellcat",
+          "tags": [
+            "defenders"
+          ],
+          "airborneAt": {
+            "position": [
+              -31629,
+              1500,
+              -20479
+            ],
+            "headingDeg": 0,
+            "speedMps": 110
+          },
+          "pilot": {
+            "skill": "green"
+          }
+        },
+        {
+          "id": "defender-2",
+          "spec": "f6f-hellcat",
+          "tags": [
+            "defenders"
+          ],
+          "airborneAt": {
+            "position": [
+              -31429,
+              1500,
+              -20279
+            ],
+            "headingDeg": 0,
+            "speedMps": 110
+          },
+          "pilot": {
+            "skill": "green"
+          }
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "airfield-strike",
+    "name": "Airfield Strike"
+  },
+  "briefing": {
+    "situation": "Take off from Tacloban and strike the Japanese strip at Dulag, thirty kilometers down the coast. Destroy its hangars; its two AA batteries are a bonus. Expect fighters to scramble when you arrive. Recover at Tacloban — Dulag is enemy ground.",
+    "loadout": "both"
+  },
+  "history": {
+    "text": "On 18 and 19 October 1944, the two days before the landings, American carrier aircraft covered the invasion convoy and struck airfields on Leyte and the islands around it. When the XXIV Corps came ashore on 20 October, the Dulag airstrip, about a mile west of the town, was its primary objective, and the 7th Infantry Division's 184th Infantry secured it on the morning of 21 October. This mission is inspired by those strikes rather than a reconstruction of them: they were flown from carriers, while here you fly from Tacloban, which was itself a Japanese field until the 1st Cavalry Division captured it on A Day, 20 October. The two anti-aircraft batteries at Dulag are the game's addition.",
+    "sources": [
+      "M. Hamlin Cannon, Leyte: The Return to the Philippines (Washington: Office of the Chief of Military History, 1954; CMH Pub 5-9-1), U.S. Army Center of Military History: https://www.history.army.mil/html/books/005/5-9-1/CMH_Pub_5-9-1.pdf",
+      "Cannon, Leyte, Chapter IV, \"The Return\" (the carrier strikes of 18-19 October), HyperWar transcription: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-4.html",
+      "Cannon, Leyte, Chapter V, \"A Day: 20 October 1944\" (the landings; the Tacloban and Dulag airstrips), HyperWar transcription: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-5.html",
+      "Cannon, Leyte, Chapter VIII, \"Southern Leyte Valley: Part Two\" (the 7th Division secures the Dulag airstrip), HyperWar transcription: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html"
+    ]
+  }
+}

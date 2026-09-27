@@ -160,6 +160,7 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' } },
+  { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' } },
 ]
 
 /** M2's two fixture missions (open question 1): `dev-`-prefixed, and offered

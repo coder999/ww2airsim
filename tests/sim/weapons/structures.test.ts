@@ -21,9 +21,12 @@ describe('structures built from airfield content (Plan 6b)', () => {
     const tacloban = loadAirfield('tacloban')
     const dulag = loadAirfield('dulag')
     const structures = buildStructures([tacloban, dulag])
-    expect(structures).toHaveLength(7) // 5 (Tacloban, incl. Plan 9's AAA emplacement) + 2 (Dulag, Plan 13d Task 4)
+    // 5 (Tacloban, incl. Plan 9's AAA emplacement) + 4 (Dulag: Plan 13d
+    // Task 4's two hangars, plus M3 Task 5's two AAA batteries -- gameplay
+    // content, see dulag.json's reference.source)
+    expect(structures).toHaveLength(9)
     expect(structures.every((s) => s.hp > 0)).toBe(true)
-    expect(new Set(structures.map((s) => s.id)).size).toBe(7) // ids unique across bases
+    expect(new Set(structures.map((s) => s.id)).size).toBe(9) // ids unique across bases
   })
   it("anchors Dulag's collision boxes on its real terrain, not at sea level", () => {
     const header = loadTerrainHeader()
@@ -44,6 +47,26 @@ describe('structures built from airfield content (Plan 6b)', () => {
     // catches a real regression toward sea level (review, 2026-09-25).
     expect(groundHeightM).toBeGreaterThan(8)
     expect(hangar.position.y - hangar.halfSize.y).toBeCloseTo(groundHeightM, 9)
+  })
+  it('every Dulag building, AAA included, stands on land at every footprint corner', () => {
+    // M3 Task 5 (2026-09-27): added when dulag-aaa-1/-2 were placed. Measured
+    // at L1 then: lowest corner 8.52 m (hangar-1), AAA 12.93 m and 10.69 m;
+    // at L0 the lowest is 8.00 m (hangar-1), so neither AAA needed a move.
+    // A bound of 5 m catches a building slid toward the shoreline.
+    const header = loadTerrainHeader()
+    const terrain = createTerrainField(
+      header,
+      GROUND_TRUTH_LEVEL,
+      loadTerrainLevel(GROUND_TRUTH_LEVEL, header),
+    )
+    const dulag = buildStructures([loadAirfield('dulag')], terrain)
+    expect(dulag.map((s) => s.id)).toEqual(['dulag-hangar-1', 'dulag-hangar-2', 'dulag-aaa-1', 'dulag-aaa-2'])
+    for (const s of dulag) {
+      for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
+        const h = heightAt(terrain, s.position.x + a * s.halfSize.x, s.position.z + b * s.halfSize.z)
+        expect(h, `${s.id} corner (${a},${b})`).toBeGreaterThan(5)
+      }
+    }
   })
   it('a structure never moves or ages: it is spec, not simulated state', () => {
     const s = buildStructures([loadAirfield('tacloban')])[0]!
