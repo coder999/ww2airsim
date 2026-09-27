@@ -23,8 +23,7 @@ m.ship_hull('hull', [
     (-L / 2, 1.4, 0.45, 8.0, 1.0), (-78, 12.5, 0.5, 8.6, 0.4),
     (-55, B / 2, 0.55, DECK), (42, B / 2, 0.55, DECK),
     (72, 12.0, 0.5, 8.6, 0.5), (L / 2, 0.45, 0.4, 8.2, 1.4),
-], node='Hull')
-m.deck('deck', (0, 0), 166, 29.0, DECK, 0.35, node='MainDeck')
+], node='Hull', deck_role='deck', deck_node='MainDeck')
 
 # Main battery, numbered bow to stern for H3.
 for args in [

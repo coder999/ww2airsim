@@ -22,8 +22,7 @@ m.ship_hull('hull', [
     (-L / 2, 0.55, 2.7, 4.8, 0.7), (-48, 4.2, 3.5, 5.1, 0.2),
     (-28, B / 2, DRAFT, DECK), (22, B / 2, DRAFT, DECK),
     (45, 3.6, 3.3, 5.2, 0.5), (L / 2, 0.22, 2.4, 4.8, 1.5),
-], node='Hull')
-m.deck('deck', (0, 0), 106, 9.4, DECK, 0.22, node='MainDeck')
+], node='Hull', deck_role='deck', deck_node='MainDeck')
 for args in [(1, (42, DECK, 0), 1), (2, (-25, DECK, 0), -1), (3, (-39, DECK, 0), -1)]:
     m.turret('fitting', args[0], args[1], args[2], (4.2, 4.0, 1.5), 4.2, 2)
 m.tapered_box('superstructure', (24, DECK, 0), (12, 7.5), (7, 5), 4.2, node='Bridge')

@@ -51,12 +51,12 @@ describe.skipIf(!HAVE_BLENDER)('the Blender kit (model-roster spec §4.2)', () =
     expect(roots.map((n) => n.getName())).toEqual(['probe'])
     expect(roots[0]!.listChildren().map((n) => n.getName())).toEqual([
       'probe_bridge', 'probe_concrete', 'probe_deck', 'probe_door', 'probe_hull',
-      'probe_mast', 'probe_steel', 'Turret1', 'Turret2',
+      'probe_hull2', 'probe_hull2_deck', 'probe_mast', 'probe_steel', 'Turret1', 'Turret2',
     ])
   })
 
   it('one draw call per node, flat materials named by role, metalness 0', () => {
-    expect(measureDocument(doc).drawCalls).toBe(9)
+    expect(measureDocument(doc).drawCalls).toBe(11)
     const mats = doc.getRoot().listMaterials()
     expect(mats.map((m) => m.getName()).sort()).toEqual(['concrete', 'dark', 'deck', 'fitting', 'hull', 'steel', 'superstructure'])
     for (const mat of mats) expect(mat.getMetallicFactor()).toBe(0)
@@ -125,6 +125,25 @@ describe.skipIf(!HAVE_BLENDER)('the Blender kit (model-roster spec §4.2)', () =
       const dot = n[1]! * c[1]! + n[2]! * c[2]!
       expect(dot, `hull side face at ${c.map((x) => x.toFixed(2))}`).toBeGreaterThan(0)
     }
+  })
+
+  it('deck_role splits the hull\'s own top into a deck node: same surface, nothing coplanar, up-facing, inside the deck edge', () => {
+    const plain = triangles(findNode(doc, 'probe_hull'))
+    const hull = triangles(findNode(doc, 'probe_hull2')), deck = triangles(findNode(doc, 'probe_hull2_deck'))
+    expect(hull.length + deck.length).toBe(plain.length)
+    expect(deck.length).toBe(4) // two station gaps, one quad each
+    const edge = [[-30, 0.44, 3.0], [0, 4.4, 3.0], [30, 0.704, 3.0]] // 0.88 x half-beam, freeboard + sheer
+    for (const p of deck.flat()) {
+      expect(edge.some(([x, hz, y]) => Math.abs(p[0]! - x!) < 1e-5 && Math.abs(Math.abs(p[2]!) - hz!) < 1e-5 && Math.abs(p[1]! - y!) < 1e-5), `deck vertex ${p}`).toBe(true)
+    }
+    for (const [p, q, r] of deck) {
+      const u = [q![0]! - p![0]!, q![1]! - p![1]!, q![2]! - p![2]!]
+      const v = [r![0]! - p![0]!, r![1]! - p![1]!, r![2]! - p![2]!]
+      expect(u[2]! * v[0]! - u[0]! * v[2]!, 'deck normal y').toBeGreaterThan(0)
+    }
+    // The hull part keeps no face on the deck edge: the top lives only in the deck node.
+    const onTop = (t: number[][]) => t.every((p) => edge.some(([x, hz, y]) => Math.abs(p[0]! - x!) < 1e-5 && Math.abs(Math.abs(p[2]!) - hz!) < 1e-5 && Math.abs(p[1]! - y!) < 1e-5))
+    expect(hull.filter(onTop)).toEqual([])
   })
 
   it('puts a deck top at the requested height and creates ordered turret nodes', () => {

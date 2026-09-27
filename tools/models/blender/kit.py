@@ -119,13 +119,18 @@ class Model:
         f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (3, 7, 6, 2), (0, 4, 7, 3), (1, 2, 6, 5)]
         self._part(role, v, f, node)
 
-    def ship_hull(self, role, stations, node=None):
+    def ship_hull(self, role, stations, node=None, deck_role=None, deck_node=None):
         """Loft a closed ship hull from ordered stations in the glTF frame.
 
         Each station is ``(x, half_beam, draft, freeboard[, sheer])``. The
         waterline is y=0, draft extends downward, and freeboard+sheer is the
         deck edge. End stations stay narrow but nonzero so every triangle is
         well-defined; the bow and stern caps close the volume.
+
+        With ``deck_role``, the hull's own top (between the deck-edge
+        vertices) goes to ``deck_node`` in that role instead: a painted deck
+        that follows the hull's plan and sheer, with no separate slab to
+        overhang the taper or z-fight the top.
         """
         _require(len(stations) >= 3, f'ship_hull: need at least 3 stations, got {len(stations)}')
         parsed = []
@@ -155,17 +160,22 @@ class Model:
                 (x, -draft * 0.55, -beam * 0.75),
             ])
         ring = 7
-        faces = []
+        faces, deck_faces = [], []
+        top = 3  # the ring edge from (deck_y, +0.88 beam) to (deck_y, -0.88 beam)
         for station in range(len(parsed) - 1):
             a, b = station * ring, (station + 1) * ring
             for j in range(ring):
                 k = (j + 1) % ring
-                faces.append((a + j, b + j, b + k, a + k))
+                (deck_faces if deck_role is not None and j == top else faces).append((a + j, b + j, b + k, a + k))
         # The station ring itself points -x; reverse it for the +x bow.
         faces.append(tuple(range(ring)))
         last = (len(parsed) - 1) * ring
         faces.append(tuple(last + j for j in reversed(range(ring))))
         self._part(role, verts, faces, node)
+        if deck_role is not None:
+            used = sorted({i for f in deck_faces for i in f})
+            index = {old: new for new, old in enumerate(used)}
+            self._part(deck_role, [verts[i] for i in used], [tuple(index[i] for i in f) for f in deck_faces], deck_node)
 
     def deck(self, role, center, length, width, height, thickness=0.25, node=None):
         """A slab whose upper face is exactly ``height`` meters."""
