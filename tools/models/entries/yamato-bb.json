@@ -1,0 +1,24 @@
+{
+  "id": "yamato-bb",
+  "input": "tools/models/cache/musashi-bb.glb",
+  "output": "content/ships/yamato-bb.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/ijn-musashi-model-for-small-scale-printing-698f9b6de9204609ae09aaa98f6f1e30",
+    "uid": "698f9b6de9204609ae09aaa98f6f1e30",
+    "author": "KTKloss",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, 0.207], "fit": { "extent": "length", "meters": 263.0 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "yamato-bb",
+    "fit": "hull",
+    "kind": "waterline",
+    "palette": "ijn",
+    "otherMaterials": "classify",
+    "smokeOrigin": [-20, 29.64, 0],
+    "bow": "narrow-end"
+  }
+}

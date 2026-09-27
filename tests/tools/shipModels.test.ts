@@ -20,8 +20,10 @@ const ships = loadModelEntries().filter((e) => e.ship !== undefined)
 const read = async (path: string) => modelIO().readBinary(new Uint8Array(readFileSync(path)))
 
 describe('the committed ship models', () => {
-  it('are the three S1 ships', () => {
-    expect(ships.map((e) => e.id)).toEqual(['essex-cv', 'fletcher-dd', 'type-b-maru'])
+  it('include S1 and the licensed R2 ships', () => {
+    expect(ships.map((e) => e.id)).toEqual([
+      'cleveland-cl', 'essex-cv', 'fletcher-dd', 'mogami-ca', 'type-b-maru', 'yamato-bb',
+    ])
   })
 })
 
