@@ -1055,7 +1055,7 @@ git commit -m "7f Task 6: a flight of four follows an ingress leader; determinis
 - Modify: `content/scenarios/furball-range.json`
 - Test: `tests/sim/ai/furball.test.ts` (unchanged; must stay green), `tests/sim/ai/formationSchema.test.ts` (add one case)
 
-- [ ] **Step 1: Add a content assertion to `formationSchema.test.ts`**
+- [x] **Step 1: Add a content assertion to `formationSchema.test.ts`**
 
 ```ts
 import { loadScenarioBundle } from '../../../tools/content/load.js'
@@ -1068,11 +1068,11 @@ it('furball-range: ally-1 flies as the player wingman (7f spec, Acceptance)', ()
 
 Run it and expect FAIL.
 
-- [ ] **Step 2: Edit the content**
+- [x] **Step 2: Edit the content**
 
 In `content/scenarios/furball-range.json`, change `ally-1`'s pilot from `{"skill": "veteran"}` to `{"skill": "veteran", "leader": "f6f-1", "slot": 1}`. Change nothing else.
 
-- [ ] **Step 3: Run the furball soak and the schema tests**
+- [x] **Step 3: Run the furball soak and the schema tests**
 
 Run: `npx vitest run tests/sim/ai/furball.test.ts tests/sim/ai/formationSchema.test.ts --maxWorkers=2; echo rc=$?`
 
@@ -1080,7 +1080,7 @@ Expected: PASS, including "the wingman kills bandit-2 in every loadout" (furball
 
 **If that kill moves** (a different victim, a different killer, or none), stop. Do not change the scenario's geometry or the test. That kill is a recorded ruling (R-F1) and the Tier 2 `furball.spec.ts` asserts it too. Revert the content edit, commit the tests without it, and report the measured outcome per loadout to Mark in the handoff (Task 8).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add content/scenarios/furball-range.json tests/sim/ai/formationSchema.test.ts

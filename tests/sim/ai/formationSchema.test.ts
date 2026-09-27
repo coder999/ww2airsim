@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { aircraftById } from '../../../src/sim/loop.js'
-import { bundleForScenario } from '../../../tools/content/load.js'
+import { bundleForScenario, loadScenarioBundle } from '../../../tools/content/load.js'
 import { REACH_FAR, scenario } from '../mission/fixture.js'
 
 /** 7f spec §1: `pilot.leader` and `pilot.slot`, each rule rejected by name. */
@@ -72,5 +72,10 @@ describe('pilot.leader and pilot.slot (7f spec §1)', () => {
         { id: 'wave-1', aircraft: [raider('r1', {})] }, { id: 'wave-2', aircraft: [raider('r2', { leader: 'r1', slot: 1 })] }],
     })
     expect(() => parseScenario(other)).toThrow(/held pilot's leader must be a starting aircraft or one in its own group/)
+  })
+
+  it('furball-range: ally-1 flies as the player wingman (7f spec, Acceptance)', () => {
+    const w = worldFromScenario(loadScenarioBundle('furball-range'), null)
+    expect(aircraftById(w, 'ally-1')!.pilot!.formation).toEqual({ leader: 'f6f-1', slot: 1 })
   })
 })

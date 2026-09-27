@@ -32,7 +32,9 @@
         "speedMps": 130
       },
       "pilot": {
-        "skill": "veteran"
+        "skill": "veteran",
+        "leader": "f6f-1",
+        "slot": 1
       }
     },
     {
