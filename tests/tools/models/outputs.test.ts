@@ -20,15 +20,24 @@ describe.each(entries.map((e) => [e.id, e] as const))('committed output %s', (_i
   it('carries its provenance inside the file', async () => {
     const doc = await modelIO().readBinary(new Uint8Array(readFileSync(entry.output)))
     const extras = doc.getRoot().getAsset().extras as Record<string, unknown>
-    expect(extras['source']).toBe(entry.source.url)
-    expect(String(extras['license'])).toMatch(new RegExp(`^${entry.source.license}`))
+    if (entry.source.kind === 'generated') {
+      expect(extras).toMatchObject({ source: 'generated', generator: entry.source.generator, license: 'AGPL-3.0-or-later' })
+    } else {
+      expect(extras['source']).toBe(entry.source.url)
+      expect(String(extras['license'])).toMatch(new RegExp(`^${entry.source.license}`))
+    }
   })
 
   it('has an ASSETS.md 3D-models row naming the same source and license', () => {
     const row = assets.split('\n').find((l) => l.startsWith(`| \`${entry.output}\` |`))
     expect(row, `no ASSETS.md row for ${entry.output}`).toBeDefined()
-    expect(row).toContain(entry.source.url)
-    expect(row).toContain(LICENSE_LABEL[entry.source.license])
+    if (entry.source.kind === 'generated') {
+      expect(row).toContain(entry.source.generator)
+      expect(row).toContain('AGPL-3.0-or-later')
+    } else {
+      expect(row).toContain(entry.source.url)
+      expect(row).toContain(LICENSE_LABEL[entry.source.license])
+    }
   })
 })
 

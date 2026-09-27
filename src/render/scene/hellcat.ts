@@ -1,8 +1,26 @@
 // src/render/scene/hellcat.ts
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
-import { attachStores } from './stores.js'
+import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { disposeMeshTree } from '../models/dispose.js'
+
+/** Mounts for THIS box mesh only: the pre-O1 Hellcat figures its boxes were built around.
+ *  Deliberately not read from content: content's offsets are measured on the drawn Wildcat (O1),
+ *  and this stub is not registered in airframes.ts. hellcat.ts and wildcat.ts no longer share a table. */
+const HELLCAT_MOUNTS: StoreMounts = {
+  racks: [
+    { id: 'left-rack', offset: [0.4, -0.55, -2.6], store: 'an-m65' },
+    { id: 'right-rack', offset: [0.4, -0.55, 2.6], store: 'an-m65' },
+  ],
+  rails: [
+    { id: 'left-rail-1', offset: [0.4, -0.4, -3.6], store: 'hvar' },
+    { id: 'left-rail-2', offset: [0.4, -0.4, -4.3], store: 'hvar' },
+    { id: 'left-rail-3', offset: [0.4, -0.4, -5.0], store: 'hvar' },
+    { id: 'right-rail-1', offset: [0.4, -0.4, 3.6], store: 'hvar' },
+    { id: 'right-rail-2', offset: [0.4, -0.4, 4.3], store: 'hvar' },
+    { id: 'right-rail-3', offset: [0.4, -0.4, 5.0], store: 'hvar' },
+  ],
+}
 
 /**
  * A deliberately simple low-poly F6F, built in code.
@@ -64,9 +82,8 @@ export function createHellcat(): Airframe {
   prop.position.set(5.4, 0, 0)
   root.add(prop)
 
-  // Stores (Plan 6b Task 8 / Task 4): extract shared store-mesh logic into
-  // stores.ts so wildcat.ts can reuse it.
-  const { setStores } = attachStores(root, dark)
+  // Stores (Plan 6b Task 8 / Task 4; O1): the primitive stand-ins at this stub's own mounts.
+  const { setStores } = attachStores(root, HELLCAT_MOUNTS, primitiveStoreVisuals(HELLCAT_MOUNTS, dark))
 
   // Plan 16b: the sun's custom shadow node reaches only receivers (cloudShadow.ts).
   root.traverse((o) => { o.receiveShadow = true })

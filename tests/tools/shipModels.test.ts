@@ -30,7 +30,9 @@ describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s', (_id, e
 
   it('names the entry\'s author inside the file (§9 item 1)', async () => {
     const extras = (await read(entry.output)).getRoot().getAsset().extras as Record<string, unknown>
-    expect(extras['author']).toBe(entry.source.author)
+    const source = entry.source
+    if (source.kind !== 'sketchfab') throw new Error(`${entry.id}: a ship entry is a Sketchfab download`)
+    expect(extras['author']).toBe(source.author)
   })
 
   it('records a fit whose residuals lie inside §4.4\'s design ranges', async () => {

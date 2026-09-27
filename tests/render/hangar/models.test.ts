@@ -1,13 +1,13 @@
 // tests/render/hangar/models.test.ts
 import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
-import { Group, Object3D } from 'three'
+import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
-import { RACK_OFFSETS, RAIL_OFFSETS } from '../../../src/render/scene/stores.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
 import { nodeHangarContent } from './content.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const catalog = buildCatalog(nodeHangarContent())
 const byId = (id: string) => catalog.find((e) => e.library.id === id)!
@@ -85,6 +85,33 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 })
 
+describe('the ordnance category (O1, Task 8)', () => {
+  it('an ordnance entry loads its store model through the injected loader, stands clear of the pad, and has no mounts', async () => {
+    const entry = catalog.find((e) => e.library.id === 'an-m65')!
+    const seen: string[] = []
+    const model = await loadHangarModel(entry, undefined, undefined, async (id) => {
+      seen.push(id)
+      const root = new Group()
+      root.add(new Mesh(new BoxGeometry(1.7, 0.5, 0.5).translate(0, -0.3, 0), new MeshStandardMaterial()))
+      return { root, node: () => root, release: () => {} }
+    })
+    expect(seen).toEqual(['an-m65'])
+    expect(new Box3().setFromObject(model!.root).min.y).toBeGreaterThanOrEqual(0)
+    expect(model!.parts).toEqual([])
+    expect(model!.mounts()).toEqual([])
+  })
+
+  it('an aircraft model reports one mount point per rack and rail of its spec; the Zero, with no stores, reports none', async () => {
+    // createHellcat() hangs meshes named with the same mount ids content uses (Task 6's HELLCAT_MOUNTS).
+    const hellcatEntry = byId('f6f-hellcat')
+    const m = await loadHangarModel(hellcatEntry, async () => createHellcat())
+    const spec = hellcatEntry.subject?.kind === 'aircraft' ? hellcatEntry.subject.spec : null
+    expect(m!.mounts().map((p) => p.id)).toEqual([...spec!.stores!.racks, ...spec!.stores!.rails].map((r) => r.id))
+    const zero = await loadHangarModel(byId('a6m-zero'), async () => createHellcat())
+    expect(zero!.mounts()).toEqual([])
+  })
+})
+
 describe('probeArticulated', () => {
   it('finds exactly the nodes a pose moves, and leaves the model at rest', () => {
     const root = new Group()
@@ -110,10 +137,11 @@ describe('stores on the bench', () => {
     const hellcat = createHellcat()
     const setStores = vi.spyOn(hellcat, 'setStores')
     const m = await loadHangarModel(byId('f6f-hellcat'), async () => hellcat)
+    const stores = loadAircraftSpec('f6f-hellcat').stores!
     m!.pose({ bombs: false })
-    expect(setStores).toHaveBeenLastCalledWith(0, RAIL_OFFSETS.length)
+    expect(setStores).toHaveBeenLastCalledWith(0, stores.rails.length)
     m!.pose({ rockets: false, bombs: true })
-    expect(setStores).toHaveBeenLastCalledWith(RACK_OFFSETS.length, 0)
+    expect(setStores).toHaveBeenLastCalledWith(stores.racks.length, 0)
   })
 
   it('an aircraft reports what its probe found; a ship reports nothing', async () => {

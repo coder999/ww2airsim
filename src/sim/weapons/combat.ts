@@ -406,7 +406,7 @@ function releaseBomb(a: CombatAircraft, stores: StoresState, cursor: number): Re
 /** Rails outermost first, by how far out the rail is rather than by its order
  *  in content, so "the outermost remaining pair" (spec §3.2) survives a
  *  content file that lists its rails in another order. */
-const railOrder = (rails: readonly { readonly offset: readonly [number, number, number] }[]): readonly number[] =>
+export const railOrder = (rails: readonly { readonly offset: readonly [number, number, number] }[]): readonly number[] =>
   rails.map((_, i) => i).sort((x, y) => Math.abs(rails[y]!.offset[2]) - Math.abs(rails[x]!.offset[2]) || x - y)
 
 /**

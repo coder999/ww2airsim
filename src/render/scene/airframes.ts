@@ -1,9 +1,11 @@
 // src/render/scene/airframes.ts
 import type { Airframe } from './airframe.js'
 import { loadWildcat } from './wildcat.js'
+import type { StoreMounts } from './stores.js'
 
-/** Builds one airframe. Called once per aircraft in a scenario. */
-export type AirframeLoader = () => Promise<Airframe>
+/** Builds one airframe, hanging stores at the flying spec's own mounts (undefined = none).
+ *  Called once per aircraft in a scenario. */
+export type AirframeLoader = (stores: StoreMounts | undefined) => Promise<Airframe>
 
 /**
  * Model id (an aircraft spec's `view.model`) to the module that builds it
@@ -13,7 +15,7 @@ export type AirframeLoader = () => Promise<Airframe>
  * checks that.
  */
 export const AIRFRAME_MODELS: Readonly<Record<string, AirframeLoader>> = {
-  wildcat: () => loadWildcat(),
+  wildcat: (stores) => loadWildcat(stores),
 }
 
 export function airframeFor(modelId: string): AirframeLoader {

@@ -217,7 +217,7 @@ describe('buildScenarioEntities and the model cache (Z1)', () => {
       }
       return root
     })
-    const load = () => loadWildcat((url) => cache.acquire(url))
+    const load = () => loadWildcat(undefined, (url) => cache.acquire(url))
     const scene = new Scene()
     const first = await buildScenarioEntities(scene, deckQuals, null, load, stubShips)
     const second = await buildScenarioEntities(scene, strikeRange, first, load, stubShips)

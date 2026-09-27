@@ -132,6 +132,7 @@ describe('runBuild with a ship whose fit fails', () => {
       write: (p) => { written.push(p) },
       encode: (d) => modelIO().writeBinary(d),
       log: (l) => { lines.push(l) },
+      generate: () => { throw new Error('not a generated entry') },
     }
     expect(await runBuild([carrierEntry, good], [], deps)).toBe(1)
     expect(written).toEqual(['content/ships/good-cv.glb'])

@@ -3,6 +3,7 @@ import type { ShipView } from './scene/ship.js'
 import { loadRegisteredShipView, type LoadShipView } from './scene/shipModels.js'
 import { airframeFor } from './scene/airframes.js'
 import type { Airframe } from './scene/airframe.js'
+import type { StoreMounts } from './scene/stores.js'
 import { disposeMeshTree } from './models/dispose.js'
 import type { World } from '../sim/loop.js'
 
@@ -22,11 +23,12 @@ export interface ScenarioEntities {
   readonly player: Airframe
 }
 
-/** Builds the airframe a spec's `view.model` names. Injectable so tests
- *  substitute a cheap synchronous stand-in and never run GLTFLoader in Node. */
-export type LoadAirframe = (modelId: string) => Promise<Airframe>
+/** Builds the airframe a spec's `view.model` names, receiving the spec's store mounts
+ *  (`spec.stores`; undefined = none hung, O1). Injectable so tests substitute a cheap
+ *  synchronous stand-in and never run GLTFLoader in Node. */
+export type LoadAirframe = (modelId: string, stores: StoreMounts | undefined) => Promise<Airframe>
 
-export const loadRegisteredAirframe: LoadAirframe = (modelId) => airframeFor(modelId)()
+export const loadRegisteredAirframe: LoadAirframe = (modelId, stores) => airframeFor(modelId)(stores)
 
 /**
  * Builds one airframe mesh per `world.aircraft` entry and one hull per
@@ -48,14 +50,15 @@ export async function buildScenarioEntities(
   world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player'>,
   previous: ScenarioEntities | null,
   // Defaulted for production; tests substitute a cheap synchronous stand-in
-  // (createHellcat) so they never run a real GLTFLoader parse in Node.
+  // (createHellcat) so they never run a real GLTFLoader parse in Node. It receives
+  // each aircraft's spec store mounts, so stores hang where the sim releases them (O1).
   loadAirframe: LoadAirframe = loadRegisteredAirframe,
   // Ship-models spec §3.3-3.4: never rejects; a model that fails draws boxes
   // and reports through the loader's own sink (main.ts passes validationErrors).
   loadShip: LoadShipView = loadRegisteredShipView,
 ): Promise<ScenarioEntities> {
   const [settled, shipSettled] = await Promise.all([
-    Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model))),
+    Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(world.ships.map((s) => loadShip(s.spec))),
   ])
   const failed = [...settled, ...shipSettled].find((r): r is PromiseRejectedResult => r.status === 'rejected')
