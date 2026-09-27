@@ -345,8 +345,9 @@ test.describe('the Hangar', () => {
     await expect(row.getByRole('link', { name: 'manilov.ap' })).toHaveAttribute('href', /^https:\/\/sketchfab\.com\/3d-models\/f4u-/)
     await select(page, 'ki-84-frank')
     await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
+    // Since R4 no Library entry is drawn in code; provenance.test.ts covers that case in Node.
     await select(page, 'tower')
-    await expect(row).toContainText('Drawn in code (no model file)')
+    await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
     // The Origin filter: ours (Blender, generated, drawn in code) versus downloads.
     const listed = (id: string) => page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`)
     const origin = page.getByRole('combobox', { name: 'Origin' })

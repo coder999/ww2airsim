@@ -1,0 +1,12 @@
+{
+  "id": "aaa",
+  "output": "content/buildings/aaa.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/aaa.py",
+    "dimensions": "footprint 6 x 6 m from content/bases/tacloban.json, tacloban-aaa-1 (read 2026-09-27); 1.5 m barrels from the Type 96 25 mm AT/AA gun article (read 2026-09-27), every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
+}
