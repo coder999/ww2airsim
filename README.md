@@ -193,7 +193,7 @@ holds the status.
 
 **Missions have a UI (M2, 2026-09-27), on branch `worktree-missions-track`, not yet merged:** mission scenarios get a briefing on the orders memo, an objective line and a radio line in flight, objectives on the navigation chart, and an objectives block with a badge verdict in the debrief; a successful landing records the badge on the pilot. No shipped scenario is a mission until M3. See the [handoff](docs/handoff/2026-09-27-m2-mission-ui.md); master spec §15 holds the status.
 
-**Three missions shipped (M3, 2026-09-27), on the same branch, not yet merged:** Deck Quals ("Carrier Qualification"), Airfield Strike and Convoy Strike each declare real objectives, carry a badge, a briefing and a cited, verified history, and pass Tier 1 and reference-GPU Tier 2. See the [handoff](docs/handoff/2026-09-27-m3-missions.md); master spec §15 holds the status.
+**Three missions shipped (M3, 2026-09-27), on the same branch, not yet merged:** Deck Quals ("Carrier Qualification"), Airfield Strike and Convoy Strike each declare real objectives, carry a badge, a briefing and a cited, verified history. The verdict path is proven headless, with staged approaches and injected hits; the intermediate trap and respot are not exercised in the browser (Tier 2 checks the briefing, objective line, radio, chart and debrief). See the [handoff](docs/handoff/2026-09-27-m3-missions.md); master spec §15 holds the status.
 
 **Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
 slot now shows a rotating, heading-up sweep with fading contact dots and a

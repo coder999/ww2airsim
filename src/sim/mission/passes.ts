@@ -6,11 +6,13 @@ import { ticksFor } from './state.js'
  *  PASS_RESOLVE_S without one. */
 export type PassTracking = { readonly open: boolean; readonly exitTick: number | null }
 export const NO_PASS: PassTracking = Object.freeze({ open: false, exitTick: null })
-/** Measured 2026-09-26 (M3 Task 3 Step 1): a clean trap's window exit comes
- *  1.53 s before its landing report. Twice that bounds this from below.
+/** Seconds from leaving the window to a miss. 15 s is twice the plan's 7.5 s
+ *  acceptance limit for the exit-to-report gap, and that limit is itself
+ *  about 5x the gap measured 2026-09-26 (M3 Task 3 Step 1): a clean trap's
+ *  window exit comes 1.53 s before its landing report
  *  (`.superpowers/m3/pass-gap.ts`: carrierLanding.test.ts's autopilot
  *  approach, one window entry at tick 2507, one exit at 6941, the report at
- *  7033.) */
+ *  7033). */
 export const PASS_RESOLVE_S = 15
 export const WAVE_OFF_MESSAGE = 'Paddles: wave-off — go around.'
 export type PassEvent = 'trapped' | 'missed' | null

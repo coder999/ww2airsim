@@ -287,6 +287,8 @@ sandbox and test-range scenarios the engineering plans needed —
 `free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
 others — plus three real missions: **Deck Quals** ("Carrier Qualification"),
 **Airfield Strike** and **Convoy Strike**. Each declares real objectives,
-carries a badge, a briefing and a cited history, and can be flown to a badge
-verdict end to end (M3, 2026-09-27). Full status and open items are in
+carries a badge, a briefing and a cited history (M3, 2026-09-27). The
+verdict path is proven headless, with staged approaches and injected hits;
+the intermediate trap and respot are not exercised in the browser (Tier 2
+checks the briefing, objective line, radio, chart and debrief). Full status and open items are in
 master spec §15.

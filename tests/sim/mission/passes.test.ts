@@ -189,7 +189,8 @@ describe('passes through advance (M3-R4)', () => {
     expect(progressOf(world, 'clean')).toMatchObject({ status: 'failed', count: 1 })
     expect(texts(world)).toContain(WAVE_OFF_MESSAGE)
     expect(texts(world)).toContain('No wave-offs: failed')
-    // The wave-off is called before the objective's failure, on the same tick.
+    // On the same tick, the objective's failure line comes first, then the
+    // wave-off call.
     const log = world.mission!.log
     const miss = log.find((e) => e.kind === 'pass')!
     expect(log.filter((e) => e.tick === miss.tick && e.kind === 'message').map((e) => e.kind === 'message' && e.text))
