@@ -8,9 +8,9 @@ own model whether or not it is in the game. The design is
 The plan is
 [`2026-09-26-r1-roster-pipeline.md`](../superpowers/plans/2026-09-26-r1-roster-pipeline.md).
 
-This work is **complete on branch `worktree-r1-roster`, not merged into
-`main`**; merging is Mark's call. Commits `52c2ddb`..`e1ed885` (this
-handoff's commit included) sit on `main` at `fe461c8`.
+This work is **complete on branch `worktree-r1-roster`**, and Mark had it
+merged into `main` on 2026-09-26 (`7861699`). The branch's commits
+`52c2ddb`..`1ff576f` were cut from `main` at `fe461c8`.
 
 ## What shipped
 
