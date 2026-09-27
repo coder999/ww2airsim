@@ -32,3 +32,46 @@ export function unitNormal(t: Tri): Vec3 | null {
   const l = Math.hypot(n[0], n[1], n[2])
   return l < 1e-9 ? null : [n[0] / l, n[1] / l, n[2] / l]
 }
+
+/** A model script's top-level `NAME = <number>` literal: the figure its header cites or labels an ESTIMATE. */
+export function scriptConstant(source: string, name: string): number {
+  const m = new RegExp(`^${name} = (-?\\d+(?:\\.\\d+)?)[ \\t]*(?:#.*)?$`, 'm').exec(source)
+  if (m === null) throw new Error(`no top-level literal "${name} = <number>" in the script`)
+  return Number(m[1])
+}
+
+export interface Labeled { readonly label: string; readonly where: string; readonly tri: Tri }
+
+/** p, already in t's plane, lies strictly inside t (not on an edge). */
+function inside(p: Vec3, t: Tri, n: Vec3): boolean {
+  for (let i = 0; i < 3; i++) {
+    const a = t[i]!, b = t[(i + 1) % 3]!
+    if (dot(cross(sub(b, a), sub(p, a)), n) <= 1e-9) return false
+  }
+  return true
+}
+
+/**
+ * Pairs of triangles with different labels (materials) that lie in one plane, face the same way
+ * and overlap, judged by either centroid lying strictly inside the other: two paints z-fighting,
+ * as R2's deck slabs did. Opposite-facing coincident faces are one solid resting on another and
+ * pass; so does the same paint, which z-fights invisibly. A heuristic: it catches a small face
+ * on a large one, which is the case that has happened.
+ */
+export function coplanarOverlaps(tris: readonly Labeled[], eps = 1e-4): string[] {
+  const faces = tris.flatMap((t) => {
+    const n = unitNormal(t.tri)
+    return n === null ? [] : [{ ...t, n, d: dot(n, t.tri[0]), c: centroid(t.tri) }]
+  })
+  const out = new Set<string>()
+  for (let i = 0; i < faces.length; i++) {
+    for (let j = i + 1; j < faces.length; j++) {
+      const a = faces[i]!, b = faces[j]!
+      if (a.label === b.label || dot(a.n, b.n) < 1 - 1e-6 || Math.abs(a.d - b.d) > eps) continue
+      if (!inside(b.c, a.tri, a.n) && !inside(a.c, b.tri, b.n)) continue
+      const c = inside(b.c, a.tri, a.n) ? b.c : a.c
+      out.add(`${a.where} (${a.label}) / ${b.where} (${b.label}) at ${c.map((v) => v.toFixed(2)).join(', ')}`)
+    }
+  }
+  return [...out]
+}
