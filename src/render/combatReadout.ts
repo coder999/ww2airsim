@@ -43,7 +43,7 @@ export function combatReadoutLabel(rec: AircraftCombat | undefined, tick?: numbe
   const parts: string[] = []
   // Friendly fire (spec §7, ruling FF-8): the radio call leads for
   // FRIENDLY_FIRE_WARNING_TICKS, then a tag stays so the pilot knows the
-  // flight is forfeit. Without a tick the moment is unknown: tag only.
+  // sortie is forfeit. Without a tick the moment is unknown: tag only.
   const ff = rec.friendlyFire
   if (ff !== null) {
     const fresh = tick !== undefined && tick >= ff.tick && tick < ff.tick + FRIENDLY_FIRE_WARNING_TICKS

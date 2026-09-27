@@ -204,20 +204,16 @@ export function applyMissionResult(
   }
 }
 
-/** What earlier debriefs of a discharged flight already banked (a landing
- *  followed by Continue): taken back off the career by `dischargePilot`. */
-export type Forfeit = {
-  readonly points: number
-  readonly killsByType: Readonly<Record<TargetType, number>>
-}
-
 /**
- * Banks a flight forfeit for friendly fire (friendly-fire spec §6, rulings
- * FF-6 and FF-7). It is the discharge counterpart of `applyMissionResult`:
+ * Banks a sortie that ended in dishonorable discharge (friendly-fire spec §6,
+ * rulings FF-6 as amended by Mark 2026-09-26, and FF-7). It is the discharge
+ * counterpart of `applyMissionResult`:
  *
- * - nothing is scored, and `forfeit` (what this same flight banked at an
- *   earlier debrief) is subtracted, never below zero; the rank is recomputed,
- *   so a pilot can lose rank;
+ * - only this sortie is forfeit: the kills since the last landing, which
+ *   `withDischarge` already zeroed, score nothing. What an earlier landing in
+ *   the same flight banked stays on the career (Mark: "take off, kill an
+ *   enemy, land; take off again, kill an enemy and a fellow Hellcat -- only
+ *   the second enemy kill is forfeit"), so score, kills and rank are unchanged;
  * - `missionsFlown` counts it, and the physical career folds as usual:
  *   hours, landings and peaks all really happened;
  * - the log entry shows 0 points, zero kills and `discharged: true`;
@@ -229,19 +225,11 @@ export type Forfeit = {
 export function dischargePilot(
   pilot: PilotRecord,
   _outcome: RecoveryOutcome,
-  forfeit: Forfeit,
   sortie?: SortieFacts,
 ): PilotRecord {
-  const cumulativeScore = Math.max(0, pilot.cumulativeScore - forfeit.points)
-  const killsByType = Object.fromEntries(
-    TARGET_TYPES.map((t) => [t, Math.max(0, pilot.killsByType[t] - forfeit.killsByType[t])]),
-  ) as Readonly<Record<TargetType, number>>
   return {
     ...pilot,
-    cumulativeScore,
-    rank: rankFor(cumulativeScore),
     missionsFlown: pilot.missionsFlown + 1,
-    killsByType,
     status: 'discharged',
     ...(sortie === undefined ? {} : {
       career: foldCareer(pilot.career, sortie),
@@ -256,10 +244,9 @@ export function dischargeInRoster(
   roster: readonly PilotRecord[],
   pilotId: string,
   outcome: RecoveryOutcome,
-  forfeit: Forfeit,
   sortie?: SortieFacts,
 ): readonly PilotRecord[] {
-  return roster.map((p) => (p.id === pilotId ? dischargePilot(p, outcome, forfeit, sortie) : p))
+  return roster.map((p) => (p.id === pilotId ? dischargePilot(p, outcome, sortie) : p))
 }
 
 /**

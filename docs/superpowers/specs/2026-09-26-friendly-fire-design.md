@@ -12,7 +12,7 @@ Plan 7e gave aircraft a side. It left one open item (7e handoff §5 item 2): shi
 | 2 | "You should NOT get points for sinking your own ship." No score for damaging or destroying anything on your own side. | §4 |
 | 3 | Any damage the player causes to his own side ends the flight in DISHONORABLE DISCHARGE, at every flight end that produces a debrief. | §4, §5 |
 | 4 | The roster records the pilot as DISCHARGED, and he can still be resurrected, the way K.I.A. works today. | §6 |
-| 5 | "Forfeit the whole flight": score zero, and the flight's kills are not credited to the career. | §5, §6 |
+| 5 | "Forfeit the whole flight": score zero, and the flight's kills are not credited to the career. Amended by Mark 2026-09-26: only the kills since the last landing are forfeit (§6). | §5, §6 |
 | 6 | A radio warning on the first friendly hit, without building a radio-line component that competes with M2's. | §7 |
 
 ## 2. Where a side lives
@@ -85,10 +85,10 @@ When the player's record has `friendlyFire`, the model gains `discharge` and cha
 ## 6. The roster
 
 - `PilotRecord.status` becomes `'active' | 'kia' | 'discharged'`. When friendly fire and a death coincide, the discharge wins.
-- `dischargePilot(pilot, outcome, forfeit, sortie)` banks a discharged flight. It works as follows:
+- `dischargePilot(pilot, outcome, sortie)` banks a discharged sortie. It works as follows:
   - `missionsFlown` is incremented.
-  - Nothing is scored.
-  - `forfeit.points` and `forfeit.killsByType` are subtracted. These are what earlier debriefs of the same flight banked, a landing followed by Continue. Rank is recomputed.
+  - Nothing is scored for this sortie (the kills since the last landing).
+  - **Amended by Mark, 2026-09-26:** only the kills since the last landing are forfeit. "Say I take off, kill an enemy, then land; then I take off again, kill an enemy and also kill a fellow Hellcat. Only the second enemy kill is forfeit." What an earlier landing banked stays on the career, so a discharge never lowers score, kills or rank. (This replaces an earlier `forfeit` argument that subtracted what earlier debriefs of the same flight had banked.)
   - The career's physical totals are folded: hours, landings and peaks.
   - A log entry is appended with 0 points, zero kills and `discharged: true`.
 - **Resurrection matches K.I.A.** `startSortie` flips `kia` or `discharged` back to `active` and counts one resurrection. A Restart-ed flight that ends cleanly clears `discharged` exactly as it clears `kia` (Plan 9 review I-4). There is one `resurrections` counter.

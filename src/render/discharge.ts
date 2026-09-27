@@ -49,7 +49,8 @@ export function friendlyTargetLabel<M>(world: World<M>, ff: FriendlyFire): strin
  * one (`recoveryAgreement.test.ts`), and the discharge is an overlay on top
  * of it (ruling FF-5).
  *
- * - The flight scores zero (ruling FF-6, "forfeit the whole flight").
+ * - This sortie scores zero: the kills since the last landing (ruling FF-6,
+ *   as amended by Mark 2026-09-26; earlier landings keep what they banked).
  * - The rows keep what was destroyed, at 0 points, so the form still shows
  *   what the pilot threw away.
  * - There is no Continue: the flight is over.
@@ -65,7 +66,7 @@ export function withDischarge<M>(model: DebriefModel, world: World<M>): DebriefM
   return {
     ...rest,
     headline: DISCHARGE_HEADLINE,
-    detail: `You fired on your own side (${target}). The flight is forfeit, and you are discharged from the service. ${model.detail}`,
+    detail: `You fired on your own side (${target}). This sortie is forfeit, and you are discharged from the service. ${model.detail}`,
     figures: [{ label: 'Friendly fire', value: target }, ...model.figures],
     score: { rows: model.score.rows.map((r) => ({ ...r, score: 0 })), total: 0, multiplier: 0 },
     discharge: { target },

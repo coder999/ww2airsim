@@ -14,7 +14,7 @@ The plan's header: final-product viewing checkpoint, unattended.
 | 1 | Every ship and structure has a side. Ships take the scenario key `ships[].side`; structures take their airfield's side (base `side`, overridden per scenario by `airfieldSides`). Tacloban is allied, Dulag axis, `cv-1`/`dd-1`/`dd-2` allied, `maru-1` axis. Sides are validated at world build, and each message names the entity. | `45665e3` |
 | 2 | `AircraftCombat.friendlyFire` records the first damage an aircraft does to its own side (round, bomb, rocket or blast; not itself, not wreckage). Own-side ship and structure destructions count only in `friendlyKills`. | `f3e7b55` |
 | 3 | `withDischarge` (`src/render/discharge.ts`) overlays DISHONORABLE DISCHARGE on all three debriefs: red stamp, score 0, every row 0 points, `Recovery: … — forfeit (×0)`, a "Friendly fire" figure, no Continue. `outcome` stays physical (FF-5). | `d802729` |
-| 4 | Roster status `discharged`; `dischargePilot` takes the whole flight back off the career and can lower rank (FF-6); resurrection works as it does for K.I.A. The title row and chip read DISCHARGED; the Dossier reads "Discharged" and "… · Discharged". | `71ab0e9` |
+| 4 | Roster status `discharged`; `dischargePilot` scores nothing for the sortie and keeps what earlier landings banked (FF-6 as amended by Mark, 2026-09-26); resurrection works as it does for K.I.A. The title row and chip read DISCHARGED; the Dossier reads "Discharged" and "… · Discharged". | `71ab0e9` |
 | 5 | `main.ts` wraps the three debrief builders and banks a discharge through `dischargeInRoster`. The combat readout leads with `CEASE FIRE! YOU'RE HITTING FRIENDLIES!` for 300 ticks (5 s), then a persistent `FRIENDLY FIRE` tag. | `71a5c40` |
 | 6 | `friendly-fire-range` ("Friendly Fire (dev)"), its Tier 1 test and Tier 2 spec, and [the note for M2](../superpowers/notes/2026-09-26-friendly-fire-for-m2.md). | `6bb79da` |
 | 7 | Shape-pin fix found by verify; these docs; Tier 2. | `078ac18`, `aab2d27`, this commit |
@@ -54,7 +54,7 @@ The plan's header: final-product viewing checkpoint, unattended.
 4. **`npx playwright test <name>` currently collects nothing.** `strike.spec.ts` imports `src/render/content.ts`, which reads `import.meta.env` and cannot load in Node, and one unloadable file aborts collection of every file. Passing spec *paths* works. This is pre-existing and not changed here.
 5. **Deferred minors from the review.**
    - `friendly-fire.spec.ts`: a failure message says "the axis Hellcat was hit" for an assertion that it was *not* hit.
-   - After land, Continue, then friendly fire, the earlier landing's Dossier log line still shows its points, while the career has had them taken back.
+   - *Resolved 2026-09-26 by Mark's FF-6 amendment:* the Dossier log no longer disagrees with the career after a forfeit, because a discharge no longer takes back what an earlier landing banked.
 6. **Spec §9 leftover:** mission `destroy` objectives aimed at an allied entity are unchecked (for M3/M4).
 7. **Viewing:** `https://ww2airsim-2.windomlane.org/?scenario=friendly-fire-range` (returned 200 at handoff).
    - Boot it by URL, for the cloud reason in item 2.
@@ -69,10 +69,8 @@ FF-1 to FF-10 are in the plan. Rulings made during execution are in the ledger (
 - Task 3: the end-to-end debrief tests use strike-range and free-flight, because `friendly-fire-range` did not exist until Task 6. `show()`'s DOM has no Tier 1 test, since the suite runs in Node; Tier 2 covers it.
 - Task 4:
   - the status chip is a pure `pilotStatusChip`;
-  - forfeits clamp at zero;
   - `applyMissionResult` is unchanged, because it already clears `discharged`.
 - Task 5:
-  - `flightPointsBanked` is a `Forfeit` (points *and* kills);
   - a discharge never reports a promotion;
   - the warning window is `[tick, tick + 300)`.
 - Task 6: the wingman and bandit in `friendly-fire-range` have no AI pilot, so the Tier 2 flow is deterministic.

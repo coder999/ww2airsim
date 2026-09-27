@@ -27,10 +27,10 @@ import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNaviga
 import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
-import { applyMissionResultToRoster, dischargeInRoster, loadRoster, saveRoster, type Forfeit, type LogOutcome, type SortieFacts } from './roster.js'
+import { applyMissionResultToRoster, dischargeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
 import { withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
-import { addKillsByType, zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
+import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
 import { shouldResetHistory } from './scene/cloudHistory.js'
@@ -262,10 +262,6 @@ async function boot(): Promise<void> {
    * alongside `roster`/`currentPilotId` above, for the same reason.
    */
   let scoredThroughKillsByType = zeroKillsByType()
-  /** What this flight has banked so far, points and kills (friendly-fire
-   *  spec §6, ruling FF-6): a discharge takes it back off the career. Reset
-   *  at exactly the places `scoredThroughKillsByType` is. */
-  let flightPointsBanked: Forfeit = { points: 0, killsByType: zeroKillsByType() }
   /** The flight since the last New game / Restart / bank (dossier spec
    *  §B.2); reset at exactly the places `scoredThroughKillsByType` is, so a
    *  land -> Continue -> crash logs two segments that do not overlap. */
@@ -572,7 +568,6 @@ async function boot(): Promise<void> {
     roster = loadRoster()
     currentPilotId = pilotId
     scoredThroughKillsByType = zeroKillsByType()
-    flightPointsBanked = { points: 0, killsByType: zeroKillsByType() }
     segment = EMPTY_SEGMENT
     // A click is the user gesture the autoplay policy wants; this is the
     // first-visit resume the audio handoff left open. Called unconditionally
@@ -1406,7 +1401,6 @@ async function boot(): Promise<void> {
     // does not call `startSortie` again -- Restart is a redo of the SAME
     // sortie already counted, not a new one.
     scoredThroughKillsByType = zeroKillsByType()
-    flightPointsBanked = { points: 0, killsByType: zeroKillsByType() }
     segment = EMPTY_SEGMENT
   })
   /** Passed to every `debrief.show(...)` call below as the "Return to title"
@@ -1472,18 +1466,11 @@ async function boot(): Promise<void> {
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     if (currentPilotId === null) return null
     const before = roster.find((p) => p.id === currentPilotId) ?? null
-    // Friendly fire (spec §6): the whole flight is forfeit, including what an
-    // earlier debrief of it banked, so a discharge can lower the rank.
-    if (discharged) {
-      roster = dischargeInRoster(roster, currentPilotId, outcome, flightPointsBanked, sortie)
-      flightPointsBanked = { points: 0, killsByType: zeroKillsByType() }
-    } else {
-      roster = applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
-      flightPointsBanked = {
-        points: flightPointsBanked.points + scoreTotal,
-        killsByType: addKillsByType(flightPointsBanked.killsByType, killsSinceLastBank),
-      }
-    }
+    // Friendly fire (spec §6, FF-6 as amended by Mark 2026-09-26): only this
+    // sortie is forfeit; what an earlier landing banked stays banked.
+    roster = discharged
+      ? dischargeInRoster(roster, currentPilotId, outcome, sortie)
+      : applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null

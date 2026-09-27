@@ -57,7 +57,7 @@ describe('dossierModel for a discharged pilot (friendly-fire spec §6)', () => {
     const seg = { flightSeconds: 600, maxAltitudeM: 3000, maxTrueAirspeedMps: 150 }
     let p = createPilot('Ace')
     p = applyMissionResult(p, 100, 'landed', zeroKillsByType(), { at: '2026-09-20T10:00:00.000Z', scenarioId: 'a', aircraft: 'F6F-5 Hellcat', loadout: 'clean', outcome: 'trap', segment: seg })
-    p = dischargePilot(p, 'landed', { points: 0, killsByType: zeroKillsByType() }, { at: '2026-09-21T10:00:00.000Z', scenarioId: 'b', aircraft: 'F6F-5 Hellcat', loadout: 'both', outcome: 'field', segment: seg })
+    p = dischargePilot(p, 'landed', { at: '2026-09-21T10:00:00.000Z', scenarioId: 'b', aircraft: 'F6F-5 Hellcat', loadout: 'both', outcome: 'field', segment: seg })
     expect(dossierModel(p, label).header.status).toBe('Discharged')
     const m = dossierModel({ ...p, resurrections: 2 }, label)
     expect(m.header.status).toBe('Discharged · resurrected 2×')
