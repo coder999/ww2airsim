@@ -4,6 +4,10 @@ import { DT } from '../flight/model.js'
 import { qRotate } from '../math/quat.js'
 import { add, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import type { AircraftCombat } from '../weapons/combat.js'
+import { onGround } from '../ground.js'
+import { groundUnder } from '../world/ground.js'
+import type { Deck } from '../world/deck.js'
+import type { TerrainField } from '../world/terrain.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { RECENT_HIT_S } from './ingress.js'
 import type { FormationSlot } from './pilot.js'
@@ -148,16 +152,24 @@ const yaw = (v: Vec3, rad: number): Vec3 => {
 }
 
 /** The leader's velocity plus a clamped correction toward the station (spec
- *  §3). The leader-velocity term is fed forward through the leader's turn:
- *  the station's own velocity (the leader's, plus the turn swinging the
- *  station around it), led ahead through the turn (`turnLeadRad`) so the
- *  velocity controller banks with the leader instead of after it. The
- *  correction is proportional on the station error, stiffer vertically.
- *  The same law rejoins from far away. */
+ *  §3). For a slot station the leader-velocity term is fed forward through
+ *  the leader's turn: the station's own velocity (the leader's, plus the
+ *  turn swinging the station around it), led ahead through the turn
+ *  (`turnLeadRad`) so the velocity controller banks with the leader instead
+ *  of after it. The correction is proportional on the station error,
+ *  stiffer vertically. The same law rejoins from far away.
+ *
+ *  Trail cover gets the leader's plain velocity, no turn feed-forward. Its
+ *  500 m arm makes omega x arm the whole command whenever a fighting leader
+ *  turns hard: a player looping at 1.3 rad/s while firing drove the desired
+ *  speed to 646-665 m/s (final review M4, 2026-09-27, the review's loop
+ *  probe through production `advance`), a station no airframe can fly. Without it the command
+ *  stays within the leader's speed plus MAX_CLOSURE_MPS (`formation.test.ts`
+ *  pins that bound). Cover is loose by design, so it trails the turn. */
 export function stationDesiredVelocity<M>(self: AircraftEntity<M>, leader: AircraftEntity<M>, station: Station): Vec3 {
   const sp = stationPoint(leader, station)
   const err = sub(sp, self.state.position)
-  const w = leaderTurnRate(leader)
+  const w = station === TRAIL_COVER ? 0 : leaderTurnRate(leader)
   const arm = sub(sp, leader.state.position)
   const lv = yaw(add(leader.state.velocity, v3(-w * arm.z, 0, w * arm.x)), turnLeadRad(leader, w))
   let pull = v3(err.x * CLOSURE_GAIN_PER_S, err.y * VERTICAL_GAIN_PER_S, err.z * CLOSURE_GAIN_PER_S)
@@ -194,6 +206,30 @@ export const COVER_RELEASE_RANGE_M = 1.5 * COVER_RANGE_M
 /** How long trail cover holds after the leader last fired or engaged. A
  *  spec-set value (spec §4, 2026-09-27), not measured. */
 export const COVER_LATCH_S = 5
+
+/**
+ * Whether the leader is flying, so a wingman can form on it (spec §4: a
+ * parked leader is loitered on "until the leader is airborne"). Decided from
+ * state, never from `AircraftEntity.parked`: that flag means "spawned on its
+ * wheels" and nothing in the sim clears it, so a player who took off from the
+ * deck still read as parked at 399 m (final review C1, 2026-09-27).
+ *
+ * The test is the sim's own contact test, `onGround` against what
+ * `groundUnder` reports beneath the leader -- the same one `canRelease`
+ * (weapons/combat.ts) uses for "parked" -- so it is true on a deck or a
+ * runway, false the tick the wheels leave it, and false over open sea. Its
+ * threshold is `GROUND_CONTACT_TOLERANCE_M` (0.25 m, ground.ts), not a new
+ * height here: an altitude threshold would call a leader skimming the sea
+ * below it "on the ground". `groundUnder` null (no heightfield and no deck
+ * here) is airborne, as in `canRelease`: nothing is there to stand on, and
+ * a world with an airplane parked ashore does not tick until its heightfield
+ * lands (`AircraftEntity.parked`'s doc: render/frame.ts's `groundSpawn`), so
+ * no pilot reads this then.
+ */
+export function leaderAirborne<M>(leader: AircraftEntity<M>, terrain: TerrainField | null, decks: readonly Deck[]): boolean {
+  const under = groundUnder(terrain, decks, leader.state.position.x, leader.state.position.z)
+  return under === null || !onGround(leader.spec, leader.state, under.heightM)
+}
 
 /** The player fires (`controls.fire`), or an AI leader is engaging. */
 export function leaderIsFighting<M>(leader: AircraftEntity<M>): boolean {

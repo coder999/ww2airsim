@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { aircraftById, type World } from '../../../src/sim/loop.js'
-import { createState } from '../../../src/sim/flight/state.js'
-import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
-import { length, sub, v3 } from '../../../src/sim/math/vec3.js'
+import { length, sub } from '../../../src/sim/math/vec3.js'
 import { PURSUIT_FLOOR_M } from '../../../src/sim/ai/safety.js'
-import { stationErrorM } from '../../../src/sim/ai/formation.js'
-import { chase, runCanned } from './maneuverWorlds.js'
+import { leaderAirborne, stationErrorM } from '../../../src/sim/ai/formation.js'
+import { decksOf } from '../../../src/sim/world/deck.js'
+import { chase, runCanned, type ScriptedFlight } from './maneuverWorlds.js'
 import { PLAYER_EAST, PLAYER_FAR, buildFormation, formationLeader, wingman } from './formationWorlds.js'
 
 /** 7f spec §4: leader lost; parked leader. */
@@ -46,7 +45,11 @@ describe('leader lost (7f spec §4)', () => {
     expect(aircraftById(w, 'wing-1')!.pilot!.decision.targetId).toBe('f6f-1')
     w = destroy(w, 'lead-1')
     let minY = Infinity
+    let t = 0
     w = runCanned(w, { 'f6f-1': chase('wing-1') }, 60, (x) => {
+      t += 1 / 60
+      // Still fighting after the handoff, not only before it (final review M6).
+      if (t <= 2) expect(aircraftById(x, 'wing-1')!.pilot!.decision.targetId).toBe('f6f-1')
       const s = aircraftById(x, 'wing-1')!.state
       expect([s.position.x, s.position.y, s.position.z].every(Number.isFinite)).toBe(true)
       minY = Math.min(minY, s.position.y)
@@ -69,26 +72,46 @@ describe('a parked leader (7f spec §4)', () => {
     expect(length(sub(aircraftById(end, 'wing-1')!.state.position, aircraftById(w, 'wing-1')!.state.position))).toBeGreaterThan(0)
   })
 
-  it('joins once the leader takes off', () => {
-    // A deck park works with terrain null (tests/sim/mission/objectives.test.ts does the same).
-    const parked = { id: 'f6f-1', spec: 'f6f-hellcat', parkedAt: { ship: 'cv-1', spot: { x: 0, z: -110 } }, chocked: true }
-    const cv = { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[0, 0]], speedMps: 0 }
-    let w = buildFormation([parked, wingman('wing-1', 'f6f-1', 1, [0, 2000, -3000])], { ships: [cv] })
-    w = runCanned(w, {}, 5, () => {}) // settle into the loiter first, like a real launch wait
-    expect(aircraftById(w, 'wing-1')!.pilot!.decision.mode).toBe('loiter')
-
-    // The leader goes airborne, 3,000 m, heading east at 110 m/s, near the wingman.
-    const leaderBefore = aircraftById(w, 'f6f-1')!
-    const position = v3(0, 3000, -3000)
-    const velocity = v3(110, 0, 0)
-    const state = createState({ position, velocity, attitude: qFromAxisAngle(v3(0, 1, 0), Math.atan2(-velocity.z, velocity.x)) })
-    const airborneLeader = { ...leaderBefore, parked: false, state, previous: state }
-    w = { ...w, aircraft: w.aircraft.map((a) => (a.id === 'f6f-1' ? airborneLeader : a)) }
-
-    const scripts = { 'f6f-1': formationLeader(110, 3000, 0) }
-    w = runCanned(w, scripts, 1, () => {})
-    expect(aircraftById(w, 'wing-1')!.pilot!.decision.mode).toBe('formation')
-    const end = runCanned(w, scripts, 89, () => {})
+  it('joins once the leader takes off from the deck, through production advance (final review C1)', () => {
+    // The leader launches for real: a full-throttle deck run, a pitch-up at
+    // 6 s, then a climb to 600 m at 110 m/s. `parked` stays true all the
+    // way (nothing in the sim clears it), so only a state-based "airborne"
+    // test lets the wingman join. Measured 2026-09-27
+    // (scratchpad probeLaunch.ts, same world): wheels off at 9.95 s,
+    // 'formation' at 10.03 s, within 50 m of slot 1 at 99.7 s (89.8 s after
+    // lift-off, from 3.3 km away) and 4 m by 140 s.
+    const parked = { id: 'f6f-1', spec: 'f6f-hellcat', parkedAt: { ship: 'cv-1', spot: { x: 0, z: -110 } }, chocked: false }
+    const cv = { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[0, 0], [20000, 0]], speedMps: 12 }
+    const w = buildFormation([parked, wingman('wing-1', 'f6f-1', 1, [0, 600, -3000])], { ships: [cv] })
+    const deckY = aircraftById(w, 'f6f-1')!.state.position.y
+    const cruise = formationLeader(110, 600, 0)
+    let t = 0
+    let climbing = false
+    const launch: ScriptedFlight = (a, x) => {
+      if (a.state.position.y > deckY + 30) climbing = true
+      return climbing ? cruise(a, x) : { roll: 0, pitch: t > 6 ? 0.25 : 0, yaw: 0, throttle: 1, brakes: 0 }
+    }
+    let liftOffS: number | null = null
+    let formationS: number | null = null
+    let closeS: number | null = null
+    const end = runCanned(w, { 'f6f-1': launch }, 150, (x) => {
+      t += 1 / 60
+      const lead = aircraftById(x, 'f6f-1')!
+      const wing = aircraftById(x, 'wing-1')!
+      expect(lead.impact).toBeNull()
+      if (liftOffS === null && leaderAirborne(lead, x.terrain, decksOf(x.ships))) liftOffS = t
+      // On the deck: loiter, never formation.
+      if (liftOffS === null) expect(wing.pilot!.decision.mode).toBe('loiter')
+      if (formationS === null && wing.pilot!.decision.mode === 'formation') formationS = t
+      if (formationS !== null && closeS === null && stationErrorM(wing, lead, 1) < 50) closeS = t
+    })
+    expect(liftOffS).not.toBeNull()
+    expect(liftOffS!).toBeGreaterThan(6) // it did sit on the deck first
+    expect(formationS).not.toBeNull()
+    expect(formationS! - liftOffS!).toBeLessThanOrEqual(aircraftById(w, 'wing-1')!.pilot!.skill.reactionS + 1 / 60)
+    expect(closeS).not.toBeNull()
+    expect(closeS! - liftOffS!).toBeLessThan(120) // measured 89.8 s
+    expect(aircraftById(end, 'f6f-1')!.parked).toBe(true) // the spawn flag never clears: why the test is state-based
     expect(stationErrorM(aircraftById(end, 'wing-1')!, aircraftById(end, 'f6f-1')!, 1)).toBeLessThan(50)
   })
 })

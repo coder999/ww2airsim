@@ -65,4 +65,21 @@ describe('the station-keeping law (7f spec §3)', () => {
     expect(d.z).toBeGreaterThan(0)
     expect(stationDesiredVelocity(east(-80, 100), leader, STATIONS[1]).z).toBe(0)
   })
+
+  it('does not feed a hard turn forward onto trail cover (final review M4)', () => {
+    // A player looping while firing: 1.3 rad/s, the rate the review's probe
+    // measured, when omega x the 500 m arm asked for 646-665 m/s.
+    const leader = east(0, 0, 3000, 150)
+    const prevHeading = -1.3 / 60
+    const turning = { ...leader, previous: { ...leader.state, velocity: v3(150 * Math.cos(prevHeading), 0, 150 * Math.sin(prevHeading)) } }
+    for (const self of [east(-500, 0, 3200, 150), east(-2500, 800, 2600, 150)]) {
+      const d = stationDesiredVelocity(self, turning, TRAIL_COVER)
+      expect(length(d)).toBeLessThanOrEqual(150 + MAX_CLOSURE_MPS + 1e-9)
+      // Exactly what a non-turning leader in the same state asks for.
+      expect(d).toEqual(stationDesiredVelocity(self, leader, TRAIL_COVER))
+    }
+    // Slot stations keep the feed-forward (the turn-lead case above covers its sense).
+    const slotSelf = east(-80, 100, 3000, 150)
+    expect(stationDesiredVelocity(slotSelf, turning, STATIONS[1])).not.toEqual(stationDesiredVelocity(slotSelf, leader, STATIONS[1]))
+  })
 })
