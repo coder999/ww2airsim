@@ -1110,11 +1110,13 @@ Follow the house form in `docs/handoff/2026-09-26-plan7e-sides.md`: what shipped
 
 In the Plan 7 row, replace `7f (formation), 7g (landing AI) not started` with a 7f clause in the same style as 7e's: what landed, "Tier 1 only; Tier 2 waits on the sortie forms", and links to the [spec](2026-09-27-ai-7f-formation-design.md), plan and handoff. Keep `7g (landing AI) not started`.
 
+Also update README's paragraph for the AI plans. It points at §15 and does not restate the order (repo `CLAUDE.md`, Conventions).
+
 - [ ] **Step 4: Commit, push the branch, email the handoff**
 
 ```bash
-git add docs/
-git commit -m "7f Task 8: handoff and §15 row"
+git add docs/ README.md
+git commit -m "7f Task 8: handoff, §15 row, README"
 git push -u origin worktree-ai-7f-formation
 python3 tools/mail-doc.py docs/handoff/<file>.md "ww2airsim: Plan 7f handoff"
 ```
