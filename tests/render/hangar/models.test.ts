@@ -78,7 +78,8 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 
   it('"Not yet in service" loads nothing', async () => {
-    expect(await loadHangarModel(catalog.find((e) => e.subject === null)!)).toBeNull()
+    // No spec and no model of its own (R3: the first spec-less entry, the Corsair, gained a model).
+    expect(await loadHangarModel(catalog.find((e) => e.subject === null && e.library.model === undefined)!)).toBeNull()
   })
 
   it('the flat field is height 0 everywhere', () => {
