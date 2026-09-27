@@ -169,6 +169,9 @@ export const WILDCAT_MODEL_URL = `${import.meta.env.BASE_URL}${WILDCAT_MODEL_PAT
  *  tests/build/dist.test.ts checks the path, so the two cannot name different files. */
 export const shipModelPath = (id: string): string => `content/ships/${id}.glb`
 export const shipModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${shipModelPath(id)}`
+/** An aircraft's committed model (R3): content/aircraft/<id>.glb, built by tools/models/entries/<id>.json. */
+export const aircraftModelPath = (id: string): string => `content/aircraft/${id}.glb`
+export const aircraftModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${aircraftModelPath(id)}`
 
 /** A generated store model (O1): content/ordnance/<id>.glb, id = the store type id in content. */
 export const ordnanceModelPath = (id: string): string => `content/ordnance/${id}.glb`
