@@ -105,8 +105,7 @@ is the barrel-roof hangar. The
 [handoff](docs/handoff/2026-09-26-r1-roster-pipeline.md) records what was
 measured; master spec §15 holds the status.
 
-**R2 ship roster complete 2026-09-26, on branch `worktree-r2-ships`
-(not merged):** every ship in the Library now has a fitted model and a
+**R2 ship roster landed 2026-09-26, merged into `main`:** every ship in the Library now has a fitted model and a
 sourced `ShipSpec`. That is four licensed models and three original Blender
 models; none is placed in a scenario yet. The
 [handoff](docs/handoff/2026-09-26-r2-ship-models.md) records what was

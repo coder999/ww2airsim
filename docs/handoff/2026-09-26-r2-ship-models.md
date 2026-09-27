@@ -7,9 +7,9 @@ no turret motion (that is H3). The design is
 §§3–7. The plan is
 [`2026-09-26-r2-ship-models.md`](../superpowers/plans/2026-09-26-r2-ship-models.md).
 
-This work is **complete on branch `worktree-r2-ships`, not merged**. The
-branch was cut from `main` at `a0005ff`; its commits run from `86774d3` to
-the commit that adds this file. Merging it is Mark's call.
+This work is **complete on branch `worktree-r2-ships`**, and Mark had it
+merged into `main` on 2026-09-26 (`fcaef87`). The branch's commits
+`86774d3`..`c4d7bad` were cut from `main` at `a0005ff`.
 
 ## What shipped
 
