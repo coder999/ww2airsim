@@ -10,7 +10,7 @@ import { deckOf, deckWorld } from '../../../src/sim/world/deck.js'
 import type { TerrainField } from '../../../src/sim/world/terrain.js'
 import { zeroKillsByType } from '../../../src/sim/weapons/targetType.js'
 import type { LandingAt } from '../../../src/sim/landing.js'
-import { missionOutcome, recoveryOf } from '../../../src/sim/mission/outcome.js'
+import { missionOutcome, recoveryOf, type MissionOutcome } from '../../../src/sim/mission/outcome.js'
 import { NORTH, flatField } from './fixture.js'
 
 /**
@@ -70,11 +70,27 @@ function expectLandedAgreement(f: FrameState, at: LandingAt | null): void {
   expect(landingModel(report, kills).outcome).toBe(recovery!.kind)
 }
 
+/**
+ * Task 5 review, fix round 1: the general invariant `missionOutcome` itself
+ * promises (src/sim/mission/outcome.ts) -- `reasons` is non-empty EXACTLY
+ * when `result` is `'no-badge'` -- was never pinned in one place here. The
+ * per-case checks below assert narrower, case-specific facts (a `.result`
+ * equality, a specific `.reasons` array, or `.badge` being `null`); none of
+ * them reads this as a general iff, and the two success cases never read
+ * `.reasons` at all. `missionDebrief`'s `first!` (src/render/mission/
+ * debriefMission.ts) relies on exactly this iff to be sound.
+ */
+function expectReasonsIffNoBadge(o: MissionOutcome): void {
+  expect(o.reasons.length > 0).toBe(o.result === 'no-badge')
+}
+
 describe('the render banking path and the mission outcome agree (spec §1, §5)', () => {
   it('landed at an airfield: same base, and the badge rule sees the landing', () => {
     const f = land(frameFor([], 'tacloban', flatField(100)), TAC.x, 100, TAC.z)
     expectLandedAgreement(f, { kind: 'airfield', id: 'tacloban', name: 'Tacloban' })
-    expect(missionOutcome(f.world.mission!, recoveryOf(f.world)!).result).toBe('success')
+    const outcome = missionOutcome(f.world.mission!, recoveryOf(f.world)!)
+    expect(outcome.result).toBe('success')
+    expectReasonsIffNoBadge(outcome)
   })
 
   it('landed on a carrier', () => {
@@ -83,13 +99,17 @@ describe('the render banking path and the mission outcome agree (spec §1, §5)'
     const p = deckWorld(deck, 0, 0)
     const f = land(f0, p.x, deck.center.y, p.z)
     expectLandedAgreement(f, { kind: 'carrier', id: 'cv-1', name: 'cv-1' })
-    expect(missionOutcome(f.world.mission!, recoveryOf(f.world)!).result).toBe('success')
+    const outcome = missionOutcome(f.world.mission!, recoveryOf(f.world)!)
+    expect(outcome.result).toBe('success')
+    expectReasonsIffNoBadge(outcome)
   })
 
   it('landed off-field', () => {
     const f = land(frameFor([], 'tacloban', flatField(100)), 0, 100, 0)
     expectLandedAgreement(f, null)
-    expect(missionOutcome(f.world.mission!, recoveryOf(f.world)!).reasons).toEqual(['Landed off-field', 'Recover: incomplete'])
+    const outcome = missionOutcome(f.world.mission!, recoveryOf(f.world)!)
+    expect(outcome.reasons).toEqual(['Landed off-field', 'Recover: incomplete'])
+    expectReasonsIffNoBadge(outcome)
   })
 
   it('ditched', () => {
@@ -99,7 +119,9 @@ describe('the render banking path and the mission outcome agree (spec §1, §5)'
     expect(impact.kind).toBe('ditched')
     expect(debriefModel(impact, playerAircraft(f.world).state, kills).outcome).toBe('ditched')
     expect(recoveryOf(f.world)).toEqual({ kind: 'ditched' })
-    expect(missionOutcome(f.world.mission!, recoveryOf(f.world)!).badge).toBeNull()
+    const outcome = missionOutcome(f.world.mission!, recoveryOf(f.world)!)
+    expect(outcome.badge).toBeNull()
+    expectReasonsIffNoBadge(outcome)
   })
 
   it('killed by impact', () => {
@@ -109,6 +131,10 @@ describe('the render banking path and the mission outcome agree (spec §1, §5)'
     expect(impact.kind).toBe('destroyed')
     expect(debriefModel(impact, playerAircraft(f.world).state, kills).outcome).toBe('killed')
     expect(recoveryOf(f.world)).toEqual({ kind: 'killed' })
+    // Task 5 review, fix round 1: this case never computed a missionOutcome
+    // before, so it never exercised the no-badge side of the iff below.
+    const outcome = missionOutcome(f.world.mission!, recoveryOf(f.world)!)
+    expectReasonsIffNoBadge(outcome)
   })
 
   it('destroyed in the air', () => {
@@ -117,6 +143,8 @@ describe('the render banking path and the mission outcome agree (spec §1, §5)'
     const world = { ...f.world, combat: { ...f.world.combat, aircraft: { ...f.world.combat.aircraft, 'f6f-1': { ...rec, damage: { ...rec.damage, destroyedAt: 5, attacker: 'bandit' } } } } }
     expect(destructionModel(playerAircraft(world).state, 'bandit', kills).outcome).toBe('killed')
     expect(recoveryOf(world)).toEqual({ kind: 'killed' })
-    expect(missionOutcome(world.mission!, recoveryOf(world)!).reasons).toEqual(['Killed', 'Recover: incomplete'])
+    const outcome = missionOutcome(world.mission!, recoveryOf(world)!)
+    expect(outcome.reasons).toEqual(['Killed', 'Recover: incomplete'])
+    expectReasonsIffNoBadge(outcome)
   })
 })
