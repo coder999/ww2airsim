@@ -973,7 +973,7 @@ git commit -m "7f Task 5: a wingman whose leader is lost takes on its route; a p
 **Interfaces:**
 - Consumes: the Task 3 fixtures. No production change is expected. If one is needed, it belongs to the task whose behavior it fixes; amend that commit's area and say so in this commit's message.
 
-- [ ] **Step 1: Write the tests**
+- [x] **Step 1: Write the tests**
 
 ```ts
 // tests/sim/ai/formationSoak.test.ts
@@ -1035,12 +1035,12 @@ describe('a flight of four follows an ingress leader (7f spec §3)', () => {
 
 `lastLeg` ends at `ROUTE.length`, meaning heading for the destination. With no destination, `nextLegIndex` jumps to `n + 1` at the last waypoint. If the leader reaches the orbit (`n + 1`) inside 360 s, assert `toBeGreaterThanOrEqual(ROUTE.length)` instead. Measure first; write down which one it was.
 
-- [ ] **Step 2: Run**
+- [x] **Step 2: Run**
 
 Run: `npx vitest run tests/sim/ai/formationSoak.test.ts --maxWorkers=2; echo rc=$?`
 Expected: PASS. If the 150 m bound at a leg end fails, the cause is the turn at a waypoint. Tune it in `formation.ts` as in Task 3 Step 5, re-run Task 3's tests, and record the measurement.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/sim/ai/formationSoak.test.ts
