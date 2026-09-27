@@ -1,0 +1,20 @@
+{
+  "id": "kagero-dd",
+  "output": "content/ships/kagero-dd.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/kagero-dd.py",
+    "dimensions": "118.5 m overall, 10.8 m beam and 3.76 m design draft from content/ships/kagero-dd.json and cited class particulars; armament arrangement cross-checked against U.S. Naval Technical Mission to Japan destroyer reporting",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 118.5 } },
+  "keep": [{ "node": "Turret1" }, { "node": "Turret2" }, { "node": "Turret3" }],
+  "textures": { "maxSize": 512, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "kagero-dd", "fit": "hull", "kind": "full-hull", "keelM": -3.76, "palette": "ijn",
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [10, 13.2, 0], "bow": "narrow-end"
+  }
+}
