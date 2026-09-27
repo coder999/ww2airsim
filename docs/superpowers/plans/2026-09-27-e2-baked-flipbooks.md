@@ -8,7 +8,9 @@
 
 **Where: a worktree.** Branch `worktree-e2-flipbooks` at `../ww2airsim-worktrees/e2-flipbooks`, cut from `main` at or after this plan's commit. Proposed with the plan as parallel work beside 7f, sortie forms and R4, and taken up by Mark's "E2" reply (2026-09-27). The branch may be pushed. Merging into `main`, pushing `main` and deploying are Mark's call. For Tier 2, point the worktree's own `vite.config.ts` at a free dev slot (repo `CLAUDE.md`, "Two more dev-server slots"); that edit is local scratch and is never committed.
 
-**Order:** E2 before E3 (Mark, 2026-09-27, keeping design §8's order). Mark also offered ryzen for Blender. This plan bakes only there, for the reason in Ruling R1.
+**Order:** E2 before E3 (Mark, 2026-09-27, keeping design §8's order). Mark also offered ryzen for Blender, and bakes run there by default for its 32 threads (Ruling R1).
+
+**Amended 2026-09-27, before execution:** after this plan was first written, Mark approved moving **both machines** to the blender.org build and removing Ubuntu's package. That is done (`serverconfig` `29528db`, ww2airsim `CLAUDE.md` and `docs/models.md` updated). All 16 Blender models rebuilt byte-identically with it, and the Blender suites passed 80/80 on each machine. R1, Task 0, Task 1 and Task 11 below reflect that.
 
 **Goal:** Replace E1's code-generated placeholder flipbooks with six sheets baked from our own Mantaflow simulations and rendered with six-way lighting. Move the rocket motor flame onto the `flame` sheet. Retune the catalog so every effect keeps its on-screen size.
 
@@ -19,7 +21,7 @@
 
 **Tech Stack:** Blender 5.0.1 (blender.org Linux build) with Mantaflow and Cycles CPU, TypeScript, sharp 0.35.4, KTX-Software 4.4.2 (`tools/textures/ktxTool.ts`), Zod, three.js WebGPU, vitest, and Playwright on the reference GPU.
 
-**Spec:** `docs/superpowers/specs/2026-09-26-ordnance-and-effects-design.md` §6 (with the 2026-09-26 amendment in §6.2) and §7–§8. Also read plan E1's rulings R7, R8, R16 and R17 (`docs/superpowers/plans/2026-09-26-e1-effects-engine.md`), the E1 handoff's "Open for Mark" (`docs/handoff/2026-09-26-e1-effects-engine.md`), and `serverconfig/ryzen.md`'s "A second Blender" and "SSH into WSL from nexus".
+**Spec:** `docs/superpowers/specs/2026-09-26-ordnance-and-effects-design.md` §6 (with the 2026-09-26 amendment in §6.2) and §7–§8. Also read plan E1's rulings R7, R8, R16 and R17 (`docs/superpowers/plans/2026-09-26-e1-effects-engine.md`), the E1 handoff's "Open for Mark" (`docs/handoff/2026-09-26-e1-effects-engine.md`), and `serverconfig/ryzen.md`'s "Blender: the blender.org build" and "SSH into WSL from nexus".
 
 ---
 
@@ -34,7 +36,7 @@ These are claims to re-check in Task 0.
   | apt `5.0.1+dfsg-1ubuntu1` (nexus and ryzen) | **0 px** | 3,474 px | 10,268 px at 13.2 s a frame (software EGL) |
   | blender.org `5.0.1`, build `a3db93c5b259` | **4,747 px** at 0.6 s | 3,474 px | segfaults on exit |
 
-  Both builds report `openvdb True fluid True cycles True`. Mantaflow bakes in both.
+  Both builds report `openvdb True fluid True cycles True`. Mantaflow bakes in both. **The apt build has since been removed from both machines**, and `blender` on `PATH` is the blender.org build, symlinked as `/usr/local/bin/blender` (see the amendment in the header).
 - **Mantaflow is not reproducible run to run.** Two identical bakes followed by the same render covered 4,890 px and 5,092 px.
 - **Mantaflow's VDB index space starts at the domain's minimum corner.** On an identity volume object, a domain spanning x −4..4, z 0..10 landed at 0..8.67, 0..9.92. With the volume object moved to the domain's minimum corner, it landed at −4.08..4.67, −0.08..9.92, and the puff drew centered (column 62 of 128). `rig.py` below does this.
 - **The rig in this plan runs,** as measured before two small additions: `first_frame` (for the flame) and `velocity_normal` were added after the run, and have not run yet. `rig.py` and `smoke.py`, run with `--frames 4 --cell 128 --samples 16 --sim-scale 0.4`, exit 0 in 5.8 s bake and 10.6 s render. They write 16-bit RGBA PNGs, and each sun brightens its own side. Mean lit value on the named side minus the opposite side, frame f00, measured about the coverage centroid:
@@ -52,11 +54,10 @@ These are claims to re-check in Task 0.
 - **The HVAR model's aft end is 0.758 m behind its origin.** `content/ordnance/hvar.glb` has bounds min `[-0.758, -0.236, -0.142]` and max `[0.969, 0.049, 0.142]`.
 - **`main.ts` passes the whole `world.combat` to `nextFxEvents`** (`main.ts:2134-2137`), so adding `projectiles` to `FxWorldView`'s `Pick` needs no `main.ts` edit. The sortie-forms worktree rewrites large parts of `main.ts`; this plan does not touch it.
 - **The repo is public** (`coder999/ww2airsim`). Reference screenshots from IL-2, DCS or MSFS are linked, never committed (Ruling R11).
-- `docs/models.md:185` says "ryzen has none" (no Blender). That has been false since 2026-09-27; Task 11 fixes it.
 
 ## Rulings (decided here; record any new ones in the ledger)
 
-1. **R1: bake only with the blender.org 5.0.1 build, on ryzen.** The path is `~/opt/blender-5.0.1-linux-x64/blender` in ryzen's WSL. It is installed and sha256-checked, with `libsm6`; see `serverconfig/ryzen.md`, "A second Blender". The apt build draws Mantaflow grids as nothing (table above). `probe.py` repeats that measurement before every bake, and a zero result stops the bake with a message naming the defect. Models keep the apt build and its byte-identical pin; nothing in `tools/models/` changes. nexus has no blender.org build, so it cannot bake. *Cost if reversed:* installing the same build on nexus, then setting `FX_BAKE_HOST=local` and adding a local branch to `render.ts`.
+1. **R1: bake with the blender.org 5.0.1 build, on ryzen by default.** Both machines now run only that build, as plain `blender` on `PATH` (the header's amendment; `serverconfig/ryzen.md`, "Blender: the blender.org build"). The apt build drew Mantaflow grids as nothing (table above). `probe.py` repeats that measurement before every bake, so a reinstalled apt build, or a future build without NanoVDB, stops the bake with a message naming the defect. Models use the same binary and keep their byte-identical pin; nothing in `tools/models/` changes. The bake runs on ryzen for its 32 threads and to keep Mantaflow off nexus's memory. nexus could bake too, but `render.ts` only speaks SSH. *Cost if reversed:* a local branch in `render.ts` (`FX_BAKE_HOST=local`).
 2. **R2: bakes are committed with provenance, never rebuilt to compare bytes.** Mantaflow is not reproducible (measured above). `sheets.json` records `generator: 'blender'`, `blenderVersion: '5.0.1 <build hash>'`, `sceneSha256` over `tools/fx/blender/*.py`, and `seed: 0`, because Mantaflow takes no seed. `fxSheets.test.ts` fails if a script changes without a rebake.
 3. **R3: motion vectors come from optical flow on the rendered frames, not from Mantaflow's velocity grid.** The grid's units and axis order are undocumented. Flow works identically for every sheet, and it is testable against a known shift. The method is Lucas–Kanade on a two-level pyramid, on the coverage-weighted front-lit signal, computed after frames are picked. It is forward flow in cell UV per stored frame, x right and y down, which matches `material.ts`'s `flow()`.
 4. **R4: `water-column` and `spray` are white gas bakes, not Mantaflow liquid.** This departs from design §6.1's table ("Mantaflow liquid with spray particles"). Only the grid-volume render path is proven here. A liquid mesh at 256² reads as glass, while a photographed near-miss column is aerated white spray, which a dense, strongly forward-scattering white gas with negative density buoyancy reproduces. **Flag this to Mark at the checkpoint.** *Cost if reversed:* a liquid path in `rig.py` (mesh plus instanced spray particles), rendered from the domain object, not from a VDB.
@@ -82,7 +83,7 @@ These are claims to re-check in Task 0.
 
 ## Review Focus
 
-1. **The wrong Blender (the apt one, or a future upgrade that drops NanoVDB) bakes six blank sheets and reports success.** Expected: the bake stops before any sheet with a message naming the defect. *Test: Task 1 (`assertProbe(0)` throws /NanoVDB/). `render.ts` runs the probe first, and the probe is re-run for real in Task 1 step 6.*
+1. **The wrong Blender (a reinstalled apt one, or a future upgrade that drops NanoVDB) bakes six blank sheets and reports success.** Expected: the bake stops before any sheet with a message naming the defect. *Test: Task 1 (`assertProbe(0)` throws /NanoVDB/). `render.ts` runs the probe first, and the probe is re-run for real in Task 1 step 6.*
 2. **Someone edits a sheet script and forgets to rebake, so the committed sheets no longer match their stated source.** Expected: the suite fails. *Test: Task 3 (the `sceneSha256` check, enforced once the content is `blender`, Task 7).*
 3. **A sun is mislabeled or its rotation flipped, so every effect is lit from the wrong side, which no pixel-count test notices.** Expected: the pack refuses the sheet. *Test: Task 2 (`acceptance` on a flipped synthetic sheet names the light).*
 4. **A simulation grows out of the camera frame, so every sprite shows a straight cut edge.** Expected: the pack refuses the sheet. *Test: Task 2 (edge-alpha rule on a disc touching the border).*
@@ -107,8 +108,9 @@ cd ../ww2airsim-worktrees/e2-flipbooks && npm ci
 
 ```bash
 # `wsl -- <cmd>` runs without a shell, so `~` would not expand: pipe a script (serverconfig/ryzen.md).
-echo '~/opt/blender-5.0.1-linux-x64/blender --version | head -1; rsync --version | head -1' | ssh ryzen 'wsl -- bash -s; exit $LASTEXITCODE'
-# Blender 5.0.1, then rsync 3.2.3 or later (--mkpath)
+echo 'readlink -f "$(command -v blender)"; blender --version | head -1; rsync --version | head -1' | ssh ryzen 'wsl -- bash -s; exit $LASTEXITCODE'
+readlink -f "$(command -v blender)"; blender --version | head -1
+# on both: /home/<user>/opt/blender-5.0.1-linux-x64/blender, Blender 5.0.1; ryzen: rsync 3.2.3 or later (--mkpath)
 rsync --version | head -1                                                                            # the same on nexus
 grep -n "flameInstances\|ROCKET_BURN_S" -r src tests                                                  # only ordnance.ts and its test
 sed -n 2130,2140p src/render/main.ts                                                                 # nextFxEvents gets combat: current.world.combat
@@ -146,7 +148,7 @@ describe('fx bake transport (plan E2 Rulings R1, R10)', () => {
   it('runs the pinned build headless, fails on a Python error, and never trusts exit 0 alone', () => {
     const s = remoteScript(run)
     expect(s).toContain("grep -qx 'Blender 5.0.1'")
-    expect(s).toContain('timeout 10800 ~/opt/blender-5.0.1-linux-x64/blender -b --factory-startup --python-exit-code 1')
+    expect(s).toContain('timeout 10800 blender -b --factory-startup --python-exit-code 1')
     expect(s).toContain('-P scripts/smoke.py -- done-smoke.json --out out --frames 64')
     expect(s).toContain('rm -rf out/smoke')
     expect(s).toContain('test -s done-smoke.json')
@@ -186,8 +188,8 @@ describe('fx bake transport (plan E2 Rulings R1, R10)', () => {
  * through `--rsync-path='wsl --cd ~ -- rsync'`, as remote-run does.
  */
 export const FX_BAKE_HOST_DEFAULT = 'ryzen'
-/** The blender.org build in ryzen's WSL, not the apt one (Ruling R1; serverconfig/ryzen.md). */
-export const FX_BLENDER_DEFAULT = '~/opt/blender-5.0.1-linux-x64/blender'
+/** `blender` on PATH: the blender.org build on both machines since 2026-09-27 (Ruling R1; serverconfig/ryzen.md). */
+export const FX_BLENDER_DEFAULT = 'blender'
 export const FX_BLENDER_VERSION = '5.0.1'
 export const SSH_OPTS = ['-o', 'BatchMode=yes', '-o', 'LogLevel=ERROR', '-o', 'ConnectTimeout=10'] as const
 
@@ -247,7 +249,7 @@ export function assertProbe(coveredPx: number): void {
     throw new Error(
       'fx bake: the probe rendered its smoke grid as nothing. This Blender cannot draw Mantaflow grid volumes in ' +
       "Cycles; Ubuntu's package has this defect (no NanoVDB). Use the blender.org build: serverconfig/ryzen.md, " +
-      '"A second Blender".',
+      '"Blender: the blender.org build".',
     )
   }
 }
@@ -645,7 +647,7 @@ main()
 
 Add `/tools/fx/renders/` to `.gitignore` on a line of its own below `/tools/**/cache/`, with the comment `# fx bake frames (plan E2 Ruling R10): kept out of .remote-run-data's tools/*/cache`. In `package.json`, add `"fx:render": "tsx tools/fx/render.ts"`, and leave `fx:placeholders` until Task 3.
 
-- [ ] **Step 6: Run the probe for real, then prove it refuses the apt build.**
+- [ ] **Step 6: Run the probe for real, then prove a wrong binary stops the bake.**
 
 ```bash
 npx tsx tools/fx/render.ts smoke 2>&1 | tail -5; echo rc=$?
@@ -654,10 +656,10 @@ npx tsx tools/fx/render.ts smoke 2>&1 | tail -5; echo rc=$?
 This is a trial of the whole path with the full-size smoke script, which does not exist yet, so expect `probe drew N px` with N > 0, then a failure on `scripts/smoke.py` (no such file). That proves the transport and the probe. Then:
 
 ```bash
-FX_BLENDER=/usr/bin/blender npx tsx tools/fx/render.ts smoke 2>&1 | tail -3; echo rc=$?
+FX_BLENDER=/nonexistent/blender npx tsx tools/fx/render.ts smoke 2>&1 | tail -3; echo rc=$?
 ```
 
-Expected: non-zero, with the message containing `NanoVDB`. Record both outputs in the ledger.
+Expected: non-zero, with `is not Blender 5.0.1` (the version gate in `remoteScript`). The apt build that produced the `NanoVDB` failure has been removed from both machines, so that path is pinned by `assertProbe(0)` in the unit test instead. Record both outputs in the ledger.
 
 - [ ] **Step 7: Lint, typecheck and commit.**
 
@@ -1951,7 +1953,7 @@ git commit -m "E2 Task 10: reference-GPU Tier 2: fx, ordnance (motor flame), fx-
 
 **Files:**
 - Create: `docs/handoff/<date>-e2-flipbooks.md`, `docs/fx-bake.md`
-- Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15, the "Effects realism" row only), `README.md` (the E1 paragraph near line 88), `CLAUDE.md` (the Blender paragraph), `docs/models.md` (line 185), `docs/superpowers/specs/2026-09-26-ordnance-and-effects-design.md` (§6.1, one dated amendment line under the table)
+- Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15, the "Effects realism" row only), `README.md` (the E1 paragraph near line 88), `CLAUDE.md` (the Blender paragraph, one pointer), `docs/superpowers/specs/2026-09-26-ordnance-and-effects-design.md` (§6.1, one dated amendment line under the table)
 
 - [ ] **Step 1: Write `docs/fx-bake.md`,** the runbook. Point to the owning files instead of restating them. It covers:
    - what runs where: the bake on ryzen with the blender.org build (Ruling R1, `serverconfig/ryzen.md`), and the pack on nexus;
@@ -1963,8 +1965,7 @@ git commit -m "E2 Task 10: reference-GPU Tier 2: fx, ordnance (motor flame), fx-
    - the traps from "Measured": the VDB corner offset, `/tmp` on WSL, and EEVEE.
 
 - [ ] **Step 2: Update the pointers.**
-   - **`CLAUDE.md`:** in the "ryzen has Blender too" paragraph, add after its first sentence: "Smoke and fire flipbooks are the exception: they bake only with the blender.org 5.0.1 build on ryzen (`~/opt/blender-5.0.1-linux-x64`), because the apt build renders Mantaflow grids as nothing. See `docs/fx-bake.md` and `serverconfig/ryzen.md`, 'A second Blender'."
-   - **`docs/models.md:185`:** replace "(ryzen has none, checked 2026-09-26)" with "(ryzen has the same apt build since 2026-09-27; see `CLAUDE.md`)", and re-read the sentence so it stays true.
+   - **`CLAUDE.md`:** the Blender paragraph already describes the one blender.org build (updated 2026-09-27, with the header's amendment). Add one sentence at its end: "Effects flipbooks bake with it on ryzen: `docs/fx-bake.md`." Re-read the paragraph so it is still true.
    - **Design spec §6.1:** add one line under the table: "**Amended 2026-09-27 (plan E2 Ruling R4):** `water-column` and `spray` are baked as white gas, not liquid; see the E2 handoff."
    - **README:** replace "The shipped flipbooks are code-generated placeholders for E2, not final art." with one sentence saying E2's Blender-baked sheets replaced them, pointing at §15 and the E2 handoff.
    - **§15 "Effects realism" row:** replace "E2 (baked flipbooks) and E3 (water) not started." with an E2-complete clause (date, the Tier 1 and reference-GPU Tier 2 result, plan/handoff links, the shipped rung and bytes, and Ruling R4 as open for Mark) followed by "E3 (water) not started." Escape any `|`.

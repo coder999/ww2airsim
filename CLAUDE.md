@@ -51,12 +51,15 @@ not exist, and three conventions below were being missed for that reason).
   Gitignored and LFS data reaches ryzen only if it is listed in
   `.remote-run-data`. A new data-backed test whose data isn't listed there
   shows up as a named skip on ryzen and passes on nexus.
-- **ryzen has Blender too** (5.0.1, apt, WSL; since 2026-09-27), so the
-  Blender suites run under `remote-run` rather than skipping. Verified that
-  day: all 12 blender entries rebuilt byte-identically there. There are no
-  Blender "slots" like the dev-server ones: a build is stateless, CPU-only and
-  writes inside its own worktree, so parallel worktrees can each run Blender
-  on either machine. If an upgrade moves one machine off the version pinned in
+- **Blender is the blender.org 5.0.1 build on both machines** (since
+  2026-09-27; `serverconfig/ryzen.md`, "Blender: the blender.org build"), not
+  Ubuntu's package, which renders Mantaflow smoke as nothing in Cycles and was
+  removed. Do not `apt install blender`. The Blender suites therefore run under
+  `remote-run` too. Verified that day: all 16 Blender entries rebuilt
+  byte-identically on both machines. There are no Blender "slots" like the
+  dev-server ones: a build is stateless, CPU-only and writes inside its own
+  worktree, so parallel worktrees can each run Blender on either machine. If
+  an upgrade moves one machine off the version pinned in
   `tools/models/blender/run.ts`, its Blender suites fail by name. They do not
   skip. Upgrade both machines together.
 - `src/sim/` never imports `render/`, `input/`, `assists/`, `audio/`, Node

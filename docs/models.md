@@ -182,17 +182,17 @@ This writes `content/models/candidates/<id>.glb` (gitignored) and prints its
 inspection. Blender must be exactly the version pinned in
 `tools/models/blender/run.ts`, and every run goes through that file's
 `runBlenderScript`: it is what makes a raising script fail. Tests that need
-Blender skip by name without it (ryzen has none, checked 2026-09-26), so run
-`tests/tools/models/blender/` on nexus. `tools/models/blender/preview.py`
+Blender skip by name without it. Both nexus and ryzen have it (the blender.org
+build, since 2026-09-27; see `CLAUDE.md`), so they also run under `remote-run`.
+`tools/models/blender/preview.py`
 renders a glb to PNG for a handoff.
 
 A model ships through the manifest like any other (R1, 2026-09-26). Its entry
 has `source.kind: "blender"`, a `script`, a `dimensions` citation and
 `AGPL-3.0-or-later`, and no `input`. `npm run models:build -- <id>` runs the
 script into `tools/models/cache/<id>.glb`, then runs every stage a download
-does, so `normalize`, `keep` and `split` work the same way. Build it on
-nexus: without Blender, `models:build` skips it by name.
+does, so `normalize`, `keep` and `split` work the same way. Without Blender,
+`models:build` skips it by name.
 `tests/tools/models/blenderEntries.test.ts` rebuilds every Blender entry and
-compares the bytes with the committed file. That check is a named skip on
-ryzen, so run it on nexus by name. To show the model in the Hangar, see §7
+compares the bytes with the committed file. To show the model in the Hangar, see §7
 and §8.
