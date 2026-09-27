@@ -129,6 +129,11 @@ describe('the title screen scenario picker', () => {
     expect(labels['furball-range']).toBe('Furball (dev)')
   })
 
+  it('every production row is a range: the shipped build lists no mission until M3 (M2 R5)', () => {
+    expect(SCENARIO_OPTIONS.every((o) => o.kind === 'range')).toBe(true)
+    expect(SCENARIO_OPTIONS.some((o) => o.badge !== undefined)).toBe(false)
+  })
+
   it('isKnownScenarioId accepts only ids the picker actually lists', () => {
     for (const option of SCENARIO_OPTIONS) {
       expect(isKnownScenarioId(option.value)).toBe(true)

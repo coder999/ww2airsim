@@ -110,3 +110,34 @@ export function radioGroup(ariaLabel: string): HTMLDivElement {
   group.setAttribute('aria-label', ariaLabel)
   return group
 }
+
+/** A `.form-section-title` heading. Shared by the title's orders memo and the
+ *  mission briefing (M2); `titleScreen.ts` and `debrief.ts` still carry older
+ *  private copies of the same four lines. */
+export function sectionTitle(text: string): HTMLDivElement {
+  const el = document.createElement('div')
+  el.className = 'form-section-title'
+  el.textContent = text
+  return el
+}
+
+// The prototype's `.figure-row`/`.k` (design-prototypes/telegram-ui/
+// debrief.html's inline `<style>`), which never made it into
+// `naval-comms.css`; inline styles, the same values `debrief.ts`'s own
+// `figureRow` uses.
+const FIGURE_ROW_STYLE = 'display:flex;justify-content:space-between;gap:24px;padding:3px 0;font-size:13px'
+const FIGURE_ROW_LABEL_STYLE = 'color:var(--ink-faint)'
+
+/** One "label ... value" line, styled like the prototype's `.figure-row`:
+ *  the label in faint ink at the left, the value in bold at the right. */
+export function figureRow(label: string, value: string): HTMLDivElement {
+  const row = document.createElement('div')
+  row.style.cssText = FIGURE_ROW_STYLE
+  const k = document.createElement('span')
+  k.style.cssText = FIGURE_ROW_LABEL_STYLE
+  k.textContent = label
+  const v = document.createElement('strong')
+  v.textContent = value
+  row.append(k, v)
+  return row
+}

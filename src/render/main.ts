@@ -28,7 +28,7 @@ import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
-import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
+import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, scenarioOptions } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
 import { applyMissionResultToRoster, awardBadgeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
@@ -86,7 +86,7 @@ import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './t
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createRadarScope } from './scene/radarScope.js'
-import { loadScenarioBundle } from './scenarioLoad.js'
+import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import { buildStructures } from '../sim/weapons/structures.js'
 import type { Loadout } from '../sim/weapons/stores.js'
@@ -492,15 +492,15 @@ async function boot(): Promise<void> {
   // whitelisted before the title screen exists so the scenario picker can
   // preselect it. `?scenario=` now reaches production too -- the DEV-only
   // gate that used to sit here is gone, and `isKnownScenarioId` is what
-  // makes that safe: any format-valid id that is not one of
-  // `SCENARIO_OPTIONS`'s five fails here, before anything else loads,
+  // makes that safe: any format-valid id that is not a `scenarioOptions`
+  // row (the `dev-` fixtures only in DEV) fails here, before anything loads,
   // rather than reaching `loadScenarioBundle` and failing on a missing file.
   // This one synchronous check does not touch the "title screen before
   // anything slow" ordering below -- there is nothing to await here.
   let requestedScenarioId: string
   try {
     requestedScenarioId = scenarioIdFromQuery(window.location.search, SCENARIO_ID)
-    if (!isKnownScenarioId(requestedScenarioId)) {
+    if (!isKnownScenarioId(requestedScenarioId, import.meta.env.DEV)) {
       throw new Error(`scenario: ${JSON.stringify(requestedScenarioId)} is not a scenario this build ships`)
     }
   } catch (err) {
@@ -647,7 +647,7 @@ async function boot(): Promise<void> {
       return
     }
     rebuildFrame()
-  }, quality.settings, boot)
+  }, quality.settings, boot, { options: scenarioOptions(import.meta.env.DEV), loadScenario: (id) => loadScenarioFile(id) })
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)

@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { dossierModel, formatFeet, formatHours, formatKnots, nextRankProgress, openDossier } from '../../src/render/dossier.js'
-import { RANK_LADDER, applyMissionResult, createPilot } from '../../src/render/roster.js'
+import { RANK_LADDER, applyMissionResult, createPilot, type PilotRecord } from '../../src/render/roster.js'
+import { badgeName } from '../../src/render/titleScreen.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 
 const label = (id: string): string => `Scenario ${id}`
+const pilotWith = (badges: readonly string[]): PilotRecord => ({ ...createPilot('Ace'), badges })
 
 describe('dossier formatting (dossier spec §B.4)', () => {
   it('formats hours as h:mm, feet with separators, knots rounded', () => {
@@ -49,6 +51,16 @@ describe('dossierModel', () => {
     expect(m.log.map((r) => r.scenario)).toEqual(['Scenario b', 'Scenario a'])
     expect(m.log[0]!.kills).toBe(2)
     expect(m.kills).toContainEqual(['Fighter', 2])
+  })
+})
+
+describe('dossierModel badge names (M2 R4)', () => {
+  it('shows a badge by its name, from the scenario option list', () => {
+    expect(dossierModel(pilotWith(['dev-ui-wings']), label, badgeName).badges).toEqual(['UI Fixture Wings (dev)'])
+  })
+  it('shows an unknown badge id raw, and the raw id when no namer is passed', () => {
+    expect(dossierModel(pilotWith(['retired-badge']), label, badgeName).badges).toEqual(['retired-badge'])
+    expect(dossierModel(pilotWith(['dev-ui-wings']), label).badges).toEqual(['dev-ui-wings'])
   })
 })
 

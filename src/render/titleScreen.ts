@@ -6,6 +6,9 @@ import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord } fr
 import { openDossier } from './dossier.js'
 import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
+import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
+import type { Scenario } from '../sim/scenario.js'
+import type { Badge } from '../sim/mission/schema.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md;
@@ -101,11 +104,26 @@ export const LOADOUT_OPTIONS: readonly { readonly value: Loadout; readonly label
 ]
 export const DEFAULT_LOADOUT: Loadout = 'both'
 
+/** One row of the scenario picker. `kind` and, for a mission, `badge`
+ *  restate two facts from the scenario file (M2 R5): the picker needs both
+ *  before any file is fetched -- the Missions/Ranges split and the AWARDED
+ *  stamp -- and `tests/render/mission/options.test.ts` asserts they agree
+ *  with `content/scenarios/`, and that every file there is listed. */
+export type ScenarioOption = {
+  readonly value: string
+  readonly label: string
+  readonly kind: 'mission' | 'range'
+  readonly badge?: Badge
+}
+
 /**
- * The scenario picker's options: every `content/scenarios/<id>.json` this
- * build ships, in the order shown. Player-facing labels, not the raw content
+ * The scenario picker's production options: every `content/scenarios/<id>.json`
+ * this build ships, in the order shown (the `dev-` fixtures are in
+ * `DEV_SCENARIO_OPTIONS` below). Player-facing labels, not the raw content
  * ids -- `pursuit-range` reads "Air Combat" here, matching how Mark actually
- * refers to it, not the file stem.
+ * refers to it, not the file stem. Every row carries `kind`, and a mission
+ * row its `badge`; `tests/render/mission/options.test.ts` pins both against
+ * the files.
  *
  * This is what `?scenario=` (spawn.ts's `SCENARIO_PARAM`) was always meant
  * to be replaced by (that file's own doc comment named this exact picker).
@@ -120,29 +138,60 @@ export const DEFAULT_LOADOUT: Loadout = 'both'
  * `scenarioIdFromQuery`'s format check alone, it rejects any well-formed id
  * that is not actually one of these.
  */
-export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
-  { value: 'free-flight', label: 'Free Flight' },
-  { value: 'deck-quals', label: 'Deck Quals' },
-  { value: 'gunnery-range', label: 'Gunnery Range' },
-  { value: 'pursuit-range', label: 'Air Combat' },
-  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran' },
-  { value: 'strike-range', label: 'Strike Range' },
+export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
+  { value: 'free-flight', label: 'Free Flight', kind: 'range' },
+  { value: 'deck-quals', label: 'Deck Quals', kind: 'range' },
+  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range' },
+  { value: 'pursuit-range', label: 'Air Combat', kind: 'range' },
+  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range' },
+  { value: 'strike-range', label: 'Strike Range', kind: 'range' },
   // Plan 7e's development furball (ruling W9): listed so `?scenario=` can
   // boot it, which is how it is shown; "(dev)" because it is a test bed,
-  // not a mission.
-  { value: 'furball-range', label: 'Furball (dev)' },
+  // not a mission. It ships in production: the DEV-only rule is the `dev-`
+  // id prefix, not the label.
+  { value: 'furball-range', label: 'Furball (dev)', kind: 'range' },
 ]
 
-/** Whether `id` is one of `SCENARIO_OPTIONS` -- the whitelist that makes
+/** M2's two fixture missions (open question 1): `dev-`-prefixed, and offered
+ *  only by a DEV build (`scenarioOptions(true)`). */
+export const DEV_SCENARIO_OPTIONS: readonly ScenarioOption[] = [
+  { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' } },
+  { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' } },
+]
+
+/** The picker's rows for this build: production's, plus the fixtures in DEV. */
+export function scenarioOptions(dev: boolean): readonly ScenarioOption[] {
+  return dev ? [...SCENARIO_OPTIONS, ...DEV_SCENARIO_OPTIONS] : SCENARIO_OPTIONS
+}
+
+/** Whether `id` is one of `scenarioOptions(dev)` -- the whitelist that makes
  *  `?scenario=` safe to honor in production (main.ts), not just DEV. */
-export function isKnownScenarioId(id: string): boolean {
-  return SCENARIO_OPTIONS.some((option) => option.value === id)
+export function isKnownScenarioId(id: string, dev = false): boolean {
+  return scenarioOptions(dev).some((option) => option.value === id)
+}
+
+/** A badge id's display name (M2 R4: the roster stores ids), falling back to
+ *  the raw id for a badge whose mission this build no longer ships. */
+export function badgeName(id: string): string {
+  return scenarioOptions(true).find((o) => o.badge?.id === id)?.badge?.name ?? id
 }
 
 /** A scenario id's player-facing label (dossier spec §B.4's Mission Log
  *  column), falling back to the raw id for one this build no longer ships
- *  (an old log entry referencing a retired scenario). */
-const scenarioLabel = (id: string): string => SCENARIO_OPTIONS.find((o) => o.value === id)?.label ?? id
+ *  (an old log entry referencing a retired scenario). Searches the DEV rows
+ *  too, so a fixture's log row reads its label. */
+const scenarioLabel = (id: string): string => scenarioOptions(true).find((o) => o.value === id)?.label ?? id
+
+/** What Form 2's scenario picker offers, and how it fetches a mission's
+ *  briefing. `loadScenario: null` fetches nothing (no briefing panel). */
+export type TitleMissions = {
+  readonly options: readonly ScenarioOption[]
+  readonly loadScenario: ((id: string) => Promise<Scenario>) | null
+}
+
+/** `createTitleScreen`'s default: the production rows, no briefing fetch --
+ *  exactly the picker as it was before M2. */
+export const PRODUCTION_MISSIONS: TitleMissions = { options: SCENARIO_OPTIONS, loadScenario: null }
 
 /**
  * The text on each pilot's entry in the roster list (design §3: "a list...
@@ -338,6 +387,9 @@ export function createTitleScreen(
    *  shown; the Dossier is not locked (read-only). Defaults to already-ready
    *  so a title built without it behaves exactly as before. */
   boot: BootProgress = readyBootProgress(),
+  /** The picker's rows and the briefing loader (M2 Task 6). `main.ts` passes
+   *  `scenarioOptions(import.meta.env.DEV)` and `loadScenarioFile`. */
+  missions: TitleMissions = PRODUCTION_MISSIONS,
 ): TitleScreenHandle {
   const m = titleModel()
 
@@ -516,25 +568,34 @@ export function createTitleScreen(
     // `selectedLoadout` as `DEFAULT_LOADOUT`, so `start()` never needs a
     // branch for "nothing picked".
     let selectedScenarioId = currentScenarioId
-    const scenarioOptions = new Map<string, HTMLDivElement>()
+    const scenarioRows = new Map<string, HTMLDivElement>()
     const scenarioGroup = radioGroup('Scenario')
-    for (const option of SCENARIO_OPTIONS) {
-      const el = ballotOption(option.label, '', () => {
-        selectedScenarioId = option.value
-        markGroup(scenarioOptions, selectedScenarioId)
-      })
-      scenarioOptions.set(option.value, el)
-      scenarioGroup.appendChild(el)
+    // Missions first, then ranges, each under its own subheading -- but only
+    // when there is a mission to separate: with none (production until M3)
+    // the group is exactly the flat list it always was (open question 5).
+    const hasMissions = missions.options.some((o) => o.kind === 'mission')
+    for (const kind of ['mission', 'range'] as const) {
+      const rows = missions.options.filter((o) => o.kind === kind)
+      if (hasMissions && rows.length > 0) scenarioGroup.appendChild(sectionTitle(kind === 'mission' ? 'Missions' : 'Ranges'))
+      for (const option of rows) {
+        const el = ballotOption(option.label, '', () => selectScenario(option.value))
+        scenarioRows.set(option.value, el)
+        scenarioGroup.appendChild(el)
+      }
     }
-    markGroup(scenarioOptions, selectedScenarioId)
+    markGroup(scenarioRows, selectedScenarioId)
     missionColumn.append(sectionTitle('Mission'), scenarioGroup)
 
     let selectedLoadout: Loadout = DEFAULT_LOADOUT
+    // R10: a briefing's recommended loadout is applied only if the pilot has
+    // not picked one since selecting that mission.
+    let loadoutTouched = false
     const loadoutOptions = new Map<Loadout, HTMLDivElement>()
     const loadoutGroup = radioGroup('Loadout')
     for (const option of LOADOUT_OPTIONS) {
       const el = ballotOption(option.label, '', () => {
         selectedLoadout = option.value
+        loadoutTouched = true
         markGroup(loadoutOptions, selectedLoadout)
       })
       loadoutOptions.set(option.value, el)
@@ -542,6 +603,56 @@ export function createTitleScreen(
     }
     markGroup(loadoutOptions, selectedLoadout)
     armamentColumn.append(sectionTitle('Armament'), loadoutGroup)
+
+    // The briefing (M2 Task 6), under both columns; hidden for a range.
+    const briefingHost = document.createElement('div')
+    briefingHost.style.display = 'none'
+    ordersSheet.appendChild(briefingHost)
+    const request = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
+    // The selected pilot's badge ids, re-read from the roster each time Form
+    // 2 opens (`advance`), so a badge banked this session shows.
+    let heldBadges: readonly string[] = []
+    const showBriefing = (): void => {
+      const option = missions.options.find((o) => o.value === selectedScenarioId)
+      if (option?.kind !== 'mission' || request === null) {
+        briefingHost.style.display = 'none'
+        briefingHost.replaceChildren()
+        return
+      }
+      const id = option.value
+      briefingHost.style.display = ''
+      renderBriefing(briefingHost, 'loading')
+      // `request` is latest-wins across missions; the id check also drops a
+      // result that lands after the player moved on to a RANGE.
+      request(id, (s) => {
+        if (selectedScenarioId !== id) return
+        const model = briefingModel(s, heldBadges)
+        renderBriefing(briefingHost, model)
+        if (model.loadout !== null && !loadoutTouched) {
+          selectedLoadout = model.loadout
+          markGroup(loadoutOptions, selectedLoadout)
+        }
+      }, () => {
+        if (selectedScenarioId === id) renderBriefing(briefingHost, 'unavailable')
+      })
+    }
+    const selectScenario = (id: string): void => {
+      selectedScenarioId = id
+      loadoutTouched = false
+      markGroup(scenarioRows, selectedScenarioId)
+      showBriefing()
+    }
+    // AWARDED on each mission row whose badge the selected pilot holds (PF4).
+    const awardedStamps: HTMLSpanElement[] = []
+    const refreshAwarded = (): void => {
+      for (const stamp of awardedStamps.splice(0)) stamp.remove()
+      for (const option of missions.options) {
+        if (option.badge === undefined || !heldBadges.includes(option.badge.id)) continue
+        const stamp = awardedStamp()
+        scenarioRows.get(option.value)?.appendChild(stamp)
+        awardedStamps.push(stamp)
+      }
+    }
 
     const backButton = inkButton(m.back)
     const launchButton = inkButton(m.launch, true)
@@ -718,7 +829,7 @@ export function createTitleScreen(
         openDossierClose = openDossier(overlay, fresh, scenarioLabel, () => {
           openDossierClose = null
           dossierButton.focus()
-        })
+        }, badgeName)
       })
       dossierCell.appendChild(dossierButton)
 
@@ -822,6 +933,9 @@ export function createTitleScreen(
     // trip would inflate it for a pilot who never flew.
     const advance = (): void => {
       if (selectedPilotId === null) return
+      heldBadges = loadRoster().find((p) => p.id === selectedPilotId)?.badges ?? []
+      refreshAwarded()
+      showBriefing()
       showStep('orders')
     }
 

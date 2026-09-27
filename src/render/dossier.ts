@@ -50,7 +50,13 @@ export type DossierModel = {
   readonly log: readonly DossierLogRow[]
 }
 
-export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => string): DossierModel {
+/** `badgeName` maps a roster badge id to its display name (M2 R4; the title
+ *  passes `titleScreen.ts`'s `badgeName`). The default shows the raw id. */
+export function dossierModel(
+  pilot: PilotRecord,
+  scenarioLabel: (id: string) => string,
+  badgeName: (id: string) => string = (id) => id,
+): DossierModel {
   const { next, fraction } = nextRankProgress(pilot.cumulativeScore)
   const c = pilot.career
   const status = pilot.status === 'kia' ? 'K.I.A.' : 'Active'
@@ -72,7 +78,7 @@ export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => 
       ['Fastest speed', `${formatKnots(c.maxTrueAirspeedMps)} TAS`],
     ],
     kills: TARGET_TYPES.map((t) => [titleCase(t === 'aaa' ? 'AAA' : t), pilot.killsByType[t]] as const),
-    badges: pilot.badges,
+    badges: pilot.badges.map(badgeName),
     badgesEmpty: 'No badges yet — awarded for completing mission objectives.',
     since: pilot.log.length === 0 ? 'No missions logged yet' : `Records kept since ${pilot.log[0]!.at.slice(0, 10)}`,
     log: [...pilot.log].reverse().map((e) => ({
@@ -102,7 +108,13 @@ export function dossierModel(pilot: PilotRecord, scenarioLabel: (id: string) => 
  * the session. `destroy()` does NOT call `onClose` (the row button it would
  * focus is itself being torn down); only a real Escape or Close click does.
  */
-export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel: (id: string) => string, onClose: () => void): () => void {
+export function openDossier(
+  host: HTMLElement,
+  pilot: PilotRecord,
+  scenarioLabel: (id: string) => string,
+  onClose: () => void,
+  badgeName: (id: string) => string = (id) => id,
+): () => void {
   ensureStampFilter()
   // Fix round 2 finding 3: `aria-modal="true"` on this panel is a promise to
   // assistive tech, not an enforcement mechanism -- the title overlay's own
@@ -118,7 +130,7 @@ export function openDossier(host: HTMLElement, pilot: PilotRecord, scenarioLabel
   const inertedSiblings = [...host.children].filter((c) => !c.hasAttribute('inert'))
   for (const c of inertedSiblings) c.setAttribute('inert', '')
   const restoreInert = (): void => { for (const c of inertedSiblings) c.removeAttribute('inert') }
-  const m = dossierModel(pilot, scenarioLabel)
+  const m = dossierModel(pilot, scenarioLabel, badgeName)
   const panel = document.createElement('div')
   panel.className = 'naval-comms'
   panel.dataset.ww2Dossier = ''

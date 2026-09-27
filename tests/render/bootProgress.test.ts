@@ -66,6 +66,7 @@ describe('main.ts wires every boot stage (loading spec §A.2)', () => {
     })
   }
   it('hands the boot progress to the title screen', () => {
-    expect(main).toMatch(/createTitleScreen\([\s\S]*?,\s*quality\.settings,\s*boot\)/)
+    // Fifth argument; M2 Task 6 added a sixth (the mission options) after it.
+    expect(main).toMatch(/createTitleScreen\([\s\S]*?,\s*quality\.settings,\s*boot[,)]/)
   })
 })
