@@ -25,6 +25,8 @@ export interface HangarHooks {
   camera(preset: CameraPreset): void
   freeze(): void
   setModelVisible(visible: boolean): void
+  /** The selected model drawn unlit, in its own paint; selecting another model relights (Tier 2 check 5, R3). */
+  setUnlit(on: boolean): void
   /** The selected entry's id, kind and bench parts; null before the first select. */
   current(): { readonly id: string; readonly kind: LibraryKind; readonly parts: readonly PartSpec[] } | null
   /** The bench's Cycle, as its button does (H2). */

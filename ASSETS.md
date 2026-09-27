@@ -18,6 +18,17 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | --- | --- | --- | --- |
 | `src/render/scene/ship.ts` | original procedural hulls, built from the class dimensions in `content/ships/` | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/wildcat.glb` | https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4 | rojatsu | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/a6m2-zero.glb` | https://sketchfab.com/3d-models/mitsubishi-a6m2-zero-zeke-d701787b75fa4c979792b0c0c14221e2 | SavinienBerault | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/f6f-hellcat.glb` | https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/f4u-corsair.glb` | https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284 | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/ki-43-oscar.glb` | https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6 | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/d3a-val.glb` | https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501 | helijah | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/g4m-betty.glb` | https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368 | Jec (@Jec_Games) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/b-17-flying-fortress.glb` | https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5 | helijah | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/aircraft/ki-84-frank.glb` | authored in Blender by `tools/models/blender/ki-84-frank.py` from the cited dimensions in its header (English Wikipedia, Ki-84-Ia specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
+| `content/aircraft/ki-21-sally.glb` | authored in Blender by `tools/models/blender/ki-21-sally.py` from the cited dimensions in its header (English Wikipedia, Ki-21-IIb specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
+| `content/aircraft/b-29-superfortress.glb` | authored in Blender by `tools/models/blender/b-29-superfortress.py` from the cited dimensions in its header (English Wikipedia, B-29 specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
+| `content/aircraft/p-38-lightning.glb` | authored in Blender by `tools/models/blender/p-38-lightning.py` from the cited dimensions in its header (English Wikipedia, P-38L specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
@@ -62,6 +73,38 @@ rendered as the Japanese Type B freighter `type-b-maru`. The Fletcher, 43,316
 triangles, is its own class. `src/render/scene/ship.ts`'s procedural hulls stay
 as the fallback for a ship with no model.
 
+The seven R3 aircraft downloads (2026-09-27) are built by `npm run
+models:build` from `tools/models/entries/<id>.json`. Each license was read
+from `api.sketchfab.com/v3/models/<uid>` on 2026-09-27: CC BY 4.0,
+downloadable. Each was fitted to its cited span, and every triangle count
+below was measured from the cached download and the committed glb on
+2026-09-27. The A6M2 Zero went from 187,441 to 91,968 triangles (simplify
+0.45; prop never simplified). Nothing was removed, and its fused drop tank
+stays. No yaw. Rigged: `Prop`, `GearL`, `GearR`, `Tailwheel`. The F6F
+went from 36,605 to 26,399: the build removed the pilot figure, three
+rockets per wing, two center-section bombs and the extended tail hook.
+Yaw 151.84°. Rigged: `Prop`, `GearL`, `GearR`, `Tailwheel`, with the
+spinner fused. The F4U went from 29,533 to 15,296: the build removed the
+pilot and a duplicate canopy. Yaw 124.03°. Rigged: `Prop`, which is a
+translucent blur disc with no blades, split with its spinner; also `GearL`,
+`GearR`, `Tailwheel`. The Ki-43 went from 19,284 to 17,240: the build
+removed two duplicate canopies and two drop tanks. Yaw 148.7°. Rigged:
+`Prop` (a blur disc, with its spinner), `GearL`, `GearR`. Its tailwheel is
+fixed on the real aircraft and not rigged. The D3A went from 293,440 to
+55,144: the build removed the belly bomb, cockpit instrument faces and the
+hidden rear cylinder row, and simplified the rest of the engine (0.15).
+No yaw. Rigged: `Prop`. Its gear is fixed on the real aircraft and not
+rigged. The G4M went from 2,656 to 1,792: the build removed the bombs.
+No yaw. Rigged: `Prop1`, `Prop2`, `Turret1` (the dorsal blister). The
+download has no landing gear, and its tail position is fused. The B-17
+went from 763,214 to 98,683: the build removed the hidden engine
+internals (377,168 triangles), cockpit instrument faces and screws, and
+simplified the visible cylinder rings (0.1). No yaw. Rigged: `Prop1` to
+`Prop4` (blades only; spinners fused), `GearL`, `GearR`, `Tailwheel` (tire
+only; fork fused), `Turret1` to `Turret3` (chin, top, ball). The tail guns
+are fused. `p38-lightning.glb` (manilov.ap) was not used: it is 5.2% long
+at the cited span, so the P-38 is an original Blender model.
+
 ### Candidate models (downloaded, not bundled)
 
 Staged in `content/models/candidates/` (gitignored), each with a
@@ -85,18 +128,11 @@ triangle count after glTF import.
 | --- | --- | --- | --- | --- | --- |
 | `f6f-hellcat-lowpoly.glb` | https://sketchfab.com/3d-models/f6f-hellcat-5b0151482fa745d5ade945be7963262e | snrnsrk5 | CC-BY 4.0 | 2k | Low-poly, textured |
 | `a6m3-zero-lowpoly.glb` | https://sketchfab.com/3d-models/mitsubishi-a6m3-zero-cb9fa84167ac4efa9d8aebcab133f7f3 | Mamoru_Morimoto | CC-BY 4.0 | 1k | Low-poly |
-| `p38-lightning.glb` | https://sketchfab.com/3d-models/p38-7eab500310604fd996b116f9cd7520a7 | manilov.ap | CC-BY 4.0 | 114k | Untextured |
 | `bomb-m64-500lb.glb` | https://sketchfab.com/3d-models/low-poly-wwii-style-500lb-bomb-c6f4e1adb6f940ae83d0386e79d5ca1c | Pippa (@Planetrix23) | CC-BY 4.0 | 1k | US M64 |
 | `torpedo-bliss-leavitt-mk2.glb` | https://sketchfab.com/3d-models/torpedo-mk2-993688382c4a41489a11d26814c72178 | AlanTinka | CC-BY 4.0 | 121k | A 1904-era ship torpedo, not the aerial Mk 13 |
 | `flag-rising-sun.glb` | https://sketchfab.com/3d-models/flag-of-the-rising-sun-japanese-flag-77ae0df787c445818849a787c0a0ca85 | Mamoru_Morimoto | CC-BY 4.0 | 8k | IJN naval ensign |
 | `type97-chi-ha.glb` | https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6 | snrnsrk5 | CC-BY 4.0 | 4k | Low-poly, textured |
 | `willys-mb-jeep.glb` | https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98 | MattyNL | CC-BY 4.0 | 19k | Made by the uploader for the Darkest Hour mod, not ripped from it |
-| `f4u.glb` | https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284 | manilov.ap | CC-BY 4.0 | 30k | Same author and set as `f6f.glb`, `ki43.glb`, `p38-lightning.glb` |
-| `f6f.glb` | https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e | manilov.ap | CC-BY 4.0 | 37k | 276 separate meshes |
-| `ki43.glb` | https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6 | manilov.ap | CC-BY 4.0 | 19k | |
-| `aichi_d3a_val.glb` | https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501 | helijah | CC-BY 4.0 | 293k | FlightGear modeler; needs decimation |
-| `boeing_b-17_flying_fortress.glb` | https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5 | helijah | CC-BY 4.0 | 763k | FlightGear modeler; needs heavy decimation |
-| `mitsubishi_g4m.glb` | https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368 | Jec (@Jec_Games) | CC-BY 4.0 | 3k | Low-poly game asset |
 | `a6m_zero.glb` | https://sketchfab.com/3d-models/a6m-zero-dfc211d9a0684d90b3f0d09ec560e97f | zdw930 | CC-BY 4.0 | 5k | **Authorship uncertain:** no origin stated, and the account also posts a "Do-17z-7 Reskin". Prefer `a6m3-zero-lowpoly.glb` |
 | `boeing_b-29_superfortress.glb` | https://sketchfab.com/3d-models/boeing-b-29-superfortress-5b051209bff445ff88eab3bd94fdfdfd | Spark_Customs | CC-BY 4.0 | 45k | **Suspect, do not ship as-is:** this account's Essex carrier says "Imported from Free3D" (a personal-use license), and its uploads span unrelated aircraft and cars with no tags |
 
@@ -110,6 +146,7 @@ All require author credit under CC-BY 4.0
 - B-29 (Escou): not downloadable, sold on Fab.
 - Everything by kriss50, KojfDiscord, lxyun_2 and oiopu: self-declared game rips or re-uploads.
 - bsterling's USS Cleveland: relabeled CC-BY, but the original was CC-BY-NC.
+- P-38 (manilov.ap, `p38-lightning.glb`, CC-BY 4.0), checked 2026-09-27: license and authorship fine, but fitted to the P-38L's cited 15.85 m span it is 12.13 m long, +5.2% over the cited 11.53 m (R3's 4% tolerance), and no variant matches. `content/aircraft/p-38-lightning.glb` is an original Blender model instead.
 
 ## Textures and audio
 

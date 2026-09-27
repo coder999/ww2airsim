@@ -1,0 +1,20 @@
+{
+  "id": "p-38-lightning",
+  "output": "content/aircraft/p-38-lightning.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/p-38-lightning.py",
+    "dimensions": "span 15.85 m, length 11.53 m, wing area 30.43 m2, 3-bladed propellers and airfoil thickness 16% root / 12% tip (NACA 23016 / 4412): English Wikipedia 'Lockheed P-38 Lightning', Specifications (P-38L), read 2026-09-27; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 15.85 } },
+  "keep": [
+    { "node": "Prop1", "pivot": { "point": [3.36676, 0, -2.536], "axis": "+x" } },
+    { "node": "Prop2", "pivot": { "point": [3.36676, 0, 2.536], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.438721, -0.51885, -2.536], "axis": "+z" } },
+    { "node": "GearR", "pivot": { "point": [0.438721, -0.51885, 2.536], "axis": "+z" } },
+    { "node": "GearNose", "pivot": { "point": [3.2284, -0.51885, 0], "axis": "+z" } }
+  ],
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 }
+}

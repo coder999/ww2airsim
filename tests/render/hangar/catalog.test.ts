@@ -46,17 +46,43 @@ describe('buildCatalog', () => {
   })
 
   it('filters by kind and side', () => {
-    const jp = filterCatalog(catalog, { kind: 'ship', side: 'japanese' })
+    const jp = filterCatalog(catalog, { kind: 'ship', side: 'japanese', origin: 'all' })
     expect(jp.length).toBeGreaterThan(0)
     expect(jp.every((e) => e.library.kind === 'ship' && e.library.side === 'japanese')).toBe(true)
-    expect(filterCatalog(catalog, { kind: 'all', side: 'all' })).toHaveLength(catalog.length)
+    expect(filterCatalog(catalog, { kind: 'all', side: 'all', origin: 'all' })).toHaveLength(catalog.length)
+  })
+})
+
+describe('origin: internal (ours) or external (a download), for the list filter', () => {
+  const get = (id: string) => catalog.find((e) => e.library.id === id)!
+
+  it('reads each entry\'s model the way the Hangar loads it', () => {
+    // Downloads: a spec's view.model (Wildcat, Essex), or an entry's own model (Corsair, B-17).
+    for (const id of ['f4f-wildcat', 'essex-cv', 'f4u-corsair', 'b-17-flying-fortress', 'a6m-zero']) expect(get(id).origin, id).toBe('external')
+    // Ours: Blender (Ki-84, Kagero, the hangar), generated ordnance (HVAR), drawn in code (tower).
+    for (const id of ['ki-84-frank', 'p-38-lightning', 'kagero-dd', 'hangar', 'hvar', 'tower']) expect(get(id).origin, id).toBe('internal')
+  })
+
+  it('leaves an undrawn entry with no origin, and every drawn one with one', () => {
+    for (const e of catalog) expect(e.origin === null, e.library.id).toBe(!drawable(e))
+  })
+
+  it('filters by origin; an undrawn entry shows only under all', () => {
+    const ours = filterCatalog(catalog, { kind: 'all', side: 'all', origin: 'internal' })
+    const theirs = filterCatalog(catalog, { kind: 'all', side: 'all', origin: 'external' })
+    expect(ours.map((e) => e.library.id)).toContain('ki-84-frank')
+    expect(theirs.map((e) => e.library.id)).toContain('f4u-corsair')
+    expect(ours.every((e) => e.origin === 'internal') && theirs.every((e) => e.origin === 'external')).toBe(true)
+    expect(ours.length + theirs.length).toBe(catalog.filter(drawable).length)
   })
 })
 
 describe('availability (R1, model-roster spec §4.3)', () => {
   const c = nodeHangarContent()
   const corsair = c.library.find((e) => e.id === 'f4u-corsair')!
-  const withModel = { ...c, library: [...c.library.filter((e) => e.id !== 'f4u-corsair'), { ...corsair, model: { kind: 'aircraft' as const, id: 'wildcat' } }] }
+  const undrawn = { ...corsair, id: 'test-undrawn', name: 'Test Undrawn' }
+  delete (undrawn as { model?: unknown }).model
+  const withModel = { ...c, library: [...c.library.filter((e) => e.id !== 'f4u-corsair'), { ...corsair, model: { kind: 'aircraft' as const, id: 'wildcat' } }, undrawn] }
   const cat = buildCatalog(withModel)
   const get = (id: string) => cat.find((e) => e.library.id === id)!
 
@@ -64,15 +90,15 @@ describe('availability (R1, model-roster spec §4.3)', () => {
     expect(availability(get('f4f-wildcat'))).toBe('in-game')
     expect(availability(get('hangar'))).toBe('in-game') // a spec and a model: still in the game
     expect(availability(get('f4u-corsair'))).toBe('display-only')
-    expect(availability(get('b-17-flying-fortress'))).toBe('not-drawn')
-    expect([get('f4u-corsair'), get('b-17-flying-fortress')].map(drawable)).toEqual([true, false])
+    expect(availability(get('test-undrawn'))).toBe('not-drawn')
+    expect([get('f4u-corsair'), get('test-undrawn')].map(drawable)).toEqual([true, false])
   })
 
   it('labels the list and the card by availability', () => {
     expect(listLabel(get('f4f-wildcat'))).toBe(get('f4f-wildcat').library.name)
     expect(listLabel(get('f4u-corsair'))).toBe(`${corsair.name} (not in the game yet)`)
-    expect(listLabel(get('b-17-flying-fortress'))).toMatch(/ \(not yet in service\)$/)
-    expect([statusNote(get('f4f-wildcat')), statusNote(get('f4u-corsair')), statusNote(get('b-17-flying-fortress'))])
+    expect(listLabel(get('test-undrawn'))).toMatch(/ \(not yet in service\)$/)
+    expect([statusNote(get('f4f-wildcat')), statusNote(get('f4u-corsair')), statusNote(get('test-undrawn'))])
       .toEqual([null, 'Not in the game yet', 'Not yet in service'])
   })
 

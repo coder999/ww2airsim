@@ -23,7 +23,30 @@ export function modelCredits(entries: readonly CreditSource[]): ModelCredit[] {
   return out
 }
 
-/** The line as plain text, which is all a `node` test can see; `createLegend` links each author and the licence. */
+/** One run of the credit line: plain text, or a link when `href` is set. */
+export interface CreditPart { readonly text: string; readonly href?: string }
+
+/**
+ * The authors, between "Models: " and the licence, as text and link runs.
+ * Each author is named once, in first-appearance order: a single work links
+ * the name; several works leave the name plain and link each work by number,
+ * "KTKloss (1 2 3 4)", so every work keeps its own link (Mark, 2026-09-27).
+ */
+export function modelCreditParts(credits: readonly ModelCredit[]): CreditPart[] {
+  const byAuthor = new Map<string, string[]>()
+  for (const c of credits) byAuthor.set(c.author, [...(byAuthor.get(c.author) ?? []), c.url])
+  const out: CreditPart[] = []
+  for (const [author, urls] of byAuthor) {
+    if (out.length) out.push({ text: ', ' })
+    if (urls.length === 1) { out.push({ text: author, href: urls[0]! }); continue }
+    out.push({ text: author }, { text: ' (' })
+    urls.forEach((href, i) => out.push(...(i ? [{ text: ' ' }] : []), { text: String(i + 1), href }))
+    out.push({ text: ')' })
+  }
+  return out
+}
+
+/** The line as plain text, which is all a `node` test can see; `createLegend` renders the same parts, linking each work and the licence. */
 export function modelCreditsText(credits: readonly ModelCredit[]): string {
-  return credits.length === 0 ? '' : `Models: ${credits.map((c) => c.author).join(', ')} (CC BY 4.0)`
+  return credits.length === 0 ? '' : `Models: ${modelCreditParts(credits).map((p) => p.text).join('')} (CC BY 4.0)`
 }

@@ -5,6 +5,7 @@ import { parseAirfield } from '../../sim/world/airfields.js'
 import { parseLibraryEntry } from './library.js'
 import type { HangarContent } from './catalog.js'
 import { parseBudgets } from './budgets.js'
+import { parseProvenance } from './provenance.js'
 
 /**
  * The page's content, bundled at build time by Vite's glob import rather
@@ -38,5 +39,6 @@ export function loadHangarContent(): HangarContent {
     ships: parseAll(ships, parseShipSpec),
     airfields: parseAll(bases, parseAirfield),
     budgets: parseBudgets(modelEntries),
+    provenance: parseProvenance(modelEntries),
   }
 }

@@ -1,27 +1,33 @@
-# R4: Building models — Implementation Plan
+# R4 + R5: Building and vehicle models — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Put an original Blender model behind every building in the Library. That is the nine buildings the barrel-roof hangar (R1) left: `tower`, `aaa`, `ammunition-bunker`, `barracks-and-huts`, `coastal-gun-battery`, `fuel-tank-farm`, `pier-and-warehouses`, `radio-radar-station` and `revetment`. The not-yet-drawn allowlist then holds no building.
+**Goal:** Put a model behind every building (R4) and both vehicles (R5) in the Library, so that nothing is left "not yet in service" and the roster allowlist is deleted.
 
-**Architecture:** One task adds the building parts the spec's §4.2 assigns to R4 to `tools/models/blender/kit.py`: gable roof, tank, sandbag ring, gun barrel and lattice mast, plus the frustum and strut they are built from. Each is wound outward and pinned by its own Blender probe test. After that, each building is one small script of cited or labeled figures. It becomes a `blender` manifest entry, is built by `npm run models:build`, is registered in `STATIC_MODELS`, and is named by its Library entry's `model`. Tier 1 measures every committed glb against its own script's literal figures, without Blender. The game is untouched: the airfields keep their procedural boxes (spec §6.3).
+**History:** written 2026-09-26 as the R4 plan (`2026-09-26-r4-building-models.md`); amended 2026-09-27 after R3 merged, and extended with R5 as one combined plan (Mark, 2026-09-27). Tasks 0-11 are R4, Tasks 12-14 are R5, and Tasks 15-16 run Tier 2 and the completion ritual once for both.
+
+**R4 goal:** Put an original Blender model behind every building in the Library. That is the nine buildings the barrel-roof hangar (R1) left: `tower`, `aaa`, `ammunition-bunker`, `barracks-and-huts`, `coastal-gun-battery`, `fuel-tank-farm`, `pier-and-warehouses`, `radio-radar-station` and `revetment`. The not-yet-drawn allowlist then holds no building.
+
+**Architecture:** One task adds the building parts the spec's §4.2 assigns to R4 to `tools/models/blender/kit.py`: gable roof, tank, sandbag ring, gun barrel and lattice mast, plus the frustum and strut they are built from. Each is wound outward and pinned by its own Blender probe test. After that, each building is one small script of cited or labeled figures. It becomes a `blender` manifest entry, is built by `npm run models:build`, is registered in `STATIC_MODELS`, and is named by its Library entry's `model`. Tier 1 measures every committed glb against its own script's literal figures, without Blender. The game is untouched: the airfields keep their procedural boxes (spec §6.3). R5 fits the two staged Sketchfab downloads, the Type 97 Chi-Ha and the Willys MB jeep, through the same pipeline R2 and R3 used, registers them in `STATIC_MODELS.vehicle`, and then deletes `NOT_YET_DRAWN` and `CEILING`: done becomes "every Library entry is drawn".
 
 **Tech Stack:** Python in Blender 5.0.1 headless (R0's `tools/models/blender/run.ts`), TypeScript, glTF-Transform 4, Vitest in Node, and Playwright Tier 2 on the Windows desktop's RX 6700 XT.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-model-roster-design.md`, especially §3, §4.2, §4.4, §5, §6.3 and §7. Also read before starting:
 - the R1 handoff, `docs/handoff/2026-09-26-r1-roster-pipeline.md`
 - the R2 handoff, `docs/handoff/2026-09-26-r2-ship-models.md` (its "Deck fix" departure is the z-fighting lesson Task 3 turns into a test)
-- the R3 handoff, whatever date R3 finished
+- the R3 handoff, `docs/handoff/2026-09-27-r3-aircraft-models.md` (its "Found along the way" holds the kit winding finding this plan works around)
 - `docs/models.md` §7, §8 and "Authoring in Blender"
 
 ## Mark's decisions for this plan (2026-09-26, recorded as given)
 
 - **Precondition:** R3 (aircraft) is merged into `main`. R4 runs after R2 and R3, as spec §5 orders. Rebase on `main` before starting.
-- **Where it runs:** its own worktree, `.claude/worktrees/r4-buildings`, on branch `worktree-r4-buildings`. **One executor at a time**, because R0-R5 all append to the same registries. The branch may be pushed. **Merging into `main` needs Mark's OK.** Never push `main`, merge into it, or deploy.
+- **Where it runs:** its own worktree, `.claude/worktrees/r4-r5-roster`, on branch `worktree-r4-r5-roster`. **One executor at a time**, because R0-R5 all append to the same registries. The branch may be pushed. **Merging into `main` needs Mark's OK.** Never push `main`, merge into it, or deploy.
 - **Attendance:** unattended. Run to completion without waiting for Mark.
 - **Viewing checkpoint:** the final product only. The handoff carries reference-GPU Hangar captures of every new building, taken with the turntable frozen, and is emailed to Mark as HTML.
 - **Sources:** every figure in a script is either CITED (source and read date) or labeled ESTIMATE. No citation is invented. A figure with no source found stays an ESTIMATE and is listed as open in the handoff.
 - **US spelling.**
+- **R5 joins this plan (2026-09-27).** Mark asked for R4 and R5 as one combined plan, run as one unattended job in one worktree. His R4 answers above carry over: unattended, one final-product checkpoint.
+- **The jeep is the top-down one (2026-09-27).** The staged `willys-mb-jeep.glb` holds two jeeps side by side. Mark chose the open jeep (top down, windshield folded) over the canvas-top one; R5 removes the other.
 
 ## Where R4 starts (read on `main` at `a0005ff` and on `worktree-r2-ships` at `c4d7bad`, 2026-09-26)
 
@@ -49,20 +55,32 @@ Every claim below was read from code on 2026-09-26. Task 0 re-checks the ones R3
   - `tests/build/dist.test.ts` copies every `blender` entry's output generically.
   - `tests/tools/models/outputs.test.ts` checks every entry's budget, provenance and `ASSETS.md` row generically.
   - `blenderEntries.test.ts`'s rebuild block iterates every `blender` entry.
-  - Tier 2 check 12 still holds: `notDrawn > 0` stays true, because the 2 vehicles remain.
+  - Tier 2 check 12 still holds through R4: `notDrawn > 0` stays true, because the 2 vehicles remain. R5's Task 14 turns it to `=== 0`.
+
+## What R3 changed (re-read on `main` at `19088be`, 2026-09-27)
+
+R3 merged into `main` on 2026-09-27 (`82f9e3e`) after this plan was first written. Everything above still holds, with these corrections:
+
+- **`kit.py` already defines `_cross(a, b)` and `_unit(v)`** (R3's aircraft parts, `tools/models/blender/kit.py:106-113`). This plan's first draft added its own `_unit(v, what)`, which would have replaced R3's and broken every R3 Blender aircraft's rebuild with a `TypeError`. Task 2 now **reuses R3's two helpers** and calls `_unit(v)` with one argument.
+- **R3's kit parts are wound outward** (`fuselage`, `wing`, `fin`, `revolve`, `propeller`, `gear_leg`, `gun_turret`), proven per closed shell by `kitAircraft.test.ts`. R4 needs none of them. The ban stays on R2's three inward parts only: `cylinder`, `tapered_box`, `turret`.
+- **The allowlist is 9 with `CEILING = 9`**, as predicted: the seven buildings and the two vehicles.
+- **The Hangar card has a Model row and the list has an Origin filter** (`47b7e94`). Hangar Tier 2 check 14 selects `tower` and expects `Drawn in code (no model file)`; Task 4 gives the tower a model, so Task 4 updates that line. After R4 no Library entry is drawn in code; `tests/render/hangar/provenance.test.ts` still covers the `'code'` case in Node.
+- **Blender now runs on ryzen too** (Blender 5.0.1 plus `python3-numpy` in WSL, `serverconfig/ryzen.md`, 2026-09-27). `remote-run npm run verify` therefore **runs** the Blender suites and the byte-identical rebuilds; they are no longer named skips there. The nexus run by name stays, as a second check.
+- **Model credits name each author once** (`718d0d4`), and `tests/render/modelCredits.test.ts` pins the line. R4 adds no CC BY model, so R4 leaves it alone; R5's two downloads change it (Tasks 12 and 13 give the exact strings).
+- **Hangar check 5 measures lighting, not paint** (lit over unlit, aircraft only), and check 8 has a 180 s timeout. Neither affects buildings or vehicles.
 
 ## Global Constraints
 
-- **Worktree.** Everything happens in `.claude/worktrees/r4-buildings` on branch `worktree-r4-buildings` (Task 0). `git push -u origin worktree-r4-buildings` is allowed. **Never** push, merge into or commit on `main`.
+- **Worktree.** Everything happens in `.claude/worktrees/r4-r5-roster` on branch `worktree-r4-r5-roster` (Task 0). `git push -u origin worktree-r4-r5-roster` is allowed. **Never** push, merge into or commit on `main`.
 - **`<run date>`** in this plan means the ISO date (YYYY-MM-DD) on which the executor does that step. It appears in script headers, entry `dimensions` strings, the handoff's file name and commit-free prose.
 - **Per-task checks.** Each task that commits ends with:
   - `npx vitest run <the task's test files> --maxWorkers=2; echo "rc=$?"`
   - `npx tsc --noEmit; echo "rc=$?"`
   - `npx eslint <touched .ts files> --max-warnings 0; echo "rc=$?"`
   - Capture each `rc` directly. Never gate on a test command piped into `grep`.
-- **Full runs.** Run `npm run verify` only through `remote-run` (Task 13). Never run a full suite, `npm run verify` or Playwright on nexus: parallel suites have OOM-killed it.
+- **Full runs.** Run `npm run verify` only through `remote-run` (Task 16). Never run a full suite, `npm run verify` or Playwright on nexus: parallel suites have OOM-killed it.
 - **Blender runs on nexus only, and one at a time.** Never start a Blender command while another runs, whether that is `cli.ts`, `models:build`, `preview.py` or a Blender test. Blender tests run by name with `--maxWorkers=1`. `run.ts` pins **Blender 5.0.1** and refuses any other version by name.
-- **Byte identity.** No committed glb other than R4's nine new ones changes by a byte. `git diff main...HEAD --stat -- content/aircraft content/ships content/ordnance content/vehicles content/buildings/hangar.glb` stays empty. Adding kit methods and one palette role must not move the hangar's, R2's or R3's Blender outputs. The nexus rebuild run in Task 13 proves it.
+- **Byte identity.** No committed glb other than R4's nine new buildings and R5's two new vehicles changes by a byte. `git diff main...HEAD --stat -- content/aircraft content/ships content/ordnance content/buildings/hangar.glb` stays empty, and `content/vehicles` gains exactly `type97-chi-ha.glb` and `willys-mb-jeep.glb`. Adding kit methods and one palette role must not move the hangar's, R2's or R3's Blender outputs. The rebuild runs in Task 16 prove it.
 - **No game change.** `src/sim/**`, `content/aircraft`, `content/ships`, `content/scenarios`, `content/bases`, `src/render/scene/airfield.ts` and `src/render/scene/buildings.ts` are untouched (spec §6.3).
 - **Every building model is original work, AGPL-3.0-or-later**, with:
   - a script header in `hangar.py`'s shape: every figure CITED with its source and read date, or labeled ESTIMATE; the frame; what it leaves out
@@ -89,8 +107,9 @@ Every claim below was read from code on 2026-09-26. Task 0 re-checks the ones R3
   | `content/buildings/<id>.glb` | authored in Blender by `tools/models/blender/<id>.py`; <provenance> | authored for this project | AGPL-3.0-or-later |
   ```
   `<provenance>` is "every figure CITED or labeled ESTIMATE in the script's header", unless the task gives other wording.
+- **The vehicles are Sketchfab downloads (R5), not original work.** Before a vehicle's glb is committed, re-read its license from `api.sketchfab.com/v3/models/<uid>`, and in the same commit move its `ASSETS.md` row from "Candidate models" into the 3D-models table and update the credit pin (`docs/models.md` §3; Tasks 12-13 give the exact rows and strings). Budget: 1 MB, 20,000 triangles (spec §4.4) and 8 draw calls (ruling V1).
 - **Budget: 0.5 MB, 5,000 triangles and 4 draw calls per building** (spec §4.4). Raising one needs a measured reason recorded in `RAISED` in `tests/tools/models/buildingModels.test.ts` and as a ledger `Ruling:`.
-- **The allowlist only shrinks.** Each building task that draws an allowlisted entry deletes that id from `NOT_YET_DRAWN` and lowers `CEILING` by exactly one. Nothing is ever added. R4 does not delete the list; R5 does.
+- **The allowlist only shrinks.** Each building or vehicle task that draws an allowlisted entry deletes that id from `NOT_YET_DRAWN` and lowers `CEILING` by exactly one. Nothing is ever added. Task 14 (R5) deletes the list.
 - **Tier 2 slot.** Use a free slot, `ww2airsim-3.windomlane.org` (port 5174) or `ww2airsim-2.windomlane.org` (port 5175). Check it first. Never stop another worktree's server. The `vite.config.ts` edit is local scratch and never staged.
 - **Commits** end with the `Co-Authored-By:` line of the model that wrote them (R1's ruling R-T5b).
 - **Never run `git clean -fdx`** (CLAUDE.md). **Never re-run `tools/mail-doc.py` with `--debug`.**
@@ -98,18 +117,24 @@ Every claim below was read from code on 2026-09-26. Task 0 re-checks the ones R3
 
 ## Review Focus
 
-1. **An entry with both a spec and a model, now the tower and the AAA as well as the hangar.** The Hangar must draw the Blender model. The card must keep the spec's figures (HP, placements, points). The game must still draw `drawBuilding`'s boxes at Tacloban. Pinned in Task 11: every Library building resolves through the display loader, while the tower and AAA keep their subject. Task 13's untouched-game diff covers the game side.
+1. **An entry with both a spec and a model, now the tower and the AAA as well as the hangar.** The Hangar must draw the Blender model. The card must keep the spec's figures (HP, placements, points). The game must still draw `drawBuilding`'s boxes at Tacloban. Pinned in Task 11: every Library building resolves through the display loader, while the tower and AAA keep their subject. Task 16's untouched-game diff covers the game side.
 2. **A building spec with no model of its own.** No shipped entry is in this state after R4, but `loadHangarModel`'s `drawBuilding` branch is still the path for one, and it must still draw boxes, not throw. Pinned in Task 4, which rebuilds the case from the tower entry with its `model` deleted.
 3. **Two differently painted faces in one plane**, for example a door flush with its wall. R2 shipped a deck like that, and it z-fought until its frozen captures were read. Pinned in Task 3: `coplanarOverlaps` runs over every committed R4 building, with a unit test and a mutation check in Task 8.
 4. **A sourced figure that moves a building's extent.** Task 1 may replace an ESTIMATE with a cited number, and the footprint literal can then disagree with the geometry. The footprint test reads the script's own literals and fails by name. Each script also asserts its layout still fits, for example tanks inside the bund. Pinned in Tasks 4-10.
 5. **A tall-thin or long-thin building at the Hangar's framing.** The radar mast is 22 m on a 16 × 12 m pad, and the pier is 100 × 40 m. Check 1's 2-80% mask share at the three-quarter preset could fail. Tier 2 check 1 covers it in Task 12. The ruling if it fails: change the model's composition, never the bounds, and record the share.
+
+**R5 (added 2026-09-27):**
+
+6. **The wrong jeep, or a piece of the other one.** The download holds two jeeps whose parts share three nodes. A split box a little too small leaves a fragment of the canvas-top jeep floating beside the kept one; one too large eats part of it. Pinned in Task 13: Step 4 counts the removed shells (exactly 128, 9,667 triangles) before building, Step 7 expects exactly 9,432 triangles, and Task 15's capture check names "no fragment of the other".
+7. **A vehicle floating above or sunk into the Hangar's platform.** The Hangar stands a display model on its own origin, so an origin a few centimeters off shows as a hovering or buried tank. Pinned in Task 12's harness: `stands on y = 0, centered on its footprint`, for both vehicles.
+8. **A vehicle facing backward.** Neither download's nose is at +x in its source, and the mapping is the entry's `forward`. Pinned in Task 12's `faces +x` (the Chi-Ha's muzzle, the jeep's rear-mounted spare), with a mutation check in each of Tasks 12 and 13.
 
 ---
 
 ### Task 0: Preconditions, worktree, ledger and baseline (setup, no commit)
 
 **Files:**
-- Create: `.superpowers/sdd/2026-09-26-r4-building-models/progress.md` (gitignored)
+- Create: `.superpowers/sdd/2026-09-27-r4-r5-roster/progress.md` (gitignored)
 
 - [ ] **Step 1: R3 is merged.** From `/home/mark/projects/ww2airsim`:
   ```bash
@@ -125,8 +150,8 @@ Every claim below was read from code on 2026-09-26. Task 0 re-checks the ones R3
 
 - [ ] **Step 2: Create the worktree and link the gitignored data.**
   ```bash
-  git worktree add -b worktree-r4-buildings .claude/worktrees/r4-buildings main
-  cd .claude/worktrees/r4-buildings && npm ci
+  git worktree add -b worktree-r4-r5-roster .claude/worktrees/r4-r5-roster main
+  cd .claude/worktrees/r4-r5-roster && npm ci
   ln -s /home/mark/projects/ww2airsim/content/terrain/tiles content/terrain/tiles
   mkdir -p tools/terrain && ln -s /home/mark/projects/ww2airsim/tools/terrain/cache tools/terrain/cache
   mkdir -p tools/textures && ln -s /home/mark/projects/ww2airsim/tools/textures/cache tools/textures/cache
@@ -141,7 +166,7 @@ Every claim below was read from code on 2026-09-26. Task 0 re-checks the ones R3
   ```
   Record every hit in the ledger. A hit that uses one of the seven as "not drawn" or "not yet in service" gets switched to `willys-mb-jeep` in the task that draws that building. `willys-mb-jeep` is a vehicle with no model until R5.
 
-- [ ] **Step 4: The ledger.** Create `.superpowers/sdd/2026-09-26-r4-building-models/progress.md`. Its header names this plan, the branch, the base commit (`git rev-parse --short HEAD`) and "unattended, final-product checkpoint, frozen Hangar captures". Append one line per completed task, every measured number, and a `Ruling:` line for every departure from this plan.
+- [ ] **Step 4: The ledger.** Create `.superpowers/sdd/2026-09-27-r4-r5-roster/progress.md`. Its header names this plan, the branch, the base commit (`git rev-parse --short HEAD`) and "unattended, final-product checkpoint, frozen Hangar captures". Append one line per completed task, every measured number, and a `Ruling:` line for every departure from this plan.
 
 - [ ] **Step 5: Baseline.**
   ```bash
@@ -155,7 +180,7 @@ Every claim below was read from code on 2026-09-26. Task 0 re-checks the ones R3
 ### Task 1: Sources for every building (research, ledger only, no commit)
 
 **Files:**
-- Modify: `.superpowers/sdd/2026-09-26-r4-building-models/progress.md` (a "Sources" table)
+- Modify: `.superpowers/sdd/2026-09-27-r4-r5-roster/progress.md` (a "Sources" table)
 
 The plan's figures below are labeled ESTIMATEs unless the repo already owns them. This task looks for citable figures **once**, up front, so every building task starts from a settled table. It invents nothing. A figure is CITED only if the executor actually read it in the source, and the citation records the title, the section, page or table, the URL if there is one, and the read date.
 
@@ -187,7 +212,7 @@ The plan's figures below are labeled ESTIMATEs unless the repo already owns them
 ### Task 2: The kit's building parts
 
 **Files:**
-- Modify: `tools/models/blender/kit.py` (one palette role; `_cross`, `_unit`; seven `Model` methods)
+- Modify: `tools/models/blender/kit.py` (one palette role; seven `Model` methods; reuses R3's `_cross` and `_unit`)
 - Create: `tests/tools/models/blender/fixtures/kit_building_probe.py`
 - Create: `tests/tools/models/blender/fixtures/kit_bad_building.py`
 - Create: `tests/tools/models/buildingGeometry.ts` (`worldTriangles`, `unitNormal`, `Vec3`, `Tri`; Task 3 adds more)
@@ -441,17 +466,11 @@ The probe and its test are separate files from `kit_probe.py` and `kit.test.ts`,
         # modeling choice, not the game's own color.
         'earth': (0x7A / 255, 0x6A / 255, 0x4C / 255),
     ```
-  - Add after `_require`:
-    ```python
-    def _cross(a, b):
-        return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
-
-
-    def _unit(v, what):
-        n = math.sqrt(sum(c * c for c in v))
-        _require(n > 1e-9, f'{what}: zero-length vector {v}')
-        return tuple(c / n for c in v)
+  - **Do not add `_cross` or `_unit`.** R3 already defines both at module level (`kit.py:106-113`): `_unit(v)` takes one argument and refuses a zero or non-finite vector by name, and `_cross(a, b)` is the right-handed cross product. A second definition would silently replace R3's and break its aircraft (amended 2026-09-27). Confirm before editing:
+    ```bash
+    grep -n -E '^def (_cross|_unit)\(' tools/models/blender/kit.py
     ```
+    Expected: exactly `def _unit(v):` and `def _cross(a, b):`.
   - Add these methods to `Model`, immediately before `export`:
     ```python
         # --- Building parts (R4). Every one is wound outward: kitBuildings.test.ts checks it. ---
@@ -533,9 +552,9 @@ The probe and its test are separate files from `kit_probe.py` and `kit.test.ts`,
             _require(radius > 0 and end_radius > 0, f'strut: radii must be > 0, got {radius}, {end_radius}')
             _require(isinstance(sides, int) and sides >= 3, f'strut: sides must be an integer >= 3, got {sides}')
             _require(any(abs(b - a) > 1e-9 for a, b in zip(p0, p1)), f'strut: p0 and p1 must differ, got {p0}, {p1}')
-            d = _unit(tuple(b - a for a, b in zip(p0, p1)), 'strut')
+            d = _unit(tuple(b - a for a, b in zip(p0, p1)))
             helper = (1.0, 0.0, 0.0) if abs(d[1]) > 0.9 else (0.0, 1.0, 0.0)
-            u = _unit(_cross(helper, d), 'strut')
+            u = _unit(_cross(helper, d))
             w = _cross(d, u)   # (u, w, d) right-handed: rings run counterclockwise about d
             v = []
             for p, r in ((p0, radius), (p1, end_radius)):
@@ -745,6 +764,8 @@ The probe and its test are separate files from `kit_probe.py` and `kit.test.ts`,
 - Modify: `ASSETS.md` (one 3D-models row)
 - Modify: `tests/render/staticModels.test.ts` (the registered-list regex)
 - Modify: `tests/render/hangar/models.test.ts:57-65` (the `drawBuilding` case keeps its own entry)
+- Modify: `tests/e2e/hangar.spec.ts` (check 14's tower line; amended 2026-09-27)
+- Modify: `tests/render/hangar/catalog.test.ts` (one comment)
 
 **Interfaces:**
 - Consumes: `kit.Model.box`, `kit.Model.strut` (Task 2); `scriptConstant`, `coplanarOverlaps`, `worldTriangles` (Tasks 2-3).
@@ -989,6 +1010,20 @@ The probe and its test are separate files from `kit_probe.py` and `kit.test.ts`,
       })
     ```
 
+  - `tests/e2e/hangar.spec.ts`, check 14 (added 2026-09-27 with the card's Model row): the tower now has a model, so replace
+    ```ts
+        await select(page, 'tower')
+        await expect(row).toContainText('Drawn in code (no model file)')
+    ```
+    with
+    ```ts
+        // Since R4 no Library entry is drawn in code; provenance.test.ts covers that case in Node.
+        await select(page, 'tower')
+        await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
+    ```
+    Tier 2 runs this in Task 15.
+  - `tests/render/hangar/catalog.test.ts`: in `origin: internal (ours) or external …`, the comment `// Ours: Blender (Ki-84, Kagero, the hangar), generated ordnance (HVAR), drawn in code (tower).` becomes `// Ours: Blender (Ki-84, Kagero, the hangar, the tower since R4), generated ordnance (HVAR).` The assertion itself does not change: the tower stays `internal`.
+
 - [ ] **Step 8: Run the Tier 1 checks.**
   ```bash
   npx vitest run tests/tools/models/buildingModels.test.ts tests/tools/models/outputs.test.ts tests/tools/models/manifest.test.ts tests/render/staticModels.test.ts tests/render/hangar --maxWorkers=2; echo "rc=$?"
@@ -999,8 +1034,8 @@ The probe and its test are separate files from `kit_probe.py` and `kit.test.ts`,
 - [ ] **Step 9: Checks and commit.**
   ```bash
   npx tsc --noEmit; echo "rc=$?"
-  npx eslint tests/tools/models/buildingModels.test.ts tests/render/staticModels.test.ts tests/render/hangar/models.test.ts src/render/scene/staticModels.ts --max-warnings 0; echo "rc=$?"
-  git add tools/models/blender/tower.py tools/models/entries/tower.json content/buildings/tower.glb src/render/scene/staticModels.ts content/library/tower.json ASSETS.md tests/tools/models/buildingModels.test.ts tests/render/staticModels.test.ts tests/render/hangar/models.test.ts
+  npx eslint tests/tools/models/buildingModels.test.ts tests/render/staticModels.test.ts tests/render/hangar/models.test.ts tests/render/hangar/catalog.test.ts tests/e2e/hangar.spec.ts src/render/scene/staticModels.ts --max-warnings 0; echo "rc=$?"
+  git add tools/models/blender/tower.py tools/models/entries/tower.json content/buildings/tower.glb src/render/scene/staticModels.ts content/library/tower.json ASSETS.md tests/tools/models/buildingModels.test.ts tests/render/staticModels.test.ts tests/render/hangar/models.test.ts tests/render/hangar/catalog.test.ts tests/e2e/hangar.spec.ts
   git commit -m "R4: the control tower as a Blender model, and the per-building Tier 1 harness"
   ```
 
@@ -1794,24 +1829,485 @@ Grouped because both are timber walls under `gable_roof`s with dark openings. Th
 
 ---
 
-### Task 12: Tier 2 on the reference GPU, and the checkpoint captures
+### Task 12: The Type 97 Chi-Ha, and the per-vehicle Tier 1 harness (R5)
+
+**Files:**
+- Create: `tools/models/entries/type97-chi-ha.json`
+- Create: `content/vehicles/type97-chi-ha.glb` (built)
+- Create: `tests/tools/models/vehicleModels.test.ts`
+- Modify: `src/render/scene/staticModels.ts` (register the vehicle)
+- Modify: `content/library/type97-chi-ha.json` (`model`)
+- Modify: `tests/render/staticModels.test.ts` (the vehicle registered-list regex)
+- Modify: `tests/render/hangar/roster.test.ts` (`NOT_YET_DRAWN`, `CEILING`)
+- Modify: `tests/render/modelCredits.test.ts` (the pinned credit line)
+- Modify: `ASSETS.md` (move the candidate row into the 3D-models table)
+
+**Interfaces:**
+- Consumes: `worldTriangles`, `Tri`, `Vec3` (Task 2, `tests/tools/models/buildingGeometry.ts`); `findNode`, `meshNodes`, `modelIO`, `onlyScene` (`tools/models/document.js`); `measureDocument` (`tools/models/measure.js`).
+- Produces, in `vehicleModels.test.ts`, the tables Task 13 extends:
+  - `CITED: Record<string, { lengthM: number; widthM: number; heightM: number; heightTol: number; source: string }>`
+  - `TURRETS: Record<string, string[]>`
+  - `FORWARD: Record<string, (doc: Document) => { ok: boolean; detail: string }>`
+
+**What was measured when this plan was written (2026-09-27, from the staged file):** `type97-chi-ha.glb`, sha256 `def357b816124c21…`, 3,969 triangles, 4 draw calls, 2 materials (`Type_97`, `Track`), four 1024-px PNG textures. It is already in meters and upright (+y). Bounds x −1.157..1.157, y 0.000..2.384, z −2.812..2.708: length 5.520 along z, width 2.314, height 2.384. Nodes: `Type 97 Hull_1_3` (3,169), `Type 97 Turret_1_4` (258), `Type 97 Barrel_1_5` (94), `Type 97 Track_1_6` (448). The barrel runs z −1.814..−1.043, ahead of the turret's z center (−0.167), so **the nose is −z**. The turret is offset to +x, which is the right-hand side for a −z forward, as on the real Chi-Ha. A `components` box `[-0.45, 1.56, -1.85]..[0.99, 2.40, 0.86]` takes exactly the turret's and barrel's 10 shells, 352 triangles, and nothing of the hull.
+
+**Cited (English Wikipedia, "Type 97 Chi-Ha medium tank", infobox citing Tomczyk 2007 p. 19, raw wikitext read 2026-09-27):** length 5.50 m, width 2.33 m, height 2.21 m. Fitted to 5.50 m the download is 2.306 m wide (−1.0%) and 2.375 m tall (+7.5%). Ruling V2 below explains the height tolerance.
+
+**Rulings this task makes** (record each in the ledger as `Ruling: V<n>`):
+- **V1. Vehicle draw-call budget 8.** Spec §4.4 gives vehicles 1 MB and 20k triangles and no draw-call figure. Both downloads measure 3 draws after the build; 8 leaves room for a split part without inviting a per-part mesh.
+- **V2. Width 6%; length and height per row.** A vehicle fitted by its length holds length to 1%. Width checks the variant and the fit axis. Height is the loosest: the Chi-Ha measures 2.375 m at the cited length against 2.21 m (+7.5%), and all of the excess is in the turret node's top (the turret's max y, 2.384 in source units, is the model's). 8% still reads as the same vehicle; a wrong up axis would read 20% or more off.
+- **V3. A vehicle stands on y = 0 and is centered on its footprint**, like a building (spec §4.2's frame), because the Hangar stands a display model on its own origin (`src/render/hangar/models.ts`, `displayModel`). Its turret, if separable, is `Turret1`, with the gun in the turret node and no pivot, as R2 and R4 did; the pivots are H3's.
+
+- [ ] **Step 1: Write the failing harness.** Create `tests/tools/models/vehicleModels.test.ts`:
+  ```ts
+  // tests/tools/models/vehicleModels.test.ts
+  /**
+   * Every vehicle model (R5) measured against its cited size, its budget and its frame, from the
+   * committed glb with no Blender. The two are Sketchfab downloads fitted by the model pipeline;
+   * the sim has no vehicle, so the citation, not a spec, is authoritative (model-roster spec §7).
+   */
+  import { describe, expect, it } from 'vitest'
+  import { readFileSync, statSync } from 'node:fs'
+  import { getBounds } from '@gltf-transform/functions'
+  import type { Document } from '@gltf-transform/core'
+  import { loadModelEntries, type ModelEntry } from '../../../tools/models/manifest.js'
+  import { findNode, meshNodes, modelIO, onlyScene } from '../../../tools/models/document.js'
+  import { measureDocument } from '../../../tools/models/measure.js'
+  import { worldTriangles, type Vec3 } from './buildingGeometry.js'
+
+  /** Spec §4.4, plus ruling V1's draw calls. Raised only with a measured reason, here and in the ledger. */
+  const VEHICLE_BUDGET = { maxBytes: 1_000_000, maxTriangles: 20_000, maxDrawCalls: 8 } as const
+
+  interface Cited { readonly lengthM: number; readonly lengthTol: number; readonly widthM: number; readonly heightM: number; readonly heightTol: number; readonly source: string }
+  /** Rulings V2 and V4: length per row (1% where the fit sets it), width 6%, height per row. */
+  const CITED: Readonly<Record<string, Cited>> = {
+    'type97-chi-ha': { lengthM: 5.5, lengthTol: 0.01, widthM: 2.33, heightM: 2.21, heightTol: 0.08, source: "English Wikipedia 'Type 97 Chi-Ha medium tank', infobox (Tomczyk 2007, p. 19): length 5.50 m, width 2.33 m, height 2.21 m, read 2026-09-27. The download measures +7.5% tall at the cited length, all of it in the turret node's top (R5 plan, V2)" },
+  }
+
+  /** H3's turret names (Hangar spec §9); a vehicle's are numbered like a building's, +x to -x (R4 ruling). */
+  const TURRETS: Readonly<Record<string, readonly string[]>> = { 'type97-chi-ha': ['Turret1'] }
+
+  const horizontal = (a: Vec3, b: Vec3): number => Math.hypot(a[0] - b[0], a[2] - b[2])
+  const vertices = (doc: Document, node: string): Vec3[] => worldTriangles(findNode(doc, node)).flat()
+  const centroid = (vs: readonly Vec3[]): Vec3 => {
+    const c: Vec3 = [0, 0, 0]
+    for (const v of vs) for (let i = 0; i < 3; i++) c[i] += v[i]! / vs.length
+    return c
+  }
+
+  /** Each vehicle's own proof that its nose is at +x; a model turned 180° fails it. */
+  const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail: string }>> = {
+    // The gun: the Turret1 vertex farthest from the turret's own vertical axis is the muzzle.
+    'type97-chi-ha': (doc) => {
+      const vs = vertices(doc, 'Turret1')
+      const c = centroid(vs)
+      const muzzle = vs.reduce((m, v) => (horizontal(v, c) > horizontal(m, c) ? v : m))
+      return { ok: muzzle[0] > c[0] + 0.5, detail: `muzzle x ${muzzle[0].toFixed(3)}, turret centroid x ${c[0].toFixed(3)}` }
+    },
+  }
+
+  const entries = loadModelEntries()
+  const vehicles = entries.filter((e) => e.output.startsWith('content/vehicles/'))
+  const read = async (e: ModelEntry): Promise<Document> => modelIO().readBinary(new Uint8Array(readFileSync(e.output)))
+
+  describe('the vehicle rows', () => {
+    it('every vehicle entry has a cited row and a forward proof, and every row has an entry', () => {
+      expect(vehicles.map((e) => e.id).sort()).toEqual(Object.keys(CITED).sort())
+      expect(Object.keys(FORWARD).sort()).toEqual(Object.keys(CITED).sort())
+    })
+    it('every row cites a source with a read date', () => {
+      for (const [id, c] of Object.entries(CITED)) expect(c.source, id).toMatch(/read \d{4}-\d{2}-\d{2}/)
+    })
+  })
+
+  describe.each(vehicles.map((e) => [e.id, e] as const))('vehicle %s (R5)', (id, e) => {
+    it('measures its cited length and height (its row) and width (6%), nose along x', async () => {
+      const c = CITED[id]!
+      const b = getBounds(onlyScene(await read(e)))
+      const check = (got: number, want: number, tol: number, label: string): void => {
+        expect(Math.abs(got - want) / want, `${id} ${label}: measured ${got.toFixed(3)} m, cited ${want}`).toBeLessThanOrEqual(tol)
+      }
+      check(b.max[0] - b.min[0], c.lengthM, c.lengthTol, 'length')
+      check(b.max[2] - b.min[2], c.widthM, 0.06, 'width')
+      check(b.max[1] - b.min[1], c.heightM, c.heightTol, 'height')
+    })
+
+    it('stands on y = 0, centered on its footprint (V3)', async () => {
+      const b = getBounds(onlyScene(await read(e)))
+      expect(b.min[1], `${id} ground`).toBeCloseTo(0, 2)
+      expect(Math.abs(b.min[0] + b.max[0]) / 2, `${id} center x`).toBeLessThanOrEqual(0.05 * (b.max[0] - b.min[0]))
+      expect(Math.abs(b.min[2] + b.max[2]) / 2, `${id} center z`).toBeLessThanOrEqual(0.05 * (b.max[2] - b.min[2]))
+    })
+
+    it('faces +x', async () => {
+      const r = FORWARD[id]!(await read(e))
+      expect(r.ok, `${id}: ${r.detail}`).toBe(true)
+    })
+
+    it('is inside the vehicle budget, measured, and its entry does not budget above it', async () => {
+      const m = measureDocument(await read(e))
+      expect(e.budget.maxBytes, id).toBeLessThanOrEqual(VEHICLE_BUDGET.maxBytes)
+      expect(e.budget.maxTriangles, id).toBeLessThanOrEqual(VEHICLE_BUDGET.maxTriangles)
+      expect(e.budget.maxDrawCalls, id).toBeLessThanOrEqual(VEHICLE_BUDGET.maxDrawCalls)
+      expect(statSync(e.output).size).toBeLessThanOrEqual(e.budget.maxBytes)
+      expect(m.triangles).toBeLessThanOrEqual(e.budget.maxTriangles)
+      expect(m.drawCalls).toBeLessThanOrEqual(e.budget.maxDrawCalls)
+    })
+
+    it('names exactly its turrets', async () => {
+      const names = meshNodes(await read(e)).map((n) => n.getName()).filter((n) => /^Turret\d+$/.test(n))
+      expect(names.sort()).toEqual([...(TURRETS[id] ?? [])].sort())
+    })
+  })
+  ```
+  Check the helper names against Task 2's `buildingGeometry.ts` and `tools/models/document.ts` before running (`grep -n "export" tests/tools/models/buildingGeometry.ts tools/models/document.ts`). If one is named differently, use the real name and record it.
+
+- [ ] **Step 2: Run it and see it fail.**
+  ```bash
+  npx vitest run tests/tools/models/vehicleModels.test.ts --maxWorkers=2; echo "rc=$?"
+  ```
+  Expected: FAIL on `every vehicle entry has a cited row`: `[]` does not equal `['type97-chi-ha']`.
+
+- [ ] **Step 3: Stage the download and check its license.**
+  ```bash
+  mkdir -p tools/models/cache
+  cp /home/mark/projects/ww2airsim/content/models/candidates/type97-chi-ha.glb tools/models/cache/type97-chi-ha.glb
+  sha256sum tools/models/cache/type97-chi-ha.glb | cut -c1-16
+  curl -sS "https://api.sketchfab.com/v3/models/d3568f32ec4440848e243e4b893a8ba6" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['uid'], d['user']['username'], (d.get('license') or {}).get('slug'), d['viewerUrl'], d['isDownloadable'])"
+  ```
+  Expected: `def357b816124c21`, then `d3568f32ec4440848e243e4b893a8ba6 snrnsrk5 by https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6 True`. A different hash means the candidate changed: re-measure everything in this task's "measured" paragraph before going on. A different license is a stop: record it, leave the id on the allowlist, and skip to Task 13.
+
+- [ ] **Step 4: Re-measure.** `npm run models:inspect -- tools/models/cache/type97-chi-ha.glb > .superpowers/sdd/2026-09-27-r4-r5-roster/inspect-type97-chi-ha.txt`. Read it. Confirm the bounds and the four nodes above. If any differ, recompute the origin (the bounds' x and z centers, y 0) and the turret box, and record the new values.
+
+- [ ] **Step 5: The entry.** Create `tools/models/entries/type97-chi-ha.json`. Every coordinate is in the source frame:
+  ```json
+  {
+    "id": "type97-chi-ha",
+    "input": "tools/models/cache/type97-chi-ha.glb",
+    "output": "content/vehicles/type97-chi-ha.glb",
+    "source": {
+      "url": "https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6",
+      "uid": "d3568f32ec4440848e243e4b893a8ba6",
+      "author": "snrnsrk5",
+      "license": "CC-BY-4.0"
+    },
+    "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, -0.052], "fit": { "extent": "length", "meters": 5.5 } },
+    "split": [
+      { "name": "Turret1", "select": "components", "boxMin": [-0.45, 1.56, -1.85], "boxMax": [0.99, 2.40, 0.86] }
+    ],
+    "textures": { "maxSize": 1024, "format": "webp" },
+    "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+  }
+  ```
+
+- [ ] **Step 6: Build, and look at it.**
+  ```bash
+  npm run models:build -- type97-chi-ha; echo "rc=$?"
+  blender -b --factory-startup --python-exit-code 1 -P tools/models/blender/preview.py -- .superpowers/sdd/2026-09-27-r4-r5-roster/type97-chi-ha-front.png --glb content/vehicles/type97-chi-ha.glb --view front
+  blender -b --factory-startup --python-exit-code 1 -P tools/models/blender/preview.py -- .superpowers/sdd/2026-09-27-r4-r5-roster/type97-chi-ha-raw-front.png --glb tools/models/cache/type97-chi-ha.glb --view front
+  ```
+  One Blender command at a time. Record the `built …` line: bytes, triangles (expected 3,969: nothing removed), draw calls (expected 3: hull, track, `Turret1`). **Read both PNGs.** The gun must face the camera in the built front view, the tracks must touch the ground plane, and the silhouette must match the raw render. If the build is over 1,000,000 bytes, set `textures.maxSize` to 512, rebuild, and record `Ruling:` with both byte counts.
+
+- [ ] **Step 7: Register, link, credit.**
+  - `src/render/scene/staticModels.ts`: in `STATIC_MODELS.vehicle`, replace `{}` with:
+    ```ts
+      vehicle: {
+        'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
+      },
+    ```
+  - `content/library/type97-chi-ha.json`: after the line `"side": "japanese",` add:
+    ```json
+      "model": { "kind": "vehicle", "id": "type97-chi-ha" },
+    ```
+  - `tests/render/staticModels.test.ts`: the vehicle registry is no longer empty. Replace
+    ```ts
+        expect(() => staticModelUrlFor('vehicle', 'constructor')).toThrow(/no vehicle model "constructor" \(registered: none\)/)
+    ```
+    with
+    ```ts
+        expect(() => staticModelUrlFor('vehicle', 'constructor')).toThrow(/no vehicle model "constructor" \(registered: [a-z0-9, -]*\btype97-chi-ha\b[a-z0-9, -]*\)/)
+    ```
+  - `tests/render/hangar/roster.test.ts`: delete `'type97-chi-ha'` from `NOT_YET_DRAWN`, and set `CEILING` to 1 (Task 0's start value minus the seven buildings minus one).
+  - `tests/render/modelCredits.test.ts`: in the test `reads, after R3, with each author named once …`, rename it `reads, after R5's Chi-Ha, …` and pin:
+    ```ts
+        expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), KTKloss (1 2 3 4), manilov.ap (1 2 3), JZHU, Jec_Games, everlasting17th, AlanTinka, snrnsrk5, rojatsu (CC BY 4.0)')
+    ```
+    `snrnsrk5` lands between AlanTinka and rojatsu because `type97-chi-ha.json` sorts after `type-b-maru.json` (`-` sorts before `9`) and before `wildcat.json`. The plan computed this string with the real `modelCredits` on 2026-09-27; if the test prints a different one, the entry-file order changed: read the printed string, confirm it is the order `modelCredits` defines, and record it.
+  - `ASSETS.md`: delete the `type97-chi-ha.glb` row from "Candidate models", and add to the 3D-models table, after the last `content/ships/` row:
+    ```
+    | `content/vehicles/type97-chi-ha.glb` | https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6 | snrnsrk5 | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+    ```
+
+- [ ] **Step 8: Run the Tier 1 checks.**
+  ```bash
+  npx vitest run tests/tools/models/vehicleModels.test.ts tests/tools/models/outputs.test.ts tests/tools/models/manifest.test.ts tests/render/staticModels.test.ts tests/render/modelCredits.test.ts tests/render/hangar tests/build/dist.test.ts --maxWorkers=2; echo "rc=$?"
+  ```
+  Expected: `rc=0`. Then **mutation-check the forward proof**: set `"forward": "+z"` in the entry, rebuild, and run `vehicleModels.test.ts`; `faces +x` must fail. Restore `"-z"`, rebuild, and confirm `git status --short content/vehicles` shows the same glb as before the mutation (`sha256sum` matches the Step 6 build).
+
+- [ ] **Step 9: Checks and commit.**
+  ```bash
+  npx tsc --noEmit; echo "rc=$?"
+  npx eslint tests/tools/models/vehicleModels.test.ts tests/render/staticModels.test.ts tests/render/modelCredits.test.ts tests/render/hangar/roster.test.ts src/render/scene/staticModels.ts --max-warnings 0; echo "rc=$?"
+  git add tools/models/entries/type97-chi-ha.json content/vehicles/type97-chi-ha.glb tests/tools/models/vehicleModels.test.ts src/render/scene/staticModels.ts content/library/type97-chi-ha.json tests/render/staticModels.test.ts tests/render/hangar/roster.test.ts tests/render/modelCredits.test.ts ASSETS.md
+  git commit -m "R5: the Type 97 Chi-Ha, and the per-vehicle Tier 1 harness"
+  ```
+
+---
+
+### Task 13: The Willys MB jeep, the top-down one of the two in the download (R5)
+
+**Files:**
+- Create: `tools/models/entries/willys-mb-jeep.json`
+- Create: `content/vehicles/willys-mb-jeep.glb` (built)
+- Modify: `tests/tools/models/vehicleModels.test.ts` (`CITED`, `FORWARD`)
+- Modify: `src/render/scene/staticModels.ts`, `content/library/willys-mb-jeep.json`, `tests/render/hangar/roster.test.ts`, `tests/render/modelCredits.test.ts`, `ASSETS.md`
+
+**Interfaces:**
+- Consumes: Task 12's harness tables.
+- Produces: nothing new; the vehicle roster is complete.
+
+**What was measured when this plan was written (2026-09-27, from the staged file).** `willys-mb-jeep.glb`, sha256 `79ad5e0037ce2598…`, 19,099 triangles, 3 draw calls, 3 materials (`1.Jeep`, `Tires`, `Roof_and_Gear`), one mesh node per material. **The file holds two jeeps**, each of whose parts are spread across those three shared nodes:
+- They stand side by side along **x**, and each jeep's length runs along **z**. Every connected shell lies on one side of a clear gap from x −0.171 to x 0.332; no shell crosses it (the shell probe below).
+- **x < 0 is the top-down jeep** (Mark's choice): 130 shells, 9,432 triangles, bounds x −1.770..−0.171, y 0.043..1.260, z −1.452..1.531. Its highest point, 1.260, is the spare tire's top.
+- x > 0 is the canvas-top jeep: 128 shells, 9,667 triangles, up to y 1.508 (the canvas top).
+- The top-down jeep's spare tire (a 464-triangle `Tires` shell centered at z −1.345, axle along z) is at **−z, so its nose is +z**.
+- It is **turned about +y by roughly 5.7°**. Its road wheels' centers (x, z): rear (−0.460, −0.811) and (−1.602, −0.698); front (−0.323, 0.956) and (−1.380, 1.062). Both axle lines lean 5.65° and 5.73° from x.
+- Its **wheelbase is 1.773 source units** (rear-axle midpoint to front-axle midpoint), and its wheels are 0.63 across. The cited wheelbase is 80 in (2.032 m): scale 1.146, which makes the wheels 0.72 m, a 6.00-16 tire. Overall length in the download's own units is not a safe fit: the source is in no known unit, and a length fit would count whatever sticks out at either end.
+
+**Cited (English Wikipedia, "Willys MB", raw wikitext read 2026-09-27):** infobox length 132 in (3.35 m), width 62 in (1.57 m), height "overall, top up: 69¾ in … reducible to 52 in" (1.32 m, the top-down figure used here); the article body gives the 80 in wheelbase (the Ford GP paragraph: "a car with a wheelbase of 80 in").
+
+**Rulings this task makes:**
+- **V4. The jeep is fitted by its wheelbase, and its length is checked to 4%**, the one dimension the download fixes unambiguously (axle centers), converted to the `length` fit the manifest supports: `meters = L × 2.032 / W`, where `L` is the squared model's length along the forward axis and `W` its measured wheelbase, both in source units after the yaw. The Tier 1 row still checks length, width and height against the citation, so a wrong wheelbase fails there.
+- **V5. The canvas-top jeep is removed with one `components` split named `CanvasJeep`, then `remove`d** (the build's split-then-remove order, `tools/models/build.ts:73-80`). The split must take all 128 of its shells, 9,667 triangles, and none of the top-down jeep's.
+
+- [ ] **Step 1: Stage the download and check its license.**
+  ```bash
+  mkdir -p tools/models/cache
+  cp /home/mark/projects/ww2airsim/content/models/candidates/willys-mb-jeep.glb tools/models/cache/willys-mb-jeep.glb
+  sha256sum tools/models/cache/willys-mb-jeep.glb | cut -c1-16
+  curl -sS "https://api.sketchfab.com/v3/models/3b005266a1514f7bb7370c86168aba98" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['uid'], d['user']['username'], (d.get('license') or {}).get('slug'), d['viewerUrl'], d['isDownloadable'])"
+  ```
+  Expected: `79ad5e0037ce2598`, then `3b005266a1514f7bb7370c86168aba98 MattyNL by https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98 True`. A different license is a stop: record it, leave the id on the allowlist, and go to Task 14, which then keeps the list at one entry instead of deleting it (and says so in the handoff).
+
+- [ ] **Step 2: The shell probe** (scratch, never committed). Create `.superpowers/sdd/2026-09-27-r4-r5-roster/shells.mts`:
+  ```ts
+  // Every connected shell (triangles sharing a bit-identical POSITION, the way split.ts's
+  // `components` joins them) with its material, triangle count and world bounds.
+  import { NodeIO } from '@gltf-transform/core'
+  const doc = await new NodeIO().read(process.argv[2]!)
+  const yaw = (Number(process.argv[3] ?? 0) * Math.PI) / 180
+  const turn = (x: number, z: number): [number, number] => [x * Math.cos(yaw) + z * Math.sin(yaw), -x * Math.sin(yaw) + z * Math.cos(yaw)]
+  const rows: { mat: string; tris: number; min: number[]; max: number[] }[] = []
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh(); if (!mesh) continue
+    const m = node.getWorldMatrix()
+    for (const p of mesh.listPrimitives()) {
+      const pos = p.getAttribute('POSITION')!, idx = p.getIndices()!
+      const parent: number[] = [], key = new Map<string, number>()
+      const find = (i: number): number => { while (parent[i] !== i) { parent[i] = parent[parent[i]!]!; i = parent[i]! } return i }
+      const id = (v: number): number => { const k = pos.getElement(v, [0, 0, 0]).join(','); let i = key.get(k); if (i === undefined) { i = parent.length; parent.push(i); key.set(k, i) } return i }
+      const tris = idx.getCount() / 3
+      for (let t = 0; t < tris; t++) { const a = find(id(idx.getScalar(3 * t))); for (const k of [1, 2]) { const b = find(id(idx.getScalar(3 * t + k))); if (a !== b) parent[b] = a } }
+      const shells = new Map<number, { tris: number; min: number[]; max: number[] }>()
+      for (let t = 0; t < tris; t++) {
+        const root = find(id(idx.getScalar(3 * t)))
+        const s = shells.get(root) ?? { tris: 0, min: [1e9, 1e9, 1e9], max: [-1e9, -1e9, -1e9] }; shells.set(root, s); s.tris++
+        for (const k of [0, 1, 2]) {
+          const v = pos.getElement(idx.getScalar(3 * t + k), [0, 0, 0])
+          const w = [0, 1, 2].map((a) => m[a]! * v[0]! + m[4 + a]! * v[1]! + m[8 + a]! * v[2]! + m[12 + a]!)
+          const [x, z] = turn(w[0]!, w[2]!)
+          for (const [a, val] of [[0, x], [1, w[1]!], [2, z]] as const) { s.min[a] = Math.min(s.min[a]!, val); s.max[a] = Math.max(s.max[a]!, val) }
+        }
+      }
+      for (const s of shells.values()) rows.push({ mat: p.getMaterial()?.getName() ?? '?', ...s })
+    }
+  }
+  const f = (v: number[]): string => v.map((x) => x.toFixed(3)).join(',')
+  for (const r of rows) console.log(r.mat.padEnd(14), String(r.tris).padStart(5), 'min', f(r.min), 'max', f(r.max))
+  console.log('shells', rows.length)
+  ```
+  Run it unturned: `npx tsx .superpowers/sdd/2026-09-27-r4-r5-roster/shells.mts tools/models/cache/willys-mb-jeep.glb > .superpowers/sdd/2026-09-27-r4-r5-roster/jeep-shells.txt`. Confirm 258 shells, and that none spans x −0.171..0.332. Record both jeeps' shell counts and triangle totals.
+
+  The sign convention of `turn` must match `normalize.yawDeg`'s. Check it once against `npm run models:inspect -- tools/models/cache/willys-mb-jeep.glb --yaw 10`: the whole-model bounds the probe prints with argument `10` (take the min and max over all rows) must equal inspect's to 3 decimals. If they match with `-10` instead, flip `yaw`'s sign in the probe and record it.
+
+- [ ] **Step 3: The yaw.** Find the `normalize.yawDeg` that squares the top-down jeep: the two rear road-wheel centers get equal z-extent midlines along the new x axis, which means equal **forward** coordinates after the turn. Road wheels are the four 412-triangle `Tires` shells with x < 0. Run the probe with candidate yaws (start from ±5.7) until the two rear wheels' z centers agree within 0.01 and the two front wheels' agree within 0.01. Record the yaw, and the four wheel centers at that yaw. The source's nose is +z, so `normalize.forward` is `"+z"`; the yaw only squares it.
+
+  Also confirm the gap survives the turn: at the chosen yaw, find the x value that separates every top-down shell from every canvas-top shell. A shell is top-down if its unturned bounds had max x ≤ −0.171. If no single separating value exists at that yaw, the split box in Step 4 is built from the canvas-top shells' own union bounds instead of a half-space, and every top-down shell must still fall outside it. Record which.
+
+- [ ] **Step 4: The fit, the origin and the split, in the turned frame** (the entry's coordinates are in the frame after `yawDeg`, `tools/models/manifest.ts:133-134`):
+  - `W`: the distance between the rear-axle midpoint and the front-axle midpoint, from Step 3's four centers.
+  - `L`: the top-down jeep's extent along z in the turned frame (min over its shells to max).
+  - `fit.meters` = `L × 2.032 / W`, to 3 decimals. Record `W`, `L` and the result. Expected near 3.4: a result outside 3.1..3.7 means a shell set is wrong, so stop and re-read Step 2.
+  - `origin`: the top-down jeep's turned bounds centers in x and z, with y 0.043 (its tire bottoms), so it stands on y = 0 after normalize.
+  - The `CanvasJeep` split box: x from the separating value to 2.0, y from −1 to 3, z from −2.0 to 2.0 (a half-space in practice), or Step 3's union box. **Verify it before building**: run the probe at the chosen yaw and count the shells whose whole bounds lie inside the box. It must be exactly the canvas-top jeep's 128 shells and 9,667 triangles.
+
+- [ ] **Step 5: The Tier 1 row.** In `tests/tools/models/vehicleModels.test.ts`, add to `CITED`:
+  ```ts
+    'willys-mb-jeep': { lengthM: 3.35, lengthTol: 0.04, widthM: 1.57, heightM: 1.32, heightTol: 0.08, source: "English Wikipedia 'Willys MB', infobox: length 132 in (3.35 m), width 62 in (1.57 m), height reducible to 52 in (1.32 m, top down); the article's 80 in (2.032 m) wheelbase is the fit (R5 plan, V4), read 2026-09-27" },
+  ```
+  and to `FORWARD`:
+  ```ts
+    // The spare tire rides on the rear panel, higher than any road wheel: the highest Tires vertex is aft.
+    'willys-mb-jeep': (doc) => {
+      const tires = meshNodes(doc).filter((n) => n.getMesh()!.listPrimitives().some((p) => p.getMaterial()?.getName() === 'Tires'))
+      const top = tires.flatMap((n) => worldTriangles(n).flat()).reduce((m, v) => (v[1] > m[1] ? v : m))
+      return { ok: top[0] < 0, detail: `highest tire vertex at x ${top[0].toFixed(3)}, y ${top[1].toFixed(3)}` }
+    },
+  ```
+  The jeep's length is held to 4%, not 1%, because the fit is its wheelbase (V4): length is then a check of the download's proportions, as R3's P10 used length for its span-fitted aircraft. The plan's own estimate is 3.38 m (+0.9%). Past 4% is a finding, not a tolerance to widen: record the measured length and the wheelbase, and stop the jeep there (Step 1's stop path) rather than ship a misproportioned model.
+
+  Run `npx vitest run tests/tools/models/vehicleModels.test.ts --maxWorkers=2; echo "rc=$?"`. Expected: FAIL, `every vehicle entry has a cited row` (no jeep entry yet).
+
+- [ ] **Step 6: The entry.** Create `tools/models/entries/willys-mb-jeep.json` with Steps 3-4's values in the marked fields:
+  ```json
+  {
+    "id": "willys-mb-jeep",
+    "input": "tools/models/cache/willys-mb-jeep.glb",
+    "output": "content/vehicles/willys-mb-jeep.glb",
+    "source": {
+      "url": "https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98",
+      "uid": "3b005266a1514f7bb7370c86168aba98",
+      "author": "MattyNL",
+      "license": "CC-BY-4.0"
+    },
+    "normalize": { "forward": "+z", "up": "+y", "yawDeg": <Step 3>, "origin": [<Step 4 x>, 0.043, <Step 4 z>], "fit": { "extent": "length", "meters": <Step 4> } },
+    "split": [
+      { "name": "CanvasJeep", "select": "components", "boxMin": [<Step 4>], "boxMax": [<Step 4>] }
+    ],
+    "remove": ["CanvasJeep"],
+    "textures": { "maxSize": 1024, "format": "webp" },
+    "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+  }
+  ```
+
+- [ ] **Step 7: Build, and look at it.**
+  ```bash
+  npm run models:build -- willys-mb-jeep; echo "rc=$?"
+  blender -b --factory-startup --python-exit-code 1 -P tools/models/blender/preview.py -- .superpowers/sdd/2026-09-27-r4-r5-roster/willys-mb-jeep-front.png --glb content/vehicles/willys-mb-jeep.glb --view front
+  blender -b --factory-startup --python-exit-code 1 -P tools/models/blender/preview.py -- .superpowers/sdd/2026-09-27-r4-r5-roster/willys-mb-jeep-below.png --glb content/vehicles/willys-mb-jeep.glb --view below
+  ```
+  One Blender command at a time. Record the `built …` line. Expected: 9,432 triangles (the top-down jeep, nothing else) and 3 draw calls. **Read both PNGs**: one jeep, grille toward the camera in the front view, the windshield folded, no canvas top, no floating part of the other jeep, and four wheels square to the view in the below view. Over 1,000,000 bytes: `textures.maxSize` 512, rebuild, `Ruling:` with both counts.
+
+- [ ] **Step 8: Register, link, credit.**
+  - `src/render/scene/staticModels.ts`, in `STATIC_MODELS.vehicle`, after the Chi-Ha:
+    ```ts
+        'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
+    ```
+  - `content/library/willys-mb-jeep.json`: after `"side": "allied",` add `"model": { "kind": "vehicle", "id": "willys-mb-jeep" },`.
+  - `tests/render/hangar/roster.test.ts`: delete `'willys-mb-jeep'`; `NOT_YET_DRAWN` is now `[]` and `CEILING` is `0`. Task 14 deletes both.
+  - `tests/render/modelCredits.test.ts`: rename the pinned test `reads, after R5, …` and pin:
+    ```ts
+        expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), KTKloss (1 2 3 4), manilov.ap (1 2 3), JZHU, Jec_Games, everlasting17th, AlanTinka, snrnsrk5, rojatsu, MattyNL (CC BY 4.0)')
+    ```
+    (computed with the real `modelCredits` on 2026-09-27: `willys-mb-jeep.json` sorts after `wildcat.json`).
+  - `ASSETS.md`: delete the jeep's "Candidate models" row, and add after the Chi-Ha's row:
+    ```
+    | `content/vehicles/willys-mb-jeep.glb` | https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98 | MattyNL | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+    ```
+  - `ASSETS.md`, below the 3D-models table after R3's aircraft paragraph: one paragraph for both vehicles in R3's style. Every sentence is a measured fact with the date: each download's triangles before and after (3,969 → the build's count; 19,099 → 9,432), what the build removed (the Chi-Ha: nothing; the jeep: the canvas-top jeep, 9,667 triangles), the jeep's yaw and wheelbase fit, and the Chi-Ha's `Turret1`.
+
+- [ ] **Step 9: Test, mutation-check, commit.**
+  ```bash
+  npx vitest run tests/tools/models/vehicleModels.test.ts tests/tools/models/outputs.test.ts tests/render/staticModels.test.ts tests/render/modelCredits.test.ts tests/render/hangar tests/build/dist.test.ts --maxWorkers=2; echo "rc=$?"
+  ```
+  Expected: `rc=0`. Mutation-check the jeep's forward proof: set `"forward": "-z"`, rebuild, and `faces +x` must fail; restore `"+z"`, rebuild, and confirm the glb's `sha256sum` equals Step 7's. Then:
+  ```bash
+  npx tsc --noEmit; echo "rc=$?"
+  npx eslint tests/tools/models/vehicleModels.test.ts tests/render/modelCredits.test.ts tests/render/hangar/roster.test.ts src/render/scene/staticModels.ts --max-warnings 0; echo "rc=$?"
+  git add tools/models/entries/willys-mb-jeep.json content/vehicles/willys-mb-jeep.glb tests/tools/models/vehicleModels.test.ts src/render/scene/staticModels.ts content/library/willys-mb-jeep.json tests/render/hangar/roster.test.ts tests/render/modelCredits.test.ts ASSETS.md
+  git commit -m "R5: the Willys MB jeep (the top-down one; the canvas-top jeep removed), fitted by its wheelbase"
+  ```
+
+---
+
+### Task 14: The roster is done, as an assertion; the allowlist is deleted (R5)
+
+**Files:**
+- Modify: `tests/render/hangar/roster.test.ts` (delete the list; assert none remain)
+- Modify: `tests/render/hangar/models.test.ts` (`"Not yet in service" loads nothing` needs its own entry)
+- Modify: `tests/e2e/hangar.spec.ts` (check 12)
+- Modify: `docs/models.md` (§7 vehicles, §9's check list)
+
+**Interfaces:**
+- Consumes: Tasks 4-13.
+
+- [ ] **Step 1: The assertion.** In `tests/render/hangar/roster.test.ts`:
+  - Delete `NOT_YET_DRAWN`, `CEILING` and their doc comment.
+  - Replace the describe `the roster is done when this list is empty (model-roster spec §1)` and its two tests (and R4's `no Library building is left on it` test) with:
+    ```ts
+    describe('the roster is done: every Library entry is drawn (model-roster spec §1, R5)', () => {
+      it('the Hangar can draw every entry in the Library', () => {
+        expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id)).toEqual([])
+      })
+
+      it('every building and vehicle names its own model', () => {
+        for (const e of content.library.filter((x) => x.kind === 'building' || x.kind === 'vehicle')) {
+          expect(e.model, e.id).toEqual({ kind: e.kind, id: e.id })
+        }
+      })
+    })
+    ```
+  - Update the file's top comment: the list was deleted by R5 on `<run date>`; the test now asserts that nothing is undrawn, so a new Library entry must arrive with its model.
+
+- [ ] **Step 2: `models.test.ts`'s "Not yet in service" case.** It picks the first catalog entry with no spec and no model; after Task 13 there is none, so `find` returns `undefined` and the test throws. Give it its own entry, as `catalog.test.ts` already does with `test-undrawn`. Replace the test with:
+  ```ts
+    it('"Not yet in service" loads nothing', async () => {
+      // No shipped entry is undrawn since R5, so the case is a copy of the jeep with its model removed.
+      const c = nodeHangarContent()
+      const bare = { ...c.library.find((e) => e.id === 'willys-mb-jeep')!, id: 'test-undrawn' }
+      delete (bare as { model?: unknown }).model
+      const entry = buildCatalog({ ...c, library: [bare] })[0]!
+      expect(entry.subject).toBeNull()
+      expect(await loadHangarModel(entry)).toBeNull()
+    })
+  ```
+  Keep whatever imports the file already has; add `buildCatalog` and `nodeHangarContent` if missing.
+
+- [ ] **Step 3: Tier 2 check 12.** In `tests/e2e/hangar.spec.ts`, replace `expect(notDrawn).toBeGreaterThan(0)` with:
+  ```ts
+      // R5: nothing in the Library is undrawn.
+      expect(notDrawn).toBe(0)
+  ```
+  Tier 2 runs it in Task 15.
+
+- [ ] **Step 4: Run, and mutation-check.**
+  ```bash
+  npx vitest run tests/render/hangar tests/tools/models/vehicleModels.test.ts tests/tools/models/buildingModels.test.ts --maxWorkers=2; echo "rc=$?"
+  ```
+  Expected `rc=0`. Then delete the `"model"` line from `content/library/willys-mb-jeep.json`: both `the Hangar can draw every entry` and `every building and vehicle names its own model` must fail. Restore the line.
+
+- [ ] **Step 5: `docs/models.md`.**
+  - §7 ("Register"): add a **Vehicles** bullet after the ships one: "**Vehicles:** add the id to `STATIC_MODELS.vehicle` in [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts) and name it in the Library entry's `model`. A vehicle stands on y = 0, centered on its footprint, nose to +x; `tests/tools/models/vehicleModels.test.ts` measures it against its cited length, width and height (R5)."
+  - §9's check list: after the check 14 line, add `every Library entry is drawn: there is no allowlist (check 12, R5)`.
+
+- [ ] **Step 6: Checks and commit.**
+  ```bash
+  npx tsc --noEmit; echo "rc=$?"
+  npx eslint tests/render/hangar/roster.test.ts tests/render/hangar/models.test.ts tests/e2e/hangar.spec.ts --max-warnings 0; echo "rc=$?"
+  git add tests/render/hangar/roster.test.ts tests/render/hangar/models.test.ts tests/e2e/hangar.spec.ts docs/models.md
+  git commit -m "R5: done is an assertion: every Library entry is drawn, and the allowlist is gone"
+  ```
+
+---
+
+### Task 15: Tier 2 on the reference GPU, and the checkpoint captures (R4 and R5)
 
 **Files:**
 - Modify: `tests/e2e/hangar.spec.ts` (check 10)
-- Local scratch, **never committed:** `vite.config.ts` (the slot), `tests/e2e/r4-checkpoint.spec.ts`
-- Create: `docs/handoff/<run date>-r4-shots/` (nine PNGs)
+- Local scratch, **never committed:** `vite.config.ts` (the slot), `tests/e2e/roster-checkpoint.spec.ts`
+- Create: `docs/handoff/<run date>-r4-r5-shots/` (eleven PNGs)
 
 - [ ] **Step 1: Extend check 10.** In `tests/e2e/hangar.spec.ts`, replace the two lines under `// R1: the hangar is drawn from its Blender model, not drawBuilding's boxes.` with:
   ```ts
-      // R1-R4: every Library building is drawn from its own Blender model, with its manifest budget.
-      for (const id of ['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
+      // R1-R5: every Library building and vehicle is drawn from its own model, with its manifest budget.
+      for (const [id, folder] of [...['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower'].map((b) => [b, 'buildings'] as const), ['type97-chi-ha', 'vehicles'] as const, ['willys-mb-jeep', 'vehicles'] as const]) {
         await select(page, id)
         const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
         expect(r?.budget, id).not.toBeNull()
-        expect(r?.modelUrl ?? '', id).toMatch(new RegExp(`content/buildings/${id}\\.glb$`))
+        expect(r?.modelUrl ?? '', id).toMatch(new RegExp(`content/${folder}/${id}\\.glb$`))
       }
   ```
-  Remove `'hangar'` from the registered-ids array just above, because the loop now covers it.
+  Remove `'hangar'` from the registered-ids array just above it; the loop covers it.
 
 - [ ] **Step 2: Serve the worktree on a free slot.**
   ```bash
@@ -1821,26 +2317,26 @@ Grouped because both are timber walls under `gable_roof`s with dark openings. Th
   - Set `TUNNEL_HOST` and `server.port` in `vite.config.ts` to match. **Never stage this file.**
   - Start the server in the background: `WW2AIRSIM_TUNNEL=1 npx vite --port <port>`.
   - Assert it: `curl -sS -o /dev/null -w '%{http_code}\n' https://<host>/hangar.html` must print `200`.
-  - If both slots are busy, poll every five minutes for up to an hour. If neither frees, record a `Ruling:`, go to Task 13, and mark Tier 2 NOT RUN in the handoff.
+  - If both slots are busy, poll every five minutes for up to an hour. If neither frees, record a `Ruling:`, go to Task 16, and mark Tier 2 NOT RUN in the handoff.
 
 - [ ] **Step 3: Run Tier 2.** `playwright run-server` must be up in Mark's console session on the desktop.
   ```bash
   ss -ltn | grep -q ':39001 ' || (ssh -N -L 39001:127.0.0.1:3000 ryzen &)
-  PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://<host> npx playwright test tests/e2e/hangar.spec.ts; echo "rc=$?"
+  PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://<host> npx playwright test tests/e2e/adapter.spec.ts tests/e2e/hangar.spec.ts; echo "rc=$?"
   ```
-  Expected: `rc=0`. Copy the ledger lines for all nine new ids: check 1's mask share, check 8's wireframe share and check 10's `counts`. A check-1 share outside 2-80% is a composition finding (Review Focus 5). Fix the model, never the bounds, and record a `Ruling:` with the measured share. R4 changes no scenario, so the in-game gpu-p95 run is not required. Record that as a `Ruling:`.
+  Expected: `rc=0`, including check 12's `notDrawn === 0` and check 14's tower line. Copy into the ledger, for all eleven new ids: check 1's mask share, check 8's wireframe share and check 10's `counts`. A check-1 share outside 2-80% is a composition finding (Review Focus 5). Fix the model, never the bounds, and record a `Ruling:` with the measured share. R4 and R5 change no scenario, so the in-game gpu-p95 run is not required; record that as a `Ruling:`.
 
-- [ ] **Step 4: The frozen captures.** Write the throwaway `tests/e2e/r4-checkpoint.spec.ts`, **never committed**:
+- [ ] **Step 4: The frozen captures.** Write the throwaway `tests/e2e/roster-checkpoint.spec.ts`, **never committed**:
   ```ts
-  // tests/e2e/r4-checkpoint.spec.ts -- throwaway (R4 Task 12), never committed.
+  // tests/e2e/roster-checkpoint.spec.ts -- throwaway (R4+R5 Task 15), never committed.
   import { test } from '@playwright/test'
   import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 
-  const IDS = ['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']
-  const OUT = process.env['R4_SHOTS'] ?? 'docs/handoff/r4-shots'
+  const IDS = ['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower', 'type97-chi-ha', 'willys-mb-jeep']
+  const OUT = process.env['ROSTER_SHOTS'] ?? 'docs/handoff/r4-r5-shots'
 
   test.use({ viewport: { width: 2560, height: 1440 } })
-  test('R4 checkpoint captures, turntable frozen', async ({ page }) => {
+  test('R4+R5 checkpoint captures, turntable frozen', async ({ page }) => {
     test.setTimeout(300_000)
     await page.goto('/hangar.html?bench')
     await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
@@ -1855,89 +2351,94 @@ Grouped because both are timber walls under `gable_roof`s with dark openings. Th
   })
   ```
   ```bash
-  mkdir -p docs/handoff/<run date>-r4-shots
-  R4_SHOTS=docs/handoff/<run date>-r4-shots PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://<host> npx playwright test tests/e2e/r4-checkpoint.spec.ts; echo "rc=$?"
+  mkdir -p docs/handoff/<run date>-r4-r5-shots
+  ROSTER_SHOTS=docs/handoff/<run date>-r4-r5-shots PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://<host> npx playwright test tests/e2e/roster-checkpoint.spec.ts; echo "rc=$?"
   ```
   **Read every PNG** before the handoff describes it. For each, check:
-  - the front faces the three-quarter camera's +x side
-  - it stands on the platform
+  - the front faces the three-quarter camera's +x side (the Chi-Ha's gun, the jeep's grille)
+  - it stands on the platform, neither floating nor sunk
   - AAA and coastal barrels are above their parapets
   - no face flickers or shows a dark seam
   - the silhouette is distinct from the others
+  - the jeep is one jeep, top down, with no fragment of the other
 
   Correct geometry only behind a failing measurement or a capture you have read. After a correction, rebuild, rerun Tier 2 and refreeze. Keep each PNG under 1.5 MB, downscaling with `sharp` if needed.
 
 - [ ] **Step 5: Clean up and commit.** Delete the throwaway spec. Restore `vite.config.ts` with `git checkout -- vite.config.ts`. Stop only this worktree's server.
   ```bash
   git diff --cached --stat
-  git add tests/e2e/hangar.spec.ts docs/handoff/*-r4-shots/
-  git commit -m "R4: Tier 2 check 10 covers every building's own model; frozen checkpoint captures"
+  git add tests/e2e/hangar.spec.ts docs/handoff/*-r4-r5-shots/
+  git commit -m "R4+R5: Tier 2 check 10 covers every building's and vehicle's own model; frozen checkpoint captures"
   ```
-  `git diff --cached --stat` must list neither `vite.config.ts` nor `r4-checkpoint.spec.ts`.
+  `git diff --cached --stat` must list neither `vite.config.ts` nor `roster-checkpoint.spec.ts`.
 
 ---
 
-### Task 13: Full verification and the completion ritual
+### Task 16: Full verification and the completion ritual (R4 and R5)
 
 **Files:**
-- Create: `docs/handoff/<run date>-r4-building-models.md`
+- Create: `docs/handoff/<run date>-r4-r5-roster.md`
 - Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15, "Model roster" row)
 - Modify: `README.md` (one paragraph)
-- Modify: `.superpowers/sdd/2026-09-26-r4-building-models/progress.md` (final entry)
+- Modify: `.superpowers/sdd/2026-09-27-r4-r5-roster/progress.md` (final entry)
 
 - [ ] **Step 1: Full verification on ryzen.** From the worktree root:
   ```bash
   remote-run npm run verify; rc=$?; echo "rc=$rc"
   ```
   Expected: `rc=0`.
-  - `buildingModels.test.ts`, `buildingGeometry.test.ts` and `outputs.test.ts` **run** on ryzen. They need no Blender.
-  - The Blender suites are named skips there.
-  - Compare the skip count with R3's handoff. It must rise only by `kitBuildings.test.ts`'s one suite.
+  - Since 2026-09-27 ryzen has Blender 5.0.1 and numpy, so the Blender suites and every byte-identical rebuild **run** there. Its skip count should stay at R3's final one (1, the bathymetry cache case). A higher count means a suite skipped: name it and find out why before going on.
+  - If `No module named 'numpy'` appears, ryzen lost numpy: record it, do not install anything, and rely on Step 1's nexus run for the Blender suites; say so in the handoff.
   - If a known flake appears (the `furball.test.ts` `beforeAll` timeout recorded by R1 and R2), rerun it alone. Record both results; do not call a flake a pass without the rerun.
 
-  Then run the Blender suites on nexus, serially:
+  Then the Blender suites on nexus, serially, by name:
   ```bash
   npx vitest run tests/tools/models/blender tests/tools/models/blenderEntries.test.ts --maxWorkers=1; echo "rc=$?"
   ```
-  Expected: `rc=0` with nothing skipped. Every Blender entry (the hangar, R2's ships, R3's Blender aircraft and R4's nine) rebuilds byte-identically.
+  Expected: `rc=0` with nothing skipped. Every Blender entry (the hangar, R2's ships, R3's four Blender aircraft and R4's nine) rebuilds byte-identically.
 
 - [ ] **Step 2: Nothing else moved.**
   ```bash
-  git diff main...HEAD --stat -- src/sim content/aircraft content/ships content/scenarios content/bases content/ordnance content/vehicles content/buildings/hangar.glb src/render/scene/airfield.ts src/render/scene/buildings.ts
+  git diff main...HEAD --stat -- src/sim content/aircraft content/ships content/scenarios content/bases content/ordnance content/buildings/hangar.glb src/render/scene/airfield.ts src/render/scene/buildings.ts
+  git diff main...HEAD --name-only -- content/vehicles
   ```
-  Expected: empty. Read the whole branch diff (`git diff main...HEAD --stat`). Confirm no candidate, cache, preview PNG, `vite.config.ts` edit or throwaway spec is tracked.
+  Expected: the first is empty; the second lists exactly `content/vehicles/type97-chi-ha.glb` and `content/vehicles/willys-mb-jeep.glb`. Read the whole branch diff (`git diff main...HEAD --stat`). Confirm no candidate, cache, preview PNG, probe script, `vite.config.ts` edit or throwaway spec is tracked.
 
-- [ ] **Step 3: The handoff** `docs/handoff/<run date>-r4-building-models.md`, in R2's shape:
-  - **What shipped:**
-    - the kit's building parts, and why R2's three inward parts are unused
+- [ ] **Step 3: The handoff** `docs/handoff/<run date>-r4-r5-roster.md`, in R3's shape:
+  - **What shipped, R4:**
+    - the kit's building parts, and why R2's three inward parts stay unused
     - the nine buildings, in a table: id, bytes / triangles / draw calls from each `built …` log line, footprint × height, turrets, sources status
     - the building turret-order rule
     - the harness (`buildingModels.test.ts`: footprint, budget, turrets, coplanar paint)
-    - the allowlist, now 2
-  - **Sources:** Task 1's table, summarized. Every figure still an ESTIMATE, by building, is an open item.
+  - **What shipped, R5:**
+    - the two vehicles, in a table: id, source and license, bytes / triangles / draw calls, fitted length / width / height against the citation, what was removed, `Turret1`
+    - the jeep: two in the download, which one was kept and why (Mark's choice), the yaw, and the wheelbase fit with `W`, `L` and the result
+    - the harness (`vehicleModels.test.ts`: citation, ground and center, forward proof, budget, turrets)
+    - the allowlist is deleted: done is "every Library entry is drawn"
+    - rulings V1-V5
+  - **Sources:** Task 1's table, summarized, plus the two vehicle citations. Every figure still an ESTIMATE, by building, is an open item.
   - **Tier 1:** the `remote-run` rc and counts, and the nexus Blender run's.
-  - **Tier 2:** checks 1, 8 and 10 for each new id, and the rc.
-  - **Mark's checkpoint:** the nine captures as relative links, and how to see them live. Say the slot server is stopped unless it is left running, and give the `curl` that must print `200`.
-  - **For R5:** delete `NOT_YET_DRAWN` and `CEILING`. Check 12's `notDrawn > 0` must then become `=== 0`. Vehicles register in `STATIC_MODELS.vehicle`.
+  - **Tier 2:** checks 1, 8 and 10 for each new id, check 12's `0`, and the rc.
+  - **Mark's checkpoint:** the eleven captures, each linked twice: relatively, and as `https://github.com/Coder999/ww2airsim/blob/worktree-r4-r5-roster/docs/handoff/<run date>-r4-r5-shots/<file>`, because `*.marktuttle.dev` is blocked on Mark's work network. Say how to see them live: the slot server is stopped unless left running, and give the `curl` that must print `200`.
   - **Open:**
-    - R2's `cylinder`, `tapered_box` and `turret` wind inward. Fixing them rebuilds R2's committed ship glbs, so it is Mark's call and outside R4.
-    - H3 will need pivots for `Turret1`/`Turret2` on the AAA and coastal battery. Today they are flat nodes with no `GunN` children.
+    - R2's `cylinder`, `tapered_box` and `turret` wind inward. Fixing them rebuilds R2's committed ship glbs, so it is Mark's call.
+    - H3 will need pivots for the AAA's, the coastal battery's and the Chi-Ha's `Turret1`. Today they are flat nodes with no `GunN` children.
     - Every ESTIMATE-only building.
-    - Swapping the Blender tower, AAA and hangar into `airfield.ts` stays a later decision (spec §6.3).
+    - Swapping the Blender tower, AAA and hangar into `airfield.ts`, and placing either vehicle in a scenario, stay later decisions (spec §6.3).
   - **Departures:** the ledger's `Ruling:` lines, summarized.
 
 - [ ] **Step 4: §15 and README.**
-  - In the master spec's §15 "Model roster (R0-R5 …)" row, keep the text up to R3, and replace "R4-R5 not started" (or the equivalent) with: "R4 complete <run date> on branch `worktree-r4-buildings` (not merged; merging is Mark's call): the nine remaining Library buildings are original Blender models, the kit gained its building parts, and no building is left on the not-yet-drawn allowlist, which stands at 2 (the vehicles). [plan](../plans/2026-09-26-r4-building-models.md), [handoff](../../handoff/<run date>-r4-building-models.md). R5 not started."
-  - README: after the R3 paragraph, add: "**R4 building roster landed <run date> on a branch awaiting merge:** every Library building now has an original Blender model in the Hangar; the airfields in the game keep their procedural boxes. The [handoff](docs/handoff/<run date>-r4-building-models.md) records what was measured; master spec §15 holds the status."
+  - In the master spec's §15 "Model roster (R0-R5 …)" row, keep the text through R3, and replace "R4-R5 not started" with: "R4 and R5 complete <run date>, one combined plan, on branch `worktree-r4-r5-roster` (not merged; merging is Mark's call): the nine remaining Library buildings are original Blender models, the Type 97 Chi-Ha and the Willys MB jeep are fitted CC BY downloads, and every Library entry is drawn, so the not-yet-drawn allowlist is deleted. [plan](../plans/2026-09-27-r4-r5-buildings-vehicles.md), [handoff](../../handoff/<run date>-r4-r5-roster.md)."
+  - README: after the R3 paragraph, add: "**R4 and R5 landed <run date> on a branch awaiting merge:** every Library building and vehicle now has a model in the Hangar, and nothing in the Library is left undrawn; the airfields in the game keep their procedural boxes. The [handoff](docs/handoff/<run date>-r4-r5-roster.md) records what was measured; master spec §15 holds the status."
 
-- [ ] **Step 5: The ledger.** Append the final entry: every rc, the named skips, the nine build lines, the Tier 2 rc, the commit range (`git log --oneline main..HEAD`), and "handoff written".
+- [ ] **Step 5: The ledger.** Append the final entry: every rc, the named skips, the eleven build lines, the Tier 2 rc, the commit range (`git log --oneline main..HEAD`), and "handoff written".
 
 - [ ] **Step 6: Commit, push the branch, email.**
   ```bash
   git diff HEAD --stat
-  git add docs/handoff/<run date>-r4-building-models.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md README.md
-  git commit -m "R4: handoff, §15 row, README pointer"
-  git push -u origin worktree-r4-buildings
-  python3 tools/mail-doc.py docs/handoff/<run date>-r4-building-models.md "ww2airsim: R4 building models handoff (branch, not merged)"
+  git add docs/handoff/<run date>-r4-r5-roster.md docs/superpowers/specs/2026-09-12-ww2airsim-design.md README.md
+  git commit -m "R4+R5: handoff, §15 row, README pointer"
+  git push -u origin worktree-r4-r5-roster
+  python3 tools/mail-doc.py docs/handoff/<run date>-r4-r5-roster.md "ww2airsim: R4+R5 buildings and vehicles handoff (branch, not merged)"
   ```
   The mail script prints a byte count and exits 0. **Do not re-run it with `--debug`.** Do not merge, and do not touch `main`.

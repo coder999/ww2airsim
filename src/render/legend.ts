@@ -13,6 +13,7 @@
  */
 import { BINDINGS, type BindingName } from '../input/bindings.js'
 import { MODEL_CREDITS } from './modelCreditsIndex.js'
+import { modelCreditParts } from './modelCredits.js'
 
 export type LegendRow = {
   /** What the pilot is trying to do, not what the code calls it. */
@@ -235,11 +236,11 @@ export function createLegend(root: HTMLElement): LegendHandle {
   }
   credit.append(CREDITS.before, makeLink(CREDITS.worldCover, WORLDCOVER_LICENCE_URL), CREDITS.between,
     makeLink(CREDITS.link, OSM_COPYRIGHT_URL))
-  // The models' CC BY credit (ship-models spec §10): each author links to the
-  // model, and the licence to the same deed WorldCover's link names.
+  // The models' CC BY credit (ship-models spec §10): every work links to its
+  // model (modelCreditParts), and the licence to the same deed WorldCover's link names.
   if (MODEL_CREDITS.length) {
     credit.append(document.createElement('br'), 'Models: ')
-    MODEL_CREDITS.forEach((c, i) => credit.append(...(i ? [', '] : []), makeLink(c.author, c.url)))
+    for (const p of modelCreditParts(MODEL_CREDITS)) credit.append(p.href === undefined ? p.text : makeLink(p.text, p.href))
     credit.append(' (', makeLink('CC BY 4.0', WORLDCOVER_LICENCE_URL), ')')
   }
   el.appendChild(credit)

@@ -1,0 +1,25 @@
+{
+  "id": "f6f-hellcat",
+  "input": "tools/models/cache/f6f.glb",
+  "output": "content/aircraft/f6f-hellcat.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e",
+    "uid": "d64f29e7f1c144e6a0712ea12d83a91e",
+    "author": "manilov.ap",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "yawDeg": 151.84, "origin": [1.115, 2.408, 1.048], "fit": { "extent": "span", "meters": 13.06 } },
+  "keep": [
+    { "node": "Line127", "as": "Prop", "pivot": { "point": [3.636, 2.408, 1.048], "axis": "+x" } },
+    { "node": "Group43", "as": "GearL", "pivot": { "point": [1.386, 1.991, -0.491], "axis": "+z" } },
+    { "node": "Group49", "as": "GearR", "pivot": { "point": [1.386, 1.991, 2.581], "axis": "+z" } }
+  ],
+  "split": [
+    { "name": "Tailwheel", "select": "components", "boxMin": [-4.95, 1.05, 0.9], "boxMax": [-4.2, 1.7, 1.2], "pivot": { "point": [-4.655, 1.655, 1.045], "axis": "+z" } }
+  ],
+  "remove": ["Group12", "Group40", "Group56", "Group42", "Group36", "Line01"],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "dedupMaterials": true,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 },
+  "noseNode": "Prop"
+}

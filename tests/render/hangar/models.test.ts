@@ -36,7 +36,7 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
     const hellcat = createHellcat()
     const update = vi.spyOn(hellcat, 'update')
     const asked: string[] = []
-    const entry = byId('f6f-hellcat')
+    const entry = byId('f4f-wildcat')
     const m = await loadHangarModel(entry, async (id) => { asked.push(id); return hellcat })
     expect(asked).toEqual(['wildcat'])
     expect(m!.root.position.y).toBe(entry.subject?.kind === 'aircraft' ? entry.subject.spec.gear.heightM : NaN)
@@ -49,7 +49,7 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   it('pose applies at once, without advancing the clock, so a frozen page still shows it (Tier 2 check 2)', async () => {
     const hellcat = createHellcat()
     const update = vi.spyOn(hellcat, 'update')
-    const m = await loadHangarModel(byId('f6f-hellcat'), async () => hellcat)
+    const m = await loadHangarModel(byId('f4f-wildcat'), async () => hellcat)
     m!.pose({ gearFraction: 0 })
     expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ gearFraction: 0, frameS: 0 }))
   })
@@ -78,7 +78,8 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 
   it('"Not yet in service" loads nothing', async () => {
-    expect(await loadHangarModel(catalog.find((e) => e.subject === null)!)).toBeNull()
+    // No spec and no model of its own (R3: the first spec-less entry, the Corsair, gained a model).
+    expect(await loadHangarModel(catalog.find((e) => e.subject === null && e.library.model === undefined)!)).toBeNull()
   })
 
   it('the flat field is height 0 everywhere', () => {
@@ -105,7 +106,7 @@ describe('the ordnance category (O1, Task 8)', () => {
 
   it('an aircraft model reports one mount point per rack and rail of its spec; the Zero, with no stores, reports none', async () => {
     // createHellcat() hangs meshes named with the same mount ids content uses (Task 6's HELLCAT_MOUNTS).
-    const hellcatEntry = byId('f6f-hellcat')
+    const hellcatEntry = byId('f4f-wildcat')
     const m = await loadHangarModel(hellcatEntry, async () => createHellcat())
     const spec = hellcatEntry.subject?.kind === 'aircraft' ? hellcatEntry.subject.spec : null
     expect(m!.mounts().map((p) => p.id)).toEqual([...spec!.stores!.racks, ...spec!.stores!.rails].map((r) => r.id))
@@ -138,8 +139,8 @@ describe('stores on the bench', () => {
   it('toggles hand setStores full racks or empty ones', async () => {
     const hellcat = createHellcat()
     const setStores = vi.spyOn(hellcat, 'setStores')
-    const m = await loadHangarModel(byId('f6f-hellcat'), async () => hellcat)
-    const stores = loadAircraftSpec('f6f-hellcat').stores!
+    const m = await loadHangarModel(byId('f4f-wildcat'), async () => hellcat)
+    const stores = loadAircraftSpec('f4f-wildcat').stores!
     m!.pose({ bombs: false })
     expect(setStores).toHaveBeenLastCalledWith(0, stores.rails.length)
     m!.pose({ rockets: false, bombs: true })
@@ -147,7 +148,7 @@ describe('stores on the bench', () => {
   })
 
   it('an aircraft reports what its probe found; a ship reports nothing', async () => {
-    const m = await loadHangarModel(byId('f6f-hellcat'), async () => createHellcat())
+    const m = await loadHangarModel(byId('f4f-wildcat'), async () => createHellcat())
     expect(m!.articulated.length).toBeGreaterThan(0) // the stub's propeller
     const s = await loadHangarModel(byId('essex-cv'), undefined, async (spec) => createShipMesh(spec))
     expect(s!.articulated).toEqual([])
@@ -183,6 +184,17 @@ describe("an entry's own model (R1)", () => {
     expect(new Box3().setFromObject(m!.root).min.y).toBeCloseTo(0, 6)
     expect(m!.mounts()).toEqual([])
     expect(m!.parts.find((p) => p.id === 'prop')!.modeled).toBe(true)
+  })
+
+  it("the Hellcat, with a spec and its own model, draws the model with no stores, and its card keeps the spec (R3, P3)", async () => {
+    const hellcat = byId('f6f-hellcat')
+    expect(hellcat.subject?.kind).toBe('aircraft')
+    expect(hellcat.library.model).toEqual({ kind: 'aircraft', id: 'f6f-hellcat' })
+    const asked: [string, unknown][] = []
+    const m = await loadHangarModel(hellcat, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
+    expect(asked).toEqual([['f6f-hellcat', undefined]])
+    expect(m!.mounts()).toEqual([])
+    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('wildcat') // the game still draws the Wildcat
   })
 
   it('a ship model and a vehicle model go through the display loader too', async () => {

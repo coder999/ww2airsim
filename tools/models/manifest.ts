@@ -130,6 +130,9 @@ export const ModelEntrySchema = z.object({
     forward: axis,
     up: axis,
     origin: vec3,
+    /** R3: turns the whole source about `up` by this many degrees first (a showcase pose), so
+     *  every other coordinate in the entry is in the turned frame (`models:inspect -- <glb> --yaw <deg>`). */
+    yawDeg: finite.refine((v) => v !== 0 && v > -180 && v <= 180, { message: 'must be nonzero and in (-180, 180]' }).optional(),
     fit: z.object({ extent: z.enum(['span', 'length']), meters: positive }).strict(),
   }).strict().optional(),
   keep: z.array(KeepSchema).default([]),
@@ -145,6 +148,8 @@ export const ModelEntrySchema = z.object({
     format: z.literal('webp'),
   }).strict(),
   opaque: z.boolean().default(true),
+  /** R3: merge identical textures and materials before join (a download with one material per part). */
+  dedupMaterials: z.literal(true).optional(),
   budget: z.object({ maxBytes: positiveInt, maxTriangles: positiveInt, maxDrawCalls: positiveInt }).strict(),
   /** An output node whose center must be the scene's max-X point. */
   noseNode: z.string().min(1).optional(),

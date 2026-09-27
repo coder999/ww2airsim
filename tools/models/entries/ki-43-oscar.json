@@ -1,0 +1,23 @@
+{
+  "id": "ki-43-oscar",
+  "input": "tools/models/cache/ki43.glb",
+  "output": "content/aircraft/ki-43-oscar.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6",
+    "uid": "abdc04cc7afb4aeba0eaac6c5079d6e6",
+    "author": "manilov.ap",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "yawDeg": 148.7, "origin": [1.055, 0.0075, 0.664], "fit": { "extent": "span", "meters": 10.84 } },
+  "split": [
+    { "name": "Prop", "select": "components", "boxMin": [2.6, -1.5, -0.8], "boxMax": [3.2, 1.5, 2.15], "pivot": { "point": [2.9, 0.0075, 0.664], "axis": "+x" } },
+    { "name": "GearL", "select": "components", "boxMin": [1.05, -1.9, -1.2], "boxMax": [1.75, -0.25, -0.8], "pivot": { "point": [1.324, -0.305, -0.973], "axis": "+x" } },
+    { "name": "GearR", "select": "components", "boxMin": [1.05, -1.9, 2.12], "boxMax": [1.75, -0.25, 2.52], "pivot": { "point": [1.322, -0.306, 2.297], "axis": "+x" } }
+  ],
+  "remove": ["kabina01", "kabina02", "Capsule01", "Capsule02"],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "dedupMaterials": true,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 },
+  "noseNode": "Prop"
+}
