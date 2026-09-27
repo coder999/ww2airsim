@@ -1,7 +1,7 @@
 // tests/render/modelCredits.test.ts
 import { describe, expect, it } from 'vitest'
 import { loadModelEntries } from '../../tools/models/manifest.js'
-import { modelCredits, modelCreditsText } from '../../src/render/modelCredits.js'
+import { modelCreditParts, modelCredits, modelCreditsText } from '../../src/render/modelCredits.js'
 import { MODEL_CREDITS } from '../../src/render/modelCreditsIndex.js'
 
 const src = (url: string, author: string, license = 'CC-BY-4.0') => ({ source: { url, author, license } })
@@ -21,7 +21,21 @@ describe('the models credit line (ship-models spec §10)', () => {
     }
   })
 
-  it('reads, after R2, as one credit per CC BY work in entry-file order (an author with four works is credited four times, each linked to its own work)', () => {
-    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: KTKloss, KTKloss, JZHU, KTKloss, everlasting17th, AlanTinka, rojatsu, KTKloss (CC BY 4.0)')
+  it('names an author once, in first-appearance order; several works become numbered links, one per work (Mark, 2026-09-27)', () => {
+    const credits = modelCredits([src('https://a1', 'A'), src('https://b', 'B'), src('https://a2', 'A')])
+    expect(modelCreditParts(credits)).toEqual([
+      { text: 'A' }, { text: ' (' }, { text: '1', href: 'https://a1' }, { text: ' ' }, { text: '2', href: 'https://a2' }, { text: ')' },
+      { text: ', ' }, { text: 'B', href: 'https://b' },
+    ])
+    expect(modelCreditsText(credits)).toBe('Models: A (1 2), B (CC BY 4.0)')
+  })
+
+  it('every CC BY work keeps its own link on the page', () => {
+    const hrefs = modelCreditParts(MODEL_CREDITS).flatMap((p) => (p.href === undefined ? [] : [p.href]))
+    expect(hrefs.sort()).toEqual(MODEL_CREDITS.map((c) => c.url).sort())
+  })
+
+  it('reads, after R2, with KTKloss named once for four works', () => {
+    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: KTKloss (1 2 3 4), JZHU, everlasting17th, AlanTinka, rojatsu (CC BY 4.0)')
   })
 })

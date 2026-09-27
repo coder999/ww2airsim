@@ -159,12 +159,11 @@ Summarized from the ledger's `Ruling:` lines
 
 ## Open items
 
-- **The credit line now reads `Models: KTKloss, KTKloss, JZHU, KTKloss,
-  everlasting17th, AlanTinka, rojatsu, KTKloss (CC BY 4.0)`.** That is by
-  design: one credit per work, each author name linked to its own model,
-  which is what CC BY §3(a) asks for. It reads oddly. One alternative is
-  one name per author with several links ("KTKloss (4)"). That is a UI
-  choice for Mark, so it is not changed here.
+- **The credit line** first read `KTKloss, KTKloss, JZHU, KTKloss, ...`
+  (one credit per work). Mark chose numbered links on 2026-09-27, so it now
+  reads `Models: KTKloss (1 2 3 4), JZHU, everlasting17th, AlanTinka,
+  rojatsu (CC BY 4.0)`. Every work keeps its own link (`modelCreditParts`),
+  checked on the reference GPU.
 - **Casablanca reuses the Essex `trapZone` and paddles choices**, as the
   plan defaulted. The ledger records no departure, but nothing flies a CVE
   approach yet to test them.
