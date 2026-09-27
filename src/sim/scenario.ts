@@ -71,8 +71,15 @@ const PilotObject = z.object({
   target: id.optional(),
   skill: z.enum(['veteran', 'green']).default('green'),
   ingress: IngressObject.optional(),
+  /** 7f spec §1: a same-side aircraft to fly formation on; the player may lead. */
+  leader: id.optional(),
+  slot: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
 }).strict().refine((p) => p.target === undefined || p.ingress === undefined, {
   message: "ingress excludes target: a raider's target is chosen, never fixed", path: ['ingress'],
+}).refine((p) => p.leader === undefined || (p.target === undefined && p.ingress === undefined), {
+  message: 'leader excludes target and ingress: a wingman goes where its leader goes', path: ['leader'],
+}).refine((p) => (p.leader === undefined) === (p.slot === undefined), {
+  message: 'leader and slot go together', path: ['slot'],
 })
 
 /** Plan 7e (spec §4.1). Absent: the player is allied, every other aircraft
@@ -87,14 +94,17 @@ function pilotAssignmentFrom(
 ): PilotAssignment | null {
   if (pilot === undefined) return null
   const ingress = pilot.ingress === undefined ? {} : { ingress: ingressOrdersFrom(pilot.ingress, airfields) }
+  const orders = pilot.leader === undefined || pilot.slot === undefined ? undefined : { leader: pilot.leader, slot: pilot.slot }
+  const mode = orders !== undefined ? 'formation' : pilot.ingress === undefined ? 'engage' : 'ingress'
   return {
     target: pilot.target ?? null,
     ...ingress,
+    ...(orders === undefined ? {} : { formation: orders }),
     skill: pilot.skill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL,
     // Immediately overwritten at the first rescore (nextRescoreS: 0
     // guarantees tick 1 triggers one). The noise cursor is seeded from the
     // entity id (7e spec §4.5 item 2), not a shared constant.
-    decision: initialDecision(id, pilot.ingress === undefined ? 'engage' : 'ingress'),
+    decision: initialDecision(id, mode),
   }
 }
 
@@ -220,6 +230,61 @@ const ScenarioShape = z.object({
   history: HistoryObject.optional(),
 }).strict()
 
+type AnyAircraft = z.infer<typeof ScenarioAircraftObject>
+
+/**
+ * 7f spec §1: every leader rule, reported by name, for the starting aircraft
+ * and every held group. A starting pilot may name a starting aircraft as
+ * leader; a held pilot, a starting aircraft or one in its own group. A slot
+ * is "unique among that leader's wingmen" across the whole scenario, so one
+ * `taken` set spans the starting list and every held group: a starting and a
+ * held wingman of the same leader cannot share a slot, nor can two held
+ * groups' (final review I2, 2026-09-27). An entry already rejected for its
+ * leader (self, unknown, cross-side, chain) takes no slot, so it cannot
+ * cause a second, spurious "taken".
+ */
+function checkFormations(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): void {
+  const issue = (message: string, path: (string | number)[]): void => {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path })
+  }
+  const taken = new Set<string>()
+  checkLeaders(s, s.aircraft.map((a, i) => [a, ['aircraft', i]] as const), new Map(s.aircraft.map((a) => [a.id, a])),
+    'pilot leader must name a starting aircraft', issue, taken)
+  for (const [gi, g] of (s.heldGroups ?? []).entries()) {
+    const visible = new Map([...s.aircraft, ...(g.aircraft ?? [])].map((a) => [a.id, a]))
+    checkLeaders(s, (g.aircraft ?? []).map((a, ai) => [a, ['heldGroups', gi, 'aircraft', ai]] as const), visible,
+      "a held pilot's leader must be a starting aircraft or one in its own group", issue, taken)
+  }
+}
+
+/** One list's leader rules. `visible` is what this list's pilots may name
+ *  as leader; `at` locates each entry; `taken` is `checkFormations`'
+ *  scenario-wide slot set, added to here. */
+function checkLeaders(
+  s: z.infer<typeof ScenarioShape>, list: readonly (readonly [AnyAircraft, (string | number)[]])[],
+  visible: ReadonlyMap<string, AnyAircraft>, unknownMessage: string,
+  issue: (message: string, path: (string | number)[]) => void, taken: Set<string>,
+): void {
+  for (const [a, at] of list) {
+    const leader = a.pilot?.leader
+    if (leader === undefined) continue
+    const path = [...at, 'pilot', 'leader']
+    const named = visible.get(leader)
+    const invalid = leader === a.id ? 'a pilot cannot lead itself'
+      : named === undefined ? unknownMessage
+      : sideOf(s, named) !== sideOf(s, a) ? 'pilot leader must be on the same side'
+      : named.pilot?.leader !== undefined ? `leader "${leader}" cannot itself be a wingman: no chains`
+      : null
+    if (invalid !== null) {
+      issue(invalid, path)
+      continue
+    }
+    const key = `${leader}#${a.pilot!.slot}`
+    if (taken.has(key)) issue(`slot ${a.pilot!.slot} of leader "${leader}" is taken`, [...at, 'pilot', 'slot'])
+    taken.add(key)
+  }
+}
+
 const ScenarioObject = ScenarioShape
   .refine((s) => (s.enemyAirfields ?? []).every((e) => s.airfields.includes(e)), {
     message: 'every enemyAirfields entry must be one of airfields', path: ['enemyAirfields'],
@@ -258,6 +323,7 @@ const ScenarioObject = ScenarioShape
       }
     }
   })
+  .superRefine(checkFormations)
   .superRefine(checkMission)
 
 export type Scenario = z.infer<typeof ScenarioObject>

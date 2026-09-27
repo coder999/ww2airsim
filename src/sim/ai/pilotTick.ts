@@ -13,6 +13,7 @@ import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
+import { COVER_LATCH_S, formationControls, leaderAirborne, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { selectTarget, type TargetingView } from './targeting.js'
 
@@ -36,10 +37,16 @@ export type PilotTickContext = {
  *  any range (ruling W3) -- and is never replaced; otherwise the scorer picks. */
 function chooseTarget<M>(
   a: AircraftEntity<M>, pilot: PilotAssignment, current: string | null, view: TargetingView<M>, nowS: number,
+  leader: AircraftEntity<M> | null,
 ): string | null {
   if (pilot.target !== null) {
     const fixed = view.snapshot.find((c) => c.id === pilot.target)
     return fixed === undefined || isAircraftDown(view.combat, fixed) ? null : fixed.id
+  }
+  // 7f spec §4: a wingman fights what threatens its leader or itself, and
+  // passes the leader so 7e's LEADER_THREAT_BONUS_M applies.
+  if (leader !== null) {
+    return selectTarget(a, view, { current, leaderId: leader.id, accept: wingmanAccepts(a, leader, view.combat[a.id]!, current, nowS) })
   }
   // An ingress pilot fights only what attacks it or comes close (§4.5).
   const accept = pilot.ingress === undefined ? undefined : ingressAccepts(a, view.combat[a.id]!, current, nowS)
@@ -57,20 +64,33 @@ function chooseTarget<M>(
  * 1. Validity: a target that is down or gone forces a choice NOW (ruling W4).
  * 2. Choice, on rescore or when forced; a changed target clears the latch.
  * 3. With a target, 7b/7c's rescore: intent, perception, named maneuver.
- * 4. Flight: the §3.2 safety override first, then the maneuver, or the
- *    loiter when there is no target.
+ * 4. Flight: the §3.2 safety override first, then the maneuver, or, for a
+ *    wingman with no target, its station (7f); or the loiter when there is
+ *    no target.
  */
 export function pilotTick<M>(
   a: AircraftEntity<M>,
   snapshot: readonly AircraftEntity<M>[],
   ctx: PilotTickContext,
 ): AircraftEntity<M> {
-  const pilot = a.pilot
+  let pilot = a.pilot
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
   const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides }
+  // 7f spec §3-4: a wingman's leader, from the start-of-tick snapshot. A
+  // down or missing leader hands the wingman its own orders (spec §4).
+  let leader: AircraftEntity<M> | null = null
+  if (pilot.formation !== undefined) {
+    const l = snapshot.find((c) => c.id === pilot!.formation!.leader)
+    if (l === undefined || isAircraftDown(ctx.combat.aircraft, l)) pilot = leaderlessPilot(pilot, l, ctx.nowS)
+    else leader = l
+  }
+  // A leader still on its deck or runway is loitered on, not formed on (spec §4).
+  const leaderFlying = leader !== null && leaderAirborne(leader, ctx.terrain, ctx.decks)
   let decision: PilotDecisionState = pilot.decision
+  // 7f spec §4: trail cover holds COVER_LATCH_S past the leader's last shot or engagement.
+  if (leader !== null && leaderIsFighting(leader)) decision = { ...decision, coverUntilS: ctx.nowS + COVER_LATCH_S }
   // A static target is checked from the assignment itself, so a pilot whose
   // decision has not recorded it yet (a hand-built one) still flies it.
   const heldId = pilot.target ?? decision.targetId
@@ -81,11 +101,13 @@ export function pilotTick<M>(
     decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
   }
   if (lost || ctx.nowS >= decision.nextRescoreS) {
-    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS)
+    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
     if (chosen !== decision.targetId) {
       decision = { ...decision, targetId: chosen, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     }
-    const mode = chosen !== null ? 'engage' : pilot.ingress !== undefined ? 'ingress' : 'loiter'
+    const mode = chosen !== null ? 'engage'
+      : leader !== null && leaderFlying ? 'formation'
+      : pilot.ingress !== undefined ? 'ingress' : 'loiter'
     decision = {
       ...decision, mode,
       // Latched on entering a loiter, so it holds what it had, not a drift.
@@ -142,6 +164,12 @@ export function pilotTick<M>(
       },
       controls,
     }
+  }
+  // 7f spec §3: on station, by the one law that also rejoins.
+  if (target === null && decision.mode === 'formation' && leader !== null && leaderFlying) {
+    const base = formationControls(a, leader, pilot.formation!.slot, (decision.coverUntilS ?? 0) > ctx.nowS)
+    const { controls, cursor } = finishControls(a, base, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
+    return { ...a, pilot: { ...pilot, decision: { ...decision, safety: 'none', latch: null, noiseCursor: cursor } }, controls }
   }
   if (target === null) {
     const orders = pilot.ingress
