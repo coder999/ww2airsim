@@ -1,0 +1,16 @@
+{
+  "id": "yamato-bb",
+  "name": "Yamato-class battleship",
+  "role": "battleship",
+  "lengthM": 263.0,
+  "beamM": 38.9,
+  "deckWidthM": 38.9,
+  "deckHeightM": 12.0,
+  "maxSpeedMps": 14.4,
+  "turnRateRadPerS": 0.01309,
+  "hullHp": 1200,
+  "view": { "model": "yamato-bb" },
+  "reference": {
+    "source": "lengthM (263 m overall) and beamM (38.9 m) from the English Wikipedia article 'Yamato-class battleship', read 2026-09-26. U.S. Naval Technical Mission to Japan reports Yamato and Musashi at 63,000 tons standard, 73,000 tons full load, and 28 kn; maxSpeedMps uses that primary postwar report (converted with 1 kn = 0.514444 m/s), read 2026-09-26. deckHeightM and turnRateRadPerS (0.75 deg/s) are ESTIMATES. hullHp (ten 1,000 lb bombs) is a gameplay choice."
+  }
+}

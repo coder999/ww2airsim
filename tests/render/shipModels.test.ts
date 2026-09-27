@@ -27,7 +27,7 @@ describe('the ship model registry (ship-models spec §3.1)', () => {
   })
 
   it('an unregistered or prototype-named id throws, naming the registry', () => {
-    expect(() => shipModelUrlFor('nope')).toThrow(/no ship model "nope" \(registered: essex-cv, fletcher-dd, type-b-maru\)/)
+    expect(() => shipModelUrlFor('nope')).toThrow(new RegExp(`no ship model "nope" \\(registered: ${Object.keys(SHIP_MODELS).join(', ')}\\)`))
     expect(() => shipModelUrlFor('constructor')).toThrow(/no ship model "constructor"/)
   })
 })
