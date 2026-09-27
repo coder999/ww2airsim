@@ -135,8 +135,11 @@ describe.skipIf(terrain === null)('Combat Air Patrol, headless (spec §5)', () =
     expect(spawnTick(w, 'wave-2')).toBe(ticksFor(240))
     w = hold(destroyNow(w, ['raid-3', 'raid-4']), ON_STATION, 1)
     expect(progressOf(w, 'raid')).toMatchObject({ status: 'complete', count: 4 })
-    expect(progressOf(w, 'shield').status).toBe('active')
     expect(radioMessages(w.mission!).map((e) => e.text)).toContain(SPLASHED)
+    // Hold beyond the natural 384.6 s breach: the kills, not an early trap,
+    // must be what keeps the shield active.
+    w = holdTo(w, ON_STATION, 420)
+    expect(progressOf(w, 'shield').status).toBe('active')
     w = carrierApproach(w, 'cv-1')
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out).toMatchObject({ result: 'success', badge: { id: 'combat-air-patrol' }, reasons: [] })

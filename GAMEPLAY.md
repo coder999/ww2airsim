@@ -273,7 +273,7 @@ Eight, with original names rather than the 1991 game's mission list:
 3. **Airfield Strike** — bomb a coastal airstrip
 4. **Escort** — protect a B-17 formation
 5. **Flattop Hunt** — strike an enemy carrier
-6. **Combat Air Patrol** — fighter sweep
+6. **Combat Air Patrol** — hold CAP over the carrier and turn back the raids (missions spec §4.4)
 7. **Kamikaze Watch** — defend the fleet from massed attack
 8. **Single Combat** — 1v1 against a veteran Ki-84
 
@@ -285,10 +285,10 @@ eight.
 **Shipped today** (`content/scenarios/`, checked 2026-09-27) are the
 sandbox and test-range scenarios the engineering plans needed —
 `free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus three real missions: **Deck Quals** ("Carrier Qualification"),
-**Airfield Strike** and **Convoy Strike**. Each declares real objectives,
-carries a badge, a briefing and a cited history (M3, 2026-09-27). The
-verdict path is proven headless, with staged approaches and injected hits;
+others — plus four real missions: **Deck Quals** ("Carrier Qualification"),
+**Airfield Strike**, **Convoy Strike** and **Combat Air Patrol**. Each declares real objectives,
+carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
+verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (Tier 2
 checks the briefing, objective line, radio, chart and debrief). Full status and open items are in
 master spec §15.

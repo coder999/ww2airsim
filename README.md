@@ -202,6 +202,8 @@ holds the status.
 
 **Three missions shipped (M3, 2026-09-27), on the same branch, not yet merged:** Deck Quals ("Carrier Qualification"), Airfield Strike and Convoy Strike each declare real objectives, carry a badge, a briefing and a cited, verified history. The verdict path is proven headless, with staged approaches and injected hits; the intermediate trap and respot are not exercised in the browser (Tier 2 checks the briefing, objective line, radio, chart and debrief). See the [handoff](docs/handoff/2026-09-27-m3-missions.md); master spec §15 holds the status.
 
+**Combat Air Patrol completes the missions sub-track (M4, 2026-09-27), on the same branch, not yet merged:** hold station over the Essex, turn back two inbound Zero waves before they reach the carrier, then recover aboard. Headless tests cover success, breach, accumulated station time and ditching; two reference-GPU runs cover the briefing, live counter, radio, held spawn, chart and debrief. See the [handoff](docs/handoff/2026-09-27-m4-combat-air-patrol.md); master spec §15 holds the status and open items.
+
 **Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
 slot now shows a rotating, heading-up sweep with fading contact dots and a
 `Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own

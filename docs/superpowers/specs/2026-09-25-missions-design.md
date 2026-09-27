@@ -171,7 +171,7 @@ mission editor, a campaign (§6 is an outline only), multiplayer.
 
 Each is a new `content/scenarios/<id>.json`; the existing range scenarios
 are unchanged. Opponents are Hellcats (rendered as Wildcats) until Lane B's
-Zero lands, then re-pointed at `a6m-zero` by a content edit.
+Zero lands, then re-pointed at `a6m2-zero` by a content edit.
 
 1. **Deck Quals** (`deck-quals-mission`, training). From the Essex:
    `takeoff` from `cv-1` → `reach` a downwind gate abeam the carrier →
