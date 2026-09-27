@@ -172,17 +172,29 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test("5. every aircraft is lit sanely: in-mask luminance within 0.5x to 1.5x of the Wildcat's", async ({ page }) => {
-    const ref = await view(page, 'f4f-wildcat', 'three-quarter')
-    const refLum = (await masks(page, ref.empty, [ref.model])).luminance[0]!
+  test("5. every aircraft is lit sanely: its lit/unlit luminance within 0.5x to 1.5x of the Wildcat's", async ({ page }) => {
+    // Lit over unlit, each in the model's own paint, so the paint cancels (R3, 2026-09-27): the old
+    // lit-luminance ratio read a correctly lit bare-metal B-17 at 3.10x and the pale G4M at 3.56x
+    // the blue Wildcat. What is left fails an emissive, black or inside-out material all the same.
+    const response = async (id: string): Promise<number> => {
+      const v = await view(page, id, 'three-quarter')
+      await page.evaluate(() => (window as HangarWindow).__hangar!.setUnlit(true))
+      const flat = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.setUnlit(false))
+      const [lit, unlit] = (await masks(page, v.empty, [v.model, flat])).luminance
+      return lit! / unlit!
+    }
+    const ref = await response('f4f-wildcat')
     for (const id of await entries(page)) {
       await select(page, id)
       if ((await current(page)).kind !== 'aircraft') continue
-      const v = await view(page, id, 'three-quarter')
-      const lum = (await masks(page, v.empty, [v.model])).luminance[0]!
-      expect(lum / refLum, `${id} luminance ratio`).toBeGreaterThanOrEqual(0.5)
-      expect(lum / refLum, `${id} luminance ratio`).toBeLessThanOrEqual(1.5)
+      const r = (await response(id)) / ref
+      console.log(`lighting ${id}: ${r.toFixed(3)}x the Wildcat's lit/unlit response`)
+      // Soft, so one aircraft out of band does not hide the others' ratios (R3).
+      expect.soft(r, `${id} lighting ratio`).toBeGreaterThanOrEqual(0.5)
+      expect.soft(r, `${id} lighting ratio`).toBeLessThanOrEqual(1.5)
     }
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
   test('6. every modeled stores part shows: stores on and off differ (front view)', async ({ page }) => {
@@ -202,6 +214,11 @@ test.describe('the Hangar', () => {
     for (const id of await entries(page)) {
       await select(page, id)
       if (!hasPart(await current(page), 'gear')) continue
+      // A display-only aircraft (no spec) has no gear travel, so no Cycle button (R3 Review Focus 3).
+      if (((await page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`).textContent()) ?? '').includes('(not in the game yet)')) {
+        await expect(page.getByRole('button', { name: 'Cycle landing gear' })).toHaveCount(0)
+        continue
+      }
       const { empty, model: down } = await view(page, id, 'front', { gearFraction: 1 })
       await pose(page, { gearFraction: 0 })
       const up = await shot(page)
@@ -220,6 +237,8 @@ test.describe('the Hangar', () => {
   })
 
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
+    // Three captures per Library entry: R3's eleven aircraft took it past the 60 s default (26 of 28 entries, 2026-09-27).
+    test.setTimeout(180_000)
     const ids = await entries(page)
     for (const id of ids) {
       const { empty, model: solid } = await view(page, id, 'three-quarter')
@@ -262,14 +281,19 @@ test.describe('the Hangar', () => {
         expect(await page.locator('[data-over]').getAttribute('data-over'), id).toBe('false')
       }
     }
-    // The registered models have budgets; the Zero draws as the Wildcat.
-    for (const id of ['f4f-wildcat', 'essex-cv', 'fletcher-dd', 'type-b-maru', 'hangar']) {
+    // The registered models have budgets (R3: every aircraft draws its own model).
+    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'essex-cv', 'fletcher-dd', 'type-b-maru', 'hangar']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
     // R1: the hangar is drawn from its Blender model, not drawBuilding's boxes.
     await select(page, 'hangar')
     expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.modelUrl ?? '').toMatch(/content\/buildings\/hangar\.glb$/)
+    // R3: the Zero and the Hellcat draw their own glbs in the Hangar, not the Wildcat's.
+    for (const [id, glb] of [['a6m-zero', 'a6m2-zero'], ['f6f-hellcat', 'f6f-hellcat']] as const) {
+      await select(page, id)
+      expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.modelUrl ?? '', id).toMatch(new RegExp(`content/aircraft/${glb}\\.glb$`))
+    }
   })
 
   test('12. the list marks exactly the entries it cannot draw, and every other one is drawn (R1)', async ({ page }) => {
@@ -297,6 +321,21 @@ test.describe('the Hangar', () => {
       console.log(`check 11 ${preset}: ${mounts.map((m, i) => `${m.id} ${hits[i]}`).join(', ')}`)
       mounts.forEach((m, i) => expect(hits[i], `${preset} ${m.id}`).toBeGreaterThanOrEqual(0))
     }
+  })
+
+  test("13. every rigged aircraft's pivot gizmos are its named props and gear legs (R3)", async ({ page }) => {
+    await setDebug(page, 'gizmos', true)
+    for (const id of await entries(page)) {
+      await select(page, id)
+      const c = await current(page)
+      if (c.kind !== 'aircraft' || id === 'f4f-wildcat') continue
+      const nodes = await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())
+      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel)$/)
+      expect(nodes.some((n) => n.startsWith('Prop')), `${id} prop gizmo`).toBe(hasPart(c, 'prop'))
+      expect(nodes.some((n) => /^(Gear|Tailwheel)/.test(n)), `${id} gear gizmo`).toBe(hasPart(c, 'gear'))
+    }
+    await setDebug(page, 'gizmos', false)
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 })
 

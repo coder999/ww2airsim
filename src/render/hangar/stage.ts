@@ -1,5 +1,5 @@
 // src/render/hangar/stage.ts
-import { AxesHelper, Box3, Color, GridHelper, Group, LineBasicMaterial, Mesh, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, Sphere, Vector3, type Object3D } from 'three'
+import { AxesHelper, Box3, Color, GridHelper, Group, LineBasicMaterial, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, Sphere, Vector3, type Object3D } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { applySun, createLighting, SUN_DIRECTION } from '../scene/lighting.js'
@@ -26,6 +26,34 @@ export function applyWireframe(root: Object3D, on: boolean): void {
       m.wireframe = on
       // WebGPU uploads the wireframe index only when the material rebuilds.
       m.needsUpdate = true
+    }
+  })
+}
+
+const litMaterials = new WeakMap<Mesh, Mesh['material']>()
+/** Every mesh under `root` drawn with its own base color, map and alpha but no
+ *  lighting, or back to the very materials it had. Tier 2 check 5 divides a lit
+ *  frame by this one, so paint cancels and only the response to light is left:
+ *  a bare-metal B-17 is 3.1x a blue Wildcat's luminance lit (R3, 2026-09-27)
+ *  and that says nothing about whether it is lit sanely. */
+export function applyUnlit(root: Object3D, on: boolean): void {
+  const unlit = (m: Mesh['material'] & object): MeshBasicMaterial => {
+    const src = m as MeshStandardMaterial
+    return new MeshBasicMaterial({
+      color: src.color ?? new Color(1, 1, 1), map: src.map ?? null, vertexColors: src.vertexColors,
+      transparent: src.transparent, opacity: src.opacity, side: src.side, alphaTest: src.alphaTest,
+    })
+  }
+  root.traverse((o) => {
+    if (!(o instanceof Mesh)) return
+    const saved = litMaterials.get(o)
+    if (on && !saved) {
+      litMaterials.set(o, o.material)
+      o.material = Array.isArray(o.material) ? o.material.map(unlit) : unlit(o.material)
+    } else if (!on && saved) {
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose()
+      o.material = saved
+      litMaterials.delete(o)
     }
   })
 }
@@ -71,6 +99,8 @@ export interface HangarStage {
   setModelVisible(visible: boolean): void
   /** Wireframe on every model shown from now on, the current one included (H2). */
   setWireframe(on: boolean): void
+  /** The current model unlit (its own paint, no lights), or lit again; show() relights (Tier 2 check 5, R3). */
+  setUnlit(on: boolean): void
   /** Pivot gizmos on these nodes; null or [] = off. show() clears them (H2). */
   setGizmos(nodes: readonly Object3D[] | null): void
   /** The turntable, on or off, without freezing anything else (H2). */
@@ -163,6 +193,7 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       if (current) {
         // Off before it goes: its materials are shared with the cached source.
         applyWireframe(current, false)
+        applyUnlit(current, false)
         holder.remove(current)
       }
       setGizmos(null)
@@ -193,6 +224,9 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
     setModelVisible(visible): void {
       holder.visible = visible
       if (gizmos) gizmos.visible = visible
+    },
+    setUnlit(on): void {
+      if (current) applyUnlit(current, on)
     },
     setWireframe(on): void {
       wireframe = on

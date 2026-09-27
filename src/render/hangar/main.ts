@@ -131,6 +131,7 @@ async function boot(): Promise<void> {
     camera: (p) => stage.setPreset(p),
     freeze: () => { frozen = true; debug.turntable = false; benchUi?.setDebug('turntable', false); stage.freeze() },
     setModelVisible: (v) => stage.setModelVisible(v),
+    setUnlit: (on) => stage.setUnlit(on),
     current: () => (selected ? { id: selected.library.id, kind: selected.library.kind, parts: model?.parts ?? [] } : null),
     cycle: (part) => controller.startCycle(part),
     bench: () => controller.state(),
