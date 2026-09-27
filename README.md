@@ -105,6 +105,13 @@ is the barrel-roof hangar. The
 [handoff](docs/handoff/2026-09-26-r1-roster-pipeline.md) records what was
 measured; master spec §15 holds the status.
 
+**R2 ship roster complete 2026-09-26, on branch `worktree-r2-ships`
+(not merged):** every ship in the Library now has a fitted model and a
+sourced `ShipSpec`. That is four licensed models and three original Blender
+models; none is placed in a scenario yet. The
+[handoff](docs/handoff/2026-09-26-r2-ship-models.md) records what was
+measured and what is open; master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
