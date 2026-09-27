@@ -16,7 +16,7 @@ import type { CountsReport } from './budgets.js'
  */
 export interface HangarHooks {
   readonly ready: Promise<void>
-  /** Library ids that have a spec, and therefore a model. */
+  /** Library ids the Hangar can draw: those with a spec, or with a model of their own (R1). */
   entries(): string[]
   select(id: string): Promise<void>
   pose(p: PartPose): void

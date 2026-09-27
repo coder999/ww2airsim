@@ -16,9 +16,40 @@ export type CatalogSubject =
 
 export interface CatalogEntry {
   readonly library: LibraryEntry
-  /** null = "Not yet in service": no spec, no model, no figures (§4.3). */
+  /** null = no sim spec: no figures. Drawable anyway if the entry has its own `model` (R1). */
   readonly subject: CatalogSubject | null
 }
+
+/** How an entry stands in the Library (model-roster spec §4.3). */
+export type Availability = 'in-game' | 'display-only' | 'not-drawn'
+
+export function availability(e: CatalogEntry): Availability {
+  if (e.subject !== null) return 'in-game'
+  return e.library.model !== undefined ? 'display-only' : 'not-drawn'
+}
+
+/** The Hangar can draw it: a spec, or a model of its own. */
+export const drawable = (e: CatalogEntry): boolean => availability(e) !== 'not-drawn'
+
+const STATUS: Readonly<Record<Availability, string | null>> = {
+  'in-game': null,
+  'display-only': 'not in the game yet',
+  'not-drawn': 'not yet in service',
+}
+
+/** The list button's text: the name, and the status of anything not in the game. */
+export function listLabel(e: CatalogEntry): string {
+  const s = STATUS[availability(e)]
+  return s === null ? e.library.name : `${e.library.name} (${s})`
+}
+
+/** The card's status note, capitalized; null in the game. */
+export function statusNote(e: CatalogEntry): string | null {
+  const s = STATUS[availability(e)]
+  return s === null ? null : `${s[0]!.toUpperCase()}${s.slice(1)}`
+}
+
+const AVAILABILITY_RANK: Readonly<Record<Availability, number>> = { 'in-game': 0, 'display-only': 1, 'not-drawn': 2 }
 
 function subjectFor(e: LibraryEntry, c: HangarContent): CatalogSubject | null {
   if (e.spec === undefined) return null
@@ -43,11 +74,12 @@ function subjectFor(e: LibraryEntry, c: HangarContent): CatalogSubject | null {
 }
 
 /** Every library entry with its resolved sim subject, ordered aircraft,
- *  ships, buildings; within a kind, in-service first, then by name. */
+ *  ships, buildings, vehicles, ordnance; within a kind, in the game first,
+ *  then display-only, then not drawn, then by name. */
 export function buildCatalog(c: HangarContent): CatalogEntry[] {
   const entries = c.library.map((library) => ({ library, subject: subjectFor(library, c) }))
   const rank = (e: CatalogEntry): [number, number, string] =>
-    [LIBRARY_KINDS.indexOf(e.library.kind), e.subject === null ? 1 : 0, e.library.name]
+    [LIBRARY_KINDS.indexOf(e.library.kind), AVAILABILITY_RANK[availability(e)], e.library.name]
   return entries.sort((a, b) => {
     const [ka, sa, na] = rank(a), [kb, sb, nb] = rank(b)
     return ka - kb || sa - sb || na.localeCompare(nb)
