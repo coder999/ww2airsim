@@ -3,7 +3,9 @@
 Design, 2026-09-26. Approved in conversation by Mark the same day. This
 document is for his review before any plan is written. Plan numbering stays
 with the master spec's §15. This work adds one row there, "Model roster
-(M0-M5)", when M0 is planned.
+(R0-R5)", when R0 is planned.
+
+**Renamed 2026-09-26:** these plans were M0–M5 when this design was approved. They are R0–R5, because the missions track already has an M1 (the mission engine). R0's plan and handoff keep their M0 file names.
 
 ## 1. Goal
 
@@ -14,7 +16,7 @@ look at them as objects in the hangar/library").
 
 **Done is an assertion, not a sentence.** A Tier 1 test asserts that no
 Library entry resolves to "not yet in service". It carries an allowlist of
-the entries still waiting, and each plan shrinks it. M5 deletes it.
+the entries still waiting, and each plan shrinks it. R5 deletes it.
 
 Out of scope:
 - putting any new object into a scenario;
@@ -46,7 +48,7 @@ That is **30 models**.
 - **Headless Blender works on nexus.** Blender 5.0.1 is at
   `/usr/bin/blender`. A `-b --factory-startup` script exported a glb, and two
   runs gave the same SHA-256 (probe, 2026-09-26). Byte stability for a real
-  model with modifiers and UVs is still a claim for M0 to prove.
+  model with modifiers and UVs is still a claim for R0 to prove.
   Whether ryzen has Blender is unchecked.
 
 ## 3. Sources
@@ -66,27 +68,27 @@ its header, following `tools/models/generated/an-m65.ts` on the O1 branch.
 
 | Object | Plan | Source |
 | --- | --- | --- |
-| Cleveland-class CL | M2 | Sketchfab `cleveland-cl.glb` (KTKloss), staged |
-| Mogami-class CA | M2 | Sketchfab `mogami-ca.glb` (KTKloss), staged |
-| Yamato-class BB | M2 | Sketchfab `musashi-bb.glb` (KTKloss), staged |
-| Pennsylvania-class BB | M2 | **Blender**. Ship-models §2.2's USS Nevada has two triple and two twin turrets, where Pennsylvania has four triples, so it is a stand-in |
-| Shiratsuyu-class DD | M2 | Sketchfab `shiratsuyu-dd-samidare.glb` (everlasting17th), staged; about 30% simplify, waterline to measure |
-| Kagero-class DD | M2 | **Blender** (§6, item 1) |
-| Casablanca-class CVE | M2 | **Blender**, replacing ship-models §2.2's Independence stand-in |
-| A6M Zero | M3 | Sketchfab `a6m2-zeke.glb` (SavinienBerault), Z3's pick, per the A6M Zero design |
-| F6F Hellcat | M3 | Sketchfab `f6f.glb` (manilov.ap), staged |
-| F4U Corsair | M3 | Sketchfab `f4u.glb` (manilov.ap), staged |
-| P-38 Lightning | M3 | Sketchfab `p38-lightning.glb` (manilov.ap), staged |
-| Ki-43 Oscar | M3 | Sketchfab `ki43.glb` (manilov.ap), staged |
-| D3A Val | M3 | Sketchfab `aichi_d3a_val.glb` (helijah), staged; 293k faces, decimate |
-| G4M Betty | M3 | Sketchfab `mitsubishi_g4m.glb` (Jec), staged |
-| B-17 Flying Fortress | M3 | Sketchfab `boeing_b-17_flying_fortress.glb` (helijah), staged; 763k faces, heavy decimate |
-| Ki-84 Frank | M3 | **Blender**, no candidate exists |
-| Ki-21 Sally | M3 | **Blender**, no candidate exists |
-| B-29 Superfortress | M3 | **Blender**. The only candidate is flagged suspect in `ASSETS.md` |
-| All 10 buildings | M4 | **Blender** |
-| Type 97 Chi-Ha | M5 | Sketchfab `type97-chi-ha.glb` (snrnsrk5), staged |
-| Willys MB jeep | M5 | Sketchfab `willys-mb-jeep.glb` (MattyNL), staged |
+| Cleveland-class CL | R2 | Sketchfab `cleveland-cl.glb` (KTKloss), staged |
+| Mogami-class CA | R2 | Sketchfab `mogami-ca.glb` (KTKloss), staged |
+| Yamato-class BB | R2 | Sketchfab `musashi-bb.glb` (KTKloss), staged |
+| Pennsylvania-class BB | R2 | **Blender**. Ship-models §2.2's USS Nevada has two triple and two twin turrets, where Pennsylvania has four triples, so it is a stand-in |
+| Shiratsuyu-class DD | R2 | Sketchfab `shiratsuyu-dd-samidare.glb` (everlasting17th), staged; about 30% simplify, waterline to measure |
+| Kagero-class DD | R2 | **Blender** (§6, item 1) |
+| Casablanca-class CVE | R2 | **Blender**, replacing ship-models §2.2's Independence stand-in |
+| A6M Zero | R3 | Sketchfab `a6m2-zeke.glb` (SavinienBerault), Z3's pick, per the A6M Zero design |
+| F6F Hellcat | R3 | Sketchfab `f6f.glb` (manilov.ap), staged |
+| F4U Corsair | R3 | Sketchfab `f4u.glb` (manilov.ap), staged |
+| P-38 Lightning | R3 | Sketchfab `p38-lightning.glb` (manilov.ap), staged |
+| Ki-43 Oscar | R3 | Sketchfab `ki43.glb` (manilov.ap), staged |
+| D3A Val | R3 | Sketchfab `aichi_d3a_val.glb` (helijah), staged; 293k faces, decimate |
+| G4M Betty | R3 | Sketchfab `mitsubishi_g4m.glb` (Jec), staged |
+| B-17 Flying Fortress | R3 | Sketchfab `boeing_b-17_flying_fortress.glb` (helijah), staged; 763k faces, heavy decimate |
+| Ki-84 Frank | R3 | **Blender**, no candidate exists |
+| Ki-21 Sally | R3 | **Blender**, no candidate exists |
+| B-29 Superfortress | R3 | **Blender**. The only candidate is flagged suspect in `ASSETS.md` |
+| All 10 buildings | R4 | **Blender** |
+| Type 97 Chi-Ha | R5 | Sketchfab `type97-chi-ha.glb` (snrnsrk5), staged |
+| Willys MB jeep | R5 | Sketchfab `willys-mb-jeep.glb` (MattyNL), staged |
 
 If a staged pick fails its build (budget, or a waterline or bow it cannot
 prove), the fallback is Blender, not another stand-in. The plan records that
@@ -94,7 +96,7 @@ as a ruling.
 
 ## 4. Design
 
-### 4.1 The `blender` source kind (M1)
+### 4.1 The `blender` source kind (R1)
 
 It sits beside O1's `generated` kind, in the same discriminated union in
 `tools/models/manifest.ts`:
@@ -122,7 +124,7 @@ It sits beside O1's `generated` kind, in the same discriminated union in
   `content/vehicles/`, are added to the `output` regex. O1's rule that
   `content/ordnance/` is generated-only is kept.
 
-### 4.2 The Blender kit (M0)
+### 4.2 The Blender kit (R0)
 
 `tools/models/blender/kit.py` is imported by each model script. A model
 script is then mostly the cited numbers.
@@ -146,11 +148,11 @@ Rules the kit enforces:
 - **Scale and axes.** Units are meters, +x forward. Each model stands on y = 0, or is
   waterline-origin for a ship, so an entry's `normalize` is the identity.
 
-M0 proves the kit on one model, the barrel-roof hangar. It is the simplest
-object and the one with the most placements. M0 writes its output only to the
+R0 proves the kit on one model, the barrel-roof hangar. It is the simplest
+object and the one with the most placements. R0 writes its output only to the
 gitignored `candidates/` folder, so it touches none of O1's files.
 
-### 4.3 The display-only Library path (M1)
+### 4.3 The display-only Library path (R1)
 
 - **The `model` field.** `content/library/<id>.json` gains an optional
   `model`: `{ "kind": "aircraft" | "ship" | "building" | "vehicle", "id": "<model id>" }`.
@@ -170,7 +172,7 @@ gitignored `candidates/` folder, so it touches none of O1's files.
   entry. A model id that exists nowhere fails Tier 1, the same as a bad
   `view.model` does today.
 - **In-game rendering is unchanged.** No scenario's `view.model` changes in this work, except the
-  Zero's `a6m2-zero.json` in M3, which Z3 already planned. The Zero is in
+  Zero's `a6m2-zero.json` in R3, which Z3 already planned. The Zero is in
   no shipped scenario.
 
 ### 4.4 Budgets
@@ -206,15 +208,15 @@ guarantee conflicts. Each rebases on `main` before it starts.
 
 | Plan | Starts | Scope | Touches O1's files |
 | --- | --- | --- | --- |
-| **M0** Blender kit | now | `tools/models/blender/kit.py`, the hangar proof model, the byte-stability test | no |
-| **M1** Pipeline and Library | after O1 merges to `main` | `blender` kind, new output folders, the Library `model` field, the `vehicle` kind, the generic loader, the done-allowlist test | yes, so it waits |
-| **M2** Ships | after M1 | the 7 ships, with S2's content specs for each (`content/ships/<id>.json`, sourced dimensions, labeled estimates) | no |
-| **M3** Aircraft | after M2 | the 11 aircraft, the Zero first (it is Z3) | no |
-| **M4** Buildings | after M3 | the 10 buildings | no |
-| **M5** Vehicles | after M4 | Chi-Ha, jeep; deletes the allowlist | no |
+| **R0** Blender kit | now | `tools/models/blender/kit.py`, the hangar proof model, the byte-stability test | no |
+| **R1** Pipeline and Library | after O1 merges to `main` | `blender` kind, new output folders, the Library `model` field, the `vehicle` kind, the generic loader, the done-allowlist test | yes, so it waits |
+| **R2** Ships | after R1 | the 7 ships, with S2's content specs for each (`content/ships/<id>.json`, sourced dimensions, labeled estimates) | no |
+| **R3** Aircraft | after R2 | the 11 aircraft, the Zero first (it is Z3) | no |
+| **R4** Buildings | after R3 | the 10 buildings | no |
+| **R5** Vehicles | after R4 | Chi-Ha, jeep; deletes the allowlist | no |
 
-S2 and Z3 in master spec §15 are carried out as M2 and M3. Their rows point
-here when M2 and M3 are planned. H3 (turrets) stays its own plan. Every turret this
+S2 and Z3 in master spec §15 are carried out as R2 and R3. Their rows point
+here when R2 and R3 are planned. H3 (turrets) stays its own plan. Every turret this
 work produces is named for it.
 
 **Viewing checkpoints (Mark, 2026-09-26):** per family, unattended. Each
@@ -230,7 +232,7 @@ this.
 2. **The Hellcat is shown in the Hangar only.** The player's airplane flies
    Hellcat numbers and is drawn as a Wildcat. Changing that moves the gear
    height, the store mounts and the cockpit eye point, which is its own plan.
-3. **The airfields keep their procedural boxes in game.** M4's buildings are
+3. **The airfields keep their procedural boxes in game.** R4's buildings are
    Library models. Swapping them into `airfield.ts` is a later decision.
 
 ## 7. Testing
@@ -256,10 +258,10 @@ this.
 
 ## 8. Risks
 
-- **O1 slips or changes its `generated` kind.** M1 copies whatever shape
-  merges. M0 does not depend on it.
+- **O1 slips or changes its `generated` kind.** R1 copies whatever shape
+  merges. R0 does not depend on it.
 - **Blender output drifts between runs** once real models use modifiers and
-  UVs. M0's first job is to measure this. If it drifts, the fallback is to
+  UVs. R0's first job is to measure this. If it drifts, the fallback is to
   pin the export options and strip non-deterministic extras in a stage, and
   as a last resort to commit the raw glb and test its dimensions instead.
 - **Heavy decimation (the B-17 at 763k, the Val at 293k) can wreck a silhouette.**

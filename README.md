@@ -219,7 +219,7 @@ frozen, so a bare build skips it. The design is
 see the [handoff](docs/handoff/2026-09-25-z1-model-pipeline.md); master spec
 §15 holds the status.
 
-**Original models are authored in Blender (M0, 2026-09-26).** Where no
+**Original models are authored in Blender (R0, planned as M0, 2026-09-26).** Where no
 cleanly licensed model exists, a script under `tools/models/blender/` builds
 one headlessly and byte-reproducibly; the barrel-roof hangar is the first.
 The roster plan that puts every Library object on screen is the
