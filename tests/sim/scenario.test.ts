@@ -138,7 +138,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     expect(pursuer.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), 0))
     expect(pursuer.parked).toBe(false)
     expect(pursuer.pilot).toEqual({
-      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision(),
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision('pursuer-1'),
     })
   })
 
@@ -151,7 +151,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     const veteranWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(veteran) }, null)
     const veteranPursuer = veteranWorld.aircraft.find((a) => a.id === 'pursuer-1')!
     expect(veteranPursuer.pilot).toEqual({
-      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision(),
+      target: 'f6f-1', skill: VETERAN_SKILL, decision: initialDecision('pursuer-1'),
     })
 
     const green = raw()
@@ -159,7 +159,7 @@ describe('the airborne pursuit range (Plan 7a)', () => {
     const greenWorld = worldFromScenario({ ...pursuit, scenario: parseScenario(green) }, null)
     const greenPursuer = greenWorld.aircraft.find((a) => a.id === 'pursuer-1')!
     expect(greenPursuer.pilot).toEqual({
-      target: 'f6f-1', skill: GREEN_SKILL, decision: initialDecision(),
+      target: 'f6f-1', skill: GREEN_SKILL, decision: initialDecision('pursuer-1'),
     })
   })
 

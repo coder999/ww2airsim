@@ -5,6 +5,7 @@ import { decksOf } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { pursuitDesiredVelocity } from './pursuit.js'
+import { sideOf } from '../sides.js'
 
 /**
  * The player's pursuit autopilot (Mark, 2026-09-25): while its key is held,
@@ -12,10 +13,10 @@ import { pursuitDesiredVelocity } from './pursuit.js'
  * (`pursuit.ts` + `controller.ts`) at the nearest live enemy. Steering only --
  * the frame keeps the player's own throttle and trigger.
  *
- * "Enemy" is every other unparked, uncrashed, undestroyed aircraft: the world
- * has no friend/foe field, and `radar.ts` draws exactly this set. Excluding
- * destroyed aircraft is what keeps it from following a plane that is going
- * down.
+ * "Enemy" is every unparked, uncrashed, undestroyed aircraft on the other
+ * side from the player (`sideOf`, Plan 7e; before 7e there were no sides and
+ * every other aircraft counted). Excluding destroyed aircraft is what keeps
+ * it from following a plane that is going down.
  */
 
 /** Height above the ground or sea below which an enemy is not chased, and
@@ -48,6 +49,7 @@ export function autoPursuitTarget<M>(world: World<M>): AircraftEntity<M> | null 
   let bestRange = Infinity
   for (const a of world.aircraft) {
     if (a.id === world.player || a.parked || a.impact !== null) continue
+    if (sideOf(world, a) === sideOf(world, self)) continue
     if (world.combat.aircraft[a.id]?.damage.destroyedAt != null) continue
     if (heightAboveSurfaceM(world, a.state.position) < AUTO_PURSUIT_FLOOR_AGL_M) continue
     const range = length(sub(a.state.position, self.state.position))

@@ -130,7 +130,33 @@ export type ManeuverLatch = {
   readonly lowestAltitudeM: number
 }
 
+/** One ingress waypoint (7e spec §4.5), world meters. The altitude and
+ *  speed are those of the leg flown TO it. */
+export type IngressWaypoint = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
+/** Where an ingress ends: a ship, read live every tick, or a fixed point (an
+ *  airfield's runway center, resolved when the world is built; ruling W6). */
+export type IngressDestination = { readonly kind: 'ship'; readonly id: string } | { readonly kind: 'point'; readonly x: number; readonly z: number }
+/** A raider's orders (7e spec §4.5): fly the route, then the destination,
+ *  then orbit it; fight only what attacks or comes close. */
+export type IngressOrders = { readonly route: readonly IngressWaypoint[]; readonly destination: IngressDestination | null }
+
+/** What a pilot is doing at the top level (7e spec §4.1). 7e flies
+ *  `engage`, `ingress` (§4.5) and `loiter`; 7f fills in `formation`, 7g
+ *  `rtb` and `landed`. */
+export type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter'
+
 export type PilotDecisionState = {
+  /** 7e. Written by `pilotTick` at every choice (rescore or forced). */
+  readonly mode: PilotMode
+  /** 7e. The aircraft this pilot is fighting, or `null`. Other pilots read
+   *  it from the start-of-tick snapshot (the "already engaged" term). */
+  readonly targetId: string | null
+  /** 7e ingress progress (spec §4.5, ruling W7): the waypoint being flown
+   *  to; `route.length` is the destination, `route.length + 1` the orbit. */
+  readonly legIndex: number
+  /** 7e: the heading (atan2(v.z, v.x)) and altitude a loiter holds, latched
+   *  when it begins and cleared when a target is chosen; `null` otherwise. */
+  readonly loiter: { readonly headingRad: number; readonly altitudeM: number } | null
   readonly maneuver: PilotManeuver
   /** The maneuver flown this tick, chosen at rescore within 'maneuver'. */
   readonly named: ManeuverName
@@ -152,15 +178,33 @@ export type PilotDecisionState = {
   readonly safety: SafetyMode
 }
 
+/** 32-bit FNV-1a of an entity id: the seed of that pilot's noise cursor
+ *  (7e spec §4.5 item 2). Fixed, independent of spawn tick and array order,
+ *  and the same whether the entity existed at world creation or was spawned
+ *  by a trigger -- so two pilots spawned together no longer jitter in
+ *  lockstep. */
+export function noiseSeedFor(id: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
 /** A fresh pilot's decision state: rescore on the first tick
  *  (`nextRescoreS: 0` is always <= the first tick's time), so the placeholder
  *  observations are never flown against. The one source for scenario.ts and
- *  the tests. */
-export function initialDecision(): PilotDecisionState {
+ *  the tests. With `id` the noise cursor is seeded from it (every
+ *  scenario-built pilot); without, it is 0, so hand-built test pilots keep
+ *  their exact pre-7e flight (ruling W10). Nothing here refers to the world
+ *  clock, so a pilot created at any tick is correct (spec §4.5 item 3). */
+export function initialDecision(id?: string, mode: PilotMode = 'engage'): PilotDecisionState {
   return {
+    mode, targetId: null, legIndex: 0, loiter: null,
     maneuver: 'pursue', named: 'lead-pursuit', latch: null, nextRescoreS: 0,
     observedTargetPosition: ZERO, observedTargetVelocity: ZERO,
-    noiseCursor: 0, safety: 'none',
+    noiseCursor: id === undefined ? 0 : noiseSeedFor(id), safety: 'none',
   }
 }
 

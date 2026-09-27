@@ -8,6 +8,7 @@ import {
   reference, screenCoordinate, struct, texture, uniform, vec2, vec4,
 } from 'three/tsl'
 import type { Vec3 } from '../../sim/math/vec3.js'
+import type { FxCloudLimit } from '../fx/fxPass.js'
 import { FOG_DISTANCE_M } from '../horizon.js'
 import type { CloudsHandle } from './clouds.js'
 import { HISTORY_BLEND, reprojectUvNode } from './cloudHistory.js'
@@ -287,6 +288,7 @@ class CloudPassNode extends TempNode<'vec4'> {
     private readonly sceneDepth: TextureNode,
     private readonly near: Node<'float'>,
     private readonly far: Node<'float'>,
+    private readonly fxLimit: FxCloudLimit | null,
   ) {
     super('vec4')
     this.updateBeforeType = NodeUpdateType.FRAME
@@ -329,7 +331,12 @@ class CloudPassNode extends TempNode<'vec4'> {
           minViewZ.assign(min(minViewZ, perspectiveDepthToViewZ(depth, this.near, this.far).negate()))
         })
       })
-      return minViewZ as unknown as Node<'float'>
+      // Ordnance-and-effects design §4.2: the march also stops at dense
+      // effects, exactly as it stops at opaque surfaces. A JS branch, so a
+      // pass built without effects compiles the graph it always did.
+      return (this.fxLimit === null
+        ? minViewZ
+        : min(minViewZ, this.fxLimit.denseViewZAt(cell.add(0.5).mul(this.cellsF) as unknown as Node<'vec2'>))) as unknown as Node<'float'>
     }
 
     /** The expensive ray march for one actual low-resolution cloud cell. */
@@ -657,6 +664,9 @@ class CloudPassNode extends TempNode<'vec4'> {
       const pixel = screenCoordinate.xy
       const depth = this.sceneDepth.load(ivec2(floor(pixel))).x
       const z = min(perspectiveDepthToViewZ(depth, this.near, this.far).negate(), float(FOG_DISTANCE_M)).toVar()
+      // The composite must match the march's own stop (§4.2), or a fireball's
+      // texels mismatch every tap and fall to the 4x4 search.
+      if (this.fxLimit !== null) z.assign(min(z, this.fxLimit.denseViewZAt(pixel as unknown as Node<'vec2'>)))
       const u = pixel.div(this.cellsF).sub(0.5).toVar()
       const base = floor(u).toVar()
       const f = fract(u).toVar()
@@ -771,11 +781,15 @@ export function createCloudPass(opts: {
   camera: PerspectiveCamera
   sceneColor: Node<'vec4'>
   sceneDepth: Node<'float'>
+  /** Effects' dense depth (E1 §4.2): the march and composite stop at it too.
+   *  Absent or null builds every cloud graph exactly as before. */
+  fxLimit?: FxCloudLimit | null
 }): CloudPass {
   const node = new CloudPassNode(
     opts.clouds, opts.camera, opts.sceneColor, opts.sceneDepth as unknown as TextureNode,
     reference('near', 'float', opts.camera) as unknown as Node<'float'>,
     reference('far', 'float', opts.camera) as unknown as Node<'float'>,
+    opts.fxLimit ?? null,
   )
   return {
     composite: node as unknown as Node<'vec4'>,

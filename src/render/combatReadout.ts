@@ -81,6 +81,11 @@ export type CombatDiagnostics = {
     readonly structure: number
     readonly destroyed: boolean
     readonly damaged: readonly DamageSystem[]
+    /** Plan 7e: kills credited to this aircraft, same-side kills, and who
+     *  destroyed it (`damage.attacker`), for the furball's Tier 2 spec. */
+    readonly kills: number
+    readonly friendlyKills: number
+    readonly attacker: string | null
   }[]
   readonly projectiles: number
   readonly tracers: number
@@ -106,7 +111,10 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
     },
     aircraft: frame.world.aircraft.map((a) => {
       const rec = combat.aircraft[a.id]!
-      return { id: a.id, structure: rec.damage.structure, destroyed: rec.damage.destroyedAt !== null, damaged: damagedSystems(rec.damage) }
+      return {
+        id: a.id, structure: rec.damage.structure, destroyed: rec.damage.destroyedAt !== null, damaged: damagedSystems(rec.damage),
+        kills: rec.kills, friendlyKills: rec.friendlyKills, attacker: rec.damage.attacker,
+      }
     }),
     projectiles: combat.projectiles.length,
     tracers: combat.projectiles.filter((p) => p.tracer).length,

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "images": {
+    "lightA": "fx-light-a.ktx2",
+    "lightB": "fx-light-b.ktx2",
+    "motion": "fx-motion.ktx2"
+  },
+  "cellPx": 128,
+  "cols": 3,
+  "rows": 2,
+  "frames": 16,
+  "motionScale": 0.02,
+  "sheets": [
+    {
+      "name": "fireball",
+      "cell": 0
+    },
+    {
+      "name": "smoke",
+      "cell": 1
+    },
+    {
+      "name": "dust",
+      "cell": 2
+    },
+    {
+      "name": "water-column",
+      "cell": 3
+    },
+    {
+      "name": "spray",
+      "cell": 4
+    },
+    {
+      "name": "flame",
+      "cell": 5
+    }
+  ],
+  "provenance": {
+    "generator": "placeholder",
+    "seed": 1944
+  }
+}

@@ -17,7 +17,9 @@ describe('7c determinism (spec §3.6, §7)', () => {
 
   it('reversing the aircraft array changes nothing, with four aircraft and three pilots mid-fight', () => {
     const parts = () => [
-      level('a', f6f, v3(0, 3000, 0), v3(120, 0, 0), pilotFor('b', VETERAN_SKILL)),
+      // 7e: a static target must be on the opposite side; 'a' flies for the
+      // allies (with the player 'c'), 'b' and 'd' default to axis.
+      { ...level('a', f6f, v3(0, 3000, 0), v3(120, 0, 0), pilotFor('b', VETERAN_SKILL)), side: 'allied' as const },
       level('b', zero, v3(1500, 3000, 200), v3(-110, 0, 0), pilotFor('a', GREEN_SKILL)),
       level('c', f6f, v3(0, 3500, 3000), v3(120, 0, 0)),
       level('d', f6f, v3(-600, 3600, 3000), v3(125, 0, 0), pilotFor('c', VETERAN_SKILL)),

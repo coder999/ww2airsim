@@ -134,10 +134,12 @@ describe('the built artifact', () => {
         'content/scenarios/gunnery-range.json',
         'content/scenarios/pursuit-range.json',
         'content/scenarios/pursuit-range-veteran.json',
+        'content/scenarios/furball-range.json',
         'content/bases/tacloban.json',
         'content/bases/dulag.json',
         'content/ships/essex-cv.json',
         'content/ships/fletcher-dd.json',
+        'content/fx/sheets.json',
       ]) {
         const raw = readFileSync(join(outDir, path), 'utf8')
         expect(() => JSON.parse(raw), path).not.toThrow()

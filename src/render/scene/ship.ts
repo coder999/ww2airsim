@@ -1,6 +1,6 @@
-import { Box3, BoxGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Raycaster, Vector3, type Object3D } from 'three'
+import { Box3, BoxGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3 } from 'three'
+import type { Vec3 } from '../../sim/math/vec3.js'
 import type { ShipSpec } from '../../sim/world/ships.js'
-import { createEngineSmoke } from './smoke.js'
 import { disposeMeshTree } from '../models/dispose.js'
 import type { ModelInstance } from '../models/modelCache.js'
 import { SHIP_PALETTES } from './shipPalette.js'
@@ -19,16 +19,27 @@ const TRAP_BAND_THICKNESS_M = 0.05
 
 /**
  * One ship as the renderer sees it: `root` is what `main.ts` poses each
- * frame; `setDamage` sinks, lists and smokes an inner `hull group`; `dispose`
- * frees what this view owns. `model` is the registry id drawn, or null for
- * the procedural boxes.
+ * frame; `setDamage` sinks and lists an inner `hull group`; `dispose` frees
+ * what this view owns. `model` is the registry id drawn, or null for the
+ * procedural boxes.
  */
 export interface ShipView {
   readonly root: Object3D
   readonly model: string | null
+  /** An empty marker at the stack/SmokeOrigin, child of the hull group, so
+   *  it sinks and lists with the hull. fx reads it every frame (E1 R13). */
+  readonly smokeOrigin: Object3D
   setDamage(fire: number, sinkingFraction: number): void
   /** Idempotent. A model view RELEASES its shared instance; it never disposes it (modelCache.ts). */
   dispose(): void
+}
+
+/** The view's smoke origin in sim world metres. `worldOffset` must be what
+ *  `scene.position` holds this frame (main.ts sets it before posing ships). */
+export function smokeOriginWorld(view: ShipView, worldOffset: { readonly x: number; readonly y: number; readonly z: number }): Vec3 {
+  view.smokeOrigin.updateWorldMatrix(true, false)
+  const e = view.smokeOrigin.matrixWorld.elements
+  return { x: e[12]! - worldOffset.x, y: e[13]! - worldOffset.y, z: e[14]! - worldOffset.z }
 }
 
 /** The carrier's trap band, fromSternM..toSternM along a deck `lengthM` long, `halfWidthM` either side of the centerline. */
@@ -43,38 +54,35 @@ function trapBand(spec: ShipSpec, halfWidthM: number): Mesh | null {
 }
 
 /**
- * The part of a view both paths share: the damage smoke at `smokeAt`, the
- * sink depth from the hull's own top, `receiveShadow` on every mesh (Plan
- * 16b), and `setDamage`. The list is a roll about the keel (+x), 8 degrees to
- * a fixed side: before S1 it was `rotation.z`, which with the bow on +x is a
- * bow-down trim, not the list the strike design §4 specifies (ship-models
- * spec §1, §6).
+ * The part of a view both paths share: the sink depth from the hull's own
+ * top, `receiveShadow` on every mesh (Plan 16b), and `setDamage`. The list is
+ * a roll about the keel (+x), 8 degrees to a fixed side: before S1 it was
+ * `rotation.z`, which with the bow on +x is a bow-down trim, not the list the
+ * strike design §4 specifies (ship-models spec §1, §6). The fire is E1's
+ * `ship.fire`, rising from `smokeOrigin` -- this view draws no smoke of its
+ * own.
  */
 function finishView(root: Group, hullGroup: Group, smokeAt: { x: number; y: number; z: number }, model: string | null, release: () => void): ShipView {
   const sinkDepthM = new Box3().setFromObject(hullGroup).max.y + SINK_MARGIN_M
-  const smoke = createEngineSmoke()
-  smoke.object.name = 'ship smoke'
-  // Scaled up: the airplane version is authored at airframe scale, and a ship's stack is an order of magnitude bigger.
-  smoke.object.scale.setScalar(5)
-  smoke.object.position.set(smokeAt.x, smokeAt.y, smokeAt.z)
-  hullGroup.add(smoke.object)
+  const smokeOrigin = new Object3D()
+  smokeOrigin.name = 'smoke origin'
+  smokeOrigin.position.set(smokeAt.x, smokeAt.y, smokeAt.z)
+  hullGroup.add(smokeOrigin)
   root.traverse((o) => { o.receiveShadow = true }) // Plan 16b, see hellcat.ts
   let disposed = false
   return {
     root,
     model,
+    smokeOrigin,
     setDamage(fire: number, sinkingFraction: number): void {
       const sinking = Math.min(1, Math.max(0, sinkingFraction))
       hullGroup.position.y = -sinking * sinkDepthM
       hullGroup.rotation.x = -sinking * (LIST_DEG * Math.PI / 180)
       root.visible = sinking < 1
-      smoke.set(1 - Math.min(1, Math.max(0, fire)), sinking >= 1)
     },
     dispose(): void {
       if (disposed) return
       disposed = true
-      hullGroup.remove(smoke.object)
-      disposeMeshTree(smoke.object)
       release()
     },
   }
@@ -163,11 +171,8 @@ export function createShipMesh(spec: ShipSpec): ShipView {
     hullGroup.add(stack)
     smokeOrigin = { x: stack.position.x, y: spec.deckHeightM + 7 + 8 + 2, z: 0 }
   }
-  // Damaged-fire smoke, reusing `smoke.ts`'s existing engine-smoke curve
-  // (`createEngineSmoke`/`smokeAppearance`) rather than a second particle
-  // implementation: `fire` (0..1, `ShipDamage.fire`) plays the role
-  // `engineHealth` plays for an airplane, inverted (fire is already a
-  // damage fraction, not a health one).
+  // Damaged-fire smoke is E1's `ship.fire`, rising from `smokeOrigin` -- this
+  // view draws none of its own.
   return finishView(root, hullGroup, smokeOrigin, null, () => { disposeMeshTree(root) })
 }
 
@@ -181,8 +186,8 @@ export function createShipMesh(spec: ShipSpec): ShipView {
  * throws, naming it, and the loader falls back to the boxes loudly.
  *
  * No material is touched: they are shared with every other instance of the
- * same URL. The trap band and the smoke are this view's own, and are
- * disposed with it; the instance is released.
+ * same URL. The trap band is this view's own, and is disposed with it; the
+ * instance is released.
  */
 export function createShipView(spec: ShipSpec, modelId: string, instance: ModelInstance): ShipView {
   const root = new Group()
@@ -211,13 +216,13 @@ export function createShipView(spec: ShipSpec, modelId: string, instance: ModelI
  * proof that what the eye lands on is what the sim rests the wheels on, in the
  * real renderer and not only in Node math). `'ship'` points are in the ship's
  * own frame (+x bow, midships 0); `'world'` points are world x, z. The smoke
- * plume is not a surface and is skipped.
+ * origin marker is not a surface and is skipped.
  */
 export function probeShipSurface(view: ShipView, points: readonly { readonly x: number; readonly z: number }[], space: 'ship' | 'world'): (number | null)[] {
   view.root.updateWorldMatrix(true, true)
   const hullGroup = view.root.getObjectByName('hull group')
   if (!hullGroup) return points.map(() => null)
-  const targets = hullGroup.children.filter((c) => c.name !== 'ship smoke')
+  const targets = hullGroup.children.filter((c) => c.name !== 'smoke origin')
   const above = new Box3().setFromObject(hullGroup).max.y + 10
   const ray = new Raycaster()
   const down = new Vector3(0, -1, 0)
