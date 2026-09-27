@@ -59,7 +59,7 @@ describe('origin: internal (ours) or external (a download), for the list filter'
   it('reads each entry\'s model the way the Hangar loads it', () => {
     // Downloads: a spec's view.model (Wildcat, Essex), or an entry's own model (Corsair, B-17).
     for (const id of ['f4f-wildcat', 'essex-cv', 'f4u-corsair', 'b-17-flying-fortress', 'a6m-zero']) expect(get(id).origin, id).toBe('external')
-    // Ours: Blender (Ki-84, Kagero, the hangar), generated ordnance (HVAR), drawn in code (tower).
+    // Ours: Blender (Ki-84, Kagero, the hangar, the tower since R4), generated ordnance (HVAR).
     for (const id of ['ki-84-frank', 'p-38-lightning', 'kagero-dd', 'hangar', 'hvar', 'tower']) expect(get(id).origin, id).toBe('internal')
   })
 

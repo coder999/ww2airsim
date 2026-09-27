@@ -55,9 +55,15 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 
   it('a ship and a building load with no articulated parts and a non-zero triangle count', async () => {
-    for (const id of ['essex-cv', 'tower']) {
+    // A building spec with no model of its own draws drawBuilding's boxes. Every Library building
+    // names its model since R4, so the case is the tower entry with its model removed.
+    const c = nodeHangarContent()
+    const bare = { ...c.library.find((e) => e.id === 'tower')! }
+    delete bare.model
+    const boxes = buildCatalog({ ...c, library: [bare] })[0]!
+    for (const [id, entry] of [['essex-cv', byId('essex-cv')], ['tower without its model', boxes]] as const) {
       // The ship loader is the game's (S1); a stub keeps GLTFLoader out of Node.
-      const m = await loadHangarModel(byId(id), undefined, async (spec) => createShipMesh(spec))
+      const m = await loadHangarModel(entry, undefined, async (spec) => createShipMesh(spec))
       expect(m!.parts, id).toEqual([])
       expect(m!.counts().triangles, id).toBeGreaterThan(0)
       m!.dispose()
