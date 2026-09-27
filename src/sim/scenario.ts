@@ -231,23 +231,54 @@ const ScenarioShape = z.object({
 }).strict()
 
 type AnyAircraft = z.infer<typeof ScenarioAircraftObject>
-/** 7f spec §1: every leader rule, reported by name. `visible` is what this
- *  list's pilots may name as leader; `path` locates each entry. */
+/**
+ * 7f spec §1: every leader rule, reported by name, for the starting aircraft
+ * and every held group. A starting pilot may name a starting aircraft as
+ * leader; a held pilot, a starting aircraft or one in its own group. A slot
+ * is "unique among that leader's wingmen" across the whole scenario, so one
+ * `taken` set spans the starting list and every held group: a starting and a
+ * held wingman of the same leader cannot share a slot, nor can two held
+ * groups' (final review I2, 2026-09-27). An entry already rejected for its
+ * leader (self, unknown, cross-side, chain) takes no slot, so it cannot
+ * cause a second, spurious "taken".
+ */
+function checkFormations(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): void {
+  const issue = (message: string, path: (string | number)[]): void => {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path })
+  }
+  const taken = new Set<string>()
+  checkLeaders(s, s.aircraft.map((a, i) => [a, ['aircraft', i]] as const), new Map(s.aircraft.map((a) => [a.id, a])),
+    'pilot leader must name a starting aircraft', issue, taken)
+  for (const [gi, g] of (s.heldGroups ?? []).entries()) {
+    const visible = new Map([...s.aircraft, ...(g.aircraft ?? [])].map((a) => [a.id, a]))
+    checkLeaders(s, (g.aircraft ?? []).map((a, ai) => [a, ['heldGroups', gi, 'aircraft', ai]] as const), visible,
+      "a held pilot's leader must be a starting aircraft or one in its own group", issue, taken)
+  }
+}
+
+type AnyAircraft = z.infer<typeof ScenarioAircraftObject>
+/** One list's leader rules. `visible` is what this list's pilots may name
+ *  as leader; `at` locates each entry; `taken` is `checkFormations`'
+ *  scenario-wide slot set, added to here. */
 function checkLeaders(
   s: z.infer<typeof ScenarioShape>, list: readonly (readonly [AnyAircraft, (string | number)[]])[],
   visible: ReadonlyMap<string, AnyAircraft>, unknownMessage: string,
-  issue: (message: string, path: (string | number)[]) => void,
+  issue: (message: string, path: (string | number)[]) => void, taken: Set<string>,
 ): void {
-  const taken = new Set<string>()
   for (const [a, at] of list) {
     const leader = a.pilot?.leader
     if (leader === undefined) continue
     const path = [...at, 'pilot', 'leader']
     const named = visible.get(leader)
-    if (leader === a.id) issue('a pilot cannot lead itself', path)
-    else if (named === undefined) issue(unknownMessage, path)
-    else if (sideOf(s, named) !== sideOf(s, a)) issue('pilot leader must be on the same side', path)
-    else if (named.pilot?.leader !== undefined) issue(`leader "${leader}" cannot itself be a wingman: no chains`, path)
+    const invalid = leader === a.id ? 'a pilot cannot lead itself'
+      : named === undefined ? unknownMessage
+      : sideOf(s, named) !== sideOf(s, a) ? 'pilot leader must be on the same side'
+      : named.pilot?.leader !== undefined ? `leader "${leader}" cannot itself be a wingman: no chains`
+      : null
+    if (invalid !== null) {
+      issue(invalid, path)
+      continue
+    }
     const key = `${leader}#${a.pilot!.slot}`
     if (taken.has(key)) issue(`slot ${a.pilot!.slot} of leader "${leader}" is taken`, [...at, 'pilot', 'slot'])
     taken.add(key)
@@ -291,10 +322,8 @@ const ScenarioObject = ScenarioShape
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: `ingress destination airfield "${d.airfield}" is not one of airfields`, path })
       }
     }
-    checkLeaders(s, s.aircraft.map((a, i) => [a, ['aircraft', i]] as const), byId,
-      'pilot leader must name a starting aircraft',
-      (message, path) => ctx.addIssue({ code: z.ZodIssueCode.custom, message, path }))
   })
+  .superRefine(checkFormations)
   .superRefine(checkMission)
 
 export type Scenario = z.infer<typeof ScenarioObject>
@@ -356,8 +385,6 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
         issue('pilot target must be on the opposite side', [...path, 'pilot', 'target'])
       }
     }
-    checkLeaders(s, (g.aircraft ?? []).map((a, ai) => [a, ['heldGroups', gi, 'aircraft', ai]] as const), visible,
-      "a held pilot's leader must be a starting aircraft or one in its own group", issue)
     for (const [si, sh] of (g.ships ?? []).entries()) {
       if (used.has(sh.id)) issue(`entity id "${sh.id}" is already used; ids are unique across the whole scenario`, ['heldGroups', gi, 'ships', si, 'id'])
       used.add(sh.id)

@@ -74,6 +74,37 @@ describe('pilot.leader and pilot.slot (7f spec §1)', () => {
     expect(() => parseScenario(other)).toThrow(/held pilot's leader must be a starting aircraft or one in its own group/)
   })
 
+  it('keeps a slot unique across the starting set and every held group (final review I2)', () => {
+    const lead = { id: 'lead-1', spec: 'f6f-hellcat', airborneAt: at(-20000), pilot: { skill: 'green' } }
+    const w = (id: string, slot = 1) => ({ id, spec: 'f6f-hellcat', airborneAt: at(-20100, 100), pilot: { skill: 'green', leader: 'lead-1', slot } })
+    const withGroups = (start: unknown[], groups: unknown[][]) => ({
+      ...scenario({ aircraft: start, objectives: [REACH_FAR] }),
+      triggers: groups.map((_, i) => ({ id: `t${i}`, when: { at: 60 }, then: [{ spawn: `g${i}` }] })),
+      heldGroups: groups.map((g, i) => ({ id: `g${i}`, aircraft: g })),
+    })
+    // A starting wingman and a held wingman of the same starting leader.
+    expect(() => parseScenario(withGroups([PLAYER, lead, w('w1')], [[w('w2')]])))
+      .toThrow(/heldGroups\.0\.aircraft\.0\.pilot\.slot: slot 1 of leader "lead-1" is taken/)
+    // Two held groups whose wingmen share a leader and a slot.
+    expect(() => parseScenario(withGroups([PLAYER, lead], [[w('w1')], [w('w2')]])))
+      .toThrow(/heldGroups\.1\.aircraft\.0\.pilot\.slot: slot 1 of leader "lead-1" is taken/)
+    // Different slots of the same leader across groups are fine.
+    expect(() => parseScenario(withGroups([PLAYER, lead, w('w1', 1)], [[w('w2', 2)], [w('w3', 3)]]))).not.toThrow()
+  })
+
+  it('does not report a taken slot for an entry already rejected for its leader (final review I2)', () => {
+    const parse = (aircraft: unknown[]): string => {
+      try { parseScenario(raw(aircraft)) } catch (e) { return String(e) }
+      return ''
+    }
+    const unknown = parse([PLAYER, wing('w1', { leader: 'nobody', slot: 1 }), wing('w2', { leader: 'nobody', slot: 1 })])
+    expect(unknown).toMatch(/leader must name a starting aircraft/)
+    expect(unknown).not.toMatch(/is taken/)
+    const crossSide = parse([PLAYER, wing('w1', { leader: 'f6f-1', slot: 1 }), { ...wing('w2', { leader: 'f6f-1', slot: 1 }), side: 'axis' }])
+    expect(crossSide).toMatch(/leader must be on the same side/)
+    expect(crossSide).not.toMatch(/is taken/)
+  })
+
   it('furball-range: ally-1 flies as the player wingman (7f spec, Acceptance)', () => {
     const w = worldFromScenario(loadScenarioBundle('furball-range'), null)
     expect(aircraftById(w, 'ally-1')!.pilot!.formation).toEqual({ leader: 'f6f-1', slot: 1 })
