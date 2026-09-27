@@ -1096,25 +1096,25 @@ git commit -m "7f Task 7: furball-range's ally-1 flies as the player's wingman"
 - Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15, Plan 7 row only: "7f ... not started" → complete, with plan/spec/handoff links)
 - Modify: this plan's checkboxes (tick as each task lands, in that task's commit)
 
-- [ ] **Step 1: Full verify through ryzen**
+- [x] **Step 1: Full verify through ryzen**
 
 Run: `remote-run npm run verify; echo rc=$?`
 Expected: `rc=0`. On failure, fix it in the task that owns the failing behavior. Never judge the run by grepping its output.
 
-- [ ] **Step 2: Write the handoff**
+- [x] **Step 2: Write the handoff**
 
 Follow the house form in `docs/handoff/2026-09-26-plan7e-sides.md`: what shipped (per task, with commit ids), every tuning constant with its measured value and date, the escort-hits outcome from Task 4, the furball outcome from Task 7, and **Open for Mark**:
 - Tier 2 (Task 9) waits on the sortie forms;
 - mission content follow-ups: CAP raider pairs, and a player wingman in CAP;
 - wingman commands are still unbuilt (7c-7g design, Open item 5).
 
-- [ ] **Step 3: Update the §15 row**
+- [x] **Step 3: Update the §15 row**
 
 In the Plan 7 row, replace `7f (formation), 7g (landing AI) not started` with a 7f clause in the same style as 7e's: what landed, "Tier 1 only; Tier 2 waits on the sortie forms", and links to the [spec](2026-09-27-ai-7f-formation-design.md), plan and handoff. Keep `7g (landing AI) not started`.
 
 Also update README's paragraph for the AI plans. It points at §15 and does not restate the order (repo `CLAUDE.md`, Conventions).
 
-- [ ] **Step 4: Commit, push the branch, email the handoff**
+- [x] **Step 4: Commit, push the branch, email the handoff**
 
 ```bash
 git add docs/ README.md

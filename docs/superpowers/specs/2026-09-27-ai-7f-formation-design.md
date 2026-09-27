@@ -84,6 +84,17 @@ is a new table, not new behavior.
 - **The safety override stays first,** exactly as in `pilotTick` today: the
   ground floor and G limit outrank formation.
 
+**Amendment, 2026-09-27 (Task 3 round 2, shipped law).** For a slot station,
+"the leader's velocity" in the first bullet is fed forward through the
+leader's own turn — the station's own velocity, turn lead plus omega x arm —
+so the wingman's velocity command banks with the leader instead of trailing
+it; trail cover (§4) is not given this feed-forward, and keeps the leader's
+plain velocity. The proportional term also uses a stiffer vertical gain than
+horizontal, to counter the velocity controller sinking through a commanded
+level turn. See `src/sim/ai/formation.ts` (`stationDesiredVelocity`,
+`TURN_LEAD_PER_BANK`, `VERTICAL_GAIN_PER_S`) for the measured values and the
+reasoning; not restated here.
+
 ### 4. When a wingman fights, and how it comes back
 
 Two changes from the approved design: the trigger is **a threat to the
