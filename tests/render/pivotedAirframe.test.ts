@@ -48,7 +48,9 @@ describe('the pivoted airframe (R3)', () => {
   })
 
   it('turns each leg about its own baked axis, from its rest pose, and spins the prop by propAngle', async () => {
-    const { inst } = fake({ Prop: [1, 0, 0], GearL: [1, 0, 0], GearR: [1, 0, 0] })
+    // Three different baked axes, so a leg turned about the prop's axis, or about another leg's,
+    // lands somewhere else and fails.
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
     const rest = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.1)
     inst.node('GearR').quaternion.copy(rest)
     const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
@@ -56,8 +58,10 @@ describe('the pivoted airframe (R3)', () => {
     a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0 })
     expect(inst.node('GearR').quaternion.angleTo(rest)).toBeLessThan(1e-9)
     a.update({ ...zero, gearFraction: 0, throttle: 1, frameS: 0.05 })
-    const want = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2).multiply(rest)
+    const want = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI / 2).multiply(rest)
     expect(inst.node('GearR').quaternion.angleTo(want)).toBeLessThan(1e-9)
+    const wantL = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), -Math.PI / 2)
+    expect(inst.node('GearL').quaternion.angleTo(wantL)).toBeLessThan(1e-9)
     const spun = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), propAngle(0, 1, 0.05))
     expect(inst.node('Prop').quaternion.angleTo(spun)).toBeLessThan(1e-9)
     a.update({ ...zero, gearFraction: 0, throttle: 0, frameS: 1 })
