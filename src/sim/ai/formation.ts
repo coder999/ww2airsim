@@ -3,11 +3,11 @@ import type { Controls } from '../flight/state.js'
 import { DT } from '../flight/model.js'
 import { qRotate } from '../math/quat.js'
 import { add, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
+import type { AircraftCombat } from '../weapons/combat.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { RECENT_HIT_S } from './ingress.js'
 import type { FormationSlot } from './pilot.js'
 import { hasGunSolution } from './pursuit.js'
-import type { AircraftCombat } from '../weapons/combat.js'
 
 /**
  * Formation flying (7f spec, 2026-09-27): stations in the leader's heading
@@ -185,12 +185,14 @@ export function stationErrorM<M>(self: AircraftEntity<M>, leader: AircraftEntity
   return length(sub(stationPoint(leader, STATIONS[slot]), self.state.position))
 }
 
-/** A hostile this close to the leader or the wingman is engaged (spec §4).
- *  The same scale as INGRESS_ENGAGE_RANGE_M; tuning value. */
+/** A hostile this close to the leader or the wingman is engaged. A spec-set
+ *  value (spec §4, 2026-09-27), the same scale as INGRESS_ENGAGE_RANGE_M --
+ *  not measured. */
 export const COVER_RANGE_M = 3000
 /** The current target stays eligible out to here, as ingress does. */
 export const COVER_RELEASE_RANGE_M = 1.5 * COVER_RANGE_M
-/** How long trail cover holds after the leader last fired or engaged (spec §4). */
+/** How long trail cover holds after the leader last fired or engaged. A
+ *  spec-set value (spec §4, 2026-09-27), not measured. */
 export const COVER_LATCH_S = 5
 
 /** The player fires (`controls.fire`), or an AI leader is engaging. */
