@@ -18,14 +18,17 @@ const BUILDING_BUDGET = { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4
 const RAISED: Readonly<Record<string, string>> = {}
 
 /** Every building R4 authored. Each task appends its own. */
-const R4_BUILDINGS: readonly string[] = ['tower']
+const R4_BUILDINGS: readonly string[] = ['tower', 'aaa']
 
 /** H3's turret names (Hangar spec §9). A building's are numbered +x to -x, then -z to +z (R4 ruling). */
-const TURRETS: Readonly<Record<string, readonly string[]>> = {}
+const TURRETS: Readonly<Record<string, readonly string[]>> = {
+  aaa: ['Turret1'],
+}
 
 /** Footprints the sim owns: the script's figure must be content/bases/tacloban.json's plus its pad. */
 const SIM_FOOTPRINTS: Readonly<Record<string, { readonly building: string; readonly padM: number }>> = {
   tower: { building: 'tacloban-tower', padM: 1 },
+  aaa: { building: 'tacloban-aaa-1', padM: 0 },
 }
 
 const entries = loadModelEntries()
