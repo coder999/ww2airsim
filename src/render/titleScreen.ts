@@ -156,6 +156,10 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // The survivable half: parked on Tacloban's runway behind a parked allied
   // Hellcat, so a hop and a landing end in the discharge (FF-7 as amended).
   { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range' },
+  // M3's missions. The picker shows missions first whatever their place here.
+  // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
+  // substring, and the range above keeps that name (M3-R5).
+  { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' } },
 ]
 
 /** M2's two fixture missions (open question 1): `dev-`-prefixed, and offered

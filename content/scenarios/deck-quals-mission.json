@@ -1,0 +1,196 @@
+{
+  "id": "deck-quals-mission",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "ship": "cv-1",
+        "spot": {
+          "x": 0,
+          "z": -110
+        }
+      },
+      "chocked": false
+    }
+  ],
+  "ships": [
+    {
+      "id": "cv-1",
+      "spec": "essex-cv",
+      "side": "allied",
+      "waypoints": [
+        [
+          -9084,
+          -28558
+        ],
+        [
+          -13444,
+          -41903
+        ],
+        [
+          -19988,
+          -44130
+        ],
+        [
+          -15631,
+          -30784
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "dd-1",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -8872,
+          -28770
+        ],
+        [
+          -13232,
+          -42115
+        ],
+        [
+          -19776,
+          -44342
+        ],
+        [
+          -15419,
+          -30996
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "dd-2",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -9296,
+          -28346
+        ],
+        [
+          -13656,
+          -41691
+        ],
+        [
+          -20200,
+          -43918
+        ],
+        [
+          -15843,
+          -30572
+        ]
+      ],
+      "speedMps": 7.717
+    }
+  ],
+  "weather": {
+    "windFromDeg": 342,
+    "windMps": 7.717,
+    "timeOfDay": 16.5,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1000,
+        "thicknessM": 800,
+        "coverage": 0.55
+      },
+      {
+        "kind": "cirrus",
+        "baseM": 7000,
+        "thicknessM": 300,
+        "coverage": 0.35
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "up",
+      "label": "Launch",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "cv-1"
+    },
+    {
+      "id": "downwind",
+      "label": "Downwind",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -10726,
+        "z": -28752
+      },
+      "radiusM": 1500,
+      "altitudeM": [
+        100,
+        450
+      ],
+      "after": "up"
+    },
+    {
+      "id": "traps",
+      "label": "Trap",
+      "priority": "primary",
+      "kind": "land",
+      "at": "cv-1",
+      "count": 3,
+      "respot": true,
+      "after": "downwind"
+    },
+    {
+      "id": "clean",
+      "label": "No wave-offs",
+      "priority": "secondary",
+      "kind": "approaches",
+      "at": "cv-1"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "ready",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Paddles: Ready deck. Launch, then take the downwind leg to port."
+        }
+      ]
+    },
+    {
+      "id": "abeam",
+      "when": {
+        "completed": "downwind"
+      },
+      "then": [
+        {
+          "message": "Paddles: Abeam. Gear, flaps and hook down, and bring it aboard."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "carrier-qualified",
+    "name": "Carrier Qualified"
+  },
+  "briefing": {
+    "situation": "Deck Quals (Carrier Qualification). Launch from the Essex, fly the downwind leg to port, and make three arrested landings. Between traps the deck crew respots you for launch; raise your hook before you roll. A clean card has no wave-offs.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "Before a naval aviator joined a carrier squadron he had to qualify aboard ship: a set number of arrested landings under the eye of the Landing Signal Officer, whose paddles told him high, low, fast or slow, and finally gave the cut. Between 1942 and 1945 most of the Navy's carrier qualifications were flown far inland, on Lake Michigan, from Wolverine and Sable, two side-wheel Great Lakes excursion steamers converted into training carriers; an estimated 15,000 pilots qualified aboard them. This mission is inspired by that training rather than a reconstruction of it: it stages the drill off Leyte aboard an Essex-class carrier, because that is where the game's carrier sails.",
+    "sources": [
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Wolverine II (IX-64)\": https://www.history.navy.mil/research/histories/ship-histories/danfs/w/wolverine-ii.html",
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Sable I (IX-81)\": https://www.history.navy.mil/research/histories/ship-histories/danfs/s/sable.html",
+      "Naval History and Heritage Command, Underwater Archaeology Branch, \"The Navy's Historic Aircraft Wrecks in Lake Michigan\": https://www.history.navy.mil/research/underwater-archaeology/sites-and-projects/aircraft-wrecksites/aircraft-wrecks-in-lake-michigan.html"
+    ]
+  }
+}

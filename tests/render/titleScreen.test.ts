@@ -111,7 +111,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'friendly-fire-range', 'friendly-fire-field',
+      'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -130,11 +130,17 @@ describe('the title screen scenario picker', () => {
     expect(labels['furball-range']).toBe('Furball (dev)')
     expect(labels['friendly-fire-range']).toBe('Friendly Fire (dev)')
     expect(labels['friendly-fire-field']).toBe('Friendly Fire: Field (dev)')
+    expect(labels['deck-quals-mission']).toBe('Carrier Qualification')
   })
 
-  it('every production row is a range: the shipped build lists no mission until M3 (M2 R5)', () => {
-    expect(SCENARIO_OPTIONS.every((o) => o.kind === 'range')).toBe(true)
-    expect(SCENARIO_OPTIONS.some((o) => o.badge !== undefined)).toBe(false)
+  it('no other label contains "Deck Quals": e2e selectors match by substring (M3-R5)', () => {
+    expect(SCENARIO_OPTIONS.filter((o) => o.label.includes('Deck Quals')).map((o) => o.value)).toEqual(['deck-quals'])
+  })
+
+  it('production ships exactly the M3 missions, each with its badge; every other row is a range (M2 R5)', () => {
+    expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission').map((o) => [o.value, o.badge]))
+      .toEqual([['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }]])
+    expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'range').some((o) => o.badge !== undefined)).toBe(false)
   })
 
   it('isKnownScenarioId accepts only ids the picker actually lists', () => {
