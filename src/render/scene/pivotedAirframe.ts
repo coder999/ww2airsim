@@ -1,9 +1,10 @@
 // src/render/scene/pivotedAirframe.ts
-import { Group, Quaternion, Vector3, type Object3D } from 'three'
+import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
 import { propAngle, type Airframe, type PartId } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import type { AirframeRig, GearRig } from './airframeRigs.js'
-import type { StoreMounts } from './stores.js'
+import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
+import { loadStoreVisuals } from './storeModels.js'
 
 /**
  * One airframe from a rigged glb (R3): its articulated parts were pivoted by the build (each
@@ -34,7 +35,7 @@ export function turnedAbout(rest: Quaternion, axis: Vector3, angleRad: number): 
   return new Quaternion().setFromAxisAngle(axis, angleRad).multiply(rest)
 }
 
-/** The bench parts a rig drives. Never stores: a rigged model's mounts were never measured. */
+/** The bench parts a rig drives. Stores are added by the loader when the spec carries any. */
 export function rigParts(rig: AirframeRig): PartId[] {
   const parts: PartId[] = []
   if (rig.props.length > 0) parts.push('prop')
@@ -53,9 +54,6 @@ function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { pro
 }
 
 export async function loadPivotedAirframe(modelId: string, url: string, rig: AirframeRig, stores: StoreMounts | undefined, acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
-  if (stores !== undefined) {
-    throw new Error(`${modelId}: a rigged model hangs no stores (its racks and rails were never measured); draw this spec with view.model "wildcat", or measure mounts for ${modelId} first`)
-  }
   const instance = await acquire(url)
   const bound = ((): ReturnType<typeof bind> => {
     try {
@@ -69,14 +67,36 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
   root.name = modelId
   root.add(instance.root)
   root.traverse((o) => { o.receiveShadow = true })
+  // Stores hang from the FLYING spec's mounts (sortie forms A4; wildcat.ts's O1 pattern). An R3
+  // model is built level in the sim frame (R3 P13), so the stores sit parallel to x (pitch 0).
+  // tests/tools/models/wildcatMounts.test.ts holds every content spec's mounts to the wing of the
+  // model it draws; a Dev loadout's borrowed Hellcat layout (SF-R2) hangs where it hangs. If a
+  // store model fails to load, primitive stand-ins hang instead and the airplane still flies.
+  let hung: { setStores(b: number, r: number): void; dispose(): void } | null = null
+  let freeVisuals = (): void => {}
+  if (stores !== undefined) {
+    const ids = [...stores.racks, ...stores.rails].map((m) => m.store)
+    const visuals = await loadStoreVisuals(ids, 0, acquire).catch((e: unknown) => {
+      console.warn(`${modelId}: store models failed (${e instanceof Error ? e.message : String(e)}); hanging primitive stand-ins`)
+      const trim = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
+      const p = primitiveStoreVisuals(stores, trim)
+      return { ...p, release: () => { p.dispose(); trim.dispose() } }
+    })
+    try {
+      hung = attachStores(root, stores, visuals)
+    } catch (e) {
+      visuals.release()
+      instance.release()
+      throw e
+    }
+    freeVisuals = visuals.release
+  }
   let propRad = 0
   let disposed = false
   return {
     root,
-    parts: rigParts(rig),
-    setStores(): void {
-      // A rigged model hangs no stores: loadPivotedAirframe refuses a spec that has them.
-    },
+    parts: stores === undefined ? rigParts(rig) : [...rigParts(rig), 'stores'],
+    setStores: (b, r) => { hung?.setStores(b, r) },
     update(u): void {
       propRad = propAngle(propRad, u.throttle, u.frameS)
       for (const p of bound.props) p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad))
@@ -85,6 +105,8 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
     dispose(): void {
       if (disposed) return
       disposed = true
+      hung?.dispose()
+      freeVisuals()
       instance.release()
     },
   }

@@ -184,8 +184,8 @@ const loadRegisteredDisplay: LoadDisplay = (ref) => acquireModel(displayModelUrl
 
 /**
  * An entry's own model (model-roster spec §4.3), drawn in place of the spec's view.model, in the
- * Hangar only. It stands on the pad by its own bounds, not by a spec's gear height, because it is
- * not the model the spec flies, and it hangs no stores. Ships stand at their waterline origin, and
+ * Hangar only. It stands on the pad by its own bounds, not by a spec's gear height, because it
+ * need not be the model the spec flies (the Hellcat's is, since sortie forms A4), and it hangs no stores. Ships stand at their waterline origin, and
  * buildings and vehicles on their own y = 0 (the Blender kit's frame, spec §4.2).
  */
 async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDisplay: LoadDisplay): Promise<HangarModel> {
