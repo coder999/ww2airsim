@@ -1,34 +1,16 @@
 // src/render/scene/wildcat.ts
 import { Group, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
-import { attachStores } from './stores.js'
+import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
+import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
-/**
- * The Wildcat model (content/aircraft/wildcat.glb, ASSETS.md) is authored
- * with local +Z as the nose -- confirmed 2026-09-24 by reading the world
- * position of the `Helice` (propeller) node (+Z) against `Timon_Prof` (the
- * tail/elevator, -Z) after a real Three.js load, not by assumption. Sim body
- * frame is +X forward (hellcat.ts's own doc comment). Rotating +90 degrees
- * about Y sends local (0,0,1) to world (1,0,0) -- verified against the same
- * measurement: it also sends the model's local +X (where `GRP_Rueda_Der`,
- * "right" in Spanish, sits at negative local X) to world -Z, i.e. sim's
- * right-hand side (+Z), matching hellcat.ts's stated "+Z right" convention.
- */
-export const WILDCAT_TO_SIM_ROTATION_Y = Math.PI / 2
+import { WILDCAT_DATUM_PITCH_RAD, wildcatCorrection } from './wildcatFrame.js'
 
-/** content/aircraft/f4f-wildcat.json's geometry.wingSpanM (Task 3 -- reused
- *  verbatim from the Hellcat's; this constant must be kept in sync with that
- *  file by hand, the same way hellcat.ts's own wing box hardcodes it, since
- *  this module has no content-loading path of its own either. */
-const TARGET_WINGSPAN_M = 13.06
-/** The model's own native wingspan, measured 2026-09-24 via
- *  `new THREE.Box3().setFromObject(scene)` on a real load (not a guess, and
- *  not derived from the raw glTF accessor bytes, which are in a different,
- *  pre-hierarchy unit space) -- see this plan's Task 5 for the method. */
-const WILDCAT_NATIVE_WINGSPAN_M = 15.658001068688918
-export const WILDCAT_SCALE = TARGET_WINGSPAN_M / WILDCAT_NATIVE_WINGSPAN_M
+/** The model-to-sim frame lives in wildcatFrame.ts (Node-safe for tools/models/mounts.ts);
+ *  re-exported so every importer of this module keeps working. */
+export { WILDCAT_CORRECTION_NAME, WILDCAT_DATUM_PITCH_RAD, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatCorrection, wildcatToSimMatrix } from './wildcatFrame.js'
 
 interface GearPose { readonly pos: Vector3; readonly quat: Quaternion }
 interface GearPair { readonly der: GearPose; readonly izq: GearPose }
@@ -69,20 +51,13 @@ export function applyGearFraction(node: Object3D, down: GearPose, up: GearPose, 
   node.quaternion.slerpQuaternions(up.quat, down.quat, fraction)
 }
 
-/** Matches hellcat.ts's `dark` material exactly (color, roughness) --
- *  deliberately its own instance, not a shared import: sharing one material
- *  object would mean a future recolor of the Hellcat's trim silently
- *  recolors the Wildcat's ordnance too, a surprising coupling for one line
- *  saved. */
-const dark = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
-
 /**
  * One Wildcat. Loads through the shared model cache (A6M Zero spec §7.1): the
  * first call parses wildcat.glb, every later call clones that parse, and all
  * of them share its geometry, materials and 26 textures. `acquire` is
  * injectable so Node tests can hand in a synthetic instance.
  */
-export async function loadWildcat(acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
+export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
   const instance = await acquire(WILDCAT_MODEL_URL)
   const scene = instance.root
 
@@ -98,23 +73,44 @@ export async function loadWildcat(acquire: (url: string) => Promise<ModelInstanc
   // native-axis quirk from every consumer (scenarioEntities.ts, main.ts):
   // `root` below is posed directly in sim body-frame convention exactly the
   // way hellcat.ts's `root` always was.
-  const correction = new Group()
-  correction.rotation.y = WILDCAT_TO_SIM_ROTATION_Y
-  correction.scale.setScalar(WILDCAT_SCALE)
+  // Built in wildcatFrame.ts, the same source models:mounts measures through.
+  const correction = wildcatCorrection()
   correction.add(scene)
 
   const root = new Group()
   root.add(correction)
   root.traverse((o) => { o.receiveShadow = true })
 
-  const stores = attachStores(root, dark)
+  // O1: stores hang from the FLYING spec's mounts (the sim's), as the generated models, parallel
+  // to the drawn datum. A spec with no stores (the Zero) hangs none. If a store model fails to
+  // load, the primitive stand-ins hang instead and the airplane still flies (Review Focus 2).
+  let hung: { setStores(b: number, r: number): void; dispose(): void } | null = null
+  let freeVisuals = (): void => {}
+  if (stores !== undefined) {
+    const ids = [...stores.racks, ...stores.rails].map((m) => m.store)
+    const visuals = await loadStoreVisuals(ids, WILDCAT_DATUM_PITCH_RAD, acquire).catch((e: unknown) => {
+      console.warn(`wildcat: store models failed (${e instanceof Error ? e.message : String(e)}); hanging primitive stand-ins`)
+      const trim = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
+      const p = primitiveStoreVisuals(stores, trim)
+      return { ...p, release: () => { p.dispose(); trim.dispose() } }
+    })
+    try {
+      hung = attachStores(root, stores, visuals)
+    } catch (e) {
+      // Nothing is returned to own them, so free the visuals and the airframe here.
+      visuals.release()
+      instance.release()
+      throw e
+    }
+    freeVisuals = visuals.release
+  }
   let disposed = false
 
   return {
     root,
     /** This model has no flap geometry at all (ASSETS.md, F4F plan Review Focus). */
-    parts: ['prop', 'gear', 'stores'],
-    setStores: stores.setStores,
+    parts: stores === undefined ? ['prop', 'gear'] : ['prop', 'gear', 'stores'],
+    setStores: (b, r) => { hung?.setStores(b, r) },
     update(u): void {
       propRad = propAngle(propRad, u.throttle, u.frameS)
       helice.rotation.z = heliceRestZ + propRad
@@ -124,7 +120,8 @@ export async function loadWildcat(acquire: (url: string) => Promise<ModelInstanc
     dispose(): void {
       if (disposed) return
       disposed = true
-      stores.dispose()
+      hung?.dispose()
+      freeVisuals()
       instance.release()
     },
   }

@@ -5,8 +5,8 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-09-26 at `66451b7`; §3.9 and the `setLayout` trap added with the
-boot-freeze fix. When you change the cloud system, update the
+on 2026-09-26 at E1 implementation head `28f50ea`; §3.10 records the effects
+dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
 ## 1. What ships (2026-09-26)
@@ -24,6 +24,9 @@ relevant section here in the same commit.
 - **Rendering:**
   - a raymarch at reduced resolution with temporal accumulation
     (`cloudPass.ts`);
+  - the march stops at the nearer of the scene depth and the effects'
+    dense depth (where effects alpha > 0.5), so a fireball in front of a
+    cloud keeps its pixels (E1, `src/render/fx/fxPass.ts`'s `cloudLimit`);
   - a density field shared with a sun-view shadow map
     (`cloudField.ts`, `cloudShadow.ts`). The march's `density` and
     `densityCoarse` are laid-out TSL `Fn`s, a fresh pair per material
@@ -63,6 +66,7 @@ relevant section here in the same commit.
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |
 | History targets | `src/render/scene/cloudHistory.ts` |
+| Effects dense depth, the cloud march limit's second input | `src/render/fx/fxPass.ts` (`FxCloudLimit`) |
 | Shadow map (sun-view transmittance) | `src/render/scene/cloudShadow.ts` |
 | Phase, multi-scatter, powder | `src/render/scene/cloudLighting.ts` |
 | Asset sizes and constants shared by build and loader | `src/render/sky/noise.ts` |
@@ -70,7 +74,7 @@ relevant section here in the same commit.
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
 | GPU gates | `tests/e2e/budget4k.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
-| DEV probes | `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `__ww2.clouds()`, `__ww2.cloudShadowAt(x,z)` |
+| DEV probes | `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()`, `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did
 
@@ -239,6 +243,29 @@ method and margin). Design: its spec §A.3.
   density) and hoisting `thetaFor` to once per layer, if more headroom is
   wanted.
 
+### 3.10 Effects in front of clouds (E1, 2026-09-26)
+
+`minViewZAt` and the composite's `z` now take `min(…, denseViewZAt)`, the
+effects pass's dense depth (`src/render/fx/fxPass.ts`), so the march stops
+at a dense effect exactly as it stops at an opaque surface, and the
+composite matches that stop. The reason is ordnance-and-effects spec §4.2:
+air kills happen against cloud, and a fireball in front of a cloud must keep
+its pixels rather than be marched over. Without `fxLimit` (`?fx=off`, or
+`?fxCloudLimit=off`) it is a JS-level branch, so every cloud node graph is
+built exactly as before.
+
+Reference-GPU acceptance at 2560×1440 counted warm fireball pixels in the
+same fixed view: **237 with the effects dense-depth limit, 0 with the limit
+disabled, and 357 in clear sky**. The limited result therefore preserves the
+foreground fireball, while the unlimited control lets the cloud march eat it.
+
+The fixed 3840×2160 `photo`/High view measured **16.102 ms p95 with
+`?fx=off` and 16.062 ms with effects High** (151 and 165 samples). The
+-0.039 ms difference is scheduling noise, not a speedup claim; the effects-on
+arm remains inside the 16.67 ms 4K budget. The full High in-cloud view is
+currently 20.328–20.580 ms against its 20.0 ms tripwire; current `main`
+reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
+
 ## 4. Traps
 
 **TSL and three r186**
@@ -316,6 +343,7 @@ method and margin). Design: its spec §A.3.
 | 7 | **16b/16c look calls:** shadow darkness, `OCEAN_SHADOW_FLOOR` 0.6, sea scaled not tinted at dusk, crimson dusk clouds | Mark's calls, not made |
 | 8 | **16b limits:** shadow fade uses the lowest layer only; cirrus casts no shadow; cockpit panel unshadowed; pass runs every frame | Known, unscheduled |
 | 9 | **Docs debt:** photoreal Task 14 (handoff, §15 row, supersede notes) never run; 16d documents lack "superseded" | Housekeeping |
+| 10 | **A scenario picked from the title keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once at boot, from the boot bundle (free-flight), and builds the cloud field, clouds and shadow pass from it once; `loadScenario` never touches them. Every title-launched scenario therefore flies under free-flight's cumulus and cirrus, although free-flight is the only one that declares clouds. Found 2026-09-26 on `worktree-friendly-fire`: `friendly-fire-range` (no clouds) showed cumulus in a capture and measured gpu p95 6.9 ms when launched from the title, against 2.0 ms booted by `?scenario=` on the reference GPU. The reverse case (a cloudless URL boot, then free-flight from the title, showing no clouds) follows from the same code but was not run. The time of day has the same flaw: `scenarioTimeOfDay` is also assigned only at boot (`main.ts`, one assignment, read 2026-09-26), so a title-launched `strike-range` keeps free-flight's 10:00 sun rather than its own 14:00. Fix: rebuild both from the new scenario's `weather` in the switch. Until then, Tier 2 budget specs should boot by URL | Open; Mark: note it, fix later (2026-09-26) |
 
 ## 6. Proposed next steps
 

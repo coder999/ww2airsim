@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createAirfield, AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
 import { parseAirfield } from '../../src/sim/world/airfields.js'
 import { loadAirfield } from '../../tools/content/load.js'
-import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 import { healthyStructureDamage, type StructureDamage } from '../../src/sim/weapons/structures.js'
@@ -88,22 +88,23 @@ describe('airfield buildings (Plan 6b: moved from a module constant into content
 
 /**
  * Collapse geometry (Plan 6b Task 8; `sync` post-Task-8 fix). `createAirfield`
- * now returns a HANDLE, `{ object, sync, update }`, not the bare `Group` it
- * used to -- every content `buildings` entry (a strike target,
- * `World.structures`) gets its own named `structure:<id>` group with three
+ * now returns a HANDLE, `{ object, sync, smokeAnchors }`, not the bare
+ * `Group` it used to -- every content `buildings` entry (a strike target,
+ * `World.structures`) gets its own named `structure:<id>` group with two
  * children: `intact` (the detailed building, merged per-building the way the
- * whole airfield used to merge everything), `collapsed` (a low broken box,
- * hidden until destroyed, sharing this file's own weathered material), and
- * `smoke` (a `createSmokeColumn` from `ordnance.ts`, reused rather than
- * reimplemented per Task 8's explicit instruction). `sync` replaced the
- * original one-way `setDestroyed(id)` latch: it is handed the CURRENT
- * `World.combat.structures` map every frame and sets every owned building's
- * visuals from that state each call, so a building can also revert to
- * intact -- the only way that happens is Restart rebuilding a fresh, healthy
- * `World.combat.structures`, which the original latch had no path to notice.
+ * whole airfield used to merge everything) and `collapsed` (a low broken
+ * box, hidden until destroyed, sharing this file's own weathered material).
+ * `sync` replaced the original one-way `setDestroyed(id)` latch: it is
+ * handed the CURRENT `World.combat.structures` map every frame and sets
+ * every owned building's visuals from that state each call, so a building
+ * can also revert to intact -- the only way that happens is Restart
+ * rebuilding a fresh, healthy `World.combat.structures`, which the original
+ * latch had no path to notice. The collapse's dust and smoke are E1's
+ * `structure.collapse` recipe, anchored at `smokeAnchors` rather than
+ * rendered here.
  */
 describe('airfield collapse geometry (Plan 6b Task 8)', () => {
-  it('every content building starts intact, with its collapsed variant and smoke column hidden', () => {
+  it('every content building starts intact, with its collapsed variant hidden', () => {
     const tacloban = loadAirfield('tacloban')
     const { object } = createAirfield(field, tacloban)
     for (const b of tacloban.buildings) {
@@ -111,11 +112,10 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
       expect(group).toBeDefined()
       expect(group!.getObjectByName('intact')!.visible).toBe(true)
       expect(group!.getObjectByName('collapsed')!.visible).toBe(false)
-      expect(group!.getObjectByName('smoke')!.visible).toBe(false)
     }
   })
 
-  it('sync swaps intact for the collapsed rubble box and starts its smoke column, leaving other buildings untouched', () => {
+  it('sync swaps intact for the collapsed rubble box, leaving other buildings untouched', () => {
     const tacloban = loadAirfield('tacloban')
     const { object, sync } = createAirfield(field, tacloban)
     const [first, second] = tacloban.buildings
@@ -123,7 +123,6 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
     const hit = object.getObjectByName(`structure:${first!.id}`)!
     expect(hit.getObjectByName('intact')!.visible).toBe(false)
     expect(hit.getObjectByName('collapsed')!.visible).toBe(true)
-    expect(hit.getObjectByName('smoke')!.visible).toBe(true)
 
     const spared = object.getObjectByName(`structure:${second!.id}`)!
     expect(spared.getObjectByName('intact')!.visible).toBe(true)
@@ -134,17 +133,6 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
     const tacloban = loadAirfield('tacloban')
     const { sync } = createAirfield(field, tacloban)
     expect(() => sync({ 'no-such-building': destroyedAt(1) })).not.toThrow()
-  })
-
-  it("update() fades a destroyed building's smoke column to hidden once its lifetime elapses (spec §4: 60 s)", () => {
-    const tacloban = loadAirfield('tacloban')
-    const { object, sync, update } = createAirfield(field, tacloban)
-    const id = tacloban.buildings[0]!.id
-    sync({ [id]: destroyedAt(1) })
-    const smoke = object.getObjectByName(`structure:${id}`)!.getObjectByName('smoke')!
-    expect(smoke.visible).toBe(true)
-    update(90) // past the 60 s collapse-smoke lifetime
-    expect(smoke.visible).toBe(false)
   })
 
   it("opens Dulag's structures too, not just Tacloban's", () => {
@@ -173,13 +161,18 @@ describe('airfield collapse geometry (Plan 6b Task 8)', () => {
     sync({ [id]: destroyedAt(1) })
     expect(group.getObjectByName('intact')!.visible).toBe(false)
     expect(group.getObjectByName('collapsed')!.visible).toBe(true)
-    expect(group.getObjectByName('smoke')!.visible).toBe(true)
 
     // Restart rebuilds `World.combat.structures` from scratch via
     // `healthyStructureDamage`, so every id maps back to `destroyedTick: null`.
     sync(Object.fromEntries(tacloban.buildings.map((b) => [b.id, healthyStructureDamage(b.hp)])))
     expect(group.getObjectByName('intact')!.visible).toBe(true)
     expect(group.getObjectByName('collapsed')!.visible).toBe(false)
-    expect(group.getObjectByName('smoke')!.visible).toBe(false)
+  })
+
+  it('publishes one smoke anchor per content building, above its ground (E1 Ruling R13)', () => {
+    const tacloban = loadAirfield('tacloban')
+    const { smokeAnchors } = createAirfield(field, tacloban)
+    expect([...smokeAnchors.keys()].sort()).toEqual(tacloban.buildings.map((b) => b.id).sort())
+    for (const p of smokeAnchors.values()) expect(p.y).toBeGreaterThanOrEqual(heightAt(field, p.x, p.z))
   })
 })

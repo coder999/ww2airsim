@@ -24,7 +24,9 @@
     "textures:build": "tsx tools/textures/build.ts",
     "models:build": "tsx tools/models/build.ts",
     "models:inspect": "tsx tools/models/inspect.ts",
+    "models:mounts": "tsx tools/models/mounts.ts",
     "audio:rocket-whoosh": "tsx tools/audio/synthesizeRocketWhoosh.ts",
+    "fx:placeholders": "tsx tools/fx/build.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"
   },

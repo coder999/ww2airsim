@@ -37,6 +37,9 @@ export interface HangarHooks {
   gizmoNodes(): string[]
   /** The selected model's counts against its manifest budget; null before the first select (H2). */
   counts(): CountsReport | null
+  /** Where the selected aircraft's store mounts fall on the canvas, in NDC through the stage
+   *  camera; [] for anything else (O1, Tier 2 check 11). */
+  storeMounts(): readonly { readonly id: string; readonly ndc: readonly [number, number] }[]
   readonly validationErrors: string[]
 }
 

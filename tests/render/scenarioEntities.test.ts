@@ -46,7 +46,7 @@ function allMeshes(entities: ScenarioEntities): Mesh[] {
 /**
  * `buildScenarioEntities` (Plan 9 Task 7, design doc §5) is what `main.ts`'s
  * `loadScenario` calls on every scenario switch -- the entity-sized meshes
- * (`airframes`/`shipHandles`/`smokes`/`player`), not terrain,
+ * (`airframes`/`shipHandles`/`player`), not terrain,
  * ocean or sky, which are untouched. This suite is the Tier 1 half of the
  * plan's own Review Focus: a headless test cannot see a Tier 2 GPU leak
  * directly, but it CAN see that every mesh the previous call built had its
@@ -54,12 +54,11 @@ function allMeshes(entities: ScenarioEntities): Mesh[] {
  * mechanism a leak could hide behind.
  */
 describe('buildScenarioEntities', () => {
-  it('sizes the mesh arrays to the world passed in: one airframe per aircraft, one hull per ship, one smoke per airframe', async () => {
+  it('sizes the mesh arrays to the world passed in: one airframe per aircraft, one hull per ship', async () => {
     const scene = new Scene()
     const entities = await buildScenarioEntities(scene, deckQuals, null, stubAirframe, stubShips)
     expect(entities.airframes).toHaveLength(deckQuals.aircraft.length)
     expect(entities.shipHandles).toHaveLength(deckQuals.ships.length)
-    expect(entities.smokes).toHaveLength(deckQuals.aircraft.length)
     for (const handle of [...entities.airframes, ...entities.shipHandles]) {
       expect(scene.children).toContain(handle.root)
     }
@@ -179,16 +178,12 @@ describe('disposeMeshTree', () => {
 })
 
 describe('buildScenarioEntities and the model cache (Z1)', () => {
-  it('a switch disposes every previous airframe through its own dispose(), and its smoke', async () => {
+  it('a switch disposes every previous airframe through its own dispose()', async () => {
     const scene = new Scene()
     const before = await buildScenarioEntities(scene, deckQuals, null, stubAirframe, stubShips)
     const disposeSpies = before.airframes.map((a) => vi.spyOn(a, 'dispose'))
-    const smokeMeshes: Mesh[] = []
-    for (const s of before.smokes) s.object.traverse((n) => { if (n instanceof Mesh) smokeMeshes.push(n) })
-    const smokeSpies = smokeMeshes.map((m) => vi.spyOn(m.geometry, 'dispose'))
     await buildScenarioEntities(scene, strikeRange, before, stubAirframe, stubShips)
     for (const spy of disposeSpies) expect(spy).toHaveBeenCalledTimes(1)
-    for (const spy of smokeSpies) expect(spy).toHaveBeenCalled()
   })
 
   it('if one airframe fails to load, the ones that loaded are disposed and the previous scenario is untouched', async () => {
@@ -222,7 +217,7 @@ describe('buildScenarioEntities and the model cache (Z1)', () => {
       }
       return root
     })
-    const load = () => loadWildcat((url) => cache.acquire(url))
+    const load = () => loadWildcat(undefined, (url) => cache.acquire(url))
     const scene = new Scene()
     const first = await buildScenarioEntities(scene, deckQuals, null, load, stubShips)
     const second = await buildScenarioEntities(scene, strikeRange, first, load, stubShips)

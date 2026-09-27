@@ -88,10 +88,10 @@ export function clearDamageModel(): void {
   }
 }
 
-/** One of the three rendering systems whose tier the Advanced disclosure
+/** One of the four rendering systems whose tier the Advanced disclosure
  *  lets diverge (spec §4: they default to moving together because that is
  *  what the probe recommends, not because divergence is disallowed). */
-export type QualitySystem = 'ocean' | 'scenery' | 'clouds'
+export type QualitySystem = 'ocean' | 'scenery' | 'clouds' | 'fx'
 
 type Option<T> = { readonly value: T; readonly label: string; readonly note: string }
 
@@ -107,7 +107,7 @@ type Option<T> = { readonly value: T; readonly label: string; readonly note: str
  * the critique that started it).
  */
 export const RENDER_QUALITY_OPTIONS: readonly Option<QualityTierName>[] = [
-  { value: 'low', label: 'Low', note: 'Fastest. Reduced ocean and cloud detail, no trees and plain ground.' },
+  { value: 'low', label: 'Low', note: 'Fastest. Reduced ocean, cloud and effects detail, no trees and plain ground.' },
   { value: 'medium', label: 'Medium', note: 'Balanced. Suits most machines.' },
   { value: 'high', label: 'High', note: 'Full ocean simulation, dense clouds, trees to the horizon.' },
 ]
@@ -116,6 +116,7 @@ export const ADVANCED_SYSTEMS: readonly { readonly value: QualitySystem; readonl
   { value: 'ocean', label: 'Ocean' },
   { value: 'scenery', label: 'Scenery' },
   { value: 'clouds', label: 'Clouds' },
+  { value: 'fx', label: 'Effects' },
 ]
 
 /**
@@ -206,9 +207,9 @@ export type SettingsModel = {
   open(): void
   close(): void
   toggleAdvanced(): void
-  /** Sets ocean/scenery/clouds all to `tier`, saves, and applies. */
+  /** Sets ocean/scenery/clouds/fx all to `tier`, saves, and applies. */
   selectSimpleTier(tier: QualityTierName): void
-  /** Sets one system's tier, leaving the other two alone, saves, applies. */
+  /** Sets one system's tier, leaving the other three alone, saves, applies. */
   selectSystemTier(system: QualitySystem, tier: QualityTierName): void
   selectAssetQuality(tier: AssetQualityTierName): void
   selectDamageModel(model: DamageModel): void

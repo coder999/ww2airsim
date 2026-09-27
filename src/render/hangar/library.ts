@@ -10,7 +10,7 @@ import type { BudgetTable } from './budgets.js'
  * only: every figure a card shows is read from sim content at load (§4.2,
  * `stats.ts`), so a gameplay rebalance can never leave the library wrong.
  */
-export const LIBRARY_KINDS = ['aircraft', 'ship', 'building'] as const
+export const LIBRARY_KINDS = ['aircraft', 'ship', 'building', 'ordnance'] as const
 export type LibraryKind = (typeof LIBRARY_KINDS)[number]
 export const SIDES = ['allied', 'japanese'] as const
 export type Side = (typeof SIDES)[number]
@@ -26,7 +26,7 @@ export const LibraryEntrySchema = z.object({
   rosterName: z.string().min(1).optional(),
   kind: z.enum(LIBRARY_KINDS),
   side: z.enum(SIDES),
-  /** Sim spec id: an aircraft or ship id, or a building `kind`. Absent = "Not yet in service" (§4.3). */
+  /** Sim spec id: an aircraft or ship id, a building `kind`, or a store type id (ordnance). Absent = "Not yet in service" (§4.3). */
   spec: z.string().min(1).optional(),
   /** One or two sentences: what it is in this game. Never a gameplay number (§4.2). */
   blurb: z.string().min(1),

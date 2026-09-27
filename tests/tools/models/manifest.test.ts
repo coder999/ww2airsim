@@ -1,6 +1,7 @@
 // tests/tools/models/manifest.test.ts
 import { describe, expect, it } from 'vitest'
-import { parseModelEntry } from '../../../tools/models/manifest.js'
+import { readFileSync } from 'node:fs'
+import { loadModelEntries, parseModelEntry } from '../../../tools/models/manifest.js'
 
 const valid = {
   id: 'test-plane',
@@ -41,5 +42,45 @@ describe('ModelEntrySchema', () => {
     ['a zero budget', { ...valid, budget: { ...valid.budget, maxDrawCalls: 0 } }, /maxDrawCalls/],
   ])('rejects %s', (_label, raw, message) => {
     expect(() => parseModelEntry(raw)).toThrow(message)
+  })
+})
+
+const generated = {
+  id: 'test-bomb',
+  output: 'content/ordnance/test-bomb.glb',
+  source: { kind: 'generated', generator: 'tools/models/generated/test-bomb.ts', dimensions: 'OP 1664 p. 390', license: 'AGPL-3.0-or-later' },
+  textures: { maxSize: 512, format: 'webp' },
+  budget: { maxBytes: 1000, maxTriangles: 100, maxDrawCalls: 1 },
+}
+
+describe('generated entries (O1)', () => {
+  it('accepts a generated entry with no input, and names its kind', () => {
+    const e = parseModelEntry(generated)
+    expect(e.source.kind).toBe('generated')
+    expect(e.input).toBeUndefined()
+  })
+
+  it.each([
+    ['an input', { ...generated, input: 'tools/models/cache/x.glb' }, /takes no input/],
+    ['keep nodes', { ...generated, keep: [{ node: 'A' }] }, /takes no keep/],
+    ['a normalize block', { ...generated, normalize: valid.normalize }, /takes no normalize/],
+    ['a CC license', { ...generated, source: { ...generated.source, license: 'CC0-1.0' } }, /license/],
+    ['a generator outside tools/models/generated/', { ...generated, source: { ...generated.source, generator: 'tools/x.ts' } }, /generator/],
+    ['an unknown source kind', { ...generated, source: { ...generated.source, kind: 'fab' } }, /kind/],
+  ])('rejects a generated entry with %s', (_label, raw, message) => {
+    expect(() => parseModelEntry(raw)).toThrow(message)
+  })
+
+  it('rejects a Sketchfab entry writing to content/ordnance/, and one with no input', () => {
+    expect(() => parseModelEntry({ ...valid, id: 'x', output: 'content/ordnance/x.glb' })).toThrow(/content\/ordnance/)
+    const { input, ...noInput } = valid
+    void input
+    expect(() => parseModelEntry(noInput)).toThrow(/needs its raw input/)
+  })
+
+  it('parses every committed Sketchfab entry exactly as before O1, plus kind "sketchfab"', () => {
+    const before = JSON.parse(readFileSync('tests/tools/models/fixtures/entries-before-o1.json', 'utf8')) as { id: string; source: object }[]
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab')
+    expect(now).toEqual(before.map((e) => ({ ...e, source: { kind: 'sketchfab', ...e.source } })))
   })
 })

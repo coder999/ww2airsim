@@ -8,9 +8,11 @@ import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
 import type { CombatDiagnostics } from './combatReadout.js'
+import type { OrdnanceView } from './ordnance.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
+import type { FxStressName } from './fx/stress.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
 import type { ManeuverName, PilotMode } from '../sim/ai/pilot.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
@@ -342,6 +344,10 @@ export type Ww2Diagnostics = {
    *  count (Plan 6), from `World.combat` -- `combatDiagnosticsFor` in
    *  combatReadout.ts. `null` before the first frame exists. */
   readonly combat: () => CombatDiagnostics | null
+  /** The in-flight bomb and rocket pools (O1): instance counts, the triangles each pool's
+   *  geometry has (a generated store model, or the primitive stand-in before it loads), and
+   *  where the first bomb is on screen. Tier 2 (tests/e2e/ordnance.spec.ts) reads it. */
+  readonly ordnanceView: () => OrdnanceView
   /** The radar scope's live state (Plan 17): the currently selected range,
    *  the sweep's current angle, and every contact it is showing. `null`
    *  before the first frame exists, the same guard `impact`/`combat` use. */
@@ -360,6 +366,12 @@ export type Ww2Diagnostics = {
    *  whether the ring materials are drawing them (false at scenery `low`,
    *  under `?terrainTextures=off`, or after a failed load). */
   readonly terrainSurface: () => { readonly texturesLoaded: boolean; readonly detail: boolean }
+  /** E1: the effects pool and pass. `tier` is 'off' under ?fx=off; `cpuMs` is
+   *  the last frame's events + step + instance write, in milliseconds. */
+  readonly fx: () => { readonly tier: string; readonly capacity: number; readonly live: number; readonly drawn: number; readonly sheetsFallback: boolean; readonly cpuMs: number }
+  /** E1 DEV: clear the pool and inject a named scene relative to the eye
+   *  (fx/stress.ts). Anchors are CSS pixels of the named world points. */
+  readonly fxStress: (name: FxStressName) => { readonly anchors: readonly { readonly name: string; readonly x: number; readonly y: number }[] }
   /** Photoreal Task 6: explicit TRAA (and world-fixed motion) history resets
    *  since boot -- the same discontinuities the cloud history resets on. */
   readonly antiAliasing: () => { readonly historyResets: number }
