@@ -17,34 +17,49 @@ The plan's header: final-product viewing checkpoint, unattended.
 | 4 | Roster status `discharged`; `dischargePilot` takes the whole flight back off the career and can lower rank (FF-6); resurrection works as it does for K.I.A. The title row and chip read DISCHARGED; the Dossier reads "Discharged" and "… · Discharged". | `71ab0e9` |
 | 5 | `main.ts` wraps the three debrief builders and banks a discharge through `dischargeInRoster`. The combat readout leads with `CEASE FIRE! YOU'RE HITTING FRIENDLIES!` for 300 ticks (5 s), then a persistent `FRIENDLY FIRE` tag. | `71a5c40` |
 | 6 | `friendly-fire-range` ("Friendly Fire (dev)"), its Tier 1 test and Tier 2 spec, and [the note for M2](../superpowers/notes/2026-09-26-friendly-fire-for-m2.md). | `6bb79da` |
-| 7 | Shape-pin fix found by verify; these docs. | `078ac18`, this commit |
+| 7 | Shape-pin fix found by verify; these docs; Tier 2. | `078ac18`, `aab2d27`, this commit |
+| — | Mark's ruling: `f6f-2` moved and declared axis. | `75db4b5` |
 
 ## 2. Verification
 
-- **Tier 1:** `remote-run npm run verify` at `078ac18`: rc=0. 233 files (232 passed, 1 skipped); 2,424 tests passed, 21 skipped. The skips are the M0 Blender tests; ryzen has no Blender. The first run, at `6bb79da`, failed one test: `gunneryFrame.test.ts` pins the exact diagnostics shape and lacked the new `friendlyFire: null`. That is fixed in `078ac18`.
+- **Tier 1:** `remote-run npm run verify` at `75db4b5` (after the `f6f-2` move): rc=0. 233 files (232 passed, 1 skipped); 2,427 tests passed, 21 skipped. The skips are the M0 Blender tests; ryzen has no Blender. The first run, at `6bb79da`, failed one test: `gunneryFrame.test.ts` pins the exact diagnostics shape and lacked the new `friendlyFire: null`. That is fixed in `078ac18`.
 - **Sim bit-identity:** the 7e digest probe (`.superpowers/ff/hash.ts`, gitignored) ran at `6bb79da`. Stripped and motion digests are identical to the `7d8dc22` baseline for all nine runs (seven shipped scenarios plus two fx runs, 1,800 ticks each). No shipped trajectory changed.
-- **Tier 2 (reference GPU): NOT RUN.** `tests/e2e/friendly-fire.spec.ts` is written, typechecks and lists. It was never run, because every dev-server slot was taken all session:
-  - 5173 served `main`;
-  - 5175 (`ww2airsim-2`) served the `ai-7e` worktree, whose handoff promises the server stays up for viewing, although 7e is now merged;
-  - 5174 (`ww2airsim-3`) served another live session's `o1-ordnance` worktree.
-
-  I did not stop another session's server or add a route. **No viewing URL exists yet for this branch**, and no captures exist. To run it once a slot is free, from this worktree: point the local `vite.config.ts` at the free slot (scratch, never committed), then run `WW2AIRSIM_TUNNEL=1 npx vite --port <5175|5174>` and `PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim-<2|3>.windomlane.org npx playwright test friendly-fire meta-game meta-game-relaunch`. The review flagged one tight timing: the first readout assertion must land inside the 5 s window.
+- **Tier 2 (reference GPU, RX 6700 XT, 1440p), 2026-09-26, from slot 2 after `ai-7e`'s dev server was stopped on Mark's instruction:**
+  - `friendly-fire.spec.ts`: passed, gpu p95 **2.417 ms** over 4,096 samples, zero validation errors. It covers the radio call, the discharged debrief (score 0, `forfeit (×0)`, no Continue), and DISCHARGED on the roster row, the chip and the Dossier.
+  - `meta-game.spec.ts` and `meta-game-relaunch.spec.ts`, which read debrief text: both passed.
+  - `entities.spec.ts`, re-run for the `f6f-2` move: 3 passed, including its frame budget.
+  - Captures: [warning](2026-09-26-friendly-fire-shots/friendly-fire-warning.png), [debrief](2026-09-26-friendly-fire-shots/friendly-fire-debrief.png), [Dossier](2026-09-26-friendly-fire-shots/friendly-fire-dossier.png).
+  - **Two measurements that led somewhere else.**
+    - The first two runs failed the budget at 8.50 and 8.53 ms. A phase probe found the cause in the entry path, not in friendly fire. The same scenario measures 2.0–2.4 ms in every phase when booted by URL, and 6.9 ms when switched to from the title. See open item 2.
+    - A back-to-back `furball.spec.ts` control on the same slot read 2.06 ms.
+  - The spec now boots `?scenario=friendly-fire-range`, so it measures the scenario as declared.
 - **Whole-branch review** (fresh context, most capable model): ready to merge with fixes; no Critical findings. Its one Important finding is open item 1 below.
 
 ## 3. Open for Mark
 
-1. **The free-flight gunnery target is parked in front of an allied hangar** (review, Important). `f6f-2` is axis by 7e's default (spec §9) and sits at Tacloban (-90, 100). `tacloban-hangar-3` is now allied, at (-146, 100): same z, 56 m behind it on the x axis. The AAA is 70 m away. A strafing pass along x sends overshoots into the hangar and discharges the pilot for shooting the target the scenario offers him. `deck-quals` parks it there too. The options:
-   - move `f6f-2`, which changes the free-flight and deck-quals digests;
-   - make it allied (spec §9), which takes away the Shift autopilot's target;
-   - accept the risk.
-
-   Not fixed: each option is your call.
-2. **An Essex cannot be hurt by rounds that meet it below the flight-deck edge** (found in Task 2, measured 2026-09-26, pre-existing). The 32.9 m deck overhangs the 28.3 m hull box, and `groundHit` reads the deck as ground, so a round fired horizontally from abeam at 5, 10 or 15 m does no damage. Strafing `cv-1` from above discharges the pilot; skimming its side does not. Bombs and rockets hurt it through blast. This lives in E1-era contact code (`nearestContact`), so it is not fixed here.
-3. **Deferred minors from the review.**
-   - `friendly-fire.spec.ts:56`: the failure message says "the axis Hellcat was hit" for an assertion that it was *not* hit.
-   - After land, Continue, friendly fire, the earlier landing's Dossier log line still shows its points and kills, while the career has had them taken back.
-4. **Spec §9 leftovers.** `f6f-2`'s side, as in item 1. Mission `destroy` objectives aimed at an allied entity are unchecked (for M3/M4).
-5. **Tier 2**, as in §2.
+1. **RESOLVED (Mark, 2026-09-26): `f6f-2` moved and made an enemy** (`75db4b5`). The review found the parked gunnery target 56 m in front of now-allied `tacloban-hangar-3`, with the AAA 58 m past it heading north.
+   - It now stands at runway-local (40, −500): beside the strip's east edge, 502 m up it, in the tree-free runway corridor, on dry, flat ground.
+   - `"side": "axis"` is declared in free-flight and deck-quals.
+   - A line-of-fire test (`tests/sim/entitySides.test.ts`) checks 16 approach directions and 400 m of overshoot. It failed on the old spot and passes on the new one.
+   - As you accepted, the free-flight and deck-quals digests change. The other seven runs are unchanged.
+2. **NEW, pre-existing, also on `main`: an in-place scenario switch keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once, at boot, from the boot bundle (`main` line 1077); `loadScenario` never resets it.
+   - Every scenario launched from the title therefore flies under free-flight's cumulus and cirrus, even one that declares no clouds.
+   - This also costs GPU: friendly-fire-range at 800 m reads 6.9 ms p95 under the leaked deck, against 2.0 ms without it.
+   - It belongs to the cloud system (`docs/clouds.md`), so it is not fixed here.
+3. **An Essex cannot be hurt by rounds that meet it below the flight-deck edge** (found in Task 2, measured 2026-09-26, pre-existing).
+   - The 32.9 m deck overhangs the 28.3 m hull box, and `groundHit` reads the deck as ground.
+   - Strafing `cv-1` from above discharges the pilot; skimming its side does not.
+   - Bombs and rockets hurt it through blast.
+   - The cause is in the contact code (`nearestContact`).
+4. **`npx playwright test <name>` currently collects nothing.** `strike.spec.ts` imports `src/render/content.ts`, which reads `import.meta.env` and cannot load in Node, and one unloadable file aborts collection of every file. Passing spec *paths* works. This is pre-existing and not changed here.
+5. **Deferred minors from the review.**
+   - `friendly-fire.spec.ts`: a failure message says "the axis Hellcat was hit" for an assertion that it was *not* hit.
+   - After land, Continue, then friendly fire, the earlier landing's Dossier log line still shows its points, while the career has had them taken back.
+6. **Spec §9 leftover:** mission `destroy` objectives aimed at an allied entity are unchecked (for M3/M4).
+7. **Viewing:** `https://ww2airsim-2.windomlane.org/?scenario=friendly-fire-range` (returned 200 at handoff).
+   - Boot it by URL, for the cloud reason in item 2.
+   - For `f6f-2`'s new spot, use `https://ww2airsim-2.windomlane.org/` (free-flight).
+   - The page is served live from this worktree's dev server on port 5175, with a local-only `vite.config.ts` edit. That server stops if nexus reboots.
 
 ## 4. Rulings
 

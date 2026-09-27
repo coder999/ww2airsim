@@ -22,7 +22,11 @@ const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!
 
 test('friendly fire: the radio call, a discharged debrief with score 0, and DISCHARGED on the roster and Dossier', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  await page.goto('/')
+  // Booted by URL, not switched to from the title: an in-place switch keeps
+  // the BOOT scenario's cloud layers (main.ts sets `cloudLayers` once, at
+  // boot; pre-existing, found 2026-09-26), so free-flight's cumulus would
+  // be drawn over this cloudless range and measured as its cost.
+  await page.goto('/?scenario=friendly-fire-range')
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
 

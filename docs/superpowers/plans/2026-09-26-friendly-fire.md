@@ -227,7 +227,7 @@ Steps:
 
 - [x] Run `remote-run npm run verify` and capture `rc=$?`. Record rc, file count and pass count.
 - [x] Run the digest probe one final time.
-- [ ] Run Tier 2 on the reference GPU from a spare slot. Check `ss -ltnp` first; the `vite.config.ts` edit is local scratch. Run `friendly-fire.spec.ts`, plus `meta-game.spec.ts` and `meta-game-relaunch.spec.ts`, which read debrief text. Read every capture.
+- [x] Run Tier 2 on the reference GPU from a spare slot. Check `ss -ltnp` first; the `vite.config.ts` edit is local scratch. Run `friendly-fire.spec.ts`, plus `meta-game.spec.ts` and `meta-game-relaunch.spec.ts`, which read debrief text. Read every capture.
 - [x] Get a whole-branch review from a fresh subagent, then fix what it finds.
 - [x] Write the handoff `docs/handoff/2026-09-26-friendly-fire.md`. Include:
   - a viewing URL on a spare slot, asserted to return 200;

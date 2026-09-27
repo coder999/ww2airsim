@@ -36,7 +36,7 @@ test('the task force sails: every ship moves by speed * elapsed, with zero WebGP
   await page.screenshot({ path: 'test-results/entities-task-force.png' })
 })
 
-test('two Hellcats exist and the parked one is on the apron', async ({ page }) => {
+test('two Hellcats exist and the parked one is at Tacloban', async ({ page }) => {
   await page.goto('/')
   await waitForTerrain(page)
   const aircraft = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft())
