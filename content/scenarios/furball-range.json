@@ -1,0 +1,113 @@
+{
+  "id": "furball-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          0,
+          3500,
+          0
+        ],
+        "headingDeg": 90,
+        "speedMps": 125
+      }
+    },
+    {
+      "id": "ally-1",
+      "spec": "f6f-hellcat",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          -1180,
+          3480,
+          60
+        ],
+        "headingDeg": 90,
+        "speedMps": 130
+      },
+      "pilot": {
+        "skill": "veteran"
+      }
+    },
+    {
+      "id": "bandit-1",
+      "spec": "f6f-hellcat",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -850,
+          3520,
+          -60
+        ],
+        "headingDeg": 90,
+        "speedMps": 130
+      },
+      "pilot": {
+        "skill": "veteran"
+      }
+    },
+    {
+      "id": "bandit-2",
+      "spec": "f6f-hellcat",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -900,
+          3480,
+          60
+        ],
+        "headingDeg": 90,
+        "speedMps": 130
+      },
+      "pilot": {
+        "skill": "green"
+      }
+    },
+    {
+      "id": "bandit-3",
+      "spec": "f6f-hellcat",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          7000,
+          3800,
+          1200
+        ],
+        "headingDeg": 270,
+        "speedMps": 125
+      },
+      "pilot": {
+        "skill": "veteran"
+      }
+    },
+    {
+      "id": "bandit-4",
+      "spec": "f6f-hellcat",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          7150,
+          3750,
+          1450
+        ],
+        "headingDeg": 270,
+        "speedMps": 125
+      },
+      "pilot": {
+        "skill": "green"
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 0,
+    "timeOfDay": 12
+  }
+}

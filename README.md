@@ -83,6 +83,16 @@ damage were the remaining Plan 6 items at that handoff; see the
 [handoff](docs/handoff/2026-09-22-plan6b-strike.md) for what was actually
 measured and what is still open, and master spec §15 for the status.
 
+**E1 effects engine is complete and merged into `main` (2026-09-26):**
+every armed detonation is reported through a bounded, bit-identical
+simulation ring, and one lit, soft, pooled particle system now owns bomb,
+rocket, shell, crash, aircraft, ship, and structure effects. Dense smoke stops
+the cloud march; quality tiers, failed-sheet fallback, restart cleanup, and
+paired reference-GPU cost gates are covered. The shipped flipbooks are
+code-generated placeholders for E2, not final art. See the
+[E1 handoff](docs/handoff/2026-09-26-e1-effects-engine.md) for captures,
+measurements, merge notes, and the two shared baseline tripwires.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
@@ -143,6 +153,8 @@ green. See the
 
 **Plan 7c AI safety envelope and maneuver library is complete and merged to `main` (2026-09-26).** Its two merge blockers and the low-target finding were resolved by Mark's decisions of 2026-09-26. AI pilots can no longer overload their own airframe, fly into the sea or over-speed, and an AI Zero no longer cuts its own engine under negative g. A pursuing AI chases a low target down to 50 ft above the ground, and no lower. After a missed head-on pass the pursuer now turns back and fights again, where before it flew away for good. Veterans fly the named maneuvers (yo-yos, lag pursuit, attack run, scissors, split-S, Immelmann; an AI Zero flies no Immelmann), and greens fly only 7b's basic set, so they are easy to beat. The veteran was toned down per Mark's ruling. See the [handoff](docs/handoff/2026-09-26-ai-7c.md); master spec §15 holds the status.
 
+**Plan 7e sides and many-vs-many is complete on branch `worktree-ai-7e` (2026-09-26), not yet merged.** Every aircraft now has a side, allied or axis. By default the player is allied and everyone else axis, so existing scenarios are unchanged. An AI with no fixed target picks one from the other side and switches the moment it dies. It holds fire while a friendly is in the way, and teamkills never score. A new ingress pilot flies a raider's route and fights only what attacks it, for the Combat Air Patrol mission. `furball-range` ("Furball (dev)") puts the player and a wingman against four AI. One open item: AIs rarely hit each other until the AI gunnery-honesty slice lands. See the [handoff](docs/handoff/2026-09-26-plan7e-sides.md); master spec §15 holds the status.
+
 **The A6M Zero flies, headless (Z2, 2026-09-25):**
 `content/aircraft/a6m2-zero.json` is graded against the 1942 Navy trial of a
 captured A6M2. Its controls stiffen above 250 mph, its engine cuts out under
@@ -201,6 +213,14 @@ frozen, so a bare build skips it. The design is
 [A6M Zero spec §6](docs/superpowers/specs/2026-09-25-a6m-zero-design.md#6-the-model-pipeline-the-interface-lane-c-designs-against);
 see the [handoff](docs/handoff/2026-09-25-z1-model-pipeline.md); master spec
 §15 holds the status.
+
+**Original models are authored in Blender (M0, 2026-09-26).** Where no
+cleanly licensed model exists, a script under `tools/models/blender/` builds
+one headlessly and byte-reproducibly; the barrel-roof hangar is the first.
+The roster plan that puts every Library object on screen is the
+[model-roster design](docs/superpowers/specs/2026-09-26-model-roster-design.md);
+see the [handoff](docs/handoff/2026-09-26-m0-blender-kit.md); master spec §15
+holds the status.
 
 **Ships draw licensed models (S1, 2026-09-25).** The three shipped ships
 (`essex-cv`, `fletcher-dd`, `type-b-maru`) are licensed models fitted at

@@ -50,6 +50,15 @@ describe('autoPursuitTarget', () => {
     expect(autoPursuitTarget(world)?.id).toBe('near')
   })
 
+  it('7e: ignores an aircraft on the player\'s own side (an allied wingman), however near', () => {
+    const world = worldOf(
+      entity('player', v3(0, 2000, 0)),
+      { ...entity('wingman', v3(500, 2000, 0)), side: 'allied' as const },
+      entity('bandit', v3(2000, 2000, 0)),
+    )
+    expect(autoPursuitTarget(world)?.id).toBe('bandit')
+  })
+
   it('ignores a destroyed aircraft, so it never follows one going down', () => {
     const world = destroyed(
       worldOf(entity('player', v3(0, 2000, 0)), entity('near', v3(500, 2000, 0)), entity('far', v3(2000, 2000, 0))),

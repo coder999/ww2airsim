@@ -20,6 +20,7 @@ import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
+import { sideOf, sidesOf, type Side } from './sides.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -338,6 +339,12 @@ export interface AircraftEntity<M = undefined> {
    * absent means the caller-owned `controls` remain authoritative.
    */
   readonly pilot?: PilotAssignment | null
+  /**
+   * Plan 7e. Optional so every hand-built entity stays valid; absent, the
+   * player is `allied` and every other aircraft `axis`. Read it only
+   * through `sideOf` (`src/sim/sides.ts`), which applies that default.
+   */
+  readonly side?: Side
 }
 
 /** A ship: kinematics on a waypoint loop, no aerodynamics, no impact. Steps
@@ -554,12 +561,19 @@ export function createWorldOf<M>(parts: {
     throw new Error(`createWorldOf: player "${parts.player}" is not one of the aircraft`)
   }
   for (const a of parts.aircraft) {
-    if (a.pilot == null) continue
-    if (a.pilot.target === a.id) {
+    // A null target is a pilot that chooses its own (7e spec §4.2).
+    const target = a.pilot?.target ?? null
+    if (target === null) continue
+    if (target === a.id) {
       throw new Error(`createWorldOf: pilot "${a.id}" cannot target itself`)
     }
-    if (!parts.aircraft.some((candidate) => candidate.id === a.pilot!.target)) {
-      throw new Error(`createWorldOf: pilot "${a.id}" targets missing aircraft "${a.pilot.target}"`)
+    const named = parts.aircraft.find((candidate) => candidate.id === target)
+    if (named === undefined) {
+      throw new Error(`createWorldOf: pilot "${a.id}" targets missing aircraft "${target}"`)
+    }
+    // 7e spec §4.1: a static target must be on the opposite side.
+    if (sideOf(parts, named) === sideOf(parts, a)) {
+      throw new Error(`createWorldOf: pilot "${a.id}" targets "${target}" on its own side`)
     }
   }
   const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)
@@ -836,7 +850,9 @@ export function advance<M>(
     // pilot see another aircraft one tick into the future (entities design §3).
     // The per-pilot block is src/sim/ai/pilotTick.ts (7c).
     const aircraftAtStart = aircraft
-    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat }
+    // 7e: one side table per tick, the same for the pilots as for credit.
+    const sides = sidesOf(world, aircraftAtStart)
+    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships }
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
       return stepAircraftEntity(
@@ -845,11 +861,11 @@ export function advance<M>(
       )
     })
     const combatAtStart = combat
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage)
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides)
     // After `stepCombat`, which is where an overload break-up happens, and
     // after every aircraft has stepped, which is where a crash happens: a loss
     // with no killing hit is credited to whoever last hit the airplane.
-    combat = creditDownedAircraft(combatAtStart, combat, aircraftAtStart, aircraft)
+    combat = creditDownedAircraft(combatAtStart, combat, aircraftAtStart, aircraft, sides)
     // `dropBomb`/`fireRockets` are a ONE-SHOT pulse: `frame.ts` edge-triggers
     // them once per RENDERED frame, but this loop can run up to
     // MAX_STEPS_PER_FRAME substeps against that one frame's controls. Nothing

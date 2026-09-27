@@ -10,7 +10,8 @@ import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
-import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from './ai/pilot.js'
+import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, type IngressOrders } from './ai/pilot.js'
+import { sideOf } from './sides.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { BadgeObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
@@ -50,24 +51,57 @@ const CloudLayerObject = z.object({
 }).strict()
 export type CloudLayer = z.infer<typeof CloudLayerObject>
 
-const PilotObject = z.object({
-  target: id,
-  skill: z.enum(['veteran', 'green']).default('green'),
+const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
+
+/** 7e spec §4.5: the ingress pilot's orders. Each waypoint carries the
+ *  altitude and speed of the leg flown TO it. */
+const IngressObject = z.object({
+  route: z.array(z.object({ x: finite, z: finite, altitudeM: positive, speedMps: positive }).strict()).min(1),
+  destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id }).strict()]).optional(),
 }).strict()
+
+const PilotObject = z.object({
+  /** A static target (7a/7b). Absent: the pilot chooses (7e spec §4.2). */
+  target: id.optional(),
+  skill: z.enum(['veteran', 'green']).default('green'),
+  ingress: IngressObject.optional(),
+}).strict().refine((p) => p.target === undefined || p.ingress === undefined, {
+  message: "ingress excludes target: a raider's target is chosen, never fixed", path: ['ingress'],
+})
+
+/** Plan 7e (spec §4.1). Absent: the player is allied, every other aircraft
+ *  axis (`sideOf`, src/sim/sides.ts). */
+const SideField = z.enum(['allied', 'axis']).optional()
 
 /** Maps a parsed scenario's `pilot` content to a runtime `PilotAssignment`,
  *  seeding the initial decision state -- every already-shipped scenario
  *  omits `skill`, so the `'green'` default reproduces its exact behavior. */
-function pilotAssignmentFrom(pilot: z.infer<typeof PilotObject> | undefined): PilotAssignment | null {
+function pilotAssignmentFrom(
+  id: string, pilot: z.infer<typeof PilotObject> | undefined, airfields: Readonly<Record<string, Airfield>>,
+): PilotAssignment | null {
   if (pilot === undefined) return null
+  const ingress = pilot.ingress === undefined ? {} : { ingress: ingressOrdersFrom(pilot.ingress, airfields) }
   return {
-    target: pilot.target,
+    target: pilot.target ?? null,
+    ...ingress,
     skill: pilot.skill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL,
     // Immediately overwritten at the first rescore (nextRescoreS: 0
-    // guarantees tick 1 triggers one) -- a fixed, knowable seed, same
-    // convention as nextRescoreS's own starting value.
-    decision: initialDecision(),
+    // guarantees tick 1 triggers one). The noise cursor is seeded from the
+    // entity id (7e spec §4.5 item 2), not a shared constant.
+    decision: initialDecision(id, pilot.ingress === undefined ? 'engage' : 'ingress'),
   }
+}
+
+/** An airfield destination is fixed, so it is resolved here to its runway
+ *  center; a ship is read live every tick by the pilot (ruling W6). */
+function ingressOrdersFrom(i: z.infer<typeof IngressObject>, airfields: Readonly<Record<string, Airfield>>): IngressOrders {
+  const d = i.destination
+  const destination: IngressDestination | null = d === undefined
+    ? null
+    : 'ship' in d
+      ? { kind: 'ship', id: d.ship }
+      : { kind: 'point', x: lookup(airfields, d.airfield, 'airfield').runway.center.x, z: lookup(airfields, d.airfield, 'airfield').runway.center.z }
+  return { route: i.route, destination }
 }
 
 const ParkedAtObject = z.union([
@@ -86,6 +120,7 @@ const ParkedAircraftObject = z.object({
   /** Wheel chocks: `brake: 1` in the held controls. */
   chocked: z.boolean(),
   tags: tagList,
+  side: SideField,
   pilot: PilotObject.optional(),
 }).strict()
 const AirborneAircraftObject = z.object({
@@ -104,6 +139,7 @@ const AirborneAircraftObject = z.object({
     throttle: z.number().finite().min(0).max(1).optional(),
   }).strict(),
   tags: tagList,
+  side: SideField,
   pilot: PilotObject.optional(),
 }).strict()
 const ScenarioAircraftObject = z.union([ParkedAircraftObject, AirborneAircraftObject])
@@ -173,13 +209,33 @@ const ScenarioObject = ScenarioShape
     message: 'every enemyAirfields entry must be one of airfields', path: ['enemyAirfields'],
   })
   .superRefine((s, ctx) => {
-    const aircraftIds = new Set(s.aircraft.map((a) => a.id))
+    const byId = new Map(s.aircraft.map((a) => [a.id, a]))
     for (const [index, aircraft] of s.aircraft.entries()) {
-      if (aircraft.pilot === undefined) continue
-      if (aircraft.pilot.target === aircraft.id) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot cannot target itself', path: ['aircraft', index, 'pilot', 'target'] })
-      } else if (!aircraftIds.has(aircraft.pilot.target)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot target must name an aircraft in this scenario', path: ['aircraft', index, 'pilot', 'target'] })
+      const target = aircraft.pilot?.target
+      if (target === undefined) continue
+      const path = ['aircraft', index, 'pilot', 'target']
+      const named = byId.get(target)
+      if (target === aircraft.id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot cannot target itself', path })
+      } else if (named === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot target must name an aircraft in this scenario', path })
+      } else if (sideOf(s, named) === sideOf(s, aircraft)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'pilot target must be on the opposite side', path })
+      }
+    }
+    // 7e spec §4.5: an ingress destination names a starting ship or one of
+    // the scenario's airfields (ruling W6).
+    const all = [...s.aircraft.map((a, i) => [a, ['aircraft', i]] as const),
+      ...(s.heldGroups ?? []).flatMap((g, gi) => (g.aircraft ?? []).map((a, i) => [a, ['heldGroups', gi, 'aircraft', i]] as const))]
+    for (const [a, at] of all) {
+      const d = a.pilot?.ingress?.destination
+      if (d === undefined) continue
+      const path = [...at, 'pilot', 'ingress', 'destination']
+      if ('ship' in d && !s.ships.some((sh) => sh.id === d.ship)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `ingress destination ship "${d.ship}" is not a starting ship`, path })
+      }
+      if ('airfield' in d && !s.airfields.includes(d.airfield)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `ingress destination airfield "${d.airfield}" is not one of airfields`, path })
       }
     }
   })
@@ -229,6 +285,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   const used = new Set([...startAircraft, ...startShips])
   for (const [gi, g] of held.entries()) {
     const groupAircraft = new Set((g.aircraft ?? []).map((a) => a.id))
+    const visible = new Map([...s.aircraft, ...(g.aircraft ?? [])].map((a) => [a.id, a]))
     for (const [ai, a] of (g.aircraft ?? []).entries()) {
       const path = ['heldGroups', gi, 'aircraft', ai]
       if (used.has(a.id)) issue(`entity id "${a.id}" is already used; ids are unique across the whole scenario`, [...path, 'id'])
@@ -237,6 +294,8 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       const target = a.pilot?.target
       if (target !== undefined && (target === a.id || (!startAircraft.has(target) && !groupAircraft.has(target)))) {
         issue('a held pilot must target a starting aircraft or one in its own group', [...path, 'pilot', 'target'])
+      } else if (target !== undefined && sideOf(s, visible.get(target)!) === sideOf(s, a)) {
+        issue('pilot target must be on the opposite side', [...path, 'pilot', 'target'])
       }
     }
     for (const [si, sh] of (g.ships ?? []).entries()) {
@@ -384,6 +443,10 @@ function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainFie
   return { id: sh.id, spec, state, previous: state, orders }
 }
 
+/** The entity's `side`, only when the content says one, so a scenario
+ *  without sides builds exactly the entities it built before 7e. */
+const sideFrom = (a: ScenarioAircraft): { side?: 'allied' | 'axis' } => (a.side === undefined ? {} : { side: a.side })
+
 /** One scenario aircraft as an `AircraftEntity`: a start aircraft, or a
  *  held one built at world creation (missions M1). Moved out of
  *  `worldFromScenario` verbatim. */
@@ -404,7 +467,8 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
     return {
       id: a.id, spec, state, previous: state,
       controls: { ...NEUTRAL, throttle: a.airborneAt.throttle ?? AIRBORNE_SPAWN_THROTTLE },
-      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.pilot),
+      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields),
+      ...sideFrom(a),
     }
   }
   const parkedAt = a.parkedAt
@@ -425,7 +489,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
       gearFraction: 1,
     })
     const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields), ...sideFrom(a) }
   }
   const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
   const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
@@ -437,7 +501,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
     gearFraction: 1,
   })
   const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.pilot) }
+  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields), ...sideFrom(a) }
 }
 
 /** Everything a mission objective may name (spec §2.1): start and held

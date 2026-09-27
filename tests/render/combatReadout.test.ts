@@ -65,6 +65,9 @@ describe('the combat readout (Plan 6)', () => {
       },
     })
     expect(d.aircraft.map((a) => a.id)).toEqual(frame.world.aircraft.map((a) => a.id))
+    // 7e: every row carries its kills, friendly kills and killer, so a Tier 2
+    // spec can tell an AI-on-AI kill from any other.
+    for (const row of d.aircraft) expect(row).toMatchObject({ kills: 0, friendlyKills: 0, attacker: null })
     expect(d.projectiles).toBe(0)
     expect(d.tracers).toBe(0)
     expect(combatDiagnosticsFor({ ...frame, controls: { ...frame.controls, fire: true } }).player.firing).toBe(true)

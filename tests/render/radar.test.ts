@@ -125,6 +125,23 @@ describe('radarContacts: filtering', () => {
   })
 })
 
+describe('radarContacts: the friendly flag (7e spec §4.4)', () => {
+  it('marks a contact on the player\'s side friendly and one on the other side not, by the default rule too', () => {
+    const player = entity('player')
+    const wingman = { ...entity('wing', v3(0, 2000, -500)), side: 'allied' as const }
+    const bandit = entity('bandit', v3(0, 2000, -900))
+    const [w, b] = radarContacts(player, [wingman, bandit], 15, {})
+    expect(w).toMatchObject({ id: 'wing', friendly: true })
+    expect(b).toMatchObject({ id: 'bandit', friendly: false })
+  })
+
+  it('is relative to the player\'s own side: an axis player sees an axis AI as friendly', () => {
+    const player = { ...entity('player'), side: 'axis' as const }
+    const other = { ...entity('x', v3(0, 2000, -500)), side: 'axis' as const }
+    expect(radarContacts(player, [other], 15, {})[0]!.friendly).toBe(true)
+  })
+})
+
 describe('radarSweepAngle and radarBrightness', () => {
   it('completes one revolution every RADAR_SWEEP_PERIOD_S', () => {
     expect(radarSweepAngle(0)).toBeCloseTo(0, 9)

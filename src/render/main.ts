@@ -1,10 +1,10 @@
-import { Group, PerspectiveCamera, Scene } from 'three'
+import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
 import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { makeShipViewLoader } from './scene/shipModels.js'
-import { probeShipSurface } from './scene/ship.js'
+import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
 import { airframeUpdateFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
@@ -24,7 +24,6 @@ import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
-import { createImpactEffect } from './scene/impactEffect.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
 import { createBootProgress } from './bootProgress.js'
 import { applyMissionResultToRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
@@ -32,6 +31,15 @@ import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './f
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
+import { FX_CATALOG } from './fx/catalog.js'
+import { NO_FX_MEMORY, nextFxEvents, type FxMemory } from './fx/events.js'
+import { createFxPass, type FxPass } from './fx/fxPass.js'
+import { fxQueryFrom } from './fx/query.js'
+import { sheetLayout } from './fx/sheetManifest.js'
+import { loadFxSheets, type FxSheetTextures } from './fx/sheets.js'
+import { stressRounds, stressScene, type FxStressName, type FxStressScene } from './fx/stress.js'
+import { createFxSystem, fxDtSeconds, type FxSystem } from './fx/system.js'
+import { FX_TIERS } from './fx/tiers.js'
 import { shouldResetHistory } from './scene/cloudHistory.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
@@ -41,8 +49,7 @@ import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
-import { createHitFlashes, NO_FLASH_MEMORY, nextHitFlashes, type FlashMemory } from './scene/hitFlash.js'
-import { createOrdnance, nextOrdnanceImpacts, NO_ORDNANCE_MEMORY, type OrdnanceMemory } from './ordnance.js'
+import { createOrdnance } from './ordnance.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
 import { BINDINGS } from '../input/bindings.js'
@@ -81,12 +88,13 @@ import { buildStructures } from '../sim/weapons/structures.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { airVelocity, step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
-import type { TerrainField } from '../sim/world/terrain.js'
+import { heightAt, SEA_LEVEL_M, type TerrainField } from '../sim/world/terrain.js'
 import { onGround, supportedContact } from '../sim/ground.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
 import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
+import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
@@ -291,7 +299,7 @@ async function boot(): Promise<void> {
   // nothing else ever needs a later scenario's world.
   let scenarioWorld: World<undefined> | null = null
   let spawnedAt: Vec3 | null = null
-  // `airframes`/`shipHandles`/`smokes`/`player`, together --
+  // `airframes`/`shipHandles`/`player`, together --
   // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
   // construction and disposal reasoning.
   let scenarioEntities: ScenarioEntities | null = null
@@ -310,7 +318,7 @@ async function boot(): Promise<void> {
    * Fetches one scenario's content bundle and rebuilds everything sized to
    * its entity lists: `scenarioWorld` (read once, below, for the player's
    * aircraft spec), the spawn point, and `scenarioEntities` --
-   * `airframes`/`shipHandles`/`smokes`/`player`
+   * `airframes`/`shipHandles`/`player`
    * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
    * are NOT rebuilt here (design doc §5: every scenario sits in the same
    * Leyte Gulf tangent plane, so none of that is scenario content), and
@@ -677,6 +685,10 @@ async function boot(): Promise<void> {
    * must not do.
    */
   const forcedSceneryTier = forcedOceanTier?.name
+  /** E1 DEV knobs: `?fx=`, `?fxSoft=`, `?fxCloudLimit=` (fx/query.ts). Up here,
+   *  beside the other DEV tier overrides, because the sheet download below
+   *  already reads it; a typo throws, as `?cloudTier=` does. */
+  const fxQuery = import.meta.env.DEV ? fxQueryFrom(location.search) : { tier: undefined, soft: true, cloudLimit: true } as const
   /** An `OCEAN_TIERS` entry by name. Total: `QualityTierName` and the tiers'
    *  own names are the same three strings, so the fallback is unreachable --
    *  it exists because `find` cannot say so in the type system. */
@@ -844,6 +856,11 @@ async function boot(): Promise<void> {
             y: a.state.position.y,
             z: a.state.position.z,
             headingRad: Math.atan2(forward.x, -forward.z),
+            // Plan 7e (spec §4.4).
+            side: sideOf(frame!.world, a),
+            mode: a.pilot?.decision.mode ?? null,
+            maneuver: a.pilot?.decision.named ?? null,
+            targetId: a.pilot?.decision.targetId ?? null,
           }
         }),
       // Same `??`-guard as the rest: before the first frame exists there is
@@ -909,6 +926,12 @@ async function boot(): Promise<void> {
       // Visual realism §2.1: read through the same closure-after-boot shape as
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
       terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
+      // E1: the effects pool, for the Tier 2 captures and budget.
+      fx: () => ({
+        tier: fxTier, capacity: fxSystem?.capacity() ?? 0, live: fxSystem?.live() ?? 0,
+        drawn: fxPass?.count() ?? 0, sheetsFallback: fxSheets?.fallback ?? false, cpuMs: fxCpuMs,
+      }),
+      fxStress: (name) => startFxStress(name),
       // Photoreal Task 6: explicit TRAA/motion history resets since boot.
       antiAliasing: () => ({ historyResets: framePipeline.historyResets() }),
       // Plan 16b: the shadow map read back at a world point, for the
@@ -1030,6 +1053,9 @@ async function boot(): Promise<void> {
   // Handled below by the `await`; this only stops a rejection during the
   // yield from being reported as unhandled before that `await` attaches.
   skyNoiseLoading.catch(() => undefined)
+  // E1: the effects sheets download alongside (never rejects -- a failure is
+  // a warning and the procedural fallback, fx/sheets.ts). `?fx=off` skips it.
+  const fxSheetsLoading = fxQuery.tier === 'off' ? null : loadFxSheets(renderer)
   // Visual realism §2.1 (plan Ruling 4): the terrain textures load before the
   // terrain mesh is built, so the ring materials compile once with them. A
   // failure is a warning and the procedural surface -- never fatal.
@@ -1054,6 +1080,7 @@ async function boot(): Promise<void> {
   // resolved to before this plan existed. `?cloudTier=` still wins.
   cloudTier = forcedCloudTier ?? quality.current().clouds
   sceneryTier = forcedSceneryTier ?? quality.current().scenery
+  let fxTier: QualityTierName | 'off' = fxQuery.tier ?? quality.current().fx
   // Plan 16c: the scenario's hour, or the DEV override.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
@@ -1191,6 +1218,12 @@ async function boot(): Promise<void> {
     if (forcedTerrainTextures === undefined) terrain.setSurfaceDetail(name !== 'low')
   }
   let cloudPass: CloudPass | null = null
+  let fxSystem: FxSystem | null = null
+  let fxPass: FxPass | null = null
+  let fxSheets: FxSheetTextures | null = null
+  let fxMemory: FxMemory = NO_FX_MEMORY
+  let fxStress: { readonly scene: FxStressScene; readonly startedMs: number; rounds: number } | null = null
+  let fxCpuMs = 0
   /** `?cloudTier=` holds this one, including `off` -- which is a scene with no
    *  cloud pass at all, not a tier, and must not be pulled back on by a saved
    *  setting or by the probe. */
@@ -1202,12 +1235,19 @@ async function boot(): Promise<void> {
     cloudPass?.setUpdatePeriod(CLOUD_TIERS[name].updatePeriod)
     shadow.setTier(name)
   }
+  /** `?fx=` holds the tier, including `off` (no pass at all, Ruling R18). */
+  const applyFxTier = (name: QualityTierName): void => {
+    if (fxQuery.tier !== undefined || fxTier === name) return
+    fxTier = name
+    fxSystem?.setCapacity(FX_TIERS[name].capacity)
+    fxPass?.setTier(FX_TIERS[name])
+  }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
   // read here and mutated below -- see that declaration for why.
   // Everything a tier moves now exists. This also applies anything picked
   // during boot's own awaits, when the dialog was already clickable and there
   // was nothing yet to apply it to.
-  quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier })
+  quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier, setFxTier: applyFxTier })
   const adaptOceanQuality = async (): Promise<void> => {
     // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
     // pipelines during flight; a DEV override holds the tier for comparison.
@@ -1237,27 +1277,20 @@ async function boot(): Promise<void> {
   // The clouds are no longer in the scene: photoreal Task 3 moved the march
   // into a reduced-resolution pass composited after it (`cloudPass`, below
   // `framePipeline`).
-  // `airframes`/`shipHandles`/`smokes`/`player` are already in
-  // `scenarioEntities` -- built by the first `loadScenario` call, above,
-  // from this same `scene` and this same `scenarioWorld`'s entity lists
-  // (`buildScenarioEntities`, `scenarioEntities.ts`, has the construction
-  // reasoning: world order, the smoke-per-airframe child, and picking the
-  // player's `Airframe` out by id rather than assuming index 0). The render
-  // loop, below, destructures `scenarioEntities` fresh every frame -- Plan 9
-  // Task 7 -- so a later `loadScenario` call is picked up with no further
-  // plumbing here.
+  // `airframes`/`shipHandles`/`player` are already in `scenarioEntities` --
+  // built by the first `loadScenario` call, above, from this same `scene`
+  // and this same `scenarioWorld`'s entity lists (`buildScenarioEntities`,
+  // `scenarioEntities.ts`, has the construction reasoning: world order, and
+  // picking the player's `Airframe` out by id rather than assuming index 0).
+  // The render loop, below, destructures `scenarioEntities` fresh every
+  // frame -- Plan 9 Task 7 -- so a later `loadScenario` call is picked up
+  // with no further plumbing here.
   const tracers = createTracers()
   scene.add(tracers.object)
-  const hitFlashes = createHitFlashes()
-  scene.add(hitFlashes.object)
-  // Ordnance in flight and its impacts (Plan 6b Task 8): `createOrdnance`
-  // adds its own pools to `scene` itself, unlike the pools above, which hand
-  // their `object` back for the caller to add. Like `tracers`/`hitFlashes`,
+  // Ordnance in flight (Plan 6b Task 8, impacts migrated to E1's fx/): pools
   // sized independently of any scenario's entity list -- nothing here is
   // rebuilt on a scenario switch either.
   const ordnance = createOrdnance(scene)
-  let ordnanceMemory: OrdnanceMemory = NO_ORDNANCE_MEMORY
-  let flashMemory: FlashMemory = NO_FLASH_MEMORY
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -1310,6 +1343,20 @@ async function boot(): Promise<void> {
   // Task 6 fix round 1: DEV `?sharpen=0..1` overrides the post-AA RCAS amount.
   const forcedSharpen = import.meta.env.DEV ? sharpenFromQuery(location.search) : undefined
   if (forcedSharpen !== undefined) framePipeline.setSharpen(forcedSharpen)
+  // E1 (ordnance-and-effects design §3-4): one pool and one reduced-resolution
+  // pass for every effect, composited BEFORE the clouds -- the cloud pass
+  // takes this composite as its scene color, and stops its march at dense
+  // effects (§4.2). `?fx=off` builds neither (Ruling R18). This `await` sits
+  // before `frame`'s first assignment below, so resetFlightUi's "no await
+  // between frame and here" argument still holds.
+  if (fxTier !== 'off' && fxSheetsLoading !== null) {
+    fxSheets = await fxSheetsLoading
+    fxSystem = createFxSystem({ capacity: FX_TIERS[fxTier].capacity, seed: 1944, catalog: FX_CATALOG, layout: sheetLayout(fxSheets.manifest) })
+    fxPass = createFxPass({
+      camera, sceneColor: framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth, sheets: fxSheets,
+      shadow: shadow.enabled ? shadow : null, soft: fxQuery.soft, cloudLimit: fxQuery.cloudLimit, tier: FX_TIERS[fxTier],
+    })
+  }
   // Photoreal Task 3 (spec §4.1): the cloud march at reduced resolution,
   // composited over the scene pass. It renders from inside
   // `framePipeline.render()` (a node's `updateBefore`, after the scene pass)
@@ -1320,12 +1367,15 @@ async function boot(): Promise<void> {
   // applies a pending pick at once -- which is why the pass takes its scale
   // from `cloudTier` here rather than relying on that call.
   cloudPass = cloudTier === 'off' || !clouds.enabled ? null : createCloudPass({
-    clouds, camera, sceneColor: framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+    clouds, camera, sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+    fxLimit: fxPass?.cloudLimit ?? null,
   })
   if (cloudPass !== null && cloudTier !== 'off') {
     cloudPass.setResolutionScale(CLOUD_TIERS[cloudTier].resolutionScale)
     cloudPass.setUpdatePeriod(CLOUD_TIERS[cloudTier].updatePeriod)
     framePipeline.setOutput(cloudPass.composite)
+  } else if (fxPass !== null) {
+    framePipeline.setOutput(fxPass.composite)
   }
 
   // Everything about the first frame -- the gear, the terrain hold, one pose
@@ -1414,8 +1464,6 @@ async function boot(): Promise<void> {
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
    *  Restart. */
   let landingShown = false
-  const impactEffect = createImpactEffect()
-  scene.add(impactEffect.object)
   /** The tick of the impact the debrief is currently showing, so the modal is
    *  raised once rather than rebuilt sixty times a second. */
   let shownImpactTick: number | null = null
@@ -1523,8 +1571,8 @@ async function boot(): Promise<void> {
    * radar-range-cycling keydown handler for that session, both gated on it
    * elsewhere in this file.
    *
-   * Declared here, after every variable it touches (`debrief`, `impactEffect`,
-   * `hitFlashes`, `shownImpactTick`, `shownDestructionTick`, `landingShown`,
+   * Declared here, after every variable it touches (`debrief`,
+   * `shownImpactTick`, `shownDestructionTick`, `landingShown`,
    * `postImpactOceanSeconds`) rather than hoisted to the top of `boot` with
    * `frame`/`buildWorld`/`roster` -- unlike those, nothing here needs the
    * TDZ-safety hoist: there is no `await` anywhere between `frame`'s own
@@ -1545,8 +1593,6 @@ async function boot(): Promise<void> {
    */
   const resetFlightUi = (): void => {
     debrief.hide()
-    impactEffect.hide()
-    hitFlashes.hide()
     shownImpactTick = null
     shownDestructionTick = null
     landingShown = false
@@ -1557,6 +1603,33 @@ async function boot(): Promise<void> {
     // far the restart moved the eye.
     cloudPass?.resetHistory()
     framePipeline.resetHistory()
+    // E1: a new life starts with no effects and no remembered edges
+    // (Review Focus 3); events.ts's restart rule would also forget the
+    // edges, but only the pool can drop what is already drawn.
+    fxSystem?.clear()
+    fxMemory = NO_FX_MEMORY
+    fxStress = null
+  }
+  /** E1 DEV (`__ww2.fxStress`): clear the pool and inject a named scene
+   *  relative to the eye (fx/stress.ts); returns the anchors in CSS pixels. */
+  const startFxStress = (name: FxStressName): { anchors: { name: string; x: number; y: number }[] } => {
+    const f = frame!
+    const eye = f.eye.position
+    const look = new Vector3()
+    camera.getWorldDirection(look)
+    const terrainField = f.world.terrain
+    const groundAt = (x: number, z: number): number => terrainField === null ? SEA_LEVEL_M : Math.max(SEA_LEVEL_M, heightAt(terrainField, x, z))
+    const scene = stressScene(name, eye, { x: look.x, y: look.y, z: look.z }, groundAt)
+    fxSystem?.clear()
+    for (const t of scene.triggers) fxSystem?.trigger(t.recipe, t.position, t.velocity)
+    fxStress = name === 'none' ? null : { scene, startedMs: performance.now(), rounds: 0 }
+    const size = renderer.getSize(new Vector2())
+    return {
+      anchors: scene.anchors.map((a) => {
+        const p = new Vector3(a.position.x - eye.x, a.position.y - eye.y, a.position.z - eye.z).project(camera)
+        return { name: a.name, x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y }
+      }),
+    }
   }
   let legendOpen = true
   // Plan 17. Instrument setting, not simulation state -- same tier as
@@ -1883,7 +1956,7 @@ async function boot(): Promise<void> {
     // lines down) -- naming this field the same thing as ScenarioEntities'
     // own `player: Airframe` would be a duplicate `const player` in one
     // scope, not a shadow (both are declared in this same function body).
-    const { airframes, shipHandles, smokes, player: playerAirframe } = scenarioEntities!
+    const { airframes, shipHandles, player: playerAirframe } = scenarioEntities!
     const player = playerAircraft(current.world)
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -1967,25 +2040,13 @@ async function boot(): Promise<void> {
     autopilotBadge.setStatus(current.autopilot)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
-    // Plan 6: every combat visual reads `World.combat` on THIS frame. The
-    // readout and tracers are stateless views of it; the flashes are an
-    // edge detector with its own memory (hitFlash.ts) because a hit's
-    // record persists on the entity every frame afterward.
+    // Plan 6: the readout and tracers are stateless views of World.combat;
+    // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
     tracers.update(current.world.combat.projectiles)
-    const flashes = nextHitFlashes(flashMemory, current.world.combat, current.world.aircraft, current.world.tick)
-    flashMemory = flashes.memory
-    for (const event of flashes.events) hitFlashes.fire(event)
-    current.world.aircraft.forEach((a, i) => {
-      const damage = current.world.combat.aircraft[a.id]!.damage
-      smokes[i]!.set(damage.engine, damage.destroyedAt !== null)
-    })
     // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
     // sinking/burning and structure collapse -- all stateless views of
-    // `World.combat` except the impact pool, which (like the flashes above)
-    // is an edge detector: a projectile leaving `combat.projectiles` is the
-    // only signal a bomb or rocket detonated (`nextOrdnanceImpacts`'s own
-    // doc comment).
+    // `World.combat`.
     current.world.aircraft.forEach((a, i) => {
       const stores = current.world.combat.aircraft[a.id]?.stores
       if (stores !== undefined) airframes[i]!.setStores(stores.bombs, stores.rockets)
@@ -2000,11 +2061,7 @@ async function boot(): Promise<void> {
       const playerControls = a.id === current.world.player ? current.controls : null
       airframes[i]!.update(airframeUpdateFor(a, playerControls, current.poses[i]!.position, current.eye.position, frameMs / 1000))
     })
-    ordnance.update(current.world.combat.projectiles, current.eye.position)
-    ordnance.updateEffects(frameMs / 1000)
-    const ordnanceImpacts = nextOrdnanceImpacts(ordnanceMemory, current.world.combat.projectiles, current.world.tick)
-    ordnanceMemory = ordnanceImpacts.memory
-    for (const event of ordnanceImpacts.events) ordnance.spawnImpact(event.kind, event.position)
+    ordnance.update(current.world.combat.projectiles)
     current.world.ships.forEach((s, i) => {
       const damage = current.world.combat.ships[s.id]
       if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
@@ -2019,7 +2076,28 @@ async function boot(): Promise<void> {
     // rather than tracking which airfield owns which structure; a handle
     // ignores ids it does not own.
     for (const h of airfieldHandles) h.sync(current.world.combat.structures)
-    for (const h of airfieldHandles) h.update(frameMs / 1000)
+    // E1: every effect reads World.combat through one pure edge detector
+    // (fx/events.ts), one seeded pool (fx/system.ts) and one pass (fx/fxPass.ts).
+    if (fxSystem !== null && fxPass !== null) {
+      const started = performance.now()
+      const shipSmokeOrigins = new Map(current.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
+      const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
+      const events = nextFxEvents(fxMemory, {
+        tick: current.world.tick, combat: current.world.combat, aircraft: current.world.aircraft, poses: current.poses,
+        shipSmokeOrigins, structureAnchors,
+      })
+      fxMemory = events.memory
+      for (const t of events.triggers) fxSystem.trigger(t.recipe, t.position, t.velocity)
+      if (fxStress !== null) {
+        const due = Math.floor(((now - fxStress.startedMs) / 1000) * fxStress.scene.roundsHz)
+        for (; fxStress.rounds < due; fxStress.rounds++) for (const t of stressRounds(fxStress.scene.center, fxStress.rounds)) fxSystem.trigger(t.recipe, t.position, t.velocity)
+      }
+      fxSystem.setSustained(fxStress === null ? events.sustained : [...events.sustained, ...fxStress.scene.sustained])
+      fxSystem.step(fxDtSeconds(frameMs / 1000, current.paused, current.timeScale))
+      fxPass.setWorldOffset(worldOffset)
+      fxPass.setCount(fxSystem.writeInstances(current.eye.position, fxPass.instances))
+      fxCpuMs = performance.now() - started
+    }
 
     // Raised once per contact -- `shownImpactTick` is the guard, since the
     // player's `impact` stays non-null every frame after the airplane stops,
@@ -2027,17 +2105,6 @@ async function boot(): Promise<void> {
     const hit = player.impact
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
-      // Raw world metres, NOT `+ worldOffset`: `impactEffect.object` is a
-      // child of `scene`, and `scene.position` is set to `worldOffset` every
-      // frame just above, which already applies the camera-relative shift
-      // once for every child -- the airframe, the sky and the terrain mesh
-      // all set their positions the same way. Adding `worldOffset` here too
-      // would apply it twice. The position is deliberately set once, at fire
-      // time, and never refreshed: the effect is anchored at a fixed world
-      // point, and `scene.position` moving each frame is what keeps it there
-      // as the camera flies away.
-      impactEffect.object.position.set(hit.position.x, hit.position.y, hit.position.z)
-      impactEffect.fire(hit.surface)
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = debriefModel(hit, player.state, killsSinceLastBank)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
@@ -2093,9 +2160,6 @@ async function boot(): Promise<void> {
         debrief.hide()
       })
     }
-    impactEffect.object.quaternion.copy(camera.quaternion)
-    impactEffect.update(frameMs / 1000)
-    hitFlashes.update(frameMs / 1000, camera.quaternion)
 
     // The sky dome's colour only depends on view direction, but its geometry
     // is centred on its own origin; re-centring that origin under the eye's

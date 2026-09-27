@@ -2,6 +2,7 @@ import { qRotate } from '../sim/math/quat.js'
 import { dot, length, sub, v3 } from '../sim/math/vec3.js'
 import type { AircraftEntity } from '../sim/loop.js'
 import { isAircraftDown, type CombatState } from '../sim/weapons/combat.js'
+import { sideOf } from '../sim/sides.js'
 
 /**
  * Radar scope math (Plan 17, design:
@@ -37,6 +38,9 @@ export type RadarContact = {
    *  `controlsForDesiredVelocity`'s heading error uses. */
   readonly bearingRad: number
   readonly rangeMi: number
+  /** Plan 7e (spec §4.4): on the player's own side (`sideOf`). The scope
+   *  draws friendlies in a second tint. */
+  readonly friendly: boolean
 }
 
 /** Bounds any angle to (-pi, pi], the exact `wrapPi` idiom `controller.ts`
@@ -66,10 +70,11 @@ function bearingAndRangeMi<M>(
 
 /**
  * Every other airborne aircraft within `rangeMi`, nearest first, capped at
- * `MAX_RADAR_CONTACTS`. `parked` aircraft never appear: there is no IFF in
- * the sim yet, so "airborne" is the only filter available, and it is a
- * static spawn-time flag (`loop.ts`'s own doc comment on
- * `AircraftEntity.parked` -- an aircraft never transitions mid-flight).
+ * `MAX_RADAR_CONTACTS`, each flagged `friendly` when it is on the player's
+ * side (Plan 7e; derived from the entities themselves, so `main.ts` passes
+ * nothing new). `parked` aircraft never appear: `parked` is a static
+ * spawn-time flag (`loop.ts`'s own doc comment on `AircraftEntity.parked`
+ * -- an aircraft never transitions mid-flight).
  * Nor does a downed one (`isAircraftDown`: crashed, ditched or destroyed --
  * Mark, 2026-09-25, a crashed plane stayed on the scope). `records` is
  * `World.combat.aircraft`, required so the production call cannot forget it.
@@ -80,9 +85,11 @@ export function radarContacts<M>(
   rangeMi: number,
   records: CombatState['aircraft'],
 ): readonly RadarContact[] {
+  // `sideOf`'s default names the player by id; the scope's owner is it.
+  const self = { player: player.id }
   return others
     .filter((a) => a.id !== player.id && !a.parked && !isAircraftDown(records, a))
-    .map((a) => ({ id: a.id, ...bearingAndRangeMi(player, a) }))
+    .map((a) => ({ id: a.id, ...bearingAndRangeMi(player, a), friendly: sideOf(self, a) === sideOf(self, player) }))
     .filter((c) => c.rangeMi <= rangeMi)
     .sort((a, b) => a.rangeMi - b.rangeMi)
     .slice(0, MAX_RADAR_CONTACTS)

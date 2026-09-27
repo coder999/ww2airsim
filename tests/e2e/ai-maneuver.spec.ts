@@ -14,12 +14,10 @@ import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
  * this tier can see is that the chosen maneuver actually reaches the
  * airframe through the real render loop, not a headless harness.
  *
- * Finding 9 (final whole-branch review): this plan does not fix or worsen
- * the pre-existing gap where a destroyed target can still be targeted (the
- * loop only guards on SELF's `destroyedAt`, not the target's) -- the
- * MIN_ENGAGEMENT_RANGE_M override tested below is a strictly safer default
- * near a dead target than the old unconditional Pursue, but closing that gap
- * is out of scope here.
+ * Finding 9 (final whole-branch review), RESOLVED by Plan 7e (2026-09-26):
+ * a pilot re-checks its target every tick, and one whose static target is
+ * destroyed loiters without firing instead of chasing the wreck
+ * (tests/sim/ai/sidesTick.test.ts, "a static target that dies").
  *
  * **History.** RED from 2026-09-24: the veteran shot the passive player down
  * at tick 517 (8.6 s, 386 m) before point-blank range. 7c's measurement (spec

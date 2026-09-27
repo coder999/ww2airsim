@@ -22,20 +22,28 @@ export type QualitySettings = {
   readonly ocean: QualityTierName
   readonly scenery: QualityTierName
   readonly clouds: QualityTierName
+  /** Effects (ordnance-and-effects design §4.4). Added 2026-09-26 (E1): an
+   *  object saved before then has no `fx` and loads with `fx = clouds`
+   *  (plan E1 Ruling R15), rather than being discarded. */
+  readonly fx: QualityTierName
 }
 
 export function defaultQualitySettings(tier: QualityTierName): QualitySettings {
-  return { ocean: tier, scenery: tier, clouds: tier }
+  return { ocean: tier, scenery: tier, clouds: tier, fx: tier }
 }
 
 const TIER_NAMES: readonly QualityTierName[] = ['high', 'medium', 'low']
 function isQualityTierName(v: unknown): v is QualityTierName {
   return typeof v === 'string' && (TIER_NAMES as readonly string[]).includes(v)
 }
-function isQualitySettings(v: unknown): v is QualitySettings {
-  if (v === null || typeof v !== 'object') return false
+
+/** A stored value as today's shape, migrating a pre-E1 object; null if unusable. */
+function parseQualitySettings(v: unknown): QualitySettings | null {
+  if (v === null || typeof v !== 'object') return null
   const o = v as Record<string, unknown>
-  return isQualityTierName(o.ocean) && isQualityTierName(o.scenery) && isQualityTierName(o.clouds)
+  if (!isQualityTierName(o.ocean) || !isQualityTierName(o.scenery) || !isQualityTierName(o.clouds)) return null
+  if (o.fx === undefined) return { ocean: o.ocean, scenery: o.scenery, clouds: o.clouds, fx: o.clouds }
+  return isQualityTierName(o.fx) ? { ocean: o.ocean, scenery: o.scenery, clouds: o.clouds, fx: o.fx } : null
 }
 
 export function loadQualitySettings(): QualitySettings | null {
@@ -43,11 +51,12 @@ export function loadQualitySettings(): QualitySettings | null {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (raw === null) return null
     const parsed: unknown = JSON.parse(raw)
-    if (!isQualitySettings(parsed)) {
+    const settings = parseQualitySettings(parsed)
+    if (settings === null) {
       console.warn('quality settings in localStorage have an unexpected shape; ignoring:', parsed)
       return null
     }
-    return parsed
+    return settings
   } catch (err) {
     console.warn('quality settings in localStorage are corrupt or unreadable; ignoring:', err)
     return null
@@ -123,7 +132,7 @@ export function clearAssetQualityTier(): void {
 }
 
 export function uniformTier(settings: QualitySettings): QualityTierName | null {
-  return settings.ocean === settings.scenery && settings.scenery === settings.clouds
+  return settings.ocean === settings.scenery && settings.scenery === settings.clouds && settings.clouds === settings.fx
     ? settings.ocean
     : null
 }

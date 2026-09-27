@@ -20,6 +20,8 @@ import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
 import { zeroKillsByType, type TargetType } from './targetType.js'
+import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.js'
+import { sameSide, type Side } from '../sides.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -50,6 +52,12 @@ export type AircraftCombat = {
    *  `damage.attacker`, which stays "the hit that destroyed it" because the
    *  player's debrief reads it that way. */
   readonly lastHitBy: string | null
+  /** Plan 7e (spec §4.3): rounds and kills this aircraft landed on its OWN
+   *  side, the player and its own blast included. Counted here and never in
+   *  `hits`, `kills` or `killsByType` (ruling W1), so Plan 9's score cannot
+   *  reward a teamkill. Only counted when `stepCombat` is given sides. */
+  readonly friendlyHits: number
+  readonly friendlyKills: number
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
@@ -86,6 +94,10 @@ export type CombatState = {
   readonly poolSaturated: number
   readonly ships: Readonly<Record<string, ShipDamage>>
   readonly structures: Readonly<Record<string, StructureDamage>>
+  /** Every detonation, and every bomb/rocket `lifeS` expiry, oldest first,
+   *  bounded (`IMPACT_RING_CAPACITY`). Written here, read only by the
+   *  renderer's effects (ordnance-and-effects design §3.1). */
+  readonly impacts: readonly CombatImpact[]
 }
 export function createCombat(
   aircraft: readonly CombatAircraft[],
@@ -98,13 +110,14 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(),
+      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
     }])),
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
     structures: Object.fromEntries(structures.map(s => [s.id, healthyStructureDamage(s.hp)])),
+    impacts: [],
   }
 }
 
@@ -220,7 +233,7 @@ const hullCenter = (ship: CombatShip): Vec3 => add(ship.state.position, v3(0, sh
  *  nearest one be chosen by comparing distances rather than by trying the
  *  kinds in a fixed order (spec §3.4). */
 type Contact =
-  | { readonly t: number; readonly kind: 'ground' }
+  | { readonly t: number; readonly kind: 'ground'; readonly sea: boolean }
   | { readonly t: number; readonly kind: 'aircraft'; readonly aircraft: CombatAircraft; readonly system: DamageSystem }
   | { readonly t: number; readonly kind: 'ship'; readonly ship: CombatShip }
   | { readonly t: number; readonly kind: 'structure'; readonly structure: StructureEntity }
@@ -231,9 +244,9 @@ function nearestContact(
 ): Contact | null {
   const candidates: Contact[] = []
   const ground = groundHit(p.previous, p.position, terrain, decks)
-  if (ground !== null) candidates.push({ t: ground, kind: 'ground' })
+  if (ground !== null) candidates.push({ t: ground, kind: 'ground', sea: false })
   const sea = seaHit(p.previous, p.position, terrain, decks)
-  if (sea !== null) candidates.push({ t: sea, kind: 'ground' })
+  if (sea !== null) candidates.push({ t: sea, kind: 'ground', sea: true })
   for (const a of aircraft) {
     if (a.id === p.owner || a.spec.combat === undefined) continue
     const began = add(a.previous.position, scale(sub(a.state.position, a.previous.position), start))
@@ -257,6 +270,19 @@ function nearestContact(
   let nearest: Contact | null = null
   for (const c of candidates) if (nearest === null || c.t < nearest.t) nearest = c
   return nearest
+}
+
+/** What a contact was ON, for the impacts ring only -- no damage rule reads
+ *  this. The sea plane is always water; the heightfield/deck contact asks
+ *  `groundUnder` at the contact point, whose `surface` already tells a deck
+ *  from land from seabed ('water'). */
+function contactSurface(c: Contact, point: Vec3, terrain: TerrainField | null, decks: readonly Deck[]): ImpactSurface {
+  switch (c.kind) {
+    case 'aircraft': return 'aircraft'
+    case 'ship': return 'ship'
+    case 'structure': return 'structure'
+    case 'ground': return c.sea ? 'water' : groundUnder(terrain, decks, point.x, point.z)?.surface ?? 'land'
+  }
 }
 
 /** Reduces a building, floors it at zero, and freezes the first tick it
@@ -437,6 +463,12 @@ export function stepCombat(
    * unaffected until Task 6 threads a real persisted value in.
    */
   arcadeDamage = false,
+  /**
+   * Plan 7e: every aircraft's side, by id (`sidesOf`, src/sim/sides.ts),
+   * which decides whether a hit or kill is a friendly one. `null` (every
+   * caller that predates 7e) credits every hit as before.
+   */
+  sides: Readonly<Record<string, Side>> | null = null,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
@@ -530,6 +562,7 @@ export function stepCombat(
   }
 
   const alive: Projectile[] = []
+  const impacts: CombatImpact[] = []
   const specs = new Map(aircraft.map(a => [a.id, a.spec]))
   // A hull on the bottom "no longer blocks or takes anything" (spec §3.6), so
   // it leaves the candidate list entirely rather than being special-cased in
@@ -539,12 +572,20 @@ export function stepCombat(
   /** A kill by anything -- a round, a direct bomb, or blast -- lands on the
    *  owner's record; `hits` stays the gunnery statistic it has always been. */
   const creditAircraftDamage = (
-    before_: Damage, after: Damage, owner: string, round: boolean, targetType: TargetType,
+    before_: Damage, after: Damage, owner: string, round: boolean, targetType: TargetType, targetId: string,
   ): void => {
     const shooter = records[owner]
     if (shooter === undefined) return
     const killed = before_.destroyedAt === null && after.destroyedAt !== null
     if (!round && !killed) return
+    if (sides !== null && sameSide(sides, owner, targetId)) {
+      records[owner] = {
+        ...shooter,
+        friendlyHits: shooter.friendlyHits + (round ? 1 : 0),
+        friendlyKills: shooter.friendlyKills + (killed ? 1 : 0),
+      }
+      return
+    }
     records[owner] = {
       ...shooter,
       hits: shooter.hits + (round ? 1 : 0),
@@ -561,9 +602,14 @@ export function stepCombat(
     const damage = system === null
       ? blastDamageAircraft(target.spec, rec.damage, amount, tick, owner)
       : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale)
-    const lastHitBy = owner === target.id ? rec.lastHitBy : owner
+    // A hit by its own side (7e) or by itself is physical -- it still flashes
+    // (`lastHit`) -- but does not change who is credited if the aircraft goes
+    // down later: a wingman's graze must not steal the player's kill (Mark,
+    // 2026-09-25; whole-branch review, 2026-09-26).
+    const ownSide = owner === target.id || (sides !== null && sameSide(sides, owner, target.id))
+    const lastHitBy = ownSide ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
-    creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role)
+    creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
   }
 
   const damageStructureAt = (s: StructureEntity, amount: number, owner: string): void => {
@@ -631,12 +677,15 @@ export function stepCombat(
     const contact = nearestContact(p, shot.start, aircraft, afloat, structures, terrain, decks)
     if (contact === null) {
       if (p.lifeS > 1e-12) alive.push(p)
+      // Ruling R3: only ordnance expiries are recorded.
+      else if (p.kind !== 'round') impacts.push({ tick, cause: p.kind, outcome: 'expired', surface: 'air', point: p.position })
       continue
     }
     // A bomb that has not armed is a dud: removed, and nothing takes anything
-    // (spec §3.4).
+    // (spec §3.4). Nor is it an impact (E1 Ruling R2).
     if (p.kind === 'bomb' && store !== null && p.ageS < (store.armS ?? 0)) continue
     const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
+    impacts.push({ tick, cause: p.kind, outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point })
     const damage = store === null ? source.roundDamage : store.damage
     if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
@@ -666,7 +715,7 @@ export function stepCombat(
     }
   }
 
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts) }
 }
 
 /** Down for good: destroyed by damage, or crashed/ditched. The same
@@ -694,12 +743,16 @@ export function isAircraftDown(
  * `before`/`beforeAircraft` are the start of the tick, `after`/
  * `afterAircraft` the end. An aircraft absent from `beforeAircraft` (spawned
  * this tick) is skipped. Returns `after` itself when nothing was credited.
+ *
+ * Plan 7e: with `sides`, a loss last hit by its own side is that shooter's
+ * `friendlyKills`, not a kill (spec §4.3).
  */
 export function creditDownedAircraft(
   before: CombatState,
   after: CombatState,
   beforeAircraft: readonly CombatAircraft[],
   afterAircraft: readonly CombatAircraft[],
+  sides: Readonly<Record<string, Side>> | null = null,
 ): CombatState {
   let records: Record<string, AircraftCombat> | null = null
   for (const a of afterAircraft) {
@@ -711,6 +764,10 @@ export function creditDownedAircraft(
     records ??= { ...after.aircraft }
     const shooter = records[rec.lastHitBy]
     if (shooter === undefined) continue
+    if (sides !== null && sameSide(sides, rec.lastHitBy, a.id)) {
+      records[rec.lastHitBy] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      continue
+    }
     const type = a.spec.role
     records[rec.lastHitBy] = {
       ...shooter,

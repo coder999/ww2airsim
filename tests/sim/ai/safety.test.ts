@@ -1,3 +1,4 @@
+import { sidesOf } from '../../../src/sim/sides.js'
 import { describe, expect, it } from 'vitest'
 import {
   FLOOR_BUFFER_M, FLOOR_M, G_BUDGET, OVERSPEED_THROTTLE_CUT, PURSUIT_FLOOR_M, finishControls, floorTriggerM, heightAboveGround,
@@ -115,7 +116,7 @@ describe('the pursuit floor (Mark, 2026-09-26: "ai chases you unless under 50 *f
     const self = { ...entity(f6f, createState({ position: selfAt, velocity: v3(120, vy, 0) })), id: 'p', pilot: { target: 't', skill: VETERAN_SKILL, decision } }
     const target = { ...entity(f6f, createState({ position: seen, velocity: v3(110, 0, 0) })), id: 't' }
     const w = createWorldOf({ aircraft: [self, target], player: 't' })
-    return pilotTick(self, w.aircraft, { nowS: 1 / 60, terrain, decks, wind: null, combat: w.combat }).pilot!.decision.safety
+    return pilotTick(self, w.aircraft, { nowS: 1 / 60, terrain, decks, wind: null, combat: w.combat, sides: sidesOf(w, w.aircraft), ships: [] }).pilot!.decision.safety
   }
 
   it('is 50 ft, Mark\'s value, not a tuning value', () => {
