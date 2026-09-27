@@ -151,8 +151,8 @@ Summarized from the ledger's `Ruling:` lines
   alone, it passed 8/8 in 2.7 s, and a rerun of verify was green. R1's
   handoff recorded the same flake. The cause is that `vitest.config.ts`
   raises `testTimeout` to 30 s but leaves `hookTimeout` at the 10 s
-  default, and this soak runs in a hook. A one-line fix, left out of this
-  branch on purpose.
+  default, and this soak runs in a hook. Fixed on `main` after the merge
+  (2026-09-27): `hookTimeout: 30_000` in `vitest.config.ts`.
 - **The dev server on port 5174** (`ww2airsim-3`, another session's) was
   gone by the end of this run. R2 only ever started and stopped its own
   5175 server, but whoever owns 5174 should know.
