@@ -5,7 +5,7 @@ import { createWorldOf, type AircraftEntity } from '../../src/sim/loop.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import type { Airfield } from '../../src/sim/world/airfields.js'
-import { bundleForScenario, loadAircraftSpec, loadAirfield, loadScenarioBundle } from '../../tools/content/load.js'
+import { bundleForScenario, loadAircraftSpec, loadAirfield, loadScenario, loadScenarioBundle } from '../../tools/content/load.js'
 
 /**
  * Friendly fire (spec 2026-09-26-friendly-fire-design.md §2-§3): ships and
@@ -123,5 +123,48 @@ describe('side validation at scenario load (spec §3)', () => {
     expect(() => build({ ...base, aircraft: [...aircraft, raider()], ships: [CV] }))
       .toThrow(/ingress destination "cv-1" of "raid-1" is on its own side \(axis\)/)
     expect(() => build({ ...base, aircraft: [...aircraft, raider()], ships: [{ ...CV, side: 'allied' }] })).not.toThrow()
+  })
+})
+
+/**
+ * Review finding, ruled by Mark 2026-09-26: the parked enemy gunnery target
+ * `f6f-2` was 56 m in front of allied `tacloban-hangar-3`, so a strafing
+ * pass's overshoots could discharge the player for shooting the target the
+ * scenario offers. Mark: move it, and make it an enemy. Checked as lines of
+ * fire: from every compass approach (16 of them), the 400 m of ground beyond
+ * the target must not cross an own-side structure's footprint grown by 10 m
+ * for dispersion.
+ */
+describe('f6f-2 stands clear of the player\'s own structures (Mark, 2026-09-26)', () => {
+  const OVERSHOOT_M = 400
+  const DISPERSION_M = 10
+
+  it.each(['free-flight', 'deck-quals'])('%s: no overshoot line from any direction crosses an allied building', (id) => {
+    const bundle = loadScenarioBundle(id)
+    const w = worldFromScenario(bundle, null)
+    const target = w.aircraft.find((a) => a.id === 'f6f-2')!
+    expect(sideOf(w, target)).not.toBe(sideOf(w, w.aircraft.find((a) => a.id === w.player)!))
+    const own = w.structures.filter((s) => s.side === 'allied')
+    const base = bundle.airfields['tacloban']!
+    const footprint = new Map(base.buildings.map((b) => [b.id, b]))
+    for (let k = 0; k < 16; k++) {
+      const ang = (k / 16) * 2 * Math.PI
+      for (let d = 0; d <= OVERSHOOT_M; d += 2) {
+        const x = target.state.position.x + Math.sin(ang) * d
+        const z = target.state.position.z - Math.cos(ang) * d
+        for (const s of own) {
+          const b = footprint.get(s.id)!
+          const inside = Math.abs(x - s.position.x) < b.widthM / 2 + DISPERSION_M && Math.abs(z - s.position.z) < b.lengthM / 2 + DISPERSION_M
+          expect(inside, `${id}: an overshoot heading ${(k * 22.5).toFixed(1)} deg crosses ${s.id} ${d} m past f6f-2`).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('f6f-2 is declared axis in content, not left to the default', () => {
+    for (const id of ['free-flight', 'deck-quals']) {
+      const f6f2 = loadScenario(id).aircraft.find((a) => a.id === 'f6f-2')
+      expect(f6f2?.side, id).toBe('axis')
+    }
   })
 })

@@ -43,7 +43,8 @@ test('two Hellcats exist and the parked one is on the apron', async ({ page }) =
   expect(aircraft.map((item) => item.id)).toEqual(['f6f-1', 'f6f-2'])
   const tacloban = bundle.airfields.tacloban!.runway.center
   const wingman = aircraft[1]!
-  expect(Math.hypot(wingman.x - tacloban.x, wingman.z - tacloban.z)).toBeLessThan(300)
+  // 502 m up the strip since Mark's ruling of 2026-09-26 (moved clear of the allied hangars).
+  expect(Math.hypot(wingman.x - tacloban.x, wingman.z - tacloban.z)).toBeLessThan(600)
 })
 
 test.describe('frame-time budget with entities', () => {

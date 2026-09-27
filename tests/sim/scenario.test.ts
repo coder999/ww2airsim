@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { parseScenario, worldFromScenario, AIRBORNE_SPAWN_THROTTLE, PARKED_PLACEHOLDER_Y_M, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { advance, playerAircraft, type World } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
-import { insideRect, insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
+import { insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
 import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -12,7 +12,7 @@ import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/ren
 import { loadScenarioBundle, loadScenario } from '../../tools/content/load.js'
 import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { AIRFIELD_HUTS } from '../../src/render/scene/airfield.js'
+import { AIRFIELD_HUTS, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
@@ -57,7 +57,7 @@ describe('the free-flight scenario', () => {
     expect(p.previous).toBe(p.state)
   })
 
-  it('chocks the second Hellcat on the apron, clear of the strip and every building', () => {
+  it('chocks the second Hellcat beside the strip, in the tree-free corridor, clear of the strip and every building', () => {
     const w = worldFromScenario(bundle, null)
     const wingman = w.aircraft[1]!
     const tacloban = bundle.airfields['tacloban']!
@@ -65,7 +65,10 @@ describe('the free-flight scenario', () => {
     expect(wingman.controls.gearDown).toBe(true)
     expect(wingman.parked).toBe(true)
     const { x, z } = wingman.state.position
-    expect(insideRect(tacloban, tacloban.apron!, x, z)).toBe(true)
+    // Off the apron since Mark's ruling of 2026-09-26: the apron is where the
+    // allied hangars are, so an enemy target there drew friendly overshoots.
+    // It sits in the runway corridor inAirfieldClearing keeps free of trees.
+    expect(inAirfieldClearing([tacloban], x, z)).toBe(true)
     expect(insideRunway(tacloban, x, z)).toBe(false)
     const local = worldToLocal(tacloban, x, z)
     // Plan 6b split the old 7-entry AIRFIELD_BUILDINGS table into content
@@ -436,7 +439,8 @@ describe('deck quals (Plan 8)', () => {
     expect(player.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad))
     // The wingman is still ashore at Tacloban.
     const wingman = world.aircraft.find((a) => a.id === 'f6f-2')!
-    expect(Math.hypot(wingman.state.position.x - -29666, wingman.state.position.z - -47605)).toBeLessThan(300)
+    // 502 m up the strip since 2026-09-26 (moved clear of the allied hangars).
+    expect(Math.hypot(wingman.state.position.x - -29666, wingman.state.position.z - -47605)).toBeLessThan(600)
     expect(world.wind).not.toBeNull()
   })
 

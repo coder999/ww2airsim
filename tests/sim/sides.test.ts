@@ -24,7 +24,9 @@ describe('sides (7e spec §4.1)', () => {
       const sides = sidesOf(world, world.aircraft)
       for (const a of world.aircraft) {
         expect(sides[a.id], `${id}/${a.id}`).toBe(a.id === world.player ? 'allied' : 'axis')
-        expect('side' in a, `${id}/${a.id} gained a side key`).toBe(false)
+        // An explicit side must equal the 7e default, so behavior is unchanged
+        // (f6f-2 is declared axis since Mark's ruling of 2026-09-26).
+        if ('side' in a) expect(a.side, `${id}/${a.id} has a non-default side`).toBe(a.id === world.player ? 'allied' : 'axis')
       }
     }
   })
