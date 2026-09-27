@@ -23,6 +23,7 @@ import { createTimeBadge } from './timeBadge.js'
 import { createAutopilotBadge } from './autopilotBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
+import { createMissionHud } from './mission/hud.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId } from './titleScreen.js'
@@ -1403,6 +1404,7 @@ async function boot(): Promise<void> {
   const autopilotBadge = createAutopilotBadge(root)
   const pauseBadge = createPauseBadge(root)
   const paddlesBadge = createPaddlesBadge(root)
+  const missionHud = createMissionHud(root)
   // Ships in production, in both camera modes (Plan 6): ammunition and
   // damage are things the pilot needs whichever way they are looking.
   const combatReadout = createCombatReadout(root)
@@ -1610,6 +1612,7 @@ async function boot(): Promise<void> {
     fxSystem?.clear()
     fxMemory = NO_FX_MEMORY
     fxStress = null
+    missionHud.reset()
   }
   /** E1 DEV (`__ww2.fxStress`): clear the pool and inject a named scene
    *  relative to the eye (fx/stress.ts); returns the anchors in CSS pixels. */
@@ -2042,6 +2045,7 @@ async function boot(): Promise<void> {
     autopilotBadge.setStatus(current.autopilot)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
+    missionHud.update(current.world.mission, frameMs, current.paused)
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
