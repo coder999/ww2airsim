@@ -8,13 +8,15 @@ import { radioMessages, type MissionLogEntry, type MissionState } from '../../si
 
 const MAX_SHOWN = 2
 
-/** The current primary objective(s), compact (spec §3; ruling R7). */
+/** The current primary objective(s), compact (spec §3; ruling R7). The
+ *  three standing orders -- `protect`, `deny` and `approaches` -- hold for
+ *  the whole flight and never appear on the line; the chart lists them. */
 export function objectiveLineLabel<M>(m: MissionState<M> | null): string | null {
   if (m === null) return null
   const primaries = m.objectives.map((o, i) => ({ o, p: m.progress[i]! })).filter(({ o }) => o.priority === 'primary')
   const failed = primaries.some(({ p }) => p.status === 'failed')
   const parts = primaries
-    .filter(({ o, p }) => p.status === 'active' && o.kind !== 'protect' && o.kind !== 'deny')
+    .filter(({ o, p }) => p.status === 'active' && o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches')
     .slice(0, MAX_SHOWN)
     .map(({ o, p }) => {
       const name = o.label.toUpperCase()

@@ -347,6 +347,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if (o.kind === 'deny' && typeof o.around === 'string' && !startAircraft.has(o.around) && !startShips.has(o.around)) {
       issue(`deny.around "${o.around}" is not a starting aircraft or ship`, [...path, 'around'])
     }
+    if (o.kind === 'approaches' && objectives.findIndex((x) => x.kind === 'approaches') !== i) {
+      issue('a mission may declare one approaches objective (M3-R11)', [...path, 'kind'])
+    }
   })
 
   const byId = new Map(objectives.map((o) => [o.id, o]))
@@ -359,7 +362,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if ('failed' in t.when) {
       const o = byId.get(t.when.failed)
       if (o === undefined) issue(`when.failed names "${t.when.failed}", which is not an objective`, [...path, 'when', 'failed'])
-      else if (o.kind !== 'protect' && o.kind !== 'deny') issue(`when.failed names "${o.id}", a ${o.kind} objective, which can never fail`, [...path, 'when', 'failed'])
+      else if (o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches') issue(`when.failed names "${o.id}", a ${o.kind} objective, which can never fail`, [...path, 'when', 'failed'])
     }
     t.then.forEach((a, ai) => {
       if (!('spawn' in a)) return
@@ -598,6 +601,12 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       const ship = ships.find((sh) => sh.id === o.at)
       if (ship !== undefined && deckOf(ship) === null) {
         throw new Error(`scenario "${s.id}": objective "${o.id}" lands on "${o.at}", which has no flight deck`)
+      }
+    }
+    // M3-R11: a pass needs a Paddles window, and only a ship with `paddles` has one.
+    for (const o of s.objectives) {
+      if (o.kind === 'approaches' && ships.find((sh) => sh.id === o.at)?.spec.paddles === undefined) {
+        throw new Error(`scenario "${s.id}": objective "${o.id}" names "${o.at}", which has no Paddles`)
       }
     }
     const held: HeldGroup<undefined>[] = (s.heldGroups ?? []).map((g) => ({

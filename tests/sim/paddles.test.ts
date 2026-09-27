@@ -1,13 +1,19 @@
 import { describe, it, expect } from 'vitest'
-import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
-import { paddlesCue, APPROACH_SPEED_STALL_MULTIPLE } from '../../src/sim/paddles.js'
+import { loadAircraftSpec, loadShipSpec, loadScenarioBundle } from '../../tools/content/load.js'
+import { paddlesCue, paddlesWindow, APPROACH_SPEED_STALL_MULTIPLE } from '../../src/sim/paddles.js'
 import { deckOf, deckWorld, type Deck } from '../../src/sim/world/deck.js'
 import { createShipState } from '../../src/sim/world/ships.js'
-import { createState, type Controls } from '../../src/sim/flight/model.js'
-import { SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
+import { createState, DT, type Controls } from '../../src/sim/flight/model.js'
+import { SEA_LEVEL_M, createTerrainField } from '../../src/sim/world/terrain.js'
 import { effectiveStallSpeedMps } from '../../src/sim/ground.js'
 import { v3 } from '../../src/sim/math/vec3.js'
-import type { ShipEntity } from '../../src/sim/loop.js'
+import { advance, playerAircraft, withAircraftState, withControls, type ShipEntity, type World } from '../../src/sim/loop.js'
+import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { worldFromScenario } from '../../src/sim/scenario.js'
+import type { AircraftState } from '../../src/sim/flight/state.js'
+import { approachControls, VREF_STALL_MULTIPLE } from '../../tools/autopilot/approach.js'
+import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const cv = loadShipSpec('essex-cv')
@@ -72,5 +78,69 @@ describe('paddlesCue', () => {
     // Ground speed exactly at the approach speed plus 8 m/s of headwind is 8 m/s fast through the air.
     expect(paddlesCue(f6f, onFinal(1000, 0, 0, approachMps), CONFIGURED, deck, params, wind)).toBe('fast')
     expect(paddlesCue(f6f, onFinal(1000, 0, 0, approachMps - 8), CONFIGURED, deck, params, wind)).toBe('roger')
+  })
+})
+
+describe('paddlesWindow (M3-R4): exactly the gate of paddlesCue', () => {
+  it('agrees with paddlesCue !== null on the unit fixtures, with or without wind', () => {
+    const wind = v3(-Math.sin(deck.headingRad) * 8, 0, Math.cos(deck.headingRad) * 8)
+    const cases: [ReturnType<typeof onFinal>, Controls][] = [
+      [onFinal(1000), CONFIGURED],
+      [onFinal(1000), { ...CONFIGURED, hookDown: false }],
+      [{ ...onFinal(1000), gearFraction: 0 }, CONFIGURED],
+      [onFinal(1000, 0, params.coneHalfAngleDeg + 5), CONFIGURED],
+      [onFinal(params.maxRangeM + 100), CONFIGURED],
+      [onFinal(params.cutRangeM - 10), CONFIGURED],
+      [onFinal(params.waveOffRangeM - 10, 2), CONFIGURED],
+    ]
+    for (const [state, controls] of cases) {
+      for (const w of [null, wind]) {
+        expect(paddlesWindow(f6f, state, controls, deck, params)).toBe(paddlesCue(f6f, state, controls, deck, params, w) !== null)
+      }
+    }
+  })
+
+  it('agrees with paddlesCue !== null every 60th tick of the carrierLanding approach', () => {
+    // The Step 1 probe's approach (M3 Task 3, 2026-09-26): carrierLanding.test.ts's setup and loop.
+    const level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+    const header = loadTerrainHeader()
+    const terrain = createTerrainField(header, level, loadTerrainLevel(level, header))
+    let world: World<undefined> = worldFromScenario(loadScenarioBundle('deck-quals'), terrain)
+    const ship = () => world.ships.find((s) => s.id === 'cv-1')!
+    const deck0 = deckOf(ship())!
+    const wind = world.wind!
+    const APPROACH_M = 4000
+    const aimLocalZ = -deck0.lengthM / 2 + deck0.trapFromSternM
+    const startLocal = deckWorld(deck0, 0, aimLocalZ - APPROACH_M)
+    const vref = VREF_STALL_MULTIPLE * f6f.reference.stallSpeedFlapMps
+    const along = v3(Math.sin(deck0.headingRad), 0, -Math.cos(deck0.headingRad))
+    world = withAircraftState(world, world.player, createState({
+      position: v3(startLocal.x, deck0.center.y + f6f.gear.heightM + APPROACH_M * Math.tan((3.5 * Math.PI) / 180), startLocal.z),
+      velocity: v3(along.x * (vref + 7.717), 0, along.z * (vref + 7.717)),
+      attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck0.headingRad),
+      gearFraction: 1,
+      flapFraction: 1,
+    }))
+    world = { ...world, aircraft: world.aircraft.map((a) => (a.id === world.player ? { ...a, parked: false } : a)) }
+    const table: { state: AircraftState; controls: Controls; deck: Deck }[] = []
+    for (let i = 0; i < 60 * 125; i++) {
+      const before = playerAircraft(world).state
+      const d = deckOf(ship())!
+      const aim = deckWorld(d, 0, aimLocalZ)
+      const controls = approachControls(f6f, before, {
+        aimX: aim.x, aimZ: aim.z, runwayHeadingRad: d.headingRad,
+        touchdownElevationM: d.center.y, surfaceVelocity: d.velocity, windVelocity: wind, hookDown: true,
+      })
+      if (i % 60 === 0) table.push({ state: before, controls, deck: d })
+      world = advance(withControls(world, world.player, controls), DT).world
+    }
+    const p = ship().spec.paddles!
+    const inside = table.filter((r) => paddlesWindow(f6f, r.state, r.controls, r.deck, p)).length
+    // Both sides of the gate are exercised: in on final, out before and after.
+    expect(inside).toBeGreaterThan(10)
+    expect(table.length - inside).toBeGreaterThan(10)
+    for (const r of table) {
+      expect(paddlesWindow(f6f, r.state, r.controls, r.deck, p)).toBe(paddlesCue(f6f, r.state, r.controls, r.deck, p, wind) !== null)
+    }
   })
 })

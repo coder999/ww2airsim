@@ -2,6 +2,7 @@ import { DT } from '../flight/model.js'
 import type { LandingAt, LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
 import type { RespotOrder } from './respot.js'
+import type { PassTracking } from './passes.js'
 import type { Badge, Objective, Trigger } from './schema.js'
 
 /**
@@ -29,7 +30,7 @@ export type ObjectiveStatus = 'inactive' | 'active' | 'complete' | 'failed'
 export type ObjectiveState = {
   readonly status: ObjectiveStatus
   /** destroy: targets destroyed; protect: targets lost; land: landings
-   *  counted. 0 for every other kind. */
+   *  counted; approaches: passes missed. 0 for every other kind. */
   readonly count: number
   /** hold: ticks spent inside the station while active, accumulated
    *  (spec §0.9). 0 for every other kind. */
@@ -58,6 +59,8 @@ export type MissionLogEntry =
   | { readonly tick: number; readonly kind: 'spawn'; readonly group: string }
   | { readonly tick: number; readonly kind: 'message'; readonly text: string }
   | { readonly tick: number; readonly kind: 'respot' }
+  /** A pass at the `approaches` objective's ship resolved (M3-R4). */
+  | { readonly tick: number; readonly kind: 'pass'; readonly result: 'trapped' | 'missed' }
   | {
       readonly tick: number
       readonly kind: 'landing'
@@ -93,6 +96,10 @@ export type MissionState<M> = {
    *  advances the `respot` objective, cleared once it fires or the player
    *  dies first. */
   readonly pendingRespotTick: number | null
+  /** The player's current pass at the `approaches` objective's ship
+   *  (M3-R4); `NO_PASS` when none is open or pending, and always for a
+   *  mission without that objective. */
+  readonly pass: PassTracking
 }
 
 type Message = Extract<MissionLogEntry, { kind: 'message' }>

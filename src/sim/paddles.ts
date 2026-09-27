@@ -16,21 +16,16 @@ export const APPROACH_SPEED_STALL_MULTIPLE = 1.15
 
 const DEG = Math.PI / 180
 
-/**
- * Pure. `null` unless the airplane is configured (gear and hook down),
- * astern of the deck inside the approach cone, and inside `maxRangeM`.
- * Glideslope is measured to the trap zone's center at deck height; range is
- * the horizontal distance to that point. Priority: wave-off, cut, high/low,
- * fast/slow, roger.
- */
-export function paddlesCue(
-  spec: AircraftSpec,
+/** Where the airplane is relative to the deck's trap zone, when it is in
+ *  the Paddles window; `null` when it is not. The single gate both
+ *  `paddlesCue` and `paddlesWindow` read (M3-R4), so the LSO and the pass
+ *  tracker can never disagree about who is "in the groove". */
+function paddlesGeometry(
   state: AircraftState,
   controls: Controls,
   deck: Deck,
   params: PaddlesParams,
-  wind: Vec3 | null,
-): PaddlesCue | null {
+): { readonly local: { readonly x: number; readonly z: number }; readonly asternM: number; readonly rangeM: number } | null {
   if (controls.hookDown !== true || state.gearFraction < GEAR_DOWN_FRACTION) return null
   const local = deckLocal(deck, state.position.x, state.position.z)
   const zoneZ = -deck.lengthM / 2 + (deck.trapFromSternM + deck.trapToSternM) / 2
@@ -40,6 +35,44 @@ export function paddlesCue(
   if (rangeM > params.maxRangeM) return null
   const offAxisDeg = Math.abs(Math.atan2(local.x, asternM)) / DEG
   if (offAxisDeg > params.coneHalfAngleDeg) return null
+  return { local, asternM, rangeM }
+}
+
+/**
+ * Pure. `true` exactly when `paddlesCue` would return a cue for the same
+ * inputs: gear and hook down, astern of the trap zone's center, inside the
+ * approach cone and `maxRangeM`. Wind changes which cue is shown, never
+ * whether one is, so this takes none. The mission's pass tracker reads it
+ * (src/sim/mission/passes.ts).
+ */
+export function paddlesWindow(
+  _spec: AircraftSpec,
+  state: AircraftState,
+  controls: Controls,
+  deck: Deck,
+  params: PaddlesParams,
+): boolean {
+  return paddlesGeometry(state, controls, deck, params) !== null
+}
+
+/**
+ * Pure. `null` unless the airplane is configured (gear and hook down),
+ * astern of the deck inside the approach cone, and inside `maxRangeM`
+ * (`paddlesWindow`). Glideslope is measured to the trap zone's center at
+ * deck height; range is the horizontal distance to that point. Priority:
+ * wave-off, cut, high/low, fast/slow, roger.
+ */
+export function paddlesCue(
+  spec: AircraftSpec,
+  state: AircraftState,
+  controls: Controls,
+  deck: Deck,
+  params: PaddlesParams,
+  wind: Vec3 | null,
+): PaddlesCue | null {
+  const g = paddlesGeometry(state, controls, deck, params)
+  if (g === null) return null
+  const { rangeM } = g
 
   const wheelsAboveDeckM = state.position.y - spec.gear.heightM - deck.center.y
   const slopeDeg = Math.atan2(wheelsAboveDeckM, rangeM) / DEG

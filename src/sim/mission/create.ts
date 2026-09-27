@@ -2,6 +2,7 @@ import { NO_LANDING } from '../landing.js'
 import type { EntityId } from '../loop.js'
 import type { Side } from '../sides.js'
 import type { RespotOrder } from './respot.js'
+import { NO_PASS } from './passes.js'
 import type { Badge, Objective, Trigger } from './schema.js'
 import type { HeldGroup, MissionState, ObjectiveState, ResolvedObjective } from './state.js'
 
@@ -88,5 +89,6 @@ export function createMission<M>(input: {
     log: [],
     respot: input.respot,
     pendingRespotTick: null,
+    pass: NO_PASS,
   }
 }

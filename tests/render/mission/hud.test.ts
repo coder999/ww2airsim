@@ -73,6 +73,18 @@ describe('objectiveLineLabel (M2 R7)', () => {
     expect(objectiveLineLabel(m)).toBe('RECOVER')
   })
 
+  it('skips approaches: a standing order, like protect and deny (M3, Mark 2026-09-26)', () => {
+    const m = missionOf([
+      [{ id: 'clean', priority: 'primary', kind: 'approaches', label: 'No wave-offs', at: 'cv-1' }, { status: 'active' }],
+      [{ id: 'traps', priority: 'primary', kind: 'land', label: 'Trap', at: 'cv-1', count: 3 }, { status: 'active', count: 1 }],
+    ])
+    expect(objectiveLineLabel(m)).toBe('TRAP 1/3')
+    const alone = missionOf([
+      [{ id: 'clean', priority: 'primary', kind: 'approaches', label: 'No wave-offs', at: 'cv-1' }, { status: 'active' }],
+    ])
+    expect(objectiveLineLabel(alone)).toBeNull()
+  })
+
   it('prefixes NO BADGE once a primary has failed', () => {
     const m = missionOf([
       [{ id: 'protect', priority: 'primary', kind: 'protect', label: 'Protect', targets: ['a'] }, { status: 'failed' }],

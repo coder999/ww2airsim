@@ -52,6 +52,10 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional() }).strict(),
   z.object({ ...base, kind: z.literal('reach'), ...stationShape }).strict(),
   z.object({ ...base, kind: z.literal('hold'), ...stationShape, seconds: positive }).strict(),
+  /** Passes at a ship's deck that miss (Mark, 2026-09-26; M3-R4): fails
+   *  once more than `maxMissed` (default 0) do. One per mission, at a ship
+   *  with Paddles (M3-R11). */
+  z.object({ ...base, kind: z.literal('approaches'), at: id, maxMissed: z.number().int().nonnegative().optional() }).strict(),
 ])
 export type Objective = z.infer<typeof ObjectiveObject>
 

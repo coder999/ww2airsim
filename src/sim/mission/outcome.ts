@@ -30,12 +30,13 @@ export function recoveryOf<M>(world: World<M>): Recovery | null {
 export type FinalStatus = 'complete' | 'incomplete' | 'failed'
 
 /** As the debrief stamps it. `protect` and `deny` complete "when the
- *  mission ends" without failing (spec §2.1), so a live one reads
- *  complete; one still waiting on `after` does not. */
+ *  mission ends" without failing (spec §2.1), and so does `approaches`
+ *  (M3, Mark 2026-09-26: no more passes missed than it allows), so a live
+ *  one reads complete; one still waiting on `after` does not. */
 export function finalStatus(o: ResolvedObjective, p: ObjectiveState): FinalStatus {
   if (p.status === 'failed') return 'failed'
   if (p.status === 'complete') return 'complete'
-  if (p.status === 'active' && (o.kind === 'protect' || o.kind === 'deny')) return 'complete'
+  if (p.status === 'active' && (o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches')) return 'complete'
   return 'incomplete'
 }
 

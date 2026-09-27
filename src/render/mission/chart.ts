@@ -135,6 +135,10 @@ export function objectiveMarks<M>(world: World<M>): ObjectiveMarks {
           radiusM: o.radiusM,
         })
         break
+      // Its ship is already on the chart, and the objective list shows its
+      // status like every other objective's.
+      case 'approaches':
+        break
       default:
         break
     }

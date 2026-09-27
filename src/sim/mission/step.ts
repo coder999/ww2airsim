@@ -3,9 +3,11 @@ import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
 import type { CombatState } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Airfield } from '../world/airfields.js'
-import type { Deck } from '../world/deck.js'
+import { deckOf, type Deck } from '../world/deck.js'
+import { paddlesWindow } from '../paddles.js'
 import type { Vec3 } from '../math/vec3.js'
 import { RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder } from './respot.js'
+import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
 import type { Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
 
@@ -69,6 +71,8 @@ type Context<M> = {
   readonly alive: boolean
   readonly recovery: LandingTracking
   readonly landing: LandingReport | null
+  /** How the player's pass at the `approaches` ship resolved this tick. */
+  readonly passEvent: PassEvent
 }
 
 function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): ObjectiveState {
@@ -109,6 +113,11 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       const held = p.heldTicks + 1
       return { ...p, heldTicks: held, status: held >= ticksFor(o.seconds) ? 'complete' : 'active' }
     }
+    case 'approaches': {
+      if (c.passEvent !== 'missed') return p
+      const missed = p.count + 1
+      return { ...p, count: missed, status: missed > (o.maxMissed ?? 0) ? 'failed' : 'active' }
+    }
   }
 }
 
@@ -128,9 +137,11 @@ function conditionMet<M>(w: TriggerWhen, m: MissionState<M>, progress: readonly 
 /**
  * One tick of a mission (spec 2026-09-25 §1-§2), run by `advance` after
  * `stepCombat`. Pure. In order:
- *  1. the player's landing tracker (ruling R1), reset after each landing;
+ *  1. the player's landing tracker (ruling R1), reset after each landing,
+ *     then his pass at the `approaches` ship (M3-R4);
  *  2. objectives, one pass in file order (ruling R8);
- *  3. the landing's log entry and progress message (ruling R7);
+ *  3. the landing's log entry and progress message (ruling R7), and the
+ *     pass's;
  *  4. triggers, in file order, each once (spec §2.2).
  * Returns the SAME mission object when nothing changed.
  */
@@ -152,7 +163,28 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       recovery = NO_LANDING
     }
   }
-  const c: Context<M> = { t, player, alive, recovery, landing }
+
+  // 1b. The pass (M3-R4), only while the `approaches` objective is active.
+  //     `recovery.airborne` keeps the window to approaches: the start and
+  //     respot spot near the stern is inside paddlesCue's gate with the hook
+  //     down (M3 Task 3, measured 2026-09-26), and a deck roll from there is
+  //     not a pass. It is false from spawn or a landing until the wheels
+  //     have been 10 m clear, so it never closes a pass before touchdown.
+  let pass = m.pass
+  let passEvent: PassEvent = null
+  const approachAt = m.objectives.findIndex((o) => o.kind === 'approaches')
+  const approach = approachAt < 0 ? undefined : m.objectives[approachAt]
+  if (approach?.kind === 'approaches' && m.progress[approachAt]!.status === 'active' && alive) {
+    const ship = t.ships.find((s) => s.id === approach.at)
+    const deck = ship === undefined ? null : deckOf(ship)
+    const paddles = ship?.spec.paddles
+    const inWindow = recovery.airborne && deck !== null && paddles !== undefined
+      && paddlesWindow(player.spec, player.state, player.controls, deck, paddles)
+    const r = nextPass(pass, inWindow, landing !== null && landing.at?.id === approach.at, t.tick)
+    pass = r.pass
+    passEvent = r.event
+  }
+  const c: Context<M> = { t, player, alive, recovery, landing, passEvent }
 
   // 2. Objectives.
   let progress: ObjectiveState[] | null = null
@@ -188,6 +220,10 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
   if (landing !== null) {
     added.push({ tick: t.tick, kind: 'landing', at: landing.at, advanced: advanced?.id ?? null, intermediate: advanced !== null && !advanced.done })
     if (advanced !== null && advanced.count > 1) added.push({ tick: t.tick, kind: 'message', text: `${advanced.label} ${advanced.n} of ${advanced.count}` })
+  }
+  if (passEvent !== null) {
+    added.push({ tick: t.tick, kind: 'pass', result: passEvent })
+    if (passEvent === 'missed') added.push({ tick: t.tick, kind: 'message', text: WAVE_OFF_MESSAGE })
   }
 
   // M3-R2: after an intermediate landing that advances a `respot` land
@@ -231,7 +267,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
   }
 
   if (recovery === m.recovery && progress === null && fired === null && added.length === 0
-      && pendingRespotTick === m.pendingRespotTick) return { mission: m, spawns, respot: null }
+      && pendingRespotTick === m.pendingRespotTick && pass === m.pass) return { mission: m, spawns, respot: null }
   return {
     mission: {
       ...m,
@@ -240,6 +276,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       fired: fired ?? m.fired,
       log: added.length > 0 ? [...m.log, ...added] : m.log,
       pendingRespotTick,
+      pass,
     },
     spawns,
     respot,
