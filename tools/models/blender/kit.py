@@ -21,6 +21,15 @@ PALETTE = {
     'concrete': (0x8D / 255, 0x89 / 255, 0x78 / 255),
     'dark': (0x17 / 255, 0x26 / 255, 0x24 / 255),
     'timber': (0x61 / 255, 0x51 / 255, 0x3C / 255),
+    # Neutral authoring colors. A ship entry maps these named roles to its
+    # selected gameplay palette during the shared model pipeline.
+    'hull': (0x5C / 255, 0x66 / 255, 0x70 / 255),
+    'deck': (0x3B / 255, 0x3F / 255, 0x44 / 255),
+    'flightDeck': (0x3B / 255, 0x3F / 255, 0x44 / 255),
+    'boot': (0x1E / 255, 0x21 / 255, 0x24 / 255),
+    'antifouling': (0x5B / 255, 0x2A / 255, 0x24 / 255),
+    'superstructure': (0x5C / 255, 0x66 / 255, 0x70 / 255),
+    'fitting': (0x4B / 255, 0x53 / 255, 0x5B / 255),
 }
 
 
@@ -109,6 +118,105 @@ class Model:
              (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
         f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (3, 7, 6, 2), (0, 4, 7, 3), (1, 2, 6, 5)]
         self._part(role, v, f, node)
+
+    def ship_hull(self, role, stations, node=None):
+        """Loft a closed ship hull from ordered stations in the glTF frame.
+
+        Each station is ``(x, half_beam, draft, freeboard[, sheer])``. The
+        waterline is y=0, draft extends downward, and freeboard+sheer is the
+        deck edge. End stations stay narrow but nonzero so every triangle is
+        well-defined; the bow and stern caps close the volume.
+        """
+        _require(len(stations) >= 3, f'ship_hull: need at least 3 stations, got {len(stations)}')
+        parsed = []
+        for i, station in enumerate(stations):
+            _require(len(station) in (4, 5), f'ship_hull: station {i} needs 4 or 5 values, got {len(station)}')
+            values = tuple(float(v) for v in station)
+            _require(all(math.isfinite(v) for v in values), f'ship_hull: station {i} has a non-finite value')
+            x, half_beam, draft, freeboard = values[:4]
+            sheer = values[4] if len(values) == 5 else 0.0
+            _require(half_beam > 0 and draft > 0 and freeboard > 0,
+                     f'ship_hull: station {i} half-beam, draft and freeboard must be > 0')
+            parsed.append((x, half_beam, draft, freeboard + sheer))
+        _require(all(parsed[i][0] < parsed[i + 1][0] for i in range(len(parsed) - 1)),
+                 'ship_hull: station x values must be strictly increasing')
+
+        verts = []
+        # Clockwise in the y-z section as seen from +x. With x increasing,
+        # the side-quad winding below points away from the enclosed volume.
+        for x, beam, draft, deck_y in parsed:
+            verts.extend([
+                (x, -draft, 0.0),
+                (x, -draft * 0.55, beam * 0.75),
+                (x, 0.0, beam),
+                (x, deck_y, beam * 0.88),
+                (x, deck_y, -beam * 0.88),
+                (x, 0.0, -beam),
+                (x, -draft * 0.55, -beam * 0.75),
+            ])
+        ring = 7
+        faces = []
+        for station in range(len(parsed) - 1):
+            a, b = station * ring, (station + 1) * ring
+            for j in range(ring):
+                k = (j + 1) % ring
+                faces.append((a + j, b + j, b + k, a + k))
+        # The station ring itself points -x; reverse it for the +x bow.
+        faces.append(tuple(range(ring)))
+        last = (len(parsed) - 1) * ring
+        faces.append(tuple(last + j for j in reversed(range(ring))))
+        self._part(role, verts, faces, node)
+
+    def deck(self, role, center, length, width, height, thickness=0.25, node=None):
+        """A slab whose upper face is exactly ``height`` meters."""
+        _require(length > 0 and width > 0 and height >= 0 and thickness > 0,
+                 f'deck: length, width and thickness must be > 0 and height >= 0, got {length}, {width}, {height}, {thickness}')
+        x, z = center
+        self.box(role, (x, height - thickness, z), (length, thickness, width), node)
+
+    def tapered_box(self, role, base, lower, upper, height, node=None):
+        """A centered truncated rectangular prism, useful for bridges and islands."""
+        _require(height > 0 and min(*lower, *upper) > 0,
+                 f'tapered_box: height and every width must be > 0, got {height}, {lower}, {upper}')
+        x, y, z = base
+        lx, lz = lower[0] / 2, lower[1] / 2
+        ux, uz = upper[0] / 2, upper[1] / 2
+        v = [(x - lx, y, z - lz), (x + lx, y, z - lz), (x + lx, y, z + lz), (x - lx, y, z + lz),
+             (x - ux, y + height, z - uz), (x + ux, y + height, z - uz),
+             (x + ux, y + height, z + uz), (x - ux, y + height, z + uz)]
+        f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+        self._part(role, v, f, node)
+
+    def cylinder(self, role, base, radius, height, segments=12, node=None):
+        """A deterministic vertical prism/cylinder with closed end caps."""
+        _require(radius > 0 and height > 0, f'cylinder: radius and height must be > 0, got {radius}, {height}')
+        _require(isinstance(segments, int) and segments >= 3, f'cylinder: segments must be an integer >= 3, got {segments}')
+        x, y, z = base
+        v = []
+        for yy in (y, y + height):
+            v.extend((x + math.cos(2 * math.pi * i / segments) * radius, yy,
+                      z + math.sin(2 * math.pi * i / segments) * radius) for i in range(segments))
+        f = [tuple(reversed(range(segments))), tuple(range(segments, 2 * segments))]
+        for i in range(segments):
+            j = (i + 1) % segments
+            f.append((i, j, segments + j, segments + i))
+        self._part(role, v, f, node)
+
+    def turret(self, role, index, center, facing, body, barrel_length, barrels=2, node=None):
+        """A tapered gunhouse plus evenly spaced rectangular barrels in ``TurretN``."""
+        _require(isinstance(index, int) and index > 0, f'turret: index must be a positive integer, got {index}')
+        _require(facing in (-1, 1), f'turret: facing must be -1 or +1, got {facing}')
+        _require(isinstance(barrels, int) and barrels > 0, f'turret: barrels must be a positive integer, got {barrels}')
+        length, width, height = body
+        _require(min(length, width, height, barrel_length) > 0, 'turret: body and barrel dimensions must be > 0')
+        key = node or f'Turret{index}'
+        x, y, z = center
+        self.tapered_box(role, (x, y, z), (length, width), (length * 0.72, width * 0.8), height, key)
+        spacing = width / (barrels + 1)
+        muzzle_x = x + facing * (length / 2 + barrel_length / 2)
+        for barrel in range(barrels):
+            zz = z + (barrel - (barrels - 1) / 2) * spacing
+            self.box(role, (muzzle_x, y + height * 0.55, zz), (barrel_length, height * 0.12, width * 0.08), key)
 
     def barrel_vault(self, role, spring, width, rise, length, thickness, segments, node=None):
         """Half-elliptic shell over the springing line: outer semi-axes (width/2, rise),

@@ -11,6 +11,7 @@ import { modelIO, findNode, onlyScene } from '../../../../tools/models/document.
 import { measureDocument } from '../../../../tools/models/measure.js'
 
 const PROBE = 'tests/tools/models/blender/fixtures/kit_probe.py'
+const BAD_HULL = 'tests/tools/models/blender/fixtures/kit_bad_hull.py'
 const sha = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 
 /** World-space triangles of one node: [a, b, c] each an [x, y, z]. */
@@ -48,13 +49,16 @@ describe.skipIf(!HAVE_BLENDER)('the Blender kit (model-roster spec §4.2)', () =
   it('one root named for the model, one child per role or named node, sorted', () => {
     const roots = onlyScene(doc).listChildren()
     expect(roots.map((n) => n.getName())).toEqual(['probe'])
-    expect(roots[0]!.listChildren().map((n) => n.getName())).toEqual(['probe_concrete', 'probe_door', 'probe_steel'])
+    expect(roots[0]!.listChildren().map((n) => n.getName())).toEqual([
+      'probe_bridge', 'probe_concrete', 'probe_deck', 'probe_door', 'probe_hull',
+      'probe_mast', 'probe_steel', 'Turret1', 'Turret2',
+    ])
   })
 
   it('one draw call per node, flat materials named by role, metalness 0', () => {
-    expect(measureDocument(doc).drawCalls).toBe(3)
+    expect(measureDocument(doc).drawCalls).toBe(9)
     const mats = doc.getRoot().listMaterials()
-    expect(mats.map((m) => m.getName()).sort()).toEqual(['concrete', 'dark', 'steel'])
+    expect(mats.map((m) => m.getName()).sort()).toEqual(['concrete', 'dark', 'deck', 'fitting', 'hull', 'steel', 'superstructure'])
     for (const mat of mats) expect(mat.getMetallicFactor()).toBe(0)
   })
 
@@ -103,5 +107,37 @@ describe.skipIf(!HAVE_BLENDER)('the Blender kit (model-roster spec §4.2)', () =
         }
       }
     }
+  })
+
+  it('lofts the requested hull length, beam, draft, deck height, and outward side normals', () => {
+    const hull = findNode(doc, 'probe_hull')
+    const bb = getBounds(hull)
+    expect(bb.max[0] - bb.min[0]).toBeCloseTo(60, 5)
+    expect(bb.max[2] - bb.min[2]).toBeCloseTo(10, 5)
+    expect(bb.min[1]).toBeCloseTo(-4, 5)
+    expect(bb.max[1]).toBeCloseTo(3, 5)
+    for (const [p, q, r] of triangles(hull)) {
+      const c = [(p![0]! + q![0]! + r![0]!) / 3, (p![1]! + q![1]! + r![1]!) / 3, (p![2]! + q![2]! + r![2]!) / 3]
+      if (Math.abs(c[0]!) > 29.9) continue // end caps point along x
+      const u = [q![0]! - p![0]!, q![1]! - p![1]!, q![2]! - p![2]!]
+      const v = [r![0]! - p![0]!, r![1]! - p![1]!, r![2]! - p![2]!]
+      const n = [u[1]! * v[2]! - u[2]! * v[1]!, u[2]! * v[0]! - u[0]! * v[2]!, u[0]! * v[1]! - u[1]! * v[0]!]
+      const dot = n[1]! * c[1]! + n[2]! * c[2]!
+      expect(dot, `hull side face at ${c.map((x) => x.toFixed(2))}`).toBeGreaterThan(0)
+    }
+  })
+
+  it('puts a deck top at the requested height and creates ordered turret nodes', () => {
+    expect(getBounds(findNode(doc, 'probe_deck')).max[1]).toBeCloseTo(4, 5)
+    const turrets = onlyScene(doc).listChildren()[0]!.listChildren().map((n) => n.getName()).filter((n) => n.startsWith('Turret'))
+    expect(turrets).toEqual(['Turret1', 'Turret2'])
+    expect(getBounds(findNode(doc, 'probe_mast')).max[1]).toBeCloseTo(12, 5)
+  })
+
+  it('rejects degenerate and non-monotonic hull station tables', () => {
+    expect(() => runBlenderScript(BAD_HULL, join(dir, 'bad-degenerate.glb'), ['--case', 'degenerate']))
+      .toThrow(/half-beam, draft and freeboard must be > 0/)
+    expect(() => runBlenderScript(BAD_HULL, join(dir, 'bad-order.glb'), ['--case', 'nonmonotonic']))
+      .toThrow(/station x values must be strictly increasing/)
   })
 })
