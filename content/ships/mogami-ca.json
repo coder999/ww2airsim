@@ -1,0 +1,16 @@
+{
+  "id": "mogami-ca",
+  "name": "Mogami-class heavy cruiser",
+  "role": "cruiser",
+  "lengthM": 200.6,
+  "beamM": 20.2,
+  "deckWidthM": 20.2,
+  "deckHeightM": 7.0,
+  "maxSpeedMps": 18.01,
+  "turnRateRadPerS": 0.02618,
+  "hullHp": 420,
+  "view": { "model": "mogami-ca" },
+  "reference": {
+    "source": "lengthM (200.6 m overall), beamM (20.2 m) and maxSpeedMps (35 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Mogami-class cruiser', read 2026-09-26. Japanese Monographs 145 and 149, official postwar translations, record the four-ship Mogami construction program and its conversion from 155 mm to 200 mm guns; U.S. Navy ORD-ONI 9 lists the Mogami-class 8-inch battery (primary wartime/postwar class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (1.5 deg/s) are ESTIMATES. hullHp (three bombs plus three rockets) is a gameplay choice."
+  }
+}

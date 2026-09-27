@@ -1,0 +1,16 @@
+{
+  "id": "kagero-dd",
+  "name": "Kagero-class destroyer",
+  "role": "escort",
+  "lengthM": 118.5,
+  "beamM": 10.8,
+  "deckWidthM": 10.8,
+  "deckHeightM": 5.5,
+  "maxSpeedMps": 18.01,
+  "turnRateRadPerS": 0.05236,
+  "hullHp": 180,
+  "view": { "model": "kagero-dd" },
+  "reference": {
+    "source": "lengthM (118.5 m overall), beamM (10.8 m) and maxSpeedMps (35 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Kagero-class destroyer', read 2026-09-26. Japanese Monograph 149, an official postwar translation, records the 15-ship Kagero-class construction program (primary class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (3 deg/s) are ESTIMATES. hullHp (Fletcher plus half a rocket) is a gameplay choice."
+  }
+}

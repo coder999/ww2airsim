@@ -21,6 +21,18 @@ export const SHIP_PALETTES = {
     superstructure: 0x5c6670,
     fitting: 0x4b535b,
   },
+  // IJN naval gray varied by yard and weather. R2 uses one neutral Kure-like
+  // gameplay palette so the seven ship models share S1's fallback/material path;
+  // these are render choices, not measured paint chips.
+  ijn: {
+    hull: 0x686b69,
+    deck: 0x4b4338,
+    flightDeck: 0x4b4338,
+    boot: 0x202323,
+    antifouling: 0x713d32,
+    superstructure: 0x6d706e,
+    fitting: 0x4d5150,
+  },
 } as const satisfies Record<string, Record<ShipRole, number>>
 
 export type ShipPaletteId = keyof typeof SHIP_PALETTES

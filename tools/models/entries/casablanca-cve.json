@@ -1,0 +1,20 @@
+{
+  "id": "casablanca-cve",
+  "output": "content/ships/casablanca-cve.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/casablanca-cve.py",
+    "dimensions": "156.13 m overall from U.S. Navy Evolution of Aircraft Carriers; 19.86 m waterline beam and 145.69 x 24.38 m flight deck from content/ships/casablanca-cve.json and its cited class particulars",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 156.13 } },
+  "keep": [{ "node": "FlightDeck" }],
+  "textures": { "maxSize": 512, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "casablanca-cve", "fit": "deck", "kind": "waterline", "palette": "usn-1944",
+    "materials": { "hull": "hull", "deck": "deck", "flightDeck": "flightDeck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [15, 22, 8.7], "bow": "island-starboard"
+  }
+}

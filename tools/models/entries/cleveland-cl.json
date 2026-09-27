@@ -1,0 +1,24 @@
+{
+  "id": "cleveland-cl",
+  "input": "tools/models/cache/cleveland-cl.glb",
+  "output": "content/ships/cleveland-cl.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/uss-cleveland-model-fpr-14000-printing-da03808e0aa74ca89a237ce4da2ac29e",
+    "uid": "da03808e0aa74ca89a237ce4da2ac29e",
+    "author": "KTKloss",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "-z", "up": "+y", "origin": [0, -0.01, 0.275], "fit": { "extent": "length", "meters": 185.95 } },
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "cleveland-cl",
+    "fit": "hull",
+    "kind": "waterline",
+    "palette": "usn-1944",
+    "otherMaterials": "classify",
+    "smokeOrigin": [0, 12.33, 0],
+    "bow": "narrow-end"
+  }
+}

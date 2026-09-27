@@ -1,0 +1,16 @@
+{
+  "id": "cleveland-cl",
+  "name": "Cleveland-class light cruiser",
+  "role": "cruiser",
+  "lengthM": 185.95,
+  "beamM": 20.22,
+  "deckWidthM": 20.22,
+  "deckHeightM": 7.5,
+  "maxSpeedMps": 16.72,
+  "turnRateRadPerS": 0.02618,
+  "hullHp": 360,
+  "view": { "model": "cleveland-cl" },
+  "reference": {
+    "source": "lengthM (610 ft 1 in overall), beamM (66 ft 4 in) and maxSpeedMps (32.5 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Cleveland-class cruiser', read 2026-09-26. The U.S. National Archives Ship Plan Index lists USS Cleveland (CL-55) preliminary-design and hull-series engineering drawings (primary-source class confirmation, checked 2026-09-26). deckHeightM (main deck above waterline) and turnRateRadPerS (1.5 deg/s) are ESTIMATES. hullHp (three 1,000 lb bombs) is a gameplay choice on Plan 6b's scale."
+  }
+}

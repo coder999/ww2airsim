@@ -21,7 +21,7 @@ describe('the models credit line (ship-models spec §10)', () => {
     }
   })
 
-  it('reads, after S1, as the four CC BY authors in entry-file order', () => {
-    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: KTKloss, JZHU, AlanTinka, rojatsu (CC BY 4.0)')
+  it('reads, after R2, as one credit per CC BY work in entry-file order (an author with four works is credited four times, each linked to its own work)', () => {
+    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: KTKloss, KTKloss, JZHU, KTKloss, everlasting17th, AlanTinka, rojatsu, KTKloss (CC BY 4.0)')
   })
 })
