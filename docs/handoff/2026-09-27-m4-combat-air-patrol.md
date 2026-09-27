@@ -1,6 +1,6 @@
 # M4 handoff: Combat Air Patrol (2026-09-27)
 
-Branch `worktree-missions-track`, not merged to `main`. Plan:
+Branch `worktree-missions-track`; **merged to `main` 2026-09-27 (`5134e9f`, verified with `git merge-base --is-ancestor`)**, after this handoff was written. Plan:
 [2026-09-26-m4-combat-air-patrol.md](../superpowers/plans/2026-09-26-m4-combat-air-patrol.md).
 Spec: [2026-09-25-missions-design.md](../superpowers/specs/2026-09-25-missions-design.md)
 §4.4, §5 and §6.3. Ledger:
