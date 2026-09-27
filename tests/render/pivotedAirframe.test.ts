@@ -32,6 +32,18 @@ function fake(axes: Record<string, number[] | undefined>): { inst: ModelInstance
 }
 const zero = { flapFraction: 0, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }
 
+/**
+ * `q` and `want` are one rotation, component by component (q and -q are the same rotation).
+ * Not `angleTo`: it is 2 acos(|dot|), which cannot resolve below about 3e-8, so a quaternion
+ * compared with itself reads 0 or 3e-8 depending on the last bit of |q|^2 (measured 2026-09-27:
+ * 216 of 1,000 rest angles read 3e-8), and a tight angleTo bound passes or fails by rounding.
+ */
+function expectRotation(q: Quaternion, want: Quaternion, label: string): void {
+  const s = q.dot(want) < 0 ? -1 : 1
+  const d = Math.max(Math.abs(q.x - s * want.x), Math.abs(q.y - s * want.y), Math.abs(q.z - s * want.z), Math.abs(q.w - s * want.w))
+  expect(d, label).toBeLessThan(1e-12)
+}
+
 describe('the pivoted airframe (R3)', () => {
   it('gearAngleRad: down (1) is 0, up (0) is the rig angle, and it clamps', () => {
     const g = RIG.gear[1]!
@@ -51,21 +63,21 @@ describe('the pivoted airframe (R3)', () => {
     // Three different baked axes, so a leg turned about the prop's axis, or about another leg's,
     // lands somewhere else and fails.
     const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
-    const rest = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.1)
+    const rest = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.2)
     inst.node('GearR').quaternion.copy(rest)
     const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
     expect(a.parts).toEqual(['prop', 'gear'])
     a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0 })
-    expect(inst.node('GearR').quaternion.angleTo(rest)).toBeLessThan(1e-9)
+    expectRotation(inst.node('GearR').quaternion, rest, 'GearR')
     a.update({ ...zero, gearFraction: 0, throttle: 1, frameS: 0.05 })
     const want = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), Math.PI / 2).multiply(rest)
-    expect(inst.node('GearR').quaternion.angleTo(want)).toBeLessThan(1e-9)
+    expectRotation(inst.node('GearR').quaternion, want, 'GearR')
     const wantL = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), -Math.PI / 2)
-    expect(inst.node('GearL').quaternion.angleTo(wantL)).toBeLessThan(1e-9)
+    expectRotation(inst.node('GearL').quaternion, wantL, 'GearL')
     const spun = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), propAngle(0, 1, 0.05))
-    expect(inst.node('Prop').quaternion.angleTo(spun)).toBeLessThan(1e-9)
+    expectRotation(inst.node('Prop').quaternion, spun, 'Prop')
     a.update({ ...zero, gearFraction: 0, throttle: 0, frameS: 1 })
-    expect(inst.node('Prop').quaternion.angleTo(spun)).toBeLessThan(1e-9) // throttle 0: the prop stops
+    expectRotation(inst.node('Prop').quaternion, spun, 'Prop') // throttle 0: the prop stops
   })
 
   it('a part with no baked pivot axis throws, naming the model and node, and releases the instance (Review Focus 1)', async () => {
@@ -97,9 +109,8 @@ describe('the pivoted airframe (R3)', () => {
   it('turnedAbout turns in the parent frame (premultiplies the rest pose)', () => {
     const rest = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 0.3)
     const q = turnedAbout(rest, new Vector3(1, 0, 0), 0.5)
-    // 1e-6, not tighter: angleTo is 2 acos(|dot|), which cannot resolve below ~1e-8 (the same
-    // product computed twice reads 4.2e-8). The wrong order (post-multiply) reads 0.148 rad.
-    expect(q.angleTo(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), 0.5).multiply(rest))).toBeLessThan(1e-6)
+    // The wrong order (post-multiply) differs by about 0.07 in a component (0.148 rad).
+    expectRotation(q, new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), 0.5).multiply(rest), 'premultiplied')
   })
 })
 
