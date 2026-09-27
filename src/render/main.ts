@@ -113,6 +113,7 @@ import {
   initialAircraftState,
   pilotSkillFromQuery,
   scenarioIdFromQuery,
+  quickLaunchFromQuery,
   spawnPositionFromQuery,
 } from './spawn.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
@@ -521,25 +522,33 @@ async function boot(): Promise<void> {
   // This one synchronous check does not touch the "title screen before
   // anything slow" ordering below -- there is nothing to await here.
   let requestedScenarioId: string
+  // The quick launch (sortie spec A6): skips the title and flies a Dev
+  // sortie. Parsed here so a bad `aircraft`/`loadout` fails like a bad id.
+  let quick: ReturnType<typeof quickLaunchFromQuery> = null
   try {
     requestedScenarioId = scenarioIdFromQuery(window.location.search, SCENARIO_ID)
     if (!isKnownScenarioId(requestedScenarioId)) {
       throw new Error(`scenario: ${JSON.stringify(requestedScenarioId)} is not a scenario this build ships`)
     }
+    quick = quickLaunchFromQuery(window.location.search, loadFlyableAircraft().map((f) => f.spec.id))
   } catch (err) {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
   }
   // The boot sortie: the scenario's own aircraft and today's default loadout
   // (not the briefing's recommendation, which the forms apply before Launch),
-  // so a boot world is what it was before the sortie forms.
+  // so a boot world is what it was before the sortie forms. A quick launch
+  // picks its own aircraft and loadout, the recommendation standing in for an
+  // absent loadout, always with Dev available (A6).
   const bootOption = SCENARIO_OPTIONS.find((o) => o.value === requestedScenarioId)!
-  let chosen: SortieChoice = { scenarioId: requestedScenarioId, aircraftSpec: bootOption.aircraft, loadout: DEFAULT_LOADOUT, dev: bootOption.dev }
+  let chosen: SortieChoice = quick === null
+    ? { scenarioId: requestedScenarioId, aircraftSpec: bootOption.aircraft, loadout: DEFAULT_LOADOUT, dev: bootOption.dev }
+    : { scenarioId: requestedScenarioId, aircraftSpec: quick.aircraft ?? bootOption.aircraft, loadout: quick.loadout ?? bootOption.recommendedLoadout ?? DEFAULT_LOADOUT, dev: true }
   // Sortie spec A5: whether the flight in progress NEEDED Dev, which is what
   // gates recording (not whether the box was checked). Set by `onNewGame`
-  // from the loaded bundle; `false` until a sortie is launched, when no pilot
-  // is flying and nothing banks anyway.
-  let devSortie = false
+  // from the loaded bundle; before that, `true` only for a quick launch (A6),
+  // which flies with no pilot and records nothing.
+  let devSortie = quick !== null
   // SF-R6: a DEV-build-only switch that records a Dev sortie anyway, read once.
   const recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(window.location.search, true) : false
   const sortieNeededDev = (choice: SortieChoice): boolean =>
@@ -691,6 +700,12 @@ async function boot(): Promise<void> {
     devSortie = sortieNeededDev(choice)
     rebuildFrame()
   }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
+  // A quick launch (A6, SF-R9) builds the title and hides it at once rather
+  // than skipping it: `title.up()` gates keys and pausing in several places,
+  // and "Return to title" must work as after any flight. No pilot is chosen,
+  // so `currentPilotId` stays null and nothing banks. Audio stays suspended
+  // until the first click, since no New game click supplied the gesture.
+  if (quick !== null) title.hide()
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
