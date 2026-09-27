@@ -1,6 +1,7 @@
 import { NO_LANDING } from '../landing.js'
 import type { EntityId } from '../loop.js'
 import type { Side } from '../sides.js'
+import type { RespotOrder } from './respot.js'
 import type { Badge, Objective, Trigger } from './schema.js'
 import type { HeldGroup, MissionState, ObjectiveState, ResolvedObjective } from './state.js'
 
@@ -35,6 +36,7 @@ export function createMission<M>(input: {
   readonly badge: Badge | null
   readonly held: readonly HeldGroup<M>[]
   readonly entities: readonly Taggable[]
+  readonly respot: RespotOrder | null
 }): MissionState<M> {
   const resolve = (where: string, refs: readonly string[]) => resolveRefs(input.scenarioId, where, refs, input.entities)
   const sideOfId = new Map(input.entities.map((e) => [e.id, e.side]))
@@ -84,5 +86,7 @@ export function createMission<M>(input: {
     spawned: [],
     recovery: NO_LANDING,
     log: [],
+    respot: input.respot,
+    pendingRespotTick: null,
   }
 }

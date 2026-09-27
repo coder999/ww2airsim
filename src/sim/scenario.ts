@@ -4,8 +4,7 @@ import { createState, type Controls } from './flight/state.js'
 import { createWorldOf, type AircraftEntity, type ShipEntity, type World } from './loop.js'
 import { type Vec3, v3 } from './math/vec3.js'
 import { type Airfield, localToWorld, parkedAttitude } from './world/airfields.js'
-import { deckOf, deckWorld } from './world/deck.js'
-import { groundUnder } from './world/ground.js'
+import { deckOf } from './world/deck.js'
 import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
@@ -17,6 +16,7 @@ import type { PilotAssignment } from './ai/pursuit.js'
 import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
+import { stateOnDeck } from './mission/respot.js'
 
 /** The mission schema's loadout enum and the weapons module's `Loadout` type
  *  must name the same four values; a mismatch here is a compile error. */
@@ -340,6 +340,10 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if (o.kind === 'land' && !s.airfields.includes(o.at) && !startShips.has(o.at)) {
       issue(`land.at "${o.at}" is neither one of airfields nor a starting ship`, [...path, 'at'])
     }
+    if (o.kind === 'land' && o.respot === true
+        && !(player !== undefined && isParkedAircraft(player) && isShipParked(player.parkedAt) && player.parkedAt.ship === o.at)) {
+      issue(`objective "${o.id}": respot needs the player parked on "${o.at}"`, [...path, 'respot'])
+    }
     if (o.kind === 'deny' && typeof o.around === 'string' && !startAircraft.has(o.around) && !startShips.has(o.around)) {
       issue(`deny.around "${o.around}" is not a starting aircraft or ship`, [...path, 'around'])
     }
@@ -502,13 +506,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
     if (Math.abs(x) > deck.widthM / 2 || Math.abs(z) > deck.lengthM / 2) {
       throw new Error(`scenario parks "${a.id}" off the deck of "${ship.id}": spot (${x}, ${z}) on a ${deck.widthM} x ${deck.lengthM} m deck`)
     }
-    const at = deckWorld(deck, x, z)
-    const state = createState({
-      position: v3(at.x, deck.center.y + spec.gear.heightM, at.z),
-      velocity: groundUnder(null, [deck], at.x, at.z)!.velocity,
-      attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad),
-      gearFraction: 1,
-    })
+    const state = stateOnDeck(spec, deck, parkedAt.spot)
     const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
     return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields), ...sideFrom(a) }
   }
@@ -607,6 +605,13 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       aircraft: (g.aircraft ?? []).map((a) => buildAircraft(bundle, a, ships)),
       ships: (g.ships ?? []).map((sh) => buildShip(bundle, sh, terrain)),
     }))
+    // M3-R1: the respot order is the player's own start spot, computed only
+    // when a `land` objective asked for one and the player starts parked on
+    // a ship -- `checkMission` already rejected every other combination.
+    const wantsRespot = s.objectives.some((o) => o.kind === 'land' && o.respot === true)
+    const playerContent = s.aircraft.find((a) => a.id === s.player)!
+    const respot = wantsRespot && isParkedAircraft(playerContent) && isShipParked(playerContent.parkedAt)
+      ? { ship: playerContent.parkedAt.ship, spot: playerContent.parkedAt.spot } : null
     mission = createMission<undefined>({
       scenarioId: s.id,
       playerSide: sideOf(s, s.aircraft.find((a) => a.id === s.player)!),
@@ -614,6 +619,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       triggers: s.triggers ?? [],
       badge: s.badge ?? null,
       held,
+      respot,
       entities: missionEntities(bundle),
     })
   }

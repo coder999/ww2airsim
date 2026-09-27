@@ -1,6 +1,7 @@
 import { DT } from '../flight/model.js'
 import type { LandingAt, LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
+import type { RespotOrder } from './respot.js'
 import type { Badge, Objective, Trigger } from './schema.js'
 
 /**
@@ -56,6 +57,7 @@ export type MissionLogEntry =
   | { readonly tick: number; readonly kind: 'trigger'; readonly id: string }
   | { readonly tick: number; readonly kind: 'spawn'; readonly group: string }
   | { readonly tick: number; readonly kind: 'message'; readonly text: string }
+  | { readonly tick: number; readonly kind: 'respot' }
   | {
       readonly tick: number
       readonly kind: 'landing'
@@ -83,6 +85,14 @@ export type MissionState<M> = {
    *  reset to `NO_LANDING` after each landing it records. */
   readonly recovery: LandingTracking
   readonly log: readonly MissionLogEntry[]
+  /** The player's start spot on his own ship, when a `land` objective asked
+   *  for a respot (M3-R1); `null` for a mission with no respot content. */
+  readonly respot: RespotOrder | null
+  /** The tick the armed respot fires, or `null` when none is pending
+   *  (M3-R2). Armed by `stepMission` after an intermediate landing that
+   *  advances the `respot` objective, cleared once it fires or the player
+   *  dies first. */
+  readonly pendingRespotTick: number | null
 }
 
 type Message = Extract<MissionLogEntry, { kind: 'message' }>

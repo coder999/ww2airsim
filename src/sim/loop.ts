@@ -19,6 +19,7 @@ import type { PilotAssignment } from './ai/pursuit.js'
 import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
+import { respotPlayer } from './mission/respot.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
 import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
 
@@ -924,6 +925,10 @@ export function advance<M>(
         m = spawned.mission
       }
       mission = m
+      // M3 (Mark, 2026-09-26): the deck crew's respot after an intermediate
+      // trap. After spawns, on this tick's post-step ships, so the deck is
+      // where the renderer will draw it.
+      if (stepped.respot !== null) aircraft = respotPlayer(aircraft, world.player, ships, stepped.respot, tick)
     }
   }
 

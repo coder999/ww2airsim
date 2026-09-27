@@ -5,6 +5,7 @@ import type { TerrainField } from '../world/terrain.js'
 import type { Airfield } from '../world/airfields.js'
 import type { Deck } from '../world/deck.js'
 import type { Vec3 } from '../math/vec3.js'
+import { RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder } from './respot.js'
 import type { Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
 
@@ -25,8 +26,10 @@ export type MissionTick<M> = {
 }
 
 /** The next mission state, and the held groups `advance` must spawn now,
- *  in order. */
-export type MissionStep<M> = { readonly mission: MissionState<M>; readonly spawns: readonly string[] }
+ *  in order. `respot` is the order the deck crew just issued THIS tick, or
+ *  `null` on every tick that issues none (M3-R2); `loop.ts` reads it once
+ *  and never stores it. */
+export type MissionStep<M> = { readonly mission: MissionState<M>; readonly spawns: readonly string[]; readonly respot: RespotOrder | null }
 
 /** Ruling R13: an aircraft is destroyed by damage or by any impact; a ship
  *  or structure by its `destroyedTick`; an entity with no combat record (an
@@ -187,6 +190,25 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     if (advanced !== null && advanced.count > 1) added.push({ tick: t.tick, kind: 'message', text: `${advanced.label} ${advanced.n} of ${advanced.count}` })
   }
 
+  // M3-R2: after an intermediate landing that advances a `respot` land
+  // objective, arm the timer; when it comes due (and the player is still
+  // alive), issue the respot order and log it plus the radio line.
+  let pendingRespotTick = m.pendingRespotTick
+  const byLanding = advanced === null ? undefined : m.objectives.find((o) => o.id === advanced.id)
+  if (landing !== null && advanced !== null && !advanced.done && m.respot !== null
+      && byLanding?.kind === 'land' && byLanding.respot === true) {
+    pendingRespotTick = t.tick + ticksFor(RESPOT_DELAY_S)
+  }
+  let respot: RespotOrder | null = null
+  if (pendingRespotTick !== null && t.tick >= pendingRespotTick) {
+    pendingRespotTick = null
+    if (alive) {
+      respot = m.respot
+      added.push({ tick: t.tick, kind: 'respot' })
+      added.push({ tick: t.tick, kind: 'message', text: RESPOT_MESSAGE })
+    }
+  }
+
   // 4. Triggers: after objectives, in file order, each once (spec §2.2).
   //    `then` runs in list order; spawns are applied by `advance`, in the
   //    order returned, at the end of this tick.
@@ -208,7 +230,8 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     }
   }
 
-  if (recovery === m.recovery && progress === null && fired === null && added.length === 0) return { mission: m, spawns }
+  if (recovery === m.recovery && progress === null && fired === null && added.length === 0
+      && pendingRespotTick === m.pendingRespotTick) return { mission: m, spawns, respot: null }
   return {
     mission: {
       ...m,
@@ -216,7 +239,9 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       progress: progress ?? m.progress,
       fired: fired ?? m.fired,
       log: added.length > 0 ? [...m.log, ...added] : m.log,
+      pendingRespotTick,
     },
     spawns,
+    respot,
   }
 }

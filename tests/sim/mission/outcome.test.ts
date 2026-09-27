@@ -15,7 +15,7 @@ const s = (status: ObjectiveState['status']): ObjectiveState => ({ status, count
 
 function mission(progress: ObjectiveState[], badge: typeof BADGE | null = BADGE): MissionState<undefined> {
   const m = createMission<undefined>({
-    scenarioId: 'unit', playerSide: 'allied', objectives: OBJECTIVES, triggers: [], badge, held: [],
+    scenarioId: 'unit', playerSide: 'allied', objectives: OBJECTIVES, triggers: [], badge, held: [], respot: null,
     entities: [{ id: 'h', tags: [], side: 'axis' }, { id: 'cv-1', tags: [], side: 'allied' }, { id: 'a', tags: [], side: 'axis' }],
   })
   return { ...m, progress }

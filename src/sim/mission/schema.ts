@@ -49,7 +49,7 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('protect'), targets: refs, maxLost: z.number().int().nonnegative().optional() }).strict(),
   z.object({ ...base, kind: z.literal('deny'), hostiles: refs, around: z.union([id, PointObject]), radiusM: positive }).strict(),
   z.object({ ...base, kind: z.literal('takeoff'), from: id }).strict(),
-  z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional() }).strict(),
+  z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional() }).strict(),
   z.object({ ...base, kind: z.literal('reach'), ...stationShape }).strict(),
   z.object({ ...base, kind: z.literal('hold'), ...stationShape, seconds: positive }).strict(),
 ])
