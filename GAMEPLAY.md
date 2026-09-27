@@ -189,7 +189,7 @@ at load like everything else in master spec §9. `kind` is one of `hangar`,
 `tower`, `aaa`.
 
 What can be shot, verified against `content/bases/` and
-`src/sim/world/airfields.ts` on 2026-09-24:
+`src/sim/world/airfields.ts` on 2026-09-27:
 
 | Building | Kind | Scores as | HP | Where |
 | --- | --- | --- | --- | --- |
@@ -206,8 +206,10 @@ rockets razes a 120-HP hangar; strafing works too but takes 30 rounds. Razing on
 `enemyAirfields`, and wrecking your own hangar costs nothing and awards
 nothing. The numbers and the reasoning are in the
 [strike design](docs/superpowers/specs/2026-09-20-strike-design.md) §3.5–3.6.
+Dulag's AAA batteries count as enemy structures there too, so `strike-range`'s
+RAZED readout can now reach 4, not 2 (M3, 2026-09-27).
 
-Dulag's hangar and maintenance shed are the historical account: it was a
+Dulag's hangar and maintenance shed are the historically motivated set: it was a
 hastily-established fighter strip in October 1944, so it has no tower
 (Plan 13d). Its two AAA batteries are **gameplay content, not history**,
 added for Airfield Strike's secondary objective (missions spec
@@ -275,10 +277,16 @@ Eight, with original names rather than the 1991 game's mission list:
 7. **Kamikaze Watch** — defend the fleet from massed attack
 8. **Single Combat** — 1v1 against a veteran Ki-84
 
-**Shipped today** (`content/scenarios/`, checked 2026-09-24) are the
-sandbox and test-range scenarios that the engineering plans needed, not the
-eight above: `free-flight`, `deck-quals`, `gunnery-range`, `pursuit-range`
-and `strike-range`. Of the eight, only Deck Quals has a shipped counterpart,
-and that is a stand-in without objectives. No scenario declares an objective
-yet, so no badge is earnable yet. Full status and open items are in master
-spec §15.
+Mark added a ninth, **Convoy Strike** — bomb and rocket a Japanese
+reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
+not renumbered into the list above; the numbering above is the original
+eight.
+
+**Shipped today** (`content/scenarios/`, checked 2026-09-27) are the
+sandbox and test-range scenarios the engineering plans needed —
+`free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
+others — plus three real missions: **Deck Quals** ("Carrier Qualification"),
+**Airfield Strike** and **Convoy Strike**. Each declares real objectives,
+carries a badge, a briefing and a cited history, and can be flown to a badge
+verdict end to end (M3, 2026-09-27). Full status and open items are in
+master spec §15.
