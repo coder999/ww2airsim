@@ -1,0 +1,98 @@
+{
+  "id": "d3a-val",
+  "input": "tools/models/cache/aichi_d3a_val.glb",
+  "output": "content/aircraft/d3a-val.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501",
+    "uid": "6f47d38de28b4a879481850b68bca501",
+    "author": "helijah",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": {
+    "forward": "-x",
+    "up": "+y",
+    "origin": [
+      -2.37,
+      -0.068,
+      0
+    ],
+    "fit": {
+      "extent": "span",
+      "meters": 14.365
+    }
+  },
+  "split": [
+    {
+      "name": "Prop",
+      "select": "components",
+      "boxMin": [
+        -5.1,
+        -1.7,
+        -1.45
+      ],
+      "boxMax": [
+        -4.45,
+        0.8,
+        1.45
+      ],
+      "pivot": {
+        "point": [
+          -4.8,
+          -0.068,
+          0
+        ],
+        "axis": "-x"
+      }
+    }
+  ],
+  "remove": [
+    "Object_2",
+    "Object_3",
+    "Object_4",
+    "Object_5",
+    "Object_6",
+    "Object_7",
+    "Object_8",
+    "Object_9",
+    "Object_10",
+    "Object_11",
+    "Object_12",
+    "Object_15",
+    "Object_16",
+    "Object_18",
+    "Object_19",
+    "Object_21",
+    "Object_24",
+    "Object_25",
+    "Object_26",
+    "Object_28",
+    "Object_29",
+    "Object_30"
+  ],
+  "textures": {
+    "maxSize": 1024,
+    "format": "webp"
+  },
+  "opaque": false,
+  "dedupMaterials": true,
+  "budget": {
+    "maxBytes": 3000000,
+    "maxTriangles": 60000,
+    "maxDrawCalls": 47
+  },
+  "noseNode": "Prop",
+  "simplify": {
+    "ratio": 0.15,
+    "error": 0.03,
+    "perNode": {
+      "Prop": 1,
+      "Object_46": 1,
+      "Object_47": 1,
+      "Object_48": 1,
+      "Object_20": 1,
+      "Object_13": 1,
+      "Object_14": 1,
+      "Object_17": 1
+    }
+  }
+}

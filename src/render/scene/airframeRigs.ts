@@ -50,6 +50,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
   },
+  'd3a-val': {
+    // Real blade geometry, but the download's three blades are not modeled at 120 deg (one sits
+    // ~0.07 source units off its orbit), so symmetryError reads its 2% cap about any hub; the hub is
+    // the spinner's axis and the hub-offset check carries Review Focus 1 (R3 ledger, Task 9).
+    // Fixed, spatted gear is not rigged (P15).
+    props: [{ node: 'Prop', blades: 3, symmetryTolerance: 0.02 }],
+    gear: [],
+    turrets: [],
+  },
   'f6f-hellcat': {
     props: [{ node: 'Prop', blades: 3 }],
     gear: [
