@@ -148,13 +148,13 @@ Steps:
 - add tests in `tests/render/discharge.test.ts`.
 
 Steps:
-- [ ] Write failing tests:
+- [x] Write failing tests:
   - `withDischarge` on the three real builders (a landing report, an impact that is killed or ditched, a destruction) gives the headline DISHONORABLE DISCHARGE, `score.total` 0, every row at 0 points, no `continueLabel`, a "Friendly fire" figure and an unchanged `outcome`.
   - A world with no friendly fire returns the model unchanged (`toBe`).
   - End to end through production `advance`: the player strafes the allied carrier in `friendly-fire-range`. Then, from the same world, a landing model, an impact model and a destruction model are all discharged, and each has total 0.
   - The same flight against the axis maru is not discharged and scores above 0.
-- [ ] Implement.
-- [ ] Commit.
+- [x] Implement.
+- [x] Commit.
 
 ### Task 4: The roster, the Dossier and the title
 
