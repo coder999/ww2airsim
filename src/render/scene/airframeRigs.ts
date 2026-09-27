@@ -66,6 +66,18 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3'],
   },
+  'b-29-superfortress': {
+    // An original Blender model (b-29-superfortress.py): the kit's propellers are exactly 4-fold
+    // symmetric. The mains fold forward under the inboard nacelles and the nose gear aft under the
+    // fuselage; every retraction is an ESTIMATE. Turret1..4 are the remote turrets, Turret5 the tail.
+    props: [{ node: 'Prop1', blades: 4 }, { node: 'Prop2', blades: 4 }, { node: 'Prop3', blades: 4 }, { node: 'Prop4', blades: 4 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-29-superfortress.py header)' },
+      { node: 'GearNose', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (b-29-superfortress.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-29-superfortress.py header)' },
+    ],
+    turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5'],
+  },
   'd3a-val': {
     // Real blade geometry, but the download's three blades are not modeled at 120 deg (one sits
     // ~0.07 source units off its orbit), so symmetryError reads its 2% cap about any hub; the hub is
