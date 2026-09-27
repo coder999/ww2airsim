@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { AIRFRAME_MODELS, airframeFor } from '../../src/render/scene/airframes.js'
 import { propAngle, PROP_MAX_RAD_PER_SEC } from '../../src/render/scene/airframe.js'
+import { AIRFRAME_RIGS } from '../../src/render/scene/airframeRigs.js'
 
 const aircraftIds = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
 
@@ -18,8 +19,14 @@ describe('the airframe registry (A6M Zero spec §7.2)', () => {
   })
 
   it('an unregistered id throws naming the id and the registered ones, including prototype keys', () => {
-    expect(() => airframeFor('a6m2-zero')).toThrow(/"a6m2-zero".*registered: wildcat/)
+    expect(() => airframeFor('no-such-model')).toThrow(/"no-such-model".*registered: wildcat/)
     expect(() => airframeFor('constructor')).toThrow(/"constructor"/)
+  })
+
+  it('registers every rigged model (R3), and the Wildcat keeps its own module', () => {
+    expect(Object.keys(AIRFRAME_RIGS).length, 'no rig rows: this check would pass vacuously').toBeGreaterThan(0)
+    for (const id of Object.keys(AIRFRAME_RIGS)) expect(Object.hasOwn(AIRFRAME_MODELS, id), id).toBe(true)
+    expect(Object.hasOwn(AIRFRAME_RIGS, 'wildcat')).toBe(false)
   })
 })
 

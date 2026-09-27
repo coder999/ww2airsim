@@ -12,6 +12,8 @@ import { getBounds } from '@gltf-transform/functions'
 import type { Document, Node } from '@gltf-transform/core'
 import { modelIO, onlyScene } from './document.js'
 import { measureDocument, nodeTriangles, webpSize } from './measure.js'
+import { AXES, type Axis } from './manifest.js'
+import { yawScene } from './stages/yaw.js'
 
 const fmt = (v: readonly number[]): string => `[${v.map((x) => x.toFixed(3)).join(', ')}]`
 
@@ -55,11 +57,18 @@ export function inspectDocument(doc: Document, label: string): string {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const file = process.argv[2]
+  const [file, ...rest] = process.argv.slice(2)
   if (!file) {
-    console.error('usage: npm run models:inspect -- <file.glb>')
+    console.error('usage: npm run models:inspect -- <file.glb> [--yaw <deg> [--up <axis>]]')
     process.exit(2)
   }
   const doc = await modelIO().readBinary(new Uint8Array(readFileSync(file)))
-  console.log(inspectDocument(doc, file))
+  const yawAt = rest.indexOf('--yaw'), upAt = rest.indexOf('--up')
+  const up = (upAt >= 0 ? rest[upAt + 1] : '+y') as Axis
+  if (!AXES.includes(up)) {
+    console.error(`--up must be one of ${AXES.join(' ')}`)
+    process.exit(2)
+  }
+  if (yawAt >= 0) yawScene(doc, up, Number(rest[yawAt + 1]))
+  console.log(inspectDocument(doc, yawAt >= 0 ? `${file} (turned ${rest[yawAt + 1]} deg about ${up})` : file))
 }

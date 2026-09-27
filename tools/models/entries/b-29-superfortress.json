@@ -1,0 +1,27 @@
+{
+  "id": "b-29-superfortress",
+  "output": "content/aircraft/b-29-superfortress.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/b-29-superfortress.py",
+    "dimensions": "span 43.05 m, length 30.18 m, wing area 161.3 m2, 4-bladed 5.055 m propellers, airfoil thickness 22% root / 9% tip and the four-turret-plus-tail layout: English Wikipedia 'Boeing B-29 Superfortress', Specifications and lead, read 2026-09-27; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 43.05 } },
+  "keep": [
+    { "node": "Prop1", "pivot": { "point": [3.039674, 0.272358, -14.19789], "axis": "+x" } },
+    { "node": "Prop2", "pivot": { "point": [3.886471, -0.270417, -7.30128], "axis": "+x" } },
+    { "node": "Prop3", "pivot": { "point": [3.886471, -0.270417, 7.30128], "axis": "+x" } },
+    { "node": "Prop4", "pivot": { "point": [3.039674, 0.272358, 14.19789], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.008341, -1.085277, -7.30128], "axis": "+z" } },
+    { "node": "GearR", "pivot": { "point": [0.008341, -1.085277, 7.30128], "axis": "+z" } },
+    { "node": "GearNose", "pivot": { "point": [9.49161, -1.26756, 0], "axis": "+z" } },
+    { "node": "Turret1", "pivot": { "point": [7.48464, 1.38828, 0], "axis": "+y" } },
+    { "node": "Turret2", "pivot": { "point": [6.98667, -1.38828, 0], "axis": "-y" } },
+    { "node": "Turret3", "pivot": { "point": [-7.00176, 1.38828, 0], "axis": "+y" } },
+    { "node": "Turret4", "pivot": { "point": [-8.000718, -1.38828, 0], "axis": "-y" } },
+    { "node": "Turret5", "pivot": { "point": [-16.197606, 0.3018, 0], "axis": "+y" } }
+  ],
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 5000000, "maxTriangles": 100000, "maxDrawCalls": 47 }
+}

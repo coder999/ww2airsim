@@ -35,7 +35,7 @@ describe('the models credit line (ship-models spec §10)', () => {
     expect(hrefs.sort()).toEqual(MODEL_CREDITS.map((c) => c.url).sort())
   })
 
-  it('reads, after R2, with KTKloss named once for four works', () => {
-    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: KTKloss (1 2 3 4), JZHU, everlasting17th, AlanTinka, rojatsu (CC BY 4.0)')
+  it('reads, after R3, with each author named once: KTKloss for four works, manilov.ap three, helijah two', () => {
+    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), KTKloss (1 2 3 4), manilov.ap (1 2 3), JZHU, Jec_Games, everlasting17th, AlanTinka, rojatsu (CC BY 4.0)')
   })
 })

@@ -1,0 +1,22 @@
+{
+  "id": "g4m-betty",
+  "input": "tools/models/cache/mitsubishi_g4m.glb",
+  "output": "content/aircraft/g4m-betty.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368",
+    "uid": "f326a41bfa5f4a34a471e95c663c2368",
+    "author": "Jec_Games",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+z", "up": "+y", "origin": [0, 0.00568, 0.00729], "fit": { "extent": "span", "meters": 24.89 } },
+  "keep": [
+    { "node": "pCube15", "as": "Prop1", "pivot": { "point": [0.00619, 0.00568, 0.01494], "axis": "+z" } },
+    { "node": "pCube16", "as": "Prop2", "pivot": { "point": [-0.00619, 0.00568, 0.01494], "axis": "+z" } }
+  ],
+  "split": [
+    { "name": "Turret1", "select": "components", "boxMin": [-0.001, 0.0086, 0.0041], "boxMax": [0.001, 0.0098, 0.0074], "pivot": { "point": [0, 0.00921, 0.00572], "axis": "+y" } }
+  ],
+  "remove": ["Bombs"],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "budget": { "maxBytes": 5000000, "maxTriangles": 100000, "maxDrawCalls": 47 }
+}

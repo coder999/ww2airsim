@@ -3,6 +3,7 @@ import type { AircraftSpec, StoreType } from '../../sim/flight/schema.js'
 import type { ShipSpec } from '../../sim/world/ships.js'
 import type { Airfield, Building } from '../../sim/world/airfields.js'
 import { LIBRARY_KINDS, SIDES, type HangarContent, type LibraryEntry, type LibraryKind, type Side } from './library.js'
+import { aircraftModelPath, ordnanceModelPath, shipModelPath, staticModelPath } from '../content.js'
 
 export type { HangarContent }
 
@@ -18,7 +19,12 @@ export interface CatalogEntry {
   readonly library: LibraryEntry
   /** null = no sim spec: no figures. Drawable anyway if the entry has its own `model` (R1). */
   readonly subject: CatalogSubject | null
+  /** Who made what the Hangar draws: `internal` (Blender, generated, or drawn in code) or
+   *  `external` (a download); null when nothing is drawn, or its glb has no entry. The list's Origin filter reads it. */
+  readonly origin: Origin | null
 }
+
+export type Origin = 'internal' | 'external'
 
 /** How an entry stands in the Library (model-roster spec §4.3). */
 export type Availability = 'in-game' | 'display-only' | 'not-drawn'
@@ -73,11 +79,38 @@ function subjectFor(e: LibraryEntry, c: HangarContent): CatalogSubject | null {
   return { kind: 'building', buildingKind: placements[0]!.building.kind, placements }
 }
 
+/** The committed glb the Hangar draws for an entry, the way loadHangarModel picks it (its own
+ *  `model` first, then the spec's), `'code'` for a ship with no model or a building drawn by
+ *  drawBuilding, null for nothing drawn. */
+function modelPathFor(e: LibraryEntry, s: CatalogSubject | null): string | 'code' | null {
+  if (e.model !== undefined) {
+    const { kind, id } = e.model
+    return kind === 'aircraft' ? aircraftModelPath(id) : kind === 'ship' ? shipModelPath(id) : staticModelPath(kind, id)
+  }
+  if (s === null) return null
+  if (s.kind === 'aircraft') return aircraftModelPath(s.spec.view.model)
+  if (s.kind === 'ship') return s.spec.view?.model === undefined ? 'code' : shipModelPath(s.spec.view.model)
+  if (s.kind === 'ordnance') return ordnanceModelPath(s.storeId)
+  return 'code'
+}
+
+function originFor(e: LibraryEntry, s: CatalogSubject | null, c: HangarContent): Origin | null {
+  const path = modelPathFor(e, s)
+  if (path === null) return null
+  if (path === 'code') return 'internal'
+  // A glb with no entry has no known origin; catalog.test.ts asserts every drawn entry has one.
+  const p = c.provenance.get(path)
+  return p === undefined ? null : p.kind === 'sketchfab' ? 'external' : 'internal'
+}
+
 /** Every library entry with its resolved sim subject, ordered aircraft,
  *  ships, buildings, vehicles, ordnance; within a kind, in the game first,
  *  then display-only, then not drawn, then by name. */
 export function buildCatalog(c: HangarContent): CatalogEntry[] {
-  const entries = c.library.map((library) => ({ library, subject: subjectFor(library, c) }))
+  const entries = c.library.map((library) => {
+    const subject = subjectFor(library, c)
+    return { library, subject, origin: originFor(library, subject, c) }
+  })
   const rank = (e: CatalogEntry): [number, number, string] =>
     [LIBRARY_KINDS.indexOf(e.library.kind), AVAILABILITY_RANK[availability(e)], e.library.name]
   return entries.sort((a, b) => {
@@ -86,11 +119,12 @@ export function buildCatalog(c: HangarContent): CatalogEntry[] {
   })
 }
 
-export interface CatalogFilter { readonly kind: LibraryKind | 'all'; readonly side: Side | 'all' }
+export interface CatalogFilter { readonly kind: LibraryKind | 'all'; readonly side: Side | 'all'; readonly origin: Origin | 'all' }
 
 export function filterCatalog(entries: readonly CatalogEntry[], f: CatalogFilter): CatalogEntry[] {
-  return entries.filter((e) => (f.kind === 'all' || e.library.kind === f.kind) && (f.side === 'all' || e.library.side === f.side))
+  return entries.filter((e) => (f.kind === 'all' || e.library.kind === f.kind) && (f.side === 'all' || e.library.side === f.side) && (f.origin === 'all' || e.origin === f.origin))
 }
 
 export const FILTER_KINDS: readonly (LibraryKind | 'all')[] = ['all', ...LIBRARY_KINDS]
 export const FILTER_SIDES: readonly (Side | 'all')[] = ['all', ...SIDES]
+export const FILTER_ORIGINS: readonly (Origin | 'all')[] = ['all', 'internal', 'external']
