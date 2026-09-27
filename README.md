@@ -111,6 +111,13 @@ models; none is placed in a scenario yet. The
 [handoff](docs/handoff/2026-09-26-r2-ship-models.md) records what was
 measured and what is open; master spec §15 holds the status.
 
+**R3 aircraft roster complete 2026-09-27, on branch `worktree-r3-aircraft`:**
+every aircraft in the Library now draws its own model, rigged through one
+generic module: seven licensed downloads and four original Blender models
+(the P-38 fell back to Blender). The Zero flies its own model; no scenario
+changed. The [handoff](docs/handoff/2026-09-27-r3-aircraft-models.md) records
+what was measured and what is open; master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with

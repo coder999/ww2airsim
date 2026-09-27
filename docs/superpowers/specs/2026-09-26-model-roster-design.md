@@ -78,7 +78,7 @@ its header, following `tools/models/generated/an-m65.ts` on the O1 branch.
 | A6M Zero | R3 | Sketchfab `a6m2-zeke.glb` (SavinienBerault), Z3's pick, per the A6M Zero design |
 | F6F Hellcat | R3 | Sketchfab `f6f.glb` (manilov.ap), staged |
 | F4U Corsair | R3 | Sketchfab `f4u.glb` (manilov.ap), staged |
-| P-38 Lightning | R3 | Sketchfab `p38-lightning.glb` (manilov.ap), staged |
+| P-38 Lightning | R3 | Sketchfab `p38-lightning.glb` (manilov.ap), staged. **2026-09-27: became a Blender fallback** in R3: fitted to the P-38L's cited 15.85 m span the download is 12.13 m long, +5.2% over the cited 11.53 m and past R3's 4% tolerance ([R3 handoff](../../handoff/2026-09-27-r3-aircraft-models.md)) |
 | Ki-43 Oscar | R3 | Sketchfab `ki43.glb` (manilov.ap), staged |
 | D3A Val | R3 | Sketchfab `aichi_d3a_val.glb` (helijah), staged; 293k faces, decimate |
 | G4M Betty | R3 | Sketchfab `mitsubishi_g4m.glb` (Jec), staged |

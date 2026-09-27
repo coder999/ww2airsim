@@ -60,6 +60,21 @@ ships add the `ship` block from the
 [ship-models design](superpowers/specs/2026-09-25-ship-models-design.md).
 Name articulated parts as `keep` or `split` nodes. Turrets follow the Hangar
 spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern.
+Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
+`GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
+tail, dorsal before ventral at one station. Every one needs a `pivot`: the
+build moves its origin onto the hinge and records the axis the runtime turns
+it about. Never simplify a propeller (`perNode` ratio 1):
+`tests/tools/models/aircraftRigs.test.ts` checks its N-fold symmetry about
+the pivot, and that its vertex centroid lies within 5% of its radius of the
+spin axis. The symmetry check is waived where the source prop cannot pass
+it: a rig row's `symmetryTolerance` of 0.02 equals the metric's cap, so it
+turns the check off, and that is set for the Zero, F4U, Ki-43 and D3A props
+(blur discs on the F4U and Ki-43, off-orbit blades on the Zero and D3A;
+rulings in the [R3 handoff](handoff/2026-09-27-r3-aircraft-models.md)).
+There the centroid check is the guard. A download posed at an angle takes
+`normalize.yawDeg` (measure it with `npm run models:rig`), and one with a
+material per part takes `dedupMaterials: true`.
 
 The entry's `budget` (`maxBytes`, `maxTriangles`, `maxDrawCalls`) is
 enforced twice: by the build, and by the Hangar as the model is drawn
@@ -77,10 +92,13 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
 
 ## 7. Register
 
-- **Aircraft:** add the id to `AIRFRAME_MODELS` in
-  [`src/render/scene/airframes.ts`](../src/render/scene/airframes.ts), with a
-  module like `wildcat.ts` that poses its parts and lists them in `parts`.
-  Then set `view.model` in the aircraft's `content/aircraft/<spec>.json`.
+- **Aircraft:** add a row for the id to `AIRFRAME_RIGS` in
+  [`src/render/scene/airframeRigs.ts`](../src/render/scene/airframeRigs.ts),
+  which registers it in `AIRFRAME_MODELS` through the one generic module,
+  `pivotedAirframe.ts` (R3). Only a model whose parts move by a baked clip,
+  as the Wildcat's do, needs its own module. For the Library, set the
+  entry's `model` (§8). Set a spec's `view.model` only for an airframe the
+  game should fly with it, and a rigged model hangs no stores.
 - **Ships:** add the id to `SHIP_MODELS` in
   [`src/render/scene/shipModels.ts`](../src/render/scene/shipModels.ts), and
   set `view.model` in `content/ships/<spec>.json`. The Hangar spec names a
@@ -118,15 +136,16 @@ An entry the plan now draws must come off `NOT_YET_DRAWN` in
   the model against its budget and turns red when it is over.
 - **Assert:** run `tests/e2e/hangar.spec.ts` on the reference GPU (the
   command is in README's "Tier 2: the GPU harness"). A new library entry is
-  picked up automatically. Checks 1–3, 5–10 and 12 cover the following:
+  picked up automatically. Checks 1–3, 5–10, 12 and 13 cover the following:
   - it renders
   - its gear, propeller and stores move
-  - it is lit like the Wildcat
+  - it responds to light like the Wildcat (lit over unlit, in its own paint; R3)
   - Cycle runs the gear
   - wireframe works
   - it is inside its manifest budget as drawn (check 10)
   - the list marks exactly the entries it cannot draw, and every other one
     is drawn (check 12, R1)
+  - every rigged aircraft's gizmos are its props and legs (check 13, R3)
 
 ## Generated models
 
@@ -146,6 +165,12 @@ A model is a script, `tools/models/blender/<id>.py`, built from
 `tools/models/blender/kit.py`. Read the kit's header for the frame and the
 determinism rules. `hangar.py` is the worked example, and its header shows
 how to cite each figure and label each estimate.
+For aircraft, `ki-84-frank.py`, `ki-21-sally.py` and
+`b-29-superfortress.py` are one-, two- and four-engine templates whose
+geometry is fractions of the cited length and span (R3). Never build an
+aircraft part on the kit's `tapered_box`, `cylinder` or `turret`: they are
+wound inside out (found 2026-09-27, hidden by double-sided materials; see
+the R3 handoff).
 
 ```sh
 npx tsx tools/models/blender/cli.ts <id> [--key value ...]

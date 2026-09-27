@@ -73,6 +73,38 @@ rendered as the Japanese Type B freighter `type-b-maru`. The Fletcher, 43,316
 triangles, is its own class. `src/render/scene/ship.ts`'s procedural hulls stay
 as the fallback for a ship with no model.
 
+The seven R3 aircraft downloads (2026-09-27) are built by `npm run
+models:build` from `tools/models/entries/<id>.json`. Each license was read
+from `api.sketchfab.com/v3/models/<uid>` on 2026-09-27: CC BY 4.0,
+downloadable. Each was fitted to its cited span, and every triangle count
+below was measured from the cached download and the committed glb on
+2026-09-27. The A6M2 Zero went from 187,441 to 91,968 triangles (simplify
+0.45; prop never simplified). Nothing was removed, and its fused drop tank
+stays. No yaw. Rigged: `Prop`, `GearL`, `GearR`, `Tailwheel`. The F6F
+went from 36,605 to 26,399: the build removed the pilot figure, three
+rockets per wing, two center-section bombs and the extended tail hook.
+Yaw 151.84°. Rigged: `Prop`, `GearL`, `GearR`, `Tailwheel`, with the
+spinner fused. The F4U went from 29,533 to 15,296: the build removed the
+pilot and a duplicate canopy. Yaw 124.03°. Rigged: `Prop`, which is a
+translucent blur disc with no blades, split with its spinner; also `GearL`,
+`GearR`, `Tailwheel`. The Ki-43 went from 19,284 to 17,240: the build
+removed two duplicate canopies and two drop tanks. Yaw 148.7°. Rigged:
+`Prop` (a blur disc, with its spinner), `GearL`, `GearR`. Its tailwheel is
+fixed on the real aircraft and not rigged. The D3A went from 293,440 to
+55,144: the build removed the belly bomb, cockpit instrument faces and the
+hidden rear cylinder row, and simplified the rest of the engine (0.15).
+No yaw. Rigged: `Prop`. Its gear is fixed on the real aircraft and not
+rigged. The G4M went from 2,656 to 1,792: the build removed the bombs.
+No yaw. Rigged: `Prop1`, `Prop2`, `Turret1` (the dorsal blister). The
+download has no landing gear, and its tail position is fused. The B-17
+went from 763,214 to 98,683: the build removed the hidden engine
+internals (377,168 triangles), cockpit instrument faces and screws, and
+simplified the visible cylinder rings (0.1). No yaw. Rigged: `Prop1` to
+`Prop4` (blades only; spinners fused), `GearL`, `GearR`, `Tailwheel` (tire
+only; fork fused), `Turret1` to `Turret3` (chin, top, ball). The tail guns
+are fused. `p38-lightning.glb` (manilov.ap) was not used: it is 5.2% long
+at the cited span, so the P-38 is an original Blender model.
+
 ### Candidate models (downloaded, not bundled)
 
 Staged in `content/models/candidates/` (gitignored), each with a
