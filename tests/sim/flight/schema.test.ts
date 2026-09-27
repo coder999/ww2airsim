@@ -6,6 +6,8 @@ const valid = {
   id: 'test-plane',
   name: 'Test Plane',
   role: 'fighter',
+  side: 'allied',
+  carrierCapable: true,
   geometry: { wingAreaM2: 30, wingSpanM: 13 },
   mass: { emptyKg: 4000, fuelCapacityKg: 600, maxTakeoffKg: 6000 },
   aero: { clSlopePerRad: 4.6, clMax: 1.4, alphaCritDeg: 15.5, clAtZeroAlpha: 0.1, cySlopePerRad: 0.5, cd0: 0.021, oswaldE: 0.85 },

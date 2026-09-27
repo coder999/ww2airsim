@@ -2,6 +2,8 @@
   "id": "a6m2-zero",
   "name": "Mitsubishi A6M2 Model 21 Zero",
   "role": "fighter",
+  "side": "japanese",
+  "carrierCapable": true,
   "geometry": { "wingAreaM2": 22.44, "wingSpanM": 12.0 },
   "mass": { "emptyKg": 1680, "fuelCapacityKg": 395, "maxTakeoffKg": 2796 },
   "aero": {
