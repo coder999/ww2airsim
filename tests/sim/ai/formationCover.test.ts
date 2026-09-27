@@ -63,21 +63,23 @@ describe('escort: a leader that never engages is still covered (7f spec §4)', (
     expect(minRange).toBeLessThan(600)
   })
 
-  // Round 1 fix: the R-F1 (gunnery-honesty) diagnosis in the original skip
-  // was wrong -- a probe found hasGunSolution false throughout because the
-  // wingman never reaches Pursue, not because it can't hit a maneuvering
-  // target. Re-measured on this same left-quarter geometry (full 120 s
-  // run, while wing-1 held the attacker as target): 0 ticks Pursue, 1728
-  // ticks Break, 3219 ticks Extend, hasGunSolution never true, 0 shots, 0
-  // hits. Once the wingman closes to engage, the attacker's nose reads as
-  // pointed at it regardless of the original approach bearing -- the two
-  // start only 80-100 m apart against a multi-km closure -- so
-  // decideManeuver's threat-astern/break-angle terms correctly keep
-  // choosing Break/Extend (7b defense; controller ruling: correct, not a
-  // bug). Only Pursue's gun gate in pursuitControls ever sets `fire`, so it
-  // never opens. Do not tune decision.ts, the targeting weights, or AI
-  // gunnery to force this -- Mark decides whether the spec's "takes hits"
-  // becomes "fires within gun solution" for this shape of engagement.
+  // Why this is skipped (final review I3, measured 2026-09-27 by a throwaway
+  // probe re-running deriveFacts and decideManeuver on this same world,
+  // every tick wing-1 held the attacker as target): the wingman never
+  // chooses Pursue, and only Pursue's gun gate in pursuitControls ever sets
+  // `fire`, so there are 0 shots and 0 hits. The cause is NOT threat-astern:
+  // `threatAstern` was true on 0 of 4,947 ticks. It is energy and angle. The
+  // escort flies at the leader's 110 m/s against a 150 m/s attacker, so the
+  // mean relative energy was about -4,900 J/kg (-4,917), and
+  // decideManeuver's energy term makes Extend win on 3,219 ticks (65%); the
+  // attacker's angle-off was under 90 degrees (nose toward the wingman) on
+  // 3,115 ticks and the angle term makes Break win the other 1,728. With the
+  // energy term zeroed Pursue would win 1,566 ticks. With the attacker
+  // slowed to 110 m/s the wingman does pick Pursue (360 of 3,777 ticks) and
+  // still scores no hits. Do not tune decision.ts, the targeting weights or
+  // AI gunnery to force this: Mark decides whether the spec's "takes hits"
+  // becomes "fires within gun solution" for an escort out-energied by its
+  // attacker.
   it.skip('the attacker takes hits from wing-1 after closing from the leader’s left quarter', () => {
     const { world } = runEscort(QUARTER_ATTACKER_POSITION, QUARTER_ATTACKER_HEADING_DEG)
     expect(world.combat.aircraft['f6f-1']!.lastHitBy).toBe('wing-1')
@@ -96,10 +98,16 @@ describe('direct astern: the wingman still targets and defends (Review Focus 1)'
   // Controller ruling round 1: documents, rather than skips, the geometry
   // the original escort test used -- 5 km directly astern of the leader,
   // which puts the attacker on the WINGMAN's own six too (slot 1 sits only
-  // 80 m aft of the leader). Measured over the full 120 s run, while
-  // wing-1 held the attacker as target: 0 ticks Pursue, 684 ticks Break,
-  // 1437 ticks Extend, 0 safety overrides -- 7b correctly reads a threat
-  // astern to the wingman itself and defends, never fires. That is the
+  // 80 m aft of the leader). Measured 2026-09-27 (final review I3, the
+  // same probe as the skip above, every tick wing-1 held the attacker as
+  // target): 0
+  // Pursue, 684 Break, 1,437 Extend of 2,121 ticks, 0 safety overrides,
+  // never fires. Not a threat-astern reading: `threatAstern` was true on 0
+  // of 2,121 ticks. The escort at 110 m/s is out-energied by the 150 m/s
+  // attacker (mean relative energy about -4,700 J/kg, -4,687), so the
+  // energy term picks Extend; the attacker's nose toward the wingman
+  // (1,757 ticks) makes the angle term pick Break. Here Pursue would not
+  // win even with the energy term zeroed (0 ticks). Defending is the
   // expected behavior for this geometry, not a cover-rule defect.
   it('targets a direct-astern attacker within one reactionS of entry and defends', () => {
     const { enteredAt, targetedAt, maneuvers } = runEscort([-5000, 3000, 0], 90)
