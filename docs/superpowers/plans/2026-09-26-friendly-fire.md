@@ -225,14 +225,14 @@ Steps:
 
 ### Task 7: Verify, Tier 2, review, and handoff
 
-- [ ] Run `remote-run npm run verify` and capture `rc=$?`. Record rc, file count and pass count.
-- [ ] Run the digest probe one final time.
+- [x] Run `remote-run npm run verify` and capture `rc=$?`. Record rc, file count and pass count.
+- [x] Run the digest probe one final time.
 - [ ] Run Tier 2 on the reference GPU from a spare slot. Check `ss -ltnp` first; the `vite.config.ts` edit is local scratch. Run `friendly-fire.spec.ts`, plus `meta-game.spec.ts` and `meta-game-relaunch.spec.ts`, which read debrief text. Read every capture.
-- [ ] Get a whole-branch review from a fresh subagent, then fix what it finds.
-- [ ] Write the handoff `docs/handoff/2026-09-26-friendly-fire.md`. Include:
+- [x] Get a whole-branch review from a fresh subagent, then fix what it finds.
+- [x] Write the handoff `docs/handoff/2026-09-26-friendly-fire.md`. Include:
   - a viewing URL on a spare slot, asserted to return 200;
   - the E1 and M2 intersections;
   - the rulings.
-- [ ] Update the §15 row, add the README pointer, and update the 7e handoff's open item.
-- [ ] Push the branch and email the handoff.
-- [ ] Append to the parallel-tracks ledger.
+- [x] Update the §15 row, add the README pointer, and update the 7e handoff's open item.
+- [x] Push the branch and email the handoff.
+- [x] Append to the parallel-tracks ledger.
