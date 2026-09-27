@@ -30,6 +30,11 @@ PALETTE = {
     'antifouling': (0x5B / 255, 0x2A / 255, 0x24 / 255),
     'superstructure': (0x5C / 255, 0x66 / 255, 0x70 / 255),
     'fitting': (0x4B / 255, 0x53 / 255, 0x5B / 255),
+    # Aircraft (R3): flat period finishes, each an ESTIMATE named in the model script's header.
+    'ijaGreen': (0x4B / 255, 0x55 / 255, 0x35 / 255),
+    'underside': (0xA3 / 255, 0xA8 / 255, 0x9A / 255),
+    'naturalMetal': (0xB4 / 255, 0xB8 / 255, 0xBC / 255),
+    'glazing': (0x2E / 255, 0x3A / 255, 0x44 / 255),
 }
 
 
@@ -92,6 +97,54 @@ def _material(role):
         bsdf.inputs['Metallic'].default_value = 0.0
         bsdf.inputs['Roughness'].default_value = 0.85
     return mat
+
+
+# Chord stations of the NACA 4-digit symmetric section, leading edge (0) to trailing edge (1).
+AIRFOIL_STATIONS = (0.0, 0.05, 0.15, 0.3, 0.5, 0.75, 1.0)
+
+
+def _unit(v):
+    n = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
+    _require(n > 0 and math.isfinite(n), f'direction must be a nonzero finite vector, got {v}')
+    return (v[0] / n, v[1] / n, v[2] / n)
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _loft(rings):
+    """Side quads between consecutive rings, then both end caps, as (face, ring edge j) pairs
+    (j is None for a cap). Every ring lists the same number of points, counterclockwise as seen
+    from beyond the last ring looking back, so every face points outward."""
+    count = len(rings[0])
+    verts = [p for ring in rings for p in ring]
+    faces = []
+    for s in range(len(rings) - 1):
+        a, b = s * count, (s + 1) * count
+        for j in range(count):
+            k = (j + 1) % count
+            faces.append(((a + j, a + k, b + k, b + j), j))
+    last = (len(rings) - 1) * count
+    faces.append((tuple(reversed(range(count))), None))
+    faces.append((tuple(last + j for j in range(count)), None))
+    return verts, faces
+
+
+def _mirror_z(verts, faces):
+    """The reflection in z = 0, windings reversed so faces still point outward."""
+    return [(x, y, -z) for x, y, z in verts], [(tuple(reversed(f)), j) for f, j in faces]
+
+
+def _airfoil(chord, thickness):
+    """(dx, dy) around a closed symmetric section: leading edge at 0, chord toward -x, upper
+    surface first, so counterclockwise seen from +z. NACA 4-digit thickness with the closed
+    trailing-edge coefficient: the leading and trailing edges are single points."""
+    def half(f):
+        return 5 * thickness * chord * (0.2969 * math.sqrt(f) - 0.1260 * f - 0.3516 * f ** 2 + 0.2843 * f ** 3 - 0.1036 * f ** 4)
+    upper = [(-f * chord, half(f)) for f in AIRFOIL_STATIONS]
+    lower = [(-f * chord, -half(f)) for f in reversed(AIRFOIL_STATIONS[1:-1])]
+    return upper + lower
 
 
 class Model:
@@ -269,6 +322,186 @@ class Model:
             j = (i + 1) % k
             f.append((i, k + i, k + j, j))
         self._part(role, front + back, f, node)
+
+    # ---- aircraft parts (R3) ------------------------------------------------------------
+
+    def _emit(self, role, verts, faces, node, lower_role=None, lower_node=None, is_lower=None):
+        """Adds (face, j) pairs to ``node``; with ``lower_role``, faces whose ring edge
+        ``is_lower`` go to ``lower_node`` in that role instead (caps stay with ``role``)."""
+        groups = [(role, node, [f for f, j in faces if lower_role is None or j is None or not is_lower(j)])]
+        if lower_role is not None:
+            groups.append((lower_role, lower_node, [f for f, j in faces if j is not None and is_lower(j)]))
+        for r, nd, fs in groups:
+            used = sorted({i for f in fs for i in f})
+            index = {old: new for new, old in enumerate(used)}
+            self._part(r, [verts[i] for i in used], [tuple(index[i] for i in f) for f in fs], nd)
+
+    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None):
+        """Loft a fuselage, nacelle, boom or canopy from stations in the glTF frame.
+
+        Each station is ``(x, half_width, half_height, center_y[, exponent])``: a superellipse
+        section (exponent 2 is an ellipse, larger is boxier; default 2.2) centered on
+        (center_y, ``center_z``). Stations run tail to nose, x strictly increasing, and both
+        ends are capped, so a pointed end is a tiny nonzero section. With ``lower_role``, the
+        side faces below each section's center go to ``lower_node`` in that role.
+        """
+        _require(isinstance(segments, int) and segments >= 8 and segments % 4 == 0,
+                 f'fuselage: segments must be a multiple of 4, at least 8, got {segments!r}')
+        _require(len(stations) >= 2, f'fuselage: need at least 2 stations, got {len(stations)}')
+        rings, xs = [], []
+        for i, st in enumerate(stations):
+            _require(len(st) in (4, 5), f'fuselage: station {i} needs 4 or 5 values, got {len(st)}')
+            values = tuple(float(v) for v in st)
+            _require(all(math.isfinite(v) for v in values), f'fuselage: station {i} has a non-finite value')
+            x, half_w, half_h, center_y = values[:4]
+            n = values[4] if len(values) == 5 else 2.2
+            _require(half_w > 0 and half_h > 0 and n >= 1,
+                     f'fuselage: station {i} half-width and half-height must be > 0 and exponent >= 1')
+            xs.append(x)
+            ring = []
+            for j in range(segments):
+                t = 2 * math.pi * j / segments
+                c, s = math.cos(t), math.sin(t)
+                ring.append((x, center_y + half_h * math.copysign(abs(c) ** (2 / n), c),
+                             center_z + half_w * math.copysign(abs(s) ** (2 / n), s)))
+            rings.append(ring)
+        _require(all(xs[i] < xs[i + 1] for i in range(len(xs) - 1)), 'fuselage: station x values must be strictly increasing')
+        verts, faces = _loft(rings)
+        quarter = segments // 4
+        self._emit(role, verts, faces, node, lower_role, lower_node, lambda j: quarter <= j < 3 * quarter)
+
+    def wing(self, role, le_x, root_y, root_chord, tip_chord, span, sweep_deg=0.0, dihedral_deg=0.0,
+             thickness=0.12, tip_thickness=None, root_z=0.0, mirror=True, node=None, lower_role=None, lower_node=None):
+        """A tapered lifting surface, both halves by default: a wing or a tailplane.
+
+        The root section's leading edge is at (``le_x``, ``root_y``, ``root_z``); the panel runs
+        to z = span/2, its leading edge swept back ``sweep_deg`` and raised ``dihedral_deg``.
+        Sections are NACA 4-digit symmetric (``thickness`` is a fraction of chord) with a closed
+        trailing edge. ``mirror`` adds the left half, reflected in z = 0. ``lower_role`` paints
+        the lower surface, as ``fuselage`` does.
+        """
+        half = span / 2
+        tip_t = thickness if tip_thickness is None else tip_thickness
+        _require(root_chord > 0 and tip_chord > 0, f'wing: root and tip chords must be > 0, got {root_chord}, {tip_chord}')
+        _require(0 <= root_z < half, f'wing: root_z must be >= 0 and inside span/2, got {root_z} for span {span}')
+        _require(0 < thickness < 0.3 and 0 < tip_t < 0.3, f'wing: thickness ratios must be in (0, 0.3), got {thickness}, {tip_t}')
+        _require(abs(sweep_deg) < 60 and abs(dihedral_deg) < 30, f'wing: |sweep| must be < 60 deg and |dihedral| < 30 deg, got {sweep_deg}, {dihedral_deg}')
+        length = half - root_z
+        tip_le = le_x - length * math.tan(math.radians(sweep_deg))
+        tip_y = root_y + length * math.tan(math.radians(dihedral_deg))
+        rings = [
+            [(le_x + dx, root_y + dy, root_z) for dx, dy in _airfoil(root_chord, thickness)],
+            [(tip_le + dx, tip_y + dy, half) for dx, dy in _airfoil(tip_chord, tip_t)],
+        ]
+        verts, faces = _loft(rings)
+        lower = lambda j: j >= len(AIRFOIL_STATIONS) - 1  # noqa: E731
+        self._emit(role, verts, faces, node, lower_role, lower_node, lower)
+        if mirror:
+            mverts, mfaces = _mirror_z(verts, faces)
+            self._emit(role, mverts, mfaces, node, lower_role, lower_node, lower)
+
+    def fin(self, role, le_x, root_y, root_chord, tip_chord, height, sweep_deg=0.0, thickness=0.10,
+            tip_thickness=None, center_z=0.0, node=None):
+        """A vertical tail surface standing on y = ``root_y`` in the plane z = ``center_z``."""
+        tip_t = thickness if tip_thickness is None else tip_thickness
+        _require(root_chord > 0 and tip_chord > 0 and height > 0,
+                 f'fin: chords and height must be > 0, got {root_chord}, {tip_chord}, {height}')
+        _require(0 < thickness < 0.3 and 0 < tip_t < 0.3, f'fin: thickness ratios must be in (0, 0.3), got {thickness}, {tip_t}')
+        tip_le = le_x - height * math.tan(math.radians(sweep_deg))
+        rings = [[(le_x + dx, dy, 0.0) for dx, dy in _airfoil(root_chord, thickness)],
+                 [(tip_le + dx, dy, height) for dx, dy in _airfoil(tip_chord, tip_t)]]
+        verts, faces = _loft(rings)
+        # Stand the panel up: (x, y, z) -> (x, z, -y) is a rotation, so windings hold.
+        verts = [(x, root_y + z, center_z - y) for x, y, z in verts]
+        self._part(role, verts, [f for f, _ in faces], node)
+
+    def revolve(self, role, origin, direction, profile, segments=12, node=None):
+        """A closed solid of revolution about the line through ``origin`` along ``direction``:
+        ``profile`` is [(t, radius)], t strictly increasing meters along the axis, every radius
+        > 0. Struts, wheels, spinners and turret domes."""
+        _require(isinstance(segments, int) and segments >= 3, f'revolve: segments must be an integer >= 3, got {segments!r}')
+        _require(len(profile) >= 2, f'revolve: need at least 2 profile points, got {len(profile)}')
+        d = _unit(direction)
+        ts = [float(t) for t, _ in profile]
+        rs = [float(r) for _, r in profile]
+        _require(all(r > 0 for r in rs), f'revolve: every radius must be > 0, got {rs}')
+        _require(all(ts[i] < ts[i + 1] for i in range(len(ts) - 1)), 'revolve: profile t values must be strictly increasing')
+        helper = (0.0, 1.0, 0.0) if abs(d[1]) < 0.9 else (1.0, 0.0, 0.0)
+        e1 = _unit(_cross(d, helper))
+        e2 = _cross(d, e1)
+        ox, oy, oz = origin
+        rings = []
+        for t, r in zip(ts, rs):
+            cx, cy, cz = ox + d[0] * t, oy + d[1] * t, oz + d[2] * t
+            ring = []
+            for j in range(segments):
+                th = 2 * math.pi * j / segments
+                c, s = math.cos(th), math.sin(th)
+                ring.append((cx + r * (c * e1[0] + s * e2[0]), cy + r * (c * e1[1] + s * e2[1]), cz + r * (c * e1[2] + s * e2[2])))
+            rings.append(ring)
+        verts, faces = _loft(rings)
+        self._part(role, verts, [f for f, _ in faces], node)
+
+    def propeller(self, role, hub, diameter, blades, chord, spinner_radius, spinner_length, pitch_deg=25.0, node='Prop'):
+        """A propeller on an axis along +x through ``hub``: flat blades, pitched ``pitch_deg``,
+        from inside the spinner out to diameter/2 (tips tapered to 35% chord, so the tip corners
+        stay within 0.1% of the radius), and a spinner ahead of the hub. One node, so the entry
+        pivots it at the hub about +x. Exactly N-fold symmetric: the spinner's 24 segments divide
+        by 2, 3, 4 and 6."""
+        _require(isinstance(blades, int) and 2 <= blades <= 6, f'propeller: blades must be an integer from 2 to 6, got {blades!r}')
+        radius = diameter / 2
+        _require(chord > 0 and spinner_length > 0 and 0 < spinner_radius < radius,
+                 f'propeller: need chord and spinner length > 0 and 0 < spinner radius < diameter/2, got chord {chord}, spinner {spinner_radius} x {spinner_length}, diameter {diameter}')
+        hx, hy, hz = hub
+        phi = math.radians(pitch_deg)
+        thick = 0.12 * chord
+        root_r = 0.8 * spinner_radius
+        box_faces = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (3, 7, 6, 2), (0, 4, 7, 3), (1, 2, 6, 5)]
+        for i in range(blades):
+            a = 2 * math.pi * i / blades
+            ca, sa = math.cos(a), math.sin(a)
+            verts = []
+            for z_sign in (-1, 1):
+                for x_sign, r in ((-1, root_r), (1, root_r), (1, radius), (-1, radius)):
+                    half_c = (chord if r == root_r else 0.35 * chord) / 2
+                    lx, lz = x_sign * thick / 2, z_sign * half_c
+                    px = lx * math.cos(phi) + lz * math.sin(phi)
+                    pz = -lx * math.sin(phi) + lz * math.cos(phi)
+                    verts.append((hx + px, hy + r * ca - pz * sa, hz + r * sa + pz * ca))
+            self._part(role, verts, box_faces, node)
+        self.revolve(role, (hx - 0.25 * spinner_length, hy, hz), (1.0, 0.0, 0.0),
+                     [(0.0, spinner_radius), (0.35 * spinner_length, 0.97 * spinner_radius),
+                      (0.7 * spinner_length, 0.7 * spinner_radius), (spinner_length, 0.06 * spinner_radius)], 24, node)
+
+    def gear_leg(self, role, hinge, length, wheel_radius, wheel_width, strut_radius=None, node=None):
+        """A landing-gear leg hanging straight down from ``hinge``: a strut to the axle and a
+        wheel whose lowest point is exactly ``length`` below the hinge. One node, so the entry
+        pivots it at the hinge."""
+        _require(wheel_radius > 0 and wheel_width > 0 and length > 2 * wheel_radius,
+                 f'gear_leg: need wheel radius and width > 0 and length > 2 x wheel radius, got {length}, {wheel_radius}, {wheel_width}')
+        strut = 0.18 * wheel_radius if strut_radius is None else strut_radius
+        _require(strut > 0, f'gear_leg: strut radius must be > 0, got {strut}')
+        hx, hy, hz = hinge
+        axle_y = hy - length + wheel_radius
+        self.revolve(role, (hx, hy, hz), (0.0, -1.0, 0.0), [(0.0, strut), (hy - axle_y, strut)], 8, node)
+        self.revolve(role, (hx, axle_y, hz - wheel_width / 2), (0.0, 0.0, 1.0), [(0.0, wheel_radius), (wheel_width, wheel_radius)], 16, node)
+
+    def gun_turret(self, role, index, center, radius, height, up=1, barrels=2, barrel_length=1.2, facing=1, node=None):
+        """A turret on the fuselage skin at ``center``: a dome ``height`` tall toward ``up`` (+1
+        dorsal, -1 ventral) and ``barrels`` guns pointing ``facing`` along x, all in node
+        ``TurretN`` for H3 (numbered nose to tail by the caller)."""
+        _require(isinstance(index, int) and index > 0, f'gun_turret: index must be a positive integer, got {index!r}')
+        _require(up in (-1, 1) and facing in (-1, 1), f'gun_turret: up and facing must be -1 or +1, got {up}, {facing}')
+        _require(isinstance(barrels, int) and barrels > 0, f'gun_turret: barrels must be a positive integer, got {barrels!r}')
+        _require(radius > 0 and height > 0 and barrel_length > 0, 'gun_turret: radius, height and barrel length must be > 0')
+        key = node or f'Turret{index}'
+        cx, cy, cz = center
+        self.revolve(role, center, (0.0, float(up), 0.0), [(0.0, radius), (0.55 * height, 0.85 * radius), (height, 0.25 * radius)], 12, key)
+        gauge = 0.16 * radius
+        for b in range(barrels):
+            zz = cz + (b - (barrels - 1) / 2) * radius * 0.35
+            self.box(role, (cx + facing * (0.6 * radius + barrel_length / 2), cy + up * 0.45 * height - gauge / 2, zz),
+                     (barrel_length, gauge, gauge), key)
 
     def export(self, path):
         unread = sorted(_given - _read)
