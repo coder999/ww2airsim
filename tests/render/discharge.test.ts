@@ -78,12 +78,12 @@ describe('withDischarge (spec §5)', () => {
     expect(allThree(enemyOnly).landed!.continueLabel).toBe('Continue')
   })
 
-  it('discharges at landing, at death, at ditching and at destruction: zero score, no Continue, the physical outcome kept', () => {
+  it('forfeits the sortie at every flight end: zero score, no Continue, the physical outcome kept', () => {
     expect(friendlyFireOf(discharged)).toEqual({ tick: 2, kind: 'structure', target: 'tacloban-tower' })
     const models = allThree(discharged)
     const outcome = { landed: 'landed', killed: 'killed', ditched: 'ditched', destroyed: 'killed' } as const
     for (const [what, m] of Object.entries(models)) {
-      expect(m.headline, what).toBe(DISCHARGE_HEADLINE)
+      expect(m.forfeit, what).toEqual({ target: 'Control tower, Tacloban' })
       expect(m.score.total, what).toBe(0)
       expect(m.score.multiplier, what).toBe(0)
       expect(m.score.rows.every((r) => r.score === 0), what).toBe(true)
@@ -92,9 +92,30 @@ describe('withDischarge (spec §5)', () => {
       expect(m.continueLabel, what).toBeUndefined()
       expect('continueLabel' in m, what).toBe(false)
       expect(m.outcome, what).toBe(outcome[what as keyof typeof outcome])
-      expect(m.discharge, what).toEqual({ target: 'Control tower, Tacloban' })
       expect(m.figures[0], what).toEqual({ label: 'Friendly fire', value: 'Control tower, Tacloban' })
       expect(m.detail, what).toContain('You fired on your own side (Control tower, Tacloban)')
+    }
+  })
+
+  it('a pilot who survives is discharged; a pilot who dies is not (Mark, 2026-09-26, ruling FF-7 amended)', () => {
+    const models = allThree(discharged)
+    for (const what of ['landed', 'ditched'] as const) {
+      expect(models[what]!.headline, what).toBe(DISCHARGE_HEADLINE)
+      expect(models[what]!.discharge, what).toEqual({ target: 'Control tower, Tacloban' })
+      expect(models[what]!.detail, what).toContain('discharged from the service')
+      // No praise for bringing her back: the landing's own sentence is dropped.
+      expect(models[what]!.detail, what).toBe('You fired on your own side (Control tower, Tacloban). This sortie is forfeit, and you are discharged from the service.')
+    }
+    // Killed by impact, or shot down: the physical stamp stays, no discharge,
+    // but the sortie is still forfeit.
+    const plain = allThree(enemyOnly)
+    for (const what of ['killed', 'destroyed'] as const) {
+      expect(models[what]!.headline, what).toBe(plain[what]!.headline)
+      expect(models[what]!.headline, what).toBe('KILLED')
+      expect(models[what]!.discharge, what).toBeUndefined()
+      expect('discharge' in models[what]!, what).toBe(false)
+      expect(models[what]!.detail, what).not.toContain('discharged')
+      expect(models[what]!.detail, what).toContain('forfeit')
     }
   })
 
@@ -102,7 +123,7 @@ describe('withDischarge (spec §5)', () => {
     const ff = worldFromScenario(loadScenarioBundle('free-flight'), null)
     const hit = fly(ff, [round('f6f-1', above(ff, 'dd-1'))])
     expect(friendlyFireOf(hit)).toEqual({ tick: 1, kind: 'ship', target: 'dd-1' })
-    expect(allThree(hit).killed!.headline).toBe(DISCHARGE_HEADLINE)
+    expect(allThree(hit).landed!.headline).toBe(DISCHARGE_HEADLINE)
     expect(friendlyTargetLabel(hit, friendlyFireOf(hit)!)).toBe('Fletcher-class destroyer dd-1')
   })
 
@@ -134,5 +155,24 @@ describe('friendly-fire-range (Task 6): Space hits the allied Hellcat ahead thro
     expect(f.world.combat.aircraft['bandit-1']!.damage.structure).toBe(1)
     expect(f.world.combat.aircraft['bandit-1']!.damage.attacker).toBeNull()
     expect(friendlyFireRadio(f.world)).toEqual({ tick: ff!.tick, text: FRIENDLY_FIRE_RADIO })
+  })
+})
+
+describe('friendly-fire-field: Space from the runway spawn hits the parked allied Hellcat (the discharge path Tier 2 lands)', () => {
+  // Through `advance` with the trigger held and the airplane held at its
+  // parked attitude, as the gunnery-range sortie is measured in
+  // tests/sim/weapons/friendlyFire.test.ts: a parked frame in Node has no
+  // terrain to settle on, and `nextFrameState` holds it until one arrives.
+  it('the parked wingman takes a friendly hit, and no Tacloban building is touched', () => {
+    const w0 = worldFromScenario(loadScenarioBundle('friendly-fire-field'), null)
+    const firing = (w: World<undefined>): World<undefined> => ({
+      ...w, aircraft: w.aircraft.map((a) => (a.id === 'f6f-1' ? { ...a, controls: { ...a.controls, fire: true } } : a)),
+    })
+    let w = firing(w0)
+    let ticks = 0
+    for (; ticks < 60 * 20 && friendlyFireOf(w) === null; ticks++) w = firing(advance(w, DT, still).world)
+    for (let i = 0; i < 60 * 4; i++) w = advance(w, DT, still).world
+    expect(friendlyFireOf(w), `no friendly fire after ${ticks} ticks`).toMatchObject({ kind: 'aircraft', target: 'ally-1' })
+    for (const s of w.structures) expect(w.combat.structures[s.id]!.hp, s.id).toBe(s.hp)
   })
 })

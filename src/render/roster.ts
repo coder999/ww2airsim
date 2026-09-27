@@ -217,7 +217,9 @@ export function applyMissionResult(
  * - `missionsFlown` counts it, and the physical career folds as usual:
  *   hours, landings and peaks all really happened;
  * - the log entry shows 0 points, zero kills and `discharged: true`;
- * - `status` is `discharged` whatever the physical outcome, death included.
+ * - `status` is `discharged`. `main.ts` calls this only for a pilot who
+ *   survived: a friendly-fire death banks K.I.A. through `applyMissionResult`
+ *   with nothing credited (ruling FF-7 as amended by Mark 2026-09-26).
  *
  * `outcome` is the physical recovery, kept for symmetry with
  * `applyMissionResult`; the log's outcome comes from `sortie`.

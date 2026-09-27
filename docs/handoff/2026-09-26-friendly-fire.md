@@ -24,15 +24,21 @@ The plan's header: final-product viewing checkpoint, unattended.
 
 - **Tier 1:** `remote-run npm run verify` at `75db4b5` (after the `f6f-2` move): rc=0. 233 files (232 passed, 1 skipped); 2,427 tests passed, 21 skipped. The skips are the M0 Blender tests; ryzen has no Blender. The first run, at `6bb79da`, failed one test: `gunneryFrame.test.ts` pins the exact diagnostics shape and lacked the new `friendlyFire: null`. That is fixed in `078ac18`.
 - **Sim bit-identity:** the 7e digest probe (`.superpowers/ff/hash.ts`, gitignored) ran at `6bb79da`. Stripped and motion digests are identical to the `7d8dc22` baseline for all nine runs (seven shipped scenarios plus two fx runs, 1,800 ticks each). No shipped trajectory changed.
-- **Tier 2 (reference GPU, RX 6700 XT, 1440p), 2026-09-26, from slot 2 after `ai-7e`'s dev server was stopped on Mark's instruction:**
-  - `friendly-fire.spec.ts`: passed, gpu p95 **2.417 ms** over 4,096 samples, zero validation errors. It covers the radio call, the discharged debrief (score 0, `forfeit (×0)`, no Continue), and DISCHARGED on the roster row, the chip and the Dossier.
-  - `meta-game.spec.ts` and `meta-game-relaunch.spec.ts`, which read debrief text: both passed.
+- **Tier 2 (reference GPU, RX 6700 XT, 1440p), 2026-09-26, from slot 2 after `ai-7e`'s dev server was stopped on Mark's instruction.** Final run, after Mark's FF-7 amendment:
+  - `friendly-fire.spec.ts`, two tests, both passed with zero validation errors:
+    - **Death** on `friendly-fire-range`: fire on the wingman, then dive into the sea. The run shows the radio call, then KILLED, `KILLED — forfeit (×0)`, score 0 and no Continue. The roster row reads "— KIA" and the Dossier "K.I.A.". gpu p95 **2.422 ms**.
+    - **Survival** on `friendly-fire-field`: fire on the parked ally, then hop and land. The run shows DISHONORABLE DISCHARGE, `LANDED — forfeit (×0)`, score 0 and no Continue. The roster row and chip read DISCHARGED, and the Dossier "Field landing · Discharged". gpu p95 **2.103 ms**.
+  - `meta-game.spec.ts` and `meta-game-relaunch.spec.ts`, which read debrief text: both passed (earlier run).
   - `entities.spec.ts`, re-run for the `f6f-2` move: 3 passed, including its frame budget.
-  - Captures: [warning](2026-09-26-friendly-fire-shots/friendly-fire-warning.png), [debrief](2026-09-26-friendly-fire-shots/friendly-fire-debrief.png), [Dossier](2026-09-26-friendly-fire-shots/friendly-fire-dossier.png).
+  - Captures:
+    - [warning](2026-09-26-friendly-fire-shots/friendly-fire-warning.png)
+    - [killed](2026-09-26-friendly-fire-shots/friendly-fire-killed.png)
+    - [discharge](2026-09-26-friendly-fire-shots/friendly-fire-debrief.png). This one is from the run before the last text fix: its detail still ends "Nice job. You brought her back in one piece.", which is now dropped and pinned by Tier 1.
+    - [Dossier](2026-09-26-friendly-fire-shots/friendly-fire-dossier.png)
   - **Two measurements that led somewhere else.**
-    - The first two runs failed the budget at 8.50 and 8.53 ms. A phase probe found the cause in the entry path, not in friendly fire. The same scenario measures 2.0–2.4 ms in every phase when booted by URL, and 6.9 ms when switched to from the title. See open item 2.
+    - The first two runs failed the budget at 8.50 and 8.53 ms. A phase probe found the cause in the entry path, not in friendly fire. The same scenario measures 2.0–2.4 ms booted by URL and 6.9 ms switched to from the title (open item 2).
     - A back-to-back `furball.spec.ts` control on the same slot read 2.06 ms.
-  - The spec now boots `?scenario=friendly-fire-range`, so it measures the scenario as declared.
+  - Both tests boot by URL.
 - **Whole-branch review** (fresh context, most capable model): ready to merge with fixes; no Critical findings. Its one Important finding is open item 1 below.
 
 ## 3. Open for Mark
@@ -52,12 +58,18 @@ The plan's header: final-product viewing checkpoint, unattended.
    - Below the deck, the hull box, which starts at the waterline, is what a round meets. The sea stops any round that reaches it first.
    - Tests: `tests/sim/weapons/hullBelowDeck.test.ts`. It passes 8 of 8; on the old code, 4 fail (abeam at 5, 10 and 15 m, and the overhang).
    - Weapons, strike and contact tests pass, and all nine digests are unchanged.
-4. **`npx playwright test <name>` currently collects nothing.** `strike.spec.ts` imports `src/render/content.ts`, which reads `import.meta.env` and cannot load in Node, and one unloadable file aborts collection of every file. Passing spec *paths* works. This is pre-existing and not changed here.
-5. **Deferred minors from the review.**
+4. **RESOLVED (Mark, 2026-09-26): the dead cannot be discharged.** A friendly-fire death is stamped KILLED and banks the pilot K.I.A. The sortie is still forfeit: 0 points, and none of its kills credited. Only a survivor, landed or ditched, is discharged. This supersedes FF-7 ("discharge beats K.I.A."). A discharge debrief also no longer appends the landing's "Nice job" sentence. `friendly-fire-field` ("Friendly Fire: Field (dev)") is the survivable test bed.
+5. **For later (Mark, 2026-09-26): posthumous promotion**, a feature of the 1991 *Hellcats Over the Pacific*. A pilot whose points earn a promotion, and who then crashes or dies, should still be promoted posthumously. Today a death banks nothing: `RECOVERY_MULTIPLIER.killed` is 0 in `src/render/debrief.ts`, so a killed sortie scores 0 whatever it destroyed. So this needs a scoring decision first:
+   - credit a killed sortie's points at some multiplier, then promote on them;
+   - or promote on the points without banking them.
+
+   Not started. It is also listed in §15's meta-game row.
+6. **`npx playwright test <name>` currently collects nothing.** `strike.spec.ts` imports `src/render/content.ts`, which reads `import.meta.env` and cannot load in Node, and one unloadable file aborts collection of every file. Passing spec *paths* works. This is pre-existing and not changed here.
+7. **Deferred minors from the review.**
    - `friendly-fire.spec.ts`: a failure message says "the axis Hellcat was hit" for an assertion that it was *not* hit.
    - *Resolved 2026-09-26 by Mark's FF-6 amendment:* the Dossier log no longer disagrees with the career after a forfeit, because a discharge no longer takes back what an earlier landing banked.
-6. **Spec §9 leftover:** mission `destroy` objectives aimed at an allied entity are unchecked (for M3/M4).
-7. **Viewing:** `https://ww2airsim-2.windomlane.org/?scenario=friendly-fire-range` (returned 200 at handoff).
+8. **Spec §9 leftover:** mission `destroy` objectives aimed at an allied entity are unchecked (for M3/M4).
+9. **Viewing:** `https://ww2airsim-2.windomlane.org/?scenario=friendly-fire-range` (returned 200 at handoff).
    - Boot it by URL, for the cloud reason in item 2.
    - For `f6f-2`'s new spot, use `https://ww2airsim-2.windomlane.org/` (free-flight).
    - The page is served live from this worktree's dev server on port 5175, with a local-only `vite.config.ts` edit. That server stops if nexus reboots.

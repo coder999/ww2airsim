@@ -111,7 +111,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'friendly-fire-range',
+      'friendly-fire-range', 'friendly-fire-field',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -129,6 +129,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['strike-range']).toBe('Strike Range')
     expect(labels['furball-range']).toBe('Furball (dev)')
     expect(labels['friendly-fire-range']).toBe('Friendly Fire (dev)')
+    expect(labels['friendly-fire-field']).toBe('Friendly Fire: Field (dev)')
   })
 
   it('isKnownScenarioId accepts only ids the picker actually lists', () => {

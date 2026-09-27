@@ -1457,20 +1457,29 @@ async function boot(): Promise<void> {
    * somehow is not found (unreachable in practice: `currentPilotId` only
    * ever comes from a pilot actually in `roster`).
    */
+  /** How a debrief banks after friendly fire: a survivor is discharged, a
+   *  death is only forfeit, and a clean sortie is neither. */
+  const friendlyFireBank = (model: DebriefModel): 'discharged' | 'forfeit' | null =>
+    model.discharge !== undefined ? 'discharged' : model.forfeit !== undefined ? 'forfeit' : null
   const bankMissionResult = (
     scoreTotal: number,
     outcome: 'landed' | 'ditched' | 'killed',
     killsSinceLastBank: Readonly<Record<TargetType, number>>,
     sortie: SortieFacts,
-    discharged: boolean,
+    friendlyFire: 'discharged' | 'forfeit' | null,
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
+    const discharged = friendlyFire === 'discharged'
     if (currentPilotId === null) return null
     const before = roster.find((p) => p.id === currentPilotId) ?? null
     // Friendly fire (spec §6, FF-6 as amended by Mark 2026-09-26): only this
     // sortie is forfeit; what an earlier landing banked stays banked.
+    // A friendly-fire death banks K.I.A. with nothing credited: the dead are
+    // not discharged, but the sortie is still forfeit (FF-7 as amended).
     roster = discharged
       ? dischargeInRoster(roster, currentPilotId, outcome, sortie)
-      : applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
+      : friendlyFire === 'forfeit'
+        ? applyMissionResultToRoster(roster, currentPilotId, 0, outcome, zeroKillsByType(), sortie)
+        : applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null
@@ -2058,7 +2067,7 @@ async function boot(): Promise<void> {
         hit.kind === 'ditched' ? 'ditched' : 'killed',
         killsSinceLastBank,
         sortieFacts(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world),
-        model.discharge !== undefined,
+        friendlyFireBank(model),
       )
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
@@ -2076,7 +2085,7 @@ async function boot(): Promise<void> {
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const model = withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), model.discharge !== undefined)
+      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model))
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, undefined)
     }
@@ -2098,7 +2107,7 @@ async function boot(): Promise<void> {
         'landed',
         killsSinceLastBank,
         sortieFacts(landingKind(current.landing.report), current.world),
-        model.discharge !== undefined,
+        friendlyFireBank(model),
       )
       segment = EMPTY_SEGMENT
       showDebrief(model, banked, () => {

@@ -154,6 +154,13 @@ export type DebriefModel = {
    * `target` is the display name of the first thing hit.
    */
   readonly discharge?: { readonly target: string }
+  /**
+   * Present whenever the player damaged his own side this sortie, dead or
+   * alive: the score is zero and the recovery line reads "— forfeit (×0)".
+   * `discharge` is set as well only when he survived (ruling FF-7 as amended
+   * by Mark 2026-09-26: the dead cannot be discharged).
+   */
+  readonly forfeit?: { readonly target: string }
 }
 
 // The simulation remains SI internally. The debrief is a 1943 US Navy form,
@@ -517,7 +524,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       // the prototype predates them and shows no example of its own.
       // `plainRow`, not `figureRow`, for the first two: see that function's
       // own comment on why the exact wording matters.
-      sheet.appendChild(plainRow(model.discharge !== undefined
+      sheet.appendChild(plainRow(model.forfeit !== undefined
         ? `Recovery: ${RECOVERY_LABEL[model.outcome]} — forfeit (×0)`
         : `Recovery: ${RECOVERY_LABEL[model.outcome]} (×${model.score.multiplier})`))
       if (model.bankedTotal !== undefined) {

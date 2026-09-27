@@ -1,0 +1,11 @@
+{
+  "id": "friendly-fire-field",
+  "player": "f6f-1",
+  "airfields": ["tacloban"],
+  "aircraft": [
+    { "id": "f6f-1", "spec": "f6f-hellcat", "parkedAt": { "airfield": "tacloban", "spot": { "x": 0, "z": 300 } }, "chocked": false },
+    { "id": "ally-1", "spec": "f6f-hellcat", "side": "allied", "parkedAt": { "airfield": "tacloban", "spot": { "x": 0, "z": 0 } }, "chocked": true }
+  ],
+  "ships": [],
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 12 }
+}

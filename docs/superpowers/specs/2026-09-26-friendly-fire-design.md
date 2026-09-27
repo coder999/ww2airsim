@@ -84,7 +84,7 @@ When the player's record has `friendlyFire`, the model gains `discharge` and cha
 
 ## 6. The roster
 
-- `PilotRecord.status` becomes `'active' | 'kia' | 'discharged'`. When friendly fire and a death coincide, the discharge wins.
+- `PilotRecord.status` becomes `'active' | 'kia' | 'discharged'`. As first written, the discharge won when friendly fire and a death coincided. **Amended by Mark, 2026-09-26: the dead cannot be discharged.** A friendly-fire sortie that ends in death (killed by impact, or shot down) keeps its KILLED stamp and banks the pilot K.I.A., with the sortie still forfeit: 0 points and no kills credited (`DebriefModel.forfeit` without `discharge`). Only a pilot who survives (landed or ditched) is discharged.
 - `dischargePilot(pilot, outcome, sortie)` banks a discharged sortie. It works as follows:
   - `missionsFlown` is incremented.
   - Nothing is scored for this sortie (the kills since the last landing).

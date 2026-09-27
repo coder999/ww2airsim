@@ -54,6 +54,10 @@ export function friendlyTargetLabel<M>(world: World<M>, ff: FriendlyFire): strin
  * - The rows keep what was destroyed, at 0 points, so the form still shows
  *   what the pilot threw away.
  * - There is no Continue: the flight is over.
+ * - A pilot who survives (landed or ditched) is discharged: the stamp reads
+ *   DISHONORABLE DISCHARGE and `discharge` is set. A pilot who died keeps
+ *   the KILLED stamp -- the dead cannot be discharged (Mark, 2026-09-26,
+ *   ruling FF-7 amended) -- but the sortie is forfeit all the same.
  */
 export function withDischarge<M>(model: DebriefModel, world: World<M>): DebriefModel {
   const ff = friendlyFireOf(world)
@@ -63,12 +67,21 @@ export function withDischarge<M>(model: DebriefModel, world: World<M>): DebriefM
   // dropped rather than set to undefined.
   const { continueLabel, ...rest } = model
   void continueLabel
-  return {
+  const forfeited = {
     ...rest,
-    headline: DISCHARGE_HEADLINE,
-    detail: `You fired on your own side (${target}). This sortie is forfeit, and you are discharged from the service. ${model.detail}`,
     figures: [{ label: 'Friendly fire', value: target }, ...model.figures],
     score: { rows: model.score.rows.map((r) => ({ ...r, score: 0 })), total: 0, multiplier: 0 },
+    forfeit: { target },
+  }
+  if (model.outcome === 'killed') {
+    return { ...forfeited, detail: `You fired on your own side (${target}). This sortie is forfeit. ${model.detail}` }
+  }
+  return {
+    ...forfeited,
+    headline: DISCHARGE_HEADLINE,
+    // The physical sentence is dropped: a landing's reads "Nice job." The
+    // figures below still carry the landing facts.
+    detail: `You fired on your own side (${target}). This sortie is forfeit, and you are discharged from the service.`,
     discharge: { target },
   }
 }

@@ -134,6 +134,9 @@ export const SCENARIO_OPTIONS: readonly { readonly value: string; readonly label
   // Friendly-fire ruling FF-10: the discharge test bed, listed for the same
   // reason as the furball.
   { value: 'friendly-fire-range', label: 'Friendly Fire (dev)' },
+  // The survivable half: parked on Tacloban's runway behind a parked allied
+  // Hellcat, so a hop and a landing end in the discharge (FF-7 as amended).
+  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)' },
 ]
 
 /** Whether `id` is one of `SCENARIO_OPTIONS` -- the whitelist that makes
