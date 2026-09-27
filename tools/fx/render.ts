@@ -11,10 +11,7 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FX_SHEETS, type FxSheetName } from '../../src/render/fx/sheetManifest.js'
 import { assertProbe, FX_BAKE_HOST_DEFAULT, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, SSH_OPTS } from './remote.js'
-
-// Task 2 step 5 replaces these two lines with `import { LOOPING, LOOP_BLEND } from './pack.js'`.
-const LOOPING: readonly FxSheetName[] = ['flame']
-const LOOP_BLEND = 8
+import { LOOPING, LOOP_BLEND } from './pack.js'
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const SCRIPTS = join(ROOT, 'tools/fx/blender/')
