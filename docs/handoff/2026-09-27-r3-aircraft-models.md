@@ -7,9 +7,9 @@ in-game change is that the Zero now flies its own model. The design is
 The plan is
 [`2026-09-26-r3-aircraft-models.md`](../superpowers/plans/2026-09-26-r3-aircraft-models.md).
 
-This work is **complete on branch `worktree-r3-aircraft`, not merged**:
-`e3e9496`..HEAD, cut from `main` at `e7ebd31`. Merging is Mark's call. The
-run was unattended, with the final product as its one checkpoint (the
+This work is **complete on branch `worktree-r3-aircraft`**, and Mark had it merged into `main` on 2026-09-27 (`82f9e3e`). The branch's commits are
+`e3e9496`..`e2f9d4a`, cut from `main` at `e7ebd31`. The worktree is kept for
+now, at Mark's request. The run was unattended, with the final product as its one checkpoint (the
 captures below).
 
 ## What shipped
