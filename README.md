@@ -93,7 +93,7 @@ code-generated placeholders for E2, not final art. See the
 [E1 handoff](docs/handoff/2026-09-26-e1-effects-engine.md) for captures,
 measurements, merge notes, and the two shared baseline tripwires.
 
-**O1 ordnance models landed 2026-09-26 on a branch awaiting merge:** generated
+**O1 ordnance models landed 2026-09-26, merged into `main`:** generated
 AN-M65 and HVAR models hang on the Wildcat and fly. The
 [handoff](docs/handoff/2026-09-26-o1-ordnance-models.md) records what was
 measured and what is open; master spec §15 holds the status.

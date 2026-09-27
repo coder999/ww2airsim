@@ -8,8 +8,8 @@ is §2, §7 and §8 of
 [`2026-09-26-ordnance-and-effects-design.md`](../superpowers/specs/2026-09-26-ordnance-and-effects-design.md).
 The plan is [`2026-09-26-o1-ordnance-models.md`](../superpowers/plans/2026-09-26-o1-ordnance-models.md).
 
-This work is complete on branch **`worktree-o1-ordnance`** and is **not
-merged**. Merging is Mark's call. Commits `e9d0d84`..this handoff's sit on
+This work is complete on branch **`worktree-o1-ordnance`**, and Mark had it
+merged into `main` on 2026-09-26 (`bddbc02`). Commits `e9d0d84`..this handoff's sit on
 `242c35e`. `main` was merged in at `dbe27ec`, so the branch already carries
 E1, 7e and M0.
 
