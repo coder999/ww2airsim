@@ -166,9 +166,10 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
 
   // 1b. The pass (M3-R4), only while the `approaches` objective is active.
   //     `recovery.airborne` keeps the window to approaches: the start and
-  //     respot spot near the stern is inside paddlesCue's gate with the hook
-  //     down (M3 Task 3, measured 2026-09-26), and a deck roll from there is
-  //     not a pass. It is false from spawn or a landing until the wheels
+  //     respot spot near the stern is astern of the zone center, so a deck
+  //     roll from there with the hook down is inside paddlesCue's gate (M3
+  //     Task 3, measured 2026-09-26; at rest it is not, since ruling F-I2
+  //     needs closure on the deck), and a deck roll is not a pass. It is false from spawn or a landing until the wheels
   //     have been 10 m clear, so it never closes a pass before touchdown.
   let pass = m.pass
   let passEvent: PassEvent = null

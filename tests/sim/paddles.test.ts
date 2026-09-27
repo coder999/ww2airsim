@@ -81,6 +81,29 @@ describe('paddlesCue', () => {
   })
 })
 
+/** `onFinal`'s position, flying the other way: a tight downwind extended
+ *  astern, away from the ship (ruling F-I2). */
+const flyingAway = (rangeM: number) => {
+  const s = onFinal(rangeM)
+  return { ...s, velocity: v3(-s.velocity.x, s.velocity.y, -s.velocity.z) }
+}
+/** `onFinal`'s position, holding station on the ship: no closure at all. */
+const keepingStation = (rangeM: number) => ({ ...onFinal(rangeM), velocity: deck.velocity })
+
+describe('the window needs closure on the deck (ruling F-I2)', () => {
+  it('the same position flying AWAY from the ship gives no window and no cue', () => {
+    expect(paddlesCue(f6f, onFinal(1000), CONFIGURED, deck, params, null)).toBe('roger')
+    expect(paddlesWindow(f6f, flyingAway(1000), CONFIGURED, deck, params)).toBe(false)
+    expect(paddlesCue(f6f, flyingAway(1000), CONFIGURED, deck, params, null)).toBeNull()
+    expect(paddlesCue(f6f, flyingAway(params.waveOffRangeM - 10), CONFIGURED, deck, params, null)).toBeNull()
+  })
+
+  it('holding station on the ship, no bow-ward speed relative to the deck, is not closing', () => {
+    expect(paddlesWindow(f6f, keepingStation(1000), CONFIGURED, deck, params)).toBe(false)
+    expect(paddlesCue(f6f, keepingStation(1000), CONFIGURED, deck, params, null)).toBeNull()
+  })
+})
+
 describe('paddlesWindow (M3-R4): exactly the gate of paddlesCue', () => {
   it('agrees with paddlesCue !== null on the unit fixtures, with or without wind', () => {
     const wind = v3(-Math.sin(deck.headingRad) * 8, 0, Math.cos(deck.headingRad) * 8)
@@ -92,6 +115,9 @@ describe('paddlesWindow (M3-R4): exactly the gate of paddlesCue', () => {
       [onFinal(params.maxRangeM + 100), CONFIGURED],
       [onFinal(params.cutRangeM - 10), CONFIGURED],
       [onFinal(params.waveOffRangeM - 10, 2), CONFIGURED],
+      [flyingAway(1000), CONFIGURED],
+      [flyingAway(params.waveOffRangeM - 10), CONFIGURED],
+      [keepingStation(1000), CONFIGURED],
     ]
     for (const [state, controls] of cases) {
       for (const w of [null, wind]) {

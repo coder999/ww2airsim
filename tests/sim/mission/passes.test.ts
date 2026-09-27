@@ -229,7 +229,8 @@ describe('passes through advance (M3-R4)', () => {
     let w = deckQualsMission()
     const p = playerAircraft(w)
     const deck = deckOf(w.ships.find((s) => s.id === 'cv-1')!)!
-    // The start spot (and the respot spot) is inside paddlesCue's gate with the hook down.
+    // The start spot (and the respot spot) is astern of the zone center, so a
+    // roll from it with the hook down is inside paddlesCue's gate.
     expect(deckLocal(deck, p.state.position.x, p.state.position.z).z).toBeCloseTo(-110, 0)
     w = withControls(w, w.player, { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: true, hookDown: true, brake: 1 })
     w = steps(w, 120)
@@ -238,6 +239,44 @@ describe('passes through advance (M3-R4)', () => {
     expect(w.mission!.pass).toBe(NO_PASS)
     expect(passes(w)).toEqual([])
     expect(progressOf(w, 'clean')).toMatchObject({ status: 'active', count: 0 })
+  })
+})
+
+describe('a pass needs closure on the deck (ruling F-I2)', () => {
+  it('flying AWAY astern through the cone, gear and hook down: no pass opens and no miss is recorded', () => {
+    // A tight downwind extended astern: 1,500 m astern of the trap zone on
+    // the wake, 150 m up, flying the reciprocal of the deck's heading at
+    // 60 m/s, staged tick by tick (position advanced kinematically) for 60 s.
+    // Before the fix this opened a pass on the first tick, left the 2,500 m
+    // range at about 15 s (the ship steams the other way), and scored a miss
+    // 15 s after that, at tick 1787 (measured 2026-09-27).
+    let w = deckQualsMission()
+    const deck0 = deckOf(w.ships.find((s) => s.id === 'cv-1')!)!
+    const zoneCenterZ = -deck0.lengthM / 2 + (deck0.trapFromSternM + deck0.trapToSternM) / 2
+    const start = deckWorld(deck0, 0, zoneCenterZ - 1500)
+    const away = v3(-Math.sin(deck0.headingRad) * 60, 0, Math.cos(deck0.headingRad) * 60)
+    const s0 = createState({
+      position: v3(start.x, deck0.center.y + 150, start.z),
+      velocity: away,
+      attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - (deck0.headingRad + Math.PI)),
+      gearFraction: 1,
+      flapFraction: 1,
+    })
+    w = { ...w, aircraft: w.aircraft.map((a) => (a.id === w.player ? { ...a, parked: false } : a)) }
+    w = withControls(w, w.player, { pitch: 0, roll: 0, yaw: 0, throttle: 0.5, gearDown: true, flapDown: true, hookDown: true })
+    const t0 = w.tick
+    let everOpen = false
+    for (let i = 0; i < ticksFor(60); i++) {
+      const t = (w.tick - t0) * DT
+      w = withAircraftState(w, w.player, { ...s0, position: v3(s0.position.x + away.x * t, s0.position.y, s0.position.z + away.z * t), tick: w.tick })
+      w = advance(w, DT).world
+      if (w.mission!.pass.open) everOpen = true
+    }
+    expect(everOpen).toBe(false)
+    expect(w.mission!.pass).toBe(NO_PASS)
+    expect(passes(w)).toEqual([])
+    expect(progressOf(w, 'clean')).toMatchObject({ status: 'active', count: 0 })
+    expect(texts(w)).not.toContain(WAVE_OFF_MESSAGE)
   })
 })
 
