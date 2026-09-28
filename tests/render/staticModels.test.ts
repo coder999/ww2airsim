@@ -25,6 +25,6 @@ describe('the static-model registry (model-roster spec §4.3)', () => {
 
   it('an unregistered or prototype-named id throws, naming the kind and the registry', () => {
     expect(() => staticModelUrlFor('building', 'nope')).toThrow(/no building model "nope" \(registered: [a-z0-9, -]*\bhangar\b[a-z0-9, -]*\)/)
-    expect(() => staticModelUrlFor('vehicle', 'constructor')).toThrow(/no vehicle model "constructor" \(registered: none\)/)
+    expect(() => staticModelUrlFor('vehicle', 'constructor')).toThrow(/no vehicle model "constructor" \(registered: [a-z0-9, -]*\btype97-chi-ha\b[a-z0-9, -]*\)/)
   })
 })

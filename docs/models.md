@@ -59,7 +59,8 @@ The reasoning behind them is in the
 ships add the `ship` block from the
 [ship-models design](superpowers/specs/2026-09-25-ship-models-design.md).
 Name articulated parts as `keep` or `split` nodes. Turrets follow the Hangar
-spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern.
+spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern; a building
+has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
 Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
 tail, dorsal before ventral at one station. Every one needs a `pivot`: the
@@ -107,9 +108,15 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   set `view.model` in `content/ships/<spec>.json`. The Hangar spec names a
   `content/ships/models.json` for this, but that file was never created; S1
   registered ships in `SHIP_MODELS` instead.
-- **Buildings and vehicles:** add the id to `STATIC_MODELS` in
+- **Vehicles:** add the id to `STATIC_MODELS.vehicle` in
+  [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts)
+  and name it in the Library entry's `model`. A vehicle stands on y = 0,
+  centered on its footprint, nose to +x;
+  `tests/tools/models/vehicleModels.test.ts` measures it against its cited
+  length, width and height (R5).
+- **Buildings:** add the id to `STATIC_MODELS.building` in
   [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts).
-  They have no sim spec and no `view.model`; the Hangar draws them in place
+  They have no sim spec and no `view.model`; the Hangar draws one in place
   of one, through a Library entry's `model` (R1, step 8).
 
 Tier 1 fails if a spec names a model id that is not registered.
@@ -126,8 +133,8 @@ An entry may also carry an optional `model: { "kind", "id" }` (R1), where
 spec, the entry reads "not in the game yet" instead of "not yet in service".
 Tier 1 checks that every `model` resolves: it is registered (step 7), has a
 manifest entry, sits in the right output folder, and its glb is committed.
-An entry the plan now draws must come off `NOT_YET_DRAWN` in
-`tests/render/hangar/roster.test.ts`, with `CEILING` lowered to match.
+Every entry must now arrive with its model: R5 deleted the allowlist, and
+`tests/render/hangar/roster.test.ts` asserts that nothing is undrawn.
 
 ## 9. Check
 
@@ -151,6 +158,7 @@ An entry the plan now draws must come off `NOT_YET_DRAWN` in
   - every rigged aircraft's gizmos are its props and legs (check 13, R3)
   - its card's Model row names where it came from, from its entry's `source`,
     and the Origin filter lists it as internal or external (check 14)
+  - every Library entry is drawn: there is no allowlist (check 12, R5)
 
 ## Generated models
 
@@ -176,6 +184,15 @@ geometry is fractions of the cited length and span (R3). Never build an
 aircraft part on the kit's `tapered_box`, `cylinder` or `turret`: they are
 wound inside out (found 2026-09-27, hidden by double-sided materials; see
 the R3 handoff).
+
+A building (R4) takes its parts from the kit: `frustum`, `gable_roof`, `tank`, `sandbag_ring`, `strut`,
+`gun_barrel` and `lattice_mast`, all wound outward and checked by
+`tests/tools/models/blender/kitBuildings.test.ts`. One kit node is one draw call, so the building
+budget's 4 draw calls means at most four roles or named nodes, turrets included. A building script
+sets literal `FOOTPRINT_X_M`, `FOOTPRINT_Z_M`, `HEIGHT_M` and `BASE_Y_M`, which
+`tests/tools/models/buildingModels.test.ts` measures against the committed glb without Blender,
+along with its budget, its turret names and a check that no two paints z-fight. Its front faces +x;
+the hangar, which opens toward +z as the game's does, is the exception.
 
 ```sh
 npx tsx tools/models/blender/cli.ts <id> [--key value ...]

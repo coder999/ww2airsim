@@ -282,13 +282,17 @@ test.describe('the Hangar', () => {
       }
     }
     // The registered models have budgets (R3: every aircraft draws its own model).
-    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'essex-cv', 'fletcher-dd', 'type-b-maru', 'hangar']) {
+    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'essex-cv', 'fletcher-dd', 'type-b-maru']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
-    // R1: the hangar is drawn from its Blender model, not drawBuilding's boxes.
-    await select(page, 'hangar')
-    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.modelUrl ?? '').toMatch(/content\/buildings\/hangar\.glb$/)
+    // R1-R5: every Library building and vehicle is drawn from its own model, with its manifest budget.
+    for (const [id, folder] of [...['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower'].map((b) => [b, 'buildings'] as const), ['type97-chi-ha', 'vehicles'] as const, ['willys-mb-jeep', 'vehicles'] as const]) {
+      await select(page, id)
+      const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
+      expect(r?.budget, id).not.toBeNull()
+      expect(r?.modelUrl ?? '', id).toMatch(new RegExp(`content/${folder}/${id}\\.glb$`))
+    }
     // R3: the Zero and the Hellcat draw their own glbs in the Hangar, not the Wildcat's.
     for (const [id, glb] of [['a6m-zero', 'a6m2-zero'], ['f6f-hellcat', 'f6f-hellcat']] as const) {
       await select(page, id)
@@ -303,7 +307,8 @@ test.describe('the Hangar', () => {
     const ids = await entries(page)
     expect(all - notDrawn).toBe(ids.length)
     for (const id of ids) await expect(page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`)).not.toContainText('(not yet in service)')
-    expect(notDrawn).toBeGreaterThan(0)
+    // R5: nothing in the Library is undrawn.
+    expect(notDrawn).toBe(0)
   })
 
   /**

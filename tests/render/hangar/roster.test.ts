@@ -9,14 +9,9 @@ import { loadModelEntries, type ModelEntry } from '../../../tools/models/manifes
 import { nodeHangarContent } from './content.js'
 
 /**
- * Library entries the Hangar cannot draw yet (model-roster spec §1: "done is an assertion").
- * Each roster plan removes the entries it models and lowers CEILING to match; R5 deletes both,
- * and this test then asserts none remain. The list may shrink, never grow.
+ * R5 deleted the allowlist on 2026-09-28. Nothing is undrawn now, so a new Library entry must
+ * arrive with its model; the assertions below fail if it does not (model-roster spec §1).
  */
-const NOT_YET_DRAWN = [
-  'radio-radar-station', 'type97-chi-ha', 'willys-mb-jeep',
-]
-const CEILING = 3
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
@@ -39,13 +34,15 @@ const content = nodeHangarContent()
 const catalog = buildCatalog(content)
 const entries = loadModelEntries()
 
-describe('the roster is done when this list is empty (model-roster spec §1)', () => {
-  it('exactly the allowlisted entries are the ones the Hangar cannot draw', () => {
-    expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id).sort()).toEqual([...NOT_YET_DRAWN].sort())
+describe('the roster is done: every Library entry is drawn (model-roster spec §1, R5)', () => {
+  it('the Hangar can draw every entry in the Library', () => {
+    expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id)).toEqual([])
   })
 
-  it('the allowlist never grows', () => {
-    expect(NOT_YET_DRAWN.length).toBeLessThanOrEqual(CEILING)
+  it('every building and vehicle names its own model', () => {
+    for (const e of content.library.filter((x) => x.kind === 'building' || x.kind === 'vehicle')) {
+      expect(e.model, e.id).toEqual({ kind: e.kind, id: e.id })
+    }
   })
 })
 

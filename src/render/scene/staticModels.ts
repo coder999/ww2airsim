@@ -17,10 +17,14 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     'fuel-tank-farm': { url: staticModelUrl('building', 'fuel-tank-farm') },
     hangar: { url: staticModelUrl('building', 'hangar') },
     'pier-and-warehouses': { url: staticModelUrl('building', 'pier-and-warehouses') },
+    'radio-radar-station': { url: staticModelUrl('building', 'radio-radar-station') },
     revetment: { url: staticModelUrl('building', 'revetment') },
     tower: { url: staticModelUrl('building', 'tower') },
   },
-  vehicle: {},
+  vehicle: {
+    'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
+    'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
+  },
 }
 
 export function staticModelUrlFor(kind: StaticModelKind, id: string): string {

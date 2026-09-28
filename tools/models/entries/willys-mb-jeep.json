@@ -1,0 +1,18 @@
+{
+  "id": "willys-mb-jeep",
+  "input": "tools/models/cache/willys-mb-jeep.glb",
+  "output": "content/vehicles/willys-mb-jeep.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98",
+    "uid": "3b005266a1514f7bb7370c86168aba98",
+    "author": "MattyNL",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "+z", "up": "+y", "yawDeg": -5.7, "origin": [-0.922, 0.043, -0.080], "fit": { "extent": "length", "meters": 3.377 } },
+  "split": [
+    { "name": "CanvasJeep", "select": "components", "boxMin": [0.019, -1, -2], "boxMax": [2, 3, 2] }
+  ],
+  "remove": ["CanvasJeep"],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+}

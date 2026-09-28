@@ -84,8 +84,13 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 
   it('"Not yet in service" loads nothing', async () => {
-    // No spec and no model of its own (R3: the first spec-less entry, the Corsair, gained a model).
-    expect(await loadHangarModel(catalog.find((e) => e.subject === null && e.library.model === undefined)!)).toBeNull()
+    // No shipped entry is undrawn since R5, so the case is a copy of the jeep with its model removed.
+    const c = nodeHangarContent()
+    const bare = { ...c.library.find((e) => e.id === 'willys-mb-jeep')!, id: 'test-undrawn' }
+    delete (bare as { model?: unknown }).model
+    const entry = buildCatalog({ ...c, library: [bare] })[0]!
+    expect(entry.subject).toBeNull()
+    expect(await loadHangarModel(entry)).toBeNull()
   })
 
   it('the flat field is height 0 everywhere', () => {
@@ -178,6 +183,17 @@ describe("an entry's own model (R1)", () => {
     expect(m!.parts).toEqual([])
     m!.dispose()
     expect(released()).toBe(1)
+  })
+
+  it('every Library building draws its own model through the display loader, and one with a spec keeps its figures (R4)', async () => {
+    const buildings = buildCatalog(nodeHangarContent()).filter((e) => e.library.kind === 'building')
+    expect(buildings).toHaveLength(10)
+    for (const entry of buildings) {
+      const seen: unknown[] = []
+      await loadHangarModel(entry, undefined, undefined, undefined, async (ref) => { seen.push(ref); return instance().inst })
+      expect(seen, entry.library.id).toEqual([{ kind: 'building', id: entry.library.id }])
+    }
+    for (const id of ['hangar', 'tower', 'aaa']) expect(byId(id).subject?.kind, id).toBe('building')
   })
 
   it('a spec-less aircraft model loads by its id with no stores, stands on the pad by its bounds, and has no mounts', async () => {
