@@ -28,7 +28,7 @@ describe('scenario options agree with content (M2 R5, R6)', () => {
   })
   it('A1: exactly the test beds are Dev-only, and every range has a description', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.dev).map((o) => o.value).sort())
-      .toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range'])
+      .toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'recovery-range'])
     for (const o of SCENARIO_OPTIONS.filter((r) => r.kind === 'range')) expect(o.description, o.value).toMatch(/\S/)
   })
   it("every non-Dev scenario's own aircraft is eligible with Dev off", () => {
