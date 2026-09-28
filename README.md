@@ -223,13 +223,17 @@ art with **New game** and **About project**. The world boots behind it and is
 held until New game (Enter also works), which is the click that unlocks audio
 on a first visit. [Handoff](docs/handoff/2026-09-19-title-screen.md).
 
-**The title screen became two sequential memo forms 2026-09-24**, in the
-Naval Communications style: Form 1 of 2 is the pilot roster, New game opens
-Form 2 of 2 (Sortie Orders: mission and armament), and **Launch** starts the
-flight, with Back returning to the roster. About project and Settings sit in
-their own memo underneath both. The KIA-pilot resurrection now happens on
-Launch, not New game. `src/render/titleScreen.ts` is authoritative; the e2e
-harness's `startGame` walks both forms.
+**The title screen is four sequential memo forms (sortie forms, 2026-09-27)**,
+in the Naval Communications style: Squadron Roster, Sortie Orders (the
+mission), Aircraft Assignment and Ordnance Requisition, with **Launch** on the
+last and Back on each. The player is drawn as the aircraft chosen. A **Dev**
+checkbox on the roster lifts every eligibility rule, and a sortie that needed
+it is not recorded. `?scenario=<id>&launch` (plus optional `aircraft=` and
+`loadout=`) is a quick launch that skips the forms; it is always a Dev sortie.
+The rules are in the
+[sortie forms spec](docs/superpowers/specs/2026-09-27-sortie-forms-design.md);
+`src/render/titleScreen.ts` and `src/sim/sortie.ts` are authoritative; the e2e
+harness's `startGame` walks all four forms and `quickLaunch` skips them.
 
 The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and

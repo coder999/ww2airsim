@@ -2,6 +2,8 @@
   "id": "f4f-wildcat",
   "name": "Grumman F4F-4 Wildcat",
   "role": "fighter",
+  "side": "allied",
+  "carrierCapable": true,
   "geometry": {
     "wingAreaM2": 31.03,
     "wingSpanM": 13.06

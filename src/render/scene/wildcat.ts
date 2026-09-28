@@ -78,6 +78,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
   correction.add(scene)
 
   const root = new Group()
+  root.name = 'wildcat' // named for its model id, as pivotedAirframe.ts names each rigged root
   root.add(correction)
   root.traverse((o) => { o.receiveShadow = true })
 

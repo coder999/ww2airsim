@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
  * Tier 2, Plan 9 Task 8: the whole meta-game acceptance, all three pieces
@@ -51,7 +51,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
 
   // First in-place switch: boot's own default (free-flight, never shown)
@@ -114,7 +114,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   // `exact`: since 2026-09-25 the picker also lists "Air Combat: Veteran",
   // which a substring match would also select (a strict-mode violation).
   await reshownScenarioGroup.getByRole('radio', { name: 'Air Combat', exact: true }).check()
-  await reshownTitle.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(reshownTitle)
   await expect(reshownTitle).toBeHidden()
 
   await waitForScenario(page, 'pursuit-range')

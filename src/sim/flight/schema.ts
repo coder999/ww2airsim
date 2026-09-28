@@ -85,6 +85,14 @@ const AircraftSpecObject = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   role: z.enum(['fighter', 'bomber']),
+  /** Who flies it, in the Library's vocabulary (`SIDES`, hangar/library.ts).
+   *  ELIGIBILITY ONLY (sortie spec 2026-09-27, ruling SF-R1): which aircraft
+   *  the title offers with Dev off. A combat side is per scenario entity and
+   *  comes from `sideOf` (sides.ts) -- a Zero flown by the player is still
+   *  the player's side. */
+  side: z.enum(['allied', 'japanese']),
+  /** Whether a non-Dev sortie may start this aircraft on a carrier deck. */
+  carrierCapable: z.boolean(),
   geometry: z.object({ wingAreaM2: positive, wingSpanM: positive }).strict(),
   mass: z.object({ emptyKg: positive, fuelCapacityKg: positive, maxTakeoffKg: positive }).strict(),
   aero: z.object({

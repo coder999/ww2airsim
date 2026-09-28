@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, expectTypeOf } from 'vitest'
+import type { SortieChoice } from '../../src/sim/sortie.js'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
   pilotButtonLabel, pilotStatusChip, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
@@ -112,6 +113,7 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
       'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol',
+      'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -140,8 +142,8 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.label.includes('Deck Quals')).map((o) => o.value)).toEqual(['deck-quals'])
   })
 
-  it('production ships exactly the M3 and M4 missions, each with its badge; every other row is a range (M2 R5)', () => {
-    expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission').map((o) => [o.value, o.badge]))
+  it('without Dev, exactly the M3 and M4 missions, each with its badge; every other row is a range (M2 R5, A1)', () => {
+    expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev).map((o) => [o.value, o.badge]))
       .toEqual([
         ['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }],
         ['airfield-strike', { id: 'airfield-strike', name: 'Airfield Strike' }],
@@ -211,20 +213,11 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
     expect(isValidPilotName('   ')).toBe(false)
   })
 
-  it('onNewGame receives the selected pilot\'s id as a third argument (type-level contract)', () => {
-    // The actual DOM wiring that calls `onNewGame(loadout, scenarioId,
-    // pilotId)` on the New game click / Enter key lives in
-    // `createTitleScreen`, which needs a real `document` to exercise (this
-    // suite runs in `node`, per this file's own established convention
-    // above). What's provable here without a DOM is the contract itself: a
-    // callback of this shape type-checks, which `npx tsc --noEmit` also
-    // gates on `createTitleScreen`'s own call site inside `start()`.
-    const onNewGame = (loadout: string, scenarioId: string, pilotId: string): void => {
-      expect(typeof loadout).toBe('string')
-      expect(typeof scenarioId).toBe('string')
-      expect(typeof pilotId).toBe('string')
-    }
-    onNewGame('both', 'free-flight', 'pilot-1-1')
+  it('onNewGame receives one SortieChoice and the pilot id, null only for a quick launch (type-level contract, sortie forms)', () => {
+    // The DOM that calls it lives in `createTitleScreen` (this suite runs in
+    // `node`); the contract is checked against the real signature, so a
+    // change to either side fails here and at `tsc --noEmit`.
+    expectTypeOf<Parameters<typeof createTitleScreen>[2]>().toEqualTypeOf<(choice: SortieChoice, pilotId: string | null) => void>()
   })
 
   it('show() requires the currently-loaded scenario id, not a zero-arg call (type-level contract, Plan 9 Task 7 bugfix)', () => {
@@ -251,24 +244,25 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
   })
 })
 
-describe('the title screen as two sequential memo forms', () => {
+describe('the title screen as four sequential memo forms (sortie spec)', () => {
   // The DOM (step switching, Back, Enter) needs a `document`, which this
   // suite's `node` environment lacks; `tests/e2e/title.spec.ts` drives it.
   // What is pinned here is the text the two forms and the buttons that move
   // between them are built from, the same split as every block above.
-  it('names the button that leaves form 2 for the flight, and the way back to form 1', () => {
+  it('names the buttons that move between the forms, the one that launches, and the Dev checkbox', () => {
     const m = titleModel()
     expect(m.newGame).toBe('New game')
+    expect(m.next).toBe('Next')
     expect(m.launch).toBe('Launch')
     expect(m.back).toBe('Back')
+    expect(m.dev).toBe('Dev — unlocks everything')
   })
 
-  it('numbers the two forms "of 2" and gives each its own letterhead', () => {
-    expect(TITLE_FORMS.roster.number).toBe('Form 1 of 2')
-    expect(TITLE_FORMS.orders.number).toBe('Form 2 of 2')
-    expect(TITLE_FORMS.roster.title).toBe('Squadron Roster')
-    expect(TITLE_FORMS.orders.title).toBe('Sortie Orders')
-    expect(TITLE_FORMS.orders.kicker).not.toBe(TITLE_FORMS.roster.kicker)
+  it('numbers the four forms "of 4" and gives each its own letterhead', () => {
+    expect(Object.keys(TITLE_FORMS)).toEqual(['roster', 'orders', 'aircraft', 'ordnance'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.number)).toEqual(['Form 1 of 4', 'Form 2 of 4', 'Form 3 of 4', 'Form 4 of 4'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.title)).toEqual(['Squadron Roster', 'Sortie Orders', 'Aircraft Assignment', 'Ordnance Requisition'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.kicker)).toEqual(['Bureau of Naval Personnel', 'Flight Operations', 'Bureau of Aeronautics', 'Bureau of Ordnance'])
   })
 
   it('gives the About memo its own letterhead', () => {

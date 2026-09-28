@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { debriefModel, destructionModel, killsSince, landingModel, missionScore } from '../../src/render/debrief.js'
+import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, withNotRecorded } from '../../src/render/debrief.js'
 import { withMissionDebrief } from '../../src/render/mission/debriefMission.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -288,5 +288,15 @@ describe('withMissionDebrief', () => {
     const result = withMissionDebrief(model, w)
     expect(result.model).toBe(model)
     expect(result.badgeId).toBeNull()
+  })
+})
+
+describe('the Dev sortie stamp (sortie spec A5)', () => {
+  const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType())
+  it('marks a Dev sortie not recorded, and leaves any other model as it was', () => {
+    expect(withNotRecorded(m, true).notRecorded).toBe(true)
+    expect(withNotRecorded(m, true).headline).toBe(m.headline)
+    expect(withNotRecorded(m, false)).toBe(m)
+    expect(DEV_SORTIE_STAMP).toBe('Dev sortie: not recorded')
   })
 })

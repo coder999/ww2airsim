@@ -86,12 +86,29 @@ describe('the pivoted airframe (R3)', () => {
     expect(released()).toBe(1)
   })
 
-  it('refuses stores before it fetches anything (Review Focus 2)', async () => {
-    let fetched = 0
-    const stores = { racks: [], rails: [] }
-    await expect(loadPivotedAirframe('f6f-hellcat', 'x.glb', RIG, stores, async () => { fetched++; return fake({}).inst }))
-      .rejects.toThrow(/f6f-hellcat: a rigged model hangs no stores/)
-    expect(fetched).toBe(0)
+  it('hangs a spec\'s stores from its mounts on the level model, and hides spent ones (sortie forms A4)', async () => {
+    const mounts = {
+      racks: [{ id: 'left-rack', offset: [-0.306, -0.664, -2.6] as [number, number, number], store: 'an-m65' }],
+      rails: [{ id: 'left-rail-1', offset: [-0.581, -0.471, -3.6] as [number, number, number], store: 'hvar' }],
+    }
+    const airframe = fake({ Prop: [1, 0, 0], GearL: [1, 0, 0], GearR: [1, 0, 0] })
+    // No store glb in Node: the loader falls back to primitive stand-ins, as the Wildcat's does.
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, mounts, async (url) => (url === 'toy.glb' ? airframe.inst : Promise.reject(new Error('no store model in Node'))))
+    expect(a.parts).toContain('stores')
+    const rack = a.root.getObjectByName('left-rack')!
+    expect(rack.position.toArray()).toEqual([-0.306, -0.664, -2.6])
+    expect(rack.rotation.z).toBe(0) // an R3 model is built level (R3 P13): no datum pitch
+    a.setStores(0, 1)
+    expect(rack.visible).toBe(false)
+    expect(a.root.getObjectByName('left-rail-1')!.visible).toBe(true)
+    a.dispose()
+    expect(a.root.getObjectByName('left-rack')).toBeUndefined()
+    expect(airframe.released()).toBe(1)
+  })
+
+  it('a spec with no stores hangs none and has no stores part', async () => {
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => fake({ Prop: [1, 0, 0], GearL: [1, 0, 0], GearR: [1, 0, 0] }).inst)
+    expect(a.parts).not.toContain('stores')
   })
 
   it('pivotAxisOf rejects a non-unit axis; dispose releases once', async () => {

@@ -98,7 +98,10 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   `pivotedAirframe.ts` (R3). Only a model whose parts move by a baked clip,
   as the Wildcat's do, needs its own module. For the Library, set the
   entry's `model` (§8). Set a spec's `view.model` only for an airframe the
-  game should fly with it, and a rigged model hangs no stores.
+  game should fly with it. A rigged model hangs the flying spec's stores
+  (`pivotedAirframe.ts`); measure them on that model first with
+  `npm run models:mounts`, which `tests/tools/models/wildcatMounts.test.ts`
+  enforces for every stores-carrying spec (sortie forms A4, 2026-09-27).
 - **Ships:** add the id to `SHIP_MODELS` in
   [`src/render/scene/shipModels.ts`](../src/render/scene/shipModels.ts), and
   set `view.model` in `content/ships/<spec>.json`. The Hangar spec names a

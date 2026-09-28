@@ -1,16 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { qFromAxisAngle, qIdentity, qRotate } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
-import {
-  PILOT_SKILL_PARAM,
-  SCENARIO_PARAM,
-  SPAWN_PARAMS,
-  hasSpawnOverride,
-  initialAircraftState,
-  pilotSkillFromQuery,
-  scenarioIdFromQuery,
-  spawnPositionFromQuery,
-} from '../../src/render/spawn.js'
+import { PILOT_SKILL_PARAM, SCENARIO_PARAM, SPAWN_PARAMS, hasSpawnOverride, initialAircraftState, pilotSkillFromQuery, scenarioIdFromQuery, spawnPositionFromQuery, quickLaunchFromQuery } from '../../src/render/spawn.js'
 
 /**
  * `spawn.ts` carries the `?spawnX/Y/Z` override Tier 2 uses to put the
@@ -198,5 +189,20 @@ describe('pilotSkillFromQuery (Plan 7d Task 5)', () => {
         /pilotSkill/,
       )
     }
+  })
+})
+
+describe('quickLaunchFromQuery (sortie spec A6)', () => {
+  it.each([
+    ['?scenario=free-flight', null],
+    ['?scenario=free-flight&launch', {}],
+    ['?scenario=free-flight&launch&aircraft=a6m2-zero&loadout=bombs', { aircraft: 'a6m2-zero', loadout: 'bombs' }],
+  ] as const)('%s', (q, want) => expect(quickLaunchFromQuery(q, ['f6f-hellcat', 'a6m2-zero'])).toEqual(want))
+  it('names a bad value', () => {
+    expect(() => quickLaunchFromQuery('?launch&aircraft=spitfire', ['f6f-hellcat'])).toThrow('quick launch: unknown aircraft "spitfire"')
+    expect(() => quickLaunchFromQuery('?launch&loadout=torpedo', ['f6f-hellcat'])).toThrow('quick launch: unknown loadout "torpedo"')
+  })
+  it('ignores aircraft and loadout without launch', () => {
+    expect(quickLaunchFromQuery('?aircraft=spitfire&loadout=torpedo', ['f6f-hellcat'])).toBeNull()
   })
 })

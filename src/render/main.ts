@@ -10,7 +10,7 @@ import { airframeUpdateFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { finestFetchedLevelFor, SCENARIO_ID } from './content.js'
+import { aircraftUrl, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
@@ -26,11 +26,13 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud, missionDiagnostics } from './mission/hud.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
-import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from './debrief.js'
+import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
-import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, scenarioOptions } from './titleScreen.js'
+import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
+import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { createBootProgress } from './bootProgress.js'
-import { applyMissionResultToRoster, awardBadgeInRoster, dischargeInRoster, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
@@ -90,8 +92,10 @@ import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
+import { parseAircraftSpec } from '../sim/content.js'
+import type { AircraftSpec } from '../sim/flight/schema.js'
 import { buildStructures } from '../sim/weapons/structures.js'
-import type { Loadout } from '../sim/weapons/stores.js'
 import { airVelocity, step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { heightAt, SEA_LEVEL_M, type TerrainField } from '../sim/world/terrain.js'
@@ -109,6 +113,7 @@ import {
   initialAircraftState,
   pilotSkillFromQuery,
   scenarioIdFromQuery,
+  quickLaunchFromQuery,
   spawnPositionFromQuery,
 } from './spawn.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
@@ -228,20 +233,17 @@ async function boot(): Promise<void> {
   // see the latest value.
   let radarSweepRad = 0
   let radarContactList: readonly RadarContact[] = []
-  // Plan 6b Task 9: the picker's choice, read by `buildWorld` (below) on
-  // every call -- boot's own included, not only Restart's -- so it doubles
-  // as "remembered across a Restart" (spec §5: "Restart rebuilds stores from
-  // the same loadout") with no separate plumbing. Starts at the picker's own
-  // default so a click landing before `frame` exists (the several awaits
-  // between here and its first assignment give the browser plenty of chance
-  // to paint and take one) needs nothing further: that first `buildWorld`
-  // call below just reads whatever this already holds.
-  let chosenLoadout: Loadout = DEFAULT_LOADOUT
+  // The sortie the forms (or the boot default) chose -- scenario, aircraft,
+  // loadout, Dev -- is `chosen`, declared at the `?scenario=` resolution
+  // below, the first point its scenario is known. `buildWorld` reads it on
+  // every call (boot's own and Restart's), so a Restart keeps the same
+  // loadout (Plan 6b spec §5) with no separate plumbing. Nothing reads it
+  // earlier: the title that fires `onNewGame` is built after it.
   /**
    * The pilot roster and this life's scoring baseline (Plan 9 Task 6),
    * hoisted here rather than left at their Task 6 narrative position (by
-   * `bankMissionResult`, further down) for the exact reason `chosenLoadout`
-   * just above is: the `onNewGame` closure just below reads and reassigns
+   * `bankMissionResult`, further down) for the exact reason `frame` and `bundle`
+   * are: the `onNewGame` closure just below reads and reassigns
    * all three on every New Game, and that closure is reachable the instant
    * the title paints -- long before `boot`'s own several `await`s (the
    * renderer, the initial scenario fetch, sky noise, the ocean cascades, the
@@ -298,6 +300,12 @@ async function boot(): Promise<void> {
   // landing in the same narrow window (between the title painting and
   // `initRenderer`'s `await` resolving) that exposed `frame`/`audio`.
   let bundle: ScenarioBundle | null = null
+  // Sortie forms (spec, Wiring): the aircraft the loaded bundle's player
+  // flies, so `onNewGame` rebuilds the entities when only the aircraft
+  // changed (Review Focus 5); and the Dev stores layout (SF-R2), fetched
+  // once, the first time a Dev sortie hangs stores on a spec without any.
+  let loadedAircraftSpec: string | null = null
+  let devStores: AircraftSpec['stores'] = undefined
   // Read once, right after the FIRST `loadScenario` call below, for `spec`:
   // every scenario flies the one shipped flight model, `f6f-hellcat` (design
   // doc §5, `content/scenarios/*.json` spec fields, unchanged by Task 6 --
@@ -358,9 +366,22 @@ async function boot(): Promise<void> {
    * showed a practical way to trigger (every reference-GPU run has boot's
    * own call resolve first).
    */
-  const loadScenario = async (id: string, loadout: Loadout): Promise<void> => {
-    const nextBundle = await loadScenarioBundle(id)
-    const nextScenarioWorld = worldFromScenario(nextBundle, null, loadout)
+  const loadScenario = async (choice: SortieChoice): Promise<void> => {
+    // The chosen aircraft replaces the scenario's player spec before the spec
+    // fetch; the choice is validated against the rules (sortie spec: an
+    // illegal non-Dev choice fails loudly, by name, through the caller's
+    // showFailure); and a Dev loadout on a spec with no stations hangs the
+    // Hellcat's layout (SF-R2, SF-R3).
+    const nextBundle = await loadScenarioBundle(choice.scenarioId, fetch, choice.aircraftSpec)
+    const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
+    const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
+    validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev })
+    if (needsDevStores(spec, choice.loadout) && devStores === undefined) {
+      const res = await fetch(aircraftUrl(DEV_STORES_SPEC_ID))
+      if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(DEV_STORES_SPEC_ID)}: ${res.status} ${res.statusText}`)
+      devStores = parseAircraftSpec(await res.json()).stores
+    }
+    const nextScenarioWorld = worldFromScenario(sortieBundle(nextBundle, choice.loadout, devStores), null, choice.loadout)
     // The scenario says where the player is parked; the DEV override above
     // moves it into the air instead. The airplane is then not `parked`, so
     // it gets the airborne posture `initialAircraftState` has always given
@@ -378,6 +399,7 @@ async function boot(): Promise<void> {
     // The nullable binding the diagnostics hook above closes over, now that
     // there is an answer to put in it.
     spawnPosition = nextSpawnedAt
+    loadedAircraftSpec = choice.aircraftSpec
     scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
   }
   /**
@@ -433,7 +455,7 @@ async function boot(): Promise<void> {
    * (`tests/sim/scenario.test.ts`) and has no business throwing in a browser
    * -- least of all out of the Restart button.
    *
-   * `chosenLoadout` (Plan 6b Task 9), not a parameter: reading it here rather
+   * `chosen.loadout` (Plan 6b Task 9; sortie forms), not a parameter: reading it here rather
    * than closing over one value at Restart-handler creation time is what
    * makes the same call site serve boot, a title-screen loadout change and
    * every future Restart -- whichever loadout was last chosen, not
@@ -460,7 +482,7 @@ async function boot(): Promise<void> {
    * actually keeps it from being CALLED too early.
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
-    const w = worldFromScenario(bundle!, null, chosenLoadout)
+    const w = worldFromScenario(sortieBundle(bundle!, chosen.loadout, devStores), null, chosen.loadout)
     // `forcedPilotSkill` replaces whatever skill the scenario's own content
     // pinned (e.g. pursuit-range.json's `veteran`) on every entity that has
     // a pilot at all; entities with no `pilot` (the player, any unpiloted
@@ -494,21 +516,43 @@ async function boot(): Promise<void> {
   // whitelisted before the title screen exists so the scenario picker can
   // preselect it. `?scenario=` now reaches production too -- the DEV-only
   // gate that used to sit here is gone, and `isKnownScenarioId` is what
-  // makes that safe: any format-valid id that is not a `scenarioOptions`
-  // row (the `dev-` fixtures only in DEV) fails here, before anything loads,
+  // makes that safe: any format-valid id that is not a `SCENARIO_OPTIONS`
+  // row (Dev-only test beds included, sortie spec A2) fails here, before anything loads,
   // rather than reaching `loadScenarioBundle` and failing on a missing file.
   // This one synchronous check does not touch the "title screen before
   // anything slow" ordering below -- there is nothing to await here.
   let requestedScenarioId: string
+  // The quick launch (sortie spec A6): skips the title and flies a Dev
+  // sortie. Parsed here so a bad `aircraft`/`loadout` fails like a bad id.
+  let quick: ReturnType<typeof quickLaunchFromQuery> = null
   try {
     requestedScenarioId = scenarioIdFromQuery(window.location.search, SCENARIO_ID)
-    if (!isKnownScenarioId(requestedScenarioId, import.meta.env.DEV)) {
+    if (!isKnownScenarioId(requestedScenarioId)) {
       throw new Error(`scenario: ${JSON.stringify(requestedScenarioId)} is not a scenario this build ships`)
     }
+    quick = quickLaunchFromQuery(window.location.search, loadFlyableAircraft().map((f) => f.spec.id))
   } catch (err) {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
   }
+  // The boot sortie: the scenario's own aircraft and today's default loadout
+  // (not the briefing's recommendation, which the forms apply before Launch),
+  // so a boot world is what it was before the sortie forms. A quick launch
+  // picks its own aircraft and loadout, the recommendation standing in for an
+  // absent loadout, always with Dev available (A6).
+  const bootOption = SCENARIO_OPTIONS.find((o) => o.value === requestedScenarioId)!
+  let chosen: SortieChoice = quick === null
+    ? { scenarioId: requestedScenarioId, aircraftSpec: bootOption.aircraft, loadout: DEFAULT_LOADOUT, dev: bootOption.dev }
+    : { scenarioId: requestedScenarioId, aircraftSpec: quick.aircraft ?? bootOption.aircraft, loadout: quick.loadout ?? bootOption.recommendedLoadout ?? DEFAULT_LOADOUT, dev: true }
+  // Sortie spec A5: whether the flight in progress NEEDED Dev, which is what
+  // gates recording (not whether the box was checked). Set by `onNewGame`
+  // from the loaded bundle; before that, `true` only for a quick launch (A6),
+  // which flies with no pilot and records nothing.
+  let devSortie = quick !== null
+  // SF-R6: a DEV-build-only switch that records a Dev sortie anyway, read once.
+  const recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(window.location.search, true) : false
+  const sortieNeededDev = (choice: SortieChoice): boolean =>
+    sortieIsDev(SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)!, bundle!.aircraftSpecs[choice.aircraftSpec]!, choice.loadout, false)
 
   /**
    * The Settings dialog's model and the boot sequence's side of it
@@ -567,8 +611,8 @@ async function boot(): Promise<void> {
   // so its first build shows the locked state, and advanced below at each
   // stage this function already passes through.
   const boot = createBootProgress()
-  const title = createTitleScreen(root, requestedScenarioId, (loadout, scenarioId, pilotId) => {
-    chosenLoadout = loadout
+  const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
+    chosen = choice
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
     // `roster` this closure already held: `titleScreen.ts`'s own `start()`
     // already called `startSortie` and `saveRoster` for exactly this pilot
@@ -590,7 +634,7 @@ async function boot(): Promise<void> {
     // gesture on a fetch instead of the click that produced it.
     void audio.resume()
     // `frame` may already exist by the time this fires, built with whatever
-    // `chosenLoadout` (and, after a scenario switch, `bundle`) held at THAT
+    // `chosen` (and, after a scenario switch, `bundle`) held at THAT
     // point -- rebuild it exactly like Restart does below, rather than only
     // unpausing, so a changed selection actually reaches the stores.
     // `buildWorld` is declared further down this function but, like `frame`
@@ -620,7 +664,12 @@ async function boot(): Promise<void> {
         resetFlightUi()
       }
     }
-    if (scenarioId !== requestedScenarioId) {
+    // Sortie forms: an aircraft change swaps the player's airframe mesh
+    // (Review Focus 5), and a Dev loadout needing the borrowed stations
+    // changes the bundle, so both reload exactly as a scenario change does.
+    const reload = choice.scenarioId !== requestedScenarioId || choice.aircraftSpec !== loadedAircraftSpec
+      || bundle === null || needsDevStores(bundle.aircraftSpecs[choice.aircraftSpec]!, choice.loadout)
+    if (reload) {
       // Plan 9 Task 7: a different scenario can carry a different ENTITY
       // LIST (aircraft, ships), which used to mean a full page reload
       // (`window.location.href = ?scenario=<id>`) because `airframes`/
@@ -631,7 +680,7 @@ async function boot(): Promise<void> {
       // second pick compares against the scenario now actually loaded, not
       // the one this boot started with, and so a return-to-title flight
       // followed by picking a THIRD scenario still detects a change.
-      requestedScenarioId = scenarioId
+      requestedScenarioId = choice.scenarioId
       // Held paused across the fetch (a return-to-title flight leaves `frame`
       // very much alive, just as `title.up()` already stops feeding it keys):
       // without this, the OLD scenario's world keeps stepping -- unpaused,
@@ -642,14 +691,21 @@ async function boot(): Promise<void> {
       // above) and the same shape `loadTerrainProgressively`'s `.catch` below
       // already uses: a mid-game fetch failure is the same "content the build
       // was supposed to ship" fault, just discovered later than boot.
-      void loadScenario(scenarioId, loadout).then(rebuildFrame).catch((err: unknown) => {
+      void loadScenario(choice).then(() => { devSortie = sortieNeededDev(choice); rebuildFrame() }).catch((err: unknown) => {
         loop?.stop()
         showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
       })
       return
     }
+    devSortie = sortieNeededDev(choice)
     rebuildFrame()
-  }, quality.settings, boot, { options: scenarioOptions(import.meta.env.DEV), loadScenario: (id) => loadScenarioFile(id) })
+  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
+  // A quick launch (A6, SF-R9) builds the title and hides it at once rather
+  // than skipping it: `title.up()` gates keys and pausing in several places,
+  // and "Return to title" must work as after any flight. No pilot is chosen,
+  // so `currentPilotId` stays null and nothing banks. Audio stays suspended
+  // until the first click, since no New game click supplied the gesture.
+  if (quick !== null) title.hide()
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
@@ -908,6 +964,23 @@ async function boot(): Promise<void> {
       // own doc comment in diagnostics.ts for why a Tier 2 spec needs this
       // rather than `groundHeightM()` to detect a switch completing.
       scenarioId: () => bundle?.scenario.id ?? null,
+      // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
+      // stamped by modelCache when there is one, rather than trusting the wrapper root's label.
+      // The hand-built Wildcat has no cache URL and names its own root instead.
+      playerModel: () => {
+        const root = scenarioEntities?.player.root
+        if (root === undefined) return null
+        const modelUrls: string[] = []
+        root.traverse((o) => {
+          if (typeof o.userData['modelUrl'] === 'string') modelUrls.push(o.userData['modelUrl'] as string)
+        })
+        const modelUrl = modelUrls[0]
+        return (modelUrl?.match(/([^/]+)\.glb(?:[?#].*)?$/)?.[1] ?? root.name) || null
+      },
+      sceneAirframeModels: () => {
+        const modelIds = new Set(loadFlyableAircraft().map((f) => f.spec.view.model))
+        return scene.children.flatMap((root) => modelIds.has(root.name) ? [root.name] : [])
+      },
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       gpuRenderTimesMs: () => gpuRenderTimesMs.slice(),
@@ -1031,7 +1104,7 @@ async function boot(): Promise<void> {
   }
 
   try {
-    await loadScenario(requestedScenarioId, chosenLoadout)
+    await loadScenario(chosen)
   } catch (err) {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
@@ -1506,7 +1579,7 @@ async function boot(): Promise<void> {
     at: new Date().toISOString(),
     scenarioId: requestedScenarioId,
     aircraft: playerAircraft(world).spec.name,
-    loadout: chosenLoadout,
+    loadout: chosen.loadout,
     outcome,
     segment,
   })
@@ -1542,19 +1615,13 @@ async function boot(): Promise<void> {
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     const discharged = friendlyFire === 'discharged'
     if (currentPilotId === null) return null
+    // A Dev sortie (sortie spec A5) banks nothing: `bankSortie` hands the same
+    // roster back, so there is nothing to save and no figure to show.
+    const devUnrecorded = devSortie && !recordDevSorties
     const before = roster.find((p) => p.id === currentPilotId) ?? null
-    // Friendly fire (spec §6, FF-6 as amended by Mark 2026-09-26): only this
-    // sortie is forfeit; what an earlier landing banked stays banked.
-    // A friendly-fire death banks K.I.A. with nothing credited: the dead are
-    // not discharged, but the sortie is still forfeit (FF-7 as amended).
-    roster = discharged
-      ? dischargeInRoster(roster, currentPilotId, outcome, sortie)
-      : friendlyFire === 'forfeit'
-        ? applyMissionResultToRoster(roster, currentPilotId, 0, outcome, zeroKillsByType(), sortie)
-        : applyMissionResultToRoster(roster, currentPilotId, scoreTotal, outcome, killsSinceLastBank, sortie)
-    // M2: a forfeit sortie never writes a badge (withMissionDebrief already
-    // returns none for one; this guard keeps the roster rule in one place).
-    if (badgeId !== null && friendlyFire === null) roster = awardBadgeInRoster(roster, currentPilotId, badgeId)
+    const next = bankSortie(roster, currentPilotId, { devSortie: devUnrecorded, scoreTotal, outcome, killsSinceLastBank, sortie, friendlyFire, badgeId })
+    if (next === roster) return null
+    roster = next
     saveRoster(roster)
     const after = roster.find((p) => p.id === currentPilotId) ?? null
     if (after === null) return null
@@ -1579,10 +1646,13 @@ async function boot(): Promise<void> {
     // different things under this tsconfig, and `DebriefModel.promotedTo` is
     // typed as absent-or-string, not string-or-undefined (matching
     // `continueLabel`'s existing convention on the same type).
+    // The one merge point for all three sites, so the Dev stamp (sortie spec
+    // A5) reaches every debrief without a fourth copy at each call.
+    const shown = withNotRecorded(model, devSortie && !recordDevSorties)
     debrief.show(
       banked === null
-        ? model
-        : { ...model, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
+        ? shown
+        : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
       onContinue,
       returnToTitle,
     )

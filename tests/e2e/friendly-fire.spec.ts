@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
  * Tier 2, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
@@ -27,7 +27,10 @@ const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!
 /** The roster flow for a fresh pilot, into the URL's scenario. */
 async function launch(page: Page, scenario: string, label: string, pilot: string): Promise<void> {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  await page.goto(`/?scenario=${scenario}`)
+  // The friendly-fire ranges are Dev-only test beds (sortie spec A1): `?scenario=`
+  // checks Dev (A2), and `recordDevSorties` (SF-R6) keeps the K.I.A. and
+  // DISCHARGED this spec proves on the roster and Dossier.
+  await page.goto(`/?scenario=${scenario}&recordDevSorties`)
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
   await title.getByRole('button', { name: 'New pilot' }).click()
@@ -35,7 +38,7 @@ async function launch(page: Page, scenario: string, label: string, pilot: string
   await title.getByRole('button', { name: 'Add' }).click()
   await title.getByRole('button', { name: 'New game' }).click()
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: label }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
   await waitForScenario(page, scenario)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {

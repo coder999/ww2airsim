@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
 
@@ -160,7 +160,7 @@ test('land, return to title, New game, land again: a second debrief shows and th
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
   await waitForScenario(page, 'gunnery-range')
 
@@ -192,7 +192,7 @@ test('land, return to title, New game, land again: a second debrief shows and th
   // `rebuildFrame()` call, not `loadScenario(...).then(rebuildFrame)`), the
   // other of the two paths through `onNewGame` the fix has to cover.
   await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  await reshownTitle.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(reshownTitle)
   await expect(reshownTitle).toBeHidden()
 
   // The world rebuilt fresh: target-1 is alive again, not still wrecked from

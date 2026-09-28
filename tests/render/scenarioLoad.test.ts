@@ -29,6 +29,12 @@ describe('loadScenarioBundle (browser twin)', () => {
     }
   })
 
+  it('playerSpec swaps the player before the spec fetch, and fetches the new spec (sortie forms)', async () => {
+    const b = await loadScenarioBundle('combat-air-patrol', diskFetch, 'f4f-wildcat')
+    expect(b.scenario.aircraft.find((a) => a.id === b.scenario.player)!.spec).toBe('f4f-wildcat')
+    expect(b.aircraftSpecs['f4f-wildcat']!.id).toBe('f4f-wildcat')
+  })
+
   it('fails loudly on a missing file, naming it', async () => {
     await expect(loadScenarioBundle('no-such-scenario', diskFetch)).rejects.toThrow(/no-such-scenario.*404/)
   })

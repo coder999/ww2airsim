@@ -54,9 +54,9 @@ These are claims to re-check in P3.
 
 ## Preconditions
 
-- [ ] **P1. Create the worktree** with superpowers:using-git-worktrees: branch `worktree-sortie-forms` from `main`. Start the ledger `.superpowers/sdd/2026-09-27-sortie-forms/progress.md`.
-- [ ] **P2. Baseline.** `remote-run npm run verify; rc=$?; echo "rc=$rc"`. Record rc, the file and test counts, and every named skip in the ledger.
-- [ ] **P3. Re-check the Measured section.** For each bullet, run the command or read the line cited. Record any difference in the ledger before Task 1. A difference that changes a task is a ruling to write down, not a silent edit.
+- [x] **P1. Create the worktree** with superpowers:using-git-worktrees: branch `worktree-sortie-forms` from `main`. Start the ledger `.superpowers/sdd/2026-09-27-sortie-forms/progress.md`.
+- [x] **P2. Baseline.** `remote-run npm run verify; rc=$?; echo "rc=$rc"`. Record rc, the file and test counts, and every named skip in the ledger.
+- [x] **P3. Re-check the Measured section.** For each bullet, run the command or read the line cited. Record any difference in the ledger before Task 1. A difference that changes a task is a ruling to write down, not a silent edit.
 
 ## Global Constraints
 
@@ -138,7 +138,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   export function sortieBundle(bundle: ScenarioBundle, loadout: Loadout, devStores: AircraftSpec['stores']): ScenarioBundle
   ```
 
-- [ ] **Step 1: Add the two required fields to the schema.** In `AircraftSpecObject`, directly after `role`:
+- [x] **Step 1: Add the two required fields to the schema.** In `AircraftSpecObject`, directly after `role`:
 
   ```ts
   /** Who flies it, in the Library's vocabulary (`SIDES`, hangar/library.ts).
@@ -153,7 +153,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Add `"side"` and `"carrierCapable"` after `"role"` in each content file: `f6f-hellcat` allied/true, `f4f-wildcat` allied/true, `a6m2-zero` japanese/true (the spec's table). Add `side: 'allied', carrierCapable: true,` to `schema.test.ts`'s `valid` literal after `role`.
 
-- [ ] **Step 2: Write the failing tests** in `tests/sim/sortie.test.ts`:
+- [x] **Step 2: Write the failing tests** in `tests/sim/sortie.test.ts`:
 
   ```ts
   import { describe, expect, it } from 'vitest'
@@ -285,9 +285,9 @@ A second session drafted a plan for the same spec and compared it with this one.
   })
   ```
 
-- [ ] **Step 3: Run them to verify they fail.** `npx vitest run tests/sim/sortie.test.ts tests/content/aircraftSide.test.ts tests/sim/flight/schema.test.ts`. Expected: FAIL, because `src/sim/sortie.ts` does not exist.
+- [x] **Step 3: Run them to verify they fail.** `npx vitest run tests/sim/sortie.test.ts tests/content/aircraftSide.test.ts tests/sim/flight/schema.test.ts`. Expected: FAIL, because `src/sim/sortie.ts` does not exist.
 
-- [ ] **Step 4: Implement `src/sim/sortie.ts`:**
+- [x] **Step 4: Implement `src/sim/sortie.ts`:**
 
   ```ts
   import type { AircraftSpec } from './flight/schema.js'
@@ -379,11 +379,11 @@ A second session drafted a plan for the same spec and compared it with this one.
   }
   ```
 
-- [ ] **Step 5: Run the tests to verify they pass**, with the same command as Step 3. Expected: PASS. If the bit-identity test fails for a scenario, that is a real regression; do not loosen the assertion.
+- [x] **Step 5: Run the tests to verify they pass**, with the same command as Step 3. Expected: PASS. If the bit-identity test fails for a scenario, that is a real regression; do not loosen the assertion.
 
-- [ ] **Step 6: `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: rc=0. Test counts are P2's plus this task's.
+- [x] **Step 6: `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: rc=0. Test counts are P2's plus this task's.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
   ```bash
   git add src/sim/flight/schema.ts src/sim/sortie.ts content/aircraft/*.json tests/sim/sortie.test.ts tests/content/aircraftSide.test.ts tests/sim/flight/schema.test.ts
@@ -435,7 +435,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   export function devLayoutNote(ctx: FlowContext, specId: string, loadout: Loadout): string | null
   ```
 
-- [ ] **Step 1: Extend `ScenarioOption` and merge the tables.** Fold `DEV_SCENARIO_OPTIONS` into `SCENARIO_OPTIONS` at the end, then delete `DEV_SCENARIO_OPTIONS`. Give every row `dev`, `start`, `aircraft` and, where the file has a briefing, `recommendedLoadout`. Use the Measured table above. The rows are:
+- [x] **Step 1: Extend `ScenarioOption` and merge the tables.** Fold `DEV_SCENARIO_OPTIONS` into `SCENARIO_OPTIONS` at the end, then delete `DEV_SCENARIO_OPTIONS`. Give every row `dev`, `start`, `aircraft` and, where the file has a briefing, `recommendedLoadout`. Use the Measured table above. The rows are:
   - `dev: true` exactly for `furball-range`, `friendly-fire-range`, `friendly-fire-field`, `dev-mission-ui` and `dev-mission-circuit` (A1).
   - `aircraft: 'f6f-hellcat'` on every row.
   - `description` on each range:
@@ -468,7 +468,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   `badgeName` and `scenarioLabel` search `SCENARIO_OPTIONS`. `PRODUCTION_MISSIONS` becomes `{ options: SCENARIO_OPTIONS, loadScenario: null }`. Move `DEFAULT_LOADOUT` to `sortieFlow.ts` and re-export it from `titleScreen.ts` (`export { DEFAULT_LOADOUT } from './sortieFlow.js'`) so `main.ts`'s import is unchanged. `sortieFlow.ts` may import only *types* from `titleScreen.ts`. If `npm run depcruise` reports that type import as a cycle (it depends on its `tsPreCompilationDeps` setting), move the `ScenarioOption` type into `sortieFlow.ts` and re-export it from `titleScreen.ts`; record which.
 
-- [ ] **Step 2: Pin the restated facts** in `tests/render/mission/options.test.ts`. Add these tests beside the existing `kind`/`badge` ones, reading each file with `loadScenario`:
+- [x] **Step 2: Pin the restated facts** in `tests/render/mission/options.test.ts`. Add these tests beside the existing `kind`/`badge` ones, reading each file with `loadScenario`:
 
   ```ts
   it('start, aircraft and recommendedLoadout restate the file (SF-R7)', () => {
@@ -492,7 +492,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Update any existing assertion there or in `titleScreen.test.ts` that used `DEV_SCENARIO_OPTIONS` or the two-argument `isKnownScenarioId`. Add `expect(isKnownScenarioId('furball-range')).toBe(true)`, `expect(scenarioOptions(false).some((o) => o.value === 'furball-range')).toBe(false)`, and `expect(isKnownScenarioId('no-such-scenario')).toBe(false)`.
 
-- [ ] **Step 3: Write `src/render/sortie/flyable.ts`** and its test:
+- [x] **Step 3: Write `src/render/sortie/flyable.ts`** and its test:
 
   ```ts
   import type { AircraftSpec } from '../../sim/flight/schema.js'
@@ -551,7 +551,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   }
   ```
 
-- [ ] **Step 4: Write the failing form-model tests** in `tests/render/sortieFlow.test.ts`. Build `ctx` from `SCENARIO_OPTIONS` and a `flyableAircraft(...)` list made from disk as in Step 3, with `dev` set per test. Pin, one `it` each:
+- [x] **Step 4: Write the failing form-model tests** in `tests/render/sortieFlow.test.ts`. Build `ctx` from `SCENARIO_OPTIONS` and a `flyableAircraft(...)` list made from disk as in Step 3, with `dev` set per test. Pin, one `it` each:
   - `visibleScenarios` hides exactly the five Dev rows when Dev is off.
   - `aircraftFor(ctx, 'deck-quals')`: Hellcat and Wildcat with Dev off; plus the Zero with Dev on.
   - `initialDraft(ctx, 'combat-air-patrol')` is `{ aircraftSpec: 'f6f-hellcat', loadout: 'clean' }` (recommended).
@@ -565,9 +565,9 @@ A second session drafted a plan for the same spec and compared it with this one.
     - a legal draft comes back unchanged (`toBe`-equal fields).
   - `devLayoutNote(devCtx, 'a6m2-zero', 'bombs')` is `'dev layout: Hellcat stations'`; for the Hellcat, or `'clean'` on the Zero, it is `null`.
 
-- [ ] **Step 5: Run them to verify they fail**: `npx vitest run tests/render/sortieFlow.test.ts`. Expected: FAIL.
+- [x] **Step 5: Run them to verify they fail**: `npx vitest run tests/render/sortieFlow.test.ts`. Expected: FAIL.
 
-- [ ] **Step 6: Implement `src/render/sortieFlow.ts`:**
+- [x] **Step 6: Implement `src/render/sortieFlow.ts`:**
 
   ```ts
   import type { Loadout } from '../sim/weapons/stores.js'
@@ -642,9 +642,9 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   In `reconcile`, when the draft is unchanged, return the same object: `if (aircraftOk && loadoutOk) return draft`.
 
-- [ ] **Step 7: Run the Task 2 test files, then `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: PASS; rc=0.
+- [x] **Step 7: Run the Task 2 test files, then `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: PASS; rc=0.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
   ```bash
   git add src/render/titleScreen.ts src/render/sortieFlow.ts src/render/sortie/ tests/render/sortieFlow.test.ts tests/render/sortie/ tests/render/mission/options.test.ts tests/render/titleScreen.test.ts
@@ -668,7 +668,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   - `createTitleScreen`'s callback becomes `onNewGame: (choice: SortieChoice, pilotId: string | null) => void`
   - in `main.ts`: `let chosen: SortieChoice`, `let devStores: AircraftSpec['stores']`, `let devSortie: boolean` (Task 4 reads it)
 
-- [ ] **Step 1: Failing loader test** in `tests/render/scenarioLoad.test.ts`, beside the existing disk-fetch tests:
+- [x] **Step 1: Failing loader test** in `tests/render/scenarioLoad.test.ts`, beside the existing disk-fetch tests:
 
   ```ts
   it('playerSpec swaps the player before the spec fetch, and fetches the new spec', async () => {
@@ -679,15 +679,15 @@ A second session drafted a plan for the same spec and compared it with this one.
   it('without playerSpec the browser and Node loaders still agree', async () => { /* the existing parity test, unchanged */ })
   ```
 
-- [ ] **Step 2: Run it, expect FAIL; then implement.** In `loadScenarioBundle`, add `playerSpec?: string` and rewrite the parsed scenario first: `const scenario = playerSpec === undefined ? parsed : withPlayerSpec(parsed, playerSpec)`. Everything after reads `scenario`. Run again; expect PASS.
+- [x] **Step 2: Run it, expect FAIL; then implement.** In `loadScenarioBundle`, add `playerSpec?: string` and rewrite the parsed scenario first: `const scenario = playerSpec === undefined ? parsed : withPlayerSpec(parsed, playerSpec)`. Everything after reads `scenario`. Run again; expect PASS.
 
-- [ ] **Step 3: A4, the Hellcat's own model.**
+- [x] **Step 3: A4, the Hellcat's own model.**
   - Set `"model": "f6f-hellcat"` in `content/aircraft/f6f-hellcat.json`'s `view`.
   - `tests/render/airframes.test.ts` already requires every `content/aircraft/*.json` `view.model` to be registered. Add one assertion: `loadAircraftSpec('f6f-hellcat').view.model` is `'f6f-hellcat'`.
   - Then check whether the Hellcat's eye point (`view.eyePointM`) and store mounts were set against the Wildcat mesh. Read the git log of `content/aircraft/f6f-hellcat.json`, and R3's ruling P1 on "re-measured guns, zones and eye point" in `docs/superpowers/plans/2026-09-26-r3-aircraft-models.md`.
   - Record in the ledger what you found. Task 8's captures (parked, on deck, stores hung) are the visual check. Do not re-measure the eye point in this plan; if it is visibly wrong, record it as an open item for Mark.
 
-- [ ] **Step 4: Wire `main.ts`.**
+- [x] **Step 4: Wire `main.ts`.**
   - Replace `let chosenLoadout: Loadout = DEFAULT_LOADOUT` with `let chosen: SortieChoice`. Initialize it at the `?scenario=` resolution to the scenario's own aircraft and default loadout. Task 6 adds the quick-launch branch here.
 
     ```ts
@@ -712,11 +712,11 @@ A second session drafted a plan for the same spec and compared it with this one.
     - `currentPilotId = pilotId`; `null` is legal (Task 6).
   - An illegal non-Dev choice throws inside `loadScenario` and reaches the existing `.catch` → `showFailure(root, 'bad-content', message)`, so it "fails loudly by name".
 
-- [ ] **Step 5: Update `titleScreen.ts`'s `onNewGame` type** and its one call. `start()` passes `{ scenarioId: selectedScenarioId, aircraftSpec: 'f6f-hellcat' /* Task 5 replaces */, loadout: selectedLoadout, dev: false }` and `pilotId`. Task 5 replaces this with the draft.
+- [x] **Step 5: Update `titleScreen.ts`'s `onNewGame` type** and its one call. `start()` passes `{ scenarioId: selectedScenarioId, aircraftSpec: 'f6f-hellcat' /* Task 5 replaces */, loadout: selectedLoadout, dev: false }` and `pilotId`. Task 5 replaces this with the draft.
 
-- [ ] **Step 6: Tier 1 for the swap end to end.** In `tests/sim/sortie.test.ts`, add a test: for `deck-quals`, a choice of `f4f-wildcat` with `both` gives a world whose player spec is the Wildcat and whose player stores are `{ bombs: 2, rockets: 6 }`. Build it with `withPlayerSpec` plus `bundleForScenario` (`tools/content/load.ts:65`) plus `sortieBundle`. Run it with `npx vitest run tests/sim/sortie.test.ts tests/render/scenarioLoad.test.ts tests/render/airframes.test.ts`.
+- [x] **Step 6: Tier 1 for the swap end to end.** In `tests/sim/sortie.test.ts`, add a test: for `deck-quals`, a choice of `f4f-wildcat` with `both` gives a world whose player spec is the Wildcat and whose player stores are `{ bombs: 2, rockets: 6 }`. Build it with `withPlayerSpec` plus `bundleForScenario` (`tools/content/load.ts:65`) plus `sortieBundle`. Run it with `npx vitest run tests/sim/sortie.test.ts tests/render/scenarioLoad.test.ts tests/render/airframes.test.ts`.
 
-- [ ] **Step 7: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit:
+- [x] **Step 7: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit:
 
   ```bash
   git add src/render/scenarioLoad.ts src/render/main.ts src/render/titleScreen.ts content/aircraft/f6f-hellcat.json tests/
@@ -743,7 +743,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   - `export function recordDevSortiesFromQuery(search: string, devBuild: boolean): boolean` (in `devRecord.ts`)
   - `export function sortieIsDev(option: ScenarioOption, spec: AircraftSpec, loadout: Loadout, quickLaunch: boolean): boolean` (in `devRecord.ts`, so `titleScreen.ts` and `main.ts` share it)
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - `devRecord.test.ts`:
     - `recordDevSortiesFromQuery('?recordDevSorties', true)` is `true`;
     - the same query with `false` is `false` (the production build ignores it, SF-R6);
@@ -762,7 +762,7 @@ A second session drafted a plan for the same spec and compared it with this one.
       It returns `roster` unchanged (`toBe`) when `devSortie` is true. `bankMissionResult` then calls it, and its `saveRoster` runs only when the returned roster `!==` the input.
     - Assert `JSON.stringify(roster)` is unchanged for `landed`, `ditched`, `killed`, discharged and forfeit when `devSortie` is true, and changed for `landed` when `devSortie` is false.
 
-- [ ] **Step 2: Run them, expect FAIL; implement.**
+- [x] **Step 2: Run them, expect FAIL; implement.**
   - `bankSortie` as above.
   - `bankMissionResult` computes the flag as `devSortie && !recordDevSorties`, with `recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(location.search, true) : false` read once at boot.
   - In `main.ts`, compute `devSortie` in `onNewGame` (and at boot for a quick launch, Task 6) with `sortieIsDev(option, spec, loadout, quickLaunch)`. Read `spec` from the loaded bundle after `loadScenario`. Store it in a `let devSortie = false` beside `chosen`.
@@ -770,9 +770,9 @@ A second session drafted a plan for the same spec and compared it with this one.
   - `debrief.ts` renders `notRecorded` as a plain row directly under the headline stamp, with the text `DEV_SORTIE_STAMP`. Use the existing `plainRow` helper; no new style.
   - `titleScreen.ts`'s `start()`: skip `startSortie` and `saveRoster` when `sortieIsDev(...)` is true for the draft; still `hide()` and call `onNewGame`. The title gets its `recordDevSorties` flag as a new optional last parameter, default `false`, so the SF-R6 switch applies to the launch-time write too. `main.ts` passes it.
 
-- [ ] **Step 3: Run the Task 4 test files, then `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: PASS; rc=0.
+- [x] **Step 3: Run the Task 4 test files, then `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: PASS; rc=0.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
   ```bash
   git add src/render/roster.ts src/render/main.ts src/render/debrief.ts src/render/devRecord.ts src/render/titleScreen.ts tests/render/
@@ -796,7 +796,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   - `TitleMissions` gains `readonly flyable: readonly FlyableAircraft[]`
   - The radiogroups are named `Scenario`, `Aircraft` and `Loadout`; the Dev control is a checkbox named `Dev — unlocks everything`. Task 7's harness selects by these names.
 
-- [ ] **Step 1: Failing Node tests** in `titleScreen.test.ts`:
+- [x] **Step 1: Failing Node tests** in `titleScreen.test.ts`:
   - `Object.keys(TITLE_FORMS)` is `['roster', 'orders', 'aircraft', 'ordnance']`;
   - the numbers are `Form 1 of 4` through `Form 4 of 4`;
   - the titles are `Squadron Roster`, `Sortie Orders`, `Aircraft Assignment` and `Ordnance Requisition`;
@@ -805,9 +805,9 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Replace the old `Form 1 of 2`/`Form 2 of 2` assertions (lines 267-268).
 
-- [ ] **Step 2: Run, expect FAIL; implement the model constants**, then run again and expect PASS.
+- [x] **Step 2: Run, expect FAIL; implement the model constants**, then run again and expect PASS.
 
-- [ ] **Step 3: Build the DOM.** Everything below reuses the file's existing helpers: `memoPanel`, `letterhead`, `sectionTitle`, `ballotOption`, `radioGroup`, `markGroup`, `inkButton` and `buttonRow`. It needs no new CSS beyond one checkbox row.
+- [x] **Step 3: Build the DOM.** Everything below reuses the file's existing helpers: `memoPanel`, `letterhead`, `sectionTitle`, `ballotOption`, `radioGroup`, `markGroup`, `inkButton` and `buttonRow`. It needs no new CSS beyond one checkbox row.
   - **Dev state:**
     - `let dev = false` lives in `createTitleScreen`'s closure, **outside** `build()`, so it survives return-to-title.
     - A `?scenario=` that names a Dev-only row sets it to `true` once, at construction (A2): `dev = SCENARIO_OPTIONS.find((o) => o.value === currentScenarioId)?.dev === true`.
@@ -839,11 +839,11 @@ A second session drafted a plan for the same spec and compared it with this one.
     - calls `onNewGame(choice, pilotId)`.
   - **The file's top comment** says four forms and points at the spec. Remove every "of 2" wording.
 
-- [ ] **Step 4: Pass the catalog.** In `main.ts`'s `createTitleScreen` call, pass `{ options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), loadScenario: (id) => loadScenarioFile(id) }`. `PRODUCTION_MISSIONS` gets `flyable: []`. With an empty catalog, Form 3 offers the scenario's own aircraft as a single row: guard `aircraftFor` to fall back to `[option.aircraft]` by id when `flyable` is empty, and pin that with one Node test. This keeps the constructor default working for the existing title tests.
+- [x] **Step 4: Pass the catalog.** In `main.ts`'s `createTitleScreen` call, pass `{ options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), loadScenario: (id) => loadScenarioFile(id) }`. `PRODUCTION_MISSIONS` gets `flyable: []`. With an empty catalog, Form 3 offers the scenario's own aircraft as a single row: guard `aircraftFor` to fall back to `[option.aircraft]` by id when `flyable` is empty, and pin that with one Node test. This keeps the constructor default working for the existing title tests.
 
-- [ ] **Step 5: Run `npx vitest run tests/render/titleScreen.test.ts tests/render/sortieFlow.test.ts`, then `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: PASS; rc=0. Tier 2 is expected to be red here until Task 7 updates the harness. Do not run it yet.
+- [x] **Step 5: Run `npx vitest run tests/render/titleScreen.test.ts tests/render/sortieFlow.test.ts`, then `remote-run npm run verify; rc=$?; echo "rc=$rc"`.** Expected: PASS; rc=0. Tier 2 is expected to be red here until Task 7 updates the harness. Do not run it yet.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
   ```bash
   git add src/render/titleScreen.ts src/render/main.ts src/render/sortieFlow.ts tests/render/
@@ -862,7 +862,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 - Consumes: Task 1's `SortieChoice`, `ALL_LOADOUTS`; Task 2's `SCENARIO_OPTIONS`; Task 3's `chosen`; Task 4's `devSortie`.
 - Produces: `export function quickLaunchFromQuery(search: string, knownAircraft: readonly string[]): { readonly aircraft?: string; readonly loadout?: Loadout } | null`. It returns `null` without `launch`, and throws `Error('quick launch: unknown aircraft "<v>"')` or `Error('quick launch: unknown loadout "<v>"')`.
 
-- [ ] **Step 1: Failing tests:**
+- [x] **Step 1: Failing tests:**
 
   ```ts
   it.each([
@@ -876,9 +876,9 @@ A second session drafted a plan for the same spec and compared it with this one.
   })
   ```
 
-- [ ] **Step 2: Run, expect FAIL; implement** with `URLSearchParams`, returning only the keys present. Run again; expect PASS.
+- [x] **Step 2: Run, expect FAIL; implement** with `URLSearchParams`, returning only the keys present. Run again; expect PASS.
 
-- [ ] **Step 3: Wire it in `main.ts`.**
+- [x] **Step 3: Wire it in `main.ts`.**
   - Inside the existing `?scenario=` `try`, call `quickLaunchFromQuery(location.search, loadFlyableAircraft().map((f) => f.spec.id))`. A throw goes to the same `showFailure(root, 'bad-content', ...)`.
   - When it returns non-null:
     - `chosen = { scenarioId, aircraftSpec: q.aircraft ?? option.aircraft, loadout: q.loadout ?? option.recommendedLoadout ?? DEFAULT_LOADOUT, dev: true }`;
@@ -888,7 +888,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   - The boot `loadScenario(chosen)` then builds the chosen world.
   - Verify: search `main.ts` for every `title.up()` read. Each must treat a hidden title as "flight running", which is what `hide()` gives. Record any that assume `onNewGame` ran, such as `audio.resume()`. The known consequence is that audio stays suspended until the first click, which Tier 2 does not assert.
 
-- [ ] **Step 4: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit:
+- [x] **Step 4: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit:
 
   ```bash
   git add src/render/spawn.ts src/render/main.ts tests/render/
@@ -914,7 +914,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Here `scenario` and `aircraft` are row **labels**, as the specs already select by label; `quickLaunch` takes ids. `scenario` must be the **exact, full** label (AD-1); `aircraft` may be a distinctive part of one.
 
-- [ ] **Step 1: Rewrite `startGame`.** Keep the pilot-selection half verbatim. After `newGame.click()`:
+- [x] **Step 1: Rewrite `startGame`.** Keep the pilot-selection half verbatim. After `newGame.click()`:
 
   ```ts
   if (options.dev === true) {
@@ -934,7 +934,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Check Dev on Form 1 before New game instead of going Back, if that reads more simply once the pilot is selected. Either way, update the doc comment to say four forms. `quickLaunch` does `page.goto(`/?scenario=${o.scenario}&launch...`)`, then `waitForScenario(page, o.scenario)`.
 
-- [ ] **Step 2: Update the specs that drive the forms themselves.**
+- [x] **Step 2: Update the specs that drive the forms themselves.**
   - `title.spec.ts`: `Form 1 of 4` … `Form 4 of 4`, with Next between forms 2, 3 and 4. It must also prove Back and Enter on each form (the spec lists these under Tier 1, but `titleScreen.ts`'s DOM is not reachable from the Node suite; its own comment says why):
     - Enter advances forms 1-3 and launches from form 4;
     - Back from forms 2-4 lands on the previous form with the draft intact (the same row still `aria-checked`).
@@ -943,7 +943,7 @@ A second session drafted a plan for the same spec and compared it with this one.
   - Every other spec that clicked `Launch` directly now clicks `Next` twice first.
   - Do not weaken any assertion. If one no longer holds, record why in the ledger.
 
-- [ ] **Step 3: Run the Tier 2 specs this task touched** on the reference GPU through the spare slot:
+- [x] **Step 3: Run the Tier 2 specs this task touched** on the reference GPU through the spare slot:
 
   ```sh
   ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
@@ -952,7 +952,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Pass the spec files by path: `playwright test <name>` collects nothing here, because `strike.spec.ts` imports `content.ts`. Expected: rc=0. For any failure, check it against `main` with a probe before blaming this branch (M2 handoff lesson: sea dives and hop-and-land depend on timing).
 
-- [ ] **Step 4: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit:
+- [x] **Step 4: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit:
 
   ```bash
   git add tests/e2e/
@@ -968,7 +968,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 - Create: `docs/handoff/2026-09-27-sortie-forms.md` (use the date the task runs), `docs/handoff/<date>-sortie-forms-shots/`
 - Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` §15 (Plan 9's row), `README.md` (the title-screen paragraph near line 220)
 
-- [ ] **Step 1: Write `tests/e2e/sortie.spec.ts`** with these tests. Each follows the existing specs' shape (`page.goto`, `startGame`/`quickLaunch`, `waitForScenario`, the `__ww2` diagnostics).
+- [x] **Step 1: Write `tests/e2e/sortie.spec.ts`** with these tests. Each follows the existing specs' shape (`page.goto`, `startGame`/`quickLaunch`, `waitForScenario`, the `__ww2` diagnostics).
   1. **A non-Dev carrier mission offers only carrier-capable allied aircraft.** Use Carrier Qualification. Form 3's `Aircraft` radiogroup has exactly the Hellcat and the Wildcat rows, and no row containing `Zero`. Check Dev: the Zero row appears, labeled `(Japanese)`.
   2. **A Dev Zero with bombs releases a real bomb.** `startGame(page, { dev: true, scenario: 'Free Flight', aircraft: 'Zero', loadout: 'Bombs' })`.
      - Form 4 showed `dev layout: Hellcat stations`; assert it before Launch by driving the forms in the test rather than through `startGame`.
@@ -990,16 +990,16 @@ A second session drafted a plan for the same spec and compared it with this one.
      - Repeat with `status: 'discharged'`, expecting `DISCHARGED`.
      - Control case, which proves the test can see a resurrection: the same KIA pilot launching the default non-Dev sortie comes back `'active'` with `resurrections + 1`.
 
-- [ ] **Step 2: Run the Tier 2 suite on the reference GPU**, twice, the M4 way: `tests/e2e/sortie.spec.ts` plus every file Task 7 touched. Record both rc values and durations. Then run the full `npm run test:tier2` once through the spare slot, and record rc and any pre-existing failures, checked against `main`. Also run the GPU budget spec (gpu p95 < 6.0 ms at 1440p). The Hellcat's own model replaces the Wildcat's in every default scenario, so record the p95 before and after.
+- [x] **Step 2: Run the Tier 2 suite on the reference GPU**, twice, the M4 way: `tests/e2e/sortie.spec.ts` plus every file Task 7 touched. Record both rc values and durations. Then run the full `npm run test:tier2` once through the spare slot, and record rc and any pre-existing failures, checked against `main`. Also run the GPU budget spec (gpu p95 < 6.0 ms at 1440p). The Hellcat's own model replaces the Wildcat's in every default scenario, so record the p95 before and after.
 
-- [ ] **Step 3: Frozen captures for Mark.** Copy the four form captures into `docs/handoff/<date>-sortie-forms-shots/`. Add three flight captures:
+- [x] **Step 3: Frozen captures for Mark.** Copy the four form captures into `docs/handoff/<date>-sortie-forms-shots/`. Add three flight captures:
   - the default Hellcat parked at Tacloban;
   - the default Hellcat spotted on the Essex (`deck-quals`);
   - the Dev Zero with Hellcat-layout bombs hung.
 
   Read every capture before writing about it. A capture that shows a wheel off the ground, a store floating off the wing or an eye point outside the canopy becomes an open item, with the capture named.
 
-- [ ] **Step 4: Write the handoff.** Follow M4's shape:
+- [x] **Step 4: Write the handoff.** Follow M4's shape:
   1. what changed, commit by commit;
   2. measured numbers: verify counts, Tier 2 runs, GPU p95 before and after;
   3. rulings: SF-R1 to SF-R9, the addenda AD-1 to AD-3 (say which way AD-3 went), and execution rulings from the ledger, **with SF-R6 called out for Mark's decision**;
@@ -1008,7 +1008,7 @@ A second session drafted a plan for the same spec and compared it with this one.
 
   Update Plan 9's §15 row with one sentence and the plan, spec and handoff links. Replace README's "Form 1 of 2 … Form 2 of 2" description with the four forms, the Dev checkbox and the quick launch, pointing at `titleScreen.ts` and the spec rather than restating the rules.
 
-- [ ] **Step 5: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit, push the branch, and email the handoff:
+- [x] **Step 5: `remote-run npm run verify; rc=$?; echo "rc=$rc"`**, expecting rc=0. Commit, push the branch, and email the handoff:
 
   ```bash
   git add tests/e2e/sortie.spec.ts docs/ README.md
