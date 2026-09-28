@@ -2,7 +2,8 @@
 
 Design, 2026-09-28. Written at Mark's request the same day. **Approved by
 Mark 2026-09-28 ("Looks good"), with every §8 question ruled as
-recommended.** **It starts after R4/R5 merge** (§7). Plan
+recommended.** **Amended 2026-09-28 (Mark): the detail layer is baked into
+one atlas, not carried on a second UV set (§4 ruling).** **It starts after R4/R5 merge** (§7). Plan
 numbering stays with the master spec's §15; this work adds one row there,
 "Model detail pass (DP0-DP3)", when DP0 is planned.
 
@@ -101,13 +102,25 @@ reproducible:
    - panel lines and rivet rows along the kit's own station and spar positions;
    - exhaust staining and walkway wear.
    All of it is original drawing, AGPL-3.0-or-later, so no license work is needed.
-2. **Shared detail on `TEXCOORD_1` (world-scaled, tiled).** This is O1's
+2. **Shared detail, baked into the atlas (ruled 2026-09-28, see below).** This is O1's
    `PAINTED_METAL` approach, generalized to a small set of pinned CC0
    scans, one per surface: painted metal, weathered deck planking, concrete,
-   corrugated iron and sandbag. It supplies micro-normal and roughness
-   variation. Three.js (0.186 here) selects the UV channel per texture (`texture.channel`),
-   and glTF carries it as `texCoord`. §8 Q5 covers the fallback if the
-   runtime's material path does not honor it.
+   corrugated iron and sandbag. It supplies micro-normal, wear and roughness
+   variation. The TS stage samples each scan at world scale (meters per tile)
+   through each part's own UV parameterization, filtered to the atlas texel's
+   footprint, and composites it into the same three atlas maps.
+
+   **Ruling, Mark, 2026-09-28: one UV set; the detail layer is baked.** The
+   first draft put the detail on `TEXCOORD_1`. glTF gives a material one
+   base-color, one normal and one metallic-roughness texture, and the atlas
+   already needs the first two (camouflage and markings; panel lines, §3).
+   So a second UV set could have carried only the tiled roughness, and the
+   scan's micro-normals and wear would have had no slot without a custom
+   runtime shader. Mark chose §8 Q5's fallback up front: no `TEXCOORD_1`,
+   no runtime change. The cost is that micro-detail is limited by atlas
+   texel density, about 1 cm on the Ki-84 at 1024 px and about 12 cm on the
+   hangar at 512 px. Sampling is filtered to the texel footprint, so a
+   pattern finer than a texel averages out rather than aliasing.
 
 Map sizes: 1024 px atlases for aircraft and ships, 512 px for buildings, and
 512 px for the shared detail, which is embedded once per model. The entries'
@@ -150,7 +163,7 @@ than in per-model images.
   - Every Blender entry, and every download the new UV stage touches, rebuilds byte-identically (the existing `blenderEntries.test.ts`, plus the stage fixture).
   - The atlas renderer is pinned by a golden-image hash.
 - **Tier 1, content.**
-  - Each entry off the allowlist has `TEXCOORD_0`, base-color, metallic-roughness and normal maps, and `TEXCOORD_1` where it uses the detail layer.
+  - Each entry off the allowlist has `TEXCOORD_0`, base-color, metallic-roughness and normal maps, and no `TEXCOORD_1` (§4 ruling).
   - Each such entry is within budget, and its measured dimensions are still within tolerance of its cited figures.
   - **The `textures).toBe(0)` pins in `tests/tools/models/blender/hangar.test.ts:70` and `tests/tools/models/buildingModels.test.ts:75` are replaced deliberately**, in the same commit that textures the model, never loosened ahead of it.
   - The flat-shaded allowlist shrinks and never grows.
@@ -161,7 +174,7 @@ than in per-model images.
 
 | Plan | Contents | Waits for |
 | --- | --- | --- |
-| **DP0** Pipeline and pilots | Kit UV writer, vector-instruction export, TS atlas stage, shared detail scans (pinned), `TEXCOORD_1` in the runtime, allowlist; Ki-84 and hangar to the full bar; Mark's viewing checkpoint (§5) | R4/R5 merged (they edit `kit.py` and the building scripts; working in parallel collides, as the 2026-09-02 and 2026-09-27 incidents showed) |
+| **DP0** Pipeline and pilots | Kit UV writer, vector-instruction export, TS atlas stage, shared detail scans (pinned) baked into the atlas, allowlist; Ki-84 and hangar to the full bar; Mark's viewing checkpoint (§5) | R4/R5 merged (they edit `kit.py` and the building scripts; working in parallel collides, as the 2026-09-02 and 2026-09-27 incidents showed) |
 | **DP1** Aircraft | Ki-21, B-29, P-38 to the DP0 look | DP0 merged |
 | **DP2** Ships | Winding fix, then Pennsylvania, Kagero, Casablanca; the box-projection stage and the 4 downloads if Q1 is yes | DP0 merged; independent of DP1 |
 | **DP3** Buildings | The remaining 9 buildings; delete the allowlist | DP0 merged |
@@ -177,7 +190,7 @@ or in worktrees with kit changes landing only in DP0.
 2. **Finish: factory-fresh or Pacific-worn?** *Recommend worn:* chalking and fading on IJN green, exhaust and gun staining, deck wear. It is what period photographs show, and it hides the procedural origin better.
 3. **Markings: a generic unit, or one specific cited airframe per type?** *Recommend one cited airframe each*, like the scripts' cited dimensions. A header names the unit and the photograph's source, or labels the markings ESTIMATE when no source is found.
 4. **Swap the Blender buildings into the airfields in the same pass?** *Recommend no*, and keep roster spec §6.3's separate decision. Once DP3 lands, though, the in-game procedural boxes become the new inconsistency, so it should be the next decision after this pass.
-5. **Fallback if a second UV set costs too much or misbehaves in the runtime path** (tier LOW, the photoreal pass). *Recommend* baking the detail layer into the atlas in the TS stage: one UV set, larger atlases, same determinism. DP0 measures the cost of both on the reference GPU and records the choice as a ruling.
+5. **Fallback if a second UV set costs too much or misbehaves in the runtime path** (tier LOW, the photoreal pass). *Recommend* baking the detail layer into the atlas in the TS stage: one UV set, larger atlases, same determinism. **Superseded 2026-09-28:** Mark adopted the fallback as the design, before DP0, because glTF has no slot for a second normal map (§4 ruling). Nothing is measured for a second UV set; none is built.
 
 ## 9. Risks
 
