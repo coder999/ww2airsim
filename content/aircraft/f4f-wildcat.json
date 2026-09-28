@@ -74,7 +74,7 @@
     "heightM": 2.2
   },
   "reference": {
-    "source": "PLACEHOLDER, not F4F-4 data: every field in this aircraft/mass/engine/rates/limits/gear/flap block is reused verbatim from content/aircraft/f6f-hellcat.json's F6F-5 Patuxent River trial data (see that file's own reference.source for the original citation). None of testMassKg, topSpeedMps, climbRateMps, stallSpeedMps, stallSpeedFlapMps, rollRateDegPerSec, takeoffDistanceM, or any aero/engine/rates/gear/flap coefficient in this file is a real F4F-4 Wildcat figure. This was a deliberate choice (Mark, 2026-09-24, docs/superpowers/plans/2026-09-24-f4f-wildcat-default-aircraft.md): ship the real, rigged, CC-BY Wildcat model now with borrowed flight data rather than block shipping on sourcing a genuine F4F-4 performance trial, which is follow-up work on the same footing this file's Hellcat original took (a dedicated primary-source research pass, not a quick estimate).",
+    "source": "PLACEHOLDER, not F4F-4 data: every field in this aircraft/mass/engine/rates/limits/gear/flap block is reused verbatim from content/aircraft/f6f-hellcat.json's F6F-5 Patuxent River trial data (see that file's own reference.source for the original citation). None of testMassKg, topSpeedMps, climbRateMps, stallSpeedMps, stallSpeedFlapMps, rollRateDegPerSec, takeoffDistanceM, or any aero/engine/rates/gear/flap coefficient in this file is a real F4F-4 Wildcat figure. This was a deliberate choice (Mark, 2026-09-24, docs/superpowers/plans/2026-09-24-f4f-wildcat-default-aircraft.md): ship the real, rigged, CC-BY Wildcat model now with borrowed flight data rather than block shipping on sourcing a genuine F4F-4 performance trial, which is follow-up work on the same footing this file's Hellcat original took (a dedicated primary-source research pass, not a quick estimate). view.eyePointM = [0.18, 0.39, 0] is MEASURED from the drawn model as wildcatCorrection() seats it (2026-09-28): the fore-aft middle of its sliding canopy node Puerta_cabina_Cabina_MAT_0 (x -0.28 to 0.64, top y 0.69), 0.3 m below the top. tests/tools/models/eyePoints.test.ts holds it inside that canopy.",
     "testMassKg": 5633.62,
     "topSpeedMps": 174.79,
     "topSpeedAltitudeM": 7040.9,
@@ -86,8 +86,8 @@
   },
   "view": {
     "eyePointM": [
-      1.2,
-      0.9,
+      0.18,
+      0.39,
       0
     ],
     "model": "wildcat"
