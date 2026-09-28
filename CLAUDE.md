@@ -64,7 +64,10 @@ not exist, and three conventions below were being missed for that reason).
   worktree, so parallel worktrees can each run Blender on either machine. On
   nexus, though, `blender` on PATH is a shim that runs one at a time under
   `hwlock blender`, for memory (`serverconfig/scripts/blender-shim`); time
-  spent waiting counts against `BLENDER_TIMEOUT_MS`. If
+  spent waiting counts against `BLENDER_TIMEOUT_MS`. Rendering the fx
+  flipbooks on ryzen's GPU (Cycles HIP, Windows side) was benchmarked
+  2026-09-27 and is not faster: each frame is seven 256 px renders, which are
+  overhead-bound (`serverconfig/ryzen.md`, "Cycles on the GPU"). If
   an upgrade moves one machine off the version pinned in
   `tools/models/blender/run.ts`, its Blender suites fail by name. They do not
   skip. Upgrade both machines together.
