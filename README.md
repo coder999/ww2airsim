@@ -118,6 +118,12 @@ generic module: seven licensed downloads and four original Blender models
 changed. The [handoff](docs/handoff/2026-09-27-r3-aircraft-models.md) records
 what was measured and what is open; master spec §15 holds the status.
 
+**R4 and R5 landed 2026-09-28, merged into `main` the same day:** every
+Library building and vehicle now has a model in the Hangar, and nothing in
+the Library is left undrawn; the airfields in the game keep their procedural
+boxes. The [handoff](docs/handoff/2026-09-28-r4-r5-roster.md) records what was
+measured; master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
