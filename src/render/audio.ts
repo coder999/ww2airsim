@@ -19,7 +19,7 @@ import type { FrameState } from './frame.js'
  * The dependency runs one way: `render/` may import `sim/`, and `audio/` sees
  * neither. That is `audio-must-not-import-render` in .dependency-cruiser.cjs.
  */
-export function audioInputsFrom(frame: FrameState): AudioInputs {
+export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): AudioInputs {
   const { terrain, ships } = frame.world
   const { state: aircraft, impact, spec } = playerAircraft(frame.world)
   // ONE ground model (Plan 8 review, item 3): `groundUnder` is what

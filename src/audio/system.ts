@@ -31,7 +31,27 @@ export type AudioSnapshot = {
 export type AudioSystem = {
   load(): Promise<void>
   resume(): Promise<void>
-  update(inputs: AudioInputs): void
+  /** `rate` defaults to 1. Instant replay (design §7) drives this with the
+   *  replay speed, which scales the engine loop's playback rate and any
+   *  one-shot fired this frame -- so a burst heard at 0.5x plays back a full
+   *  octave down along with everything else in the scene, not at its live
+   *  pitch. */
+  update(inputs: AudioInputs, rate?: number): void
+  /** Advances the cue memory past `inputs` without making a sound and
+   *  without touching the engine loop. Instant replay uses this to jump the
+   *  replayed cue memory to a scrub target silently: without it, scrubbing
+   *  past a burst or an impact would fire every cue it skipped over. */
+  prime(inputs: AudioInputs): void
+  /** The live cue memory, so instant replay can put it aside before driving
+   *  `update`/`prime` with the replayed world, and bring it back with
+   *  `restore` on exit -- "exiting restores the live audio exactly as it
+   *  was" (design §7). */
+  memory(): AudioMemory
+  restore(m: AudioMemory): void
+  /** While held, the engine loop glides to gain 0 -- "paused means silent"
+   *  (design §7), for a paused replay. The next `update` call resumes it: a
+   *  hold has no inputs of its own to compute a gain from. */
+  hold(held: boolean): void
   setMuted(muted: boolean): void
   muted(): boolean
   snapshot(): AudioSnapshot
@@ -49,6 +69,11 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
   let enginePlaybackRate = 0
   let cuesFired = 0
   const failed: ClipId[] = []
+  // Instant replay's pause (design §7): forced to gain 0 by `hold(true)`
+  // rather than by suppressing `update` calls, because the held frame is
+  // still rendered while a replay is paused, and nothing else about it may
+  // change.
+  let held = false
 
   return {
     async load(): Promise<void> {
@@ -72,7 +97,7 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       await backend.resume()
     },
 
-    update(inputs: AudioInputs): void {
+    update(inputs: AudioInputs, rate = 1): void {
       const frame = nextAudio(memory, inputs)
       memory = frame.memory
       const ready = backend.loaded()
@@ -86,16 +111,47 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       if (loop !== null) {
         // Glided, never assigned. `M` (throttle cut) moves the lever 1 -> 0 in
         // a single frame, and a step on an AudioParam is an audible click.
-        engineGain = frame.engine.gain
-        enginePlaybackRate = frame.engine.playbackRate
-        loop.setGain(frame.engine.gain, ENGINE_GLIDE_TAU_S)
-        loop.setPlaybackRate(frame.engine.playbackRate, ENGINE_GLIDE_TAU_S)
+        // Held (a paused replay) overrides the computed gain with 0, same as
+        // `hold(true)` itself -- see that method.
+        engineGain = held ? 0 : frame.engine.gain
+        // Scaled by the replay speed (design §7): at 0.5x the engine sounds
+        // half as fast as it does live, matching the replayed world.
+        enginePlaybackRate = frame.engine.playbackRate * rate
+        loop.setGain(engineGain, ENGINE_GLIDE_TAU_S)
+        loop.setPlaybackRate(enginePlaybackRate, ENGINE_GLIDE_TAU_S)
       }
+
+      // Silent while held: a paused replay renders the same frame repeatedly,
+      // and re-evaluating cues against it must not re-fire them.
+      if (held) return
 
       for (const cue of frame.cues) {
         if (!ready.includes(cue)) continue
         cuesFired++
-        backend.playOnce(cue, assetFor(cue).cueGain)
+        backend.playOnce(cue, assetFor(cue).cueGain, rate)
+      }
+    },
+
+    prime(inputs: AudioInputs): void {
+      // The reducer only -- no backend call of any kind, which is what makes
+      // this silent: a scrub jump must advance past every cue it skipped
+      // without sounding any of them (design §7).
+      memory = nextAudio(memory, inputs).memory
+    },
+
+    memory(): AudioMemory {
+      return memory
+    },
+
+    restore(m: AudioMemory): void {
+      memory = m
+    },
+
+    hold(isHeld: boolean): void {
+      held = isHeld
+      if (held && loop !== null) {
+        engineGain = 0
+        loop.setGain(0, ENGINE_GLIDE_TAU_S)
       }
     },
 
