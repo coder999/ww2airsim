@@ -1492,6 +1492,13 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
+  /** How long a crash or shoot-down debrief waits, so the fireball or splash
+   *  (fx/events.ts, stepped on real time while the world is held) plays
+   *  first (Mark, 2026-09-27). A landing's debrief is not delayed. */
+  const DEBRIEF_DELAY_MS = 3000
+  /** A crash/kill debrief already banked but not yet raised; counts down in
+   *  real unpaused frame time, and a Restart drops it (`resetFlightUi`). */
+  let pendingDebrief: { readonly show: () => void; remainingMs: number } | null = null
   /** Assembles this bank's dossier record (dossier spec §B.2) from the flight
    *  `segment` just flown plus whatever main.ts already tracks live -- the
    *  scenario, aircraft and loadout in play right now. */
@@ -1636,6 +1643,7 @@ async function boot(): Promise<void> {
     debrief.hide()
     shownImpactTick = null
     shownDestructionTick = null
+    pendingDebrief = null
     landingShown = false
     handledLandingTick = -1
     postImpactOceanSeconds = 0
@@ -2166,7 +2174,7 @@ async function boot(): Promise<void> {
         badgeId,
       )
       segment = EMPTY_SEGMENT
-      showDebrief(model, banked, undefined)
+      pendingDebrief = { show: () => showDebrief(model, banked, undefined), remainingMs: DEBRIEF_DELAY_MS }
     }
     // Gunfire and structural overload can destroy the player before contact.
     // `nextFrameState` already freezes that world; raise the same Restart path
@@ -2183,7 +2191,15 @@ async function boot(): Promise<void> {
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
       const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
       segment = EMPTY_SEGMENT
-      showDebrief(model, banked, undefined)
+      pendingDebrief = { show: () => showDebrief(model, banked, undefined), remainingMs: DEBRIEF_DELAY_MS }
+    }
+    if (pendingDebrief !== null && !current.paused) {
+      pendingDebrief.remainingMs -= frameMs
+      if (pendingDebrief.remainingMs <= 0) {
+        const due = pendingDebrief
+        pendingDebrief = null
+        due.show()
+      }
     }
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).
