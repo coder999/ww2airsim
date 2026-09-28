@@ -6,10 +6,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getBounds } from '@gltf-transform/functions'
 import type { Document } from '@gltf-transform/core'
-import { HAVE_BLENDER, runBlenderScript } from '../../../../tools/models/blender/run.js'
+import { HAVE_BLENDER, runBlenderScript, skinSidecarPath } from '../../../../tools/models/blender/run.js'
 import { blenderScriptFor, candidateOutput } from '../../../../tools/models/blender/cli.js'
 import { modelIO, findNode } from '../../../../tools/models/document.js'
 import { measureDocument } from '../../../../tools/models/measure.js'
+import { coplanarOverlaps, worldTriangles } from '../buildingGeometry.js'
+
+/** hangar.py's EAVE_OUT_M (DP0): the steel's footprint is the walls' plus an eave each side. */
+const EAVE_OUT_M = 0.35
 
 const sha = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const tacloban = JSON.parse(readFileSync('content/bases/tacloban.json', 'utf8')) as { buildings: { id: string; widthM: number; lengthM: number }[] }
@@ -45,7 +49,7 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
 
   it('the steel structure fits the sim footprint and stands on y = 0', () => {
     const bb = getBounds(findNode(doc, 'hangar_steel'))
-    within1pct(bb.max[0] - bb.min[0], cited.widthM, 'width (x)')
+    within1pct(bb.max[0] - bb.min[0], cited.widthM + 2 * EAVE_OUT_M, 'width (x), eaves included')
     within1pct(bb.max[2] - bb.min[2], cited.lengthM, 'length (z)')
     within1pct(bb.max[1], 5.5 + cited.widthM * 0.25, 'height: wall + rise')
     expect(bb.min[1]).toBeCloseTo(0, 5)
@@ -63,19 +67,27 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
     expect(doors.min[2]).toBeGreaterThan(cited.lengthM / 2 - 1)
   })
 
-  it('is inside the spec §4.4 building budget: 5k triangles, 4 draw calls, 0.5 MB, no textures', () => {
+  it('the raw export: at most 5k triangles in its 4 role nodes, UVs on every primitive, and its skin sidecar (DP0)', () => {
     const m = measureDocument(doc)
     expect(m.triangles).toBeLessThanOrEqual(5000)
     expect(m.drawCalls).toBeLessThanOrEqual(4)
-    expect(m.textures).toBe(0)
-    expect(readFileSync(a).byteLength).toBeLessThanOrEqual(500_000)
+    expect(m.textures).toBe(0) // the kit writes UVs; the build's skin stage adds the textures
+    for (const p of doc.getRoot().listMeshes().flatMap((x) => x.listPrimitives())) expect(p.getAttribute('TEXCOORD_0')).not.toBeNull()
+    const side = JSON.parse(readFileSync(skinSidecarPath(a), 'utf8')) as { atlasPx: number; markings: { kind: string }[] }
+    expect(side.atlasPx).toBe(512)
+    expect(side.markings.filter((k) => k.kind === 'grid')).toHaveLength(3)
   })
+
+  it('no two faces lie in one plane facing one way and overlapping: a skin would show the z-fight (DP0)', () => {
+    const tris = doc.getRoot().listNodes().filter((n) => n.getMesh()).flatMap((n) => worldTriangles(n).map((tri, i) => ({ label: `${n.getName()}#${i}`, where: n.getName(), tri })))
+    expect(coplanarOverlaps(tris)).toEqual([])
+  }, 60_000)
 
   it('takes the Dulag footprint by argument', async () => {
     const out = join(dir, 'dulag.glb')
     runBlenderScript(blenderScriptFor('hangar'), out, ['--width', '22', '--length', '28'])
     const bb = getBounds(findNode(await modelIO().readBinary(new Uint8Array(readFileSync(out))), 'hangar_steel'))
-    within1pct(bb.max[0] - bb.min[0], 22, 'Dulag width')
+    within1pct(bb.max[0] - bb.min[0], 22 + 2 * EAVE_OUT_M, 'Dulag width, eaves included')
     within1pct(bb.max[2] - bb.min[2], 28, 'Dulag length')
   })
 
