@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { cameraTransformFor, CHASE_OFFSET_M, lookFromQuery } from '../../src/render/camera.js'
-import { v3, length, sub } from '../../src/sim/math/vec3.js'
-import { qIdentity, qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
+import { cameraTransformFor, CHASE_OFFSET_M, lookFromQuery, ORBIT_SURFACE_CLEARANCE_M } from '../../src/render/camera.js'
+import { v3, length, sub, dot, normalize, add, scale, type Vec3 } from '../../src/sim/math/vec3.js'
+import { qIdentity, qFromAxisAngle, qMul, qNormalize, qRotate, type Quat } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { LOOK_CENTRE } from '../../src/input/lookAround.js'
+import { ORBIT_ZERO } from '../../src/input/orbit.js'
+import { shouldResetHistory } from '../../src/render/scene/cloudHistory.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const at = (pos = v3(0, 1000, 0), att = qIdentity()) => ({ position: pos, attitude: att })
@@ -195,5 +197,87 @@ describe('DEV ?look= (Cloud Fidelity II photo view)', () => {
     expect(l.yawRad).toBeCloseTo(Math.PI, 12)
     expect(l.pitchRad).toBeCloseTo(Math.PI / 6, 12)
     for (const bad of ['30', '30,', 'a,b', '0,85', '1,2,3']) expect(() => lookFromQuery(`?look=${bad}`)).toThrow(/look/)
+  })
+})
+
+/** The airplane's direction as seen from the eye, in the eye's own frame. */
+const aircraftInEye = (eye: { position: Vec3; attitude: Quat }, target: Vec3): Vec3 => {
+  const d = normalize(sub(target, eye.position))
+  const conj = { x: -eye.attitude.x, y: -eye.attitude.y, z: -eye.attitude.z, w: eye.attitude.w }
+  return qRotate(conj, d)
+}
+
+/** Orbit camera spec 2026-09-27 and its plan's rulings P-1..P-4. */
+describe('orbit', () => {
+  const climbingTurn = qNormalize(qMul(qFromAxisAngle(v3(0, 1, 0), 0.7), qFromAxisAngle(v3(0, 0, 1), 0.3)))
+
+  it('ORBIT_ZERO is bit-identical to the pre-orbit chase eye', () => {
+    for (let i = 0; i < 64; i++) {
+      const att = qNormalize(qMul(qFromAxisAngle(v3(0, 1, 0), i * 0.37), qFromAxisAngle(v3(1, 0, 0), i * 0.91)))
+      const r = at(v3(i * 13, 1500, -i * 7), att)
+      expect(cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 90 + i, ORBIT_ZERO, () => 0))
+        .toEqual(cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 90 + i))
+    }
+  })
+
+  it('+yaw swings the eye to the left, +pitch raises it (ruling P-4)', () => {
+    const r = at(v3(0, 1000, 0))
+    const left = cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 120, { yawRad: Math.PI / 2, pitchRad: 0, zoom: 1 })
+    expect(left.position.z).toBeLessThan(-10) // body -Z is left; identity attitude
+    const zero = cameraTransformFor('chase', f6f, r)
+    const up = cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 120, { yawRad: 0, pitchRad: 0.5, zoom: 1 })
+    expect(up.position.y).toBeGreaterThan(zero.position.y + 5)
+  })
+
+  it('is tethered: a fixed offset keeps its heading-relative bearing through a turn', () => {
+    const orbit = { yawRad: 1.1, pitchRad: 0.2, zoom: 1.5 }
+    const bearings = [0, 1, 2, 3, 4, 5].map((k) => {
+      const heading = qFromAxisAngle(v3(0, 1, 0), k)
+      const r = at(v3(0, 1000, 0), heading)
+      const rel = sub(cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 120, orbit).position, r.position)
+      // Back into the airplane's heading frame: a pure yaw's inverse negates its Y component.
+      return qRotate({ ...heading, y: -heading.y }, rel)
+    })
+    for (const b of bearings) {
+      expect(b.x).toBeCloseTo(bearings[0]!.x, 6)
+      expect(b.y).toBeCloseTo(bearings[0]!.y, 6)
+      expect(b.z).toBeCloseTo(bearings[0]!.z, 6)
+    }
+  })
+
+  it('keeps the airplane where the default view frames it, from any angle', () => {
+    const r = at(v3(0, 1000, 0), climbingTurn)
+    const home = aircraftInEye(cameraTransformFor('chase', f6f, r), r.position)
+    for (const orbit of [
+      { yawRad: 2.5, pitchRad: 0.9, zoom: 3 },
+      { yawRad: -1.2, pitchRad: -1.3, zoom: 0.5 },
+    ]) {
+      const seen = aircraftInEye(cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 120, orbit), r.position)
+      expect(Math.acos(Math.min(1, dot(seen, home)))).toBeLessThan((0.1 * Math.PI) / 180)
+    }
+  })
+
+  it('zoom scales the distance', () => {
+    const r = at()
+    const d1 = length(sub(cameraTransformFor('chase', f6f, r).position, r.position))
+    const d3 = length(sub(cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 120, { ...ORBIT_ZERO, zoom: 3 }).position, r.position))
+    expect(d3 / d1).toBeCloseTo(3, 9)
+  })
+
+  it('never puts the eye below the surface + clearance', () => {
+    const r = at(v3(0, 50, 0)) // 50 m over the sea
+    const eye = cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 120, { yawRad: 0, pitchRad: (-80 * Math.PI) / 180, zoom: 4 }, () => 0)
+    expect(eye.position.y).toBeGreaterThanOrEqual(ORBIT_SURFACE_CLEARANCE_M)
+  })
+
+  it('a 180 deg/s drag at zoom 1 and 200 m/s never resets cloud history (plan ruling P-2)', () => {
+    const dt = 1 / 60
+    let prev = cameraTransformFor('chase', f6f, at(v3(0, 1500, 0)), LOOK_CENTRE, 200)
+    for (let i = 1; i <= 120; i++) {
+      const pos = add(v3(0, 1500, 0), scale(v3(200, 0, 0), i * dt))
+      const eye = cameraTransformFor('chase', f6f, at(pos), LOOK_CENTRE, 200, { yawRad: Math.PI * i * dt, pitchRad: 0, zoom: 1 })
+      expect(shouldResetHistory({ eye: eye.position, prevEye: prev.position, frameSeconds: dt })).toBe(false)
+      prev = eye
+    }
   })
 })

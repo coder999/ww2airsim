@@ -3,8 +3,15 @@ import { type Quat, qFromAxisAngle, qMul, qRotate, qNormalize } from '../sim/mat
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { RenderState } from '../sim/interpolate.js'
 import type { LookOffset } from '../input/lookAround.js'
+import { ORBIT_ZERO, type OrbitOffset } from '../input/orbit.js'
 
 export type CameraMode = 'chase' | 'cockpit'
+
+/** How far above the surface under it the chase/orbit eye is held (orbit spec OC-3). */
+export const ORBIT_SURFACE_CLEARANCE_M = 2
+
+/** Height of the surface (terrain, deck or sea) under a world x/z, metres. */
+export type SurfaceHeightAt = (x: number, z: number) => number
 
 export type EyeTransform = {
   readonly position: Vec3
@@ -110,6 +117,11 @@ function withLook(attitude: Quat, look: LookOffset): Quat {
  *
  * `look` defaults to centred so every existing call site (and the tests
  * written before Task 9) keeps working unchanged.
+ *
+ * `orbit` (chase only) is the pilot's mouse swing, and still not smoothing:
+ * it is an input like `look`, so the function stays pure. `surfaceHeightAt`
+ * lets chase keep the eye out of the sea, the ground and a deck (orbit spec
+ * OC-3); omitted, nothing is clamped. Neither touches the cockpit.
  */
 export function cameraTransformFor(
   mode: CameraMode,
@@ -117,6 +129,8 @@ export function cameraTransformFor(
   render: RenderState,
   look: LookOffset = LOOK_ZERO,
   speedMps = 120,
+  orbit: OrbitOffset = ORBIT_ZERO,
+  surfaceHeightAt?: SurfaceHeightAt,
 ): EyeTransform {
   if (mode === 'cockpit') {
     const [ex, ey, ez] = spec.view.eyePointM
@@ -133,13 +147,29 @@ export function cameraTransformFor(
   // flip -- this cannot.
   const heading = headingOf(render.attitude)
   const pitch = pitchOf(render.attitude) * CHASE_PITCH_FOLLOW
-  const attitude = qNormalize(
+  const chase = qNormalize(
     qMul(qFromAxisAngle(v3(0, 1, 0), heading), qFromAxisAngle(v3(0, 0, 1), pitch)),
   )
+  // The orbit rotates the offset AND the eye's attitude by the same amount,
+  // about the airplane, so the airplane keeps exactly the framing the default
+  // view gives it (spec §3). Negated angles make +yaw swing left and +pitch
+  // rise (plan ruling P-4). Skipped when there is no swing, so an unmoved
+  // orbit is today's chase eye bit for bit (spec §7).
+  const attitude =
+    orbit.yawRad === 0 && orbit.pitchRad === 0
+      ? chase
+      : qNormalize(
+          qMul(chase, qMul(qFromAxisAngle(v3(0, 1, 0), -orbit.yawRad), qFromAxisAngle(v3(0, 0, 1), -orbit.pitchRad))),
+        )
 
   const [ox, oy, oz] = CHASE_OFFSET_M
-  const distanceScale = chaseDistanceScale(speedMps)
-  const position = add(render.position, qRotate(attitude, v3(ox * distanceScale, oy * distanceScale, oz)))
+  const distanceScale = chaseDistanceScale(speedMps) * orbit.zoom
+  const placed = add(render.position, qRotate(attitude, v3(ox * distanceScale, oy * distanceScale, oz)))
+  // OC-3: never under the sea, the ground or a deck. Height only; the
+  // attitude is left alone, so a clamped eye sees the airplane a little
+  // lower in frame rather than jumping its aim.
+  const floor = surfaceHeightAt === undefined ? -Infinity : surfaceHeightAt(placed.x, placed.z) + ORBIT_SURFACE_CLEARANCE_M
+  const position = placed.y < floor ? v3(placed.x, floor, placed.z) : placed
 
   return { position, attitude: withLook(attitude, look) }
 }
