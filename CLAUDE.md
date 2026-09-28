@@ -92,8 +92,11 @@ not exist, and three conventions below were being missed for that reason).
 ## GPU work: the Windows desktop is on, with a Playwright server
 
 nexus is headless. Anything visual, and every Tier 2 run, executes on the
-Windows desktop (RX 6700 XT), which normally has `playwright run-server` up in
-Mark's console session. From nexus:
+Windows desktop (RX 6700 XT). Which side of ryzen does what (WSL for
+`remote-run` and Blender, Windows session 0 for GPU browser work, the console
+session only for trusted frame times), all reachable after WoL with nobody
+logged in: `serverconfig/ryzen.md`, "What runs where". The console session
+normally has `playwright run-server` up; from nexus:
 
 ```sh
 ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
