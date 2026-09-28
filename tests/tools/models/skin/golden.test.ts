@@ -1,9 +1,11 @@
 // tests/tools/models/skin/golden.test.ts
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
+import sharp from 'sharp'
 import { rasterize, trianglesOf } from '../../../../tools/models/skin/raster.js'
 import { paint } from '../../../../tools/models/skin/layers.js'
 import { compose } from '../../../../tools/models/skin/compose.js'
+import { encodeSkinMaps } from '../../../../tools/models/skin/stage.js'
 import type { ScanId } from '../../../../tools/models/skin/surfaces.js'
 import { FIXTURE_ATLAS as W, fixtureDoc, fixtureSidecar, flatScan } from './fixture.js'
 
@@ -26,5 +28,22 @@ describe('the skin golden image (DP0, spec §6)', () => {
   it('the raw maps hash to the recorded goldens', () => {
     const m = goldenMaps()
     expect({ baseColor: sha(m.baseColor), metallicRoughness: sha(m.metallicRoughness), normal: sha(m.normal) }).toEqual(RAW)
+  })
+})
+
+/** Recorded at DP0 Task 7 Step 5 with the sharp version named; a sharp upgrade that moves them is a finding. */
+const WEBP = {
+  sharp: '0.35.4',
+  baseColor: 'e8cbac2ad74fbb7218c6cc0f013a4e61e40de09de7dd688e9782674df0c9fdac',
+  metallicRoughness: '48bde53f31d168842b9d486aa28de8fbb631fe7cb7951c29d83052d448713a79',
+  normal: 'd686b73b0c0791dfe0b0431f1bcab7561507c2a7f16205406ab9a526496e3701',
+}
+
+describe('the skin golden image, encoded (DP0, spec §9)', () => {
+  it(`the WebP bytes hash to the goldens recorded with sharp ${WEBP.sharp}`, async () => {
+    expect(sharp.versions.sharp).toBe(WEBP.sharp)
+    const e = await encodeSkinMaps(goldenMaps())
+    expect({ baseColor: sha(e.baseColor), metallicRoughness: sha(e.metallicRoughness), normal: sha(e.normal) })
+      .toEqual({ baseColor: WEBP.baseColor, metallicRoughness: WEBP.metallicRoughness, normal: WEBP.normal })
   })
 })

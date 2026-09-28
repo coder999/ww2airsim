@@ -135,6 +135,7 @@ describe('runBuild with a ship whose fit fails', () => {
       generate: () => { throw new Error('not a generated entry') },
       haveBlender: () => false,
       blender: () => { throw new Error('not a blender entry') },
+      readText: () => { throw new Error('readText: not used by this test') }, scan: () => Promise.reject(new Error('scan: not used by this test')),
     }
     expect(await runBuild([carrierEntry, good], [], deps)).toBe(1)
     expect(written).toEqual(['content/ships/good-cv.glb'])
