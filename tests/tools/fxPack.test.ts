@@ -108,6 +108,33 @@ describe('fx pack: acceptance (Review Focus 3, 4, 5)', () => {
   it('refuses a sheet whose right and left lights are swapped (Review Focus 3)', () => {
     expect(judge('smoke', puff(16, { flip: true })).join('\n')).toMatch(/right light .* right side/)
   })
+  it('accepts a correctly lit but vertically asymmetric plume shape (plan E2 ledger ruling, Task 4)', () => {
+    // A vase: a narrow bright tip, a dim waist, and a wide flared skirt near the source (modeled on
+    // the measured smoke self-shadowing row profile). Neither light is flipped -- the tip is far
+    // brighter under `top` than `bottom`, and the skirt is (correctly) closer to the bottom sun than
+    // the top one -- but the skirt's large area used to swamp the tip in a single-pass half split,
+    // netting `top` to near zero. sixWay must difference against the opposite pass so shared area
+    // weighting cancels and the real per-side signal survives.
+    const build = (): FramePasses => {
+      const n = C * C
+      const alpha = new Float32Array(n), top = new Float32Array(n), bottom = new Float32Array(n)
+      const right = new Float32Array(n), left = new Float32Array(n)
+      const bands = [
+        { y0: 4, y1: 12, x0: 28, x1: 36, top: 0.075, bottom: 0.005 },
+        { y0: 12, y1: 20, x0: 30, x1: 34, top: 0.030, bottom: 0.010 },
+        { y0: 20, y1: 28, x0: 29, x1: 35, top: 0.020, bottom: 0.015 },
+        { y0: 28, y1: 59, x0: 6, x1: 58, top: 0.040, bottom: 0.070 },
+      ] as const
+      for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
+        const i = y * C + x
+        for (const b of bands) if (y >= b.y0 && y < b.y1 && x >= b.x0 && x < b.x1) { alpha[i] = 1; top[i] = b.top; bottom[i] = b.bottom }
+        if (alpha[i]! > 0) { const nx = (x + 0.5 - 32) / 26; right[i] = 0.3 + 0.2 * nx; left[i] = 0.3 - 0.2 * nx }
+      }
+      return { lit: { right, left, top, bottom, back: right, front: right }, alpha, emit: new Float32Array(n) }
+    }
+    const frames = [build(), build()]
+    expect(judge('smoke', frames)).toEqual([])
+  })
   it('refuses a sim that leaves the frame (Review Focus 4)', () => {
     const leaks = puff().map((f, k) => (k === 15 ? frame(32, 26, 29) : f))
     expect(judge('smoke', leaks).join('\n')).toMatch(/leaves the frame/)

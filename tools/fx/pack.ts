@@ -248,17 +248,25 @@ export function measureSheet(frames: readonly FramePasses[], cellPx: number, lit
   let cx = 0, cy = 0, cn = 0
   for (let i = 0; i < pf.alpha.length; i++) if (pf.alpha[i]! > COVERED) { cx += i % cellPx; cy += Math.floor(i / cellPx); cn++ }
   cx /= Math.max(1, cn); cy /= Math.max(1, cn)
-  const halfMean = (L: Float32Array, pick: (x: number, y: number) => boolean): number => {
+  // Paired-opposite differential (plan E2 ledger ruling, Task 4): each side's score first subtracts
+  // its opposite pass (right-left, top-bottom) texel by texel, then splits by half. A real plume's
+  // density/self-shadowing is shared by a pass and its opposite, so subtracting cancels it; only the
+  // genuine directional response of that side's sun survives the split. A single-pass half split (the
+  // old formula) let a wide, low-contrast base outweigh a small, high-contrast tip and net a correctly
+  // lit but vertically asymmetric plume to near zero (measured on smoke's peak frame, 2026-09-27); the
+  // differential does not, and a flipped or mislabeled sun still nets negative (fxPack.test.ts covers
+  // both).
+  const diffMean = (a: Float32Array, b: Float32Array, pick: (x: number, y: number) => boolean): number => {
     let s = 0, n = 0
-    for (let i = 0; i < L.length; i++) { const x = i % cellPx, y = Math.floor(i / cellPx); if (pf.alpha[i]! > COVERED && pick(x, y)) { s += L[i]! * litK; n++ } }
+    for (let i = 0; i < a.length; i++) { const x = i % cellPx, y = Math.floor(i / cellPx); if (pf.alpha[i]! > COVERED && pick(x, y)) { s += (a[i]! - b[i]!) * litK; n++ } }
     return n > 0 ? s / n : 0
   }
   const right = (x: number) => x >= cx, upper = (_x: number, y: number) => y < cy
   const sixWay = {
-    right: halfMean(pf.lit.right, right) - halfMean(pf.lit.right, (x) => !right(x)),
-    left: halfMean(pf.lit.left, (x) => !right(x)) - halfMean(pf.lit.left, right),
-    top: halfMean(pf.lit.top, upper) - halfMean(pf.lit.top, (x, y) => !upper(x, y)),
-    bottom: halfMean(pf.lit.bottom, (x, y) => !upper(x, y)) - halfMean(pf.lit.bottom, upper),
+    right: diffMean(pf.lit.right, pf.lit.left, right) - diffMean(pf.lit.right, pf.lit.left, (x) => !right(x)),
+    left: diffMean(pf.lit.left, pf.lit.right, (x) => !right(x)) - diffMean(pf.lit.left, pf.lit.right, right),
+    top: diffMean(pf.lit.top, pf.lit.bottom, upper) - diffMean(pf.lit.top, pf.lit.bottom, (x, y) => !upper(x, y)),
+    bottom: diffMean(pf.lit.bottom, pf.lit.top, (x, y) => !upper(x, y)) - diffMean(pf.lit.bottom, pf.lit.top, upper),
   }
   const meanAbs = (a: Float32Array, b: Float32Array): number => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i]! - b[i]!); return s / a.length }
   let step = 0
