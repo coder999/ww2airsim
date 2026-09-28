@@ -38,21 +38,25 @@ describe('fx sheets (effects design §6; E1 Rulings R7, R8; E2)', () => {
     expect(bytes).toBeLessThanOrEqual(FX_CONTENT_BYTES_MAX)
   })
 
-  // Task 7 replaces this `if` with `expect(manifest.provenance.generator).toBe('blender')`.
-  if (manifest.provenance.generator === 'blender') {
-    const report = JSON.parse(readFileSync(new URL('tools/fx/bake-report.json', root), 'utf8')) as BakeReport
-    it('was baked by the blender.org 5.0.1 build from the scripts in this commit (Rulings R1, R2; Review Focus 2)', () => {
-      expect(manifest.provenance.blenderVersion).toMatch(/^5\.0\.1 [0-9a-f]{12}$/)
-      expect(manifest.provenance.seed).toBe(0) // Mantaflow takes no seed (Ruling R2)
-      expect(manifest.provenance.sceneSha256, 'a script in tools/fx/blender changed without a rebake: npm run fx:bake').toBe(fxSceneSha256())
-      expect(report.sceneSha256).toBe(manifest.provenance.sceneSha256)
-    })
-    it('every sheet passed its acceptance rules at the size that shipped', () => {
-      expect([report.rung.cellPx, report.rung.frames]).toEqual([manifest.cellPx, manifest.frames])
-      for (const s of FX_SHEETS) expect(acceptance(s, report.sheets[s].metrics, manifest.frames), s).toEqual([])
-      expect(report.motionScale).toBe(manifest.motionScale)
-    })
-  }
+  it('ships baked sheets, not the E1 placeholders', () => {
+    expect(manifest.provenance.generator).toBe('blender')
+  })
+
+  const reportUrl = new URL('tools/fx/bake-report.json', root)
+  const report = existsSync(reportUrl) ? JSON.parse(readFileSync(reportUrl, 'utf8')) as BakeReport : undefined
+  it('was baked by the blender.org 5.0.1 build from the scripts in this commit (Rulings R1, R2; Review Focus 2)', () => {
+    expect(report, 'tools/fx/bake-report.json is missing: npm run fx:bake').toBeDefined()
+    expect(manifest.provenance.blenderVersion).toMatch(/^5\.0\.1 [0-9a-f]{12}$/)
+    expect(manifest.provenance.seed).toBe(0) // Mantaflow takes no seed (Ruling R2)
+    expect(manifest.provenance.sceneSha256, 'a script in tools/fx/blender changed without a rebake: npm run fx:bake').toBe(fxSceneSha256())
+    expect(report!.sceneSha256).toBe(manifest.provenance.sceneSha256)
+  })
+  it('every sheet passed its acceptance rules at the size that shipped', () => {
+    expect(report, 'tools/fx/bake-report.json is missing: npm run fx:bake').toBeDefined()
+    expect([report!.rung.cellPx, report!.rung.frames]).toEqual([manifest.cellPx, manifest.frames])
+    for (const s of FX_SHEETS) expect(acceptance(s, report!.sheets[s].metrics, manifest.frames), s).toEqual([])
+    expect(report!.motionScale).toBe(manifest.motionScale)
+  })
 
   it('the placeholder generator is gone (E2 replaces it; git remembers)', () => {
     expect(existsSync(new URL('tools/fx/placeholders.ts', root))).toBe(false)

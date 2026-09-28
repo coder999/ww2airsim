@@ -5,11 +5,11 @@
     "lightB": "fx-light-b.ktx2",
     "motion": "fx-motion.ktx2"
   },
-  "cellPx": 128,
+  "cellPx": 256,
   "cols": 3,
   "rows": 2,
-  "frames": 16,
-  "motionScale": 0.02,
+  "frames": 64,
+  "motionScale": 0.05242,
   "sheets": [
     {
       "name": "fireball",
@@ -37,7 +37,9 @@
     }
   ],
   "provenance": {
-    "generator": "placeholder",
-    "seed": 1944
+    "generator": "blender",
+    "seed": 0,
+    "blenderVersion": "5.0.1 a3db93c5b259",
+    "sceneSha256": "a7906b794b2494969e3bd71b051d9fa1e5dc6b0890c30a025018fb631670640f"
   }
 }
