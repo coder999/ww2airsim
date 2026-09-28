@@ -1,5 +1,5 @@
 // src/render/hangar/stage.ts
-import { AxesHelper, Box3, Color, GridHelper, Group, LineBasicMaterial, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, Sphere, Vector3, type Object3D } from 'three'
+import { AxesHelper, Box3, Color, DataTexture, GridHelper, Group, LineBasicMaterial, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, SRGBColorSpace, Sphere, Vector3, type Object3D } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { applySun, createLighting, SUN_DIRECTION } from '../scene/lighting.js'
@@ -58,6 +58,46 @@ export function applyUnlit(root: Object3D, on: boolean): void {
   })
 }
 
+let checker: DataTexture | null = null
+/** 8 x 8 squares, black and white, repeating once over UV [0, 1]: one per page, shared. */
+function checkerTexture(): DataTexture {
+  if (checker) return checker
+  const n = 256, cell = 32, data = new Uint8Array(n * n * 4)
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const v = ((Math.floor(x / cell) + Math.floor(y / cell)) & 1) ? 235 : 20
+    data.set([v, v, v, 255], (y * n + x) * 4)
+  }
+  checker = new DataTexture(data, n, n)
+  checker.colorSpace = SRGBColorSpace
+  checker.needsUpdate = true
+  return checker
+}
+
+const checkered = new WeakMap<Mesh, Mesh['material']>()
+/** Every standard material under `root` swapped for a clone showing the UV checker, or back to
+ *  the very materials it had (DP0, spec §9): stretch at a loft end shows as bent squares. The
+ *  clone, not the original, is changed: the model cache shares materials across instances. */
+export function applyChecker(root: Object3D, on: boolean): void {
+  const swap = (m: Mesh['material'] & object): Mesh['material'] & object => {
+    if (!(m instanceof MeshStandardMaterial)) return m
+    const c = m.clone()
+    c.map = checkerTexture(); c.color.setRGB(1, 1, 1); c.needsUpdate = true
+    return c
+  }
+  root.traverse((o) => {
+    if (!(o instanceof Mesh)) return
+    const saved = checkered.get(o)
+    if (on && !saved) {
+      checkered.set(o, o.material)
+      o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material)
+    } else if (!on && saved) {
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m !== saved && !(Array.isArray(saved) && saved.includes(m))) m.dispose()
+      o.material = saved
+      checkered.delete(o)
+    }
+  })
+}
+
 /** Pivot gizmos (spec §8): an axes helper at each articulated node's origin,
  *  drawn over the model so a pivot inside the fuselage still shows. */
 export function createGizmos(nodes: readonly Object3D[], size: number): Group {
@@ -99,6 +139,8 @@ export interface HangarStage {
   setModelVisible(visible: boolean): void
   /** Wireframe on every model shown from now on, the current one included (H2). */
   setWireframe(on: boolean): void
+  /** The UV checker on every model shown from now on, the current one included (DP0, spec §9). */
+  setChecker(on: boolean): void
   /** The current model unlit (its own paint, no lights), or lit again; show() relights (Tier 2 check 5, R3). */
   setUnlit(on: boolean): void
   /** Pivot gizmos on these nodes; null or [] = off. show() clears them (H2). */
@@ -147,6 +189,7 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
   let current: Object3D | null = null
   let radius = 10
   let wireframe = false
+  let checkerOn = false
   let gizmos: Group | null = null
   let gizmoNodes: readonly Object3D[] = []
   const setGizmos = (nodes: readonly Object3D[] | null): void => {
@@ -193,6 +236,7 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       if (current) {
         // Off before it goes: its materials are shared with the cached source.
         applyWireframe(current, false)
+        applyChecker(current, false)
         applyUnlit(current, false)
         holder.remove(current)
       }
@@ -204,6 +248,7 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       }
       holder.add(model)
       applyWireframe(model, wireframe)
+      applyChecker(model, checkerOn)
       const box = new Box3().setFromObject(model)
       const sphere = box.getBoundingSphere(new Sphere())
       radius = Math.max(1, sphere.radius)
@@ -231,6 +276,10 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
     setWireframe(on): void {
       wireframe = on
       if (current) applyWireframe(current, on)
+    },
+    setChecker(on): void {
+      checkerOn = on
+      if (current) applyChecker(current, on)
     },
     setGizmos,
     setAutoRotate(on): void { controls.autoRotate = on },

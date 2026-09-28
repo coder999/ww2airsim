@@ -28,7 +28,7 @@ const current = (page: Page) => page.evaluate(() => (window as HangarWindow).__h
 const pose = (page: Page, p: PartPose) => page.evaluate((q) => (window as HangarWindow).__hangar!.pose(q), p)
 const visible = (page: Page, v: boolean) => page.evaluate((x) => (window as HangarWindow).__hangar!.setModelVisible(x), v)
 const hasPart = (c: Current, id: string) => c.parts.some((p) => p.id === id && p.modeled)
-const setDebug = (page: Page, which: 'wireframe' | 'gizmos' | 'turntable', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
+const setDebug = (page: Page, which: 'wireframe' | 'gizmos' | 'turntable' | 'checker', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
 
 /** Three animation frames, so a pose or camera change has reached the canvas. */
 const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))

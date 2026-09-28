@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AxesHelper, BoxGeometry, Color, DataTexture, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D } from 'three'
-import { applyUnlit, applyWireframe, createGizmos, syncGizmos } from '../../../src/render/hangar/stage.js'
+import { applyChecker, applyUnlit, applyWireframe, createGizmos, syncGizmos } from '../../../src/render/hangar/stage.js'
 
 describe('applyWireframe', () => {
   it('sets and clears every mesh material, arrays included, because clones share them', () => {
@@ -48,6 +48,25 @@ describe('applyUnlit (R3: check 5 measures lighting, not paint)', () => {
     expect(a.material).toBe(lit)
     expect(b.material).toEqual([other, lit])
     expect((b.material as MeshStandardMaterial[])[1]).toBe(lit)
+  })
+})
+
+describe('applyChecker (DP0: the UV checker, spec §9)', () => {
+  it('swaps each standard material for a clone mapped with one shared checker, and restores the very same materials', () => {
+    const lit = new MeshStandardMaterial({ color: new Color(0.2, 0.4, 0.6), map: new DataTexture(new Uint8Array(4), 1, 1) })
+    const a = new Mesh(new BoxGeometry(), lit), b = new Mesh(new BoxGeometry(), lit)
+    const root = new Group(); root.add(a, b)
+    applyChecker(root, true)
+    const ca = a.material as MeshStandardMaterial, cb = b.material as MeshStandardMaterial
+    expect(ca).not.toBe(lit)
+    expect(ca.map).not.toBe(lit.map)
+    expect(ca.map).toBe(cb.map) // one checker texture, shared
+    expect(ca.color.toArray()).toEqual([1, 1, 1]) // the checker shows unmodulated
+    expect(lit.map).not.toBeNull() // the shared original is untouched
+    applyChecker(root, true) // idempotent
+    applyChecker(root, false)
+    expect(a.material).toBe(lit)
+    expect(b.material).toBe(lit)
   })
 })
 
