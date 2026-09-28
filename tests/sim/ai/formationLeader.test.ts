@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { aircraftById, type World } from '../../../src/sim/loop.js'
 import { length, sub } from '../../../src/sim/math/vec3.js'
 import { PURSUIT_FLOOR_M } from '../../../src/sim/ai/safety.js'
-import { leaderAirborne, stationErrorM } from '../../../src/sim/ai/formation.js'
+import { airborne } from '../../../src/sim/ai/airborne.js'
+import { stationErrorM } from '../../../src/sim/ai/formation.js'
 import { decksOf } from '../../../src/sim/world/deck.js'
 import { chase, runCanned, type ScriptedFlight } from './maneuverWorlds.js'
 import { PLAYER_EAST, PLAYER_FAR, buildFormation, formationLeader, wingman } from './formationWorlds.js'
@@ -99,7 +100,7 @@ describe('a parked leader (7f spec §4)', () => {
       const lead = aircraftById(x, 'f6f-1')!
       const wing = aircraftById(x, 'wing-1')!
       expect(lead.impact).toBeNull()
-      if (liftOffS === null && leaderAirborne(lead, x.terrain, decksOf(x.ships))) liftOffS = t
+      if (liftOffS === null && airborne(lead, x.terrain, decksOf(x.ships))) liftOffS = t
       // On the deck: loiter, never formation.
       if (liftOffS === null) expect(wing.pilot!.decision.mode).toBe('loiter')
       if (formationS === null && wing.pilot!.decision.mode === 'formation') formationS = t

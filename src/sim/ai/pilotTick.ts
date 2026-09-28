@@ -13,7 +13,8 @@ import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
-import { COVER_LATCH_S, formationControls, leaderAirborne, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
+import { airborne } from './airborne.js'
+import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { selectTarget, type TargetingView } from './targeting.js'
 
@@ -77,7 +78,7 @@ export function pilotTick<M>(
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
-  const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides }
+  const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides, terrain: ctx.terrain, decks: ctx.decks }
   // 7f spec §3-4: a wingman's leader, from the start-of-tick snapshot. A
   // down or missing leader hands the wingman its own orders (spec §4).
   let leader: AircraftEntity<M> | null = null
@@ -87,7 +88,7 @@ export function pilotTick<M>(
     else leader = l
   }
   // A leader still on its deck or runway is loitered on, not formed on (spec §4).
-  const leaderFlying = leader !== null && leaderAirborne(leader, ctx.terrain, ctx.decks)
+  const leaderFlying = leader !== null && airborne(leader, ctx.terrain, ctx.decks)
   let decision: PilotDecisionState = pilot.decision
   // 7f spec §4: trail cover holds COVER_LATCH_S past the leader's last shot or engagement.
   if (leader !== null && leaderIsFighting(leader)) decision = { ...decision, coverUntilS: ctx.nowS + COVER_LATCH_S }
