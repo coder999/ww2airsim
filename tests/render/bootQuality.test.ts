@@ -277,6 +277,9 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
   it('routes crash and Watch replay through the pure instant-replay flow (instant replay Task 9)', () => {
     expect(source).toContain("dispatch({ kind: 'crashBanked' })")
     expect(source).toContain('onWatchReplay')
+    // Whole-branch review: a shoot-down has no Impact. If P can open the
+    // chart during its hold, the chart pauses the flow countdown forever.
+    expect(source).toMatch(/const openNavigationChart[\s\S]{0,500}?destroyedAt !== null/)
   })
 
   it('keeps the DEV query overrides winning over a saved setting', () => {

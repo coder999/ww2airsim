@@ -53,6 +53,8 @@ export type Ww2Diagnostics = {
   readonly validationErrors: readonly string[]
   readonly tick: () => number
   readonly cameraMode: () => CameraMode
+  /** Current live-flight time scale. Instant-replay keys must not mutate it. */
+  readonly timeScale: () => number
   /** Proves a KeyG press reached the player's AircraftState.gearFraction
    *  and therefore the rendered Airframe.update gear path (setGear until Z1). This mirrors the
    *  controls() diagnostic below: an advancing tick alone cannot prove the

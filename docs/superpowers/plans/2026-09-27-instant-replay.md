@@ -1285,7 +1285,7 @@ Every other combination leaves the flow unchanged with no effects. A Watch repla
 - a README paragraph
 - `GAMEPLAY.md`, if it has a controls section by then; otherwise the README paragraph names the keys
 
-- [ ] **Step 1: Tier 2 cases.** Run all of them on the worktree's dev slot, nexus GPU, under `sg render`:
+- [x] **Step 1: Tier 2 cases.** Run all of them on the worktree's dev slot, nexus GPU, under `sg render`:
   1. **Crash:** `diveToSea(page)`. That helper waits for the debrief, so use a variant: poll `__ww2.replay()` non-null within 6 s of the impact tick, then wait for `replay()` to become null and the debrief to be visible. Check the roster/banked text shows one bank (the debrief's banked line appears once).
   2. **Skip:** crash again (Restart, dive). As soon as the replay starts, press Escape. The debrief is visible within 1 s.
   3. **Watch replay:** click it → `replay()` non-null, the debrief hidden. Press Escape → the debrief is visible again.
@@ -1294,7 +1294,7 @@ Every other combination leaves the flow unchanged with no effects. A Watch repla
   6. **Performance:**
      - `__ww2.replayFxRebuildMs()` after a seek to the window's end is under 50 ms.
      - Mean `frameTimesMs()` during 3 s of replay is no worse than 1.25× the mean during 3 s of live flight at the same place. This is a correctness-machine sanity bound, not a budget; ledger both numbers.
-- [ ] **Step 2: Read every PNG.** Each camera must frame the airplane (Target also the attacker, when there is one). Fix what is wrong before the handoff.
-- [ ] **Step 3: Whole-branch review** (`superpowers:requesting-code-review`, most capable model, with this plan's Review Focus verbatim and the ledger's rulings). Fix Critical and Important findings with RED→GREEN tests; ledger the Minor ones.
-- [ ] **Step 4: Handoff.** In the same format as `docs/handoff/2026-09-27-orbit-camera.md`: what shipped, the controls table, captures (downscaled 1280×720 JPEGs in `docs/handoff/`), rulings R-1..R-12 plus the executor's, the memory number, the Review Focus pin list, test status, deferred minors, and Mark's final checkpoint. Update the §15 row (Instant Replay complete on its branch; bomb cam still a future idea) and add a README paragraph pointing at §15.
+- [x] **Step 2: Read every PNG.** Each camera must frame the airplane (Target also the attacker, when there is one). Fix what is wrong before the handoff.
+- [x] **Step 3: Whole-branch review** (`superpowers:requesting-code-review`, most capable model, with this plan's Review Focus verbatim and the ledger's rulings). Fix Critical and Important findings with RED→GREEN tests; ledger the Minor ones.
+- [x] **Step 4: Handoff.** In the same format as `docs/handoff/2026-09-27-orbit-camera.md`: what shipped, the controls table, captures (downscaled 1280×720 JPEGs in `docs/handoff/`), rulings R-1..R-12 plus the executor's, the memory number, the Review Focus pin list, test status, deferred minors, and Mark's final checkpoint. Update the §15 row (Instant Replay complete on its branch; bomb cam still a future idea) and add a README paragraph pointing at §15.
 - [ ] **Step 5:** Push the branch. Do **not** merge or push `main`. Email the handoff: `python3 tools/mail-doc.py docs/handoff/2026-09-27-instant-replay.md "ww2airsim: Instant Replay handoff (branch ready, not merged)"`.

@@ -908,6 +908,7 @@ async function boot(): Promise<void> {
       validationErrors,
       tick: () => frame?.world.tick ?? 0,
       cameraMode: () => frame?.cameraMode ?? 'chase',
+      timeScale: () => frame?.timeScale ?? 1,
       gearFraction: () => (frame ? playerAircraft(frame.world).state.gearFraction : 0),
       controls: () => frame?.controls ?? NEUTRAL,
       look: () => frame?.look ?? LOOK_CENTRE,
@@ -1914,7 +1915,14 @@ async function boot(): Promise<void> {
     navigationMap.hide()
   }
   const openNavigationChart = (): void => {
-    if (navigationMapState.open || playerAircraft(frame!.world).impact !== null || landingShown) return
+    const player = playerAircraft(frame!.world)
+    // A gun kill has no Impact. Letting P open the chart during its three-
+    // second replay hold pauses the flow countdown and can strand the player
+    // behind the chart forever, before either replay or debrief appears.
+    if (
+      navigationMapState.open || player.impact !== null
+      || frame!.world.combat.aircraft[player.id]!.damage.destroyedAt !== null || landingShown
+    ) return
     navigationMapState = openNavigationMap(navigationMapState, frame!.paused)
     frame = withPaused(frame!, true)
     clearMapInput()

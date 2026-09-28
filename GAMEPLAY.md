@@ -117,6 +117,29 @@ performance decision, not decoration.
 Post-mission: targets destroyed with per-item points, mission total, recovery
 multiplier applied, banked total, badges awarded, and any promotion.
 
+### Instant Replay
+
+A crash or shoot-down holds for three seconds, replays the final moments once,
+then opens the debrief. **Watch replay** runs the same recording again. While
+paused, **K** opens a manual replay of the last 10 seconds once at least three
+seconds have been recorded.
+
+| Input | Replay action |
+| --- | --- |
+| Space | Play / pause |
+| Left / Right | Step back / forward one second (Shift: one simulation tick) |
+| 1 / 2 / 3 | 0.5× / 1× / 3× speed |
+| C | Cycle cameras |
+| 4–9 | Auto, Orbit, Flyby, Target, Cockpit, Manual |
+| O | Toggle Orbit spin |
+| L | Toggle Manual lock on the airplane |
+| WASD, Q / E | Move Manual forward/sideways, down/up |
+| Mouse drag / wheel | Look around / change Manual movement speed |
+| Esc | Leave or skip replay |
+
+Replay owns these keys while it is up; it does not alter the held live flight,
+assist settings, audio mute, chart, radar range, or time scale.
+
 ## Library
 
 `hangar.html` ("Library" on the title's first form) shows every aircraft,
