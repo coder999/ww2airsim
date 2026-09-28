@@ -52,6 +52,24 @@ describe('pilot.home (7g spec §7)', () => {
     expect(() => build(many, { ships: [cve('cve-1')] })).toThrow(`home ship "cve-1" parks ${n}`)
   })
 
+  it('rejects a homed deck with zero park spots (0 must count as overflow too)', () => {
+    const scenario = parseScenario({
+      id: 'recovery-schema-zero-spots', player: 'f6f-1', airfields: ['tacloban'],
+      aircraft: [PLAYER, { ...aiAirborne('ai-1'), pilot: { home: { ship: 'cve-1' } } }],
+      ships: [cve('cve-1')], weather: { windFromDeg: 0, windMps: 0 },
+    })
+    const bundle = bundleForScenario(scenario)
+    // No shipped aircraft is wider than any shipped deck, so the narrowest
+    // honest seam to deckParkSpots returning [] (its own maxColumnX < 0
+    // branch) is a structuredClone'd spec with wingSpanM pushed past the
+    // Casablanca-class CVE's flight deck width -- content and every other
+    // scenario are untouched; only this test's in-memory bundle is widened.
+    const hellcat = structuredClone(bundle.aircraftSpecs['f6f-hellcat']!)
+    const tooWide = { ...hellcat, geometry: { ...hellcat.geometry, wingSpanM: bundle.shipSpecs['casablanca-cve']!.flightDeck!.widthM + 1 } }
+    const widened = { ...bundle, aircraftSpecs: { ...bundle.aircraftSpecs, 'f6f-hellcat': tooWide } }
+    expect(() => worldFromScenario(widened, null)).toThrow('home ship "cve-1" parks 0 aircraft but 1 are homed to it')
+  })
+
   it('resolves a runway home to its approach geometry and the id-ranked park spot', () => {
     const w = build([
       { ...aiAirborne('ai-b'), pilot: { home: { airfield: 'tacloban' } } },
