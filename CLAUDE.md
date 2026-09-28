@@ -47,6 +47,9 @@ not exist, and three conventions below were being missed for that reason).
 - **Full suites and `verify` go through `remote-run`** (`remote-run npm run
   verify`), which runs them on ryzen's 32 threads. On nexus, run only the
   files you are touching. Parallel full suites here have OOM-killed nexus.
+  `remote-run` runs two jobs at once on ryzen and, when both slots are busy
+  or a GPU measurement holds ryzen, overflows at most one to nexus; it says
+  which it chose (`serverconfig/ryzen.md`, "Resource locks").
   How it works: `serverconfig/ryzen.md`, "WSL Ubuntu and compute offload".
   Gitignored and LFS data reaches ryzen only if it is listed in
   `.remote-run-data`. A new data-backed test whose data isn't listed there
