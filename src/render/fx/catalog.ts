@@ -14,14 +14,14 @@ import { FX_SHEETS } from './sheetManifest.js'
  * NHHC/NARA photographs (spec §5.1). E2 touches this file's NUMBERS only.
  */
 export const RECIPE_IDS = [
-  'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water',
+  'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
   'crash.land', 'crash.water', 'crash.deck',
   'kill.air', 'engine.smoke', 'ship.fire', 'structure.collapse',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
-export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'ship.fire', 'kill.air', 'structure.collapse']
+export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor']
 
 const range = z.tuple([z.number().nonnegative(), z.number().nonnegative()]).refine(([a, b]) => a <= b, 'range must be [min, max]')
 const emitterSchema = z.object({
@@ -121,6 +121,12 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [4, 7], speedMps: [1, 3], direction: 'sphere', spreadDeg: 180, sizeM: [3, 14], alpha: 0.7, tint: SMOKE, dragPerS: 0.6, accelYMps2: 0.8 }], source: ESTIMATE },
   // Today's smoke.ts: dark (0x23262b), opacity 0.25..0.8 with damage.
   'engine.smoke': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 14, lifeS: [2, 3.5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [1.2, 6], alpha: 0.6, tint: [0.14, 0.15, 0.17], dragPerS: 1.5, accelYMps2: 0.5, inheritVelocity: 0.15 }], source: 'smoke.ts smokeAppearance (estimate, Plan 6)' },
+  // Plan E2 Ruling R8: the HVAR's motor, at its nozzle while it burns (events.ts ROCKET_BURN_S).
+  // 90% inherited velocity leaves a plume of about 5 m behind a 300 m/s rocket.
+  'rocket.motor': { emitters: [
+    { mode: 'stream', sheet: 'flame', ratePerS: 90, lifeS: [0.05, 0.09], speedMps: [0, 2], direction: 'sphere', spreadDeg: 180, sizeM: [0.7, 1.1], alpha: 0.95, tint: [1, 1, 1], emissive: 1, dragPerS: 0, accelYMps2: 0, inheritVelocity: 0.9, frameRateHz: 24 },
+    { mode: 'stream', sheet: 'smoke', ratePerS: 30, lifeS: [1.2, 2.2], speedMps: [0, 1], direction: 'sphere', spreadDeg: 180, sizeM: [0.5, 3], alpha: 0.35, tint: [0.62, 0.62, 0.64], dragPerS: 1.2, accelYMps2: 0.2 },
+  ], source: 'estimate (plan E2 Ruling R8): burn time mirrors hvar.burnS 1.0 s; plume and exhaust-smoke sizes are estimates' },
   'ship.fire': { emitters: [
     { mode: 'stream', sheet: 'flame', ratePerS: 20, lifeS: [0.8, 1.2], speedMps: [1, 3], direction: 'up', spreadDeg: 20, radiusM: 3, sizeM: [4, 6], alpha: 0.9, tint: [1, 1, 1], emissive: 1, dragPerS: 1, accelYMps2: 2, frameRateHz: 12 },
     { mode: 'stream', sheet: 'smoke', ratePerS: 8, lifeS: [10, 14], speedMps: [3, 6], direction: 'up', spreadDeg: 12, radiusM: 3, sizeM: [8, 40], alpha: 0.65, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },

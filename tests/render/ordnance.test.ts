@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { BoxGeometry, InstancedMesh, MeshStandardMaterial, PerspectiveCamera, Scene } from 'three'
 import {
-  BOMB_CAPACITY, ROCKET_CAPACITY, ROCKET_BURN_S,
-  createOrdnance, ordnanceInstances, flameInstances,
+  BOMB_CAPACITY, ROCKET_CAPACITY,
+  createOrdnance, ordnanceInstances,
 } from '../../src/render/ordnance.js'
 import type { Projectile } from '../../src/sim/weapons/combat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -25,45 +25,38 @@ describe('ordnanceInstances / flameInstances (pure half, Plan 6b Task 8)', () =>
     expect(ordnanceInstances(many, 'bomb', 3)).toHaveLength(3)
   })
 
-  it('flameInstances keeps only rockets still burning (ageS < ROCKET_BURN_S)', () => {
-    const projectiles = [
-      projectile({ kind: 'rocket', ageS: 0 }),
-      projectile({ kind: 'rocket', ageS: ROCKET_BURN_S - 0.01 }),
-      projectile({ kind: 'rocket', ageS: ROCKET_BURN_S }),
-      projectile({ kind: 'rocket', ageS: 5 }),
-      projectile({ kind: 'bomb', ageS: 0 }),
-    ]
-    expect(flameInstances(projectiles, 32)).toHaveLength(2)
-  })
 })
 
-describe('createOrdnance (Plan 6b Task 8): pooled bomb/rocket/flame meshes', () => {
+describe('createOrdnance (Plan 6b Task 8): pooled bomb/rocket meshes', () => {
   it('adds its pools to the scene, all at zero count and hidden', () => {
     const scene = new Scene()
     const ordnance = createOrdnance(scene)
     expect(scene.children).toContain(ordnance.object)
     const instancedMeshes = ordnance.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[]
-    // bomb, rocket, flame
-    expect(instancedMeshes).toHaveLength(3)
+    // bomb, rocket
+    expect(instancedMeshes).toHaveLength(2)
     for (const m of instancedMeshes) {
       expect(m.count).toBe(0)
       expect(m.visible).toBe(false)
     }
   })
 
-  it('update() positions live bombs/rockets and shows a flame only on a still-burning rocket', () => {
+  it('draws no motor flame of its own: the fx system does (plan E2 Ruling R8)', () => {
+    const o = createOrdnance(new Scene())
+    expect(o.object.children.filter((c) => c instanceof InstancedMesh)).toHaveLength(2)
+  })
+
+  it('update() positions live bombs and rockets', () => {
     const scene = new Scene()
     const ordnance = createOrdnance(scene)
     const bomb = projectile({ kind: 'bomb', position: v3(10, 20, 30) })
     const hotRocket = projectile({ kind: 'rocket', ageS: 0.1 })
     const coldRocket = projectile({ kind: 'rocket', ageS: 5 })
     ordnance.update([bomb, hotRocket, coldRocket])
-    const [bombMesh, rocketMesh, flameMesh] = ordnance.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[]
+    const [bombMesh, rocketMesh] = ordnance.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[]
     expect(bombMesh!.count).toBe(1)
     expect(bombMesh!.visible).toBe(true)
     expect(rocketMesh!.count).toBe(2)
-    expect(flameMesh!.count).toBe(1)
-    expect(flameMesh!.visible).toBe(true)
   })
 
   it('bomb pool never exceeds BOMB_CAPACITY, rocket pool never exceeds ROCKET_CAPACITY', () => {
@@ -93,21 +86,6 @@ describe('createOrdnance store models (O1)', () => {
     expect(pools[0]!.material).toBe(bomb.material)
     expect(pools[1]!.geometry).toBe(rocket.geometry)
     expect(freed).toBe(1)
-  })
-
-  it('moves the motor flame to the rocket model\'s aft end, on its axis (not riding its back)', () => {
-    const o = createOrdnance(new Scene())
-    const flame = (o.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[])[2]!
-    // A rocket whose origin is its lug tops, like hvar.glb: x -0.7..0.9, y -0.16..-0.03.
-    const rocketGeometry = new BoxGeometry(1.6, 0.13, 0.13).translate(0.1, -0.095, 0)
-    o.setStoreModels({ geometry: new BoxGeometry(1.7, 0.5, 0.5), material: new MeshStandardMaterial() }, { geometry: rocketGeometry, material: new MeshStandardMaterial() })
-    rocketGeometry.computeBoundingBox()
-    const r = rocketGeometry.boundingBox!
-    flame.geometry.computeBoundingBox()
-    const f = flame.geometry.boundingBox!
-    expect(f.max.x).toBeLessThanOrEqual(r.min.x + 1e-6)
-    expect((f.min.y + f.max.y) / 2).toBeCloseTo((r.min.y + r.max.y) / 2, 6)
-    expect((f.min.z + f.max.z) / 2).toBeCloseTo((r.min.z + r.max.z) / 2, 6)
   })
 
   it('refuses a second swap rather than disposing the model cache\'s assets', () => {

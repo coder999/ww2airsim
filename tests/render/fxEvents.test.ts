@@ -9,8 +9,13 @@ import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import type { Impact } from '../../src/sim/loop.js'
 import {
   COLLAPSE_SMOKE_S, crashRecipe, impactRecipe, KILL_TRAIL_S, NO_FX_MEMORY, nextFxEvents,
+  ROCKET_BURN_S, ROCKET_NOZZLE_AFT_M,
   type FxMemory, type FxWorldView,
 } from '../../src/render/fx/events.js'
+import { readFileSync } from 'node:fs'
+import type { Projectile } from '../../src/sim/weapons/combat.js'
+import { modelIO } from '../../tools/models/document.js'
+import { measureDocument } from '../../tools/models/measure.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const craft = (id: string, position: Vec3) => {
@@ -130,5 +135,25 @@ describe('fx events (effects design §3.2)', () => {
     const f2 = nextFxEvents(f1.memory, view(60 + Math.round(COLLAPSE_SMOKE_S / DT) + 1, razed, aircraft))
     expect(f2.triggers).toEqual([])
     expect(f2.sustained).toEqual([])
+  })
+})
+
+describe('the rocket motor (plan E2 Ruling R8)', () => {
+  const rocket = (id: number, ageS: number, kind: Projectile['kind'] = 'rocket'): Projectile =>
+    ({ owner: 'a', id, position: v3(100, 500, 0), previous: v3(99, 500, 0), velocity: v3(300, 0, 0), lifeS: 10, tracer: false, kind, ageS })
+
+  it('a burning rocket carries a motor emitter at its nozzle; a spent rocket and a bomb carry none', () => {
+    const { combat, aircraft } = base()
+    const c = { ...combat, projectiles: [rocket(1, 0.2), rocket(2, ROCKET_BURN_S), rocket(3, 0.2, 'bomb')] }
+    const motors = nextFxEvents(NO_FX_MEMORY, view(1, c, aircraft)).sustained.filter((s) => s.recipe === 'rocket.motor')
+    expect(motors.map((m) => m.key)).toEqual(['rocket:1'])
+    expect(motors[0]!.position.x).toBeCloseTo(100 - ROCKET_NOZZLE_AFT_M, 6)
+    expect(motors[0]!.velocity).toEqual(v3(300, 0, 0))
+    expect(motors[0]!.intensity).toBe(1)
+  })
+
+  it('ROCKET_NOZZLE_AFT_M is the HVAR model\'s aft end, measured rather than remembered', async () => {
+    const m = measureDocument(await modelIO().readBinary(new Uint8Array(readFileSync('content/ordnance/hvar.glb'))))
+    expect(-m.bounds.min[0]!).toBeCloseTo(ROCKET_NOZZLE_AFT_M, 2)
   })
 })
