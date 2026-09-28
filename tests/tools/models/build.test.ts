@@ -259,7 +259,9 @@ describe('a skinned Blender entry (DP0)', () => {
     const none = deps({ exists: () => false })
     expect(await runBuild([hangar()], ['hangar'], none.deps)).toBe(1)
     expect(none.log.join('\n')).toMatch(/wrote no .*skin\.json/)
-    const plain = parseModelEntry(JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')))
+    const unskinned = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
+    delete unskinned['skin']
+    const plain = parseModelEntry(unskinned)
     const extra = deps()
     expect(await runBuild([plain], ['hangar'], extra.deps)).toBe(1)
     expect(extra.log.join('\n')).toMatch(/has no "skin": true/)
