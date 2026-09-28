@@ -21,6 +21,8 @@ import {
 import { interpolateAircraft, interpolateShip, type RenderState, type ShipPose } from '../sim/interpolate.js'
 import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.js'
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
+import { orbitFromMouse, NO_MOUSE, ORBIT_ZERO, type MouseDelta, type OrbitOffset } from '../input/orbit.js'
+import { SEA_LEVEL_M } from '../sim/world/terrain.js'
 import { cameraTransformFor, type CameraMode, type EyeTransform } from './camera.js'
 import { BINDINGS, type BindingName } from '../input/bindings.js'
 import { type Vec3, v3, length } from '../sim/math/vec3.js'
@@ -43,6 +45,10 @@ export type FrameState = {
   readonly controls: Controls
   readonly look: LookOffset
   readonly cameraMode: CameraMode
+  /** The pilot's mouse swing of the chase camera (orbit camera spec,
+   *  2026-09-27). `ORBIT_ZERO` whenever the mode is not chase: leaving chase
+   *  drops it, so C -> cockpit -> C always lands on the default view (OC-4). */
+  readonly orbit: OrbitOffset
   readonly eye: EyeTransform
   /** The PLAYER's interpolated pose this frame -- `poses[playerIndex]`, the
    *  identical object, not a second computation of it (see `posesFor`). The
@@ -281,6 +287,7 @@ export function initialFrameStateFor(
     controls: player.controls,
     look: LOOK_CENTRE,
     cameraMode: 'chase',
+    orbit: ORBIT_ZERO,
     eye: { position: render.position, attitude: render.attitude },
     render,
     poses,
@@ -479,6 +486,10 @@ export function nextFrameState(
    *  it forward -- it is passed through, exactly like `stepper`. Default
    *  `false` keeps every other caller on the realistic model. */
   arcadeDamage = false,
+  /** This frame's mouse input on the canvas (orbit camera spec §4), already
+   *  zeroed by `main.ts` while a screen is over the flight. Passed in, not
+   *  stored, like `arcadeDamage`; only the `orbit` it produces is state. */
+  mouse: MouseDelta = NO_MOUSE,
 ): FrameState {
   const player = playerAircraft(prev.world)
   const spec = player.spec
@@ -608,6 +619,12 @@ export function nextFrameState(
     cycleDown && !prev.cyclePressed
       ? MODES[(MODES.indexOf(prev.cameraMode) + 1) % MODES.length]!
       : prev.cameraMode
+  // Leaving chase drops the orbit, so C -> cockpit -> C is always the
+  // default view (orbit spec OC-4); in cockpit the mouse does nothing.
+  const orbit =
+    cameraMode === 'chase'
+      ? orbitFromMouse(prev.cameraMode === 'chase' ? prev.orbit : ORBIT_ZERO, mouse)
+      : ORBIT_ZERO
 
   // Each assist toggles on its own key's rising edge, for exactly the reason
   // the camera cycle above does: a key held for a second would otherwise flip
@@ -678,7 +695,12 @@ export function nextFrameState(
   const after = advancedPlayer.state.velocity
   const a = advanced.alpha
   const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
-  const eye = cameraTransformFor(cameraMode, spec, render, look, speed)
+  const decks = decksOf(advanced.world.ships)
+  // Orbit spec OC-3: the ground model `landing.ts` and `step()` share, so a
+  // deck is a floor too; no terrain yet (a ground spawn) reads as the sea.
+  const surfaceHeightAt = (x: number, z: number): number =>
+    groundUnder(advanced.world.terrain, decks, x, z)?.heightM ?? SEA_LEVEL_M
+  const eye = cameraTransformFor(cameraMode, spec, render, look, speed, orbit, surfaceHeightAt)
 
   // Landing bookkeeping reads the airplane on both sides of this frame's
   // steps: `player.state` is the state before them, `advancedPlayer.state`
@@ -691,7 +713,7 @@ export function nextFrameState(
     advancedPlayer.state,
     advanced.world.terrain,
     advanced.world.airfields,
-    decksOf(advanced.world.ships),
+    decks,
   )
 
   return {
@@ -699,6 +721,7 @@ export function nextFrameState(
     controls,
     look,
     cameraMode,
+    orbit,
     eye,
     render,
     poses,

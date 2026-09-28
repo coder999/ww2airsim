@@ -3,6 +3,7 @@ import type { AdapterVerdict } from './adapterGuard.js'
 import type { CameraMode } from './camera.js'
 import type { Controls } from '../sim/flight/state.js'
 import type { LookOffset } from '../input/lookAround.js'
+import type { OrbitOffset } from '../input/orbit.js'
 import type { AssistSettings } from '../assists/index.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
@@ -56,6 +57,8 @@ export type Ww2Diagnostics = {
    *  (src/input/lookAround.ts), so proving a look key took effect has to
    *  read this while the key is still held, not after. */
   readonly look: () => LookOffset
+  /** The chase camera's mouse swing (orbit camera spec, 2026-09-27). */
+  readonly orbit: () => OrbitOffset
   /**
    * Which assists are on (Plan 3 Task 5). Read-only on purpose: Tier 2 flips
    * them the way a pilot does, by pressing the toggle keys in

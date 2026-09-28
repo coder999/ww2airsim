@@ -82,3 +82,10 @@ Unchanged `MODES` order. The only new behavior: the transition out of chase sets
 ## 8. Out of scope
 
 Replay and its cameras (the replay spec), spin, the Manual free camera, bomb cam, pointer lock, and touch input.
+
+## 9. Amendments
+
+- **2026-09-27, plan rulings.**
+  - P-1: pitch is clamped to [−80°, +60°], not ±80° (§3), so the eye never passes overhead.
+  - P-2: §6's cloud-history test runs at zoom 1. At zoom 4 a fast drag correctly resets history.
+- **2026-09-27, final review.** OC-3's clamp raises the eye around its orbit (the steepest pitch that clears the floor) instead of lifting its height, so §7's framing holds at the surface. The floor is never below the surface under the airplane, so the eye never sits beside a carrier's hull below its deck. See the [handoff](../../handoff/2026-09-27-orbit-camera.md).
