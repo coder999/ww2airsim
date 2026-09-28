@@ -57,6 +57,12 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
       const d = { scenarioId: 'free-flight', aircraftSpec: 'a6m2-zero', loadout: 'rockets' as const }
       expect(reconcile(ctx(false), d, 'free-flight')).toEqual({ scenarioId: 'free-flight', aircraftSpec: 'f6f-hellcat', loadout: 'rockets' })
     })
+    it('a saved Rockets draft on the Wildcat falls back to its default loadout (W1: no rockets)', () => {
+      const d = { scenarioId: 'airfield-strike', aircraftSpec: 'f4f-wildcat', loadout: 'rockets' as const }
+      const r = reconcile(ctx(false), d, 'free-flight')
+      expect(r.loadout).not.toBe('rockets')
+      expect(r.loadout).toBe(defaultLoadout(ctx(false), d.scenarioId, 'f4f-wildcat'))
+    })
     it('a legal draft comes back as the same object', () => {
       const d = { scenarioId: 'airfield-strike', aircraftSpec: 'f4f-wildcat', loadout: 'bombs' as const }
       expect(reconcile(ctx(false), d, 'free-flight')).toBe(d)
