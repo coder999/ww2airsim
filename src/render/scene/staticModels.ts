@@ -21,7 +21,9 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     revetment: { url: staticModelUrl('building', 'revetment') },
     tower: { url: staticModelUrl('building', 'tower') },
   },
-  vehicle: {},
+  vehicle: {
+    'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
+  },
 }
 
 export function staticModelUrlFor(kind: StaticModelKind, id: string): string {

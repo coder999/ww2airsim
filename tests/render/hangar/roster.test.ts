@@ -14,9 +14,9 @@ import { nodeHangarContent } from './content.js'
  * buildings off; R5 deletes both. The list may shrink, never grow.
  */
 const NOT_YET_DRAWN = [
-  'type97-chi-ha', 'willys-mb-jeep',
+  'willys-mb-jeep',
 ]
-const CEILING = 2
+const CEILING = 1
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
