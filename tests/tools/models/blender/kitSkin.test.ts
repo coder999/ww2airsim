@@ -7,6 +7,8 @@ import { join } from 'node:path'
 import type { Document, Primitive } from '@gltf-transform/core'
 import { HAVE_BLENDER, runBlenderScript, skinSidecarPath } from '../../../../tools/models/blender/run.js'
 import { findNode, modelIO } from '../../../../tools/models/document.js'
+import { parseSidecar } from '../../../../tools/models/skin/sidecar.js'
+import { rasterize, trianglesOf } from '../../../../tools/models/skin/raster.js'
 
 const PROBE = 'tests/tools/models/blender/fixtures/kit_skin_probe.py'
 const sha = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
@@ -137,5 +139,71 @@ describe.skipIf(!HAVE_BLENDER)('the kit skin path (DP0 Task 2)', () => {
     expect(existsSync(skinSidecarPath(out))).toBe(false)
     const plain = await modelIO().readBinary(new Uint8Array(readFileSync(out)))
     for (const p of prims(plain)) expect(p.getAttribute('TEXCOORD_0')).toBeNull()
+  })
+})
+
+describe.skipIf(!HAVE_BLENDER)('Model.shared_chart() (DP0 Task 8)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dp0-shared-'))
+  const a = join(dir, 'a.glb'), b = join(dir, 'b.glb')
+  let doc: Document
+  let side: ReturnType<typeof parseSidecar>
+  beforeAll(async () => {
+    runBlenderScript('tests/tools/models/blender/fixtures/kit_shared_probe.py', a)
+    runBlenderScript('tests/tools/models/blender/fixtures/kit_shared_probe.py', b)
+    doc = await modelIO().readBinary(new Uint8Array(readFileSync(a)))
+    side = parseSidecar(readFileSync(skinSidecarPath(a), 'utf8'))
+  }, 120_000)
+
+  /** node name -> the sorted distinct patch ids its triangles land in. */
+  const patchesOf = (): Map<string, number[]> => {
+    const t = trianglesOf(doc, side, side.atlasPx)
+    const out = new Map<string, Set<number>>()
+    let i = 0
+    for (const node of doc.getRoot().listNodes().filter((n) => n.getMesh())) {
+      const count = node.getMesh()!.listPrimitives().reduce((k, p) => k + p.getIndices()!.getCount() / 3, 0)
+      const set = out.get(node.getName()) ?? new Set<number>()
+      for (let k = 0; k < count; k++) set.add(t.tris[i++]!.patch)
+      out.set(node.getName(), set)
+    }
+    return new Map([...out].map(([k, v]) => [k, [...v].sort((x, y) => x - y)]))
+  }
+
+  it('rebuilds byte-identically, glb and sidecar', () => {
+    expect(sha(b)).toBe(sha(a))
+    expect(sha(skinSidecarPath(b))).toBe(sha(skinSidecarPath(a)))
+  })
+
+  it('faces inside share one patch per role; faces outside, and a nested context, do not', () => {
+    const p = patchesOf()
+    expect(p.get('sh_a')).toHaveLength(6)
+    expect(p.get('sh_g')).toHaveLength(6)
+    for (const n of ['sh_b', 'sh_c', 'sh_d', 'sh_e', 'sh_f']) expect(p.get(n), n).toHaveLength(1)
+    const shared = p.get('sh_b')![0]!
+    expect(p.get('sh_c')).toEqual([shared])
+    expect(p.get('sh_f')).toEqual([shared])  // exiting the nested context restores the outer one
+    expect(p.get('sh_d')![0]).not.toBe(shared)  // glazing gets its own
+    expect(p.get('sh_e')![0]).not.toBe(shared)  // the nested context its own
+    expect(side.patches).toHaveLength(6 + 6 + 3)
+    expect(new Set(side.patches.map((q) => q.tag))).toEqual(new Set(['fit']))
+  })
+
+  it('the shared patch is the union of its faces\' extents, not their sum', () => {
+    const shared = patchesOf().get('sh_b')![0]!
+    const rect = side.patches.find((q) => q.id === shared)!.rect
+    // The largest face is sh_b's 2.0 x 0.2 m side or sh_c's 1.5 m side: the union is at most 2.0 x 2.0 m.
+    expect(Math.max(rect[2], rect[3])).toBeLessThanOrEqual(Math.ceil(2.0 / side.metersPerPx) + 1)
+  })
+
+  it('the rasterizer takes the overlapping triangles: every shared texel is covered once, in its own patch and role', () => {
+    const t = trianglesOf(doc, side, side.atlasPx)
+    const g = rasterize(t, 2 * side.atlasPx)
+    const p = patchesOf()
+    const steel = t.roles.indexOf('steel'), glazing = t.roles.indexOf('glazing')
+    for (const [node, role] of [['sh_b', steel], ['sh_d', glazing], ['sh_e', steel]] as const) {
+      const id = p.get(node)![0]!
+      let n = 0
+      for (let i = 0; i < g.patch.length; i++) if (g.patch[i] === id) { n++; expect(g.covered[i]).toBe(1); expect(g.role[i], node).toBe(role) }
+      expect(n, `${node}: texels in its patch`).toBeGreaterThan(0)
+    }
   })
 })

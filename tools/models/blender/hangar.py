@@ -64,18 +64,23 @@ with m.tagged('walls'):
               (EAVE_OUT_M + EMBED_M, EAVE_D_M + EMBED_M, length + 0.2))
 with m.tagged('roof'):
     m.barrel_vault('steel', (0.0, WALL_M, 0.0), width, rise, length, SHELL_T, 24)
-    # Ribs stand RIB_PROUD_M off the shell; their inner face sinks EMBED_M into it. None at an end.
+# Ribs stand RIB_PROUD_M off the shell; their inner face sinks EMBED_M into it. None at an end.
+# Their own tag keeps the roof's laps off them; their flat side faces share one chart (their
+# shells keep their own analytic charts).
+with m.tagged('ribs'):
     ribs = int(length // RIB_EVERY_M)
-    for i in range(ribs):
-        z = -length / 2 + (i + 0.5) * length / ribs
-        m.barrel_vault('steel', (0.0, WALL_M, z), width + 2 * RIB_PROUD_M, rise + RIB_PROUD_M, RIB_W_M, RIB_PROUD_M + EMBED_M, 16)
+    with m.shared_chart():
+        for i in range(ribs):
+            z = -length / 2 + (i + 0.5) * length / ribs
+            m.barrel_vault('steel', (0.0, WALL_M, z), width + 2 * RIB_PROUD_M, rise + RIB_PROUD_M, RIB_W_M, RIB_PROUD_M + EMBED_M, 16)
 with m.tagged('gable'):
     # The end wall sits GABLE_INSET inside the vault, and its outline runs mid-shell, so its
     # curved edge is buried in the shell and its sides inside the walls: no face of it is
     # coplanar with the vault's rim or outer surface (a flush gable drew a dark seam in the M0
     # capture and would z-fight in the game).
     m.arch_gable('steel', (0.0, 0.0, -length / 2 + GABLE_INSET + SHELL_T / 2), width - SHELL_T, WALL_M, rise - SHELL_T / 2, SHELL_T, 24)
-with m.tagged('windows'):
+# Small fittings share one chart per role (glass, frames, rails): one padded patch each, not one per face.
+with m.tagged('windows'), m.shared_chart():
     count = int(length // WINDOW_EVERY_M)
     for side in (-1, 1):
         face = side * width / 2
@@ -90,12 +95,14 @@ with m.tagged('windows'):
             for y in (SILL_M - FRAME_M, SILL_M + WINDOW_H_M):
                 m.box('steel', (face + side * (FRAME_M + 0.01 - EMBED_M) / 2, y, z), (FRAME_M + 0.01 + EMBED_M, FRAME_M, WINDOW_W_M + 2 * FRAME_M + 0.02))
 with m.tagged('doors'):
-    for side in (-1, 1):
-        cx = side * (width / 2 - WALL_T - width / 8)
+    leaves = [side * (width / 2 - WALL_T - width / 8) for side in (-1, 1)]
+    for cx in leaves:
         m.box('dark', (cx, 0.0, length / 2 - DOOR_T), (width / 4, WALL_M, DOOR_T))
-        outer = length / 2 - DOOR_T / 2
-        for y in (WALL_M / 3, 2 * WALL_M / 3):
-            m.box('dark', (cx, y, outer + (RAIL_PROUD_M - EMBED_M) / 2), (width / 4 - 0.2, RAIL_H_M, RAIL_PROUD_M + EMBED_M))
+    outer = length / 2 - DOOR_T / 2
+    with m.shared_chart():
+        for cx in leaves:
+            for y in (WALL_M / 3, 2 * WALL_M / 3):
+                m.box('dark', (cx, y, outer + (RAIL_PROUD_M - EMBED_M) / 2), (width / 4 - 0.2, RAIL_H_M, RAIL_PROUD_M + EMBED_M))
 # Corrugated sheet laps, world-aligned (the skin's grid cuts them on axes lying in each surface).
 m.marking('grid', tags=['walls'], spacingM=[None, LAP_M, SHEET_M], widthM=0.03, depth=0.8)
 m.marking('grid', tags=['roof'], spacingM=[LAP_M, None, SHEET_M], widthM=0.03, depth=0.8)

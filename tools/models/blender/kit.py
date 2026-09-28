@@ -224,6 +224,7 @@ class Model:
         self._lines = []  # (chart key, axis, at, lo, hi, kind), chart-local meters
         self._markings = []
         self._tag = 'part'
+        self._shared = None  # inside shared_chart(): (tag, role) -> its one chart key, else None
 
     @contextlib.contextmanager
     def tagged(self, tag):
@@ -234,6 +235,21 @@ class Model:
             yield
         finally:
             self._tag = prev
+
+    @contextlib.contextmanager
+    def shared_chart(self):
+        """Planar faces made inside share one chart per (tag, role), each face keeping its own
+        face-local (u, v): they overlap in the atlas, the chart's box is the union of their
+        extents, and the rasterizer's first writer paints each shared texel. For small, uniformly
+        painted fittings (frames, rails, rib sides), whose one-chart-per-face padding would
+        otherwise eat the atlas. Analytic charts (loft sides, vault shells) are unaffected.
+        Keyed by role as well as tag because the G-buffer stores one role per texel: glass
+        sharing a patch with its steel frame would paint one in the other's color."""
+        prev, self._shared = self._shared, {}
+        try:
+            yield
+        finally:
+            self._shared = prev
 
     def marking(self, kind, **fields):
         """A marking for the skin stage, in model coordinates (tools/models/skin/sidecar.ts validates it)."""
@@ -249,14 +265,22 @@ class Model:
         if self.skin:
             self._lines.append((chart, axis, at, lo, hi, kind))
 
-    def _planar_charts(self, verts, faces):
-        """One chart per face, projected on its own plane: u along its first edge, v = n x u."""
+    def _planar_charts(self, verts, faces, role=None):
+        """One chart per face, projected on its own plane: u along its first edge, v = n x u.
+        Inside shared_chart(), every face of one (tag, role) takes that pair's one chart key."""
         out = []
         for f in faces:
             p = [verts[i] for i in f]
             u = _unit(next(_sub(q, p[0]) for q in p[1:] if _dist(q, p[0]) > 1e-9))
             v = _cross(_unit(_newell(p)), u)
-            out.append((self._new_chart(), tuple((_dot(_sub(q, p[0]), u), _dot(_sub(q, p[0]), v)) for q in p)))
+            if self._shared is None:
+                key = self._new_chart()
+            else:
+                slot = (self._tag, role)
+                if slot not in self._shared:
+                    self._shared[slot] = self._new_chart()
+                key = self._shared[slot]
+            out.append((key, tuple((_dot(_sub(q, p[0]), u), _dot(_sub(q, p[0]), v)) for q in p)))
         return out
 
     def _loft_charts(self, rings):
@@ -325,7 +349,7 @@ class Model:
         entry[1].extend(verts)
         entry[2].extend(tuple(base + i for i in f) for f in faces)
         if self.skin:
-            charts = self._planar_charts(verts, faces) if charts is None else charts
+            charts = self._planar_charts(verts, faces, role) if charts is None else charts
             _require(len(charts) == len(faces), f'{key}: {len(charts)} charts for {len(faces)} faces')
             entry[3].extend(charts)
             entry[4].extend(smooth if isinstance(smooth, list) else [smooth] * len(faces))
@@ -478,7 +502,7 @@ class Model:
                 return c
             so, si = arc(width / 2, rise), arc(width / 2 - thickness, rise - thickness)
             outer, inner = self._new_chart(), self._new_chart()
-            rims = self._planar_charts(v, [f[4 * i + 2] for i in range(n)] + [f[4 * i + 3] for i in range(n)])
+            rims = self._planar_charts(v, [f[4 * i + 2] for i in range(n)] + [f[4 * i + 3] for i in range(n)], role)
             charts = []
             for i in range(n):
                 charts.append((outer, ((0.0, so[i]), (0.0, so[i + 1]), (length, so[i + 1]), (length, so[i]))))
