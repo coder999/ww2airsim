@@ -235,6 +235,14 @@ The rules are in the
 `src/render/titleScreen.ts` and `src/sim/sortie.ts` are authoritative; the e2e
 harness's `startGame` walks all four forms and `quickLaunch` skips them.
 
+**The chase camera orbits (2026-09-27).** Left-drag on the view swings it
+around the airplane, the wheel zooms, and a double-click or C → cockpit → C
+returns to the default view. Until you touch the mouse the view is exactly
+the old chase view. The rules are in the
+[orbit camera spec](docs/superpowers/specs/2026-09-27-orbit-camera-design.md)
+and its [handoff](docs/handoff/2026-09-27-orbit-camera.md); master spec §15
+holds the status, with Instant Replay next.
+
 The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
 the remaining model-track work are recorded in
