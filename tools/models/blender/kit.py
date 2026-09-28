@@ -469,7 +469,7 @@ class Model:
             f.append((i0 + i, i1 + i, i1 + i + 1, i0 + i + 1))      # inner, faces the axis
             f.append((o0 + i, i0 + i, i0 + i + 1, o0 + i + 1))      # rim at -z
             f.append((o1 + i, o1 + i + 1, i1 + i + 1, i1 + i))      # rim at +z
-        charts = None
+        charts, smooth = None, False
         if self.skin:
             def arc(rx, ry):
                 c = [0.0]
@@ -485,7 +485,9 @@ class Model:
                 charts.append((inner, ((0.0, si[i]), (length, si[i]), (length, si[i + 1]), (0.0, si[i + 1]))))
                 charts.append(rims[i])
                 charts.append(rims[n + i])
-        self._part(role, v, f, node, charts)
+            # The shells are a sampled curve, like a loft's sides: smooth. The rims stay flat.
+            smooth = [True, True, False, False] * n
+        self._part(role, v, f, node, charts, smooth)
 
     def arch_gable(self, role, base, width, wall, rise, thickness, segments, node=None):
         """An end wall: a rectangle `wall` high under a half-ellipse `rise` high, as a slab
@@ -900,6 +902,7 @@ class Model:
         _require(len(me.polygons) == len(faces), f'{key}: Blender dropped {len(faces) - len(me.polygons)} degenerate faces; fix the part')
         layer = me.uv_layers.new(name='UVMap')
         for poly, (ck, uvs), sm in zip(me.polygons, charts, smooth):
+            _require(len(poly.loop_indices) == len(uvs), f'{key}: polygon {poly.index} has {len(poly.loop_indices)} corners in Blender but {len(uvs)} in its chart')
             x0, y0, _w, _h = placed[ck]
             u0, v0 = box[ck][0], box[ck][1]
             for li, (u, v) in zip(poly.loop_indices, uvs):

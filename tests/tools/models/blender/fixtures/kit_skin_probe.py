@@ -1,4 +1,4 @@
-# A skinned probe (DP0 Task 2): one box, one fuselage, one mirrored wing, one barrel vault, a marking.
+# A skinned probe (DP0 Task 2): one box, one fuselage, one mirrored wing, one barrel vault, a flat tank, a marking.
 import os
 import sys
 
@@ -15,5 +15,7 @@ with m.tagged('wing'):
     m.wing('ijaGreen', 0.8, 1.2, 1.8, 1.0, 8.0, dihedral_deg=5.0, lower_role='underside')
 with m.tagged('vault'):
     m.barrel_vault('steel', (0.0, 0.0, -8.0), 6.0, 1.5, 4.0, 0.2, 12)
+    # A planar part whose faces meet under SHARP_DEG: it must stay flat (its smooth flags are False).
+    m.tank('steel', (12.0, 0.0, 0.0), 1.0, 2.0, segments=24, node='sp_tank')
 m.marking('disc', tags=['wing'], center=(0.0, 1.5, 2.5), axis=(0.0, 1.0, 0.0), radiusM=0.4, color='hinomaruRed')
 m.export(out)

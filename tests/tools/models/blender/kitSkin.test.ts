@@ -85,20 +85,39 @@ describe.skipIf(!HAVE_BLENDER)('the kit skin path (DP0 Task 2)', () => {
     expect(distinct.size).toBeLessThan(tris * 0.75)
   })
 
-  it('planar parts stay flat: every vault corner normal is its triangle\'s face normal (smooth flags survive the sharp-edge pass)', () => {
-    // set_sharp_from_angle marks every face smooth in Blender 5.0.1, so the kit re-applies the per-face flags after it.
-    const p = findNode(doc, 'sp_steel').getMesh()!.listPrimitives()[0]!
+  /** Per triangle of a node's primitive: its unit face normal and its three corner normals. */
+  const triangles = (node: string): { face: number[]; corners: number[][] }[] => {
+    const p = findNode(doc, node).getMesh()!.listPrimitives()[0]!
     const pos = p.getAttribute('POSITION')!, n = p.getAttribute('NORMAL')!, idx = p.getIndices()!
+    const out: { face: number[]; corners: number[][] }[] = []
     for (let t = 0; t < idx.getCount(); t += 3) {
       const [a, b, c] = [0, 1, 2].map((k) => pos.getElement(idx.getScalar(t + k), [0, 0, 0]))
       const e1 = [b![0]! - a![0]!, b![1]! - a![1]!, b![2]! - a![2]!], e2 = [c![0]! - a![0]!, c![1]! - a![1]!, c![2]! - a![2]!]
       const f = [e1[1]! * e2[2]! - e1[2]! * e2[1]!, e1[2]! * e2[0]! - e1[0]! * e2[2]!, e1[0]! * e2[1]! - e1[1]! * e2[0]!]
       const len = Math.hypot(f[0]!, f[1]!, f[2]!)
-      for (let k = 0; k < 3; k++) {
-        const nn = n.getElement(idx.getScalar(t + k), [0, 0, 0])
-        expect((nn[0]! * f[0]! + nn[1]! * f[1]! + nn[2]! * f[2]!) / len, `triangle ${t / 3} corner ${k}`).toBeGreaterThan(0.9999)
-      }
+      out.push({ face: f.map((x) => x / len), corners: [0, 1, 2].map((k) => n.getElement(idx.getScalar(t + k), [0, 0, 0])) })
     }
+    return out
+  }
+  const dot = (a: number[], b: number[]): number => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!
+
+  it('planar parts stay flat: every tank corner normal is its triangle\'s face normal (smooth flags survive the sharp-edge pass)', () => {
+    // set_sharp_from_angle marks every face smooth in Blender 5.0.1, so the kit re-applies the per-face flags after it.
+    // The tank's 24 walls meet at 15 deg, under SHARP_DEG, so they would shade smooth if the flags were lost.
+    for (const [i, t] of triangles('sp_tank').entries()) for (const c of t.corners) expect(dot(c, t.face), `triangle ${i}`).toBeGreaterThan(0.9999)
+  })
+
+  it('a skinned barrel vault: outer and inner shells smooth-shaded, rims flat', () => {
+    const tris = triangles('sp_steel')
+    const rims = tris.filter((t) => Math.abs(t.face[2]!) > 0.99), shells = tris.filter((t) => Math.abs(t.face[2]!) <= 0.99)
+    expect([rims.length, shells.length]).toEqual([48, 48])  // 12 segments: 2 rims and 2 shells of 12 quads each
+    for (const t of rims) for (const c of t.corners) expect(dot(c, t.face)).toBeGreaterThan(0.9999)
+    // Smooth: every shell triangle has a corner bent off its face normal, and the shells share
+    // one normal per ring vertex (13 outer + 13 inner), far fewer than their triangles.
+    for (const t of shells) expect(Math.min(...t.corners.map((c) => dot(c, t.face)))).toBeLessThan(0.9999)
+    const distinct = new Set(shells.flatMap((t) => t.corners.map((c) => c.map((x) => x.toFixed(3)).join(','))))
+    expect(distinct.size).toBeLessThanOrEqual(26)
+    expect(distinct.size).toBeLessThan(shells.length * 0.75)
   })
 
   it('panel lines: one per interior authored fuselage station, and two spars per wing surface per half', () => {
