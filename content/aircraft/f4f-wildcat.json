@@ -127,56 +127,56 @@
     "guns": [
       {
         "position": [
-          1.5,
-          -0.25,
-          -3
+          -0.322,
+          -0.539,
+          -2.66
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          -3.4
+          -0.311,
+          -0.526,
+          -3.02
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          -3.8
+          -0.301,
+          -0.514,
+          -3.37
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3
+          -0.322,
+          -0.539,
+          2.66
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "rightGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3.4
+          -0.311,
+          -0.526,
+          3.02
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "rightGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3.8
+          -0.301,
+          -0.514,
+          3.37
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "rightGuns"
       }
     ],
@@ -184,27 +184,27 @@
       {
         "id": "engine",
         "center": [
-          3,
-          0,
+          1.64,
+          -0.6,
           0
         ],
         "halfSize": [
-          1.5,
-          0.85,
-          0.85
+          0.26,
+          0.65,
+          0.65
         ],
         "system": "engine"
       },
       {
         "id": "fuel",
         "center": [
-          0,
-          0,
+          -0.73,
+          -0.36,
           0
         ],
         "halfSize": [
-          1.5,
-          0.85,
+          0.37,
+          1,
           0.85
         ],
         "system": "fuel"
@@ -212,107 +212,99 @@
       {
         "id": "tail",
         "center": [
-          -3,
+          -5.52,
           0,
           0
         ],
         "halfSize": [
-          1.5,
-          0.6,
-          0.6
+          0.52,
+          0.5,
+          2.09
         ],
         "system": "pitch"
       },
       {
         "id": "rudder",
         "center": [
-          -4,
-          1,
+          -5.75,
+          0.375,
           0
         ],
         "halfSize": [
-          0.8,
-          1,
-          0.25
+          0.4,
+          0.825,
+          0.4
         ],
         "system": "yaw"
       },
       {
         "id": "left-guns",
         "center": [
-          0,
-          -0.25,
-          -3.2
+          -0.45,
+          -0.53,
+          -3.02
         ],
         "halfSize": [
-          1.2,
+          0.85,
           0.35,
-          1.4
+          0.51
         ],
         "system": "leftGuns"
       },
       {
         "id": "right-guns",
         "center": [
-          0,
-          -0.25,
-          3.2
+          -0.45,
+          -0.53,
+          3.02
         ],
         "halfSize": [
-          1.2,
+          0.85,
           0.35,
-          1.4
+          0.51
         ],
         "system": "rightGuns"
       },
       {
         "id": "left-aileron",
         "center": [
-          -0.3,
-          -0.25,
-          -5.5
+          -1.467,
+          -0.591,
+          -2.229
         ],
         "halfSize": [
-          1,
-          0.35,
-          1
+          0.373,
+          0.116,
+          1.357
         ],
         "system": "roll"
       },
       {
         "id": "right-aileron",
         "center": [
-          -0.3,
-          -0.25,
-          5.5
+          -1.467,
+          -0.591,
+          2.229
         ],
         "halfSize": [
-          1,
-          0.35,
-          1
+          0.373,
+          0.116,
+          1.357
         ],
         "system": "roll"
       }
     ],
-    "source": "Six .50-cal guns: National Naval Aviation Museum https://www.history.navy.mil/content/history/museums/nnam/explore/collections/aircraft/f/f6f-5-hellcat.html . 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html . 400 rounds/gun: Patriots Point Naval & Maritime Museum https://patriotspoint.org/things-to-do/aircraft/f6f-hellcat . Verified 2026-09-19. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates, mounts and hit zones are gameplay ESTIMATES. Hitboxes approximate the existing procedural mesh, not a sourced installation drawing. No penetration model."
+    "source": "Six .50-cal guns: [DS] 104c ('six .50 caliber guns'); [SAC] p.1 gives 1,400 rounds total, but that is 233/gun and this file follows [SAC]'s own drawing note preferring 1,440 (240/gun) instead -- both W1, 2026-09-28. 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html, verified 2026-09-19 (carried over from the Hellcat card, no F4F-4-specific figure found). Gun positions are MEASURED (W1 Task 4, 2026-09-28), not sourced: three stations per side at |z| 2.66, 3.02, 3.37 m -- the pre-W1 placeholder stations (3.0, 3.4, 3.8 m, set when the Wildcat still drew at the Hellcat's 13.06 m span) scaled by 11.582/13.06 to the real 11.582 m span -- sliced on the drawn Wildcat wing with tools/models/mounts.ts's sectionAtFor('wildcat') and placed at 40% chord, mid-thickness (the lower skin plus half the local wing depth at that x). Zones are refit to the drawn airframe (W1 Task 4): engine spans the Helice (propeller) hub to the firewall -- the cowling (Motor node) mesh's own aft bound, clamped just short of the drawn, propeller-excluded airframe's own forward bound, since the true hub sits inside the excluded spinner disc -- and is centered on that cowling mesh in y/z. fuel sits in the fuselage between the wing spars, taking the front spar at the guns' own 40%-chord line and the rear spar at approximately 70% chord, measured at a wing-root station clear of the nose. tail and rudder sit inside the fuselage and fin bounds: tail on the horizontal stabilizer (Timon_Der/Timon_Izq) extended forward into the fuselage, rudder on the vertical fin (Timon_Prof) likewise. The gun and aileron zones are centered on the same measured wing stations: left-guns/right-guns bound the three gun stations plus a housing margin, left-aileron/right-aileron are the drawn Aleron_Der/Aleron_Izq mesh bounds directly. Every zone and gun position is proven inside the drawn airframe's own bounds by tests/tools/models/combatFit.test.ts. Convergence, dispersion, lifetime, drag, HP, per-hit damage and leak/decay rates are gameplay ESTIMATES, carried over unchanged from the Hellcat card. No penetration model."
   },
   "stores": {
     "racks": [
       { "id": "left-rack", "offset": [-0.324, -0.707, -2.6], "store": "an-m65" },
       { "id": "right-rack", "offset": [-0.324, -0.707, 2.6], "store": "an-m65" }
     ],
-    "rails": [
-      { "id": "left-rail-1", "offset": [-0.483, -0.648, -3.6], "store": "hvar" },
-      { "id": "left-rail-2", "offset": [-0.451, -0.607, -4.3], "store": "hvar" },
-      { "id": "left-rail-3", "offset": [-0.418, -0.566, -5.0], "store": "hvar" },
-      { "id": "right-rail-1", "offset": [-0.483, -0.648, 3.6], "store": "hvar" },
-      { "id": "right-rail-2", "offset": [-0.451, -0.607, 4.3], "store": "hvar" },
-      { "id": "right-rail-3", "offset": [-0.418, -0.566, 5.0], "store": "hvar" }
-    ],
+    "rails": [],
     "types": {
-      "an-m65": { "kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 0.00002 },
-      "hvar": { "kind": "rocket", "massKg": 61, "dragAreaM2": 0.03, "warheadKg": 20.6, "damage": 40, "blastRadiusM": 8, "burnS": 1.0, "burnDeltaVMps": 419, "lifetimeS": 12, "dragPerM": 0.00008 }
+      "an-m65": { "kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 0.00002 }
     },
-    "source": "Six HVARs, three under each wing; single bomb racks under each wing inboard of the undercarriage bays; 1,000 lb class per rack: English Wikipedia, 'Grumman F6F Hellcat', read 2026-09-20. HVAR: 134 lb (61 kg) all-up, 45.5 lb (20.6 kg) warhead, 1,375 ft/s (419 m/s) plus the speed of the launching aircraft: English Wikipedia, 'High Velocity Aircraft Rocket', read 2026-09-20; designation-systems.net 'Air-Launched 5-Inch Rockets' gives 64 kg / 20 kg / 5 km range. Burn time 1.0 s is an ESTIMATE: neither source states it. AN-M65 1,000 lb GP: 530 lb (240.9 kg) Amatol filler, 53% of total weight, so 1,000 lb (453.6 kg) all-up: Australian War Memorial C285409 and bulletpicker.com 'Bomb, 1000 lb GP, AN-M44, AN-M65, AN-M65A1', read 2026-09-20. dragAreaM2, dragPerM, damage, roundDamage, blastRadiusM, armS, lifetimeS are ESTIMATES or gameplay choices, in the same standing as combat's dispersion and HP figures. dragPerM for the bomb was chosen against an estimate of \"about 1,200 m downrange and roughly 200 m/s\" for a release at 120 m/s from 1,500 m; measured 2026-09-22 by tests/sim/strike.test.ts, which is where Plan 6b said the actual figure would be recorded, it is 17.67 s of fall, 2,066 m downrange and 202.9 m/s at the water. The speed estimate held; the range estimate did not, and this sentence carries the measurement instead of the guess. Rack and rail OFFSETS were re-measured 2026-09-26 (plan O1) against the drawn Wildcat model, which every aircraft draws: `npm run models:mounts` slices the drawn wing at each rack's and rail's lateral station (unchanged from the pre-O1 offsets) and hangs the store at 40% (bomb) or 50% (rocket) of the chord, 2 cm clear of the lower skin, parallel to the model's datum; the chord fractions and the clearance are ESTIMATES. Re-measured again 2026-09-28 when the drawn Wildcat was seated on gear.heightM and its 7.33-degree datum leveled (wildcatFrame.ts): until then it stood 2.2 m above the sim body origin and the offsets inherited that, hanging the stores about 2.1 m above where they are now. Re-measured again 2026-09-28 (W1 Task 3) when the drawn Wildcat was scaled to its real 11.582 m span and moved 1.871 m aft to center its wing quarter-chord on the body origin: the racks moved from [1.735, -0.803, +/-2.6] to [-0.324, -0.707, +/-2.6], and the rails likewise; the rails' lateral stations (up to 5.0 m of the 5.791 m semi-span) are unchanged. Re-measured 2026-09-26 (O1) after the rack offsets moved to the drawn Wildcat's wing: 17.68 s of fall (1061 ticks), 2,069.6 m downrange and 203.0 m/s; the 2026-09-22 figures above are from the old offsets."
+    "source": "Single bomb racks under each wing inboard of the undercarriage bays, 1,000 lb class per rack: English Wikipedia, 'Grumman F6F Hellcat', read 2026-09-20 (the Hellcat card this content started from; the real F4F-4 carried lighter 100-250 lb bombs or 58-gal drop tanks, not 1,000-pounders -- kept anyway, R3 below). AN-M65 1,000 lb GP: 530 lb (240.9 kg) Amatol filler, 53% of total weight, so 1,000 lb (453.6 kg) all-up: Australian War Memorial C285409 and bulletpicker.com 'Bomb, 1000 lb GP, AN-M44, AN-M65, AN-M65A1', read 2026-09-20. dragAreaM2, dragPerM, damage, roundDamage, blastRadiusM, armS, lifetimeS are ESTIMATES or gameplay choices, in the same standing as combat's dispersion and HP figures. dragPerM for the bomb was chosen against an estimate of \"about 1,200 m downrange and roughly 200 m/s\" for a release at 120 m/s from 1,500 m; the Hellcat's own strike test (tests/sim/strike.test.ts, which is where Plan 6b said the actual figure would be recorded, not this card) measured 17.67 s of fall, 2,066 m downrange and 202.9 m/s at the water on 2026-09-22, then 17.68 s (1061 ticks), 2,069.6 m downrange and 203.0 m/s on 2026-09-26 after its own rack offsets moved to its drawn model (O1) -- the speed estimate held, the range estimate did not; neither figure was ever measured against this Wildcat card, which shares the estimate, not the measurement. Rack OFFSETS were re-measured 2026-09-26 (plan O1) against the drawn Wildcat model, which every aircraft draws at the time: `npm run models:mounts` slices the drawn wing at each rack's lateral station and hangs the store at 40% of the chord, 2 cm clear of the lower skin, parallel to the model's datum; the chord fraction and the clearance are ESTIMATES. Re-measured again 2026-09-28 when the drawn Wildcat was seated on gear.heightM and its 7.33-degree datum leveled (wildcatFrame.ts): until then it stood 2.2 m above the sim body origin and the offsets inherited that, hanging the stores about 2.1 m above where they are now. Re-measured again 2026-09-28 (W1 Task 3) when the drawn Wildcat was scaled to its real 11.582 m span and moved 1.871 m aft to center its wing quarter-chord on the body origin: the racks moved from [1.735, -0.803, +/-2.6] to [-0.324, -0.707, +/-2.6]. R3 (Mark, 2026-09-28, W1): the six wing rails and their HVAR rockets are dropped -- a gameplay choice, not a correction, since the real F4F-4 never carried rockets at all; the two AN-M65 racks stay as a deliberately un-sourced gameplay loadout (real ordnance was lighter). `stores.rails` is now empty, which `storesSpec` (src/sim/weapons/stores.ts) and its schema (`.min(0)` on `rails`, src/sim/flight/schema.ts) were changed to allow."
   }
 }
