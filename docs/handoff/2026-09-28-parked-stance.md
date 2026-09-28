@@ -57,7 +57,9 @@ true of the mains only.
 
 ## Open
 
-- **Both eye points sit about 2 m ahead of the drawn cockpits.** Each is
+- **Resolved later on 2026-09-28:** all three eye points were measured from
+  their canopies and are held there by `tests/tools/models/eyePoints.test.ts`.
+  **Both eye points sit about 2 m ahead of the drawn cockpits.** Each is
   `[1.2, 0.9, 0]`, while the canopies are near x = -0.5 to -1.5. The Hellcat's
   was already recorded as not re-measured (sortie forms §5). Cockpit view hides
   the airframe, so this fix does not change what either view shows.
