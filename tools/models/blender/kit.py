@@ -12,6 +12,8 @@ parts (R4) are wound outward and checked by `tests/tools/models/blender/kitBuild
 R2's `cylinder`, `tapered_box` and `turret` wind inward (open item, R4 handoff) and
 no building calls them.
 """
+import contextlib
+import json
 import math
 import sys
 
@@ -108,6 +110,15 @@ def _material(role):
 # Chord stations of the NACA 4-digit symmetric section, leading edge (0) to trailing edge (1).
 AIRFOIL_STATIONS = (0.0, 0.05, 0.15, 0.3, 0.5, 0.75, 1.0)
 
+# Skins (DP0, model-detail-pass spec §4). Atlas sizes a script may ask for: 1024 for aircraft
+# and ships, 512 for buildings. Padding keeps mipmaps from bleeding one patch into the next.
+SKIN_SIZES = (512, 1024, 2048)
+SKIN_PADDING_PX = 4
+# Edges sharper than this stay hard on a smooth-shaded skinned model (trailing edges, caps).
+SHARP_DEG = 50.0
+# Spar lines drawn on every wing and fin surface, as chord fractions (ESTIMATE: period practice).
+SPARS = (0.2, 0.65)
+
 
 def _unit(v):
     n = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
@@ -117,6 +128,50 @@ def _unit(v):
 
 def _cross(a, b):
     return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _dist(a, b):
+    return math.sqrt(_dot(_sub(a, b), _sub(a, b)))
+
+
+def _newell(points):
+    """A polygon's (unnormalized) normal, robust for any planar polygon."""
+    n = [0.0, 0.0, 0.0]
+    for i, p in enumerate(points):
+        q = points[(i + 1) % len(points)]
+        n[0] += (p[1] - q[1]) * (p[2] + q[2])
+        n[1] += (p[2] - q[2]) * (p[0] + q[0])
+        n[2] += (p[0] - q[0]) * (p[1] + q[1])
+    return tuple(n)
+
+
+def _shelf_pack(sizes, mpp, width, pad):
+    """Charts {key: (w m, h m)} into a width x width atlas at mpp meters per pixel: tallest
+    first (ties by key), left to right in shelves. {key: (x, y, w px, h px)}, or None if they
+    do not fit."""
+    px = {k: (max(1, math.ceil(w / mpp)), max(1, math.ceil(h / mpp))) for k, (w, h) in sizes.items()}
+    order = sorted(px, key=lambda k: (-px[k][1], k))
+    placed, x, y, shelf = {}, 0, 0, 0
+    for k in order:
+        w, h = px[k]
+        if w + 2 * pad > width:
+            return None
+        if x + w + 2 * pad > width:
+            x, y, shelf = 0, y + shelf, 0
+        if y + h + 2 * pad > width:
+            return None
+        placed[k] = (x + pad, y + pad, w, h)
+        x += w + 2 * pad
+        shelf = max(shelf, h + 2 * pad)
+    return placed
 
 
 def _loft(rings):
@@ -153,21 +208,127 @@ def _airfoil(chord, thickness):
     return upper + lower
 
 
-class Model:
-    def __init__(self, name):
-        self.name = name
-        self._nodes = {}  # node name -> [role, verts, faces]
+def _section_labels(stations):
+    """(chord fraction, 'u' or 'l') for each point of _airfoil's ring, in ring order: the upper
+    surface leading edge to trailing edge, then the lower back (both edges are single points)."""
+    return [(f, 'u') for f in stations] + [(f, 'l') for f in reversed(stations[1:-1])]
 
-    def _part(self, role, verts, faces, node):
+
+class Model:
+    def __init__(self, name, skin=None):
+        _require(skin is None or skin in SKIN_SIZES, f'skin must be None or one of {SKIN_SIZES}, got {skin!r}')
+        self.name = name
+        self.skin = skin
+        self._nodes = {}  # node name -> [role, verts, faces, face charts, face smooth]
+        self._charts = {}  # chart key (int, creation order) -> tag
+        self._lines = []  # (chart key, axis, at, lo, hi, kind), chart-local meters
+        self._markings = []
+        self._tag = 'part'
+
+    @contextlib.contextmanager
+    def tagged(self, tag):
+        """Every chart made inside is tagged `tag`, so a marking can name the parts it paints."""
+        _require(isinstance(tag, str) and tag, f'tagged: tag must be a nonempty string, got {tag!r}')
+        prev, self._tag = self._tag, tag
+        try:
+            yield
+        finally:
+            self._tag = prev
+
+    def marking(self, kind, **fields):
+        """A marking for the skin stage, in model coordinates (tools/models/skin/sidecar.ts validates it)."""
+        _require(kind in ('disc', 'polygon', 'slab', 'grid'), f'marking: unknown kind {kind!r}')
+        self._markings.append({'kind': kind, **{k: list(v) if isinstance(v, tuple) else v for k, v in fields.items()}})
+
+    def _new_chart(self):
+        key = len(self._charts)
+        self._charts[key] = self._tag
+        return key
+
+    def _line(self, chart, axis, at, lo, hi, kind='panel'):
+        if self.skin:
+            self._lines.append((chart, axis, at, lo, hi, kind))
+
+    def _planar_charts(self, verts, faces):
+        """One chart per face, projected on its own plane: u along its first edge, v = n x u."""
+        out = []
+        for f in faces:
+            p = [verts[i] for i in f]
+            u = _unit(next(_sub(q, p[0]) for q in p[1:] if _dist(q, p[0]) > 1e-9))
+            v = _cross(_unit(_newell(p)), u)
+            out.append((self._new_chart(), tuple((_dot(_sub(q, p[0]), u), _dot(_sub(q, p[0]), v)) for q in p)))
+        return out
+
+    def _loft_charts(self, rings):
+        """Charts for _loft's faces, in its order: one chart for every side quad (u = distance
+        along the ring centroids, v = each ring's own arc-length fraction x the longest ring's
+        perimeter), then a planar chart per cap. Returns (charts, side key, U, V)."""
+        count = len(rings[0])
+        cent = [tuple(sum(p[i] for p in r) / count for i in range(3)) for r in rings]
+        U = [0.0]
+        for s in range(1, len(rings)):
+            U.append(U[-1] + _dist(cent[s - 1], cent[s]))
+        arcs = []
+        for r in rings:
+            c = [0.0]
+            for j in range(count):
+                c.append(c[-1] + _dist(r[j], r[(j + 1) % count]))
+            arcs.append(c)
+        pmax = max(c[-1] for c in arcs)
+        V = [[pmax * c[j] / c[-1] for j in range(count + 1)] for c in arcs]
+        side = self._new_chart()
+        charts = []
+        for s in range(len(rings) - 1):
+            for j in range(count):
+                charts.append((side, ((U[s], V[s][j]), (U[s], V[s][j + 1]), (U[s + 1], V[s + 1][j + 1]), (U[s + 1], V[s + 1][j]))))
+        verts = [p for ring in rings for p in ring]
+        last = (len(rings) - 1) * count
+        charts.extend(self._planar_charts(verts, [tuple(reversed(range(count))), tuple(last + j for j in range(count))]))
+        return charts, side, U, V
+
+    def _mirror_charts(self, charts):
+        """The z-mirror of `charts`: new keys with the same tags, corners reversed as _mirror_z
+        reverses windings, and the lines on the old keys copied onto the new."""
+        remap = {}
+        for key, _ in charts:
+            if key not in remap:
+                remap[key] = len(self._charts)
+                self._charts[remap[key]] = self._charts[key]
+        for (k, axis, at, lo, hi, kind) in list(self._lines):
+            if k in remap:
+                self._lines.append((remap[k], axis, at, lo, hi, kind))
+        return [(remap[k], tuple(reversed(uvs))) for k, uvs in charts]
+
+    def _spar_lines(self, side, U, V, labels):
+        """A spanwise line on the upper and the lower surface at each SPARS chord fraction, at the
+        section point nearest it (within 0.1 chord, else that spar is not on this piece), along
+        the whole side chart. `labels` is the ring's (fraction, surface) list."""
+        upper = [(f, i) for i, (f, sfc) in enumerate(labels) if sfc == 'u' and 0 < f < 1]
+        for spar in SPARS:
+            if not upper:
+                return
+            f, _i = min(upper, key=lambda fi: (abs(fi[0] - spar), fi[1]))
+            if abs(f - spar) > 0.1:
+                continue
+            for j, (g, _sfc) in enumerate(labels):
+                if g == f:
+                    self._line(side, 'v', V[0][j], U[0], U[-1])
+
+    def _part(self, role, verts, faces, node, charts=None, smooth=False):
         if role not in PALETTE:
             raise ValueError(f'unknown role {role!r}; palette roles are {sorted(PALETTE)}')
         key = node or f'{self.name}_{role}'
-        entry = self._nodes.setdefault(key, [role, [], []])
+        entry = self._nodes.setdefault(key, [role, [], [], [], []])
         if entry[0] != role:
             raise ValueError(f'node {key!r} already has role {entry[0]!r}, not {role!r}')
         base = len(entry[1])
         entry[1].extend(verts)
         entry[2].extend(tuple(base + i for i in f) for f in faces)
+        if self.skin:
+            charts = self._planar_charts(verts, faces) if charts is None else charts
+            _require(len(charts) == len(faces), f'{key}: {len(charts)} charts for {len(faces)} faces')
+            entry[3].extend(charts)
+            entry[4].extend(smooth if isinstance(smooth, list) else [smooth] * len(faces))
 
     def box(self, role, base, size, node=None):
         x, y, z = base
@@ -308,7 +469,23 @@ class Model:
             f.append((i0 + i, i1 + i, i1 + i + 1, i0 + i + 1))      # inner, faces the axis
             f.append((o0 + i, i0 + i, i0 + i + 1, o0 + i + 1))      # rim at -z
             f.append((o1 + i, o1 + i + 1, i1 + i + 1, i1 + i))      # rim at +z
-        self._part(role, v, f, node)
+        charts = None
+        if self.skin:
+            def arc(rx, ry):
+                c = [0.0]
+                for i in range(n):
+                    c.append(c[-1] + _dist(ring(math.pi * i / n, rx, ry, 0.0), ring(math.pi * (i + 1) / n, rx, ry, 0.0)))
+                return c
+            so, si = arc(width / 2, rise), arc(width / 2 - thickness, rise - thickness)
+            outer, inner = self._new_chart(), self._new_chart()
+            rims = self._planar_charts(v, [f[4 * i + 2] for i in range(n)] + [f[4 * i + 3] for i in range(n)])
+            charts = []
+            for i in range(n):
+                charts.append((outer, ((0.0, so[i]), (0.0, so[i + 1]), (length, so[i + 1]), (length, so[i]))))
+                charts.append((inner, ((0.0, si[i]), (length, si[i]), (length, si[i + 1]), (0.0, si[i + 1]))))
+                charts.append(rims[i])
+                charts.append(rims[n + i])
+        self._part(role, v, f, node, charts)
 
     def arch_gable(self, role, base, width, wall, rise, thickness, segments, node=None):
         """An end wall: a rectangle `wall` high under a half-ellipse `rise` high, as a slab
@@ -331,16 +508,20 @@ class Model:
 
     # ---- aircraft parts (R3) ------------------------------------------------------------
 
-    def _emit(self, role, verts, faces, node, lower_role=None, lower_node=None, is_lower=None):
+    def _emit(self, role, verts, faces, node, lower_role=None, lower_node=None, is_lower=None, charts=None, smooth=None):
         """Adds (face, j) pairs to ``node``; with ``lower_role``, faces whose ring edge
-        ``is_lower`` go to ``lower_node`` in that role instead (caps stay with ``role``)."""
-        groups = [(role, node, [f for f, j in faces if lower_role is None or j is None or not is_lower(j)])]
+        ``is_lower`` go to ``lower_node`` in that role instead (caps stay with ``role``).
+        ``charts`` and ``smooth`` (skinned models only) run parallel to ``faces``."""
+        groups = [(role, node, [i for i, (f, j) in enumerate(faces) if lower_role is None or j is None or not is_lower(j)])]
         if lower_role is not None:
-            groups.append((lower_role, lower_node, [f for f, j in faces if j is not None and is_lower(j)]))
-        for r, nd, fs in groups:
+            groups.append((lower_role, lower_node, [i for i, (f, j) in enumerate(faces) if j is not None and is_lower(j)]))
+        for r, nd, ids in groups:
+            fs = [faces[i][0] for i in ids]
             used = sorted({i for f in fs for i in f})
             index = {old: new for new, old in enumerate(used)}
-            self._part(r, [verts[i] for i in used], [tuple(index[i] for i in f) for f in fs], nd)
+            self._part(r, [verts[i] for i in used], [tuple(index[i] for i in f) for f in fs], nd,
+                       None if charts is None else [charts[i] for i in ids],
+                       False if smooth is None else [smooth[i] for i in ids])
 
     def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None):
         """Loft a fuselage, nacelle, boom or canopy from stations in the glTF frame.
@@ -374,7 +555,13 @@ class Model:
         _require(all(xs[i] < xs[i + 1] for i in range(len(xs) - 1)), 'fuselage: station x values must be strictly increasing')
         verts, faces = _loft(rings)
         quarter = segments // 4
-        self._emit(role, verts, faces, node, lower_role, lower_node, lambda j: quarter <= j < 3 * quarter)
+        charts = smooth = None
+        if self.skin:
+            charts, side, U, V = self._loft_charts(rings)
+            smooth = [j is not None for _, j in faces]
+            for s in range(1, len(rings) - 1):
+                self._line(side, 'u', U[s], 0.0, V[s][-1])
+        self._emit(role, verts, faces, node, lower_role, lower_node, lambda j: quarter <= j < 3 * quarter, charts, smooth)
 
     def wing(self, role, le_x, root_y, root_chord, tip_chord, span, sweep_deg=0.0, dihedral_deg=0.0,
              thickness=0.12, tip_thickness=None, root_z=0.0, mirror=True, node=None, lower_role=None, lower_node=None):
@@ -401,10 +588,16 @@ class Model:
         ]
         verts, faces = _loft(rings)
         lower = lambda j: j >= len(AIRFOIL_STATIONS) - 1  # noqa: E731
-        self._emit(role, verts, faces, node, lower_role, lower_node, lower)
+        charts = smooth = None
+        if self.skin:
+            charts, side, U, V = self._loft_charts(rings)
+            smooth = [j is not None for _, j in faces]
+            self._spar_lines(side, U, V, _section_labels(AIRFOIL_STATIONS))
+        self._emit(role, verts, faces, node, lower_role, lower_node, lower, charts, smooth)
         if mirror:
             mverts, mfaces = _mirror_z(verts, faces)
-            self._emit(role, mverts, mfaces, node, lower_role, lower_node, lower)
+            self._emit(role, mverts, mfaces, node, lower_role, lower_node, lower,
+                       None if charts is None else self._mirror_charts(charts), smooth)
 
     def fin(self, role, le_x, root_y, root_chord, tip_chord, height, sweep_deg=0.0, thickness=0.10,
             tip_thickness=None, center_z=0.0, node=None):
@@ -417,9 +610,14 @@ class Model:
         rings = [[(le_x + dx, dy, 0.0) for dx, dy in _airfoil(root_chord, thickness)],
                  [(tip_le + dx, dy, height) for dx, dy in _airfoil(tip_chord, tip_t)]]
         verts, faces = _loft(rings)
+        charts = smooth = None
+        if self.skin:
+            charts, side, U, V = self._loft_charts(rings)
+            smooth = [j is not None for _, j in faces]
+            self._spar_lines(side, U, V, _section_labels(AIRFOIL_STATIONS))
         # Stand the panel up: (x, y, z) -> (x, z, -y) is a rotation, so windings hold.
         verts = [(x, root_y + z, center_z - y) for x, y, z in verts]
-        self._part(role, verts, [f for f, _ in faces], node)
+        self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
 
     def revolve(self, role, origin, direction, profile, segments=12, node=None):
         """A closed solid of revolution about the line through ``origin`` along ``direction``:
@@ -446,7 +644,11 @@ class Model:
                 ring.append((cx + r * (c * e1[0] + s * e2[0]), cy + r * (c * e1[1] + s * e2[1]), cz + r * (c * e1[2] + s * e2[2])))
             rings.append(ring)
         verts, faces = _loft(rings)
-        self._part(role, verts, [f for f, _ in faces], node)
+        charts = smooth = None
+        if self.skin:
+            charts, _side, _U, _V = self._loft_charts(rings)
+            smooth = [j is not None for _, j in faces]
+        self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
 
     def propeller(self, role, hub, diameter, blades, chord, spinner_radius, spinner_length, pitch_deg=25.0, node='Prop'):
         """A propeller on an axis along +x through ``hub``: flat blades, pitched ``pitch_deg``,
@@ -643,20 +845,42 @@ class Model:
                 self.strut(role, corner(k, level), corner(j, level + 1), r, r, 4, node)
                 self.strut(role, corner(j, level), corner(k, level + 1), r, r, 4, node)
 
+    def _pack(self):
+        """(meters per pixel, chart boxes, placements): the smallest uniform texel size, in 3%
+        steps from the area estimate, at which every chart shelf-packs into the atlas."""
+        box = {}
+        for key in sorted(self._nodes):
+            for ck, uvs in self._nodes[key][3]:
+                b = box.setdefault(ck, [math.inf, math.inf, -math.inf, -math.inf])
+                for u, v in uvs:
+                    b[0], b[1], b[2], b[3] = min(b[0], u), min(b[1], v), max(b[2], u), max(b[3], v)
+        sizes = {ck: (b[2] - b[0], b[3] - b[1]) for ck, b in box.items()}
+        area = sum(max(w, 1e-3) * max(h, 1e-3) for w, h in sizes.values())
+        mpp = math.sqrt(area / (0.6 * self.skin * self.skin))
+        for _ in range(400):
+            placed = _shelf_pack(sizes, mpp, self.skin, SKIN_PADDING_PX)
+            if placed is not None:
+                return mpp, box, placed
+            mpp *= 1.03
+        raise ValueError(f'{self.name}: {len(sizes)} charts do not pack into {self.skin} px')
+
     def export(self, path):
         unread = sorted(_given - _read)
         if unread:
             raise ValueError(f'unknown argument --{unread[0]}; this model reads {sorted(_read) or "none"}')
+        packed = self._pack() if self.skin else None
         bpy.ops.wm.read_factory_settings(use_empty=True)
         scene = bpy.context.scene
         root = bpy.data.objects.new(self.name, None)
         scene.collection.objects.link(root)
         for key in sorted(self._nodes):
-            role, verts, faces = self._nodes[key]
+            role, verts, faces, charts, smooth = self._nodes[key]
             me = bpy.data.meshes.new(key)
             me.from_pydata([(vx, -vz, vy) for vx, vy, vz in verts], [], faces)
             me.validate()
             me.update()
+            if packed is not None:
+                self._write_uvs(me, key, faces, charts, smooth, packed)
             me.materials.append(_material(role))
             ob = bpy.data.objects.new(key, me)
             scene.collection.objects.link(ob)
@@ -665,5 +889,36 @@ class Model:
             filepath=path, export_format='GLB', export_yup=True, export_apply=True,
             export_animations=False, export_cameras=False, export_lights=False,
             export_extras=False, export_materials='EXPORT', use_selection=False,
-            export_texcoords=False, export_normals=True,
+            export_texcoords=packed is not None, export_normals=True,
         )
+        if packed is not None:
+            self._write_sidecar(path, packed)
+
+    def _write_uvs(self, me, key, faces, charts, smooth, packed):
+        mpp, box, placed = packed
+        w = self.skin
+        _require(len(me.polygons) == len(faces), f'{key}: Blender dropped {len(faces) - len(me.polygons)} degenerate faces; fix the part')
+        layer = me.uv_layers.new(name='UVMap')
+        for poly, (ck, uvs), sm in zip(me.polygons, charts, smooth):
+            x0, y0, _w, _h = placed[ck]
+            u0, v0 = box[ck][0], box[ck][1]
+            for li, (u, v) in zip(poly.loop_indices, uvs):
+                layer.data[li].uv = ((x0 + (u - u0) / mpp) / w, 1.0 - (y0 + (v - v0) / mpp) / w)
+        # In Blender 5.0.1 set_sharp_from_angle also marks every face smooth (measured 2026-09-28),
+        # so the per-face flags go on after it: planar parts stay flat, lofts smooth up to SHARP_DEG.
+        me.set_sharp_from_angle(angle=math.radians(SHARP_DEG))
+        for poly, sm in zip(me.polygons, smooth):
+            poly.use_smooth = sm
+
+    def _write_sidecar(self, path, packed):
+        mpp, box, placed = packed
+        _require(path.endswith('.glb'), f'export: a skinned model writes a .glb, got {path}')
+        side = {
+            'version': 1, 'model': self.name, 'atlasPx': self.skin, 'paddingPx': SKIN_PADDING_PX, 'metersPerPx': mpp,
+            'roles': {r: list(PALETTE[r]) for r in sorted({e[0] for e in self._nodes.values()})},
+            'patches': [{'id': k, 'tag': self._charts[k], 'rect': list(placed[k]), 'originM': [box[k][0], box[k][1]]} for k in sorted(placed)],
+            'lines': [{'patch': k, 'axis': a, 'atM': at, 'fromM': lo, 'toM': hi, 'kind': kind} for k, a, at, lo, hi, kind in self._lines],
+            'markings': self._markings,
+        }
+        with open(path[:-4] + '.skin.json', 'w', encoding='utf-8') as fh:
+            json.dump(side, fh, sort_keys=True, separators=(',', ':'))
