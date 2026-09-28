@@ -274,6 +274,11 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
     expect(source).toContain('audio.restore(session.liveAudio)')
   })
 
+  it('routes crash and Watch replay through the pure instant-replay flow (instant replay Task 9)', () => {
+    expect(source).toContain("dispatch({ kind: 'crashBanked' })")
+    expect(source).toContain('onWatchReplay')
+  })
+
   it('keeps the DEV query overrides winning over a saved setting', () => {
     // A Tier 2 measurement run passes `?oceanTier=`/`?cloudTier=`; if a saved
     // localStorage tier could override it, the run would silently measure

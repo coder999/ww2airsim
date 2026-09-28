@@ -83,6 +83,7 @@ import {
 } from '../replay/cameras.js'
 import { replayKeyAction } from '../replay/keys.js'
 import { rebuildReplayFx, stepReplayFx } from '../replay/fxReplay.js'
+import { stepFlow, type ReplayFlow, type ReplayFlowEffect, type ReplayFlowEvent } from '../replay/flow.js'
 import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
@@ -1625,13 +1626,10 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
-  /** How long a crash or shoot-down debrief waits, so the fireball or splash
-   *  (fx/events.ts, stepped on real time while the world is held) plays
-   *  first (Mark, 2026-09-27). A landing's debrief is not delayed. */
-  const DEBRIEF_DELAY_MS = 3000
-  /** A crash/kill debrief already banked but not yet raised; counts down in
-   *  real unpaused frame time, and a Restart drops it (`resetFlightUi`). */
-  let pendingDebrief: { readonly show: () => void; remainingMs: number } | null = null
+  /** A crash/kill debrief already banked but not yet raised. `replayFlow`
+   *  owns the hold and automatic replay that precede showing it. */
+  let pendingDebrief: { readonly show: () => void } | null = null
+  let replayFlow: ReplayFlow = { kind: 'live' }
   /** Instant replay (spec §3, R-1): the last 10 s of LIVE worlds, one per
    *  advanced frame. Pushed in the frame loop only while no replay is up, and
    *  cleared by `resetFlightUi`, so a replay can never show a previous flight. */
@@ -1734,6 +1732,7 @@ async function boot(): Promise<void> {
     model: DebriefModel,
     banked: { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null,
     onContinue: (() => void) | undefined,
+    onWatchReplay: (() => void) | undefined,
   ): void => {
     // `exactOptionalPropertyTypes`: spread `promotedTo` in only when it is
     // actually a string, rather than assigning it `undefined` -- the two are
@@ -1749,6 +1748,7 @@ async function boot(): Promise<void> {
         : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
       onContinue,
       returnToTitle,
+      onWatchReplay,
     )
   }
   /**
@@ -1804,6 +1804,8 @@ async function boot(): Promise<void> {
    * redundant rather than protective.
    */
   const resetFlightUi = (): void => {
+    if (replay !== null) teardownReplay()
+    dispatch({ kind: 'reset' })
     debrief.hide()
     shownImpactTick = null
     shownDestructionTick = null
@@ -1956,7 +1958,7 @@ async function boot(): Promise<void> {
    */
   const startReplaySession = (kind: 'manual' | 'auto', onDone: () => void): void => {
     const rec = recorder.snapshot()
-    if (rec === null) return
+    if (rec === null) { onDone(); return }
     const camera = initialCameraState(rec, surfaceHeightFor(rec.worlds.at(-1)!), kind === 'manual' ? 'orbit' : 'auto')
     const player = startPlayer(rec, kind === 'manual' ? manualWindow(rec) : autoWindow(rec), kind === 'manual' ? 'hold' : 'finish')
     const pose = replayPosesAt(rec, player.tS)
@@ -1975,10 +1977,11 @@ async function boot(): Promise<void> {
     replayBar.show(replayBarModel(player, camera))
     replayHistoryCut = true
   }
-  /** Back to where the replay was opened from, exactly as it was (IR-3, R-3, R-4, R-9). */
-  const endReplay = (): void => {
+  /** Restores live presentation without completing the flow. Reset uses this
+   *  path so tearing down a replay cannot show a stale crash debrief. */
+  const teardownReplay = (): ReplaySession | null => {
     const session = replay
-    if (session === null) return
+    if (session === null) return null
     fxSystem?.clear()
     fxMemory = session.liveFxMemory
     audio.restore(session.liveAudio)
@@ -1989,10 +1992,34 @@ async function boot(): Promise<void> {
     replayHistoryCut = true
     clearMapInput()
     replayHeld.clear()
-    const done = session.onDone
     replay = null
-    done()
+    return session
   }
+  /** Back to where the replay was opened from, exactly as it was (IR-3, R-3, R-4, R-9). */
+  const endReplay = (): void => {
+    const session = teardownReplay()
+    session?.onDone()
+  }
+  const runFlowEffect = (effect: ReplayFlowEffect): void => {
+    switch (effect) {
+      case 'showDebrief': {
+        const due = pendingDebrief
+        pendingDebrief = null
+        due?.show()
+        return
+      }
+      case 'startAutoReplay':
+        return startReplaySession('auto', () => dispatch({ kind: 'replayDone' }))
+      case 'startManualReplay':
+        return startReplaySession('manual', () => dispatch({ kind: 'replayDone' }))
+    }
+  }
+  const dispatch = (event: ReplayFlowEvent): void => {
+    const next = stepFlow(replayFlow, event)
+    replayFlow = next.flow
+    for (const effect of next.effects) runFlowEffect(effect)
+  }
+  const watchReplay = (): void => dispatch({ kind: 'watch' })
   /** Every keydown while a replay is up lands here and nowhere else (Review Focus 1). */
   const onReplayKey = (e: KeyboardEvent): void => {
     replayHeld.add(e.code)
@@ -2022,7 +2049,7 @@ async function boot(): Promise<void> {
       && !debriefOrHoldUp() && manualReplayAvailable(recorder.snapshot())
     ) {
       e.preventDefault()
-      startReplaySession('manual', () => {})
+      dispatch({ kind: 'manual' })
       return
     }
     if (BINDINGS.toggleMissionMap.includes(e.code as never) && !e.repeat) {
@@ -2526,7 +2553,8 @@ async function boot(): Promise<void> {
         badgeId,
       )
       segment = EMPTY_SEGMENT
-      pendingDebrief = { show: () => showDebrief(model, banked, undefined), remainingMs: DEBRIEF_DELAY_MS }
+      pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
+      dispatch({ kind: 'crashBanked' })
     }
     // Gunfire and structural overload can destroy the player before contact.
     // `nextFrameState` already freezes that world; raise the same Restart path
@@ -2543,16 +2571,13 @@ async function boot(): Promise<void> {
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
       const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
       segment = EMPTY_SEGMENT
-      pendingDebrief = { show: () => showDebrief(model, banked, undefined), remainingMs: DEBRIEF_DELAY_MS }
+      pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
+      dispatch({ kind: 'crashBanked' })
     }
-    if (pendingDebrief !== null && !current.paused) {
-      pendingDebrief.remainingMs -= frameMs
-      if (pendingDebrief.remainingMs <= 0) {
-        const due = pendingDebrief
-        pendingDebrief = null
-        due.show()
-      }
-    }
+    dispatch({
+      kind: 'frame', frameMs, paused: current.paused,
+      recordingAvailable: recorder.snapshot() !== null,
+    })
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).
     // Continue releases both; Restart goes through the handler above.
@@ -2589,7 +2614,9 @@ async function boot(): Promise<void> {
           frame = acknowledgeLanding(frame!)
           landingShown = false
           debrief.hide()
-        })
+          dispatch({ kind: 'debriefClosed' })
+        }, watchReplay)
+        dispatch({ kind: 'landingDebrief' })
       }
     }
 
