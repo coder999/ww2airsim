@@ -109,6 +109,10 @@ def _material(role):
 
 # Chord stations of the NACA 4-digit symmetric section, leading edge (0) to trailing edge (1).
 AIRFOIL_STATIONS = (0.0, 0.05, 0.15, 0.3, 0.5, 0.75, 1.0)
+# Chord stations for detailed sections (DP0): the leading edge's curvature resolved, as the downloads' is.
+AIRFOIL_STATIONS_FINE = (0.0, 0.0125, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0)
+# The gap around a control surface, chordwise and at its spanwise ends (ESTIMATE: visible at Hangar distance).
+CONTROL_GAP_M = 0.012
 
 # Skins (DP0, model-detail-pass spec §4). Atlas sizes a script may ask for: 1024 for aircraft
 # and ships, 512 for buildings. Padding keeps mipmaps from bleeding one patch into the next.
@@ -197,15 +201,61 @@ def _mirror_z(verts, faces):
     return [(x, y, -z) for x, y, z in verts], [(tuple(reversed(f)), j) for f, j in faces]
 
 
+def _half_thickness(f, chord, thickness):
+    """NACA 4-digit half-thickness at chord fraction f, with the closed trailing-edge coefficient."""
+    return 5 * thickness * chord * (0.2969 * math.sqrt(f) - 0.1260 * f - 0.3516 * f ** 2 + 0.2843 * f ** 3 - 0.1036 * f ** 4)
+
+
 def _airfoil(chord, thickness):
     """(dx, dy) around a closed symmetric section: leading edge at 0, chord toward -x, upper
     surface first, so counterclockwise seen from +z. NACA 4-digit thickness with the closed
     trailing-edge coefficient: the leading and trailing edges are single points."""
-    def half(f):
-        return 5 * thickness * chord * (0.2969 * math.sqrt(f) - 0.1260 * f - 0.3516 * f ** 2 + 0.2843 * f ** 3 - 0.1036 * f ** 4)
-    upper = [(-f * chord, half(f)) for f in AIRFOIL_STATIONS]
-    lower = [(-f * chord, -half(f)) for f in reversed(AIRFOIL_STATIONS[1:-1])]
+    upper = [(-f * chord, _half_thickness(f, chord, thickness)) for f in AIRFOIL_STATIONS]
+    lower = [(-f * chord, -_half_thickness(f, chord, thickness)) for f in reversed(AIRFOIL_STATIONS[1:-1])]
     return upper + lower
+
+
+def _airfoil_part(chord, thickness, f0, f1, stations):
+    """(points, labels) around the closed part of a section between chord fractions f0 < f1: the
+    upper surface from the leading end to the trailing end, then the lower back, counterclockwise
+    seen from +z as _airfoil's. A cut end (f0 > 0 or f1 < 1) closes with a straight edge;
+    labels[i] is (fraction, 'u' or 'l'). With f0 = 0, f1 = 1 and AIRFOIL_STATIONS this is _airfoil."""
+    _require(0.0 <= f0 < f1 <= 1.0, f'airfoil part: need 0 <= f0 < f1 <= 1, got {f0}, {f1}')
+    fs = [f0] + [f for f in stations if f0 < f < f1] + [f1]
+    low = list(reversed(fs))
+    if f1 == 1.0:
+        low = low[1:]
+    if f0 == 0.0:
+        low = low[:-1]
+    pts = [(-f * chord, _half_thickness(f, chord, thickness)) for f in fs] + [(-f * chord, -_half_thickness(f, chord, thickness)) for f in low]
+    return pts, [(f, 'u') for f in fs] + [(f, 'l') for f in low]
+
+
+def _refine(vals, k):
+    """k - 1 stations between each authored pair of (x, half_w, half_h, center_y, exponent): x
+    linear, the rest Catmull-Rom (ends repeated). Half-sizes are clamped to at least half the
+    smaller neighbor and the exponent to at least 1, so a pointed end cannot go negative.
+    Returns (stations, indices of the authored ones)."""
+    out, authored, m = [], [], len(vals)
+    for i in range(m - 1):
+        p0, p1, p2, p3 = vals[max(i - 1, 0)], vals[i], vals[i + 1], vals[min(i + 2, m - 1)]
+        authored.append(len(out))
+        out.append(p1)
+        for s in range(1, k):
+            t = s / k
+            rest = []
+            for c in range(1, 5):
+                v = 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t * t
+                           + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t * t * t)
+                if c in (1, 2):
+                    v = max(v, 0.5 * min(p1[c], p2[c]))
+                if c == 4:
+                    v = max(v, 1.0)
+                rest.append(v)
+            out.append((p1[0] + (p2[0] - p1[0]) * t, *rest))
+    authored.append(len(out))
+    out.append(vals[-1])
+    return out, authored
 
 
 def _section_labels(stations):
@@ -550,7 +600,7 @@ class Model:
                        None if charts is None else [charts[i] for i in ids],
                        False if smooth is None else [smooth[i] for i in ids])
 
-    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None):
+    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1):
         """Loft a fuselage, nacelle, boom or canopy from stations in the glTF frame.
 
         Each station is ``(x, half_width, half_height, center_y[, exponent])``: a superellipse
@@ -558,11 +608,14 @@ class Model:
         (center_y, ``center_z``). Stations run tail to nose, x strictly increasing, and both
         ends are capped, so a pointed end is a tiny nonzero section. With ``lower_role``, the
         side faces below each section's center go to ``lower_node`` in that role.
+        ``subdivide`` k > 1 lofts k - 1 Catmull-Rom stations between each authored pair (a
+        smoother silhouette); panel lines stay at the authored ones.
         """
         _require(isinstance(segments, int) and segments >= 8 and segments % 4 == 0,
                  f'fuselage: segments must be a multiple of 4, at least 8, got {segments!r}')
+        _require(isinstance(subdivide, int) and subdivide >= 1, f'fuselage: subdivide must be an integer >= 1, got {subdivide!r}')
         _require(len(stations) >= 2, f'fuselage: need at least 2 stations, got {len(stations)}')
-        rings, xs = [], []
+        vals = []
         for i, st in enumerate(stations):
             _require(len(st) in (4, 5), f'fuselage: station {i} needs 4 or 5 values, got {len(st)}')
             values = tuple(float(v) for v in st)
@@ -571,7 +624,13 @@ class Model:
             n = values[4] if len(values) == 5 else 2.2
             _require(half_w > 0 and half_h > 0 and n >= 1,
                      f'fuselage: station {i} half-width and half-height must be > 0 and exponent >= 1')
-            xs.append(x)
+            vals.append((x, half_w, half_h, center_y, n))
+        _require(all(vals[i][0] < vals[i + 1][0] for i in range(len(vals) - 1)), 'fuselage: station x values must be strictly increasing')
+        authored = list(range(len(vals)))
+        if subdivide > 1:
+            vals, authored = _refine(vals, subdivide)
+        rings = []
+        for x, half_w, half_h, center_y, n in vals:
             ring = []
             for j in range(segments):
                 t = 2 * math.pi * j / segments
@@ -579,19 +638,19 @@ class Model:
                 ring.append((x, center_y + half_h * math.copysign(abs(c) ** (2 / n), c),
                              center_z + half_w * math.copysign(abs(s) ** (2 / n), s)))
             rings.append(ring)
-        _require(all(xs[i] < xs[i + 1] for i in range(len(xs) - 1)), 'fuselage: station x values must be strictly increasing')
         verts, faces = _loft(rings)
         quarter = segments // 4
         charts = smooth = None
         if self.skin:
             charts, side, U, V = self._loft_charts(rings, role)
             smooth = [j is not None for _, j in faces]
-            for s in range(1, len(rings) - 1):
+            for s in authored[1:-1]:
                 self._line(side, 'u', U[s], 0.0, V[s][-1])
         self._emit(role, verts, faces, node, lower_role, lower_node, lambda j: quarter <= j < 3 * quarter, charts, smooth)
 
     def wing(self, role, le_x, root_y, root_chord, tip_chord, span, sweep_deg=0.0, dihedral_deg=0.0,
-             thickness=0.12, tip_thickness=None, root_z=0.0, mirror=True, node=None, lower_role=None, lower_node=None):
+             thickness=0.12, tip_thickness=None, root_z=0.0, mirror=True, node=None, lower_role=None, lower_node=None,
+             stations=None, span_segments=1, controls=None):
         """A tapered lifting surface, both halves by default: a wing or a tailplane.
 
         The root section's leading edge is at (``le_x``, ``root_y``, ``root_z``); the panel runs
@@ -599,6 +658,11 @@ class Model:
         Sections are NACA 4-digit symmetric (``thickness`` is a fraction of chord) with a closed
         trailing edge. ``mirror`` adds the left half, reflected in z = 0. ``lower_role`` paints
         the lower surface, as ``fuselage`` does.
+
+        Detail (DP0, all opt-in): ``stations`` are the section's chord fractions (e.g.
+        AIRFOIL_STATIONS_FINE), ``span_segments`` lofts that many spans root to tip, and
+        ``controls`` is a list of (z0, z1, hinge chord fraction) in absolute z, clipped to the
+        panel: each is its own piece aft of the hinge, with CONTROL_GAP_M gaps around it.
         """
         half = span / 2
         tip_t = thickness if tip_thickness is None else tip_thickness
@@ -609,6 +673,15 @@ class Model:
         length = half - root_z
         tip_le = le_x - length * math.tan(math.radians(sweep_deg))
         tip_y = root_y + length * math.tan(math.radians(dihedral_deg))
+        if stations is not None or span_segments != 1 or controls:
+            def section(z):
+                f = (z - root_z) / length
+                chord = root_chord + (tip_chord - root_chord) * f
+                thick = thickness * root_chord + (tip_t * tip_chord - thickness * root_chord) * f
+                return (chord, thick / chord, le_x - (z - root_z) * math.tan(math.radians(sweep_deg)),
+                        root_y + (z - root_z) * math.tan(math.radians(dihedral_deg)))
+            self._lifting_detailed(role, section, root_z, half, stations, span_segments, controls, node, lower_role, lower_node, mirror, lambda v: v)
+            return
         rings = [
             [(le_x + dx, root_y + dy, root_z) for dx, dy in _airfoil(root_chord, thickness)],
             [(tip_le + dx, tip_y + dy, half) for dx, dy in _airfoil(tip_chord, tip_t)],
@@ -627,12 +700,24 @@ class Model:
                        None if charts is None else self._mirror_charts(charts), smooth)
 
     def fin(self, role, le_x, root_y, root_chord, tip_chord, height, sweep_deg=0.0, thickness=0.10,
-            tip_thickness=None, center_z=0.0, node=None):
-        """A vertical tail surface standing on y = ``root_y`` in the plane z = ``center_z``."""
+            tip_thickness=None, center_z=0.0, node=None, stations=None, span_segments=1, controls=None):
+        """A vertical tail surface standing on y = ``root_y`` in the plane z = ``center_z``.
+        ``stations``, ``span_segments`` and ``controls`` are ``wing``'s, with each control's
+        (h0, h1, hinge chord fraction) in height above the root."""
         tip_t = thickness if tip_thickness is None else tip_thickness
         _require(root_chord > 0 and tip_chord > 0 and height > 0,
                  f'fin: chords and height must be > 0, got {root_chord}, {tip_chord}, {height}')
         _require(0 < thickness < 0.3 and 0 < tip_t < 0.3, f'fin: thickness ratios must be in (0, 0.3), got {thickness}, {tip_t}')
+        if stations is not None or span_segments != 1 or controls:
+            def section(z):
+                f = z / height
+                chord = root_chord + (tip_chord - root_chord) * f
+                thick = thickness * root_chord + (tip_t * tip_chord - thickness * root_chord) * f
+                return chord, thick / chord, le_x - z * math.tan(math.radians(sweep_deg)), 0.0
+            # Stand the panel up: (x, y, z) -> (x, z, -y) about the root, as the plain path does.
+            self._lifting_detailed(role, section, 0.0, height, stations, span_segments, controls, node, None, None, False,
+                                   lambda v: (v[0], root_y + v[2], center_z - v[1]))
+            return
         tip_le = le_x - height * math.tan(math.radians(sweep_deg))
         rings = [[(le_x + dx, dy, 0.0) for dx, dy in _airfoil(root_chord, thickness)],
                  [(tip_le + dx, dy, height) for dx, dy in _airfoil(tip_chord, tip_t)]]
@@ -645,6 +730,59 @@ class Model:
         # Stand the panel up: (x, y, z) -> (x, z, -y) is a rotation, so windings hold.
         verts = [(x, root_y + z, center_z - y) for x, y, z in verts]
         self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
+
+    def _lifting_detailed(self, role, section, z_from, z_to, stations, span_segments, controls, node, lower_role, lower_node, mirror, place):
+        """A wing or fin panel as pieces between z_from and z_to: split at every control end; inside a
+        control, a main piece cut CONTROL_GAP_M ahead of the hinge and a control piece from the hinge
+        aft, inset CONTROL_GAP_M at its own spanwise ends. `section(z)` gives (chord, thickness ratio,
+        leading-edge x, chord-line y) at z, the one-panel loft's own section, so pieces trace its surface.
+        `place` maps a lofted vertex to the model frame (a rotation, so windings hold)."""
+        stations = AIRFOIL_STATIONS if stations is None else tuple(stations)
+        _require(stations[0] == 0.0 and stations[-1] == 1.0 and all(a < b for a, b in zip(stations, stations[1:])),
+                 'stations must run 0 to 1, strictly increasing')
+        _require(isinstance(span_segments, int) and span_segments >= 1, f'span_segments must be an integer >= 1, got {span_segments!r}')
+        ctrls = []
+        for z0, z1, hinge in controls or []:
+            _require(z0 < z1 and 0.3 < hinge < 0.95, f'control ({z0}, {z1}, {hinge}): need z0 < z1 and a hinge in (0.3, 0.95)')
+            if z1 > z_from and z0 < z_to:
+                ctrls.append((max(z0, z_from), min(z1, z_to), hinge, z0 >= z_from, z1 <= z_to))
+        cuts = sorted({z_from, z_to} | {c for a, b, _h, _s, _e in ctrls for c in (a, b)})
+        for za, zb in zip(cuts, cuts[1:]):
+            c = next((x for x in ctrls if x[0] <= za and zb <= x[1]), None)
+            if c is None:
+                self._lifting_piece(role, section, za, zb, 0.0, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
+                continue
+            _a, _b, hinge, own_start, own_end = c
+            chord = min(section(za)[0], section(zb)[0])
+            self._lifting_piece(role, section, za, zb, 0.0, hinge - CONTROL_GAP_M / chord, stations, span_segments, node, lower_role, lower_node, mirror, place)
+            lo = za + CONTROL_GAP_M if own_start and za == _a else za
+            hi = zb - CONTROL_GAP_M if own_end and zb == _b else zb
+            self._lifting_piece(role, section, lo, hi, hinge, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
+
+    def _lifting_piece(self, role, section, za, zb, f0, f1, stations, span_segments, node, lower_role, lower_node, mirror, place):
+        """One piece of a detailed panel: the section's part between chord fractions f0 and f1,
+        lofted over span_segments spans from za to zb (and mirrored in z = 0 if asked)."""
+        rings, labels = [], None
+        for k in range(span_segments + 1):
+            z = za + (zb - za) * k / span_segments
+            chord, t, le, y = section(z)
+            pts, labels = _airfoil_part(chord, t, f0, f1, stations)
+            rings.append([place((le + dx, y + dy, z)) for dx, dy in pts])
+        verts, faces = _loft(rings)
+        uppers = sum(1 for _f, sfc in labels if sfc == 'u')
+        first_lower = uppers - 1 if f1 == 1.0 else uppers
+        lower = lambda j: j >= first_lower  # noqa: E731
+        charts = smooth = None
+        if self.skin:
+            # _loft_charts measures the placed rings; `place` is a rotation, so the UVs are the unplaced ones'.
+            charts, side, U, V = self._loft_charts(rings, role)
+            smooth = [j is not None for _, j in faces]
+            self._spar_lines(side, U, V, labels)
+        self._emit(role, verts, faces, node, lower_role, lower_node if lower_role else None, lower if lower_role else None, charts, smooth)
+        if mirror:
+            mverts, mfaces = _mirror_z(verts, faces)
+            self._emit(role, mverts, mfaces, node, lower_role, lower_node if lower_role else None, lower if lower_role else None,
+                       None if charts is None else self._mirror_charts(charts), smooth)
 
     def revolve(self, role, origin, direction, profile, segments=12, node=None):
         """A closed solid of revolution about the line through ``origin`` along ``direction``:
@@ -677,12 +815,16 @@ class Model:
             smooth = [j is not None for _, j in faces]
         self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
 
-    def propeller(self, role, hub, diameter, blades, chord, spinner_radius, spinner_length, pitch_deg=25.0, node='Prop'):
+    def propeller(self, role, hub, diameter, blades, chord, spinner_radius, spinner_length, pitch_deg=25.0, node='Prop', blade_sections=None):
         """A propeller on an axis along +x through ``hub``: flat blades, pitched ``pitch_deg``,
         from inside the spinner out to diameter/2 (tips tapered to 35% chord, so the tip corners
         stay within 0.1% of the radius), and a spinner ahead of the hub. One node, so the entry
         pivots it at the hub about +x. Exactly N-fold symmetric: the spinner's 24 segments divide
-        by 2, 3, 4 and 6."""
+        by 2, 3, 4 and 6.
+
+        ``blade_sections`` (DP0, opt-in) replaces the flat blades with lofted, twisted ones: a
+        list of (radius fraction, chord scale, pitch deg) from root to tip, each a 10% section
+        pitched about its quarter chord (``pitch_deg`` is then unused)."""
         _require(isinstance(blades, int) and 2 <= blades <= 6, f'propeller: blades must be an integer from 2 to 6, got {blades!r}')
         radius = diameter / 2
         _require(chord > 0 and spinner_length > 0 and 0 < spinner_radius < radius,
@@ -692,21 +834,61 @@ class Model:
         thick = 0.12 * chord
         root_r = 0.8 * spinner_radius
         box_faces = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (3, 7, 6, 2), (0, 4, 7, 3), (1, 2, 6, 5)]
-        for i in range(blades):
-            a = 2 * math.pi * i / blades
-            ca, sa = math.cos(a), math.sin(a)
-            verts = []
-            for z_sign in (-1, 1):
-                for x_sign, r in ((-1, root_r), (1, root_r), (1, radius), (-1, radius)):
-                    half_c = (chord if r == root_r else 0.35 * chord) / 2
-                    lx, lz = x_sign * thick / 2, z_sign * half_c
-                    px = lx * math.cos(phi) + lz * math.sin(phi)
-                    pz = -lx * math.sin(phi) + lz * math.cos(phi)
-                    verts.append((hx + px, hy + r * ca - pz * sa, hz + r * sa + pz * ca))
-            self._part(role, verts, box_faces, node)
+        if blade_sections is not None:
+            _require(len(blade_sections) >= 2 and all(0 < a[0] < b[0] <= 1 for a, b in zip(blade_sections, blade_sections[1:])),
+                     'propeller: blade_sections need >= 2 entries with radius fractions strictly increasing in (0, 1]')
+            for i in range(blades):
+                a = 2 * math.pi * i / blades
+                e_r = (0.0, math.cos(a), math.sin(a))
+                t = _cross((1.0, 0.0, 0.0), e_r)  # the blade's direction of travel
+                rings = []
+                for rf, scale, pitch in blade_sections:
+                    ph = math.radians(pitch)
+                    fwd = (math.sin(ph), math.cos(ph) * t[1], math.cos(ph) * t[2])  # toward the leading edge
+                    up = _cross(e_r, fwd)
+                    c = chord * scale
+                    # wing-local (x toward the leading edge, y up, z span) -> (fwd, up, e_r): a rotation,
+                    # since fwd x up = fwd x (e_r x fwd) = e_r, so the airfoil's outward winding survives.
+                    rings.append([tuple(hub[k] + rf * radius * e_r[k] + (dx + 0.25 * c) * fwd[k] + dy * up[k] for k in range(3))
+                                  for dx, dy in _airfoil(c, 0.10)])
+                verts, faces = _loft(rings)
+                charts = smooth = None
+                if self.skin:
+                    charts, _s, _U, _V = self._loft_charts(rings, role)
+                    smooth = [j is not None for _, j in faces]
+                self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
+        else:
+            for i in range(blades):
+                a = 2 * math.pi * i / blades
+                ca, sa = math.cos(a), math.sin(a)
+                verts = []
+                for z_sign in (-1, 1):
+                    for x_sign, r in ((-1, root_r), (1, root_r), (1, radius), (-1, radius)):
+                        half_c = (chord if r == root_r else 0.35 * chord) / 2
+                        lx, lz = x_sign * thick / 2, z_sign * half_c
+                        px = lx * math.cos(phi) + lz * math.sin(phi)
+                        pz = -lx * math.sin(phi) + lz * math.cos(phi)
+                        verts.append((hx + px, hy + r * ca - pz * sa, hz + r * sa + pz * ca))
+                self._part(role, verts, box_faces, node)
         self.revolve(role, (hx - 0.25 * spinner_length, hy, hz), (1.0, 0.0, 0.0),
                      [(0.0, spinner_radius), (0.35 * spinner_length, 0.97 * spinner_radius),
                       (0.7 * spinner_length, 0.7 * spinner_radius), (spinner_length, 0.06 * spinner_radius)], 24, node)
+
+    def canopy(self, glass_role, frame_role, stations, frames, bar=0.02, segments=16, subdivide=1, center_z=0.0, node=None, frame_node=None):
+        """A glazed canopy lofted like `fuselage` from (x, half_w, half_h, center_y) stations, and a
+        frame hoop at each x in `frames`: `bar` long, standing `bar` proud of the glazing's own
+        (refined) section there. The hoops' role is the airframe's paint; the glazing's is its own."""
+        _require(bar > 0 and frames, f'canopy: need bar > 0 and at least one frame, got {bar}, {frames}')
+        self.fuselage(glass_role, stations, segments, center_z, node, subdivide=subdivide)
+        vals = [(float(s[0]), float(s[1]), float(s[2]), float(s[3]), 2.2) for s in stations]
+        if subdivide > 1:
+            vals, _a = _refine(vals, subdivide)
+        for x in frames:
+            _require(vals[0][0] < x < vals[-1][0], f'canopy: frame at {x} is outside the canopy ({vals[0][0]}, {vals[-1][0]})')
+            i = next(k for k in range(len(vals) - 1) if vals[k][0] <= x <= vals[k + 1][0])
+            f = (x - vals[i][0]) / (vals[i + 1][0] - vals[i][0])
+            hw, hh, cy = (vals[i][c] + (vals[i + 1][c] - vals[i][c]) * f for c in (1, 2, 3))
+            self.fuselage(frame_role, [(x - bar / 2, hw + bar, hh + bar, cy), (x + bar / 2, hw + bar, hh + bar, cy)], segments, center_z, frame_node)
 
     def gear_leg(self, role, hinge, length, wheel_radius, wheel_width, strut_radius=None, node=None):
         """A landing-gear leg hanging straight down from ``hinge``: a strut to the axle and a
