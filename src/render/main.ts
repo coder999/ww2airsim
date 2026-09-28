@@ -8,7 +8,7 @@ import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
 import { airframeUpdateFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
-import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode } from './camera.js'
+import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
 import { aircraftUrl, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
@@ -16,6 +16,7 @@ import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createAudioSystem } from '../audio/system.js'
+import type { AudioMemory } from '../audio/cues.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
 import { audioInputsFrom } from './audio.js'
 import { createFlightData } from './flightData.js'
@@ -68,8 +69,20 @@ import {
   settleOnTerrain,
   toThreeOrientation,
   worldOffsetFor,
-  type FrameState, withPaused, acknowledgeLanding,
+  type FrameState, withPaused, acknowledgeLanding, surfaceHeightFor,
 } from './frame.js'
+import { createRecorder } from '../replay/recorder.js'
+import { replayPosesAt, type ReplayPoses } from '../replay/view.js'
+import {
+  applyReplayCommand, manualReplayAvailable, manualWindow, autoWindow, startReplay as startPlayer, stepReplay,
+  type ReplayCommand, type ReplayPlayer,
+} from '../replay/player.js'
+import {
+  cycleCamera, effectiveCamera, initialCameraState, replayEye, selectCamera, stepCameraState, toggleLock, toggleSpin,
+  type ReplayCameraId, type ReplayCameraState,
+} from '../replay/cameras.js'
+import { replayKeyAction } from '../replay/keys.js'
+import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
@@ -128,6 +141,10 @@ import { loadCover } from './landcover/load.js'
 // index.html always contains #app -- it is the mount point the script tag is
 // loaded from, so this assertion is safe at the entry point.
 const root = document.getElementById('app')!
+
+/** What one frame draws: the live `FrameState`, or a recorded moment during
+ *  an instant replay (plan Task 7). Only the fields the drawing reads. */
+type RenderView = Pick<FrameState, 'world' | 'eye' | 'poses' | 'shipPoses' | 'render' | 'controls' | 'cameraMode' | 'paused' | 'timeScale'>
 
 // Accumulated by the `renderer.onError` handler wired below. Exposed (DEV
 // builds only) on `window.__ww2.validationErrors` near the top of `boot`,
@@ -920,6 +937,14 @@ async function boot(): Promise<void> {
       // spawn is content now (Plan 12). Every Tier 2 caller reads this after
       // `waitForTerrain`, i.e. long after both.
       aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition ?? v3(0, 0, 0)),
+      // Instant replay: `replay` / `renderedPlayerPosition` are declared later
+      // in boot(); these run only after boot, as `fx` reads `fxSystem`.
+      replay: () => replay === null ? null : {
+        tS: replay.player.tS, startS: replay.player.startS, endS: replay.player.endS, speed: replay.player.speed,
+        playing: replay.player.playing, camera: replay.camera.selected, effective: effectiveCamera(replay.camera),
+        targetId: replay.camera.targetId,
+      },
+      renderedPlayerPositionM: () => renderedPlayerPosition,
       // Plan 12: every entity, not just the player's airplane. See the two
       // members' doc comments in diagnostics.ts for what each one proves.
       ships: () =>
@@ -1604,6 +1629,38 @@ async function boot(): Promise<void> {
   /** A crash/kill debrief already banked but not yet raised; counts down in
    *  real unpaused frame time, and a Restart drops it (`resetFlightUi`). */
   let pendingDebrief: { readonly show: () => void; remainingMs: number } | null = null
+  /** Instant replay (spec §3, R-1): the last 10 s of LIVE worlds, one per
+   *  advanced frame. Pushed in the frame loop only while no replay is up, and
+   *  cleared by `resetFlightUi`, so a replay can never show a previous flight. */
+  const recorder = createRecorder()
+  /**
+   * The replay on screen, or null (spec §4-§6). While it is up the frame loop
+   * draws a `view` built from the recording, the live frame is held paused
+   * (R-9), the replay owns the keyboard, and a class on `root` hides the HUD
+   * (R-5). `eye` / `pose` are what was drawn last, for a camera switch made
+   * between frames (Manual starts at the previous camera's eye, spec §5);
+   * `drawnCamera` is the effective camera last drawn, for the history cut.
+   */
+  type ReplaySession = {
+    player: ReplayPlayer
+    camera: ReplayCameraState
+    readonly returnTo: 'live' | 'debrief'
+    readonly liveWasPaused: boolean
+    readonly liveFxMemory: FxMemory
+    readonly liveAudio: AudioMemory
+    readonly onDone: () => void
+    eye: EyeTransform
+    pose: ReplayPoses
+    drawnCamera: ReplayCameraId
+  }
+  let replay: ReplaySession | null = null
+  /** Keys held while a replay is up: Manual's WASD / Q / E (R-10). Separate
+   *  from the flight's `pressed`, and cleared on blur (Review Focus 2). */
+  const replayHeld = new Set<string>()
+  /** Forces one cloud/TRAA history reset: replay entry and exit, a jump, a camera switch (spec §7). */
+  let replayHistoryCut = false
+  /** DEV (`__ww2.renderedPlayerPositionM`): the player's airframe root as drawn this frame. */
+  let renderedPlayerPosition: Vec3 | null = null
   /** Assembles this bank's dossier record (dossier spec §B.2) from the flight
    *  `segment` just flown plus whatever main.ts already tracks live -- the
    *  scenario, aircraft and loadout in play right now. */
@@ -1762,6 +1819,9 @@ async function boot(): Promise<void> {
     fxMemory = NO_FX_MEMORY
     fxStress = null
     missionHud.reset()
+    // Instant replay spec §4: Restart, New game and a scenario switch start
+    // a new recording, so Watch replay / K can never show the old flight.
+    recorder.clear()
   }
   /** E1 DEV (`__ww2.fxStress`): clear the pool and inject a named scene
    *  relative to the eye (fx/stress.ts); returns the anchors in CSS pixels. */
@@ -1853,10 +1913,111 @@ async function boot(): Promise<void> {
     clearMapInput()
     navigationMap.show(frame!.world, navigationMapState.selectedId)
   }
+  /** An impact or shoot-down (its hold and debrief) or a landing debrief is
+   *  up. One copy, read by the mouse gate and by K (a crash has its own
+   *  automatic replay, spec §4). */
+  const debriefOrHoldUp = (): boolean =>
+    playerAircraft(frame!.world).impact !== null
+    || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
+    || landingShown
+
+  // Instant replay (spec §4-§6). The bar's buttons and the keys below drive
+  // the same four session functions.
+  const replayCommand = (c: ReplayCommand): void => {
+    if (replay === null) return
+    replay.player = applyReplayCommand(replay.player, c)
+  }
+  const replayCamera = (f: (s: ReplayCameraState, eye: EyeTransform, pose: ReplayPoses) => ReplayCameraState): void => {
+    if (replay === null) return
+    replay.camera = f(replay.camera, replay.eye, replay.pose)
+  }
+  const replayBar = createReplayBar(root, {
+    onCommand: replayCommand,
+    onSeek: (fraction) => {
+      if (replay === null) return
+      const p = replay.player
+      replayCommand({ kind: 'seek', tS: p.startS + fraction * (p.endS - p.startS) })
+    },
+    onCamera: (id) => replayCamera((s, eye, pose) => selectCamera(s, id, eye, pose)),
+    onSpin: () => replayCamera(toggleSpin),
+    onLock: () => replayCamera(toggleLock),
+  })
+  /**
+   * Opens a replay of the current recording. 'manual' (K while paused): the
+   * whole recording, Orbit, holding on the last frame. 'auto' (Task 9's crash
+   * replay and Watch replay): impact - 8 s to impact + 1.5 s on Auto, done at
+   * the end. Effects and sound are cleared / held here until Task 8 drives
+   * them from the recording (R-3, R-4).
+   */
+  const startReplaySession = (kind: 'manual' | 'auto', onDone: () => void): void => {
+    const rec = recorder.snapshot()
+    if (rec === null) return
+    const camera = initialCameraState(rec, surfaceHeightFor(rec.worlds.at(-1)!), kind === 'manual' ? 'orbit' : 'auto')
+    const player = startPlayer(rec, kind === 'manual' ? manualWindow(rec) : autoWindow(rec), kind === 'manual' ? 'hold' : 'finish')
+    const pose = replayPosesAt(rec, player.tS)
+    replay = {
+      player, camera, returnTo: kind === 'manual' ? 'live' : 'debrief',
+      liveWasPaused: frame!.paused, liveFxMemory: fxMemory, liveAudio: audio.memory(), onDone,
+      eye: replayEye(camera, pose, surfaceHeightFor(pose.world)), pose, drawnCamera: effectiveCamera(camera),
+    }
+    clearMapInput()
+    replayHeld.clear()
+    fxSystem?.clear()
+    audio.hold(true)
+    root.classList.add(REPLAYING_CLASS)
+    replayBar.show(replayBarModel(player, camera))
+    replayHistoryCut = true
+  }
+  /** Back to where the replay was opened from, exactly as it was (IR-3, R-3, R-4, R-9). */
+  const endReplay = (): void => {
+    const session = replay
+    if (session === null) return
+    fxSystem?.clear()
+    fxMemory = session.liveFxMemory
+    audio.restore(session.liveAudio)
+    audio.hold(false)
+    frame = withPaused(frame!, session.liveWasPaused)
+    root.classList.remove(REPLAYING_CLASS)
+    replayBar.hide()
+    replayHistoryCut = true
+    clearMapInput()
+    replayHeld.clear()
+    const done = session.onDone
+    replay = null
+    done()
+  }
+  /** Every keydown while a replay is up lands here and nowhere else (Review Focus 1). */
+  const onReplayKey = (e: KeyboardEvent): void => {
+    replayHeld.add(e.code)
+    if (e.repeat) return
+    const action = replayKeyAction(e.code, e.shiftKey)
+    if (action === null) return
+    switch (action.kind) {
+      case 'command': return replayCommand(action.command)
+      case 'camera': return replayCamera((s, eye, pose) => selectCamera(s, action.id, eye, pose))
+      case 'cycleCamera': return replayCamera(cycleCamera)
+      case 'spin': return replayCamera(toggleSpin)
+      case 'lock': return replayCamera(toggleLock)
+      case 'exit': return replayCommand({ kind: 'skip' })
+    }
+  }
 
   window.addEventListener('keydown', (e) => {
     // Nothing reaches the game while the title is up; the title owns Enter.
     if (title.up()) return
+    // A replay owns the keyboard: nothing below -- no flight latch, no page
+    // toggle (L, R, Q, P, Tab, I, /, T) -- sees a key while one is up.
+    if (replay !== null) { e.preventDefault(); onReplayKey(e); return }
+    // K while paused (spec §4, IR-6): only with 3 s recorded, never over a
+    // debrief or a crash hold (those have their own replay) or the chart.
+    if (
+      BINDINGS.replay.includes(e.code as never) && !e.repeat && frame!.paused && !navigationMapState.open
+      && !debriefOrHoldUp() && manualReplayAvailable(recorder.snapshot())
+    ) {
+      e.preventDefault()
+      startReplaySession('manual', () => {})
+      return
+    }
     if (BINDINGS.toggleMissionMap.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       if (navigationMapState.open) closeNavigationChart()
@@ -1930,12 +2091,15 @@ async function boot(): Promise<void> {
   })
   window.addEventListener('keyup', (e) => {
     pressed.delete(e.code)
+    replayHeld.delete(e.code)
   })
   // A keyup that fires while the tab is unfocused is never delivered to this
   // page, so a key held at the moment focus is lost would otherwise stay
   // "down" forever -- the airplane keeps pitching after the window loses focus.
   window.addEventListener('blur', () => {
     pressed.clear()
+    // Review Focus 2: a held W must not keep flying the Manual camera.
+    replayHeld.clear()
     dragPointer = null
     mouseDelta = NO_MOUSE
     pendingCameraCycle = false
@@ -2002,7 +2166,9 @@ async function boot(): Promise<void> {
     // The open chart and the title screen hold the world the same way: no
     // keys reach the frame and the frame is paused (the chart's comment
     // above). The title's release path is its New game handler in `boot`.
-    const chartOpen = navigationMapState.open || title.up()
+    // A replay holds the live world the same way (R-9): no key and no mouse
+    // reaches the flight while one is up; the replay reads its own.
+    const chartOpen = navigationMapState.open || title.up() || replay !== null
     const latched: string[] = []
     if (!chartOpen) {
       if (pendingCameraCycle) latched.push(BINDINGS.cycleCamera[0])
@@ -2039,11 +2205,11 @@ async function boot(): Promise<void> {
     // the title/chart (`chartOpen`), an impact or shoot-down (its hold and
     // debrief), a landing debrief. Cleared every frame, blocked or not, so a
     // drag made under a dialog is never applied later.
-    const mouseBlocked = chartOpen
-      || playerAircraft(frame!.world).impact !== null
-      || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
-      || landingShown
+    const mouseBlocked = chartOpen || debriefOrHoldUp()
     const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta
+    // The replay cameras read the same drag and wheel (spec §5), captured
+    // before the clear below.
+    const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
@@ -2052,6 +2218,7 @@ async function boot(): Promise<void> {
       current = { ...current, eye: cameraTransformFor(current.cameraMode, spec, current.render, forcedLook) }
     }
     if (title.up()) current = withPaused(current, true)
+    if (replay !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
       navigationMap.show(current.world, navigationMapState.selectedId)
@@ -2110,6 +2277,44 @@ async function boot(): Promise<void> {
       }
       segmentTick = current.world.tick
     }
+    // Instant replay: record LIVE worlds only; a held frame (paused, impact
+    // hold) hands back the same tick, which the recorder ignores itself.
+    if (replay === null) recorder.push(current.world)
+    // What this frame DRAWS: the live frame, or while a replay is up the
+    // recorded moment at the player's `tS` through the replay camera. Every
+    // mesh, the panel, effects, sky and the render read `view`; the HUD, the
+    // debrief banking and `segment` stay on the live `current`.
+    let view: RenderView = current
+    if (replay !== null) {
+      const session = replay
+      // `jumped` marks the frame after a seek / step / restart, and
+      // `stepReplay` clears it, so it is read BEFORE the step.
+      const jumped = session.player.jumped
+      session.player = stepReplay(session.player, frameMs)
+      // Safe mid-frame: `view` stays `current` for the rest of this one.
+      if (session.player.done) endReplay()
+      else {
+        const pose = replayPosesAt(session.player.recording, session.player.tS)
+        const floor = surfaceHeightFor(pose.world)
+        // The CURRENT eye of the camera state at this moment (T4's contract
+        // for `stepCameraState`), so a drag handover starts exactly there.
+        session.camera = stepCameraState(session.camera, { mouse: replayMouse, held: replayHeld, realDtS: frameMs / 1000 },
+          replayEye(session.camera, pose, floor), pose)
+        const eye = replayEye(session.camera, pose, floor)
+        const drawn = effectiveCamera(session.camera)
+        view = {
+          world: pose.world, eye, poses: pose.poses, shipPoses: pose.shipPoses, render: pose.render,
+          controls: playerAircraft(pose.world).controls,
+          cameraMode: drawn === 'cockpit' ? 'cockpit' : 'chase',
+          paused: !session.player.playing, timeScale: session.player.speed,
+        }
+        if (jumped || drawn !== session.drawnCamera) replayHistoryCut = true
+        session.eye = eye
+        session.pose = pose
+        session.drawnCamera = drawn
+        replayBar.show(replayBarModel(session.player, session.camera))
+      }
+    }
     // Plan 9 Task 7: read fresh every frame, since `loadScenario` can
     // reassign `scenarioEntities` wholesale between one frame and the next
     // (a scenario switch) -- the same reason `sunState`/`radarSweepRad` are
@@ -2122,8 +2327,12 @@ async function boot(): Promise<void> {
     // own `player: Airframe` would be a duplicate `const player` in one
     // scope, not a shadow (both are declared in this same function body).
     // M2 R1: world-ordered, including spawned held entities (entityViews.ts).
-    const { airframes, shipHandles, player: playerAirframe } = entityViews(scenarioEntities!, current.world)
+    const { airframes, shipHandles, player: playerAirframe } = entityViews(scenarioEntities!, view.world)
+    // `player` is the LIVE airplane (the debrief banking and the post-impact
+    // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
+    const viewPlayer = playerAircraft(view.world)
+    renderedPlayerPosition = view.poses[view.world.aircraft.findIndex((a) => a.id === view.world.player)]!.position
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
     // loses precision at 100 km, which shows as geometry jitter -- master spec §4
@@ -2133,10 +2342,10 @@ async function boot(): Promise<void> {
     // apply it -- Task 13 review, round 1: both bugs it fixed were coordinate
     // arithmetic sitting in this file with no tests, which is why that
     // arithmetic now lives in frame.ts instead.
-    const worldOffset = worldOffsetFor(current.eye.position)
+    const worldOffset = worldOffsetFor(view.eye.position)
     scene.position.set(worldOffset.x, worldOffset.y, worldOffset.z)
     camera.position.set(0, 0, 0)
-    const cameraOrientation = toThreeOrientation(current.eye.attitude)
+    const cameraOrientation = toThreeOrientation(view.eye.attitude)
     camera.quaternion.set(
       cameraOrientation.x,
       cameraOrientation.y,
@@ -2153,7 +2362,7 @@ async function boot(): Promise<void> {
     // `current.render` by construction (`posesFor`, frame.ts) -- so this loop
     // poses `playerAirframe.root` too, and it did so twice until the duplicate
     // `playerAirframe.root.position.set(current.render...)` lines were deleted here.
-    current.poses.forEach((pose, i) => {
+    view.poses.forEach((pose, i) => {
       const a = airframes[i]!.root
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
       a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
@@ -2162,7 +2371,7 @@ async function boot(): Promise<void> {
     // a heading, and `createShipMesh` puts its bow along local +x -- so the
     // yaw is the same `pi/2 - headingRad` about +y that `parkedAttitude` gives
     // a parked airplane, from the same compass convention.
-    current.shipPoses.forEach((pose, i) => {
+    view.shipPoses.forEach((pose, i) => {
       const m = shipHandles[i]!.root
       m.position.set(pose.position.x, pose.position.y, pose.position.z)
       const q = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad)
@@ -2180,7 +2389,7 @@ async function boot(): Promise<void> {
     // Cockpit interior geometry is a later plan's; until then the panel
     // floats in front of an invisible airframe, which is exactly the view a
     // pilot has.
-    const visibility = airframeVisibilityFor(current.cameraMode)
+    const visibility = airframeVisibilityFor(view.cameraMode)
     cockpit.visible = visibility.cockpitVisible
     playerAirframe.root.visible = visibility.hellcatVisible
     if (gunPipper) poseGunPipper(gunPipper, playerAirframe.root, visibility.hellcatVisible)
@@ -2197,9 +2406,9 @@ async function boot(): Promise<void> {
     // already uses for exactly this reason -- ticks do not advance while
     // paused. Contacts come from the same `current.world.aircraft` list
     // `aircraft()` diagnostics already reads.
-    radarSweepRad = radarSweepAngle(current.world.tick * DT + current.world.accumulatorSeconds)
-    radarContactList = radarContacts(player, current.world.aircraft, selectedRadarRangeMi, current.world.combat.aircraft)
-    updatePanel(panel, spec, player.state, current.controls, makeTextTexture, current.render.attitude, current.world.wind)
+    radarSweepRad = radarSweepAngle(view.world.tick * DT + view.world.accumulatorSeconds)
+    radarContactList = radarContacts(viewPlayer, view.world.aircraft, selectedRadarRangeMi, view.world.combat.aircraft)
+    updatePanel(panel, spec, viewPlayer.state, view.controls, makeTextTexture, view.render.attitude, view.world.wind)
     audio.update(audioInputsFrom(current))
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
@@ -2214,12 +2423,12 @@ async function boot(): Promise<void> {
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
-    tracers.update(current.world.combat.projectiles)
+    tracers.update(view.world.combat.projectiles)
     // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
     // sinking/burning and structure collapse -- all stateless views of
     // `World.combat`.
-    current.world.aircraft.forEach((a, i) => {
-      const stores = current.world.combat.aircraft[a.id]?.stores
+    view.world.aircraft.forEach((a, i) => {
+      const stores = view.world.combat.aircraft[a.id]?.stores
       if (stores !== undefined) airframes[i]!.setStores(stores.bombs, stores.rockets)
     })
     // One `update` per aircraft per frame (A6M Zero spec §7.3): gear, flaps,
@@ -2228,13 +2437,13 @@ async function boot(): Promise<void> {
     // no visible jitter -- same reasoning as the `setStores` loop above.
     // `airframeUpdateFor` owns the rules: the player's airframe reads the raw
     // frame controls, every other its own pilot's, and a wreck's prop stops.
-    current.world.aircraft.forEach((a, i) => {
-      const playerControls = a.id === current.world.player ? current.controls : null
-      airframes[i]!.update(airframeUpdateFor(a, playerControls, current.poses[i]!.position, current.eye.position, frameMs / 1000))
+    view.world.aircraft.forEach((a, i) => {
+      const playerControls = a.id === view.world.player ? view.controls : null
+      airframes[i]!.update(airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000))
     })
-    ordnance.update(current.world.combat.projectiles)
-    current.world.ships.forEach((s, i) => {
-      const damage = current.world.combat.ships[s.id]
+    ordnance.update(view.world.combat.projectiles)
+    view.world.ships.forEach((s, i) => {
+      const damage = view.world.combat.ships[s.id]
       if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
     })
     // Structures: like the sinking/burning ships above, `sync` is handed the
@@ -2246,27 +2455,32 @@ async function boot(): Promise<void> {
     // showing collapsed rubble. Every airfield handle sees the whole map
     // rather than tracking which airfield owns which structure; a handle
     // ignores ids it does not own.
-    for (const h of airfieldHandles) h.sync(current.world.combat.structures)
+    for (const h of airfieldHandles) h.sync(view.world.combat.structures)
     // E1: every effect reads World.combat through one pure edge detector
     // (fx/events.ts), one seeded pool (fx/system.ts) and one pass (fx/fxPass.ts).
     if (fxSystem !== null && fxPass !== null) {
       const started = performance.now()
-      const shipSmokeOrigins = new Map(current.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
-      const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
-      const events = nextFxEvents(fxMemory, {
-        tick: current.world.tick, combat: current.world.combat, aircraft: current.world.aircraft, poses: current.poses,
-        shipSmokeOrigins, structureAnchors,
-      })
-      fxMemory = events.memory
-      for (const t of events.triggers) fxSystem.trigger(t.recipe, t.position, t.velocity)
-      if (fxStress !== null) {
-        const due = Math.floor(((now - fxStress.startedMs) / 1000) * fxStress.scene.roundsHz)
-        for (; fxStress.rounds < due; fxStress.rounds++) for (const t of stressRounds(fxStress.scene.center, fxStress.rounds)) fxSystem.trigger(t.recipe, t.position, t.velocity)
+      // Instant replay Task 7: while a replay is up the pool was cleared on
+      // entry and is not stepped (R-3); Task 8 drives it from the recording.
+      // The live `fxMemory` is left alone, and restored on exit.
+      if (replay === null) {
+        const shipSmokeOrigins = new Map(view.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
+        const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
+        const events = nextFxEvents(fxMemory, {
+          tick: view.world.tick, combat: view.world.combat, aircraft: view.world.aircraft, poses: view.poses,
+          shipSmokeOrigins, structureAnchors,
+        })
+        fxMemory = events.memory
+        for (const t of events.triggers) fxSystem.trigger(t.recipe, t.position, t.velocity)
+        if (fxStress !== null) {
+          const due = Math.floor(((now - fxStress.startedMs) / 1000) * fxStress.scene.roundsHz)
+          for (; fxStress.rounds < due; fxStress.rounds++) for (const t of stressRounds(fxStress.scene.center, fxStress.rounds)) fxSystem.trigger(t.recipe, t.position, t.velocity)
+        }
+        fxSystem.setSustained(fxStress === null ? events.sustained : [...events.sustained, ...fxStress.scene.sustained])
+        fxSystem.step(fxDtSeconds(frameMs / 1000, view.paused, view.timeScale))
       }
-      fxSystem.setSustained(fxStress === null ? events.sustained : [...events.sustained, ...fxStress.scene.sustained])
-      fxSystem.step(fxDtSeconds(frameMs / 1000, current.paused, current.timeScale))
       fxPass.setWorldOffset(worldOffset)
-      fxPass.setCount(fxSystem.writeInstances(current.eye.position, fxPass.instances))
+      fxPass.setCount(fxSystem.writeInstances(view.eye.position, fxPass.instances))
       fxCpuMs = performance.now() - started
     }
 
@@ -2367,7 +2581,7 @@ async function boot(): Promise<void> {
     // horizontal drift is what matters: left unfixed, it is unbounded over a
     // long flight and eventually carries the camera outside the dome; the
     // vertical offset is bounded by altitude and stays negligible.
-    sky.position.set(current.eye.position.x, 0, current.eye.position.z)
+    sky.position.set(view.eye.position.x, 0, view.eye.position.z)
 
     // The water gets the same treatment, and did not until the whole-branch
     // review (I-1): left at the world origin it slid out from under the
@@ -2377,9 +2591,9 @@ async function boot(): Promise<void> {
     // and field of view rather than the nominal ones the uniform defaults to.
     recentreOcean(
       water,
-      current.eye.position.x,
-      current.eye.position.z,
-      current.eye.position.y,
+      view.eye.position.x,
+      view.eye.position.z,
+      view.eye.position.y,
       ((camera.fov * Math.PI) / 180) / Math.max(window.innerHeight, 1),
     )
 
@@ -2388,8 +2602,8 @@ async function boot(): Promise<void> {
     // WORLD position the offset was built from -- the mesh's own vertex node
     // works in world metres and lets `scene.position` do the shift, exactly
     // as the water and markers do.
-    terrain.update(current.eye.position.x, current.eye.position.z)
-    vegetation?.update(current.eye.position.x, current.eye.position.z)
+    terrain.update(view.eye.position.x, view.eye.position.z)
+    vegetation?.update(view.eye.position.x, view.eye.position.z)
 
     // `oceanTime` (DEV-only, from `?oceanTime=`) is a fixed override for
     // reproducing one ocean state on demand and stays exactly as fixed as it
@@ -2398,7 +2612,9 @@ async function boot(): Promise<void> {
     if (player.impact !== null) postImpactOceanSeconds += frameMs / 1000
     // One clock for the sea and the sky (Plan 16a): the clouds drift on the
     // same simulated seconds the ocean's waves evolve on.
-    const skyTimeS = oceanTime ?? current.world.tick * DT + current.world.accumulatorSeconds + postImpactOceanSeconds
+    // R-2: in a replay the sky clock is the replay's own `tS` (sim seconds),
+    // so clouds and ocean match the recorded moment.
+    const skyTimeS = oceanTime ?? (replay !== null ? replay.player.tS : current.world.tick * DT + current.world.accumulatorSeconds + postImpactOceanSeconds)
     // Plan 16c: the sun creeps with the sim clock, and the light follows its
     // elevation and the eye's altitude -- photoreal Task 9, from the
     // atmosphere model (sky/palette.ts; its sky irradiance comes from a
@@ -2406,13 +2622,13 @@ async function boot(): Promise<void> {
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
-    applySun(lights, atmospherePalette(current.eye.position.y, elevationDeg), direction, elevationDeg,
+    applySun(lights, atmospherePalette(view.eye.position.y, elevationDeg), direction, elevationDeg,
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))
     sunState = { timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z } }
-    clouds.update(current.eye.position, skyTimeS, current.world.wind)
+    clouds.update(view.eye.position, skyTimeS, view.world.wind)
     for (const cascade of cascades) {
       cascade.dispatch(skyTimeS)
     }
@@ -2426,9 +2642,9 @@ async function boot(): Promise<void> {
       // Photoreal Task 8: the per-frame sky-view and aerial-perspective LUTs
       // at this frame's eye altitude (the world's y is true metres) and sun,
       // in the same timestamp pool as the passes below.
-      if (!atmosphereOff) atmosphere.update(renderer, current.eye.position.y, direction, camera)
+      if (!atmosphereOff) atmosphere.update(renderer, view.eye.position.y, direction, camera)
       if (shadow.enabled) {
-        shadow.update(current.eye.position)
+        shadow.update(view.eye.position)
         renderer.setRenderTarget(shadow.target)
         renderer.render(shadow.scene, shadow.camera)
         renderer.setRenderTarget(null)
@@ -2452,14 +2668,17 @@ async function boot(): Promise<void> {
       // a cloud pass -- a teleport smears the old view through TRAA as
       // surely as through the clouds.
       {
-        const eye = current.eye.position
+        const eye = view.eye.position
         const cut = (cloudHistoryEye !== null && shouldResetHistory({
-          eye, prevEye: cloudHistoryEye, frameSeconds: (now - cloudHistoryAtMs) / 1000, timeScale: current.timeScale,
+          eye, prevEye: cloudHistoryEye, frameSeconds: (now - cloudHistoryAtMs) / 1000, timeScale: view.timeScale,
         }))
-          || (cloudHistoryPaused && !current.paused)
+          || (cloudHistoryPaused && !view.paused)
           // A chase <-> cockpit cut is a new view, whatever the speed test
           // makes of a 10 m eye jump at this frame rate.
-          || (cloudHistoryCameraMode !== null && current.cameraMode !== cloudHistoryCameraMode)
+          || (cloudHistoryCameraMode !== null && view.cameraMode !== cloudHistoryCameraMode)
+          // Instant replay (spec §7): entry, exit, a jump or a camera switch.
+          || replayHistoryCut
+        replayHistoryCut = false
         if (cut) {
           cloudPass?.resetHistory()
           framePipeline.resetHistory()
@@ -2468,8 +2687,8 @@ async function boot(): Promise<void> {
         framePipeline.setEye(eye)
         cloudHistoryEye = eye
         cloudHistoryAtMs = now
-        cloudHistoryPaused = current.paused
-        cloudHistoryCameraMode = current.cameraMode
+        cloudHistoryPaused = view.paused
+        cloudHistoryCameraMode = view.cameraMode
       }
       framePipeline.render()
     }

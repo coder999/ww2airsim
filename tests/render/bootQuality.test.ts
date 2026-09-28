@@ -258,6 +258,16 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
     expect(source).toContain('const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta')
   })
 
+  it('records the live flight, clears it on a new life, and hands the keyboard to a replay first (instant replay Task 7)', () => {
+    // The recorder only ever sees LIVE worlds: a replay draws recorded ones,
+    // and recording those would feed the replay back into itself.
+    expect(source).toContain('if (replay === null) recorder.push(current.world)')
+    // Restart / New game / Return to title: a replay must never show a previous flight (spec §4).
+    expect(source).toContain('recorder.clear()')
+    // Review Focus 1: the replay's key routing returns before any flight latch.
+    expect(source).toMatch(/if \(replay !== null\) \{[^}]*onReplayKey/)
+  })
+
   it('keeps the DEV query overrides winning over a saved setting', () => {
     // A Tier 2 measurement run passes `?oceanTier=`/`?cloudTier=`; if a saved
     // localStorage tier could override it, the run would silently measure

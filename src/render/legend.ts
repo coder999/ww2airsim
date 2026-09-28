@@ -58,6 +58,9 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Radar range', bindings: ['toggleRadarRange'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
   { label: 'Pause', bindings: ['pause'] },
+  // Instant replay (spec §4): offered only while paused. The replay's own
+  // keys are on its bar, not here: they mean nothing in flight.
+  { label: 'Replay (paused)', bindings: ['replay'] },
 ]
 
 const NAMED: Readonly<Record<string, string>> = {

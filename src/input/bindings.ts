@@ -113,6 +113,11 @@ export const BINDINGS = {
   // focus -- has nothing here to usefully land on, so `preventDefault` in
   // main.ts costs nothing. Edge-triggered like every other panel toggle.
   toggleRadarRange: ['Tab'],
+  // Instant replay (spec §4, IR-6): K while paused replays the last 10 s.
+  // Free: grep for `KeyK` found nothing on 2026-09-27 (plan "Measured"), and
+  // while a replay is up it owns the keyboard (src/replay/keys.ts), so its
+  // own keys -- digits, O, the arrows -- never reach this table's flight use.
+  replay: ['KeyK'],
 } as const satisfies Record<string, readonly string[]>
 
 export type BindingName = keyof typeof BINDINGS
