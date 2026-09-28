@@ -63,7 +63,12 @@ const ESTIMATE = 'estimate (sizes carried from E1 through the baked sheets\' fil
 const DIRT: [number, number, number] = [0.3, 0.25, 0.19]
 const DUST: [number, number, number] = [0.45, 0.39, 0.31]
 const SMOKE: [number, number, number] = [0.1, 0.1, 0.11]
-const WATER: [number, number, number] = [0.85, 0.88, 0.9]
+// Water's albedo x WATER_GAIN. The pack scales each sheet so its brightest lit texels reach 1
+// (Ruling R6), and on the liquid water sheets the back-lit pass sets that scale: the sunlit
+// passes sit at a median of ~0.23 against dust's ~0.45 (plan E2 Task 10, measured 2026-09-28),
+// which drew grey spray. The gain puts the sunlit side back near white.
+const WATER_GAIN = 2.5
+const WATER: [number, number, number] = [0.85 * WATER_GAIN, 0.88 * WATER_GAIN, 0.9 * WATER_GAIN]
 const SPARK: [number, number, number] = [1, 0.72, 0.38]
 const GRAVITY = -9.81
 
@@ -80,6 +85,8 @@ const smaller = (emitters: readonly RawEmitter[], k: number): RawEmitter[] => em
 
 // Spawn radius is 0.3 of E1's start size; plan E2 Ruling R9 grew sizes by the fireball
 // sheet's k = 1.56 while the visible size stayed put, so 0.3 / 1.56 keeps the radius too.
+// The baked sheet burns in its first 19 of 64 frames, so `life` is about 3x the visible fire:
+// E1's 1.2-1.8 s left 0.4-0.5 s of fire, and callers now pass double that (plan E2 Task 10, Mark's ruling).
 const fireball = (count: number, size: [number, number], life: [number, number]): RawEmitter =>
   ({ mode: 'burst', sheet: 'fireball', count, lifeS: life, speedMps: [3, 10], direction: 'sphere', spreadDeg: 180, radiusM: size[0] * 0.19, sizeM: size, alpha: 1, tint: [1, 1, 1], emissive: 1, dragPerS: 1.5, accelYMps2: 3 })
 const ejecta = (count: number): RawEmitter =>
@@ -96,7 +103,7 @@ const sparks = (count: number): RawEmitter =>
   ({ mode: 'burst', sheet: 'streak', count, lifeS: [0.12, 0.25], speedMps: [15, 30], direction: 'up', spreadDeg: 80, sizeM: [0.15, 0.1], alpha: 1, tint: SPARK, emissive: 3, dragPerS: 2, accelYMps2: GRAVITY, streakS: 0.03 })
 
 const BOMB_LAND: RawEmitter[] = [
-  fireball(6, [22, 47], [1.2, 1.8]),
+  fireball(6, [22, 47], [2.4, 3.6]),
   ejecta(40),
   { mode: 'burst', sheet: 'dust', count: 16, lifeS: [3, 5], speedMps: [15, 25], direction: 'ring', spreadDeg: 10, sizeM: [12, 34], alpha: 0.7, tint: DUST, dragPerS: 1.2, accelYMps2: 0.3 },
   column(6, 18, [12, 41]),
@@ -115,11 +122,11 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   'round.ship': { emitters: [sparks(4), { mode: 'burst', sheet: 'smoke', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.58, 1.7], alpha: 0.4, tint: SMOKE, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
   // Ruling R4: the pre-E1 renderer's own 'hit' flash (2.5 m, 0.25 s), deleted in E1 Task 10.
   'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1.6, 3.9], [0.2, 0.3]), radiusM: 0 }], source: 'pre-E1 flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
-  'crash.land': { emitters: [fireball(8, [28, 62], [1.4, 2]), ejecta(50), column(8, 30, [14, 46])], source: ESTIMATE },
+  'crash.land': { emitters: [fireball(8, [28, 62], [2.8, 4]), ejecta(50), column(8, 30, [14, 46])], source: ESTIMATE },
   'crash.water': { emitters: [waterColumn(6, [12, 30]), crown(30), surge(20)], source: ESTIMATE },
-  'crash.deck': { emitters: [fireball(6, [19, 44], [1.2, 1.8]), sparks(20), column(6, 20, [9.3, 30])], source: ESTIMATE },
+  'crash.deck': { emitters: [fireball(6, [19, 44], [2.4, 3.6]), sparks(20), column(6, 20, [9.3, 30])], source: ESTIMATE },
   // Ruling R6: fireball on the kill edge; the trail is sustained at the (frozen) wreck.
-  'kill.air': { emitters: [fireball(6, [16, 41], [1.2, 1.6]), sparks(16),
+  'kill.air': { emitters: [fireball(6, [16, 41], [2.4, 3.2]), sparks(16),
     { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [4, 7], speedMps: [1, 3], direction: 'sphere', spreadDeg: 180, sizeM: [3.5, 16], alpha: 0.7, tint: SMOKE, dragPerS: 0.6, accelYMps2: 0.8 }], source: ESTIMATE },
   // Today's smoke.ts: dark (0x23262b), opacity 0.25..0.8 with damage.
   'engine.smoke': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 14, lifeS: [2, 3.5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [1.4, 6.9], alpha: 0.6, tint: [0.14, 0.15, 0.17], dragPerS: 1.5, accelYMps2: 0.5, inheritVelocity: 0.15 }], source: 'smoke.ts smokeAppearance (estimate, Plan 6)' },
