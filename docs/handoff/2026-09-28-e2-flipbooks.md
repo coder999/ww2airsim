@@ -204,6 +204,21 @@ In order. The full text, with cost-if-wrong, is in the gitignored ledger
 5. **Cloud ordering has a thin margin:** 0.42 against a floor of 0.4.
 6. **Nothing is blocked.**
 
+## Post-handoff integration — 2026-09-28
+
+Current local `main` at `8601bd4` was merged into this branch in `45ead84`.
+The post-merge `remote-run npm run verify` returned rc 0: 301 files, 3,434
+tests passed and 2 skipped. On the reference GPU, `fx.spec.ts` and
+`ordnance.spec.ts` passed 10/10. The locked E2 gates measured +0.364 ms at
+1440p High, +2.374 ms with the eye inside smoke, and 15.778 ms at 4K High
+photo (+0.172 ms over `?fx=off`).
+
+The full locked 4K matrix passed 21/22. High `in-deck-1900` measured 21.576 ms
+against its 20 ms gate; the same test against current `main`, under the same
+lock, measured 21.491 ms. It is therefore a shared current-main baseline miss,
+not an E2 regression. All other 4K views passed, including High
+`low-land-600` at 12.354 ms.
+
 ## Status
 
 The branch is pushed. `main` is untouched, and merging is Mark's call. The
