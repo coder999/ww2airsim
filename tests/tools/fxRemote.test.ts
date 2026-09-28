@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { assertMetaSheet, assertPackHasNoVariant, assertProbe, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, variantName, type BakeRun } from '../../tools/fx/remote.js'
+import {
+  assertMetaSheet, assertPackHasNoVariant, assertProbe, FX_BAKE_HOST_DEFAULT, FX_BAKE_HOST_LOCAL, FX_BLENDER_DEFAULT,
+  hostCommand, localRsyncArgs, remoteDirFor, remoteScript, rsyncArgs, variantName, type BakeRun,
+} from '../../tools/fx/remote.js'
 
 const run: BakeRun = {
   remoteDir: 'fxbake/e2-flipbooks', blender: FX_BLENDER_DEFAULT, script: 'smoke.py', doneName: 'done-smoke.json',
@@ -54,5 +57,25 @@ describe('fx bake transport (plan E2 Rulings R1, R10)', () => {
     expect(() => assertPackHasNoVariant(undefined)).not.toThrow()
     expect(() => assertPackHasNoVariant('')).not.toThrow()
     expect(() => assertPackHasNoVariant('gas')).toThrow(/FX_VARIANT=gas/)
+  })
+
+  it('FX_BAKE_HOST=local runs a bare bash locally instead of ssh+WSL (plan E2 Task 7 Step 0)', () => {
+    expect(hostCommand(FX_BAKE_HOST_DEFAULT)).toEqual({ cmd: 'ssh', args: expect.arrayContaining(['ryzen', 'wsl -- bash -s; exit $LASTEXITCODE']) })
+    expect(hostCommand('ryzen').args.join(' ')).toContain('wsl -- bash -s')
+    expect(hostCommand(FX_BAKE_HOST_LOCAL)).toEqual({ cmd: 'bash', args: ['-s'] })
+  })
+
+  it('a local bake scratches under ~/fxbake-local/<checkout>/, outside the repo and never fxbake/ (Task 7 Step 0)', () => {
+    expect(remoteDirFor(FX_BAKE_HOST_DEFAULT, 'e2-flipbooks')).toBe('fxbake/e2-flipbooks')
+    expect(remoteDirFor('ryzen', 'e2-flipbooks')).toBe('fxbake/e2-flipbooks')
+    expect(remoteDirFor(FX_BAKE_HOST_LOCAL, 'e2-flipbooks')).toBe('fxbake-local/e2-flipbooks')
+  })
+
+  it('local transfer is a plain rsync with no ssh/WSL transport (Task 7 Step 0)', () => {
+    const a = localRsyncArgs('tools/fx/blender/', '~/fxbake-local/e2-flipbooks/scripts/', { delete: true, mkpath: true, exclude: ['__pycache__/'] })
+    expect(a.join(' ')).not.toContain('ssh')
+    expect(a.join(' ')).not.toContain('wsl')
+    expect(a).toEqual(expect.arrayContaining(['--delete', '--mkpath', '--exclude', '__pycache__/']))
+    expect(a.slice(-2)).toEqual(['tools/fx/blender/', '~/fxbake-local/e2-flipbooks/scripts/'])
   })
 })

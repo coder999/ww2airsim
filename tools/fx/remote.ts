@@ -6,6 +6,9 @@
  * through `--rsync-path='wsl --cd ~ -- rsync'`, as remote-run does.
  */
 export const FX_BAKE_HOST_DEFAULT = 'ryzen'
+/** FX_BAKE_HOST=local (Task 7 Step 0): bake on whichever machine render.ts itself runs on (nexus,
+ *  beside ryzen's bake), with no ssh/WSL transport. */
+export const FX_BAKE_HOST_LOCAL = 'local'
 /** `blender` on PATH: the blender.org build on both machines since 2026-09-27 (Ruling R1; serverconfig/ryzen.md). */
 export const FX_BLENDER_DEFAULT = 'blender'
 export const FX_BLENDER_VERSION = '5.0.1'
@@ -82,6 +85,34 @@ export function rsyncArgs(
     '-a', ...(opts.delete ? ['--delete'] : []), ...(opts.mkpath ? ['--mkpath'] : []),
     ...(opts.exclude ?? []).flatMap((e) => ['--exclude', e]),
     '-e', `ssh ${SSH_OPTS.join(' ')}`, '--rsync-path=wsl --cd ~ -- rsync', from, to,
+  ]
+}
+
+/** The command render.ts spawns to run remoteScript's bash: over ssh+WSL normally, or bare `bash -s`
+ *  locally when FX_BAKE_HOST=local (Task 7 Step 0), so nexus's `blender` shim (hwlock blender) is
+ *  reached directly with no ssh hop. */
+export function hostCommand(host: string): { readonly cmd: string; readonly args: readonly string[] } {
+  if (host === FX_BAKE_HOST_LOCAL) return { cmd: 'bash', args: ['-s'] }
+  return { cmd: 'ssh', args: [...SSH_OPTS, host, 'wsl -- bash -s; exit $LASTEXITCODE'] }
+}
+
+/** Where a checkout's bake scratch lives for a host: under the WSL home over ssh, or under a
+ *  per-checkout `~/fxbake-local/<checkout>/` OUTSIDE the repo when local (Task 7 Step 0), so a
+ *  local bake's frames can never collide with the repo's own `tools/fx/renders/`. */
+export function remoteDirFor(host: string, checkout: string): string {
+  return `${host === FX_BAKE_HOST_LOCAL ? 'fxbake-local' : 'fxbake'}/${checkout}`
+}
+
+/** Same transfer as rsyncArgs, but purely local: FX_BAKE_HOST=local copies scripts and frames to and
+ *  from `~/fxbake-local/<checkout>/` with a plain local rsync, no ssh/WSL transport (Task 7 Step 0). */
+export function localRsyncArgs(
+  from: string, to: string,
+  opts: { readonly delete?: boolean; readonly mkpath?: boolean; readonly exclude?: readonly string[] } = {},
+): string[] {
+  return [
+    '-a', ...(opts.delete ? ['--delete'] : []), ...(opts.mkpath ? ['--mkpath'] : []),
+    ...(opts.exclude ?? []).flatMap((e) => ['--exclude', e]),
+    from, to,
   ]
 }
 
