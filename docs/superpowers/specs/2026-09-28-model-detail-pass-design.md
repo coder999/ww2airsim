@@ -118,8 +118,10 @@ reproducible:
    scan's micro-normals and wear would have had no slot without a custom
    runtime shader. Mark chose §8 Q5's fallback up front: no `TEXCOORD_1`,
    no runtime change. The cost is that micro-detail is limited by atlas
-   texel density, about 1 cm on the Ki-84 at 1024 px and about 12 cm on the
-   hangar at 512 px. Sampling is filtered to the texel footprint, so a
+   texel density: measured 2026-09-28 from the pilots' sidecars
+   (`metersPerPx`), 1.5 cm on the Ki-84 at 1024 px and 30 cm on the hangar
+   at 512 px (this ruling first estimated 1 cm and 12 cm; the hangar's
+   hidden and inner faces need atlas area too, see the DP0 handoff). Sampling is filtered to the texel footprint, so a
    pattern finer than a texel averages out rather than aliasing.
 
 Map sizes: 1024 px atlases for aircraft and ships, 512 px for buildings, and

@@ -9,7 +9,7 @@ import { BARE_METAL, MARKING_COLORS, SRGB8_TO_LINEAR, srgbToLinear } from './col
  * Height is in groove units, not meters: a panel line is 1 deep at its center. compose.ts turns
  * the height's slope per TEXEL into the normal (NORMAL_GAIN), so a line reads as a one-texel
  * bevel at any texel density, as the downloads' baked panel lines do. A physical 2 mm groove at
- * the hangar's 12 cm texels would be invisible (worked in the DP0 plan, Task 6).
+ * the hangar's ~30 cm texels (0.296 m in its sidecar, 2026-09-28) would be invisible.
  * Half-widths are meters; a line narrower than a sample is drawn one sample wide (ESTIMATE, the look).
  */
 export const LINE_HALF_M = { panel: 0.001, hinge: 0.004 } as const

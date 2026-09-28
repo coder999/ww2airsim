@@ -216,3 +216,37 @@ does, so `normalize`, `keep` and `split` work the same way. Without Blender,
 `tests/tools/models/blenderEntries.test.ts` rebuilds every Blender entry and
 compares the bytes with the committed file. To show the model in the Hangar, see §7
 and §8.
+
+### Skins (DP0)
+
+A Blender model can carry a baked skin: paint, markings, panel lines and
+pinned CC0 scan detail in one atlas on `TEXCOORD_0`
+([detail-pass spec](superpowers/specs/2026-09-28-model-detail-pass-design.md),
+§4 ruling: one UV set, no `TEXCOORD_1`). Written 2026-09-28 and verified by
+the DP0 plan's Tier 1 run and its reference-GPU Tier 2 run
+(`tests/e2e/hangar.spec.ts` checks 15 and 16); the numbers are in the
+[DP0 handoff](handoff/2026-09-28-dp0-skin-pipeline.md).
+
+- **Turn it on** with `kit.Model(name, skin=<atlas px>)` (1024 for aircraft,
+  512 for buildings). The kit then writes charts, UVs, smooth shading on
+  lofted surfaces, and `<out>.skin.json` beside the glb.
+- **Markings** are declared in model coordinates with `m.marking(...)`; the
+  schema is `tools/models/skin/sidecar.ts`. **Tags** come from
+  `with m.tagged(...)`, and a marking's `tags` restrict it to those parts.
+  Small uniform fittings go inside `with m.shared_chart():` so their padding
+  does not eat the atlas (read its docstring in `kit.py` first).
+- **The entry** takes `"skin": true` (Blender entries only; the manifest
+  refuses it on a ship until DP2), and `textures.maxSize` equal to the atlas.
+  `maxBytes` does not rise.
+- **The look** lives in `tools/models/skin/surfaces.ts` (per-role scan,
+  finish, chips, rivets) and `tools/models/skin/layers.ts` (paint, markings,
+  panel lines, height). A change there re-skins every skinned model and moves
+  the golden hashes in `tests/tools/models/skin/golden.test.ts`.
+- **No coplanar overlapping faces.** Two faces of one material can now show
+  different atlas texels, so a coincident face z-fights in paint. Additions
+  embed by at least 0.02 m or clear by at least 0.01 m, never flush.
+- **The UV checker:** open `hangar.html?bench` and tick "UV checker" to see
+  each model's chart stretch.
+- **`tests/tools/models/skins.test.ts`** holds the flat-shaded allowlist (19
+  entries on 2026-09-28). It only shrinks: an entry leaves it when it is
+  skinned, and the ceiling drops with it.

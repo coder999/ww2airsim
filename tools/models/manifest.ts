@@ -200,6 +200,9 @@ export const ModelEntrySchema = z.object({
     if ((e.ship.kind === 'full-hull') !== (e.ship.keelM !== undefined)) fail(['ship', 'keelM'], 'required for a full-hull model, and only for one')
   }
   if (e.skin && e.source.kind !== 'blender') fail(['skin'], 'skin: true is for Blender entries: only the kit writes the charts and sidecar it needs')
+  // shipMaterials zeroes every metallicFactor (and checkOutput demands it), but the skin
+  // material is metallicFactor 1 with the value in its texture: a skinned ship needs DP2 first.
+  if (e.skin && e.ship) fail(['skin'], 'a ship takes no skin yet: shipMaterials zeroes the skin material\'s metallicFactor (DP2 adapts it)')
 })
 
 export type ModelEntry = z.infer<typeof ModelEntrySchema>

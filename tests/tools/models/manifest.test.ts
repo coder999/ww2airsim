@@ -49,6 +49,12 @@ describe('ModelEntrySchema', () => {
     expect(parseModelEntry({ ...hangar, skin: true }).skin).toBe(true)
     expect(() => parseModelEntry({ ...valid, split: [], remove: [], skin: true })).toThrow(/skin/)
   })
+
+  it('refuses a skinned ship until DP2 adapts shipMaterials', () => {
+    const kagero = JSON.parse(readFileSync('tools/models/entries/kagero-dd.json', 'utf8')) as Record<string, unknown>
+    expect(parseModelEntry(kagero).ship).toBeDefined()
+    expect(() => parseModelEntry({ ...kagero, skin: true })).toThrow(/ship takes no skin/)
+  })
 })
 
 const generated = {
