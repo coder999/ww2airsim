@@ -16,6 +16,8 @@ export const MARKING_COLORS = {
 
 export type MarkingColor = keyof typeof MARKING_COLORS
 export const MARKING_COLOR_NAMES = Object.keys(MARKING_COLORS).sort() as [MarkingColor, ...MarkingColor[]]
+/** What a paint chip shows: kit.py PALETTE's naturalMetal, sRGB 0-255. */
+export const BARE_METAL = [0xb4, 0xb8, 0xbc] as const
 
 export const srgbToLinear = (c: number): number => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
 
