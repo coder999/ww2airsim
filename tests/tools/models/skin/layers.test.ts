@@ -60,8 +60,27 @@ describe('skin layers (DP0)', () => {
     expect(px(slab.baseColor, 8 + 22, 20)[0]).toBeGreaterThan(180) // x = 1.1 m
     expect(px(slab.baseColor, 8 + 10, 20)[0]).toBeLessThan(120) // x = 0.5 m
     const grid = build(fixtureSidecar({ lines: [], markings: [{ kind: 'grid', tags: ['wing'], spacingM: [0.8, 0.8, null], widthM: 0.02, depth: 1 }] }))
-    // On the +y face only x lies in the surface: a lap at x = 0.8 m (column 24) and none at z = 0.8 m.
-    expect(px(grid.normal, 23, 12)[0]).not.toBe(128)
+    // x and z both lie in the +y face; y lies along its normal, so the y lap is skipped (its effect on
+    // height is pinned by the next test: on this flat y = 0 face it would shift height uniformly, which
+    // no normal can show). The x lap sits between columns 23 and 24 (x = u on patch 0). Left of it
+    // height falls toward +u, so the normal tilts toward +u, red > 128; right of it, red < 128
+    // (compose.ts hx; glTF tangent +x is +u). z has no spacing, so row 23 (z = 0.8 m) stays flat.
+    expect(px(grid.normal, 23, 12)[0]).toBeGreaterThan(130)
+    expect(px(grid.normal, 24, 12)[0]).toBeLessThan(126)
     expect(px(grid.normal, 12, 23)[1]).toBe(128)
+  })
+
+  it('a grid skips an axis along the face normal: a y lap cuts no height on the +y face', () => {
+    // Every patch-0 sample sits at y = 0, a multiple of 0.8: without the exclusion each would be -depth.
+    const side = fixtureSidecar({ lines: [], markings: [{ kind: 'grid', tags: ['wing'], spacingM: [null, 0.8, null], widthM: 0.02, depth: 1 }] })
+    const t = trianglesOf(fixtureDoc(), side, W)
+    const p = paint(rasterize(t, 2 * W), t.roles, side, scans, W)
+    let count = 0
+    for (let i = 0; i < p.size * p.size; i++) {
+      if (!p.covered[i] || p.patch[i] !== 0) continue
+      count++
+      expect(p.height[i], `sample ${i}`).toBe(0)
+    }
+    expect(count).toBeGreaterThan(4000) // patch 0 is 64 x 64 samples, less the rasterizer's edge rule
   })
 })

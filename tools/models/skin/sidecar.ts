@@ -64,6 +64,16 @@ export function parseSidecar(text: string): Sidecar {
     const [x, y, w, h] = p.rect
     if (x < 0 || y < 0 || x + w > s.atlasPx || y + h > s.atlasPx) throw new Error(`sidecar ${s.model}: patch ${p.id} rect ${p.rect.join(',')} is outside the ${s.atlasPx} px atlas`)
   }
+  // Dilation fills paddingPx around each patch from that patch alone (compose.ts, Review Focus 4),
+  // which holds only if the grown rects are disjoint. kit.py's _shelf_pack insets each rect by pad
+  // in its cell, so neighbors' grown rects touch and never overlap.
+  const pad = s.paddingPx
+  for (let i = 0; i < s.patches.length; i++) for (let j = i + 1; j < s.patches.length; j++) {
+    const [ax, ay, aw, ah] = s.patches[i]!.rect, [bx, by, bw, bh] = s.patches[j]!.rect
+    if (ax - pad < bx + bw + pad && bx - pad < ax + aw + pad && ay - pad < by + bh + pad && by - pad < ay + ah + pad) {
+      throw new Error(`sidecar ${s.model}: patches ${s.patches[i]!.id} and ${s.patches[j]!.id} are closer than 2 x paddingPx (${2 * pad} px), so padding would bleed between them`)
+    }
+  }
   for (const l of s.lines) if (!ids.has(l.patch)) throw new Error(`sidecar ${s.model}: a line names patch ${l.patch}, which does not exist`)
   const known = new Set(s.patches.map((p) => p.tag))
   for (const m of s.markings) for (const t of m.tags) if (!known.has(t)) throw new Error(`sidecar ${s.model}: a ${m.kind} marking names tag "${t}", which no patch has (tags: ${[...known].sort().join(', ')})`)

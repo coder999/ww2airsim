@@ -28,6 +28,9 @@ describe('parseSidecar (DP0)', () => {
     ['a slab with from >= to', { ...base, markings: [{ kind: 'slab', tags: ['wing'], axis: 'x', fromM: 2, toM: 1, color: 'idYellow' }] }, /fromM/],
     ['a grid with no spacing', { ...base, markings: [{ kind: 'grid', tags: ['wing'], spacingM: [null, null, null], widthM: 0.01, depth: 0.5 }] }, /spacing/],
     ['an unknown key', { ...base, extra: 1 }, /extra/],
+    // base's patches are 8 px (2 x paddingPx) apart, the tightest that passes; 7 px is refused
+    ['two patches closer than 2 x paddingPx', { ...base, patches: [base.patches[0], { ...base.patches[1], rect: [111, 4, 60, 60] }] }, /patches 0 and 1 are closer than 2 x paddingPx/],
+    ['two patches closer than 2 x paddingPx vertically', { ...base, patches: [base.patches[0], { ...base.patches[1], rect: [4, 61, 60, 60] }] }, /patches 0 and 1 are closer/],
   ])('refuses %s', (_label, raw, message) => {
     expect(() => parseSidecar(text(raw))).toThrow(message)
   })
