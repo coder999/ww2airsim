@@ -42,8 +42,9 @@ skips the forms (always a Dev sortie).
   FX on ryzen. Both files pass alone on nexus (4/4, 114 s), and the branch
   touches none of their code. Typecheck, lint and depcruise were green. An
   earlier `verify` run beside this session's own Tier 2 run timed out in
-  four files the same way. **Re-run `verify` on a quiet ryzen before
-  merging.**
+  four files the same way. On the merge, `verify` again failed only on
+  timeouts, and each file passed when re-run alone. These load-dependent
+  timeouts are not tracked as an open item (Mark, 2026-09-27).
 - **Tier 2, targeted** (`sortie.spec.ts`, `ordnance.spec.ts` and the nine
   specs Task 7 touched: title, mission-ui, friendly-fire, furball,
   scenarioPicker, meta-game, meta-game-relaunch, dossier, missions; 25 tests)
@@ -218,13 +219,22 @@ looked at before this was written.
 - **Six Tier 2 budget and visual tests fail on `main` too** (§2): terrain
   1440p, budget4k `in-deck-1900`, motionBudget, both terrainTextures budgets,
   and `sun.spec.ts`'s noon-sky check.
-- **`tests/e2e/strike.spec.ts` does not load, on `main` too.** It imports
-  `src/render/content.ts`, which reads `import.meta.env.BASE_URL` at module
-  scope, undefined under Playwright's Node loader, so any run that includes it
-  aborts before a test runs, including a bare `npm run test:tier2`. It was
-  excluded from the full run in §2. Not caused by this branch.
-- **Merging.** The branch was cut from `58381d9`; `main` is 28 commits ahead
-  (including Plan 7f's wingmen and the 2026-09-27 scoring change in
-  `bankMissionResult`). A trial `git merge-tree` is conflict-free, but
-  `verify` and the targeted Tier 2 set should run again on the merge.
+- **Friendly-fire's landing case is intermittent after the merge:** red in 1
+  of 5 runs. It landed cleanly ("back on the wheels, not a crash") and braked,
+  but the landing debrief did not appear within `landAndStop`'s 30 s.
+  Not investigated.
+
+### Closed after this handoff was written (2026-09-27)
+
+- **Merged** as `cab7fa1` (one §15 conflict, resolved by keeping `main`'s
+  rows and adding the sortie-forms sentence). On the merge, the 12 specs where
+  the two sides overlap ran 31/32. The failure was friendly-fire's death case,
+  which held full nose-down and flew an outside loop (bottomed at 99 m, 3/3
+  runs); it now uses `diveToSea` (`1bb34b8`).
+- **`tests/e2e/strike.spec.ts` loads and passes again** (`af8ed17`,
+  `3e75168`). It had imported `src/render/content.ts`, whose module-scope
+  `import.meta.env` crashes Playwright's Node loader and aborted any run that
+  included it; the two values it needed moved to `src/render/fetchedLevel.ts`.
+  Its Restart test then failed on a stale 120 HP (Tacloban's hangars); Dulag's
+  hangar has been 90 HP since Plan 13d. 5/5 twice, gpu p95 3.48 ms.
 - A quick launch starts with audio suspended until the first click (Task 6).
