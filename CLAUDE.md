@@ -120,9 +120,20 @@ nothing, and the adapter guard passes it all the same;
 `mark` joined the `render` group falls back to SwiftShader: run it under
 `sg render -c '...'`, or start a new session.
 
+**No console login needed for correctness runs** (since 2026-09-27): a
+`playwright run-server` started over SSH runs in session 0 and reaches the GPU
+headless with `--use-angle=d3d11`; `PW_SESSION0=1` with
+`PW_REMOTE=ws://localhost:39002/` sends that. README's "Tier 2: the GPU
+harness" has the three-command recipe (server, tunnel, run) and how to stop
+the server without killing another session's run. Use it whenever the console
+server is down or busy. **Not for numbers yet:** its 1440p budget got 71 GPU
+samples in 5 s against the console's ~500, probably other sessions sharing the
+GPU; that comparison is an open item recorded in the README.
+
 README's "Tier 2: the GPU harness" is authoritative for the tunnels and the
-one-time setup. Two facts it records that cost real time: Chromium launched
-over SSH gets **no GPU** (session problem, not headless), and `__ww2` exists
+one-time setup. Two facts it records that cost real time: headed Chromium
+launched over SSH gets **no GPU** (session 0 has no display; headless needs
+`--use-angle=d3d11`, above), and `__ww2` exists
 before the keydown listener is attached, so wait for `waitForTerrain` before
 pressing keys. Run Tier 2 at 1440p before trusting any GPU number; the budget
 is gpu p95 under 6.0 ms. A throwaway spec that calls `page.screenshot()` gets

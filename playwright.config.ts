@@ -151,11 +151,15 @@ export default defineConfig({
       ? {
           wsEndpoint: process.env.PW_REMOTE,
           headers: {
-            'x-playwright-launch-options': JSON.stringify({
-              channel: 'chromium',
-              headless: false,
-              args: CHROMIUM_ARGS,
-            }),
+            'x-playwright-launch-options': JSON.stringify(
+              process.env.PW_SESSION0
+                ? // A run-server in ryzen's session 0 (started over SSH, no console
+                  // login): no display, so headless, and ANGLE's default backend gets
+                  // no GPU there while d3d11 gets the real one. README's "Tier 2: the
+                  // GPU harness" has the recipe and what it is (not) good for.
+                  { channel: 'chromium', headless: true, args: [...CHROMIUM_ARGS, '--use-angle=d3d11'] }
+                : { channel: 'chromium', headless: false, args: CHROMIUM_ARGS },
+            ),
           },
         }
       : undefined,

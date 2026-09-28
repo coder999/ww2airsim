@@ -656,10 +656,39 @@ there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe`
 `args` this repo's `playwright.config.ts` sends it, so none of the Chromium
 flags in `CHROMIUM_ARGS` apply on the reference platform (measured 2026-09-18
 by reading `chrome://version` through a server started without it).
-Chromium launched over SSH gets no GPU at all -- `requestAdapter()` returns
-null, headless AND headed, because the SSH session is not the console session
-(measured 2026-09-13). That is a session problem, not a headless one, so
-`headless: false` is not a workaround for it.
+**Or with no console login at all: a server in session 0.** SSH on Windows
+lands in session 0, the non-interactive session services use. Chromium there
+gets the real GPU **only headless and only with `--use-angle=d3d11`**; with
+ANGLE's default backend `requestAdapter()` returns null, which is what the
+2026-09-13 note "Chromium over SSH gets no GPU" actually measured. Headed
+launches fail there (no display). `PW_SESSION0=1` makes `playwright.config.ts`
+send exactly that. From nexus, with ryzen awake (`serverconfig/ryzen.md`,
+"Wake-on-LAN"):
+
+```sh
+# the server, in session 0 (reuse it if 3001 already listens; other sessions may be on it)
+ssh ryzen 'if (-not (Get-NetTCPConnection -LocalPort 3001 -State Listen -EA 0)) { cd $env:USERPROFILE\projects; npx playwright run-server --port 3001 --host 127.0.0.1 --unsafe }' &
+ss -ltn | grep -q 39002 || ssh -f -N -L 39002:127.0.0.1:3001 ryzen
+PW_SESSION0=1 PW_REMOTE=ws://localhost:39002/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
+```
+
+The server outlives its SSH connection. Stop it by port, and only when
+`Get-NetTCPConnection -LocalPort 3001 -State Established` shows no one else on
+it: `ssh ryzen 'Stop-Process -Id (Get-NetTCPConnection -LocalPort 3001 -State
+Listen).OwningProcess -Force'`. Close the tunnel by its port too, not with
+`pkill -f`, whose pattern matches your own shell: `kill $(ss -ltnpH 'sport =
+:39002' | grep -oP 'pid=\K[0-9]+')`. `C:\Users\markt\projects` holds Playwright
+1.63.0, the same as this repo; keep them matched.
+
+Verified 2026-09-27: the adapter guard passes ("Reference platform: amd
+rdna-2"), zero console errors, and `adapter.spec.ts` + `terrain.spec.ts`
+passed 10 of 11. **Correctness only, for now:** the one failure was the 1440p
+budget, which got 71 GPU samples in its 5 s window where the console session
+gets about 500. Other sessions were probably rendering on the same GPU at the
+time; that has not been separated from a headless/session-0 pacing effect.
+**Open:** re-run `terrain.spec.ts`'s budget test here with the GPU otherwise
+idle (`hwlock ryzen`) and compare with the console session; until then take no
+frame-time number from session 0.
 
 One-time setup on the Windows desktop (a separate checkout — the test runner
 has to be local to the GPU, the dev server does not):
