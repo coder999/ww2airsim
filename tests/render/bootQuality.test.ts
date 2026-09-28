@@ -268,6 +268,12 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
     expect(source).toMatch(/if \(replay !== null\) \{[^}]*onReplayKey/)
   })
 
+  it('drives effects and sound from the recorded view during instant replay (instant replay Task 8)', () => {
+    expect(source).toContain('rebuildReplayFx(')
+    expect(source).toContain('audio.prime(')
+    expect(source).toContain('audio.restore(session.liveAudio)')
+  })
+
   it('keeps the DEV query overrides winning over a saved setting', () => {
     // A Tier 2 measurement run passes `?oceanTier=`/`?cloudTier=`; if a saved
     // localStorage tier could override it, the run would silently measure

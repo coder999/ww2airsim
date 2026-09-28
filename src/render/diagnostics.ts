@@ -122,6 +122,8 @@ export type Ww2Diagnostics = {
    * or a drag handover resolved it to.
    */
   readonly replay: () => ReplayDiagnostics | null
+  /** CPU milliseconds spent rebuilding deterministic replay effects after the latest jump. */
+  readonly replayFxRebuildMs: () => number
   /**
    * The world position of the player's airframe root AS DRAWN this frame --
    * unlike `aircraftPositionM`, which is the live simulated state. In a

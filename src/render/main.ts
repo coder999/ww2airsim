@@ -82,6 +82,7 @@ import {
   type ReplayCameraId, type ReplayCameraState,
 } from '../replay/cameras.js'
 import { replayKeyAction } from '../replay/keys.js'
+import { rebuildReplayFx, stepReplayFx } from '../replay/fxReplay.js'
 import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
@@ -944,6 +945,7 @@ async function boot(): Promise<void> {
         playing: replay.player.playing, camera: replay.camera.selected, effective: effectiveCamera(replay.camera),
         targetId: replay.camera.targetId,
       },
+      replayFxRebuildMs: () => lastFxRebuildMs,
       renderedPlayerPositionM: () => renderedPlayerPosition,
       // Plan 12: every entity, not just the player's airplane. See the two
       // members' doc comments in diagnostics.ts for what each one proves.
@@ -1363,6 +1365,7 @@ async function boot(): Promise<void> {
   let fxPass: FxPass | null = null
   let fxSheets: FxSheetTextures | null = null
   let fxMemory: FxMemory = NO_FX_MEMORY
+  let lastFxRebuildMs = 0
   let fxStress: { readonly scene: FxStressScene; readonly startedMs: number; rounds: number } | null = null
   let fxCpuMs = 0
   /** `?cloudTier=` holds this one, including `off` -- which is a scene with no
@@ -1647,11 +1650,13 @@ async function boot(): Promise<void> {
     readonly returnTo: 'live' | 'debrief'
     readonly liveWasPaused: boolean
     readonly liveFxMemory: FxMemory
+    replayFxMemory: FxMemory
     readonly liveAudio: AudioMemory
     readonly onDone: () => void
     eye: EyeTransform
     pose: ReplayPoses
     drawnCamera: ReplayCameraId
+    jumpedThisFrame: boolean
   }
   let replay: ReplaySession | null = null
   /** Keys held while a replay is up: Manual's WASD / Q / E (R-10). Separate
@@ -1957,8 +1962,10 @@ async function boot(): Promise<void> {
     const pose = replayPosesAt(rec, player.tS)
     replay = {
       player, camera, returnTo: kind === 'manual' ? 'live' : 'debrief',
-      liveWasPaused: frame!.paused, liveFxMemory: fxMemory, liveAudio: audio.memory(), onDone,
+      liveWasPaused: frame!.paused, liveFxMemory: fxMemory, replayFxMemory: NO_FX_MEMORY,
+      liveAudio: audio.memory(), onDone,
       eye: replayEye(camera, pose, surfaceHeightFor(pose.world)), pose, drawnCamera: effectiveCamera(camera),
+      jumpedThisFrame: true,
     }
     clearMapInput()
     replayHeld.clear()
@@ -2291,6 +2298,7 @@ async function boot(): Promise<void> {
       // `stepReplay` clears it, so it is read BEFORE the step.
       const jumped = session.player.jumped
       session.player = stepReplay(session.player, frameMs)
+      session.jumpedThisFrame = jumped
       // Safe mid-frame: `view` stays `current` for the rest of this one.
       if (session.player.done) endReplay()
       else {
@@ -2409,7 +2417,14 @@ async function boot(): Promise<void> {
     radarSweepRad = radarSweepAngle(view.world.tick * DT + view.world.accumulatorSeconds)
     radarContactList = radarContacts(viewPlayer, view.world.aircraft, selectedRadarRangeMi, view.world.combat.aircraft)
     updatePanel(panel, spec, viewPlayer.state, view.controls, makeTextTexture, view.render.attitude, view.world.wind)
-    audio.update(audioInputsFrom(current))
+    if (replay === null) audio.update(audioInputsFrom(current))
+    else {
+      if (replay.jumpedThisFrame) audio.prime(audioInputsFrom(view))
+      if (replay.player.playing) {
+        audio.hold(false)
+        audio.update(audioInputsFrom(view), replay.player.speed)
+      } else audio.hold(true)
+    }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
     autopilotBadge.setStatus(current.autopilot)
@@ -2460,12 +2475,10 @@ async function boot(): Promise<void> {
     // (fx/events.ts), one seeded pool (fx/system.ts) and one pass (fx/fxPass.ts).
     if (fxSystem !== null && fxPass !== null) {
       const started = performance.now()
-      // Instant replay Task 7: while a replay is up the pool was cleared on
-      // entry and is not stepped (R-3); Task 8 drives it from the recording.
-      // The live `fxMemory` is left alone, and restored on exit.
+      const shipSmokeOrigins = new Map(view.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
+      const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
+      const anchors = { shipSmokeOrigins, structureAnchors }
       if (replay === null) {
-        const shipSmokeOrigins = new Map(view.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
-        const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
         const events = nextFxEvents(fxMemory, {
           tick: view.world.tick, combat: view.world.combat, aircraft: view.world.aircraft, poses: view.poses,
           shipSmokeOrigins, structureAnchors,
@@ -2478,6 +2491,17 @@ async function boot(): Promise<void> {
         }
         fxSystem.setSustained(fxStress === null ? events.sustained : [...events.sustained, ...fxStress.scene.sustained])
         fxSystem.step(fxDtSeconds(frameMs / 1000, view.paused, view.timeScale))
+      } else if (replay.jumpedThisFrame) {
+        const rebuildStarted = performance.now()
+        replay.replayFxMemory = rebuildReplayFx(
+          fxSystem, replay.player.recording, replay.player.tS, anchors,
+        )
+        lastFxRebuildMs = performance.now() - rebuildStarted
+      } else if (replay.player.playing) {
+        replay.replayFxMemory = stepReplayFx(
+          fxSystem, replay.replayFxMemory, replay.pose,
+          (frameMs / 1000) * replay.player.speed, anchors,
+        )
       }
       fxPass.setWorldOffset(worldOffset)
       fxPass.setCount(fxSystem.writeInstances(view.eye.position, fxPass.instances))
