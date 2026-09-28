@@ -59,7 +59,7 @@ export const fxCatalogSchema = z.record(z.enum(RECIPE_IDS), recipeSchema)
   .refine((c) => RECIPE_IDS.every((id) => id in c), 'every recipe id must be defined')
 
 type RawEmitter = z.input<typeof emitterSchema>
-const ESTIMATE = 'estimate (E1 placeholder tuning; E2/E3 replace with cited figures, design §3.3, §5.1)'
+const ESTIMATE = 'estimate (sizes carried from E1 through the baked sheets\' fill, plan E2 Ruling R9; E3 replaces the water figures with cited ones, design §5.1)'
 const DIRT: [number, number, number] = [0.3, 0.25, 0.19]
 const DUST: [number, number, number] = [0.45, 0.39, 0.31]
 const SMOKE: [number, number, number] = [0.1, 0.1, 0.11]
@@ -78,8 +78,10 @@ const smaller = (emitters: readonly RawEmitter[], k: number): RawEmitter[] => em
   ...(e.durationS !== undefined ? { durationS: e.durationS * k } : {}),
 }))
 
+// Spawn radius is 0.3 of E1's start size; plan E2 Ruling R9 grew sizes by the fireball
+// sheet's k = 1.56 while the visible size stayed put, so 0.3 / 1.56 keeps the radius too.
 const fireball = (count: number, size: [number, number], life: [number, number]): RawEmitter =>
-  ({ mode: 'burst', sheet: 'fireball', count, lifeS: life, speedMps: [3, 10], direction: 'sphere', spreadDeg: 180, radiusM: size[0] * 0.3, sizeM: size, alpha: 1, tint: [1, 1, 1], emissive: 1, dragPerS: 1.5, accelYMps2: 3 })
+  ({ mode: 'burst', sheet: 'fireball', count, lifeS: life, speedMps: [3, 10], direction: 'sphere', spreadDeg: 180, radiusM: size[0] * 0.19, sizeM: size, alpha: 1, tint: [1, 1, 1], emissive: 1, dragPerS: 1.5, accelYMps2: 3 })
 const ejecta = (count: number): RawEmitter =>
   ({ mode: 'burst', sheet: 'streak', count, lifeS: [1.5, 3], speedMps: [25, 60], direction: 'up', spreadDeg: 50, sizeM: [0.6, 0.4], alpha: 1, tint: DIRT, dragPerS: 0.3, accelYMps2: GRAVITY, streakS: 0.06 })
 const column = (rate: number, durationS: number, size: [number, number]): RawEmitter =>
@@ -87,40 +89,40 @@ const column = (rate: number, durationS: number, size: [number, number]): RawEmi
 const waterColumn = (count: number, size: [number, number]): RawEmitter =>
   ({ mode: 'burst', sheet: 'water-column', count, lifeS: [2.5, 3.5], speedMps: [30, 45], direction: 'up', spreadDeg: 8, sizeM: size, alpha: 0.9, tint: WATER, dragPerS: 0.8, accelYMps2: GRAVITY, seaKill: true })
 const crown = (count: number): RawEmitter =>
-  ({ mode: 'burst', sheet: 'spray', count, lifeS: [2, 3], speedMps: [20, 35], direction: 'up', spreadDeg: 35, sizeM: [4, 12], alpha: 0.8, tint: WATER, dragPerS: 0.6, accelYMps2: GRAVITY, seaKill: true })
+  ({ mode: 'burst', sheet: 'spray', count, lifeS: [2, 3], speedMps: [20, 35], direction: 'up', spreadDeg: 35, sizeM: [4.5, 13], alpha: 0.8, tint: WATER, dragPerS: 0.6, accelYMps2: GRAVITY, seaKill: true })
 const surge = (count: number): RawEmitter =>
-  ({ mode: 'burst', sheet: 'spray', count, lifeS: [3, 5], speedMps: [18, 28], direction: 'ring', spreadDeg: 5, sizeM: [6, 20], alpha: 0.5, tint: WATER, dragPerS: 1.2, accelYMps2: 0 })
+  ({ mode: 'burst', sheet: 'spray', count, lifeS: [3, 5], speedMps: [18, 28], direction: 'ring', spreadDeg: 5, sizeM: [6.7, 22], alpha: 0.5, tint: WATER, dragPerS: 1.2, accelYMps2: 0 })
 const sparks = (count: number): RawEmitter =>
   ({ mode: 'burst', sheet: 'streak', count, lifeS: [0.12, 0.25], speedMps: [15, 30], direction: 'up', spreadDeg: 80, sizeM: [0.15, 0.1], alpha: 1, tint: SPARK, emissive: 3, dragPerS: 2, accelYMps2: GRAVITY, streakS: 0.03 })
 
 const BOMB_LAND: RawEmitter[] = [
-  fireball(6, [14, 30], [1.2, 1.8]),
+  fireball(6, [22, 47], [1.2, 1.8]),
   ejecta(40),
-  { mode: 'burst', sheet: 'dust', count: 16, lifeS: [3, 5], speedMps: [15, 25], direction: 'ring', spreadDeg: 10, sizeM: [8, 22], alpha: 0.7, tint: DUST, dragPerS: 1.2, accelYMps2: 0.3 },
-  column(6, 18, [10, 35]),
+  { mode: 'burst', sheet: 'dust', count: 16, lifeS: [3, 5], speedMps: [15, 25], direction: 'ring', spreadDeg: 10, sizeM: [12, 34], alpha: 0.7, tint: DUST, dragPerS: 1.2, accelYMps2: 0.3 },
+  column(6, 18, [12, 41]),
 ]
-const BOMB_WATER: RawEmitter[] = [waterColumn(5, [8, 20]), crown(24), surge(16)]
+const BOMB_WATER: RawEmitter[] = [waterColumn(5, [9.2, 23]), crown(24), surge(16)]
 
 const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   'bomb.land': { emitters: BOMB_LAND, source: ESTIMATE },
   'bomb.water': { emitters: BOMB_WATER, source: ESTIMATE },
   'rocket.land': { emitters: smaller(BOMB_LAND, 0.45), source: ESTIMATE },
   'rocket.water': { emitters: smaller(BOMB_WATER, 0.45), source: ESTIMATE },
-  'round.land': { emitters: [{ mode: 'burst', sheet: 'dust', count: 2, lifeS: [0.8, 1.2], speedMps: [2, 5], direction: 'up', spreadDeg: 30, sizeM: [0.8, 2.5], alpha: 0.6, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
-  'round.water': { emitters: [{ mode: 'burst', sheet: 'spray', count: 2, lifeS: [0.6, 0.9], speedMps: [6, 10], direction: 'up', spreadDeg: 10, sizeM: [0.5, 1.6], alpha: 0.8, tint: WATER, dragPerS: 0.5, accelYMps2: GRAVITY, seaKill: true }], source: ESTIMATE },
-  'round.deck': { emitters: [sparks(4), { mode: 'burst', sheet: 'dust', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.5, 1.5], alpha: 0.5, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
-  'round.structure': { emitters: [sparks(4), { mode: 'burst', sheet: 'dust', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.5, 1.5], alpha: 0.5, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
-  'round.ship': { emitters: [sparks(4), { mode: 'burst', sheet: 'smoke', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.5, 1.5], alpha: 0.4, tint: SMOKE, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
+  'round.land': { emitters: [{ mode: 'burst', sheet: 'dust', count: 2, lifeS: [0.8, 1.2], speedMps: [2, 5], direction: 'up', spreadDeg: 30, sizeM: [1.2, 3.9], alpha: 0.6, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
+  'round.water': { emitters: [{ mode: 'burst', sheet: 'spray', count: 2, lifeS: [0.6, 0.9], speedMps: [6, 10], direction: 'up', spreadDeg: 10, sizeM: [0.56, 1.8], alpha: 0.8, tint: WATER, dragPerS: 0.5, accelYMps2: GRAVITY, seaKill: true }], source: ESTIMATE },
+  'round.deck': { emitters: [sparks(4), { mode: 'burst', sheet: 'dust', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.77, 2.3], alpha: 0.5, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
+  'round.structure': { emitters: [sparks(4), { mode: 'burst', sheet: 'dust', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.77, 2.3], alpha: 0.5, tint: DUST, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
+  'round.ship': { emitters: [sparks(4), { mode: 'burst', sheet: 'smoke', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.58, 1.7], alpha: 0.4, tint: SMOKE, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
   // Ruling R4: the pre-E1 renderer's own 'hit' flash (2.5 m, 0.25 s), deleted in E1 Task 10.
-  'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1, 2.5], [0.2, 0.3]), radiusM: 0 }], source: 'pre-E1 flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
-  'crash.land': { emitters: [fireball(8, [18, 40], [1.4, 2]), ejecta(50), column(8, 30, [12, 40])], source: ESTIMATE },
-  'crash.water': { emitters: [waterColumn(6, [10, 26]), crown(30), surge(20)], source: ESTIMATE },
-  'crash.deck': { emitters: [fireball(6, [12, 28], [1.2, 1.8]), sparks(20), column(6, 20, [8, 26])], source: ESTIMATE },
+  'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1.6, 3.9], [0.2, 0.3]), radiusM: 0 }], source: 'pre-E1 flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
+  'crash.land': { emitters: [fireball(8, [28, 62], [1.4, 2]), ejecta(50), column(8, 30, [14, 46])], source: ESTIMATE },
+  'crash.water': { emitters: [waterColumn(6, [12, 30]), crown(30), surge(20)], source: ESTIMATE },
+  'crash.deck': { emitters: [fireball(6, [19, 44], [1.2, 1.8]), sparks(20), column(6, 20, [9.3, 30])], source: ESTIMATE },
   // Ruling R6: fireball on the kill edge; the trail is sustained at the (frozen) wreck.
-  'kill.air': { emitters: [fireball(6, [10, 26], [1.2, 1.6]), sparks(16),
-    { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [4, 7], speedMps: [1, 3], direction: 'sphere', spreadDeg: 180, sizeM: [3, 14], alpha: 0.7, tint: SMOKE, dragPerS: 0.6, accelYMps2: 0.8 }], source: ESTIMATE },
+  'kill.air': { emitters: [fireball(6, [16, 41], [1.2, 1.6]), sparks(16),
+    { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [4, 7], speedMps: [1, 3], direction: 'sphere', spreadDeg: 180, sizeM: [3.5, 16], alpha: 0.7, tint: SMOKE, dragPerS: 0.6, accelYMps2: 0.8 }], source: ESTIMATE },
   // Today's smoke.ts: dark (0x23262b), opacity 0.25..0.8 with damage.
-  'engine.smoke': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 14, lifeS: [2, 3.5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [1.2, 6], alpha: 0.6, tint: [0.14, 0.15, 0.17], dragPerS: 1.5, accelYMps2: 0.5, inheritVelocity: 0.15 }], source: 'smoke.ts smokeAppearance (estimate, Plan 6)' },
+  'engine.smoke': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 14, lifeS: [2, 3.5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [1.4, 6.9], alpha: 0.6, tint: [0.14, 0.15, 0.17], dragPerS: 1.5, accelYMps2: 0.5, inheritVelocity: 0.15 }], source: 'smoke.ts smokeAppearance (estimate, Plan 6)' },
   // Plan E2 Ruling R8: the HVAR's motor, at its nozzle while it burns (events.ts ROCKET_BURN_S).
   // 90% inherited velocity leaves a plume of about 5 m behind a 300 m/s rocket.
   'rocket.motor': { emitters: [
@@ -128,13 +130,13 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { mode: 'stream', sheet: 'smoke', ratePerS: 30, lifeS: [1.2, 2.2], speedMps: [0, 1], direction: 'sphere', spreadDeg: 180, sizeM: [0.5, 3], alpha: 0.35, tint: [0.62, 0.62, 0.64], dragPerS: 1.2, accelYMps2: 0.2 },
   ], source: 'estimate (plan E2 Ruling R8): burn time mirrors hvar.burnS 1.0 s; plume and exhaust-smoke sizes are estimates' },
   'ship.fire': { emitters: [
-    { mode: 'stream', sheet: 'flame', ratePerS: 20, lifeS: [0.8, 1.2], speedMps: [1, 3], direction: 'up', spreadDeg: 20, radiusM: 3, sizeM: [4, 6], alpha: 0.9, tint: [1, 1, 1], emissive: 1, dragPerS: 1, accelYMps2: 2, frameRateHz: 12 },
-    { mode: 'stream', sheet: 'smoke', ratePerS: 8, lifeS: [10, 14], speedMps: [3, 6], direction: 'up', spreadDeg: 12, radiusM: 3, sizeM: [8, 40], alpha: 0.65, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },
+    { mode: 'stream', sheet: 'flame', ratePerS: 20, lifeS: [0.8, 1.2], speedMps: [1, 3], direction: 'up', spreadDeg: 20, radiusM: 3, sizeM: [4.6, 7], alpha: 0.9, tint: [1, 1, 1], emissive: 1, dragPerS: 1, accelYMps2: 2, frameRateHz: 12 },
+    { mode: 'stream', sheet: 'smoke', ratePerS: 8, lifeS: [10, 14], speedMps: [3, 6], direction: 'up', spreadDeg: 12, radiusM: 3, sizeM: [9.3, 46], alpha: 0.65, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },
   ], source: ESTIMATE },
   // Strike design §4: "a 60 s fading smoke column" (events.ts COLLAPSE_SMOKE_S).
   'structure.collapse': { emitters: [
-    { mode: 'burst', sheet: 'dust', count: 24, lifeS: [3, 6], speedMps: [6, 14], direction: 'ring', spreadDeg: 25, radiusM: 6, sizeM: [6, 20], alpha: 0.75, tint: DUST, dragPerS: 1, accelYMps2: 0.3 },
-    { mode: 'stream', sheet: 'smoke', ratePerS: 5, lifeS: [10, 14], speedMps: [2, 5], direction: 'up', spreadDeg: 15, radiusM: 4, sizeM: [6, 30], alpha: 0.55, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },
+    { mode: 'burst', sheet: 'dust', count: 24, lifeS: [3, 6], speedMps: [6, 14], direction: 'ring', spreadDeg: 25, radiusM: 6, sizeM: [9.3, 31], alpha: 0.75, tint: DUST, dragPerS: 1, accelYMps2: 0.3 },
+    { mode: 'stream', sheet: 'smoke', ratePerS: 5, lifeS: [10, 14], speedMps: [2, 5], direction: 'up', spreadDeg: 15, radiusM: 4, sizeM: [6.9, 35], alpha: 0.55, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },
   ], source: 'strike design §4 (60 s column); sizes estimate' },
 }
 
