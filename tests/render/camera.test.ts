@@ -270,6 +270,26 @@ describe('orbit', () => {
     expect(eye.position.y).toBeGreaterThanOrEqual(ORBIT_SURFACE_CLEARANCE_M)
   })
 
+  // Final review, Important 1: lifting only the eye's height left its
+  // attitude aimed for the unclamped place, so a parked airplane dropped off
+  // the bottom of the screen past a ~30 deg upward drag (-38.5 deg at -40,
+  // -76.9 at -80, against a +-30 deg screen). The clamp must keep spec §7's
+  // framing, on the ground and on a deck floor alike.
+  it('keeps the default framing when the surface clamp engages (parked, ground and deck heights)', () => {
+    for (const floorM of [0, 17.4]) {
+      const r = at(v3(0, floorM + f6f.gear.heightM, 0))
+      const home = aircraftInEye(cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 0), r.position)
+      for (const zoom of [1, 4]) {
+        for (const pitchDeg of [-30, -40, -60, -80]) {
+          const eye = cameraTransformFor('chase', f6f, r, LOOK_CENTRE, 0, { yawRad: 0.4, pitchRad: (pitchDeg * Math.PI) / 180, zoom }, () => floorM)
+          expect(eye.position.y).toBeGreaterThanOrEqual(floorM + ORBIT_SURFACE_CLEARANCE_M - 1e-6)
+          const seen = aircraftInEye(eye, r.position)
+          expect(Math.acos(Math.min(1, dot(seen, home))), `floor ${floorM} zoom ${zoom} pitch ${pitchDeg}`).toBeLessThan((0.1 * Math.PI) / 180)
+        }
+      }
+    }
+  })
+
   it('a 180 deg/s drag at zoom 1 and 200 m/s never resets cloud history (plan ruling P-2)', () => {
     const dt = 1 / 60
     let prev = cameraTransformFor('chase', f6f, at(v3(0, 1500, 0)), LOOK_CENTRE, 200)

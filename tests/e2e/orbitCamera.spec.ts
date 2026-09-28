@@ -51,6 +51,26 @@ test('drag, wheel, double-click and the C cycle drive the orbit', async ({ page 
   await expect.poll(async () => (await orbit(page)).yawRad).toBe(0)
 })
 
+// Spec §7's "from below (clamped)" shot, missed in Task 4 and the one that
+// would have shown the final review's Important 1: parked on the runway, a
+// full upward drag must still frame the airplane, not the sky.
+test('parked, a full view-from-below drag stays framed (spec §7 clamped shot)', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto('/')
+  await waitForTerrain(page)
+  await page.mouse.move(1280, 900)
+  await page.mouse.down()
+  await page.mouse.move(1280, 100, { steps: 10 }) // 800 px up = -240 deg asked, clamped to -80
+  await page.mouse.up()
+  await expect.poll(async () => (await orbit(page)).pitchRad).toBeLessThan(-1.3)
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: 'test-results/orbit/parked-from-below.png' })
+  await page.mouse.wheel(0, 1500) // 15 notches out: 1.1^15 = 4.18, clamped to 4
+  await expect.poll(async () => (await orbit(page)).zoom).toBeGreaterThan(3.9)
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: 'test-results/orbit/parked-from-below-zoom4.png' })
+})
+
 test('a blur mid-drag ends the drag (Review Focus 2)', async ({ page }) => {
   await page.goto(spawnUrl({ x: TAC.x, y: 1200, z: TAC.z - 8000 }))
   await waitForTerrain(page)

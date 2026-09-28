@@ -74,10 +74,20 @@ describe('orbit in the frame', () => {
       ships: [carrier],
       player: 'player',
     })
-    // Zoom 1 at -80 deg keeps the eye ~8 m horizontally from the airplane, well inside the deck.
-    const f = nextFrameState(initialFrameStateFor(world), FRAME, keys(), undefined, false, drag(0, -1e6))
-    const under = groundUnder(f.world.terrain, decksOf(f.world.ships), f.eye.position.x, f.eye.position.z)
-    expect(under?.surface).toBe('deck')
-    expect(f.eye.position.y).toBeGreaterThanOrEqual(deck.center.y + ORBIT_SURFACE_CLEARANCE_M - 1e-9)
+    // Across a full circle of yaw, so the eye is tested over the deck AND
+    // swung out past its edge (the final-review fix raises the eye around
+    // its orbit, which carries it outward): never below the deck the airplane
+    // sits on, which is the floor -- not the sea beside the hull.
+    for (let k = 0; k < 12; k++) {
+      const f = nextFrameState(initialFrameStateFor(world), FRAME, keys(), undefined, false, drag((k * 30) / 0.3, -1e6))
+      expect(f.eye.position.y, `yaw ${k * 30}`).toBeGreaterThanOrEqual(deck.center.y + ORBIT_SURFACE_CLEARANCE_M - 1e-6)
+    }
+    // And at least one yaw leaves the eye over the deck itself, so the deck
+    // (not only the airplane-floor rule) is exercised as a surface.
+    const over = [0, 90, 180, 270].some((deg) => {
+      const f = nextFrameState(initialFrameStateFor(world), FRAME, keys(), undefined, false, drag(deg / 0.3, -1e6))
+      return groundUnder(f.world.terrain, decksOf(f.world.ships), f.eye.position.x, f.eye.position.z)?.surface === 'deck'
+    })
+    expect(over).toBe(true)
   })
 })
