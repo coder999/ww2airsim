@@ -5,6 +5,7 @@ import {
   loadRoster, rankFor, saveRoster, startSortie, type PilotRecord, type SortieFacts,
 } from '../../src/render/roster.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
+import { missionScore } from '../../src/render/debrief.js'
 
 describe('rankFor', () => {
   it('matches master spec §8\'s ladder at every threshold', () => {
@@ -172,6 +173,16 @@ describe('pilot lifecycle', () => {
 
     const killed = applyMissionResult(pilot, 100, 'killed')
     expect(killed.status).toBe('kia')
+  })
+
+  it('posthumous promotion (Mark, 2026-09-27): a killed sortie banks in full and promotes, and the pilot is still K.I.A.', () => {
+    const kills = { ...zeroKillsByType(), carrier: 1 }
+    const score = missionScore(kills, 'killed')
+    const dead = applyMissionResult(createPilot('Boyington'), score.total, 'killed', kills)
+    expect(dead.cumulativeScore).toBe(5000)
+    expect(dead.rank.abbrev).toBe('LTJG') // 2,500 threshold crossed posthumously
+    expect(dead.status).toBe('kia')
+    expect(dead.killsByType.carrier).toBe(1)
   })
 
   it('whole-branch review I-2: applyMissionResult accumulates killsByType from the per-mission delta, additively across missions', () => {

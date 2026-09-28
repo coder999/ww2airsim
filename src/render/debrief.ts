@@ -64,18 +64,23 @@ export function targetLabel(t: TargetType): string {
 }
 
 /**
- * The three recovery outcomes the sim can actually produce. Master spec §8
- * has a fourth row ("bailed out over friendly water," 0.25x) -- there is no
- * bail-out/parachute mechanic in this sim to reach it, so it is deliberately
- * absent here rather than an unreachable fourth union member. See this
- * plan's own "Ruling" section for why.
+ * The three recovery outcomes the sim can actually produce. There is no
+ * bail-out/parachute mechanic, so no fourth outcome.
  */
 export type RecoveryOutcome = 'landed' | 'ditched' | 'killed'
 
+/**
+ * Every recovery banks in full (Mark, 2026-09-27; GAMEPLAY.md "Scoring"):
+ * the game resurrects pilots, so a death or a ditching costs the mission
+ * badge (`src/sim/mission/outcome.ts`), not the points, and promotion follows
+ * the banked points dead or alive. Kept as a table so the debrief's
+ * "Recovery: ... (×1)" line and a future re-tune have one place to read.
+ * A friendly-fire forfeit still scores 0; that is `forfeit`, not this table.
+ */
 export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
   landed: 1.0,
-  ditched: 0.5,
-  killed: 0.0,
+  ditched: 1.0,
+  killed: 1.0,
 }
 
 /** Whole-branch review I-3: the label `createDebrief`'s "Recovery: ..." row

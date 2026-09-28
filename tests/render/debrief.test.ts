@@ -153,16 +153,17 @@ describe('the debrief', () => {
     expect(m.score).toEqual(missionScore(kills, 'landed'))
   })
 
-  it('banks a ditching\'s kills at the half (0.5x) recovery multiplier', () => {
+  it('banks a ditching\'s kills in full (Mark, 2026-09-27)', () => {
     const kills = { ...zeroKillsByType(), bomber: 2 }
     const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), kills)
     expect(m.score).toEqual(missionScore(kills, 'ditched'))
   })
 
-  it('banks nothing when the pilot was killed (0x recovery multiplier)', () => {
+  it('banks a killed pilot\'s kills in full: death costs the badge, not the points', () => {
     const kills = { ...zeroKillsByType(), carrier: 1 }
     const m = destructionModel(createState({ velocity: v3(150, -40, 0) }), 'bandit-1', kills)
     expect(m.score).toEqual(missionScore(kills, 'killed'))
+    expect(m.score.total).toBe(5000)
   })
 
   // Whole-branch review I-3: `outcome` is what `createDebrief`'s renderer
@@ -181,10 +182,12 @@ describe('missionScore', () => {
     const kills = { ...zeroKillsByType(), fighter: 2, carrier: 1 }
     const landed = missionScore(kills, 'landed')
     expect(landed.total).toBe(2 * 500 + 1 * 5000)
+    // Mark, 2026-09-27: every recovery banks in full; death and ditching
+    // cost only the badge.
     const ditched = missionScore(kills, 'ditched')
-    expect(ditched.total).toBe(Math.round((2 * 500 + 1 * 5000) * 0.5))
+    expect(ditched.total).toBe(2 * 500 + 1 * 5000)
     const killed = missionScore(kills, 'killed')
-    expect(killed.total).toBe(0)
+    expect(killed.total).toBe(2 * 500 + 1 * 5000)
   })
 
   it('every row is present even at zero, in master spec §8\'s eight categories', () => {
