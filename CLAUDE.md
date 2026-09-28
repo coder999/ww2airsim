@@ -58,7 +58,10 @@ not exist, and three conventions below were being missed for that reason).
   `remote-run` too. Verified that day: all 16 Blender entries rebuilt
   byte-identically on both machines. There are no Blender "slots" like the
   dev-server ones: a build is stateless, CPU-only and writes inside its own
-  worktree, so parallel worktrees can each run Blender on either machine. If
+  worktree, so parallel worktrees can each run Blender on either machine. On
+  nexus, though, `blender` on PATH is a shim that runs one at a time under
+  `hwlock blender`, for memory (`serverconfig/scripts/blender-shim`); time
+  spent waiting counts against `BLENDER_TIMEOUT_MS`. If
   an upgrade moves one machine off the version pinned in
   `tools/models/blender/run.ts`, its Blender suites fail by name. They do not
   skip. Upgrade both machines together.
@@ -88,8 +91,26 @@ Mark's console session. From nexus:
 
 ```sh
 ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
-PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
+PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org hwlock ryzen npm run test:tier2
 ```
+
+**The reference GPU is checked out with `hwlock ryzen`**, and
+`playwright.config.ts` refuses any `PW_REMOTE` run that does not hold it. It
+waits for the current holder (and says who that is), makes `remote-run` jobs
+wait so no compute load lands mid-measurement, and a crashed or killed holder
+releases it automatically. `hwlock status` shows who holds what. Anything
+touching the desktop's GPU other than through this lock (the Playwright MCP
+browser does not; it is a container on nexus) is not covered, so do not
+measure outside it. Details: `serverconfig/ryzen.md`, "Resource locks".
+
+**nexus's own Radeon 680M works for non-measurement runs** (since
+2026-09-27): a local run (no `PW_REMOTE`) gets real WebGPU there, not
+SwiftShader, needs no lock, and is the right place for correctness checks and
+screenshots. Its budget numbers are about a quarter of the desktop's and mean
+nothing, and the adapter guard passes it all the same;
+`playwright.config.ts`'s `LOCAL_LINUX_ARGS` says why. A session started before
+`mark` joined the `render` group falls back to SwiftShader: run it under
+`sg render -c '...'`, or start a new session.
 
 README's "Tier 2: the GPU harness" is authoritative for the tunnels and the
 one-time setup. Two facts it records that cost real time: Chromium launched
@@ -112,7 +133,8 @@ persistent, reusable infrastructure, not scoped to whichever plan first
 needed one — see README's "Tier 2: the GPU harness" and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
 `ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
-slot should say so if asked; there's no reservation system beyond that.
+slot should say so if asked; there's no reservation system for ports (the
+GPU itself is reserved with `hwlock ryzen`, above).
 
 ## Fetching third-party models
 
