@@ -15,7 +15,7 @@ SIM_FRAMES = max(8, round(72 * k))
 dom = rig.gas_domain(scene, size=(10.0, 10.0, 12.0), center=(0.0, 0.0, 6.0), res=max(32, round(160 * k)),
                      frame_end=SIM_FRAMES, cache=cache, alpha=0.2, beta=1.2, vorticity=0.3, fire=(0.9, 0.6, 0.6))
 src = rig.flow_sphere('charge', radius=1.2, location=(0.0, 0.0, 3.0), flow_type='BOTH', velocity=(0.0, 0.0, 3.0),
-                      velocity_normal=6.0, stop_frame=max(3, round(6 * k)), density=0.8, temperature=2.0, fuel=2.704, subframes=2)
+                      velocity_normal=6.0, stop_frame=max(3, round(6 * k)), density=0.8, temperature=2.0, fuel=3.5, subframes=2)
 t = rig.bake(dom)
 rig.render_sheet(scene, dom, [src], sheet='fireball', a=a, cache=cache, sim_frames=SIM_FRAMES, ortho=12.6, center_z=6.0,
                  scatter=rig.scatter_material(density=5.0, albedo=0.3, anisotropy=0.2),
