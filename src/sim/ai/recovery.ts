@@ -502,7 +502,9 @@ export function recoveryControls<M>(
 
   if (r.phase === 'transit' && Math.hypot(ip.x - s.position.x, ip.z - s.position.z) <= IP_ARRIVAL_M) r = enter(r, 'hold', now)
   // The landing interval (7c-7g §6): `join` only from the entry, and only when `approachClear`.
-  if (r.phase === 'hold' && atJoinEntry(f) && approachClear(a, home, snapshot, now, ctx.combat.aircraft)) r = { ...enter(r, 'join', now), joinedAtS: now }
+  // A runway without terrain has no touchdown elevation: hold at the IP until terrain arrives (7c-7g §6).
+  const awaitingTerrain = home.kind === 'runway' && ctx.terrain === null
+  if (r.phase === 'hold' && !awaitingTerrain && atJoinEntry(f) && approachClear(a, home, snapshot, now, ctx.combat.aircraft)) r = { ...enter(r, 'join', now), joinedAtS: now }
   if (r.phase === 'join' && f.alongM <= CONFIGURE_FROM_M) r = enter(r, 'configure', now)
   if (r.phase === 'configure' && f.alongM <= FIX_DISTANCE_M) {
     r = enter(r, insideCaptureWindow(captureErrors(s, a.spec, geo, vA, glideRad, ctx.wind)) ? 'final' : 'go-around', now)

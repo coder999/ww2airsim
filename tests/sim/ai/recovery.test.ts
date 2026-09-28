@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { aircraftById, type World } from '../../../src/sim/loop.js'
+import { aircraftById, withAircraftState, type World } from '../../../src/sim/loop.js'
+import { v3 } from '../../../src/sim/math/vec3.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { HOLD_RADIUS_M, initialPoint, IP_ARRIVAL_M, IP_HEIGHT_M, recoveryGeometry } from '../../../src/sim/ai/recovery.js'
 import { localToWorld } from '../../../src/sim/world/airfields.js'
@@ -158,6 +159,20 @@ describe('transit and hold (7g spec, 7c-7g §6 phases 1)', () => {
     expect(pilot.decision.mode).toBe('loiter')
     expect(pilot.home).toBeUndefined()
     expect(pilot.decision.recovery).toBeUndefined()
+  })
+
+  it('a runway home without terrain: it holds at the IP until terrain arrives, never joins (7c-7g §6)', () => {
+    // 4 km outside Tacloban's IP (sea-level geometry), out of ammunition.
+    const w0 = withGunsEmpty(buildRecovery([homed('ai-1', { airfield: 'tacloban' }, [0, 1000, 20000])], { ships: [] }), 'ai-1')
+    const home = aircraftById(w0, 'ai-1')!.pilot!.home!
+    if (home.kind !== 'runway') throw new Error('expected a runway home')
+    const ip = initialPoint({ aimX: home.aimX, aimZ: home.aimZ, headingRad: home.headingRad, touchdownM: 0, deck: null, paddles: null })
+    const w1 = withAircraftState(w0, 'ai-1', { ...aircraftById(w0, 'ai-1')!.state, position: v3(home.aimX - Math.sin(home.headingRad) * 12000, 1000, home.aimZ + Math.cos(home.headingRad) * 12000) })
+    const phases = new Set<string>()
+    const w = fly(w1, 15 * 60, (x) => { phases.add(phaseOf(x, 'ai-1') ?? 'none') })
+    expect([...phases].filter((p) => p !== 'none' && p !== 'transit' && p !== 'hold')).toEqual([])
+    expect(phaseOf(w, 'ai-1')).toBe('hold')
+    expect(Math.hypot(aircraftById(w, 'ai-1')!.state.position.x - ip.x, aircraftById(w, 'ai-1')!.state.position.z - ip.z)).toBeLessThan(HOLD_RADIUS_M + 300)
   })
 
   it.skipIf(terrain === null)('a Dulag-to-Tacloban transit over real terrain never impacts (Review Focus 1)', () => {

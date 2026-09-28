@@ -151,8 +151,12 @@ export function pilotTick<M>(
         else part = true
       }
     } else if (pilot.home !== undefined) {
-      const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS)
-      rtb = decision.mode === 'landed' || ((recovering || goHome) && !threatened())
+      // A wingman with a flying leader goes home with it (peel-off) or once it is lost (P20), never alone.
+      const goHome = !recovering && !(leader !== null && leaderFlying) && shouldReturn(a, record, decision, ctx.nowS)
+      // On the wheels, or committed by the cut, a threat no longer pre-empts: gear up on the ground crashes.
+      const phase = decision.recovery?.phase
+      const committed = recovering && (phase === 'rollout' || (phase === 'final' && decision.recovery!.cut))
+      rtb = decision.mode === 'landed' || ((recovering || goHome) && (committed || !threatened()))
     }
     const chosen = rtb || follow || part ? null : scored
     if (chosen !== decision.targetId) {

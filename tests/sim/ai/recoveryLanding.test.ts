@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { advance, aircraftById, withAircraftState, type World } from '../../../src/sim/loop.js'
-import { IP_DISTANCE_M, IP_HEIGHT_M, recoveryControls } from '../../../src/sim/ai/recovery.js'
+import { IP_DISTANCE_M, IP_HEIGHT_M, recoveryControls, THREAT_ASTERN_RANGE_M } from '../../../src/sim/ai/recovery.js'
+import { VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
 import type { AircraftState } from '../../../src/sim/flight/state.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { MAX_SUPPORTED_SINK_MPS } from '../../../src/sim/ground.js'
-import { v3 } from '../../../src/sim/math/vec3.js'
+import { length, scale, sub, v3 } from '../../../src/sim/math/vec3.js'
 import { RESPOT_DELAY_S } from '../../../src/sim/mission/respot.js'
 import { paddlesCue, type PaddlesCue } from '../../../src/sim/paddles.js'
 import { insideRunway, worldToLocal } from '../../../src/sim/world/airfields.js'
@@ -201,6 +202,62 @@ describe('landing and the respot (7g spec §3, 7c-7g §6 acceptance)', () => {
     const clone = structuredClone(w)
     expect(clone).toEqual(w)
     expect(advance(clone, DT).world).toEqual(advance(w, DT).world)
+  })
+})
+
+/**
+ * Flies `w` until `reached`, then puts axis-1 `THREAT_RANGE_M` dead astern of
+ * ai-1, 30 m above it (airborne, so a contact) and at 100 m/s along its track,
+ * and flies on to `landed`. Counts the ticks before `landed` with the hostile
+ * inside THREAT_ASTERN_RANGE_M, so a pass cannot be vacuous.
+ */
+const THREAT_RANGE_M = 300
+function threatDuring(w0: W, reached: (w: W) => boolean) {
+  const w1 = fly(w0, 900, reached)
+  if (!reached(w1)) throw new Error('never reached the phase under test')
+  const me = aircraftById(w1, 'ai-1')!.state
+  const speed = Math.hypot(me.velocity.x, me.velocity.z)
+  const track = v3(me.velocity.x / speed, 0, me.velocity.z / speed)
+  const h = aircraftById(w1, 'axis-1')!.state
+  const w2 = withAircraftState(w1, 'axis-1', {
+    ...h, attitude: me.attitude, velocity: scale(track, 100),
+    position: v3(me.position.x - track.x * THREAT_RANGE_M, me.position.y + 30, me.position.z - track.z * THREAT_RANGE_M),
+  })
+  const modes = new Set<string>()
+  const phases = new Set<string>()
+  let threatenedTicks = 0
+  let gearUpOnGround = false
+  const world = fly(w2, 120, (w) => {
+    const a = aircraftById(w, 'ai-1')!
+    modes.add(a.pilot!.decision.mode)
+    phases.add(a.pilot!.decision.recovery?.phase ?? 'none')
+    if (a.pilot!.decision.mode !== 'landed' && length(sub(aircraftById(w, 'axis-1')!.state.position, a.state.position)) <= THREAT_ASTERN_RANGE_M) threatenedTicks++
+    gearUpOnGround ||= !airborne(a, w.terrain, decksOf(w.ships)) && a.controls.gearDown !== true
+    return a.pilot!.decision.mode === 'landed'
+  })
+  return { modes: [...modes].sort(), phases: [...phases].sort(), threatenedTicks, gearUpOnGround, world }
+}
+
+describe('a threat astern once committed (7g spec §6, R3)', () => {
+  const phase = (w: W) => aircraftById(w, 'ai-1')!.pilot!.decision.recovery?.phase
+  const cut = (w: W) => aircraftById(w, 'ai-1')!.pilot!.decision.recovery?.cut === true
+
+  it('in final after the cut, a hostile astern does not pre-empt: it stays in rtb and traps', () => {
+    const run = threatDuring(atIp('ai-1', { ship: 'cv-1' }), (w) => phase(w) === 'final' && cut(w))
+    expect(run.threatenedTicks * DT).toBeGreaterThan(2 * VETERAN_SKILL.reactionS)
+    expect(run.modes).toEqual(['landed', 'rtb'])
+    expect(run.phases).toEqual(['final', 'landed', 'rollout'])
+    expect(run.gearUpOnGround).toBe(false)
+    expect(aircraftById(run.world, 'ai-1')!.state.arrested || aircraftById(run.world, 'ai-1')!.pilot!.decision.recovery!.restAtS !== null).toBe(true)
+  })
+
+  it.skipIf(terrain === null)('in rollout, a hostile astern does not pre-empt: gear stays down to rest (skips without tiles)', () => {
+    const run = threatDuring(atIp('ai-1', { airfield: 'tacloban' }, terrain), (w) => phase(w) === 'rollout')
+    expect(run.threatenedTicks * DT).toBeGreaterThan(2 * VETERAN_SKILL.reactionS)
+    expect(run.modes).toEqual(['landed', 'rtb'])
+    expect(run.phases).toEqual(['landed', 'rollout'])
+    expect(run.gearUpOnGround).toBe(false)
+    expect(aircraftById(run.world, 'ai-1')!.impact).toBeNull()
   })
 })
 

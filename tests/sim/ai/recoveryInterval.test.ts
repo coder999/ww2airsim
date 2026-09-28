@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { aircraftById, type World } from '../../../src/sim/loop.js'
+import { aircraftById, withAircraftState, type World } from '../../../src/sim/loop.js'
+import { v3 } from '../../../src/sim/math/vec3.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { INTERVAL_S, RTB_IDLE_S } from '../../../src/sim/ai/recovery.js'
 import { deckLocal, decksOf } from '../../../src/sim/world/deck.js'
@@ -162,6 +163,63 @@ describe('the landing interval (7c-7g §6, Review Focus 3)', () => {
     expect(wingRtbS! - leaderPastTransitS!).toBeLessThanOrEqual(5)
     expect(landed['ai-1']).toBe(true)
     expect(landed['ai-2']).toBe(true)
+  })
+
+  it('a homed wingman and its homed leader reach the idle trigger together: the wingman follows, then peels off, and they land in id order', () => {
+    // No ammunition trigger: both go home on RTB_IDLE_S, on the same rescore.
+    // The wingman reads the leader from the start-of-tick snapshot, where it
+    // is not yet in rtb, so its own idle trigger must not send it home alone.
+    const wing = { ...homed('ai-2', { ship: 'cv-1' }, [0, 1000, 20000]), pilot: { skill: 'veteran', leader: 'ai-1', slot: 1, home: { ship: 'cv-1' } } }
+    const w = wingPair(wing)
+    let leaderRtbS: number | null = null
+    let leaderPastTransitS: number | null = null
+    let wingRtbS: number | null = null
+    let wingOffStationInTransit = 0
+    const landedS: Record<string, number> = {}
+    const respotted: Record<string, boolean> = {}
+    let didCrash = false
+    fly(w, 1500, (x) => {
+      const leader = aircraftById(x, 'ai-1')!.pilot!.decision
+      const wingman = aircraftById(x, 'ai-2')!.pilot!.decision
+      const t = x.tick * DT
+      didCrash ||= crashed(x, 'ai-1') || crashed(x, 'ai-2')
+      if (leaderRtbS === null && leader.mode === 'rtb') leaderRtbS = t
+      if (leaderPastTransitS === null && leader.mode === 'rtb' && leader.recovery?.phase !== 'transit') leaderPastTransitS = t
+      if (wingRtbS === null && wingman.mode === 'rtb') wingRtbS = t
+      // One reaction time after the leader turns for home, the wingman is on station.
+      if (leaderRtbS !== null && leaderPastTransitS === null && t - leaderRtbS > 2 && wingman.mode !== 'formation') wingOffStationInTransit++
+      for (const id of ['ai-1', 'ai-2']) {
+        const d = aircraftById(x, id)!.pilot!.decision
+        if (landedS[id] === undefined && d.mode === 'landed') landedS[id] = t
+        respotted[id] ||= d.recovery?.respotted === true
+      }
+      return respotted['ai-1'] === true && respotted['ai-2'] === true
+    })
+    expect(didCrash).toBe(false)
+    expect(leaderRtbS, 'the leader never went home').not.toBeNull()
+    expect(leaderRtbS!).toBeGreaterThanOrEqual(RTB_IDLE_S)
+    expect(leaderPastTransitS, 'the leader never reached its IP').not.toBeNull()
+    expect(wingOffStationInTransit).toBe(0)
+    expect(wingRtbS, 'the wingman never went into rtb').not.toBeNull()
+    expect(wingRtbS!).toBeGreaterThanOrEqual(leaderPastTransitS!)
+    expect(wingRtbS! - leaderPastTransitS!).toBeLessThanOrEqual(5)
+    expect(landedS['ai-1'], 'ai-1 never landed').toBeDefined()
+    expect(landedS['ai-2'], 'ai-2 never landed').toBeDefined()
+    expect(landedS['ai-1']!).toBeLessThan(landedS['ai-2']!)
+  })
+
+  it('a homed wingman of the player keeps station past RTB_IDLE_S: the player does not go home, so neither does it', () => {
+    const w0 = buildRecovery([{ ...homed('ai-2', { ship: 'cv-1' }, [0, 1000, 20000]), pilot: { skill: 'veteran', leader: 'f6f-1', slot: 1, home: { ship: 'cv-1' } } }])
+    const w = onApproach(w0, 'ai-2', { alongM: WING_START_ALONG_M + 80, acrossM: 100, wheelM: START_WHEEL_M, airspeedMps: START_AIRSPEED_MPS })
+    const player = aircraftById(w, 'f6f-1')!.state
+    // The player 80 m ahead and 100 m left of the wingman, on its heading.
+    const me = aircraftById(w, 'ai-2')!.state
+    const ahead = withAircraftState(w, 'f6f-1', { ...player, position: v3(me.position.x - 100, me.position.y, me.position.z - 80), velocity: me.velocity, attitude: me.attitude })
+    const modes = new Set<string>()
+    fly(ahead, RTB_IDLE_S + 30, (x) => {
+      if (x.tick * DT > 2) modes.add(aircraftById(x, 'ai-2')!.pilot!.decision.mode)
+    })
+    expect([...modes]).toEqual(['formation'])
   })
 
   it('a wingman without a home keeps station through the transit, then loiters when its leader peels off', () => {
