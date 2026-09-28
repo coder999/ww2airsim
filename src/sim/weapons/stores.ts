@@ -32,10 +32,13 @@ export function storesSpec(spec: AircraftSpec, stores: StoresState): AircraftSpe
   if (stores.bombs === 0 && stores.rockets === 0) return spec
   const s = spec.stores
   if (s === undefined) return spec
-  const bombType = s.types[s.racks[0]!.store]!
-  const rocketType = s.types[s.rails[0]!.store]!
-  const massKgLoad = stores.bombs * bombType.massKg + stores.rockets * rocketType.massKg
-  const dragAreaM2Load = stores.bombs * bombType.dragAreaM2 + stores.rockets * rocketType.dragAreaM2
+  // A racks-only airplane (the F4F-4, W1) has no rails at all, so only read a rocket type
+  // when there is a nonzero rocket count to charge it against -- s.rails[0] would else be
+  // undefined. Symmetric for bombs, though every shipped spec with racks has at least one.
+  const bombType = stores.bombs > 0 ? s.types[s.racks[0]!.store]! : undefined
+  const rocketType = stores.rockets > 0 ? s.types[s.rails[0]!.store]! : undefined
+  const massKgLoad = stores.bombs * (bombType?.massKg ?? 0) + stores.rockets * (rocketType?.massKg ?? 0)
+  const dragAreaM2Load = stores.bombs * (bombType?.dragAreaM2 ?? 0) + stores.rockets * (rocketType?.dragAreaM2 ?? 0)
   return {
     ...spec,
     mass: { ...spec.mass, emptyKg: spec.mass.emptyKg + massKgLoad },

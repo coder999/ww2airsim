@@ -57,7 +57,8 @@ const StoreTypeObject = z.object({
 
 const StoresSchema = z.object({
   racks: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(1).max(8),
-  rails: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(1).max(16),
+  // a racks-only airplane (the F4F-4, W1): no rockets, so no rails at all.
+  rails: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(0).max(16),
   types: z.record(z.string(), StoreTypeObject),
   source: z.string().min(1),
 }).strict()

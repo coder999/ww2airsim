@@ -23,11 +23,11 @@ import { Group, Quaternion, Vector3 } from 'three'
  */
 export const WILDCAT_TO_SIM_ROTATION_Y = Math.PI / 2
 
-/** content/aircraft/f4f-wildcat.json's geometry.wingSpanM (Task 3 -- reused
- *  verbatim from the Hellcat's; this constant must be kept in sync with that
- *  file by hand, the same way hellcat.ts's own wing box hardcodes it, since
- *  this module has no content-loading path of its own either. */
-const TARGET_WINGSPAN_M = 13.06
+/** content/aircraft/f4f-wildcat.json's geometry.wingSpanM: the F4F-4's real span, 38 ft 0 in
+ *  (W1, 2026-09-28; until then this reused the Hellcat's 13.06 m, drawing the Wildcat 13% too
+ *  big). Kept in sync with that file by hand, since this module has no content-loading path of
+ *  its own; tests/render/wildcat.test.ts holds the two together. */
+const TARGET_WINGSPAN_M = 11.582
 /** The model's own native wingspan, measured 2026-09-24 via
  *  `new THREE.Box3().setFromObject(scene)` on a real load (not a guess, and
  *  not derived from the raw glTF accessor bytes, which are in a different,
@@ -49,21 +49,40 @@ export const WILDCAT_SCALE = TARGET_WINGSPAN_M / WILDCAT_NATIVE_WINGSPAN_M
 export const WILDCAT_DATUM_PITCH_RAD = 0.12789182382108172
 
 /**
- * How far the correction lowers the model, metres, so its main wheels meet
- * content/aircraft/f4f-wildcat.json's gear.heightM below the sim body origin. The glb's
- * origin is its wheel contact plane, so until 2026-09-28 the drawn Wildcat stood with its
- * wheels AT the body origin, 2.2 m above the ground it was parked on (O1 handoff; Mark's
- * screenshot that day). tests/render/stance.test.ts holds every drawn model's mains to its
- * spec's gear.heightM within 0.05 m, this one included.
+ * How far the correction moves the model aft, metres, so the wing's quarter-chord (at 30% of the
+ * half-span) sits at the sim body origin, which stands for the center of gravity. Measured
+ * 2026-09-28 (W1 Task 3) through this frame at the 11.582 m scale: the quarter-chord sat 1.871 m
+ * forward of the origin. tests/tools/models/centerPoint.test.ts holds every drawn model to it.
  */
-export const WILDCAT_OFFSET_Y_M = -1.872
+export const WILDCAT_OFFSET_X_M = -1.871
+
+/**
+ * How far the correction lowers the model, metres. The glb's origin is its wheel contact plane,
+ * so until 2026-09-28 the drawn Wildcat stood with its wheels AT the body origin, 2.2 m above the
+ * ground it was parked on (O1 handoff; Mark's screenshot that day). That day's drop, -1.872 m at
+ * the old 13.06 m-span scale, scaled to the real 11.582 m span (W1 Task 3), so the airframe keeps
+ * the same height about the origin in its own proportions. The main gear's stretch
+ * (WILDCAT_GEAR_STRETCH_M) then takes the wheels down to f4f-wildcat.json's gear.heightM, which
+ * tests/tools/models/stance.test.ts holds every drawn model's mains to within 0.05 m.
+ */
+export const WILDCAT_OFFSET_Y_M = -1.6601
+
+/**
+ * How far wildcatGearStretch (wildcat.ts) lengthens each drawn main leg, sim metres: the vertical
+ * drop of the main-wheel contact at GEAR_DOWN. The model's own legs park it at 7.43 degrees; this
+ * drop parks it at Grumman's static ground angle, 12 deg 20 min ([DS] 116a, read 2026-09-28; W1
+ * spec ruling R5). Measured 2026-09-28 by bisecting the drop against that angle through this frame
+ * (.superpowers/w1/draw.mts, W1 plan); tests/tools/models/wildcatGear.test.ts holds the drawn
+ * wheels to it and tests/tools/models/stance.test.ts holds the angle within 0.25 degrees.
+ */
+export const WILDCAT_GEAR_STRETCH_M = 0.4445
 
 /** The correction group's name, so tests can find it in a loaded airframe. */
 export const WILDCAT_CORRECTION_NAME = 'wildcat-correction'
 
 /**
  * The ONE place the drawn Wildcat's model-to-sim correction is built: rotation Y, the pitch
- * that levels the datum, a uniform scale and the drop onto gear.heightM. wildcat.ts wraps the loaded model in this
+ * that levels the datum, a uniform scale and the shift that centers it and drops it toward gear.heightM. wildcat.ts wraps the loaded model in this
  * group, and wildcatToSimMatrix() below reads its matrix, so the transform the mounts are
  * measured through cannot drift from the one the airplane is drawn with.
  * tests/render/wildcat.test.ts asserts a loaded airframe's group equals the matrix.
@@ -75,7 +94,7 @@ export function wildcatCorrection(): Group {
   const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), WILDCAT_TO_SIM_ROTATION_Y)
   g.quaternion.setFromAxisAngle(new Vector3(0, 0, 1), -WILDCAT_DATUM_PITCH_RAD).multiply(yaw)
   g.scale.setScalar(WILDCAT_SCALE)
-  g.position.set(0, WILDCAT_OFFSET_Y_M, 0)
+  g.position.set(WILDCAT_OFFSET_X_M, WILDCAT_OFFSET_Y_M, 0)
   return g
 }
 

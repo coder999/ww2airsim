@@ -38,7 +38,7 @@ export function sceneTriangles(doc: Document, toSim: readonly number[]): Float64
   return Float64Array.from(out)
 }
 
-export interface WingSection { readonly z: number; readonly leadingX: number; readonly trailingX: number; lowerY(x: number): number }
+export interface WingSection { readonly z: number; readonly leadingX: number; readonly trailingX: number; lowerY(x: number): number; upperY(x: number): number }
 
 /** The plane z = `z` cut through every triangle, keeping segments forward of `minX` (the
  *  tail surfaces lie aft of it). lowerY(x) is the lowest surface crossing x: the lower skin. */
@@ -65,6 +65,16 @@ export function wingSection(tris: Float64Array, z: number, minX: number): WingSe
         const x0 = segs[i]!, y0 = segs[i + 1]!, x1 = segs[i + 2]!, y1 = segs[i + 3]!
         if (x0 === x1 || (x0 - x) * (x1 - x) > 0) continue
         y = Math.min(y, y0 + ((y1 - y0) * (x - x0)) / (x1 - x0))
+      }
+      return y
+    },
+    /** The highest surface crossing x: the upper skin (used to place a gun at mid-thickness). */
+    upperY(x: number): number {
+      let y = -Infinity
+      for (let i = 0; i < segs.length; i += 4) {
+        const x0 = segs[i]!, y0 = segs[i + 1]!, x1 = segs[i + 2]!, y1 = segs[i + 3]!
+        if (x0 === x1 || (x0 - x) * (x1 - x) > 0) continue
+        y = Math.max(y, y0 + ((y1 - y0) * (x - x0)) / (x1 - x0))
       }
       return y
     },
