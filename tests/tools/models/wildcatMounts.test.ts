@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { Group, Quaternion, Vector3 } from 'three'
 import { modelIO, findNode } from '../../../tools/models/document.js'
 import { fitStores, sectionAtFor, MIN_CLEARANCE_M, WILDCAT_GLB_PATH } from '../../../tools/models/mounts.js'
-import { WILDCAT_DATUM_PITCH_RAD, WILDCAT_OFFSET_Y_M, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatToSimMatrix } from '../../../src/render/scene/wildcatFrame.js'
+import { WILDCAT_DATUM_PITCH_RAD, WILDCAT_OFFSET_X_M, WILDCAT_OFFSET_Y_M, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatToSimMatrix } from '../../../src/render/scene/wildcatFrame.js'
 import { WILDCAT_MODEL_PATH } from '../../../src/render/content.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
@@ -25,12 +25,12 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     expect(WILDCAT_DATUM_PITCH_RAD).toBeCloseTo(2 * Math.atan2(-qx!, qw!), 12)
   })
 
-  it('the slicing transform is rotation Y, the datum leveled about +Z, uniform scale and the drop onto gear.heightM, from the frame constants (the loaded airframe\'s own correction group is checked against it in tests/render/wildcat.test.ts)', () => {
+  it('the slicing transform is rotation Y, the datum leveled about +Z, uniform scale and the shift that centers the quarter-chord and drops the model, from the frame constants (the loaded airframe\'s own correction group is checked against it in tests/render/wildcat.test.ts)', () => {
     const g = new Group()
     const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), WILDCAT_TO_SIM_ROTATION_Y)
     g.quaternion.copy(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), -WILDCAT_DATUM_PITCH_RAD).multiply(yaw))
     g.scale.setScalar(WILDCAT_SCALE)
-    g.position.set(0, WILDCAT_OFFSET_Y_M, 0)
+    g.position.set(WILDCAT_OFFSET_X_M, WILDCAT_OFFSET_Y_M, 0)
     g.updateMatrix()
     wildcatToSimMatrix().forEach((v, i) => expect(v).toBeCloseTo(g.matrix.elements[i]!, 12))
   })
