@@ -56,7 +56,7 @@ export function createWebAudioBackend(): AudioBackend {
       }
     },
 
-    playOnce: (id: ClipId, value: number): void => {
+    playOnce: (id: ClipId, value: number, rate?: number): void => {
       const buffer = buffers.get(id)
       if (buffer === undefined) return
       // A fresh source per call: AudioBufferSourceNodes are single-use by
@@ -67,6 +67,10 @@ export function createWebAudioBackend(): AudioBackend {
       gain.connect(master)
       const source = context.createBufferSource()
       source.buffer = buffer
+      // A plain assignment, not `setTargetAtTime`: a one-shot's rate is fixed
+      // for its entire (short) life, unlike the engine loop's, which glides
+      // to avoid an audible click as the throttle moves (design §7).
+      source.playbackRate.value = rate ?? 1
       source.connect(gain)
       source.onended = (): void => { source.disconnect(); gain.disconnect() }
       source.start(0)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, withNotRecorded } from '../../src/render/debrief.js'
+import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, watchReplayAction, withNotRecorded } from '../../src/render/debrief.js'
 import { withMissionDebrief } from '../../src/render/mission/debriefMission.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -20,6 +20,15 @@ const impact = (over: Partial<Impact> = {}): Impact => ({
 })
 
 describe('the debrief', () => {
+  it('offers Watch replay only with a handler, and invoking it calls that handler', () => {
+    expect(watchReplayAction()).toBeNull()
+    let watched = 0
+    const action = watchReplayAction(() => { watched += 1 })
+    expect(action?.label).toBe('Watch replay')
+    action?.run()
+    expect(watched).toBe(1)
+  })
+
   it('says the pilot survived a ditching', () => {
     const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType())
     expect(m.headline).toBe('DITCHED')

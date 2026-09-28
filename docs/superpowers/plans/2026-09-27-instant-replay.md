@@ -110,7 +110,7 @@ Claims to re-check before Task 1. Line numbers are `src/render/main.ts` and will
   - `REPLAY_SPAN_TICKS = 600`, `REPLAY_MIN_TICK_GAP` (1, or 2 per step 6)
   - `recordingStartS(r)`, `recordingEndS(r)`: seconds, `tick × DT`
 
-- [ ] **Step 1: Failing tests,** `tests/replay/recorder.test.ts`:
+- [x] **Step 1: Failing tests,** `tests/replay/recorder.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -182,9 +182,9 @@ describe('recorder (replay spec §3, plan R-1)', () => {
 })
 ```
 
-- [ ] **Step 2:** `npx vitest run tests/replay/recorder.test.ts`. Expected: FAIL (the module is missing).
+- [x] **Step 2:** `npx vitest run tests/replay/recorder.test.ts`. Expected: FAIL (the module is missing).
 
-- [ ] **Step 3: Implement** `src/replay/recorder.ts`:
+- [x] **Step 3: Implement** `src/replay/recorder.ts`:
 
 ```ts
 import type { World } from '../sim/loop.js'
@@ -240,9 +240,9 @@ export const recordingStartS = (r: Recording): number => r.worlds[0]!.tick * DT
 export const recordingEndS = (r: Recording): number => r.worlds[r.worlds.length - 1]!.tick * DT
 ```
 
-- [ ] **Step 4:** Run the tests again. Expected: PASS.
+- [x] **Step 4:** Run the tests again. Expected: PASS.
 
-- [ ] **Step 5: The memory measurement,** `tests/replay/memory.test.ts`. This is spec §9's gate; it runs first so nothing is built on a recorder that doesn't fit.
+- [x] **Step 5: The memory measurement,** `tests/replay/memory.test.ts`. This is spec §9's gate; it runs first so nothing is built on a recorder that doesn't fit.
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -281,13 +281,13 @@ describe('replay recording memory (spec §9)', () => {
 })
 ```
 
-- [ ] **Step 6: Run it and act on the number.** Run `npx vitest run tests/replay/memory.test.ts` and read the printed MB into the ledger.
+- [x] **Step 6: Run it and act on the number.** Run `npx vitest run tests/replay/memory.test.ts` and read the printed MB into the ledger.
   - **Under 64 MB:** done.
   - **Over:** set `REPLAY_MIN_TICK_GAP = 2`, re-run, and ledger both numbers.
   - **Still over:** STOP, per ruling R-12. Email Mark the numbers and the input-log fallback of spec §9, and wait.
   - If the furball's projectiles are all spent before the window ends (guns empty), note it in the ledger. The number is still the one to use: it is the shipped scenario.
 
-- [ ] **Step 7: Verify and commit.** `remote-run npm run verify` (`rc=0`, or the timeouts-only rule above). Commit `src/replay/recorder.ts`, `tests/replay/recorder.test.ts`, `tests/replay/memory.test.ts`, and `.dependency-cruiser.cjs` if it needed the new directory: "Instant replay Task 1: recorder; measured N MB for 10 s of furball".
+- [x] **Step 7: Verify and commit.** `remote-run npm run verify` (`rc=0`, or the timeouts-only rule above). Commit `src/replay/recorder.ts`, `tests/replay/recorder.test.ts`, `tests/replay/memory.test.ts`, and `.dependency-cruiser.cjs` if it needed the new directory: "Instant replay Task 1: recorder; measured N MB for 10 s of furball".
 
 ---
 
@@ -305,7 +305,7 @@ describe('replay recording memory (spec §9)', () => {
   - `replayPosesAt(rec: Recording, tS: number): ReplayPoses`
   - `surfaceHeightFor(world: World<undefined>): SurfaceHeightAt` (from `frame.ts`)
 
-- [ ] **Step 1: Failing tests,** `tests/replay/view.test.ts`. Use a real flight so the poses are real:
+- [x] **Step 1: Failing tests,** `tests/replay/view.test.ts`. Use a real flight so the poses are real:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -386,9 +386,9 @@ describe('replayPosesAt (spec §3, plan R-1)', () => {
 })
 ```
 
-- [ ] **Step 2:** Run. Expected: FAIL (the modules and exports are missing).
+- [x] **Step 2:** Run. Expected: FAIL (the modules and exports are missing).
 
-- [ ] **Step 3: Implement.** In `frame.ts`, export the helper and use it in `nextFrameState` in place of the inline closure the orbit camera added:
+- [x] **Step 3: Implement.** In `frame.ts`, export the helper and use it in `nextFrameState` in place of the inline closure the orbit camera added:
 
 ```ts
 /** The floor under any x/z of `world`: a deck, the terrain, or the sea
@@ -456,8 +456,8 @@ export function replayPosesAt(rec: Recording, tS: number): ReplayPoses {
 }
 ```
 
-- [ ] **Step 4:** Run `npx vitest run tests/replay/view.test.ts tests/render/orbitFrame.test.ts tests/render/camera.test.ts tests/render/frame.test.ts`. Expected: PASS.
-- [ ] **Step 5:** Verify and commit: "Instant replay Task 2: pose a recorded moment; shared surfaceHeightFor".
+- [x] **Step 4:** Run `npx vitest run tests/replay/view.test.ts tests/render/orbitFrame.test.ts tests/render/camera.test.ts tests/render/frame.test.ts`. Expected: PASS.
+- [x] **Step 5:** Verify and commit: "Instant replay Task 2: pose a recorded moment; shared surfaceHeightFor".
 
 ---
 
@@ -479,7 +479,7 @@ export function replayPosesAt(rec: Recording, tS: number): ReplayPoses {
   - `manualReplayAvailable(rec: Recording | null): boolean`
   - `AUTO_BEFORE_S = 8`, `AUTO_AFTER_S = 1.5`, `MANUAL_MIN_S = 3`, `STEP_S = 1`
 
-- [ ] **Step 1: Failing tests,** `tests/replay/player.test.ts`:
+- [x] **Step 1: Failing tests,** `tests/replay/player.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -567,9 +567,9 @@ describe('replay player (spec §4, §6; plan R-8)', () => {
 })
 ```
 
-- [ ] **Step 2:** Run. Expected: FAIL.
+- [x] **Step 2:** Run. Expected: FAIL.
 
-- [ ] **Step 3: Implement** `src/replay/player.ts`:
+- [x] **Step 3: Implement** `src/replay/player.ts`:
 
 ```ts
 import { recordingEndS, recordingStartS, type Recording } from './recorder.js'
@@ -647,7 +647,7 @@ export function applyReplayCommand(p: ReplayPlayer, c: ReplayCommand): ReplayPla
 
 A one-world recording has `startS = recordingEndS − 0`, and the auto `endS` is 1.5 s later, so it plays the held last state and finishes. That is the correct degenerate behavior.
 
-- [ ] **Step 4:** Run. Expected: PASS. **Step 5:** Verify and commit: "Instant replay Task 3: playback state machine".
+- [x] **Step 4:** Run. Expected: PASS. **Step 5:** Verify and commit: "Instant replay Task 3: playback state machine".
 
 ---
 
@@ -727,7 +727,7 @@ export type ReplayCameraState = {
   5. Clamp to the orbit limits.
 - **`lookAt(from, to)`:** `f = normalize(to − from)`; `qNormalize(qMul(qFromAxisAngle(Y, atan2(−f.z, f.x)), qFromAxisAngle(Z, asin(f.y))))`. This is the same heading/pitch construction the chase camera uses (body +X forward).
 
-- [ ] **Step 1: Failing tests,** `tests/replay/cameras.test.ts`. The world is two aircraft flying level, built as `tests/render/audioInputs.test.ts` builds its worlds (`createWorldOf` with entity literals), with no AI:
+- [x] **Step 1: Failing tests,** `tests/replay/cameras.test.ts`. The world is two aircraft flying level, built as `tests/render/audioInputs.test.ts` builds its worlds (`createWorldOf` with entity literals), with no AI:
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -880,9 +880,9 @@ describe('replay cameras (spec §5; plan R-6, R-7, R-10, R-11, R-13)', () => {
 
 If `createWorldOf`'s entity literal needs a field these tests leave out (it has grown `side` and similar), copy the literal from the current `tests/render/audioInputs.test.ts` rather than guessing.
 
-- [ ] **Step 2:** Run. Expected: FAIL.
-- [ ] **Step 3:** Implement `src/replay/cameras.ts` per the behavior list above. Keep every function pure, with `surfaceHeightAt` passed in. If `camera.ts`'s `headingOf` / `pitchOf` are needed, export them (they are pure) rather than copying them.
-- [ ] **Step 4:** Run. Expected: PASS. **Step 5:** Verify and commit: "Instant replay Task 4: six replay cameras, drag handover, orbitFromEye".
+- [x] **Step 2:** Run. Expected: FAIL.
+- [x] **Step 3:** Implement `src/replay/cameras.ts` per the behavior list above. Keep every function pure, with `surfaceHeightAt` passed in. If `camera.ts`'s `headingOf` / `pitchOf` are needed, export them (they are pure) rather than copying them.
+- [x] **Step 4:** Run. Expected: PASS. **Step 5:** Verify and commit: "Instant replay Task 4: six replay cameras, drag handover, orbitFromEye".
 
 ---
 
@@ -1285,7 +1285,7 @@ Every other combination leaves the flow unchanged with no effects. A Watch repla
 - a README paragraph
 - `GAMEPLAY.md`, if it has a controls section by then; otherwise the README paragraph names the keys
 
-- [ ] **Step 1: Tier 2 cases.** Run all of them on the worktree's dev slot, nexus GPU, under `sg render`:
+- [x] **Step 1: Tier 2 cases.** Run all of them on the worktree's dev slot, nexus GPU, under `sg render`:
   1. **Crash:** `diveToSea(page)`. That helper waits for the debrief, so use a variant: poll `__ww2.replay()` non-null within 6 s of the impact tick, then wait for `replay()` to become null and the debrief to be visible. Check the roster/banked text shows one bank (the debrief's banked line appears once).
   2. **Skip:** crash again (Restart, dive). As soon as the replay starts, press Escape. The debrief is visible within 1 s.
   3. **Watch replay:** click it → `replay()` non-null, the debrief hidden. Press Escape → the debrief is visible again.
@@ -1294,7 +1294,7 @@ Every other combination leaves the flow unchanged with no effects. A Watch repla
   6. **Performance:**
      - `__ww2.replayFxRebuildMs()` after a seek to the window's end is under 50 ms.
      - Mean `frameTimesMs()` during 3 s of replay is no worse than 1.25× the mean during 3 s of live flight at the same place. This is a correctness-machine sanity bound, not a budget; ledger both numbers.
-- [ ] **Step 2: Read every PNG.** Each camera must frame the airplane (Target also the attacker, when there is one). Fix what is wrong before the handoff.
-- [ ] **Step 3: Whole-branch review** (`superpowers:requesting-code-review`, most capable model, with this plan's Review Focus verbatim and the ledger's rulings). Fix Critical and Important findings with RED→GREEN tests; ledger the Minor ones.
-- [ ] **Step 4: Handoff.** In the same format as `docs/handoff/2026-09-27-orbit-camera.md`: what shipped, the controls table, captures (downscaled 1280×720 JPEGs in `docs/handoff/`), rulings R-1..R-12 plus the executor's, the memory number, the Review Focus pin list, test status, deferred minors, and Mark's final checkpoint. Update the §15 row (Instant Replay complete on its branch; bomb cam still a future idea) and add a README paragraph pointing at §15.
+- [x] **Step 2: Read every PNG.** Each camera must frame the airplane (Target also the attacker, when there is one). Fix what is wrong before the handoff.
+- [x] **Step 3: Whole-branch review** (`superpowers:requesting-code-review`, most capable model, with this plan's Review Focus verbatim and the ledger's rulings). Fix Critical and Important findings with RED→GREEN tests; ledger the Minor ones.
+- [x] **Step 4: Handoff.** In the same format as `docs/handoff/2026-09-27-orbit-camera.md`: what shipped, the controls table, captures (downscaled 1280×720 JPEGs in `docs/handoff/`), rulings R-1..R-12 plus the executor's, the memory number, the Review Focus pin list, test status, deferred minors, and Mark's final checkpoint. Update the §15 row (Instant Replay complete on its branch; bomb cam still a future idea) and add a README paragraph pointing at §15.
 - [ ] **Step 5:** Push the branch. Do **not** merge or push `main`. Email the handoff: `python3 tools/mail-doc.py docs/handoff/2026-09-27-instant-replay.md "ww2airsim: Instant Replay handoff (branch ready, not merged)"`.

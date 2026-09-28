@@ -298,8 +298,13 @@ export type DebriefHandle = {
    * landing included, since spec §1 says the debrief gains this "rather than
    * only offering Restart," not as a landing-only substitute for Continue.
    */
-  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void): void
+  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void, onWatchReplay?: () => void): void
   hide(): void
+}
+
+/** Pure action model used by the Node suite and by the real debrief button. */
+export function watchReplayAction(handler?: () => void): { readonly label: 'Watch replay'; readonly run: () => void } | null {
+  return handler === undefined ? null : { label: 'Watch replay', run: handler }
 }
 
 function sectionTitle(text: string): HTMLDivElement {
@@ -452,10 +457,25 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
     onReturnToTitle?.()
   })
 
+  const watchReplay = document.createElement('button')
+  watchReplay.className = 'ink-button'
+  watchReplay.textContent = 'Watch replay'
+  let onWatchReplay: (() => void) | undefined
+  watchReplay.addEventListener('click', () => {
+    watchReplay.blur()
+    watchReplayAction(onWatchReplay)?.run()
+  })
+
   return {
-    show(model: DebriefModel, continueHandler?: () => void, returnToTitleHandler?: () => void): void {
+    show(
+      model: DebriefModel,
+      continueHandler?: () => void,
+      returnToTitleHandler?: () => void,
+      watchReplayHandler?: () => void,
+    ): void {
       onContinue = continueHandler
       onReturnToTitle = returnToTitleHandler
+      onWatchReplay = watchReplayHandler
       panel.textContent = ''
 
       const sheet = document.createElement('div')
@@ -621,6 +641,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         cont.textContent = model.continueLabel
         buttons.appendChild(cont)
       }
+      if (watchReplayAction(onWatchReplay) !== null) buttons.appendChild(watchReplay)
       buttons.append(restart, returnToTitle)
       sheet.appendChild(buttons)
 

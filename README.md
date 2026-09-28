@@ -249,6 +249,15 @@ the old chase view. The rules are in the
 and its [handoff](docs/handoff/2026-09-27-orbit-camera.md); master spec §15
 holds the status, with Instant Replay next.
 
+**Instant Replay is complete and merged into main (2026-09-28).** A crash or
+shoot-down holds for three seconds, replays the final moments once, then opens
+the debrief; **Watch replay** runs it again. While paused, K replays the last
+10 seconds. During replay: Space plays/pauses, Left/Right steps, 1/2/3 select
+0.5×/1×/3×, C or 4–9 selects Auto/Orbit/Flyby/Target/Cockpit/Manual, O toggles
+Orbit spin, L locks Manual on the airplane, WASD/Q/E moves Manual, and Esc
+returns or skips. See the [Instant Replay handoff](docs/handoff/2026-09-27-instant-replay.md)
+and [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
+
 The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
 the remaining model-track work are recorded in
