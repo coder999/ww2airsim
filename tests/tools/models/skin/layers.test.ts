@@ -1,7 +1,7 @@
 // tests/tools/models/skin/layers.test.ts
 import { describe, expect, it } from 'vitest'
 import { rasterize, trianglesOf } from '../../../../tools/models/skin/raster.js'
-import { paint } from '../../../../tools/models/skin/layers.js'
+import { GRID_MIN_TEXELS, paint } from '../../../../tools/models/skin/layers.js'
 import { compose, type SkinMaps } from '../../../../tools/models/skin/compose.js'
 import type { Sidecar } from '../../../../tools/models/skin/sidecar.js'
 import type { ScanId } from '../../../../tools/models/skin/surfaces.js'
@@ -82,5 +82,20 @@ describe('skin layers (DP0)', () => {
       expect(p.height[i], `sample ${i}`).toBe(0)
     }
     expect(count).toBeGreaterThan(4000) // patch 0 is 64 x 64 samples, less the rasterizer's edge rule
+  })
+
+  it('a grid axis finer than GRID_MIN_TEXELS texels draws nothing: 0.15 m at 0.05 m/texel is 3 texels (band limit)', () => {
+    expect(GRID_MIN_TEXELS).toBe(4)
+    // x and z both lie in the +y face, so only the band limit can keep them off; 0.8 m (16 texels) still cuts (the test above).
+    const side = fixtureSidecar({ lines: [], markings: [{ kind: 'grid', tags: ['wing'], spacingM: [0.15, null, 0.15], widthM: 0.02, depth: 1 }] })
+    const t = trianglesOf(fixtureDoc(), side, W)
+    const p = paint(rasterize(t, 2 * W), t.roles, side, scans, W)
+    let count = 0
+    for (let i = 0; i < p.size * p.size; i++) {
+      if (!p.covered[i] || p.patch[i] !== 0) continue
+      count++
+      expect(p.height[i], `sample ${i}`).toBe(0)
+    }
+    expect(count).toBeGreaterThan(4000)
   })
 })

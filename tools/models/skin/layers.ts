@@ -17,6 +17,8 @@ export const LINE_DEPTH_M = { panel: 1, hinge: 1.6 } as const
 /** Rivet rows beside each panel line (ESTIMATE): offset and pitch (m), head radius (m), head
  *  height (groove units). Dots where a sample is under 4 mm; a faint ridge above that. */
 export const RIVET = { offsetM: 0.012, pitchM: 0.025, radiusM: 0.0025, heightM: 0.35, dotsBelowM: 0.004 } as const
+/** A grid axis whose spacing is under this many texels is skipped: it would alias, a lap that fine reads as noise, and the scan carries the corrugation. */
+export const GRID_MIN_TEXELS = 4
 /** A disc or polygon marks a sample only if its normal is within ~70 deg of the marking's axis. */
 export const FACING_MIN = 0.35
 const SEAM_DIRT = 0.3
@@ -134,7 +136,7 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
         const hw = Math.max(m.widthM / 2, spacing)
         for (let a = 0; a < 3; a++) {
           const sp = m.spacingM[a]
-          if (sp === null || sp === undefined || Math.abs(n[a]!) >= 0.5) continue
+          if (sp === null || sp === undefined || sp < GRID_MIN_TEXELS * mpp || Math.abs(n[a]!) >= 0.5) continue
           const c = p[a]!, d = Math.abs(c - sp * Math.round(c / sp))
           h -= m.depth * Math.max(0, 1 - d / hw)
         }
