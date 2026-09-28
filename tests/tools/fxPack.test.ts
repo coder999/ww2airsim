@@ -108,27 +108,47 @@ describe('fx pack: acceptance (Review Focus 3, 4, 5)', () => {
   it('refuses a sheet whose right and left lights are swapped (Review Focus 3)', () => {
     expect(judge('smoke', puff(16, { flip: true })).join('\n')).toMatch(/right light .* right side/)
   })
+  it('refuses a single mis-rotated sun without naming its healthy neighbor (plan E2 ledger ruling, Task 4 fix round 2)', () => {
+    // `left` is generated as if it were rigged like `top` (bright toward the top of the frame, no x
+    // dependence), while every other pass -- including the real `top` -- stays correct. A metric that
+    // scores sides in mutually exclusive pairs (round 1's paired differential) can't see this: the
+    // pair's sum is unaffected by which half of the pair is broken, so it named both lights or
+    // neither. Scoring each sun independently by its own local brightening must refuse only `left`.
+    const rotated = puff().map((f) => ({ ...f, lit: { ...f.lit, left: f.lit.top } }))
+    const msgs = judge('smoke', rotated).join('\n')
+    expect(msgs).toMatch(/left light .* left side/)
+    expect(msgs).not.toMatch(/right light .* right side/)
+    expect(msgs).not.toMatch(/top light .* top side/)
+    expect(msgs).not.toMatch(/bottom light .* bottom side/)
+  })
   it('accepts a correctly lit but vertically asymmetric plume shape (plan E2 ledger ruling, Task 4)', () => {
-    // A vase: a narrow bright tip, a dim waist, and a wide flared skirt near the source (modeled on
-    // the measured smoke self-shadowing row profile). Neither light is flipped -- the tip is far
-    // brighter under `top` than `bottom`, and the skirt is (correctly) closer to the bottom sun than
-    // the top one -- but the skirt's large area used to swamp the tip in a single-pass half split,
-    // netting `top` to near zero. sixWay must difference against the opposite pass so shared area
-    // weighting cancels and the real per-side signal survives.
+    // A vase: a narrow tip widening to a flared skirt near the source (width(y) below), each texel
+    // continuously and correctly lit -- `top` brighter toward the tip with a mild waist bump, `bottom`
+    // brighter toward the skirt, neither flipped. (Round 1's comment here claimed the wide skirt's
+    // area could "swamp" the tip in a global half-split average; that motivated a paired-opposite
+    // differential which turned out to score right/left and top/bottom as a PAIR SUM, so it missed a
+    // single mis-rotated sun entirely -- see the "single mis-rotated sun" test above. The fix round 2
+    // ledger ruling scores each sun by its own local brightening, a per-texel step of `st` toward that
+    // sun, so it is immune to region size by construction; this test exists to show the local metric
+    // still accepts a real, non-trivial silhouette, not to demonstrate cancellation.) This fixture is
+    // built with a continuous per-row profile, not flat bands: at C=64 (st=2) a flat band has zero
+    // local gradient almost everywhere, which is why the original bands-based fixture failed the new
+    // metric even though it was a legitimate render -- see task-4-report.md "Fix round 2".
     const build = (): FramePasses => {
+      const yTop = 4, yBot = 59
       const n = C * C
       const alpha = new Float32Array(n), top = new Float32Array(n), bottom = new Float32Array(n)
       const right = new Float32Array(n), left = new Float32Array(n)
-      const bands = [
-        { y0: 4, y1: 12, x0: 28, x1: 36, top: 0.075, bottom: 0.005 },
-        { y0: 12, y1: 20, x0: 30, x1: 34, top: 0.030, bottom: 0.010 },
-        { y0: 20, y1: 28, x0: 29, x1: 35, top: 0.020, bottom: 0.015 },
-        { y0: 28, y1: 59, x0: 6, x1: 58, top: 0.040, bottom: 0.070 },
-      ] as const
-      for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
-        const i = y * C + x
-        for (const b of bands) if (y >= b.y0 && y < b.y1 && x >= b.x0 && x < b.x1) { alpha[i] = 1; top[i] = b.top; bottom[i] = b.bottom }
-        if (alpha[i]! > 0) { const nx = (x + 0.5 - 32) / 26; right[i] = 0.3 + 0.2 * nx; left[i] = 0.3 - 0.2 * nx }
+      const width = (y: number): number => { const t = (y - yTop) / (yBot - yTop); return 4 + 46 * Math.max(0, t) ** 1.6 }
+      for (let y = yTop; y < yBot; y++) {
+        const w = width(y), t = (y - yTop) / (yBot - yTop)
+        const x0 = Math.round(32 - w / 2), x1 = Math.round(32 + w / 2)
+        const topV = 0.25 * (1 - t) + 0.01 + 0.03 * Math.sin(Math.PI * t), botV = 0.005 + 0.25 * t
+        for (let x = Math.max(0, x0); x < Math.min(C, x1); x++) {
+          const i = y * C + x
+          alpha[i] = 1; top[i] = topV; bottom[i] = botV
+          const nx = (x - 32) / (w / 2 || 1); right[i] = 0.3 + 0.2 * nx; left[i] = 0.3 - 0.2 * nx
+        }
       }
       return { lit: { right, left, top, bottom, back: right, front: right }, alpha, emit: new Float32Array(n) }
     }

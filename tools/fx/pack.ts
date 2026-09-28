@@ -245,28 +245,40 @@ export function measureSheet(frames: readonly FramePasses[], cellPx: number, lit
     if (covered > peak) { peak = covered; peakAt = k }
   })
   const pf = frames[peakAt]!
-  let cx = 0, cy = 0, cn = 0
-  for (let i = 0; i < pf.alpha.length; i++) if (pf.alpha[i]! > COVERED) { cx += i % cellPx; cy += Math.floor(i / cellPx); cn++ }
-  cx /= Math.max(1, cn); cy /= Math.max(1, cn)
-  // Paired-opposite differential (plan E2 ledger ruling, Task 4): each side's score first subtracts
-  // its opposite pass (right-left, top-bottom) texel by texel, then splits by half. A real plume's
-  // density/self-shadowing is shared by a pass and its opposite, so subtracting cancels it; only the
-  // genuine directional response of that side's sun survives the split. A single-pass half split (the
-  // old formula) let a wide, low-contrast base outweigh a small, high-contrast tip and net a correctly
-  // lit but vertically asymmetric plume to near zero (measured on smoke's peak frame, 2026-09-27); the
-  // differential does not, and a flipped or mislabeled sun still nets negative (fxPack.test.ts covers
-  // both).
-  const diffMean = (a: Float32Array, b: Float32Array, pick: (x: number, y: number) => boolean): number => {
+  // Each sun's own local brightening toward it (plan E2 ledger ruling, Task 4 fix round 2). Round 1's
+  // half-split (either single-pass, or a pair's differential) measured a global region, so a wide,
+  // low-contrast base could swamp a small, high-contrast tip (the vase test below) -- but a paired
+  // differential turned out to score right/left and top/bottom as a SUM (diffMean(a,b,half) -
+  // diffMean(a,b,!half) algebraically equals old_a + old_b), so a single mis-rotated sun rode in on
+  // its healthy partner and was accepted, and the failure message named both sides of the pair, never
+  // the one actually wrong (measured 2026-09-27: injecting a single rotated sun into the real smoke
+  // and dust renders was accepted by round 1; the paired sum canceled nothing). Instead, score side s
+  // by whether its OWN pass gets brighter as you step a short distance toward s's sun, per covered
+  // texel pair: right/left step in +-x, top/bottom in -+y (row 0 is the top). This is local (no global
+  // half split), so it can't be swamped by an unrelated region, and it is scored per sun, so only the
+  // actually-misrotated side fails.
+  const DIR: Readonly<Record<'right' | 'left' | 'top' | 'bottom', readonly [number, number]>> = {
+    right: [1, 0], left: [-1, 0], top: [0, -1], bottom: [0, 1],
+  }
+  const st = Math.max(1, Math.round(cellPx / 32))
+  const localBrighten = (L: Float32Array, [dx, dy]: readonly [number, number]): number => {
     let s = 0, n = 0
-    for (let i = 0; i < a.length; i++) { const x = i % cellPx, y = Math.floor(i / cellPx); if (pf.alpha[i]! > COVERED && pick(x, y)) { s += (a[i]! - b[i]!) * litK; n++ } }
+    for (let y = 0; y < cellPx; y++) for (let x = 0; x < cellPx; x++) {
+      const i = y * cellPx + x
+      if (!(pf.alpha[i]! > COVERED)) continue
+      const qx = x + dx * st, qy = y + dy * st
+      if (qx < 0 || qx >= cellPx || qy < 0 || qy >= cellPx) continue
+      const j = qy * cellPx + qx
+      if (!(pf.alpha[j]! > COVERED)) continue
+      s += (L[j]! - L[i]!) * litK; n++
+    }
     return n > 0 ? s / n : 0
   }
-  const right = (x: number) => x >= cx, upper = (_x: number, y: number) => y < cy
   const sixWay = {
-    right: diffMean(pf.lit.right, pf.lit.left, right) - diffMean(pf.lit.right, pf.lit.left, (x) => !right(x)),
-    left: diffMean(pf.lit.left, pf.lit.right, (x) => !right(x)) - diffMean(pf.lit.left, pf.lit.right, right),
-    top: diffMean(pf.lit.top, pf.lit.bottom, upper) - diffMean(pf.lit.top, pf.lit.bottom, (x, y) => !upper(x, y)),
-    bottom: diffMean(pf.lit.bottom, pf.lit.top, (x, y) => !upper(x, y)) - diffMean(pf.lit.bottom, pf.lit.top, upper),
+    right: localBrighten(pf.lit.right, DIR.right),
+    left: localBrighten(pf.lit.left, DIR.left),
+    top: localBrighten(pf.lit.top, DIR.top),
+    bottom: localBrighten(pf.lit.bottom, DIR.bottom),
   }
   const meanAbs = (a: Float32Array, b: Float32Array): number => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i]! - b[i]!); return s / a.length }
   let step = 0
