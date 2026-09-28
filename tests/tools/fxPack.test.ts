@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acceptance, crossfadeLoop, encodeMotion, litScale, measureSheet, mipLevels, packCell, pickFrames, pyramidFlow, type FramePasses,
+  acceptance, crossfadeLoop, emitKnee, encodeEmit, encodeMotion, litScale, measureSheet, mipLevels, packCell, pickFrames, pyramidFlow,
+  quantile, type FramePasses,
 } from '../../tools/fx/pack.js'
 
 const C = 64
@@ -35,7 +36,7 @@ const puff = (n = 16, o: { emit?: (k: number) => number; flip?: boolean } = {}):
   Array.from({ length: n }, (_, k) => frame(32, 38 - k * 0.5, 8 + k * 0.8, { emit: o.emit?.(k), flip: o.flip }))
 const judge = (sheet: Parameters<typeof acceptance>[0], frames: FramePasses[]): string[] => {
   const k = litScale(frames)
-  return acceptance(sheet, measureSheet(frames, C, k, frames.some((f) => f.emit.some((v) => v > 0)) ? 1 : 0), frames.length)
+  return acceptance(sheet, measureSheet(frames, C, k, emitKnee(frames)), frames.length)
 }
 
 describe('fx pack: frames and mips (plan E2 Rulings R5, R7)', () => {
@@ -60,7 +61,8 @@ describe('fx pack: channels (E1 Ruling R7, verbatim)', () => {
     const { a, b } = packCell(f, C, 1, 1)
     const at = (img: Uint8Array, x: number, y: number) => Array.from(img.slice((y * C + x) * 4, (y * C + x) * 4 + 4))
     expect(at(a, 32, 32)).toEqual([26, 51, 77, 255])
-    expect(at(b, 32, 32)).toEqual([102, 128, 153, 204])
+    // emission is now the soft knee (Task 5c): encodeEmit(0.8, knee=1) = 1 - exp(-0.8) ~= 0.5507 -> 140
+    expect(at(b, 32, 32)).toEqual([102, 128, 153, 140])
     for (const [x, y] of [[0, 0], [1, 32], [63, 10], [20, 62]] as const) { expect(at(a, x, y)).toEqual([0, 0, 0, 0]); expect(at(b, x, y)).toEqual([0, 0, 0, 0]) }
   })
   it('normalizes a sheet so its 99.9th-percentile lit value is 1 (Ruling R6)', () => {
@@ -68,6 +70,46 @@ describe('fx pack: channels (E1 Ruling R7, verbatim)', () => {
     for (const L of Object.values(f.lit)) for (let i = 0; i < L.length; i++) if (f.alpha[i]! > 0) L[i] = (i % 1000) / 999
     expect(litScale([f])).toBeGreaterThan(0.99)
     expect(litScale([f])).toBeLessThan(1.02)
+  })
+})
+
+describe('fx pack: emission soft knee at p75 (plan E2 ledger ruling, Task 5c)', () => {
+  it('the knee maps its own value to ~0.632 and 0 to 0, and encodeEmit is monotonic in v', () => {
+    expect(encodeEmit(0, 10)).toBe(0)
+    expect(encodeEmit(10, 10)).toBeCloseTo(1 - Math.exp(-1), 10)
+    expect(encodeEmit(-3, 10)).toBe(0) // not positive
+    expect(encodeEmit(5, 0)).toBe(0) // a sheet that emits nothing has no knee
+    let prev = -1
+    for (const v of [0, 1, 3, 10, 30, 100, 100_000]) {
+      const e = encodeEmit(v, 10)
+      expect(e).toBeGreaterThanOrEqual(prev)
+      prev = e
+    }
+  })
+  it('a heavy-tailed emission encodes with a mean well above 0.3, where the old linear p99.9 map gives well under 0.1', () => {
+    // 99% of covered texels sit near the knee value (10); 1% sit at a hot tail (50000). This is the
+    // shape the brief measured on the real fireball sheet: nearly everything faint, a rare hot texel.
+    const n = 10_000
+    const emit = new Float32Array(n)
+    for (let i = 0; i < n; i++) emit[i] = i < 9900 ? 10 : 50_000
+    const alpha = new Float32Array(n).fill(1)
+    const frame: FramePasses = {
+      lit: { right: alpha, left: alpha, top: alpha, bottom: alpha, back: alpha, front: alpha }, alpha, emit,
+    }
+    // RED: R6's old linear map (the 99.9th-percentile of raw emit -> 1) computed directly here, since
+    // emitScale no longer exists in pack.ts after this task's refactor -- this is the behavior Task 5c
+    // replaces, kept as a fence so a regression back to a linear map would be caught.
+    const oldScale = 1 / quantile((visit) => { for (let i = 0; i < emit.length; i++) if (emit[i]! > 0) visit(emit[i]!) }, 0.999)
+    let oldMean = 0
+    for (let i = 0; i < n; i++) oldMean += Math.min(1, emit[i]! * oldScale)
+    oldMean /= n
+    expect(oldMean).toBeLessThan(0.1)
+    // GREEN: the soft knee at p75 keeps the gradient across the bulk instead of clipping it to near 0.
+    const knee = emitKnee([frame])
+    let newMean = 0
+    for (let i = 0; i < n; i++) newMean += encodeEmit(emit[i]!, knee)
+    newMean /= n
+    expect(newMean).toBeGreaterThan(0.3)
   })
 })
 

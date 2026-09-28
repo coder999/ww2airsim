@@ -14,7 +14,7 @@ import { FX_CONTENT_BYTES_MAX, FX_SHEETS, fxSheetManifestSchema, type FxSheetNam
 import { readKtx2Header } from '../textures/ktx2.js'
 import { ktxBinary } from '../textures/ktxTool.js'
 import {
-  acceptance, crossfadeLoop, emitScale, encodeMotion, flowSequence, LADDER, litScale, LOOP_BLEND, LOOPING, measureSheet,
+  acceptance, crossfadeLoop, emitKnee, encodeMotion, flowSequence, LADDER, litScale, LOOP_BLEND, LOOPING, measureSheet,
   mipLevels, motionScaleOf, packCell, PASSES, pickFrames, type FramePasses, type Pass, type SheetMetrics,
 } from './pack.js'
 import { read16 } from './png16.js'
@@ -36,7 +36,7 @@ export type BakeReport = {
   readonly motionScale: number
   readonly sceneSha256: string
   readonly blender: string
-  readonly sheets: Readonly<Record<FxSheetName, { readonly metrics: SheetMetrics; readonly litScale: number; readonly emitScale: number; readonly bakeS: number; readonly renderS: number; readonly samples: number }>>
+  readonly sheets: Readonly<Record<FxSheetName, { readonly metrics: SheetMetrics; readonly litScale: number; readonly emitKnee: number; readonly bakeS: number; readonly renderS: number; readonly samples: number }>>
 }
 
 async function loadSheet(sheet: FxSheetName, cellPx: number): Promise<{ meta: Meta; frames: FramePasses[] }> {
@@ -54,15 +54,15 @@ async function loadSheet(sheet: FxSheetName, cellPx: number): Promise<{ meta: Me
   return { meta, frames }
 }
 
-type Prepared = { readonly meta: Meta; readonly picked: FramePasses[]; readonly litK: number; readonly emitK: number; readonly metrics: SheetMetrics; readonly failures: string[] }
+type Prepared = { readonly meta: Meta; readonly picked: FramePasses[]; readonly litK: number; readonly emitKnee: number; readonly metrics: SheetMetrics; readonly failures: string[] }
 async function prepare(sheet: FxSheetName, cellPx: number, frames: number | null): Promise<Prepared> {
   const { meta, frames: raw } = await loadSheet(sheet, cellPx)
   const loop = LOOPING.includes(sheet)
   const seq = loop ? crossfadeLoop(raw, LOOP_BLEND) : raw
   const picked = pickFrames(seq.length, frames ?? seq.length, loop).map((i) => seq[i]!)
-  const litK = litScale(picked), emitK = emitScale(picked)
-  const metrics = measureSheet(picked, cellPx, litK, emitK)
-  return { meta, picked, litK, emitK, metrics, failures: acceptance(sheet, metrics, picked.length) }
+  const litK = litScale(picked), knee = emitKnee(picked)
+  const metrics = measureSheet(picked, cellPx, litK, knee)
+  return { meta, picked, litK, emitKnee: knee, metrics, failures: acceptance(sheet, metrics, picked.length) }
 }
 
 function atlas(cells: readonly Uint8Array[], cellPx: number): Uint8Array {
@@ -87,7 +87,7 @@ async function packRung(ktx: string, rung: { cellPx: number; frames: number }): 
   rmSync(WORK, { recursive: true, force: true }); mkdirSync(WORK, { recursive: true })
   const pngs: Record<keyof typeof FILES, string[]> = { lightA: [], lightB: [], motion: [] }
   for (let k = 0; k < frames; k++) {
-    const packed = FX_SHEETS.map((s) => packCell(prepared[s].picked[k]!, cellPx, prepared[s].litK, prepared[s].emitK))
+    const packed = FX_SHEETS.map((s) => packCell(prepared[s].picked[k]!, cellPx, prepared[s].litK, prepared[s].emitKnee))
     const motion = FX_SHEETS.map((s) => encodeMotion(flows[s][k]!, cellPx, motionScale))
     const layers = { lightA: atlas(packed.map((p) => p.a), cellPx), lightB: atlas(packed.map((p) => p.b), cellPx), motion: atlas(motion, cellPx) }
     for (const image of ['lightA', 'lightB', 'motion'] as const) {
@@ -118,7 +118,7 @@ async function packRung(ktx: string, rung: { cellPx: number; frames: number }): 
   return {
     rung, totalBytes: Object.values(files).reduce((a, b) => a + b, 0), files, motionScale, sceneSha256: manifest.provenance.sceneSha256!, blender,
     sheets: Object.fromEntries(FX_SHEETS.map((s) => [s, {
-      metrics: prepared[s].metrics, litScale: prepared[s].litK, emitScale: prepared[s].emitK,
+      metrics: prepared[s].metrics, litScale: prepared[s].litK, emitKnee: prepared[s].emitKnee,
       bakeS: prepared[s].meta.bakeS, renderS: prepared[s].meta.renderS, samples: prepared[s].meta.samples,
     }])) as BakeReport['sheets'],
   }

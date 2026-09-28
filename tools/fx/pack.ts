@@ -56,10 +56,19 @@ export function litScale(frames: readonly FramePasses[]): number {
   if (!(p > 0)) throw new Error('the sheet has no lit, covered texel')
   return 1 / p
 }
-/** Ruling R6 for emission, over emitting texels; 0 for a sheet that emits nothing. */
-export function emitScale(frames: readonly FramePasses[]): number {
-  const p = quantile((visit) => { for (const f of frames) for (let i = 0; i < f.emit.length; i++) if (f.emit[i]! > 0) visit(f.emit[i]!) }, 0.999)
-  return p > 0 ? 1 / p : 0
+/** Task 5c (plan E2 ledger ruling, "emission soft knee at p75"): emission is heavy-tailed, so
+ *  instead of R6's linear 99.9th-percentile map (which leaves nearly every emitting texel a faint
+ *  ember and clips the rare hot ones), the knee is the sheet's 75th percentile of raw emitting
+ *  values. Paired with encodeEmit below. 0 for a sheet that emits nothing. */
+export function emitKnee(frames: readonly FramePasses[]): number {
+  return quantile((visit) => { for (const f of frames) for (let i = 0; i < f.emit.length; i++) if (f.emit[i]! > 0) visit(f.emit[i]!) }, 0.75)
+}
+/** Soft knee (plan E2 ledger ruling, Task 5c: emission soft knee at p75): e = 1 - exp(-v/k), so a
+ *  raw value at the knee encodes to 1 - 1/e ~ 0.632 instead of clipping, and the heavy tail
+ *  compresses gently instead of being thrown away. 0 if the sheet emits nothing (knee <= 0) or v
+ *  is not positive. */
+export function encodeEmit(v: number, knee: number): number {
+  return knee > 0 && v > 0 ? 1 - Math.exp(-v / knee) : 0
 }
 
 /** Ruling R7: n + k consecutive frames become n that loop. Frame i < k blends frame n + i into
@@ -84,13 +93,13 @@ const byte = (x: number): number => Math.round((x < 0 ? 0 : x > 1 ? 1 : x) * 255
 const isBorder = (x: number, y: number, cellPx: number, band: number): boolean =>
   x < band || y < band || x >= cellPx - band || y >= cellPx - band
 
-export function packCell(f: FramePasses, cellPx: number, litK: number, emitK: number): { readonly a: Uint8Array; readonly b: Uint8Array } {
+export function packCell(f: FramePasses, cellPx: number, litK: number, emitKnee: number): { readonly a: Uint8Array; readonly b: Uint8Array } {
   const n = cellPx * cellPx, a = new Uint8Array(n * 4), b = new Uint8Array(n * 4)
   for (let y = 0; y < cellPx; y++) for (let x = 0; x < cellPx; x++) {
     if (isBorder(x, y, cellPx, BORDER)) continue
     const i = y * cellPx + x, o = i * 4
     a[o] = byte(f.lit.right[i]! * litK); a[o + 1] = byte(f.lit.left[i]! * litK); a[o + 2] = byte(f.lit.top[i]! * litK); a[o + 3] = byte(f.alpha[i]!)
-    b[o] = byte(f.lit.bottom[i]! * litK); b[o + 1] = byte(f.lit.back[i]! * litK); b[o + 2] = byte(f.lit.front[i]! * litK); b[o + 3] = byte(f.emit[i]! * emitK)
+    b[o] = byte(f.lit.bottom[i]! * litK); b[o + 1] = byte(f.lit.back[i]! * litK); b[o + 2] = byte(f.lit.front[i]! * litK); b[o + 3] = byte(encodeEmit(f.emit[i]!, emitKnee))
   }
   return { a, b }
 }
@@ -224,7 +233,7 @@ export type SheetMetrics = {
   readonly sixWay: Readonly<Record<'right' | 'left' | 'top' | 'bottom', number>>
 }
 
-export function measureSheet(frames: readonly FramePasses[], cellPx: number, litK: number, emitK: number): SheetMetrics {
+export function measureSheet(frames: readonly FramePasses[], cellPx: number, litK: number, emitKnee: number): SheetMetrics {
   const coverageByFrame: number[] = [], emitMeanByFrame: number[] = []
   let fill = 0, edgeAlpha = 0, peak = 0, peakAt = 0
   const boxes: { w: number; h: number }[] = []
@@ -234,7 +243,7 @@ export function measureSheet(frames: readonly FramePasses[], cellPx: number, lit
       const i = y * cellPx + x, a = f.alpha[i]!
       if (isBorder(x, y, cellPx, EDGE_BAND)) edgeAlpha = Math.max(edgeAlpha, a)
       if (a <= COVERED) continue
-      covered++; emit += f.emit[i]! * emitK
+      covered++; emit += encodeEmit(f.emit[i]!, emitKnee)
       x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y)
     }
     const w = x1 < 0 ? 0 : x1 - x0 + 1, h = y1 < 0 ? 0 : y1 - y0 + 1
