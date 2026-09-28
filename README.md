@@ -605,13 +605,12 @@ needed, for Playwright's control channel:
 npm run dev:lan
 ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 
-PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org hwlock ryzen npm run test:tier2
+PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
 ```
 
-`hwlock ryzen` checks the reference GPU out for the run: parallel sessions
-queue instead of rendering beside each other's measurement, and
-`playwright.config.ts` refuses a `PW_REMOTE` run without it (added
-2026-09-27; `serverconfig/scripts/hwlock`).
+Other sessions may be rendering on the same GPU. For budget numbers you
+mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
+(`serverconfig/scripts/hwlock`); CLAUDE.md's GPU section says when.
 
 Verified 2026-09-16: whole suite green against that URL, adapter guard
 included, so the desktop really was on its own GPU and really did reach nexus

@@ -115,21 +115,6 @@ const CHROMIUM_ARGS = [
   '--disable-features=UseDnsHttpsSvcb',
 ]
 
-/**
- * The reference GPU is checked out, not shared. A second browser rendering
- * beside a measurement is contention every frame-time number silently absorbs,
- * and parallel agents did exactly that (2026-09-27). `hwlock ryzen` on nexus
- * holds the desktop exclusively for the run and makes `remote-run` jobs wait;
- * it exports HWLOCK_HELD, which is what this checks. The lock and its crash
- * behavior: serverconfig/scripts/hwlock.
- */
-if (process.env.PW_REMOTE && !` ${process.env.HWLOCK_HELD ?? ''} `.includes(' ryzen ')) {
-  throw new Error(
-    'PW_REMOTE runs use the reference GPU and must hold its lock: ' +
-      'prefix the command with `hwlock ryzen` (e.g. `hwlock ryzen npm run test:tier2`). ' +
-      '`hwlock status` shows who holds it.',
-  )
-}
 
 /**
  * A LOCAL run on nexus reaches its Radeon 680M only through ANGLE's Vulkan

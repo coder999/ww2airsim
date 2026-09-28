@@ -94,17 +94,22 @@ Mark's console session. From nexus:
 
 ```sh
 ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
-PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org hwlock ryzen npm run test:tier2
+PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
 ```
 
-**The reference GPU is checked out with `hwlock ryzen`**, and
-`playwright.config.ts` refuses any `PW_REMOTE` run that does not hold it. It
-waits for the current holder (and says who that is), makes `remote-run` jobs
-wait so no compute load lands mid-measurement, and a crashed or killed holder
-releases it automatically. `hwlock status` shows who holds what. Anything
-touching the desktop's GPU other than through this lock (the Playwright MCP
-browser does not; it is a container on nexus) is not covered, so do not
-measure outside it. Details: `serverconfig/ryzen.md`, "Resource locks".
+**Tier 2 runs share the desktop; clean numbers are opt-in.** Parallel
+sessions may run Tier 2 at the same time, so a budget assertion (`p95 <
+6.0`, `budget4k.spec.ts`) can fail from another session's rendering or a
+`remote-run` job, not from your change. Before believing a budget failure, or
+when a number is the deliverable (a perf investigation, a pre-merge budget
+gate), re-run just those specs under `hwlock ryzen <cmd>`: it waits for other
+opt-in holders, keeps `remote-run` jobs off ryzen, and frees itself if the
+run dies. Hold it for the budget specs only, never a whole suite: while it is
+held every other session's compute is squeezed onto nexus. Enforcing the lock
+on every `PW_REMOTE` run was tried on 2026-09-27 and reverted the same day,
+because one hour-long correctness run stalled every session. `hwlock status`,
+or HA's `sensor.nexus_hwlock_compute_locks`, shows who holds what; details in
+`serverconfig/ryzen.md`, "Resource locks".
 
 **nexus's own Radeon 680M works for non-measurement runs** (since
 2026-09-27): a local run (no `PW_REMOTE`) gets real WebGPU there, not
@@ -136,8 +141,8 @@ persistent, reusable infrastructure, not scoped to whichever plan first
 needed one — see README's "Tier 2: the GPU harness" and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
 `ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
-slot should say so if asked; there's no reservation system for ports (the
-GPU itself is reserved with `hwlock ryzen`, above).
+slot should say so if asked; there's no reservation system for ports (for
+clean GPU numbers, see `hwlock ryzen` above).
 
 ## Fetching third-party models
 
