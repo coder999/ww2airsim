@@ -121,7 +121,8 @@ must print `200`.
 
 ## Open, for Mark
 
-- **The drawn Wildcat sits about 2.2 m above its sim body origin and flies
+- **Resolved 2026-09-28** ([parked stance](2026-09-28-parked-stance.md)).
+  **The drawn Wildcat sits about 2.2 m above its sim body origin and flies
   7.33° nose-high.** Its origin is the wheel contact plane, and its `Avion`
   node is pitched. Re-seating it changes every view, the eye point and these
   mounts. `wildcatMounts.test.ts` will name every offset to re-measure

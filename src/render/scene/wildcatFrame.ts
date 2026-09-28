@@ -8,7 +8,7 @@
  * `Cannot read properties of undefined (reading 'BASE_URL')`). wildcat.ts
  * re-exports everything here.
  */
-import { Group } from 'three'
+import { Group, Quaternion, Vector3 } from 'three'
 
 /**
  * The Wildcat model (content/aircraft/wildcat.glb, ASSETS.md) is authored
@@ -39,19 +39,31 @@ export const WILDCAT_SCALE = TARGET_WINGSPAN_M / WILDCAT_NATIVE_WINGSPAN_M
  * The model's own datum pitch: its `Avion` node is authored 7.33 degrees nose-up (the
  * three-point ground stance, baked in). Measured 2026-09-26 from that node's rotation
  * quaternion (x -0.0639023408293724, w 0.9979561567306519): 2 * atan2(0.0639..., 0.9979...).
- * Stores hang parallel to the DRAWN datum (O1), so they are pitched by this about +Z;
- * tests/tools/models/wildcatMounts.test.ts re-reads it from the glb. The model is also drawn
- * about 2.2 m high relative to the sim body origin (its origin is the wheel contact plane):
- * recorded in the O1 handoff, deliberately not re-seated here.
+ * tests/tools/models/wildcatMounts.test.ts re-reads it from the glb.
+ *
+ * wildcatCorrection() pitches the model back down by exactly this, so the drawn Wildcat flies
+ * level like every other model (2026-09-28: until then it flew 7.33 degrees nose-high). Its
+ * stance on the ground is the renderer's job now, the same as for every taildragger
+ * (src/render/scene/stance.ts), so nothing downstream of the correction sees this angle.
  */
 export const WILDCAT_DATUM_PITCH_RAD = 0.12789182382108172
+
+/**
+ * How far the correction lowers the model, metres, so its main wheels meet
+ * content/aircraft/f4f-wildcat.json's gear.heightM below the sim body origin. The glb's
+ * origin is its wheel contact plane, so until 2026-09-28 the drawn Wildcat stood with its
+ * wheels AT the body origin, 2.2 m above the ground it was parked on (O1 handoff; Mark's
+ * screenshot that day). tests/render/stance.test.ts holds every drawn model's mains to its
+ * spec's gear.heightM within 0.05 m, this one included.
+ */
+export const WILDCAT_OFFSET_Y_M = -1.872
 
 /** The correction group's name, so tests can find it in a loaded airframe. */
 export const WILDCAT_CORRECTION_NAME = 'wildcat-correction'
 
 /**
- * The ONE place the drawn Wildcat's model-to-sim correction is built: rotation Y and a
- * uniform scale, no translation and no pitch. wildcat.ts wraps the loaded model in this
+ * The ONE place the drawn Wildcat's model-to-sim correction is built: rotation Y, the pitch
+ * that levels the datum, a uniform scale and the drop onto gear.heightM. wildcat.ts wraps the loaded model in this
  * group, and wildcatToSimMatrix() below reads its matrix, so the transform the mounts are
  * measured through cannot drift from the one the airplane is drawn with.
  * tests/render/wildcat.test.ts asserts a loaded airframe's group equals the matrix.
@@ -59,8 +71,11 @@ export const WILDCAT_CORRECTION_NAME = 'wildcat-correction'
 export function wildcatCorrection(): Group {
   const g = new Group()
   g.name = WILDCAT_CORRECTION_NAME
-  g.rotation.y = WILDCAT_TO_SIM_ROTATION_Y
+  // Yaw into the sim frame first, then level about sim +Z (nose-up positive).
+  const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), WILDCAT_TO_SIM_ROTATION_Y)
+  g.quaternion.setFromAxisAngle(new Vector3(0, 0, 1), -WILDCAT_DATUM_PITCH_RAD).multiply(yaw)
   g.scale.setScalar(WILDCAT_SCALE)
+  g.position.set(0, WILDCAT_OFFSET_Y_M, 0)
   return g
 }
 

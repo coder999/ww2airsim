@@ -13,7 +13,7 @@ import { fitMount, sceneTriangles, wingSection, type MountFit, type WingSection 
 import type { MeshData } from './generated/mesh.js'
 import { anM65Mesh } from './generated/an-m65.js'
 import { hvarMesh } from './generated/hvar.js'
-import { WILDCAT_DATUM_PITCH_RAD, wildcatToSimMatrix } from '../../src/render/scene/wildcatFrame.js'
+import { wildcatToSimMatrix } from '../../src/render/scene/wildcatFrame.js'
 import { loadAircraftSpec } from '../content/load.js'
 import type { Stores } from '../../src/sim/flight/schema.js'
 
@@ -34,12 +34,6 @@ export const WING_MIN_X_M = -2
 export const STORE_MESHES: Readonly<Record<string, () => MeshData>> = { 'an-m65': anM65Mesh, hvar: hvarMesh }
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
-
-/** The drawn wing's datum pitch: the Wildcat glb is posed nose-up (its Avion rotation); an R3
- *  model is built level, thrust line on x (R3 P13), so 0. */
-export function datumPitchFor(model: string): number {
-  return model === 'wildcat' ? WILDCAT_DATUM_PITCH_RAD : 0
-}
 
 export function wildcatSectionAt(): Promise<(z: number) => WingSection> {
   return sectionAtFor('wildcat')
@@ -62,7 +56,7 @@ export async function sectionAtFor(model: string): Promise<(z: number) => WingSe
   }
 }
 
-export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<Stores, 'racks' | 'rails'>, pitchRad: number = WILDCAT_DATUM_PITCH_RAD): { racks: MountFit[]; rails: MountFit[] } {
+export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<Stores, 'racks' | 'rails'>, pitchRad: number = 0): { racks: MountFit[]; rails: MountFit[] } {
   const mesh = (id: string): MeshData => {
     const make = STORE_MESHES[id]
     if (!make) throw new Error(`mounts: no generated mesh for store "${id}" (have ${Object.keys(STORE_MESHES).join(', ')})`)
@@ -77,7 +71,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const id of ['f6f-hellcat', 'f4f-wildcat']) {
     const spec = loadAircraftSpec(id)
     if (!spec.stores) continue
-    const r = fitStores(await sectionAtFor(spec.view.model), spec.stores, datumPitchFor(spec.view.model))
+    const r = fitStores(await sectionAtFor(spec.view.model), spec.stores)
     console.log(`${id} (drawn as ${spec.view.model})`)
     spec.stores.racks.forEach((m, i) => console.log(`  ${m.id}: ${JSON.stringify(r.racks[i]!.offset)}  drop ${r.racks[i]!.dropM} m`))
     spec.stores.rails.forEach((m, i) => console.log(`  ${m.id}: ${JSON.stringify(r.rails[i]!.offset)}  drop ${r.rails[i]!.dropM} m`))

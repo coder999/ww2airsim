@@ -6,7 +6,7 @@ import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
-import { WILDCAT_DATUM_PITCH_RAD, wildcatCorrection } from './wildcatFrame.js'
+import { wildcatCorrection } from './wildcatFrame.js'
 
 /** The model-to-sim frame lives in wildcatFrame.ts (Node-safe for tools/models/mounts.ts);
  *  re-exported so every importer of this module keeps working. */
@@ -89,7 +89,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
   let freeVisuals = (): void => {}
   if (stores !== undefined) {
     const ids = [...stores.racks, ...stores.rails].map((m) => m.store)
-    const visuals = await loadStoreVisuals(ids, WILDCAT_DATUM_PITCH_RAD, acquire).catch((e: unknown) => {
+    const visuals = await loadStoreVisuals(ids, 0, acquire).catch((e: unknown) => {
       console.warn(`wildcat: store models failed (${e instanceof Error ? e.message : String(e)}); hanging primitive stand-ins`)
       const trim = new MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.5 })
       const p = primitiveStoreVisuals(stores, trim)
