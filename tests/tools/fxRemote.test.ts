@@ -72,10 +72,29 @@ describe('fx bake transport (plan E2 Rulings R1, R10)', () => {
   })
 
   it('local transfer is a plain rsync with no ssh/WSL transport (Task 7 Step 0)', () => {
-    const a = localRsyncArgs('tools/fx/blender/', '~/fxbake-local/e2-flipbooks/scripts/', { delete: true, mkpath: true, exclude: ['__pycache__/'] })
+    const a = localRsyncArgs('tools/fx/blender/', '/home/mark/fxbake-local/e2-flipbooks/scripts/', { delete: true, mkpath: true, exclude: ['__pycache__/'] })
     expect(a.join(' ')).not.toContain('ssh')
     expect(a.join(' ')).not.toContain('wsl')
     expect(a).toEqual(expect.arrayContaining(['--delete', '--mkpath', '--exclude', '__pycache__/']))
-    expect(a.slice(-2)).toEqual(['tools/fx/blender/', '~/fxbake-local/e2-flipbooks/scripts/'])
+    expect(a.slice(-2)).toEqual(['tools/fx/blender/', '/home/mark/fxbake-local/e2-flipbooks/scripts/'])
+  })
+
+  it('localRsyncArgs refuses a literal ~ path: rsync is spawned with no shell, so ~ is never expanded (Task 7 fix round)', () => {
+    expect(() => localRsyncArgs('~/fxbake-local/e2-flipbooks/scripts/', '/tmp/x/', {})).toThrow(/~/)
+    expect(() => localRsyncArgs('/tmp/x/', '~/fxbake-local/e2-flipbooks/scripts/', {})).toThrow(/~/)
+    expect(() => localRsyncArgs('/tmp/x/', '/tmp/y/', {})).not.toThrow()
+  })
+
+  it('the bake script refuses to run outside its own directory: mkdir+cd guard runs before any rm -rf (Task 7 fix round)', () => {
+    const s = remoteScript(run)
+    const cdGuard = 'cd ~/fxbake/e2-flipbooks || { echo "fx bake: cannot cd to ~/fxbake/e2-flipbooks"; exit 2; }'
+    expect(s).toContain('mkdir -p ~/fxbake/e2-flipbooks')
+    expect(s).toContain(cdGuard)
+    const mkdirIdx = s.indexOf('mkdir -p ~/fxbake/e2-flipbooks')
+    const cdIdx = s.indexOf(cdGuard)
+    const rmIdx = s.indexOf('rm -rf')
+    expect(mkdirIdx).toBeGreaterThanOrEqual(0)
+    expect(cdIdx).toBeGreaterThan(mkdirIdx)
+    expect(rmIdx).toBeGreaterThan(cdIdx)
   })
 })

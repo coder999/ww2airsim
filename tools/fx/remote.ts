@@ -40,7 +40,8 @@ export function remoteScript(r: BakeRun): string {
   const log = `log-${done.replace(/\.json$/, '')}.txt`
   return [
     'set -uo pipefail',
-    `cd ~/${dir}`,
+    `mkdir -p ~/${dir}`,
+    `cd ~/${dir} || { echo "fx bake: cannot cd to ~/${dir}"; exit 2; }`,
     `rm -rf ${clean} ${done}`,
     `${blender} --version | head -1 | grep -qx 'Blender ${FX_BLENDER_VERSION}' || { echo "fx bake: ${blender} is not Blender ${FX_BLENDER_VERSION}"; exit 3; }`,
     `timeout ${Math.round(r.timeoutS)} ${blender} -b --factory-startup --python-exit-code 1 --python-expr 'import sys; sys.dont_write_bytecode = True' -P scripts/${script} -- ${done} ${args} > ${log} 2>&1`,
@@ -104,11 +105,19 @@ export function remoteDirFor(host: string, checkout: string): string {
 }
 
 /** Same transfer as rsyncArgs, but purely local: FX_BAKE_HOST=local copies scripts and frames to and
- *  from `~/fxbake-local/<checkout>/` with a plain local rsync, no ssh/WSL transport (Task 7 Step 0). */
+ *  from `~/fxbake-local/<checkout>/` with a plain local rsync, no ssh/WSL transport (Task 7 Step 0).
+ *  Callers must resolve `~` themselves (e.g. with `os.homedir()`): this rsync is spawned with no
+ *  shell (Task 7 fix round), so a literal `~` is never expanded and silently becomes a directory
+ *  named `~` instead of the real home. */
 export function localRsyncArgs(
   from: string, to: string,
   opts: { readonly delete?: boolean; readonly mkpath?: boolean; readonly exclude?: readonly string[] } = {},
 ): string[] {
+  for (const p of [from, to]) {
+    if (p.startsWith('~')) {
+      throw new Error(`localRsyncArgs: ${JSON.stringify(p)} starts with ~, which a shell-less rsync never expands; resolve it with os.homedir() first`)
+    }
+  }
   return [
     '-a', ...(opts.delete ? ['--delete'] : []), ...(opts.mkpath ? ['--mkpath'] : []),
     ...(opts.exclude ?? []).flatMap((e) => ['--exclude', e]),

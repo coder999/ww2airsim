@@ -12,6 +12,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FX_SHEETS, type FxSheetName } from '../../src/render/fx/sheetManifest.js'
@@ -51,7 +52,7 @@ function main(): void {
     throw new Error(`fx:render: ${HOST} is not answering. ${hint}.\n${String(e)}`)
   }
   run('rsync', LOCAL
-    ? localRsyncArgs(SCRIPTS, `~/${REMOTE}/scripts/`, { delete: true, mkpath: true, exclude: ['__pycache__/'] })
+    ? localRsyncArgs(SCRIPTS, join(homedir(), REMOTE, 'scripts') + '/', { delete: true, mkpath: true, exclude: ['__pycache__/'] })
     : rsyncArgs(SCRIPTS, `${HOST}:${REMOTE}/scripts/`, { delete: true, mkpath: true, exclude: ['__pycache__/'] }))
   const probe = lastJson(onHost(remoteScript({
     remoteDir: REMOTE, blender: BLENDER, script: 'probe.py', doneName: 'done-probe.json', cleanDir: 'probe', args: ['--out', 'probe'], timeoutS: 600,
@@ -69,7 +70,7 @@ function main(): void {
     onHost(remoteScript({ remoteDir: REMOTE, blender: BLENDER, script: `${name}.py`, doneName: `done-${name}.json`, cleanDir: `out/${name}`, args, timeoutS: TIMEOUT_S }))
     mkdirSync(join(RENDERS, name), { recursive: true })
     run('rsync', LOCAL
-      ? localRsyncArgs(`~/${REMOTE}/out/${name}/`, join(RENDERS, name) + '/', { delete: true, exclude: ['cache/'] })
+      ? localRsyncArgs(join(homedir(), REMOTE, 'out', name) + '/', join(RENDERS, name) + '/', { delete: true, exclude: ['cache/'] })
       : rsyncArgs(`${HOST}:${REMOTE}/out/${name}/`, join(RENDERS, name) + '/', { delete: true, exclude: ['cache/'] }))
     const metaFile = join(RENDERS, name, 'meta.json')
     if (!existsSync(metaFile)) throw new Error(`fx:render: ${name} came back without meta.json`)
