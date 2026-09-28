@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, diveToSea, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
  * Tier 2, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
@@ -88,17 +88,15 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   await expect(readout).toContainText('FRIENDLY FIRE')
   await expect(readout).not.toContainText('CEASE FIRE')
   await page.screenshot({ path: 'test-results/friendly-fire-warning.png' })
-  // The call clears after RADIO_SHOW_MS (5 s). The wait is also load-bearing:
-  // the dive below was measured starting ~5 s after the hit (when the
-  // readout's old transient call cleared), and started at once it bottoms
-  // out in a phugoid 70-140 m above the sea instead of going in (probe on
-  // the reference GPU, 2026-09-27, identical on main).
+  // The call clears after RADIO_SHOW_MS (5 s).
   await expect(page.getByRole('status', { name: 'Radio' })).toBeHidden({ timeout: 15_000 })
 
-  // -- Dive into the sea: pitchDown is ArrowUp (src/input/bindings.ts).
-  await page.keyboard.down('ArrowUp')
-  await expect(debriefDialog(page)).toBeVisible({ timeout: 60_000 })
-  await page.keyboard.up('ArrowUp')
+  // -- Into San Pedro Bay. `diveToSea` holds the nose down only while the sink
+  // is shallow: this spec used to hold it throughout, which flies an outside
+  // loop. Measured on the reference GPU after the sortie-forms merge
+  // (2026-09-27): from 783 m it bottomed at 99 m and climbed back to 690 m, three
+  // runs of three, never reaching the sea (earlier notes called it a phugoid).
+  await diveToSea(page)
   const debrief = debriefDialog(page)
   await expect(debrief).toContainText('KILLED')
   await expect(debrief).not.toContainText('DISHONORABLE DISCHARGE')
