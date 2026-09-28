@@ -105,9 +105,15 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   set `view.model` in `content/ships/<spec>.json`. The Hangar spec names a
   `content/ships/models.json` for this, but that file was never created; S1
   registered ships in `SHIP_MODELS` instead.
-- **Buildings and vehicles:** add the id to `STATIC_MODELS` in
+- **Vehicles:** add the id to `STATIC_MODELS.vehicle` in
+  [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts)
+  and name it in the Library entry's `model`. A vehicle stands on y = 0,
+  centered on its footprint, nose to +x;
+  `tests/tools/models/vehicleModels.test.ts` measures it against its cited
+  length, width and height (R5).
+- **Buildings:** add the id to `STATIC_MODELS.building` in
   [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts).
-  They have no sim spec and no `view.model`; the Hangar draws them in place
+  They have no sim spec and no `view.model`; the Hangar draws one in place
   of one, through a Library entry's `model` (R1, step 8).
 
 Tier 1 fails if a spec names a model id that is not registered.
@@ -124,8 +130,8 @@ An entry may also carry an optional `model: { "kind", "id" }` (R1), where
 spec, the entry reads "not in the game yet" instead of "not yet in service".
 Tier 1 checks that every `model` resolves: it is registered (step 7), has a
 manifest entry, sits in the right output folder, and its glb is committed.
-An entry the plan now draws must come off `NOT_YET_DRAWN` in
-`tests/render/hangar/roster.test.ts`, with `CEILING` lowered to match.
+Every entry must now arrive with its model: R5 deleted the allowlist, and
+`tests/render/hangar/roster.test.ts` asserts that nothing is undrawn.
 
 ## 9. Check
 
@@ -149,6 +155,7 @@ An entry the plan now draws must come off `NOT_YET_DRAWN` in
   - every rigged aircraft's gizmos are its props and legs (check 13, R3)
   - its card's Model row names where it came from, from its entry's `source`,
     and the Origin filter lists it as internal or external (check 14)
+  - every Library entry is drawn: there is no allowlist (check 12, R5)
 
 ## Generated models
 

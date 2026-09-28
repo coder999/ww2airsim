@@ -303,7 +303,8 @@ test.describe('the Hangar', () => {
     const ids = await entries(page)
     expect(all - notDrawn).toBe(ids.length)
     for (const id of ids) await expect(page.locator(`ul[aria-label="Objects"] button[data-id="${id}"]`)).not.toContainText('(not yet in service)')
-    expect(notDrawn).toBeGreaterThan(0)
+    // R5: nothing in the Library is undrawn.
+    expect(notDrawn).toBe(0)
   })
 
   /**

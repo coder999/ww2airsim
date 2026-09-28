@@ -9,12 +9,9 @@ import { loadModelEntries, type ModelEntry } from '../../../tools/models/manifes
 import { nodeHangarContent } from './content.js'
 
 /**
- * Library entries the Hangar cannot draw yet (model-roster spec §1: "done is an assertion").
- * Each roster plan removes the entries it models and lowers CEILING to match; R4 took the
- * buildings off; R5 deletes both. The list may shrink, never grow.
+ * R5 deleted the allowlist on 2026-09-28. Nothing is undrawn now, so a new Library entry must
+ * arrive with its model; the assertions below fail if it does not (model-roster spec §1).
  */
-const NOT_YET_DRAWN: readonly string[] = []
-const CEILING = 0
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
@@ -37,18 +34,15 @@ const content = nodeHangarContent()
 const catalog = buildCatalog(content)
 const entries = loadModelEntries()
 
-describe('the roster is done when this list is empty (model-roster spec §1)', () => {
-  it('exactly the allowlisted entries are the ones the Hangar cannot draw', () => {
-    expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id).sort()).toEqual([...NOT_YET_DRAWN].sort())
+describe('the roster is done: every Library entry is drawn (model-roster spec §1, R5)', () => {
+  it('the Hangar can draw every entry in the Library', () => {
+    expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id)).toEqual([])
   })
 
-  it('the allowlist never grows', () => {
-    expect(NOT_YET_DRAWN.length).toBeLessThanOrEqual(CEILING)
-  })
-
-  it('no Library building is left on it (R4)', () => {
-    const kind = new Map(content.library.map((e) => [e.id, e.kind]))
-    expect(NOT_YET_DRAWN.filter((id) => kind.get(id) === 'building')).toEqual([])
+  it('every building and vehicle names its own model', () => {
+    for (const e of content.library.filter((x) => x.kind === 'building' || x.kind === 'vehicle')) {
+      expect(e.model, e.id).toEqual({ kind: e.kind, id: e.id })
+    }
   })
 })
 

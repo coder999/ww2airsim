@@ -84,8 +84,13 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
   })
 
   it('"Not yet in service" loads nothing', async () => {
-    // No spec and no model of its own (R3: the first spec-less entry, the Corsair, gained a model).
-    expect(await loadHangarModel(catalog.find((e) => e.subject === null && e.library.model === undefined)!)).toBeNull()
+    // No shipped entry is undrawn since R5, so the case is a copy of the jeep with its model removed.
+    const c = nodeHangarContent()
+    const bare = { ...c.library.find((e) => e.id === 'willys-mb-jeep')!, id: 'test-undrawn' }
+    delete (bare as { model?: unknown }).model
+    const entry = buildCatalog({ ...c, library: [bare] })[0]!
+    expect(entry.subject).toBeNull()
+    expect(await loadHangarModel(entry)).toBeNull()
   })
 
   it('the flat field is height 0 everywhere', () => {
