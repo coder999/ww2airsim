@@ -1,0 +1,12 @@
+{
+  "id": "radio-radar-station",
+  "output": "content/buildings/radio-radar-station.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/radio-radar-station.py",
+    "dimensions": "a generic early-warning station; every figure is an ESTIMATE labeled in the script's header (no matching dimensional primary source found, searched 2026-09-27)",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
+}
