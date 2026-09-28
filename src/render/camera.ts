@@ -60,13 +60,13 @@ export const CHASE_PITCH_FOLLOW = 0.92
 
 /** Rotation about world +Y from the identity nose (+X/east), not a compass
  * bearing. North (-Z) is +pi/2 here; the compass reads 000 there. */
-function headingOf(q: Quat): number {
+export function headingOf(q: Quat): number {
   const fwd = qRotate(q, v3(1, 0, 0))
   return Math.atan2(-fwd.z, fwd.x)
 }
 
 /** Pitch of an attitude, radians, positive nose-up. */
-function pitchOf(q: Quat): number {
+export function pitchOf(q: Quat): number {
   const fwd = qRotate(q, v3(1, 0, 0))
   return Math.asin(Math.max(-1, Math.min(1, fwd.y)))
 }
