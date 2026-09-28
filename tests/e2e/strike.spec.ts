@@ -6,7 +6,7 @@ import { localToWorld } from '../../src/sim/world/airfields.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import type { Loadout } from '../../src/sim/weapons/stores.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/fetchedLevel.js'
 /** The level a real page load actually flies over today -- see
  *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
  *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
