@@ -76,13 +76,13 @@ export type RecoveryContext = Pick<PilotTickContext, 'nowS' | 'terrain' | 'ships
 
 /** 7c-7g §6 triggers, 7g spec §1. The fuel one is practically dormant:
  *  FUEL_KG_PER_JOULE (flight/model.ts) makes a full load last hours. */
-export function shouldReturn<M>(a: AircraftEntity<M>, record: AircraftCombat, decision: PilotDecisionState, nowS: number): boolean {
+export function shouldReturn<M>(a: AircraftEntity<M>, record: AircraftCombat, decision: PilotDecisionState, nowS: number, checkIdle = true): boolean {
   if (a.state.fuelKg / a.spec.mass.fuelCapacityKg <= RTB_FUEL_FRACTION) return true
   if (record.guns.length > 0 && record.guns.every((g) => g.ammo <= 0)) return true
   if (record.damage.structure < RTB_STRUCTURE) return true
   // pilotTick seeds lastContactS at a homed pilot's first rescore (ruling
   // P10); the `?? nowS` only keeps a hand-built decision from going home.
-  return nowS - (decision.lastContactS ?? nowS) >= RTB_IDLE_S
+  return checkIdle && nowS - (decision.lastContactS ?? nowS) >= RTB_IDLE_S
 }
 
 /** 7c-7g §6: aircraft recovering to one home begin their approaches (`join`)

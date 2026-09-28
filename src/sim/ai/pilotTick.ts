@@ -151,8 +151,8 @@ export function pilotTick<M>(
         else part = true
       }
     } else if (pilot.home !== undefined) {
-      // A wingman with a flying leader goes home with it (peel-off) or once it is lost (P20), never alone.
-      const goHome = !recovering && !(leader !== null && leaderFlying) && shouldReturn(a, record, decision, ctx.nowS)
+      // A wingman with a flying leader ignores the idle trigger (it goes home with the leader, or once it is lost, P20); fuel, ammo and damage still send it home alone.
+      const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS, !(leader !== null && leaderFlying))
       // On the wheels, or committed by the cut, a threat no longer pre-empts: gear up on the ground crashes.
       const phase = decision.recovery?.phase
       const committed = recovering && (phase === 'rollout' || (phase === 'final' && decision.recovery!.cut))

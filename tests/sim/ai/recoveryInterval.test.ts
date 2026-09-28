@@ -222,6 +222,16 @@ describe('the landing interval (7c-7g §6, Review Focus 3)', () => {
     expect([...modes]).toEqual(['formation'])
   })
 
+  it('a homed wingman of a flying leader still goes home alone when its own guns are empty', () => {
+    const w0 = buildRecovery([{ ...homed('ai-2', { ship: 'cv-1' }, [0, 1000, 20000]), pilot: { skill: 'veteran', leader: 'f6f-1', slot: 1, home: { ship: 'cv-1' } } }])
+    const w = withGunsEmpty(onApproach(w0, 'ai-2', { alongM: WING_START_ALONG_M + 80, acrossM: 100, wheelM: START_WHEEL_M, airspeedMps: START_AIRSPEED_MPS }), 'ai-2')
+    const modes = new Set<string>()
+    fly(w, 20, (x) => {
+      modes.add(aircraftById(x, 'ai-2')!.pilot!.decision.mode)
+    })
+    expect(modes.has('rtb')).toBe(true)
+  })
+
   it('a wingman without a home keeps station through the transit, then loiters when its leader peels off', () => {
     const wing = { ...homed('ai-2', { ship: 'cv-1' }, [0, 1000, 20000]), pilot: { skill: 'veteran', leader: 'ai-1', slot: 1 } }
     const w = withGunsEmpty(wingPair(wing), 'ai-1')
