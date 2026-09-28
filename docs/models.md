@@ -59,7 +59,8 @@ The reasoning behind them is in the
 ships add the `ship` block from the
 [ship-models design](superpowers/specs/2026-09-25-ship-models-design.md).
 Name articulated parts as `keep` or `split` nodes. Turrets follow the Hangar
-spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern.
+spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern; a building
+has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
 Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
 tail, dorsal before ventral at one station. Every one needs a `pivot`: the
@@ -173,6 +174,15 @@ geometry is fractions of the cited length and span (R3). Never build an
 aircraft part on the kit's `tapered_box`, `cylinder` or `turret`: they are
 wound inside out (found 2026-09-27, hidden by double-sided materials; see
 the R3 handoff).
+
+A building (R4) takes its parts from the kit: `frustum`, `gable_roof`, `tank`, `sandbag_ring`, `strut`,
+`gun_barrel` and `lattice_mast`, all wound outward and checked by
+`tests/tools/models/blender/kitBuildings.test.ts`. One kit node is one draw call, so the building
+budget's 4 draw calls means at most four roles or named nodes, turrets included. A building script
+sets literal `FOOTPRINT_X_M`, `FOOTPRINT_Z_M`, `HEIGHT_M` and `BASE_Y_M`, which
+`tests/tools/models/buildingModels.test.ts` measures against the committed glb without Blender,
+along with its budget, its turret names and a check that no two paints z-fight. Its front faces +x;
+the hangar, which opens toward +z as the game's does, is the exception.
 
 ```sh
 npx tsx tools/models/blender/cli.ts <id> [--key value ...]

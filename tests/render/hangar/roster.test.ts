@@ -10,8 +10,8 @@ import { nodeHangarContent } from './content.js'
 
 /**
  * Library entries the Hangar cannot draw yet (model-roster spec §1: "done is an assertion").
- * Each roster plan removes the entries it models and lowers CEILING to match; R5 deletes both,
- * and this test then asserts none remain. The list may shrink, never grow.
+ * Each roster plan removes the entries it models and lowers CEILING to match; R4 took the
+ * buildings off; R5 deletes both. The list may shrink, never grow.
  */
 const NOT_YET_DRAWN = [
   'type97-chi-ha', 'willys-mb-jeep',
@@ -46,6 +46,11 @@ describe('the roster is done when this list is empty (model-roster spec §1)', (
 
   it('the allowlist never grows', () => {
     expect(NOT_YET_DRAWN.length).toBeLessThanOrEqual(CEILING)
+  })
+
+  it('no Library building is left on it (R4)', () => {
+    const kind = new Map(content.library.map((e) => [e.id, e.kind]))
+    expect(NOT_YET_DRAWN.filter((id) => kind.get(id) === 'building')).toEqual([])
   })
 })
 

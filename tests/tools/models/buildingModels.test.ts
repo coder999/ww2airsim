@@ -13,6 +13,8 @@ import { findNode, meshNodes, modelIO, onlyScene } from '../../../tools/models/d
 import { measureDocument } from '../../../tools/models/measure.js'
 import { coplanarOverlaps, scriptConstant, worldTriangles } from './buildingGeometry.js'
 import { AIRFIELD_HUTS } from '../../../src/render/scene/airfield.js'
+import { STATIC_MODELS } from '../../../src/render/scene/staticModels.js'
+import { nodeHangarContent } from '../../render/hangar/content.js'
 
 /** Spec §4.4. An entry may budget above it only with a measured reason, here and in the ledger. */
 const BUILDING_BUDGET = { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4 } as const
@@ -113,5 +115,16 @@ describe("footprints the sim owns (content/bases, the sim is authoritative)", ()
     const src = scriptOf('barracks-and-huts')
     expect(scriptConstant(src, 'BARRACKS_WIDTH_M')).toBe(hut.width)
     expect(scriptConstant(src, 'BARRACKS_LENGTH_M')).toBe(hut.length)
+  })
+})
+
+describe('the building roster is complete (R4)', () => {
+  const library = nodeHangarContent().library.filter((e) => e.kind === 'building')
+  it('every Library building names its own building model, and every registered building model is one', () => {
+    for (const e of library) expect(e.model, e.id).toEqual({ kind: 'building', id: e.id })
+    expect(Object.keys(STATIC_MODELS.building).sort()).toEqual(library.map((e) => e.id).sort())
+  })
+  it('R4 measured all of them but the hangar, which R1 measures', () => {
+    expect([...R4_BUILDINGS].sort()).toEqual(library.map((e) => e.id).filter((id) => id !== 'hangar').sort())
   })
 })

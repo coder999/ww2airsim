@@ -180,6 +180,17 @@ describe("an entry's own model (R1)", () => {
     expect(released()).toBe(1)
   })
 
+  it('every Library building draws its own model through the display loader, and one with a spec keeps its figures (R4)', async () => {
+    const buildings = buildCatalog(nodeHangarContent()).filter((e) => e.library.kind === 'building')
+    expect(buildings).toHaveLength(10)
+    for (const entry of buildings) {
+      const seen: unknown[] = []
+      await loadHangarModel(entry, undefined, undefined, undefined, async (ref) => { seen.push(ref); return instance().inst })
+      expect(seen, entry.library.id).toEqual([{ kind: 'building', id: entry.library.id }])
+    }
+    for (const id of ['hangar', 'tower', 'aaa']) expect(byId(id).subject?.kind, id).toBe('building')
+  })
+
   it('a spec-less aircraft model loads by its id with no stores, stands on the pad by its bounds, and has no mounts', async () => {
     const c = nodeHangarContent()
     const corsair = { ...c.library.find((e) => e.id === 'f4u-corsair')!, model: { kind: 'aircraft' as const, id: 'wildcat' } }
