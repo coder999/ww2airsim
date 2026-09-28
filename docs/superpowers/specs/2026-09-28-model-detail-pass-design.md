@@ -1,7 +1,8 @@
 # Model detail pass: bring every Blender model up to the downloads
 
-Design, 2026-09-28. Written at Mark's request the same day, for his review
-before any plan is written. **It starts after R4/R5 merge** (§7). Plan
+Design, 2026-09-28. Written at Mark's request the same day. **Approved by
+Mark 2026-09-28 ("Looks good"), with every §8 question ruled as
+recommended.** **It starts after R4/R5 merge** (§7). Plan
 numbering stays with the master spec's §15; this work adds one row there,
 "Model detail pass (DP0-DP3)", when DP0 is planned.
 
@@ -170,7 +171,7 @@ or in worktrees with kit changes landing only in DP0.
 
 ## 8. Questions for Mark
 
-Each has a recommendation, which the plans assume unless Mark rules otherwise.
+**Ruled 2026-09-28: all five as recommended** (Mark approved the spec as written).
 
 1. **Do the 4 untextured downloaded ships (Essex, Cleveland, Mogami, Yamato) join this pass?** *Recommend yes.* Otherwise the flat-shaded set just moves from "Blender" to "some ships", which is the same inconsistency Mark ruled out. The Essex is the one the player sees most: it is the carrier in five scenarios.
 2. **Finish: factory-fresh or Pacific-worn?** *Recommend worn:* chalking and fading on IJN green, exhaust and gun staining, deck wear. It is what period photographs show, and it hides the procedural origin better.
