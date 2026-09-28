@@ -33,13 +33,17 @@ const fixtureWind = (page: Page) =>
  * light enough that the same hop balloons to 60-84 m and never comes back
  * down in the harness's window (measured on the reference GPU 2026-09-26).
  * So each test first proves the recommendation was applied, then changes it
- * (spec §3: "preselected and changeable") and flies with Both.
+ * (spec §3: "preselected and changeable") and flies with Both. Since the
+ * sortie forms the loadout is on Form 4, so this walks there and launches.
  */
 async function flyWithBoth(title: Locator) {
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
   const loadout = title.getByRole('radiogroup', { name: 'Loadout' })
-  await expect(loadout.getByRole('radio', { name: 'Clean' })).toHaveAttribute('aria-checked', 'true')
+  await expect(loadout.getByRole('radio', { name: 'Clean (recommended)' })).toHaveAttribute('aria-checked', 'true')
   await loadout.getByRole('radio', { name: 'Both' }).check()
   await expect(loadout.getByRole('radio', { name: 'Both' })).toHaveAttribute('aria-checked', 'true')
+  await title.getByRole('button', { name: 'Launch' }).click()
 }
 
 /** Exact: the chart's objectives list is labeled `Objectives`, and a
@@ -49,11 +53,14 @@ const mission = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2
 
 async function orders(page: Page, pilot: string) {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  await page.goto('/')
+  // The fixtures are Dev-only (sortie spec A1); `recordDevSorties` (SF-R6)
+  // keeps the badge and Dossier this spec proves.
+  await page.goto('/?recordDevSorties')
   const title = page.getByRole('dialog', { name: 'Title' })
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill(pilot)
   await title.getByRole('button', { name: 'Add' }).click()
+  await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
   await title.getByRole('button', { name: 'New game' }).click()
   return title
 }
@@ -103,7 +110,6 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   }
   await page.screenshot({ path: 'test-results/m2-briefing.png' })
   await flyWithBoth(title)
-  await title.getByRole('button', { name: 'Launch' }).click()
   await onStrip(page, 'dev-mission-ui')
 
   await expect(objectiveLine(page)).toHaveText('TAKE OFF')
@@ -154,7 +160,6 @@ test('an intermediate landing shows on the radio line and the flight continues (
   const title = await orders(page, 'Circuit Pilot')
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Circuit Fixture (dev)' }).check()
   await flyWithBoth(title)
-  await title.getByRole('button', { name: 'Launch' }).click()
   await onStrip(page, 'dev-mission-circuit')
   await expect(objectiveLine(page)).toHaveText('CIRCUIT 0/2')
 

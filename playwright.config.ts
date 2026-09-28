@@ -115,6 +115,23 @@ const CHROMIUM_ARGS = [
   '--disable-features=UseDnsHttpsSvcb',
 ]
 
+
+/**
+ * A LOCAL run on nexus reaches its Radeon 680M only through ANGLE's Vulkan
+ * backend; without these two flags headless Chromium on Linux silently hands
+ * WebGPU a SwiftShader fallback adapter. Measured 2026-09-27 on nexus
+ * (Chromium 1246): with them `requestAdapter()` gives amd / rdna-2,
+ * isFallbackAdapter false; without them google / swiftshader. The process also
+ * needs the `render` group. Linux only: ANGLE backend flags broke the adapter
+ * on the Windows reference platform (see `--use-angle=d3d12` above), and the
+ * remote path never reads `launchOptions` anyway. The 680M is roughly a
+ * quarter of the reference GPU, so a local run is for correctness and
+ * screenshots; its budget numbers mean nothing. The app's adapter guard cannot
+ * tell them apart: it reported the 680M as "Reference platform: amd rdna-2"
+ * the same day, so a green adapter.spec.ts on nexus proves real hardware only.
+ */
+const LOCAL_LINUX_ARGS = process.platform === 'linux' ? ['--use-angle=vulkan', '--enable-features=Vulkan'] : []
+
 export default defineConfig({
   testDir: 'tests/e2e',
   // Longer than the default per-action wait below (30s, left unchanged) so a
@@ -134,11 +151,15 @@ export default defineConfig({
       ? {
           wsEndpoint: process.env.PW_REMOTE,
           headers: {
-            'x-playwright-launch-options': JSON.stringify({
-              channel: 'chromium',
-              headless: false,
-              args: CHROMIUM_ARGS,
-            }),
+            'x-playwright-launch-options': JSON.stringify(
+              process.env.PW_SESSION0
+                ? // A run-server in ryzen's session 0 (started over SSH, no console
+                  // login): no display, so headless, and ANGLE's default backend gets
+                  // no GPU there while d3d11 gets the real one. README's "Tier 2: the
+                  // GPU harness" has the recipe and what it is (not) good for.
+                  { channel: 'chromium', headless: true, args: [...CHROMIUM_ARGS, '--use-angle=d3d11'] }
+                : { channel: 'chromium', headless: false, args: CHROMIUM_ARGS },
+            ),
           },
         }
       : undefined,
@@ -150,7 +171,7 @@ export default defineConfig({
       // which is exactly what the adapter guard is watching for. Applies only
       // to a LOCAL run; see CHROMIUM_ARGS above for why the remote path needs
       // the same list in the header instead.
-      args: CHROMIUM_ARGS,
+      args: [...CHROMIUM_ARGS, ...LOCAL_LINUX_ARGS],
     },
   },
   reporter: [['list']],

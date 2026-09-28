@@ -47,6 +47,9 @@ not exist, and three conventions below were being missed for that reason).
 - **Full suites and `verify` go through `remote-run`** (`remote-run npm run
   verify`), which runs them on ryzen's 32 threads. On nexus, run only the
   files you are touching. Parallel full suites here have OOM-killed nexus.
+  `remote-run` runs two jobs at once on ryzen and, when both slots are busy
+  or a GPU measurement holds ryzen, overflows at most one to nexus; it says
+  which it chose (`serverconfig/ryzen.md`, "Resource locks").
   How it works: `serverconfig/ryzen.md`, "WSL Ubuntu and compute offload".
   Gitignored and LFS data reaches ryzen only if it is listed in
   `.remote-run-data`. A new data-backed test whose data isn't listed there
@@ -58,7 +61,13 @@ not exist, and three conventions below were being missed for that reason).
   `remote-run` too. Verified that day: all 16 Blender entries rebuilt
   byte-identically on both machines. There are no Blender "slots" like the
   dev-server ones: a build is stateless, CPU-only and writes inside its own
-  worktree, so parallel worktrees can each run Blender on either machine. If
+  worktree, so parallel worktrees can each run Blender on either machine. On
+  nexus, though, `blender` on PATH is a shim that runs one at a time under
+  `hwlock blender`, for memory (`serverconfig/scripts/blender-shim`); time
+  spent waiting counts against `BLENDER_TIMEOUT_MS`. Rendering the fx
+  flipbooks on ryzen's GPU (Cycles HIP, Windows side) was benchmarked
+  2026-09-27 and is not faster: each frame is seven 256 px renders, which are
+  overhead-bound (`serverconfig/ryzen.md`, "Cycles on the GPU"). If
   an upgrade moves one machine off the version pinned in
   `tools/models/blender/run.ts`, its Blender suites fail by name. They do not
   skip. Upgrade both machines together. Effects flipbooks bake with it on
@@ -84,17 +93,54 @@ not exist, and three conventions below were being missed for that reason).
 ## GPU work: the Windows desktop is on, with a Playwright server
 
 nexus is headless. Anything visual, and every Tier 2 run, executes on the
-Windows desktop (RX 6700 XT), which normally has `playwright run-server` up in
-Mark's console session. From nexus:
+Windows desktop (RX 6700 XT). Which side of ryzen does what (WSL for
+`remote-run` and Blender, Windows session 0 for GPU browser work, the console
+session only for trusted frame times), all reachable after WoL with nobody
+logged in: `serverconfig/ryzen.md`, "What runs where". The console session
+normally has `playwright run-server` up; from nexus:
 
 ```sh
 ss -ltn | grep 39001 || ssh -N -L 39001:127.0.0.1:3000 ryzen &
 PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
 ```
 
+**Tier 2 runs share the desktop; clean numbers are opt-in.** Parallel
+sessions may run Tier 2 at the same time, so a budget assertion (`p95 <
+6.0`, `budget4k.spec.ts`) can fail from another session's rendering or a
+`remote-run` job, not from your change. Before believing a budget failure, or
+when a number is the deliverable (a perf investigation, a pre-merge budget
+gate), re-run just those specs under `hwlock ryzen <cmd>`: it waits for other
+opt-in holders, keeps `remote-run` jobs off ryzen, and frees itself if the
+run dies. Hold it for the budget specs only, never a whole suite: while it is
+held every other session's compute is squeezed onto nexus. Enforcing the lock
+on every `PW_REMOTE` run was tried on 2026-09-27 and reverted the same day,
+because one hour-long correctness run stalled every session. `hwlock status`,
+or HA's `sensor.nexus_hwlock_compute_locks`, shows who holds what; details in
+`serverconfig/ryzen.md`, "Resource locks".
+
+**nexus's own Radeon 680M works for non-measurement runs** (since
+2026-09-27): a local run (no `PW_REMOTE`) gets real WebGPU there, not
+SwiftShader, needs no lock, and is the right place for correctness checks and
+screenshots. Its budget numbers are about a quarter of the desktop's and mean
+nothing, and the adapter guard passes it all the same;
+`playwright.config.ts`'s `LOCAL_LINUX_ARGS` says why. A session started before
+`mark` joined the `render` group falls back to SwiftShader: run it under
+`sg render -c '...'`, or start a new session.
+
+**No console login needed for correctness runs** (since 2026-09-27): a
+`playwright run-server` started over SSH runs in session 0 and reaches the GPU
+headless with `--use-angle=d3d11`; `PW_SESSION0=1` with
+`PW_REMOTE=ws://localhost:39002/` sends that. README's "Tier 2: the GPU
+harness" has the three-command recipe (server, tunnel, run) and how to stop
+the server without killing another session's run. Use it whenever the console
+server is down or busy. **Not for numbers yet:** its 1440p budget got 71 GPU
+samples in 5 s against the console's ~500, probably other sessions sharing the
+GPU; that comparison is an open item recorded in the README.
+
 README's "Tier 2: the GPU harness" is authoritative for the tunnels and the
-one-time setup. Two facts it records that cost real time: Chromium launched
-over SSH gets **no GPU** (session problem, not headless), and `__ww2` exists
+one-time setup. Two facts it records that cost real time: headed Chromium
+launched over SSH gets **no GPU** (session 0 has no display; headless needs
+`--use-angle=d3d11`, above), and `__ww2` exists
 before the keydown listener is attached, so wait for `waitForTerrain` before
 pressing keys. Run Tier 2 at 1440p before trusting any GPU number; the budget
 is gpu p95 under 6.0 ms. A throwaway spec that calls `page.screenshot()` gets
@@ -113,7 +159,8 @@ persistent, reusable infrastructure, not scoped to whichever plan first
 needed one — see README's "Tier 2: the GPU harness" and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
 `ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
-slot should say so if asked; there's no reservation system beyond that.
+slot should say so if asked; there's no reservation system for ports (for
+clean GPU numbers, see `hwlock ryzen` above).
 
 ## Fetching third-party models
 

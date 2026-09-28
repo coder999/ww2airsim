@@ -30,6 +30,10 @@ async function blobContrast(page: Page, png: Buffer, ndc: readonly [number, numb
     const px = (x: number, y: number): number[] => { const p = (Math.round(y) * c.width + Math.round(x)) * 4; return [d[p]!, d[p + 1]!, d[p + 2]!] }
     const ring: number[][] = [], disc: number[][] = []
     for (let dy = -3 * r; dy <= 3 * r; dy++) for (let dx = -3 * r; dx <= 3 * r; dx++) {
+      // Only pixels inside the frame: a ring reaching past the bottom edge used to read
+      // undefined, turning the ring's mean into NaN and every contrast into 0.
+      const x = Math.round(cx + dx), y = Math.round(cy + dy)
+      if (x < 0 || y < 0 || x >= c.width || y >= c.height) continue
       const q = Math.hypot(dx, dy)
       if (q <= r) disc.push(px(cx + dx, cy + dy))
       else if (q >= 2 * r && q <= 3 * r) ring.push(px(cx + dx, cy + dy))
@@ -53,13 +57,22 @@ test('a released bomb and a rocket pair draw the O1 store models in flight, and 
   // Wait in sim ticks, not wall time, then pause: in the chase view the falling bomb crosses
   // 100-200 px during one remote screenshot, so an unpaused view() and the capture disagree
   // (measured 2026-09-26 on the reference GPU: contrast 0.000 with the bomb drawn 0.3 NDC
-  // lower than sampled). At 75 ticks the bomb is below the tailplane, over open sea, and its
-  // 3r ring clears both the tail and the HUD bar (at 50 it still overlaps the tailplane; at 90 the ring reaches the bar).
+  // lower than sampled).
+  // Re-tuned 2026-09-27 (sortie forms A4): the Hellcat is drawn with its own model and its racks
+  // moved onto that wing, 1.9 m lower and aft, so the bomb falls behind the tailplane and then
+  // into the follow-view bar, and no tick left its 3r ring clear of both. The bar is hidden
+  // (toggleFlightData) and the bomb sampled at 66 ticks, below the tailplane; measured over two
+  // runs at 62-70 ticks: bomb 0.188-0.206, the same ring over empty sea 0.000 (asserted below).
   const tick = () => page.evaluate(() => (window as DiagWindow).__ww2!.tick())
+  await page.keyboard.press('KeyI')
   await page.keyboard.press('KeyV')
   const released = await tick()
-  await expect.poll(tick, { timeout: 10_000, intervals: [10] }).toBeGreaterThanOrEqual(released + 75)
+  await expect.poll(tick, { timeout: 10_000, intervals: [10] }).toBeGreaterThanOrEqual(released + 66)
   await page.keyboard.press('Escape')
+  // The pause is latched and applied on a later frame, so wait for the sim clock to stop before
+  // sampling: read at once, view() ran 11 ticks ahead of the pause on 2026-09-27 (66 vs 77), and
+  // the disc it sampled landed on the wing root instead of the bomb.
+  await expect.poll(async () => { const a = await tick(); await page.waitForTimeout(100); return (await tick()) === a }, { timeout: 5_000 }).toBe(true)
   const pausedAt = await tick()
   const v = await view(page)
   expect(v.bombs).toBe(1)
@@ -74,6 +87,9 @@ test('a released bomb and a rocket pair draw the O1 store models in flight, and 
   // it nearly tail-on: the 0.47 m body and box tail fill about a sixth of it (0.164-0.170 over
   // three runs, 2026-09-26, reference GPU). Empty sea measured 0.000. Half the measured share.
   expect(contrast).toBeGreaterThan(0.08)
+  // The measurement itself: the same disc and ring at the bomb's height over empty sea read ~0,
+  // so a polluted ring (tailplane, HUD) cannot pass for a drawn bomb.
+  for (const x of [-0.6, 0.6]) expect(await blobContrast(page, shot, [x, v.bombNdc![1]], v.bombRadiusPx!), `empty sea at x ${x}`).toBeLessThan(0.02)
   expect(await view(page), 'paused: the capture saw the sampled frame').toEqual(v)
   expect(await tick()).toBe(pausedAt)
 

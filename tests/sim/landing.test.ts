@@ -191,12 +191,15 @@ describe('an approach flown into Tacloban', () => {
     // figures are pinned EXACTLY, not within tolerance: any change means the
     // northbound path is no longer the code that measured them. vitest fills
     // the snapshot in on the first run and compares with `Object.is` after.
+    // Re-recorded 2026-09-27 (sortie forms A4): gear.heightM 2.2 -> 2.42 to
+    // match the Hellcat's own drawn model; with 2.2 the old figures reproduce
+    // exactly, so the change is the content, not the northbound path.
     expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
       {
         "restX": -29666,
-        "restZ": -47669.859457857216,
-        "touchdownSinkMps": 1.348205395498573,
-        "touchdownSpeedMps": 37.72712992030997,
+        "restZ": -47668.762937158266,
+        "touchdownSinkMps": 1.3492201610483654,
+        "touchdownSpeedMps": 37.73324983011295,
       }
     `)
   })

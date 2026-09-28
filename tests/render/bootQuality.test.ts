@@ -228,9 +228,10 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
   it('passes that model to createTitleScreen as its settings parameter', () => {
     expect(source.match(/createTitleScreen\(/g)).toHaveLength(1)
     // Task 3 adds a fifth argument (the boot progress) after `quality.settings`,
-    // and M2 Task 6 a sixth (the mission options); the closing paren moved but
+    // and M2 Task 6 a sixth (the mission options, every row since the sortie
+    // forms: Dev filters on screen); the closing paren moved but
     // `quality.settings` must still be the fourth argument.
-    expect(source).toContain('}, quality.settings, boot, { options: scenarioOptions(')
+    expect(source).toContain('}, quality.settings, boot, { options: SCENARIO_OPTIONS,')
   })
 
   it('binds the model to the live tier setters', () => {
@@ -248,8 +249,13 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
   })
 
   it('feeds the damage model into the frame loop every frame', () => {
-    expect(source).toContain('quality.arcadeDamage())')
-    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\)\)/)
+    // `[,)]`: the orbit camera (2026-09-27) added the mouse as a later argument.
+    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\)[,)]/)
+  })
+
+  it('feeds the gated mouse into the frame loop every frame (orbit camera plan ruling P-3)', () => {
+    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\), frameMouse\)/)
+    expect(source).toContain('const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta')
   })
 
   it('keeps the DEV query overrides winning over a saved setting', () => {

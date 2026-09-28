@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { debriefDialog, hopAndLand, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, hopAndLand, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 test.setTimeout(240_000)
 
@@ -18,7 +18,7 @@ test('a landed sortie appears in the dossier; the title does not re-lock', async
   await expect(title.locator('button[aria-pressed="true"]')).toHaveText('<b>Ace</b>')
   await title.getByRole('button', { name: 'New game' }).click()
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
   await waitForScenario(page, 'gunnery-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })

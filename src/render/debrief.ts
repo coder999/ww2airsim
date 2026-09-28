@@ -64,18 +64,23 @@ export function targetLabel(t: TargetType): string {
 }
 
 /**
- * The three recovery outcomes the sim can actually produce. Master spec §8
- * has a fourth row ("bailed out over friendly water," 0.25x) -- there is no
- * bail-out/parachute mechanic in this sim to reach it, so it is deliberately
- * absent here rather than an unreachable fourth union member. See this
- * plan's own "Ruling" section for why.
+ * The three recovery outcomes the sim can actually produce. There is no
+ * bail-out/parachute mechanic, so no fourth outcome.
  */
 export type RecoveryOutcome = 'landed' | 'ditched' | 'killed'
 
+/**
+ * Every recovery banks in full (Mark, 2026-09-27; GAMEPLAY.md "Scoring"):
+ * the game resurrects pilots, so a death or a ditching costs the mission
+ * badge (`src/sim/mission/outcome.ts`), not the points, and promotion follows
+ * the banked points dead or alive. Kept as a table so the debrief's
+ * "Recovery: ... (×1)" line and a future re-tune have one place to read.
+ * A friendly-fire forfeit still scores 0; that is `forfeit`, not this table.
+ */
 export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
   landed: 1.0,
-  ditched: 0.5,
-  killed: 0.0,
+  ditched: 1.0,
+  killed: 1.0,
 }
 
 /** Whole-branch review I-3: the label `createDebrief`'s "Recovery: ..." row
@@ -145,6 +150,9 @@ export type DebriefModel = {
    * present-and-equal-to-the-old-rank, so `show()` can render it
    * conditionally the same way it already does `continueLabel`.
    */
+  /** A Dev sortie (sortie spec A5): scored and shown in full, banked
+   *  nowhere. Rendered as `DEV_SORTIE_STAMP` under the headline. */
+  readonly notRecorded?: true
   readonly bankedTotal?: number
   readonly promotedTo?: string
   /** M2: present only for a mission world (`withMissionDebrief`). */
@@ -486,6 +494,9 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       letterheadText.append(letterheadKicker, letterheadTitle)
       letterhead.appendChild(letterheadText)
       sheet.appendChild(letterhead)
+      // Sortie spec A5: said first, so the figures below read as what WOULD
+      // have been earned.
+      if (model.notRecorded === true) sheet.appendChild(plainRow(DEV_SORTIE_STAMP))
 
       // Routing header (naval-comms spec §3's `.routing`) -- decorative
       // message-form flavor, the same register as `settings.ts`'s "FORM
@@ -629,4 +640,11 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       backdrop.style.display = 'none'
     },
   }
+}
+
+export const DEV_SORTIE_STAMP = 'Dev sortie: not recorded'
+
+/** The debrief of a Dev sortie carries the stamp; any other model is returned as it was. */
+export function withNotRecorded(model: DebriefModel, devSortie: boolean): DebriefModel {
+  return devSortie ? { ...model, notRecorded: true } : model
 }

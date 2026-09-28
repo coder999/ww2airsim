@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, diveToSea, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
  * Tier 2, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
@@ -27,7 +27,10 @@ const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!
 /** The roster flow for a fresh pilot, into the URL's scenario. */
 async function launch(page: Page, scenario: string, label: string, pilot: string): Promise<void> {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  await page.goto(`/?scenario=${scenario}`)
+  // The friendly-fire ranges are Dev-only test beds (sortie spec A1): `?scenario=`
+  // checks Dev (A2), and `recordDevSorties` (SF-R6) keeps the K.I.A. and
+  // DISCHARGED this spec proves on the roster and Dossier.
+  await page.goto(`/?scenario=${scenario}&recordDevSorties`)
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
   await title.getByRole('button', { name: 'New pilot' }).click()
@@ -35,7 +38,7 @@ async function launch(page: Page, scenario: string, label: string, pilot: string
   await title.getByRole('button', { name: 'Add' }).click()
   await title.getByRole('button', { name: 'New game' }).click()
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: label }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
   await waitForScenario(page, scenario)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
@@ -85,17 +88,15 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   await expect(readout).toContainText('FRIENDLY FIRE')
   await expect(readout).not.toContainText('CEASE FIRE')
   await page.screenshot({ path: 'test-results/friendly-fire-warning.png' })
-  // The call clears after RADIO_SHOW_MS (5 s). The wait is also load-bearing:
-  // the dive below was measured starting ~5 s after the hit (when the
-  // readout's old transient call cleared), and started at once it bottoms
-  // out in a phugoid 70-140 m above the sea instead of going in (probe on
-  // the reference GPU, 2026-09-27, identical on main).
+  // The call clears after RADIO_SHOW_MS (5 s).
   await expect(page.getByRole('status', { name: 'Radio' })).toBeHidden({ timeout: 15_000 })
 
-  // -- Dive into the sea: pitchDown is ArrowUp (src/input/bindings.ts).
-  await page.keyboard.down('ArrowUp')
-  await expect(debriefDialog(page)).toBeVisible({ timeout: 60_000 })
-  await page.keyboard.up('ArrowUp')
+  // -- Into San Pedro Bay. `diveToSea` holds the nose down only while the sink
+  // is shallow: this spec used to hold it throughout, which flies an outside
+  // loop. Measured on the reference GPU after the sortie-forms merge
+  // (2026-09-27): from 783 m it bottomed at 99 m and climbed back to 690 m, three
+  // runs of three, never reaching the sea (earlier notes called it a phugoid).
+  await diveToSea(page)
   const debrief = debriefDialog(page)
   await expect(debrief).toContainText('KILLED')
   await expect(debrief).not.toContainText('DISHONORABLE DISCHARGE')

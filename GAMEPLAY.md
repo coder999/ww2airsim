@@ -20,8 +20,12 @@ status of any plan is the table in master spec §15, not this file.
 
 ### Scoring
 
-Points are **provisional until recovery**. This is the central risk/reward
-mechanic: kills are worth nothing until the pilot is back on a deck or runway.
+Points **bank however the flight ends** — landed, ditched or killed (Mark,
+2026-09-27). Unlike the 1991 original, the game resurrects pilots, so death is
+not the end of a career and a pilot whose points cross a threshold is promoted
+posthumously. What a ditching or a death costs is the **badge**: a mission's
+badge needs a landing (see Badges). Damaging your own side forfeits the whole
+sortie, 0 points, however it ends.
 
 | Target | Points | Target | Points |
 | --- | --- | --- | --- |
@@ -35,9 +39,9 @@ Recovery multiplier applied to the mission total:
 | Outcome | Multiplier |
 | --- | --- |
 | Landed at carrier or airfield | 1.0 |
-| Ditched alongside friendly ships | 0.5 |
-| Bailed out over friendly water | 0.25 |
-| Killed, or captured over enemy territory | 0.0 |
+| Ditched | 1.0 |
+| Killed | 1.0 |
+| Any of the above after friendly fire | 0 (forfeit) |
 
 ### Ranks
 
@@ -69,8 +73,9 @@ unchanged.
 ### Badges
 
 Objective-based, not score-based. Each scenario defines named objectives;
-completing them awards that scenario's badge. This deliberately rewards flying
-the brief over farming kills.
+completing them and then landing awards that scenario's badge; a ditching or a
+death earns none (`src/sim/mission/outcome.ts`). This deliberately rewards
+flying the brief, and bringing the airplane home, over farming kills.
 
 ### Pilot roster
 

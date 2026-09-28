@@ -1,6 +1,8 @@
 import { createState, type AircraftState } from '../sim/flight/state.js'
 import { qFromAxisAngle, qIdentity } from '../sim/math/quat.js'
 import { v3, type Vec3 } from '../sim/math/vec3.js'
+import { ALL_LOADOUTS } from '../sim/sortie.js'
+import type { Loadout } from '../sim/weapons/stores.js'
 
 /** The three query parameters this reads, in x/y/z order. Exported so the
  *  test can assert the names it builds URLs from are the names that are
@@ -165,6 +167,24 @@ export function scenarioIdFromQuery(search: string, fallback: string): string {
   // reason. Ids are file stems, so only the characters a stem may carry.
   if (!/^[a-z0-9-]+$/.test(raw)) throw new Error(`scenario: ${JSON.stringify(raw)} is not a scenario id`)
   return raw
+}
+
+/**
+ * `?scenario=<id>&launch[&aircraft=<spec>][&loadout=<loadout>]`: the quick
+ * launch (sortie spec A6), which skips the title and flies a Dev sortie. Null
+ * without `launch`, so `aircraft`/`loadout` alone mean nothing. Returns only
+ * the keys present; an unknown value throws naming it, like a bad `?scenario=`.
+ * It grants nothing the production Dev checkbox does not, so it is not
+ * DEV-build only.
+ */
+export function quickLaunchFromQuery(search: string, knownAircraft: readonly string[]): { readonly aircraft?: string; readonly loadout?: Loadout } | null {
+  const q = new URLSearchParams(search)
+  if (!q.has('launch')) return null
+  const aircraft = q.get('aircraft')
+  const loadout = q.get('loadout')
+  if (aircraft !== null && !knownAircraft.includes(aircraft)) throw new Error(`quick launch: unknown aircraft ${JSON.stringify(aircraft)}`)
+  if (loadout !== null && !(ALL_LOADOUTS as readonly string[]).includes(loadout)) throw new Error(`quick launch: unknown loadout ${JSON.stringify(loadout)}`)
+  return { ...(aircraft !== null ? { aircraft } : {}), ...(loadout !== null ? { loadout: loadout as Loadout } : {}) }
 }
 
 /**

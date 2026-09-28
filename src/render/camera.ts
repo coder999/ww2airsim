@@ -3,8 +3,18 @@ import { type Quat, qFromAxisAngle, qMul, qRotate, qNormalize } from '../sim/mat
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { RenderState } from '../sim/interpolate.js'
 import type { LookOffset } from '../input/lookAround.js'
+import { ORBIT_PITCH_MAX_RAD, ORBIT_ZERO, type OrbitOffset } from '../input/orbit.js'
 
 export type CameraMode = 'chase' | 'cockpit'
+
+/** How far above the surface under it the chase/orbit eye is held (orbit spec OC-3). */
+export const ORBIT_SURFACE_CLEARANCE_M = 2
+
+/** Bisection steps for the clamp's pitch search: 140 deg of range / 2^24, far below a pixel. */
+const CLAMP_BISECTIONS = 24
+
+/** Height of the surface (terrain, deck or sea) under a world x/z, metres. */
+export type SurfaceHeightAt = (x: number, z: number) => number
 
 export type EyeTransform = {
   readonly position: Vec3
@@ -110,6 +120,11 @@ function withLook(attitude: Quat, look: LookOffset): Quat {
  *
  * `look` defaults to centred so every existing call site (and the tests
  * written before Task 9) keeps working unchanged.
+ *
+ * `orbit` (chase only) is the pilot's mouse swing, and still not smoothing:
+ * it is an input like `look`, so the function stays pure. `surfaceHeightAt`
+ * lets chase keep the eye out of the sea, the ground and a deck (orbit spec
+ * OC-3); omitted, nothing is clamped. Neither touches the cockpit.
  */
 export function cameraTransformFor(
   mode: CameraMode,
@@ -117,6 +132,8 @@ export function cameraTransformFor(
   render: RenderState,
   look: LookOffset = LOOK_ZERO,
   speedMps = 120,
+  orbit: OrbitOffset = ORBIT_ZERO,
+  surfaceHeightAt?: SurfaceHeightAt,
 ): EyeTransform {
   if (mode === 'cockpit') {
     const [ex, ey, ez] = spec.view.eyePointM
@@ -133,13 +150,59 @@ export function cameraTransformFor(
   // flip -- this cannot.
   const heading = headingOf(render.attitude)
   const pitch = pitchOf(render.attitude) * CHASE_PITCH_FOLLOW
-  const attitude = qNormalize(
+  const chase = qNormalize(
     qMul(qFromAxisAngle(v3(0, 1, 0), heading), qFromAxisAngle(v3(0, 0, 1), pitch)),
   )
-
   const [ox, oy, oz] = CHASE_OFFSET_M
-  const distanceScale = chaseDistanceScale(speedMps)
-  const position = add(render.position, qRotate(attitude, v3(ox * distanceScale, oy * distanceScale, oz)))
+  const distanceScale = chaseDistanceScale(speedMps) * orbit.zoom
+  const offset = v3(ox * distanceScale, oy * distanceScale, oz)
+  // The orbit rotates the offset AND the eye's attitude by the same amount,
+  // about the airplane, so the airplane keeps exactly the framing the default
+  // view gives it (spec §3). Negated angles make +yaw swing left and +pitch
+  // rise (plan ruling P-4). Skipped when there is no swing, so an unmoved
+  // orbit is today's chase eye bit for bit (spec §7).
+  const placedAt = (pitchRad: number): EyeTransform => {
+    const attitude =
+      orbit.yawRad === 0 && pitchRad === 0
+        ? chase
+        : qNormalize(
+            qMul(chase, qMul(qFromAxisAngle(v3(0, 1, 0), -orbit.yawRad), qFromAxisAngle(v3(0, 0, 1), -pitchRad))),
+          )
+    return { position: add(render.position, qRotate(attitude, offset)), attitude }
+  }
+  // The floor is the surface under the eye, but never lower than the surface
+  // under the AIRPLANE: raised around its orbit, the eye swings outward, and
+  // off a carrier's deck edge the surface under it drops to the sea -- a floor
+  // there would park the eye inside the hull, below the deck the airplane
+  // sits on (final review fix pass).
+  const airplaneFloor = surfaceHeightAt === undefined ? -Infinity : surfaceHeightAt(render.position.x, render.position.z)
+  const floorAt = (p: Vec3): number => Math.max(surfaceHeightAt!(p.x, p.z), airplaneFloor) + ORBIT_SURFACE_CLEARANCE_M
+  const belowFloor = (eye: EyeTransform): boolean =>
+    surfaceHeightAt !== undefined && eye.position.y < floorAt(eye.position)
 
-  return { position, attitude: withLook(attitude, look) }
+  // OC-3: never under the sea, the ground or a deck. The eye is RAISED
+  // around its orbit -- the steepest pitch that clears the floor, found by
+  // bisection -- rather than lifted straight up, because a lifted eye keeps an
+  // attitude aimed from the unclamped place and a parked airplane drops off
+  // the bottom of the screen (final review, Important 1). Raising keeps
+  // position and attitude consistent, so spec §7's framing holds.
+  let eye = placedAt(orbit.pitchRad)
+  if (belowFloor(eye)) {
+    let clear = ORBIT_PITCH_MAX_RAD
+    if (belowFloor(placedAt(clear))) {
+      // Nothing on the orbit clears (only possible with the airplane itself
+      // almost on the surface): fall back to lifting the height.
+      eye = { position: v3(eye.position.x, floorAt(eye.position), eye.position.z), attitude: eye.attitude }
+    } else {
+      let under = orbit.pitchRad
+      for (let i = 0; i < CLAMP_BISECTIONS; i++) {
+        const mid = (under + clear) / 2
+        if (belowFloor(placedAt(mid))) under = mid
+        else clear = mid
+      }
+      eye = placedAt(clear)
+    }
+  }
+
+  return { position: eye.position, attitude: withLook(eye.attitude, look) }
 }

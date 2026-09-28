@@ -1,0 +1,17 @@
+{
+  "id": "type97-chi-ha",
+  "input": "tools/models/cache/type97-chi-ha.glb",
+  "output": "content/vehicles/type97-chi-ha.glb",
+  "source": {
+    "url": "https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6",
+    "uid": "d3568f32ec4440848e243e4b893a8ba6",
+    "author": "snrnsrk5",
+    "license": "CC-BY-4.0"
+  },
+  "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, -0.052], "fit": { "extent": "length", "meters": 5.5 } },
+  "split": [
+    { "name": "Turret1", "select": "components", "boxMin": [-0.45, 1.56, -1.85], "boxMax": [0.99, 2.40, 0.86] }
+  ],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+}

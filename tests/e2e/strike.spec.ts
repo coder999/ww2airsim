@@ -6,7 +6,7 @@ import { localToWorld } from '../../src/sim/world/airfields.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import type { Loadout } from '../../src/sim/weapons/stores.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/fetchedLevel.js'
 /** The level a real page load actually flies over today -- see
  *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
  *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
@@ -267,7 +267,7 @@ test.describe('frame-time budget with stores hanging and ordnance damage up', ()
       .toBe(4)
     await expect
       .poll(() => structures(page).then((s) => s.find((b) => b.id === hangar1.id)!.hp), { timeout: 5_000 })
-      .toBeLessThan(120)
+      .toBeLessThan(hangar1.hp)
     const armed = await combat(page)
     expect(armed.player.stores.bombs).toBe(2)
 
@@ -294,11 +294,15 @@ test('restart clears combat, ships and structures back to full, with the same lo
   await page.goto(spawnQuery(spawnX, DULAG_ATTACK_ALTITUDE_M, hangar1World.z))
   await startWithLoadout(page, 'both')
 
+  // Full health is read from the content, not written here: this spec said 120
+  // (Tacloban's hangars) until 2026-09-27, but Dulag's own buildings (Plan 13d,
+  // 2026-09-24) made dulag-hangar-1 90 HP, so "damaged" passed before any hit and
+  // "restored" could never pass.
   await page.keyboard.press('KeyE')
   await expect
-    .poll(() => structures(page).then((s) => s.find((b) => b.id.startsWith('dulag-hangar'))!.hp), { timeout: 10_000 })
-    .toBeLessThan(120)
-  const damagedHangar = (await structures(page)).find((b) => b.id.startsWith('dulag-hangar'))!
+    .poll(() => structures(page).then((s) => s.find((b) => b.id === hangar1.id)!.hp), { timeout: 10_000 })
+    .toBeLessThan(hangar1.hp)
+  const damagedHangar = (await structures(page)).find((b) => b.id === hangar1.id)!
 
   // End the flight the way contact.spec.ts and gunnery.spec.ts's own restart
   // tests do: keep diving until something (ground or water) raises the
@@ -310,7 +314,7 @@ test('restart clears combat, ships and structures back to full, with the same lo
 
   await expect
     .poll(() => structures(page).then((s) => s.find((b) => b.id === damagedHangar.id)!.hp), { timeout: 10_000 })
-    .toBe(120)
+    .toBe(hangar1.hp)
   const restartedCombat = await combat(page)
   expect(restartedCombat.player.stores).toEqual({ bombs: 2, rockets: 6 })
   const restartedMaru = (await ships(page)).find((s) => s.id === 'maru-1')!

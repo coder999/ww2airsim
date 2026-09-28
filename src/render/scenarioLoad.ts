@@ -3,6 +3,7 @@ import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds,
 import { parseAirfield } from '../sim/world/airfields.js'
 import { parseShipSpec } from '../sim/world/ships.js'
 import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl } from './content.js'
+import { withPlayerSpec } from '../sim/sortie.js'
 
 /**
  * The browser twin of `tools/content/load.ts`'s `loadScenarioBundle`: the
@@ -29,13 +30,17 @@ export async function loadScenarioFile(id: string, fetchImpl: typeof fetch = fet
   return parseScenario(await res.json())
 }
 
-export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch): Promise<ScenarioBundle> {
+/** `playerSpec` (sortie forms) flies the scenario's player as that spec: the
+ *  entry is rewritten BEFORE the spec table is built, so the chosen spec is
+ *  fetched and parsed like any other the scenario names. */
+export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string): Promise<ScenarioBundle> {
   const json = async (url: string): Promise<unknown> => {
     const res = await fetchImpl(url)
     if (!res.ok) throw new Error(`Failed to fetch content ${url}: ${res.status} ${res.statusText}`)
     return res.json() as Promise<unknown>
   }
-  const scenario = await loadScenarioFile(id, fetchImpl)
+  const parsed = await loadScenarioFile(id, fetchImpl)
+  const scenario = playerSpec === undefined ? parsed : withPlayerSpec(parsed, playerSpec)
   // Deduplicated and fetched in parallel: the free-flight scenario names one
   // aircraft spec twice (two Hellcats) and Tacloban twice (the strip and both
   // parked airplanes), so the naive form would ask for the same file four

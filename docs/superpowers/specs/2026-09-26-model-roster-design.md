@@ -267,7 +267,11 @@ this.
 - **Heavy decimation (the B-17 at 763k, the Val at 293k) can wreck a silhouette.**
   The build checks the budget, and the handoff captures are the eye check.
 - **Blender aircraft will read as simpler than the CAD downloads.** That is
-  accepted, because Mark chose original over stand-ins. Each script's header states what it
-  leaves out.
+  accepted **for now**, because Mark chose original over stand-ins. Each script's header states what it
+  leaves out. **Deferred, not permanent** (Mark, 2026-09-28): a mixed roster
+  of detailed downloads and low-poly flat-shaded Blender models is not the
+  end state. A later detail pass brings every Blender model (aircraft, ships,
+  buildings) up to the downloads' level, geometry and skins both. It has no
+  plan yet; it follows R4/R5.
 - **Library growth** makes `hangar.html`'s list longer. The list is
   already grouped by kind, so nothing new is needed.

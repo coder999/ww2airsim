@@ -119,6 +119,12 @@ generic module: seven licensed downloads and four original Blender models
 changed. The [handoff](docs/handoff/2026-09-27-r3-aircraft-models.md) records
 what was measured and what is open; master spec §15 holds the status.
 
+**R4 and R5 landed 2026-09-28, merged into `main` the same day:** every
+Library building and vehicle now has a model in the Hangar, and nothing in
+the Library is left undrawn; the airfields in the game keep their procedural
+boxes. The [handoff](docs/handoff/2026-09-28-r4-r5-roster.md) records what was
+measured; master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
@@ -224,13 +230,25 @@ art with **New game** and **About project**. The world boots behind it and is
 held until New game (Enter also works), which is the click that unlocks audio
 on a first visit. [Handoff](docs/handoff/2026-09-19-title-screen.md).
 
-**The title screen became two sequential memo forms 2026-09-24**, in the
-Naval Communications style: Form 1 of 2 is the pilot roster, New game opens
-Form 2 of 2 (Sortie Orders: mission and armament), and **Launch** starts the
-flight, with Back returning to the roster. About project and Settings sit in
-their own memo underneath both. The KIA-pilot resurrection now happens on
-Launch, not New game. `src/render/titleScreen.ts` is authoritative; the e2e
-harness's `startGame` walks both forms.
+**The title screen is four sequential memo forms (sortie forms, 2026-09-27)**,
+in the Naval Communications style: Squadron Roster, Sortie Orders (the
+mission), Aircraft Assignment and Ordnance Requisition, with **Launch** on the
+last and Back on each. The player is drawn as the aircraft chosen. A **Dev**
+checkbox on the roster lifts every eligibility rule, and a sortie that needed
+it is not recorded. `?scenario=<id>&launch` (plus optional `aircraft=` and
+`loadout=`) is a quick launch that skips the forms; it is always a Dev sortie.
+The rules are in the
+[sortie forms spec](docs/superpowers/specs/2026-09-27-sortie-forms-design.md);
+`src/render/titleScreen.ts` and `src/sim/sortie.ts` are authoritative; the e2e
+harness's `startGame` walks all four forms and `quickLaunch` skips them.
+
+**The chase camera orbits (2026-09-27).** Left-drag on the view swings it
+around the airplane, the wheel zooms, and a double-click or C → cockpit → C
+returns to the default view. Until you touch the mouse the view is exactly
+the old chase view. The rules are in the
+[orbit camera spec](docs/superpowers/specs/2026-09-27-orbit-camera-design.md)
+and its [handoff](docs/handoff/2026-09-27-orbit-camera.md); master spec §15
+holds the status, with Instant Replay next.
 
 The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
@@ -609,6 +627,10 @@ ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
 ```
 
+Other sessions may be rendering on the same GPU. For budget numbers you
+mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
+(`serverconfig/scripts/hwlock`); CLAUDE.md's GPU section says when.
+
 Verified 2026-09-16: whole suite green against that URL, adapter guard
 included, so the desktop really was on its own GPU and really did reach nexus
 directly. This replaced a second, reverse tunnel
@@ -649,10 +671,39 @@ there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe`
 `args` this repo's `playwright.config.ts` sends it, so none of the Chromium
 flags in `CHROMIUM_ARGS` apply on the reference platform (measured 2026-09-18
 by reading `chrome://version` through a server started without it).
-Chromium launched over SSH gets no GPU at all -- `requestAdapter()` returns
-null, headless AND headed, because the SSH session is not the console session
-(measured 2026-09-13). That is a session problem, not a headless one, so
-`headless: false` is not a workaround for it.
+**Or with no console login at all: a server in session 0.** SSH on Windows
+lands in session 0, the non-interactive session services use. Chromium there
+gets the real GPU **only headless and only with `--use-angle=d3d11`**; with
+ANGLE's default backend `requestAdapter()` returns null, which is what the
+2026-09-13 note "Chromium over SSH gets no GPU" actually measured. Headed
+launches fail there (no display). `PW_SESSION0=1` makes `playwright.config.ts`
+send exactly that. From nexus, with ryzen awake (`serverconfig/ryzen.md`,
+"Wake-on-LAN"):
+
+```sh
+# the server, in session 0 (reuse it if 3001 already listens; other sessions may be on it)
+ssh ryzen 'if (-not (Get-NetTCPConnection -LocalPort 3001 -State Listen -EA 0)) { cd $env:USERPROFILE\projects; npx playwright run-server --port 3001 --host 127.0.0.1 --unsafe }' &
+ss -ltn | grep -q 39002 || ssh -f -N -L 39002:127.0.0.1:3001 ryzen
+PW_SESSION0=1 PW_REMOTE=ws://localhost:39002/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
+```
+
+The server outlives its SSH connection. Stop it by port, and only when
+`Get-NetTCPConnection -LocalPort 3001 -State Established` shows no one else on
+it: `ssh ryzen 'Stop-Process -Id (Get-NetTCPConnection -LocalPort 3001 -State
+Listen).OwningProcess -Force'`. Close the tunnel by its port too, not with
+`pkill -f`, whose pattern matches your own shell: `kill $(ss -ltnpH 'sport =
+:39002' | grep -oP 'pid=\K[0-9]+')`. `C:\Users\markt\projects` holds Playwright
+1.63.0, the same as this repo; keep them matched.
+
+Verified 2026-09-27: the adapter guard passes ("Reference platform: amd
+rdna-2"), zero console errors, and `adapter.spec.ts` + `terrain.spec.ts`
+passed 10 of 11. **Correctness only, for now:** the one failure was the 1440p
+budget, which got 71 GPU samples in its 5 s window where the console session
+gets about 500. Other sessions were probably rendering on the same GPU at the
+time; that has not been separated from a headless/session-0 pacing effect.
+**Open:** re-run `terrain.spec.ts`'s budget test here with the GPU otherwise
+idle (`hwlock ryzen`) and compare with the console session; until then take no
+frame-time number from session 0.
 
 One-time setup on the Windows desktop (a separate checkout — the test runner
 has to be local to the GPU, the dev server does not):

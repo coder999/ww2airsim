@@ -229,10 +229,12 @@ describe('ordnance flight', () => {
     // been corrected to these figures; the 200 m/s estimate was right.
     // Re-measured 2026-09-26 (O1) after the rack offsets moved to the drawn
     // Wildcat's wing: 1061 ticks, 2,069.6 m downrange, 203.0 m/s; before O1
-    // it was 1060 / 2,066.5 / 202.9.
-    expect(tick).toBe(1061)
-    expect(last.position.x).toBeCloseTo(2069.6, 0)
-    expect(length(last.velocity)).toBeCloseTo(203.0, 0)
+    // it was 1060 / 2,066.5 / 202.9. Re-measured 2026-09-27 (sortie forms A4)
+    // after the Hellcat's racks moved to its own R3 model's wing, 0.66 m
+    // below the origin instead of 1.28 m above it: 1060 / 2,065.8 / 202.9.
+    expect(tick).toBe(1060)
+    expect(last.position.x).toBeCloseTo(2065.8, 0)
+    expect(length(last.velocity)).toBeCloseTo(202.9, 0)
   })
 
   it('pins the 100 m loaded-airframe run-in used by the browser bombing pass', () => {

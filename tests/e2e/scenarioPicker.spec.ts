@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { debriefDialog, spawnUrl, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, spawnUrl, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
  * Tier 2, the title screen's scenario picker. Plan 9 Task 7: picking a
@@ -38,7 +38,7 @@ test('picking a different scenario swaps entities in place, with no navigation',
   await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeVisible()
 
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
 
   // No reload: the title hides immediately and the URL never carries
   // `?scenario=`, unlike the pre-Task-7 navigation this replaces.
@@ -82,7 +82,7 @@ test('picking the already-loaded scenario also stays in place (the same code pat
   await title.getByRole('button', { name: 'New game' }).click()
 
   // Free Flight is already checked (the production default).
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
   // This branch never calls `loadScenario` (main.ts: `scenarioId ===
   // requestedScenarioId` skips straight to a synchronous `rebuildFrame`), so
@@ -136,7 +136,7 @@ test('return to title after an in-place scenario switch preselects the scenario 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await title.getByRole('button', { name: 'Launch' }).click()
+  await launchFromOrders(title)
   await expect(title).toBeHidden()
 
   // `waitForScenario`, not a `groundHeightM()` poll: see that helper's doc

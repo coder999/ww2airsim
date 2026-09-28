@@ -286,6 +286,36 @@ export function awardBadgeInRoster(r: readonly PilotRecord[], pilotId: string, i
   return r.map((p) => (p.id === pilotId ? awardBadge(p, id) : p))
 }
 
+/**
+ * What one debrief banks (`main.ts`'s `bankMissionResult`, extracted so the
+ * Node suite can drive every path): a friendly-fire discharge, a forfeit
+ * (K.I.A. or survived, nothing credited), or the result with its kills; then
+ * the mission badge, never for a forfeit sortie (M2). A Dev sortie (sortie
+ * spec A5) writes nothing: `roster` itself comes back, so the caller can skip
+ * `saveRoster` by identity.
+ */
+export function bankSortie(roster: readonly PilotRecord[], pilotId: string, b: {
+  readonly devSortie: boolean
+  readonly scoreTotal: number
+  readonly outcome: RecoveryOutcome
+  readonly killsSinceLastBank: Readonly<Record<TargetType, number>>
+  readonly sortie: SortieFacts
+  readonly friendlyFire: 'discharged' | 'forfeit' | null
+  readonly badgeId: string | null
+}): readonly PilotRecord[] {
+  if (b.devSortie) return roster
+  // Friendly fire (spec §6, FF-6 as amended by Mark 2026-09-26): only this
+  // sortie is forfeit; what an earlier landing banked stays banked. A
+  // friendly-fire death banks K.I.A. with nothing credited: the dead are not
+  // discharged, but the sortie is still forfeit (FF-7 as amended).
+  const banked = b.friendlyFire === 'discharged'
+    ? dischargeInRoster(roster, pilotId, b.outcome, b.sortie)
+    : b.friendlyFire === 'forfeit'
+      ? applyMissionResultToRoster(roster, pilotId, 0, b.outcome, zeroKillsByType(), b.sortie)
+      : applyMissionResultToRoster(roster, pilotId, b.scoreTotal, b.outcome, b.killsSinceLastBank, b.sortie)
+  return b.badgeId !== null && b.friendlyFire === null ? awardBadgeInRoster(banked, pilotId, b.badgeId) : banked
+}
+
 const STORAGE_KEY = 'ww2airsim.roster.v1'
 
 // Dossier spec §B.3, same zero-fill philosophy as `career` below.

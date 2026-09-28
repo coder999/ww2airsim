@@ -3,6 +3,7 @@
   "name": "Type 97 Chi-Ha medium tank",
   "kind": "vehicle",
   "side": "japanese",
+  "model": { "kind": "vehicle", "id": "type97-chi-ha" },
   "blurb": "An Imperial Japanese Army medium tank, listed as a future ground target. It is not in the game yet.",
   "history": "The Type 97 Chi-Ha was a medium tank of the Imperial Japanese Army, built from 1938 to 1943 by Mitsubishi Heavy Industries and Hitachi, with some built at the Army's Sagami Arsenal. It had a four-man crew, a short 57 mm gun and an air-cooled V-12 diesel engine. The improved Shinhoto Chi-Ha carried a new turret with a 47 mm gun.\n\nChi-Ha tanks fought in Malaya and at Singapore in 1941 and 1942, on Corregidor in the Philippines, and later on Saipan and Guam, where the 9th Tank Regiment's Type 97s made a large counterattack on Saipan in 1944.",
   "sources": [
