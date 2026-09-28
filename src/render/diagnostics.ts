@@ -331,6 +331,13 @@ export type Ww2Diagnostics = {
    * the requested id before trusting `aircraft()`/`ships()` to reflect it.
    */
   readonly scenarioId: () => string | null
+  /** The model id of the loaded GLB actually drawn for the player (falling back to the
+   *  hand-built root's name), or null before one is built: sortie forms Tier 2 proves the
+   *  chosen aircraft is the one drawn. */
+  readonly playerModel: () => string | null
+  /** Model ids of every direct airframe root currently attached to the scene, including any
+   *  stale root left behind by an in-place sortie rebuild. */
+  readonly sceneAirframeModels: () => readonly string[]
   /** Separate GPU compute-pass costs, one sample list per active cascade. */
   readonly oceanComputeTimesMs: () => readonly (readonly number[])[]
   readonly oceanDisplacementSample: (cascade: number) => Promise<{

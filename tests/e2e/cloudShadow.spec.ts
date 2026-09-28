@@ -59,6 +59,11 @@ async function fixedView(page: Page, url: string): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
   await expect(page.getByRole('dialog', { name: 'Title' })).toBeVisible()
   await page.getByRole('dialog', { name: 'Title' }).evaluate((el) => { el.style.visibility = 'hidden' })
+  // Wait for a frame that shows the world, not a fixed second. The canvas is flat gray until the
+  // scene first draws; measured 2026-09-27, the deck test's `off` capture was that gray (mean
+  // 126.3, sd 0.0002) on main too, so the deck comparison had been passing against a blank frame.
+  const BELOW_HUD = { x: 0, y: 900, w: 2560, h: 400 }
+  await expect.poll(async () => (await grayStats(page, await page.screenshot(), BELOW_HUD)).sd, { timeout: 30_000, message: 'the world never drew behind the title' }).toBeGreaterThan(2)
   await page.waitForTimeout(1000)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.tick())).toBe(0)
 }

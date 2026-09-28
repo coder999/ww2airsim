@@ -103,13 +103,20 @@ export async function buildScenarioEntities(
     }
   }
 
-  for (const a of airframes) scene.add(a.root)
+  for (const a of airframes) {
+    scene.add(a.root)
+    // A scenario/aircraft switch can replace this root between two rendered
+    // frames. Prime its complete transform tree now so the first frame that
+    // sees it cannot reuse the outgoing model's world-space render state.
+    a.root.updateWorldMatrix(true, true)
+  }
   const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
   const player = airframes[playerIndex]!
   for (const h of shipHandles) scene.add(h.root)
   for (const h of [...heldAirframes, ...heldShipHandles]) {
     h.root.visible = false
     scene.add(h.root)
+    h.root.updateWorldMatrix(true, true)
   }
 
   return {

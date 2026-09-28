@@ -964,6 +964,23 @@ async function boot(): Promise<void> {
       // own doc comment in diagnostics.ts for why a Tier 2 spec needs this
       // rather than `groundHeightM()` to detect a switch completing.
       scenarioId: () => bundle?.scenario.id ?? null,
+      // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
+      // stamped by modelCache when there is one, rather than trusting the wrapper root's label.
+      // The hand-built Wildcat has no cache URL and names its own root instead.
+      playerModel: () => {
+        const root = scenarioEntities?.player.root
+        if (root === undefined) return null
+        const modelUrls: string[] = []
+        root.traverse((o) => {
+          if (typeof o.userData['modelUrl'] === 'string') modelUrls.push(o.userData['modelUrl'] as string)
+        })
+        const modelUrl = modelUrls[0]
+        return (modelUrl?.match(/([^/]+)\.glb(?:[?#].*)?$/)?.[1] ?? root.name) || null
+      },
+      sceneAirframeModels: () => {
+        const modelIds = new Set(loadFlyableAircraft().map((f) => f.spec.view.model))
+        return scene.children.flatMap((root) => modelIds.has(root.name) ? [root.name] : [])
+      },
       frameTimesMs: () => frameTimesMs.slice(),
       gpuFrameTimesMs: () => gpuFrameTimesMs.slice(),
       gpuRenderTimesMs: () => gpuRenderTimesMs.slice(),

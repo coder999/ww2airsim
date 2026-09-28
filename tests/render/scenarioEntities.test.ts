@@ -71,6 +71,21 @@ describe('buildScenarioEntities', () => {
     expect(entities.player).toBe(entities.airframes[playerIndex])
   })
 
+  it('primes each new airframe transform tree before its first rendered frame', async () => {
+    const updates: ReturnType<typeof vi.fn>[] = []
+    const load = async () => {
+      const airframe = createHellcat()
+      const update = vi.spyOn(airframe.root, 'updateWorldMatrix')
+      updates.push(update)
+      return airframe
+    }
+
+    await buildScenarioEntities(new Scene(), deckQuals, null, load, stubShips)
+
+    expect(updates).toHaveLength(deckQuals.aircraft.length)
+    for (const update of updates) expect(update).toHaveBeenCalledWith(true, true)
+  })
+
   it('a SHRINK (fewer aircraft AND fewer ships) disposes every mesh the larger scenario built, not just the ones the smaller count happens to reuse', async () => {
     const scene = new Scene()
     const before = await buildScenarioEntities(scene, deckQuals, null, stubAirframe, stubShips) // 2 aircraft, 3 ships
