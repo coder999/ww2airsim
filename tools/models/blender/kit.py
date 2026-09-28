@@ -283,7 +283,7 @@ class Model:
             out.append((key, tuple((_dot(_sub(q, p[0]), u), _dot(_sub(q, p[0]), v)) for q in p)))
         return out
 
-    def _loft_charts(self, rings):
+    def _loft_charts(self, rings, role=None):
         """Charts for _loft's faces, in its order: one chart for every side quad (u = distance
         along the ring centroids, v = each ring's own arc-length fraction x the longest ring's
         perimeter), then a planar chart per cap. Returns (charts, side key, U, V)."""
@@ -307,7 +307,8 @@ class Model:
                 charts.append((side, ((U[s], V[s][j]), (U[s], V[s][j + 1]), (U[s + 1], V[s + 1][j + 1]), (U[s + 1], V[s + 1][j]))))
         verts = [p for ring in rings for p in ring]
         last = (len(rings) - 1) * count
-        charts.extend(self._planar_charts(verts, [tuple(reversed(range(count))), tuple(last + j for j in range(count))]))
+        # Caps always stay with the loft's main role (_emit), so inside shared_chart() they key on it.
+        charts.extend(self._planar_charts(verts, [tuple(reversed(range(count))), tuple(last + j for j in range(count))], role))
         return charts, side, U, V
 
     def _mirror_charts(self, charts):
@@ -583,7 +584,7 @@ class Model:
         quarter = segments // 4
         charts = smooth = None
         if self.skin:
-            charts, side, U, V = self._loft_charts(rings)
+            charts, side, U, V = self._loft_charts(rings, role)
             smooth = [j is not None for _, j in faces]
             for s in range(1, len(rings) - 1):
                 self._line(side, 'u', U[s], 0.0, V[s][-1])
@@ -616,7 +617,7 @@ class Model:
         lower = lambda j: j >= len(AIRFOIL_STATIONS) - 1  # noqa: E731
         charts = smooth = None
         if self.skin:
-            charts, side, U, V = self._loft_charts(rings)
+            charts, side, U, V = self._loft_charts(rings, role)
             smooth = [j is not None for _, j in faces]
             self._spar_lines(side, U, V, _section_labels(AIRFOIL_STATIONS))
         self._emit(role, verts, faces, node, lower_role, lower_node, lower, charts, smooth)
@@ -638,7 +639,7 @@ class Model:
         verts, faces = _loft(rings)
         charts = smooth = None
         if self.skin:
-            charts, side, U, V = self._loft_charts(rings)
+            charts, side, U, V = self._loft_charts(rings, role)
             smooth = [j is not None for _, j in faces]
             self._spar_lines(side, U, V, _section_labels(AIRFOIL_STATIONS))
         # Stand the panel up: (x, y, z) -> (x, z, -y) is a rotation, so windings hold.
@@ -672,7 +673,7 @@ class Model:
         verts, faces = _loft(rings)
         charts = smooth = None
         if self.skin:
-            charts, _side, _U, _V = self._loft_charts(rings)
+            charts, _side, _U, _V = self._loft_charts(rings, role)
             smooth = [j is not None for _, j in faces]
         self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
 

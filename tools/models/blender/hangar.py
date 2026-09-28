@@ -65,14 +65,15 @@ with m.tagged('walls'):
 with m.tagged('roof'):
     m.barrel_vault('steel', (0.0, WALL_M, 0.0), width, rise, length, SHELL_T, 24)
 # Ribs stand RIB_PROUD_M off the shell; their inner face sinks EMBED_M into it. None at an end.
-# Their own tag keeps the roof's laps off them; their flat side faces share one chart (their
-# shells keep their own analytic charts).
+# Their 24 segments match the roof's, so their facets run parallel to its and the embed holds at
+# every angle (16 left them up to 1.5 cm clear between facets). Their own tag keeps the roof's
+# laps off them; their flat side faces share one chart (their shells keep their own analytic charts).
 with m.tagged('ribs'):
     ribs = int(length // RIB_EVERY_M)
     with m.shared_chart():
         for i in range(ribs):
             z = -length / 2 + (i + 0.5) * length / ribs
-            m.barrel_vault('steel', (0.0, WALL_M, z), width + 2 * RIB_PROUD_M, rise + RIB_PROUD_M, RIB_W_M, RIB_PROUD_M + EMBED_M, 16)
+            m.barrel_vault('steel', (0.0, WALL_M, z), width + 2 * RIB_PROUD_M, rise + RIB_PROUD_M, RIB_W_M, RIB_PROUD_M + EMBED_M, 24)
 with m.tagged('gable'):
     # The end wall sits GABLE_INSET inside the vault, and its outline runs mid-shell, so its
     # curved edge is buried in the shell and its sides inside the walls: no face of it is

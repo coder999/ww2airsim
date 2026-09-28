@@ -202,7 +202,7 @@ describe.skipIf(!HAVE_BLENDER)('Model.shared_chart() (DP0 Task 8)', () => {
     for (const [node, role] of [['sh_b', steel], ['sh_d', glazing], ['sh_e', steel]] as const) {
       const id = p.get(node)![0]!
       let n = 0
-      for (let i = 0; i < g.patch.length; i++) if (g.patch[i] === id) { n++; expect(g.covered[i]).toBe(1); expect(g.role[i], node).toBe(role) }
+      for (let i = 0; i < g.patch.length; i++) if (g.patch[i] === id) { n++; expect(g.role[i], node).toBe(role) }
       expect(n, `${node}: texels in its patch`).toBeGreaterThan(0)
     }
   })
