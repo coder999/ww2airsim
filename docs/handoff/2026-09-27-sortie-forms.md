@@ -1,7 +1,7 @@
 # Sortie forms handoff (2026-09-27)
 
-Branch `worktree-sortie-forms`, **pushed, not merged**. Merging into `main`
-and deploying are Mark's call. Plan:
+Branch `worktree-sortie-forms`, **merged to `main` 2026-09-27** (Mark), after this
+handoff was written; not deployed. Plan:
 [2026-09-27-sortie-forms.md](../superpowers/plans/2026-09-27-sortie-forms.md).
 Spec: [2026-09-27-sortie-forms-design.md](../superpowers/specs/2026-09-27-sortie-forms-design.md),
 amendments A1-A6. Ledger:
@@ -98,14 +98,13 @@ skips the forms (always a Dev sortie).
 - **SF-R4** Default loadout: the recommendation if allowed, else `both` if
   allowed, else `clean`, so `startGame(page)` still flies the old sortie.
 - **SF-R5** Changing the mission resets the aircraft to that mission's own.
-- **SF-R6 — for Mark's decision.** `?recordDevSorties` is a **DEV-build-only**
+- **SF-R6 — kept (Mark, 2026-09-27).** `?recordDevSorties` is a **DEV-build-only**
   switch that makes a Dev sortie record anyway. It exists only so Tier 2 can
   still prove the banking chain end to end from the now Dev-only test beds:
   friendly-fire K.I.A. and discharge, and the `dev-mission-ui` fixture's
-  badge. A production build ignores it (pinned by a Tier 1 test). **If you
-  would rather not have it:** remove the switch and rewrite those three
-  assertions to expect `Dev sortie: not recorded` and an unchanged roster; the
-  end-to-end banking proof is then lost.
+  badge. A production build ignores it (pinned by a Tier 1 test). The
+  alternative, dropping it and asserting `Dev sortie: not recorded` instead,
+  would have lost the only end-to-end banking proof.
 - **SF-R7** Scenario facts the forms need before any fetch are restated in
   `SCENARIO_OPTIONS` and pinned against each file (M2 R5's pattern).
 - **SF-R8** The `(dev)` labels stay.
@@ -202,10 +201,9 @@ looked at before this was written.
 
 ## 5. Open items
 
-- **SF-R6** needs Mark's yes or no (§3).
-- **The Hellcat's eye point was not checked.** No capture is from the cockpit
-  view; `view.eyePointM` dates from the Wildcat era. Look from inside once.
-- **The Essex deck reads very dark** in the deck capture, on `main` too
+- **The Hellcat's eye point was not captured** (no cockpit-view capture);
+  Mark expects it to be fine (2026-09-27).
+- **The Essex deck reads very dark** (deferred: ship visuals need a pass generally, Mark 2026-09-27) in the deck capture, on `main` too
   (the same view in `cloudShadow.spec.ts` reads mean gray 19.7 under cloud).
   `deckQuals.spec.ts`'s deck-brightness assertion passed in the full run, but
   it had failed (1.89 against ≤ 1.5) in the interrupted run before this
@@ -215,7 +213,8 @@ looked at before this was written.
   code this branch was cut from. It holds keys for wall-clock durations while
   the world flies through the terrain load. It was red in 2 of 5 runs on the
   branch and green in 4 of 4 on `main`, which also has Plan 7f's AI changes
-  the branch lacks. Re-check it after merging `main`.
+  the branch lacks. Mark's ruling (2026-09-27): a weak test by design (see
+  the 7c handoff §5), left as a known flake; not investigated further.
 - **Six Tier 2 budget and visual tests fail on `main` too** (§2): terrain
   1440p, budget4k `in-deck-1900`, motionBudget, both terrainTextures budgets,
   and `sun.spec.ts`'s noon-sky check.
