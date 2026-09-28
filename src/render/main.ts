@@ -107,6 +107,7 @@ import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
+import { addMouse, NO_MOUSE, ORBIT_ZERO, wheelNotches, type MouseDelta } from '../input/orbit.js'
 import { DEFAULT_ASSIST_SETTINGS } from '../assists/index.js'
 import {
   hasSpawnOverride,
@@ -710,6 +711,36 @@ async function boot(): Promise<void> {
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
 
+  // Orbit camera (spec 2026-09-27). Canvas-only, so a press on any HUD or
+  // dialog element sitting over it is never a drag (plan Review Focus 1). No
+  // pointer lock: Esc is the pause key (spec OC-5). Folded into one
+  // `MouseDelta` per frame and handed to `nextFrameState` in the frame loop.
+  let mouseDelta: MouseDelta = NO_MOUSE
+  let dragPointer: number | null = null
+  let lastPointer = { x: 0, y: 0 }
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return
+    dragPointer = e.pointerId
+    lastPointer = { x: e.clientX, y: e.clientY }
+    canvas.setPointerCapture(e.pointerId)
+  })
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== dragPointer) return
+    mouseDelta = addMouse(mouseDelta, { ...NO_MOUSE, dxPx: e.clientX - lastPointer.x, dyPx: e.clientY - lastPointer.y })
+    lastPointer = { x: e.clientX, y: e.clientY }
+  })
+  // All three, so a release outside the window cannot leave a drag stuck
+  // (plan Review Focus 2); the window `blur` handler below also drops it.
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) {
+    canvas.addEventListener(type, (e) => { if (e.pointerId === dragPointer) dragPointer = null })
+  }
+  canvas.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) return // the browser's own zoom, and a trackpad pinch (plan Review Focus 3)
+    e.preventDefault()
+    mouseDelta = addMouse(mouseDelta, { ...NO_MOUSE, wheelNotches: wheelNotches(e.deltaY, e.deltaMode) })
+  }, { passive: false })
+  canvas.addEventListener('dblclick', () => { mouseDelta = { ...mouseDelta, reset: true } })
+
   // Timestamp queries also support one automatic ocean quality decision.
   // The external diagnostics hook remains development-only.
   boot.begin('renderer')
@@ -861,6 +892,7 @@ async function boot(): Promise<void> {
       gearFraction: () => (frame ? playerAircraft(frame.world).state.gearFraction : 0),
       controls: () => frame?.controls ?? NEUTRAL,
       look: () => frame?.look ?? LOOK_CENTRE,
+      orbit: () => frame?.orbit ?? ORBIT_ZERO,
       // Same `??`-guard as the four above, for the same reason: the hook is
       // installed before `frame` exists. The fallback is the same value
       // `initialFrameStateFor` would have produced.
@@ -1904,6 +1936,8 @@ async function boot(): Promise<void> {
   // "down" forever -- the airplane keeps pitching after the window loses focus.
   window.addEventListener('blur', () => {
     pressed.clear()
+    dragPointer = null
+    mouseDelta = NO_MOUSE
     pendingCameraCycle = false
     // Omitted before Plan 8: this handler never cleared triple time's latch,
     // unlike every other edge-triggered toggle here and in `clearMapInput`.
@@ -2001,7 +2035,17 @@ async function boot(): Promise<void> {
     // the dialog is reachable from the title screen between sorties, and
     // `arcadeDamage()` is a plain boolean read off the model (no localStorage
     // round trip per frame). It reaches `stepCombat` through `advance`.
-    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage())
+    // Orbit plan ruling P-3: the mouse is gated as the radar-range key is --
+    // the title/chart (`chartOpen`), an impact or shoot-down (its hold and
+    // debrief), a landing debrief. Cleared every frame, blocked or not, so a
+    // drag made under a dialog is never applied later.
+    const mouseBlocked = chartOpen
+      || playerAircraft(frame!.world).impact !== null
+      || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
+      || landingShown
+    const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta
+    mouseDelta = NO_MOUSE
+    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
     if (forcedLook !== undefined && current.look.yawRad === 0 && current.look.pitchRad === 0) {
