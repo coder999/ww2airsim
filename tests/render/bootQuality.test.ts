@@ -249,8 +249,13 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
   })
 
   it('feeds the damage model into the frame loop every frame', () => {
-    expect(source).toContain('quality.arcadeDamage())')
-    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\)\)/)
+    // `[,)]`: the orbit camera (2026-09-27) added the mouse as a later argument.
+    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\)[,)]/)
+  })
+
+  it('feeds the gated mouse into the frame loop every frame (orbit camera plan ruling P-3)', () => {
+    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\), frameMouse\)/)
+    expect(source).toContain('const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta')
   })
 
   it('keeps the DEV query overrides winning over a saved setting', () => {
