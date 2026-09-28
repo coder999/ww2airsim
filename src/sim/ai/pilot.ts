@@ -218,7 +218,9 @@ export type PilotDecisionState = {
   /** 7g: the recovery phase machine, present only in mode `rtb`/`landed`. */
   readonly recovery?: RecoveryState
   /** 7g spec §1: the last rescore at which any hostile was a contact.
-   *  Written only for a pilot with a home; absent reads as 0. */
+   *  Written only for a pilot with a home, and seeded with the time of its
+   *  first rescore (ruling P10), so the idle clock starts when the pilot
+   *  does, not at 0 (a trigger-spawned pilot). */
   readonly lastContactS?: number
 }
 

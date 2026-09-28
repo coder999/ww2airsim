@@ -1,5 +1,6 @@
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
-import { advance, aircraftById, type World } from '../../../src/sim/loop.js'
+import { advance, aircraftById, withAircraftState, type World } from '../../../src/sim/loop.js'
+import { length, scale, sub } from '../../../src/sim/math/vec3.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import type { AircraftCombat } from '../../../src/sim/weapons/combat.js'
 import type { TerrainField } from '../../../src/sim/world/terrain.js'
@@ -69,7 +70,7 @@ export function withFuel(w: World<undefined>, id: string, fraction: number): Wor
 }
 
 /** An axis veteran with no home. */
-const axis = (id: string, position: readonly [number, number, number], headingDeg: number, speedMps = 110) =>
+export const axis = (id: string, position: readonly [number, number, number], headingDeg: number, speedMps = 110) =>
   ({ id, spec: 'f6f-hellcat', side: 'axis', airborneAt: { position, headingDeg, speedMps }, pilot: { skill: 'veteran' } })
 
 /** ai-1, homed to cv-1, northbound at 1,500 m; axis-1 3 km to its east,
@@ -86,3 +87,19 @@ export const worldWithHostileAstern = (): World<undefined> => buildRecovery([
   homed('ai-1', { ship: 'cv-1' }, [0, 1500, 12000]),
   axis('axis-1', [0, 1500, 12600], 0, 125),
 ])
+
+/** Moves `hostile` to `rangeM` straight behind `id`, flying its velocity and
+ *  attitude: in the rear cone, closing only if it then speeds up, with a gun
+ *  solution once it points its nose (which it already does). */
+export function withHostileAstern(w: World<undefined>, id: string, hostile: string, rangeM = 600): World<undefined> {
+  const me = aircraftById(w, id)!.state
+  const behind = sub(me.position, scale(me.velocity, rangeM / length(me.velocity)))
+  const h = aircraftById(w, hostile)!.state
+  return withAircraftState(w, hostile, { ...h, position: behind, velocity: me.velocity, attitude: me.attitude })
+}
+
+/** `ship` sunk as of this tick. */
+export function withShipSunk(w: World<undefined>, ship: string): World<undefined> {
+  const d = w.combat.ships[ship]!
+  return { ...w, combat: { ...w.combat, ships: { ...w.combat.ships, [ship]: { ...d, destroyedTick: w.tick } } } }
+}

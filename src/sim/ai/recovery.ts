@@ -69,7 +69,9 @@ export function shouldReturn<M>(a: AircraftEntity<M>, record: AircraftCombat, de
   if (a.state.fuelKg / a.spec.mass.fuelCapacityKg <= RTB_FUEL_FRACTION) return true
   if (record.guns.length > 0 && record.guns.every((g) => g.ammo <= 0)) return true
   if (record.damage.structure < RTB_STRUCTURE) return true
-  return nowS - (decision.lastContactS ?? 0) >= RTB_IDLE_S
+  // pilotTick seeds lastContactS at a homed pilot's first rescore (ruling
+  // P10); the `?? nowS` only keeps a hand-built decision from going home.
+  return nowS - (decision.lastContactS ?? nowS) >= RTB_IDLE_S
 }
 
 /** A hostile contact inside THREAT_ASTERN_RANGE_M in my rear cone. */

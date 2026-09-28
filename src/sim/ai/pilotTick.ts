@@ -107,13 +107,20 @@ export function pilotTick<M>(
     // 7g spec §1, §6: the return-to-base decision, for a pilot with a home
     // only (ruling P3: nothing else is written for one without, so every
     // pre-7g world is bit-identical). RTB pre-empts engage unless a threat is
-    // astern; `landed` is terminal.
+    // astern AND there is something to engage: a threat the orders reject
+    // (`chooseTarget` null) would otherwise drop the pilot out of `rtb` into
+    // flying away from both it and home. `landed` is terminal.
     let rtb = false
     if (pilot.home !== undefined) {
-      if (snapshot.some((c) => isContact(a, c, view))) decision = { ...decision, lastContactS: ctx.nowS }
+      // Ruling P10: the idle clock starts at the pilot's first rescore, not
+      // at 0, so a pilot spawned by a trigger at t = 600 s does not go home
+      // on its first tick.
+      if (decision.lastContactS === undefined || snapshot.some((c) => isContact(a, c, view))) {
+        decision = { ...decision, lastContactS: ctx.nowS }
+      }
       const recovering = decision.mode === 'rtb' || decision.mode === 'landed'
       const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS)
-      rtb = decision.mode === 'landed' || ((recovering || goHome) && !threatAstern(a, view))
+      rtb = decision.mode === 'landed' || ((recovering || goHome) && !(scored !== null && threatAstern(a, view)))
     }
     const chosen = rtb ? null : scored
     if (chosen !== decision.targetId) {
