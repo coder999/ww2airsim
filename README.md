@@ -88,8 +88,9 @@ every armed detonation is reported through a bounded, bit-identical
 simulation ring, and one lit, soft, pooled particle system now owns bomb,
 rocket, shell, crash, aircraft, ship, and structure effects. Dense smoke stops
 the cloud march; quality tiers, failed-sheet fallback, restart cleanup, and
-paired reference-GPU cost gates are covered. The shipped flipbooks are
-code-generated placeholders for E2, not final art. See the
+paired reference-GPU cost gates are covered. E2 replaced the placeholder
+flipbooks with Blender-baked sheets (§15; the
+[E2 handoff](docs/handoff/2026-09-28-e2-flipbooks.md)). See the
 [E1 handoff](docs/handoff/2026-09-26-e1-effects-engine.md) for captures,
 measurements, merge notes, and the two shared baseline tripwires.
 

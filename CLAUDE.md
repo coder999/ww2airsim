@@ -61,7 +61,8 @@ not exist, and three conventions below were being missed for that reason).
   worktree, so parallel worktrees can each run Blender on either machine. If
   an upgrade moves one machine off the version pinned in
   `tools/models/blender/run.ts`, its Blender suites fail by name. They do not
-  skip. Upgrade both machines together.
+  skip. Upgrade both machines together. Effects flipbooks bake with it on
+  ryzen: `docs/fx-bake.md`.
 - `src/sim/` never imports `render/`, `input/`, `assists/`, `audio/`, Node
   core or a rendering library; `.dependency-cruiser.cjs` says why for each
   rule and `tests/architecture/boundary.test.ts` proves they bite.
