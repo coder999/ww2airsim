@@ -91,9 +91,8 @@ Mark, 2026-09-27: "respot clear".
 - **Assignment** is in id order among the AI homed to that place, so it is
   deterministic and independent of landing order.
 - **Validation** (each rule rejects its case by name): a scenario that homes
-  more AI to one ship or airfield than it has park spots; an airfield whose
-  spots fail the terrain check. The terrain check runs only when terrain is
-  loaded, the same way airfield recovery waits for it.
+  more AI to one ship or airfield than it has park spots; an airfield spot
+  inside a building footprint. The terrain check is a content test (§7).
 - **Acceptance (added to §6's):** two AI recover to one carrier and come to
   rest on two distinct deck-park spots, both clear of the trap zone, at rest
   relative to the deck; the same for one runway, skipping by name when the
@@ -107,6 +106,83 @@ is enough for Tier 2 to read `landed`. It gains the recovery phase for an AI
 with a home. This is the one
 edit in `src/render/main.ts`; re-diff against `HEAD` before committing
 (7c-7g design §8).
+
+## 5. The carrier approach flies the LSO's numbers (found while planning, 2026-09-28)
+
+§6 has the AI fly `approachControls` unchanged to the deck and obey
+`paddlesCue`'s wave-off. Those two disagree, so that AI would never land.
+Measured 2026-09-28 at `ca7b998` on nexus, `tests/sim/carrierLanding.test.ts`'s
+own setup (deck-quals, `cv-1`, 15.4 m/s wind over the deck), cues sampled every
+tick. The probe was a scratch copy of `approachControls` with the speed, slope,
+aim and flare height as parameters:
+
+| Speed / slope / aim / flare | LSO over the approach | First wave-off | Trapped, at rest |
+| --- | --- | --- | --- |
+| 1.3 x stall / 3.0° / zone near edge / 12 m (today's) | fast x3386, low x513, **wave-off x277**, roger x109, cut x149 | 250 m astern, before any cut | yes, 101 m from stern |
+| 1.15 / 3.5° / near edge / 12 m | roger x4647, wave-off x558, no cut | 248 m astern | yes, 41 m |
+| 1.15 / 3.5° / zone center / 12 m | roger x4922, cut x26, wave-off x298 | 109 m, 26 ticks after the cut, in the flare (40.4 m/s, slow) | yes, 91 m |
+| **1.15 / 3.5° / zone center / none** | **roger x4912, cut x240, wave-off x8** | **3 m astern at touchdown, 240 ticks (4 s) after the cut** | **yes, 97 m** |
+
+Why: the LSO judges speed as `APPROACH_SPEED_STALL_MULTIPLE` (1.15) x the
+flap stall ± 3 m/s (43.4 m/s for the Hellcat) against the autopilot's Vref of
+1.3 x (49.1 m/s), and glideslope as 3.5° to the trap zone's CENTER against the
+autopilot's 3° to its near edge. The 12 m flare starts about 196 m out on a
+3.5° path, inside the 250 m wave-off range, and bleeds speed with the throttle
+closed. Real carrier pilots do not flare.
+
+**So the carrier profile is:**
+
+- `ApproachTarget` gains three optional fields, `approachSpeedMps`,
+  `glidePathRad` and `flareHeightM`. Absent, each is today's constant, so both
+  landing tests' inline snapshots stay bit-identical.
+- An AI recovering to a deck passes the LSO's numbers:
+  - approach speed `APPROACH_SPEED_STALL_MULTIPLE x effectiveStallSpeedMps(spec, 1)`;
+  - slope `paddles.glideslopeDeg`;
+  - aim at the trap zone's center;
+  - flare height 0.
+
+  `configure` and the capture window read "Vref" as this speed on a deck.
+- **The AI is committed after the cut.** It goes around on `wave-off` only
+  if it has not yet received `cut` on this pass. Afterwards the landing
+  officer's priority order (wave-off before cut) can still read `wave-off` at
+  touchdown, and the AI ignores it.
+- Tier 1 asserts no wave-off before the first cut on a clean pass, and a
+  touchdown sink under `MAX_SUPPORTED_SINK_MPS` with no flare.
+- A runway approach is unchanged: Vref 1.3 x, 3°, the 12 m flare.
+
+## 6. Safety-floor exemption covers the whole approach (found while planning)
+
+7c-7g design §3.2 exempts "only 7g's final-approach phase" from the 400 m
+floor recovery (`FLOOR_M` + `FLOOR_BUFFER_M`, `src/sim/ai/safety.ts`). But §6
+puts the final approach fix at 244.6 m and the go-around at 300 m, both
+below that trigger. So every recovery phase after `transit` is exempt from
+the floor recovery: `join`, `configure`, `final`, `rollout`, `landed` and
+`go-around`. The overspeed guard still applies in all of them. `transit` and
+holding at the initial point (600 m) keep the floor.
+
+## 7. Home is resolved when the world is built
+
+`PilotTickContext` carries no airfields, and §2 of the 7c-7g design promised
+`loop.ts` would not be edited again. Following 7e's ingress precedent (ruling
+W6: an airfield destination is resolved to fixed geometry at build time):
+
+- `pilot.home` is resolved by `worldFromScenario` into plain data:
+  `{ kind: 'runway', airfieldId, aimX, aimZ, headingRad, lengthM, widthM, parkSpots }`
+  or `{ kind: 'ship', id, parkSpot }`.
+- A ship is read live each tick from `ctx.ships`.
+- Touchdown elevation comes from `ctx.terrain` at run time.
+- `loop.ts` is not edited.
+
+The airfield park-spot check splits by what it needs:
+
+- Spot count and building footprints are checked at `worldFromScenario`.
+  Neither needs terrain.
+- The terrain level check (on land, within 2 m of runway elevation) is a
+  Tier 1 content test over every shipped scenario with a `home` airfield. It
+  skips by name when the tiles are absent.
+
+Airfield spots are on the runway's apron side: the sign of `apron.x` when an
+apron exists, else local -x. That is, on Tacloban's apron.
 
 ## Deliberately not done
 
