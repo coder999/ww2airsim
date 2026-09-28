@@ -141,10 +141,17 @@ estimate, and a test enforces each fit.
     at 0.00°), the model's own wheels give a 7.43° parked angle, against
     [DS]'s static ground angle of 12°20′.
   - **Why the mains.** The tailwheel's top is already 0.08 m inside the
-    fuselage skin, so the tail cannot come up. Lengthening the mains by about
-    0.45 m at the real scale gives 12°20′. It also lifts the parked propeller
-    hub from about 1.81 m to about 2.2 m, against about 2.1 m derived from
-    [DS]'s 11 ft 9 in height over the propeller and the 9 ft 9 in propeller.
+    fuselage skin, so the tail cannot come up. Lengthening the mains by
+    0.4445 m at the real scale gives 12°20′ (measured 2026-09-28, while
+    writing the plan).
+  - **What it doesn't fix.** The model's proportions don't match the real
+    airplane everywhere, and R5 makes the ground angle the one that is held.
+    The other gaps are recorded and not fixed:
+    - the parked propeller hub then sits at 2.347 m, against about 2.10 m
+      derived from [DS]'s 11 ft 9 in height over the propeller and its 9 ft
+      9 in propeller;
+    - the wheelbase is 5.04 m, against 5.46 m;
+    - the main-wheel track is 1.28 m, against 1.96 m.
   - **How.** `loadWildcat` stretches each main strut along the leg's own axis
     and moves the wheel down it. The stretch is one named constant, measured
     and asserted.
