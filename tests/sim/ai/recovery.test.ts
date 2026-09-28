@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { aircraftById, type World } from '../../../src/sim/loop.js'
-import { HOLD_RADIUS_M, initialPoint, IP_HEIGHT_M, recoveryGeometry } from '../../../src/sim/ai/recovery.js'
+import { initialPoint, IP_ARRIVAL_M, IP_HEIGHT_M, recoveryGeometry } from '../../../src/sim/ai/recovery.js'
 import { localToWorld } from '../../../src/sim/world/airfields.js'
 import { loadAirfield } from '../../../tools/content/load.js'
 import { terrainOrSkip } from '../mission/fly.js'
@@ -102,24 +102,31 @@ function distanceToIp(w: W, id: string): number {
 }
 
 describe('transit and hold (7g spec, 7c-7g §6 phases 1)', () => {
-  it('flies to the initial point 8 km astern of the deck at 600 m, and holds there when the approach is taken', () => {
+  it('flies to the initial point 8 km astern of the deck at 600 m, and joins from there', () => {
     // 4 km past the IP, both out of ammunition so they go home at once.
-    let w = withGunsEmpty(withGunsEmpty(buildRecovery([
+    // Task 6 makes `hold -> join` immediate (the approach is always free),
+    // so neither is seen holding; Task 8's landing interval restores the
+    // assertion that the higher id holds while the lower approaches.
+    const w = withGunsEmpty(withGunsEmpty(buildRecovery([
       homed('ai-1', { ship: 'cv-1' }, [0, 1000, 12000]),
       homed('ai-2', { ship: 'cv-1' }, [400, 1000, 12000]),
     ]), 'ai-1'), 'ai-2')
-    let reachedHold = false
-    w = fly(w, 120, (x) => { reachedHold = phaseOf(x, 'ai-2') === 'hold'; return reachedHold })
-    expect(reachedHold).toBe(true)
-    let worst = 0
-    const end = fly(w, 60, (x) => {
-      expect(phaseOf(x, 'ai-2')).toBe('hold')
-      worst = Math.max(worst, distanceToIp(x, 'ai-2'))
+    const joinedAt: Record<string, { ipM: number; heightM: number }> = {}
+    fly(w, 120, (x) => {
+      for (const id of ['ai-1', 'ai-2']) {
+        if (joinedAt[id] === undefined && phaseOf(x, id) === 'join') {
+          const deckY = recoveryGeometry(aircraftById(x, id)!.pilot!.home!, x)!.touchdownM
+          joinedAt[id] = { ipM: distanceToIp(x, id), heightM: aircraftById(x, id)!.state.position.y - deckY }
+        }
+      }
+      return joinedAt['ai-1'] !== undefined && joinedAt['ai-2'] !== undefined
     })
-    expect(worst).toBeLessThan(HOLD_RADIUS_M + 300)
-    // IP_HEIGHT_M above the flight deck, within the ingress orbit's own 100 m.
-    const deckY = recoveryGeometry(aircraftById(end, 'ai-2')!.pilot!.home!, end)!.touchdownM
-    expect(Math.abs(aircraftById(end, 'ai-2')!.state.position.y - (deckY + IP_HEIGHT_M))).toBeLessThan(100)
+    for (const id of ['ai-1', 'ai-2']) {
+      expect(joinedAt[id], `${id} never reached join`).toBeDefined()
+      expect(joinedAt[id]!.ipM).toBeLessThanOrEqual(IP_ARRIVAL_M)
+      // Transit's 10 m/s vertical cap arrives high (Task 5: about 115 m).
+      expect(Math.abs(joinedAt[id]!.heightM - IP_HEIGHT_M)).toBeLessThan(150)
+    }
   })
 
   it('home ship gone: drops home and loiters, no throw', () => {

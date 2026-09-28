@@ -136,10 +136,16 @@ export function ingressOrbitControls<M>(
 /** `ingressOrbitControls` for any goal and radius: the left-hand orbit flown
  *  by the lift vector. Shared with 7g's hold (`recovery.ts`). */
 export function orbitControls<M>(self: AircraftEntity<M>, goal: Goal, radiusM: number): Controls {
-  const desired = goalDesiredVelocity(self, goal, radiusM)
+  return liftTowardControls(self, goalDesiredVelocity(self, goal, radiusM), goalThrottle(self, goal.speedMps))
+}
+
+/** The orbit's law for any desired velocity: the horizontal turn its heading
+ *  error asks for plus the vertical its climb-rate error asks for, flown by
+ *  the lift vector. Shared with 7g's join (`recovery.ts`), which turns onto
+ *  the centerline from any heading. */
+export function liftTowardControls<M>(self: AircraftEntity<M>, desired: Vec3, throttle: number): Controls {
   const v = self.state.velocity
   const speedH = Math.hypot(v.x, v.z)
-  const throttle = goalThrottle(self, goal.speedMps)
   if (speedH < 1) return controlsForLiftVector(self.state, self.spec, v3(0, 1, 0), 1, throttle)
   const fx = v.x / speedH
   const fz = v.z / speedH

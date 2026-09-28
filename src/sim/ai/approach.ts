@@ -41,6 +41,12 @@ export type ApproachTarget = {
    *  FLARE_HEIGHT_M (12 m). 0 = no flare: fly the path onto the deck, as a
    *  carrier pilot does. */
   readonly flareHeightM?: number
+  /** 7g: a lead on the cross-track correction, in seconds: the yaw law
+   *  steers on `acrossM + acrossDampingS x d(acrossM)/dt`. Default none, the
+   *  proportional law both landing tests pin. Without it an approach that
+   *  starts off the centerline oscillates with a growing amplitude; see
+   *  `FINAL_ACROSS_DAMPING_S` (recovery.ts) for the measurement. */
+  readonly acrossDampingS?: number
 }
 
 /**
@@ -191,7 +197,10 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
   const configured = { gearDown: true, flapDown: true, hookDown: target.hookDown === true }
   // Positive yaw is nose-right, and `acrossM` is positive when right of the
   // centerline, so the correction is its negation.
-  const yaw = clamp(-acrossM * YAW_PER_OFFSET_M, -1, 1)
+  // The lead term only when asked for, so the landing tests' arithmetic is
+  // untouched (their inline snapshots are bit-identical).
+  const lateralM = target.acrossDampingS === undefined ? acrossM : acrossM + target.acrossDampingS * finite(rel.x * sx + rel.z * sz)
+  const yaw = clamp(-lateralM * YAW_PER_OFFSET_M, -1, 1)
 
   // Rolling: on the wheels and slower than the approach speed, so this is a
   // roll-out and not a touch-and-go. Steer with the tailwheel and brake.
@@ -251,7 +260,7 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
  * trap zone's CENTER, the point `paddlesCue` measures the glideslope to.
  * `windVelocity` is the caller's: the world's wind.
  */
-export function carrierApproachProfile(spec: AircraftSpec, deck: Deck, paddles: PaddlesParams): Omit<Required<ApproachTarget>, 'windVelocity'> {
+export function carrierApproachProfile(spec: AircraftSpec, deck: Deck, paddles: PaddlesParams): Omit<Required<ApproachTarget>, 'windVelocity' | 'acrossDampingS'> {
   const aim = carrierAimPoint(deck)
   return {
     aimX: aim.x, aimZ: aim.z, runwayHeadingRad: deck.headingRad,

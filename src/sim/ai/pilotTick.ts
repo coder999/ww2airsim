@@ -17,7 +17,7 @@ import { airborne } from './airborne.js'
 import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { isContact, selectTarget, type TargetingView } from './targeting.js'
-import { recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
+import { exemptFromFloor, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -189,7 +189,12 @@ export function pilotTick<M>(
   // Every other intent, and a pilot with no target, keeps FLOOR_M.
   const pursuedHeightM = target !== null && decision.maneuver === 'pursue'
     ? heightAboveGroundAt(decision.observedTargetPosition, ctx.terrain, ctx.decks) : null
-  const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind, floorTriggerM(pursuedHeightM))
+  // 7g spec §6: past `hold`, the whole approach is exempt from the floor
+  // (its fix and go-around are below the trigger); overspeed still applies.
+  // A -Infinity trigger is one no height or sink rate can reach.
+  const flyingRecovery = decision.mode === 'rtb' || decision.mode === 'landed'
+  const floorM = flyingRecovery && exemptFromFloor(decision.recovery) ? Number.NEGATIVE_INFINITY : floorTriggerM(pursuedHeightM)
+  const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind, floorM)
   if (override !== null) {
     const { controls, cursor } = finishControls(a, override.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
     return {
@@ -205,10 +210,11 @@ export function pilotTick<M>(
     }
   }
   // 7g: the recovery. `transit` and `hold` keep the floor above (spec §6).
-  if (decision.mode === 'rtb' || decision.mode === 'landed') {
+  if (flyingRecovery) {
     const flown = recoveryControls(a, { ...pilot, decision }, ctx, snapshot)
     const { controls, cursor } = finishControls(a, flown.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
-    const next = { ...decision, recovery: flown.recovery, safety: 'none' as const, latch: null, noiseCursor: cursor }
+    const mode = flown.recovery.phase === 'landed' ? 'landed' as const : decision.mode
+    const next = { ...decision, mode, recovery: flown.recovery, safety: 'none' as const, latch: null, noiseCursor: cursor }
     return { ...a, ...(flown.state !== undefined ? { state: flown.state } : {}), pilot: { ...pilot, decision: next }, controls }
   }
   // 7f spec §3: on station, by the one law that also rejoins.

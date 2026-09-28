@@ -1,7 +1,12 @@
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { advance, aircraftById, withAircraftState, type World } from '../../../src/sim/loop.js'
-import { length, scale, sub } from '../../../src/sim/math/vec3.js'
-import { DT } from '../../../src/sim/flight/model.js'
+import { length, scale, sub, v3 } from '../../../src/sim/math/vec3.js'
+import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
+import { createState, DT } from '../../../src/sim/flight/model.js'
+import { recoveryGeometry, type RecoveryGeometry } from '../../../src/sim/ai/recovery.js'
+import type { RecoveryPhase } from '../../../src/sim/ai/pilot.js'
+import { heightAboveGround } from '../../../src/sim/ai/safety.js'
+import { decksOf } from '../../../src/sim/world/deck.js'
 import type { AircraftCombat } from '../../../src/sim/weapons/combat.js'
 import type { TerrainField } from '../../../src/sim/world/terrain.js'
 import { bundleForScenario } from '../../../tools/content/load.js'
@@ -102,4 +107,79 @@ export function withHostileAstern(w: World<undefined>, id: string, hostile: stri
 export function withShipSunk(w: World<undefined>, ship: string): World<undefined> {
   const d = w.combat.ships[ship]!
   return { ...w, combat: { ...w.combat, ships: { ...w.combat.ships, [ship]: { ...d, destroyedTick: w.tick } } } }
+}
+
+/** The approach frame of `id`'s live recovery geometry, computed as
+ *  `approachControls` computes it: `alongM` short of the aim point,
+ *  `acrossM` starboard of the centerline, `wheelM` the wheels' height above
+ *  touchdown. */
+export function approachFrame(w: World<undefined>, id: string): { alongM: number; acrossM: number; wheelM: number; geo: RecoveryGeometry } {
+  const a = aircraftById(w, id)!
+  const geo = recoveryGeometry(a.pilot!.home!, w)!
+  const h = geo.headingRad
+  const dx = a.state.position.x - geo.aimX, dz = a.state.position.z - geo.aimZ
+  return {
+    alongM: -(dx * Math.sin(h) + dz * -Math.cos(h)),
+    acrossM: dx * Math.cos(h) + dz * Math.sin(h),
+    wheelM: a.state.position.y - a.spec.gear.heightM - geo.touchdownM,
+    geo,
+  }
+}
+
+/** `id` in `rtb` with a fresh recovery at `phase` (and `cut` as given). */
+export function inRecovery(w: World<undefined>, id: string, phase: RecoveryPhase, cut = false): World<undefined> {
+  return {
+    ...w,
+    aircraft: w.aircraft.map((a) => a.id !== id ? a : {
+      ...a,
+      pilot: {
+        ...a.pilot!,
+        decision: {
+          ...a.pilot!.decision, mode: 'rtb', targetId: null,
+          recovery: { phase, sinceS: w.tick * DT, cut, joinedAtS: null, restAtS: null, respotted: false },
+        },
+      },
+    }),
+  }
+}
+
+/**
+ * `id` placed on its approach: `alongM` short of the aim, `acrossM` to
+ * starboard, wheels `wheelM` above touchdown, flying down the centerline at
+ * `airspeedMps` through the world's wind (taken along the axis, as every
+ * wind here is), level. `configured`: gear and flaps already down.
+ */
+export function onApproach(
+  w: World<undefined>, id: string,
+  at: { alongM: number; acrossM?: number; wheelM: number; airspeedMps: number; configured?: boolean },
+): World<undefined> {
+  const a = aircraftById(w, id)!
+  const geo = recoveryGeometry(a.pilot!.home!, w)!
+  const h = geo.headingRad
+  const bow = v3(Math.sin(h), 0, -Math.cos(h))
+  const across = at.acrossM ?? 0
+  const wind = w.wind ?? v3(0, 0, 0)
+  const ground = at.airspeedMps + (wind.x * bow.x + wind.z * bow.z)
+  return withAircraftState(w, id, createState({
+    position: v3(
+      geo.aimX - bow.x * at.alongM + Math.cos(h) * across,
+      geo.touchdownM + a.spec.gear.heightM + at.wheelM,
+      geo.aimZ - bow.z * at.alongM + Math.sin(h) * across,
+    ),
+    velocity: scale(bow, ground),
+    attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - h),
+    gearFraction: at.configured === true ? 1 : 0,
+    flapFraction: at.configured === true ? 1 : 0,
+    fuelKg: a.state.fuelKg,
+    tick: a.state.tick,
+  }))
+}
+
+/** Crashed: an `impact`, or the body origin at or below what is under it.
+ *  The second half matters here: these worlds have no terrain, and with no
+ *  heightfield the loop's impact test sees only decks, so an airplane that
+ *  flies into the sea is never given an `impact` (loop.ts). */
+export function crashed(w: World<undefined>, id: string): boolean {
+  const a = aircraftById(w, id)!
+  return a.impact !== null || heightAboveGround(a.state, w.terrain, decksOf(w.ships)) <= 0
 }
