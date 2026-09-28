@@ -158,4 +158,23 @@ describe('replay support (instant replay R-4)', () => {
     audio.update({ ...flying, tick: 11 })
     expect(fake.engineGains.at(-1)).toBeGreaterThan(0)
   })
+
+  it('suppresses a cue that would otherwise fire while held ("paused means silent", design §7)', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    audio.hold(true)
+    const before = fake.played.length
+    // A rising shot count would fire `machinegun` if not held -- see the
+    // "rate scales..." test above, which fires it from the same inputs.
+    audio.update({ ...flying, tick: 11, shots: 5 })
+    expect(fake.played.length).toBe(before)
+    // Memory still advanced during the hold (only the SOUND was suppressed),
+    // so unholding does not fire the skipped cue late: `shots` has already
+    // been seen at 5, so it is not a further rise.
+    audio.hold(false)
+    audio.update({ ...flying, tick: 12, shots: 5 })
+    expect(fake.played.length).toBe(before)
+  })
 })
