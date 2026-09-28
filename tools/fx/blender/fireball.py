@@ -19,4 +19,4 @@ src = rig.flow_sphere('charge', radius=1.2, location=(0.0, 0.0, 3.0), flow_type=
 t = rig.bake(dom)
 rig.render_sheet(scene, dom, [src], sheet='fireball', a=a, cache=cache, sim_frames=SIM_FRAMES, ortho=12.6, center_z=6.0,
                  scatter=rig.scatter_material(density=5.0, albedo=0.3, anisotropy=0.2),
-                 emission=rig.emission_material(density=5.0, strength=8.0), bake_s=t)
+                 emission=rig.emission_material(density=5.0, strength=0.17), bake_s=t)

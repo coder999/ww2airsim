@@ -21,4 +21,4 @@ src = rig.flow_sphere('burner', radius=0.6, location=(0.0, 0.0, 0.9), flow_type=
 t = rig.bake(dom)
 rig.render_sheet(scene, dom, [src], sheet='flame', a=a, cache=cache, sim_frames=SIM_FRAMES, first_frame=FIRST,
                  ortho=8.4, center_z=4.0, scatter=rig.scatter_material(density=9.0, albedo=0.3, anisotropy=0.1),
-                 emission=rig.emission_material(density=9.0, strength=10.0), bake_s=t)
+                 emission=rig.emission_material(density=9.0, strength=0.034), bake_s=t)

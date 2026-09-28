@@ -32,7 +32,12 @@ SUN_ROTATION = {
     'front': (math.pi / 2, 0.0, 0.0),
     'back': (-math.pi / 2, 0.0, 0.0),
 }
-SUN_STRENGTH = 3.0
+# The pack normalizes every sheet's lit passes to its own 99.9th-percentile covered value
+# (plan E2 Ruling R6), so absolute exposure buys nothing there -- but render-time clipping
+# (any radiance >=1 in the 16-bit PNG) destroys range the pack can never recover. 3.0 let
+# flame's back pass clip 21.7%/16.9% at its peak frames; 2.75 measured 0.41% at the same
+# full-settings trial (plan E2 Task 5b ledger ruling).
+SUN_STRENGTH = 2.75
 _KNOWN = {'--out', '--frames', '--cell', '--samples', '--sim-scale'}
 
 
