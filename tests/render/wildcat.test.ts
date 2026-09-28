@@ -1,9 +1,9 @@
 // tests/render/wildcat.test.ts
 import { describe, expect, it, vi } from 'vitest'
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
-import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE, wildcatToSimMatrix } from '../../src/render/scene/wildcat.js'
+import { Mesh, Object3D, Vector3 } from 'three'
+import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, wildcatGearStretch, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE, wildcatToSimMatrix } from '../../src/render/scene/wildcat.js'
 import { WILDCAT_CORRECTION_NAME } from '../../src/render/scene/wildcatFrame.js'
-import { createModelCache } from '../../src/render/models/modelCache.js'
+import { syntheticCache, wildcatGlbScene } from './_wildcatCache.js'
 import { ordnanceModelUrl, WILDCAT_MODEL_URL } from '../../src/render/content.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
@@ -42,32 +42,18 @@ describe('basis correction constants', () => {
     expect(v.distanceTo(new Vector3(1, 0, 0))).toBeLessThan(1e-6)
   })
 
-  it('scales the model\'s native 15.658 m wingspan down to the content wingSpanM (13.06 m)', () => {
-    expect(WILDCAT_SCALE * 15.658001068688918).toBeCloseTo(13.06, 3)
+  it('scales the model\'s native 15.658 m wingspan to f4f-wildcat.json\'s real span (W1: 11.582 m)', () => {
+    expect(WILDCAT_SCALE * 15.658001068688918).toBeCloseTo(loadAircraftSpec('f4f-wildcat').geometry.wingSpanM, 6)
   })
 })
 
-/** A cache whose "parse" is a synthetic scene holding the three nodes wildcat.ts requires,
- *  or, for an ordnance URL, one store mesh (O1). */
-function syntheticCache(opts: { failOrdnance?: boolean } = {}) {
-  return createModelCache(async (url) => {
-    const root = new Group()
-    if (url.includes('/ordnance/')) {
-      if (opts.failOrdnance) throw new Error(`404 ${url}`)
-      const m = new Mesh(new BoxGeometry(1, 0.2, 0.2), new MeshStandardMaterial())
-      m.name = url
-      root.add(m)
-      return root
-    }
-    for (const name of ['Helice', 'GRP_Rueda_Der', 'GRP_Rueda_Izq']) {
-      const m = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial())
-      m.name = name
-      root.add(m)
-    }
-    root.getObjectByName('Helice')!.rotation.z = 0.25
-    return root
+describe('wildcatGearStretch (W1 R5)', () => {
+  it('names the gear group it finds no strut under, rather than drawing an unstretched leg', () => {
+    const der = new Object3D(); der.name = 'GRP_Rueda_Der'
+    const izq = new Object3D(); izq.name = 'GRP_Rueda_Izq'
+    expect(() => wildcatGearStretch(der, izq)).toThrow(/no strut under GRP_Rueda_Der/)
   })
-}
+})
 
 describe('loadWildcat through the model cache (Z1)', () => {
   const still = { roll: 0, pitch: 0, yaw: 0 }
@@ -96,8 +82,9 @@ describe('loadWildcat through the model cache (Z1)', () => {
   it('update turns the prop from its authored angle and poses both gear legs', async () => {
     const cache = syntheticCache()
     const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
+    const rest = (await wildcatGlbScene()).getObjectByName('Helice')!.rotation.z
     a.update({ gearFraction: 0, flapFraction: 0, throttle: 1, controls: still, frameS: 0.01, cameraDistanceM: 50 })
-    expect(a.root.getObjectByName('Helice')!.rotation.z).toBeCloseTo(0.25 + 0.4, 12)
+    expect(a.root.getObjectByName('Helice')!.rotation.z).toBeCloseTo(rest + 0.4, 12)
     expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_UP.der.pos)).toBeLessThan(1e-6)
     expect(a.root.getObjectByName('GRP_Rueda_Izq')!.position.distanceTo(GEAR_UP.izq.pos)).toBeLessThan(1e-6)
   })

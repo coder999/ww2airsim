@@ -23,7 +23,7 @@ import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.j
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
 import { orbitFromMouse, NO_MOUSE, ORBIT_ZERO, type MouseDelta, type OrbitOffset } from '../input/orbit.js'
 import { SEA_LEVEL_M } from '../sim/world/terrain.js'
-import { cameraTransformFor, type CameraMode, type EyeTransform } from './camera.js'
+import { cameraTransformFor, type CameraMode, type EyeTransform, type SurfaceHeightAt } from './camera.js'
 import { BINDINGS, type BindingName } from '../input/bindings.js'
 import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
@@ -467,6 +467,14 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
   }
 }
 
+/** The floor under any x/z of `world`: a deck, the terrain, or the sea
+ *  before terrain exists (orbit spec OC-3). Shared with replay, which builds
+ *  the same floor from a RECORDED world (orbit handoff, deferred minor). */
+export function surfaceHeightFor(world: World<undefined>): SurfaceHeightAt {
+  const decks = decksOf(world.ships)
+  return (x, z) => groundUnder(world.terrain, decks, x, z)?.heightM ?? SEA_LEVEL_M
+}
+
 /**
  * One frame's worth of state change, with no Three.js and no DOM.
  *
@@ -696,11 +704,7 @@ export function nextFrameState(
   const a = advanced.alpha
   const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
   const decks = decksOf(advanced.world.ships)
-  // Orbit spec OC-3: the ground model `landing.ts` and `step()` share, so a
-  // deck is a floor too; no terrain yet (a ground spawn) reads as the sea.
-  const surfaceHeightAt = (x: number, z: number): number =>
-    groundUnder(advanced.world.terrain, decks, x, z)?.heightM ?? SEA_LEVEL_M
-  const eye = cameraTransformFor(cameraMode, spec, render, look, speed, orbit, surfaceHeightAt)
+  const eye = cameraTransformFor(cameraMode, spec, render, look, speed, orbit, surfaceHeightFor(advanced.world))
 
   // Landing bookkeeping reads the airplane on both sides of this frame's
   // steps: `player.state` is the state before them, `advancedPlayer.state`

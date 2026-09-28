@@ -103,6 +103,26 @@ module.exports = {
       to: { path: '^src/render' },
     },
     {
+      name: 'replay-must-stay-pure',
+      comment:
+        'Instant replay plan ruling PF-2 (2026-09-27): src/replay/ may import ' +
+        'any PURE render module -- render/camera.ts, render/frame.ts, ' +
+        'render/fx/events.ts, render/fx/system.ts, the ones it already needs ' +
+        'for cameras and fx re-runs -- but never three.js directly, and never ' +
+        'any other src/render/ module, above all render/main.ts. That keeps ' +
+        'replay logic Node-testable without a GPU or a DOM, the same reason ' +
+        'sim-must-not-import-render-libs exists for src/sim/, and keeps the ' +
+        'renderer and the DOM entirely out of it: main.ts (Task 8) calls INTO ' +
+        'replay, never the other way round. tests/architecture/boundary.test.ts ' +
+        'proves this rule bites.',
+      severity: 'error',
+      from: { path: '^src/replay' },
+      to: {
+        path: 'node_modules/three|^src/render',
+        pathNot: '^src/render/(camera|frame|fx/events|fx/system)\\.ts$',
+      },
+    },
+    {
       name: 'no-circular',
       comment:
         'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +

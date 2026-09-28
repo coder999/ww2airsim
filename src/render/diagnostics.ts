@@ -18,6 +18,18 @@ import type { RadarContact, RadarRangeMi } from './radar.js'
 import type { ManeuverName, PilotMode } from '../sim/ai/pilot.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { MissionDiagnostics } from './mission/hud.js'
+import type { ReplayCameraId } from '../replay/cameras.js'
+
+export type ReplayDiagnostics = {
+  readonly tS: number
+  readonly startS: number
+  readonly endS: number
+  readonly speed: number
+  readonly playing: boolean
+  readonly camera: ReplayCameraId
+  readonly effective: Exclude<ReplayCameraId, 'auto'>
+  readonly targetId: string | null
+}
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
@@ -41,6 +53,8 @@ export type Ww2Diagnostics = {
   readonly validationErrors: readonly string[]
   readonly tick: () => number
   readonly cameraMode: () => CameraMode
+  /** Current live-flight time scale. Instant-replay keys must not mutate it. */
+  readonly timeScale: () => number
   /** Proves a KeyG press reached the player's AircraftState.gearFraction
    *  and therefore the rendered Airframe.update gear path (setGear until Z1). This mirrors the
    *  controls() diagnostic below: an advancing tick alone cannot prove the
@@ -104,6 +118,21 @@ export type Ww2Diagnostics = {
    * happened to interpolate while the simulation was stalled.
    */
   readonly aircraftPositionM: () => Vec3
+  /**
+   * Instant replay (2026-09-27): the replay on screen, or `null` when none is
+   * up. `camera` is the one chosen ('auto' included), `effective` what Auto
+   * or a drag handover resolved it to.
+   */
+  readonly replay: () => ReplayDiagnostics | null
+  /** CPU milliseconds spent rebuilding deterministic replay effects after the latest jump. */
+  readonly replayFxRebuildMs: () => number
+  /**
+   * The world position of the player's airframe root AS DRAWN this frame --
+   * unlike `aircraftPositionM`, which is the live simulated state. In a
+   * replay the two differ: this is the past, that is the held present.
+   * `null` before the first frame.
+   */
+  readonly renderedPlayerPositionM: () => Vec3 | null
   /**
    * The PLAYER aircraft's `impact` for the current frame, or `null` if the
    * flight has not ended yet. Added in Task 11 for the ground-contact plan's

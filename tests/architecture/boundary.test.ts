@@ -19,6 +19,7 @@ import { ESLint } from 'eslint'
 const PROBE = 'src/sim/__boundary_probe__.ts'
 const ASSISTS_PROBE = 'src/assists/__boundary_probe__.ts'
 const AUDIO_PROBE = 'src/audio/__boundary_probe__.ts'
+const REPLAY_PROBE = 'src/replay/__boundary_probe__.ts'
 const CYCLE_A = 'src/sim/__cycle_a__.ts'
 const CYCLE_B = 'src/sim/__cycle_b__.ts'
 
@@ -28,7 +29,7 @@ const CYCLE_B = 'src/sim/__cycle_b__.ts'
  *  `__lint_probe__` paths elsewhere in this file are not here on purpose: they
  *  are passed to `ESLint.lintText` as a virtual filename and never touch any
  *  disk at all.) */
-const PROBE_FILES = [PROBE, ASSISTS_PROBE, AUDIO_PROBE, CYCLE_A, CYCLE_B]
+const PROBE_FILES = [PROBE, ASSISTS_PROBE, AUDIO_PROBE, REPLAY_PROBE, CYCLE_A, CYCLE_B]
 
 /** The repo, found from this file rather than from `process.cwd()`, so the temp
  *  root below is unambiguously OUTSIDE it whatever directory the runner was
@@ -111,6 +112,7 @@ const PINNED_RULE_NAMES = [
   'sim-must-not-import-audio',
   'assists-must-not-import-audio',
   'audio-must-not-import-render',
+  'replay-must-stay-pure',
 ] as const
 
 /** Whether `output` reports rule `name` -- as a whole name, not as a prefix of
@@ -493,6 +495,42 @@ describe('audio/ is presentation, and the physics cannot reach it (Plan 15)', ()
     const { code, output } = cruiseWithProbes({ [AUDIO_PROBE]: "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n" })
     expect(code).not.toBe(0)
     expect(reportsRule(output, 'audio-must-not-import-render'), output).toBe(true)
+  })
+})
+
+describe('replay/ stays pure -- Node-testable, no three.js, no main.ts (instant replay plan PF-2)', () => {
+  // Same negative-test pattern as every other boundary rule above: a rule
+  // never seen to fail is indistinguishable from one that matches nothing.
+  // The probe imports a VALUE from a module that EXISTS, for the same two
+  // reasons the audio/sim/input probes above give (a type-only import
+  // produces no edge in this config; an unresolvable import produces no
+  // violation at all).
+  it('fails when replay/ imports render/main.ts', () => {
+    const { code, output } = cruiseWithProbes({ [REPLAY_PROBE]: "import '../render/main.js'\nexport const probe = true\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'replay-must-stay-pure'), output).toBe(true)
+  })
+
+  it('fails when replay/ imports three directly', () => {
+    const { code, output } = cruiseWithProbes({ [REPLAY_PROBE]: "import { Vector3 } from 'three'\nexport const probe = Vector3\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'replay-must-stay-pure'), output).toBe(true)
+  })
+
+  it('does not fire on the pure render modules replay/ already imports (camera.ts, fx/events.ts, fx/system.ts)', () => {
+    // The exception is the point of the rule, not an afterthought: if this
+    // probe tripped the rule, the exception regex would be silently wrong
+    // and every real import in src/replay/cameras.ts and src/replay/fxReplay.ts
+    // would already be failing `npm run depcruise` on the real tree (which
+    // the "passes on the real source tree" test above also confirms).
+    const { code } = cruiseWithProbes({
+      [REPLAY_PROBE]:
+        "import { headingOf } from '../render/camera.js'\n" +
+        "import { nextFxEvents } from '../render/fx/events.js'\n" +
+        "import type { FxSystem } from '../render/fx/system.js'\n" +
+        'export const probe = headingOf\n',
+    })
+    expect(code).toBe(0)
   })
 })
 

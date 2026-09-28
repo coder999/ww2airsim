@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { quickLaunch, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
  * Tier 2. Confirms that the committed Wildcat glTF loads in the shipped app
@@ -43,4 +43,14 @@ test('Wildcat gear extends and retracts in flight, with no browser or WebGPU err
   })
   expect(impact).toBeNull()
   expect(validationErrors).toEqual([])
+})
+
+test('the Wildcat parks on its three wheels with no validation errors', async ({ page }) => {
+  await quickLaunch(page, { scenario: 'free-flight', aircraft: 'f4f-wildcat' })
+  await waitForTerrain(page)
+  await expect
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 })
+    .toBe(true)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.playerModel())).toBe('wildcat')
 })

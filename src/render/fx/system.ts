@@ -47,6 +47,10 @@ export type FxSystem = {
   step(dtS: number): void
   live(): number
   clear(): void
+  /** Instant replay R-3: reseed for a deterministic re-run, whatever the
+   *  system did before -- clears state and resets the RNG and serial
+   *  counter, so a re-run from the same seed replays identically. */
+  reset(seed: number): void
   setCapacity(capacity: number): void
   /** Back-to-front from `eye` (Ruling R17). Returns the instance count. */
   writeInstances(eye: Vec3, out: FxInstanceArrays): number
@@ -67,7 +71,7 @@ export function createFxSystem(o: { readonly capacity: number; readonly seed: nu
   const free = new Int32Array(N)
   const FIFO = 2 * N, fifoSlot = new Int32Array(FIFO), fifoGen = new Uint32Array(FIFO)
   let freeTop = 0, head = 0, count = 0, liveCount = 0, nextSerial = 0
-  const rng = createRng(o.seed)
+  let rng = createRng(o.seed)
   type Timed = { readonly e: FxEmitter; readonly p: Vec3; readonly v: Vec3; t: number; carry: number }
   let timed: Timed[] = []
   const sustainedState = new Map<string, { carry: number[]; last: Vec3 | null }>()
@@ -189,6 +193,7 @@ export function createFxSystem(o: { readonly capacity: number; readonly seed: nu
       }
     },
     clear() { resetSlots(); timed = []; sustainedState.clear(); sustainedNow = [] },
+    reset(seed) { system.clear(); rng = createRng(seed); nextSerial = 0 },
     setCapacity(next) {
       checkCap(next)
       if (next === cap) return

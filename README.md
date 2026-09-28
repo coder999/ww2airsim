@@ -75,6 +75,12 @@ read that state. The
 [handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
 and master spec §15 holds the status.
 
+**W1 gave the Wildcat a real F4F-4 flight model (2026-09-28):** sourced
+figures, a drawing at its real span and parked angle, a racks-only loadout, and
+one graded card suite for every aircraft. It is on branch `worktree-w1-wildcat`;
+[aircraft.md](docs/aircraft.md) is the onboarding runbook and master spec §15
+holds the status.
+
 **Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
 loadout picker, stores hung under the wings, ship and airfield-structure
 damage. Tier 1 is green and reference-GPU Tier 2 acceptance passes all five
@@ -254,6 +260,15 @@ the old chase view. The rules are in the
 [orbit camera spec](docs/superpowers/specs/2026-09-27-orbit-camera-design.md)
 and its [handoff](docs/handoff/2026-09-27-orbit-camera.md); master spec §15
 holds the status, with Instant Replay next.
+
+**Instant Replay is complete and merged into main (2026-09-28).** A crash or
+shoot-down holds for three seconds, replays the final moments once, then opens
+the debrief; **Watch replay** runs it again. While paused, K replays the last
+10 seconds. During replay: Space plays/pauses, Left/Right steps, 1/2/3 select
+0.5×/1×/3×, C or 4–9 selects Auto/Orbit/Flyby/Target/Cockpit/Manual, O toggles
+Orbit spin, L locks Manual on the airplane, WASD/Q/E moves Manual, and Esc
+returns or skips. See the [Instant Replay handoff](docs/handoff/2026-09-27-instant-replay.md)
+and [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
 
 The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and

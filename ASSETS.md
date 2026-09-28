@@ -69,6 +69,15 @@ retraction keyframes) 2026-09-24. Node names used by
 `src/render/scene/wildcat.ts`: `Helice` (propeller), `GRP_Rueda_Der` /
 `GRP_Rueda_Izq` (main gear, right/left). The model has no flap geometry.
 
+**Modified at draw time (W1, 2026-09-28; CC-BY 4.0 permits modification with
+the change indicated):** the game lengthens both main landing-gear legs of this
+model. `wildcatGearStretch` (`src/render/scene/wildcat.ts`) scales each main
+strut (`polySurface272`, `polySurface277`) along its length about its top and
+moves the wheel and axle bolt down with it, by up to 0.4445 m at full scale,
+telescoping out over the last quarter of the gear's travel. The long legs park
+the drawing at Grumman's static ground angle of 12°20′, where the model's own
+legs give 7.43°. The glb file itself is unchanged.
+
 The three ship glbs (S1, 2026-09-25) are built by `npm run models:build` from
 `tools/models/entries/{essex-cv,fletcher-dd,type-b-maru}.json`. Each license
 was read from `api.sketchfab.com/v3/models/<uid>` on the fetch date,

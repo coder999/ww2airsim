@@ -29,6 +29,10 @@ export type AudioBackend = {
    *  and `system.ts` will not play it -- silence beats a failure screen. */
   loaded(): readonly ClipId[]
   startLoop(id: ClipId, loopStartS: number, loopEndS: number): LoopHandle
-  playOnce(id: ClipId, gain: number): void
+  /** `rate` defaults to 1 (its natural pitch). Instant replay (design §7)
+   *  scales it with the replay speed, so a burst heard at 0.5x plays back at
+   *  half pitch along with the engine loop, rather than at full pitch while
+   *  everything else in the scene runs slow. */
+  playOnce(id: ClipId, gain: number, rate?: number): void
   setMasterGain(value: number): void
 }

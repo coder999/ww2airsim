@@ -6,6 +6,7 @@ import type { World } from '../../src/sim/loop.js'
 import { buildScenarioEntities, disposeMeshTree, type ScenarioEntities } from '../../src/render/scenarioEntities.js'
 import { createHellcat } from '../../src/render/scene/hellcat.js'
 import { loadWildcat } from '../../src/render/scene/wildcat.js'
+import { wildcatGlbScene } from './_wildcatCache.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { WILDCAT_MODEL_URL } from '../../src/render/content.js'
 import { createShipMesh, createShipView } from '../../src/render/scene/ship.js'
@@ -279,15 +280,10 @@ describe('buildScenarioEntities and the model cache (Z1)', () => {
 
   it('switching between two scenarios that both fly the Wildcat parses it once and frees nothing still drawn', async () => {
     let parses = 0
+    // The real Wildcat graph (W1: loadWildcat lengthens the main struts, so it needs them).
     const cache = createModelCache(async () => {
       parses++
-      const root = new Group()
-      for (const name of ['Helice', 'GRP_Rueda_Der', 'GRP_Rueda_Izq']) {
-        const m = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial())
-        m.name = name
-        root.add(m)
-      }
-      return root
+      return wildcatGlbScene()
     })
     const load = () => loadWildcat(undefined, (url) => cache.acquire(url))
     const scene = new Scene()
