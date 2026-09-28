@@ -1,7 +1,7 @@
 // tests/render/wildcat.test.ts
 import { describe, expect, it, vi } from 'vitest'
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
-import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, WILDCAT_DATUM_PITCH_RAD, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE, wildcatToSimMatrix } from '../../src/render/scene/wildcat.js'
+import { applyGearFraction, GEAR_DOWN, GEAR_UP, loadWildcat, WILDCAT_TO_SIM_ROTATION_Y, WILDCAT_SCALE, wildcatToSimMatrix } from '../../src/render/scene/wildcat.js'
 import { WILDCAT_CORRECTION_NAME } from '../../src/render/scene/wildcatFrame.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { ordnanceModelUrl, WILDCAT_MODEL_URL } from '../../src/render/content.js'
@@ -116,13 +116,13 @@ describe('loadWildcat through the model cache (Z1)', () => {
 })
 
 describe('loadWildcat stores (O1)', () => {
-  it('hangs the ordnance models at the spec\'s mounts, pitched to the drawn datum, and releases them on dispose', async () => {
+  it('hangs the ordnance models at the spec\'s mounts, level with the leveled datum, and releases them on dispose', async () => {
     const cache = syntheticCache()
     const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
     expect(a.parts).toContain('stores')
     const rack = a.root.getObjectByName(f6fMounts.racks[0]!.id) as Mesh
     expect(rack.position.toArray()).toEqual([...f6fMounts.racks[0]!.offset])
-    expect(rack.rotation.z).toBe(WILDCAT_DATUM_PITCH_RAD)
+    expect(rack.rotation.z).toBe(0)
     expect(cache.refCount(ordnanceModelUrl('an-m65'))).toBe(1)
     a.dispose()
     expect(cache.refCount(ordnanceModelUrl('an-m65'))).toBe(0)

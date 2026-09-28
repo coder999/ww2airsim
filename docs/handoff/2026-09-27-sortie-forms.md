@@ -193,7 +193,9 @@ looked at before this was written.
   Ordnance Requisition: `Clean (recommended)` preselected.
 - [`sortie-hellcat-parked-tacloban.png`](2026-09-27-sortie-forms-shots/sortie-hellcat-parked-tacloban.png)
   — the default Hellcat, its own model, parked at Tacloban with bombs and
-  rockets hung. The wheels sit on the strip; nothing floats.
+  rockets hung. The wheels sit on the strip; nothing floats. (Corrected
+  2026-09-28: the mains did, but the tailwheel was 1.1 m up; see the
+  [parked stance](2026-09-28-parked-stance.md) handoff.)
 - [`sortie-hellcat-on-essex.png`](2026-09-27-sortie-forms-shots/sortie-hellcat-on-essex.png)
   — the same on the Essex (`deck-quals`). The wheels sit on the deck.
 - [`sortie-dev-zero-bombs.png`](2026-09-27-sortie-forms-shots/sortie-dev-zero-bombs.png)

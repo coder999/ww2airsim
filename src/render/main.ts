@@ -58,6 +58,7 @@ import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
 import { createOrdnance } from './ordnance.js'
 import { loadStoreVisuals } from './scene/storeModels.js'
+import { drawnPose, MODEL_STANCE, stanceTiltRad } from './scene/stance.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
 import { radarContacts, radarSweepAngle, cycleRadarRange, RADAR_RANGES_MI, type RadarContact, type RadarRangeMi } from './radar.js'
 import { BINDINGS } from '../input/bindings.js'
@@ -2153,10 +2154,19 @@ async function boot(): Promise<void> {
     // `current.render` by construction (`posesFor`, frame.ts) -- so this loop
     // poses `playerAirframe.root` too, and it did so twice until the duplicate
     // `playerAirframe.root.position.set(current.render...)` lines were deleted here.
+    //
+    // Each is drawn in its ground stance (stance.ts): a taildragger standing on
+    // its wheels is pitched about its mains onto its tailwheel. The drawing
+    // only -- the eye and the cockpit below read the sim pose.
+    const decks = decksOf(current.world.ships)
     current.poses.forEach((pose, i) => {
       const a = airframes[i]!.root
-      a.position.set(pose.position.x, pose.position.y, pose.position.z)
-      a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
+      const { spec, state } = current.world.aircraft[i]!
+      const stance = MODEL_STANCE[spec.view.model]
+      const tilt = stanceTiltRad(stance, spec, state, groundUnder(current.world.terrain, decks, state.position.x, state.position.z))
+      const drawn = drawnPose(pose, tilt, stance?.mainWheelXM ?? 0, spec.gear.heightM)
+      a.position.set(drawn.position.x, drawn.position.y, drawn.position.z)
+      a.quaternion.set(drawn.attitude.x, drawn.attitude.y, drawn.attitude.z, drawn.attitude.w)
     })
     // The hulls. A ship has no attitude in this plan (`interpolateShip`), only
     // a heading, and `createShipMesh` puts its bow along local +x -- so the
@@ -2172,8 +2182,10 @@ async function boot(): Promise<void> {
     // The cockpit group (the panel) shares the PLAYER's exact pose: panel.ts
     // authors the panel in the same body frame, relative to the eye, so it
     // needs no separate transform here.
-    cockpit.position.copy(playerAirframe.root.position)
-    cockpit.quaternion.copy(playerAirframe.root.quaternion)
+    // `current.render`, not `playerAirframe.root`: the root carries the drawn
+    // ground stance (stance.ts), which the eye does not.
+    cockpit.position.set(current.render.position.x, current.render.position.y, current.render.position.z)
+    cockpit.quaternion.set(current.render.attitude.x, current.render.attitude.y, current.render.attitude.z, current.render.attitude.w)
 
     // Cockpit mode must hide the external airframe (frame.ts's
     // `airframeVisibilityFor` doc comment has the occlusion measurement).
