@@ -7,7 +7,7 @@ import { qFromAxisAngle, qRotate } from '../math/quat.js'
 import { RESPOT_DELAY_S, stateOnDeck } from '../mission/respot.js'
 import { dot, length, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { paddlesCue } from '../paddles.js'
-import type { AircraftCombat } from '../weapons/combat.js'
+import { isAircraftDown, type AircraftCombat, type CombatState } from '../weapons/combat.js'
 import { deckOf, type Deck } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
 import { effectiveStallSpeedMps } from '../ground.js'
@@ -31,8 +31,8 @@ import { isContact, type TargetingView } from './targeting.js'
  * `PilotDecisionState.recovery`; `pilotTick` owns the mode.
  *
  * Task 5 flies `transit` to the initial point and `hold` there; Task 6 the
- * approach from `join` to `landed`; Task 7 the respot and the bolter. Task 8
- * adds the landing interval.
+ * approach from `join` to `landed`; Task 7 the respot and the bolter; Task 8
+ * the landing interval (`approachClear`) and the wingman's peel-off.
  */
 
 /** 7c-7g §6 triggers (7g spec §1). */
@@ -84,6 +84,10 @@ export function shouldReturn<M>(a: AircraftEntity<M>, record: AircraftCombat, de
   // P10); the `?? nowS` only keeps a hand-built decision from going home.
   return nowS - (decision.lastContactS ?? nowS) >= RTB_IDLE_S
 }
+
+/** 7c-7g §6: aircraft recovering to one home begin their approaches (`join`)
+ *  in id order, at least this many seconds apart. */
+export const INTERVAL_S = 60
 
 /** A hostile contact inside THREAT_ASTERN_RANGE_M in my rear cone. */
 export function threatAstern<M>(a: AircraftEntity<M>, view: TargetingView<M>): boolean {
@@ -167,6 +171,79 @@ export function withoutHome(pilot: PilotAssignment): PilotAssignment {
 export const startRecovery = (nowS: number): RecoveryState =>
   ({ phase: 'transit', sinceS: nowS, cut: false, joinedAtS: null, restAtS: null, respotted: false })
 
+/**
+ * `hold` is left for `join` only from here: on or outside the IP (`alongM` at
+ * least IP_DISTANCE_M) and within this far of the extended centerline. A
+ * straight-in arrival from `transit` is already there; a pilot in the orbit
+ * (the landing interval, or back from a go-around) reaches it where the
+ * orbit crosses the centerline on the far side of the IP, once a lap.
+ *
+ * Found by the landing interval, measured 2026-09-28 (the second of two
+ * pilots homed to Tacloban, joining from the hold as soon as the approach
+ * cleared; capture window ±8 m/s). The orbit hands `join` a pilot up to
+ * 1,500 m off the centerline, or 1,000 m inside the IP heading away (back
+ * from a go-around), and either arrives at the fix high on the ramp and
+ * then fast: +9.8 m/s from 1,432 m off, +10.0 to +10.3 m/s on every pass
+ * after a go-around, so on the runway it went around for good (Task 6's
+ * loop, 10 go-arounds in 1,500 s; on cv-1 its first join, 634 m off, was
+ * +12.0 and went around once). Gated here, the speed error at the fix by
+ * the gate's width: 100 m +4.6, 200 m +4.9, 300 m +5.4, 500 m +8.5 (went
+ * around every pass), 800 m +14.5; the straight-in arrival is +4.3. On
+ * cv-1 it is +3.2 at 100 to 500 m and +3.5 at 800 m.
+ */
+export const JOIN_ENTRY_ACROSS_M = 200
+
+const atJoinEntry = (f: { alongM: number; acrossM: number }): boolean =>
+  f.alongM >= IP_DISTANCE_M && Math.abs(f.acrossM) <= JOIN_ENTRY_ACROSS_M
+
+/** The same home: the same kind and the same ship or airfield. */
+const sameHome = (x: RecoveryHome, y: RecoveryHome | undefined): boolean =>
+  y !== undefined && (x.kind === 'ship' ? y.kind === 'ship' && y.id === x.id : y.kind === 'runway' && y.airfieldId === x.airfieldId)
+
+/** Phases that are on the approach: while another is in one, nobody joins. */
+const ON_APPROACH: ReadonlySet<RecoveryPhase> = new Set<RecoveryPhase>(['join', 'configure', 'final', 'go-around', 'rollout'])
+
+/**
+ * 7c-7g §6, the landing interval: may `a` leave `hold` for `join` now? True
+ * iff every other aircraft in the start-of-tick `snapshot` with the same
+ * home, and not down, is
+ * - not on the approach (`join` through `rollout`, a `go-around` included);
+ * - not within INTERVAL_S of its own `join` on this pass (a go-around clears
+ *   `joinedAtS`);
+ * - not waiting ahead of `a`: in `hold` or `transit` with a lower id. Ties go
+ *   by id, a string compare, never by array position (Review Focus 3).
+ * `records` is the combat record, for "down" (`isAircraftDown`): a pilot
+ * destroyed mid-approach is never ticked again, and its frozen phase would
+ * otherwise close the approach for good.
+ */
+export function approachClear<M>(
+  a: AircraftEntity<M>, home: RecoveryHome, snapshot: readonly AircraftEntity<M>[], nowS: number, records: CombatState['aircraft'],
+): boolean {
+  return snapshot.every((o) => {
+    if (o.id === a.id || !sameHome(home, o.pilot?.home) || isAircraftDown(records, o)) return true
+    const r = o.pilot!.decision.recovery
+    if (r === undefined) return true
+    if (ON_APPROACH.has(r.phase)) return false
+    if (r.joinedAtS !== null && nowS - r.joinedAtS < INTERVAL_S) return false
+    return !((r.phase === 'hold' || r.phase === 'transit') && o.id < a.id)
+  })
+}
+
+/**
+ * 7c-7g §6, a wingman peeling off at its leader's initial point: a recovery
+ * entered at `hold`, when its own IP is within HOLD_RADIUS_M (the hold's own
+ * orbit), else at `transit` (a different home, or a wingman pre-empted
+ * elsewhere by a threat astern).
+ */
+export function peelOffRecovery<M>(a: AircraftEntity<M>, home: RecoveryHome, ctx: Pick<RecoveryContext, 'nowS' | 'terrain' | 'ships' | 'combat'>): RecoveryState {
+  const geo = recoveryGeometry(home, ctx) ?? (home.kind === 'runway' ? seaLevelGeometry(home) : null)
+  const fresh = startRecovery(ctx.nowS)
+  if (geo === null) return fresh
+  const ip = initialPoint(geo)
+  const near = Math.hypot(ip.x - a.state.position.x, ip.z - a.state.position.z) <= HOLD_RADIUS_M
+  return near ? { ...fresh, phase: 'hold' } : fresh
+}
+
 /** 7c-7g §6: the final approach fix, this far short of the aim on the
  *  centerline, on the glide path (244.6 m up at 3.5°). */
 export const FIX_DISTANCE_M = 4000
@@ -203,7 +280,9 @@ const goAroundExitMps = (spec: AircraftSpec): number => GO_AROUND_EXIT_STALL_MUL
  * cv-1 had turned 30° across the wind, so it never landed; 1,000 -> 10 and
  * 27 m; 750 -> -1 and -14 m; 500 -> 0 and -10 m, but the airspeed error
  * there rose to +7.7 m/s of the ±8 (750: +5.7). The clean join is 0 m at all
- * four. 750 is kept.
+ * four. 750 is kept. Since Task 8 (JOIN_ENTRY_ACROSS_M) a join from the hold
+ * no longer begins inside the IP heading away; it begins where the orbit
+ * crosses the centerline beyond the IP, so these cases are now the extreme.
  */
 export const JOIN_LOOKAHEAD_M = 750
 /**
@@ -376,14 +455,15 @@ const enter = (r: RecoveryState, phase: RecoveryPhase, nowS: number): RecoverySt
  * caller runs them through `finishControls`) and the next recovery state.
  * `state` is set only on the respot tick. The transitions run first,
  * in phase order, so one tick can pass through several (`hold` straight to
- * `join` while the approach is free).
+ * `join` while the approach is clear).
  *
  * - `transit`: straight at the initial point, IP_HEIGHT_M above touchdown,
  *   at cruise, by the ingress route's velocity and throttle laws. The §3.2
  *   safety floor stays on (7g spec §6), so a ridge on the line is a climb.
  * - `hold`: the ingress orbit, left-hand, HOLD_RADIUS_M round the IP, at
- *   HOLD_DIVE_FRACTION of the dive limit. Left for `join` at once (the
- *   landing interval, Task 8, will make it wait).
+ *   HOLD_DIVE_FRACTION of the dive limit. Left for `join` only at the
+ *   entry (`JOIN_ENTRY_ACROSS_M`) and only when `approachClear` (the
+ *   landing interval).
  * - `join`: onto the centerline and down the ramp to the fix, slowing from
  *   cruise to vA + CONFIGURE_SPEED_MARGIN_MPS; `configure` from
  *   CONFIGURE_FROM_M.
@@ -403,7 +483,7 @@ const enter = (r: RecoveryState, phase: RecoveryPhase, nowS: number): RecoverySt
  * recomputed from the deck each tick.
  */
 export function recoveryControls<M>(
-  a: AircraftEntity<M>, pilot: PilotAssignment, ctx: RecoveryContext, _snapshot: readonly AircraftEntity<M>[],
+  a: AircraftEntity<M>, pilot: PilotAssignment, ctx: RecoveryContext, snapshot: readonly AircraftEntity<M>[],
 ): { controls: Controls; recovery: RecoveryState; state?: AircraftState } {
   const home = pilot.home!
   const geo = recoveryGeometry(home, ctx) ?? (home.kind === 'runway' ? seaLevelGeometry(home) : null)
@@ -421,7 +501,8 @@ export function recoveryControls<M>(
   const surface = geo.deck?.velocity ?? ZERO
 
   if (r.phase === 'transit' && Math.hypot(ip.x - s.position.x, ip.z - s.position.z) <= IP_ARRIVAL_M) r = enter(r, 'hold', now)
-  if (r.phase === 'hold') r = { ...enter(r, 'join', now), joinedAtS: now }
+  // The landing interval (7c-7g §6): `join` only from the entry, and only when `approachClear`.
+  if (r.phase === 'hold' && atJoinEntry(f) && approachClear(a, home, snapshot, now, ctx.combat.aircraft)) r = { ...enter(r, 'join', now), joinedAtS: now }
   if (r.phase === 'join' && f.alongM <= CONFIGURE_FROM_M) r = enter(r, 'configure', now)
   if (r.phase === 'configure' && f.alongM <= FIX_DISTANCE_M) {
     r = enter(r, insideCaptureWindow(captureErrors(s, a.spec, geo, vA, glideRad, ctx.wind)) ? 'final' : 'go-around', now)

@@ -237,6 +237,8 @@ export function wingmanAccepts<M>(
 export function leaderlessPilot<M>(pilot: PilotAssignment, leader: AircraftEntity<M> | undefined, nowS: number): PilotAssignment {
   const decision = { ...pilot.decision, nextRescoreS: nowS }
   const orders = leader?.pilot?.ingress
-  const alone: PilotAssignment = { target: pilot.target, skill: pilot.skill, decision }
+  // 7g: the home goes with it (7c-7g §6), so a wingman whose leader is down
+  // still goes home on its own triggers. Absent, no key: bit-identical.
+  const alone: PilotAssignment = { target: pilot.target, skill: pilot.skill, decision, ...(pilot.home === undefined ? {} : { home: pilot.home }) }
   return orders === undefined ? alone : { ...alone, ingress: orders, decision: { ...decision, legIndex: leader!.pilot!.decision.legIndex } }
 }

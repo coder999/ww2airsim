@@ -17,7 +17,7 @@ import { airborne } from './airborne.js'
 import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { isContact, selectTarget, type TargetingView } from './targeting.js'
-import { exemptFromFloor, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
+import { exemptFromFloor, peelOffRecovery, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -121,6 +121,21 @@ export function pilotTick<M>(
     // (`chooseTarget` null) would otherwise drop the pilot out of `rtb` into
     // flying away from both it and home. `landed` is terminal.
     let rtb = false
+    // 7c-7g §6, "Wingmen go home in formation with their leader": while the
+    // leader's recovery is in `transit`, the wingman keeps station (`follow`)
+    // rather than going home by itself; once the leader is past `transit`,
+    // it peels off into its own recovery (`peelOff`) if it has a home and
+    // otherwise loiters (`part`). A threat astern pre-empts both, as it does
+    // RTB. A wingman already recovering flies its own recovery. Worlds with
+    // no home anywhere never get here: a leader cannot be in `rtb` without one.
+    const recovering = decision.mode === 'rtb' || decision.mode === 'landed'
+    const leaderMode = leader?.pilot?.decision.mode
+    const leaderHomeward = !recovering && (leaderMode === 'rtb' || leaderMode === 'landed')
+    const leaderInTransit = leaderHomeward && leaderMode === 'rtb' && leader!.pilot!.decision.recovery?.phase === 'transit'
+    const threatened = (): boolean => scored !== null && threatAstern(a, view)
+    let follow = false
+    let peelOff = false
+    let part = false
     if (pilot.home !== undefined) {
       // Ruling P10: the idle clock starts at the pilot's first rescore, not
       // at 0, so a pilot spawned by a trigger at t = 600 s does not go home
@@ -128,21 +143,30 @@ export function pilotTick<M>(
       if (decision.lastContactS === undefined || snapshot.some((c) => isContact(a, c, view))) {
         decision = { ...decision, lastContactS: ctx.nowS }
       }
-      const recovering = decision.mode === 'rtb' || decision.mode === 'landed'
-      const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS)
-      rtb = decision.mode === 'landed' || ((recovering || goHome) && !(scored !== null && threatAstern(a, view)))
     }
-    const chosen = rtb ? null : scored
+    if (leaderHomeward) {
+      if (!threatened()) {
+        if (leaderInTransit) follow = true
+        else if (pilot.home !== undefined) rtb = peelOff = true
+        else part = true
+      }
+    } else if (pilot.home !== undefined) {
+      const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS)
+      rtb = decision.mode === 'landed' || ((recovering || goHome) && !threatened())
+    }
+    const chosen = rtb || follow || part ? null : scored
     if (chosen !== decision.targetId) {
       decision = { ...decision, targetId: chosen, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     }
     const mode = decision.mode === 'landed' ? 'landed'
       : rtb ? 'rtb'
       : chosen !== null ? 'engage'
+      : part ? 'loiter'
       : leader !== null && leaderFlying ? 'formation'
       : pilot.ingress !== undefined ? 'ingress' : 'loiter'
     if (mode === 'rtb' && decision.mode !== 'rtb') {
-      decision = { ...decision, recovery: startRecovery(ctx.nowS), latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
+      const recovery = peelOff ? peelOffRecovery(a, pilot.home!, ctx) : startRecovery(ctx.nowS)
+      decision = { ...decision, recovery, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     } else if (mode !== 'rtb' && mode !== 'landed' && decision.recovery !== undefined) {
       // Review Focus 4: pre-empted by a threat astern, the recovery restarts
       // at `transit` when it resumes, never mid-approach.

@@ -151,10 +151,11 @@ export function inRecovery(w: World<undefined>, id: string, phase: RecoveryPhase
  */
 export function onApproach(
   w: World<undefined>, id: string,
-  at: { alongM: number; acrossM?: number; wheelM: number; airspeedMps: number; configured?: boolean },
+  at: { alongM: number; acrossM?: number; wheelM: number; airspeedMps: number; configured?: boolean; homeOf?: string },
 ): World<undefined> {
   const a = aircraftById(w, id)!
-  const geo = recoveryGeometry(a.pilot!.home!, w)!
+  // `homeOf`: another aircraft's approach, for one with no home of its own.
+  const geo = recoveryGeometry(aircraftById(w, at.homeOf ?? id)!.pilot!.home!, w)!
   const h = geo.headingRad
   const bow = v3(Math.sin(h), 0, -Math.cos(h))
   const across = at.acrossM ?? 0
