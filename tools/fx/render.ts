@@ -4,13 +4,15 @@
  * (plan E2 Ruling R1), one at a time, into tools/fx/renders/<sheet>/ (Ruling R10). It runs
  * probe.py first. FX_BAKE_HOST and FX_BLENDER override the host and binary. FX_SIM_SCALE,
  * FX_FRAMES, FX_CELL and FX_SAMPLES shrink a trial run; a real bake leaves them unset.
+ * FX_VARIANT=gas bakes each sheet's `<sheet>-gas.py` into tools/fx/renders/<sheet>-gas/ instead
+ * (remote.ts's variantName); fx:pack never reads a variant.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FX_SHEETS, type FxSheetName } from '../../src/render/fx/sheetManifest.js'
-import { assertProbe, FX_BAKE_HOST_DEFAULT, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, SSH_OPTS } from './remote.js'
+import { assertProbe, FX_BAKE_HOST_DEFAULT, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, SSH_OPTS, variantName } from './remote.js'
 import { LOOPING, LOOP_BLEND } from './pack.js'
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
@@ -52,15 +54,17 @@ function main(): void {
     // process.hrtime.bigint(), not Date.now(): eslint.config.js's tools/**/*.ts
     // no-restricted-properties bans the wall clock (same reason as tools/terrain/build.ts).
     const t = process.hrtime.bigint()
-    onHost(remoteScript({ remoteDir: REMOTE, blender: BLENDER, script: `${sheet}.py`, doneName: `done-${sheet}.json`, cleanDir: `out/${sheet}`, args, timeoutS: TIMEOUT_S }))
-    mkdirSync(join(RENDERS, sheet), { recursive: true })
-    run('rsync', rsyncArgs(`${HOST}:${REMOTE}/out/${sheet}/`, join(RENDERS, sheet) + '/', { delete: true, exclude: ['cache/'] }))
-    const metaFile = join(RENDERS, sheet, 'meta.json')
-    if (!existsSync(metaFile)) throw new Error(`fx:render: ${sheet} came back without meta.json`)
+    // The script writes out/<name>/ (its own sheet name), so a variant's script must pass name as `sheet`.
+    const name = variantName(sheet, process.env.FX_VARIANT)
+    onHost(remoteScript({ remoteDir: REMOTE, blender: BLENDER, script: `${name}.py`, doneName: `done-${name}.json`, cleanDir: `out/${name}`, args, timeoutS: TIMEOUT_S }))
+    mkdirSync(join(RENDERS, name), { recursive: true })
+    run('rsync', rsyncArgs(`${HOST}:${REMOTE}/out/${name}/`, join(RENDERS, name) + '/', { delete: true, exclude: ['cache/'] }))
+    const metaFile = join(RENDERS, name, 'meta.json')
+    if (!existsSync(metaFile)) throw new Error(`fx:render: ${name} came back without meta.json`)
     const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { frames: number; bakeS: number; renderS: number }
-    if (meta.frames !== frames) throw new Error(`fx:render: ${sheet} came back with ${meta.frames} frames, asked for ${frames}`)
+    if (meta.frames !== frames) throw new Error(`fx:render: ${name} came back with ${meta.frames} frames, asked for ${frames}`)
     const wallS = Number(process.hrtime.bigint() - t) / 1e9
-    console.log(`fx:render: ${sheet} bake ${meta.bakeS} s, render ${meta.renderS} s, ${Math.round(wallS)} s wall`)
+    console.log(`fx:render: ${name} bake ${meta.bakeS} s, render ${meta.renderS} s, ${Math.round(wallS)} s wall`)
   }
 }
 main()

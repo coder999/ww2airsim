@@ -49,6 +49,16 @@ export function remoteScript(r: BakeRun): string {
   ].join('\n')
 }
 
+const VARIANT = /^[a-z0-9]+$/
+/** A sheet's variant name (plan E2 Task 6): FX_VARIANT=gas bakes `water-column-gas.py` into
+ *  renders/water-column-gas/, so an alternative bake sits beside the shipped one. Unset or empty is
+ *  the sheet itself. Lowercase letters and digits only, so every name built from it stays SAFE. */
+export function variantName(sheet: string, variant: string | undefined): string {
+  if (variant === undefined || variant === '') return sheet
+  if (!VARIANT.test(variant)) throw new Error(`FX_VARIANT ${JSON.stringify(variant)} must be lowercase letters and digits`)
+  return `${sheet}-${variant}`
+}
+
 /** `from` and `to` name the host themselves (`ryzen:fxbake/...`), exactly one side remote. */
 export function rsyncArgs(
   from: string, to: string,

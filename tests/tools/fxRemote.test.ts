@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertProbe, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, type BakeRun } from '../../tools/fx/remote.js'
+import { assertProbe, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, variantName, type BakeRun } from '../../tools/fx/remote.js'
 
 const run: BakeRun = {
   remoteDir: 'fxbake/e2-flipbooks', blender: FX_BLENDER_DEFAULT, script: 'smoke.py', doneName: 'done-smoke.json',
@@ -33,5 +33,14 @@ describe('fx bake transport (plan E2 Rulings R1, R10)', () => {
     expect(() => assertProbe(0)).toThrow(/NanoVDB/)
     expect(() => assertProbe(Number.NaN)).toThrow(/NanoVDB/)
     expect(() => assertProbe(4747)).not.toThrow()
+  })
+
+  it('FX_VARIANT names a sibling bake, and only with characters the bake script never quotes (plan E2 Task 6)', () => {
+    expect(variantName('water-column', undefined)).toBe('water-column')
+    expect(variantName('water-column', '')).toBe('water-column')
+    expect(variantName('water-column', 'gas')).toBe('water-column-gas')
+    const name = variantName('spray', 'gas')
+    expect(remoteScript({ ...run, script: `${name}.py`, doneName: `done-${name}.json`, cleanDir: `out/${name}` })).toContain('-P scripts/spray-gas.py -- done-spray-gas.json')
+    for (const bad of ['Gas', 'g as', 'gas;rm', '../x', '-gas']) expect(() => variantName('spray', bad)).toThrow(/FX_VARIANT/)
   })
 })

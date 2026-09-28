@@ -10,8 +10,9 @@ Frame: the camera sits on -Y looking +Y, so the runtime particle frame (x right,
 z toward the camera; src/render/fx/material.ts) is world (+X, +Z, -Y). Each sun shines
 FROM the side it is named for. Channel packing is tools/fx/pack.ts's.
 
-A sheet script calls, in order: args(), reset(), gas_domain(), flow_sphere() once or more,
-bake(), render_sheet(). Nothing here is random except Mantaflow itself, which is not
+A gas sheet script calls, in order: args(), reset(), gas_domain(), flow_sphere() once or more,
+bake(), render_sheet(). A liquid whitewater sheet calls liquid_domain(), flow_box() and/or
+flow_sphere(), bake(), render_liquid_sheet(). Nothing here is random except Mantaflow itself, which is not
 reproducible run to run (two identical bakes covered 4,890 and 5,092 px, 2026-09-27), so
 bakes are committed with provenance and never rebuilt to compare bytes (Ruling R2).
 """
@@ -217,22 +218,16 @@ def _vdb(cache, frame):
     return os.path.join(cache, 'data', f'fluid_data_{frame:04d}.vdb')
 
 
-def render_sheet(scene, dom, flows, *, sheet, a, cache, sim_frames, ortho, center_z, scatter,
-                 emission=None, bake_s, first_frame=1):
-    """Renders a['frames'] frames spread evenly over sim frames first_frame..sim_frames: six lit
-    passes each (and an emission pass when `emission` is given) into <out>/<sheet>/fNN/, then
-    meta.json and the done file. `first_frame + frames - 1 == sim_frames` renders consecutive frames."""
-    frames = a['frames']
-    # Mantaflow's VDB index space starts at the domain's minimum corner (measured 2026-09-27:
-    # an identity volume put a domain spanning x -4..4 at 0..8), so the volume sits at that corner.
-    corner = tuple(min(v[i] for v in (dom.matrix_world @ c.co for c in dom.data.vertices)) for i in range(3))
-    for o in [dom, *flows]:
-        bpy.data.objects.remove(o)
-    vd = bpy.data.volumes.new('fx')
-    vol = bpy.data.objects.new('fx', vd)
-    scene.collection.objects.link(vol)
-    vol.location = corner
-    vd.materials.append(scatter)
+def _picked(frames, first_frame, sim_frames):
+    span = sim_frames - first_frame
+    return [first_frame + round(k * span / (frames - 1)) for k in range(frames)] if frames > 1 else [sim_frames]
+
+
+def _render_frames(scene, *, sheet, a, picked, ortho, center_z, load, emit=None):
+    """The shared half of every sheet: an orthographic camera on -Y, one sun per pass, a black
+    world, then for each picked frame `load(k, f)` (which puts frame f's volume in the scene),
+    six single-sun lit passes, and, when `emit(k, f)` is given, an emission pass after it swaps
+    the material. Returns the render seconds."""
     bpy.ops.object.camera_add(location=(0.0, -50.0, center_z), rotation=(math.pi / 2, 0.0, 0.0))
     cam = _active()
     cam.data.type = 'ORTHO'
@@ -254,34 +249,244 @@ def render_sheet(scene, dom, flows, *, sheet, a, cache, sim_frames, ortho, cente
     _render_settings(scene, a['cell'], a['samples'])
     base = os.path.join(a['out'], sheet)
     os.makedirs(base, exist_ok=True)
-    span = sim_frames - first_frame
-    picked = [first_frame + round(k * span / (frames - 1)) for k in range(frames)] if frames > 1 else [sim_frames]
     t = time.time()
     for k, f in enumerate(picked):
-        vd.filepath = _vdb(cache, f)
-        if not vd.grids.load():
-            raise RuntimeError(f'{vd.filepath}: {vd.grids.error_message}')
+        load(k, f)
         d = os.path.join(base, f'f{k:02d}')
         os.makedirs(d, exist_ok=True)
-        vd.materials[0] = scatter
         for p in PASSES:
             for q, s in suns.items():
                 s.hide_render = q != p
             scene.render.filepath = os.path.join(d, f'{p}.png')
             bpy.ops.render.render(write_still=True)
-        if emission is not None:
+        if emit is not None:
             for s in suns.values():
                 s.hide_render = True
-            vd.materials[0] = emission
+            emit(k, f)
             scene.render.filepath = os.path.join(d, 'emit.png')
             bpy.ops.render.render(write_still=True)
-    meta = {
-        'sheet': sheet, 'frames': frames, 'simFrames': sim_frames, 'firstFrame': first_frame, 'picked': picked,
-        'cellPx': a['cell'], 'samples': a['samples'], 'simScale': a['sim_scale'], 'orthoScale': ortho,
-        'emission': emission is not None, 'blender': bpy.app.version_string,
-        'buildHash': bpy.app.build_hash.decode(), 'bakeS': round(bake_s, 1), 'renderS': round(time.time() - t, 1),
-    }
-    with open(os.path.join(base, 'meta.json'), 'w') as fh:
+    return time.time() - t
+
+
+def _write_meta(a, sheet, meta):
+    with open(os.path.join(a['out'], sheet, 'meta.json'), 'w') as fh:
         json.dump(meta, fh, indent=2, sort_keys=True)
     with open(a['done'], 'w') as fh:
         json.dump(meta, fh, sort_keys=True)
+
+
+def _meta(*, sheet, a, sim, sim_frames, first_frame, picked, ortho, emission, bake_s, render_s):
+    return {
+        'sheet': sheet, 'sim': sim, 'frames': a['frames'], 'simFrames': sim_frames, 'firstFrame': first_frame,
+        'picked': picked, 'cellPx': a['cell'], 'samples': a['samples'], 'simScale': a['sim_scale'], 'orthoScale': ortho,
+        'emission': emission, 'blender': bpy.app.version_string,
+        'buildHash': bpy.app.build_hash.decode(), 'bakeS': round(bake_s, 1), 'renderS': round(render_s, 1),
+    }
+
+
+def render_sheet(scene, dom, flows, *, sheet, a, cache, sim_frames, ortho, center_z, scatter,
+                 emission=None, bake_s, first_frame=1):
+    """A gas sheet: renders a['frames'] frames spread evenly over sim frames first_frame..sim_frames
+    from the domain's VDB cache, six lit passes each (and an emission pass when `emission` is
+    given) into <out>/<sheet>/fNN/, then meta.json and the done file.
+    `first_frame + frames - 1 == sim_frames` renders consecutive frames."""
+    # Mantaflow's VDB index space starts at the domain's minimum corner (measured 2026-09-27:
+    # an identity volume put a domain spanning x -4..4 at 0..8), so the volume sits at that corner.
+    corner = tuple(min(v[i] for v in (dom.matrix_world @ c.co for c in dom.data.vertices)) for i in range(3))
+    for o in [dom, *flows]:
+        bpy.data.objects.remove(o)
+    vd = bpy.data.volumes.new('fx')
+    vol = bpy.data.objects.new('fx', vd)
+    scene.collection.objects.link(vol)
+    vol.location = corner
+    vd.materials.append(scatter)
+
+    def load(k, f):
+        vd.filepath = _vdb(cache, f)
+        if not vd.grids.load():
+            raise RuntimeError(f'{vd.filepath}: {vd.grids.error_message}')
+        vd.materials[0] = scatter
+
+    def emit(k, f):
+        vd.materials[0] = emission
+
+    picked = _picked(a['frames'], first_frame, sim_frames)
+    render_s = _render_frames(scene, sheet=sheet, a=a, picked=picked, ortho=ortho, center_z=center_z, load=load,
+                              emit=emit if emission is not None else None)
+    _write_meta(a, sheet, _meta(sheet=sheet, a=a, sim='gas', sim_frames=sim_frames, first_frame=first_frame, picked=picked,
+                                ortho=ortho, emission=emission is not None, bake_s=bake_s, render_s=render_s))
+
+
+# --- Liquid whitewater (plan E2 Task 6; replaces Ruling R4 for water-column and spray) ---------
+# A Mantaflow LIQUID sim's secondary particles (spray, foam, bubbles), never the liquid body or
+# its FLIP particles, rendered as a white scattering volume: evaluated domain particle systems ->
+# a loose-vertex mesh -> Geometry Nodes Mesh to Points -> Points to Volume -> Principled Volume.
+# Proven on ryzen's 5.0.1 by the liquid spike (.superpowers/sdd/2026-09-27-e2-baked-flipbooks/
+# spike-liquid-report.md, which lists the RNA and the traps).
+WHITEWATER = ('SPRAY', 'FOAM', 'BUBBLE')
+
+
+def liquid_domain(scene, *, size, center, res, frame_end, cache, types=('SPRAY', 'FOAM'),
+                  energy=(0.5, 3.0), wavecrest=(1.0, 4.0), trapped_air=(2.0, 10.0), sampling=(400, 80), life=(10.0, 30.0)):
+    """A LIQUID domain that emits whitewater of `types` (a subset of WHITEWATER) and builds no mesh.
+    Every border is closed but the top: gas_domain opens all six, which would drain the pool.
+    `energy`, `wavecrest`, `trapped_air` are the (min, max) potential thresholds; `sampling` is
+    (wavecrest, trapped air) particles per cell; `life` is (min, max) frames."""
+    bad = sorted(set(types) - set(WHITEWATER))
+    if bad:
+        raise ValueError(f'whitewater types {bad}; one of {WHITEWATER}')
+    bpy.ops.mesh.primitive_cube_add(size=1, location=center)
+    dom = _active()
+    dom.name = 'Domain'
+    dom.scale = size
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    d = dom.modifiers.new('Fluid', 'FLUID')
+    d.fluid_type = 'DOMAIN'
+    s = d.domain_settings
+    s.domain_type = 'LIQUID'
+    s.resolution_max = res
+    s.cache_type = 'ALL'
+    s.cache_directory = cache
+    s.cache_frame_start = 1
+    s.cache_frame_end = frame_end
+    s.use_mesh = False
+    for side in ('front', 'back', 'right', 'left', 'bottom'):
+        setattr(s, f'use_collision_border_{side}', True)
+    s.use_collision_border_top = False
+    # Three booleans in 5.0.1, not a `particle_type` enum (spike). Each creates a domain particle
+    # system (Spray:SPRAY, Foam:FOAM, Bubbles:BUBBLE) beside the liquid's own Liquid:FLIP.
+    s.use_spray_particles = 'SPRAY' in types
+    s.use_foam_particles = 'FOAM' in types
+    s.use_bubble_particles = 'BUBBLE' in types
+    s.sndparticle_combined_export = 'OFF'
+    s.sndparticle_potential_min_energy, s.sndparticle_potential_max_energy = energy
+    s.sndparticle_potential_min_wavecrest, s.sndparticle_potential_max_wavecrest = wavecrest
+    s.sndparticle_potential_min_trappedair, s.sndparticle_potential_max_trappedair = trapped_air
+    s.sndparticle_sampling_wavecrest, s.sndparticle_sampling_trappedair = sampling
+    s.sndparticle_life_min, s.sndparticle_life_max = life
+    scene.frame_start = 1
+    scene.frame_end = frame_end
+    return dom
+
+
+def flow_box(name, *, size, location, flow_type='LIQUID', behavior='GEOMETRY'):
+    """A box flow; GEOMETRY makes it initial liquid (a pool) that exists from frame 1."""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=location)
+    o = _active()
+    o.name = name
+    o.scale = size
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    m = o.modifiers.new('Fluid', 'FLUID')
+    m.fluid_type = 'FLOW'
+    f = m.flow_settings
+    f.flow_type = flow_type
+    f.flow_behavior = behavior
+    f.flow_source = 'MESH'
+    o.hide_render = True
+    return o
+
+
+def whitewater_points(scene, dom, frame, *, types, z_min=None, r_max=None):
+    """Frame `frame`'s live whitewater positions of `types` as an (N, 3) float32 array, from the
+    evaluated domain (so it must run before render_liquid_sheet removes the fluid objects). The
+    Liquid:FLIP system is the water body itself and is never included (spike trap 4). Points
+    under `z_min` are culled: late in a sim the pool fills with a foam slab (spike trap 5). Points
+    further than `r_max` from the z axis are culled too: the closed walls throw up sparse flecks
+    that set a sheet's bounding box (water-column trial 2: wall to wall, 6 m, around a 3 m column)."""
+    import numpy as np
+    scene.frame_set(frame)
+    ev = dom.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    out, counts = [], {}
+    for ps in ev.particle_systems:
+        kind = ps.settings.type
+        if kind not in types:
+            continue
+        n = len(ps.particles)
+        if n == 0:
+            counts[kind] = 0
+            continue
+        buf = np.zeros(n * 3, dtype=np.float32)
+        ps.particles.foreach_get('location', buf)
+        p3 = buf.reshape(-1, 3)[np.array([p.alive_state == 'ALIVE' for p in ps.particles], dtype=bool)]
+        if z_min is not None:
+            p3 = p3[p3[:, 2] >= z_min]
+        if r_max is not None:
+            p3 = p3[p3[:, 0] ** 2 + p3[:, 1] ** 2 <= r_max * r_max]
+        counts[kind] = int(len(p3))
+        out.append(p3)
+    return (np.concatenate(out) if out else np.zeros((0, 3), dtype=np.float32)), counts
+
+
+def _points_volume(scene, material, *, radius, voxel):
+    """An object whose loose-vertex mesh becomes a fog volume of `radius` spheres through Geometry
+    Nodes. Its mesh is swapped per frame by _set_points."""
+    me = bpy.data.meshes.new('ww')
+    ob = bpy.data.objects.new('ww', me)
+    scene.collection.objects.link(ob)
+    ng = bpy.data.node_groups.new('ww2vol', 'GeometryNodeTree')
+    ng.interface.new_socket(name='Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+    ng.interface.new_socket(name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+    gi = ng.nodes.new('NodeGroupInput')
+    go = ng.nodes.new('NodeGroupOutput')
+    m2p = ng.nodes.new('GeometryNodeMeshToPoints')
+    p2v = ng.nodes.new('GeometryNodePointsToVolume')
+    sm = ng.nodes.new('GeometryNodeSetMaterial')
+    m2p.inputs['Radius'].default_value = radius
+    p2v.inputs['Density'].default_value = 1.0
+    p2v.inputs['Radius'].default_value = radius
+    # 5.0 made the resolution mode a menu socket, not a node property (spike).
+    p2v.inputs['Resolution Mode'].default_value = 'Size'
+    p2v.inputs['Voxel Size'].default_value = voxel
+    sm.inputs['Material'].default_value = material
+    L = ng.links.new
+    L(gi.outputs[0], m2p.inputs['Mesh'])
+    L(m2p.outputs['Points'], p2v.inputs['Points'])
+    L(p2v.outputs['Volume'], sm.inputs['Geometry'])
+    L(sm.outputs['Geometry'], go.inputs[0])
+    ob.modifiers.new('ww2vol', 'NODES').node_group = ng
+    return ob
+
+
+def _set_points(ob, P):
+    me = bpy.data.meshes.new('ww')
+    me.vertices.add(len(P))
+    me.vertices.foreach_set('co', P.ravel())
+    me.update()
+    old = ob.data
+    ob.data = me
+    bpy.data.meshes.remove(old)
+
+
+def render_liquid_sheet(scene, dom, flows, *, sheet, a, sim_frames, ortho, center_z, scatter, bake_s, first_frame,
+                        types, z_min, r_max=None, radius=0.06, voxel=0.03):
+    """A liquid whitewater sheet: the same frames, passes, files and meta.json as render_sheet
+    (plus per-frame particle counts), from whitewater_points instead of a VDB. The liquid emits
+    nothing, so there is no emission pass."""
+    import numpy as np
+    picked = _picked(a['frames'], first_frame, sim_frames)
+    t = time.time()
+    points, counts = {}, []
+    for f in sorted(set(picked)):
+        points[f], _ = whitewater_points(scene, dom, f, types=types, z_min=z_min, r_max=r_max)
+    for f in picked:
+        counts.append(int(len(points[f])))
+    extract_s = time.time() - t
+    allp = np.concatenate([p for p in points.values() if len(p)]) if any(len(p) for p in points.values()) else None
+    for o in [dom, *flows]:
+        bpy.data.objects.remove(o)
+    scene.frame_set(1)
+    ob = _points_volume(scene, scatter, radius=radius, voxel=voxel)
+
+    def load(k, f):
+        _set_points(ob, points[f])
+
+    render_s = _render_frames(scene, sheet=sheet, a=a, picked=picked, ortho=ortho, center_z=center_z, load=load)
+    meta = _meta(sheet=sheet, a=a, sim='liquid', sim_frames=sim_frames, first_frame=first_frame, picked=picked,
+                 ortho=ortho, emission=False, bake_s=bake_s, render_s=render_s)
+    meta.update({
+        'particles': counts, 'types': list(types), 'zMin': z_min, 'rMax': r_max, 'pointRadius': radius, 'voxel': voxel,
+        'extractS': round(extract_s, 1),
+        # World-space extent of every rendered point (min xyz, max xyz): the ortho arithmetic's input.
+        'pointsBox': [allp.min(0).round(2).tolist(), allp.max(0).round(2).tolist()] if allp is not None else None,
+    })
+    _write_meta(a, sheet, meta)
