@@ -1,5 +1,5 @@
 // src/render/hangar/stage.ts
-import { AxesHelper, Box3, Color, DataTexture, GridHelper, Group, LineBasicMaterial, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, SRGBColorSpace, Sphere, Vector3, type Object3D } from 'three'
+import { AxesHelper, Box3, Color, DataTexture, GridHelper, Group, LinearMipmapLinearFilter, LineBasicMaterial, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, RepeatWrapping, Scene, SRGBColorSpace, Sphere, Vector3, type Object3D } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { applySun, createLighting, SUN_DIRECTION } from '../scene/lighting.js'
@@ -58,8 +58,12 @@ export function applyUnlit(root: Object3D, on: boolean): void {
   })
 }
 
+/** Checker tiles across UV [0, 1] on each axis; each tile is 8 x 8 squares, so 64 squares span
+ *  an atlas. One tile per atlas gave about one square per patch on the Ki-84's 88-patch atlas,
+ *  too coarse to show stretch (DP0 Task 11 review, 2026-09-28); 8 is by eye. */
+export const CHECKER_REPEAT = 8
 let checker: DataTexture | null = null
-/** 8 x 8 squares, black and white, repeating once over UV [0, 1]: one per page, shared. */
+/** 8 x 8 squares, black and white, tiled CHECKER_REPEAT times over UV [0, 1]: one per page, shared. */
 function checkerTexture(): DataTexture {
   if (checker) return checker
   const n = 256, cell = 32, data = new Uint8Array(n * n * 4)
@@ -69,6 +73,11 @@ function checkerTexture(): DataTexture {
   }
   checker = new DataTexture(data, n, n)
   checker.colorSpace = SRGBColorSpace
+  checker.wrapS = checker.wrapT = RepeatWrapping
+  checker.repeat.set(CHECKER_REPEAT, CHECKER_REPEAT)
+  // Mipmapped, so 64 squares over a distant model gray out instead of shimmering.
+  checker.generateMipmaps = true
+  checker.minFilter = LinearMipmapLinearFilter
   checker.needsUpdate = true
   return checker
 }
@@ -96,6 +105,22 @@ export function applyChecker(root: Object3D, on: boolean): void {
       checkered.delete(o)
     }
   })
+}
+
+export interface DebugViews { wireframe: boolean; checker: boolean; unlit: boolean }
+/** The three debug views on `root`, set as a whole. Checker and unlit each stash the materials
+ *  under them and wireframe edits whatever is on top, so toggling them one at a time is
+ *  order-dependent: wireframe on, checker on, wireframe off, checker off left the cached
+ *  originals wireframe while the box was unticked, and unlit on, checker on, unlit off, checker
+ *  off restored a disposed stand-in (DP0 Task 11 review). So every change unwinds to the
+ *  originals, sets their wireframe, and re-layers checker then unlit in one fixed order. */
+export function applyDebugViews(root: Object3D, v: DebugViews): void {
+  applyUnlit(root, false)
+  applyChecker(root, false)
+  applyWireframe(root, v.wireframe) // on the shared originals
+  applyChecker(root, v.checker) // its clones inherit wireframe
+  applyUnlit(root, v.unlit)
+  applyWireframe(root, v.wireframe) // the unlit stand-ins do not
 }
 
 /** Pivot gizmos (spec §8): an axes helper at each articulated node's origin,
@@ -190,6 +215,8 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
   let radius = 10
   let wireframe = false
   let checkerOn = false
+  let unlitOn = false
+  const views = (): DebugViews => ({ wireframe, checker: checkerOn, unlit: unlitOn })
   let gizmos: Group | null = null
   let gizmoNodes: readonly Object3D[] = []
   const setGizmos = (nodes: readonly Object3D[] | null): void => {
@@ -235,20 +262,18 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
     show(model, kind): void {
       if (current) {
         // Off before it goes: its materials are shared with the cached source.
-        applyWireframe(current, false)
-        applyChecker(current, false)
-        applyUnlit(current, false)
+        applyDebugViews(current, { wireframe: false, checker: false, unlit: false })
         holder.remove(current)
       }
       setGizmos(null)
       current = model
+      unlitOn = false // show() relights
       if (model === null) {
         rebuildGround(null, 20)
         return
       }
       holder.add(model)
-      applyWireframe(model, wireframe)
-      applyChecker(model, checkerOn)
+      applyDebugViews(model, views())
       const box = new Box3().setFromObject(model)
       const sphere = box.getBoundingSphere(new Sphere())
       radius = Math.max(1, sphere.radius)
@@ -271,15 +296,16 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       if (gizmos) gizmos.visible = visible
     },
     setUnlit(on): void {
-      if (current) applyUnlit(current, on)
+      unlitOn = on
+      if (current) applyDebugViews(current, views())
     },
     setWireframe(on): void {
       wireframe = on
-      if (current) applyWireframe(current, on)
+      if (current) applyDebugViews(current, views())
     },
     setChecker(on): void {
       checkerOn = on
-      if (current) applyChecker(current, on)
+      if (current) applyDebugViews(current, views())
     },
     setGizmos,
     setAutoRotate(on): void { controls.autoRotate = on },

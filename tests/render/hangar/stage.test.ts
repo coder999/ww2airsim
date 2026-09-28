@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AxesHelper, BoxGeometry, Color, DataTexture, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D } from 'three'
-import { applyChecker, applyUnlit, applyWireframe, createGizmos, syncGizmos } from '../../../src/render/hangar/stage.js'
+import { AxesHelper, BoxGeometry, Color, DataTexture, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, RepeatWrapping } from 'three'
+import { applyChecker, applyDebugViews, applyUnlit, applyWireframe, CHECKER_REPEAT, createGizmos, syncGizmos, type DebugViews } from '../../../src/render/hangar/stage.js'
 
 describe('applyWireframe', () => {
   it('sets and clears every mesh material, arrays included, because clones share them', () => {
@@ -67,6 +67,68 @@ describe('applyChecker (DP0: the UV checker, spec §9)', () => {
     applyChecker(root, false)
     expect(a.material).toBe(lit)
     expect(b.material).toBe(lit)
+  })
+})
+
+describe('applyDebugViews (DP0 Task 11 review: the views toggle in any order)', () => {
+  // The stage's setters each flip one flag and call applyDebugViews with all three.
+  const bench = () => {
+    const lit = new MeshStandardMaterial({ map: new DataTexture(new Uint8Array(4), 1, 1) })
+    const mesh = new Mesh(new BoxGeometry(), lit)
+    const root = new Group(); root.add(mesh)
+    const v: DebugViews = { wireframe: false, checker: false, unlit: false }
+    const set = (k: keyof DebugViews, on: boolean): void => { v[k] = on; applyDebugViews(root, v) }
+    return { lit, mesh, set }
+  }
+  const shown = (mesh: Mesh): MeshStandardMaterial | MeshBasicMaterial => mesh.material as MeshStandardMaterial
+
+  it('wireframe on, checker on, wireframe off, checker off: the shared original ends solid', () => {
+    const { lit, mesh, set } = bench()
+    set('wireframe', true); set('checker', true)
+    expect(shown(mesh).wireframe).toBe(true) // the checker clone keeps wireframe
+    set('wireframe', false)
+    expect([shown(mesh).wireframe, lit.wireframe]).toEqual([false, false])
+    set('checker', false)
+    expect(mesh.material).toBe(lit)
+    expect(lit.wireframe).toBe(false)
+  })
+
+  it('checker on, wireframe on, checker off: wireframe survives the checker; then off, the original ends solid', () => {
+    const { lit, mesh, set } = bench()
+    set('checker', true); set('wireframe', true)
+    expect(shown(mesh).wireframe).toBe(true)
+    set('checker', false)
+    expect(mesh.material).toBe(lit)
+    expect(lit.wireframe).toBe(true) // not lost
+    set('checker', true)
+    expect(shown(mesh).wireframe).toBe(true)
+    set('wireframe', false); set('checker', false)
+    expect(lit.wireframe).toBe(false)
+  })
+
+  it('unlit on, checker on, unlit off, checker off: restores the live original, never disposes it', () => {
+    const { lit, mesh, set } = bench()
+    let disposed = 0
+    lit.addEventListener('dispose', () => { disposed++ })
+    set('unlit', true); set('checker', true)
+    const u = shown(mesh) as MeshBasicMaterial
+    expect(u).toBeInstanceOf(MeshBasicMaterial)
+    expect(u.map).not.toBe(lit.map) // unlit over the checker shows the checker
+    set('unlit', false)
+    expect(shown(mesh)).toBeInstanceOf(MeshStandardMaterial)
+    expect(shown(mesh)).not.toBe(lit) // the checker clone, lit
+    set('checker', false)
+    expect(mesh.material).toBe(lit)
+    expect(disposed).toBe(0)
+  })
+
+  it('the checker tiles CHECKER_REPEAT times per UV unit, wrapping', () => {
+    const { mesh, set } = bench()
+    set('checker', true)
+    const map = shown(mesh).map!
+    expect(map.repeat.toArray()).toEqual([CHECKER_REPEAT, CHECKER_REPEAT])
+    expect([map.wrapS, map.wrapT]).toEqual([RepeatWrapping, RepeatWrapping])
+    expect(CHECKER_REPEAT).toBeGreaterThanOrEqual(4)
   })
 })
 
