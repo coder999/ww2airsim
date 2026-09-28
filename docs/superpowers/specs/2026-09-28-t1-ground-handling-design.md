@@ -155,3 +155,22 @@ Not addressed: seed-7 soak (tracked elsewhere). `docs/aircraft.md` gains an
 
 Mark's viewing checkpoints and whether the run is attended go in the plan
 header, per repo convention.
+
+## 8. Amendments made while planning (2026-09-28)
+
+Reading the code for the plan forced four simplifications. None changes the
+behavior in section 1.
+
+- `gear.heightM` stays. It is read in about ten sim sites as the main wheels'
+  depth below the origin at level attitude, and it remains true; the new
+  `wheelDepthM(gear, pitchRad)` generalizes it to a pitched body. Section 2's
+  "removed, not kept beside" applies only to `tailUpSpeedMps` and
+  `tailwheelYawRateDegPerSec`, which are replaced.
+- `tailUpSpeedMps` becomes `tailLiftSpeedMps`: the effective airflow speed
+  (ground speed combined with prop wash) at which the elevator can hold the
+  tail up. It is a scale for a smooth curve, not a gate.
+- No engine list exists in the specs and none is added. Torque swing is one
+  signed number per aircraft, `torqueYawRateDegPerSec` (positive swings right,
+  0 for counter-rotating props such as the P-38's).
+- `brakeLeft` and `brakeRight` are optional `Controls` channels beside the
+  existing `brake`, so no existing `Controls` literal changes.
