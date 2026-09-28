@@ -75,6 +75,12 @@ read that state. The
 [handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
 and master spec §15 holds the status.
 
+**W1 gave the Wildcat a real F4F-4 flight model (2026-09-28):** sourced
+figures, a drawing at its real span and parked angle, a racks-only loadout, and
+one graded card suite for every aircraft. It is on branch `worktree-w1-wildcat`;
+[aircraft.md](docs/aircraft.md) is the onboarding runbook and master spec §15
+holds the status.
+
 **Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
 loadout picker, stores hung under the wings, ship and airfield-structure
 damage. Tier 1 is green and reference-GPU Tier 2 acceptance passes all five

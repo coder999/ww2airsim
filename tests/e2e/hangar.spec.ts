@@ -260,10 +260,10 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test("9. the Wildcat's pivot gizmos are its two wheel legs and its propeller, and they draw", async ({ page }) => {
+  test("9. the Wildcat's pivot gizmos are its two wheel groups, its propeller and the strut and wheel nodes the W1 leg stretch moves, and they draw", async ({ page }) => {
     const { empty, model: plain } = await view(page, 'f4f-wildcat', 'three-quarter')
     await setDebug(page, 'gizmos', true)
-    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice'])
+    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
     const withGizmos = await shot(page)
     const m = await masks(page, empty, [plain, withGizmos])
     expect(m.xor01).toBeGreaterThan(0)
@@ -321,7 +321,7 @@ test.describe('the Hangar', () => {
     for (const [preset, reach] of [['top', 1], ['side', 10]] as const) {
       const { empty, model } = await view(page, 'f4f-wildcat', preset, { bombs: false, rockets: false })
       const mounts = await page.evaluate(() => (window as HangarWindow).__hangar!.storeMounts())
-      expect(mounts).toHaveLength(8)
+      expect(mounts).toHaveLength(2) // the two bomb racks; the F4F-4 has no rails (W1 R3)
       const hits = await maskReach(page, empty, model, mounts.map((m) => m.ndc), reach)
       console.log(`check 11 ${preset}: ${mounts.map((m, i) => `${m.id} ${hits[i]}`).join(', ')}`)
       mounts.forEach((m, i) => expect(hits[i], `${preset} ${m.id}`).toBeGreaterThanOrEqual(0))

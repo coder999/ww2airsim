@@ -216,3 +216,4 @@ does, so `normalize`, `keep` and `split` work the same way. Without Blender,
 `tests/tools/models/blenderEntries.test.ts` rebuilds every Blender entry and
 compares the bytes with the committed file. To show the model in the Hangar, see §7
 and §8.
+The onboarding runbook for a new aircraft is [aircraft.md](aircraft.md).
