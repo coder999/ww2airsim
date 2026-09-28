@@ -1,9 +1,10 @@
 import type { AircraftEntity } from '../loop.js'
-import type { AircraftState, Controls } from '../flight/state.js'
+import { createState, type AircraftState, type Controls } from '../flight/state.js'
 import type { AircraftSpec } from '../flight/schema.js'
 import { airVelocity } from '../flight/model.js'
 import { LANDED_SPEED_MPS } from '../landing.js'
-import { qRotate } from '../math/quat.js'
+import { qFromAxisAngle, qRotate } from '../math/quat.js'
+import { RESPOT_DELAY_S, stateOnDeck } from '../mission/respot.js'
 import { dot, length, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { paddlesCue } from '../paddles.js'
 import type { AircraftCombat } from '../weapons/combat.js'
@@ -30,8 +31,8 @@ import { isContact, type TargetingView } from './targeting.js'
  * `PilotDecisionState.recovery`; `pilotTick` owns the mode.
  *
  * Task 5 flies `transit` to the initial point and `hold` there; Task 6 the
- * approach from `join` to `landed`. Task 7 adds the respot, Task 8 the
- * landing interval.
+ * approach from `join` to `landed`; Task 7 the respot and the bolter. Task 8
+ * adds the landing interval.
  */
 
 /** 7c-7g §6 triggers (7g spec §1). */
@@ -222,6 +223,27 @@ export const FINAL_ACROSS_DAMPING_S = 5
 export const JOIN_THROTTLE_BASE = 0.3
 export const JOIN_THROTTLE_GAIN = 0.05
 
+/**
+ * Ruling P17: `final` still airborne this far past a RUNWAY's aim is a
+ * bolter (a go-around). Tuning value. Measured 2026-09-28, the flown
+ * Tacloban recovery (`recoveryLanding.test.ts`): the wheels touched 117 m
+ * past the aim and it rolled 484 m more to rest. The aim is a quarter of the
+ * strip in, 1,125 m from the far end, so a touchdown at 600 m still stops
+ * about 40 m short of it, and 600 m is five times the measured float.
+ */
+export const BOLTER_RUNWAY_PAST_AIM_M = 600
+/** How far past the aim `final` may still be flying: a deck's bow, or
+ *  BOLTER_RUNWAY_PAST_AIM_M. The carrier aim is the trap zone's center
+ *  (`carrierAimPoint`), so its bow is `lengthM - (from + to) / 2` further on:
+ *  182.7 m on an Essex-class deck. Measured 2026-09-28, the flown cv-1
+ *  recovery: the wheels touched and the hook caught 4.5 m SHORT of the aim
+ *  (75.5 m from the stern), at rest 16 m past it. Beyond the bow and still
+ *  flying, it is over the sea: nothing is left to land on. */
+function pastAimLimitM(geo: RecoveryGeometry): number {
+  if (geo.deck === null) return BOLTER_RUNWAY_PAST_AIM_M
+  return geo.deck.lengthM - (geo.deck.trapFromSternM + geo.deck.trapToSternM) / 2
+}
+
 /** 7g spec §6: every recovery phase after `transit` and `hold` is exempt
  *  from the §3.2 floor recovery (the fix is at 244.6 m, the go-around at
  *  300 m, both under its 400 m trigger). The overspeed guard still applies. */
@@ -344,12 +366,15 @@ function goAroundControls<M>(a: AircraftEntity<M>): Controls {
   }
 }
 
+/** `scenario.ts`'s parked-start NEUTRAL, which it does not export. */
+const LANDED_NEUTRAL: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+
 const enter = (r: RecoveryState, phase: RecoveryPhase, nowS: number): RecoveryState => ({ ...r, phase, sinceS: nowS })
 
 /**
  * One tick of the recovery phase machine: the controls before noise (the
  * caller runs them through `finishControls`) and the next recovery state.
- * `state` is set only on the respot tick (Task 7). The transitions run first,
+ * `state` is set only on the respot tick. The transitions run first,
  * in phase order, so one tick can pass through several (`hold` straight to
  * `join` while the approach is free).
  *
@@ -366,11 +391,13 @@ const enter = (r: RecoveryState, phase: RecoveryPhase, nowS: number): RecoverySt
  *   the fix. At the fix, the capture window: `final`, or `go-around`.
  * - `final`: `approachControls` on the live profile. On a deck the LSO is
  *   obeyed: `cut` commits the pass, a `wave-off` before it is a go-around.
- *   Wheels on the surface: `rollout`.
+ *   Wheels on the surface: `rollout`. Still flying past the far end of the
+ *   surface (`pastAimLimitM`): a bolter, `go-around` (Ruling P17).
  * - `rollout`: `approachControls` still (it brakes and steers); at rest
  *   relative to the surface, `landed` (pilotTick makes the mode `landed`).
+ *   Airborne again (rolled off a deck unarrested): `go-around`.
  * - `go-around`: climb straight ahead to GO_AROUND_HEIGHT_M, then `transit`.
- * - `landed`: held on the brakes (Task 7 adds the respot).
+ * - `landed`: held on the brakes, then respotted (`landedControls`).
  *
  * Every frame is the live one (Review Focus 2): aim, heading and fix are
  * recomputed from the deck each tick.
@@ -380,6 +407,9 @@ export function recoveryControls<M>(
 ): { controls: Controls; recovery: RecoveryState; state?: AircraftState } {
   const home = pilot.home!
   const geo = recoveryGeometry(home, ctx) ?? (home.kind === 'runway' ? seaLevelGeometry(home) : null)
+  // Landed on a ship that has since sunk or gone: still terminal, never thrown.
+  const held = pilot.decision.recovery
+  if (held?.phase === 'landed') return landedControls(a, home, geo?.deck ?? null, held, ctx)
   if (geo === null) throw new Error(`recoveryControls: home ship "${home.kind === 'ship' ? home.id : ''}" is gone; pilotTick drops the home first`)
   const now = ctx.nowS
   let r = pilot.decision.recovery ?? startRecovery(now)
@@ -401,7 +431,14 @@ export function recoveryControls<M>(
   // the pilot swings the centerline away, and the rudder-only `final` cannot
   // follow it (Review Focus 2).
   if (r.phase === 'final' && !r.cut && Math.abs(f.acrossM) >= CAPTURE_LATERAL_M) r = enter(r, 'go-around', now)
-  if (r.phase === 'final' && !airborne(a, ctx.terrain, ctx.decks)) r = enter(r, 'rollout', now)
+  // Ruling P17, the bolter: still flying past the far end of the surface, or
+  // airborne again during `rollout` (rolled off a deck unarrested). Neither
+  // the lateral gate (held only before the cut) nor the LSO's wave-off can
+  // otherwise leave `final` or `rollout`, and both are floor-exempt.
+  const flying = airborne(a, ctx.terrain, ctx.decks)
+  if (r.phase === 'final' && flying && f.alongM < -pastAimLimitM(geo)) r = { ...enter(r, 'go-around', now), cut: false, joinedAtS: null }
+  if (r.phase === 'rollout' && flying) r = { ...enter(r, 'go-around', now), cut: false, joinedAtS: null }
+  if (r.phase === 'final' && !flying) r = enter(r, 'rollout', now)
   if (r.phase === 'rollout') {
     const under = groundUnder(ctx.terrain, ctx.decks, s.position.x, s.position.z)
     if (length(sub(s.velocity, under?.velocity ?? ZERO)) < LANDED_SPEED_MPS) r = { ...enter(r, 'landed', now), restAtS: now }
@@ -444,9 +481,38 @@ export function recoveryControls<M>(
     case 'go-around':
       return { controls: goAroundControls(a), recovery: r }
     case 'landed':
-      return {
-        controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0, brake: 1, gearDown: true, flapDown: false, hookDown: geo.deck !== null },
-        recovery: r,
-      }
+      return landedControls(a, home, geo.deck, r, ctx)
   }
+}
+
+/**
+ * `landed` (7g spec §3): held on the brakes, and RESPOT_DELAY_S after it came
+ * to rest, re-placed once on its park spot, hook up, gear down, facing the
+ * bow or down the runway: `state` is set on that one tick. On a deck the
+ * hook is down until the respot and up after (`RESPOT_MESSAGE`). A braked airplane then
+ * stays at rest relative to a moving deck (Plan 8). Terminal.
+ */
+function landedControls<M>(
+  a: AircraftEntity<M>, home: RecoveryHome, deck: Deck | null, r: RecoveryState, ctx: Pick<RecoveryContext, 'nowS' | 'terrain'>,
+): { controls: Controls; recovery: RecoveryState; state?: AircraftState } {
+  // A home deck that is gone (sunk under it) has nowhere to respot to.
+  const due = !r.respotted && r.restAtS !== null && ctx.nowS - r.restAtS >= RESPOT_DELAY_S && (home.kind === 'runway' || deck !== null)
+  const recovery = due ? { ...r, respotted: true } : r
+  const controls: Controls = { ...LANDED_NEUTRAL, gearDown: true, flapDown: false, hookDown: deck !== null && !recovery.respotted, throttle: 0, brake: 1 }
+  if (!due) return { controls, recovery }
+  const keep = { fuelKg: a.state.fuelKg, flapFraction: 0, tick: a.state.tick }
+  if (home.kind === 'ship') return { controls, recovery, state: stateOnDeck(a.spec, deck!, home.parkSpot, keep) }
+  const p = home.parkWorld
+  // `parkedStateOnRunway`'s fields, from the world spot resolved at build
+  // (ctx carries no airfields, spec §7). Nothing comes to rest on a runway
+  // without terrain (`groundUnder`); sea level only satisfies the type.
+  const groundM = ctx.terrain === null ? SEA_LEVEL_M : heightAt(ctx.terrain, p.x, p.z)
+  const state = createState({
+    position: v3(p.x, groundM + a.spec.gear.heightM, p.z),
+    velocity: v3(0, 0, 0),
+    attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - p.headingRad),
+    gearFraction: 1,
+    ...keep,
+  })
+  return { controls, recovery, state }
 }

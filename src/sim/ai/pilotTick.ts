@@ -79,6 +79,16 @@ export function pilotTick<M>(
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
+  // 7g spec §3: `landed` is terminal and short-circuits before the rescore:
+  // no target choice, no safety override, no noise. The recovery holds it on
+  // the brakes and, once, respots it (`state`, and `previous` with it, so the
+  // renderer does not interpolate across the move).
+  if (pilot.decision.mode === 'landed' && pilot.home !== undefined && pilot.decision.recovery !== undefined) {
+    const flown = recoveryControls(a, pilot, ctx, snapshot)
+    const landed = { ...pilot, decision: { ...pilot.decision, recovery: flown.recovery, safety: 'none' as const, latch: null } }
+    if (flown.state !== undefined) return { ...a, state: flown.state, previous: flown.state, controls: flown.controls, pilot: landed }
+    return { ...a, controls: flown.controls, pilot: landed }
+  }
   const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides, terrain: ctx.terrain, decks: ctx.decks }
   // 7f spec §3-4: a wingman's leader, from the start-of-tick snapshot. A
   // down or missing leader hands the wingman its own orders (spec §4).

@@ -66,7 +66,6 @@ describe('join, configure, final (7c-7g §6 phases 2-4, 7g spec §5)', () => {
           heightErrM: f.wheelM - FIX_DISTANCE_M * Math.tan(glideRad),
           speedErrMps: length(airVelocity(a.state, w.wind)) - approachMps,
         }
-        console.log(`at the fix, t=${(w.tick / 60).toFixed(1)} s: ${JSON.stringify(atFix)}`)
       }
       reachedFinal = phaseOf(w, 'ai-1') === 'final'
       return reachedFinal
@@ -86,7 +85,6 @@ describe('join, configure, final (7c-7g §6 phases 2-4, 7g spec §5)', () => {
       alongM: FIX_DISTANCE_M + 20, acrossM: 200, wheelM: FIX_DISTANCE_M * Math.tan(glideRad) + 150, airspeedMps: vA(w0), configured: true,
     }), 'ai-1', 'configure')
     const phases = phasesFlown(w, 600, (x) => { expect(crashed(x, 'ai-1')).toBe(false) })
-    console.log(`bad join: ${phases.join(' -> ')}`)
     expect(phases.filter((p) => p === 'go-around')).toHaveLength(1)
     expect(phases.at(-1)).toBe('landed')
   })
@@ -164,7 +162,6 @@ describe('join, configure, final (7c-7g §6 phases 2-4, 7g spec §5)', () => {
       if (headingAtFix === null && phaseOf(x, 'ai-1') === 'final') headingAtFix = f.geo.headingRad
       if (headingAtFix !== null) turnedBy = Math.max(turnedBy, Math.abs(f.geo.headingRad - headingAtFix))
     })
-    console.log(`turning carrier: ${phases.join(' -> ')}; deck turned ${(turnedBy * 180 / Math.PI).toFixed(1)}° after final began`)
     expect(turnedBy).toBeGreaterThan((10 * Math.PI) / 180)
     expect(phases.includes('landed') || phases.includes('go-around')).toBe(true)
   })
