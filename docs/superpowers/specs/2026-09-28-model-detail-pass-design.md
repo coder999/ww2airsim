@@ -18,7 +18,7 @@ of detail the downloads set, in both geometry and skin.
 - It has UVs, and is inside its budget.
 - It rebuilds byte-identically.
 - A Tier 1 allowlist of entries still flat-shaded shrinks each plan, and DP3 deletes it.
-- The look itself is an eye judgment that Mark makes once, on DP0's pilot models (§5).
+- The look itself is Mark's eye judgment, taken at a viewing checkpoint on DP0's pilot models (§5). It is not a gate.
 
 Out of scope:
 - flight models for Blender aircraft (the roster spec's out-of-scope list is unchanged);
@@ -127,17 +127,21 @@ gives them the shared detail layer and a base-color atlas of their current
 palette colors, but no markings, because their faces carry no semantic
 parts to place them on.
 
-## 5. The look is approved once, on pilots
+## 5. The look: a checkpoint on pilots, not a gate
 
 DP0 builds two pilot models to the full bar: the **Ki-84** (one engine,
 lofts, markings) and the **hangar** (the simplest building, and the most
 placements). The handoff shows each pilot beside the Zero and the Hellcat in
 Hangar captures, the same camera and lighting for all.
 
-Mark approves the look, or asks for changes, on those captures. The approved
-commit is tagged `model-detail-look-approved`, like the approved-look tag the
-clouds use (`cloud-vdb-photo-2026-09-26`). DP1-DP3 match it and do not ask
-again. This is the one step that needs Mark; everything else runs unattended.
+Those captures are **Mark's viewing checkpoint**. Per `CLAUDE.md`, his viewing
+is a checkpoint, never a test gate, and DP0's plan header records whether
+the run is attended. No test and no later plan waits on him. DP1-DP3 build
+to the DP0 look as merged, and the tier checks in §6 decide pass or fail.
+If Mark asks for changes to the look, whether at the checkpoint or later,
+the change lands in the kit or the atlas stage and every skinned model
+rebuilds from it. That is the reason the look lives in shared code rather
+than in per-model images.
 
 ## 6. Testing
 
@@ -156,10 +160,10 @@ again. This is the one step that needs Mark; everything else runs unattended.
 
 | Plan | Contents | Waits for |
 | --- | --- | --- |
-| **DP0** Pipeline and pilots | Kit UV writer, vector-instruction export, TS atlas stage, shared detail scans (pinned), `TEXCOORD_1` in the runtime, allowlist; Ki-84 and hangar to the full bar; look approval (§5) | R4/R5 merged (they edit `kit.py` and the building scripts; working in parallel collides, as the 2026-09-02 and 2026-09-27 incidents showed) |
-| **DP1** Aircraft | Ki-21, B-29, P-38 to the approved look | DP0 approved |
-| **DP2** Ships | Winding fix, then Pennsylvania, Kagero, Casablanca; the box-projection stage and the 4 downloads if Q1 is yes | DP0 approved; independent of DP1 |
-| **DP3** Buildings | The remaining 9 buildings; delete the allowlist | DP0 approved |
+| **DP0** Pipeline and pilots | Kit UV writer, vector-instruction export, TS atlas stage, shared detail scans (pinned), `TEXCOORD_1` in the runtime, allowlist; Ki-84 and hangar to the full bar; Mark's viewing checkpoint (§5) | R4/R5 merged (they edit `kit.py` and the building scripts; working in parallel collides, as the 2026-09-02 and 2026-09-27 incidents showed) |
+| **DP1** Aircraft | Ki-21, B-29, P-38 to the DP0 look | DP0 merged |
+| **DP2** Ships | Winding fix, then Pennsylvania, Kagero, Casablanca; the box-projection stage and the 4 downloads if Q1 is yes | DP0 merged; independent of DP1 |
+| **DP3** Buildings | The remaining 9 buildings; delete the allowlist | DP0 merged |
 
 DP1-DP3 touch disjoint scripts but share `kit.py`. Run them one at a time,
 or in worktrees with kit changes landing only in DP0.
