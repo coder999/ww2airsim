@@ -140,6 +140,20 @@ export type IngressDestination = { readonly kind: 'ship'; readonly id: string } 
  *  then orbit it; fight only what attacks or comes close. */
 export type IngressOrders = { readonly route: readonly IngressWaypoint[]; readonly destination: IngressDestination | null }
 
+/** 7g spec §7: a pilot's home, resolved to plain data by worldFromScenario.
+ *  A runway's approach geometry is fixed; a ship is read live from ctx.ships. */
+export type RecoveryHome =
+  | {
+      readonly kind: 'runway'; readonly airfieldId: string
+      readonly aimX: number; readonly aimZ: number; readonly headingRad: number
+      /** Runway-local park spot (for tests and diagnostics). */
+      readonly parkSpot: { readonly x: number; readonly z: number }
+      /** The same spot in world coordinates, facing down the runway: what the
+       *  respot builds from, because ctx carries no airfields (spec §7). */
+      readonly parkWorld: { readonly x: number; readonly z: number; readonly headingRad: number }
+    }
+  | { readonly kind: 'ship'; readonly id: string; readonly parkSpot: { readonly x: number; readonly z: number } }
+
 /** 7f spec §1-2: a wingman's station number in its leader's formation. */
 export type FormationSlot = 1 | 2 | 3
 /** 7f spec §1: a wingman's orders. The leader is a same-side aircraft,
