@@ -15,7 +15,7 @@ import type { ReprojectionResidual } from './scene/cloudPass.js'
 import type { CloudTierName } from './scene/clouds.js'
 import type { FxStressName } from './fx/stress.js'
 import type { RadarContact, RadarRangeMi } from './radar.js'
-import type { ManeuverName, PilotMode } from '../sim/ai/pilot.js'
+import type { ManeuverName, PilotMode, RecoveryPhase } from '../sim/ai/pilot.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { MissionDiagnostics } from './mission/hud.js'
 import type { ReplayCameraId } from '../replay/cameras.js'
@@ -212,6 +212,8 @@ export type Ww2Diagnostics = {
      *  mode, named maneuver and target; `null` for an aircraft with no pilot. */
     readonly side: 'allied' | 'axis'
     readonly mode: PilotMode | null
+    /** Plan 7g: the recovery phase for an AI with a home, else `null`. */
+    readonly recovery: RecoveryPhase | null
     readonly maneuver: ManeuverName | null
     readonly targetId: string | null
   }[]

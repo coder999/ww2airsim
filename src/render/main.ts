@@ -983,6 +983,8 @@ async function boot(): Promise<void> {
             // Plan 7e (spec §4.4).
             side: sideOf(frame!.world, a),
             mode: a.pilot?.decision.mode ?? null,
+            // Plan 7g: the recovery phase for an AI with a home, else null.
+            recovery: a.pilot?.decision.recovery?.phase ?? null,
             maneuver: a.pilot?.decision.named ?? null,
             targetId: a.pilot?.decision.targetId ?? null,
           }
