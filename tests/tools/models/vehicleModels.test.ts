@@ -11,14 +11,16 @@ import type { Document } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from '../../../tools/models/manifest.js'
 import { findNode, meshNodes, modelIO, onlyScene } from '../../../tools/models/document.js'
 import { measureDocument } from '../../../tools/models/measure.js'
+import { worldTriangles } from './buildingGeometry.js'
 
 /** Spec §4.4, plus ruling V1's draw calls. Raised only with a measured reason, here and in the ledger. */
 const VEHICLE_BUDGET = { maxBytes: 1_000_000, maxTriangles: 20_000, maxDrawCalls: 8 } as const
 
-interface Cited { readonly lengthM: number; readonly lengthTol: number; readonly widthM: number; readonly heightM: number; readonly heightTol: number; readonly source: string }
-/** Rulings V2 and V4: length per row (1% where the fit sets it), width 6%, height per row. */
+interface Cited { readonly lengthM: number; readonly lengthTol: number; readonly widthM: number; readonly widthTol: number; readonly heightM: number; readonly heightTol: number; readonly source: string }
+/** Rulings V2, V4 and V6: tolerances are per cited row and preserve the authoritative fit axis. */
 const CITED: Readonly<Record<string, Cited>> = {
-  'type97-chi-ha': { lengthM: 5.5, lengthTol: 0.01, widthM: 2.33, heightM: 2.21, heightTol: 0.08, source: "English Wikipedia 'Type 97 Chi-Ha medium tank', infobox (Tomczyk 2007, p. 19): length 5.50 m, width 2.33 m, height 2.21 m, read 2026-09-27. The download measures +7.5% tall at the cited length, all of it in the turret node's top (R5 plan, V2)" },
+  'type97-chi-ha': { lengthM: 5.5, lengthTol: 0.01, widthM: 2.33, widthTol: 0.06, heightM: 2.21, heightTol: 0.08, source: "English Wikipedia 'Type 97 Chi-Ha medium tank', infobox (Tomczyk 2007, p. 19): length 5.50 m, width 2.33 m, height 2.21 m, read 2026-09-27. The download measures +7.5% tall at the cited length, all of it in the turret node's top (R5 plan, V2)" },
+  'willys-mb-jeep': { lengthM: 3.35, lengthTol: 0.04, widthM: 1.57, widthTol: 0.07, heightM: 1.32, heightTol: 0.08, source: "English Wikipedia 'Willys MB', infobox: length 132 in (3.35 m), width 62 in (1.57 m), height reducible to 52 in (1.32 m, top down); the article's 80 in (2.032 m) wheelbase is the fit (R5 plan, V4), read 2026-09-27. At that exact wheelbase fit the source model measures 1.670 m wide (+6.4%), so its measured row uses 7% (V6)" },
 }
 
 /** H3's turret names (Hangar spec §9); a vehicle's are numbered like a building's, +x to -x (R4 ruling). */
@@ -32,6 +34,12 @@ const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail:
   'type97-chi-ha': (doc) => {
     const b = getBounds(findNode(doc, 'Turret1'))
     return { ok: b.max[0] > -b.min[0] + 0.5, detail: `Turret1 x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
+  },
+  // The spare tire rides on the rear panel, higher than any road wheel: the highest Tires vertex is aft.
+  'willys-mb-jeep': (doc) => {
+    const tires = meshNodes(doc).filter((n) => n.getMesh()!.listPrimitives().some((p) => p.getMaterial()?.getName() === 'Tires'))
+    const top = tires.flatMap((n) => worldTriangles(n).flat()).reduce((m, v) => (v[1] > m[1] ? v : m))
+    return { ok: top[0] < 0, detail: `highest tire vertex at x ${top[0].toFixed(3)}, y ${top[1].toFixed(3)}` }
   },
 }
 
@@ -57,7 +65,7 @@ describe.each(vehicles.map((e) => [e.id, e] as const))('vehicle %s (R5)', (id, e
       expect(Math.abs(got - want) / want, `${id} ${label}: measured ${got.toFixed(3)} m, cited ${want}`).toBeLessThanOrEqual(tol)
     }
     check(b.max[0] - b.min[0], c.lengthM, c.lengthTol, 'length')
-    check(b.max[2] - b.min[2], c.widthM, 0.06, 'width')
+    check(b.max[2] - b.min[2], c.widthM, c.widthTol, 'width')
     check(b.max[1] - b.min[1], c.heightM, c.heightTol, 'height')
   })
 

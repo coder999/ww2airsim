@@ -13,10 +13,8 @@ import { nodeHangarContent } from './content.js'
  * Each roster plan removes the entries it models and lowers CEILING to match; R4 took the
  * buildings off; R5 deletes both. The list may shrink, never grow.
  */
-const NOT_YET_DRAWN = [
-  'willys-mb-jeep',
-]
-const CEILING = 1
+const NOT_YET_DRAWN: readonly string[] = []
+const CEILING = 0
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
   aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
