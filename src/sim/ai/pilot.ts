@@ -165,6 +165,22 @@ export type FormationOrders = { readonly leader: string; readonly slot: Formatio
  *  `rtb` and `landed`. */
 export type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter'
 
+/** 7g: the recovery phases (7c-7g §6, 7g spec). */
+export type RecoveryPhase = 'transit' | 'hold' | 'join' | 'configure' | 'final' | 'go-around' | 'rollout' | 'landed'
+/** 7g: written by recovery.ts only. Plain data. */
+export type RecoveryState = {
+  readonly phase: RecoveryPhase
+  /** Sim time the phase began. */
+  readonly sinceS: number
+  /** The LSO gave `cut` on this pass: committed, a later wave-off is ignored (spec §5). */
+  readonly cut: boolean
+  /** Sim time `join` began on this pass; read by later arrivals for the interval. */
+  readonly joinedAtS: number | null
+  /** Sim time the aircraft came to rest; the respot is RESPOT_DELAY_S later. */
+  readonly restAtS: number | null
+  readonly respotted: boolean
+}
+
 export type PilotDecisionState = {
   /** 7e. Written by `pilotTick` at every choice (rescore or forced). */
   readonly mode: PilotMode
@@ -199,6 +215,11 @@ export type PilotDecisionState = {
   /** 7f spec §4: sim time until which a wingman flies trail cover, opened
    *  while its leader fires or engages. Absent (every non-wingman) means 0. */
   readonly coverUntilS?: number
+  /** 7g: the recovery phase machine, present only in mode `rtb`/`landed`. */
+  readonly recovery?: RecoveryState
+  /** 7g spec §1: the last rescore at which any hostile was a contact.
+   *  Written only for a pilot with a home; absent reads as 0. */
+  readonly lastContactS?: number
 }
 
 /** 32-bit FNV-1a of an entity id: the seed of that pilot's noise cursor

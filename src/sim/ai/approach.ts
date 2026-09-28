@@ -252,7 +252,7 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
  * `windVelocity` is the caller's: the world's wind.
  */
 export function carrierApproachProfile(spec: AircraftSpec, deck: Deck, paddles: PaddlesParams): Omit<Required<ApproachTarget>, 'windVelocity'> {
-  const aim = deckWorld(deck, 0, -deck.lengthM / 2 + (deck.trapFromSternM + deck.trapToSternM) / 2)
+  const aim = carrierAimPoint(deck)
   return {
     aimX: aim.x, aimZ: aim.z, runwayHeadingRad: deck.headingRad,
     touchdownElevationM: deck.center.y, surfaceVelocity: deck.velocity, hookDown: true,
@@ -260,4 +260,11 @@ export function carrierApproachProfile(spec: AircraftSpec, deck: Deck, paddles: 
     glidePathRad: (paddles.glideslopeDeg * Math.PI) / 180,
     flareHeightM: 0,
   }
+}
+
+/** `carrierApproachProfile`'s aim, the trap zone's center in world x/z: the
+ *  one copy, which 7g's recovery geometry also reads (it has no aircraft
+ *  spec to build the whole profile from). */
+export function carrierAimPoint(deck: Deck): { x: number; z: number } {
+  return deckWorld(deck, 0, -deck.lengthM / 2 + (deck.trapFromSternM + deck.trapToSternM) / 2)
 }

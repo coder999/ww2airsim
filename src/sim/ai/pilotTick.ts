@@ -16,7 +16,8 @@ import type { PilotAssignment } from './pursuit.js'
 import { airborne } from './airborne.js'
 import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
-import { selectTarget, type TargetingView } from './targeting.js'
+import { isContact, selectTarget, type TargetingView } from './targeting.js'
+import { recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -102,13 +103,34 @@ export function pilotTick<M>(
     decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
   }
   if (lost || ctx.nowS >= decision.nextRescoreS) {
-    const chosen = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
+    const scored = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
+    // 7g spec §1, §6: the return-to-base decision, for a pilot with a home
+    // only (ruling P3: nothing else is written for one without, so every
+    // pre-7g world is bit-identical). RTB pre-empts engage unless a threat is
+    // astern; `landed` is terminal.
+    let rtb = false
+    if (pilot.home !== undefined) {
+      if (snapshot.some((c) => isContact(a, c, view))) decision = { ...decision, lastContactS: ctx.nowS }
+      const recovering = decision.mode === 'rtb' || decision.mode === 'landed'
+      const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS)
+      rtb = decision.mode === 'landed' || ((recovering || goHome) && !threatAstern(a, view))
+    }
+    const chosen = rtb ? null : scored
     if (chosen !== decision.targetId) {
       decision = { ...decision, targetId: chosen, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
     }
-    const mode = chosen !== null ? 'engage'
+    const mode = decision.mode === 'landed' ? 'landed'
+      : rtb ? 'rtb'
+      : chosen !== null ? 'engage'
       : leader !== null && leaderFlying ? 'formation'
       : pilot.ingress !== undefined ? 'ingress' : 'loiter'
+    if (mode === 'rtb' && decision.mode !== 'rtb') {
+      decision = { ...decision, recovery: startRecovery(ctx.nowS), latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
+    } else if (mode !== 'rtb' && mode !== 'landed' && decision.recovery !== undefined) {
+      // Review Focus 4: pre-empted by a threat astern, the recovery restarts
+      // at `transit` when it resumes, never mid-approach.
+      decision = withoutRecovery(decision)
+    }
     decision = {
       ...decision, mode,
       // Latched on entering a loiter, so it holds what it had, not a drift.
@@ -138,11 +160,20 @@ export function pilotTick<M>(
       }
     }
   }
+  // A recovering pilot flies no target between rescores either (a static
+  // `pilot.target` would otherwise be re-read as held above).
+  if (decision.mode === 'rtb' || decision.mode === 'landed') target = null
   // 7e spec §4.5: route progress, checked every tick while on the route. An
   // engaged raider keeps its legIndex and resumes there.
-  if (target === null && pilot.ingress !== undefined) {
+  if (target === null && pilot.ingress !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed') {
     const legIndex = nextLegIndex(a, pilot.ingress, decision.legIndex, ctx.ships)
     if (legIndex !== decision.legIndex) decision = { ...decision, legIndex }
+  }
+  // 7g Review Focus 5: a home ship that is gone, sunk or deckless drops the
+  // home, and the pilot loiters from here rather than throwing.
+  if ((decision.mode === 'rtb' || decision.mode === 'landed') && pilot.home!.kind === 'ship' && recoveryGeometry(pilot.home!, ctx) === null) {
+    pilot = withoutHome(pilot)
+    decision = { ...withoutRecovery(decision), mode: 'loiter', loiter: loiterReference(a) }
   }
   // 7c spec §3.2: the envelope is checked every tick, after the rescore, and
   // outranks any maneuver. It never changes the 7b intent (ruling R11).
@@ -165,6 +196,13 @@ export function pilotTick<M>(
       },
       controls,
     }
+  }
+  // 7g: the recovery. `transit` and `hold` keep the floor above (spec §6).
+  if (decision.mode === 'rtb' || decision.mode === 'landed') {
+    const flown = recoveryControls(a, { ...pilot, decision }, ctx, snapshot)
+    const { controls, cursor } = finishControls(a, flown.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
+    const next = { ...decision, recovery: flown.recovery, safety: 'none' as const, latch: null, noiseCursor: cursor }
+    return { ...a, ...(flown.state !== undefined ? { state: flown.state } : {}), pilot: { ...pilot, decision: next }, controls }
   }
   // 7f spec §3: on station, by the one law that also rejoins.
   if (target === null && decision.mode === 'formation' && leader !== null && leaderFlying) {
