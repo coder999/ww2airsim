@@ -18,9 +18,9 @@ describe('figuresFor (Hangar spec §5), against committed content', () => {
     expect(figure('f6f-hellcat', 'Points when shot down')?.value).toBe(String(pointsForTargetType('fighter')))
   })
 
-  it("the F4F's borrowed flight figures carry its own PLACEHOLDER text; its HP does not", () => {
-    expect(figure('f4f-wildcat', 'Top speed')?.note).toBe('PLACEHOLDER, not F4F-4 data')
-    expect(figure('f4f-wildcat', 'Load limit')?.note).toBe('PLACEHOLDER, not F4F-4 data')
+  it("the F4F is a real F4F-4 now, no PLACEHOLDER note; its HP is still a gameplay value", () => {
+    expect(figure('f4f-wildcat', 'Top speed')?.note).toBeUndefined()
+    expect(figure('f4f-wildcat', 'Load limit')?.note).toBeUndefined()
     expect(figure('f4f-wildcat', 'Structure')?.note).toMatch(/gameplay value/)
   })
 

@@ -198,8 +198,12 @@ export const CARDS: Readonly<Record<string, Card>> = {
     // 2026-09-25: 79.996 deg/s at 95 m/s.
     roll: 0.15,
   },
-  // placeholder until Task 2
-  'f4f-wildcat': { topSpeed: 0.15, climb: 0.25, stall: 0.2, flapStall: 0.2, roll: 0.15, takeoff: { tol: 0.04, liftoffMps: 86.5 * MPH, flapFraction: 1 } },
+  // Set 2026-09-28 from the W1 fit (cd0 0.016, eta 0.60, sourced normal-rating curve unscaled):
+  // top +0.50..+1.71% over [DS]'s seven points; climb SL +16.84% (the F6F's own +16.77% bias),
+  // 16,300 ft +5.05%; stall +2.11% clean, +1.86% flaps; roll 67.998 vs 68. Take-off -14.32% at full
+  // flaps and [5262]'s 73 mph lift-off: [4058] states neither its flap setting nor its lift-off
+  // speed, so 20% is a reported gap (R36), not a fit.
+  'f4f-wildcat': { topSpeed: 0.05, topSpeedTable: 0.05, climb: 0.25, climbTable: 0.3, stall: 0.2, flapStall: 0.2, roll: 0.15, takeoff: { tol: 0.2, liftoffMps: 73 * MPH, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {
