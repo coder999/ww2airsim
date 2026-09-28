@@ -22,9 +22,9 @@ export const GRID_MIN_TEXELS = 4
 /** A disc or polygon marks a sample only if its normal is within ~70 deg of the marking's axis. */
 export const FACING_MIN = 0.35
 const SEAM_DIRT = 0.3
-/** A sample chips only if it is below the chip quantile by more than float roundoff: sampleScan's
- *  bilinear weights need not sum to exactly 1, so a flat 0.5 scan samples as 0.4999999999999999
- *  (240 of 16,384 samples, measured 2026-09-28) and would otherwise chip where nothing is darker. */
+/** A sample chips only if it is above the chip quantile by more than float roundoff: sampleScan's
+ *  bilinear weights need not sum to exactly 1, so a flat 0.5 scan samples 1 ulp off 0.5
+ *  (240 of 16,384 samples, measured 2026-09-28) and would otherwise chip where nothing is brighter. */
 const CHIP_EPS = 1e-6
 
 export interface Painted {
@@ -104,7 +104,7 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
     if (!sc) throw new Error(`skin ${side.model}: scan "${s.scan}" was not loaded`)
     return sc
   }
-  const chipAt = surfaces.map((s) => { const sc = scanOf(s); return sc && s.chip > 0 ? sc.lumAtQuantile(s.chip) : -1 })
+  const chipAt = surfaces.map((s) => { const sc = scanOf(s); return sc && s.chip > 0 ? sc.lumAtQuantile(1 - s.chip) : -1 })
   const patches = new Map(side.patches.map((p) => [p.id, p]))
   const lines = new Map<number, Sidecar['lines']>()
   for (const l of side.lines) lines.set(l.patch, [...(lines.get(l.patch) ?? []), l])
@@ -152,8 +152,10 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
         if (m.effect === 'stain') rough += 0.15 * al
       }
     }
-    // chips: the scan's darkest texels show bare metal through paint and markings alike
-    if (sc && chipAt[r]! >= 0 && s.lum < chipAt[r]! - CHIP_EPS) { [cr, cg, cb] = bare; metal = 1; rough = 0.35 }
+    // chips: the scan's brightest texels, its own bare-metal flecks, show bare metal through paint
+    // and markings alike. Not its darkest: in the painted-metal scan those are stains a meter wide,
+    // which baked as a black blob on every panel (Task 12 captures, 2026-09-28).
+    if (sc && chipAt[r]! >= 0 && s.lum > chipAt[r]! + CHIP_EPS) { [cr, cg, cb] = bare; metal = 1; rough = 0.35 }
     // panel lines, hinge lines and rivets
     for (const l of lines.get(q.id) ?? []) {
       const c = l.axis === 'u' ? u : v, o = l.axis === 'u' ? v : u

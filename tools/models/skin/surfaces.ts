@@ -7,7 +7,7 @@
  *   roughness   base roughness before the scan's variation
  *   metallic    0 paint, 1 bare metal
  *   fade        chalking toward a lighter gray on sky-facing surfaces, 0-1
- *   chip        fraction of the scan's darkest texels that show bare metal through the paint
+ *   chip        fraction of the scan's brightest texels (its bare-metal flecks) that show bare metal through the paint
  *   rivets      draw rivet rows beside its panel lines
  *   scanNormal  the scan normal's strength, 0-1
  */
@@ -23,10 +23,10 @@ export interface Surface {
 }
 
 export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
-  ijaGreen: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.06, rivets: true, scanNormal: 0.6 },
-  underside: { scan: 'painted-metal', roughness: 0.58, metallic: 0, fade: 0.04, chip: 0.03, rivets: true, scanNormal: 0.6 },
+  ijaGreen: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
+  underside: { scan: 'painted-metal', roughness: 0.58, metallic: 0, fade: 0.04, chip: 0.005, rivets: true, scanNormal: 0.6 },
   naturalMetal: { scan: 'painted-metal', roughness: 0.35, metallic: 1, fade: 0, chip: 0, rivets: true, scanNormal: 0.4 },
-  dark: { scan: 'painted-metal', roughness: 0.55, metallic: 0, fade: 0.05, chip: 0.02, rivets: false, scanNormal: 0.5 },
+  dark: { scan: 'painted-metal', roughness: 0.55, metallic: 0, fade: 0.05, chip: 0.005, rivets: false, scanNormal: 0.5 },
   glazing: { scan: null, roughness: 0.08, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
   steel: { scan: 'corrugated-iron', roughness: 0.7, metallic: 0, fade: 0.1, chip: 0.04, rivets: false, scanNormal: 1 },
   concrete: { scan: 'concrete', roughness: 0.9, metallic: 0, fade: 0.04, chip: 0, rivets: false, scanNormal: 1 },
