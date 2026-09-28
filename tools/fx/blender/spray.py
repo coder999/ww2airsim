@@ -16,7 +16,7 @@ k = a['sim_scale']
 cache = os.path.join(a['out'], NAME, 'cache')
 POOL = 0.5
 FIRST = 4
-SIM_FRAMES = max(FIRST + 7, round(48 * k))
+SIM_FRAMES = FIRST + a['frames'] - 1  # one sim frame per picked frame; the last ~20 are the fading tail
 dom = rig.liquid_domain(scene, size=(8.0, 8.0, 6.0), center=(0.0, 0.0, 3.0), res=max(32, round(112 * k)),
                         frame_end=SIM_FRAMES, cache=cache, types=('SPRAY', 'FOAM'))
 pool = rig.flow_box('pool', size=(7.9, 7.9, POOL), location=(0.0, 0.0, POOL / 2))
@@ -24,6 +24,7 @@ pool = rig.flow_box('pool', size=(7.9, 7.9, POOL), location=(0.0, 0.0, POOL / 2)
 burst = rig.flow_sphere('burst', radius=0.6, location=(0.0, 0.0, POOL + 0.05), flow_type='LIQUID', velocity=(0.0, 0.0, 7.0),
                         velocity_normal=5.0, stop_frame=max(2, round(5 * k)), subframes=2)
 t = rig.bake(dom)
+# The fade keeps the walls' flecks (x, y = +-4 m) out.
 rig.render_liquid_sheet(scene, dom, [pool, burst], sheet=NAME, a=a, sim_frames=SIM_FRAMES, first_frame=FIRST,
                         ortho=10.0, center_z=2.4, scatter=rig.scatter_material(density=8.0, albedo=0.95, anisotropy=0.3),
-                        bake_s=t, types=('SPRAY', 'FOAM'), z_min=POOL + 0.25, radius=0.08, voxel=0.04)
+                        bake_s=t, types=('SPRAY', 'FOAM'), z_min=POOL + 0.25, fade=(2.5, 3.5), radius=0.08, voxel=0.04)

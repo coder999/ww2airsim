@@ -59,6 +59,20 @@ export function variantName(sheet: string, variant: string | undefined): string 
   return `${sheet}-${variant}`
 }
 
+/** A bake that came back is the one asked for: a script that forgot to name its output after
+ *  itself (the variant scripts do, via __file__) would otherwise overwrite another sheet's renders. */
+export function assertMetaSheet(meta: { readonly sheet?: unknown }, name: string): void {
+  if (meta.sheet !== name) throw new Error(`fx:render: asked for ${name}, but its meta.json says sheet ${JSON.stringify(meta.sheet)}; the script must render sheet=${name}`)
+}
+
+/** fx:pack always packs renders/<sheet>/, never a variant: refusing FX_VARIANT there means a
+ *  shell left over from a variant check cannot look as if it packed the variant. */
+export function assertPackHasNoVariant(variant: string | undefined): void {
+  if (variant !== undefined && variant !== '') {
+    throw new Error(`fx:pack: FX_VARIANT=${variant} is set, but the pack only reads renders/<sheet>/; unset it (a variant is for --check only)`)
+  }
+}
+
 /** `from` and `to` name the host themselves (`ryzen:fxbake/...`), exactly one side remote. */
 export function rsyncArgs(
   from: string, to: string,

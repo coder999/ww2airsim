@@ -4,7 +4,7 @@
  * tools/fx/bake-report.json. `npm run fx:pack -- --check <sheet>` measures one sheet at its
  * rendered size against pack.ts's acceptance rules and writes nothing (non-zero on failure);
  * with FX_VARIANT set it measures renders/<sheet>-<variant>/ (remote.ts's variantName) against
- * the same sheet's rules. The pack itself ignores FX_VARIANT.
+ * the same sheet's rules. The pack itself refuses to run with FX_VARIANT set.
  * `npm run fx:bake` is fx:render, then fx:pack.
  */
 import { execFileSync } from 'node:child_process'
@@ -20,7 +20,7 @@ import {
   mipLevels, motionScaleOf, packCell, PASSES, pickFrames, type FramePasses, type Pass, type SheetMetrics,
 } from './pack.js'
 import { read16 } from './png16.js'
-import { variantName } from './remote.js'
+import { assertPackHasNoVariant, variantName } from './remote.js'
 import { fxSceneSha256 } from './sceneHash.js'
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
@@ -141,6 +141,7 @@ async function main(): Promise<void> {
     console.log(`${name}: passes`)
     return
   }
+  assertPackHasNoVariant(process.env.FX_VARIANT)
   const ktx = await ktxBinary()
   for (const rung of LADDER) {
     const report = await packRung(ktx, rung)

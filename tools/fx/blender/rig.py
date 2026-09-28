@@ -386,14 +386,21 @@ def flow_box(name, *, size, location, flow_type='LIQUID', behavior='GEOMETRY'):
     return o
 
 
-def whitewater_points(scene, dom, frame, *, types, z_min=None, r_max=None):
+def whitewater_points(scene, dom, frame, *, types, z_min=None, fade=None):
     """Frame `frame`'s live whitewater positions of `types` as an (N, 3) float32 array, from the
     evaluated domain (so it must run before render_liquid_sheet removes the fluid objects). The
     Liquid:FLIP system is the water body itself and is never included (spike trap 4). Points
-    under `z_min` are culled: late in a sim the pool fills with a foam slab (spike trap 5). Points
-    further than `r_max` from the z axis are culled too: the closed walls throw up sparse flecks
-    that set a sheet's bounding box (water-column trial 2: wall to wall, 6 m, around a 3 m column)."""
+    under `z_min` are culled: late in a sim the pool fills with a foam slab (spike trap 5).
+    `fade` = (r0, r1) thins points by their distance r from the z axis: all kept inside r0, none
+    beyond r1, and a smoothstep between, so the closed walls' sparse flecks (water-column trial 2:
+    they set a 6 m wall-to-wall bounding box) are dropped without the straight vertical edge a hard
+    radial cut draws (review round 1: 0.12 -> 7.17 -> 20.5 alpha across two texel columns). Which
+    points go is a hash of each particle's index, so it needs no RNG state."""
     import numpy as np
+    bad = sorted(set(types) - set(WHITEWATER))
+    if bad:
+        # FLIP is the liquid body itself (spike trap 4); anything else is not whitewater.
+        raise ValueError(f'whitewater types {bad}; one of {WHITEWATER}')
     scene.frame_set(frame)
     ev = dom.evaluated_get(bpy.context.evaluated_depsgraph_get())
     out, counts = [], {}
@@ -407,14 +414,34 @@ def whitewater_points(scene, dom, frame, *, types, z_min=None, r_max=None):
             continue
         buf = np.zeros(n * 3, dtype=np.float32)
         ps.particles.foreach_get('location', buf)
-        p3 = buf.reshape(-1, 3)[np.array([p.alive_state == 'ALIVE' for p in ps.particles], dtype=bool)]
+        keep = np.array([p.alive_state == 'ALIVE' for p in ps.particles], dtype=bool)
+        p3 = buf.reshape(-1, 3)
         if z_min is not None:
-            p3 = p3[p3[:, 2] >= z_min]
-        if r_max is not None:
-            p3 = p3[p3[:, 0] ** 2 + p3[:, 1] ** 2 <= r_max * r_max]
+            keep &= p3[:, 2] >= z_min
+        if fade is not None:
+            keep &= _hash01(n) < _fade_keep(np.hypot(p3[:, 0], p3[:, 1]), *fade)
+        p3 = p3[keep]
         counts[kind] = int(len(p3))
         out.append(p3)
     return (np.concatenate(out) if out else np.zeros((0, 3), dtype=np.float32)), counts
+
+
+def _hash01(n):
+    """A fixed pseudo-random value in [0, 1) per index 0..n-1 (Knuth's multiplicative hash, then
+    a xorshift), the same on every run and machine."""
+    import numpy as np
+    h = np.arange(n, dtype=np.uint64) * np.uint64(2654435761) & np.uint64(0xFFFFFFFF)
+    h ^= h >> np.uint64(16)
+    h = h * np.uint64(0x45D9F3B) & np.uint64(0xFFFFFFFF)
+    h ^= h >> np.uint64(16)
+    return h.astype(np.float64) / 4294967296.0
+
+
+def _fade_keep(r, r0, r1):
+    """The kept fraction at distance r: 1 inside r0, 0 beyond r1, 1 - smoothstep between."""
+    import numpy as np
+    t = np.clip((r - r0) / (r1 - r0), 0.0, 1.0)
+    return 1.0 - t * t * (3.0 - 2.0 * t)
 
 
 def _points_volume(scene, material, *, radius, voxel):
@@ -458,7 +485,7 @@ def _set_points(ob, P):
 
 
 def render_liquid_sheet(scene, dom, flows, *, sheet, a, sim_frames, ortho, center_z, scatter, bake_s, first_frame,
-                        types, z_min, r_max=None, radius=0.06, voxel=0.03):
+                        types, z_min, fade=None, radius=0.06, voxel=0.03):
     """A liquid whitewater sheet: the same frames, passes, files and meta.json as render_sheet
     (plus per-frame particle counts), from whitewater_points instead of a VDB. The liquid emits
     nothing, so there is no emission pass."""
@@ -466,8 +493,12 @@ def render_liquid_sheet(scene, dom, flows, *, sheet, a, sim_frames, ortho, cente
     picked = _picked(a['frames'], first_frame, sim_frames)
     t = time.time()
     points, counts = {}, []
+    # rig.py's liquid sheets render one sim frame per picked frame: a repeat is zero optical flow
+    # followed by a double step (review round 1), so set sim_frames = first_frame + frames - 1.
+    if len(set(picked)) != len(picked):
+        raise ValueError(f'{sheet}: {len(picked)} frames from sim frames {first_frame}..{sim_frames} repeat some')
     for f in sorted(set(picked)):
-        points[f], _ = whitewater_points(scene, dom, f, types=types, z_min=z_min, r_max=r_max)
+        points[f], _ = whitewater_points(scene, dom, f, types=types, z_min=z_min, fade=fade)
     for f in picked:
         counts.append(int(len(points[f])))
     extract_s = time.time() - t
@@ -484,7 +515,7 @@ def render_liquid_sheet(scene, dom, flows, *, sheet, a, sim_frames, ortho, cente
     meta = _meta(sheet=sheet, a=a, sim='liquid', sim_frames=sim_frames, first_frame=first_frame, picked=picked,
                  ortho=ortho, emission=False, bake_s=bake_s, render_s=render_s)
     meta.update({
-        'particles': counts, 'types': list(types), 'zMin': z_min, 'rMax': r_max, 'pointRadius': radius, 'voxel': voxel,
+        'particles': counts, 'types': list(types), 'zMin': z_min, 'fade': list(fade) if fade else None, 'pointRadius': radius, 'voxel': voxel,
         'extractS': round(extract_s, 1),
         # World-space extent of every rendered point (min xyz, max xyz): the ortho arithmetic's input.
         'pointsBox': [allp.min(0).round(2).tolist(), allp.max(0).round(2).tolist()] if allp is not None else None,

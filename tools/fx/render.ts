@@ -5,14 +5,14 @@
  * probe.py first. FX_BAKE_HOST and FX_BLENDER override the host and binary. FX_SIM_SCALE,
  * FX_FRAMES, FX_CELL and FX_SAMPLES shrink a trial run; a real bake leaves them unset.
  * FX_VARIANT=gas bakes each sheet's `<sheet>-gas.py` into tools/fx/renders/<sheet>-gas/ instead
- * (remote.ts's variantName); fx:pack never reads a variant.
+ * (remote.ts's variantName); fx:pack never reads a variant, and refuses to run with FX_VARIANT set.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FX_SHEETS, type FxSheetName } from '../../src/render/fx/sheetManifest.js'
-import { assertProbe, FX_BAKE_HOST_DEFAULT, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, SSH_OPTS, variantName } from './remote.js'
+import { assertProbe, FX_BAKE_HOST_DEFAULT, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, SSH_OPTS, assertMetaSheet, variantName } from './remote.js'
 import { LOOPING, LOOP_BLEND } from './pack.js'
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
@@ -61,7 +61,8 @@ function main(): void {
     run('rsync', rsyncArgs(`${HOST}:${REMOTE}/out/${name}/`, join(RENDERS, name) + '/', { delete: true, exclude: ['cache/'] }))
     const metaFile = join(RENDERS, name, 'meta.json')
     if (!existsSync(metaFile)) throw new Error(`fx:render: ${name} came back without meta.json`)
-    const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { frames: number; bakeS: number; renderS: number }
+    const meta = JSON.parse(readFileSync(metaFile, 'utf8')) as { sheet?: unknown; frames: number; bakeS: number; renderS: number }
+    assertMetaSheet(meta, name)
     if (meta.frames !== frames) throw new Error(`fx:render: ${name} came back with ${meta.frames} frames, asked for ${frames}`)
     const wallS = Number(process.hrtime.bigint() - t) / 1e9
     console.log(`fx:render: ${name} bake ${meta.bakeS} s, render ${meta.renderS} s, ${Math.round(wallS)} s wall`)

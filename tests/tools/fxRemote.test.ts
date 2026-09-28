@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertProbe, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, variantName, type BakeRun } from '../../tools/fx/remote.js'
+import { assertMetaSheet, assertPackHasNoVariant, assertProbe, FX_BLENDER_DEFAULT, remoteScript, rsyncArgs, variantName, type BakeRun } from '../../tools/fx/remote.js'
 
 const run: BakeRun = {
   remoteDir: 'fxbake/e2-flipbooks', blender: FX_BLENDER_DEFAULT, script: 'smoke.py', doneName: 'done-smoke.json',
@@ -42,5 +42,17 @@ describe('fx bake transport (plan E2 Rulings R1, R10)', () => {
     const name = variantName('spray', 'gas')
     expect(remoteScript({ ...run, script: `${name}.py`, doneName: `done-${name}.json`, cleanDir: `out/${name}` })).toContain('-P scripts/spray-gas.py -- done-spray-gas.json')
     for (const bad of ['Gas', 'g as', 'gas;rm', '../x', '-gas']) expect(() => variantName('spray', bad)).toThrow(/FX_VARIANT/)
+  })
+
+  it('a bake whose meta.json names another sheet is refused (review round 1)', () => {
+    expect(() => assertMetaSheet({ sheet: 'water-column-gas' }, 'water-column-gas')).not.toThrow()
+    expect(() => assertMetaSheet({ sheet: 'water-column' }, 'water-column-gas')).toThrow(/asked for water-column-gas.*sheet "water-column"/)
+    expect(() => assertMetaSheet({}, 'spray')).toThrow(/asked for spray/)
+  })
+
+  it('fx:pack refuses FX_VARIANT, which only --check reads (review round 1)', () => {
+    expect(() => assertPackHasNoVariant(undefined)).not.toThrow()
+    expect(() => assertPackHasNoVariant('')).not.toThrow()
+    expect(() => assertPackHasNoVariant('gas')).toThrow(/FX_VARIANT=gas/)
   })
 })
