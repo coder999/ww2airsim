@@ -1,6 +1,6 @@
 # Mission map as a WWII topographic chart — design
 
-**Status: design approved by Mark in conversation, 2026-09-28; written spec awaiting review.**
+**Status: approved by Mark 2026-09-28; implemented on branch `worktree-mission-map-icons`.**
 Builds on `2026-09-18-mission-map-design.md` (what the chart shows and how a
 destination is chosen — unchanged) and `2026-09-24-naval-comms-ui-design.md`
 (the visual language this adopts). This spec changes how the chart **looks**,
@@ -35,9 +35,10 @@ This spec restyles and extends both.
   form-table styling. The dark panel is removed.
 - The chart is a paper inset with a double neatline (heavy outer, thin inner).
 - Margin legend (Army Map Service style): contour interval, symbol key
-  (airfield, carrier, ship, woodland, cultivation, swamp), scale bar and
-  ratio. All distances imperial: scale bar in nautical miles; contours and
-  elevation labels in feet.
+  (airfield, carrier, ship, woodland, cultivation, swamp), scale bar. All distances imperial: scale bar in nautical miles; contours and
+  elevation labels in feet. (A numeric ratio was dropped: the chart fits a
+  variable marker area to a fixed-size sheet, so a ratio would change with
+  every scenario and mean nothing to a pilot; the bar carries the scale.)
 - `role="dialog"`, `aria-label`, focus-on-open, Close, and keyboard selection
   behave exactly as today; existing tests for them must still pass.
 
@@ -124,3 +125,17 @@ markers); no cover → no woodland/crop/mangrove, contours still drawn.
   shows).
 - Whether `terrain.cover` is attached by the time a mission can open the
   chart (it loads separately from heights).
+
+## 10. Measured (2026-09-28)
+
+- Layer build (land, coast, woodland, crop, mangrove, contours) on the real
+  200 km terrain: at most 25 ms at the worst-case visible area, run once per
+  open and cached per (terrain, visible area, cover presence). The real
+  Tacloban-area scenario was not benchmarked separately; it rendered without a
+  visible hitch.
+- `terrain.cover` was attached by the time the chart opened (about 4 s after
+  terrain load): woodland, cultivation and swamp all rendered in the
+  `free-flight` and `convoy-strike` screenshots
+  (`docs/handoff/img/2026-09-28-mission-chart-free-flight.png`). A chart
+  opened before cover attaches simply omits the green layers.
+- Not compared: contour faceting on Low versus High asset quality.

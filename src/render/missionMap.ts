@@ -586,7 +586,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     const swatch = (inner: string): string =>
       `<svg width="26" height="16" viewBox="-13 -8 26 16" style="vertical-align:middle;margin-right:5px">${inner}</svg>`
     const icon = (kind: 'airfield' | 'carrier' | 'ship', fill: string): string =>
-      `<g transform="scale(.6)"><path d="${MARKER_ICONS[kind].body}" fill="${fill}" stroke="#e9dfc2" stroke-width="1.5"/>` +
+      `<g transform="scale(.8)"><path d="${MARKER_ICONS[kind].body}" fill="${fill}" stroke="#e9dfc2" stroke-width="1.5"/>` +
       `<path d="${MARKER_ICONS[kind].detail}" fill="none" stroke="#e9dfc2" stroke-width="1.5"/></g>`
     const entries: [string, string][] = [
       [swatch(icon('airfield', '#2a2620')), 'Airfield'],
