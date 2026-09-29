@@ -274,6 +274,20 @@ describe('production fixed-step ordnance', () => {
     expect(quiet.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 6 })
   })
 
+  it('a bomber with no combat block still drops its bombs, and has no rockets to fire', () => {
+    const b17 = loadAircraftSpec('b-17-flying-fortress')
+    expect(b17.combat).toBeUndefined()
+    const state = createState({ position: v3(0, 1000, 0) })
+    const bomber: AircraftEntity = { id: 'b', spec: b17, state, previous: state, controls: { ...controls, fire: false, dropBomb: true, fireRockets: true }, assistMemory: undefined, impact: null, parked: false }
+    const w = createWorldOf({ aircraft: [bomber], player: 'b' })
+    const full = { ...w, combat: { ...w.combat, aircraft: { b: { ...w.combat.aircraft.b!, stores: storesFromLoadout(b17, 'bombs') } } } }
+    expect(full.combat.aircraft.b!.stores.bombs).toBe(8)
+    const after = advance(full, DT, still).world
+    expect(after.combat.aircraft.b!.stores.bombs).toBe(7)
+    expect(after.combat.projectiles.filter(p => p.kind === 'bomb')).toHaveLength(1)
+    expect(after.combat.projectiles.filter(p => p.kind === 'rocket')).toHaveLength(0)
+  })
+
   it('releases once per key-down even when one advance owes several ticks', () => {
     // The release controls are edge-triggered once per RENDERED frame, but a
     // stutter makes one `advance` run several fixed substeps against that one
