@@ -114,10 +114,12 @@ Options, one per airframe:
 - **None.** Guns only. Omit `stores`.
 - **External bombs (racks only).** As the Wildcat: `rails: []`.
 - **External bombs and rockets (racks and rails).** As the Hellcat.
-- **Bay-carried bombs.** For now they are drawn as ordinary racks hanging
-  below the aircraft, on the centerline at the bay position. No bay doors,
-  no internal drawing. The decision records that, and the source line says
-  the real load is internal. The schema is unchanged.
+- **Bay-carried bombs.** Racks inside the hull, undrawn: the bombs drop from
+  inside the airframe with no external rack or bay door in the picture. Place the
+  rack offsets within the drawn hull and hold them with a test like the B-17's
+  `internalBay.test.ts`. The source line says the real load is internal. The
+  schema is unchanged. (Mark's ruling for the B-17, 2026-09-29; drawn racks
+  hanging below the airplane were the earlier plan and are retired.)
 
 Ask which, and how many stations. `racks` allows 1 to 8 and `rails` 0 to 16;
 a bomber whose real load exceeds 8 gets 8 and a source line saying so.
@@ -301,7 +303,7 @@ Record it in the D-table as "deferred", and do not build it.
 - **A modeled cockpit.** Each airframe needs its own; every one uses the
   eye-point view (D12) until that work is scheduled.
 - **Bomber AI.** A bomber is flown by the player only.
-- **Real internal bays.** Bay loads are drawn hanging below the aircraft (D7).
+- **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors opening and closing are a future plan.
 - **Engine-out handling** for multi-engine types (D6); the power is summed.
 
 ## Lessons from the first run (F4U-1D, 2026-09-29)
@@ -333,9 +335,8 @@ Detail: [`docs/handoff/2026-09-29-b-17.md`](handoff/2026-09-29-b-17.md).
   clips at `WING_MIN_X_M` (-2 m), which truncates a 4.9 m chord and gives a wrong
   origin: pass a wider `minX` (`sectionAtFor(model, minX)`), and add the per-model
   value to `centerPoint.test.ts`.
-- **D7's "bay loads hang as drawn racks" is not the only answer.** For the B-17 Mark chose no
-  drawn racks: 8 racks inside the hull, held by `internalBay.test.ts`. Reconcile D7 when
-  bay doors get a plan.
+- **Bay loads are undrawn internal racks (D7).** The B-17 has 8 racks inside the hull,
+  held by `internalBay.test.ts`. Bay doors get their own plan.
 - **A heavy airplane needs longer harness windows.** Ground conformance tests 6 and 8
   give a from-standstill take-off 40 s and 30 s; the B-17 needs about 44 s. Widen the
   window (`takeoffWindowS`), never the physics. The lift-off band inherits the
