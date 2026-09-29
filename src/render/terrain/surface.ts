@@ -1,5 +1,6 @@
-import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat } from 'three'
-import { color, float, length, max, min, mix, smoothstep, texture, uniform, vec2, vec3 } from 'three/tsl'
+import { ClampToEdgeWrapping, DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat, SRGBColorSpace, TextureLoader, Vector4 } from 'three'
+import type { Texture } from 'three'
+import { color, float, length, max, min, mix, positionView, smoothstep, texture, uniform, vec2, vec3 } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import { riverMask } from './rivers.js'
 import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
@@ -275,6 +276,72 @@ export function surfaceWeightNodes(xz: Node<'vec2'>, height: Node<'float'>, slop
   }
 }
 
+
+/**
+ * SPIKE (satellite drape, 2026-09-28): an experimental baked-imagery blend,
+ * off unless the URL carries `?drape=1944` (scrubbed of modern buildings,
+ * roads and rivers redrawn from vectors) or `?drape=raw`. The bake is
+ * `tools/drape/bake.py`; its files are `content/drape-spike/`. Nothing here
+ * runs, and no node is added to the terrain graph, without the flag.
+ */
+export type DrapeNodes = {
+  readonly texture: Texture
+  /** (west x, north z, size m, unused) -- the bake's world square. */
+  readonly bounds: UniformNode<'vec4', Vector4>
+  readonly ready: UniformNode<'float', number>
+  readonly synthetic: boolean
+}
+let drapeSingleton: DrapeNodes | null | undefined
+export function drapeNodes(): DrapeNodes | null {
+  if (drapeSingleton !== undefined) return drapeSingleton
+  const variant = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('drape')
+  if (variant !== '1944' && variant !== 'raw' && variant !== 'synth' && variant !== 'synth1m' && variant !== 'synthsr') return (drapeSingleton = null)
+  const base = `${import.meta.env?.BASE_URL ?? '/'}content/drape-spike/`
+  const tex = new TextureLoader().load(`${base}drape-${variant}.png`, () => { ready.value = 1 })
+  tex.colorSpace = SRGBColorSpace
+  tex.wrapS = tex.wrapT = ClampToEdgeWrapping
+  tex.minFilter = LinearMipmapLinearFilter
+  tex.magFilter = LinearFilter
+  tex.generateMipmaps = true
+  tex.anisotropy = 8
+  const bounds = uniform(new Vector4(0, 0, 1, 0))
+  const ready = uniform(0)
+  void fetch(`${base}${variant.startsWith('synth') ? `drape-${variant}` : 'drape'}.json`).then((r) => r.json()).then((m: { centreX: number; centreZ: number; halfM: number }) => {
+    bounds.value.set(m.centreX - m.halfM, m.centreZ - m.halfM, 2 * m.halfM, 0)
+  })
+  return (drapeSingleton = { texture: tex, bounds, ready, synthetic: variant.startsWith('synth') })
+}
+
+/** Blends the baked imagery over the procedural ground on land, inside the
+ *  bake's square, with the procedural grain riding on top so close range does
+ *  not go to 10 m pixels. The sea is left to the ocean (height fade). */
+function applyDrape(albedo: Node<'vec3'>, xz: Node<'vec2'>, drape: DrapeNodes, height: Node<'float'>): Node<'vec3'> {
+  const b = drape.bounds
+  const uv = xz.sub(vec2(b.x, b.y)).div(b.z)
+  const edge = min(min(uv.x, float(1).sub(uv.x)), min(uv.y, float(1).sub(uv.y)))
+  const inside = smoothstep(0, 0.01, edge)
+  const land = smoothstep(0.4, 2.0, height)
+  const grain = groundNoise(xz, 18).b.mul(0.3).add(0.85)
+  const canopy = groundNoise(xz, 180).g.mul(0.2).add(0.9)
+  const raw = texture(drape.texture, uv).rgb
+  // Hybrid: keep the photo's light and dark pattern, but ride it on the
+  // sim's own hue so the two lighting models agree.
+  const luma = (c: Node<'vec3'>): Node<'float'> => c.dot(vec3(0.2126, 0.7152, 0.0722))
+  const matched = albedo.mul(luma(raw).div(max(luma(albedo), 0.02)).mul(HYBRID_GAIN))
+  const toned = drape.synthetic ? raw : mix(raw.mul(HYBRID_EXPOSURE), matched, HYBRID_HUE_MATCH)
+  const photo = toned.mul(grain).mul(canopy)
+  // Distance fade: 10 m pixels go soft up close, so the procedural ground
+  // takes over inside a few hundred yards and the photo carries the distance.
+  const far = smoothstep(drape.synthetic ? 40 : HYBRID_NEAR_M, drape.synthetic ? 220 : HYBRID_FAR_M, length(positionView))
+  return mix(albedo, photo, inside.mul(land).mul(drape.ready).mul(far))
+}
+
+const HYBRID_NEAR_M = 400
+const HYBRID_FAR_M = 2200
+const HYBRID_GAIN = 1.0
+const HYBRID_EXPOSURE = 1.15
+const HYBRID_HUE_MATCH = 0.55
+
 export type TerrainSurface = { readonly albedo: Node<'vec3'>; readonly detailSlope: Node<'vec2'> | null }
 
 /** The terrain's albedo and, when there is texture detail, the texture
@@ -288,7 +355,9 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
   const c = terrainColorLeaves(xz, noise)
   const w = surfaceWeightNodes(xz, height, slope, cover, noise)
   const mix3 = (a: Node<'vec3'>, b: Node<'vec3'>, t: Node<'float'>): Node<'vec3'> => mix(a, b, t)
-  if (!detail) return { albedo: composeSurface(c, w, mix3), detailSlope: null }
+  const drape = drapeNodes()
+  const finish = (a: Node<'vec3'>): Node<'vec3'> => (drape ? applyDrape(a, xz, drape, height) : a)
+  if (!detail) return { albedo: finish(composeSurface(c, w, mix3)), detailSlope: null }
   // Plan Ruling 1: the texture modulates, it does not replace. Leaves that
   // share a material share its texture (paddy is grass, mangrove is jungle,
   // the road is dirt); the river's wet bank and water stay procedural.
@@ -307,7 +376,7 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
     paddy: detail.slope('grass'), mangrove: detail.slope('jungle'), rock: detail.slope('rock'),
     wetBank: zero, water: zero, road: detail.slope('dirt'),
   }, w, mix2)
-  return { albedo, detailSlope }
+  return { albedo: finish(albedo), detailSlope }
 }
 
 export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {

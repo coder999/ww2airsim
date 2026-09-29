@@ -45,7 +45,7 @@ test("the navigation chart selects recovery points without advancing the world",
     .getByRole("button", { name: "Set Tacloban as navigation destination" })
     .click();
   await expect(chart).toContainText(
-    /Tacloban — Course \d{3}° · (?:\d+(?:\.\d)? km|\d+ m)/,
+    /Tacloban — Course \d{3}° · (?:\d+(?:\.\d)? nm|\d+ ft)/,
   );
   await page
     .getByRole("button", {
@@ -53,7 +53,7 @@ test("the navigation chart selects recovery points without advancing the world",
     })
     .click();
   await expect(chart).toContainText(
-    /Essex-class fleet carrier — Course \d{3}° · \d+(?:\.\d)? km/,
+    /Essex-class fleet carrier — Course \d{3}° · \d+(?:\.\d)? nm/,
   );
   await page.screenshot({ path: "test-results/mission-map.png" });
 

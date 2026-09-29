@@ -13,7 +13,7 @@ const TOLERANCE_M = 0.05
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
 
 describe('every drawn model stands on its spec (2026-09-28)', () => {
-  it.each(specs.map((s) => [s.id, s] as const))('%s: mains on gear.heightM, tail on the ground at the stance pitch', async (_id, spec) => {
+  it.each(specs.map((s) => [s.id, s] as const))('%s: mains on gear.heightM, tail (or nose wheel) on the ground at the stance pitch', async (_id, spec) => {
     const stance = MODEL_STANCE[spec.view.model]
     expect(stance, `${spec.view.model} has no MODEL_STANCE entry`).toBeDefined()
     const pts = await drawnPoints(spec.view.model)
@@ -21,9 +21,19 @@ describe('every drawn model stands on its spec (2026-09-28)', () => {
     // 0.01 m lower still, so the lowest point overall is not always a main wheel.
     const xs = pts.map((p) => p[0])
     const [lo, hi] = [xs.reduce((a, b) => Math.min(a, b)), xs.reduce((a, b) => Math.max(a, b))]
-    const main = pts.filter((p) => p[0] > lo + 0.25 * (hi - lo)).reduce((a, p) => (p[1] < a[1] ? p : a))
+    const tricycle = spec.gear.layout === 'tricycle'
+    // A tricycle's nose wheel is as low as its mains (the B-29's tie at 4.085 m), so the mains are taken
+    // from the points aft of the nose gear, and the nose wheel is checked on its own below.
+    const main = pts.filter((p) => p[0] > lo + 0.25 * (hi - lo) && (!tricycle || p[0] < spec.gear.thirdX - 1.5)).reduce((a, p) => (p[1] < a[1] ? p : a))
     expect(Math.abs(main[1] + spec.gear.heightM), `${spec.id}: mains ${(-main[1]).toFixed(3)} m below the origin, gear.heightM ${spec.gear.heightM}`).toBeLessThanOrEqual(TOLERANCE_M)
     expect(Math.abs(main[0] - stance!.mainWheelXM), `${spec.id}: mains at x ${main[0].toFixed(3)}`).toBeLessThanOrEqual(TOLERANCE_M)
+    if (tricycle) {
+      // The nose wheel: the lowest point forward of the mains sits on thirdHeightM, within the nose wheel's own width in x.
+      const nose = pts.filter((p) => p[0] > spec.gear.thirdX - 1).reduce((a, p) => (p[1] < a[1] ? p : a))
+      expect(Math.abs(nose[1] + spec.gear.thirdHeightM), `${spec.id}: nose wheel ${(-nose[1]).toFixed(3)} m below the origin`).toBeLessThanOrEqual(TOLERANCE_M)
+      expect(Math.abs(nose[0] - spec.gear.thirdX), `${spec.id}: nose wheel at x ${nose[0].toFixed(3)}`).toBeLessThanOrEqual(0.4)
+      return
+    }
     // Pitch every point aft of the mains nose-up about the contact; the lowest must sit on the ground.
     const [c, s] = [Math.cos(stance!.tailDownPitchRad), Math.sin(stance!.tailDownPitchRad)]
     const lowestAft = pts.filter((p) => p[0] < main[0] - 1).map(([x, y]) => main[1] + (x - main[0]) * s + (y - main[1]) * c).reduce((a, b) => Math.min(a, b))

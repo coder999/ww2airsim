@@ -234,8 +234,8 @@ test.describe('the Hangar', () => {
       const up = await shot(page)
       await pose(page, { gearFraction: 1 })
       await page.getByRole('button', { name: 'Cycle landing gear' }).click()
-      // 10 s at 60 Hz covers every shipped spec's gear.travelSeconds (7 s).
-      await page.evaluate(() => { for (let i = 0; i < 600; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      // 25 s at 60 Hz covers every shipped spec's gear.travelSeconds (20 s for the B-29, 12 s for the B-17, 7 s the fighters', 2026-09-29).
+      await page.evaluate(() => { for (let i = 0; i < 1500; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
       expect(await page.evaluate(() => (window as HangarWindow).__hangar!.bench()), id).toMatchObject({ gearFraction: 0, cycling: null })
       const cycled = await shot(page)
       const vsUp = await masks(page, empty, [cycled, up])
@@ -392,7 +392,8 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress']) {
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty',
+      'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)
       const on = await shot(page)

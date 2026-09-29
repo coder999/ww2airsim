@@ -6,35 +6,21 @@ import { modelIO } from '../../../tools/models/document.js'
 import { measureDocument } from '../../../tools/models/measure.js'
 
 /**
- * Entries still flat-shaded: no UVs, no textures (model-detail-pass spec §6). The list shrinks
- * with each plan and never grows; DP3 deletes it. Blender entries leave it as they are skinned;
- * the four downloads are the ships made for 3D printing (spec §2, §8 Q1, DP2).
+ * Every non-generated entry is skinned (model-detail-pass spec §6). The flat-shaded allowlist
+ * that stood here through DP0-DP2 was deleted 2026-09-29 when DP3 skinned the last nine buildings.
  */
-const FLAT_SHADED: readonly string[] = [
-  'aaa', 'ammunition-bunker', 'barracks-and-huts',
-  'coastal-gun-battery', 'fuel-tank-farm',
-  'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower',
-]
-/** Lower it with every entry that leaves the list; never raise it. */
-const CEILING = 9
-
 const entries = loadModelEntries().filter((e) => e.source.kind !== 'generated')
 const read = async (path: string) => modelIO().readBinary(new Uint8Array(readFileSync(path)))
 
-describe('the flat-shaded allowlist (DP0)', () => {
-  it('only shrinks: sorted, unique, every id an entry, at most CEILING', () => {
-    expect([...FLAT_SHADED].sort()).toEqual(FLAT_SHADED)
-    expect(new Set(FLAT_SHADED).size).toBe(FLAT_SHADED.length)
-    for (const id of FLAT_SHADED) expect(entries.some((e) => e.id === id), id).toBe(true)
-    expect(FLAT_SHADED.length).toBeLessThanOrEqual(CEILING)
-  })
-  it.each(entries.map((e) => [e.id, e] as const))('%s is listed exactly when its committed output is untextured', async (id, e) => {
+describe('every non-generated entry is skinned (allowlist deleted 2026-09-29, DP3)', () => {
+  it.each(entries.map((e) => [e.id, e] as const))('%s: its committed output is textured and its entry says how', async (id, e) => {
     const m = measureDocument(await read(e.output))
-    expect(FLAT_SHADED.includes(id), `${id}: ${m.textures} textures`).toBe(m.textures === 0)
+    expect(m.textures, `${id} textures`).toBeGreaterThan(0)
+    if (e.source.kind === 'blender') expect(e.skin, `${id} skin declaration`).toBe(true)
   })
 })
 
-const skinned = entries.filter((e) => (e.source.kind === 'blender' || e.boxSkin !== undefined) && !FLAT_SHADED.includes(e.id))
+const skinned = entries.filter((e) => (e.source.kind === 'blender' || e.boxSkin !== undefined))
 describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spec §6)', (id, e) => {
   it('its entry says skin: true (a Blender script) or boxSkin (a download)', () => {
     expect(e.source.kind === 'blender' ? e.skin : e.boxSkin?.atlasPx).toBeTruthy()
@@ -59,8 +45,4 @@ describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spe
       }
     }
   })
-})
-
-it('no entry says skin: true or boxSkin while its output is still listed flat', () => {
-  for (const e of entries) if (FLAT_SHADED.includes(e.id)) { expect(e.skin, e.id).toBeUndefined(); expect(e.boxSkin, e.id).toBeUndefined() }
 })

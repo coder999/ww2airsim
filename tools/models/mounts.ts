@@ -41,7 +41,7 @@ export function wildcatSectionAt(): Promise<(z: number) => WingSection> {
 
 /** Wing sections of the model a spec draws: the Wildcat through its frame correction, any other
  *  (R3) model in its own glb frame, which is already the sim frame. Rejects an unknown model by name. */
-export async function sectionAtFor(model: string): Promise<(z: number) => WingSection> {
+export async function sectionAtFor(model: string, minX: number = WING_MIN_X_M): Promise<(z: number) => WingSection> {
   const path = model === 'wildcat' ? WILDCAT_GLB_PATH : `content/aircraft/${model}.glb`
   let bytes: Uint8Array
   try { bytes = new Uint8Array(readFileSync(path)) } catch { throw new Error(`mounts: no model glb for "${model}" at ${path}`) }
@@ -51,7 +51,7 @@ export async function sectionAtFor(model: string): Promise<(z: number) => WingSe
   return (z) => {
     const k = Math.round(z * 1000) / 1000
     let s = cache.get(k)
-    if (s === undefined) { s = wingSection(tris, k, WING_MIN_X_M); cache.set(k, s) }
+    if (s === undefined) { s = wingSection(tris, k, minX); cache.set(k, s) }
     return s
   }
 }
@@ -68,7 +68,7 @@ export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<St
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  for (const id of ['f6f-hellcat', 'f4f-wildcat']) {
+  for (const id of ['f6f-hellcat', 'f4f-wildcat', 'f4u-corsair', 'a6m2-zero', 'p-38-lightning', 'ki-43-oscar', 'ki-84-frank']) {
     const spec = loadAircraftSpec(id)
     if (!spec.stores) continue
     const r = fitStores(await sectionAtFor(spec.view.model), spec.stores)

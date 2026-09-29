@@ -1,0 +1,148 @@
+{
+  "id": "g4m-betty",
+  "name": "Mitsubishi G4M1 Model 11 Betty",
+  "role": "bomber",
+  "side": "japanese",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 78.125,
+    "wingSpanM": 24.89
+  },
+  "mass": {
+    "emptyKg": 6741,
+    "fuelCapacityKg": 3528,
+    "maxTakeoffKg": 12860
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2,
+    "cd0": 0.02,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 2244557,
+    "propEfficiency": 0.56,
+    "staticThrustN": 30100,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.8904
+      ],
+      [
+        2195,
+        0.9701
+      ],
+      [
+        4115,
+        0.9037
+      ],
+      [
+        6000,
+        0.72
+      ],
+      [
+        9100,
+        0.5
+      ],
+      [
+        11000,
+        0.36
+      ]
+    ],
+    "windmillCd0": 0.04
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 35,
+    "maxPitchRateDegPerSec": 20,
+    "maxYawRateDegPerSec": 10,
+    "rateRefSpeedMps": 95,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 150,
+    "gLimit": 4.0
+  },
+  "gear": {
+    "travelSeconds": 12,
+    "dragAreaM2": 0.71,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.468,
+    "layout": "taildragger",
+    "mainX": 1.569,
+    "thirdX": -9.862,
+    "thirdHeightM": 1.479,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 20,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "reference": {
+    "source": "Sources (all read 2026-09-29). NO FLIGHT-TEST REPORT FOR A G4M1 MODEL 11 WAS FOUND: no wwiiaircraftperformance.org Betty file exists and the TAIC Manual No. 1 'Betty 11' airframe page (index 501A) is missing from the archive.org scan, so every airframe, weight and performance figure below is SECONDARY (EN-WP = English Wikipedia 'Mitsubishi G4M', Specifications, G4M1 Model 11, citing Francillon and Airreview; JA-WP = Japanese Wikipedia \u4e00\u5f0f\u9678\u4e0a\u653b\u6483\u6a5f \u8af8\u5143 table; PWE = Pacific War Online Encyclopedia, pwencycl.kgbudge.com G4M_Betty) and none carries a test weight. The one primary source is TAIC-1 = Technical Air Intelligence Center Manual No. 1, Japanese Aircraft Performance and Characteristics (Dec 1944), pp.222 (Kasei 11) and 223 (Kasei 15), the ENGINE ratings only. TAIC-1's Betty 22 page (p.169: 257 mph at S.L., 283 mph at 13,800 ft, 27,570 lb) is the G4M2, a different airplane (laminar wing, four-blade props, Kasei 21), and is NOT used. POWER IS A SUM AND NOTHING FAILS: engine.maxPowerW 2,244,557 = 2 x 1,505 hp, the Kasei 11 (Ha 32 Model 11, MK4A) take-off rating at S.L. ([TAIC-1] p.222; x 745.7), times two. One flight-model engine stands for both and both propellers turn (Prop1, Prop2); an engine failure is NOT modeled (D6; JA-WP says the real airplane could fly on one engine with its loads jettisoned). EN-WP's '1,530 hp for take-off' is the Kasei 15's war-emergency-at-altitude figure, not a take-off rating, and is not used. powerFractionByAltitudeM is DERIVED from the Kasei 11 MILITARY rating (2,350 rpm, 37.0 in Hg, [TAIC-1] p.222) over the take-off sum 3,010 hp: 2,680 hp at S.L. (0.890), 2,920 hp at 7,200 ft = 2,195 m (0.970), 2,720 hp at 13,500 ft = 4,115 m (0.904); the model has no ram term, so the printed points are used unscaled, as the Corsair's are. Points at 6,000, 9,100 and 11,000 m (0.72, 0.50, 0.36) are ESTIMATES with nothing graded above 4,200 m. The 428 km/h figure does not say whether it belongs to the Kasei 11 or Kasei 15 build; the model's own engine is the Kasei 11 (tools/models/entries/g4m-betty.json), the Kasei 15 (JA-WP: 453.7 km/h at 4,200 m, 463.0 without underwing rubber) is a later airframe and is not modeled. Mass and geometry: wingAreaM2 78.125 = 840.9 sq ft and wingSpanM 24.89 = 81 ft 8 in ([EN-WP], JA-WP identical to 1 cm; the drawn model is built to the same figures, tests/tools/models/aircraftDimensions.test.ts); emptyKg 6,741 = 14,861 lb ([EN-WP], JA-WP \u81ea\u91cd agrees); maxTakeoffKg 12,860 = 28,351 lb ([EN-WP]; JA-WP's overload figure is 12,895 kg, a Kasei 15 airframe); fuelCapacityKg 3,528 = 4,900 L at 0.72 kg/L (DERIVED, the Zero's density rule; [JA-WP] gives 4,900 L for the G4M1 tanks; PWE and Dwyer give 962 US gal = 3,640 L, which Dwyer attaches to the G6M1, so the figures conflict and the larger, later-cited one is used). testMassKg 9,500 = 20,944 lb is [EN-WP]'s 'gross' (an ESTIMATE for pairing: it is a secondary figure that may be the G6M1's, and no source ties any performance figure to it; a fully loaded torpedo sortie would be near 10,800 kg). It is 2,759 kg above emptyKg, inside the 3,528 kg fuel capacity, and the harness carries it through fuelKg like every other airplane (R31). Graded figures: topSpeedMps 118.9 = 428 km/h at topSpeedAltitudeM 4,200 m = 13,780 ft ([EN-WP], [PWE], SOURCED secondary, weight and power rating not stated); there is ONE speed point, no sea-level or other altitude exists for the G4M1, so topSpeedByAltitudeM is absent. climbRateMps 9.17 = 1,805 ft/min ([EN-WP]; the altitude is not stated and sea level is assumed). PWE gives 21 ft/s = 6.4 m/s = 1,260 ft/min, 43 percent lower, and neither states altitude or weight: the conflict is REPORTED, the higher figure used, and the model, fitted to the top speed, reads it within 1 percent (below). No climb table exists. Stalls: NO clean stall is sourced. stallSpeedMps 37.3 (83.4 mph) is an ESTIMATE, the speed at which aero.clMax 1.4 (the fleet's shared estimate) stalls 9,500 kg on 78.125 sq m, sqrt(2 x 9,500 x 9.81 / (1.225 x 78.125 x 1.4)) = 37.3 m/s: the card grades the model against its own estimate. EN-WP's infobox gives 120 km/h (75 mph) with no citation, weight or configuration; stallSpeedFlapMps 33.3 is that figure (SOURCED weakly, read as the flaps-down stall because it implies a CLmax of 1.75, not 1.4). flap.clIncrement 0.3565 is DERIVED from these two by the Zero's method, 1.4 x ((37.3 / 33.3)^2 - 1); it is therefore CIRCULAR (the clean figure is our estimate) and only as good as the infobox figure. Read as a clean stall the infobox figure would be 11.7 percent below the model's, which is the size of the disagreement. FITTED, NOT SOURCED (measured 2026-09-29, tools/testcards/measure.ts sweep at testMassKg, cd0 0.018 to 0.028 x propEfficiency 0.52 to 0.80): aero.cd0 0.020 and engine.propEfficiency 0.56 against the single top-speed point and the climb figure, chosen because it lands both inside 1.5 percent (top -1.28 percent, climb -0.25 percent); the fit is two unknowns to two figures and so proves nothing about either. Result (measured 2026-09-29): top speed 117.37 vs 118.9 m/s (-1.28 percent) at 4,200 m; climb 9.147 vs 9.17 m/s (-0.25 percent) at sea level; stalls 37.22 m/s clean (-0.23 percent against its estimate) and 33.19 m/s flaps (-0.33 percent); roll 35.0. The model reads 102.6 m/s (230 mph) at sea level; no source exists to check it. engine.staticThrustN 30,100 is DERIVED, the Corsair's 20,000 N scaled by take-off power (2,245 / 1,491 kW). engine.windmillCd0 0.040 is DERIVED as 2 x cd0. gear.dragAreaM2 0.71 and flap.dragAreaM2 1.74 are ESTIMATES: the B-17's derived figures (1.20 and 2.94) scaled by wing area (78.125 / 131.92); no G4M1 drag calibration exists. No take-off distance, lift-off speed, roll rate, dive limit or g limit was found, so reference.takeoffDistanceM is absent (the graded card runs the flap-direction check only, with 45 m/s = 100 mph, 1.2 x the clean stall estimate, as its lift-off speed) and these are ESTIMATES: rollRateDegPerSec 35 (rates.maxRollRateDegPerSec is set to it; JA-WP says only that it handled well for a large twin), maxPitchRateDegPerSec 20, maxYawRateDegPerSec 10, limits.diveSpeedMps 150 (336 mph, above the 266 mph top speed) and gLimit 4.0, gear.travelSeconds and flap.travelSeconds 12 (JA-WP: gear and flaps are electric, no time given). The lift curve (clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha, cySlopePerRad, oswaldE), rates.rateRefSpeedMps, weathercockSeconds, autoRudderGainPerDeg and stallLimiterSeconds are the fleet's shared ESTIMATES. JA-WP footnote 10 says the flap is a slotted flap on a triangular arm; the drawn model has a split flap, a model-versus-source disagreement reported, not tuned. Gear layout (measured 2026-09-29 from the drawn model with a throwaway drawnPoints probe, propellers and turret excluded): the model's origin is already the wing quarter-chord (centerPoint.test.ts, station 0.2 with minX -6, because the default 0.3 station hits the nacelle). heightM 2.468 (mains below the origin), mainX 1.569, thirdX -9.862 and thirdHeightM 1.479 (the fixed tailwheel, first aft point to touch when pitched about the mains, 4.943 degrees). No G4M ground angle was read; JA-WP says only that the three-point angle is shallow, for torpedo and bomb loading; gearContact.test.ts holds the drawing to its own derived rest pitch. layout taildragger and thirdSteering casterLock follow the drawn fixed tailwheel (Mark's ruling, 2026-09-29); steerYawRateDegPerSec 20, steerLockSpeedMps 8, tailLiftSpeedMps 28 and propWashSpeedMps 12 are ESTIMATES copied from the Corsair; torqueYawRateDegPerSec 0 (Mark's fleet ruling of 2026-09-28). view.eyePointM [3.4, 1.40, 0] is MEASURED from the drawn model: inside the glasshouse (x 1.97 to 4.93, hull top y about 1.65 at x 3.4), 0.25 m below the top (eyePoints.test.ts). carrierCapable false (a Navy land-based attack plane, \u9678\u4e0a\u653b\u6483\u6a5f; [EN-WP], TAIC-1 index). No combat block (D11): the dorsal turret and the guns (4 x 7.7 mm and 1 x 20 mm tail cannon, [EN-WP]) are not modeled.",
+    "testMassKg": 9500,
+    "topSpeedMps": 118.9,
+    "topSpeedAltitudeM": 4200,
+    "climbRateMps": 9.17,
+    "stallSpeedMps": 37.3,
+    "stallSpeedFlapMps": 33.3,
+    "rollRateDegPerSec": 35
+  },
+  "view": {
+    "eyePointM": [
+      3.4,
+      1.4,
+      0
+    ],
+    "model": "g4m-betty"
+  },
+  "flap": {
+    "travelSeconds": 12,
+    "dragAreaM2": 1.74,
+    "clIncrement": 0.3565
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "bay-fwd",
+        "offset": [
+          -1.7,
+          -0.3,
+          0
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-aft",
+        "offset": [
+          0.3,
+          -0.3,
+          0
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Two bomb racks INSIDE the fuselage hull, in tandem on the centerline (z 0) under the wing center section, lugs at y -0.30 m and x -1.7 and +0.3 m so the an-m65 mesh (bottom -0.60 m below its lug, 1.81 m long) stays inside the drawn round hull (tests/tools/models/internalBay.test.ts holds every store above the belly and below the crown); no racks are drawn on the outside and the bombs drop with no bay doors (Mark, 2026-09-29, D7; bay doors are a later plan). The positions are ESTIMATES. HISTORIC LOAD: the G4M1's standard load is one 800 kg (1,764 lb) bomb or torpedo, or 4 x 250 kg, or 12 x 60 kg, carried in the internal bay under the wing center section, with no doors when a torpedo is carried (English Wikipedia 'Mitsubishi G4M', Pacific War Online Encyclopedia, read 2026-09-29; the torpedo mass conflicts, 800 vs 858 kg). No Japanese bomb store exists and none was added (D7): the shared an-m65 (AN-M65 1,000 lb GP, 453.6 kg) stands in, two of them = 907 kg (2,000 lb) as the nearest match by mass to the 800 kg bomb (+13 percent); the bomb figures are the American bomb's, not a Japanese one's. A load count above 8 would be capped at the 8 racks, which does not arise here. The bomb mass and drag are added to emptyKg by storesSpec, so the loaded airplane is above the graded card's testMassKg; the cards are graded clean."
+  }
+}

@@ -39,7 +39,7 @@ function pointOvershoot(p: readonly [number, number, number], bounds: { min: rea
  */
 const KNOWN_OVERSHOOT_M: Readonly<Record<string, number>> = {
   'f6f-hellcat/engine': 1.53, 'f6f-hellcat/rudder': 0.2,
-  'a6m2-zero/engine': 1.83, 'a6m2-zero/rudder': 1.0,
+  'a6m2-zero/engine': 1.83,
 }
 
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))

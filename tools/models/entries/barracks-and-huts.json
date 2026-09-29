@@ -7,6 +7,7 @@
     "dimensions": "barracks footprint 12 x 28 m from src/render/scene/airfield.ts AIRFIELD_HUTS, the game's own scenery (read 2026-09-27); every other figure is an ESTIMATE labeled in the script's header",
     "license": "AGPL-3.0-or-later"
   },
+  "skin": true,
   "textures": { "maxSize": 512, "format": "webp" },
   "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
 }

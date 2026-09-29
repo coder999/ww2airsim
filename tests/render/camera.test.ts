@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cameraTransformFor, CHASE_OFFSET_M, lookFromQuery, ORBIT_SURFACE_CLEARANCE_M } from '../../src/render/camera.js'
+import { cameraTransformFor, chaseSizeScale, CHASE_OFFSET_M, lookFromQuery, ORBIT_SURFACE_CLEARANCE_M } from '../../src/render/camera.js'
 import { v3, length, sub, dot, normalize, add, scale, type Vec3 } from '../../src/sim/math/vec3.js'
 import { qIdentity, qFromAxisAngle, qMul, qNormalize, qRotate, type Quat } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -55,7 +55,14 @@ describe('chase camera', () => {
     const r = at()
     const eye = cameraTransformFor('chase', f6f, r)
     const d = length(sub(eye.position, r.position))
-    expect(d).toBeCloseTo(length(v3(...CHASE_OFFSET_M)), 6)
+    expect(d).toBeCloseTo(length(v3(...CHASE_OFFSET_M)) * chaseSizeScale(f6f), 6)
+  })
+
+  it('backs off in proportion to wingspan so a big airplane fits in frame', () => {
+    const r = at()
+    const dist = (spec: typeof f6f) => length(sub(cameraTransformFor('chase', spec, r).position, r.position))
+    const big = { ...f6f, geometry: { ...f6f.geometry, wingSpanM: 43 } }
+    expect(dist(big) / dist(f6f)).toBeCloseTo(43 / f6f.geometry.wingSpanM, 6)
   })
 
   it('discards roll instead of tracking it', () => {

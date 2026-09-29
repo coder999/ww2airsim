@@ -2,7 +2,7 @@
 import type { Document } from '@gltf-transform/core'
 import type { Axis } from '../manifest.js'
 import { onlyScene } from '../document.js'
-import { axisVector } from './axes.js'
+import { axisVector, cross } from './axes.js'
 
 /**
  * Stage 0 (R3): turns the whole scene `yawDeg` (right-handed) about the source `up` axis
@@ -20,6 +20,25 @@ export function yawScene(doc: Document, up: Axis, yawDeg: number): void {
   const h = (yawDeg * Math.PI) / 360
   const s = Math.sin(h)
   const wrap = doc.createNode('__r3_yaw').setRotation([ax * s, ay * s, az * s, Math.cos(h)])
+  for (const child of scene.listChildren()) {
+    scene.removeChild(child)
+    wrap.addChild(child)
+  }
+  scene.addChild(wrap)
+}
+
+/**
+ * Stage 0b: turns the whole scene `pitchDeg` (right-handed, positive raises the nose) about the
+ * lateral axis, forward x up, through the source origin. The A6M2 download is drawn sitting on
+ * its three points, 12.36 deg nose-up (2026-09-29); this levels it to its own thrust line.
+ */
+export function pitchScene(doc: Document, forward: Axis, up: Axis, pitchDeg: number): void {
+  if (pitchDeg === 0) return
+  const scene = onlyScene(doc)
+  const [ax, ay, az] = cross(axisVector(forward), axisVector(up))
+  const h = (pitchDeg * Math.PI) / 360
+  const s = Math.sin(h)
+  const wrap = doc.createNode('__pitch').setRotation([ax * s, ay * s, az * s, Math.cos(h)])
   for (const child of scene.listChildren()) {
     scene.removeChild(child)
     wrap.addChild(child)

@@ -18,6 +18,7 @@ import { nodeHangarContent } from '../../render/hangar/content.js'
 
 /** Spec §4.4. An entry may budget above it only with a measured reason, here and in the ledger. */
 const BUILDING_BUDGET = { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4 } as const
+// DP3: ids already skinned (three atlas textures); Task 7 deletes this when all nine are.
 const RAISED: Readonly<Record<string, string>> = {}
 
 /** Every building R4 authored. Each task appends its own. */
@@ -74,7 +75,7 @@ describe.each(R4_BUILDINGS.map((id) => [id]))('building %s (R4)', (id) => {
     expect(statSync(e.output).size).toBeLessThanOrEqual(e.budget.maxBytes)
     expect(m.triangles).toBeLessThanOrEqual(e.budget.maxTriangles)
     expect(m.drawCalls).toBeLessThanOrEqual(e.budget.maxDrawCalls)
-    expect(m.textures).toBe(0)
+    expect(m.textures, `${id} textures`).toBe(3)
   })
 
   it("names exactly its turrets, H3's way, numbered +x to -x then -z to +z", async () => {

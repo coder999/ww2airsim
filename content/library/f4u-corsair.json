@@ -1,16 +1,31 @@
 {
   "id": "f4u-corsair",
-  "name": "Vought F4U Corsair",
+  "name": "Vought F4U-1D Corsair",
+  "rosterName": "Vought F4U Corsair",
   "kind": "aircraft",
   "side": "allied",
-  "model": { "kind": "aircraft", "id": "f4u-corsair" },
-  "blurb": "A gull-winged Navy and Marine fighter, planned as a player-flown and friendly type.",
-  "history": "The Vought F4U Corsair was designed as a carrier fighter and entered service in large numbers with the U.S. Navy and Marine Corps. Early trouble with carrier landings sent it first to land-based Marine and Navy squadrons, and the Grumman F6F Hellcat, which used the same Double Wasp engine, became the dominant carrier fighter instead.\n\nThe Corsair became one of the most capable carrier-based fighter-bombers of the war, and some Japanese pilots regarded it as the most formidable American fighter. Goodyear and Brewster also built it, and 12,571 were made between 1942 and 1953, the longest production run of any U.S. piston-engined fighter.",
+  "spec": "f4u-corsair",
+  "model": {
+    "kind": "aircraft",
+    "id": "f4u-corsair"
+  },
+  "blurb": "A gull-winged Navy and Marine fighter-bomber, flyable from land and from the carriers. Its numbers come from Vought's own F4U-1D specification and the Navy's FG-1A trials.",
+  "history": "The Vought F4U Corsair was designed as a carrier fighter and entered service in large numbers with the U.S. Navy and Marine Corps. Early trouble with carrier landings sent it first to land-based Marine and Navy squadrons, and the Grumman F6F Hellcat, which used the same Double Wasp engine, became the dominant carrier fighter instead.\n\nThe Corsair became one of the most capable carrier-based fighter-bombers of the war, and some Japanese pilots regarded it as the most formidable American fighter. Goodyear and Brewster also built it, and 12,571 were made between 1942 and 1953, the longest production run of any U.S. piston-engined fighter.\n\nIn this game the Corsair flies to the F4U-1D's figures: about 398 mph at 24,400 feet, 2,650 feet a minute at sea level, and six .50-caliber guns with 400 rounds each. The figures are Vought's February 1945 estimate for the Fighter loading (12,086 lb), which the company guaranteed rather than flew; the stall speeds and the take-off speed come from the Navy's Patuxent River trials of the FG-1A, Goodyear's Corsair. The drawn airplane is an F4U-1A: the 1D shares its raised canopy, and differs mainly in its underwing stations, so the drawing carries two bomb racks and eight rocket rails.",
   "sources": [
     {
       "title": "Vought F4U Corsair",
       "url": "https://en.wikipedia.org/wiki/Vought_F4U_Corsair",
       "read": "2026-09-25"
+    },
+    {
+      "title": "F4U-1D Detail Specification, Report No. 6756 (Chance Vought, 15 Feb 1945)",
+      "url": "https://www.wwiiaircraftperformance.org/f4u/f4u.html",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "FG-1A Production Inspection Trials, TED BIS 2122 (NAS Patuxent River, 1944)",
+      "url": "https://www.wwiiaircraftperformance.org/f4u/f4u.html",
+      "read": "2026-09-29"
     }
   ]
 }

@@ -10,6 +10,8 @@ const hellcat = loadAircraftSpec('f6f-hellcat')
 const wildcat = loadAircraftSpec('f4f-wildcat')
 const zero = loadAircraftSpec('a6m2-zero')
 const flyable = [hellcat, wildcat, zero]
+// A flyable airplane with no stores block, for the rules that only bite on one (the Zero had none until 2026-09-29).
+const bare = { ...zero, stores: undefined }
 const ids = (xs: readonly { id: string }[]) => xs.map((x) => x.id)
 const scenarioIds = readdirSync('content/scenarios').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
 
@@ -38,8 +40,9 @@ describe('eligibleAircraft: every start kind x every flyable spec x dev', () => 
 describe('eligibleLoadouts', () => {
   it('racks and rails: all four; no stores: clean only; dev: all four', () => {
     expect(eligibleLoadouts(hellcat, false)).toEqual(['clean', 'bombs', 'rockets', 'both'])
-    expect(eligibleLoadouts(zero, false)).toEqual(['clean'])
-    expect(eligibleLoadouts(zero, true)).toEqual(ALL_LOADOUTS)
+    expect(eligibleLoadouts(zero, false)).toEqual(['clean', 'bombs', 'rockets', 'both'])
+    expect(eligibleLoadouts(bare, false)).toEqual(['clean'])
+    expect(eligibleLoadouts(bare, true)).toEqual(ALL_LOADOUTS)
   })
   it('racks only, no rails: clean and bombs, not rockets or both (W1: the F4F-4 carries no rockets)', () => {
     expect(eligibleLoadouts(wildcat, false)).toEqual(['clean', 'bombs'])
@@ -54,7 +57,7 @@ describe('sortieRulesBroken, isDevSortie, validateSortie', () => {
     expect(() => validateSortie({ ...facts, dev: false })).not.toThrow()
   })
   it('names every rule broken, in a fixed order', () => {
-    const f = { devScenario: true, start: 'carrier' as StartKind, spec: { ...zero, carrierCapable: false }, loadout: 'bombs' as const }
+    const f = { devScenario: true, start: 'carrier' as StartKind, spec: { ...bare, carrierCapable: false }, loadout: 'bombs' as const }
     expect(sortieRulesBroken(f)).toEqual(['dev-scenario', 'enemy-aircraft', 'not-carrier-capable', 'no-stations'])
     expect(() => validateSortie({ ...f, dev: false })).toThrow('sortie needs Dev: dev-scenario, enemy-aircraft, not-carrier-capable, no-stations')
     expect(() => validateSortie({ ...f, dev: true })).not.toThrow()
@@ -85,10 +88,10 @@ describe('the player-spec swap and the Dev stores layout', () => {
       }
     }
   })
-  it('dev bombs on the Zero hang the Hellcat layout on the player only (SF-R2, SF-R3)', () => {
+  it('dev bombs on a stores-less Zero hang the Hellcat layout on the player only (SF-R2, SF-R3)', () => {
     const scenario = withPlayerSpec(loadScenario('combat-air-patrol'), 'a6m2-zero')
-    const bundle = { ...loadScenarioBundle('combat-air-patrol'), scenario, aircraftSpecs: { ...loadScenarioBundle('combat-air-patrol').aircraftSpecs, 'a6m2-zero': zero } }
-    expect(needsDevStores(zero, 'bombs')).toBe(true)
+    const bundle = { ...loadScenarioBundle('combat-air-patrol'), scenario, aircraftSpecs: { ...loadScenarioBundle('combat-air-patrol').aircraftSpecs, 'a6m2-zero': bare } }
+    expect(needsDevStores(bare, 'bombs')).toBe(true)
     const b = sortieBundle(bundle, 'bombs', loadAircraftSpec(DEV_STORES_SPEC_ID).stores)
     const key = `a6m2-zero${DEV_STORES_SUFFIX}`
     expect(b.scenario.aircraft.find((a) => a.id === b.scenario.player)!.spec).toBe(key)
@@ -104,7 +107,7 @@ describe('a Dev-stores Zero releases a real bomb (headless release proof)', () =
   // The combat.test.ts harness: `still` holds the airframe, so only the release is under test.
   const still: Stepper = (_spec, state, _controls, ctx) => ({ ...state, tick: ctx.tick })
   it('one bomb leaves the Hellcat-layout racks on the first tick of dropBomb', () => {
-    const zero = loadAircraftSpec('a6m2-zero')
+    const zero = { ...loadAircraftSpec('a6m2-zero'), stores: undefined }
     const base = loadScenarioBundle('combat-air-patrol')
     const bundle = { ...base, scenario: withPlayerSpec(base.scenario, 'a6m2-zero'), aircraftSpecs: { ...base.aircraftSpecs, 'a6m2-zero': zero } }
     const w = worldFromScenario(sortieBundle(bundle, 'bombs', loadAircraftSpec(DEV_STORES_SPEC_ID).stores), null, 'bombs')

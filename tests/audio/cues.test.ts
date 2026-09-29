@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { QUIET_DAMAGE } from './inputs.js'
 import {
-  GUN_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
+  GUN_CUE_INTERVAL_TICKS, HIT_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
 } from '../../src/audio/cues.js'
 
 const flying: AudioInputs = {
   throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 1.5, tick: 100, shots: 0,
-  bombsDropped: 0, rocketsFired: 0,
+  bombsDropped: 0, rocketsFired: 0, ...QUIET_DAMAGE,
 }
 /** Flown for long enough at height that the touchdown latch is armed; the next
  *  frame is at tick 100 + TOUCHDOWN_AIRBORNE_TICKS + 1. */
@@ -295,5 +296,63 @@ describe('release audio follows cumulative bomb/rocket counts, with NO cooldown 
     // ...and the new flight's own first release is heard even though the old
     // flight's counts were already higher than this one's first rise.
     expect(nextAudio(respawn.memory, releasing(1, 1, 0)).cues).toEqual(['bombs_away'])
+  })
+})
+
+describe('damage and carrier cues', () => {
+  const at = (tick: number, over: Partial<AudioInputs> = {}): AudioInputs => ({ ...flying, tick, ...over })
+
+  it('plays hit_taken once per burst, on structure falling', () => {
+    const a = nextAudio(NO_AUDIO_MEMORY, at(100))
+    const b = nextAudio(a.memory, at(101, { structure: 0.9 }))
+    expect(b.cues).toEqual(['hit_taken'])
+    expect(nextAudio(b.memory, at(102, { structure: 0.8 })).cues).toEqual([])
+    expect(nextAudio(b.memory, at(101 + HIT_CUE_INTERVAL_TICKS, { structure: 0.8 })).cues).toEqual(['hit_taken'])
+    // Steady damage is not a new hit.
+    expect(nextAudio(b.memory, at(500, { structure: 0.9 })).cues).toEqual([])
+  })
+
+  it('sputters once when the engine drops below half health, and only while it is running', () => {
+    const a = nextAudio(NO_AUDIO_MEMORY, at(100))
+    const b = nextAudio(a.memory, at(101, { engineHealth: 0.4 }))
+    expect(b.cues).toEqual(['engine_sputter'])
+    expect(nextAudio(b.memory, at(102, { engineHealth: 0.2 })).cues).toEqual([])
+    const wreck = nextAudio(a.memory, at(101, { engineHealth: 0.4, engineRunning: false }))
+    expect(wreck.cues).not.toContain('engine_sputter')
+  })
+
+  it('fades the engine loop with health below half, and leaves it alone above', () => {
+    const full = nextAudio(NO_AUDIO_MEMORY, at(1)).engine.gain
+    expect(nextAudio(NO_AUDIO_MEMORY, at(1, { engineHealth: 0.75 })).engine.gain).toBe(full)
+    expect(nextAudio(NO_AUDIO_MEMORY, at(1, { engineHealth: 0.25 })).engine.gain).toBeCloseTo(full / 2, 12)
+    expect(nextAudio(NO_AUDIO_MEMORY, at(1, { engineHealth: 0 })).engine.gain).toBe(0)
+  })
+
+  it('catches the wire once on arrested rising, and clunks once on the hook going down', () => {
+    const a = nextAudio(NO_AUDIO_MEMORY, at(100))
+    const trap = nextAudio(a.memory, at(101, { arrested: true }))
+    expect(trap.cues).toEqual(['wire_catch'])
+    expect(nextAudio(trap.memory, at(102, { arrested: true })).cues).toEqual([])
+    const hook = nextAudio(a.memory, at(101, { hookDown: true }))
+    expect(hook.cues).toEqual(['hook_clunk'])
+    expect(nextAudio(hook.memory, at(102, { hookDown: true })).cues).toEqual([])
+    const up = nextAudio(hook.memory, at(103, { hookDown: false }))
+    expect(nextAudio(up.memory, at(104, { hookDown: true })).cues).toEqual(['hook_clunk'])
+  })
+
+  it('a restart forgets damage, so a new flight starts whole and silent', () => {
+    const hurt = nextAudio(NO_AUDIO_MEMORY, at(900, { structure: 0.3, engineHealth: 0.1, hookDown: true, arrested: true }))
+    const fresh = nextAudio(hurt.memory, at(5))
+    expect(fresh.cues).toEqual([])
+  })
+
+  it('drives ambience from height over water and range to a deck', () => {
+    const f = (over: Partial<AudioInputs>) => nextAudio(NO_AUDIO_MEMORY, at(1, over)).ambient
+    expect(f({ groundSurface: 'water', heightM: 500 }).sea).toBe(0)
+    expect(f({ groundSurface: 'water', heightM: 5 }).sea).toBeGreaterThan(0)
+    expect(f({ groundSurface: 'land', heightM: 5 }).sea).toBe(0)
+    expect(f({ deckDistanceM: null }).deck).toBe(0)
+    expect(f({ deckDistanceM: 0 }).deck).toBeGreaterThan(f({ deckDistanceM: 200 }).deck)
+    expect(f({ deckDistanceM: 5000 }).deck).toBe(0)
   })
 })

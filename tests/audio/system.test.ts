@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { QUIET_DAMAGE } from './inputs.js'
 import { createAudioSystem } from '../../src/audio/system.js'
 import { createFakeBackend } from './fakeBackend.js'
 import type { AudioInputs } from '../../src/audio/cues.js'
@@ -6,7 +7,7 @@ import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '
 
 const flying: AudioInputs = {
   throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 0, tick: 10, shots: 0,
-  bombsDropped: 0, rocketsFired: 0,
+  bombsDropped: 0, rocketsFired: 0, ...QUIET_DAMAGE,
 }
 
 describe('the audio system, driven through a fake backend (design §7.1)', () => {
@@ -176,5 +177,37 @@ describe('replay support (instant replay R-4)', () => {
     audio.hold(false)
     audio.update({ ...flying, tick: 12, shots: 5 })
     expect(fake.played.length).toBe(before)
+  })
+
+  it('drives the engine family layer the aircraft uses, and fades the old one on a change', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update({ ...flying, engineFamily: 'multi_heavy' })
+    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['engine_multi_heavy'])
+    audio.update({ ...flying, engineFamily: 'allison', tick: 11 })
+    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['engine_multi_heavy', 'engine_allison_v12'])
+    expect(fake.layers[0]!.gains.at(-1)).toBe(0)
+    expect(audio.snapshot().engineGain).toBeGreaterThan(0)
+  })
+
+  it('starts sea and deck ambience only when first audible', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['propeller'])
+    audio.update({ ...flying, groundSurface: 'water', heightM: 20, deckDistanceM: 50, tick: 11 })
+    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['propeller', 'sea_waves', 'carrier_deck'])
+    expect(Object.keys(audio.snapshot().layers)).toEqual(['engine', 'sea', 'deck'])
+  })
+
+  it('plays the damage cues through the real path', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    audio.update({ ...flying, tick: 11, structure: 0.9, hookDown: true })
+    expect(fake.played.map((p) => p.id)).toEqual(['hit_taken', 'hook_clunk'])
   })
 })

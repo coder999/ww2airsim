@@ -33,7 +33,9 @@ export function eligibleAircraft(specs: readonly AircraftSpec[], start: StartKin
 }
 
 export function eligibleLoadouts(spec: AircraftSpec, dev: boolean): Loadout[] {
-  if (dev || spec.stores === undefined) return dev ? [...ALL_LOADOUTS] : ['clean']
+  // Dev lends the Hellcat layout only to an airplane with no stores of its own; one that has a
+  // stores block (a bomber with no rails, say) offers what it really carries, in Dev too.
+  if (spec.stores === undefined) return dev ? [...ALL_LOADOUTS] : ['clean']
   // StoresSchema requires at least one rack and one rail, so a spec with a
   // stores block has both today; the checks stay per kind for the day it may not.
   const racks = spec.stores.racks.length > 0, rails = spec.stores.rails.length > 0

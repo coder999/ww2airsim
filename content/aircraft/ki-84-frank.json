@@ -1,0 +1,369 @@
+{
+  "id": "ki-84-frank",
+  "name": "Nakajima Ki-84-Ia Frank",
+  "role": "fighter",
+  "side": "japanese",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 21.0,
+    "wingSpanM": 11.238
+  },
+  "mass": {
+    "emptyKg": 2660,
+    "fuelCapacityKg": 503.5,
+    "maxTakeoffKg": 4170
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.018,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 1469029,
+    "propEfficiency": 0.68,
+    "staticThrustN": 19700,
+    "windmillCd0": 0.036,
+    "negativeGCutout": false,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.896
+      ],
+      [
+        1798,
+        0.952
+      ],
+      [
+        3048,
+        0.925
+      ],
+      [
+        6096,
+        0.86
+      ],
+      [
+        7010,
+        0.836
+      ],
+      [
+        9144,
+        0.587
+      ],
+      [
+        10668,
+        0.443
+      ]
+    ]
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 80,
+    "maxPitchRateDegPerSec": 30,
+    "maxYawRateDegPerSec": 15,
+    "rateRefSpeedMps": 103,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 216,
+    "gLimit": 7.5
+  },
+  "gear": {
+    "travelSeconds": 4,
+    "dragAreaM2": 0.2,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.093,
+    "layout": "taildragger",
+    "mainX": 0.1,
+    "thirdX": -5.015,
+    "thirdHeightM": 0.586,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 5,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 24,
+    "propWashSpeedMps": 10,
+    "torqueYawRateDegPerSec": 0
+  },
+  "flap": {
+    "travelSeconds": 5,
+    "dragAreaM2": 0.4,
+    "clIncrement": 0.399
+  },
+  "combat": {
+    "roundsPerMinute": 400,
+    "muzzleVelocityMps": 780,
+    "dragPerM": 0.00016,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 4,
+    "structureHp": 80,
+    "subsystemHp": 25,
+    "fuelLeakKgPerS": 1.5,
+    "engineDecayPerS": 0.05,
+    "guns": [
+      {
+        "position": [
+          1.7,
+          0.5,
+          -0.3
+        ],
+        "rounds": 350,
+        "group": "leftGuns",
+        "type": "ho103-12.7mm"
+      },
+      {
+        "position": [
+          1.7,
+          0.5,
+          0.3
+        ],
+        "rounds": 350,
+        "group": "rightGuns",
+        "type": "ho103-12.7mm"
+      },
+      {
+        "position": [
+          0.6,
+          -0.15,
+          -2.4
+        ],
+        "rounds": 150,
+        "group": "leftGuns",
+        "type": "ho5-20mm"
+      },
+      {
+        "position": [
+          0.6,
+          -0.15,
+          2.4
+        ],
+        "rounds": 150,
+        "group": "rightGuns",
+        "type": "ho5-20mm"
+      }
+    ],
+    "zones": [
+      {
+        "id": "engine",
+        "center": [
+          2.0,
+          0,
+          0
+        ],
+        "halfSize": [
+          1.15,
+          0.7,
+          0.7
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "fuel",
+        "center": [
+          -0.2,
+          0,
+          0
+        ],
+        "halfSize": [
+          1.0,
+          0.6,
+          0.6
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "tail",
+        "center": [
+          -3.5,
+          0.2,
+          0
+        ],
+        "halfSize": [
+          1.6,
+          0.5,
+          0.5
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "rudder",
+        "center": [
+          -5.6,
+          0.7,
+          0
+        ],
+        "halfSize": [
+          0.6,
+          0.8,
+          0.2
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-guns",
+        "center": [
+          0.7,
+          -0.15,
+          -2.5
+        ],
+        "halfSize": [
+          1.0,
+          0.3,
+          1.0
+        ],
+        "system": "leftGuns"
+      },
+      {
+        "id": "right-guns",
+        "center": [
+          0.7,
+          -0.15,
+          2.5
+        ],
+        "halfSize": [
+          1.0,
+          0.3,
+          1.0
+        ],
+        "system": "rightGuns"
+      },
+      {
+        "id": "left-aileron",
+        "center": [
+          -0.6,
+          -0.2,
+          -4.4
+        ],
+        "halfSize": [
+          0.6,
+          0.3,
+          0.9
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-aileron",
+        "center": [
+          -0.6,
+          -0.2,
+          4.4
+        ],
+        "halfSize": [
+          0.6,
+          0.3,
+          0.9
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Armament: two 12.7 mm guns in the fuselage forward of the cockpit, engine-synchronized, 350 rounds each, and two 20 mm guns, one in each wing just outboard of the landing gear, free-firing, 150 rounds each (T-2 pp. 1, 3; TAIC 156A-3 'Forward Cowl 2, 12.7 mm, 350, Fixed' and 'Wing 2, 20 mm, 150, Fixed'; dossier section 7, read 2026-09-29), SOURCED. That the guns are the Ho-103 and the Ho-5 comes from English Wikipedia's infobox alone (the primary reports do not name the models), SECONDARY. Nearest existing types: ho103-12.7mm is the Ki-43's gun (400 rpm synchronized, 780 m/s; the free-firing rate is 983 rpm, English Wikipedia 'Ho-103 machine gun'), hitScale 1.0 because the .50 is the baseline (docs/aircraft.md), dragPerM 0.00016 is the Ki-43's ESTIMATE. ho5-20mm: 750 rpm is the free-firing later version; English Wikipedia's Ho-5 page is internally inconsistent (820 rpm early, 700 to 750 later, 500 synchronized, and 750 in the prose), so 750 is a pick among conflicting figures; muzzle velocity is 735 m/s from its infobox against 750 m/s in its prose, and 735 is the pick; dragPerM 0.000125 and hitScale 3.0 are the Zero's 20 mm values, the nearest gun in the game, GAMEPLAY ESTIMATES (the Ho-5 is a 20 mm cannon like the Type 99, not the same gun). The top-level roundsPerMinute, muzzleVelocityMps and dragPerM are the Ho-103's, the PRIMARY ballistic the AI leads with. Survivability is the Zero's, GAMEPLAY ESTIMATES: structureHp 80, subsystemHp 25, fuelLeakKgPerS 1.5, roundDamage 4. The report's armor and self-sealing tanks (a 13 mm plate behind the pilot and 65 mm bulletproof glass, 156A-3, INTELLIGENCE claims that were not measured) argue for more, and none is applied; a beefier airframe is an open call. Convergence, dispersion, lifetime and engine decay are the F6F's gameplay estimates. Gun positions and hit zones are ESTIMATES laid out to the 11.238 m span and the drawn fuselage and checked against the drawn model by tests/tools/models/combatFit.test.ts (zones lie inside the propeller-excluded bounds, x -6.01 to 3.46, y up to 1.65).",
+    "gunTypes": {
+      "ho103-12.7mm": {
+        "roundsPerMinute": 400,
+        "muzzleVelocityMps": 780,
+        "dragPerM": 0.00016,
+        "hitScale": 1.0
+      },
+      "ho5-20mm": {
+        "roundsPerMinute": 750,
+        "muzzleVelocityMps": 735,
+        "dragPerM": 0.000125,
+        "hitScale": 3.0
+      }
+    }
+  },
+  "reference": {
+    "source": "Primary: 'Report on Frank I (Ki-84)', Air Technical Intelligence Group T-2 evaluation report (a captured, flown airplane, serial 302), and TAIC Manual sheets 156A-1 to 156A-4, March 1945 (wwiiaircraftperformance.org/japan/T-2_Report_on_Frank_I_Ki-84.pdf and /Ki-84-156A.pdf); sourcing dossier docs/superpowers/plans/sourcing/ki-84-frank.md, read 2026-09-29. THE SPEED AND CLIMB TABLES ARE CALCULATED INTELLIGENCE FIGURES, NOT FLIGHT TESTS (the T-2 report says 'Performance: None obtained'); only the stalls were flown. testMassKg = 3601.5 is 7,940 lb, the normal-fighter weight the tables are printed at. topSpeedMps = 190.44 is 426 mph MILITARY power at 23,000 ft (7,010 m); topSpeedByAltitudeM adds Military 156.46 (350 mph) at sea level, 173.90 (389 mph) at 10,000 ft, 184.18 (412 mph) at 20,000 ft, 178.82 (400 mph) at 30,000 ft and 165.40 (370 mph) at 35,000 ft, all SOURCED (T-2 p. 2). Military power is the fit target, not war-emergency (water-methanol) power, which the table gives separately (363 mph at sea level, 427 mph at 20,000 ft). climbRateMps = 19.25 is 3,790 ft/min Military at sea level; climbRateByAltitudeM adds 16.23 (3,195 ft/min) at 20,900 ft (6,370 m), SOURCED (T-2 p. 2). English Wikipedia (secondary) prints 21.84 m/s at sea level, which does not match either of the report's two printed sea-level rates (3,790 Military, 4,275 WEP ft/min). stallSpeedMps = 45.60 is 102 mph, FLOWN, power off, clean, at 8,000 ft pressure altitude and 7,900 lb; stallSpeedFlapMps = 40.23 is 90 mph, flaps and gear down, at 8,500 ft (T-2 Pilot's Comments). They are read as indicated speeds and graded against the model's sea-level stall; graded at the trial altitude in true airspeed the model would read about +9.4%. takeoffDistanceM is ABSENT on purpose: the table prints 1,460 ft with no stated conditions, and the model rolls 579 ft clean at the ESTIMATED 95 mph (42.47 m/s) three-point speed the report recommends, about 60% short, which is a REPORTED gap and not a fit; the take-off card runs the flap-direction check only. rollRateDegPerSec = 80 is an UNSOURCED ESTIMATE, the Zero's (the report says only that the ailerons are slightly inferior to the Zeke-52's). The whole rates block, limits.diveSpeedMps = 216 and limits.gLimit = 7.5 are ESTIMATES, the F6F's values carried over (no never-exceed speed or g limit is printed; the report says only that the main spar is 'unusually strong'). rateRefSpeedMps = 103 is the F6F's. No control-fade table. GEOMETRY: wingAreaM2 = 21.0 is 226 sq ft (T-2, 156A-2: 20.996 m2) and English Wikipedia's 21 m2. wingSpanM = 11.238 is English Wikipedia's Ki-84-Ia figure, which is the drawn model's figure (tests/tools/models/aircraftDimensions.test.ts holds it at 1%); the T-2 report and the 156A sheet print 37.1 ft = 11.308 m, so the spec is 0.62% narrower than the primary source. The drawn length is 9.92 m against 9.821 m (T-2) and 156A-2's printed 32.32 ft (9.851 m); the spec does not use length. mass.emptyKg = 2660 is English Wikipedia only (the primary sources leave empty weight blank), SECONDARY. mass.fuelCapacityKg = 503.5 is the report's 1,110 lb of internal fuel (185 US gal at the report's own 6.00 lb/gal). mass.maxTakeoffKg = 4170 is the 9,194 lb overload-fighter weight (4,170.3 kg), an overload weight and not a certified maximum. Internal fuel below testMassKg - emptyKg = 941.5 kg is expected: the harness loads pilot, oil, ammunition and water-methanol through fuelKg too (Ruling R31). ENGINE: Nakajima Ha-45 Model 21 (Homare 21), 18-cylinder two-row radial, two-speed supercharger, 92-octane fuel with water-methanol injection. maxPowerW = 1,469,029 is the 1,970 hp brake take-off rating at sea level (T-2 pp. 3, 5), SOURCED. The curve is the MILITARY rating as a fraction of it: 0.896 at sea level is 1,765 hp, which appears ONLY on sheet 156A-2 (low-confidence scan read; the sea-level Military figure is used because it is the only one printed, so take-off power, 1.0, is NOT what the curve gives at sea level and the take-off roll is slightly under-powered); 0.952 at 1,798 m is 1,875 hp at 5,900 ft and 0.860 at 6,096 m is 1,695 hp at 20,000 ft, both SOURCED (T-2 p. 3); 0.925 at 3,048 m is a straight-line interpolation between those two, DERIVED. The report prints no Military rating above 20,000 ft, so the points at 7,010, 9,144 and 10,668 m (0.836, 0.587, 0.443) are FITTED: each was solved so the model's top speed at that altitude equals the table's, which makes those three rows of the card CIRCULAR (they prove nothing). The fitted 7,010 m value falling just under the sourced 6,096 m value is a consistency check the fit passed; nothing forced it. CONFLICTS in the engine data, named on purpose: war-emergency power is 2,050 hp at 2,500 ft on T-2 p. 3, 2,040 hp at 3,000 ft on 156A-2, and English Wikipedia's 1,522 kW (2,041 hp); WEP is 1.0406 of take-off power and is not used, so the model has no water-methanol boost (it is a real 42.2 US gal system, deferred); the Homare 21 is 1,990 hp on English Wikipedia against 1,970 hp brake in the report, probably a PS versus hp unit difference, my inference and an ESTIMATE. FITTED, NOT SOURCED (measured 2026-09-30 through tools/testcards/measure.ts at testMassKg): cd0 = 0.018 and propEfficiency = 0.68, with the power curve above. The model over-reads the sea-level to 20,000 ft speed spread by about 2.4 points whatever cd0 and efficiency are chosen (the sourced powers imply more altitude drag rise than the model has), so the two sourced-power points are split: sea level -1.19%, 10,000 ft -0.86% (interpolated power), 20,000 ft +1.15%. The two coefficients are nearly degenerate on speed alone: cd0 0.0200 with efficiency 0.75 fits the same three points as well (-1.29%, -0.94%, +1.15%) but reads climb +27.6%. 0.68 was chosen because it lands the climb inside the fleet's known bias band (+14.5% and +15.3%), which is a USE of the climb figure to break a tie, disclosed here; the climb is not otherwise tuned. staticThrustN = 19,700 N is the F6F's 20,000 N scaled by take-off power (1,469 kW / 1,491 kW), an ESTIMATE. windmillCd0 = 2 x cd0 is the F6F's rule. aero.clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha and oswaldE are the F6F's shipped lift curve, ESTIMATES; clMax is NOT fitted to the flown stall (docs/aircraft.md: report it, do not fit it). flap.clIncrement = 0.399 is DERIVED and CIRCULAR: (45.60/40.23)^2 = 1.285 is the CLmax ratio the two stalls imply, and 1.4 x 0.285 = 0.399. The flap is the airplane's Fowler-type flap (T-2), drawn and modeled as an ordinary flap; flap.travelSeconds = 5 is the F6F's ESTIMATE (no time printed). flap.dragAreaM2 = 0.4 and gear.dragAreaM2 = 0.2 are the F6F's estimates scaled by wing area (21.0/31.03). GEAR: the main gear RETRACTS 'upward and inward' and the tailwheel is 'fully retractable' (T-2 p. 1); the model has GearL, GearR and Tailwheel rig nodes and all three are registered, so all three animate. gear.travelSeconds = 4 is ONE pilot's estimate of the retraction time in the report (T-2 p. 8), ESTIMATE-grade, not a measurement; the Zero's 10 s is sourced for the Zero only. gear.heightM = 2.093, mainX = 0.100, thirdX = -5.015 and thirdHeightM = 0.586 are MEASURED from the drawn mesh (2026-09-30; tests/tools/models/stance.test.ts holds them): the lowest point of the forward three quarters, and the first aft point to touch when the model is pitched about the mains (16.417 degrees, steeper than the Zero's 12.2 or the Ki-43's 12.3; the drawn legs are long and the wheels stand under the wing, ESTIMATE-grade geometry from the model's own header). The drawn mains stood at x 0.000, on the origin; the schema requires mainX > 0 (the origin is the center of gravity, between the wheels), so the entry's normalize.origin was moved 0.10 m behind the mains (tools/models/entries/ki-84-frank.json) and the glb rebuilt; 0.10 m is the largest offset that keeps the quarter-chord convention (centerPoint.test.ts, 0.15 m tolerance) and is an ESTIMATE, not a measured center of gravity; a first try at 0.25 m failed that test (the report gives the CG at 84.6 in. aft of the rear of the propeller spinner, which was not converted to the model frame). layout is taildragger; thirdSteering casterLock is the report's 'tailwheel lock with slight swivel'; steerYawRateDegPerSec, steerLockSpeedMps, tailLiftSpeedMps and propWashSpeedMps are the Zero's, ESTIMATES; torqueYawRateDegPerSec = 0 is the arcade choice made for the Zero (Mark, 2026-09-28). view.eyePointM = [-0.80, 0.8, 0] is MEASURED against the drawn model's whole skin (one node, ki84_dark, with no separate glazing node): the canopy crown reads y 1.08 to 1.10 at x -0.65 to -0.80 (2026-09-30), so the eye sits about 0.28 m under it; tests/tools/models/eyePoints.test.ts holds it under the skin's crown. negativeGCutout is false: the carburetor cut-out behavior was documented for the Zero only. ai.excludedManeuvers is empty: no source read forbids a maneuver (the report notes the propeller overspeeds if power is applied after a prolonged dive, which excludes none). Not carrier capable (plan decision D3): an Imperial Army fighter. VARIANT: the report's airplane is the 'Frank 1' family (Ha-45 Model 21, 2 x 12.7 mm nose and 2 x 20 mm wing guns); the drawn model and English Wikipedia's Ki-84-Ia are the same gun fit and engine. The report never says 'Ia'; that designation is Wikipedia's.",
+    "testMassKg": 3601.5,
+    "topSpeedMps": 190.44,
+    "topSpeedAltitudeM": 7010,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        156.46
+      ],
+      [
+        3048,
+        173.9
+      ],
+      [
+        6096,
+        184.18
+      ],
+      [
+        9144,
+        178.82
+      ],
+      [
+        10668,
+        165.4
+      ]
+    ],
+    "climbRateMps": 19.25,
+    "climbRateByAltitudeM": [
+      [
+        6370,
+        16.23
+      ]
+    ],
+    "stallSpeedMps": 45.6,
+    "stallSpeedFlapMps": 40.23,
+    "rollRateDegPerSec": 80
+  },
+  "ai": {
+    "excludedManeuvers": []
+  },
+  "view": {
+    "eyePointM": [
+      -0.8,
+      0.8,
+      0
+    ],
+    "model": "ki-84-frank"
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "left-rack",
+        "offset": [
+          -0.181,
+          -0.421,
+          -2.8
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "right-rack",
+        "offset": [
+          -0.181,
+          -0.421,
+          2.8
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Dev stores only (2026-09-30), and NOT the historic load. The primary sources give the Ki-84 two external bombs 'in place of droppable gas tanks': 2 x 30 kg (156A-2 'Maximum 2 x 30 kg, 132 lb') or 2 x 100 kg (T-2 p. 3); English Wikipedia's infobox alone says 2 x 250 kg. The an-m65 below is the F6F's 1,000 lb general-purpose bomb (453.6 kg), so each rack here carries 1.8 times the Wikipedia-only 250 kg and 4.5 times the primary sources' 100 kg, and 15 times the 30 kg. It is kept so the bomb-drop path is flyable on this airplane in Dev, the same treatment as the Zero's and Ki-43's, and is the airplane's least historic number: do not read it as performance. There are no rails and no rockets (no rocket load is documented). Rack spanwise station 2.8 m is ESTIMATE (half of the 5.62 m semi-span, outboard of the gear at z about 2.1 m and clear of the wing guns); the offsets in x and y are measured on the drawn wing with `npm run models:mounts` (ESTIMATE: 40% chord, 0.02 m clearance). Store figures are the F6F's (see f6f-hellcat.json stores.source, labeled there)."
+  }
+}

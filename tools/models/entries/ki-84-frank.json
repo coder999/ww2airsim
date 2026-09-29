@@ -7,7 +7,7 @@
     "dimensions": "span 11.238 m, length 9.92 m, wing area 21 m2, a 4-bladed propeller and airfoil thickness 16.5% root / 8% tip: English Wikipedia 'Nakajima Ki-84 Hayate', Specifications (Ki-84-Ia), read 2026-09-27; every other figure is an ESTIMATE labeled in the script's header",
     "license": "AGPL-3.0-or-later"
   },
-  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 11.238 } },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [-0.1, 0, 0], "fit": { "extent": "span", "meters": 11.238 } },
   "keep": [
     { "node": "Prop", "pivot": { "point": [3.20416, 0, 0], "axis": "+x" } },
     { "node": "GearL", "pivot": { "point": [0, -0.456267, -2.000364], "axis": "+x" } },

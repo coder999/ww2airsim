@@ -1,0 +1,226 @@
+{
+  "id": "b-17-flying-fortress",
+  "name": "Boeing B-17G Flying Fortress",
+  "role": "bomber",
+  "side": "allied",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 131.92,
+    "wingSpanM": 31.64
+  },
+  "mass": {
+    "emptyKg": 16317,
+    "fuelCapacityKg": 9798,
+    "maxTakeoffKg": 30780
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2,
+    "cd0": 0.022,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 3579360,
+    "propEfficiency": 0.68,
+    "staticThrustN": 48000,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.7791666666666667
+      ],
+      [
+        1524,
+        0.8
+      ],
+      [
+        4572,
+        0.8416666666666667
+      ],
+      [
+        7620,
+        0.85
+      ],
+      [
+        11000,
+        0.35
+      ]
+    ],
+    "windmillCd0": 0.044
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 20,
+    "maxPitchRateDegPerSec": 15,
+    "maxYawRateDegPerSec": 8,
+    "rateRefSpeedMps": 103,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 140,
+    "gLimit": 3.5
+  },
+  "gear": {
+    "travelSeconds": 12,
+    "dragAreaM2": 1.2,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.548,
+    "layout": "taildragger",
+    "mainX": 0.852,
+    "thirdX": -10.623,
+    "thirdHeightM": 1.097,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 20,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "reference": {
+    "source": "Sources (all read 2026-09-29, wwiiaircraftperformance.org unless noted). [F] = USAAF Air Technical Service Command Memorandum Report TSCEP5E-1909, B-17G AAF 43-37746, 20 Jun 1945: FLOWN, four Wright R-1820-97 with B-2 turbosuperchargers, Hamilton Standard three-blade propellers, 50,000 to 65,000 lb, combat configuration. [F17] = Wright Field FS-M-19-1470-A, B-17F 41-24340: FLOWN stalls and take-off. [SAC] = B-17G Standard Aircraft Characteristics, 27 Apr 1949: COMPUTED, not flown. [TOC] = AN 01-20EF-1 B-17F Pilot's Flight Operating Instructions, Appendix II take-off control chart (T.O. speed, IAS, by gross weight). POWER IS A SUM: engine.maxPowerW 3,579,360 = 4 x 1,200 hp, the take-off rating of one R-1820-97 ([SAC], 1,200 bhp at 2,500 rpm sea level) times four. One flight-model engine stands for all four and all four propellers turn; a failed or feathered engine is NOT modeled (engine-out is out of scope, docs/aircraft.md). Mass and geometry: wingAreaM2 131.92 = 1,420 sq ft and wingSpanM 31.64 = 103.8 ft ([SAC]); emptyKg 16,317 = 35,972 lb and maxTakeoffKg 30,780 = 67,860 lb ([SAC]); fuelCapacityKg 9,798 = 3,600 gal (1,700 + 1,080 + 820, [SAC]) at 6.0 lb/gal for 100/130 (ESTIMATE, the density is ours). testMassKg 26,149.6 = 57,650 lb, the weight [F] flew its standard climb at (DERIVED choice; [F] flew 50,000 to 65,000 lb). testMassKg is 9,832 kg above emptyKg, which is more than the 9,798 kg fuel capacity (crew, oil and ammunition make up the rest), so the harness carries it through fuelKg like every other airplane (R31). Graded figures, normal rated power (2,300 rpm, 38 in Hg), gear and flaps up, cowl flaps closed, [F] level-flight table: topSpeedByAltitudeM = 206.5 mph at sea level, 223 at 5,000 ft, 252 at 15,000 ft, 277 at 25,000 ft (0 m 92.31, 1,524 m 99.69, 4,572 m 112.65, 7,620 m 123.83 m/s); topSpeedMps 123.83 at 7,620 m = 277 mph at 25,000 ft. [F] flew these at 52,300 to 54,400 lb, 3,300 to 5,300 lb under testMassKg; top speed moves about 1 percent per 6,000 lb, so they are used UNSCALED (DERIVED, caveat: the model reads about 0.6 percent slow at the trial weight for that reason and nothing was corrected). climbRateMps 3.658 = 720 ft/min at sea level, climbRateByAltitudeM = 640 ft/min at 10,000 ft and 550 at 15,000 ft ([F] climb at 57,650 lb, 138 mph, 2,300 rpm and 38 in Hg, COWL FLAPS OPEN). The 25,000 ft point (270 ft/min) is NOT graded: the model reads it 56 percent high, reported below. Stalls are DERIVED from [F17], not [F]: [F] cancelled its stall tests. [F17] flew clean, power off, 97 mph indicated and gear-and-full-flaps 88 mph at 41,000 lb; scaled by sqrt(57,650 / 41,000) = 1.1858 to testMassKg: stallSpeedMps 51.42 (115.0 mph) and stallSpeedFlapMps 46.65 (104.4 mph). [SAC]'s 89.0 kn power-off stall at 67,860 lb names no configuration and is not used. flap.clIncrement 0.3011 is DERIVED by the Zero's method, 1.400013 x ((97 / 88)^2 - 1). Take-off: [F] measured one, 64,200 lb, one-third flaps, concrete, cowl flaps closed, 3,200 ft ground roll (corrected to sea level, zero wind) and 4,420 ft to clear 50 ft. That roll DERIVED to testMassKg by W^2 gives 786.4 m = 2,580 ft (3,200 x (57,650 / 64,200)^2), an assumption, not a measurement, so it is NOT stored in reference.takeoffDistanceM and not graded to a percent; the graded card runs the direction check only (like the Zero) and the comparison below is a finding. Lift-off speed 108 mph is [TOC] interpolated to 57,650 lb (105 mph at 55,000, 110 at 60,000, IAS; the chart is for the B-17F and its 65,000 lb label reads 115 or 117). Measured 2026-09-29 at one-third flaps and 108 mph: 828.2 m (2,717 ft), +5.3 percent against the derived 786.4 m. The model's single power curve is the normal rating; [F]'s roll was at take-off power, so the true gap is not knowable from this. FITTED, NOT SOURCED (measured 2026-09-29, tools/testcards/measure.ts sweep at testMassKg, cd0 0.022 to 0.034 x propEfficiency 0.60 to 0.85): aero.cd0 0.022 and engine.propEfficiency 0.68 against the four [F] top-speed points and the climb points, chosen to keep the top-speed profile inside 5 percent and the climb inside 7 percent; no fit takes all of them closer. engine.powerFractionByAltitudeM is SOURCED as fractions of 1,200 hp: [F]'s flown brake horsepower per engine at normal rated power, 935 bhp at sea level (0.779), 960 at 5,000 ft (0.800), 1,010 at 15,000 ft (0.842), 1,020 at 25,000 ft (0.850); the last point (0.35 at 36,100 ft) is an ESTIMATE and nothing grades it. [SAC] gives 1,000 bhp normal rated, which is the 0.833 the Corsair's method would use; [F]'s flown values are used instead because they are the ones the speeds were measured at. Result (measured 2026-09-29): top speed -4.75 percent at 25,000 ft; table +1.73, -0.85, -2.91 and -4.75 percent; climb -6.19 percent at sea level, -2.57 at 10,000 ft, +6.62 at 15,000 ft, and +55.6 at 25,000 ft (the reported miss); stalls -7.58 percent clean and -7.66 percent flaps (aero.clMax stays the shared 1.4 ESTIMATE, not fitted, R36); roll 20.0. Why climb misses at altitude: [F]'s climb was flown with cowl flaps open, which [F] itself prices at 212 to 188 mph in level flight, and the model has no cowl flaps; the top-speed and climb data are therefore in different configurations and no single cd0 fits both. engine.staticThrustN 48,000 is DERIVED, the Corsair's 20,000 N scaled by take-off power (3,579 / 1,491 kW). engine.windmillCd0 0.044 is DERIVED as 2 x cd0. gear.dragAreaM2 1.20 is DERIVED from [F]'s drag calibrations at 800 bhp per engine, 10,120 ft, 60,000 lb: clean 212 mph against gear down 179.5 mph, solved as thrust power / speed less the clean parasitic and induced drag (tools: throwaway .superpowers/b17 script, propEfficiency 0.68). flap.dragAreaM2 2.94 is DERIVED the same way from the one-third-flap point, 184.5 mph, 0.98 sq m, times three because the model's flap drag is linear in travel (full flaps are probably not linear, so this reads high above one third). [F] also prices open bomb-bay doors at 198 mph (not modeled: the bombs drop with no doors, Mark's ruling D7 to D9) and one feathered engine at 3.5 mph (not modeled). ESTIMATES: rollRateDegPerSec 20 (a heavy bomber; no roll data was found in [F], [F17] or [SAC]; rates.maxRollRateDegPerSec is set to it); maxPitchRateDegPerSec 15 and maxYawRateDegPerSec 8; limits.diveSpeedMps 140 (313 mph, above the 277 mph top speed; no source read) and gLimit 3.5; gear.travelSeconds 12 and flap.travelSeconds 12; gear.rollingResistanceCoeff, brakingResistanceCoeff and lateralGripSeconds carried over from the Corsair. The lift curve (clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha, cySlopePerRad, oswaldE), rates.rateRefSpeedMps, weathercockSeconds, autoRudderGainPerDeg and stallLimiterSeconds are the fleet's shared ESTIMATES. Gear layout (measured 2026-09-29 from the drawn model with a throwaway drawnPoints probe): the model was re-normalized first, moving its origin 0.354 m forward so the wing quarter-chord sits at the body origin (tests/tools/models/centerPoint.test.ts, at a 30 percent semi-span station with minX -6 because the default -2 m clip truncates this wing's trailing edge). heightM 2.548 (mains below the origin), mainX 0.852, thirdX -10.623 and thirdHeightM 1.097 (the tailwheel, first aft point to touch when pitched about the mains, 7.20 degrees; derived rest pitch 7.21). No B-17 ground angle was read; gearContact.test.ts holds the drawing to its own derived rest pitch. layout taildragger, thirdSteering casterLock and steerYawRateDegPerSec 20, steerLockSpeedMps 8, tailLiftSpeedMps 28, propWashSpeedMps 12 are ESTIMATES copied from the Corsair (the B-17's tailwheel had a lock; its steering rate is unsourced); torqueYawRateDegPerSec 0 (Mark's fleet ruling of 2026-09-28). view.eyePointM [2.9, 1.55, 0] is MEASURED from the drawn model: inside the glass shell Object_51 (top y 1.80 at x 2.9), 0.25 m below the top (eyePoints.test.ts). carrierCapable false (a heavy bomber, historical; Mark, 2026-09-29). No combat block: turrets and defensive guns are not modeled.",
+    "testMassKg": 26149.6,
+    "topSpeedMps": 123.83,
+    "topSpeedAltitudeM": 7620,
+    "climbRateMps": 3.658,
+    "stallSpeedMps": 51.42,
+    "stallSpeedFlapMps": 46.65,
+    "rollRateDegPerSec": 20,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        92.31
+      ],
+      [
+        1524,
+        99.69
+      ],
+      [
+        4572,
+        112.65
+      ],
+      [
+        7620,
+        123.83
+      ]
+    ],
+    "climbRateByAltitudeM": [
+      [
+        3048,
+        3.251
+      ],
+      [
+        4572,
+        2.794
+      ]
+    ]
+  },
+  "view": {
+    "eyePointM": [
+      2.9,
+      1.55,
+      0
+    ],
+    "model": "b-17-flying-fortress"
+  },
+  "flap": {
+    "travelSeconds": 12,
+    "dragAreaM2": 2.94,
+    "clIncrement": 0.3011
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "bay-1l",
+        "offset": [
+          -0.6,
+          -0.05,
+          -0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-1r",
+        "offset": [
+          -0.6,
+          -0.05,
+          0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-2l",
+        "offset": [
+          -0.2,
+          -0.05,
+          -0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-2r",
+        "offset": [
+          -0.2,
+          -0.05,
+          0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-3l",
+        "offset": [
+          0.2,
+          -0.05,
+          -0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-3r",
+        "offset": [
+          0.2,
+          -0.05,
+          0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-4l",
+        "offset": [
+          0.6,
+          -0.05,
+          -0.25
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-4r",
+        "offset": [
+          0.6,
+          -0.05,
+          0.25
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Eight bomb racks INSIDE the fuselage hull, two abreast (z +/-0.25 m) in four stations (x -0.6 to +0.6 m) with the lug at y -0.05 m so the an-m65 mesh (bottom -0.65 m) stays above the rounded belly (about -0.72 m at the outboard edge of the store; tests/tools/models/internalBay.test.ts holds every store inside the drawn hull); no racks are drawn on the outside and the bombs are dropped with no bay doors (Mark, 2026-09-29, D7 to D9; bay doors are a later plan). The positions are ESTIMATES: the real load is carried internally in vertical tiers, up to 8,000 lb on the long-range bomb bay ([SAC] lists a maximum bomb load of 12,800 lb, 8 x 1,000 lb A.P. among its listed loads), and this file carries 8 x 1,000 lb class = 3,629 kg. The bomb type is the shared an-m65 entry (AN-M65 1,000 lb GP), unchanged. The bomb mass and drag are added to emptyKg by storesSpec, so a full internal load is about 14 percent above the graded card's testMassKg; the cards are graded clean."
+  }
+}

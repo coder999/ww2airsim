@@ -23,10 +23,10 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/aircraft/f4u-corsair.glb` | https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284 | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/ki-43-oscar.glb` | https://sketchfab.com/3d-models/ki43-abdc04cc7afb4aeba0eaac6c5079d6e6 | manilov.ap | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/d3a-val.glb` | https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501 | helijah | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
-| `content/aircraft/g4m-betty.glb` | https://sketchfab.com/3d-models/mitsubishi-g4m-f326a41bfa5f4a34a471e95c663c2368 | Jec (@Jec_Games) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/b-17-flying-fortress.glb` | https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5 | helijah | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
 | `content/aircraft/ki-84-frank.glb` | authored in Blender by `tools/models/blender/ki-84-frank.py` from the cited dimensions in its header (English Wikipedia, Ki-84-Ia specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/ki-21-sally.glb` | authored in Blender by `tools/models/blender/ki-21-sally.py` from the cited dimensions in its header (English Wikipedia, Ki-21-IIb specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
+| `content/aircraft/g4m-betty.glb` | authored in Blender by `tools/models/blender/g4m-betty.py` from the cited dimensions in its header (English Wikipedia, G4M1 specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/b-29-superfortress.glb` | authored in Blender by `tools/models/blender/b-29-superfortress.py` from the cited dimensions in its header (English Wikipedia, B-29 specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/p-38-lightning.glb` | authored in Blender by `tools/models/blender/p-38-lightning.py` from the cited dimensions in its header (English Wikipedia, P-38L specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
@@ -114,9 +114,9 @@ fixed on the real aircraft and not rigged. The D3A went from 293,440 to
 55,144: the build removed the belly bomb, cockpit instrument faces and the
 hidden rear cylinder row, and simplified the rest of the engine (0.15).
 No yaw. Rigged: `Prop`. Its gear is fixed on the real aircraft and not
-rigged. The G4M went from 2,656 to 1,792: the build removed the bombs.
-No yaw. Rigged: `Prop1`, `Prop2`, `Turret1` (the dorsal blister). The
-download has no landing gear, and its tail position is fused. The B-17
+rigged. The G4M download was replaced on 2026-09-29 by an
+original Blender model, `tools/models/blender/g4m-betty.py`, rigged
+`Prop1`, `Prop2`, `GearL`, `GearR`, `Turret1`. The B-17
 went from 763,214 to 98,683: the build removed the hidden engine
 internals (377,168 triangles), cockpit instrument faces and screws, and
 simplified the visible cylinder rings (0.1). No yaw. Rigged: `Prop1` to
@@ -195,6 +195,17 @@ whoosh (Plan 6b Task 10; see `content/audio/NOTICE.md`).
 | `content/audio/machinegun.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
 | `content/audio/propeller.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
 | `content/audio/water_crash.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/engine_radial_small.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/engine_radial_big.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/engine_multi_heavy.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/engine_allison_v12.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/engine_sputter.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/hit_taken.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/sea_waves.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/carrier_deck.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/wire_catch.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/flak_distant.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
+| `content/audio/hook_clunk.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
 | `content/art/title.png` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/art/NOTICE.md` |
 | `content/textures/terrain-albedo.ktx2` + `terrain-normal.ktx2` layer 0 (sand), built by `tools/textures/build.ts` | https://polyhaven.com/a/aerial_beach_01 | Rob Tuytel | CC0 |
 | layer 1 (grass) | https://polyhaven.com/a/leafy_grass | Charlotte Baglioni | CC0 |

@@ -28,6 +28,7 @@ export function gearAfter(
   gearDown: boolean | undefined,
   dt: number,
 ): number {
+  if (spec.gear.fixed === true) return 1
   if (gearDown === undefined) return gearFraction
   const step = Number.isFinite(dt) && dt > 0 ? dt / spec.gear.travelSeconds : 0
   const next = gearDown ? gearFraction + step : gearFraction - step
@@ -45,6 +46,7 @@ export function gearAfter(
  * fidelity.
  */
 export function gearDragN(spec: AircraftSpec, gearFraction: number, q: number): number {
+  if (spec.gear.fixed === true) return 0
   return q * spec.gear.dragAreaM2 * gearFraction
 }
 

@@ -24,8 +24,8 @@ describe('parseProvenance (the Hangar card\'s Model row)', () => {
   it('says which R3 aircraft are downloads and which are original Blender models', () => {
     const table = parseProvenance(entryFiles())
     const kind = (id: string): string => provenanceForUrl(table, `/content/aircraft/${id}.glb`)!.kind
-    for (const id of ['a6m2-zero', 'f6f-hellcat', 'f4u-corsair', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress']) expect(kind(id), id).toBe('sketchfab')
-    for (const id of ['ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'p-38-lightning']) expect(kind(id), id).toBe('blender')
+    for (const id of ['a6m2-zero', 'f6f-hellcat', 'f4u-corsair', 'ki-43-oscar', 'd3a-val', 'b-17-flying-fortress']) expect(kind(id), id).toBe('sketchfab')
+    for (const id of ['ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'p-38-lightning', 'g4m-betty']) expect(kind(id), id).toBe('blender')
   })
 
   it('reads as a person would say it', () => {

@@ -1,6 +1,8 @@
 import type { ContactKind, ContactSurface } from '../sim/contact.js'
 import type { ClipId } from './assets.js'
-import { engineGainFor, enginePlaybackRateFor } from './mix.js'
+import {
+  ENGINE_FAILING_HEALTH, deckGainFor, engineGainFor, engineHealthFactor, enginePlaybackRateFor, seaGainFor, type EngineFamily,
+} from './mix.js'
 
 /**
  * Every "fire once" decision the audio system makes, as a pure function.
@@ -72,6 +74,20 @@ export type AudioInputs = {
    */
   readonly bombsDropped: number
   readonly rocketsFired: number
+  /** Which engine recording the player's aircraft uses. */
+  readonly engineFamily: EngineFamily
+  /** The player's `Damage.structure` and `Damage.engine`, 1 = whole. A hit is
+   *  `structure` FALLING; a failing engine is `engine` crossing
+   *  `ENGINE_FAILING_HEALTH` downward. */
+  readonly structure: number
+  readonly engineHealth: number
+  /** The pendant is on the hook (`AircraftState.arrested`). */
+  readonly arrested: boolean
+  /** The hook lever (`Controls.hookDown`). */
+  readonly hookDown: boolean
+  /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
+   *  `null` when there is no carrier. */
+  readonly deckDistanceM: number | null
 }
 
 export type AudioMemory = {
@@ -96,11 +112,18 @@ export type AudioMemory = {
   readonly airborneLatched: boolean
   /** `sinkMps` of the previous frame. */
   readonly lastSinkMps: number
+  readonly lastStructure: number
+  /** The tick before which no further hit cue is due (a burst lands many rounds in a few ticks). */
+  readonly hitCueUntilTick: number
+  readonly engineFailed: boolean
+  readonly lastArrested: boolean
+  readonly lastHookDown: boolean
 }
 
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
   lastBombsDropped: 0, lastRocketsFired: 0, airborneSinceTick: null, airborneLatched: false, lastSinkMps: 0,
+  lastStructure: 1, hitCueUntilTick: 0, engineFailed: false, lastArrested: false, lastHookDown: false,
 }
 
 /**
@@ -131,10 +154,17 @@ export const TOUCHDOWN_MIN_SINK_MPS = 0.3
  */
 export const GUN_CUE_INTERVAL_TICKS = 72
 
+/** `hit_taken.wav` is 1.5 s; a burst that lands a dozen rounds in a few ticks is one cue, not a dozen. */
+export const HIT_CUE_INTERVAL_TICKS = 30
+
 export type AudioFrame = {
   readonly memory: AudioMemory
   readonly cues: readonly ClipId[]
   readonly engine: { readonly gain: number; readonly playbackRate: number }
+  /** Which engine layer to drive (`ENGINE_LAYER_FOR`). */
+  readonly engineFamily: EngineFamily
+  /** Continuous ambience gains, 0 = silent. */
+  readonly ambient: { readonly sea: number; readonly deck: number }
 }
 
 export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
@@ -211,11 +241,26 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
   if (inputs.bombsDropped > lastBombsDropped) cues.push('bombs_away')
   if (inputs.rocketsFired > lastRocketsFired) cues.push('rocket_whoosh')
 
+  // Damage and carrier edges. Each is a bare edge on a value the sim already
+  // holds, so a replay scrub (`prime`) advances past them silently.
+  let hitCueUntilTick = restarted ? 0 : prev.hitCueUntilTick
+  if (inputs.structure < (restarted ? 1 : prev.lastStructure) && inputs.tick >= hitCueUntilTick) {
+    cues.push('hit_taken')
+    hitCueUntilTick = inputs.tick + HIT_CUE_INTERVAL_TICKS
+  }
+  const failing = inputs.engineHealth < ENGINE_FAILING_HEALTH
+  const wasFailed = restarted ? false : prev.engineFailed
+  if (failing && !wasFailed && inputs.engineRunning) cues.push('engine_sputter')
+  if (inputs.arrested && !(restarted ? false : prev.lastArrested)) cues.push('wire_catch')
+  if (inputs.hookDown && !(restarted ? false : prev.lastHookDown)) cues.push('hook_clunk')
+
   return {
     memory: {
       wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick, lastShots: inputs.shots, gunCueUntilTick,
       lastBombsDropped: inputs.bombsDropped, lastRocketsFired: inputs.rocketsFired,
       airborneSinceTick, airborneLatched, lastSinkMps: inputs.sinkMps,
+      lastStructure: inputs.structure, hitCueUntilTick, engineFailed: failing,
+      lastArrested: inputs.arrested, lastHookDown: inputs.hookDown,
     },
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already
@@ -223,8 +268,10 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     // reason: an ungated spin leaves the propeller turning at full speed on a
     // wreck in its own fireball.
     engine: {
-      gain: inputs.engineRunning ? engineGainFor(inputs.throttle) : 0,
+      gain: inputs.engineRunning ? engineGainFor(inputs.throttle) * engineHealthFactor(inputs.engineHealth) : 0,
       playbackRate: enginePlaybackRateFor(inputs.throttle),
     },
+    engineFamily: inputs.engineFamily,
+    ambient: { sea: seaGainFor(inputs.groundSurface, inputs.heightM), deck: deckGainFor(inputs.deckDistanceM) },
   }
 }

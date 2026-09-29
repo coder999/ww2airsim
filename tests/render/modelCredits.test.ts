@@ -36,6 +36,6 @@ describe('the models credit line (ship-models spec §10)', () => {
   })
 
   it('reads, after R5, with each author named once: KTKloss for four works, manilov.ap three, helijah two', () => {
-    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), KTKloss (1 2 3 4), manilov.ap (1 2 3), JZHU, Jec_Games, everlasting17th, AlanTinka, snrnsrk5, rojatsu, MattyNL (CC BY 4.0)')
+    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), KTKloss (1 2 3 4), manilov.ap (1 2 3), JZHU, everlasting17th, AlanTinka, snrnsrk5, rojatsu, MattyNL (CC BY 4.0)')
   })
 })

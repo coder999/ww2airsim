@@ -46,6 +46,16 @@ export function chaseDistanceScale(speedMps: number): number {
   return 0.8 + 0.4 * t * t * (3 - 2 * t)
 }
 
+/** Wingspan the chase offset above was tuned on (Hellcat, 13.05 m). */
+export const CHASE_REFERENCE_SPAN_M = 13
+
+/** Chase distance grows with wingspan so a big airplane fits in frame: 1 up to the reference span,
+ *  linear above it. B-17 (31.6 m) x2.4; B-29 (43.1 m) x3.3. Derived from `geometry.wingSpanM`, so
+ *  a new aircraft needs no camera data. */
+export function chaseSizeScale(spec: AircraftSpec): number {
+  return Math.max(1, spec.geometry.wingSpanM / CHASE_REFERENCE_SPAN_M)
+}
+
 /**
  * Fraction of the aircraft's pitch the chase camera follows. A little under
  * one, so a steep climb or dive keeps some horizon in frame.
@@ -154,7 +164,7 @@ export function cameraTransformFor(
     qMul(qFromAxisAngle(v3(0, 1, 0), heading), qFromAxisAngle(v3(0, 0, 1), pitch)),
   )
   const [ox, oy, oz] = CHASE_OFFSET_M
-  const distanceScale = chaseDistanceScale(speedMps) * orbit.zoom
+  const distanceScale = chaseDistanceScale(speedMps) * chaseSizeScale(spec) * orbit.zoom
   const offset = v3(ox * distanceScale, oy * distanceScale, oz)
   // The orbit rotates the offset AND the eye's attitude by the same amount,
   // about the airplane, so the airplane keeps exactly the framing the default

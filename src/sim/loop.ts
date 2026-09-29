@@ -7,7 +7,8 @@ import { airVelocity, DT, step } from './flight/model.js'
 import type { TerrainField } from './world/terrain.js'
 import type { Vec3 } from './math/vec3.js'
 import { contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
-import { supportedContact } from './ground.js'
+import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from './ground.js'
+import { wheelDepthOf } from './gearContact.js'
 import type { ShipOrders, ShipSpec, ShipState } from './world/ships.js'
 import { stepShip } from './world/ships.js'
 import type { Airfield } from './world/airfields.js'
@@ -771,7 +772,21 @@ function stepAircraftEntity<M>(
   // above ground and have it read as a normal landing.
   const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
   if (ground !== null) {
-    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
+    const unsupported = !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)
+    // An airplane that was on its wheels at the start of the step and ends it
+    // with them buried past the contact tolerance, no longer supported, has
+    // rolled into terrain rising faster than `restOnSurface` can lift it (it
+    // only pays for a climb out of kinetic energy). It is a crash into a
+    // slope. Without this it sinks a full wheel depth (about 2 m) through the
+    // ground before the origin test above catches it (T1 soak, 2026-09-29).
+    // Land only: a deck is a moving surface and keeps its own rules.
+    const startGround = ground.surface === 'land' ? groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z) : null
+    const droveIntoTerrain =
+      unsupported &&
+      startGround !== null &&
+      supportedContact(entity.spec, entity.state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass) &&
+      current.position.y - wheelDepthOf(entity.spec, current) < ground.heightM - GROUND_CONTACT_TOLERANCE_M
+    if ((current.position.y <= ground.heightM && unsupported) || droveIntoTerrain) {
       const impact: Impact = {
         tick: current.tick,
         position: current.position,

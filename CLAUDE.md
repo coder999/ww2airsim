@@ -80,8 +80,9 @@ not exist, and three conventions below were being missed for that reason).
 
 - **`ww2airsim.windomlane.org` is the host to send him to.** It serves the dev
   server off this working copy (`npm run dev:lan`; plain `npm run dev` binds
-  loopback and the host returns 502). `*.marktuttle.dev` is unreachable from
-  his work network. Before naming the host, assert it is up:
+  loopback and the host returns 502). The production build is
+  at `ww2airsim.marktuttle.dev`, reachable from work since 2026-09-29
+  (`marktuttle.dev` passed 30 days; `ww2airsim.com` is still blocked). Before naming the host, assert it is up:
   `curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/`
   must print `200`.
 - **Email him every plan and spec, as HTML, when it is written** — do not wait
@@ -130,14 +131,14 @@ nothing, and the adapter guard passes it all the same;
 **No console login needed for correctness runs** (since 2026-09-27): a
 `playwright run-server` started over SSH runs in session 0 and reaches the GPU
 headless with `--use-angle=d3d11`; `PW_SESSION0=1` with
-`PW_REMOTE=ws://localhost:39002/` sends that. README's "Tier 2: the GPU
-harness" has the three-command recipe (server, tunnel, run) and how to stop
+`PW_REMOTE=ws://localhost:39002/` sends that. `docs/testing.md` ("Tier 2: the GPU
+harness") has the three-command recipe (server, tunnel, run) and how to stop
 the server without killing another session's run. Use it whenever the console
 server is down or busy. **Not for numbers yet:** its 1440p budget got 71 GPU
 samples in 5 s against the console's ~500, probably other sessions sharing the
-GPU; that comparison is an open item recorded in the README.
+GPU; that comparison is an open item recorded in `docs/testing.md`.
 
-README's "Tier 2: the GPU harness" is authoritative for the tunnels and the
+`docs/testing.md` ("Tier 2: the GPU harness") is authoritative for the tunnels and the
 one-time setup. Two facts it records that cost real time: headed Chromium
 launched over SSH gets **no GPU** (session 0 has no display; headless needs
 `--use-angle=d3d11`, above), and `__ww2` exists
@@ -156,7 +157,7 @@ GPU alongside another session's, point that worktree's own
 to match, then `WW2AIRSIM_TUNNEL=1 npx vite --port 5175` (or `5174`) from
 the worktree. That edit is local scratch, never committed. Both slots are
 persistent, reusable infrastructure, not scoped to whichever plan first
-needed one — see README's "Tier 2: the GPU harness" and
+needed one — see `docs/testing.md` and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
 `ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
 slot should say so if asked; there's no reservation system for ports (for
@@ -172,15 +173,27 @@ tell Mark a model "needs a manual download". A download is not a license
 check: vet and record it per `ASSETS.md` before promoting anything.
 The whole ingest, from search to a Hangar check, is `docs/models.md`.
 
+## Where docs go
+
+The table is in [README.md](README.md#where-docs-go), its only copy. One home
+per kind of fact; point at it, never copy it. The rules that bite:
+
+- **The README is not a ledger.** A landed plan gets a handoff and a §15 row,
+  not a README paragraph. The old per-plan entries are frozen in
+  `docs/status-log.md` (2026-09-29); do not append to it.
+- A new standing doc gets one pointer, in the README if it is a subsystem
+  people will look for, in this file's read-first list only if an agent gets
+  something wrong without it. Not both by default.
+
 ## Conventions
 
 - **US spelling** in new prose and identifiers. Existing `centre`-style
   identifiers and content JSON keys are a migration — ask before renaming.
 - A plan's own numbers are claims: run its arithmetic against the repo before
   executing it. Prefer an assertion to a sentence; date cross-boundary claims.
-- Every completed plan ends with a dated `docs/handoff/` document, its row in
-  §15's table updated, and a README paragraph that points at §15 rather than
-  restating the order.
+- Every completed plan ends with a dated `docs/handoff/` document and its row
+  in §15's table updated. Do not add a status paragraph to the README (see
+  "Where docs go").
 - Escape `|` as `\|` inside markdown table cells.
 - **Imperial units, not metric**, in anything user-facing (HUD, instruments,
   docs, plan tables) — feet, miles, knots, mph, pounds, gallons, °F, inHg, as

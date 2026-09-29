@@ -14,6 +14,23 @@ const CANOPY: Readonly<Record<string, string>> = {
   'f6f-hellcat': 'kabina-FACES',
   wildcat: 'Puerta_cabina_Cabina_MAT_0',
   'a6m2-zero': 'Verriere_Verriere_0',
+  'f4u-corsair': 'kabina-FACES',
+  // One transparent shell over the whole airframe (alpha 0.15); the eye sits under its top at the flight deck.
+  'b-17-flying-fortress': 'Object_51',
+  // The G4M's model has a single skinned material and no separate canopy node; g4m_dark is the whole airframe's skin, and the eye sits under the glasshouse crown (top y about 1.65 at x 3.4).
+  'g4m-betty': 'g4m_dark',
+  // A single-skin airframe like the G4M: b29_dark is the whole skin, and the eye sits under the glazed crown at x 9.0.
+  'b-29-superfortress': 'b29_dark',
+  // A single-skin airframe again: p38_dark is the whole skin; the canopy crown reads y 1.20 to 1.22 at x 0 to 0.5 (measured 2026-09-29), eye at x 0.6, y 0.95.
+  'p-38-lightning': 'p38_dark',
+  // The canopy glazing node kabina-FACES (x -1.88 to -0.15, top y 0.99, measured 2026-09-30); the eye sits 0.29 m under its crown.
+  'ki-43-oscar': 'kabina-FACES',
+  // The Val's canopy is the mesh node Object_20 (material "transparent", x -3.22 to 0.10, top y 1.009, measured 2026-09-30); the eye sits 0.26 m under its crown.
+  'd3a-val': 'Object_20',
+  // Whole-skin crown: the Ki-84 model is one skin node (ki84_dark) with no separate glazing node.
+  'ki-84-frank': 'ki84_dark',
+  // A single-skin airframe: ki21_dark is the whole skin; the glazed crown reads y 1.25 at x 2.6 to 3.4 (measured 2026-09-30), eye at x 3.0.
+  'ki-21-sally': 'ki21_dark',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

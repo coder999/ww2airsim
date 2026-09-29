@@ -14,7 +14,8 @@ describe('buildCatalog', () => {
     expect(kinds.indexOf('building')).toBeGreaterThan(kinds.lastIndexOf('ship'))
     const aircraft = catalog.filter((e) => e.library.kind === 'aircraft')
     const firstOut = aircraft.findIndex((e) => e.subject === null)
-    expect(aircraft.slice(firstOut).every((e) => e.subject === null)).toBe(true)
+    // Once every airframe is flyable there is no model-only card left, and the ordering rule holds vacuously.
+    if (firstOut >= 0) expect(aircraft.slice(firstOut).every((e) => e.subject === null)).toBe(true)
   })
 
   it('resolves a building kind to every placement across content/bases', () => {
@@ -35,7 +36,7 @@ describe('buildCatalog', () => {
     const bomb = catalog.find((e) => e.library.id === 'an-m65')!
     expect(bomb.subject).toMatchObject({ kind: 'ordnance', storeId: 'an-m65', store: { kind: 'bomb' } })
     const carriers = (bomb.subject as { carriers: readonly { id: string }[] }).carriers.map((a) => a.id).sort()
-    expect(carriers).toEqual(['f4f-wildcat', 'f6f-hellcat'])
+    expect(carriers).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
     expect(catalog.at(-1)!.library.kind).toBe('ordnance')
   })
 
@@ -79,26 +80,29 @@ describe('origin: internal (ours) or external (a download), for the list filter'
 
 describe('availability (R1, model-roster spec §4.3)', () => {
   const c = nodeHangarContent()
-  const corsair = c.library.find((e) => e.id === 'f4u-corsair')!
-  const undrawn = { ...corsair, id: 'test-undrawn', name: 'Test Undrawn' }
+  // The fixture is a card with a model and no spec. Ki-84 had that shape until it was onboarded
+  // (2026-09-30), so its spec is stripped here; the real card is in the game.
+  const frank = { ...c.library.find((e) => e.id === 'ki-84-frank')! }
+  delete (frank as { spec?: unknown }).spec
+  const undrawn = { ...frank, id: 'test-undrawn', name: 'Test Undrawn' }
   delete (undrawn as { model?: unknown }).model
-  const withModel = { ...c, library: [...c.library.filter((e) => e.id !== 'f4u-corsair'), { ...corsair, model: { kind: 'aircraft' as const, id: 'wildcat' } }, undrawn] }
+  const withModel = { ...c, library: [...c.library.filter((e) => e.id !== 'ki-84-frank'), { ...frank, model: { kind: 'aircraft' as const, id: 'wildcat' } }, undrawn] }
   const cat = buildCatalog(withModel)
   const get = (id: string) => cat.find((e) => e.library.id === id)!
 
   it('a spec is in the game, a model alone is display-only, neither is not drawn', () => {
     expect(availability(get('f4f-wildcat'))).toBe('in-game')
     expect(availability(get('hangar'))).toBe('in-game') // a spec and a model: still in the game
-    expect(availability(get('f4u-corsair'))).toBe('display-only')
+    expect(availability(get('ki-84-frank'))).toBe('display-only')
     expect(availability(get('test-undrawn'))).toBe('not-drawn')
-    expect([get('f4u-corsair'), get('test-undrawn')].map(drawable)).toEqual([true, false])
+    expect([get('ki-84-frank'), get('test-undrawn')].map(drawable)).toEqual([true, false])
   })
 
   it('labels the list and the card by availability', () => {
     expect(listLabel(get('f4f-wildcat'))).toBe(get('f4f-wildcat').library.name)
-    expect(listLabel(get('f4u-corsair'))).toBe(`${corsair.name} (not in the game yet)`)
+    expect(listLabel(get('ki-84-frank'))).toBe(`${frank.name} (not in the game yet)`)
     expect(listLabel(get('test-undrawn'))).toMatch(/ \(not yet in service\)$/)
-    expect([statusNote(get('f4f-wildcat')), statusNote(get('f4u-corsair')), statusNote(get('test-undrawn'))])
+    expect([statusNote(get('f4f-wildcat')), statusNote(get('ki-84-frank')), statusNote(get('test-undrawn'))])
       .toEqual([null, 'Not in the game yet', 'Not yet in service'])
   })
 

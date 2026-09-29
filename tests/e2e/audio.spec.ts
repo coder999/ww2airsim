@@ -115,3 +115,32 @@ test('going into the sea fires ONE cue, and a restart fires none', async ({ page
   await page.waitForTimeout(4000)
   expect(await cues(), 'a respawn is not a landing').toBe(1)
 })
+
+test('the engine layer starts, and the view follows the camera', async ({ page }) => {
+  // The one thing no fake can know: the bus graph and cabin stage built by
+  // src/audio/webAudio.ts accept the writes system.ts makes, in the shipped app.
+  await page.goto('/')
+  await waitForTerrain(page)
+  // KeyY is unbound (KeyP now toggles the mission map, which swallows the KeyC below)
+  await page.keyboard.press('KeyY')
+  await expect
+    .poll(() => page.evaluate(() => Object.keys((window as DiagWindow).__ww2!.audio().layers)), { timeout: 30_000 })
+    .toContain('engine')
+
+  // Every camera mode maps to cockpit or chase, so after a full cycle of KeyC
+  // the snapshot's view has taken BOTH values at some point.
+  const seen = new Set<string>()
+  const initialMode = await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.down('KeyC')
+    await page.waitForTimeout(400)
+    await page.keyboard.up('KeyC')
+    await page.waitForTimeout(300)
+    const view = await page.evaluate(() => (window as DiagWindow).__ww2!.audio().view)
+    if (view !== null) seen.add(view)
+    if (seen.size === 2) break
+    if ((await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())) === initialMode && i > 0) break
+  }
+  expect([...seen].sort(), 'cycling the camera should reach both cabin presets').toEqual(['chase', 'cockpit'])
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().failed)).toEqual([])
+})

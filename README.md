@@ -10,430 +10,21 @@ mission text. `ww2airsim` is a working title.
 
 ## Status
 
-**Plans 1–5 implemented (2026-09-15; ocean branch).** A deterministic F6F Hellcat flight
-model runs headlessly in Node under `src/sim/`, graded against cited
-historical trial figures by the test-card harness in `tools/testcards/`, with
-a golden-trajectory regression, a randomised soak, and CI (Plan 1). It is
-flyable in the browser on a WebGPU renderer, with keyboard controls, a chase
-and cockpit camera and a gauge panel (Plan 2). Three input assists — stall
-limiter, auto-rudder and altitude hold — sit between the keyboard and the
-simulation, each switchable in flight (Plan 3). And the water it flies over is
-no longer empty: real Leyte Gulf is under it (Plan 4, below).
+Flyable in the browser on WebGPU: a deterministic flight model in `src/sim/`
+graded against cited trial figures, real Leyte Gulf terrain and sea, ground
+handling and carrier and land-base landings, combat, AI pilots, missions,
+a pilot roster and an instant-replay debrief. **Master spec §15 is the only
+authoritative status table**; each plan's handoff in `docs/handoff/` holds its
+measurements. The per-plan history that used to sit here is in
+[docs/status-log.md](docs/status-log.md).
 
-The sea now has deterministic, Beaufort-driven FFT waves, depth colour,
-shallow-water attenuation and foam (Plan 5). See the
-[ocean handoff](docs/handoff/2026-09-15-plan5-ocean.md) for GPU measurements,
-visual comparisons and the remaining art-direction questions.
+**Ground drape spike (2026-09-29):** an off-by-default `?drape=` experiment
+for satellite-derived ground texture; findings, variants and traps are in
+[docs/drape.md](docs/drape.md).
 
-Ground and water contact now ends the flight (Plan 10, below). And the
-airplane now starts **parked on a runway at Tacloban and takes off from it**
-(Plan 11a): the ground is a surface it rolls on rather than one it falls
-through. Gear that takes seconds to move and costs drag while it hangs out,
-rolling friction and wheel brakes (`B`), a tailwheel that steers until the tail
-comes up, and a visual strip draped over the real heightfield — running
-north-south, because east-west through the airfield runs into the sea. The
-graded historical take-off card measures that real ground now instead of a
-pinned state, inside a tolerance tightened from 10% to 2%; read the
-[handoff](docs/handoff/2026-09-16-plan11a-ground-handling.md) before trusting
-that agreement, because it records exactly which of its inputs are guesses.
-**And it lands again (Plan 11b).** Flaps, ground effect, and a lateral tire
-force so the wheels go where they point rather than skidding — a taxi turn used
-to reach 113.6° of sideslip and now reaches 2.7°. The flap lift increment is
-*derived* from two figures in the same trial table rather than estimated, and
-it is graded against the 84.5 mph landing-configuration stall that
-`f6f-hellcat.json` carried for two plans flagged as unreachable. A scripted
-approach autopilot (`tools/autopilot/approach.ts`) flies an approach into
-Tacloban every commit and asserts the airplane comes to rest on the strip, so
-the landing envelope is a number in CI rather than an impression: touchdown at
-1.47 m/s and 38.4 m/s, 0.0 m off the centreline. Read the
-[handoff](docs/handoff/2026-09-17-plan11b-landing.md) for every figure that is
-still an estimate.
+**Audio foundation (2026-09-29):** engine, effects and ambient buses, named looping layers, a cockpit/chase cabin mix, chase-camera distance falloff and positioned one-shots. `verify` was red for unrelated failures, see the [handoff](docs/handoff/2026-09-29-audio-foundation.md); master spec §15 holds the status, and the order of the rest is in `docs/superpowers/specs/2026-09-29-audio-expansion-design.md`.
 
-A first scenery pass now adds procedural beach, grass, jungle and rock
-materials, mapped Binahaan and Daguitan river surfaces, nearby trees, and
-Tacloban hangars, control tower, service apron and stores. These buildings
-and trees are visual only; collision, combat, AI and the meta-game remain ahead. See the
-[scenery handoff](docs/handoff/2026-09-18-scenery.md) for coverage and limitations.
-
-**Plan 12 is now complete:** the scenario holds one carrier and two escorts
-in San Pedro Bay, Tacloban and Dulag as airfield records, and a second,
-chocked Hellcat on the Tacloban apron. The renderer draws every one of those
-entities and the simulation advances them on one clock. The authoritative
-status and remaining order are in [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md).
-Mark reordered them on 2026-09-16 so that the ground under the airplane comes
-before there is anybody to shoot at; plan numbers were deliberately NOT
-reused, for the reason the next paragraph records. **Master spec §15 holds the
-order and the argument for it**, and this paragraph does not restate either.
-
-**Plan 6 combat and damage is complete for the current F6F:** the playable
-gunnery slice landed 2026-09-19. Space
-fires the Hellcat's six guns with real flight time and finite ammunition,
-rounds hit other airplanes' hit zones and damage their structure and systems,
-and `?scenario=gunnery-range` parks two training targets downrange at
-Tacloban. Tracers, hit flashes, engine smoke, a combat readout and gun audio
-read that state. The
-[handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
-and master spec §15 holds the status.
-
-**W1 gave the Wildcat a real F4F-4 flight model (2026-09-28):** sourced
-figures, a drawing at its real span and parked angle, a racks-only loadout, and
-one graded card suite for every aircraft. It is on branch `worktree-w1-wildcat`;
-[aircraft.md](docs/aircraft.md) is the onboarding runbook and master spec §15
-holds the status.
-
-**T1 gave the aircraft believable ground handling (2026-09-28):** the rest
-attitude is derived from a gear layout in each spec, the tail rises with
-airflow instead of a speed gate, and the taxi has rudder with prop wash, a
-and a locking caster. The ground pitch ceiling comes from each
-aircraft's lift curve (liftoff near 1.1 x clean stall speed); the GAMEPLAY.md
-"Takeoff" section has the measured speeds. On the wheels the arrow keys and A/D
-(roll in the air) **steer**, and Z/X (rudder) steer too; roll never banks the
-airplane on the wheels. There are no differential brakes (Mark's ruling,
-2026-09-28). It is on
-branch `worktree-t1-tailwheel`; the [handoff](docs/handoff/2026-09-28-t1-ground-handling.md)
-lists what was measured and what is open, [aircraft.md](docs/aircraft.md) has
-the onboarding step, and master spec §15 holds the status.
-
-**Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
-loadout picker, stores hung under the wings, ship and airfield-structure
-damage. Tier 1 is green and reference-GPU Tier 2 acceptance passes all five
-strike cases at 1.758 ms p95 at 1440p. Torpedoes and structural-overload
-damage were the remaining Plan 6 items at that handoff; see the
-[handoff](docs/handoff/2026-09-22-plan6b-strike.md) for what was actually
-measured and what is still open, and master spec §15 for the status.
-
-**E1 effects engine is complete and merged into `main` (2026-09-26):**
-every armed detonation is reported through a bounded, bit-identical
-simulation ring, and one lit, soft, pooled particle system now owns bomb,
-rocket, shell, crash, aircraft, ship, and structure effects. Dense smoke stops
-the cloud march; quality tiers, failed-sheet fallback, restart cleanup, and
-paired reference-GPU cost gates are covered. E2 replaced the placeholder
-flipbooks with Blender-baked sheets (§15; the
-[E2 handoff](docs/handoff/2026-09-28-e2-flipbooks.md)). See the
-[E1 handoff](docs/handoff/2026-09-26-e1-effects-engine.md) for captures,
-measurements, merge notes, and the two shared baseline tripwires.
-
-**O1 ordnance models landed 2026-09-26, merged into `main`:** generated
-AN-M65 and HVAR models hang on the Wildcat and fly. The
-[handoff](docs/handoff/2026-09-26-o1-ordnance-models.md) records what was
-measured and what is open; master spec §15 holds the status.
-
-**R1 roster pipeline landed 2026-09-26, merged into `main`:** an
-original Blender model now ships through `npm run models:build`, and the
-Hangar draws any Library entry's own model, in the game or not. The first
-is the barrel-roof hangar. The
-[handoff](docs/handoff/2026-09-26-r1-roster-pipeline.md) records what was
-measured; master spec §15 holds the status.
-
-**R2 ship roster landed 2026-09-26, merged into `main`:** every ship in the Library now has a fitted model and a
-sourced `ShipSpec`. That is four licensed models and three original Blender
-models; none is placed in a scenario yet. The
-[handoff](docs/handoff/2026-09-26-r2-ship-models.md) records what was
-measured and what is open; master spec §15 holds the status.
-
-**R3 aircraft roster complete 2026-09-27, merged into `main` the same day:**
-every aircraft in the Library now draws its own model, rigged through one
-generic module: seven licensed downloads and four original Blender models
-(the P-38 fell back to Blender). The Zero flies its own model; no scenario
-changed. The [handoff](docs/handoff/2026-09-27-r3-aircraft-models.md) records
-what was measured and what is open; master spec §15 holds the status.
-
-**R4 and R5 landed 2026-09-28, merged into `main` the same day:** every
-Library building and vehicle now has a model in the Hangar, and nothing in
-the Library is left undrawn; the airfields in the game keep their procedural
-boxes. The [handoff](docs/handoff/2026-09-28-r4-r5-roster.md) records what was
-measured; master spec §15 holds the status.
-
-**Model detail pass DP0 landed 2026-09-28:** Blender
-models can now carry a baked skin (paint, markings, panel lines and scan
-detail), and the Ki-84 and the hangar are the first two to have one. The
-[handoff](docs/handoff/2026-09-28-dp0-skin-pipeline.md) records what was
-measured; master spec §15 holds the status.
-
-**Model detail pass DP2 landed 2026-09-28 and is merged into local `main`:** every
-ship is now skinned, the three Blender ships detailed to the downloads' level,
-and the four print-model downloads box-projected. The
-[handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
-master spec §15 holds the status.
-
-**Model detail pass DP1 landed 2026-09-29 and is merged into local `main`:** the
-Ki-21, P-38 and B-29 are rebuilt to the Ki-84's level of geometry and carry
-baked skins. The [handoff](docs/handoff/2026-09-28-dp1-aircraft.md) records what
-was measured; master spec §15 holds the status.
-
-**Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
-derives proper load from consecutive aircraft states and airspeed from the wind
-frame. Exceeding the F6F content limits continuously damages structure, with
-`OVER-G` and `OVERSPEED` warnings, current and peak DEV diagnostics, and a
-destruction debrief that reaches Restart. Tier 1 is green and the reference-GPU
-flight measured 10.82 g, 220.19 m/s, and a 1.301 ms render-pass p95 at 1440p
-with zero validation errors. Torpedoes are deferred until a second,
-historically appropriate airframe exists; they do not block Plan 7 AI. See the
-[handoff](docs/handoff/2026-09-23-plan6c-structural-overload.md).
-
-**Plan 7a AI landed 2026-09-23**, corrected the same day after its own
-whole-branch review: a pure proportional-derivative flight controller turns a
-desired world velocity into the same `Controls` a human pilot supplies, and a
-pursuit pilot predicts a bounded lead intercept and fires only within a
-short-range gun cone. Every assigned pilot's controls are derived from one
-start-of-tick snapshot before any aircraft steps, so controller cadence is
-the fixed 60 Hz tick and reversing the aircraft array cannot change a
-trajectory. The review found the gun gate and the steering disagreed on where
-the nose was aimed — 1,002 rounds fired over 90 s, zero hits — and a
-dead-astern target could silently command nothing; both are fixed and
-covered by a new hits-not-just-shots test at both tiers.
-`?scenario=pursuit-range` starts the player and one AI-flown F6F airborne
-astern; on the reference GPU it turns onto a gun solution and lands a hit
-within 24.3 s, at 0.860 ms render-pass p95 with zero validation errors. The
-rest of the maneuver library, formation and landing AI remain Plan 7c. See
-the [handoff](docs/handoff/2026-09-23-plan7a-ai-pursuit.md).
-
-**Plan 7b energy-aware maneuvering landed 2026-09-23.** An AI pilot now
-chooses between three maneuvers — Pursue, Extend, Break — rescored on a
-per-skill cadence (`PilotSkill`: reaction delay, gunnery accuracy, energy
-discipline), instead of flying one script forever. A
-`MIN_ENGAGEMENT_RANGE_M` (120 m) override forces a break-off before
-point-blank range, closing the pass-through gap 7a's own review had
-declined to fix. On the reference GPU, `pursuer-1` (now `VETERAN_SKILL`)
-closes under 120 m, never comes closer than 50 m, and opens range
-afterward, at 0.861 ms render-pass p95 with zero validation errors. See the
-[handoff](docs/handoff/2026-09-23-plan7b-combat-depth.md) for the three
-formula bugs the overnight run found and fixed along the way.
-
-**Plan 7d AI pursuit difficulty landed 2026-09-24.** A `green`-skill pursuer
-now steers against a stale snapshot of the target captured at its last
-rescore rather than live ground truth, and applies deterministic,
-skill-scaled jitter (`controlNoise`) to its final roll/pitch/yaw — closing
-the gap Mark's own play found: "I can't ever get behind that pilot," true
-even at the easiest preset. A scripted hard-break-and-reversal now genuinely
-gets behind `pursuer-1` at `green` skill within a bounded window on the
-reference GPU (23.6 s, gpu p95 1.616 ms, player confirmed alive when it
-happens — not a frozen corpse's stale geometry). The final review found the
-acceptance spec's own geometry helper had been exactly inverted (it passed
-when the pursuer had the player in its own gun cone) and fixed it with a new
-Tier 1 unit suite deriving the bearing convention from the app's actual
-heading construction rather than hand-picking it. Re-running Tier 2 broadly
-also surfaced that `ai-maneuver.spec.ts`'s point-blank break-off gate is now
-red — the veteran pursuer kills a passive player before that range is
-reached — left as an open gameplay-balance decision rather than forced
-green. See the
-[handoff](docs/handoff/2026-09-24-plan7d-ai-pursuit-difficulty.md) for both.
-
-**Plan 7c AI safety envelope and maneuver library is complete and merged to `main` (2026-09-26).** Its two merge blockers and the low-target finding were resolved by Mark's decisions of 2026-09-26. AI pilots can no longer overload their own airframe, fly into the sea or over-speed, and an AI Zero no longer cuts its own engine under negative g. A pursuing AI chases a low target down to 50 ft above the ground, and no lower. After a missed head-on pass the pursuer now turns back and fights again, where before it flew away for good. Veterans fly the named maneuvers (yo-yos, lag pursuit, attack run, scissors, split-S, Immelmann; an AI Zero flies no Immelmann), and greens fly only 7b's basic set, so they are easy to beat. The veteran was toned down per Mark's ruling. See the [handoff](docs/handoff/2026-09-26-ai-7c.md); master spec §15 holds the status.
-
-**Plan 7e sides and many-vs-many is complete on branch `worktree-ai-7e` (2026-09-26), not yet merged.** Every aircraft now has a side, allied or axis. By default the player is allied and everyone else axis, so existing scenarios are unchanged. An AI with no fixed target picks one from the other side and switches the moment it dies. It holds fire while a friendly is in the way, and teamkills never score. A new ingress pilot flies a raider's route and fights only what attacks it, for the Combat Air Patrol mission. `furball-range` ("Furball (dev)") puts the player and a wingman against four AI. One open item: AIs rarely hit each other until the AI gunnery-honesty slice lands. See the [handoff](docs/handoff/2026-09-26-plan7e-sides.md); master spec §15 holds the status.
-
-**Plan 7f formation, wingmen and escort is complete on branch `worktree-ai-7f-formation` (2026-09-27), not yet merged.** A wingman holds a finger-four station off a leader through one station-keeping law, splits to cover the leader when a hostile threatens it or the leader is firing, and comes back to station once the threat clears. A wingman whose leader is lost takes on the leader's own route; a wingman whose leader is parked loiters until it actually leaves the ground. `furball-range`'s `ally-1` now flies as the player's wingman. Tier 1 only; Tier 2 waits on the sortie forms landing on `main`. See the [handoff](docs/handoff/2026-09-27-plan7f-formation.md); master spec §15 holds the status and open items.
-
-**Plan 7g landing AI is complete on branch `worktree-ai-7g-landing` (2026-09-28), not yet merged.** An AI with a `home` (a runway airfield or a carrier) goes home when it is out of ammunition, damaged, low on fuel or idle, flies an approach under the LSO's rules, goes around when it must, lands, and is respotted on a park spot. `recovery-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7g-landing.md); master spec §15 holds the status and open items.
-
-**Plan 7h AI takeoff is complete on branch `worktree-ai-7h-takeoff` (2026-09-28), not yet merged.** A parked AI with `pilot.takeoff` rolls, lifts off and hands off to the ordinary AI; Airfield Strike's defenders now scramble off Dulag's runway. `takeoff-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7h-takeoff.md); master spec §15 holds the status and open items.
-
-**Friendly fire and dishonorable discharge are complete and merged to `main` (2026-09-26).** Ships and airfield structures now have a side too. Damage to your own side scores nothing, and any of it forfeits everything since the last landing. A pilot who survives the sortie gets DISHONORABLE DISCHARGE, and the roster marks him DISCHARGED until he is resurrected; one who dies is K.I.A., since the dead cannot be discharged. The first friendly hit plays a radio call on the radio line, and the combat readout keeps a FRIENDLY FIRE tag. `friendly-fire-range` ("Friendly Fire (dev)") is the test bed. See the [handoff](docs/handoff/2026-09-26-friendly-fire.md); master spec §15 holds the status.
-
-**The A6M Zero flies, headless (Z2, 2026-09-25):**
-`content/aircraft/a6m2-zero.json` is graded against the 1942 Navy trial of a
-captured A6M2. Its controls stiffen above 250 mph, its engine cuts out under
-negative g, and it carries two 7.7 mm guns and two 20 mm cannon with their own
-ballistics. It appears in no shipped scenario yet. See the
-[handoff](docs/handoff/2026-09-25-z2-zero-flight-model.md); master spec §15
-holds the status.
-
-**Missions have an engine, headless (M1, 2026-09-25):** a scenario that
-declares objectives now runs them in the sim every tick. There are seven
-objective kinds, triggers that fire once, and held groups that enter
-mid-flight, and only a landing at a named base earns a badge. No shipped
-scenario uses it until M3, and nothing shows it until M2. See the
-[handoff](docs/handoff/2026-09-25-m1-mission-engine.md); master spec §15
-holds the status.
-
-**Missions have a UI (M2, 2026-09-27), on branch `worktree-missions-track`, not yet merged:** mission scenarios get a briefing on the orders memo, an objective line and a radio line in flight, objectives on the navigation chart, and an objectives block with a badge verdict in the debrief; a successful landing records the badge on the pilot. No shipped scenario is a mission until M3. See the [handoff](docs/handoff/2026-09-27-m2-mission-ui.md); master spec §15 holds the status.
-
-**Three missions shipped (M3, 2026-09-27), on the same branch, not yet merged:** Deck Quals ("Carrier Qualification"), Airfield Strike and Convoy Strike each declare real objectives, carry a badge, a briefing and a cited, verified history. The verdict path is proven headless, with staged approaches and injected hits; the intermediate trap and respot are not exercised in the browser (Tier 2 checks the briefing, objective line, radio, chart and debrief). See the [handoff](docs/handoff/2026-09-27-m3-missions.md); master spec §15 holds the status.
-
-**Combat Air Patrol completes the missions sub-track (M4, 2026-09-27), on the same branch, not yet merged:** hold station over the Essex, turn back two inbound Zero waves before they reach the carrier, then recover aboard. Headless tests cover success, breach, accumulated station time and ditching; two reference-GPU runs cover the briefing, live counter, radio, held spawn, chart and debrief. See the [handoff](docs/handoff/2026-09-27-m4-combat-air-patrol.md); master spec §15 holds the status and open items.
-
-**Plan 17 radar landed 2026-09-23.** The cockpit panel's reserved `radar`
-slot now shows a rotating, heading-up sweep with fading contact dots and a
-`Tab`-cycled 15/5/1 mi range — motivated directly by Mark's own
-`pursuit-range` playtest, where he evaded the AI contact and had no way to
-find it again. Tier 1 is green and the reference-GPU spec passed 5
-consecutive runs against the real RX 6700 XT, gpu p95 0.82-1.13 ms (budget
-6.0 ms) with zero validation errors. Task review caught and fixed two real
-defects along the way — a doubled render-target uv-flip in the diagnostic
-readback, and a nearly-unfalsifiable brightness assertion — both covered in
-the [handoff](docs/handoff/2026-09-23-plan17-radar.md), which also has the
-measured figures and the deferred list.
-
-**A title screen landed 2026-09-19**, the first slice of Plan 9: Mark's title
-art with **New game** and **About project**. The world boots behind it and is
-held until New game (Enter also works), which is the click that unlocks audio
-on a first visit. [Handoff](docs/handoff/2026-09-19-title-screen.md).
-
-**The title screen is four sequential memo forms (sortie forms, 2026-09-27)**,
-in the Naval Communications style: Squadron Roster, Sortie Orders (the
-mission), Aircraft Assignment and Ordnance Requisition, with **Launch** on the
-last and Back on each. The player is drawn as the aircraft chosen. A **Dev**
-checkbox on the roster lifts every eligibility rule, and a sortie that needed
-it is not recorded. `?scenario=<id>&launch` (plus optional `aircraft=` and
-`loadout=`) is a quick launch that skips the forms; it is always a Dev sortie.
-The rules are in the
-[sortie forms spec](docs/superpowers/specs/2026-09-27-sortie-forms-design.md);
-`src/render/titleScreen.ts` and `src/sim/sortie.ts` are authoritative; the e2e
-harness's `startGame` walks all four forms and `quickLaunch` skips them.
-
-**The chase camera orbits (2026-09-27).** Left-drag on the view swings it
-around the airplane, the wheel zooms, and a double-click or C → cockpit → C
-returns to the default view. Until you touch the mouse the view is exactly
-the old chase view. The rules are in the
-[orbit camera spec](docs/superpowers/specs/2026-09-27-orbit-camera-design.md)
-and its [handoff](docs/handoff/2026-09-27-orbit-camera.md); master spec §15
-holds the status, with Instant Replay next.
-
-**Instant Replay is complete and merged into main (2026-09-28).** A crash or
-shoot-down holds for three seconds, replays the final moments once, then opens
-the debrief; **Watch replay** runs it again. While paused, K replays the last
-10 seconds. During replay: Space plays/pauses, Left/Right steps, 1/2/3 select
-0.5×/1×/3×, C or 4–9 selects Auto/Orbit/Flyby/Target/Cockpit/Manual, O toggles
-Orbit spin, L locks Manual on the airplane, WASD/Q/E moves Manual, and Esc
-returns or skips. See the [Instant Replay handoff](docs/handoff/2026-09-27-instant-replay.md)
-and [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
-
-The title's **Library** opens the separate Hangar catalog described in
-[GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
-the remaining model-track work are recorded in
-[master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
-`hangar.html?bench` is the articulation test bench (H2, 2026-09-26; see the
-[handoff](docs/handoff/2026-09-26-h2-hangar-bench.md)), and
-[`docs/models.md`](docs/models.md) is the runbook for adding a model.
-
-**Models build from a manifest (Z1, 2026-09-25).** Each shipped glb has one
-entry in `tools/models/entries/*.json`; `npm run models:build` runs it through
-the glTF-Transform stages into `content/aircraft/` or `content/ships/`, and
-`npm run models:inspect -- <file.glb>` prints the node tree, counts and
-source-frame bounds an entry is written against. The Wildcat's entry is
-frozen, so a bare build skips it. The design is
-[A6M Zero spec §6](docs/superpowers/specs/2026-09-25-a6m-zero-design.md#6-the-model-pipeline-the-interface-lane-c-designs-against);
-see the [handoff](docs/handoff/2026-09-25-z1-model-pipeline.md); master spec
-§15 holds the status.
-
-**Original models are authored in Blender (R0, planned as M0, 2026-09-26).** Where no
-cleanly licensed model exists, a script under `tools/models/blender/` builds
-one headlessly and byte-reproducibly; the barrel-roof hangar is the first.
-The roster plan that puts every Library object on screen is the
-[model-roster design](docs/superpowers/specs/2026-09-26-model-roster-design.md);
-see the [handoff](docs/handoff/2026-09-26-m0-blender-kit.md); master spec §15
-holds the status.
-
-**Ships draw licensed models (S1, 2026-09-25).** The three shipped ships
-(`essex-cv`, `fletcher-dd`, `type-b-maru`) are licensed models fitted at
-build time to their `content/ships/*.json`, so the sim stays authoritative
-and Tier 1 fails if a spec moves under a committed glb. A model that fails
-to load draws the procedural boxes and says so in `validationErrors`. See
-the [handoff](docs/handoff/2026-09-25-s1-ship-models.md); master spec §15
-holds the status.
-
-**The rest of Plan 9 (roster, live scoring, dynamic scenario switching)
-landed 2026-09-23/24.** A pilot roster now sits ahead of the scenario/loadout
-pickers (persisted to `localStorage`, not the design doc's original
-IndexedDB — Mark's call, the scale never justified it); landing or crashing
-now produces a real debrief with per-target points, the recovery multiplier
-applied, the banked total, and a promotion notice, instead of every field
-reading zero; picking a different scenario swaps the entity list in place
-with no page reload. This plan's first real reference-GPU run — for the
-scenario-switch feature specifically — found the switch didn't work at all,
-tracked to a temporal-dead-zone bug class in `main.ts`'s title-screen
-callback (a closure created before several bindings it reads were declared,
-across real `await` boundaries) that a silent `ReferenceError` was aborting
-with no visible symptom; fixed across six bindings, the last two found only
-by building a click harness fast enough to beat the race. The same run found
-this plan's own roster gate had broken the shared Tier 2 test harness
-repo-wide (~20 spec files), fixed separately. The final whole-branch review
-then found one more real regression in the same area — returning to title
-after a landing and flying a second sortie silently stopped banking any
-score, because the "New Game" path reset the scoring baseline but not the
-other flight/debrief UI state Restart already reset — fixed and re-verified
-on the real GPU (a banked total going 500 → 1000 across two landings in one
-session). [Handoff](docs/handoff/2026-09-23-plan9-meta-game.md). Open:
-roster export/import has no UI wiring yet (needs a replace-vs-merge design
-decision first); badge content (no scenario declares an objective yet).
-
-**A loading strip and a pilot Dossier landed 2026-09-26.** The title shows
-boot progress and keeps its controls locked until the world is ready, and the
-freeze that made it look unclickable is gone. Each roster row opens a Dossier
-with the pilot's service record and mission log. See the
-[handoff](docs/handoff/2026-09-26-loading-and-dossier.md) for the measured
-figures; master spec §15 (row 9) holds the status.
-
-**The UI-realism plan landed 2026-09-24.** The title screen now has persisted
-Render Quality, Asset Quality and Damage Model settings; the roster, settings
-and debrief use the Naval Communications visual system; and L0/L1 terrain now
-ships as selectable asset quality (L0 through Git LFS). Arcade damage disables
-only G/overspeed structural consequences, not the stress measurement or HUD.
-The reference-GPU acceptance covered every new screen and setting at 1.988 ms
-GPU p95 with zero validation errors. See the
-[handoff](docs/handoff/2026-09-24-plan-ui-realism.md) for measured evidence,
-the Git LFS/CI tradeoff and the deliberately deferred asset-quality work;
-master spec §15 remains the authoritative status table.
-
-**Terrain surface textures landed 2026-09-26.** Five CC0 Poly Haven materials
-(sand, grass, dirt, jungle floor and rock) now add photographed albedo and normal
-detail under the existing land-cover blend. The 2.77 MB KTX2 arrays load before
-terrain creation, preserve the procedural average color, fade with distance and
-turn off entirely at scenery `low`; a failed texture load falls back to the old
-procedural ground. See the
-[plan](docs/superpowers/plans/2026-09-26-terrain-surface-textures.md),
-[handoff](docs/handoff/2026-09-26-terrain-textures.md) and master spec §15.
-
-**Clouds landed 2026-09-19 (Plan 16a):** volumetric cloud layers raymarched
-from two committed noise volumes, declared per scenario in `weather.clouds`
-(`free-flight` has a cumulus deck at 1,500 m and a cirrus sheet at 7,000 m;
-the gunnery range stays clear). They drift with the wind, curve over the
-horizon, fog with the terrain, and going into one is a whiteout with the
-panel intact. The [distant-cloud refinement](docs/handoff/2026-09-19-clouds-distance.md)
-reduces horizon stipple and repeating rows; its cloud-pass cost measured
-1.63 ms at high, 1440p (2026-09-19). See the
-[original handoff](docs/handoff/2026-09-19-plan16a-clouds.md).
-
-**Cloud shadows landed 2026-09-19 (Plan 16b):** one sun-view transmittance
-map rendered each frame from the same cloud field, carried by the sun's
-custom shadow node into every lit material; the terrain and the sea read it
-directly. The pass cost 0.16–0.40 ms at high, 1440p. See the
-[handoff](docs/handoff/2026-09-19-plan16b-cloud-shadows.md); master spec
-§15 holds the status.
-
-**Cloud fidelity II landed 2026-09-25:** a weather map makes cumulus
-separate cells with flat bases and varied tops, carved by packed multiscale
-noise and a curl field; High amortizes its march over several frames to
-fund 128 view steps, against the 60 Hz High budget (the current tier values
-live in `CLOUD_TIERS`, `src/render/scene/clouds.ts`). See the
-[handoff](docs/handoff/2026-09-25-cloud-fidelity-ii.md) for the reference-GPU
-numbers; master spec §15 holds the status.
-
-**Cloud VDB fidelity merged 2026-09-26** (the cloud system's standing
-reference is [docs/clouds.md](docs/clouds.md)): every cumulus is carved from one
-baked procedural cloud (`tools/sky/cumulus.py`), rotated and scaled per
-weather cell, and a layer's `coverage` is again the fraction of sky it
-covers. Flying inside a cloud has its own 4K budget. See the
-[handoff](docs/handoff/2026-09-26-cloud-vdb-fidelity.md); master spec §15
-holds the status.
-
-**The sun moves (Plan 16c, 2026-09-19):** each scenario states an apparent
-solar hour (`weather.timeOfDay`); the sun sits where it would over Leyte on
-1944-10-20, creeps with the sim clock, and the sky, haze, lights, clouds, sea
-and shadows follow its elevation through one keyframed palette. `?timeOfDay=`
-picks any hour in DEV. See the
-[handoff](docs/handoff/2026-09-19-plan16c-sun.md); master spec §15 holds the
-status.
-
-That count was genuinely unsettled until then, and this paragraph said so:
-input assists were inserted into the slot the roadmap had given terrain, and
-three design documents each shifted differently — the renderer design still
-called terrain Plan 3 and the ocean Plan 4, the terrain design called the
-ocean Plan 6, and the assists design reserved Plan 5 for combat. Those encoded
-two different answers to "what comes after terrain" rather than three typos.
-**The table in master spec §15 is now the only authoritative copy**; every
-other document points at it.
+## Flying it
 
 The cockpit has a grey trapezoidal dashboard with a dark rim and raised centre,
 occupying about 30% of screen height,
@@ -475,19 +66,6 @@ for intent, and the code for what is actually built.
 
 What the player sees — scoring and ranks, the aircraft, ship and building
 rosters, the scenarios — is in [`GAMEPLAY.md`](GAMEPLAY.md).
-
-## Ocean: trying Plan 5
-
-Run `npm run dev -- --port 5183` in the ocean worktree. Compare
-`http://localhost:5183/?spawnY=100&beaufort=2&oceanTime=17` with force `6`.
-Remove `oceanTime` to animate. `oceanTier=high`, `medium` or `low` holds a
-quality tier for development comparisons. These URL overrides are absent
-from production builds. Default weather is Beaufort 4.
-
-Three disjoint wave bands use 509/127/31 m periods. High quality runs three
-256² FFTs, medium two 128² FFTs, low one 128² FFT. A one-time warm-up check
-can reduce quality if measured cost exceeds its threshold. Water remains a
-rendering effect: wave forces and water collision are future work.
 
 ## Terrain: what Plan 4 built, and what it did not
 
@@ -542,6 +120,27 @@ so they are not re-reported as bugs:
 The hand-off to Mark — screenshots, the measured GPU frame cost, the LOD
 height-error tables, and the one open question — is
 [`docs/handoff/2026-09-14-plan4-terrain.md`](docs/handoff/2026-09-14-plan4-terrain.md).
+
+## Where docs go
+
+One home per kind of fact. Point at it from elsewhere; never copy it.
+
+| Kind of content | Home |
+| --- | --- |
+| Project status and plan order | Master spec §15, **only**. Never restate it. |
+| Design of a feature or plan | `docs/superpowers/specs/<date>-<name>-design.md` |
+| Executable plan, and dated rulings | `docs/superpowers/plans/` |
+| What a finished plan measured, and what is still open | `docs/handoff/<date>-<plan>.md`, one per plan |
+| Post-mortem with an open fix | `docs/incidents/<date>-<name>.md` |
+| A subsystem's standing reference: what ships, what was tried, traps, open items | `docs/<topic>.md` (`clouds.md`, `models.md`, `aircraft.md`, `drape.md`, `testing.md`); update it in the same commit as the change |
+| How to run tests and the GPU harness | `docs/testing.md` |
+| Agent rules that cannot be derived from the code | this file, briefly |
+| Overview, getting started, and pointers | `README.md` |
+| Gameplay a player sees | `GAMEPLAY.md` |
+
+The README is not a ledger: a landed plan gets a handoff and a §15 row, not a
+paragraph here. The pre-2026-09-29 per-plan entries are frozen in
+[docs/status-log.md](docs/status-log.md).
 
 ## Getting started
 
@@ -631,191 +230,20 @@ regardless.
 
 ## Tier 2: the GPU harness
 
-Checks that need a real GPU and a browser cannot run in `npm run verify` or in
-hosted CI: an adapter guard (confirms the browser is actually using the
-reference GPU, not a software rasterizer), camera sweeps that assert zero
-WebGPU validation errors, and the frame-time budget. Deliberately no
-screenshot goldens — see `tests/e2e/adapter.spec.ts`'s doc comment for why.
-
-WebGPU is exposed only in a secure context, and a plain-HTTP LAN address is
-not one, so the dev server is never simply browsed at `http://<nexus>:5173`.
-Two loops satisfy that; `vite.config.ts` is authoritative for both, and the
-Playwright runner is separate from either — it has to be on a machine with a
-real GPU.
-
-```sh
-# on nexus — real HTTPS, no tunnel (added 2026-09-16)
-npm run dev:lan
-# then open https://ww2airsim.windomlane.org on the Windows desktop
-```
-
-That hostname answers twice over: on the LAN a router record sends it straight
-to nexus with a Let's Encrypt certificate, and from anywhere else it goes out
-through Cloudflare behind an Access login. Plain `npm run dev` binds loopback
-and this hostname then returns 502 — the same 502 as no server at all, which
-is exactly why the `dev:lan` script exists. How it is wired, and what breaks
-it, live in `vps-local/shared/traefik/dynamic/ww2airsim-dev.yml`.
-
-```sh
-# or the original loop — loopback plus an SSH tunnel, because
-# http://localhost IS itself a secure context
-npm run dev                              # on nexus
-ssh -L 5173:localhost:5173 nexus         # on the Windows desktop
-```
-
-**Or drive the whole thing from nexus.** Playwright connects to a server on
-the Windows box rather than being started there, and the desktop's browser
-loads the app over the LAN from the hostname above — so only ONE tunnel is
-needed, for Playwright's control channel:
-
-```sh
-# on nexus: dev server, then the control tunnel (backgrounded)
-npm run dev:lan
-ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
-
-PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
-```
-
-Other sessions may be rendering on the same GPU. For budget numbers you
-mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
-(`serverconfig/scripts/hwlock`); CLAUDE.md's GPU section says when.
-
-Verified 2026-09-16: whole suite green against that URL, adapter guard
-included, so the desktop really was on its own GPU and really did reach nexus
-directly. This replaced a second, reverse tunnel
-(`ssh -N -R 5173:localhost:5173 ryzen`) that existed only to make nexus's
-loopback dev server visible to the desktop; if the LAN path is ever
-unavailable, that reverse tunnel plus plain `npm run dev` is still the
-fallback, with `PW_BASE_URL` left unset. An isolated worktree on another port
-needs `PW_BASE_URL=http://localhost:5183` and the reverse tunnel, since only
-5173 is routed — unless it uses one of the two dedicated slots below, which
-route the same real-HTTPS way `ww2airsim.windomlane.org` does and need no
-reverse tunnel at all.
-
-**Two more slots exist for running a second and third dev server in
-parallel** — e.g. two worktrees each mid-plan, both needing the reference
-GPU at once. `ww2airsim-3.windomlane.org` routes to port 5174,
-`ww2airsim-2.windomlane.org` to port 5175; both are real A records +
-Traefik routes, wired exactly like the main hostname above (LAN goes
-straight to nexus with a cert, off-LAN goes through the Cloudflare tunnel
-and Access). To use one from a worktree: edit that worktree's own
-`vite.config.ts` — change `TUNNEL_HOST` to the slot's hostname and
-`server.port` to match — then run `WW2AIRSIM_TUNNEL=1 npx vite --port 5174`
-(or `5175`) from the worktree. That edit is local scratch, not something to
-commit: `vite.config.ts` on `main` stays pointed at the primary hostname and
-port 5173, and each worktree that wants a slot points its own uncommitted
-copy at it for as long as it needs the GPU. Whichever worktree is using a
-slot should say so if asked, since only one dev server can bind a given port
-at a time; there's no reservation system beyond that. Both routes are
-persistent, reusable infrastructure, not scoped to whichever plan first
-needed them — see `vps-local/shared/traefik/dynamic/ww2airsim-3-dev.yml`
-and `ww2airsim-2-dev.yml` for the full wiring and history. (The 5174 slot
-was originally named `ww2airsim-wt`, renamed to `ww2airsim-3` 2026-09-24
-to match `ww2airsim-2`'s own generic naming.)
-
-The one thing this cannot do for itself: **the `playwright run-server` it
-connects to must already be running in the Windows console session** (started
-there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe`).
-`--unsafe` is not optional: without it the server silently discards the
-`args` this repo's `playwright.config.ts` sends it, so none of the Chromium
-flags in `CHROMIUM_ARGS` apply on the reference platform (measured 2026-09-18
-by reading `chrome://version` through a server started without it).
-**Or with no console login at all: a server in session 0.** SSH on Windows
-lands in session 0, the non-interactive session services use. Chromium there
-gets the real GPU **only headless and only with `--use-angle=d3d11`**; with
-ANGLE's default backend `requestAdapter()` returns null, which is what the
-2026-09-13 note "Chromium over SSH gets no GPU" actually measured. Headed
-launches fail there (no display). `PW_SESSION0=1` makes `playwright.config.ts`
-send exactly that. From nexus, with ryzen awake (`serverconfig/ryzen.md`,
-"Wake-on-LAN"):
-
-```sh
-# the server, in session 0 (reuse it if 3001 already listens; other sessions may be on it)
-ssh ryzen 'if (-not (Get-NetTCPConnection -LocalPort 3001 -State Listen -EA 0)) { cd $env:USERPROFILE\projects; npx playwright run-server --port 3001 --host 127.0.0.1 --unsafe }' &
-ss -ltn | grep -q 39002 || ssh -f -N -L 39002:127.0.0.1:3001 ryzen
-PW_SESSION0=1 PW_REMOTE=ws://localhost:39002/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
-```
-
-The server outlives its SSH connection. Stop it by port, and only when
-`Get-NetTCPConnection -LocalPort 3001 -State Established` shows no one else on
-it: `ssh ryzen 'Stop-Process -Id (Get-NetTCPConnection -LocalPort 3001 -State
-Listen).OwningProcess -Force'`. Close the tunnel by its port too, not with
-`pkill -f`, whose pattern matches your own shell: `kill $(ss -ltnpH 'sport =
-:39002' | grep -oP 'pid=\K[0-9]+')`. `C:\Users\markt\projects` holds Playwright
-1.63.0, the same as this repo; keep them matched.
-
-Verified 2026-09-27: the adapter guard passes ("Reference platform: amd
-rdna-2"), zero console errors, and `adapter.spec.ts` + `terrain.spec.ts`
-passed 10 of 11. **Correctness only, for now:** the one failure was the 1440p
-budget, which got 71 GPU samples in its 5 s window where the console session
-gets about 500. Other sessions were probably rendering on the same GPU at the
-time; that has not been separated from a headless/session-0 pacing effect.
-**Open:** re-run `terrain.spec.ts`'s budget test here with the GPU otherwise
-idle (`hwlock ryzen`) and compare with the console session; until then take no
-frame-time number from session 0.
-
-One-time setup on the Windows desktop (a separate checkout — the test runner
-has to be local to the GPU, the dev server does not):
-
-```sh
-git clone https://github.com/coder999/ww2airsim.git
-cd ww2airsim
-git checkout <branch-or-commit-with-this-work>   # until merged to main
-npm ci
-npx playwright install chromium
-```
-
-Then, with the tunnel open and `npm run dev` running on nexus:
-
-```sh
-npm run test:tier2
-```
-
-Expect every test to pass; the count is deliberately not written down here,
-because it grows with each plan and a stale number reads as a failure. What
-the suite covers is the adapter guard, camera sweeps that assert zero WebGPU
-validation errors, the ocean's GPU-vs-CPU FFT and budget checks, and the
-frame-time budget. If the adapter test fails, read its printed summary before
-anything else — it is almost always telling you the browser fell back to a
-software rasterizer, not that anything else is wrong.
-
-**Flying somewhere specific.** The airplane spawns **parked on the runway at
-Tacloban** and faces north, down the strip from the `tacloban` airfield record
-in `content/bases/`. This paragraph said it spawned over open water 23 km from
-land until 2026-09-17, which had been false since Task 14 moved the spawn
-ashore — the exact doc rot `~/projects/CLAUDE.md`
-warns about, found while deploying.
-
-`?spawnX=&spawnY=&spawnZ=` moves it, and any of the three turns the ground
-spawn OFF — an override means an airborne airplane at 120 m/s heading east
-with its gear up, which is what Tier 2's terrain and ocean specs want and is
-the opposite of what a take-off test wants (`hasSpawnOverride`). The
-parameters exist in DEV only and `tests/build/dist.test.ts` asserts they are
-absent from a production bundle.
-
-`?scenario=deck-quals` starts a different world instead of the default one:
-the player parked on the Essex's flight deck, 110 m aft of its center, with
-the task force making 15 kn into 15 kn of wind. `?beaufort=` overrides the
-sea state the scenario's wind would otherwise choose. Both are DEV-only and
-covered by the same production-bundle assertion.
-
-`?cloudTier=off|high|medium|low` fixes the cloud quality tier or removes the
-pass, for measuring one scene with and without it, and `?cloudDebug=` paints
-one link of the raymarch (`depth`, `layer`, `shape`, `density`, `slab`,
-`point`, `eye`, or `nodepth` to ignore the scene depth) -- the way the first
-GPU run of Plan 16a was diagnosed. Both are DEV-only.
-
-`?scenario=gunnery-range` parks the player on the Tacloban strip 300 m south
-of the runway center with a chocked training Hellcat at the center -- exactly
-the guns' 300 m convergence -- and a second one 500 m ahead, 35 m left. Hold
-Space from the chocks and the readout at the top of the screen counts the
-rounds down and the hits up; `window.__ww2.combat()` reports the same record
-to Tier 2 (`tests/e2e/gunnery.spec.ts`).
+Checks that need a real GPU and a browser (adapter guard, validation-error
+sweeps, the frame-time budget) cannot run in `npm run verify` or hosted CI.
+The tunnels, servers, locks and recipes are in [docs/testing.md](docs/testing.md).
 
 ## Deployment
 
 Live at <https://ww2airsim.com>, a public static site on the OVH
 VPS. `noindex`, because it is unfinished.
+
+Also served at <https://ww2airsim.marktuttle.dev> as of 2026-09-29: the
+apex is blocked on the maintainer's work network until its registration is
+30 days old, and `marktuttle.dev` is not. Both hosts are one Traefik router
+(`vps-infra/sites/ww2airsim/compose.yml`); drop the second `Host()` once the
+apex is confirmed reachable from work. Verified 2026-09-29: both returned 200.
 
 Deploys are **manual**: `gh workflow run deploy.yml --repo coder999/ww2airsim`.
 Pushing `main` releases nothing. The workflow checks out with `lfs: true`
@@ -870,6 +298,31 @@ Two things it happens to demonstrate, both by design rather than by luck:
   *measurements* being trusted off the reference platform, which is a
   developer's problem and not a pilot's. Only `fail` — an actual software
   rasterizer — reaches the screen, through `showFailure`.
+
+### Machines with two GPUs (Intel + NVIDIA)
+
+If the DEV overlay reports the integrated GPU on a two-GPU machine, the code is
+not at fault: `requestAdapter({ powerPreference: 'high-performance' })`
+(`src/render/renderer.ts`) already asks for the discrete GPU, and WebGPU offers
+no way to enumerate or force one. On Windows the browser's GPU process runs on
+whichever GPU Windows assigns it, and that assignment wins over the hint.
+
+Fix, no admin needed (verified 2026-09-29 on Mark's work desktop, Intel iGPU +
+RTX 3060): Settings -> System -> Display -> Graphics, add `chrome.exe` (or
+`msedge.exe`), Options -> High performance, then fully quit and relaunch the
+browser. To diagnose, run this in DevTools and check the vendor of each result
+(Chrome reports coarse `info`, so the 3060 shows as `nvidia` / `ampere`, with
+empty `device` and `description`):
+
+```js
+for (const p of [undefined, 'low-power', 'high-performance']) {
+  const i = (await navigator.gpu.requestAdapter(p ? { powerPreference: p } : {}))?.info
+  console.log(p ?? 'default', i && { vendor: i.vendor, arch: i.architecture })
+}
+```
+
+If every result is Intel, Chrome cannot see the discrete GPU at all; check
+`chrome://gpu`.
 
 ## Architecture in one line
 

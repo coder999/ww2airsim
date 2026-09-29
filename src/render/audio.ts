@@ -1,4 +1,5 @@
 import type { AudioInputs } from '../audio/cues.js'
+import { engineFamilyFor } from '../audio/mix.js'
 import { onGround } from '../sim/ground.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
 import { sub } from '../sim/math/vec3.js'
@@ -30,7 +31,8 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
   // `heightAt`/`surfaceAt` directly until 2026-09-19, so an airplane chocked
   // on a flight deck before the heightfield arrived reported `onGround: null`
   // -- "no terrain yet" -- and a trap on a deck could never squeak.
-  const ground = groundUnder(terrain, decksOf(ships), aircraft.position.x, aircraft.position.z)
+  const decks = decksOf(ships)
+  const ground = groundUnder(terrain, decks, aircraft.position.x, aircraft.position.z)
   return {
     // `frame.controls` is the identical object the player entity's `controls`
     // holds, so this is the throttle the simulation actually ran, not a copy
@@ -67,5 +69,15 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     // count that only ever rises, exactly like `shots` above.
     bombsDropped: frame.world.combat.aircraft[frame.world.player]?.bombsDropped ?? 0,
     rocketsFired: frame.world.combat.aircraft[frame.world.player]?.rocketsFired ?? 0,
+    engineFamily: engineFamilyFor(spec.id),
+    // Whole (1) for a hand-built world with no combat record, same fail-quiet posture as the counts above.
+    structure: frame.world.combat.aircraft[frame.world.player]?.damage.structure ?? 1,
+    engineHealth: frame.world.combat.aircraft[frame.world.player]?.damage.engine ?? 1,
+    arrested: aircraft.arrested,
+    hookDown: frame.controls.hookDown === true,
+    // Centre distance less half the deck length: a cue for "near a carrier", not a rectangle test.
+    deckDistanceM: decks.length === 0
+      ? null
+      : Math.max(0, Math.min(...decks.map((d) => Math.hypot(aircraft.position.x - d.center.x, aircraft.position.z - d.center.z) - d.lengthM / 2))),
   }
 }

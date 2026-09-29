@@ -1,16 +1,36 @@
 {
   "id": "b-17-flying-fortress",
-  "name": "Boeing B-17 Flying Fortress",
+  "name": "Boeing B-17G Flying Fortress",
+  "rosterName": "Boeing B-17 Flying Fortress",
   "kind": "aircraft",
   "side": "allied",
-  "model": { "kind": "aircraft", "id": "b-17-flying-fortress" },
-  "blurb": "A four-engine heavy bomber, planned as the subject of escort missions.",
-  "history": "The Boeing B-17 Flying Fortress was a four-engined heavy bomber developed in the mid-1930s for the U.S. Army Air Corps: fast, high-flying and long-ranged, with heavy defensive armament at the expense of bomb load. It gained a reputation for bringing badly damaged crews home.\n\nThe B-17 saw early action in the Pacific War, raiding Japanese shipping and airfields, but it was used mainly in the daylight strategic bombing of Europe, where it dropped over 640,000 tons of the Allies' roughly 1.5 million. It dropped more bombs than any other aircraft of the war.",
+  "spec": "b-17-flying-fortress",
+  "model": {
+    "kind": "aircraft",
+    "id": "b-17-flying-fortress"
+  },
+  "blurb": "A four-engine heavy bomber with retractable gear and eight 1,000 lb bombs carried inside the hull. Its speed and climb come from the Army's flown B-17G trial; a failed engine, the bomb-bay doors and the defensive guns are not modeled.",
+  "history": "The Boeing B-17 Flying Fortress was a four-engined heavy bomber developed in the mid-1930s for the U.S. Army Air Corps: fast, high-flying and long-ranged, with heavy defensive armament at the expense of bomb load. It gained a reputation for bringing badly damaged crews home.\n\nThe B-17 saw early action in the Pacific War, raiding Japanese shipping and airfields, but it was used mainly in the daylight strategic bombing of Europe, where it dropped over 640,000 tons of the Allies' roughly 1.5 million. It dropped more bombs than any other aircraft of the war.\n\nIn this game the B-17G flies to the Army Air Forces' 1945 flight test of a combat-loaded B-17G: about 277 mph at 25,000 feet and 720 feet a minute at sea level, at 57,650 pounds. The four engines are modeled as one engine with their summed power, and all four propellers turn; if one fails the game does not notice. The eight bombs drop straight through the belly with no bay doors. There are no turrets and no defensive guns, and its stall speeds are scaled from a B-17F trial, since the B-17G report's stall tests were cancelled.",
   "sources": [
     {
       "title": "Boeing B-17 Flying Fortress",
       "url": "https://en.wikipedia.org/wiki/Boeing_B-17_Flying_Fortress",
       "read": "2026-09-25"
+    },
+    {
+      "title": "B-17G 43-37746 flight test, TSCEP5E-1909 (Air Technical Service Command, 20 Jun 1945)",
+      "url": "https://www.wwiiaircraftperformance.org/B-17/B-17G_43-37746_TSCEP5E-1909.pdf",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "B-17F 41-24340 flight test, FS-M-19-1470-A (Wright Field)",
+      "url": "https://www.wwiiaircraftperformance.org/B-17/B-17F_41-24340_FS-M-19-1470-A.pdf",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "B-17G Standard Aircraft Characteristics (27 Apr 1949)",
+      "url": "https://www.wwiiaircraftperformance.org/B-17/",
+      "read": "2026-09-29"
     }
   ]
 }
