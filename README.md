@@ -119,6 +119,27 @@ The hand-off to Mark — screenshots, the measured GPU frame cost, the LOD
 height-error tables, and the one open question — is
 [`docs/handoff/2026-09-14-plan4-terrain.md`](docs/handoff/2026-09-14-plan4-terrain.md).
 
+## Where docs go
+
+One home per kind of fact. Point at it from elsewhere; never copy it.
+
+| Kind of content | Home |
+| --- | --- |
+| Project status and plan order | Master spec §15, **only**. Never restate it. |
+| Design of a feature or plan | `docs/superpowers/specs/<date>-<name>-design.md` |
+| Executable plan, and dated rulings | `docs/superpowers/plans/` |
+| What a finished plan measured, and what is still open | `docs/handoff/<date>-<plan>.md`, one per plan |
+| Post-mortem with an open fix | `docs/incidents/<date>-<name>.md` |
+| A subsystem's standing reference: what ships, what was tried, traps, open items | `docs/<topic>.md` (`clouds.md`, `models.md`, `aircraft.md`, `drape.md`, `testing.md`); update it in the same commit as the change |
+| How to run tests and the GPU harness | `docs/testing.md` |
+| Agent rules that cannot be derived from the code | this file, briefly |
+| Overview, getting started, and pointers | `README.md` |
+| Gameplay a player sees | `GAMEPLAY.md` |
+
+The README is not a ledger: a landed plan gets a handoff and a §15 row, not a
+paragraph here. The pre-2026-09-29 per-plan entries are frozen in
+[docs/status-log.md](docs/status-log.md).
+
 ## Getting started
 
 Node 22, npm, and **Git LFS** (`git-lfs`) — the last one is new as of Task 2
