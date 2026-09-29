@@ -470,6 +470,12 @@ const GROUND_PITCH_SETTLE_PER_S = 1.5
 const GROUND_PITCH_RAISE_PER_S = 1.0
 const GROUND_PITCH_CORRECTION_MAX_RAD_PER_S = 15 * GROUND_DEG
 const TRICYCLE_ROTATION_LIMIT_RAD = 12 * GROUND_DEG
+/** A taildragger may rotate on its mains to at least this nose-up pitch, even
+ *  when its derived rest attitude is lower. Ruling, T1 fix round 1
+ *  (2026-09-28): the Zero's drawn model sits level, so its rest pitch is
+ *  -0.118 deg, and a ceiling of `rest` alone pinned it level on the wheels --
+ *  measured, 100 m/s after 50 s at full throttle and never airborne. */
+const TAILDRAGGER_MIN_ROTATION_RAD = 6 * GROUND_DEG
 
 const unit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0)
 const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(-1, n)) : 0)
@@ -510,8 +516,9 @@ const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math
  *   stick itself, `lift * stick * maxPitchRate`: pulled, it rotates on the
  *   mains; pushed, it lowers the nose. The sum is then bounded so the pitch
  *   stays between `min(rest, 0)` (never nose-down past level on a
- *   taildragger) and `rest` (a taildragger's tail strike) or `rest + 12
- *   degrees` (a tricycle's), and a correction back inside those bounds is
+ *   taildragger) and `max(rest, 6 degrees)` (a taildragger's tail strike, or
+ *   6 degrees for one whose rest attitude is lower, so it can still rotate)
+ *   or `rest + 12 degrees` (a tricycle's), and a correction back inside those bounds is
  *   limited to 15 deg/s so a touchdown above the ceiling settles instead of
  *   snapping in one tick. Compared against GROUND speed -- the horizontal
  *   velocity relative to the surface -- because the wheels roll over the
@@ -584,19 +591,24 @@ export function groundBodyRates(
 
   const rest = restPitchRad(gear)
   const floor = Math.min(rest, 0)
-  const ceiling = gear.layout === 'tricycle' ? rest + TRICYCLE_ROTATION_LIMIT_RAD : rest
+  const ceiling = gear.layout === 'tricycle'
+    ? rest + TRICYCLE_ROTATION_LIMIT_RAD
+    : Math.max(rest, TAILDRAGGER_MIN_ROTATION_RAD)
   const pitch = attitudeAngles(state).pitchRad
 
   const settle = (1 - lift) * GROUND_PITCH_SETTLE_PER_S * (rest - pitch)
   const raise = pitch > 0 ? -lift * (1 - pull) * GROUND_PITCH_RAISE_PER_S * pitch : 0
   const rotate = lift * pitchInput * spec.rates.maxPitchRateDegPerSec * GROUND_DEG
-  let pitchRate = settle + raise + rotate
+  // A broken attitude has no pitch to steer from: command no ground pitch at
+  // all (the safe, tail-down-holding answer) rather than hand a NaN on to the
+  // integrator.
+  let pitchRate = Number.isFinite(pitch) ? settle + raise + rotate : 0
 
   // The bounds are on where this step ENDS, so they need a real step; with no
   // step to take there is no attitude to protect, and dividing by it would
   // hand back an infinite rate.
   const max = GROUND_PITCH_CORRECTION_MAX_RAD_PER_S
-  if (Number.isFinite(dt) && dt > 0) {
+  if (Number.isFinite(dt) && dt > 0 && Number.isFinite(pitch)) {
     if (pitch + pitchRate * dt > ceiling) pitchRate = Math.max(-max, (ceiling - pitch) / dt)
     if (pitch + pitchRate * dt < floor) pitchRate = Math.min(max, (floor - pitch) / dt)
   }

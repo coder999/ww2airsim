@@ -589,6 +589,7 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
       f = nextFrameState(f, 1 / 60, keys('Equal', 'ArrowDown'))
       expect(playerAircraft(f.world).impact, `impact recorded while rotating, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
     }
+    expect(wheelsClearM(), 'never lifted off within the rotation cap').toBeGreaterThan(GROUND_CONTACT_TOLERANCE_M)
 
     // Phase 3: confirm genuine separation from the runway -- height above
     // the real ground clears contact tolerance and STAYS clear for a

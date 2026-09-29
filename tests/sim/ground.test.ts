@@ -442,8 +442,53 @@ describe('ground pitch (T1)', () => {
     expect(Number.isFinite(noStick)).toBe(true)
   })
 
+  it('commands no ground pitch, not NaN, for a non-finite attitude', () => {
+    const broken = { ...atPitch(rest, 20), attitude: { x: Number.NaN, y: 0, z: 0, w: 1 } }
+    expect(groundBodyRates(f6f, broken, { ...neutral, pitch: 1 }, v3(0, 0, 0), DT).z).toBe(0)
+  })
+
   it('roll stays exactly zero', () => {
     expect(groundBodyRates(f6f, atPitch(0, 20), { ...neutral, roll: 1 }, v3(1.2, 0.4, 0.8), DT).x).toBe(0)
+  })
+})
+
+describe('ground pitch: a taildragger whose rest attitude is about level (T1 fix round 1)', () => {
+  // The Zero's drawn model sits level, so its derived rest pitch is -0.118
+  // deg. Ruling 2026-09-28: a taildragger may still rotate to 6 degrees.
+  const zero = loadAircraftSpec('a6m2-zero')
+  const zeroRest = restPitchRad(zero.gear)
+  const zeroAt = (pitchRad: number, speed: number) =>
+    createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitchRad), gearFraction: 1 })
+
+  it('has the rest pitch the ruling was taken on', () => {
+    expect((zeroRest * 180) / Math.PI).toBeCloseTo(-0.118, 3)
+  })
+
+  it('rotates nose-up under full stick at speed, up to 6 degrees and no further', () => {
+    const at = (p: number) => groundBodyRates(zero, zeroAt(p, zero.gear.tailLiftSpeedMps * 1.5), { ...neutral, pitch: 1 }, v3(0, 0, 0), DT).z
+    expect(at(zeroRest)).toBeGreaterThan(0)
+    const six = (6 * Math.PI) / 180
+    expect(six - 0.001 + at(six - 0.001) * DT).toBeLessThanOrEqual(six + 1e-9)
+  })
+
+  it('still settles tail-down at low speed on idle', () => {
+    expect(groundBodyRates(zero, zeroAt((3 * Math.PI) / 180, 2), { ...neutral, throttle: 0 }, v3(0, 0, 0), DT).z).toBeLessThan(0)
+  })
+
+  it('lifts off under full throttle and a held pull', () => {
+    const header = parseTerrainHeader({
+      centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
+      finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
+    })
+    const field = createTerrainField(header, 12, new Int16Array(9).fill(10))
+    let s = createState({ position: v3(0, 1 + wheelDepthM(zero.gear, zeroRest), 0), attitude: qFromAxisAngle(v3(0, 0, 1), zeroRest), fuelKg: 300, gearFraction: 1 })
+    let airborne = false
+    for (let tick = 1; tick <= 60 * 40 && !airborne; tick++) {
+      const pitch = length(s.velocity) > 35 ? 1 : 0
+      s = step(zero, s, { pitch, roll: 0, yaw: 0, throttle: 1 }, { dt: DT, tick, terrain: field })
+      airborne = s.position.y - wheelDepthOf(zero, s) - 1 > 2
+    }
+    expect(airborne, 'the Zero left the ground within 40 s').toBe(true)
   })
 })
 

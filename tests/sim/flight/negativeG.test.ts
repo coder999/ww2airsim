@@ -83,7 +83,8 @@ describe('engine.negativeGCutout (A6M spec §4.4, the float carburetor)', () => 
     // half pull. With the bug the dead engine decelerated the Zero through
     // the hesitation (measured 20.9 -> 19.5 m/s), and a longer one (about
     // 22 s) let it fall below the old tail-up speed gate, where the pull did
-    // nothing. Since T1 (2026-09-28) the ground pitch floor, level, also keeps
+    // nothing. Since T1 (2026-09-28) the ground pitch floor, min(rest, 0) --
+    // the Zero's rest pitch, -0.118 deg, since it sits level -- also keeps
     // the push from reaching the zero-lift attitude on the wheels; the
     // on-the-wheels exemption above is what this still pins.
     let pushTicks = 0
