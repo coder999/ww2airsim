@@ -24,7 +24,7 @@ wait for T1.
 | D2 | Side | allied | default, not asked | 2026-09-28 |
 | D3 | Carrier eligible | `carrierCapable: true`; Tier 2 carrier take-off and trap run required | Mark | 2026-09-28 |
 | D4 | Model source | the committed `content/aircraft/f4u-corsair.glb` (Sketchfab, manilov.ap, CC BY 4.0, already in `ASSETS.md`) | default, not asked | 2026-09-28 |
-| D5 | Gear | **pending T1 merge**; taildragger (F4U-1D) | Mark (sequencing) | 2026-09-28 |
+| D5 | Gear | taildragger (F4U-1D); T1 merged 2026-09-29 (6b7e937), so the gear block is unblocked | Mark (sequencing) | 2026-09-28 |
 | D6 | Engines | single R-2800; not applicable | default | 2026-09-28 |
 | D7 | Payload | racks and rails: bomb stations plus HVAR rockets | Mark | 2026-09-28 |
 | D8 | Stores | existing `an-m65` and `hvar` | Mark | 2026-09-28 |
