@@ -1,16 +1,36 @@
 {
   "id": "g4m-betty",
-  "name": "Mitsubishi G4M Betty",
+  "name": "Mitsubishi G4M1 Model 11 Betty",
+  "rosterName": "Mitsubishi G4M Betty",
   "kind": "aircraft",
   "side": "japanese",
-  "model": { "kind": "aircraft", "id": "g4m-betty" },
-  "blurb": "A twin-engine land-based bomber with defensive gunners, planned as a hostile type.",
-  "history": "The Mitsubishi G4M, the Navy Type 1 attack bomber, was the Imperial Japanese Navy's primary land-based bomber from 1941, reported by the Allies as \"Betty\". It had excellent range, bought with a flimsy structure and, in early versions, no armor or self-sealing fuel tanks; its own crews called it the \"cigar\", and Allied fighter pilots called it \"the Flying Lighter\".\n\nIt was the most widely produced Japanese bomber of the war and served in nearly every battle of the Pacific War. G4Ms and G3Ms sank HMS Prince of Wales and HMS Repulse in 1941, and later sank the heavy cruiser USS Chicago at Rennell Island.",
+  "spec": "g4m-betty",
+  "model": {
+    "kind": "aircraft",
+    "id": "g4m-betty"
+  },
+  "blurb": "A twin-engine land-based bomber with retractable gear, a fixed tailwheel and two 1,000 lb bombs carried inside the hull. Its speed and climb come from secondary figures, since no flight test of the G4M1 was found; engine failure, the bomb-bay doors and the defensive guns are not modeled.",
+  "history": "The Mitsubishi G4M, the Navy Type 1 attack bomber, was the Imperial Japanese Navy's primary land-based bomber from 1941, reported by the Allies as \"Betty\". It had excellent range, bought with a flimsy structure and, in early versions, no armor or self-sealing fuel tanks; its own crews called it the \"cigar\", and Allied fighter pilots called it \"the Flying Lighter\".\n\nIt was the most widely produced Japanese bomber of the war and served in nearly every battle of the Pacific War. G4Ms and G3Ms sank HMS Prince of Wales and HMS Repulse in 1941, and later sank the heavy cruiser USS Chicago at Rennell Island.\n\nIn this game the G4M1 Model 11 flies to a top speed of about 266 mph at 13,780 feet and a climb of about 1,800 feet a minute, both from published compilations with no stated test weight (the sources disagree on the climb, giving 1,260 feet a minute in one). The two Kasei engines are modeled as one engine with their summed power, and both propellers turn; if one fails the game does not notice. Two 1,000 lb bombs, standing in for the Betty's single 1,764 lb bomb or torpedo, drop straight through the belly with no bay doors. There are no turrets and no defensive guns, and its clean stall speed is an estimate, not a published figure.",
   "sources": [
     {
       "title": "Mitsubishi G4M",
       "url": "https://en.wikipedia.org/wiki/Mitsubishi_G4M",
       "read": "2026-09-25"
+    },
+    {
+      "title": "Japanese Aircraft Performance and Characteristics, TAIC Manual No. 1 (Technical Air Intelligence Center, Dec 1944), Kasei 11 engine page",
+      "url": "https://archive.org/details/japanese-aircraft-performance-characteristics-taic-manual",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "一式陸上攻撃機 (Japanese Wikipedia)",
+      "url": "https://ja.wikipedia.org/wiki/一式陸上攻撃機",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "Mitsubishi G4M Betty (Pacific War Online Encyclopedia)",
+      "url": "http://pwencycl.kgbudge.com/G/4/G4M_Betty.htm",
+      "read": "2026-09-29"
     }
   ]
 }

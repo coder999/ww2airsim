@@ -232,6 +232,15 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // stays 1.4, R36); roll 20.0 vs its own estimate. Take-off distance is not graded (the reference is a W^2 scaling of one flown roll);
   // the card runs the direction check only. Tolerances are about 1.4x to 1.5x each measurement, all inside the F6F's.
   'b-17-flying-fortress': { topSpeed: 0.07, topSpeedTable: 0.07, climb: 0.09, climbTable: 0.1, stall: 0.11, flapStall: 0.11, roll: 0.02, takeoff: { tol: 0.1, liftoffMps: 108 * MPH, flapFraction: 1 / 3 } },
+  // G4M1 Model 11 onboarding, measured 2026-09-29 at testMassKg 9,500 kg against SECONDARY figures (no G4M1 flight test exists;
+  // docs/handoff/2026-09-29-g4m-onboard.md): top speed 117.37 vs 118.9 m/s (-1.28%) at 13,780 ft, the only speed point; climb
+  // 9.147 vs 9.17 m/s (-0.25%) at sea level (the other published figure, 6.4 m/s, would read +43%); stalls 37.22 clean (-0.23%)
+  // and 33.19 flaps (-0.33%) against an ESTIMATE from clMax 1.4 and a weakly sourced infobox figure, so the stall cards grade the
+  // model against a number derived from itself (the infobox figure read as a clean stall would be 11.7% under the model's). cd0
+  // and propEfficiency are fitted to two figures with two unknowns, which proves nothing about either. Roll 35.0 vs its own
+  // estimate. No take-off distance is sourced: the card runs the flap-direction check only, at an ESTIMATED 45 m/s lift-off.
+  // Tolerances are about 1.5x to 2x each measurement.
+  'g4m-betty': { topSpeed: 0.02, climb: 0.01, stall: 0.01, flapStall: 0.01, roll: 0.02, takeoff: { tol: 0.1, liftoffMps: 45, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

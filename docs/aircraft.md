@@ -384,6 +384,24 @@ Detail: [`docs/handoff/2026-09-29-b-17.md`](handoff/2026-09-29-b-17.md).
 - **Gear cycle tests assume a travel time.** `hangar.spec.ts` "Cycle" ticks a fixed
   duration; a slow gear (B-17: 12 s) needs the tick count raised.
 
+## Lessons from the third run (G4M1 Betty, 2026-09-29)
+
+Detail: [`docs/handoff/2026-09-29-g4m-onboard.md`](handoff/2026-09-29-g4m-onboard.md).
+
+- **A type with no flight test still onboards, but say so in the spec source.** The G4M1 has
+  one speed point and one climb figure, both secondary, and no clean stall at all. The fit
+  is then two unknowns to two figures and proves nothing; the stall cards grade the model
+  against an estimate derived from its own `clMax`, and `flap.clIncrement` derived from that
+  estimate is circular. Disclose each; do not read a green card as validation.
+- **`powerFractionByAltitudeM` entries must be in (0, 1].** Take the peak (take-off) rating
+  as `maxPowerW` and express a lower continuous rating as fractions of it; do not put the
+  continuous rating in `maxPowerW` and let altitude power exceed 1.
+- **On a twin, pick the wing-section station clear of the nacelles.** `centerPoint.test.ts` needs a `STATION` (0.2 for the G4M) as well as a `MIN_X` entry.
+- **`eyePoints.test.ts` takes the canopy material name** (`g4m_dark` for the G4M).
+- **Check a red test against the base before owning it.** The Zero ground pair and soak are known red; boundary and skyLoad fail only on ryzen.
+- **When no bomb store fits the historic load, match mass, not count.** The Betty's single
+  800 kg bomb became two `an-m65` (907 kg) in tandem; the source says so.
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

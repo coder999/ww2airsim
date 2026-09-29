@@ -1,12 +1,12 @@
-// The B-17's bomb racks are inside the hull (B-17G onboarding, D7 to D9, 2026-09-29): no rack is drawn on the outside, so
+// The B-17's and the G4M's bomb racks are inside the hull (B-17G onboarding, D7 to D9; G4M1 onboarding, D7, 2026-09-29): no rack is drawn on the outside, so
 // every store hangs entirely inside the fuselage skin and nothing pokes out of the belly. The wing-mount fit
 // (wildcatMounts.test.ts) does not apply to them, so this holds their offsets to the drawn hull instead.
 import { describe, expect, it } from 'vitest'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { sectionAtFor, STORE_MESHES } from '../../../tools/models/mounts.js'
 
-const spec = loadAircraftSpec('b-17-flying-fortress')
-const at = await sectionAtFor(spec.view.model, -20)
+const specs = ['b-17-flying-fortress', 'g4m-betty'].map((id) => loadAircraftSpec(id))
+const sections = new Map(await Promise.all(specs.map(async (s) => [s.id, await sectionAtFor(s.view.model, -20)] as const)))
 const bounds = (store: string) => {
   const m = STORE_MESHES[store]!() as unknown as { positions: ArrayLike<number> }
   const lo = [Infinity, Infinity, Infinity]
@@ -18,7 +18,8 @@ const bounds = (store: string) => {
   return { lo, hi }
 }
 
-describe('the B-17 bomb racks are inside its drawn hull', () => {
+describe.each(specs.map((s) => [s.id, s] as const))('%s bomb racks are inside its drawn hull', (_sid, spec) => {
+  const at = sections.get(spec.id)!
   it.each(spec.stores!.racks.map((r) => [r.id, r] as const))('%s: the whole store is above the belly and below the crown', (_id, rack) => {
     const b = bounds(rack.store)
     const [ox, oy, oz] = rack.offset

@@ -14,7 +14,7 @@ const withStores = readdirSync('content/aircraft').filter((f) => f.endsWith('.js
   .filter((s) => s.stores !== undefined)
 /** Racks inside the hull, not hung from a wing: nothing here to fit (B-17G onboarding, D7 to D9, 2026-09-29). Their
  *  offsets are checked against the drawn hull by tests/tools/models/internalBay.test.ts. */
-const INTERNAL = new Set(['b-17-flying-fortress'])
+const INTERNAL = new Set(['b-17-flying-fortress', 'g4m-betty'])
 const wingMounted = withStores.filter((s) => !INTERNAL.has(s.id))
 const sections = new Map(await Promise.all([...new Set(wingMounted.map((s) => s.view.model))].map(async (m) => [m, await sectionAtFor(m)] as const)))
 
@@ -43,8 +43,8 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat']])
   })
 
-  it('the only stores-carrying spec left out is the B-17, whose racks are internal', () => {
-    expect(withStores.filter((s) => INTERNAL.has(s.id)).map((s) => s.id)).toEqual(['b-17-flying-fortress'])
+  it('the only stores-carrying specs left out are the B-17 and the G4M, whose racks are internal', () => {
+    expect(withStores.filter((s) => INTERNAL.has(s.id)).map((s) => s.id)).toEqual(['b-17-flying-fortress', 'g4m-betty'])
   })
 
   it('rejects a model with no glb by name', async () => {

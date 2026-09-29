@@ -25,8 +25,8 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   })
   it('a carrier start offers the Hellcat, Wildcat and Corsair; Dev adds the Zero', () => {
     expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
-    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
-    // Dev lists every spec, so the land-based B-17 (carrierCapable false) shows here and only here.
+    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty'])
+    // Dev lists every spec, so the land-based B-17 and G4M (carrierCapable false) show here and only here.
   })
   it('a mission starts on its own aircraft and recommended loadout', () => {
     expect(initialDraft(ctx(false), 'combat-air-patrol')).toEqual({ scenarioId: 'combat-air-patrol', aircraftSpec: 'f6f-hellcat', loadout: 'clean' })
