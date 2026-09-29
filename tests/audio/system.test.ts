@@ -5,7 +5,7 @@ import type { AudioInputs } from '../../src/audio/cues.js'
 import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '../../src/audio/mix.js'
 
 const flying: AudioInputs = {
-  throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 10, shots: 0,
+  throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 0, tick: 10, shots: 0,
   bombsDropped: 0, rocketsFired: 0,
 }
 

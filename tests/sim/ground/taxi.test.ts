@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DT, type Controls } from '../../../src/sim/flight/model.js'
 import { attitudeAngles } from '../../../src/sim/flight/attitude.js'
-import { headingDeg, speedOf, taxi } from './run.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
+import { headingDeg, run, speedOf, taxi } from './run.js'
 
 describe('Hellcat taxi under power with full rudder (the 2026-09-17 failure)', () => {
   const controls: Controls = { pitch: 0, roll: 0, yaw: 1, throttle: 0.6, gearDown: true }
@@ -33,8 +34,17 @@ describe('take-off roll with the stick neutral', () => {
     expect(last).toBeLessThan(rest * 0.25)
   })
 
-  it('swings a bounded amount at full power with no correction (torque), not a ground loop', () => {
-    expect(Math.abs(headingDeg(end))).toBeGreaterThan(0.5)
-    expect(Math.abs(headingDeg(end))).toBeLessThan(30)
+  it('tracks straight at full power with no correction: shipped torque is 0 (Mark, 2026-09-28)', () => {
+    expect(loadAircraftSpec('f6f-hellcat').gear.torqueYawRateDegPerSec).toBe(0)
+    expect(Math.abs(headingDeg(end))).toBeLessThan(0.5)
+  })
+
+  it('swings a bounded amount with the torque term on (a spec copy), not a ground loop', () => {
+    const f6f = loadAircraftSpec('f6f-hellcat')
+    const torqued = { ...f6f, gear: { ...f6f.gear, torqueYawRateDegPerSec: -3 } }
+    const { trace: swung } = run(torqued, { pitch: 0, roll: 0, yaw: 0, throttle: 1, gearDown: true }, 14)
+    const swing = Math.abs(headingDeg(swung[swung.length - 1]!))
+    expect(swing).toBeGreaterThan(0.5)
+    expect(swing).toBeLessThan(30)
   })
 })

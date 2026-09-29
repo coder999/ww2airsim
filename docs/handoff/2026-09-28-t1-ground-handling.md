@@ -192,3 +192,24 @@ and A/D steer (ArrowRight turns the nose right) and combine with Z/X, and roll
 still never banks the airplane on the wheels. In the air, on gear-up belly and
 on water, roll is aileron as before. The text above is the record of what was
 built first.
+
+**Amendment, 2026-09-28 (Mark's rulings after flying the F6F, arcade feel over
+realism):**
+
+- **Engine torque is 0** in all three aircraft JSONs
+  (`gear.torqueYawRateDegPerSec`). The hands-off take-off roll used to swing
+  about 10 degrees left; it now tracks straight. The schema field and the
+  model term stay for a future aircraft. The F6F card is unchanged.
+- **Hop hysteresis.** `onGround` reads false while the airplane climbs faster
+  than `SEPARATION_MPS` (0.5 m/s) relative to the surface, so a full-pull
+  take-off leaves the contact band once instead of re-entering it 9-10 times.
+  The ground regime, rolling resistance and the seat follow it.
+- **Touchdown squeak** needs an airborne latch (more than 1 m of wheel height
+  for 0.5 s) and a sink rate of at least 0.3 m/s just before contact, and the
+  first contact spends the latch. A take-off, a hop or rolling chatter is
+  silent. The sim has no per-wheel contact event, so tail-wheel contact is not
+  separately detected.
+- **Still open, not changed:** the taildragger ground pitch ceiling
+  `max(rest, 6 deg)` (9.45 degrees for the F6F) forces about 56 m/s (126 mph)
+  clean liftoff. Mark has not decided; `groundBodyRates`' ceiling and
+  `GROUND_YAW_FADE_MULTIPLE` are untouched.

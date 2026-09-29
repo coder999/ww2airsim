@@ -86,6 +86,22 @@ export function rollingResistanceN(
 export const GROUND_CONTACT_TOLERANCE_M = 0.25
 
 /**
+ * Climb rate relative to the surface above which the airplane counts as
+ * SEPARATING from it, m/s (ESTIMATE, T1 2026-09-28; ungraded -- a hysteresis
+ * margin, not a performance figure).
+ *
+ * `onGround` reads false above this, and every ground consumer (the ground
+ * control regime, rolling resistance, `supportedContact`) follows it. The
+ * 0.25 m band alone flipped true/false every few ticks on a full-pull take-off:
+ * a supported tick's ground pitch rate moved wheel depth so the contact point
+ * left the band, and the free-air pitch-up that followed dropped it back in
+ * (measured 2026-09-28, 9-10 re-contacts per run). Judged relative to the
+ * surface, so a moving deck reads the same. A real bounce is unaffected: a
+ * descent back onto the surface is below this margin.
+ */
+export const SEPARATION_MPS = 0.5
+
+/**
  * Whether the airplane is resting on the surface beneath it.
  *
  * Derived, never stored: five consumers read this, and a stored flag is one
@@ -108,8 +124,20 @@ export const GROUND_CONTACT_TOLERANCE_M = 0.25
  * surface and the whole airframe below it -- fuselage, wing, a 3.9 m
  * propeller disc -- was underground (Mark's screenshot, 2026-09-16).
  */
-export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM: number): boolean {
+export function onGround(
+  spec: AircraftSpec,
+  state: AircraftState,
+  groundHeightM: number,
+  surfaceVelocity: Vec3 = ZERO,
+): boolean {
   const contactHeightM = state.position.y - wheelDepthOf(spec, state)
+  // Climbing away faster than `SEPARATION_MPS` relative to the surface is not
+  // being on it, whatever the band says (T1 hysteresis, 2026-09-28). The band
+  // is a POSITION test and a rotating airplane moves its own wheels: on a
+  // full-pull take-off the nose-up pitch drove the contact point back inside
+  // the 0.25 m band the tick after the airplane had left it, so this flipped
+  // true/false 9-10 times per run. The airplane's velocity does not do that.
+  if (sub(state.velocity, surfaceVelocity).y > SEPARATION_MPS) return false
   return contactHeightM - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
     && contactHeightM - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
 }
@@ -458,7 +486,7 @@ export function supportedContact(
   const descending = rel.y < -ARRIVAL_SINK_THRESHOLD_MPS
   const stallMps = effectiveStallSpeedMps(spec, state.flapFraction)
   return (surface === 'land' || surface === 'deck')
-    && onGround(spec, state, groundHeightM)
+    && onGround(spec, state, groundHeightM, surfaceVelocity)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(rel.y) && rel.y >= -MAX_SUPPORTED_SINK_MPS
     && Number.isFinite(speed)

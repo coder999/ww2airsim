@@ -471,7 +471,7 @@ export function step(
   // second one.
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
   if (startGround !== null) {
-    onGroundStart = onGround(spec, state, startGround.heightM)
+    onGroundStart = onGround(spec, state, startGround.heightM, startGround.velocity)
     onLandStart = startGround.surface === 'land' || startGround.surface === 'deck'
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).

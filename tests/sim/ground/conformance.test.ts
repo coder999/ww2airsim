@@ -51,6 +51,9 @@ describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance
     // allowed to turn a hands-off roll (ledger, Task 7). Layouts with no
     // torque get the plan's strict 0.1 rad; the others get that plus the
     // torque yaw rate integrated over the seconds spent below tail-lift speed.
+    // Every shipped aircraft has torque 0 since Mark's 2026-09-28 ruling, so
+    // only the synthetic tricycle fixture (torque -2) still uses the allowance;
+    // it stays so the model term keeps a conformance check for a future aircraft.
     const below = trace.slice(0, last + 1).filter((s) => Math.hypot(s.velocity.x, s.velocity.z) < spec.gear.tailLiftSpeedMps).length
     const torqueRad = (Math.abs(spec.gear.torqueYawRateDegPerSec) * 0.3 * (below / 60) * Math.PI) / 180
     expect(Math.abs(head(last) - head(Math.min(last, 60)))).toBeLessThan(0.1 + torqueRad)

@@ -382,10 +382,13 @@ describe('ground yaw (T1)', () => {
   })
 
   it('engine torque swings the nose the way torqueYawRateDegPerSec says, and cancels at zero', () => {
-    const swing = noseRightDeg(yawRate(2, { throttle: 1 }))
-    expect(Math.sign(swing)).toBe(Math.sign(f6f.gear.torqueYawRateDegPerSec))
-    const twin = { ...f6f, gear: { ...f6f.gear, torqueYawRateDegPerSec: 0 } }
-    expect(noseRightDeg(yawRate(2, { throttle: 1 }, twin))).toBeCloseTo(0, 9)
+    // The shipped F6F has torque 0 (Mark's ruling, 2026-09-28: arcade feel), so
+    // the term is exercised on a COPY with a nonzero value.
+    expect(f6f.gear.torqueYawRateDegPerSec).toBe(0)
+    const torqued = { ...f6f, gear: { ...f6f.gear, torqueYawRateDegPerSec: -3 } }
+    const swing = noseRightDeg(yawRate(2, { throttle: 1 }, torqued))
+    expect(Math.sign(swing)).toBe(Math.sign(torqued.gear.torqueYawRateDegPerSec))
+    expect(noseRightDeg(yawRate(2, { throttle: 1 }, f6f))).toBeCloseTo(0, 9)
   })
 
   it('is continuous with the air yaw rate: the ground terms are gone by the time it flies', () => {
