@@ -60,12 +60,12 @@ export type AudioSystem = {
    *  (design §7), for a paused replay. The next `update` call resumes it: a
    *  hold has no inputs of its own to compute a gain from. */
   hold(held: boolean): void
-  /** Called every frame; reaches the backend only when the view changes. */
   /** One-shot placed in the world. Same rules as any cue: silent while held,
    *  never a failed clip, never a non-finite position. */
   playAt(clip: ClipId, at: Position, rate?: number): void
   /** Listener pose for positioned sounds; a pose with a non-finite component is dropped. */
   setListener(pose: ListenerPose): void
+  /** Called every frame; reaches the backend only when the view changes. */
   setView(view: View): void
   setMuted(muted: boolean): void
   muted(): boolean
