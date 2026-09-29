@@ -610,16 +610,15 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       for (const row of rows) objectivesList.appendChild(figureRow(`${row.label} (${row.priority})`, row.status))
     }
   }
-  let shownTick: number | null = null
-  let shownSelectedId: string | null = null
+  let shown: ChartDrawKey | null = null
 
   return {
     show<M>(world: World<M>, selectedId: string | null): void {
       const wasHidden = backdrop.style.display === 'none'
-      if (shownTick !== world.tick || shownSelectedId !== selectedId) {
+      const next: ChartDrawKey = { tick: world.tick, selectedId, terrain: world.terrain }
+      if (chartNeedsRedraw(shown, next)) {
         draw(world, selectedId)
-        shownTick = world.tick
-        shownSelectedId = selectedId
+        shown = next
       }
       backdrop.style.display = 'block'
       if (wasHidden) close.focus()
@@ -628,6 +627,23 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       backdrop.style.display = 'none'
     },
   }
+}
+
+export type ChartDrawKey = {
+  readonly tick: number
+  readonly selectedId: string | null
+  readonly terrain: unknown
+}
+
+/** A held world keeps its tick, but terrain and cover attach by replacing the
+ * world's terrain object, so the terrain identity is part of the draw key. */
+export function chartNeedsRedraw(shown: ChartDrawKey | null, next: ChartDrawKey): boolean {
+  return (
+    shown === null ||
+    shown.tick !== next.tick ||
+    shown.selectedId !== next.selectedId ||
+    shown.terrain !== next.terrain
+  )
 }
 
 /** Page-furniture state for the chart. It deliberately stays out of

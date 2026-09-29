@@ -4,6 +4,7 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import {
   chartBounds,
+  chartNeedsRedraw,
   visibleBounds,
   MARKER_ICONS,
   courseLabel,
@@ -171,5 +172,24 @@ describe('the chart frame', () => {
 
   it('has a distinct icon for bases, carriers and other ships', () => {
     expect(new Set(Object.values(MARKER_ICONS).map((icon) => icon.body)).size).toBe(3)
+  })
+})
+
+describe('when an open chart redraws', () => {
+  const shown = { tick: 5, selectedId: null, terrain: world.terrain }
+
+  it('holds still for the same tick, selection and terrain', () => {
+    expect(chartNeedsRedraw(shown, { tick: 5, selectedId: null, terrain: world.terrain })).toBe(false)
+  })
+
+  it('redraws when terrain or cover attaches to a held world (same tick)', () => {
+    const attached = { ...world.terrain! }
+    expect(chartNeedsRedraw(shown, { tick: 5, selectedId: null, terrain: attached })).toBe(true)
+  })
+
+  it('redraws on a new tick, a new selection, or a first draw', () => {
+    expect(chartNeedsRedraw(shown, { tick: 6, selectedId: null, terrain: world.terrain })).toBe(true)
+    expect(chartNeedsRedraw(shown, { tick: 5, selectedId: 'a', terrain: world.terrain })).toBe(true)
+    expect(chartNeedsRedraw(null, shown)).toBe(true)
   })
 })
