@@ -56,7 +56,7 @@ async function view(page: Page, id: string, preset: CameraPreset, p: PartPose = 
  * mean linear luminance inside it, the frame's pixel count, and the number of
  * pixels in exactly one of the first two masks.
  */
-async function masks(page: Page, empty: Frame, frames: Frame[]): Promise<{ areas: number[]; luminance: number[]; total: number; xor01: number }> {
+async function masks(page: Page, empty: Frame, frames: Frame[]): Promise<{ areas: number[]; luminance: number[]; total: number; xor01: number; changed01: number }> {
   return page.evaluate(async ({ empty64, frames64 }) => {
     const decode = async (b64: string): Promise<Uint8ClampedArray> => {
       const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob())
@@ -72,9 +72,11 @@ async function masks(page: Page, empty: Frame, frames: Frame[]): Promise<{ areas
     const e = await decode(empty64)
     const total = e.length / 4
     const sets: Uint8Array[] = []
+    const pixels: Uint8ClampedArray[] = []
     const areas: number[] = [], luminance: number[] = []
     for (const f64 of frames64) {
       const f = await decode(f64)
+      pixels.push(f)
       const m = new Uint8Array(total)
       let area = 0, lum = 0
       for (let p = 0; p < total; p++) {
@@ -89,9 +91,16 @@ async function masks(page: Page, empty: Frame, frames: Frame[]): Promise<{ areas
       areas.push(area)
       luminance.push(area ? lum / area : 0)
     }
-    let xor01 = 0
-    if (sets.length >= 2) for (let p = 0; p < total; p++) if (sets[0]![p] !== sets[1]![p]) xor01++
-    return { areas, luminance, total, xor01 }
+    // xor01 is the silhouette change; changed01 counts pixels inside either mask whose color moved, which a dense mesh's wireframe or a bright model's checker changes without moving the silhouette or the mean.
+    let xor01 = 0, changed01 = 0
+    if (sets.length >= 2) {
+      const a = pixels[0]!, b = pixels[1]!
+      for (let p = 0; p < total; p++) {
+        if (sets[0]![p] !== sets[1]![p]) xor01++
+        if ((sets[0]![p] || sets[1]![p]) && Math.abs(a[p * 4]! - b[p * 4]!) + Math.abs(a[p * 4 + 1]! - b[p * 4 + 1]!) + Math.abs(a[p * 4 + 2]! - b[p * 4 + 2]!) > 24) changed01++
+      }
+    }
+    return { areas, luminance, total, xor01, changed01 }
   }, { empty64: empty.toString('base64'), frames64: frames.map((f) => f.toString('base64')) })
 }
 
@@ -247,8 +256,8 @@ test.describe('the Hangar', () => {
       const wire = await shot(page)
       await setDebug(page, 'wireframe', false)
       const m = await masks(page, empty, [solid, wire])
-      console.log(`wireframe ${id}: ${((100 * m.xor01) / m.areas[0]!).toFixed(2)}%`)
-      expect(m.xor01 / m.areas[0]!, id).toBeGreaterThanOrEqual(0.05)
+      console.log(`wireframe ${id}: ${((100 * m.xor01) / m.areas[0]!).toFixed(2)}% silhouette, ${((100 * m.changed01) / m.areas[0]!).toFixed(2)}% pixels`)
+      expect(Math.max(m.xor01, m.changed01) / m.areas[0]!, id).toBeGreaterThanOrEqual(0.05)
     }
     // Clones share materials: off must really be off after a round trip.
     const { empty, model: first } = await view(page, ids[0]!, 'three-quarter')
@@ -390,8 +399,8 @@ test.describe('the Hangar', () => {
       await setDebug(page, 'checker', false)
       const off = await shot(page)
       const m = await masks(page, empty, [model, on, off])
-      console.log(`checker ${id}: luminance ${m.luminance.map((x) => x.toFixed(4)).join(' / ')}`)
-      expect(Math.abs(m.luminance[1]! - m.luminance[0]!) / m.luminance[0]!, `${id} checker differs`).toBeGreaterThan(0.05)
+      console.log(`checker ${id}: luminance ${m.luminance.map((x) => x.toFixed(4)).join(' / ')}, ${((100 * m.changed01) / m.areas[0]!).toFixed(1)}% pixels changed`)
+      expect(Math.max(Math.abs(m.luminance[1]! - m.luminance[0]!) / m.luminance[0]!, m.changed01 / m.areas[0]!), `${id} checker differs`).toBeGreaterThan(0.05)
       expect(Math.abs(m.luminance[2]! - m.luminance[0]!) / m.luminance[0]!, `${id} restored`).toBeLessThanOrEqual(0.005)
     }
   })
