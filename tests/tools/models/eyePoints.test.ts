@@ -25,6 +25,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'p-38-lightning': 'p38_dark',
   // The canopy glazing node kabina-FACES (x -1.88 to -0.15, top y 0.99, measured 2026-09-30); the eye sits 0.29 m under its crown.
   'ki-43-oscar': 'kabina-FACES',
+  // The Val's canopy is the mesh node Object_20 (material "transparent", x -3.22 to 0.10, top y 1.009, measured 2026-09-30); the eye sits 0.26 m under its crown.
+  'd3a-val': 'Object_20',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

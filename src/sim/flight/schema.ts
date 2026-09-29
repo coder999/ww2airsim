@@ -311,6 +311,10 @@ const AircraftSpecObject = z.object({
   gear: z.object({
     /** Seconds for the gear to travel fully up-to-down or down-to-up. */
     travelSeconds: positive,
+    /** Fixed (non-retracting) undercarriage, as the D3A Val's spatted gear. `gearAfter` then holds the gear down whatever
+     *  the pilot commands (the gear key does nothing), and `gearDragN` is 0: a fixed gear's drag is already in the flown
+     *  speeds `aero.cd0` is fitted to, so `travelSeconds` and `dragAreaM2` are unused and only satisfy the schema. */
+    fixed: z.boolean().optional(),
     /** Drag AREA (Cd·A) of the extended gear, m^2 -- multiplies dynamic
      *  pressure directly, with the drag coefficient already folded in. */
     dragAreaM2: positive,

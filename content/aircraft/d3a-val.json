@@ -1,0 +1,317 @@
+{
+  "id": "d3a-val",
+  "name": "Aichi D3A2 Model 22 Val",
+  "role": "bomber",
+  "side": "japanese",
+  "carrierCapable": true,
+  "geometry": {
+    "wingAreaM2": 34.93,
+    "wingSpanM": 14.365
+  },
+  "mass": {
+    "emptyKg": 2572,
+    "fuelCapacityKg": 779,
+    "maxTakeoffKg": 4101
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.022,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 954500,
+    "propEfficiency": 0.68,
+    "staticThrustN": 12800,
+    "windmillCd0": 0.044,
+    "negativeGCutout": false,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.84
+      ],
+      [
+        3002,
+        0.926
+      ],
+      [
+        6187,
+        0.848
+      ],
+      [
+        7620,
+        0.7
+      ],
+      [
+        9144,
+        0.56
+      ],
+      [
+        11700,
+        0.39
+      ]
+    ]
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 60,
+    "maxPitchRateDegPerSec": 30,
+    "maxYawRateDegPerSec": 15,
+    "rateRefSpeedMps": 95,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 166.67,
+    "gLimit": 7.0
+  },
+  "gear": {
+    "travelSeconds": 8,
+    "dragAreaM2": 0.2,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 1.85,
+    "layout": "taildragger",
+    "mainX": 0.257,
+    "thirdX": -6.577,
+    "thirdHeightM": 0.457,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 5,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 24,
+    "propWashSpeedMps": 10,
+    "torqueYawRateDegPerSec": 0,
+    "fixed": true
+  },
+  "flap": {
+    "travelSeconds": 5,
+    "dragAreaM2": 0.67,
+    "clIncrement": 0.385
+  },
+  "combat": {
+    "roundsPerMinute": 650,
+    "muzzleVelocityMps": 745,
+    "dragPerM": 0.00034,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 2,
+    "structureHp": 80,
+    "subsystemHp": 25,
+    "fuelLeakKgPerS": 1.5,
+    "engineDecayPerS": 0.05,
+    "gunTypes": {
+      "type97-7.7mm": {
+        "roundsPerMinute": 650,
+        "muzzleVelocityMps": 745,
+        "dragPerM": 0.00034,
+        "hitScale": 0.4
+      }
+    },
+    "guns": [
+      {
+        "position": [
+          1.9,
+          0.45,
+          -0.25
+        ],
+        "rounds": 791,
+        "group": "leftGuns",
+        "type": "type97-7.7mm"
+      },
+      {
+        "position": [
+          1.9,
+          0.45,
+          0.25
+        ],
+        "rounds": 791,
+        "group": "rightGuns",
+        "type": "type97-7.7mm"
+      }
+    ],
+    "zones": [
+      {
+        "id": "engine",
+        "center": [
+          1.55,
+          0,
+          0
+        ],
+        "halfSize": [
+          0.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "fuel",
+        "center": [
+          0.1,
+          -0.1,
+          0
+        ],
+        "halfSize": [
+          1.0,
+          0.6,
+          1.0
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "tail",
+        "center": [
+          -4.0,
+          0.2,
+          0
+        ],
+        "halfSize": [
+          1.6,
+          0.5,
+          0.5
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "rudder",
+        "center": [
+          -6.4,
+          0.7,
+          0
+        ],
+        "halfSize": [
+          0.9,
+          0.9,
+          0.2
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-guns",
+        "center": [
+          0.3,
+          -0.2,
+          -2.6
+        ],
+        "halfSize": [
+          1.0,
+          0.3,
+          1.2
+        ],
+        "system": "leftGuns"
+      },
+      {
+        "id": "right-guns",
+        "center": [
+          0.3,
+          -0.2,
+          2.6
+        ],
+        "halfSize": [
+          1.0,
+          0.3,
+          1.2
+        ],
+        "system": "rightGuns"
+      },
+      {
+        "id": "left-aileron",
+        "center": [
+          -0.5,
+          -0.2,
+          -5.0
+        ],
+        "halfSize": [
+          0.7,
+          0.3,
+          1.3
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-aileron",
+        "center": [
+          -0.5,
+          -0.2,
+          5.0
+        ],
+        "halfSize": [
+          0.7,
+          0.3,
+          1.3
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Armament: two fixed 7.7 mm machine guns firing forward through the propeller, 791 rounds per gun (SOURCED, TAIC sheet 401A-3, PDF p162, dossier docs/superpowers/plans/sourcing/d3a-val.md section 7). The gun type is the Type 97, taken from English Wikipedia; sheet 401A-3 prints only the caliber. This airplane's gun type reuses the Zero's 'type97-7.7mm' block (650 rpm synchronized, 745 m/s, hitScale 0.4, dragPerM 0.00034 the ESTIMATE scaled from the F6F's .50). CONFLICT: TAIC's Type 97 Mod 3 sheet (901) prints 850 rpm and 2,450 ft/s (746.8 m/s); the synchronized 650 rpm and the Zero's 745 m/s are used because the guns fire through the propeller, and the two muzzle velocities agree within 0.2%. The rear cockpit's flexible 7.7 mm gun (Type 92, 1,000 rounds, SOURCED) is NOT modeled: there is no turret rig for it, so a Val is flown as a single-seater with no defensive gun. Survivability is the Zero's, the nearest unarmored Japanese airplane in the game (TAIC: no fuel tank protection or armor found 'up to the present time', SOURCED as direction): structureHp 80, subsystemHp 25, fuelLeakKgPerS 1.5, roundDamage 2, all GAMEPLAY ESTIMATES; a larger, heavier dive bomber would plausibly take more, and nothing here says so. Convergence, dispersion, lifetime and engine decay are the F6F's gameplay estimates. Gun positions and hit zones are ESTIMATES laid out to the drawn airframe (14.37 m span, 10.18 m long excluding the propeller) and held inside its propeller-excluded bounds by tests/tools/models/combatFit.test.ts. There is no fuselage gun group; both guns map to leftGuns and rightGuns by side."
+  },
+  "reference": {
+    "source": "Primary: TAIC (Technical Air Intelligence Center) Manual No. 1, sheet 401A-2 'VAL 22', December 1944 (archive.org/download/japanese-aircraft-performance-characteristics-taic-manual/p4013coll8_4531.pdf, PDF p161), and engine sheet 856 (p217), sourcing dossier docs/superpowers/plans/sourcing/d3a-val.md, read 2026-09-29. There is no flight-test report for this airplane and no wwiiaircraftperformance.org document; these are intelligence-sheet figures, and other sources DISAGREE. testMassKg = 3551.6 is the sheet's 7,830 lb scout weight (SOURCED), the weight every speed, climb and take-off figure is quoted at. topSpeedMps = 125.6 is 281 mph at 20,300 ft (6,187 m), military power (SOURCED); topSpeedByAltitudeM adds 102.8 (230 mph) at sea level and 116.7 (261 mph) at 9,850 ft (3,002 m), the sheet's other printed points (SOURCED). climbRateMps = 10.97 is 2,160 ft/min at sea level and climbRateByAltitudeM adds 11.84 (2,330 ft/min) at 9,850 ft (SOURCED); the sourced climb RISES with altitude there (the supercharger's second gear), and the model does too. No climb rate is printed at 20,300 ft. takeoffDistanceM = 157.3 is 516 ft calm (SOURCED); surface, flaps and obstacle are not stated. CONFLICTS, named on purpose: English Wikipedia (Francillon) gives 430 km/h (267 mph, 119.4 m/s) at 6,200 m, 5% below the TAIC figure used; Wikipedia's climb is 3,000 m in 5 min 48 s (8.6 m/s mean) against TAIC's 3,048 m in 4.5 min, and Skytamer and Planes of Fame give 1,869 ft/min (9.49 m/s) against TAIC's 2,160 ft/min. stallSpeedMps = 33.2 and stallSpeedFlapMps = 29.4 are ESTIMATES, NOT SOURCED: no stall speed for the Val was found; they are the Zero's sourced 34.87 and 30.85 m/s scaled by the square root of the wing-loading ratio (101.68 / 112.29 kg/m2, root 0.9516), which agrees within 1% with the dossier's own CLmax 1.5 and 1.9 estimate (33 and 29 m/s). rollRateDegPerSec = 60 is an UNSOURCED ESTIMATE, a dive bomber's figure below the Zero's 80. The whole rates block (rateRefSpeedMps 95, pitch 30, yaw 15, weathercock, autoRudder, stallLimiter) is the Zero's and F6F's values carried over, ESTIMATES, with no control-fade table (nothing documents the Val's high-speed controls). limits.diveSpeedMps = 166.67 and limits.gLimit = 7.0 are ESTIMATES, the Zero's: the dossier's 200 and 240 kn figures are dive-brake design points, not a never-exceed speed, and no source states a load factor. Geometry: wingSpanM = 14.365 (English Wikipedia; Japanese Wikipedia 14.360 agrees, and the drawn model measures 14.365), wingAreaM2 = 34.93 (TAIC's 376 sq ft; Wikipedia 34.9 agrees). CONFLICTS: TAIC's span is 47.5 ft = 14.478 m (+0.8%) and Skytamer's 14.529 m; TAIC's length is 35.4 ft = 10.79 m against the drawn model's 10.18 m and Wikipedia's 10.195 m (+5.8%, outside the model's dimension tolerance; the model's figure was kept); Skytamer's wing area is 36.14 m2. Mass: emptyKg = 2572 is 5,670 lb, maxTakeoffKg = 4101 is the 9,042 lb overload weight (SOURCED); the bomber weight is 8,380 lb (3,801 kg). mass.fuelCapacityKg = 779 is 286 US gal (TAIC) at 0.72 kg/L, DERIVED (density ESTIMATE); English Wikipedia says 900 L, about 648 kg, and Jane's 206 Imp gal (936 L). Internal fuel below testMassKg - emptyKg = 979.6 kg is expected: the harness loads pilot, oil and ammunition through fuelKg too (Ruling R31), and fuelCapacityKg is below it. Engine: Mitsubishi Kinsei 54, 14-cylinder two-row radial (TAIC 856). maxPowerW = 954,500 W is the 1,280 hp take-off rating (SOURCED). The curve is the MILITARY rating as a fraction of that, DERIVED: 1,075 hp at sea level = 0.84, 1,185 hp at 9,850 ft = 0.926, 1,085 hp at 20,300 ft = 0.848. The speed sheet is quoted at military power, so the speeds are only reproducible at these fractions; the price is that sea-level take-off and the sea-level climb run at the military rating, 16% below the take-off rating (the dossier's alternative, 1.00 at 0 m, would fit the sea-level speed only by moving cd0). The points above 6,187 m (0.70, 0.56, 0.39) are ESTIMATES, the Zero's curve shape above its own critical altitude. TAIC's 1,355 hp war-emergency rating exceeds take-off, so it cannot be a fraction and is not used. FITTED, NOT SOURCED (measured 2026-09-30 through tools/testcards/measure.ts at testMassKg, a grid over cd0 and propEfficiency against the three sourced speeds): cd0 = 0.022 and propEfficiency = 0.68; the fit reads +0.28% at 20,300 ft, -0.09% at sea level and +0.26% at 9,850 ft. cd0 includes the fixed, spatted gear and the dive brakes (the airplane was flown with them), which is why it is higher than the retractable-gear fighters'. The climb reads +12.96% at sea level and +14.80% at 9,850 ft, below the model's known +16% to +22% bias, and is left alone: it is not tuned to a card. staticThrustN = 12,800 N is the F6F's 20,000 N scaled by take-off power (954.5 kW / 1,491 kW), an ESTIMATE. windmillCd0 = 2 x cd0, the F6F's rule. aero.clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha, cySlopePerRad and oswaldE are the F6F's shipped lift curve, ESTIMATES for this airframe. flap.clIncrement = 0.385 is DERIVED and CIRCULAR: (33.2/29.4)^2 = 1.275 is the CLmax ratio the two ESTIMATED stalls imply, and 1.4 x 0.275 = 0.385; it is the Zero's number in effect, not a Val measurement. Flap type and deflection are not documented. flap.dragAreaM2 = 0.67 is the F6F's 0.6 scaled by wing area (34.93/31.03), an ESTIMATE; flap.travelSeconds = 5 is the F6F's estimate. Gear: FIXED (gear.fixed = true), SOURCED as a fact (Skytamer/Jane's: fixed cantilever main legs with spats and a fixed tailwheel). The sim holds the gear down and adds no separate gear drag for it (a fixed gear's drag is inside the fitted cd0); gear.travelSeconds = 8 and gear.dragAreaM2 = 0.2 are unused when fixed and only satisfy the schema, ESTIMATES. gear.heightM = 1.850, mainX = 0.257, thirdX = -6.577 and thirdHeightM = 0.457 are MEASURED from the drawn mesh (2026-09-30): the lowest point of the spats, and the first aft point to touch when the model is pitched about the mains (11.52 degrees, tests/tools/models/stance.test.ts holds them). Steering, tail-lift, prop-wash and torque fields are the Zero's ESTIMATES; torqueYawRateDegPerSec = 0 is the arcade choice made for the Zero (Mark, 2026-09-28). view.eyePointM = [-0.8, 0.75, 0] is MEASURED from the drawn model: under the canopy mesh Object_20 (material 'transparent', x -3.22 to 0.10, top y 1.009), 0.26 m below its crown; tests/tools/models/eyePoints.test.ts holds it inside that canopy. negativeGCutout is false: the behavior was documented for the Zero only. No ai block: the AI flies the Val with the full repertoire, an ESTIMATE nobody has checked. Carrier capable (plan decision D3): SOURCED as history, carrier trials on Akagi and Kaga in 1940 and the Model 22 adopted 7 Jan 1943 (English Wikipedia). The carrier take-off matrix (tests/sim/carrierTakeoff.test.ts) passes for it on every deck with no exception, and tests/sim/trapVal.test.ts covers the arresting gear; both run with the ESTIMATED stall, so they show the model copes with the airplane, not that the real one would. Variant risk: the drawn model's variant (Model 11 or Model 22) was NOT verified against recognition features; the figures are the Model 22's (Kinsei 54), the roster's and the TAIC sheet's variant.",
+    "testMassKg": 3551.6,
+    "topSpeedMps": 125.6,
+    "topSpeedAltitudeM": 6187,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        102.8
+      ],
+      [
+        3002,
+        116.7
+      ]
+    ],
+    "climbRateMps": 10.97,
+    "climbRateByAltitudeM": [
+      [
+        3002,
+        11.84
+      ]
+    ],
+    "stallSpeedMps": 33.2,
+    "stallSpeedFlapMps": 29.4,
+    "rollRateDegPerSec": 60,
+    "takeoffDistanceM": 157.3
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "belly-rack",
+        "offset": [
+          -0.1,
+          -0.69,
+          0
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Dev stores only (2026-09-30), and NOT the historic load. The historic load is one 250 kg bomb on the centerline (a trapeze that swings it clear of the propeller; TAIC 401A-2 prints 550 lb, SOURCED) plus two 60 kg bombs on the wings (English Wikipedia, SECONDARY; Eyre's D3A1 data says 2 x 30 kg per wing, D3A1, not used), 370 kg in all (DERIVED). The game has one bomb type that fits a Japanese airplane's rack, the F6F's AN-M65 1,000 lb general-purpose bomb (453.6 kg), and no 250 kg or 60 kg store mesh. So the Val carries ONE an-m65 on ONE belly-centerline rack, standing in for the whole historic load: 453.6 kg against 370 kg (+23%) and against 250 kg on the centerline (+81%). The two 60 kg wing bombs are not modeled (the nearest store is 7.6 times heavier, and the only other store, the hvar, is a rocket, which the Val never carried). There are no rails and no rockets, so the sortie offers Clean and Bombs. The belly-centerline rack is a new mounting (the wing-mount fit and the internal-bay fit do not apply): its offset [-0.1, -0.69, 0] is ESTIMATED from the drawn hull, the lug top 0.023 m under the lowest belly point below the store's length (belly y -0.618 at x -1.18 to 0.63, measured 2026-09-30), and held there by tests/tools/models/bellyRack.test.ts. The real trapeze swung the bomb clear of the propeller arc; here the bomb hangs against the belly aft of the engine and there is no trapeze geometry. Store figures are the F6F's (see f6f-hellcat.json stores.source, labeled there). The airplane's 550 lb bomber weight (8,380 lb, 3,801 kg) is not the loaded weight the game flies: the sim's mass is empty plus fuel, and the bomb's 453.6 kg is dropped from it."
+  },
+  "view": {
+    "eyePointM": [
+      -0.8,
+      0.75,
+      0
+    ],
+    "model": "d3a-val"
+  }
+}
