@@ -13,7 +13,7 @@ The listener is the camera (chase and cockpit). `src/audio/spatial.ts` (`nextSpa
 
 ## Honest status
 
-Every constant (gains, reference distances, 3,000 m and 8,000 m ranges, Doppler clamp, lowpass curve) is a reasoned guess. **Nothing was heard.** Doppler in particular may sound wrong. Tier 2 was not run.
+Every constant (gains, reference distances, 3,000 m and 8,000 m ranges, Doppler clamp, lowpass curve) is a reasoned guess. Mark flew `?scenario=furball-range` afterward and reported an AI flyby with Doppler sounded very realistic. Still unheard: gunfire bursts, delayed detonations, the deck rumble and the far-range levels. Tier 2 was not run.
 
 ## Known limits
 
