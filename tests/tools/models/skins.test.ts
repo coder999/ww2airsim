@@ -12,12 +12,12 @@ import { measureDocument } from '../../../tools/models/measure.js'
  */
 const FLAT_SHADED: readonly string[] = [
   'aaa', 'ammunition-bunker', 'b-29-superfortress', 'barracks-and-huts', 'casablanca-cve', 'cleveland-cl',
-  'coastal-gun-battery', 'essex-cv', 'fuel-tank-farm', 'kagero-dd', 'ki-21-sally', 'mogami-ca',
+  'coastal-gun-battery', 'essex-cv', 'fuel-tank-farm', 'ki-21-sally', 'mogami-ca',
   'p-38-lightning', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower',
   'yamato-bb',
 ]
 /** Lower it with every entry that leaves the list; never raise it. */
-const CEILING = 18
+const CEILING = 17
 
 const entries = loadModelEntries().filter((e) => e.source.kind !== 'generated')
 const read = async (path: string) => modelIO().readBinary(new Uint8Array(readFileSync(path)))
