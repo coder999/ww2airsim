@@ -161,6 +161,12 @@ and the four print-model downloads box-projected. The
 [handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
 master spec §15 holds the status.
 
+**Model detail pass DP3 landed 2026-09-29, on branch `worktree-dp3-buildings`
+(not merged):** the nine flat-shaded buildings are rebuilt with richer geometry
+and baked skins, and the flat-shaded allowlist is deleted. The
+[handoff](docs/handoff/2026-09-29-dp3-buildings.md) records what was measured;
+master spec §15 holds the status.
+
 **Model detail pass DP1 landed 2026-09-29 and is merged into local `main`:** the
 Ki-21, P-38 and B-29 are rebuilt to the Ki-84's level of geometry and carry
 baked skins. The [handoff](docs/handoff/2026-09-28-dp1-aircraft.md) records what

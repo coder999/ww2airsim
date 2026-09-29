@@ -215,17 +215,18 @@ compares the bytes with the committed file. To show the model in the Hangar, see
 and §8.
 The onboarding runbook for a new aircraft is [aircraft.md](aircraft.md).
 
-### Skins (DP0, DP1, DP2)
+### Skins (DP0, DP1, DP2, DP3)
 
 A Blender model can carry a baked skin: paint, markings, panel lines and
 pinned CC0 scan detail in one atlas on `TEXCOORD_0`
 ([detail-pass spec](superpowers/specs/2026-09-28-model-detail-pass-design.md),
 §4 ruling: one UV set, no `TEXCOORD_1`). Written 2026-09-28 and verified by
-the DP0, DP1 and DP2 plans' Tier 1 runs and their reference-GPU Tier 2 runs
+the DP0 to DP3 plans' Tier 1 runs and their reference-GPU Tier 2 runs
 (`tests/e2e/hangar.spec.ts` checks 15 and 16); the numbers are in the
 [DP0 handoff](handoff/2026-09-28-dp0-skin-pipeline.md) and the
 [DP1 handoff](handoff/2026-09-28-dp1-aircraft.md) and the
-[DP2 handoff](handoff/2026-09-28-dp2-ships.md).
+[DP2 handoff](handoff/2026-09-28-dp2-ships.md) and the
+[DP3 handoff](handoff/2026-09-29-dp3-buildings.md).
 
 - **Turn it on** with `kit.Model(name, skin=<atlas px>)` (1024 for aircraft,
   512 for buildings). The kit then writes charts, UVs, smooth shading on
@@ -260,6 +261,8 @@ the DP0, DP1 and DP2 plans' Tier 1 runs and their reference-GPU Tier 2 runs
   P-38 and B-29 both read 0.738x, inside check 15's band.
 - **The UV checker:** open `hangar.html?bench` and tick "UV checker" to see
   each model's chart stretch.
-- **`tests/tools/models/skins.test.ts`** holds the flat-shaded allowlist (9
-  entries on 2026-09-29, after DP1). It only shrinks: an entry leaves it when it is
-  skinned, and the ceiling drops with it.
+- **`tests/tools/models/skins.test.ts`** requires every non-generated entry to
+  be skinned (the flat-shaded allowlist was deleted 2026-09-29, when DP3
+  skinned the last nine buildings): its committed glb must carry textures, and
+  a Blender entry must say `"skin": true`. A new Blender model that arrives
+  flat fails the suite.
