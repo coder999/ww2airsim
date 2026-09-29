@@ -4,9 +4,12 @@ import type { TerrainField } from '../sim/world/terrain.js'
 import { BINDINGS } from '../input/bindings.js'
 import { keyLabel } from './legend.js'
 import { objectiveMarks, objectiveRows } from './mission/chart.js'
+import { contourLabelSites } from './mission/chartLabels.js'
 import { pathData } from './mission/chartIso.js'
 import { buildChartLayers, type ChartLayers } from './mission/chartLayers.js'
-import { CHART, ensurePatternDefs, paint, PATTERN_CROP, PATTERN_SWAMP } from './mission/chartStyle.js'
+import { scaleBar } from './mission/chartScale.js'
+import { CHART, compassRose, ensurePatternDefs, paint, PATTERN_CROP, PATTERN_SWAMP, scaleBarGroup } from './mission/chartStyle.js'
+import { buildGraticule } from './mission/graticule.js'
 import { figureRow, sectionTitle } from './ui/navalComms.js'
 
 /** A point the Plan 14 navigation chart can draw from the live world. */
@@ -500,6 +503,13 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     for (const contour of layers.contours) {
       addPath(contour.lines, { fill: 'none', stroke: CHART.contour, 'stroke-width': contour.index ? '1.1' : '0.5', 'stroke-linejoin': 'round' })
     }
+    const graticule = buildGraticule(area, project, CHART_WIDTH, CHART_HEIGHT)
+    for (const line of graticule.lines) {
+      const path = svgElement('path')
+      path.setAttribute('d', line.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(''))
+      paint(path, { fill: 'none', stroke: 'var(--ink)', 'stroke-width': '0.6', opacity: '0.22', 'pointer-events': 'none' })
+      content.appendChild(path)
+    }
     addPath(layers.coast, { fill: 'none', stroke: 'var(--ink)', 'stroke-width': '1.3', 'stroke-linejoin': 'round' })
 
     if (selected !== null) {
@@ -525,6 +535,73 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     points.forEach((point, index) =>
       drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null, bounds, content),
     )
+
+    const indexLines = layers.contours
+      .filter((c) => c.index)
+      .flatMap((c) =>
+        c.lines.map((line) => ({
+          text: String(c.levelFt),
+          points: line.points.map(([x, z]) => {
+            const p = project(x, z)
+            return [p.x, p.y] as [number, number]
+          }),
+        })),
+      )
+    for (const site of contourLabelSites(indexLines)) {
+      const t = svgElement('text')
+      t.setAttribute('x', String(site.x))
+      t.setAttribute('y', String(site.y))
+      t.setAttribute('font-size', '10')
+      t.setAttribute('text-anchor', 'middle')
+      paint(t, { fill: CHART.contour, stroke: CHART.wash, 'stroke-width': '3', 'paint-order': 'stroke', 'font-family': 'var(--font-body)', 'pointer-events': 'none' })
+      t.textContent = site.text
+      content.appendChild(t)
+    }
+
+    const neatline = (inset: number, width: string): SVGElement => {
+      const r = svgElement('rect')
+      r.setAttribute('x', String(-inset))
+      r.setAttribute('y', String(-inset))
+      r.setAttribute('width', String(CHART_WIDTH + 2 * inset))
+      r.setAttribute('height', String(CHART_HEIGHT + 2 * inset))
+      paint(r, { fill: 'none', stroke: 'var(--ink)', 'stroke-width': width })
+      return r
+    }
+    sheet.append(neatline(4, '2.2'), neatline(0, '0.8'))
+    for (const label of graticule.labels) {
+      const t = svgElement('text')
+      t.setAttribute('x', String(label.x))
+      t.setAttribute('y', String(label.y))
+      t.setAttribute('font-size', '10')
+      t.setAttribute('text-anchor', label.anchor)
+      paint(t, { fill: 'var(--ink-faint)', 'font-family': 'var(--font-body)', 'pointer-events': 'none' })
+      t.textContent = label.text
+      sheet.appendChild(t)
+    }
+    sheet.appendChild(compassRose(CHART_WIDTH - 52, 58))
+    const metersPerPixel = 1 / Math.min(CHART_WIDTH / (bounds.maxX - bounds.minX), CHART_HEIGHT / (bounds.maxZ - bounds.minZ))
+    sheet.appendChild(scaleBarGroup(24, CHART_HEIGHT - 40, scaleBar(metersPerPixel)))
+
+    legend.replaceChildren()
+    const swatch = (inner: string): string =>
+      `<svg width="26" height="16" viewBox="-13 -8 26 16" style="vertical-align:middle;margin-right:5px">${inner}</svg>`
+    const icon = (kind: 'airfield' | 'carrier' | 'ship', fill: string): string =>
+      `<g transform="scale(.6)"><path d="${MARKER_ICONS[kind].body}" fill="${fill}" stroke="#e9dfc2" stroke-width="1.5"/>` +
+      `<path d="${MARKER_ICONS[kind].detail}" fill="none" stroke="#e9dfc2" stroke-width="1.5"/></g>`
+    const entries: [string, string][] = [
+      [swatch(icon('airfield', '#2a2620')), 'Airfield'],
+      [swatch(icon('carrier', '#1f3d63')), 'Carrier'],
+      [swatch(icon('ship', '#6b6252')), 'Ship'],
+      [swatch(`<rect x="-11" y="-6" width="22" height="12" fill="${CHART.woodland}" fill-opacity=".5" stroke="${CHART.woodlandEdge}"/>`), 'Woodland'],
+      [swatch(`<rect x="-11" y="-6" width="22" height="12" fill="url(#${PATTERN_CROP})" stroke="${CHART.cropHatch}" stroke-width=".6"/>`), 'Cultivation'],
+      [swatch(`<rect x="-11" y="-6" width="22" height="12" fill="url(#${PATTERN_SWAMP})" stroke="${CHART.swamp}" stroke-width=".6"/>`), 'Swamp'],
+      [swatch(`<path d="M-11 0H11" stroke="${CHART.contour}" stroke-width="1.1"/>`), `Contours ${layers.intervalFt} ft, index every ${layers.intervalFt * 5} ft`],
+    ]
+    for (const [glyph, name] of entries) {
+      const item = document.createElement('span')
+      item.innerHTML = `${glyph}${name}`
+      legend.appendChild(item)
+    }
 
     const rows = objectiveRows(world.mission)
     objectivesList.replaceChildren()
