@@ -3,6 +3,7 @@ import { qRotate } from './math/quat.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { surfaceAt, type ContactSurface } from './contact.js'
+import { wheelDepthOf } from './gearContact.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -100,13 +101,14 @@ export const GROUND_CONTACT_TOLERANCE_M = 0.25
  * Takes `spec` as of Task 15: `state.position.y` is the airplane's BODY
  * ORIGIN, not its wheel contact point (`view.eyePointM` in the content file
  * is measured from that same origin, which fixes the convention), so what
- * touches the ground is `position.y - spec.gear.heightM`, not `position.y`
- * itself. Before this, a parked airplane's origin sat exactly on the
+ * touches the ground is `position.y - wheelDepthOf(spec, state)` (the depth
+ * of the lowest wheel at the airplane's current pitch; `spec.gear.heightM` is
+ * the main wheels' depth at level attitude), not `position.y` itself. Before this, a parked airplane's origin sat exactly on the
  * surface and the whole airframe below it -- fuselage, wing, a 3.9 m
  * propeller disc -- was underground (Mark's screenshot, 2026-09-16).
  */
 export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM: number): boolean {
-  const contactHeightM = state.position.y - spec.gear.heightM
+  const contactHeightM = state.position.y - wheelDepthOf(spec, state)
   return contactHeightM - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
     && contactHeightM - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
 }
@@ -178,12 +180,12 @@ export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM
  * fix wave to change behavior on.
  *
  * Takes `spec` as of Task 15, for the same reason `onGround` now does: the
- * surface this projects the airplane onto is `groundHeightM + spec.gear.heightM`
- * -- the wheels' contact point -- not `groundHeightM` itself, which is where
+ * surface this projects the airplane onto is `groundHeightM + wheelDepthOf(spec, state)`
+ * -- the wheels' contact point at the airplane's current pitch -- not `groundHeightM` itself, which is where
  * the body origin `position` names would otherwise be pinned, burying the
  * airframe below it. Only the DATUM moves: every comparison and the `g * dh`
  * energy trade below are unchanged in substance, now measured against
- * `groundHeightM + spec.gear.heightM` rather than `groundHeightM` directly --
+ * `groundHeightM + wheelDepthOf(spec, state)` rather than `groundHeightM` directly --
  * `tests/sim/invariants.test.ts`'s sweep re-verifies this after the move.
  *
  * `surfaceVelocity` (Plan 8): everything below is judged and moved RELATIVE
@@ -204,7 +206,7 @@ export function restOnSurface(
   groundHeightM: number,
   surfaceVelocity: Vec3 = ZERO,
 ): AircraftState {
-  const contactTargetM = groundHeightM + spec.gear.heightM
+  const contactTargetM = groundHeightM + wheelDepthOf(spec, state)
   const dh = contactTargetM - state.position.y
   const rel = sub(state.velocity, surfaceVelocity)
 

@@ -12,6 +12,7 @@ import type { TerrainField } from '../sim/world/terrain.js'
 import { buildStructures } from '../sim/weapons/structures.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
+import { wheelDepthOf } from '../sim/gearContact.js'
 import { autoPursuit } from '../sim/ai/autoPursuit.js'
 import {
   assistFor,
@@ -430,9 +431,9 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  * still `null` and get a silently wrong `groundUnder(null, ...)` -- there is
  * no such overload, so that mistake is a type error, not a runtime one.
  *
- * Settles onto `ground.heightM + spec.gear.heightM`, not `ground.heightM`
+ * Settles onto `ground.heightM + wheelDepthOf(spec, state)`, not `ground.heightM`
  * itself (Task 15): `aircraft.position.y` is the body origin, which sits
- * `spec.gear.heightM` above the wheels' contact point, the same convention
+ * `wheelDepthOf(spec, state)` above the wheels' contact point, the same convention
  * `onGround`/`restOnSurface` (`src/sim/ground.ts`) now use. Settling onto
  * the bare `ground.heightM` here would put the body origin back at ground
  * level -- the exact bug Task 15 fixes -- for the one frame between this call
@@ -451,7 +452,7 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
   for (const a of frame.world.aircraft) {
     if (!a.parked) continue
     const ground = groundUnder(terrain, decks, a.state.position.x, a.state.position.z)!
-    const contactHeightM = ground.heightM + a.spec.gear.heightM
+    const contactHeightM = ground.heightM + wheelDepthOf(a.spec, a.state)
     if (a.id === world.player) playerDeltaY = contactHeightM - a.state.position.y
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
     world = withAircraftState(world, a.id, settled)

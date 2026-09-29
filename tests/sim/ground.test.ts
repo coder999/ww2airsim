@@ -23,6 +23,7 @@ import { v3, length, ZERO } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { specificEnergyAirmass } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { restPitchRad, wheelDepthM } from '../../src/sim/gearContact.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const DT = 1 / 60
@@ -718,5 +719,44 @@ describe('a moving surface (Plan 8)', () => {
     // Nose north, ship moving east at 7.7: relative to the deck the airplane is still, so grip changes nothing.
     const still = createState({ position: v3(0, DECK_M + H, 0), velocity: shipV, attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2), gearFraction: 1 })
     expect(lateralGripAfter(f6f, still, DT, shipV)).toEqual(shipV)
+  })
+})
+
+describe('contact height follows pitch (T1)', () => {
+  const rest = restPitchRad(f6f.gear)
+  const restAttitude = qFromAxisAngle(v3(0, 0, 1), rest)
+  const depthAtRest = wheelDepthM(f6f.gear, rest)
+
+  it('an airplane parked at the rest attitude is on the ground at ground + the rest depth', () => {
+    const parked = createState({ position: v3(0, depthAtRest, 0), attitude: restAttitude, gearFraction: 1 })
+    expect(onGround(f6f, parked, 0)).toBe(true)
+  })
+
+  it('the same origin height is not ground contact once the nose is far up, because the tail wheel is then lowest', () => {
+    // 30 degrees nose-up: the tail wheel (x -6) hangs ~1.7 m lower than the
+    // mains did at level, so an origin at gear.heightM is now below the
+    // surface. The pre-T1 test `position.y - gear.heightM` called it contact.
+    const pitch = 30 * Math.PI / 180
+    const raised = createState({ position: v3(0, f6f.gear.heightM, 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitch), gearFraction: 1 })
+    expect(wheelDepthM(f6f.gear, pitch)).toBeGreaterThan(f6f.gear.heightM + 1)
+    expect(onGround(f6f, raised, 0)).toBe(false)
+  })
+
+  it('restOnSurface seats a sinking airplane at the depth for its own pitch', () => {
+    const sinking = createState({
+      position: v3(0, depthAtRest + 0.05, 0),
+      velocity: v3(20, -0.5, 0),
+      attitude: restAttitude,
+      gearFraction: 1,
+    })
+    const seated = restOnSurface(f6f, sinking, 0)
+    expect(seated.position.y).toBeCloseTo(depthAtRest, 9)
+    expect(seated.velocity.y).toBe(0)
+  })
+
+  it('never gains energy when the ground rises under it (unchanged rule)', () => {
+    const s = createState({ position: v3(0, depthAtRest, 0), velocity: v3(30, 0, 0), attitude: restAttitude, gearFraction: 1 })
+    const after = restOnSurface(f6f, s, 0.1)
+    expect(length(after.velocity)).toBeLessThanOrEqual(length(s.velocity))
   })
 })

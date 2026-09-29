@@ -5,6 +5,7 @@ import { createWorldOf, type AircraftEntity, type ShipEntity, type World } from 
 import { type Vec3, v3 } from './math/vec3.js'
 import { type Airfield, localToWorld, parkedAttitude } from './world/airfields.js'
 import { deckOf } from './world/deck.js'
+import { restPitchRad } from './gearContact.js'
 import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
@@ -585,7 +586,7 @@ function buildAircraft(bundle: ScenarioBundle, a: ScenarioAircraft, ships: reado
   const state = createState({
     position: v3(at.x, PARKED_PLACEHOLDER_Y_M, at.z),
     velocity: v3(0, 0, 0),
-    attitude: parkedAttitude(field),
+    attitude: parkedAttitude(field, restPitchRad(spec.gear)),
     gearFraction: 1,
   })
   const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL

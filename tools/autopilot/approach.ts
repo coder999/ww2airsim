@@ -1,3 +1,4 @@
+import { wheelDepthOf } from '../../src/sim/gearContact.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import type { AircraftState, Controls } from '../../src/sim/flight/state.js'
 import { sub, length, ZERO, type Vec3 } from '../../src/sim/math/vec3.js'
@@ -126,9 +127,9 @@ const finite = (v: number) => (Number.isFinite(v) ? v : 0)
 export function approachControls(spec: AircraftSpec, state: AircraftState, target: ApproachTarget): Controls {
   const vrefMps = VREF_STALL_MULTIPLE * spec.reference.stallSpeedFlapMps
   // Height of the WHEELS above the touchdown point: `position` names the body
-  // origin, which sits `gear.heightM` above them. Getting this wrong by 2.2 m
+  // origin, which sits `wheelDepthOf(spec, state)` above them. Getting this wrong by 2.2 m
   // would put the flare 2.2 m into the ground.
-  const wheelHeightM = finite(state.position.y - spec.gear.heightM - target.touchdownElevationM)
+  const wheelHeightM = finite(state.position.y - wheelDepthOf(spec, state) - target.touchdownElevationM)
   // The approach is flown in the target's heading frame, so the same law
   // serves a strip on any heading and a deck that is turning. `bow`/`starboard`
   // are `deckAxes`' two directions (`src/sim/world/deck.ts`) -- one convention,

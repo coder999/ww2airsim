@@ -22,6 +22,7 @@ import { worldFromScenario, type ScenarioBundle } from '../../src/sim/scenario.j
 import { heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { groundUnder } from '../../src/sim/world/ground.js'
 import { surfaceAt } from '../../src/sim/contact.js'
+import { wheelDepthM, wheelDepthOf } from '../../src/sim/gearContact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from '../../src/sim/ground.js'
 
 export type EntitySoakResult = { failures: string[]; iterations: number; steps: number }
@@ -560,7 +561,7 @@ export function runTerrainSoak(
     // `spec.gear.heightM`, never getting close enough to trip
     // `supportedContact` at all.
     const altitude = landing
-      ? groundHeightM + spec.gear.heightM + rng() * 2
+      ? groundHeightM + wheelDepthM(spec.gear, 0) + rng() * 2
       : nearGround
         ? groundHeightM + rng() * 300
         : groundHeightM + 200 + rng() * 9000
@@ -669,7 +670,7 @@ export function runTerrainSoak(
             // it is trivially true for any position above `gh -
             // GROUND_CONTACT_TOLERANCE_M`, which every normally resting
             // airplane already satisfies by a margin of `spec.gear.heightM`.
-            if (!(player.state.position.y - spec.gear.heightM >= gh - GROUND_CONTACT_TOLERANCE_M)) {
+            if (!(player.state.position.y - wheelDepthOf(spec, player.state) >= gh - GROUND_CONTACT_TOLERANCE_M)) {
               failures.push(
                 `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +
                   `tick ${world.tick} position.y ${player.state.position.y} sank through groundHeightM ${gh} ` +
@@ -753,7 +754,7 @@ export function runEntitySoak(
       ...world,
       aircraft: world.aircraft.map((aircraft) => {
         if (!aircraft.parked) return aircraft
-        const y = heightAt(terrain, aircraft.state.position.x, aircraft.state.position.z) + aircraft.spec.gear.heightM
+        const y = heightAt(terrain, aircraft.state.position.x, aircraft.state.position.z) + wheelDepthOf(aircraft.spec, aircraft.state)
         const state = { ...aircraft.state, position: v3(aircraft.state.position.x, y, aircraft.state.position.z) }
         return { ...aircraft, state, previous: state }
       }),

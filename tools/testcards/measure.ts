@@ -1,5 +1,5 @@
 import { v3, dot, normalize } from '../../src/sim/math/vec3.js'
-import { qIdentity, qRotate } from '../../src/sim/math/quat.js'
+import { qFromAxisAngle, qIdentity, qRotate } from '../../src/sim/math/quat.js'
 import {
   createState,
   airspeed,
@@ -9,6 +9,7 @@ import {
   type Controls,
 } from '../../src/sim/flight/model.js'
 import { stepChecked } from '../../src/sim/invariants.js'
+import { restPitchRad, wheelDepthM } from '../../src/sim/gearContact.js'
 import { holdPitchAngle, holdLevelFlight, bankAngleRad } from '../../src/sim/autopilot.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
@@ -446,18 +447,20 @@ const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
 const TAKEOFF_MAX_S = 60
 
 export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number, flapFraction = 0): number {
-  // Task 15: `position.y` is the body origin, and a resting airplane's origin
-  // sits `spec.gear.heightM` above the ground it is parked on
+  // `position.y` is the body origin, and a resting airplane's origin sits
+  // `wheelDepthM(gear, pitch)` above the ground it is parked on
   // (`onGround`/`restOnSurface`, src/sim/ground.ts), not on the ground
-  // itself. Spawning at `RUNWAY_HEIGHT_M + spec.gear.heightM` here, rather
-  // than `RUNWAY_HEIGHT_M`, is what keeps this card's datum shift invisible
-  // -- the airplane starts exactly on its wheels over `FLAT_RUNWAY_FIELD`
-  // either way, so the measured roll distance is unaffected by Task 15.
+  // itself. T1: the airplane starts at its derived rest attitude (nose up by
+  // `restPitchRad`, both wheel sets on the runway), so it no longer "never
+  // leaves level": the sim lifts the tail itself with the stick neutral
+  // (Task 3), and the run is measured from that real starting attitude.
   // `flapFraction` defaults to 0 for callers predating Plan 11b. The trial
   // figure this card grades against is a FULL-FLAPS run, so the card itself
   // passes 1 -- see the card in f6f.test.ts.
+  const rest = restPitchRad(spec.gear)
   let s: AircraftState = {
-    ...spawn(spec, RUNWAY_HEIGHT_M + spec.gear.heightM, 0),
+    ...spawn(spec, RUNWAY_HEIGHT_M + wheelDepthM(spec.gear, rest), 0),
+    attitude: qFromAxisAngle(v3(0, 0, 1), rest),
     gearFraction: 1,
     flapFraction,
   }

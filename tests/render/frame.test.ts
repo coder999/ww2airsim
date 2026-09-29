@@ -15,6 +15,7 @@ import { loadAircraftSpec, loadAirfield, loadScenarioBundle } from '../../tools/
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
+import { restPitchRad, wheelDepthM } from '../../src/sim/gearContact.js'
 import { playerAircraft } from '../../src/sim/loop.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
@@ -747,7 +748,7 @@ describe('a multi-entity frame (Plan 12)', () => {
     f = settleOnTerrain(withTerrain(f, terrain), terrain)
     for (const a of f.world.aircraft) {
       const ground = heightAt(terrain, a.state.position.x, a.state.position.z)
-      expect(a.state.position.y).toBeCloseTo(ground + a.spec.gear.heightM, 9)
+      expect(a.state.position.y).toBeCloseTo(ground + wheelDepthM(a.spec.gear, restPitchRad(a.spec.gear)), 9)
       expect(a.previous.position.y).toBe(a.state.position.y)
     }
     f = nextFrameState(f, 1 / 60, new Set())
@@ -772,7 +773,7 @@ describe('a multi-entity frame (Plan 12)', () => {
     const quals = loadScenarioBundle('deck-quals')
     let f = settleOnTerrain(initialFrameStateFor(worldFromScenario(quals, terrain)), terrain)
     const deck = decksOf(f.world.ships)[0]!
-    expect(f.render.position.y).toBeCloseTo(deck.center.y + playerAircraft(f.world).spec.gear.heightM, 6)
+    expect(f.render.position.y).toBeCloseTo(deck.center.y + wheelDepthM(playerAircraft(f.world).spec.gear, restPitchRad(playerAircraft(f.world).spec.gear)), 6)
     const start = deckLocal(deck, f.render.position.x, f.render.position.z)
     for (let i = 0; i < 60 * 10; i++) f = nextFrameState(f, 1 / 60, new Set())
     const now = decksOf(f.world.ships)[0]!
