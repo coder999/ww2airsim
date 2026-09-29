@@ -420,6 +420,22 @@ Detail: [`docs/handoff/2026-09-29-b29-onboard.md`](handoff/2026-09-29-b29-onboar
 - **Grade a known-bad take-off at a wide band and say why in the card's comment** rather than dropping the sourced distance.
 - **Check the failing e2e specs against a clean `origin/main` worktree** (a detached `git worktree add`, its own vite port) before owning them.
 
+## Lessons from the fifth run (P-38 Lightning, 2026-09-29)
+
+Detail: [`docs/handoff/2026-09-29-p38-onboard.md`](handoff/2026-09-29-p38-onboard.md).
+
+- **The mounts slicer reads propellers, booms and tail as wing.** On a twin, inboard stations (here z below about 4 m) give
+  a leading edge or "no lower skin" error. Put racks and rails on the clean outer wing, and choose z yourself; x and y come from
+  `npx tsx tools/models/mounts.ts`.
+- **The Library card `name` must equal the spec `name` and the GAMEPLAY.md roster name**, or the library test fails twice
+  (once on the roster, once on spec versus card).
+- **A stall miss over about 15% breaks conformance test 6** (the take-off's unstick speed upper bound). Widen it per model with a
+  dated comment (`liftoffHighFraction`); it is the shared clMax 1.4 showing, not a coefficient to tune.
+- **`centerPoint.test.ts` needs a `STATION` that misses the props and booms** (0.6 here; the default reads a 2.24 m quarter-chord).
+- **A tricycle whose drawn mains stand aft of the schema's `mainX < 0` limit** needs a documented allowance in `gearContact.test.ts`.
+- **The picker order pins move**: `flyable.test.ts` (sorted by name) and `sortieFlow.test.ts` (Dev list, sorted by id).
+- **Check the failing e2e specs against a clean `origin/main` worktree** before owning them (three `sortie.spec.ts` failures are old).
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

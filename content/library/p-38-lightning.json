@@ -3,14 +3,38 @@
   "name": "Lockheed P-38 Lightning",
   "kind": "aircraft",
   "side": "allied",
-  "model": { "kind": "aircraft", "id": "p-38-lightning" },
-  "blurb": "A twin-boom Army fighter, planned as a player-flown and friendly type.",
-  "history": "The Lockheed P-38 Lightning was a single-seat, twin-engined fighter built for the U.S. Army Air Corps, with a distinctive twin-boom layout and a central nacelle holding the cockpit and guns. Turbochargers on both engines made it one of the earliest Allied fighters to perform well at high altitude, and it also served as a fighter-bomber, night fighter, long-range escort and, with cameras in place of guns, a reconnaissance aircraft.\n\nIn the South West Pacific the P-38 was the Army Air Forces' main long-range fighter until large numbers of P-51D Mustangs arrived near the war's end. America's top aces, Richard Bong and Thomas McGuire among them, flew it.",
+  "spec": "p-38-lightning",
+  "model": {
+    "kind": "aircraft",
+    "id": "p-38-lightning"
+  },
+  "blurb": "A twin-boom, twin-engine Army fighter with retractable tricycle gear, four .50 caliber guns and a 20 mm cannon in the nose, two 1,000 lb bombs and up to ten rockets. Its speed and climb come from a P-38J flight test, not the L; a failed engine and the dive flaps are not modeled.",
+  "history": "The Lockheed P-38 Lightning was a single-seat, twin-engined fighter built for the U.S. Army Air Corps, with a distinctive twin-boom layout and a central nacelle holding the cockpit and guns. Turbochargers on both engines made it one of the earliest Allied fighters to perform well at high altitude, and it also served as a fighter-bomber, night fighter, long-range escort and, with cameras in place of guns, a reconnaissance aircraft.\n\nIn the South West Pacific the P-38 was the Army Air Forces' main long-range fighter until large numbers of P-51D Mustangs arrived near the war's end. America's top aces, Richard Bong and Thomas McGuire among them, flew it.\n\nIn this game the P-38L-1 flies to the numbers of a P-38J flight test at 16,597 pounds, with its speeds scaled to two flown P-38L points, and its stall speeds come from the pilot's manual. That is a mix of two variants: the J had no aileron boost and no dive flaps. The two engines are modeled as one with their summed war emergency power of 3,200 horsepower, and both propellers turn; the real ones turned in opposite directions, and if an engine fails the game does not notice, which removes the single-engine handling that defined the airplane. The model climbs and cruises too well above 25,000 feet, and it stalls about 20 percent faster than the manual's 99 mph, so the take-off and landing speeds read fast. Roll rate, take-off distance and the gear and flap timing are estimates. The guns and cannon are the real armament, the two bombs and ten rockets are the game's own stores (the real airplane carried a range of loads, including 2,000 lb bombs and drop tanks), and the racks hang outboard of the propellers rather than in the historic positions. The drawn main wheels float slightly above the runway when it rotates.",
   "sources": [
     {
       "title": "Lockheed P-38 Lightning",
       "url": "https://en.wikipedia.org/wiki/Lockheed_P-38_Lightning",
       "read": "2026-09-25"
+    },
+    {
+      "title": "Flight Tests of a P-38J Airplane, Memo Report Eng-47-1706-A, Wright Field, 4 Feb 1944 (Wayback capture of wwiiaircraftperformance.org)",
+      "url": "http://www.wwiiaircraftperformance.org/p-38/p-38-67869.html",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "Memorandum Report on P-38L Airplane 44-25092, 11 Dec 1945 (Wayback capture of wwiiaircraftperformance.org)",
+      "url": "http://www.wwiiaircraftperformance.org/p-38/p-38.html",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "Pilot's Flight Operating Instructions, P-38H, J, L-1, L-5 (AN 01-75-1, 1944), a scan linked from the same page; the direct PDF link was not recorded",
+      "url": "http://www.wwiiaircraftperformance.org/p-38/p-38.html",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "NASA SP-468 Quest for Performance, Appendix A Table III (Wayback capture)",
+      "url": "http://www.hq.nasa.gov/pao/History/SP-468/app-a2.htm",
+      "read": "2026-09-29"
     }
   ]
 }

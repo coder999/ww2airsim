@@ -251,6 +251,16 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // midpoint of the manual's 115 to 130 mph) and no flaps: a REPORTED gap, not a fit (a 115 mph lift-off rolls 911 m, +9.6%), so
   // its 32% band is wider than any other card's and only ever tightens. Other tolerances are about 1.4x to 2x each measurement.
   'b-29-superfortress': { topSpeed: 0.005, topSpeedTable: 0.025, climb: 0.03, climbTable: 0.055, stall: 0.045, flapStall: 0.045, roll: 0.01, takeoff: { tol: 0.32, liftoffMps: 54.8, flapFraction: 0 } },
+  // P-38L-1 onboarding, measured 2026-09-29 at testMassKg 7,528 kg (16,597 lb, the P-38J trial's weight) against a MIXED reference
+  // (J altitude tables scaled by 0.989 to the L's two flown speeds, the L's 26,000 ft top speed, the manual's stall table; see the spec
+  // source): top speed 190.7 vs 186.0 m/s (+2.53%) at 26,000 ft; speed table -2.80, -2.72, -2.09, -0.89, +0.49% (0 to 20,000 ft); climb
+  // -8.01% at sea level, table -8.27, -6.96, -2.13, +4.70% (5,000 to 20,000 ft). Above 20,000 ft the model climbs too well (+15.3% at
+  // 25,000 ft, +29.5% at 30,000, +74.5% at 35,000) and cruises too fast (+6.3% at 35,000 ft): a REPORTED finding, so those points are
+  // not in the reference. Stalls +20.13% clean and +19.14% flaps against the manual's interpolated 44.2 and 32.6 m/s: the shared clMax
+  // 1.4 stays (docs/aircraft.md: report it, do not fit it); the real airplane implies about 2.0. Roll 65.0 vs its own ESTIMATE. No take-off
+  // distance is sourced: the card runs the flap-direction check only, at an ESTIMATED 50 m/s lift-off. cd0 0.026 and propEfficiency 0.725
+  // are FITTED to twelve figures with two unknowns, so a green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
+  'p-38-lightning': { topSpeed: 0.035, topSpeedTable: 0.04, climb: 0.115, climbTable: 0.12, stall: 0.28, flapStall: 0.27, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 50, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

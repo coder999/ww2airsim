@@ -25,8 +25,8 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   })
   it('a carrier start offers the Hellcat, Wildcat and Corsair; Dev adds the Zero', () => {
     expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
-    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty'])
-    // Dev lists every spec, so the land-based B-17, B-29 and G4M (carrierCapable false) show here and only here.
+    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'p-38-lightning'])
+    // Dev lists every spec, so the land-based B-17, B-29, G4M and P-38 (carrierCapable false) show here and only here.
   })
   it('a mission starts on its own aircraft and recommended loadout', () => {
     expect(initialDraft(ctx(false), 'combat-air-patrol')).toEqual({ scenarioId: 'combat-air-patrol', aircraftSpec: 'f6f-hellcat', loadout: 'clean' })
@@ -51,6 +51,10 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
     expect(withAircraft(bare(true), d, 'a6m2-zero').loadout).toBe('rockets')
     expect(loadoutsFor(bare(false), 'a6m2-zero')).toEqual(['clean'])
     expect(withAircraft(bare(false), d, 'a6m2-zero').loadout).toBe('clean')
+  })
+  it('the P-38, with racks and rails like the Hellcat, offers the Hellcat\'s loadouts (P-38L onboarding)', () => {
+    expect(loadoutsFor(ctx(true), 'p-38-lightning')).toEqual(loadoutsFor(ctx(true), 'f6f-hellcat'))
+    expect(loadoutsFor(ctx(true), 'p-38-lightning')).toContain('rockets')
   })
   it('a bomber with racks and no rails offers Clean and Bombs, in Dev too', () => {
     expect(loadoutsFor(ctx(true), 'b-17-flying-fortress')).toEqual(['clean', 'bombs'])

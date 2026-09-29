@@ -21,6 +21,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'g4m-betty': 'g4m_dark',
   // A single-skin airframe like the G4M: b29_dark is the whole skin, and the eye sits under the glazed crown at x 9.0.
   'b-29-superfortress': 'b29_dark',
+  // A single-skin airframe again: p38_dark is the whole skin; the canopy crown reads y 1.20 to 1.22 at x 0 to 0.5 (measured 2026-09-29), eye at x 0.6, y 0.95.
+  'p-38-lightning': 'p38_dark',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

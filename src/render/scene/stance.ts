@@ -40,6 +40,10 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   'b-17-flying-fortress': { mainWheelXM: 0.852, tailDownPitchRad: 0.12566 },
   // Tricycle: nose wheel and mains bottom out at the same y (4.085), so the drawn airplane rests level.
   'b-29-superfortress': { mainWheelXM: 0.008, tailDownPitchRad: 0 },
+  // Measured 2026-09-29 (P-38L onboarding) with the propellers excluded: nose wheel and mains bottom out at the same y (-2.248), so the
+  // drawn airplane rests level; the tail-boom first touch is 17.3 degrees, beyond any rotation the sim reaches. The drawn mains stand at
+  // x +0.439 (a tricycle spec needs mainX below zero, see the P-38 spec source), so the drawing is left as committed.
+  'p-38-lightning': { mainWheelXM: 0.439, tailDownPitchRad: 0 },
   // Measured 2026-09-29 (G4M1 onboarding) with drawnPoints, the propellers and turret excluded: mains at x 1.569, the fixed
   // tailwheel the first aft point to touch at 4.943 degrees.
   'g4m-betty': { mainWheelXM: 1.569, tailDownPitchRad: 4.943 * DEG },

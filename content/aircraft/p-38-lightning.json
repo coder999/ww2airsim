@@ -1,0 +1,527 @@
+{
+  "id": "p-38-lightning",
+  "name": "Lockheed P-38 Lightning",
+  "role": "fighter",
+  "side": "allied",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 30.47,
+    "wingSpanM": 15.85
+  },
+  "mass": {
+    "emptyKg": 5806,
+    "fuelCapacityKg": 816.5,
+    "maxTakeoffKg": 9798
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.026,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 2386240,
+    "propEfficiency": 0.725,
+    "staticThrustN": 32000,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.9675
+      ],
+      [
+        1524,
+        0.974
+      ],
+      [
+        3048,
+        0.979
+      ],
+      [
+        4572,
+        0.9825
+      ],
+      [
+        6096,
+        0.9775
+      ],
+      [
+        7864,
+        0.9406
+      ],
+      [
+        9144,
+        0.82
+      ],
+      [
+        10668,
+        0.71
+      ],
+      [
+        12192,
+        0.6
+      ]
+    ],
+    "windmillCd0": 0.052
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 65,
+    "maxPitchRateDegPerSec": 25,
+    "maxYawRateDegPerSec": 12,
+    "rateRefSpeedMps": 103,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 161,
+    "gLimit": 6.0
+  },
+  "gear": {
+    "travelSeconds": 8,
+    "dragAreaM2": 0.295,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.248,
+    "layout": "tricycle",
+    "mainX": -0.01,
+    "thirdX": 3.228,
+    "thirdHeightM": 2.248,
+    "thirdSteering": "steered",
+    "steerYawRateDegPerSec": 20,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "reference": {
+    "source": "VARIANT MIX, read this first. The airframe drawn and named is the P-38L-1. Its full altitude tables do not exist: they are for a P-38J. Speed and climb by altitude are the Wright Field flight test of a P-38J (Memo Report Eng-47-1706-A, AAF 42-67869, 4 Feb 1944, war emergency power 60 in Hg, 3000 rpm, 16,597 lb), read 2026-09-29 (SOURCED, primary, for the J). Speeds are scaled by 0.989 to reflect the L, the mean of the two flown L points over the J's (342 vs 345 mph at sea level, 416 vs 421.5 mph at 26,000 ft, Memorandum Report on P-38L 44-25092, 11 Dec 1945): DERIVED. Top speed 186.0 m/s at 7,925 m is that L trial's own point (416 mph at 26,000 ft, SOURCED, primary; its test weight is not stated). Climb is the J's unscaled (20.32 m/s at sea level, 4,000 ft/min); the only L climb chart is at normal rated power, about half the war emergency rate, so it cannot be used. Test mass 7,528 kg is the J trial's take-off weight. Stall speeds 44.2 m/s clean and 32.6 m/s with gear and flaps down are DERIVED by interpolating the pilot's manual table (AN 01-75-1, para 15a, 1944: 94/100/105 mph clean and 69/74/78 mph down at 15,000/17,000/19,000 lb) to 16,597 lb; the J trial measured 44.3 m/s clean and 34.9 m/s down. Geometry: span 52 ft 0 in (15.85 m), wing area 328 sq ft (30.47 m2) from the J report (SOURCED, primary); empty 12,800 lb (5,806 kg) from NASA SP-468 Table III (SOURCED, secondary, P-38L); maximum take-off 21,600 lb (9,798 kg) from English Wikipedia (SOURCED, weak, uncited); fuel 300 US gal x 6 lb/gal = 816.5 kg (the J trial's fuel load; the 6 lb/gal figure is an ESTIMATE). Wing taper, dihedral and propeller diameter are ESTIMATES: no source read prints them.\n\nENGINES (Mark's decision D6, 2026-09-29): two Allison V-1710s are summed into ONE engine block at war emergency power, 2 x 1,600 hp at 60 in Hg = 2,386,240 W (SOURCED per engine, manual engine chart; sum DERIVED; the 5-minute limit is not modeled, so the sim holds this power indefinitely). powerFractionByAltitudeM is the J trial's measured brake horsepower at war emergency power (1,548, 1,558, 1,567, 1,572, 1,564, 1,505, 1,312 and 1,136 BHP per engine at 0 to 35,000 ft) divided by 1,600 (DERIVED); the 12,192 m entry 0.6 is an ESTIMATE. The turbosuperchargers hold power to altitude, so the fraction stays near 0.97 to 7,864 m, which is why the airplane climbs and flies fast where the fleet's supercharged fighters fade. Both propellers turn (counter-rotating in reality: outboard-up, SOURCED primary; the sim's torque yaw is 0 and the sense is not drawn). ENGINE-OUT IS NOT MODELED: if one fails the game does not notice, and the single-engine handling that defined the airplane is absent. Static thrust 32,000 N is DERIVED at the fleet's 13.4 N/kW (B-17 and F6F).\n\nFITTED: cd0 0.026 and propEfficiency 0.725, the least-squares pair (RMS 6.25 percent) over twelve figures (six speeds, six climbs, 0 to 25,000 ft) from a grid of cd0 0.018 to 0.040 and propEfficiency 0.55 to 0.85, swept 2026-09-29; oswaldE 0.85 and the shared lift curve (clMax 1.4) are the fleet's and not fitted. One pair cannot fit both tables: the model has no Mach drag and no altitude propeller loss, so its climb and speed grow relative to the airplane's with altitude. Residuals at that pair: speed -2.80, -2.72, -2.09, -0.89, +0.49 percent at 0, 5,000, 10,000, 15,000, 20,000 ft and +2.53 percent at 26,000 ft; climb -8.01, -8.27, -6.96, -2.13, +4.70 percent at 0, 5,000, 10,000, 15,000, 20,000 ft, then +15.30, +29.50 and +74.51 percent at 25,000, 30,000 and 35,000 ft. The graded tables therefore stop at 20,000 ft (6,096 m) and the higher points are a REPORTED finding, not graded: the model climbs and cruises too well above 25,000 ft (speed +3.52 percent at 30,000 ft and +6.29 percent at 35,000 ft against the J table). Stall is REPORTED, not fitted: at the fleet's shared clMax 1.4 the model stalls at 53.10 m/s clean (+20.13 percent) and 38.84 m/s with flaps (+19.14 percent) against the manual's 44.2 and 32.6; the real airplane's Fowler flaps and 328 sq ft wing imply a clMax near 2.0, and docs/aircraft.md says not to fit it to close the gap. Flap clIncrement 1.173 is DERIVED from 44.2 and 32.6 by the Zero's method; flap travel 17.5 s is SOURCED (15 to 20 s, ground hydraulic check, manual Sec. II 8a); flap drag area 0.59 m2 is an ESTIMATE (the Hellcat's scaled by wing area).\n\nESTIMATES with no source: roll rate 65 deg/s (the manual says only 'slow at high speeds because of heavy aileron forces' and the L has aileron boost), pitch and yaw rates, gLimit 6.0 (the manual's 4.5 g at 300 mph is a buffet cue, not a structural limit), take-off distance (not in the reference: no source; the card runs only the flap-direction check at an ESTIMATED 50 m/s lift-off), gear retract time 8 s, gear drag area 0.295 m2, rolling and braking coefficients, steering rates and lock speed (Mark's decision D5). Dive speed 161 m/s is the manual's 360 mph indicated dive placard at 20,000 ft (SOURCED for that point). Not modeled and deferred: dive recovery flaps, the chin intercooler, engine-out handling, counter-rotating propeller torque, bay detail, a modeled cockpit.\n\nGEAR: retractable tricycle, tread and wheelbase measured from the drawn model (5.07 m tread against the sourced 5.03 m, main-to-nose about 2.79 m, gear height 2.248 m, height on gear 4.05 m against the sourced 3.912 m). The drawn main wheels stand at x +0.439 ahead of the origin, but the schema needs a tricycle's mainX below zero, so the spec has mainX -0.01 (the B-29's precedent) and MODEL_STANCE has 0.439 (Mark's decision D4, the committed glb is not edited): the drawn wheels therefore float about 8 cm above the runway during rotation at 10 degrees; flight physics is unaffected. Read against the real airplane's center of gravity this is unsourced.\n\nA green card is NOT validation: the cd0 and propEfficiency were fitted to these same J-table points, the stall and take-off are estimates or reported gaps, and the reference mixes the J's tables with the L's speeds. Tolerances in the card are about 1.4x to 2x each measured error and only ever tighten.",
+    "testMassKg": 7528,
+    "topSpeedMps": 186.0,
+    "topSpeedAltitudeM": 7925,
+    "climbRateMps": 20.32,
+    "stallSpeedMps": 44.2,
+    "stallSpeedFlapMps": 32.6,
+    "rollRateDegPerSec": 65,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        152.6
+      ],
+      [
+        1524,
+        160.3
+      ],
+      [
+        3048,
+        167.6
+      ],
+      [
+        4572,
+        174.4
+      ],
+      [
+        6096,
+        180.9
+      ]
+    ],
+    "climbRateByAltitudeM": [
+      [
+        1524,
+        20.12
+      ],
+      [
+        3048,
+        19.41
+      ],
+      [
+        4572,
+        18.03
+      ],
+      [
+        6096,
+        16.21
+      ]
+    ]
+  },
+  "view": {
+    "eyePointM": [
+      0.6,
+      0.95,
+      0
+    ],
+    "model": "p-38-lightning"
+  },
+  "flap": {
+    "travelSeconds": 17.5,
+    "dragAreaM2": 0.59,
+    "clIncrement": 1.173
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "left-rack",
+        "offset": [
+          -0.274,
+          0.21,
+          -4.4
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "right-rack",
+        "offset": [
+          -0.274,
+          0.21,
+          4.4
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [
+      {
+        "id": "left-rail-1",
+        "offset": [
+          -0.426,
+          0.296,
+          -5
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-2",
+        "offset": [
+          -0.395,
+          0.365,
+          -5.6
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-3",
+        "offset": [
+          -0.364,
+          0.433,
+          -6.2
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-4",
+        "offset": [
+          -0.333,
+          0.501,
+          -6.8
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-5",
+        "offset": [
+          -0.302,
+          0.568,
+          -7.4
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-1",
+        "offset": [
+          -0.426,
+          0.296,
+          5
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-2",
+        "offset": [
+          -0.395,
+          0.366,
+          5.6
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-3",
+        "offset": [
+          -0.364,
+          0.434,
+          6.2
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-4",
+        "offset": [
+          -0.333,
+          0.501,
+          6.8
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-5",
+        "offset": [
+          -0.302,
+          0.568,
+          7.4
+        ],
+        "store": "hvar"
+      }
+    ],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      },
+      "hvar": {
+        "kind": "rocket",
+        "massKg": 61,
+        "dragAreaM2": 0.03,
+        "warheadKg": 20.6,
+        "damage": 40,
+        "blastRadiusM": 8,
+        "burnS": 1.0,
+        "burnDeltaVMps": 419,
+        "railElevationDeg": 1.8,
+        "lifetimeS": 12,
+        "dragPerM": 8e-05
+      }
+    },
+    "source": "HISTORIC versus MODELED. Historic (English Wikipedia 'Lockheed P-38 Lightning', Specifications and Variants, read 2026-09-29, SOURCED secondary): inner wing pylons for 2 x 2,000 lb, or 2 x 1,000 lb plus four 500 lb or 250 lb, or six 500 lb or 250 lb; outer pylons for 2 x 500 lb or 250 lb; and 10 x 5 in HVAR, five per wing on tree racks (the first P-38L had seven per wing). MODELED: 2 x 1,000 lb AN-M65 racks (`an-m65`) and 10 x HVAR rails (`hvar`), five per wing, which is the historic rocket count; the other bomb loads, the 2,000 lb bomb and the drop tanks (165 or 300 US gal, POH) are not modeled because the store list is the fleet's two existing types (Mark's decision D7 to D9, 2026-09-29). The `an-m65` and `hvar` type entries are copied from the Hellcat's spec (its source text carries their sourcing: 1,000 lb, 240.9 kg filler; HVAR 61 kg, 20.6 kg warhead, 419 m/s plus launch speed), so the ESTIMATED fields there (drag, damage, blast radius, fuse arming, burn time) are the fleet's, not P-38 values. STATIONS: the historic inboard pylon position is not sourced, and the drawn wing between the fuselage pod and the booms cannot be sliced (the propeller discs and the tail surfaces cross the section), so the racks hang at z +/-4.4 m and the rails at z +/-5.0, 5.6, 6.2, 6.8 and 7.4 m, all outboard of the propeller discs (ESTIMATE, a modeling choice; the sources name inner and outer pylons but give no coordinates, so the bombs here are further outboard than the historic inner pylons). Offsets x and y are measured on the drawn wing by `npm run models:mounts` (tools/models/mounts.ts, chord fractions and 2 cm clearance are ESTIMATES); z is the content's own choice. Clear of the fuselage pod (|z| below 0.6 m) and the booms (z 1.86 to 3.19 m)."
+  },
+  "combat": {
+    "roundsPerMinute": 850,
+    "muzzleVelocityMps": 883.92,
+    "convergenceM": 343,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "dragPerM": 0.00015,
+    "damagePerHit": 10,
+    "roundDamage": 4,
+    "structureHp": 120,
+    "subsystemHp": 40,
+    "fuelLeakKgPerS": 0.5,
+    "engineDecayPerS": 0.05,
+    "gunTypes": {
+      "m2-50cal": {
+        "roundsPerMinute": 850,
+        "muzzleVelocityMps": 883.92,
+        "dragPerM": 0.00015,
+        "hitScale": 1.0
+      },
+      "hispano-20mm": {
+        "roundsPerMinute": 650,
+        "muzzleVelocityMps": 869,
+        "dragPerM": 0.000125,
+        "hitScale": 3.0
+      }
+    },
+    "guns": [
+      {
+        "position": [
+          3.55,
+          -0.026,
+          -0.115
+        ],
+        "rounds": 500,
+        "group": "leftGuns",
+        "type": "m2-50cal"
+      },
+      {
+        "position": [
+          3.55,
+          -0.161,
+          -0.075
+        ],
+        "rounds": 500,
+        "group": "leftGuns",
+        "type": "m2-50cal"
+      },
+      {
+        "position": [
+          3.55,
+          -0.161,
+          0.075
+        ],
+        "rounds": 500,
+        "group": "rightGuns",
+        "type": "m2-50cal"
+      },
+      {
+        "position": [
+          3.55,
+          -0.026,
+          0.115
+        ],
+        "rounds": 500,
+        "group": "rightGuns",
+        "type": "m2-50cal"
+      },
+      {
+        "position": [
+          3.55,
+          -0.086,
+          -0.0
+        ],
+        "rounds": 150,
+        "group": "leftGuns",
+        "type": "hispano-20mm"
+      }
+    ],
+    "zones": [
+      {
+        "id": "left-engine",
+        "center": [
+          1.7,
+          -0.05,
+          -2.54
+        ],
+        "halfSize": [
+          1.4,
+          0.6,
+          0.5
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "right-engine",
+        "center": [
+          1.7,
+          -0.05,
+          2.54
+        ],
+        "halfSize": [
+          1.4,
+          0.6,
+          0.5
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "fuel",
+        "center": [
+          0.3,
+          -0.1,
+          0.0
+        ],
+        "halfSize": [
+          1.2,
+          0.5,
+          0.55
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "tail",
+        "center": [
+          -6.3,
+          0.3,
+          0.0
+        ],
+        "halfSize": [
+          0.6,
+          0.3,
+          2.3
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "left-rudder",
+        "center": [
+          -6.95,
+          1.1,
+          -2.54
+        ],
+        "halfSize": [
+          0.42,
+          0.7,
+          0.12
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "right-rudder",
+        "center": [
+          -6.95,
+          1.1,
+          2.54
+        ],
+        "halfSize": [
+          0.42,
+          0.7,
+          0.12
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-guns",
+        "center": [
+          3.5,
+          -0.08,
+          -0.15
+        ],
+        "halfSize": [
+          0.4,
+          0.3,
+          0.15
+        ],
+        "system": "leftGuns"
+      },
+      {
+        "id": "right-guns",
+        "center": [
+          3.5,
+          -0.08,
+          0.15
+        ],
+        "halfSize": [
+          0.4,
+          0.3,
+          0.15
+        ],
+        "system": "rightGuns"
+      },
+      {
+        "id": "left-aileron",
+        "center": [
+          -0.5,
+          0.55,
+          -6.6
+        ],
+        "halfSize": [
+          0.6,
+          0.3,
+          1.0
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-aileron",
+        "center": [
+          -0.5,
+          0.55,
+          6.6
+        ],
+        "halfSize": [
+          0.6,
+          0.3,
+          1.0
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Armament: four .50 in M2 Browning machine guns with 500 rounds each and one 20 mm cannon with 150 rounds, all in the nose: Pilot's Flight Operating Instructions, Army Models P-38H, P-38J, P-38L-1 and L-5 (AN 01-75-1, 1944), Section IX (SOURCED, primary), read 2026-09-29. .50 rate of fire 850 rpm and muzzle velocity 2,900 ft/s (883.92 m/s) from Popular Science, Jan 1944, quoted in English Wikipedia 'Lockheed P-38 Lightning' (SOURCED, secondary), with the M2's 750 to 850 rpm range from 'M2 Browning machine gun'; the fleet's .50 dragPerM 0.00015 is the Hellcat's (ESTIMATE, same weapon). The 20 mm is 650 rpm and 2,850 ft/s (869 m/s) from the same P-38 article and 'Hispano-Suiza HS.404' (SOURCED, secondary); no P-38 cannon type exists in the fleet, so its dragPerM 0.000125 and hitScale 3.0 are the Zero's type-99 20 mm values (ESTIMATE, the nearest existing type: the Zero's type is a slower Japanese round, this one is the faster British-design M2 cannon). Convergence 343 m is the midpoint of the sourced 350 to 400 yd (320 to 366 m) gunsight-manual figure (DERIVED). Gun positions come from the drawn nose (tools/models/blender/p-38-lightning.py: barrels 0.60 m behind the nose tip, four .50 at z +/-0.115 and +/-0.075, the cannon on the centerline), not from an installation drawing (ESTIMATE). The cannon is assigned to the left group only because the schema needs a group. Dispersion, lifetime, per-hit damage, HP (120 structure, 40 subsystem, the Hellcat's values regardless of mass), fuel-leak and engine-decay rates, and every hit zone are gameplay ESTIMATES; the zones approximate the drawn booms, pod and tail, not a sourced structure. No penetration model."
+  }
+}

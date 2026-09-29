@@ -68,7 +68,7 @@ export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<St
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  for (const id of ['f6f-hellcat', 'f4f-wildcat', 'f4u-corsair', 'a6m2-zero']) {
+  for (const id of ['f6f-hellcat', 'f4f-wildcat', 'f4u-corsair', 'a6m2-zero', 'p-38-lightning']) {
     const spec = loadAircraftSpec(id)
     if (!spec.stores) continue
     const r = fitStores(await sectionAtFor(spec.view.model), spec.stores)
