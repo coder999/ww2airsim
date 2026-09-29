@@ -109,12 +109,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
   },
   'g4m-betty': {
-    // Two 4-blade props, each four blade islands exactly 4-fold symmetric about the nacelle axis.
-    // The download is a wheels-up flying model with no gear at all, so no gear is rigged. Turret1 is
-    // the dorsal blister, a clean island; the tail gun position is fused into the fuselage and stays
-    // static (P14; R3 ledger, Task 10).
-    props: [{ node: 'Prop1', blades: 4 }, { node: 'Prop2', blades: 4 }],
-    gear: [],
+    // An original Blender model (g4m-betty.py), replacing the flat, gearless download (2026-09-29): the kit's
+    // propellers are exactly 3-fold symmetric (three blades: English Wikipedia 'Mitsubishi G4M', read
+    // 2026-09-29). The mains fold aft into the nacelles (ESTIMATE); the tailwheel is fixed and static.
+    // Turret1 is the dorsal turret; the tail cannon and beam blisters are static.
+    props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
+    ],
     turrets: ['Turret1'],
   },
   'ki-21-sally': {

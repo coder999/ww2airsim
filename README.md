@@ -137,6 +137,12 @@ generic module: seven licensed downloads and four original Blender models
 changed. The [handoff](docs/handoff/2026-09-27-r3-aircraft-models.md) records
 what was measured and what is open; master spec §15 holds the status.
 
+**G4M Betty rebuilt 2026-09-29, on branch `worktree-g4m-betty` (not merged):** the
+Betty is now an original Blender model with round hull sections and retractable
+main gear, replacing the CC-BY download and its credit. The
+[handoff](docs/handoff/2026-09-29-g4m-betty.md) records what was measured and
+what is open; master spec §15 holds the status.
+
 **R4 and R5 landed 2026-09-28, merged into `main` the same day:** every
 Library building and vehicle now has a model in the Hangar, and nothing in
 the Library is left undrawn; the airfields in the game keep their procedural
