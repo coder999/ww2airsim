@@ -44,7 +44,17 @@ const KNOWN_EXCEPTIONS: readonly string[] = []
 
 const contentIds = (dir: string): string[] =>
   readdirSync(new URL(`../../content/${dir}/`, import.meta.url)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
-const aircraftIds = contentIds('aircraft')
+/**
+ * Aircraft the picker can put on a deck. 2026-09-29: the B-17 (carrierCapable
+ * false, docs/aircraft.md D3) runs out of the Casablanca's 139 m and touches
+ * the water, as the failure text's own second fix option says to expect: "do
+ * not offer this carrier to this type". The picker already does not (D3), so it
+ * is not a pairing a player can reach outside Dev. It is filtered here by the
+ * spec's own flag, not by a KNOWN_EXCEPTIONS entry, so no other type is
+ * affected: the B-17 was the only carrierCapable false spec when this was
+ * written.
+ */
+const aircraftIds = contentIds('aircraft').filter((id) => loadAircraftSpec(id).carrierCapable)
 const carrierIds = contentIds('ships').filter((id) => loadShipSpec(id).flightDeck !== undefined)
 
 interface Outcome { readonly ok: boolean; readonly detail: string }

@@ -41,7 +41,7 @@ export function wildcatSectionAt(): Promise<(z: number) => WingSection> {
 
 /** Wing sections of the model a spec draws: the Wildcat through its frame correction, any other
  *  (R3) model in its own glb frame, which is already the sim frame. Rejects an unknown model by name. */
-export async function sectionAtFor(model: string): Promise<(z: number) => WingSection> {
+export async function sectionAtFor(model: string, minX: number = WING_MIN_X_M): Promise<(z: number) => WingSection> {
   const path = model === 'wildcat' ? WILDCAT_GLB_PATH : `content/aircraft/${model}.glb`
   let bytes: Uint8Array
   try { bytes = new Uint8Array(readFileSync(path)) } catch { throw new Error(`mounts: no model glb for "${model}" at ${path}`) }
@@ -51,7 +51,7 @@ export async function sectionAtFor(model: string): Promise<(z: number) => WingSe
   return (z) => {
     const k = Math.round(z * 1000) / 1000
     let s = cache.get(k)
-    if (s === undefined) { s = wingSection(tris, k, WING_MIN_X_M); cache.set(k, s) }
+    if (s === undefined) { s = wingSection(tris, k, minX); cache.set(k, s) }
     return s
   }
 }

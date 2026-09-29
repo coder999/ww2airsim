@@ -324,6 +324,34 @@ Detail: [`docs/handoff/2026-09-29-f4u-corsair.md`](handoff/2026-09-29-f4u-corsai
 - No browser spec flies a carrier approach for any airplane. Cover the trap at the sim
   level (`tests/sim/trapCorsair.test.ts` is the template).
 
+## Lessons from the second run (B-17G, 2026-09-29)
+
+Detail: [`docs/handoff/2026-09-29-b-17.md`](handoff/2026-09-29-b-17.md).
+
+- **Check the model's origin first.** The body frame's origin is the wing
+  quarter-chord. The stock B-17 build sat 0.354 m off it. The wing-section reader
+  clips at `WING_MIN_X_M` (-2 m), which truncates a 4.9 m chord and gives a wrong
+  origin: pass a wider `minX` (`sectionAtFor(model, minX)`), and add the per-model
+  value to `centerPoint.test.ts`.
+- **D7's "bay loads hang as drawn racks" is not the only answer.** For the B-17 Mark chose no
+  drawn racks: 8 racks inside the hull, held by `internalBay.test.ts`. Reconcile D7 when
+  bay doors get a plan.
+- **A heavy airplane needs longer harness windows.** Ground conformance tests 6 and 8
+  give a from-standstill take-off 40 s and 30 s; the B-17 needs about 44 s. Widen the
+  window (`takeoffWindowS`), never the physics. The lift-off band inherits the
+  airplane's graded stall miss: the B-17's stall is 7.6% slow, so unstick landed at 0.931
+  of the target.
+- **A `carrierCapable: false` type does not belong in the carrier take-off matrix.**
+  `carrierTakeoff.test.ts` now filters on the flag; do not add a KNOWN_EXCEPTIONS entry.
+- **One cd0 cannot fit both a low-altitude and a high-altitude flown climb** when the
+  trial had cowl flaps open and the model has none. Fit the points the card grades, and
+  report the rest as a finding (B-17: +55.6% at 25,000 ft).
+- **Check red tests against the base commit.** Six red tests on this branch were already
+  red at the base (the Zero's leveling and its new stores block); two minutes in a
+  detached worktree at the base settled it.
+- **Gear cycle tests assume a travel time.** `hangar.spec.ts` "Cycle" ticks a fixed
+  duration; a slow gear (B-17: 12 s) needs the tick count raised.
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

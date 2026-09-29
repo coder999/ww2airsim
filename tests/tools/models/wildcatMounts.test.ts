@@ -12,7 +12,11 @@ import { loadAircraftSpec } from '../../../tools/content/load.js'
 // the Hellcat its own R3 model, so it no longer shares the Wildcat's mounts).
 const withStores = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
   .filter((s) => s.stores !== undefined)
-const sections = new Map(await Promise.all([...new Set(withStores.map((s) => s.view.model))].map(async (m) => [m, await sectionAtFor(m)] as const)))
+/** Racks inside the hull, not hung from a wing: nothing here to fit (B-17G onboarding, D7 to D9, 2026-09-29). Their
+ *  offsets are checked against the drawn hull by tests/tools/models/internalBay.test.ts. */
+const INTERNAL = new Set(['b-17-flying-fortress'])
+const wingMounted = withStores.filter((s) => !INTERNAL.has(s.id))
+const sections = new Map(await Promise.all([...new Set(wingMounted.map((s) => s.view.model))].map(async (m) => [m, await sectionAtFor(m)] as const)))
 
 describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
   it('mounts.ts slices the same glb the game draws (its own path constant, because content.ts cannot load under tsx)', () => {
@@ -35,15 +39,19 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     wildcatToSimMatrix().forEach((v, i) => expect(v).toBeCloseTo(g.matrix.elements[i]!, 12))
   })
 
-  it('covers every stores-carrying spec, each on the model it draws (A4: the Hellcat on its own; the Corsair and the Zero likewise)', () => {
-    expect(withStores.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat']])
+  it('covers every wing-mounted stores-carrying spec, each on the model it draws (A4: the Hellcat on its own; the Corsair and the Zero likewise)', () => {
+    expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat']])
+  })
+
+  it('the only stores-carrying spec left out is the B-17, whose racks are internal', () => {
+    expect(withStores.filter((s) => INTERNAL.has(s.id)).map((s) => s.id)).toEqual(['b-17-flying-fortress'])
   })
 
   it('rejects a model with no glb by name', async () => {
     await expect(sectionAtFor('no-such-model')).rejects.toThrow(/no-such-model/)
   })
 
-  it.each(withStores.map((s) => [s.id, s] as const))('%s: every offset is where `npm run models:mounts` hangs it on its own model, inside the chord, clear of the skin', (_id, spec) => {
+  it.each(wingMounted.map((s) => [s.id, s] as const))('%s: every offset is where `npm run models:mounts` hangs it on its own model, inside the chord, clear of the skin', (_id, spec) => {
     const fits = fitStores(sections.get(spec.view.model)!, spec.stores!)
     const all = [...spec.stores!.racks.map((m, i) => [m, fits.racks[i]!] as const), ...spec.stores!.rails.map((m, i) => [m, fits.rails[i]!] as const)]
     for (const [m, f] of all) {

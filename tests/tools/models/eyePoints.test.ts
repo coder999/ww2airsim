@@ -15,6 +15,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   wildcat: 'Puerta_cabina_Cabina_MAT_0',
   'a6m2-zero': 'Verriere_Verriere_0',
   'f4u-corsair': 'kabina-FACES',
+  // One transparent shell over the whole airframe (alpha 0.15); the eye sits under its top at the flight deck.
+  'b-17-flying-fortress': 'Object_51',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]
