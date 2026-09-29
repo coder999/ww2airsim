@@ -32,7 +32,6 @@ const valid = {
     dragAreaM2: 0.3,
     rollingResistanceCoeff: 0.02,
     brakingResistanceCoeff: 0.4,
-    tailUpSpeedMps: 15,
     tailwheelYawRateDegPerSec: 20,
     lateralGripSeconds: 1.5,
     heightM: 2.2,

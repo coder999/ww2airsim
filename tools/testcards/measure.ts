@@ -415,19 +415,13 @@ const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
 
 /**
  * Ground-roll distance from a standstill to a stated lift-off speed, metres.
- * Controls held at zero (level, no aileron, no rudder) and full throttle, so
- * the commanded body rates are all zero and the attitude never leaves level
- * -- no autopilot is needed to hold it there. `groundBodyRates`
- * (`src/sim/ground.ts`) forces roll to exactly zero throughout, and gates
- * pitch on ground speed reaching `spec.gear.tailUpSpeedMps` -- which this run
- * DOES pass (measured 2026-09-16: at x = 33.8 m of the roll's 228.7 m total,
- * about 15% of the way down it), but that gate only ever passes through
- * `airRates.z`, the AIR-commanded pitch rate, and `airRates.z` is itself zero
- * the whole time because `controls.pitch` is held at zero throughout. So the
- * airplane still never rotates here, not because the speed gate never opens
- * but because there is no rotation command for it to let through -- and it
- * rolls level all the way to lift-off speed by construction, not by a
- * position pin.
+ * Controls held at zero (no elevator, aileron or rudder) and full throttle,
+ * so the AIR commands no rotation and no autopilot is needed. `groundBodyRates`
+ * (`src/sim/ground.ts`) forces roll to exactly zero throughout, and drives
+ * the pitch (T1, 2026-09-28): from the rest attitude the run starts at, the
+ * tail comes up toward level as airflow over it builds, with the stick
+ * neutral; the pitch can never go past level nose-down or past the rest
+ * attitude nose-up while on the wheels.
  *
  * The airplane is spawned with `gearFraction: 1` -- on its wheels -- over
  * `FLAT_RUNWAY_FIELD`, and the real ground constraint (`restOnSurface`,
