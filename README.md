@@ -237,6 +237,12 @@ The tunnels, servers, locks and recipes are in [docs/testing.md](docs/testing.md
 Live at <https://ww2airsim.com>, a public static site on the OVH
 VPS. `noindex`, because it is unfinished.
 
+Also served at <https://ww2airsim.marktuttle.dev> as of 2026-09-29: the
+apex is blocked on the maintainer's work network until its registration is
+30 days old, and `marktuttle.dev` is not. Both hosts are one Traefik router
+(`vps-infra/sites/ww2airsim/compose.yml`); drop the second `Host()` once the
+apex is confirmed reachable from work. Verified 2026-09-29: both returned 200.
+
 Deploys are **manual**: `gh workflow run deploy.yml --repo coder999/ww2airsim`.
 Pushing `main` releases nothing. The workflow checks out with `lfs: true`
 (needed since Task 2, 2026-09-24: `content/terrain/L0.bin` is committed via

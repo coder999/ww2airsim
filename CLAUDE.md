@@ -79,8 +79,9 @@ not exist, and three conventions below were being missed for that reason).
 
 - **`ww2airsim.windomlane.org` is the host to send him to.** It serves the dev
   server off this working copy (`npm run dev:lan`; plain `npm run dev` binds
-  loopback and the host returns 502). `*.marktuttle.dev` is unreachable from
-  his work network. Before naming the host, assert it is up:
+  loopback and the host returns 502). The production build is
+  at `ww2airsim.marktuttle.dev`, reachable from work since 2026-09-29
+  (`marktuttle.dev` passed 30 days; `ww2airsim.com` is still blocked). Before naming the host, assert it is up:
   `curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/`
   must print `200`.
 - **Email him every plan and spec, as HTML, when it is written** — do not wait
