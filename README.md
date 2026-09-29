@@ -82,6 +82,14 @@ one graded card suite for every aircraft. It is on branch `worktree-w1-wildcat`;
 [aircraft.md](docs/aircraft.md) is the onboarding runbook and master spec §15
 holds the status.
 
+**T1 gave the aircraft believable ground handling (2026-09-28):** the rest
+attitude is derived from a gear layout in each spec, the tail rises with
+airflow instead of a speed gate, and the taxi has rudder with prop wash, a
+locking caster, differential brakes on `,` and `.`, and engine torque. It is on
+branch `worktree-t1-tailwheel`; the [handoff](docs/handoff/2026-09-28-t1-ground-handling.md)
+lists what was measured and what is open, [aircraft.md](docs/aircraft.md) has
+the onboarding step, and master spec §15 holds the status.
+
 **Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
 loadout picker, stores hung under the wings, ship and airfield-structure
 damage. Tier 1 is green and reference-GPU Tier 2 acceptance passes all five
