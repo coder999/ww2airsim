@@ -383,10 +383,9 @@ function validatePilot(value: unknown): PilotRecord {
   if (!RANK_LADDER.some((r) => r.abbrev === rank.abbrev)) {
     throw new Error(`unknown rank "${rank.abbrev}"`)
   }
-  const killsByType = v.killsByType as Record<string, unknown>
-  for (const t of TARGET_TYPES) {
-    if (typeof killsByType[t] !== 'number') throw new Error(`killsByType missing "${t}"`)
-  }
+  // Kill rows added after a pilot was saved (destroyer, transport) read as zero.
+  const savedKills = v.killsByType as Record<string, unknown>
+  const killsByType = Object.fromEntries(TARGET_TYPES.map((t) => [t, num(savedKills[t])]))
   // Dossier spec §B.3: pre-dossier records (and hand-edited partial ones)
   // are completed with zeros, never thrown -- a throw here empties the whole
   // roster through loadRoster's catch (review focus 4).
@@ -407,7 +406,7 @@ function validatePilot(value: unknown): PilotRecord {
   // Friendly-fire spec §6: an unknown status (hand-edited, or a future
   // format) reads as active rather than throwing the whole roster away.
   const status = PILOT_STATUSES.includes(v.status as PilotStatus) ? (v.status as PilotStatus) : 'active'
-  return { ...(v as unknown as PilotRecord), status, career, log }
+  return { ...(v as unknown as PilotRecord), killsByType: killsByType as PilotRecord['killsByType'], status, career, log }
 }
 
 /**

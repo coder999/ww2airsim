@@ -199,9 +199,13 @@ describe('missionScore', () => {
     expect(killed.total).toBe(2 * 500 + 1 * 5000)
   })
 
-  it('every row is present even at zero, in master spec §8\'s eight categories', () => {
+  it('scores a sunk transport at 400 and a destroyer at 750', () => {
+    expect(missionScore({ ...zeroKillsByType(), transport: 2, destroyer: 1 }, 'landed').total).toBe(2 * 400 + 750)
+  })
+
+  it('every row is present even at zero: master spec §8\'s eight categories plus destroyer and transport', () => {
     const score = missionScore(zeroKillsByType(), 'landed')
-    expect(score.rows).toHaveLength(8)
+    expect(score.rows).toHaveLength(10)
     expect(score.total).toBe(0)
   })
 })

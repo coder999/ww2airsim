@@ -55,6 +55,19 @@ describe('roster persistence — whole-branch review I-1', () => {
     expect(loadRoster()).toEqual([pilot])
   })
 
+  it('loadRoster zero-fills kill rows added after the pilot was saved instead of dropping the roster', () => {
+    const pilot = createPilot('Boyington')
+    const { destroyer: _d, transport: _t, ...old } = pilot.killsByType
+    ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem(
+      'ww2airsim.roster.v1',
+      JSON.stringify([{ ...pilot, killsByType: { ...old, cruiser: 2 } }]),
+    )
+    const [loaded] = loadRoster()
+    expect(loaded!.killsByType.destroyer).toBe(0)
+    expect(loaded!.killsByType.transport).toBe(0)
+    expect(loaded!.killsByType.cruiser).toBe(2)
+  })
+
   it('importRoster still throws on a rank abbrev not in the ladder at all (a genuinely unrecognized rank)', () => {
     const pilot = { ...createPilot('Boyington'), rank: { abbrev: 'XYZ', name: 'Not A Rank', threshold: 0 } }
     expect(() => importRoster(JSON.stringify([pilot]))).toThrow()

@@ -21,13 +21,13 @@
  *   318 s. Heading and radio call changed together; the geometry test
  *   below holds the heading within 10 deg of the bearing and pins the call.
  * - **Wind 5 m/s from 000 (the plan had 060; ruling T4-D5).** `fieldApproach`
- *   stops 83.7 m off Tacloban's centerline in the 060 crosswind (fly.ts);
+ *   stopped 83.7 m off Tacloban's centerline in the 060 crosswind (fly.ts);
  *   a north wind is a headwind for the northbound approach. Clouds and time
  *   of day are the plan's.
  * - **Nothing else needed tuning.** The success run, measured 2026-09-27 at
  *   terrain level `finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)` (L1):
  *   Convoy complete and "two down" at tick 3 (staged), the vector call at
- *   tick 60, landed at Tacloban at tick 7538.
+ *   tick 60, landed at Tacloban at tick 7538 (before the 2026-09-28 move of the recovery field to Bayug, which is closer; re-measure).
  */
 import { describe, it, expect } from 'vitest'
 import { bundleForScenario, loadAircraftSpec, loadScenarioBundle, loadShipSpec } from '../../../../tools/content/load.js'
@@ -43,7 +43,7 @@ import { progressOf } from '../fixture.js'
 import { destroyNow, fieldApproach, hold, levelAt, terrainOrSkip } from '../fly.js'
 
 const SHIPS = ['maru-1', 'maru-2', 'maru-3', 'escort-1']
-const TWO_DOWN = "Strike lead: two down. Home to Tacloban when you're dry."
+const TWO_DOWN = "Strike lead: two down. Home to Bayug when you're dry."
 /** Staged over the convoy's first leg at 1,500 m, so the objective pass
  *  after `destroyNow` runs with the player alive and airborne. */
 const OVER_CONVOY = levelAt({ x: -80000, z: 12000 }, 1500, 120, 210)
@@ -133,7 +133,7 @@ describe.skipIf(terrain === null)('Convoy Strike, headless (spec §5)', () => {
     }
   })
 
-  it('success: two marus down, "two down", recover at Tacloban, badge; the whole convoy is a bonus', () => {
+  it('success: two marus down, "two down", recover at Bayug, badge; the whole convoy is a bonus', () => {
     let w = worldFromScenario(loadScenarioBundle('convoy-strike'), terrain)
     w = hold(w, OVER_CONVOY, 2)
     expect(progressOf(w, 'sink').status).toBe('active')
@@ -142,19 +142,19 @@ describe.skipIf(terrain === null)('Convoy Strike, headless (spec §5)', () => {
     expect(progressOf(w, 'all').status).toBe('active')
     expect(radioMessages(w.mission!).map((e) => e.text)).toContain(TWO_DOWN)
 
-    w = fieldApproach(w, 'tacloban')
+    w = fieldApproach(w, 'bayug')
     expect(playerAircraft(w).impact).toBeNull()
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out).toMatchObject({ result: 'success', badge: { id: 'convoy-strike' }, reasons: [] })
     expect(out.objectives.find((o) => o.id === 'all')).toMatchObject({ priority: 'secondary', final: 'incomplete' })
   })
 
-  it('failure: one maru down, recovering at Tacloban earns no badge', () => {
+  it('failure: one maru down, recovering at Bayug earns no badge', () => {
     let w = worldFromScenario(loadScenarioBundle('convoy-strike'), terrain)
     w = hold(destroyNow(w, ['maru-1']), OVER_CONVOY, 2)
     expect(progressOf(w, 'sink').status).toBe('active')
     expect(radioMessages(w.mission!).map((e) => e.text)).not.toContain(TWO_DOWN)
-    w = fieldApproach(w, 'tacloban')
+    w = fieldApproach(w, 'bayug')
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Convoy: incomplete', 'Recover: incomplete'] })
   })
