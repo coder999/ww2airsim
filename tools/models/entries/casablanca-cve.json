@@ -8,13 +8,14 @@
     "license": "AGPL-3.0-or-later"
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 156.13 } },
+  "skin": true,
   "keep": [{ "node": "FlightDeck" }],
-  "textures": { "maxSize": 512, "format": "webp" },
+  "textures": { "maxSize": 1024, "format": "webp" },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
   "ship": {
     "spec": "casablanca-cve", "fit": "deck", "kind": "waterline", "palette": "usn-1944",
     "materials": { "hull": "hull", "deck": "deck", "flightDeck": "flightDeck", "superstructure": "superstructure", "fitting": "fitting" },
-    "otherMaterials": "classify", "smokeOrigin": [15, 22, 8.7], "bow": "island-starboard"
+    "otherMaterials": "classify", "smokeOrigin": [15, 22.2, 10.4], "bow": "island-starboard"
   }
 }

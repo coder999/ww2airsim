@@ -16,10 +16,10 @@ import { coplanarOverlaps, worldTriangles } from '../buildingGeometry.js'
 import { islands, signedVolume } from './solids.js'
 
 /** The skinned Blender ships this plan has reached. Tasks 8 and 9 add theirs. */
-const SHIPS: readonly string[] = ['kagero-dd', 'pennsylvania-bb']
+const SHIPS: readonly string[] = ['casablanca-cve', 'kagero-dd', 'pennsylvania-bb']
 /** Each ship's text markings, from Task 1's research (ledger, 2026-09-28): a count, so a ship with
  *  no number on its cited hull declares that instead of passing the placement test vacuously. */
-const TEXTS: Readonly<Record<string, number>> = { 'kagero-dd': 0, 'pennsylvania-bb': 0 }
+const TEXTS: Readonly<Record<string, number>> = { 'casablanca-cve': 0, 'kagero-dd': 0, 'pennsylvania-bb': 0 }
 /** hull_lines' nodes: open shells each, closed only together (Task 6's kitShips.test.ts pools them). */
 const HULL_NODES = new Set(['Hull', 'MainDeck', 'Bottom'])
 const entries = loadModelEntries()
