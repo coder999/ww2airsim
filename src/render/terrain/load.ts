@@ -1,3 +1,4 @@
+import type { CoverField } from '../../sim/world/cover.js'
 import terrainHeader from '../../../content/terrain/header.json' with { type: 'json' }
 import { terrainLevelUrl } from '../content.js'
 import { parseTerrainHeader, samplesAtLevel } from '../../sim/world/schema.js'
@@ -129,6 +130,7 @@ export function applyTerrainLevel(
   level: number,
   data: Int16Array,
   finestLevel: number,
+  cover: CoverField | null = null,
 ): FrameState {
   mesh.setLevel(level, data)
   // The SAME decoded array goes to both, deliberately: `physicsFieldFor`
@@ -136,7 +138,10 @@ export function applyTerrainLevel(
   // reads it, so the mesh's float copy and the physics' int16 view can never
   // be of different samples.
   const field = physicsFieldFor(level, data, finestLevel)
-  return field ? withTerrain(frame, field) : frame
+  // The land cover rides on the physics field (`TerrainField.cover`), so a
+  // cover raster that arrived BEFORE this level is attached here; one that
+  // arrives after is attached by the caller (`main.ts`, `withTerrain`).
+  return field ? withTerrain(frame, cover === null ? field : { ...field, cover }) : frame
 }
 
 /**

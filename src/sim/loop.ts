@@ -754,7 +754,7 @@ function stepAircraftEntity<M>(
   // above ground and have it read as a normal landing.
   const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
   if (ground !== null) {
-    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity)) {
+    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
       const impact: Impact = {
         tick: current.tick,
         position: current.position,
