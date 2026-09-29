@@ -12,7 +12,7 @@
 
 **Ledger:** write `.superpowers/sdd/2026-09-28-t1-ground-handling/progress.md` (gitignored) and record every ruling in it, as `CLAUDE.md` requires.
 
-**Viewing checkpoints (Mark decides at plan review):** proposed after Task 4 (Phase A: tail-up, rotation, rest attitude) and after Task 6 (Phase B: taxi and yaw). If Mark does not answer, run unattended and collect the captures in the handoff (`CLAUDE.md`, "How Mark works").
+**Viewing checkpoints (Mark, 2026-09-28):** final product only. Run unattended, to completion, with the Task 4 and Task 6 captures collected in the handoff. Execution: subagent-driven.
 
 ## Global Constraints
 
