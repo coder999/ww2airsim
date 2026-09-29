@@ -8,6 +8,7 @@ import { contourLabelSites } from './mission/chartLabels.js'
 import { pathData } from './mission/chartIso.js'
 import { buildChartLayers, type ChartLayers } from './mission/chartLayers.js'
 import { scaleBar } from './mission/chartScale.js'
+import { fitView, panView, viewBounds, zoomView, type ChartView } from './mission/chartView.js'
 import { CHART, compassRose, ensurePatternDefs, paint, PATTERN_CROP, PATTERN_SWAMP, scaleBarGroup } from './mission/chartStyle.js'
 import { buildGraticule } from './mission/graticule.js'
 import { figureRow, sectionTitle } from './ui/navalComms.js'
@@ -344,7 +345,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
 
   const instruction = document.createElement('p')
   instruction.style.cssText = 'margin:8px 0 0;color:var(--ink-faint);font-size:12px'
-  instruction.textContent = 'Select an airfield or carrier for course and range. North is up.'
+  instruction.textContent = 'Select an airfield or carrier for course and range. Scroll to zoom, drag to pan, double-click to reset. North is up.'
   panel.appendChild(instruction)
 
   const objectivesList = document.createElement('div')
@@ -450,12 +451,19 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     layer.appendChild(label)
   }
 
+  let view: ChartView | null = null
+  let baseBounds: ChartBounds | null = null
+  let lastDraw: (() => void) | null = null
+
   let layerCache: { terrain: TerrainField | null | undefined; key: string; layers: ChartLayers } | null = null
 
   const draw = <M>(world: World<M>, selectedId: string | null): void => {
     svg.replaceChildren()
     const points = mapPoints(world)
-    const bounds = chartBounds(points)
+    const base = chartBounds(points)
+    baseBounds = base
+    const bounds = view === null ? base : viewBounds(base, view)
+    lastDraw = () => draw(world, selectedId)
     const player = points.find((point) => point.kind === 'player')!
     const selected = selectedPoint(points, selectedId)
     const project = (x: number, z: number): ChartProjection => projectPoint({ x, z }, bounds, CHART_WIDTH, CHART_HEIGHT)
@@ -612,11 +620,81 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
   }
   let shown: ChartDrawKey | null = null
 
+  const chartPoint = (event: MouseEvent): { x: number; y: number } | null => {
+    const ctm = (svg as unknown as SVGGraphicsElement).getScreenCTM()
+    if (ctm === null) return null
+    const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse())
+    return { x: p.x - MARGIN_L, y: p.y - MARGIN_T }
+  }
+  let redrawQueued = false
+  const redraw = (): void => {
+    if (redrawQueued) return
+    redrawQueued = true
+    requestAnimationFrame(() => {
+      redrawQueued = false
+      lastDraw?.()
+    })
+  }
+  const currentView = (): ChartView | null => (baseBounds === null ? null : (view ?? fitView(baseBounds)))
+  svg.style.touchAction = 'none'
+  svg.addEventListener(
+    'wheel',
+    (event) => {
+      const at = chartPoint(event)
+      const current = currentView()
+      if (at === null || current === null || baseBounds === null) return
+      event.preventDefault()
+      view = zoomView(baseBounds, current, Math.exp(-event.deltaY * 0.002), at.x / CHART_WIDTH, at.y / CHART_HEIGHT, CHART_WIDTH, CHART_HEIGHT)
+      redraw()
+    },
+    { passive: false },
+  )
+  let drag: { x: number; y: number; moved: boolean; id: number } | null = null
+  let suppressClick = false
+  svg.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return
+    const at = chartPoint(event)
+    if (at !== null) drag = { x: at.x, y: at.y, moved: false, id: event.pointerId }
+  })
+  svg.addEventListener('pointermove', (event) => {
+    const at = chartPoint(event)
+    const current = currentView()
+    if (drag === null || at === null || current === null || baseBounds === null || event.pointerId !== drag.id) return
+    if (!drag.moved && Math.hypot(at.x - drag.x, at.y - drag.y) < 5) return
+    if (!drag.moved) svg.setPointerCapture(event.pointerId)
+    drag.moved = true
+    const scale = Math.min(CHART_WIDTH / (baseBounds.maxX - baseBounds.minX), CHART_HEIGHT / (baseBounds.maxZ - baseBounds.minZ)) * current.zoom
+    view = panView(current, at.x - drag.x, at.y - drag.y, scale)
+    drag.x = at.x
+    drag.y = at.y
+    redraw()
+  })
+  const endDrag = (): void => {
+    if (drag?.moved) suppressClick = true
+    drag = null
+  }
+  svg.addEventListener('pointerup', endDrag)
+  svg.addEventListener('pointercancel', endDrag)
+  svg.addEventListener(
+    'click',
+    (event) => {
+      if (!suppressClick) return
+      suppressClick = false
+      event.stopPropagation()
+    },
+    true,
+  )
+  svg.addEventListener('dblclick', () => {
+    view = null
+    redraw()
+  })
+
   return {
     show<M>(world: World<M>, selectedId: string | null): void {
       const wasHidden = backdrop.style.display === 'none'
       const next: ChartDrawKey = { tick: world.tick, selectedId, terrain: world.terrain }
-      if (chartNeedsRedraw(shown, next)) {
+      if (wasHidden) view = null
+      if (wasHidden || chartNeedsRedraw(shown, next)) {
         draw(world, selectedId)
         shown = next
       }
