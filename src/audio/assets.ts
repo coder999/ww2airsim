@@ -64,7 +64,7 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // needed on either side of that swap.
   { id: 'rocket_whoosh', path: 'content/audio/rocket_whoosh.wav', bus: 'sfx', bytes: 96_044, peakFullScale: 0.8500, cueGain: 0.55 },
   // Adobe Firefly, generated 2026-09-29 (content/audio/NOTICE.md). Wired
-  // 2026-09-29 except flak_distant (sub-project 5) and the two radial engine
+  // 2026-09-29 (flak_distant 2026-09-30, spatial) except the two radial engine
   // loops, which stay unused (the original propeller.wav serves single radials).
   { id: 'engine_radial_small', path: 'content/audio/engine_radial_small.wav', bus: 'engine', bytes: 1_536_770, peakFullScale: 0.7305, cueGain: 0.50 },
   { id: 'engine_radial_big', path: 'content/audio/engine_radial_big.wav', bus: 'engine', bytes: 1_536_770, peakFullScale: 0.9844, cueGain: 0.50 },
