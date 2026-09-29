@@ -122,6 +122,10 @@ SKIN_PADDING_PX = 4
 SHARP_DEG = 50.0
 # Spar lines drawn on every wing and fin surface, as chord fractions (ESTIMATE: period practice).
 SPARS = (0.2, 0.65)
+# DP2: the default hull section, the starboard half from the keel up as (beam fraction, height
+# fraction). h <= 0 is a fraction of the draft below the waterline, h > 0 of the deck edge's height
+# (ESTIMATE: a full-bodied warship midsection; a script passes its own from its section table).
+HULL_SECTION = ((0.0, -1.0), (0.35, -0.97), (0.7, -0.86), (0.92, -0.62), (1.0, -0.28), (1.0, 0.0), (1.0, 0.35), (1.0, 0.7), (1.0, 1.0))
 
 
 def _unit(v):
@@ -258,6 +262,27 @@ def _refine(vals, k):
     return out, authored
 
 
+def _refine_hull(vals, k):
+    """k - 1 stations between each authored pair of (x, half_beam, draft, deck_y, deck_half_beam):
+    x linear, the rest Catmull-Rom (ends repeated), each clamped between half the smaller neighbor
+    and the larger, so a flat midbody stays flat (a pinned keel cannot overshoot) and a fine end
+    cannot go negative."""
+    out, m = [], len(vals)
+    for i in range(m - 1):
+        p0, p1, p2, p3 = vals[max(i - 1, 0)], vals[i], vals[i + 1], vals[min(i + 2, m - 1)]
+        out.append(p1)
+        for s in range(1, k):
+            t = s / k
+            rest = []
+            for c in range(1, 5):
+                v = 0.5 * (2 * p1[c] + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t * t
+                           + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t * t * t)
+                rest.append(min(max(v, 0.5 * min(p1[c], p2[c])), max(p1[c], p2[c])))
+            out.append((p1[0] + (p2[0] - p1[0]) * t, *rest))
+    out.append(vals[-1])
+    return out
+
+
 def _section_labels(stations):
     """(chord fraction, 'u' or 'l') for each point of _airfoil's ring, in ring order: the upper
     surface leading edge to trailing edge, then the lower back (both edges are single points)."""
@@ -275,6 +300,7 @@ class Model:
         self._markings = []
         self._tag = 'part'
         self._shared = None  # inside shared_chart(): (tag, role) -> its one chart key, else None
+        self._hull = None  # DP2: the last hull_lines' refined stations, for hull_at
 
     @contextlib.contextmanager
     def tagged(self, tag):
@@ -333,10 +359,11 @@ class Model:
             out.append((key, tuple((_dot(_sub(q, p[0]), u), _dot(_sub(q, p[0]), v)) for q in p)))
         return out
 
-    def _loft_charts(self, rings, role=None):
+    def _loft_charts(self, rings, role=None, true_arc=False):
         """Charts for _loft's faces, in its order: one chart for every side quad (u = distance
         along the ring centroids, v = each ring's own arc-length fraction x the longest ring's
-        perimeter), then a planar chart per cap. Returns (charts, side key, U, V)."""
+        perimeter), then a planar chart per cap. With true_arc, v is each ring's true arc length.
+        Returns (charts, side key, U, V)."""
         count = len(rings[0])
         cent = [tuple(sum(p[i] for p in r) / count for i in range(3)) for r in rings]
         U = [0.0]
@@ -349,7 +376,9 @@ class Model:
                 c.append(c[-1] + _dist(r[j], r[(j + 1) % count]))
             arcs.append(c)
         pmax = max(c[-1] for c in arcs)
-        V = [[pmax * c[j] / c[-1] for j in range(count + 1)] for c in arcs]
+        # true_arc (DP2): each ring's own arc length from its first point, so texel density holds
+        # to a hull's fine ends; the default keeps DP0's fraction x the longest perimeter.
+        V = [list(c) for c in arcs] if true_arc else [[pmax * c[j] / c[-1] for j in range(count + 1)] for c in arcs]
         side = self._new_chart()
         charts = []
         for s in range(len(rings) - 1):
@@ -1055,6 +1084,150 @@ class Model:
                 j = (k + 1) % 4
                 self.strut(role, corner(k, level), corner(j, level + 1), r, r, 4, node)
                 self.strut(role, corner(j, level), corner(k, level + 1), r, r, 4, node)
+
+    # --- Ship parts (DP2) ---
+
+    def hull_lines(self, role, stations, section=HULL_SECTION, node='Hull', deck_role=None, deck_node=None,
+                   below_role=None, below_node=None, subdivide=1):
+        """(DP2) A closed hull lofted through `section` at every station, wound outward.
+
+        Each station is (x, half_beam, draft, deck_y, deck_half_beam): the waterline half-beam, the
+        keel's depth below y = 0, the deck edge's height (freeboard plus sheer) and its half-beam
+        (wider than the waterline is flare, narrower is tumblehome). Stations run stern to bow, x
+        strictly increasing; both ends are capped, so an end is a small nonzero section.
+        `section` is the starboard half from the keel up as (f, h): with h <= 0 a point is at
+        z = f x half_beam, y = h x draft; with h > 0 at z = f x (half_beam + (deck_half_beam -
+        half_beam) x h), y = h x deck_y. It starts at the keel (0, -1), passes the waterline (1, 0)
+        and ends at the deck edge (1, 1). The deck is the ring edge between the two deck-edge
+        points; with `deck_role` it goes to `deck_node`. With `below_role`, faces whose ring edge
+        has both ends below the waterline go to `below_node`, and so does each end cap's part below
+        the waterline chord (the caps are cut there, whatever the roles). `subdivide` k > 1 lofts k - 1
+        Catmull-Rom stations between each authored pair. Skinned, the hull is one loft chart
+        whose v is true arc length (texel density holds to the ends)."""
+        _require(isinstance(subdivide, int) and subdivide >= 1, f'hull_lines: subdivide must be an integer >= 1, got {subdivide!r}')
+        _require(len(stations) >= 3, f'hull_lines: need at least 3 stations, got {len(stations)}')
+        S = [(float(f), float(h)) for f, h in section]
+        _require(len(S) >= 3 and S[0] == (0.0, -1.0) and S[-1] == (1.0, 1.0) and (1.0, 0.0) in S,
+                 'hull_lines: section must start at the keel (0, -1), pass the waterline (1, 0) and end at the deck edge (1, 1)')
+        _require(all(S[i][1] < S[i + 1][1] for i in range(len(S) - 1)), 'hull_lines: section heights must rise strictly from the keel')
+        vals = []
+        for i, st in enumerate(stations):
+            _require(len(st) == 5, f'hull_lines: station {i} needs (x, half_beam, draft, deck_y, deck_half_beam), got {len(st)} values')
+            v = tuple(float(c) for c in st)
+            _require(all(math.isfinite(c) for c in v) and all(c > 0 for c in v[1:]),
+                     f'hull_lines: station {i} half-beam, draft, deck height and deck half-beam must be finite and > 0')
+            vals.append(v)
+        _require(all(vals[i][0] < vals[i + 1][0] for i in range(len(vals) - 1)), 'hull_lines: station x values must be strictly increasing')
+        if subdivide > 1:
+            vals = _refine_hull(vals, subdivide)
+        self._hull = vals
+        n = len(S)
+        rings = []
+        for x, hb, draft, deck_y, dhb in vals:
+            def pt(f, h, side):
+                if h <= 0:
+                    return (x, h * draft, side * f * hb)
+                return (x, h * deck_y, side * f * (hb + (dhb - hb) * h))
+            # Counterclockwise seen from beyond the bow looking aft (_loft's rule): the viewer's right is
+            # -z, so the ring climbs the port side, crosses the deck and comes down starboard.
+            rings.append([pt(f, h, -1.0) for f, h in S] + [pt(f, h, 1.0) for f, h in reversed(S[1:])])
+        count = 2 * n - 1
+        height = [S[j][1] if j < n else S[2 * n - 1 - j][1] for j in range(count)]
+        verts, faces = _loft(rings)
+        charts = smooth = None
+        if self.skin:
+            charts, _side, _U, _V = self._loft_charts(rings, role, true_arc=True)
+        # Each end cap is cut along the waterline chord into the part below it and the part above,
+        # so with `below_role` no cap triangle wholly below the waterline stays `role`. Both halves
+        # keep the whole cap's planar chart (they partition it, so they never overlap).
+        w = S.index((1.0, 0.0))
+        cut_faces, cut_charts = [], []
+        for c in (-2, -1):
+            cap = faces[c][0]
+            pos = {v: i for i, v in enumerate(cap)}
+            keel = min(cap)   # the ring's first point; its waterline points are w and count - w after it
+            ip, isr = pos[keel + w], pos[keel + count - w]
+
+            def arc(a, b, cap=cap):   # the cap's vertices from position a to b, in its own winding
+                return tuple(cap[(a + i) % count] for i in range((b - a) % count + 1))
+            one, two = arc(ip, isr), arc(isr, ip)
+            lo, hi = (one, two) if keel in one else (two, one)
+            for part, j in ((lo, 'below'), (hi, None)):
+                cut_faces.append((part, j))
+                if charts is not None:
+                    key, uvs = charts[len(faces) + c]
+                    uv = dict(zip(cap, uvs))
+                    cut_charts.append((key, tuple(uv[v] for v in part)))
+        faces = faces[:-2] + cut_faces
+        if charts is not None:
+            charts = charts[:-2] + cut_charts
+            smooth = [j is not None and j != 'below' for _, j in faces]
+
+        def group(j):
+            if j is None:
+                return role, node
+            if j == 'below':
+                return (below_role, below_node) if below_role is not None else (role, node)
+            if deck_role is not None and j == n - 1:
+                return deck_role, deck_node
+            if below_role is not None and height[j] < 0 and height[(j + 1) % count] < 0:
+                return below_role, below_node
+            return role, node
+
+        order, ids = [], {}
+        for i, (_f, j) in enumerate(faces):
+            g = group(j)
+            if g not in ids:
+                ids[g] = []
+                order.append(g)
+            ids[g].append(i)
+        for r, nd in order:
+            sel = ids[(r, nd)]
+            used = sorted({v for i in sel for v in faces[i][0]})
+            index = {old: new for new, old in enumerate(used)}
+            self._part(r, [verts[v] for v in used], [tuple(index[v] for v in faces[i][0]) for i in sel], nd,
+                       None if charts is None else [charts[i] for i in sel], False if smooth is None else [smooth[i] for i in sel])
+
+    def hull_at(self, x):
+        """(DP2) (half_beam, draft, deck_y, deck_half_beam) of the last hull_lines hull at x: linear
+        between its refined stations, which is exactly its deck face. A fitting stands on deck_y
+        less 0.02 m (EMBED), and keeps inside deck_half_beam."""
+        _require(self._hull is not None, 'hull_at: call hull_lines first')
+        st = self._hull
+        _require(st[0][0] <= x <= st[-1][0], f'hull_at: x {x} is off the hull ({st[0][0]}, {st[-1][0]})')
+        for a, b in zip(st, st[1:]):
+            if a[0] <= x <= b[0]:
+                t = (x - a[0]) / (b[0] - a[0])
+                return tuple(a[c] + (b[c] - a[c]) * t for c in range(1, 5))
+
+    def naval_turret(self, role, index, center, facing, body, barrels, barrel_length, barrel_radius,
+                     elevation_deg=0.0, bag_length=0.0, node=None):
+        """(DP2) A gunhouse and its guns in node TurretN, numbered bow to stern by the caller (H3):
+        a frustum `body` = (length, width, height) on `center`, its roof 0.8 x 0.85 of its floor;
+        `barrels` tubes pointing `facing` (+1 bow, -1 stern) along x, spread evenly across the width
+        at 0.45 of the height, each breech 0.2 m inside the sloped face, the muzzle 0.8 x the root.
+        With `bag_length` > 0 each tube leaves the face through a blast bag 2.2 x its radius
+        (ESTIMATE). Every piece is wound outward."""
+        _require(isinstance(index, int) and index > 0, f'naval_turret: index must be a positive integer, got {index!r}')
+        _require(facing in (-1, 1), f'naval_turret: facing must be -1 or +1, got {facing}')
+        _require(isinstance(barrels, int) and barrels > 0, f'naval_turret: barrels must be a positive integer, got {barrels!r}')
+        length, width, height = body
+        _require(min(length, width, height, barrel_length, barrel_radius) > 0 and bag_length >= 0,
+                 'naval_turret: body, barrel length and radius must be > 0 and bag_length >= 0')
+        key = node or f'Turret{index}'
+        x, y, z = center
+        self.frustum(role, (x, y, z), (length, width), (0.8 * length, 0.85 * width), height, key)
+        gy = y + 0.45 * height
+        face = 0.5 * length * (1 - 0.2 * 0.45)   # the sloped face's distance from center at gun height
+        az = 0.0 if facing == 1 else 180.0
+        spacing = width / (barrels + 1)
+        for b in range(barrels):
+            zz = z + (b - (barrels - 1) / 2) * spacing
+            self.gun_barrel(role, (x + facing * (face - 0.2), gy, zz), az, elevation_deg, barrel_length + 0.2,
+                            barrel_radius, 0.8 * barrel_radius, 16, key)
+            if bag_length > 0:
+                self.gun_barrel(role, (x + facing * (face - 0.05), gy, zz), az, elevation_deg, bag_length + 0.05,
+                                2.2 * barrel_radius, 1.4 * barrel_radius, 16, key)
 
     def _pack(self):
         """(meters per pixel, chart boxes, placements): the smallest uniform texel size, in 3%
