@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
-  startTakeoff, takeoffControls, ZERO_TAKEOFF_RUN_M, type TakeoffContext, type TakeoffState,
+  startTakeoff, takeoffClear, takeoffControls, TAKEOFF_CLEAR_M, ZERO_TAKEOFF_RUN_M, type TakeoffContext, type TakeoffState,
 } from '../../../src/sim/ai/takeoff.js'
 import { parkedStateOnRunway } from '../../../src/sim/ai/parkSpots.js'
 import { heightAboveGround } from '../../../src/sim/ai/safety.js'
 import { parseAirfield, runwayHeadingRad, worldToLocal, type Airfield } from '../../../src/sim/world/airfields.js'
 import { createCombat } from '../../../src/sim/weapons/combat.js'
-import { advance, aircraftById, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
+import { advance, aircraftById, withAircraftState, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
+import { qFromAxisAngle, qMul } from '../../../src/sim/math/quat.js'
+import { v3 } from '../../../src/sim/math/vec3.js'
 import type { Controls } from '../../../src/sim/flight/state.js'
 import { decksOf } from '../../../src/sim/world/deck.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
@@ -30,11 +32,12 @@ const strip = (headingDeg: number) => parseAirfield({
   reference: { source: 'test' },
 })
 
-/** An a6m2-zero at rest on the strip's center, facing down a runway on `headingDeg`. */
-function parkedZero(o: { readonly headingDeg?: number } = {}): AircraftEntity {
-  const state = parkedStateOnRunway(ZERO, strip(o.headingDeg ?? 0), { x: 0, z: 0 }, 100)
+/** An a6m2-zero at rest on the strip at runway-local `z` (default its
+ *  center), facing down a runway on `headingDeg`. */
+function parkedZero(o: { readonly headingDeg?: number; readonly id?: string; readonly z?: number } = {}): AircraftEntity {
+  const state = parkedStateOnRunway(ZERO, strip(o.headingDeg ?? 0), { x: 0, z: o.z ?? 0 }, 100)
   return {
-    id: 'ai-1', spec: ZERO, state, previous: state,
+    id: o.id ?? 'ai-1', spec: ZERO, state, previous: state,
     controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0 },
     assistMemory: undefined, impact: null, parked: true,
   }
@@ -74,6 +77,49 @@ describe('takeoffControls (pure)', () => {
   })
 })
 
+/** A real `takeoff` pilot, as the scenario seeds it (Task 1), from the fixture. */
+const TAKEOFF_PILOT = aircraftById(worldFromScenario(loadFixtureScenarioBundle('takeoff-fixture'), null), 'ai-1')!.pilot!
+
+describe('takeoffClear (pure)', () => {
+  // Ids compare as strings, as the repo orders them (scenario.ts
+  // `groupedHomes`): 'ai-10' < 'ai-2', so ai-10 is the LOWER id here.
+  const me = parkedZero({ id: 'ai-2' })
+  const lower = { ...parkedZero({ id: 'ai-10', z: 100 }), pilot: TAKEOFF_PILOT }   // 100 m behind, on the ground
+  const clearCtx = (...as: AircraftEntity[]) => ({ terrain: flat, decks: [], combat: createCombat(as) })
+
+  it('orders ai-10 below ai-2 by string compare', () => {
+    expect('ai-10' < 'ai-2').toBe(true)
+  })
+  it('is blocked by a lower-id aircraft in takeoff, on the ground, within TAKEOFF_CLEAR_M', () => {
+    expect(takeoffClear(me, [me, lower], clearCtx(me, lower))).toBe(false)
+  })
+  it('is not blocked by that aircraft once it has impacted', () => {
+    const wreck = { ...lower, impact: { tick: 1, position: lower.state.position, verticalSpeedMps: -5, groundHeightM: 100, surface: 'land' as const, kind: 'destroyed' as const } }
+    expect(takeoffClear(me, [me, wreck], clearCtx(me, wreck))).toBe(true)
+  })
+  it('is not blocked by that aircraft once it is destroyed', () => {
+    const c = clearCtx(me, lower)
+    const rec = c.combat.aircraft['ai-10']!
+    const combat = { ...c.combat, aircraft: { ...c.combat.aircraft, 'ai-10': { ...rec, damage: { ...rec.damage, destroyedAt: 1 } } } }
+    expect(takeoffClear(me, [me, lower], { ...c, combat })).toBe(true)
+  })
+  it('is not blocked by that aircraft once it is airborne', () => {
+    const up = { ...lower, state: { ...lower.state, position: v3(lower.state.position.x, lower.state.position.y + 20, lower.state.position.z) } }
+    expect(takeoffClear(me, [me, up], clearCtx(me, up))).toBe(true)
+  })
+  it('is not blocked by that aircraft farther than TAKEOFF_CLEAR_M', () => {
+    const far = { ...parkedZero({ id: 'ai-10', z: TAKEOFF_CLEAR_M + 50 }), pilot: TAKEOFF_PILOT }
+    expect(takeoffClear(me, [me, far], clearCtx(me, far))).toBe(true)
+    const near = { ...parkedZero({ id: 'ai-10', z: TAKEOFF_CLEAR_M - 50 }), pilot: TAKEOFF_PILOT }
+    expect(takeoffClear(me, [me, near], clearCtx(me, near))).toBe(false)
+  })
+  it('is never blocked by a higher-id aircraft', () => {
+    const higher = { ...me, pilot: TAKEOFF_PILOT }                 // ai-2, in takeoff
+    const first = parkedZero({ id: 'ai-10', z: 100 })
+    expect(takeoffClear(first, [first, higher], clearCtx(first, higher))).toBe(true)
+  })
+})
+
 /*
  * The headless runway takeoffs (Tier 1, real terrain). `takeoff-fixture`
  * parks ai-1 at Dulag's runway-local z +650, the south end of a strip on
@@ -101,14 +147,21 @@ function distanceRolled(field: Airfield, from: { readonly x: number; readonly z:
 type Run = { readonly upS: number | null; readonly run10M: number | null; readonly aheadM: number; readonly maxAcrossM: number; readonly impact: string | null }
 
 /** ai-1, as `specId`, flown by `takeoffControls` for up to 60 s. */
-function takeoffRun(specId: string, opts: { readonly calm?: boolean } = {}): Run {
+function takeoffRun(specId: string, opts: { readonly calm?: boolean; readonly offDeg?: number } = {}): Run {
   const spec = loadAircraftSpec(specId)
   let w: World<undefined> = worldFromScenario(loadFixtureScenarioBundle('takeoff-fixture'), terrain)
   w = { ...w, wind: opts.calm === true ? null : w.wind, aircraft: w.aircraft.map((a) => a.id === 'ai-1' ? { ...a, spec, pilot: null } : a) }
   w = settledAll(w)
   const field = w.airfields.find((f) => f.id === 'dulag')!
-  const start = aircraftById(w, 'ai-1')!.state.position
   let t: TakeoffState | null = startTakeoff()
+  if (opts.offDeg !== undefined) {
+    // A swing staged after the latch: the heading is latched on the runway,
+    // the nose is `offDeg` right of it (positive = nose right).
+    const s0 = aircraftById(w, 'ai-1')!.state
+    w = withAircraftState(w, 'ai-1', { ...s0, attitude: qMul(qFromAxisAngle(v3(0, 1, 0), (-opts.offDeg * Math.PI) / 180), s0.attitude) })
+    t = { ...t, headingRad: runwayHeadingRad(field) }
+  }
+  const start = aircraftById(w, 'ai-1')!.state.position
   let upS: number | null = null, run10M: number | null = null, maxAcrossM = 0
   for (let i = 0; i < 60 * 60 && t !== null; i++) {
     const a = aircraftById(w, 'ai-1')!
@@ -140,4 +193,17 @@ describe.skipIf(terrain === null)('runway takeoffs from Dulag (Tier 1, real terr
     expect(r.impact).toBeNull()
     expect(Math.abs(r.run10M! - ZERO_TAKEOFF_RUN_M)).toBeLessThan(5)
   }, 60000)
+  /*
+   * Pins TAKEOFF_STEER_GAIN. Measured 2026-09-28 (3 m/s from 000): gain 15
+   * holds the Zero to 0.53 m off the centerline from +5 degrees and 1.66 m
+   * from -10, the F6F to 0.08 m and 0.24 m; gain 2 drifted the Zero 13.3 m,
+   * with gain 0 (no steering) all four cases fail, 78.6-88.2 m off.
+   */
+  it.each([['a6m2-zero', 5], ['a6m2-zero', -5], ['f6f-hellcat', 5], ['f6f-hellcat', -5]] as const)(
+    'a %s started %d degrees off the runway heading steers back and stays within 3 m of the centerline', (specId, offDeg) => {
+      const r = takeoffRun(specId, { offDeg })
+      expect(r.impact).toBeNull()
+      expect(r.upS).not.toBeNull()
+      expect(r.maxAcrossM).toBeLessThan(3)
+    }, 60000)
 })
