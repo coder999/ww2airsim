@@ -1,16 +1,16 @@
 // src/render/scene/wildcat.ts
-import { Group, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
+import { Box3, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 
-import { wildcatCorrection } from './wildcatFrame.js'
+import { WILDCAT_CORRECTION_NAME, WILDCAT_GEAR_STRETCH_M, WILDCAT_SCALE, wildcatCorrection } from './wildcatFrame.js'
 
 /** The model-to-sim frame lives in wildcatFrame.ts (Node-safe for tools/models/mounts.ts);
  *  re-exported so every importer of this module keeps working. */
-export { WILDCAT_CORRECTION_NAME, WILDCAT_DATUM_PITCH_RAD, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatCorrection, wildcatToSimMatrix } from './wildcatFrame.js'
+export { WILDCAT_CORRECTION_NAME, WILDCAT_DATUM_PITCH_RAD, WILDCAT_GEAR_STRETCH_M, WILDCAT_SCALE, WILDCAT_TO_SIM_ROTATION_Y, wildcatCorrection, wildcatToSimMatrix } from './wildcatFrame.js'
 
 interface GearPose { readonly pos: Vector3; readonly quat: Quaternion }
 interface GearPair { readonly der: GearPose; readonly izq: GearPose }
@@ -51,6 +51,91 @@ export function applyGearFraction(node: Object3D, down: GearPose, up: GearPose, 
   node.quaternion.slerpQuaternions(up.quat, down.quat, fraction)
 }
 
+/** The main strut under each gear group: polySurface272 under GRP_Rueda_Der, polySurface277 under
+ *  GRP_Rueda_Izq (the Tren_aterrizaje_MAT legs; read from the glb 2026-09-28). */
+const STRUT = /^polySurface(272|277)$/
+
+/** `o`'s mesh vertices' bounds in `frame`'s coordinates (both already have current world matrices). */
+function boundsIn(o: Object3D, frame: Object3D): Box3 {
+  const toFrame = new Matrix4().copy(frame.matrixWorld).invert()
+  const box = new Box3()
+  const v = new Vector3()
+  o.traverse((m) => {
+    if (!(m instanceof Mesh)) return
+    const mat = new Matrix4().multiplyMatrices(toFrame, m.matrixWorld)
+    const a = m.geometry.getAttribute('position')
+    for (let i = 0; i < a.count; i++) box.expandByPoint(v.fromBufferAttribute(a, i).applyMatrix4(mat))
+  })
+  return box
+}
+
+/** The gear fraction at which the leg starts to lengthen: below it the gear is the model's own. */
+export const GEAR_STRETCH_FROM_FRACTION = 0.75
+
+/**
+ * How far the main legs are lengthened at gear fraction `fraction`, sim metres: none at or below
+ * GEAR_STRETCH_FROM_FRACTION, rising linearly to the full WILDCAT_GEAR_STRETCH_M at 1 (gear down).
+ * A fixed-length stretch would not stow: the longer wheel hung 0.2 m below the belly with the gear
+ * up, and every mid-travel pose stood further out than the model's own gear ever does (measured
+ * 2026-09-28, W1 Task 3 report). So the leg telescopes out over the last quarter of the travel,
+ * and every pose at or below 0.75 is exactly the model's (W1 controller ruling, 2026-09-28).
+ */
+export function gearStretchM(fraction: number): number {
+  const t = (fraction - GEAR_STRETCH_FROM_FRACTION) / (1 - GEAR_STRETCH_FROM_FRACTION)
+  return WILDCAT_GEAR_STRETCH_M * Math.min(1, Math.max(0, t))
+}
+
+/**
+ * Rigs both main legs to lengthen, so the drawn Wildcat parks at Grumman's static ground angle,
+ * 12 deg 20 min ([DS] 116a), rather than the model's own 7.43 degrees (W1 spec R5, 2026-09-28). The
+ * model's tailwheel top is already inside the fuselage skin, so the tail cannot come up; the mains
+ * come down. Returns the setter: `set(m)` lengthens each leg by `m` sim metres (gearStretchM).
+ *
+ * Measured on the glb 2026-09-28: each strut (STRUT above) is 33.3 local units long in its group's
+ * y, against 4.1 in x and 7.8 in z, and the strut, its mesh and the group at GEAR_DOWN all carry
+ * the identity rotation; the Avion node's 7.33 degree datum is what wildcatCorrection() levels, so
+ * the leg is vertical in the sim frame at GEAR_DOWN (tests/tools/models/wildcatGear.test.ts holds
+ * it within 1 degree). The strut is scaled along that y about its top, and every other child of the
+ * group whose center lies below the strut's midpoint (the wheel and its axle bolt) moves down by the
+ * same local distance; the fittings at the strut's top and middle stay. Local units: metres /
+ * (WILDCAT_SCALE * the group's scale within the model, 0.0169), so the full stretch is about 35.6
+ * units and the strut roughly doubles (accepted, W1 ruling D: it is R5's arithmetic).
+ *
+ * The rest transforms are captured here, once, and every `set` works from them, so repeated calls
+ * never accumulate. Call before the model goes under its correction group. The model is CC-BY 4.0;
+ * ASSETS.md records the modification.
+ */
+export function wildcatGearStretch(der: Object3D, izq: Object3D): (stretchM: number) => void {
+  const legs = [der, izq].map((group) => {
+    const strut = group.children.find((c) => STRUT.test(c.name))
+    if (strut === undefined) throw new Error(`wildcatGearStretch: no strut under ${group.name}`)
+    if (strut.quaternion.angleTo(new Quaternion()) > 1e-6) throw new Error(`wildcatGearStretch: ${strut.name} is not axis-aligned in ${group.name}`)
+    // The group's own scale within the model, up to (not including) any correction group.
+    let modelScale = 1
+    for (let o: Object3D | null = group; o !== null && o.name !== WILDCAT_CORRECTION_NAME; o = o.parent) modelScale *= o.scale.y
+    group.updateWorldMatrix(true, true)
+    const box = boundsIn(strut, group)
+    const size = box.getSize(new Vector3())
+    if (size.y < 2 * Math.max(size.x, size.z)) throw new Error(`wildcatGearStretch: ${strut.name}'s long axis is not its local y (${size.toArray().map((v) => v.toFixed(2)).join(', ')})`)
+    const mid = (box.max.y + box.min.y) / 2
+    const below = group.children.filter((c) => c !== strut && boundsIn(c, group).getCenter(new Vector3()).y < mid)
+    return {
+      strut, top: box.max.y, length: size.y, unitsPerM: 1 / (WILDCAT_SCALE * modelScale),
+      strutY: strut.position.y, strutScaleY: strut.scale.y,
+      below: below.map((c) => ({ c, y: c.position.y })),
+    }
+  })
+  return (stretchM) => {
+    for (const leg of legs) {
+      const stretch = stretchM * leg.unitsPerM
+      const k = (leg.length + stretch) / leg.length
+      leg.strut.scale.y = leg.strutScaleY * k
+      leg.strut.position.y = leg.top - k * (leg.top - leg.strutY)
+      for (const b of leg.below) b.c.position.y = b.y - stretch
+    }
+  }
+}
+
 /**
  * One Wildcat. Loads through the shared model cache (A6M Zero spec §7.1): the
  * first call parses wildcat.glb, every later call clones that parse, and all
@@ -63,6 +148,9 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
 
   const gearDer = instance.node('GRP_Rueda_Der')
   const gearIzq = instance.node('GRP_Rueda_Izq')
+  const setGearStretch = wildcatGearStretch(gearDer, gearIzq)
+  // The glb is authored gear down; draw it as update() would at fraction 1 until the first update.
+  setGearStretch(gearStretchM(1))
   const helice = instance.node('Helice')
   // The prop turns about ITS OWN native axis (local Z here, not the +X
   // hellcat.ts's box uses), from whatever angle the file authored it at.
@@ -117,6 +205,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       helice.rotation.z = heliceRestZ + propRad
       applyGearFraction(gearDer, GEAR_DOWN.der, GEAR_UP.der, u.gearFraction)
       applyGearFraction(gearIzq, GEAR_DOWN.izq, GEAR_UP.izq, u.gearFraction)
+      setGearStretch(gearStretchM(u.gearFraction))
     },
     dispose(): void {
       if (disposed) return

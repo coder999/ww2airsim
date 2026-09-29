@@ -43,6 +43,18 @@ describe('ModelEntrySchema', () => {
   ])('rejects %s', (_label, raw, message) => {
     expect(() => parseModelEntry(raw)).toThrow(message)
   })
+
+  it('skin: true is a Blender entry\'s alone (DP0)', () => {
+    const hangar = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
+    expect(parseModelEntry({ ...hangar, skin: true }).skin).toBe(true)
+    expect(() => parseModelEntry({ ...valid, split: [], remove: [], skin: true })).toThrow(/skin/)
+  })
+
+  it('refuses a skinned ship until DP2 adapts shipMaterials', () => {
+    const kagero = JSON.parse(readFileSync('tools/models/entries/kagero-dd.json', 'utf8')) as Record<string, unknown>
+    expect(parseModelEntry(kagero).ship).toBeDefined()
+    expect(() => parseModelEntry({ ...kagero, skin: true })).toThrow(/ship takes no skin/)
+  })
 })
 
 const generated = {

@@ -66,7 +66,7 @@ async function boot(): Promise<void> {
   const bench = benchEnabled(import.meta.env.DEV, location.search)
   let controller = createBenchController(null)
   let benchUi: BenchHandle | null = null
-  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true }
+  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false }
   const refreshCounts = (): void => { if (model) benchUi?.setCounts(countsReport(model.root, content.budgets)) }
   const pose = (p: PartPose): void => {
     model?.pose(controller.set(p))
@@ -76,6 +76,7 @@ async function boot(): Promise<void> {
   const onDebug = (which: DebugToggle, on: boolean): void => {
     debug[which] = on
     if (which === 'wireframe') stage.setWireframe(on)
+    else if (which === 'checker') stage.setChecker(on)
     else if (which === 'gizmos') stage.setGizmos(on ? model?.articulated ?? [] : null)
     else stage.setAutoRotate(on)
   }

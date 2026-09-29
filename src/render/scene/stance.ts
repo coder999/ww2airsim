@@ -43,8 +43,11 @@ const DEG = Math.PI / 180
  */
 export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   'f6f-hellcat': { mainWheelXM: 0.620, tailDownPitchRad: 9.49 * DEG },
-  // Through wildcatCorrection(), which levels the glb's baked-in 7.33 degree datum.
-  wildcat: { mainWheelXM: 2.575, tailDownPitchRad: 7.43 * DEG },
+  // Through wildcatCorrection(), which levels the glb's baked-in 7.33 degree datum, at the real span
+  // and centered on the quarter-chord, with the main legs lengthened (wildcatGearStretch) to
+  // Grumman's static ground angle, 12 deg 20 min ([DS] 116a, read 2026-09-28; W1 ruling R5). The
+  // model's own legs gave 7.43 degrees; stance.test.ts holds the drawing to this within 0.25 degrees.
+  wildcat: { mainWheelXM: 0.413, tailDownPitchRad: (12 + 20 / 60) * DEG },
   // The Zero's model is drawn sitting, with its thrust line level (a6m2-zero.json's
   // gear.heightM note): its tailwheel already meets the ground at 0.08 degrees.
   'a6m2-zero': { mainWheelXM: 0.499, tailDownPitchRad: 0 },

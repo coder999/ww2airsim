@@ -155,6 +155,8 @@ export const ModelEntrySchema = z.object({
   noseNode: z.string().min(1).optional(),
   /** Ships only (ship-models spec §4.1). */
   ship: ShipSchema.optional(),
+  /** DP0: the Blender script is skinned (`kit.Model(name, skin=<px>)`), and the build bakes its atlas. */
+  skin: z.literal(true).optional(),
 }).strict().superRefine((e, ctx) => {
   const fail = (path: (string | number)[], message: string): void => { ctx.addIssue({ code: z.ZodIssueCode.custom, path, message }) }
   if (e.output.replace(/^.*\//, '').replace(/\.glb$/, '') !== e.id) fail(['output'], `basename must equal id "${e.id}"`)
@@ -197,6 +199,10 @@ export const ModelEntrySchema = z.object({
     if ((e.ship.fit === 'deck') !== (e.ship.bow === 'island-starboard')) fail(['ship', 'bow'], 'a carrier (fit "deck") proves its bow by "island-starboard", and only a carrier does')
     if ((e.ship.kind === 'full-hull') !== (e.ship.keelM !== undefined)) fail(['ship', 'keelM'], 'required for a full-hull model, and only for one')
   }
+  if (e.skin && e.source.kind !== 'blender') fail(['skin'], 'skin: true is for Blender entries: only the kit writes the charts and sidecar it needs')
+  // shipMaterials zeroes every metallicFactor (and checkOutput demands it), but the skin
+  // material is metallicFactor 1 with the value in its texture: a skinned ship needs DP2 first.
+  if (e.skin && e.ship) fail(['skin'], 'a ship takes no skin yet: shipMaterials zeroes the skin material\'s metallicFactor (DP2 adapts it)')
 })
 
 export type ModelEntry = z.infer<typeof ModelEntrySchema>

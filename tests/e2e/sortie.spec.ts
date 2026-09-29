@@ -86,6 +86,18 @@ test('a Dev Zero with bombs hangs the Hellcat layout, is drawn as the Zero, and 
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })
 
+test('the Wildcat offers only Clean and Bombs on the armament form (W1: no rockets)', async ({ page }) => {
+  const title = await newPilot(page, 'Racks Pilot')
+  await title.getByRole('button', { name: 'New game' }).click()
+  await radio(title, 'Scenario', 'Carrier Qualification').click()
+  await next(title)
+  await radio(title, 'Aircraft', 'Grumman F4F Wildcat').click()
+  await next(title)
+  await expect(rows(title, 'Loadout')).toHaveCount(2)
+  await expect(radio(title, 'Loadout', 'Clean (recommended)')).toBeVisible()
+  await expect(radio(title, 'Loadout', 'Bombs')).toBeVisible()
+})
+
 test('the player is drawn as the chosen aircraft, and an aircraft-only change rebuilds it (Review Focus 5)', async ({ page }) => {
   // Airborne (the DEV spawn override), so `diveToSea` can end each flight; the URL keeps it on every return.
   const title = await newPilot(page, 'Model Pilot', spawnUrl({ x: 0, y: 1500, z: 0 }))

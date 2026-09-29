@@ -1,0 +1,5 @@
+{
+  "note": "Mean lit luminance inside each model's mask, three-quarter view, measured on the reference GPU from main's flat-shaded glbs before DP0 skinned them (Task 12 Step 2, 2026-09-28). Check 15 holds each skinned model inside 0.6x-1.5x of it.",
+  "ki-84-frank": 0.08621747942873947,
+  "hangar": 0.11544402537008924
+}

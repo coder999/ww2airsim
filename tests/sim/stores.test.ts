@@ -46,4 +46,13 @@ describe('storesSpec bit-identity and mass/drag (Plan 6b spec §3.1)', () => {
     expect(clean).toEqual(bare)
     expect(loaded.position.y).not.toBeCloseTo(bare.position.y, 1) // heavier + draggier: measurably different trajectory
   })
+  it('flies a racks-only airplane with any loadout, rockets counting zero (W1 Review Focus 3)', () => {
+    const racksOnly = { ...f6f, stores: { ...f6f.stores!, rails: [] } }
+    for (const l of ['clean', 'bombs', 'rockets', 'both'] as const) {
+      const st = storesFromLoadout(racksOnly, l)
+      expect(st.rockets).toBe(0)
+      expect(() => storesSpec(racksOnly, st)).not.toThrow()
+    }
+    expect(storesSpec(racksOnly, storesFromLoadout(racksOnly, 'bombs')).storesLoad!.massKg).toBe(2 * racksOnly.stores!.types['an-m65']!.massKg)
+  })
 })
