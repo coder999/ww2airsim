@@ -88,7 +88,7 @@ Ask three things:
    `differentialBrakes` and `brakeYawRateDegPerSec` no longer exist. Tail
    strike and nosewheel liftoff geometry are not modeled.
 2. **Retractable or fixed.** Recommend the historical answer. A fixed gear
-   (Val, Oscar) has `travelSeconds` but no retraction; check the rig nodes.
+   (the Val) has `travelSeconds` but no retraction; the Oscar's main gear retracts (its model has GearL/GearR rig nodes). Check the rig nodes.
 3. **Height and stance.** Recommend measuring from the model with
    `tests/tools/models/stance.test.ts`, and stretching legs at load time only
    where the stock model sits wrong (the Wildcat's `wildcatGearStretch`, which
@@ -435,6 +435,21 @@ Detail: [`docs/handoff/2026-09-29-p38-onboard.md`](handoff/2026-09-29-p38-onboar
 - **A tricycle whose drawn mains stand aft of the schema's `mainX < 0` limit** needs a documented allowance in `gearContact.test.ts`.
 - **The picker order pins move**: `flyable.test.ts` (sorted by name) and `sortieFlow.test.ts` (Dev list, sorted by id).
 - **Check the failing e2e specs against a clean `origin/main` worktree** before owning them (three `sortie.spec.ts` failures are old).
+
+## Lessons from the sixth run (Ki-43-II Oscar, 2026-09-30)
+
+Detail: [`docs/handoff/2026-09-30-ki43-onboard.md`](handoff/2026-09-30-ki43-onboard.md).
+
+- **Use `rosterName` when the card needs the variant.** The card `name` must equal the spec `name`; the roster name in GAMEPLAY.md
+  ("Nakajima Ki-43 Oscar") then goes in the card's `rosterName`, as the Hellcat does, so the spec can say "Ki-43-II".
+- **A model with a fixed tailwheel and no Tailwheel node needs nothing in the rig.** Take `thirdX`, `thirdHeightM` and the stance pitch
+  from the tailwheel meshes in the glb (first aft point to touch); only the main gear nodes are registered.
+- **`tsx` cannot import `tests/tools/models/_drawnPoints.ts`** (it pulls in `import.meta.env` through `src/render/content.ts`). For a scratch
+  script, read the glb with `modelIO().readBinary` and `worldPositions` directly, as the fit tests do.
+- **A racks-only `stores` block (`rails: []`) is legal for a type with no rocket load**; the sortie then offers Clean and Bombs.
+  A `stores` block is offered the same with or without Dev, so a stores-carrying spec needs no `needsDevStores` handling.
+- **Fit two speeds first, then look at the climb.** With the Zero's lift curve the first-guess cd0 and propulsive efficiency landed both
+  sourced speeds within 1%; the climb then reads +17% to +20%, the fleet's known bias, and is left alone.
 
 ## The worked example
 
