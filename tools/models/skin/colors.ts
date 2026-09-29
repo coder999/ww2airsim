@@ -12,6 +12,13 @@ export const MARKING_COLORS = {
   exhaustSoot: [0x2a, 0x26, 0x22], // ESTIMATE
   walkwayDark: [0x33, 0x33, 0x30], // ESTIMATE
   lensClear: [0xc8, 0xd4, 0xdc], // ESTIMATE: a landing-light cover
+  // DP1 (USAAF). The 1943 insignia's colors are named by Army-Navy spec AN-I-9 (English Wikipedia, "United States
+  // military aircraft national insignia", read 2026-09-28: blue outline from 14 Aug 1943, TO 07-1-1 of 24 Sep 1943);
+  // no chip, FS number or RGB was read, so every value below is an ESTIMATE.
+  usaaInsigniaBlue: [0x1c, 0x2a, 0x4a], // ESTIMATE: Insignia Blue, weathered
+  usaaInsigniaWhite: [0xe8, 0xe6, 0xdf], // ESTIMATE: insignia white, weathered
+  usaaInsigniaRed: [0x9a, 0x22, 0x26], // ESTIMATE: Insignia Red (the June-Sep 1943 outline; the red of the cited 1943 style)
+  propTipYellow: [0xe6, 0xb8, 0x1c], // ESTIMATE: US propeller-tip yellow; no source read
 } as const satisfies Record<string, readonly [number, number, number]>
 
 export type MarkingColor = keyof typeof MARKING_COLORS
