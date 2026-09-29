@@ -6,6 +6,7 @@ import { airfieldAt, type Airfield } from './world/airfields.js'
 import { groundUnder, type GroundUnder } from './world/ground.js'
 import { deckLocal, type Deck } from './world/deck.js'
 import type { TerrainField } from './world/terrain.js'
+import type { LandClass } from './world/cover.js'
 import { sub, length } from './math/vec3.js'
 
 /**
@@ -22,6 +23,10 @@ export type Touchdown = {
   /** The deck under the wheels at touchdown, or `null` for an airfield or
    *  open-water arrival. */
   readonly deck: Deck | null
+  /** What the wheels first touched: `runway` (firm), `soft`, or
+   *  `unclassified` (no cover data; absent reads the same, for hand-built fixtures). `forest` cannot appear -- it is never a
+   *  supported contact -- and a deck or open-water arrival is `unclassified`. */
+  readonly landClass?: LandClass
 }
 
 /** Where a landing ended. `id` is what content names (`land.at` in a
@@ -41,6 +46,9 @@ export type LandingReport = {
    *  inside, the carrier whose deck it was arrested on, or `null` off-field.
    *  The recovery multiplier and a mission's `land` objectives read this. */
   readonly at: LandingAt | null
+  /** The class of surface the touchdown was on (`Touchdown.landClass`), for
+   *  the debrief and mission code to read later. */
+  readonly landClass?: LandClass
 }
 
 /**
@@ -91,7 +99,7 @@ const wheelHeightM = (spec: AircraftSpec, s: AircraftState, g: GroundUnder): num
   s.position.y - spec.gear.heightM - g.heightM
 
 const supported = (spec: AircraftSpec, s: AircraftState, g: GroundUnder | null): boolean =>
-  g !== null && supportedContact(spec, s, g.heightM, g.surface, g.velocity)
+  g !== null && supportedContact(spec, s, g.heightM, g.surface, g.velocity, g.landClass)
 
 /**
  * One frame of landing bookkeeping. Pure: `before` and `after` are the
@@ -127,6 +135,7 @@ export function nextLandingTracking(
       z: after.position.z,
       tick: after.tick,
       deck: gAfter.deck,
+      landClass: gAfter.landClass,
     }
   }
 
@@ -140,6 +149,7 @@ export function nextLandingTracking(
           rollOutM: rollOutM(touchdown, after, gAfter),
           tick: after.tick,
           at: landedAt(touchdown, airfields, gAfter),
+          landClass: touchdown.landClass ?? 'unclassified',
         }
       : null
 

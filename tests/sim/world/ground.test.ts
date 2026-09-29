@@ -21,8 +21,8 @@ const carrier = (headingRad: number): ShipEntity => {
 describe('groundUnder', () => {
   it('is null with no terrain and no decks, and terrain without decks is what heightAt says', () => {
     expect(groundUnder(null, [], 0, 0)).toBeNull()
-    expect(groundUnder(sea, [], 0, 0)).toEqual({ heightM: 0, surface: 'water', velocity: ZERO, deck: null })
-    expect(groundUnder(land, [], 0, 0)).toEqual({ heightM: 1, surface: 'land', velocity: ZERO, deck: null })
+    expect(groundUnder(sea, [], 0, 0)).toEqual({ heightM: 0, surface: 'water', velocity: ZERO, deck: null, landClass: 'unclassified' })
+    expect(groundUnder(land, [], 0, 0)).toEqual({ heightM: 1, surface: 'land', velocity: ZERO, deck: null, landClass: 'unclassified' })
   })
 
   it('a deck wins over the water under it, with the ship velocity, and only inside its rectangle', () => {
@@ -34,7 +34,7 @@ describe('groundUnder', () => {
     expect(g.velocity).toEqual(shipVelocity(0.7, 7.717))
     expect(g.deck).toBe(deck)
     const off = deckWorld(deck, deck.widthM, 0)
-    expect(groundUnder(sea, [deck], off.x, off.z)).toEqual({ heightM: 0, surface: 'water', velocity: ZERO, deck: null })
+    expect(groundUnder(sea, [deck], off.x, off.z)).toEqual({ heightM: 0, surface: 'water', velocity: ZERO, deck: null, landClass: 'unclassified' })
   })
 
   it('a deck exists even with no terrain field yet: a deck spawn needs no heightfield', () => {

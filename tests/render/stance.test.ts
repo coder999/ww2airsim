@@ -8,7 +8,7 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const stance = MODEL_STANCE['f6f-hellcat']!
-const land: GroundUnder = { heightM: 10, surface: 'land', velocity: ZERO, deck: null }
+const land: GroundUnder = { heightM: 10, surface: 'land', velocity: ZERO, deck: null, landClass: 'unclassified' }
 const north = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2)
 const parked = (over: Partial<Parameters<typeof createState>[0]> = {}) =>
   createState({ position: v3(0, land.heightM + f6f.gear.heightM, 0), velocity: ZERO, attitude: north, gearFraction: 1, ...over })

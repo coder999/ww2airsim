@@ -84,7 +84,7 @@ export function stanceTiltRad(
   ground: GroundUnder | null,
 ): number {
   if (stance === undefined || ground === null) return 0
-  if (!supportedContact(spec, state, ground.heightM, ground.surface, ground.velocity)) return 0
+  if (!supportedContact(spec, state, ground.heightM, ground.surface, ground.velocity, ground.landClass)) return 0
   const rel = sub(state.velocity, ground.velocity)
   const fraction = tailDownFraction(length(v3(rel.x, 0, rel.z)), spec.gear.tailUpSpeedMps)
   return fraction * Math.max(0, stance.tailDownPitchRad - attitudeAngles(state).pitchRad)
