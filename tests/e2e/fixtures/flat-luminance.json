@@ -1,5 +1,12 @@
 {
-  "note": "Mean lit luminance inside each model's mask, three-quarter view, measured on the reference GPU from main's flat-shaded glbs before DP0 skinned them (Task 12 Step 2, 2026-09-28). Check 15 holds each skinned model inside 0.6x-1.5x of it.",
+  "note": "Mean lit luminance inside each model's mask, three-quarter view, measured on the reference GPU from main's flat-shaded glbs before DP0 skinned them (Task 12 Step 2, 2026-09-28). Check 15 holds each skinned model inside 0.6x-1.5x of it. Ships added by DP2 Task 13 Step 2 (2026-09-28): the three Blender ships measured from their winding-fixed flat glbs (4ef028a96a3cade44bb7ebedcfff62eaeda6851e), the four downloads from main's.",
   "ki-84-frank": 0.08621747942873947,
-  "hangar": 0.11544402537008924
+  "hangar": 0.11544402537008924,
+  "pennsylvania-bb": 0.08801001180848897,
+  "kagero-dd": 0.08959985047476819,
+  "casablanca-cve": 0.10567239617776182,
+  "essex-cv": 0.067519709511338,
+  "cleveland-cl": 0.06716505467952043,
+  "mogami-ca": 0.0801564958405688,
+  "yamato-bb": 0.0771699778213746
 }
