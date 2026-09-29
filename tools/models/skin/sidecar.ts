@@ -1,6 +1,7 @@
 // tools/models/skin/sidecar.ts
 import { z } from 'zod'
 import { MARKING_COLOR_NAMES } from './colors.js'
+import { GLYPHS } from './strokeFont.js'
 export { skinSidecarPath } from '../blender/run.js'
 
 const finite = z.number().finite()
@@ -30,7 +31,22 @@ const Grid = z.object({
   /** Groove width, meters; depth in groove units (a panel line is 1: see layers.ts). */
   widthM: z.number().positive(), depth: z.number().positive(),
 }).strict()
-const Marking = z.union([Disc, Polygon, Slab, Grid])
+const unit3 = (v: readonly number[]): number[] => { const l = Math.hypot(v[0]!, v[1]!, v[2]!); return [v[0]! / l, v[1]! / l, v[2]! / l] }
+/** DP2: text in the stroke font on the plane through `origin` normal to `axis`, reading along `uDir`,
+ *  up = axis x uDir (Ruling S6: model space, so a chart's handedness never mirrors it). */
+const Text = z.object({
+  kind: z.literal('text'), origin: vec3, axis: axis3, uDir: axis3,
+  text: z.string().min(1).refine((t) => [...t].every((c) => c in GLYPHS), { message: 'text: only the stroke font\'s characters (0-9, -, space); DP1 adds letters' }),
+  heightM: z.number().positive(), strokeM: z.number().positive(), ...common,
+}).strict()
+  .refine((t) => t.strokeM <= t.heightM / 2, { message: 'strokeM must be at most half of heightM', path: ['strokeM'] })
+  .refine((t) => { const a = unit3(t.axis), u = unit3(t.uDir); return Math.abs(a[0]! * u[0]! + a[1]! * u[1]! + a[2]! * u[2]!) < 0.99 }, { message: 'uDir must not be parallel to axis', path: ['uDir'] })
+  .refine((t) => {
+    const a = unit3(t.axis), u = unit3(t.uDir)
+    if (Math.abs(a[1]!) >= 0.5) return true // a horizontal face (a flight deck): any reading direction
+    return a[2]! * u[0]! - a[0]! * u[2]! > 0.5 // up = axis x uDir; its y must point up on a vertical face
+  }, { message: 'text on a vertical face must read upright: axis x uDir must point up (a mirrored or upside-down number is refused)', path: ['uDir'] })
+const Marking = z.union([Disc, Polygon, Slab, Grid, Text])
 
 export const SidecarSchema = z.object({
   version: z.literal(1),

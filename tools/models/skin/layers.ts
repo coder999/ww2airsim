@@ -3,6 +3,7 @@ import type { GBuffer } from './raster.js'
 import type { Marking, Sidecar } from './sidecar.js'
 import { sampleScan, type Scan } from './scans.js'
 import { surfaceFor, type ScanId, type Surface } from './surfaces.js'
+import { segDistance, strokeDistance } from './strokeFont.js'
 import { BARE_METAL, MARKING_COLORS, SRGB8_TO_LINEAR, srgbToLinear } from './colors.js'
 
 /**
@@ -40,16 +41,8 @@ const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x))
 const linearColor = (c: readonly number[]): V3 => [SRGB8_TO_LINEAR[c[0]!]!, SRGB8_TO_LINEAR[c[1]!]!, SRGB8_TO_LINEAR[c[2]!]!]
 
-/** Distance from p to segment ab, 2D. */
-function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
-  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy
-  const t = l2 === 0 ? 0 : clamp01(((px - ax) * dx + (py - ay) * dy) / l2)
-  const ex = px - ax - t * dx, ey = py - ay - t * dy
-  return Math.sqrt(ex * ex + ey * ey)
-}
-
 /** Coverage 0-1 of one marking at sample (p, n), or 0. Grid markings return 0: they cut height only. */
-function coverage(mk: Marking, p: V3, n: V3): number {
+export function coverage(mk: Marking, p: V3, n: V3): number {
   if (mk.kind === 'grid') return 0
   const ramp = (inside: number): number => (mk.featherM > 0 ? clamp01(inside / mk.featherM) : inside >= 0 ? 1 : 0)
   if (mk.kind === 'slab') {
@@ -58,6 +51,16 @@ function coverage(mk: Marking, p: V3, n: V3): number {
   }
   const a = unit(mk.axis as V3)
   if (dot(n, a) < FACING_MIN) return 0
+  if (mk.kind === 'text') {
+    // DP2: model-space text (Ruling S6). Up is axis x uDir; within one height of its plane.
+    const u0 = mk.uDir as V3
+    const u = unit([u0[0] - dot(u0, a) * a[0], u0[1] - dot(u0, a) * a[1], u0[2] - dot(u0, a) * a[2]])
+    const v = cross(a, u)
+    const d: V3 = [p[0] - mk.origin[0], p[1] - mk.origin[1], p[2] - mk.origin[2]]
+    if (Math.abs(dot(d, a)) > mk.heightM) return 0
+    const dist = strokeDistance(mk.text, dot(d, u) / mk.heightM, dot(d, v) / mk.heightM) * mk.heightM
+    return ramp(mk.strokeM / 2 - dist)
+  }
   if (mk.kind === 'disc') {
     const d: V3 = [p[0] - mk.center[0], p[1] - mk.center[1], p[2] - mk.center[2]]
     const along = dot(d, a)
@@ -77,7 +80,7 @@ function coverage(mk: Marking, p: V3, n: V3): number {
   for (let i = 0, j = mk.points.length - 1; i < mk.points.length; j = i++) {
     const [xi, yi] = mk.points[i]!, [xj, yj] = mk.points[j]!
     if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
-    dist = Math.min(dist, segDist(x, y, xi, yi, xj, yj))
+    dist = Math.min(dist, segDistance(x, y, xi, yi, xj, yj))
   }
   return inside ? ramp(dist) : 0
 }
