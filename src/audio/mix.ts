@@ -49,7 +49,7 @@ export const ENGINE_GLIDE_TAU_S = 0.02
 export const PROPELLER_SAMPLE_RATE = 48_000
 
 /**
- * The engine loop (`engine_radial_small.wav`), in FRAMES of the source file.
+ * The propeller loop, in FRAMES of the source file.
  *
  * Stated in frames rather than seconds because frames are what the file has;
  * seconds are derived below. Mark's ruling 2026-09-18: set loop points in code
@@ -57,15 +57,21 @@ export const PROPELLER_SAMPLE_RATE = 48_000
  * committed WAV -- neither ffmpeg nor sox is installed on this host, and a
  * constant in a reviewed file is inspectable in a way a replaced binary is not.
  *
- * Re-measured 2026-09-29 for the Firefly engine loop that replaced
- * `propeller.wav` (`npx tsx tools/audio/loop.ts`): this pair splices with a
- * total step of 64 across both channels, against 9,585 for the default
- * whole-file wrap -- a 150x reduction. (The retired propeller's pair was
- * 24,276/361,360 with the same seam of 64.) They are NOT zero crossings. Continuity across the seam is what a click is made of,
+ * Measured 2026-09-18 (`npx tsx tools/audio/loop.ts`): this pair splices with a
+ * total step of 64 across both channels, against 12,050 for the default
+ * whole-file wrap -- a 188x reduction. They are NOT zero crossings; both sit
+ * near -0.38 full scale. Continuity across the seam is what a click is made of,
  * not proximity to zero.
+ *
+ * The optimum is not unique. An independent stride-16-then-refine sweep of the
+ * same file finds (22289, 347632) at a seam of 32 -- marginally better, and
+ * inaudibly so: both are a fraction of a least-significant bit against a 28,416
+ * peak. These constants are kept because they are the measured, reviewed and
+ * tested pair; the alternative is recorded so a future re-run that lands on it
+ * is recognised as a tie, not a regression.
  */
-export const LOOP_START_FRAME = 21_537
-export const LOOP_END_FRAME = 345_856
+export const LOOP_START_FRAME = 24_276
+export const LOOP_END_FRAME = 361_360
 
 export function loopStartSeconds(): number {
   return LOOP_START_FRAME / PROPELLER_SAMPLE_RATE

@@ -41,7 +41,7 @@ for (const clip of AUDIO_ASSETS) {
 // pair in the first and last second is 2.3e9 evaluations; a stride-16 pass
 // followed by a +/-32 refinement around its winner is about 9e6 and lands on
 // the same optimum, which is deep and narrow rather than flat.
-const prop = readWav(repoPath(assetFor('engine_radial_small').path))
+const prop = readWav(repoPath(assetFor('propeller').path))
 const { samples, channels, frames } = prop
 const START_LO = 1, START_HI = prop.sampleRate
 const END_LO = frames - prop.sampleRate, END_HI = frames - 1

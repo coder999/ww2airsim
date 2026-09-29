@@ -23,7 +23,7 @@ export type LayerTable = Readonly<Record<string, LayerDef>>
 
 export const LAYERS = {
   engine: {
-    clip: 'engine_radial_small',
+    clip: 'propeller',
     bus: 'engine',
     loopStartS: loopStartSeconds(),
     loopEndS: loopEndSeconds(),

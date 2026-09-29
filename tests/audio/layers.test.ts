@@ -34,7 +34,7 @@ describe('driveLayer (spec §4: named layered loops)', () => {
     audio.update(flying)
     expect(fake.loopsStarted.map((l) => [l.id, l.bus, l.startS, l.endS])).toEqual([
       ['machinegun', 'ambient', null, null],
-      ['engine_radial_small', 'engine', expect.any(Number), expect.any(Number)],
+      ['propeller', 'engine', expect.any(Number), expect.any(Number)],
     ])
   })
 
