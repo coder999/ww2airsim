@@ -1,5 +1,5 @@
 import { type Vec3, v3, add, sub, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
-import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
+import { qRotate, qIntegrateBodyRates, qFromAxisAngle, qMul, qNormalize } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { piecewiseLinear } from '../math/piecewise.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor, sideForceN, attachedFlowFraction } from '../aero.js'
@@ -668,7 +668,23 @@ export function step(
     startGround !== null && onGroundStart && wheelsDownStart && onLandStart
       ? groundBodyRates(spec, state, controls, ratesWithStall, dt, startGround.velocity)
       : ratesWithStall
-  const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
+  // On the wheels the airplane turns about the WORLD vertical, not its own
+  // body-up axis (T1 taxi regression, 2026-09-28). The two coincide at level
+  // attitude, but a tail-down airplane's body-up leans by the rest pitch, and
+  // integrating a ground yaw rate about it swings the nose around a cone: the
+  // airplane read 21.9 degrees of bank and lost 3.8 degrees of pitch after a
+  // 180 degree turn, with `groundBodyRates` commanding zero roll throughout.
+  // So the ground branch integrates roll and pitch in the body frame and
+  // applies yaw as a rotation about world +Y.
+  const onWheels = startGround !== null && onGroundStart && wheelsDownStart && onLandStart
+  const attitude = onWheels
+    ? qNormalize(
+        qMul(
+          qFromAxisAngle(v3(0, 1, 0), bodyRates.y * dt),
+          qIntegrateBodyRates(state.attitude, v3(bodyRates.x, 0, bodyRates.z), dt),
+        ),
+      )
+    : qIntegrateBodyRates(state.attitude, bodyRates, dt)
 
   // Re-seat against the attitude this step ENDS at (T1, 2026-09-28). Wheel
   // depth follows pitch (`wheelDepthOf`), and the seat above was taken on the

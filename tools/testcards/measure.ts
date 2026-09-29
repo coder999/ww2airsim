@@ -39,7 +39,7 @@ function disposableLoadKg(spec: AircraftSpec): number {
   return kg
 }
 
-const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): AircraftState =>
+export const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): AircraftState =>
   createState({
     position: v3(0, altitudeM, 0),
     velocity: v3(speedMps, 0, 0),
@@ -59,7 +59,7 @@ const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): Aircraf
  *  trims to a lower clTrim (= massKg * G / (q * S)), which changes induced
  *  drag and hence the equilibrium speed the run is converging toward. Small,
  *  but it is free to remove and it would not stay small for a longer card. */
-const holdMass = (spec: AircraftSpec, s: AircraftState): AircraftState =>
+export const holdMass = (spec: AircraftSpec, s: AircraftState): AircraftState =>
   s.fuelKg === disposableLoadKg(spec) ? s : { ...s, fuelKg: disposableLoadKg(spec) }
 
 /**
@@ -399,8 +399,8 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
  * clear `SEA_LEVEL_M`; its exact value does not otherwise matter to a flat
  * field.
  */
-const RUNWAY_HEIGHT_M = 1
-const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
+export const RUNWAY_HEIGHT_M = 1
+export const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
   parseTerrainHeader({
     centreLatDeg: 10.8,
     centreLonDeg: 125.3,
