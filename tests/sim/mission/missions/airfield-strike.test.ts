@@ -3,20 +3,18 @@
  *
  * Tuning notes (M3-R9), 2026-09-27:
  *
- * - **The defenders' spawn, (-31629, 1500, -20479) and (-31429, 1500,
- *   -20279), heading 000 at 110 m/s.** 4 km north of Dulag's runway center
- *   (-31629, -16479), at 1,500 m, pointed north at a striker arriving from
- *   Tacloban (-29666, -47605; 31.2 km away, bearing 184 from Tacloban to
- *   Dulag), with the wingman 200 m east and 200 m astern. The plan's draft
- *   had z = -12479 / -12279: in this world north is -z, so that was 4 km
- *   SOUTH of Dulag (35.2 km from Tacloban), behind the field and pointed
- *   away from the threat. Moved by 8,000 m of z, the sign of the offset,
- *   and nothing else; the first content test below pins "north of Dulag".
+ * - **The defenders, 7h Task 4, 2026-09-28.** Two Zeros parked on Dulag's
+ *   runway at local (0, 650) and (0, 750), unchocked, `takeoff: true`; they
+ *   spawn on the scramble trigger and roll. (Was: airborne 4 km north at
+ *   1,500 m, which is what Mark saw fail: they appeared mid-air.) Measured
+ *   against a striker 7,900 m out at 400 m, 100 m/s: airborne at 50 s and
+ *   60 s, both engage, defender-1 first fires at 61.7 s from 507 m. No
+ *   knob beyond the spots needed turning. RF1 and RF5 pin the run and the
+ *   climb-out.
  * - **The scramble ring, 8,000 m around Dulag's runway center.** Unchanged
  *   from the plan. Its north edge is 23.1 km from Tacloban, so neither the
  *   take-off nor a Tacloban approach enters it (the failure run pins that
- *   the defenders never spawn), and the defenders spawn 4 km inside it,
- *   ahead of the striker.
+ *   the defenders never spawn).
  * - **The AAA batteries, dulag-aaa-1 at (-60, 0) and dulag-aaa-2 at
  *   (-100, -350) in Dulag's frame.** Unmoved. Measured on land at every
  *   footprint corner: at L1 12.93 m and 10.69 m, at L0 11.27 m and 10.12 m
@@ -27,14 +25,19 @@
  */
 import { describe, it, expect } from 'vitest'
 import { loadAircraftSpec, loadAirfield, loadScenarioBundle } from '../../../../tools/content/load.js'
+import { TAKEOFF_CLIMB_DEG, ZERO_TAKEOFF_RUN_M } from '../../../../src/sim/ai/takeoff.js'
+import { advance, aircraftById, playerAircraft, withAircraftState } from '../../../../src/sim/loop.js'
+import { DT } from '../../../../src/sim/flight/model.js'
+import { length, sub } from '../../../../src/sim/math/vec3.js'
+import { localToWorld, runwayHeadingRad, type Airfield } from '../../../../src/sim/world/airfields.js'
+import { heightAt } from '../../../../src/sim/world/terrain.js'
 import { worldFromScenario } from '../../../../src/sim/scenario.js'
-import { playerAircraft } from '../../../../src/sim/loop.js'
 import { sideOf } from '../../../../src/sim/sides.js'
 import { storesFromLoadout } from '../../../../src/sim/weapons/stores.js'
 import { radioMessages } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
 import { progressOf } from '../fixture.js'
-import { deckRun, destroyNow, fieldApproach, hold, levelAt, terrainOrSkip } from '../fly.js'
+import { deckRun, destroyNow, fieldApproach, hold, levelAt, settledAll, terrainOrSkip } from '../fly.js'
 
 const DULAG = { x: -31629, z: -16479 }
 const HANGARS = ['dulag-hangar-1', 'dulag-hangar-2']
@@ -45,19 +48,50 @@ const EGRESS = 'Strike lead: hangars are down. Head home to Tacloban.'
 const IN_RING = levelAt({ x: DULAG.x, z: DULAG.z - 7000 }, 1500, 120, 180)
 /** The take-off, from `runwayCenter`, flaps up, to 300 m over the runway. */
 const TAKEOFF = { flaps: false, climbToM: 300 } as const
+/** RF5: how far the ground may rise above the climb path, meters (none). */
+const RF5_CLEARANCE_M = 0
+/**
+ * The regression's striker: 7,900 m north of Dulag (inside the ring, so the
+ * scramble fires on the first tick), level at 400 m, southbound at 100 m/s.
+ * Pinned only on the first tick; it flies its own state after that.
+ */
+const STRIKER = levelAt({ x: DULAG.x, z: DULAG.z - 7900 }, 400, 100, 180)
+/** The regression's horizon, seconds. */
+const REGRESSION_S = 120
 
 describe('Airfield Strike content', () => {
-  it('the defenders spawn north of Dulag (toward Tacloban), inside the scramble ring', () => {
+  it('the scramble ring is 8,000 m around Dulag\'s runway center', () => {
     const { scenario } = loadScenarioBundle('airfield-strike')
     const ring = scenario.triggers!.find((t) => t.id === 'scramble')!.when
     expect(ring).toEqual({ enters: { point: DULAG, radiusM: 8000 } })
+    const field = loadAirfield('dulag')
+    expect(field.runway.center).toMatchObject(DULAG)
+  })
+
+  it('the defenders are Zeros parked on Dulag\'s runway and scramble on takeoff', () => {
+    const { scenario } = loadScenarioBundle('airfield-strike')
     const group = scenario.heldGroups!.find((g) => g.id === 'defenders')!
     expect(group.aircraft ?? []).toHaveLength(2)
     for (const a of group.aircraft ?? []) {
-      if (!('airborneAt' in a)) throw new Error(`${a.id} is not airborneAt`)
-      const [x, , z] = a.airborneAt.position
-      expect(z).toBeLessThan(DULAG.z) // north is -z
-      expect(Math.hypot(x - DULAG.x, z - DULAG.z)).toBeLessThan(8000)
+      expect(a.spec).toBe('a6m2-zero')
+      if (!('parkedAt' in a) || !('airfield' in a.parkedAt)) throw new Error(`${a.id} is not parked on an airfield`)
+      expect(a.parkedAt.airfield).toBe('dulag')
+      expect(a.chocked).toBe(false)
+      expect(a.pilot?.takeoff).toBe(true)
+    }
+  })
+
+  it('each takeoff spot leaves 1.5x the measured Zero takeoff run ahead of it (RF1)', () => {
+    const field = loadAirfield('dulag')
+    const spots = defenderSpots()
+    expect(spots).toHaveLength(2)
+    for (const s of spots) {
+      const w = localToWorld(field, s.x, s.z)
+      const e = runwayEnd(field)
+      const h = runwayHeadingRad(field)
+      const ahead = (e.x - w.x) * Math.sin(h) + (e.z - w.z) * -Math.cos(h)
+      expect(ahead).toBeGreaterThanOrEqual(1.5 * ZERO_TAKEOFF_RUN_M)
+      expect(ahead).toBeLessThanOrEqual(field.runway.lengthM) // on the strip, not behind it
     }
   })
 
@@ -79,6 +113,22 @@ describe('Airfield Strike content', () => {
 const terrain = terrainOrSkip()
 
 describe.skipIf(terrain === null)('Airfield Strike, headless (spec §5)', () => {
+  it('the ground for 5 km past the runway end stays under the 10 degree climb path (RF5)', () => {
+    // The safety floor is off until TAKEOFF_DONE_M, so a hill on the
+    // climb-out is a crash nothing catches. The path is drawn from the
+    // runway end at the end's ground height, which is conservative: the
+    // Zero is off the ground ZERO_TAKEOFF_RUN_M after its spot.
+    const field = loadAirfield('dulag')
+    const e = runwayEnd(field)
+    const h = runwayHeadingRad(field)
+    const baseM = heightAt(terrain!, e.x, e.z)
+    const slope = Math.tan((TAKEOFF_CLIMB_DEG * Math.PI) / 180)
+    for (let d = 0; d <= 5000; d += 100) {
+      const groundM = heightAt(terrain!, e.x + Math.sin(h) * d, e.z - Math.cos(h) * d)
+      expect(groundM, `${d} m past the end`).toBeLessThanOrEqual(baseM + slope * d + RF5_CLEARANCE_M)
+    }
+  })
+
   it('success: take off, scramble, hangars down, recover at Tacloban, badge; the AAA is a bonus', () => {
     let w = worldFromScenario(loadScenarioBundle('airfield-strike'), terrain)
     w = deckRun(w, TAKEOFF)
@@ -133,4 +183,50 @@ describe.skipIf(terrain === null)('Airfield Strike, headless (spec §5)', () => 
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Recover: incomplete'] })
   })
+
+  it('the scrambled defenders take off, engage the striker and fire (regression, 2026-09-28)', () => {
+    let w = settledAll(worldFromScenario(loadScenarioBundle('airfield-strike'), terrain))
+    const start = STRIKER
+    const engaged = new Set<string>(), fired = new Set<string>()
+    const upS: Record<string, number> = {}
+    let firstFire: { s: number, id: string, rangeM: number, strikerZ: number } | null = null
+    for (let i = 0; i < REGRESSION_S * 60; i++) {
+      const p = i === 0 ? start : aircraftById(w, w.player)!.state
+      w = withAircraftState(w, w.player, { ...p, tick: w.tick })
+      w = advance(w, DT).world
+      const player = aircraftById(w, w.player)!
+      for (const id of DEFENDERS) {
+        const d = aircraftById(w, id)
+        if (d === undefined) continue
+        if (d.pilot!.decision.mode === 'engage' && d.pilot!.decision.targetId === w.player) engaged.add(id)
+        if (d.controls.fire === true) {
+          fired.add(id)
+          firstFire ??= { s: w.tick * DT, id, rangeM: length(sub(d.state.position, player.state.position)), strikerZ: player.state.position.z }
+        }
+        if (d.pilot!.decision.mode !== 'takeoff' && upS[id] === undefined) upS[id] = w.tick * DT
+      }
+    }
+    for (const id of DEFENDERS) expect(upS[id], id).toBeLessThan(75)
+    expect([...engaged].sort()).toEqual(DEFENDERS)
+    expect(fired.size).toBeGreaterThan(0)
+  }, 180000)
 })
+
+/** The defenders' runway-local spots, from the scenario. */
+function defenderSpots(): { readonly x: number; readonly z: number }[] {
+  const { scenario } = loadScenarioBundle('airfield-strike')
+  const group = scenario.heldGroups!.find((g) => g.id === 'defenders')!
+  return (group.aircraft ?? []).map((a) => {
+    if (!('parkedAt' in a) || !('airfield' in a.parkedAt) || typeof a.parkedAt.spot !== 'object') {
+      throw new Error(`${a.id} has no runway-local spot`)
+    }
+    return a.parkedAt.spot
+  })
+}
+
+/** The departure end of the runway (heading h points along (sin h, -cos h)). */
+function runwayEnd(field: Airfield): { readonly x: number; readonly z: number } {
+  const h = runwayHeadingRad(field)
+  const half = field.runway.lengthM / 2
+  return { x: field.runway.center.x + Math.sin(h) * half, z: field.runway.center.z - Math.cos(h) * half }
+}

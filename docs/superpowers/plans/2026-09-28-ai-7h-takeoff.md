@@ -100,7 +100,7 @@ type TakeoffState = {
 - Consumes: `isParkedAircraft`, `isShipParked` (`src/sim/scenario.ts`), `heightAt` (`src/sim/world/terrain.ts`).
 - Produces: `pilot.takeoff: true` in scenario JSON; `SpawnParts.terrain?: TerrainField | null`; `settledAll(w: World<undefined>): World<undefined>` in `tests/sim/mission/fly.ts`. The `PilotAssignment` a takeoff pilot gets has `decision.mode === 'takeoff'` and `decision.takeoff` seeded (type from Task 2, so this task lands the type declaration first, Step 1).
 
-- [ ] **Step 1: Declare the types (no behavior)**
+- [x] **Step 1: Declare the types (no behavior)**
 
 In `src/sim/ai/pilot.ts` add `'takeoff'` to `PilotMode`, and add to `PilotDecisionState`:
 
@@ -111,7 +111,7 @@ In `src/sim/ai/pilot.ts` add `'takeoff'` to `PilotMode`, and add to `PilotDecisi
 
 with `import type { TakeoffState } from './takeoff.js'` and a stub `src/sim/ai/takeoff.ts` that exports only the types from the Design section above.
 
-- [ ] **Step 2: Write the failing tests** in `tests/sim/scenarioTakeoff.test.ts`
+- [x] **Step 2: Write the failing tests** in `tests/sim/scenarioTakeoff.test.ts`
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -141,12 +141,12 @@ describe('takeoff scenarios', () => {
 
 Note for the implementer: find how the existing scenario tests build a bundle from a literal (`grep -n "worldFromScenario\|loadScenarioBundle" tests/sim/scenario*.test.ts | head`) and copy that exact pattern; use `tests/fixtures/scenarios/*.json` as the literal's base. Do not invent `parseScenarioBundleForTest`; replace it with what the neighbors use. Write `heldTakeoff` and `bundleWithStartTakeoff` as small builders in the test file returning the JSON literal with one held group `spawned` by a trigger and one Tacloban-parked player.
 
-- [ ] **Step 3: Run to verify they fail**
+- [x] **Step 3: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/scenarioTakeoff.test.ts`
 Expected: FAIL (unknown key `takeoff`; R3 message on the first case).
 
-- [ ] **Step 4: Implement the schema**
+- [x] **Step 4: Implement the schema**
 
 In `PilotObject` add `takeoff: z.literal(true).optional()` with a doc line, and add a refine so `takeoff` excludes `leader`:
 
@@ -172,7 +172,7 @@ Replace the R3 check at `src/sim/scenario.ts:403`:
 
 Add the same chocked check for start aircraft with `pilot.takeoff` in the start-aircraft validation (find the neighboring per-aircraft loop at `src/sim/scenario.ts:320`). A `pilot.takeoff` on an airborne aircraft is also an issue: `'takeoff needs a parkedAt airfield'`.
 
-- [ ] **Step 5: Settle at spawn**
+- [x] **Step 5: Settle at spawn**
 
 `SpawnParts` gains `readonly terrain?: TerrainField | null`. In `spawnInto`, after restamping the tick:
 
@@ -185,7 +185,7 @@ Add the same chocked check for start aircraft with `pilot.takeoff` in the start-
 
 `spawnHeldGroup(world, ...)` passes `terrain: world.terrain`; the `spawnInto` call at `src/sim/loop.ts:921` passes `terrain: world.terrain`. (Held ship parks are still rejected, so `heightAt` is right; no decks.)
 
-- [ ] **Step 6: The Tier 1 helper**
+- [x] **Step 6: The Tier 1 helper**
 
 In `tests/sim/mission/fly.ts`, add next to `settled`:
 
@@ -205,7 +205,7 @@ export function settledAll(w: World<undefined>): World<undefined> {
 }
 ```
 
-- [ ] **Step 7: A settle test** appended to `scenarioTakeoff.test.ts`
+- [x] **Step 7: A settle test** appended to `scenarioTakeoff.test.ts`
 
 ```ts
 it.skipIf(terrain === null)('a spawned parked aircraft rests on the terrain', () => {
@@ -219,7 +219,7 @@ it.skipIf(terrain === null)('a spawned parked aircraft rests on the terrain', ()
 
 with `const terrain = terrainOrSkip()`.
 
-- [ ] **Step 8: Run, type-check and commit**
+- [x] **Step 8: Run, type-check and commit**
 
 Run: `npx vitest run tests/sim/scenarioTakeoff.test.ts tests/sim/scenario.test.ts && npx tsc --noEmit`
 Expected: PASS, no type errors (the new `PilotMode` member may make an exhaustive `switch` fail to compile; fix each by handling `'takeoff'` like `'loiter'` where it only reads the mode, and note each in the commit).
@@ -252,11 +252,11 @@ export function takeoffClear<M>(a: AircraftEntity<M>, snapshot: readonly Aircraf
 
 The constants below are **starting values, from the player's `deckRun` law** (`tests/sim/mission/fly.ts`, F6F, Tacloban, measured 2026-09-26/27). **Step 1 measures the Zero and overwrites them.** The tests in Steps 4-6 are the acceptance criteria, not the numbers.
 
-- [ ] **Step 1: Measure before writing constants**
+- [x] **Step 1: Measure before writing constants**
 
 Write a throwaway `tests/sim/ai/zz-takeoff-probe.test.ts` (delete it at the end of the task) that puts an `a6m2-zero` on Dulag's runway: build a world from `airfield-strike` with the Task 1 helper, replace the player state with `parkedStateOnRunway(spec, dulag, {x: 0, z: -650}, groundHeight)` (`src/sim/ai/parkSpots.ts`), and fly it with the law in Step 3 for 60 s, printing every 2 s: airspeed, wheels height, distance rolled, pitch angle, and heading error. Record, in the constants' comments with the date, for flaps up and flaps down: the airspeed at which the tail comes up, the roll distance to 10 m height, the time to 150 m AGL, and whether it holds heading with `TAKEOFF_STEER_GAIN`. Pick the flap setting with the shorter run that still holds the climb.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 ```ts
 describe('takeoffControls (pure)', () => {
@@ -288,12 +288,12 @@ describe('takeoffControls (pure)', () => {
 
 The `ctx` and `parkedZero` builders go in the test file: `ctx` returns `{ nowS: 0, terrain, decks: [], wind: null, combat }` with `combat` from `createCombat` of the one aircraft; `parkedZero` builds an entity from `loadAircraftSpec('a6m2-zero')` and `parkedStateOnRunway` on a hand-built `Airfield`, copying how `tests/sim/ai/recovery*.test.ts` builds its entities (`grep -n "parkedStateOnRunway" tests/sim/ai/*.test.ts`).
 
-- [ ] **Step 3: Run to verify they fail**
+- [x] **Step 3: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/ai/takeoff.test.ts`
 Expected: FAIL (`takeoffControls` is not a function, or the stub).
 
-- [ ] **Step 4: Implement `takeoff.ts`**
+- [x] **Step 4: Implement `takeoff.ts`**
 
 ```ts
 import type { AircraftEntity } from '../loop.js'
@@ -389,7 +389,7 @@ export function takeoffControls<M>(
 
 If Step 1 shows the roll needs a different steering law (a tailwheel swings; the F6F's `deckRun` used `yaw: 0`), change only `TAKEOFF_STEER_GAIN` and, if needed, add a rate term; record why in the constant's comment.
 
-- [ ] **Step 5: Integration acceptance tests (headless runway takeoffs)** appended to `tests/sim/ai/takeoff.test.ts`
+- [x] **Step 5: Integration acceptance tests (headless runway takeoffs)** appended to `tests/sim/ai/takeoff.test.ts`
 
 ```ts
 const terrain = terrainOrSkip()
@@ -416,12 +416,12 @@ describe.skipIf(terrain === null)('a Zero takes off from Dulag (Tier 1, real ter
 
 `takeoff-fixture` is a small scenario in `tests/fixtures/scenarios/`: the Tacloban-parked player (copy `recovery-range`'s player entry) plus one start-parked Zero `ai-1` at Dulag `{x: 0, z: -650}` with `pilot: { takeoff: true }`, and `airfields: ["tacloban", "dulag"]`. `runwayEndOf`, `acrossRunway`, `distanceRolled` are local helpers using `localToWorld`, `runwayHeadingRad` (`src/sim/world/airfields.ts`) and the aircraft's initial position; write them in the test file. Add a second `it` for the F6F (`f6f-hellcat`) so the controller is not tuned to the Zero alone.
 
-- [ ] **Step 6: Run, tune, repeat**
+- [x] **Step 6: Run, tune, repeat**
 
 Run: `npx vitest run tests/sim/ai/takeoff.test.ts`
 Expected: PASS. If a takeoff fails, change one constant at a time and record each change's effect in the constant's comment with today's date, as `recovery.ts` does.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 rm tests/sim/ai/zz-takeoff-probe.test.ts
@@ -442,7 +442,7 @@ git commit -m "7h Task 2: takeoff controller, measured on the Zero and the Hellc
 - Consumes: `takeoffControls`, `TakeoffState` (Task 2); `finishControls` (`src/sim/ai/safety.ts`).
 - Produces: pilots in `takeoff` mode fly `takeoffControls` each tick and, when it returns `takeoff: null`, become ordinary `engage` pilots on that tick. `__ww2.aircraft()` rows gain `takeoff: TakeoffPhase | null`.
 
-- [ ] **Step 1: Write the failing tests** in `tests/sim/ai/takeoffPilot.test.ts`
+- [x] **Step 1: Write the failing tests** in `tests/sim/ai/takeoffPilot.test.ts`
 
 ```ts
 describe.skipIf(terrain === null)('takeoff mode in the pilot tick', () => {
@@ -486,12 +486,12 @@ describe.skipIf(terrain === null)('takeoff mode in the pilot tick', () => {
 
 `takeoff-pair-fixture` is `takeoff-fixture` plus `ai-2` at `{x: 0, z: -750}`. Copy `tickCtx` from how `tests/sim/ai/recovery*.test.ts` builds a `PilotTickContext`.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/ai/takeoffPilot.test.ts`
 Expected: FAIL (takeoff pilots fly the ordinary loiter and never roll).
 
-- [ ] **Step 3: Implement the short-circuit**
+- [x] **Step 3: Implement the short-circuit**
 
 In `pilotTick`, after the `landed` block:
 
@@ -517,16 +517,16 @@ In `pilotTick`, after the `landed` block:
 
 Import `takeoffControls` from `./takeoff.js`. The `a` used below still holds the old `pilot` field, so return through the existing paths, which read the local `pilot` and `decision`: verify with the final test in Step 1 that the hand-off tick returns a `mode` other than `takeoff`.
 
-- [ ] **Step 4: Diagnostics**
+- [x] **Step 4: Diagnostics**
 
 `src/render/diagnostics.ts` next to `recovery: RecoveryPhase | null` (line 215): add `readonly takeoff: TakeoffPhase | null` (doc: "Plan 7h: the takeoff phase for an AI on its takeoff, else `null`"), and in `src/render/main.ts` next to line 985 set `takeoff: a.pilot?.decision.takeoff?.phase ?? null`.
 
-- [ ] **Step 5: Run the new tests plus the gates**
+- [x] **Step 5: Run the new tests plus the gates**
 
 Run: `npx vitest run tests/sim/ai/takeoffPilot.test.ts tests/sim/ai/determinism.test.ts tests/sim/ai/recovery.test.ts && npx tsc --noEmit`
 Expected: PASS. `determinism.test.ts` untouched and green is Review Focus 6.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sim/ai/pilotTick.ts src/render/diagnostics.ts src/render/main.ts tests/sim/ai/takeoffPilot.test.ts tests/fixtures/scenarios/takeoff-pair-fixture.json
@@ -546,7 +546,7 @@ git commit -m "7h Task 3: takeoff mode in pilotTick, ordered on the runway, diag
 - Consumes: Tasks 1-3; `runwayHeadingRad`, `localToWorld`, `loadAirfield`.
 - Produces: defenders parked on Dulag's runway (Zeros), spawned by the existing `scramble` trigger, that take off and attack.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Replace the first content test with:
 
@@ -610,12 +610,12 @@ it.skipIf(terrain === null)('the scrambled defenders take off, engage the strike
 
 Note the player is pinned only on its first tick and flies its own state afterward, as in the 2026-09-28 probe, so it descends about 25 m per 3 s: the assertion is about the defenders' behavior against a striker that keeps coming, not a flying test of the player.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/sim/mission/missions/airfield-strike.test.ts`
 Expected: FAIL (the defenders still spawn airborne, and are still Hellcats if the prerequisite commit was skipped).
 
-- [ ] **Step 3: Edit the scenario**
+- [x] **Step 3: Edit the scenario**
 
 In `content/scenarios/airfield-strike.json`, replace each defender's `airborneAt` with a `parkedAt`:
 
@@ -632,12 +632,12 @@ In `content/scenarios/airfield-strike.json`, replace each defender's `airborneAt
 
 `defender-2` at `{ "x": 0, "z": -750 }`. If RF1's ahead-run test says both spots face the short end, negate both `z`. Leave the `scramble` trigger and message as they are.
 
-- [ ] **Step 4: Run, then tune only with data**
+- [x] **Step 4: Run, then tune only with data**
 
 Run: `npx vitest run tests/sim/mission/missions/airfield-strike.test.ts`
 Expected: PASS. If the behavior test fails because the Zeros merge head-on again without firing (their runway heading is north, toward an arriving striker), the knobs in the order to try are: (1) enlarge the `scramble` ring's `radiusM` so they are airborne and turned before the striker arrives (this changes the pinned ring in the trigger, so update the content test that pins `enters: { point: DULAG, radiusM: 8000 }` and the file's header note); (2) move the spots to the runway's far end so they reach altitude over the striker's track; (3) only then consider the AI's head-on firing window, which is a separate plan. Record each try and its measured firing time in the test file's header note, as the M3 tuning notes do.
 
-- [ ] **Step 5: Whole mission suite, then commit**
+- [x] **Step 5: Whole mission suite, then commit**
 
 Run: `npx vitest run tests/sim/mission/missions/airfield-strike.test.ts tests/content && npx tsc --noEmit`
 Expected: PASS.
