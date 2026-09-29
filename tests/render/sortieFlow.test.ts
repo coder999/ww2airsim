@@ -25,7 +25,7 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   })
   it('a carrier start offers the Hellcat, Wildcat and Corsair; Dev adds the Zero', () => {
     expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
-    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-43-oscar', 'p-38-lightning'])
+    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-43-oscar', 'p-38-lightning'])
     // Dev lists every spec, so the land-based B-17, B-29, G4M and P-38 (carrierCapable false) show here and only here.
   })
   it('a mission starts on its own aircraft and recommended loadout', () => {
@@ -58,6 +58,9 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   })
   it('the Ki-43, with racks and no rails, offers Clean and Bombs (Ki-43-II onboarding)', () => {
     expect(loadoutsFor(ctx(true), 'ki-43-oscar')).toEqual(['clean', 'bombs'])
+  })
+  it('the Val, with one belly rack and no rails, offers Clean and Bombs (D3A onboarding)', () => {
+    expect(loadoutsFor(ctx(true), 'd3a-val')).toEqual(['clean', 'bombs'])
   })
   it('a bomber with racks and no rails offers Clean and Bombs, in Dev too', () => {
     expect(loadoutsFor(ctx(true), 'b-17-flying-fortress')).toEqual(['clean', 'bombs'])

@@ -50,4 +50,7 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-30 (Ki-43-II onboarding) with the propeller excluded: mains at x 0.348, the fixed tailwheel the first aft
   // point to touch at 12.306 degrees.
   'ki-43-oscar': { mainWheelXM: 0.348, tailDownPitchRad: 12.306 * DEG },
+  // Measured 2026-09-30 (D3A Val onboarding) with drawnPoints, the propeller excluded: the spatted mains bottom out at x 0.257,
+  // y -1.850; the fixed tailwheel is the first aft point to touch at 11.52 degrees.
+  'd3a-val': { mainWheelXM: 0.257, tailDownPitchRad: 11.52 * DEG },
 }

@@ -144,8 +144,13 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
   it("stands on the gear height of every aircraft spec that draws it (Z3's gear.heightM, P1)", () => {
     const mains = rig.gear.filter((g) => MAIN.has(g.node))
     for (const spec of specIds.map((s) => loadAircraftSpec(s)).filter((s) => s.view.model === id)) {
-      expect(mains.length, `${spec.id} draws ${id}, whose rig has no main gear`).toBeGreaterThan(0)
-      const lowest = Math.min(...mains.flatMap((g) => worldPositions(one(doc, g.node)).map((p) => p[1])))
+      // A fixed gear (the Val's spats) has no rig nodes: its wheels are part of the airframe mesh, so the lowest point of every
+      // node but the propeller stands in for them.
+      if (spec.gear.fixed !== true) expect(mains.length, `${spec.id} draws ${id}, whose rig has no main gear`).toBeGreaterThan(0)
+      const gearNodes = spec.gear.fixed === true
+        ? doc.getRoot().listNodes().filter((n) => n.getMesh() !== null && !rig.props.some((pr) => pr.node === n.getName()))
+        : mains.map((g) => one(doc, g.node))
+      const lowest = Math.min(...gearNodes.flatMap((n) => worldPositions(n).map((p) => p[1])))
       expect(Math.abs(-lowest - spec.gear.heightM), `${spec.id}: wheels ${(-lowest).toFixed(3)} m below the origin, gear.heightM ${spec.gear.heightM}`).toBeLessThanOrEqual(0.05)
     }
   })

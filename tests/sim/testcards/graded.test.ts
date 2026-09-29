@@ -271,6 +271,16 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // validation. No take-off distance is sourced (TAIC's two sheets print 450 and 896 ft): the card runs the flap-direction check only,
   // at an ESTIMATED 42 m/s lift-off (the roll reads 217 m clean, 713 ft, between the two sheets). Tolerances are about 1.4x to 2x each measurement.
   'ki-43-oscar': { topSpeed: 0.015, topSpeedTable: 0.012, climb: 0.24, climbTable: 0.29, stall: 0.04, flapStall: 0.04, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 42, flapFraction: 1 } },
+  // D3A2 Val onboarding, measured 2026-09-30 at testMassKg 3,551.6 kg (7,830 lb) against ONE intelligence sheet (TAIC 401A-2, Dec 1944;
+  // no flight-test report exists, and Wikipedia's 267 mph at 6,200 m is 5% slower): top speed 125.95 vs 125.6 m/s (+0.28%) at 20,300 ft; table
+  // -0.09% (sea level) and +0.26% (9,850 ft); climb +12.96% at sea level and +14.80% at 9,850 ft, below the fleet's known +16% to +22% bias and
+  // not tuned. The stalls are ESTIMATES scaled from the Zero's (33.2 and 29.4 m/s), so their +2.42% and +2.24% grade the model against a
+  // number derived from its own lift curve; flap.clIncrement is DERIVED from those two estimates, which is circular. Roll 60.0 vs its own
+  // ESTIMATE. cd0 0.022 and propEfficiency 0.68 are FITTED to three speeds with two unknowns, so a green card is not validation. Take-off: the
+  // model rolls 244.8 m (+55.6%) against TAIC's 157.3 m (516 ft, conditions unstated) at an ESTIMATED 40 m/s lift-off and no flaps: a REPORTED
+  // gap, not a fit (the sea-level power fraction is the 1,075 hp military rating, 0.84 of the 1,280 hp take-off power, so the model takes off
+  // on less power than the sheet's figure likely assumed), so its band is wide and only ever tightens. Other tolerances are about 1.4x to 2x each measurement.
+  'd3a-val': { topSpeed: 0.006, topSpeedTable: 0.006, climb: 0.19, climbTable: 0.22, stall: 0.04, flapStall: 0.04, roll: 0.01, takeoff: { tol: 0.75, liftoffMps: 40, flapFraction: 0 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {
@@ -311,9 +321,15 @@ describe.each(ids.filter((id) => CARDS[id] !== undefined))('%s graded against it
     expect(r.pass, `climb at ${altitudeM} m ${r.actual.toFixed(3)} vs ${rateMps} (${pct(r)})`).toBe(true)
   })
 
-  it('climbs more slowly at each higher altitude in its table', () => {
+  it('climbs in the direction its table does at each higher altitude', () => {
     const rates = [climbSeaLevel, ...(ref.climbRateByAltitudeM ?? []).map(([a]) => measureClimbRate(spec, a))]
-    for (let i = 1; i < rates.length; i++) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
+    const sourced = [ref.climbRateMps, ...(ref.climbRateByAltitudeM ?? []).map(([, r]) => r)]
+    // Normally the table falls with altitude. The Val's sourced table RISES from sea level to 9,850 ft (2,160 then 2,330 ft/min: the
+    // supercharger's second gear), so the model has to follow the sourced direction, whichever way it runs.
+    for (let i = 1; i < rates.length; i++) {
+      if (sourced[i]! < sourced[i - 1]!) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
+      else expect(rates[i]!).toBeGreaterThan(rates[i - 1]!)
+    }
   })
 
   it('stalls near its clean, power-off stall speed', () => {

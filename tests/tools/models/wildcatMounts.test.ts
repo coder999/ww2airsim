@@ -12,9 +12,10 @@ import { loadAircraftSpec } from '../../../tools/content/load.js'
 // the Hellcat its own R3 model, so it no longer shares the Wildcat's mounts).
 const withStores = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
   .filter((s) => s.stores !== undefined)
-/** Racks inside the hull, not hung from a wing: nothing here to fit (B-17G onboarding, D7 to D9, 2026-09-29). Their
- *  offsets are checked against the drawn hull by tests/tools/models/internalBay.test.ts. */
-const INTERNAL = new Set(['b-17-flying-fortress', 'g4m-betty', 'b-29-superfortress'])
+/** Racks not hung from a wing: nothing here to fit. The B-17, G4M and B-29 carry theirs inside the hull (B-17G onboarding, D7 to D9,
+ *  2026-09-29; checked against the drawn hull by internalBay.test.ts); the D3A Val's one rack is on the belly centerline (D3A onboarding,
+ *  checked against the drawn belly by bellyRack.test.ts). */
+const INTERNAL = new Set(['b-17-flying-fortress', 'g4m-betty', 'b-29-superfortress', 'd3a-val'])
 const wingMounted = withStores.filter((s) => !INTERNAL.has(s.id))
 const sections = new Map(await Promise.all([...new Set(wingMounted.map((s) => s.view.model))].map(async (m) => [m, await sectionAtFor(m)] as const)))
 
@@ -43,8 +44,8 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat'], ['ki-43-oscar', 'ki-43-oscar'], ['p-38-lightning', 'p-38-lightning']])
   })
 
-  it('the only stores-carrying specs left out are the B-17 and the G4M, whose racks are internal', () => {
-    expect(withStores.filter((s) => INTERNAL.has(s.id)).map((s) => s.id)).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty'])
+  it('the only stores-carrying specs left out are the B-17, the B-29, the G4M (racks internal) and the Val (belly rack)', () => {
+    expect(withStores.filter((s) => INTERNAL.has(s.id)).map((s) => s.id)).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'g4m-betty'])
   })
 
   it('rejects a model with no glb by name', async () => {

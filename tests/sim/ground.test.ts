@@ -915,3 +915,21 @@ describe('contact height follows pitch (T1)', () => {
     expect(length(after.velocity)).toBeLessThanOrEqual(length(s.velocity))
   })
 })
+
+// D3A Val onboarding (2026-09-30): the first fixed undercarriage. Nothing else in the sim had a notion of gear that does not retract,
+// so the gear key would have folded the Val's drag and (below GEAR_DOWN_FRACTION) turned a landing into a belly landing.
+describe('fixed gear (gear.fixed)', () => {
+  const fixed = { ...f6f, gear: { ...f6f.gear, fixed: true } }
+  it('holds the gear down whatever the pilot commands, from any starting fraction', () => {
+    expect(gearAfter(fixed, 0, false, DT)).toBe(1)
+    expect(gearAfter(fixed, 0.3, undefined, DT)).toBe(1)
+    expect(gearAfter(fixed, 1, false, 100)).toBe(1)
+  })
+  it('charges no separate gear drag (a fixed gear is inside the fitted cd0)', () => {
+    expect(gearDragN(fixed, 1, 1000)).toBe(0)
+    expect(gearDragN(f6f, 1, 1000)).toBeGreaterThan(0)
+  })
+  it('leaves a retractable airplane alone', () => {
+    expect(gearAfter(f6f, 1, false, 1)).toBeLessThan(1)
+  })
+})
