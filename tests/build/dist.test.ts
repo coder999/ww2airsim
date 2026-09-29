@@ -139,6 +139,7 @@ describe('the built artifact', () => {
         'content/scenarios/friendly-fire-field.json',
         'content/bases/tacloban.json',
         'content/bases/dulag.json',
+        'content/bases/bayug.json',
         'content/ships/essex-cv.json',
         'content/ships/fletcher-dd.json',
         'content/fx/sheets.json',

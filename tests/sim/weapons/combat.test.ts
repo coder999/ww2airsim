@@ -425,7 +425,7 @@ describe('production fixed-step ordnance', () => {
     expect(c2.aircraft.shooter!.killsByType.building).toBe(1)
   })
 
-  it('credits a sunk carrier/cruiser/battleship to killsByType, but NOT an escort or merchant sink (Plan 9 Task 2)', () => {
+  it('credits every sunk hull to killsByType by role: escort scores as destroyer, merchant as transport', () => {
     const shipFixture = (id: string, role: 'carrier' | 'cruiser' | 'battleship' | 'escort' | 'merchant') => ({
       id, spec: { lengthM: 100, beamM: 15, deckHeightM: 6, hullHp: 100, role },
       state: { position: v3(0, 0, 0), headingRad: 0 }, previous: { position: v3(0, 0, 0), headingRad: 0 },
@@ -433,6 +433,7 @@ describe('production fixed-step ordnance', () => {
     const ships = [
       shipFixture('carrier-1', 'carrier'), shipFixture('cruiser-1', 'cruiser'),
       shipFixture('battleship-1', 'battleship'), shipFixture('escort-1', 'escort'),
+      shipFixture('merchant-1', 'merchant'),
     ]
     const c0 = createCombat([plane('shooter', 0)])
     const before = {
@@ -441,14 +442,16 @@ describe('production fixed-step ordnance', () => {
         [s.id, { hp: 0, fire: 1, destroyedTick: 1, attacker: 'shooter', sinkingFraction: 0 }])),
     }
     // dt = 100 s against SINK_SECONDS = 90 finishes every sink in this one
-    // step, so all four credit (or not) on the same call.
+    // step, so all five credit on the same call.
     const after = stepCombat(before, [], ships, [], null, null, [], 2, 100)
-    expect(after.aircraft.shooter!.shipsSunk).toBe(4)
+    expect(after.aircraft.shooter!.shipsSunk).toBe(5)
     expect(after.aircraft.shooter!.killsByType.carrier).toBe(1)
     expect(after.aircraft.shooter!.killsByType.cruiser).toBe(1)
     expect(after.aircraft.shooter!.killsByType.battleship).toBe(1)
+    expect(after.aircraft.shooter!.killsByType.destroyer).toBe(1)
+    expect(after.aircraft.shooter!.killsByType.transport).toBe(1)
     const sum = Object.values(after.aircraft.shooter!.killsByType).reduce((a, b) => a + b, 0)
-    expect(sum).toBe(3)
+    expect(sum).toBe(5)
   })
 })
 

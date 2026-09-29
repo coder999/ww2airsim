@@ -6,12 +6,19 @@
  * and why ('runway' has no producing code path today).
  */
 export type TargetType =
-  | 'fighter' | 'bomber' | 'cruiser' | 'battleship'
+  | 'fighter' | 'bomber' | 'cruiser' | 'battleship' | 'destroyer' | 'transport'
   | 'aaa' | 'runway' | 'building' | 'carrier'
 
 export const TARGET_TYPES: readonly TargetType[] = [
-  'fighter', 'bomber', 'cruiser', 'battleship', 'aaa', 'runway', 'building', 'carrier',
+  'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'carrier',
 ]
+
+/** The score row a sunk hull of this role lands in: every role scores. */
+export function shipTargetType(
+  role: 'carrier' | 'cruiser' | 'battleship' | 'escort' | 'merchant',
+): TargetType {
+  return role === 'escort' ? 'destroyer' : role === 'merchant' ? 'transport' : role
+}
 
 export function zeroKillsByType(): Readonly<Record<TargetType, number>> {
   return Object.fromEntries(TARGET_TYPES.map((t) => [t, 0])) as Readonly<Record<TargetType, number>>

@@ -17,14 +17,14 @@ const one = (n: number): string => n.toFixed(1)
 /**
  * Which score row an object's destruction lands in. MIRRORS the sim's own
  * credit rules in src/sim/weapons/combat.ts: aircraft by `spec.role`
- * (`creditAircraftDamage`); ships by role, where only carrier, cruiser and
- * battleship score (the sinking loop); structures `aaa` -> 'aaa', every other
+ * (`creditAircraftDamage`); ships by role, where every role scores
+ * (the sinking loop); structures `aaa` -> 'aaa', every other
  * kind -> 'building' (`damageStructureAt`). The Hangar spec keeps src/sim/
  * untouched, so this is a copy of those three expressions; if combat.ts
  * changes one, change it here (tests/render/hangar/stats.test.ts pins each case).
  */
 export function shipTargetType(role: ShipSpec['role']): TargetType | null {
-  return role === 'carrier' || role === 'cruiser' || role === 'battleship' ? role : null
+  return role === 'escort' ? 'destroyer' : role === 'merchant' ? 'transport' : role
 }
 export function structureTargetType(kind: Building['kind']): TargetType {
   return kind === 'aaa' ? 'aaa' : 'building'

@@ -33,6 +33,7 @@ sortie, 0 points, however it ends.
 | Bomber | 750 | Runway | 500 |
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
+| Destroyer | 750 | Transport | 400 |
 
 Recovery multiplier applied to the mission total:
 

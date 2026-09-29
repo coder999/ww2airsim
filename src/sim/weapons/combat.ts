@@ -1,7 +1,7 @@
 import type { AircraftSpec, StoreType } from '../flight/schema.js'
 import type { AircraftState, Controls } from '../flight/state.js'
 import { createRng } from '../rng.js'
-import { qRotate } from '../math/quat.js'
+import { qFromAxisAngle, qRotate } from '../math/quat.js'
 import { add, sub, scale, length, normalize, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { SEA_LEVEL_M, type TerrainField } from '../world/terrain.js'
 import { groundUnder } from '../world/ground.js'
@@ -19,7 +19,7 @@ import type { CombatSpec, DamageSystem } from './schema.js'
 import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
-import { zeroKillsByType, type TargetType } from './targetType.js'
+import { shipTargetType, zeroKillsByType, type TargetType } from './targetType.js'
 import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.js'
 import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
@@ -473,7 +473,11 @@ function releaseRockets(a: CombatAircraft, combat: CombatSpec, stores: StoresSta
     const type = rail === undefined ? undefined : s.types[rail.store]
     if (rail === undefined || type === undefined) continue
     const origin = tupleVector(rail.offset)
-    const aim = coneAim(normalize(sub(v3(combat.convergenceM, 0, 0), origin)), combat.dispersionDeg, draw.r1, draw.r2)
+    const sightLine = normalize(sub(v3(combat.convergenceM, 0, 0), origin))
+    const raised = type.railElevationDeg === undefined
+      ? sightLine
+      : qRotate(qFromAxisAngle(v3(0, 0, 1), (type.railElevationDeg * Math.PI) / 180), sightLine)
+    const aim = coneAim(raised, combat.dispersionDeg, draw.r1, draw.r2)
     const position = mountWorld(a, origin, 0)
     projectiles.push({
       owner: a.id, position, previous: position,
@@ -773,8 +777,7 @@ export function stepCombat(
       continue
     }
     const role = shipRoleById.get(id)
-    const targetType: TargetType | null =
-      role === 'carrier' || role === 'cruiser' || role === 'battleship' ? role : null
+    const targetType: TargetType | null = role === undefined ? null : shipTargetType(role)
     records[d.attacker] = {
       ...shooter,
       shipsSunk: shooter.shipsSunk + 1,

@@ -2,7 +2,8 @@
   "id": "convoy-strike",
   "player": "f6f-1",
   "airfields": [
-    "tacloban"
+    "tacloban",
+    "bayug"
   ],
   "aircraft": [
     {
@@ -163,7 +164,7 @@
       "label": "Recover",
       "priority": "primary",
       "kind": "land",
-      "at": "tacloban",
+      "at": "bayug",
       "after": "sink"
     }
   ],
@@ -186,7 +187,27 @@
       },
       "then": [
         {
-          "message": "Strike lead: two down. Home to Tacloban when you're dry."
+          "message": "Strike lead: two down. Home to Bayug when you're dry."
+        }
+      ]
+    },
+    {
+      "id": "cap",
+      "when": {
+        "enters": {
+          "point": {
+            "x": -73000,
+            "z": -9000
+          },
+          "radiusM": 9000
+        }
+      },
+      "then": [
+        {
+          "spawn": "cover"
+        },
+        {
+          "message": "Strike lead: Zeros over the convoy!"
         }
       ]
     }
@@ -196,16 +217,62 @@
     "name": "Convoy Strike"
   },
   "briefing": {
-    "situation": "A Japanese reinforcement convoy — three transports and a destroyer — is crossing the Camotes Sea for Ormoc Bay. You are already over the mountains of western Leyte. Sink at least two of the transports, then recover at Tacloban. Two bombs and six rockets: one bomb and three rockets will sink a transport.",
+    "situation": "A Japanese reinforcement convoy — three transports and a destroyer — is crossing the Camotes Sea for Ormoc Bay. You are already over the mountains of western Leyte. Sink at least two of the transports, then recover at the Bayug strip in the Leyte valley. Expect a pair of Zeros over the convoy. Two bombs and six rockets: one bomb and three rockets will sink a transport; aim a little high with rockets and fire from 500 to 900 meters.",
     "loadout": "both"
   },
   "history": {
-    "text": "After the landings, Japan reinforced its Leyte garrison through Ormoc, the port on the island's west coast: between 23 October and 11 December 1944 it sent nine convoys of transports and escort vessels there, several of them from Manila, and American aircraft struck them again and again. Early on 11 November 1944, carrier planes of Task Force 38 caught one of those convoys as it prepared to enter Ormoc Bay from the Camotes Sea, and accounted for all of its transports and four of its seven escorting destroyers. This mission is inspired by those attacks rather than a reconstruction of any one of them: its convoy sails the Camotes Sea approach to Ormoc Bay, as they did, but its ships, numbers and date are the game's.",
+    "text": "After the landings, Japan reinforced its Leyte garrison through Ormoc, the port on the island's west coast: between 23 October and 11 December 1944 it sent nine convoys of transports and escort vessels there, several of them from Manila, and American aircraft struck them again and again. Early on 11 November 1944, carrier planes of Task Force 38 caught one of those convoys as it prepared to enter Ormoc Bay from the Camotes Sea, and accounted for all of its transports and four of its seven escorting destroyers. This mission is inspired by those attacks rather than a reconstruction of any one of them: its convoy sails the Camotes Sea approach to Ormoc Bay, as they did, but its ships, numbers and date are the game's. Its recovery field is the Bayug strip in the Leyte valley, which the Americans seized in November 1944; the game's convoy, Zeros and pilot are its own.",
     "sources": [
       "M. Hamlin Cannon, Leyte: The Return to the Philippines (Washington: Office of the Chief of Military History, 1954; CMH Pub 5-9-1), U.S. Army Center of Military History: https://www.history.army.mil/html/books/005/5-9-1/CMH_Pub_5-9-1.pdf",
       "Cannon, Leyte, Chapter VI, \"The Japanese Reaction\" (\"The Japanese Reinforce the Leyte Garrison\": nine convoys to Ormoc, 23 October-11 December; the convoys from Manila), HyperWar transcription: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-6.html",
       "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Ticonderoga IV (CV-14)\" (the 11 November 1944 strike on the convoy entering Ormoc Bay from the Camotes Sea): https://www.history.navy.mil/research/histories/ship-histories/danfs/t/ticonderoga-cv-14-iv.html",
-      "Naval History and Heritage Command, H-Gram 040-2, \"Leyte, Ormoc Bay, Mindoro\" (the reinforcement convoys to Ormoc Bay; Task Force 38's strike of 11 November 1944): https://www.history.navy.mil/about-us/leadership/director/directors-corner/h-grams/h-gram-040/h-040-2.html"
+      "Naval History and Heritage Command, H-Gram 040-2, \"Leyte, Ormoc Bay, Mindoro\" (the reinforcement convoys to Ormoc Bay; Task Force 38's strike of 11 November 1944): https://www.history.navy.mil/about-us/leadership/director/directors-corner/h-grams/h-gram-040/h-040-2.html",
+      "English Wikipedia, \"Bayug Airfield\" (built by the Japanese in 1943; seized by the Americans in November 1944 after the Leyte landing), read 2026-09-28: https://en.wikipedia.org/wiki/Bayug_Airfield"
     ]
-  }
+  },
+  "heldGroups": [
+    {
+      "id": "cover",
+      "aircraft": [
+        {
+          "id": "cover-1",
+          "spec": "a6m2-zero",
+          "tags": [
+            "cover"
+          ],
+          "airborneAt": {
+            "position": [
+              -76000,
+              1800,
+              -12000
+            ],
+            "headingDeg": 90,
+            "speedMps": 110
+          },
+          "pilot": {
+            "skill": "green"
+          }
+        },
+        {
+          "id": "cover-2",
+          "spec": "a6m2-zero",
+          "tags": [
+            "cover"
+          ],
+          "airborneAt": {
+            "position": [
+              -75800,
+              1800,
+              -11800
+            ],
+            "headingDeg": 90,
+            "speedMps": 110
+          },
+          "pilot": {
+            "skill": "green"
+          }
+        }
+      ]
+    }
+  ]
 }
