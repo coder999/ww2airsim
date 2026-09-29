@@ -330,52 +330,66 @@ describe('the ground control regime', () => {
     // down the runway if it is got wrong.
     expect(groundBodyRates(f6f, rolling(20), stick, airRates, DT).x).toBe(0)
   })
+})
 
-  describe('yaw: tailwheel and rudder, blended by speed (fix round 1, Important 1)', () => {
-    // Isolate the tailwheel term from the arbitrary shared `airRates` fixture
-    // by zeroing its yaw component -- these tests are about the tailwheel
-    // specifically, not the sum.
-    const noRudder = v3(airRates.x, 0, airRates.z)
+describe('ground yaw (T1)', () => {
+  const rolling = (speed: number) => createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), rest), gearFraction: 1 })
+  const noAir = v3(0, 0, 0)
+  const yawRate = (speed: number, controls: Partial<typeof neutral> & { brakeLeft?: number; brakeRight?: number }, spec = f6f) =>
+    groundBodyRates(spec, rolling(speed), { ...neutral, ...controls }, noAir, DT).y
+  const noseRightDeg = (y: number) => (-y * 180) / Math.PI
 
-    it('still yaws when stopped, because that is the tailwheel and not the rudder', () => {
-      expect(Math.abs(groundBodyRates(f6f, rolling(0), stick, noRudder, DT).y)).toBeGreaterThan(0)
-    })
+  it('steers at a standstill', () => {
+    expect(noseRightDeg(yawRate(0, { yaw: 1, throttle: 0 }))).toBeGreaterThan(0)
+    expect(noseRightDeg(yawRate(0, { yaw: -1, throttle: 0 }))).toBeLessThan(0)
+  })
 
-    it('yaws the way the pilot asked', () => {
-      const right = groundBodyRates(f6f, rolling(5), { ...stick, yaw: 1 }, noRudder, DT).y
-      const left = groundBodyRates(f6f, rolling(5), { ...stick, yaw: -1 }, noRudder, DT).y
-      expect(Math.sign(right)).toBe(-Math.sign(left))
-    })
+  it('does not collapse under power as speed builds (the measured 5.5 -> 1.5 deg/s failure)', () => {
+    const at5 = noseRightDeg(yawRate(5, { yaw: 1, throttle: 0.6 }))
+    const at15 = noseRightDeg(yawRate(15, { yaw: 1, throttle: 0.6 }))
+    expect(at15).toBeGreaterThanOrEqual(3)
+    expect(at15).toBeGreaterThan(0.4 * at5)
+  })
 
-    it('is at full authority at rest, summed with whatever the rudder/weathercock term already commands', () => {
-      const tailUp = f6f.gear.tailwheelYawRateDegPerSec * (Math.PI / 180)
-      // yaw: 1 negates, matching `ratesFromDynamicPressure`'s own convention.
-      const expected = -tailUp + airRates.y
-      expect(groundBodyRates(f6f, rolling(0), stick, airRates, DT).y).toBeCloseTo(expected, 9)
-    })
+  it('a locked caster wheel steers nothing above the lock speed; rudder still does', () => {
+    const fast = f6f.gear.steerLockSpeedMps * 2
+    const withRudder = noseRightDeg(yawRate(fast, { yaw: 1, throttle: 0.6 }))
+    const without = noseRightDeg(yawRate(fast, { yaw: 0, throttle: 0.6 }))
+    expect(withRudder).toBeGreaterThan(without)
+  })
 
-    it('fades to zero at tailLiftSpeedMps, leaving only the rudder/weathercock term', () => {
-      const atTailUp = rolling(f6f.gear.tailLiftSpeedMps)
-      expect(groundBodyRates(f6f, atTailUp, stick, airRates, DT).y).toBeCloseTo(airRates.y, 9)
-    })
+  it('a free caster (F4F) steers only through the rudder', () => {
+    const f4f = loadAircraftSpec('f4f-wildcat')
+    expect(f4f.gear.thirdSteering).toBe('caster')
+    const still = noseRightDeg(groundBodyRates(f4f, rolling(0), { ...neutral, yaw: 1, throttle: 0 }, noAir, DT).y)
+    expect(still).toBeCloseTo(0, 9)
+  })
 
-    it('is continuous across the speed the tail lifts -- not the order-of-magnitude jump a switched (not summed) term produced', () => {
-      const justBelow = groundBodyRates(f6f, rolling(f6f.gear.tailLiftSpeedMps - 0.01), stick, airRates, DT).y
-      const justAbove = groundBodyRates(f6f, rolling(f6f.gear.tailLiftSpeedMps + 0.01), stick, airRates, DT).y
-      // The fade itself moves only a hair over this tiny speed step; this
-      // bound is far tighter than the 10x jump fix round 1 measured (20.00
-      // deg/s on the runway to 1.95 deg/s the next tick) and still comfortably
-      // clears floating-point noise.
-      expect(Math.abs(justAbove - justBelow)).toBeLessThan(0.01)
-    })
+  it('differential brakes turn toward the braked side and do nothing on an aircraft without them', () => {
+    expect(noseRightDeg(yawRate(4, { brakeRight: 1, throttle: 0 }))).toBeGreaterThan(0)
+    expect(noseRightDeg(yawRate(4, { brakeLeft: 1, throttle: 0 }))).toBeLessThan(0)
+    const noDiff = { ...f6f, gear: { ...f6f.gear, differentialBrakes: false } }
+    expect(noseRightDeg(yawRate(4, { brakeRight: 1, throttle: 0 }, noDiff))).toBeCloseTo(0, 9)
+  })
 
-    it('treats a non-finite ground speed as full tailwheel authority, not zero (fix round 1, Minor 3)', () => {
-      // A broken state stays pinned to the tail-down case on every axis,
-      // never granted new authority (the pitch guard is in 'ground pitch (T1)').
-      const infiniteSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.POSITIVE_INFINITY, 0, 0) })
-      const tailUp = f6f.gear.tailwheelYawRateDegPerSec * (Math.PI / 180)
-      expect(groundBodyRates(f6f, infiniteSpeed, stick, noRudder, DT).y).toBeCloseTo(-tailUp, 9)
-    })
+  it('engine torque swings the nose the way torqueYawRateDegPerSec says, and cancels at zero', () => {
+    const swing = noseRightDeg(yawRate(2, { throttle: 1 }))
+    expect(Math.sign(swing)).toBe(Math.sign(f6f.gear.torqueYawRateDegPerSec))
+    const twin = { ...f6f, gear: { ...f6f.gear, torqueYawRateDegPerSec: 0 } }
+    expect(noseRightDeg(yawRate(2, { throttle: 1 }, twin))).toBeCloseTo(0, 9)
+  })
+
+  it('is continuous with the air yaw rate: the ground terms are gone by the time it flies', () => {
+    const air = v3(0, -0.05, 0)
+    const fastEnough = f6f.gear.tailLiftSpeedMps * 1.6
+    const y = groundBodyRates(f6f, rolling(fastEnough), { ...neutral, yaw: 1 }, air, DT).y
+    expect(y).toBeCloseTo(air.y, 9)
+  })
+
+  it('reads a non-finite stick, speed or brake as no steering', () => {
+    const y = groundBodyRates(f6f, rolling(Number.NaN), { ...neutral, yaw: Number.NaN, throttle: 0, brakeLeft: Number.NaN }, noAir, DT).y
+    expect(Number.isFinite(y)).toBe(true)
+    expect(y).toBeCloseTo(0, 9)
   })
 })
 

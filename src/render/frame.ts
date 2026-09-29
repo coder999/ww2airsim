@@ -596,6 +596,12 @@ export function nextFrameState(
   // axis input -- a rudder pedal's toe-brake, say -- slots in with no type
   // change here.
   const brake = BINDINGS.brakes.some((c) => pressed.has(c)) ? 1 : 0
+  // The toe brakes, one per side (T1). Only present when held, like the
+  // one-shot pulses below: `Controls.brakeLeft`/`brakeRight` read `undefined`
+  // as off, and an unconditional 0 here would put two keys in every frame's
+  // controls for nothing.
+  const brakeLeft = BINDINGS.brakeLeft.some((c) => pressed.has(c)) ? 1 : 0
+  const brakeRight = BINDINGS.brakeRight.some((c) => pressed.has(c)) ? 1 : 0
 
   // `gearDown` and `brake` go into the SAME `Controls` object that reaches
   // the player entity's `controls` below, for the reason the assist comment
@@ -610,6 +616,8 @@ export function nextFrameState(
     flapDown,
     hookDown,
     brake,
+    ...(brakeLeft > 0 ? { brakeLeft } : {}),
+    ...(brakeRight > 0 ? { brakeRight } : {}),
     fire: BINDINGS.fireGuns.some(c => pressed.has(c)),
     // Only present when `true`: `Controls.dropBomb`'s doc comment promises
     // `undefined` means no release, and an unconditional `false` here would

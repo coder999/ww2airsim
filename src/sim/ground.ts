@@ -74,6 +74,15 @@ export function rollingResistanceN(
 }
 
 /**
+ * The symmetric drag the brakes apply: the pilot's `brake` channel, or the
+ * mean of the two toe brakes when that is larger. One brake alone gives half
+ * the drag and (with `gear.differentialBrakes`) the yaw in `groundBodyRates`.
+ */
+export function symmetricBrake(controls: Pick<Controls, 'brake' | 'brakeLeft' | 'brakeRight'>): number {
+  return Math.max(unit(controls.brake ?? 0), (unit(controls.brakeLeft ?? 0) + unit(controls.brakeRight ?? 0)) / 2)
+}
+
+/**
  * How close to the surface counts as resting on it, meters.
  *
  * Wanted because the constraint below must not fight the integrator: an
@@ -466,6 +475,10 @@ export function supportedContact(
 }
 
 const GROUND_DEG = Math.PI / 180
+
+/** Ground yaw hands over to the aerodynamic rudder by this multiple of
+ *  `gear.tailLiftSpeedMps` (ESTIMATE, T1 2026-09-28; ungraded). */
+const GROUND_YAW_FADE_MULTIPLE = 1.5
 const GROUND_PITCH_SETTLE_PER_S = 1.5
 const GROUND_PITCH_RAISE_PER_S = 1.0
 const GROUND_PITCH_CORRECTION_MAX_RAD_PER_S = 15 * GROUND_DEG
@@ -525,35 +538,24 @@ const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math
  *   ground. A non-finite ground speed reads as no speed and no lift: tail
  *   down, never authority a broken state could not be trusted with; a
  *   non-finite throttle or stick reads as zero.
- * - **Yaw: the tailwheel AND the rudder, blended by speed, available at ANY
- *   speed including zero.** Design §3: tailwheel/differential-braking
- *   steering is "blended into rudder authority as speed builds", not a
- *   switch between the two. `airRates.y` already carries whatever the
- *   rudder (and the weathercock term ahead of this function in `step`) is
- *   commanding, scaled by `ratesFromDynamicPressure`'s own dynamic-pressure
- *   authority -- that term is summed with a SEPARATE tailwheel rate,
- *   proportional to `controls.yaw` and capped at
- *   `spec.gear.tailwheelYawRateDegPerSec`, that fades from full authority at
- *   rest to zero at `tailLiftSpeedMps` (Task 5 replaces this yaw term).
- *
- *   Fix round 1, Important 1: an earlier revision DISCARDED `airRates.y` and
- *   substituted a constant tailwheel rate at every ground speed, which is
- *   wrong on both ends -- no rudder authority at all while rolling, and a
- *   step discontinuity at liftoff (measured: 20.00 deg/s on the runway,
- *   1.95 deg/s the very next tick once airborne, because the constant
- *   tailwheel term vanishes at exactly the tick `onGroundStart` goes false
- *   while the rudder term it replaced was never restored). Summing instead
- *   of switching makes the total continuous by construction: at
- *   `tailLiftSpeedMps` the tailwheel term is already 0 by the fade, so the
- *   total is `airRates.y` on both sides of that speed, and `airRates.y`
- *   again the instant the airplane leaves the ground (`step` stops calling
- *   this function at all once `onGroundStart` is false) -- no seam to jump
- *   across. A blend against dynamic-pressure authority ALONE (the same
- *   authority `ratesFromDynamicPressure` itself uses) was considered and
- *   rejected instead of this speed-based fade: that authority is only 0.15
- *   at 40 m/s for this airframe, so it would still be granting the
- *   tailwheel 85% of its steering rate one tick before a typical rotation,
- *   which is not what "the tailwheel lifts off with the tail" means.
+ * - **Yaw (T1): rudder with prop wash, wheel steering, differential brakes
+ *   and engine torque, summed with `airRates.y` and faded out by
+ *   `GROUND_YAW_FADE_MULTIPLE * tailLiftSpeedMps`.** All terms are deg/s,
+ *   positive = nose right, then negated into the body-rate convention:
+ *   `rudder = min(1, airflow / tailLiftSpeedMps) * maxYawRateDegPerSec`
+ *   (airflow includes prop wash, so a stopped airplane on full throttle has
+ *   rudder authority); `steer` is `steerYawRateDegPerSec` for a steered wheel,
+ *   the same fading linearly to zero at `steerLockSpeedMps` for `casterLock`,
+ *   and 0 for a free `caster`; `brakes = (brakeRight - brakeLeft) *
+ *   brakeYawRateDegPerSec` when the layout has differential brakes; `torque`
+ *   fades out as the tail lifts. `noseRight = fade * (yawInput * (rudder +
+ *   steer) + brakes + torque)`. Because `airRates.y` is always added, the total
+ *   is continuous into flight by construction: the ground terms are already
+ *   zero at `GROUND_YAW_FADE_MULTIPLE * tailLiftSpeedMps`, and `airRates.y`
+ *   alone is what remains the instant the wheels leave (`step` stops calling
+ *   this function then). The replaced model (one constant tailwheel rate,
+ *   faded by 1 - v/tailLiftSpeedMps) collapsed from 5.5 to 1.5 deg/s
+ *   under power (measured 2026-09-28).
  *
  *   Negated for the same reason `ratesFromDynamicPressure` negates yaw: a
  *   positive rotation about body +Y (right-hand rule) turns +X (forward)
@@ -613,10 +615,23 @@ export function groundBodyRates(
     if (pitch + pitchRate * dt < floor) pitchRate = Math.min(max, (floor - pitch) / dt)
   }
 
-  const fade = validSpeed ? Math.min(1, Math.max(0, 1 - groundSpeed / gear.tailLiftSpeedMps)) : 1
-  const tailwheelYaw = -signedUnit(controls.yaw) * gear.tailwheelYawRateDegPerSec * GROUND_DEG * fade
+  const yawInput = signedUnit(controls.yaw)
+  // A non-finite speed reads as "still rolling slowly": full fade (1), so a
+  // broken state is pinned to the tail-down, no-extra-authority case.
+  const fade = validSpeed ? Math.max(0, 1 - groundSpeed / (GROUND_YAW_FADE_MULTIPLE * gear.tailLiftSpeedMps)) : 1
+  const rudderDeg = Math.min(1, airflowMps / gear.tailLiftSpeedMps) * spec.rates.maxYawRateDegPerSec
+  const wheelSteer =
+    gear.thirdSteering === 'steered' ? 1
+    : gear.thirdSteering === 'casterLock' ? Math.max(0, 1 - speed / gear.steerLockSpeedMps)
+    : 0
+  const steerDeg = wheelSteer * gear.steerYawRateDegPerSec
+  const brakeDeg = gear.differentialBrakes
+    ? (unit(controls.brakeRight ?? 0) - unit(controls.brakeLeft ?? 0)) * gear.brakeYawRateDegPerSec
+    : 0
+  const torqueDeg = gear.torqueYawRateDegPerSec * throttle * (1 - Math.min(1, speed / gear.tailLiftSpeedMps))
+  const noseRightDeg = fade * (yawInput * (rudderDeg + steerDeg) + brakeDeg + torqueDeg)
 
-  return v3(0, tailwheelYaw + airRates.y, pitchRate)
+  return v3(0, -noseRightDeg * GROUND_DEG + airRates.y, pitchRate)
 }
 
 /**

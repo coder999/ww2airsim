@@ -17,7 +17,7 @@ import {
   assistFor,
   type AssistSettings,
 } from '../../src/assists/index.js'
-import { advance, aircraftById, createWorld, playerAircraft, type World, withAircraftState, withControls } from '../../src/sim/loop.js'
+import { advance, AIRBORNE, aircraftById, createWorld, playerAircraft, type World, withAircraftState, withControls } from '../../src/sim/loop.js'
 import { worldFromScenario, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { groundUnder } from '../../src/sim/world/ground.js'
@@ -337,7 +337,7 @@ export function runSoak(
           flightTick++
           let flown = controls
           if (assist !== null && assists !== null) {
-            const assisted = assist(s, spec, controls, DT, assistMemory)
+            const assisted = assist(s, spec, controls, DT, assistMemory, AIRBORNE)
             flown = assisted.controls
             // Taken from the RESULT, which is the memory the stack just ran
             // with -- not the one going in, which is a step behind.

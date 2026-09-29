@@ -320,10 +320,6 @@ const AircraftSpecObject = z.object({
      *  validated against `rollingResistanceCoeff` here -- a content author
      *  is trusted to keep it the larger of the two. */
     brakingResistanceCoeff: positive,
-    /** Maximum tailwheel-steering yaw rate, deg/s, available at any ground
-     *  speed including zero -- distinct from `rates.maxYawRateDegPerSec`,
-     *  which is the RUDDER's authority in the air. */
-    tailwheelYawRateDegPerSec: positive,
     /**
      * Seconds for the wheels to bleed away a sideways velocity component, as a
      * first-order time constant.

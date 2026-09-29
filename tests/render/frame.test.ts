@@ -674,9 +674,14 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     // North is -z. The roll must be overwhelmingly along that axis: the
     // airplane has no directional stability on the ground yet (Plan 11a's
     // handoff records a taxi turn reaching 113.6 deg of sideslip), so this is
-    // deliberately a ratio rather than a tight bound on `acrossM`.
+    // deliberately a ratio rather than a tight bound on `acrossM`. The ratio
+    // is 1/5, loosened from 1/10 in T1 Task 5 (2026-09-28): this roll is
+    // hands-off at full power, and engine torque now swings the nose
+    // (`gear.torqueYawRateDegPerSec`) with nobody holding rudder against it, as
+    // on a real taildragger -- measured 22.4 m across in 185 m along, a few
+    // degrees of drift, against the 113.6 deg failure this guards.
     expect(alongM).toBeGreaterThan(100)
-    expect(acrossM).toBeLessThan(alongM / 10)
+    expect(acrossM).toBeLessThan(alongM / 5)
   })
 
   it('has land, not San Pedro Bay, off the departure end', () => {

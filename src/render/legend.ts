@@ -51,6 +51,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Flaps', bindings: ['toggleFlaps'] },
   { label: 'Hook', bindings: ['toggleHook'] },
   { label: 'Brakes', bindings: ['brakes'] },
+  { label: 'Left / right brake', bindings: ['brakeLeft', 'brakeRight'], pair: true },
   { label: 'Autopilot (hold)', bindings: ['autopilot'] },
   { label: 'Mute', bindings: ['toggleMute'] },
   { label: 'Controls', bindings: ['toggleLegend'] },

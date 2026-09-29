@@ -29,7 +29,8 @@ Ground and water contact now ends the flight (Plan 10, below). And the
 airplane now starts **parked on a runway at Tacloban and takes off from it**
 (Plan 11a): the ground is a surface it rolls on rather than one it falls
 through. Gear that takes seconds to move and costs drag while it hangs out,
-rolling friction and wheel brakes, a tailwheel that steers until the tail
+rolling friction and wheel brakes (`B` both; `,` left and `.` right for
+differential braking, T1), a tailwheel that steers until the tail
 comes up, and a visual strip draped over the real heightfield — running
 north-south, because east-west through the airfield runs into the sea. The
 graded historical take-off card measures that real ground now instead of a
