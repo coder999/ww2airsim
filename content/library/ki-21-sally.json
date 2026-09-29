@@ -1,16 +1,26 @@
 {
   "id": "ki-21-sally",
-  "name": "Mitsubishi Ki-21 Sally",
+  "name": "Mitsubishi Ki-21-IIb Sally",
+  "rosterName": "Mitsubishi Ki-21 Sally",
   "kind": "aircraft",
   "side": "japanese",
-  "model": { "kind": "aircraft", "id": "ki-21-sally" },
-  "blurb": "An Army twin-engine bomber, planned as a hostile type.",
-  "history": "The Mitsubishi Ki-21, the Army Type 97 Heavy Bomber, was reported by the Allies as \"Sally\" (and later \"Gwen\"). It first flew operations in the Second Sino-Japanese War and at Nomonhan.\n\nIn the first stages of the Pacific War it took part in the Malayan, Burmese, Dutch East Indies and New Guinea campaigns, and it attacked targets as far apart as western China, India and northern Australia.",
+  "spec": "ki-21-sally",
+  "model": {
+    "kind": "aircraft",
+    "id": "ki-21-sally"
+  },
+  "blurb": "A twin-engine Army heavy bomber with retractable gear, a fixed tailwheel and two heavy bombs carried inside the hull, offered in Dev only. Its speed and climb come from one U.S. intelligence sheet and its stall speeds are estimates; engine failure, the bomb-bay doors and the defensive guns are not modeled.",
+  "history": "The Mitsubishi Ki-21, the Army Type 97 Heavy Bomber, was reported by the Allies as \"Sally\" (and later \"Gwen\"). It first flew operations in the Second Sino-Japanese War and at Nomonhan. In the first stages of the Pacific War it took part in the Malayan, Burmese, Dutch East Indies and New Guinea campaigns, and it attacked targets as far apart as western China, India and northern Australia.\n\nIn this game the airplane is the Ki-21-IIb, the Ha-101 engined version with the larger tail and a dorsal turret; the early Ki-21-I, with 850 hp engines, was a different airplane and its figures are not used. It flies to a top speed of about 291 mph at 16,400 feet and 246 mph at sea level, and climbs about 1,665 feet a minute at sea level, from a 1944 U.S. Technical Air Intelligence Center sheet at 23,500 lb; other sources give about 302 mph. The Center's sheet does not say how those figures were obtained, and the game's drag and propeller efficiency are fitted to them. Its stall speeds are estimates, not published figures, and the take-off roll the game produces is longer than the sheet's 900 feet. The two Ha-101 engines are modeled as one engine with their summed power, and both propellers turn; if one fails the game does not notice.\n\nTwo 1,000 lb bombs stand in for the real internal load, which the sheet lists as 1,760 to 2,200 lb in many smaller bombs, and drop straight through the belly with no bay doors. There are no turrets and no defensive guns, and it is not offered in the mission scenarios.",
   "sources": [
     {
       "title": "Mitsubishi Ki-21",
       "url": "https://en.wikipedia.org/wiki/Mitsubishi_Ki-21",
       "read": "2026-09-25"
+    },
+    {
+      "title": "Japanese Aircraft Performance and Characteristics, TAIC Manual No. 1 (Technical Air Intelligence Center, Dec 1944), Sally 2 data sheet and Ha-101 engine page",
+      "url": "https://archive.org/details/japanese-aircraft-performance-characteristics-taic-manual",
+      "read": "2026-09-29"
     }
   ]
 }
