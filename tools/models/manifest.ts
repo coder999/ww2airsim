@@ -133,6 +133,11 @@ export const ModelEntrySchema = z.object({
     /** R3: turns the whole source about `up` by this many degrees first (a showcase pose), so
      *  every other coordinate in the entry is in the turned frame (`models:inspect -- <glb> --yaw <deg>`). */
     yawDeg: finite.refine((v) => v !== 0 && v > -180 && v <= 180, { message: 'must be nonzero and in (-180, 180]' }).optional(),
+    /** Turns the whole source about its lateral axis (forward x up) by this many degrees, right-handed
+     *  (positive raises the nose), after `yawDeg` and before anything reads a coordinate: a download drawn
+     *  in a sitting, tail-down pose is leveled to the airplane's thrust line. Every other coordinate in
+     *  the entry is in the turned frame. */
+    pitchDeg: finite.refine((v) => v !== 0 && v > -90 && v < 90, { message: 'must be nonzero and in (-90, 90)' }).optional(),
     fit: z.object({ extent: z.enum(['span', 'length']), meters: positive }).strict(),
   }).strict().optional(),
   keep: z.array(KeepSchema).default([]),

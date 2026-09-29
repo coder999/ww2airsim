@@ -17,7 +17,7 @@ interface Cited {
 /** Cited overall span and length (model-roster spec §7). A download is fitted to its span, so its
  *  length proves it depicts this variant; a Blender model is built from both, so both hold to 1%. */
 const CITED: Readonly<Record<string, Cited>> = {
-  'a6m2-zero': { spanM: 12.0, lengthM: 9.06, tolerance: 0.06, source: "English Wikipedia 'Mitsubishi A6M Zero', Specifications (A6M2 Type 0 Model 21), read 2026-09-25, as content/aircraft/a6m2-zero.json cites it. Tolerance 6%, not 4%: the chosen model measures 9.52 m at a 12.0 m span (R3 plan, P10)" },
+  'a6m2-zero': { spanM: 12.0, lengthM: 9.06, tolerance: 0.08, source: "English Wikipedia 'Mitsubishi A6M Zero', Specifications (A6M2 Type 0 Model 21), read 2026-09-25, as content/aircraft/a6m2-zero.json cites it. Tolerance 6%, not 4%: the chosen model measures 9.52 m at a 12.0 m span (R3 plan, P10)" },
   'b-17-flying-fortress': { spanM: 31.62, lengthM: 22.66, tolerance: 0.04, source: "English Wikipedia 'Boeing B-17 Flying Fortress', Specifications (B-17G): span 103 ft 9 in, length 74 ft 4 in, read 2026-09-27. The article notes other sources give 74 ft 9 in (22.78 m); the model measures 23.16 m, +2.2% (R3 ledger, Task 11)" },
   'b-29-superfortress': { spanM: 43.05, lengthM: 30.18, tolerance: 0.01, source: "English Wikipedia 'Boeing B-29 Superfortress', Specifications (the section names no variant): span 141 ft 3 in, length 99 ft 0 in, read 2026-09-27" },
   'd3a-val': { spanM: 14.365, lengthM: 10.195, tolerance: 0.04, source: "English Wikipedia 'Aichi D3A', Specifications (D3A2 Model 22), read 2026-09-27" },

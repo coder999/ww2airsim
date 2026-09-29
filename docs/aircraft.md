@@ -65,6 +65,11 @@ model. Recommend (a) when one exists: nine airframes already have one. Record
 the license row in `ASSETS.md` for (b). Changes: `tools/models/entries/<id>.json`,
 `view.model`, `AIRFRAME_RIGS`.
 
+A download is often baked in its sitting pose, nose-up. The sim draws the mesh as is, so it
+flies nose-high (the Zero, found 2026-09-29: 12.36 degrees). Check the prop's spin axis against
+the body's level, and if it is tilted set `normalize.pitchDeg` in the entry, then re-derive the
+entry's pivots and origin in the leveled frame and re-measure every gear, eye and store number.
+
 ### D5. Landing gear
 
 Ask three things:

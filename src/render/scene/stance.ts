@@ -32,7 +32,7 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-29 (F4U-1D onboarding) with drawnPoints, the propeller excluded: mains at x 0.418, tail
   // wheel the first aft point to touch at 10.268 degrees; [DS] 116a gives a static ground angle of 10 deg 59 min.
   'f4u-corsair': { mainWheelXM: 0.418, tailDownPitchRad: 10.268 * DEG },
-  // The Zero's model is drawn sitting, with its thrust line level (a6m2-zero.json's
-  // gear.heightM note): its tailwheel already meets the ground at 0.08 degrees.
-  'a6m2-zero': { mainWheelXM: 0.499, tailDownPitchRad: 0 },
+  // Measured 2026-09-29 with the model leveled (normalize.pitchDeg -12.36 in its entry): mains at x 0.182, tailwheel
+  // the first aft point to touch at 12.224 degrees, close to the real Zero's three-point attitude.
+  'a6m2-zero': { mainWheelXM: 0.182, tailDownPitchRad: 12.224 * DEG },
 }

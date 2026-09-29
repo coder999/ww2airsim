@@ -30,7 +30,7 @@ import { pivotNode } from './stages/pivot.js'
 import { normalizeDocument } from './stages/normalize.js'
 import { simplifyDocument } from './stages/simplify.js'
 import { joinExcept } from './stages/join.js'
-import { yawScene } from './stages/yaw.js'
+import { pitchScene, yawScene } from './stages/yaw.js'
 import { dedupMaterials } from './stages/dedup.js'
 import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
@@ -75,6 +75,7 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
   if (entry.normalize?.yawDeg !== undefined) yawScene(doc, entry.normalize.up, entry.normalize.yawDeg)
+  if (entry.normalize?.pitchDeg !== undefined) pitchScene(doc, entry.normalize.forward, entry.normalize.up, entry.normalize.pitchDeg)
   const splitNames = new Set(entry.split.map((s) => s.name))
   // 1. remove (source nodes)
   removeNodes(doc, entry.remove.filter((n) => !splitNames.has(n)))
