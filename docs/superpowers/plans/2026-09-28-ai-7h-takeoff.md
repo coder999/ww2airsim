@@ -67,7 +67,7 @@ type TakeoffState = {
 2. **Two aircraft on one runway.** The wingman rolls into the lead. Expect the pair never closer than 40 m on the ground (Task 3).
 3. **Dead or wrecked leader.** The lead is shot on the ground or crashes on the roll and the wingman waits forever. Expect a destroyed or impacted lower-id pilot never blocks `takeoffClear` (Task 3).
 4. **No terrain.** A takeoff pilot must not roll on a null heightfield: it stays in `wait` with the brakes on until terrain exists (Task 3).
-5. **Climb-out into rising ground.** The safety floor is off until 150 m AGL, so a hill ahead of the runway end is a crash the override will not catch. Expect the terrain 3 km ahead of the runway's end to stay below the 10 degree climb path from the runway end (Task 4 content test).
+5. **Climb-out into rising ground.** The safety floor is off until `TAKEOFF_DONE_M` (450 m AGL, amended 2026-09-28 after Task 3 measured the AI floor spinning slow pilots handed off at 150 m), so a hill ahead of the runway end is a crash the override will not catch. Expect the terrain for 5 km past the runway's end (the 10 degree path reaches 450 m about 2.6 km out) to stay below the climb path from the runway end (Task 4 content test).
 6. **Bit-identity.** Adding a mode and a pilot field must not change any existing world (Task 3, determinism test).
 
 ---
@@ -686,3 +686,11 @@ git commit -m "7h Task 5: Tier 2 takeoff range, handoff, section 15"
 - **Review Focus mapping:** RF1 and RF5 are Task 4 content tests; RF2, RF3, RF4 are Task 3 tests; RF6 is Task 3 Step 5.
 - **Type consistency:** `TakeoffState` fields (`phase`, `sinceS`, `headingRad`, `pitchIntegral`) are the same in the Design, Task 1 Step 1, Task 1 Step 4 and Task 2; `startTakeoff()` matches the seeded value in Task 1; `takeoffControls` returns `takeoff: null` on completion in Task 2 and is consumed as such in Task 3.
 - **Known unknowns, all resolved by a measurement step, not a guess:** the Zero's rotate speed, flap choice, steering gain, takeoff run and climb (Task 2 Step 1); whether Dulag's spot `z` sign is right (Task 4 Step 1's RF1 test); whether the head-on merge returns (Task 4 Step 4's ranked knobs).
+
+---
+
+## Amendments (controller rulings during execution, 2026-09-28)
+
+- Dulag spots are runway-local **z +650 (ai-1) and z +750 (ai-2)**, not -650/-750: heading 000 makes local -z the departure end, so -650 leaves 100 m ahead. ai-1 is then ahead and has the lower id. Task 4 uses these; RF1 requires at least 1.5 x `ZERO_TAKEOFF_RUN_M` (267 m calm, 244 m in Airfield Strike's 3 m/s headwind; exported from `takeoff.ts`) ahead of each spot.
+- `TAKEOFF_DONE_M` is **450 m**, not 150 m. Defenders become ordinary pilots about 50 s after brakes off, not about 27 s. Task 4's behavior test must use a horizon that allows this (its `airborneAtS < 60` is tight; use 75 s) and its scramble geometry (ring radius, spot end) must account for the later hand-off.
+- Task 3 also covers an F6F and an engage hand-off (no crash 90 s past hand-off). Task 4 adds a check with the real striker in range at hand-off.
