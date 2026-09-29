@@ -1,30 +1,44 @@
 import { describe, expect, it } from 'vitest'
 import { contourLabelSites } from '../../../src/render/mission/chartLabels.js'
 
-const horizontal = (y: number, length: number) => ({
-  text: '500',
-  points: [[0, y], [length / 2, y], [length, y]] as [number, number][],
+const dense = (z: number, x0: number, x1: number, text = '500') => ({
+  text,
+  points: Array.from({ length: Math.floor((x1 - x0) / 5) + 1 }, (_, i) => [x0 + i * 5, z] as [number, number]),
 })
 
-describe('contourLabelSites', () => {
-  it('labels the middle of a long line', () => {
-    const sites = contourLabelSites([horizontal(50, 400)])
-    expect(sites).toHaveLength(1)
-    expect(sites[0]!.x).toBeCloseTo(200, 6)
-    expect(sites[0]!.y).toBe(50)
+describe('contourLabelSites (world coordinates, 1 m per pixel)', () => {
+  it('labels a long line, on the line', () => {
+    const sites = contourLabelSites([dense(50, 0, 400)])
+    expect(sites.length).toBeGreaterThanOrEqual(1)
+    for (const s of sites) expect(s.y).toBe(50)
   })
 
-  it('skips short lines and two-point arcs shorter than the minimum', () => {
-    expect(contourLabelSites([horizontal(50, 30)])).toEqual([])
+  it('skips lines shorter than the minimum', () => {
+    expect(contourLabelSites([dense(50, 0, 30)])).toEqual([])
     expect(contourLabelSites([{ text: '500', points: [[0, 0], [10, 0]] }])).toEqual([])
   })
 
   it('drops a label that would sit on top of an earlier one', () => {
-    const sites = contourLabelSites([horizontal(50, 400), horizontal(60, 400)])
-    expect(sites).toHaveLength(1)
+    const sites = contourLabelSites([dense(50, 0, 400), dense(60, 0, 400)])
+    for (const a of sites) for (const b of sites) if (a !== b) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(90)
   })
 
   it('keeps labels that are far enough apart', () => {
-    expect(contourLabelSites([horizontal(50, 400), horizontal(200, 400)])).toHaveLength(2)
+    const sites = contourLabelSites([dense(50, 0, 400), dense(400, 0, 400)])
+    expect(sites.some((s) => s.y === 50)).toBe(true)
+    expect(sites.some((s) => s.y === 400)).toBe(true)
+  })
+
+  it('does not move a label when a pan clips the same line differently', () => {
+    const full = contourLabelSites([dense(50, -300, 700)])
+    const clipped = contourLabelSites([dense(50, 100, 700)])
+    const inBoth = full.filter((s) => s.x > 150)
+    expect(inBoth.length).toBeGreaterThan(0)
+    for (const s of inBoth) expect(clipped).toContainEqual(s)
+  })
+
+  it('scales its lattice with meters per pixel', () => {
+    const a = contourLabelSites([dense(50, 0, 4000)], 10)
+    expect(a.length).toBeGreaterThanOrEqual(1)
   })
 })

@@ -96,4 +96,19 @@ describe('buildChartLayers', () => {
     expect(LAND_THRESHOLD_M).toBeGreaterThan(0)
     expect(LAND_THRESHOLD_M).toBeLessThan(0.3)
   })
+
+  it('samples on a world-anchored lattice, so panning does not move the linework', () => {
+    const terrain = cone()
+    const shifted = { minX: wide.minX + 1234.5, maxX: wide.maxX + 1234.5, minZ: wide.minZ - 777.7, maxZ: wide.maxZ - 777.7 }
+    const a = buildChartLayers(terrain, wide)
+    const b = buildChartLayers(terrain, shifted)
+    const key = (x: number, z: number): string => `${x.toFixed(3)}|${z.toFixed(3)}`
+    const inA = new Set(a.contours.flatMap((c) => c.lines.flatMap((l) => l.points.map(([x, z]) => `${c.levelFt}|${key(x, z)}`))))
+    const interior = b.contours.flatMap((c) =>
+      c.lines.flatMap((l) => l.points.filter(([x, z]) => Math.abs(x) < 70_000 && Math.abs(z) < 70_000).map(([x, z]) => `${c.levelFt}|${key(x, z)}`)),
+    )
+    expect(interior.length).toBeGreaterThan(100)
+    const missing = interior.filter((k) => !inA.has(k))
+    expect(missing.length).toBe(0)
+  })
 })

@@ -546,16 +546,10 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
 
     const indexLines = layers.contours
       .filter((c) => c.index)
-      .flatMap((c) =>
-        c.lines.map((line) => ({
-          text: String(c.levelFt),
-          points: line.points.map(([x, z]) => {
-            const p = project(x, z)
-            return [p.x, p.y] as [number, number]
-          }),
-        })),
-      )
-    for (const site of contourLabelSites(indexLines)) {
+      .flatMap((c) => c.lines.map((line) => ({ text: String(c.levelFt), points: line.points })))
+    const chartMetersPerPixel = 1 / Math.min(CHART_WIDTH / (bounds.maxX - bounds.minX), CHART_HEIGHT / (bounds.maxZ - bounds.minZ))
+    for (const at of contourLabelSites(indexLines, chartMetersPerPixel)) {
+      const site = { text: at.text, ...project(at.x, at.y) }
       const t = svgElement('text')
       t.setAttribute('x', String(site.x))
       t.setAttribute('y', String(site.y))
