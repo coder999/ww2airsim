@@ -118,7 +118,7 @@
       "aircraft": [
         {
           "id": "defender-1",
-          "spec": "f6f-hellcat",
+          "spec": "a6m2-zero",
           "tags": [
             "defenders"
           ],
@@ -137,7 +137,7 @@
         },
         {
           "id": "defender-2",
-          "spec": "f6f-hellcat",
+          "spec": "a6m2-zero",
           "tags": [
             "defenders"
           ],
