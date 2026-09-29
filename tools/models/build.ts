@@ -42,6 +42,7 @@ import { parseSidecar, skinSidecarPath } from './skin/sidecar.js'
 import { withShipColors } from './skin/shipColors.js'
 import { attachSkinTextures, skinDocument, skinMaterialName, SHIP_SKIN_OPTIONS, type ScanLoader, type SkinImages } from './skin/stage.js'
 import { loadScan } from './skin/scans.js'
+import { boxProject } from './skin/boxProject.js'
 import { GENERATORS } from './generated/registry.js'
 
 export const ALLOWED_REQUIRED_EXTENSIONS: readonly string[] = ['EXT_texture_webp']
@@ -71,7 +72,6 @@ function provenance(s: SketchfabSource | BlenderSource): Record<string, string> 
 /** Every stage, in order, on a document already read. Mutates and returns it. */
 export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan): Promise<Document> {
   if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
-  void scans // Task 10's box-skin stage reads it
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
   if (entry.normalize?.yawDeg !== undefined) yawScene(doc, entry.normalize.up, entry.normalize.yawDeg)
@@ -100,12 +100,20 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   const ship = entry.ship ? { block: entry.ship, spec: shipSpec(entry.ship.spec) } : null
   const fitted = ship ? shipFitStage(doc, ship.block, ship.spec) : null
   if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY, entry.skin ? skinMaterialName(entry.id) : null)
+  // DP2 (Ruling S3): a box-skinned download is projected after shipMaterials, whose ship:<role>
+  // materials are its roles, and baked like a Blender skin; the Skirt keeps ship:boot (Ruling S4).
+  let images = skin
+  if (entry.boxSkin) {
+    if (!ship) throw new Error(`${entry.id}: boxSkin needs a ship block`)
+    const side = boxProject(doc, entry.id, { atlasPx: entry.boxSkin.atlasPx, palette: ship.block.palette, skip: SHIP_SKIN_OPTIONS.skip! })
+    images = await skinDocument(doc, entry.id, side, scans, SHIP_SKIN_OPTIONS)
+  }
   if (entry.dedupMaterials) await dedupMaterials(doc)
   // 5. join everything except the parts
   await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
   // 6. textures, 7. opaque. A skin's maps go on after compressTextures, which would re-encode them (DP0).
   await compressTextures(doc, entry.textures.maxSize)
-  if (skin) attachSkinTextures(doc, entry.id, skin)
+  if (images) attachSkinTextures(doc, entry.id, images)
   if (entry.opaque) forceOpaque(doc)
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
   // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
