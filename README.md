@@ -130,11 +130,17 @@ the Library is left undrawn; the airfields in the game keep their procedural
 boxes. The [handoff](docs/handoff/2026-09-28-r4-r5-roster.md) records what was
 measured; master spec §15 holds the status.
 
-**Model detail pass DP0 landed 2026-09-28 on a branch awaiting merge:** Blender
+**Model detail pass DP0 landed 2026-09-28:** Blender
 models can now carry a baked skin (paint, markings, panel lines and scan
 detail), and the Ki-84 and the hangar are the first two to have one. The
 [handoff](docs/handoff/2026-09-28-dp0-skin-pipeline.md) records what was
 measured; master spec §15 holds the status.
+
+**Model detail pass DP2 landed 2026-09-28 on a branch awaiting merge:** every
+ship is now skinned, the three Blender ships detailed to the downloads' level,
+and the four print-model downloads box-projected. The
+[handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
+master spec §15 holds the status.
 
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
