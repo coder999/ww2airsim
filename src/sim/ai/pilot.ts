@@ -1,4 +1,5 @@
 import type { AircraftEntity } from '../loop.js'
+import type { TakeoffState } from './takeoff.js'
 import { cross, length, normalize, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 
 export type PilotSkill = {
@@ -163,7 +164,7 @@ export type FormationOrders = { readonly leader: string; readonly slot: Formatio
 /** What a pilot is doing at the top level (7e spec §4.1). 7e flies
  *  `engage`, `ingress` (§4.5) and `loiter`; 7f fills in `formation`, 7g
  *  `rtb` and `landed`. */
-export type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter'
+export type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter' | 'takeoff'
 
 /** 7g: the recovery phases (7c-7g §6, 7g spec). */
 export type RecoveryPhase = 'transit' | 'hold' | 'join' | 'configure' | 'final' | 'go-around' | 'rollout' | 'landed'
@@ -193,6 +194,8 @@ export type PilotDecisionState = {
   /** 7e: the heading (atan2(v.z, v.x)) and altitude a loiter holds, latched
    *  when it begins and cleared when a target is chosen; `null` otherwise. */
   readonly loiter: { readonly headingRad: number; readonly altitudeM: number } | null
+  /** 7h: the takeoff phase machine, present only in mode `takeoff`. */
+  readonly takeoff?: TakeoffState
   readonly maneuver: PilotManeuver
   /** The maneuver flown this tick, chosen at rescore within 'maneuver'. */
   readonly named: ManeuverName

@@ -78,12 +78,17 @@ const PilotObject = z.object({
   /** 7g: where this pilot recovers (spec §7). May accompany `leader`/`slot`
    *  (a wingman has a home) and `ingress` (a raider may have a home). */
   home: z.union([z.object({ airfield: id }).strict(), z.object({ ship: id }).strict()]).optional(),
+  /** 7h: a parked aircraft that takes off under its own pilot (needs an
+   *  airfield `parkedAt`, not chocked). */
+  takeoff: z.literal(true).optional(),
 }).strict().refine((p) => p.target === undefined || p.ingress === undefined, {
   message: "ingress excludes target: a raider's target is chosen, never fixed", path: ['ingress'],
 }).refine((p) => p.leader === undefined || (p.target === undefined && p.ingress === undefined), {
   message: 'leader excludes target and ingress: a wingman goes where its leader goes', path: ['leader'],
 }).refine((p) => (p.leader === undefined) === (p.slot === undefined), {
   message: 'leader and slot go together', path: ['slot'],
+}).refine((p) => p.takeoff === undefined || p.leader === undefined, {
+  message: "takeoff excludes leader: a wingman flies its leader's formation", path: ['takeoff'],
 })
 
 /** Plan 7e (spec §4.1). Absent: the player is allied, every other aircraft
@@ -100,7 +105,8 @@ function pilotAssignmentFrom(
   if (pilot === undefined) return null
   const ingress = pilot.ingress === undefined ? {} : { ingress: ingressOrdersFrom(pilot.ingress, airfields) }
   const orders = pilot.leader === undefined || pilot.slot === undefined ? undefined : { leader: pilot.leader, slot: pilot.slot }
-  const mode = orders !== undefined ? 'formation' : pilot.ingress === undefined ? 'engage' : 'ingress'
+  const mode = pilot.takeoff === true ? 'takeoff'
+    : orders !== undefined ? 'formation' : pilot.ingress === undefined ? 'engage' : 'ingress'
   const home = homes.get(id)
   return {
     target: pilot.target ?? null,
@@ -111,7 +117,9 @@ function pilotAssignmentFrom(
     // Immediately overwritten at the first rescore (nextRescoreS: 0
     // guarantees tick 1 triggers one). The noise cursor is seeded from the
     // entity id (7e spec §4.5 item 2), not a shared constant.
-    decision: initialDecision(id, mode),
+    decision: pilot.takeoff === true
+      ? { ...initialDecision(id, mode), takeoff: { phase: 'wait', sinceS: 0, headingRad: null, pitchIntegral: 0 } }
+      : initialDecision(id, mode),
   }
 }
 
@@ -292,6 +300,21 @@ function checkLeaders(
   }
 }
 
+/** 7h: what a `pilot.takeoff` aircraft must be. Start and held aircraft
+ *  alike; held ship parks get R3's message from `checkMission`. */
+function checkTakeoff(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): void {
+  const all = [...s.aircraft.map((a, i) => [a, ['aircraft', i]] as const),
+    ...(s.heldGroups ?? []).flatMap((g, gi) => (g.aircraft ?? []).map((a, i) => [a, ['heldGroups', gi, 'aircraft', i]] as const))]
+  for (const [a, at] of all) {
+    if (a.pilot?.takeoff !== true) continue
+    if (!isParkedAircraft(a) || isShipParked(a.parkedAt)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'takeoff needs a parkedAt airfield', path: [...at, 'pilot', 'takeoff'] })
+    } else if (a.chocked) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'a takeoff pilot cannot be chocked', path: [...at, 'chocked'] })
+    }
+  }
+}
+
 const ScenarioObject = ScenarioShape
   .refine((s) => (s.enemyAirfields ?? []).every((e) => s.airfields.includes(e)), {
     message: 'every enemyAirfields entry must be one of airfields', path: ['enemyAirfields'],
@@ -347,6 +370,7 @@ const ScenarioObject = ScenarioShape
     }
   })
   .superRefine(checkFormations)
+  .superRefine(checkTakeoff)
   .superRefine(checkMission)
 
 export type Scenario = z.infer<typeof ScenarioObject>
@@ -400,7 +424,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       const path = ['heldGroups', gi, 'aircraft', ai]
       if (used.has(a.id)) issue(`entity id "${a.id}" is already used; ids are unique across the whole scenario`, [...path, 'id'])
       used.add(a.id)
-      if (isParkedAircraft(a)) issue('a held aircraft must start airborne (airborneAt), plan ruling R3', [...path, 'parkedAt'])
+      if (isParkedAircraft(a) && (isShipParked(a.parkedAt) || a.pilot?.takeoff !== true)) {
+        issue('a held aircraft must start airborne (airborneAt), plan ruling R3; the one exception is an airfield park with pilot.takeoff', [...path, 'parkedAt'])
+      }
       const target = a.pilot?.target
       if (target !== undefined && (target === a.id || (!startAircraft.has(target) && !groupAircraft.has(target)))) {
         issue('a held pilot must target a starting aircraft or one in its own group', [...path, 'pilot', 'target'])
