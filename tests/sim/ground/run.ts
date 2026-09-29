@@ -28,6 +28,8 @@ export type Initial = {
   readonly speedMps?: number
   /** Gear extension at the start, 0 (up) to 1 (down); default 1. */
   readonly gearFraction?: number
+  /** Flap extension at the start, 0 (up) to 1 (full); default 0. */
+  readonly flapFraction?: number
   /** Terrain to run over; default the flat runway. */
   readonly terrain?: TerrainField
 }
@@ -44,6 +46,7 @@ export function run(spec: AircraftSpec, controls: Controls | ((tick: number, s: 
     ...spawn(spec, RUNWAY_HEIGHT_M + wheelDepthM(spec.gear, pitch) + (initial.dropM ?? 0), initial.speedMps ?? 0),
     attitude: qFromAxisAngle(v3(0, 0, 1), pitch),
     gearFraction: initial.gearFraction ?? 1,
+    flapFraction: initial.flapFraction ?? 0,
   }
   const trace: AircraftState[] = [s]
   for (let i = 0; i < Math.round(seconds / DT); i++) {

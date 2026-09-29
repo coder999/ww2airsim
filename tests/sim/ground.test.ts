@@ -12,8 +12,7 @@ import {
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
   ARRIVAL_SINK_THRESHOLD_MPS,
   lateralGripAfter,
-  effectiveStallSpeedMps,
-} from '../../src/sim/ground.js'
+  effectiveStallSpeedMps, groundPitchCeilingRad } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { step } from '../../src/sim/flight/model.js'
 import type { SimContext } from '../../src/sim/loop.js'
@@ -430,8 +429,10 @@ describe('ground pitch (T1)', () => {
     expect(groundPitchRate(rest, f6f.gear.tailLiftSpeedMps * 1.2)).toBeLessThan(0)
   })
 
-  it('a held-back stick keeps the tail down at speed (three-point take-off)', () => {
-    expect(groundPitchRate(rest, f6f.gear.tailLiftSpeedMps * 1.2, { ...neutral, pitch: 1 })).toBeCloseTo(0, 9)
+  it('a held-back stick rotates on the mains at speed, from the three-point attitude', () => {
+    // Was pinned at rest until 2026-09-28, when the ceiling stopped being the
+    // tail-strike attitude and became the derived liftoff attitude.
+    expect(groundPitchRate(rest, f6f.gear.tailLiftSpeedMps * 1.2, { ...neutral, pitch: 1 })).toBeGreaterThan(0)
   })
 
   it('never pitches below level with the tail up, however hard the stick is pushed', () => {
@@ -443,12 +444,17 @@ describe('ground pitch (T1)', () => {
     expect(groundPitchRate(0, f6f.gear.tailLiftSpeedMps * 1.2, { ...neutral, pitch: 1 })).toBeGreaterThan(0)
   })
 
-  it('cannot rotate past the tail-strike attitude', () => {
-    const next = rest + groundPitchRate(rest, f6f.gear.tailLiftSpeedMps * 1.5, { ...neutral, pitch: 1 }) * DT
-    expect(next).toBeLessThanOrEqual(rest + 1e-9)
+  it('cannot rotate past the derived ceiling, and the ceiling is the 1.1 x clean stall attitude', () => {
+    const ceiling = groundPitchCeilingRad(f6f)
+    // clMax 1.4 / 1.1^2 = 1.157, through clAtZeroAlpha 0.1 and slope 4.8055 per rad: 12.60 degrees.
+    expect((ceiling * 180) / Math.PI).toBeCloseTo(12.6, 1)
+    expect(ceiling).toBeGreaterThan(rest)
+    const at = ceiling - 0.001
+    const next = at + groundPitchRate(at, f6f.gear.tailLiftSpeedMps * 1.5, { ...neutral, pitch: 1 }) * DT
+    expect(next).toBeLessThanOrEqual(ceiling + 1e-9)
   })
 
-  it('a touchdown well above the tail-strike attitude settles at a bounded rate, not in one tick', () => {
+  it('a touchdown well above the ground pitch ceiling settles at a bounded rate, not in one tick', () => {
     const rate = groundPitchRate(rest + 0.1, 30, { ...neutral, throttle: 0, pitch: 1 })
     expect(rate).toBeLessThan(0)
     expect(Math.abs(rate)).toBeLessThanOrEqual((15 * Math.PI) / 180 + 1e-9)
@@ -480,7 +486,7 @@ describe('ground pitch (T1)', () => {
 
 describe('ground pitch: a taildragger whose rest attitude is about level (T1 fix round 1)', () => {
   // The Zero's drawn model sits level, so its derived rest pitch is -0.118
-  // deg. Ruling 2026-09-28: a taildragger may still rotate to 6 degrees.
+  // deg. Ruling 2026-09-28: it still rotates, to the derived ceiling (12.6 degrees).
   const zero = loadAircraftSpec('a6m2-zero')
   const zeroRest = restPitchRad(zero.gear)
   const zeroAt = (pitchRad: number, speed: number) =>
@@ -490,11 +496,12 @@ describe('ground pitch: a taildragger whose rest attitude is about level (T1 fix
     expect((zeroRest * 180) / Math.PI).toBeCloseTo(-0.118, 3)
   })
 
-  it('rotates nose-up under full stick at speed, up to 6 degrees and no further', () => {
+  it('rotates nose-up under full stick at speed, up to the derived ceiling and no further', () => {
     const at = (p: number) => groundBodyRates(zero, zeroAt(p, zero.gear.tailLiftSpeedMps * 1.5), { ...neutral, pitch: 1 }, v3(0, 0, 0), DT).z
     expect(at(zeroRest)).toBeGreaterThan(0)
-    const six = (6 * Math.PI) / 180
-    expect(six - 0.001 + at(six - 0.001) * DT).toBeLessThanOrEqual(six + 1e-9)
+    const cap = groundPitchCeilingRad(zero)
+    expect(cap).toBeGreaterThan(zeroRest)
+    expect(cap - 0.001 + at(cap - 0.001) * DT).toBeLessThanOrEqual(cap + 1e-9)
   })
 
   it('still settles tail-down at low speed on idle', () => {

@@ -108,8 +108,8 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   // what a pilot does, and it is what must stay crash-free.
   //
   // Held until lift-off (capped at 10 s) rather than for a fixed 1.5 s since
-  // T1 (2026-09-28), matching `frame.test.ts`: on the wheels the pitch can no
-  // longer pass the rest (tail-strike) attitude, and a neutral stick on the
+  // T1 (2026-09-28), matching `frame.test.ts`: on the wheels the pitch is capped
+  // at the derived ground ceiling (`groundPitchCeilingRad`, 12.6 degrees for the F6F), and a neutral stick on the
   // roll brings the tail back up toward level (`groundBodyRates`), so a pull
   // released before the wheels leave sets the airplane back down level. Run
   // on nexus's 680M 2026-09-28, the fixed 1.5 s pull never got airborne.

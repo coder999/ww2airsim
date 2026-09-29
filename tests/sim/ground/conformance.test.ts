@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { attitudeAngles } from '../../../src/sim/flight/attitude.js'
 import { restPitchRad, wheelDepthM } from '../../../src/sim/gearContact.js'
-import { onGround } from '../../../src/sim/ground.js'
+import { groundPitchCeilingRad, onGround } from '../../../src/sim/ground.js'
 import { length, v3 } from '../../../src/sim/math/vec3.js'
 import { qRotate } from '../../../src/sim/math/quat.js'
 import { createTerrainField, type TerrainField } from '../../../src/sim/world/terrain.js'
@@ -9,7 +9,7 @@ import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
 import { DT, type AircraftState } from '../../../src/sim/flight/model.js'
 import { RUNWAY_HEIGHT_M } from '../../../tools/testcards/measure.js'
 import { allGroundSpecs } from './fixtures.js'
-import { run } from './run.js'
+import { run, speedOf } from './run.js'
 
 /** Flat open water: height 0 is SEA_LEVEL_M, which `surfaceAt` reads as water. */
 const WATER_FIELD: TerrainField = createTerrainField(
@@ -73,6 +73,29 @@ describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance
       const energy = (i: number) => 0.5 * length(trace[i]!.velocity) ** 2 + 9.80665 * trace[i]!.position.y
       expect(energy(trace.length - 1)).toBeLessThanOrEqual(energy(0) + 1e-6)
     }
+  })
+
+  // T1, 2026-09-28: the ground pitch ceiling is derived from the wing (the
+  // attitude that lifts off at 1.1 x the clean stall speed), so a firm pull
+  // lifts every airplane off near that speed. Measured through the real step
+  // from a standstill, full throttle, pull held from 40 m/s: unstick at 1.04
+  // to 1.09 times the 1.1 x stall figure across all five specs (F6F 1.06, F4F
+  // 1.04, Zero 1.09, synthetic tricycle and twin 1.06). The band is 0.95 to
+  // 1.15 of it: it rejects both the old 9.45 degree ceiling (56 m/s, 1.30 for
+  // the F6F) and a ceiling that lifts off at the stall.
+  it('6. a firm pull lifts off within 0.95-1.15 of 1.1 x the clean stall speed', () => {
+    const { trace } = run(spec, (_t, s) => ({ pitch: speedOf(s) >= 40 ? 1 : 0, roll: 0, yaw: 0, throttle: 1, gearDown: true }), 40)
+    const i = trace.findIndex((s) => !onGround(spec, s, RUNWAY_HEIGHT_M))
+    expect(i, 'never left the ground').toBeGreaterThan(0)
+    const target = 1.1 * spec.reference.stallSpeedMps
+    expect(speedOf(trace[i]!)).toBeGreaterThan(0.95 * target)
+    expect(speedOf(trace[i]!)).toBeLessThan(1.15 * target)
+    expect(groundPitchCeilingRad(spec)).toBeGreaterThanOrEqual(restPitchRad(spec.gear))
+  })
+
+  it('7. hands off at full throttle it does not lift off, at low speed or after', () => {
+    const { trace } = run(spec, { pitch: 0, roll: 0, yaw: 0, throttle: 1, gearDown: true }, 30)
+    expect(trace.every((s) => onGround(spec, s, RUNWAY_HEIGHT_M))).toBe(true)
   })
 
   // Roll keys steer on the wheels (Mark's arcade ruling, 2026-09-28) and must

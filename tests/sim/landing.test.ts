@@ -204,10 +204,15 @@ describe('an approach flown into Tacloban', () => {
     // attitude, not at gear.heightM); restZ moved a further 17.5 m north when
     // the ground pitch model (Task 3) replaced the drawn stance and the speed
     // gate, so the rollout's pitch now changes as it slows. restX unchanged.
+    // Re-recorded again 2026-09-28 (derived ground pitch ceiling): restZ
+    // -47686.6756 -> -47686.4910 (0.18 m); sink, speed and restX unchanged. The
+    // rollout's pitch ceiling rose from 9.45 to 12.60 degrees, which changes
+    // the wheel depth the rollout is seated at; the touchdown itself is airborne
+    // flight and does not read the ground ceiling.
     expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
       {
         "restX": -29666,
-        "restZ": -47686.6755654359,
+        "restZ": -47686.49097489367,
         "touchdownSinkMps": 1.3504191060115247,
         "touchdownSpeedMps": 37.71417640522327,
       }

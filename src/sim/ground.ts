@@ -5,6 +5,7 @@ import type { AircraftState, Controls } from './flight/state.js'
 import { surfaceAt, type ContactSurface } from './contact.js'
 import { restPitchRad, wheelDepthOf } from './gearContact.js'
 import { attitudeAngles } from './flight/attitude.js'
+import { alphaCritRad } from './aero.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -501,13 +502,35 @@ const GROUND_YAW_FADE_MULTIPLE = 1.5
 const GROUND_PITCH_SETTLE_PER_S = 1.5
 const GROUND_PITCH_RAISE_PER_S = 1.0
 const GROUND_PITCH_CORRECTION_MAX_RAD_PER_S = 15 * GROUND_DEG
-const TRICYCLE_ROTATION_LIMIT_RAD = 12 * GROUND_DEG
-/** A taildragger may rotate on its mains to at least this nose-up pitch, even
- *  when its derived rest attitude is lower. Ruling, T1 fix round 1
- *  (2026-09-28): the Zero's drawn model sits level, so its rest pitch is
- *  -0.118 deg, and a ceiling of `rest` alone pinned it level on the wheels --
- *  measured, 100 m/s after 50 s at full throttle and never airborne. */
-const TAILDRAGGER_MIN_ROTATION_RAD = 6 * GROUND_DEG
+/** The ground pitch ceiling targets liftoff at this multiple of the clean
+ *  stall speed (Mark, 2026-09-28: arcade over realism, a firm pull should lift
+ *  off soon after rolling, not at 126 mph). 1.1 is the usual margin above the
+ *  stall; a lift coefficient of `clMax / 1.1^2` carries the same weight at
+ *  1.1 times the stall speed. */
+const LIFTOFF_STALL_MULTIPLE = 1.1
+
+/**
+ * The highest nose-up pitch the airplane may reach on its wheels, radians,
+ * DERIVED from the aircraft's own lift curve (T1, 2026-09-28) rather than
+ * from a per-aircraft number: the attitude at which the wing, with the
+ * velocity horizontal, reaches `clMax / LIFTOFF_STALL_MULTIPLE^2`, read back
+ * through the attached-flow line `clAtZeroAlpha + clSlopePerRad * alpha` and
+ * capped by `alphaCritDeg`. At that attitude the wing supports the airplane's
+ * weight at 1.1 times its clean stall speed, so a firm pull lifts off near
+ * there whatever the airplane. Never below the rest attitude, which is what
+ * the tail wheel allows a taildragger to sit at (its contact depth deeper
+ * than rest only raises the origin). Tail strike is deliberately not modeled
+ * (Mark, 2026-09-28). Flaps are not read: the ceiling is a body attitude, and
+ * the flaps' camber shift makes the wing lift off EARLIER at the same pitch.
+ * Replaces the fixed `max(rest, 6 deg)` taildragger and `rest + 12 deg`
+ * tricycle rules.
+ */
+export function groundPitchCeilingRad(spec: AircraftSpec): number {
+  const { clMax, clAtZeroAlpha, clSlopePerRad } = spec.aero
+  const clTarget = clMax / (LIFTOFF_STALL_MULTIPLE * LIFTOFF_STALL_MULTIPLE)
+  const alpha = Math.min(alphaCritRad(spec), (clTarget - clAtZeroAlpha) / clSlopePerRad)
+  return Math.max(restPitchRad(spec.gear), alpha)
+}
 
 const unit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0)
 const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(-1, n)) : 0)
@@ -548,9 +571,9 @@ const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math
  *   stick itself, `lift * stick * maxPitchRate`: pulled, it rotates on the
  *   mains; pushed, it lowers the nose. The sum is then bounded so the pitch
  *   stays between `min(rest, 0)` (never nose-down past level on a
- *   taildragger) and `max(rest, 6 degrees)` (a taildragger's tail strike, or
- *   6 degrees for one whose rest attitude is lower, so it can still rotate)
- *   or `rest + 12 degrees` (a tricycle's), and a correction back inside those bounds is
+ *   taildragger) and `groundPitchCeilingRad(spec)` (derived from the lift curve: the
+ *   attitude that lifts off at 1.1 times the clean stall speed, never below
+ *   rest, the same for every layout), and a correction back inside those bounds is
  *   limited to 15 deg/s so a touchdown above the ceiling settles instead of
  *   snapping in one tick. Compared against GROUND speed -- the horizontal
  *   velocity relative to the surface -- because the wheels roll over the
@@ -612,9 +635,7 @@ export function groundBodyRates(
 
   const rest = restPitchRad(gear)
   const floor = Math.min(rest, 0)
-  const ceiling = gear.layout === 'tricycle'
-    ? rest + TRICYCLE_ROTATION_LIMIT_RAD
-    : Math.max(rest, TAILDRAGGER_MIN_ROTATION_RAD)
+  const ceiling = groundPitchCeilingRad(spec)
   const pitch = attitudeAngles(state).pitchRad
 
   const settle = (1 - lift) * GROUND_PITCH_SETTLE_PER_S * (rest - pitch)

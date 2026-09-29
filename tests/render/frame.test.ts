@@ -574,11 +574,11 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     // is what this asserts stays crash-free.
     //
     // Held until lift-off rather than for a fixed 1.5 s since T1
-    // (2026-09-28): on the wheels the pitch can no longer pass the rest
-    // (tail-strike) attitude, and a neutral stick on the roll brings the tail
+    // (2026-09-28): on the wheels the pitch is capped at the derived
+    // ground ceiling (`groundPitchCeilingRad`, 12.6 degrees for the F6F), and a neutral stick on the roll brings the tail
     // back up toward level (`groundBodyRates`), so a pull released before the
     // wheels leave sets the airplane back down level. The old fixed pull
-    // rotated past the tail-strike attitude on the runway, which the ground
+    // rotated past that ceiling on the runway, which the ground
     // no longer allows. Capped, so a never-lifting airplane fails here.
     const ROTATE_MAX_TICKS = 60 * 10
     const wheelsClearM = () => {
