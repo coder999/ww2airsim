@@ -115,14 +115,16 @@ describe('the ordnance category (O1, Task 8)', () => {
     expect(model!.mounts()).toEqual([])
   })
 
-  it('an aircraft model reports one mount point per rack and rail of its spec; the Zero, with no stores, reports none', async () => {
+  it('an aircraft model reports one mount point per rack and rail of its spec; the Zero, whose dev stores are its own, reports those', async () => {
     // createHellcat() hangs meshes named with the same mount ids content uses (Task 6's HELLCAT_MOUNTS).
     const hellcatEntry = byId('f4f-wildcat')
     const m = await loadHangarModel(hellcatEntry, async () => createHellcat())
     const spec = hellcatEntry.subject?.kind === 'aircraft' ? hellcatEntry.subject.spec : null
     expect(m!.mounts().map((p) => p.id)).toEqual([...spec!.stores!.racks, ...spec!.stores!.rails].map((r) => r.id))
-    const zero = await loadHangarModel(byId('a6m-zero'), async () => createHellcat())
-    expect(zero!.mounts()).toEqual([])
+    const zeroEntry = byId('a6m-zero')
+    const zero = await loadHangarModel(zeroEntry, async () => createHellcat())
+    const zeroSpec = zeroEntry.subject?.kind === 'aircraft' ? zeroEntry.subject.spec : null
+    expect(zero!.mounts().map((p) => p.id)).toEqual([...zeroSpec!.stores!.racks, ...zeroSpec!.stores!.rails].map((r) => r.id))
   })
 })
 

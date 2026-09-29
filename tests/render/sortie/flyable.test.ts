@@ -31,7 +31,7 @@ describe('the flyable catalog (sortie spec, Form 3)', () => {
     expect(storesLine(hellcat, 'clean', names)).toBe('Guns only: no bombs or rockets')
     expect(storesLine(hellcat, 'both', names)).toBe('2 × AN-M65 1,000 lb general-purpose bomb, 6 × 5-inch High Velocity Aircraft Rocket (HVAR)')
     expect(storesLine(hellcat, 'rockets', names)).toBe('6 × 5-inch High Velocity Aircraft Rocket (HVAR)')
-    expect(storesLine(byId('a6m2-zero').spec, 'bombs', names)).toBe('Guns only: no bombs or rockets')
+    expect(storesLine({ ...byId('a6m2-zero').spec, stores: undefined }, 'bombs', names)).toBe('Guns only: no bombs or rockets')
   })
   it('falls back to the store id for a store with no Library entry', () => {
     expect(storesLine(byId('f6f-hellcat').spec, 'bombs', {})).toBe('2 × an-m65')
