@@ -484,16 +484,20 @@ describe('ground pitch (T1)', () => {
   })
 })
 
-describe('ground pitch: a taildragger whose rest attitude is about level (T1 fix round 1)', () => {
-  // The Zero's drawn model sits level, so its derived rest pitch is -0.118
-  // deg. Ruling 2026-09-28: it still rotates, to the derived ceiling (12.6 degrees).
+describe('ground pitch: a taildragger at its three-point rest attitude (T1 fix round 1)', () => {
+  // The ruling of 2026-09-28 was taken on the Zero's mesh as downloaded, baked
+  // 12.36 degrees nose-up, where the derived rest pitch read -0.118 deg. The
+  // model was leveled 2026-09-29 (2034ecc), which re-measured the gear and put
+  // the rest pitch at the real three-point attitude, 12.23 deg. The ceiling
+  // (12.6 degrees, from the lift curve) is unchanged, so the rotation range is
+  // now the 0.4 degrees between them.
   const zero = loadAircraftSpec('a6m2-zero')
   const zeroRest = restPitchRad(zero.gear)
   const zeroAt = (pitchRad: number, speed: number) =>
     createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitchRad), gearFraction: 1 })
 
   it('has the rest pitch the ruling was taken on', () => {
-    expect((zeroRest * 180) / Math.PI).toBeCloseTo(-0.118, 3)
+    expect((zeroRest * 180) / Math.PI).toBeCloseTo(12.228, 2)
   })
 
   it('rotates nose-up under full stick at speed, up to the derived ceiling and no further', () => {
@@ -505,7 +509,7 @@ describe('ground pitch: a taildragger whose rest attitude is about level (T1 fix
   })
 
   it('still settles tail-down at low speed on idle', () => {
-    expect(groundBodyRates(zero, zeroAt((3 * Math.PI) / 180, 2), { ...neutral, throttle: 0 }, v3(0, 0, 0), DT).z).toBeLessThan(0)
+    expect(groundBodyRates(zero, zeroAt(zeroRest + (3 * Math.PI) / 180, 2), { ...neutral, throttle: 0 }, v3(0, 0, 0), DT).z).toBeLessThan(0)
   })
 
   it('lifts off under full throttle and a held pull', () => {
