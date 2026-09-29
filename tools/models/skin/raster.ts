@@ -1,5 +1,5 @@
 // tools/models/skin/raster.ts
-import type { Document } from '@gltf-transform/core'
+import type { Document, Node } from '@gltf-transform/core'
 import type { Sidecar } from './sidecar.js'
 
 export type Vec3 = [number, number, number]
@@ -19,8 +19,8 @@ const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
 /** Every triangle of the kit's raw export, in node order, with its role (the material's name)
  *  and its patch (the rect holding its UV centroid, in `atlasPx` pixels). */
-export function trianglesOf(doc: Document, side: Sidecar, atlasPx: number): Triangles {
-  const nodes = doc.getRoot().listNodes().filter((n) => n.getMesh())
+export function trianglesOf(doc: Document, side: Sidecar, atlasPx: number, skip: (node: Node) => boolean = () => false): Triangles {
+  const nodes = doc.getRoot().listNodes().filter((n) => n.getMesh() && !skip(n))
   const roles = [...new Set(nodes.flatMap((n) => n.getMesh()!.listPrimitives().map((p) => p.getMaterial()?.getName() ?? '')))].sort()
   for (const r of roles) if (!(r in side.roles)) throw new Error(`skin ${side.model}: material "${r}" is not a role the sidecar lists (${Object.keys(side.roles).join(', ')})`)
   const tris: RasterTri[] = []

@@ -39,7 +39,8 @@ import { shipMaterials } from './stages/shipMaterials.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
 import { parseSidecar, skinSidecarPath } from './skin/sidecar.js'
-import { attachSkinTextures, skinDocument, type ScanLoader, type SkinImages } from './skin/stage.js'
+import { withShipColors } from './skin/shipColors.js'
+import { attachSkinTextures, skinDocument, skinMaterialName, SHIP_SKIN_OPTIONS, type ScanLoader, type SkinImages } from './skin/stage.js'
 import { loadScan } from './skin/scans.js'
 import { GENERATORS } from './generated/registry.js'
 
@@ -68,8 +69,9 @@ function provenance(s: SketchfabSource | BlenderSource): Record<string, string> 
 }
 
 /** Every stage, in order, on a document already read. Mutates and returns it. */
-export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null): Promise<Document> {
+export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan): Promise<Document> {
   if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
+  void scans // Task 10's box-skin stage reads it
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
   if (entry.normalize?.yawDeg !== undefined) yawScene(doc, entry.normalize.up, entry.normalize.yawDeg)
@@ -97,7 +99,7 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   // Ships (ship-models spec §4-§5): the residual fit and skirt, then the palette roles.
   const ship = entry.ship ? { block: entry.ship, spec: shipSpec(entry.ship.spec) } : null
   const fitted = ship ? shipFitStage(doc, ship.block, ship.spec) : null
-  if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY)
+  if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY, entry.skin ? skinMaterialName(entry.id) : null)
   if (entry.dedupMaterials) await dedupMaterials(doc)
   // 5. join everything except the parts
   await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
@@ -221,13 +223,17 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         let skin: SkinImages | null = null
         if (entry.skin) {
           if (!deps.exists(sidecar)) throw new Error(`the entry says skin: true, but ${source.script} wrote no ${sidecar} (kit.Model(name, skin=<px>))`)
-          skin = await skinDocument(read, entry.id, parseSidecar(deps.readText(sidecar)), deps.scan)
+          const side = parseSidecar(deps.readText(sidecar))
+          // DP2 (Rulings S1, S2): a ship paints in its palette and is not metallic.
+          skin = entry.ship
+            ? await skinDocument(read, entry.id, withShipColors(side, entry.ship), deps.scan, SHIP_SKIN_OPTIONS)
+            : await skinDocument(read, entry.id, side, deps.scan)
         } else if (deps.exists(sidecar)) {
           throw new Error(`${source.script} wrote a skin sidecar, but the entry has no "skin": true`)
         }
         doc = await runPipeline(read, entry, loadShipSpec, skin)
       } else {
-        doc = await runPipeline(await deps.read(entry.input!), entry)
+        doc = await runPipeline(await deps.read(entry.input!), entry, loadShipSpec, null, deps.scan)
       }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails

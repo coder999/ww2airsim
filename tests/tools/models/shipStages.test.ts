@@ -142,3 +142,28 @@ describe('runBuild with a ship whose fit fails', () => {
     expect(lines[0]).toMatch(/^FAILED toy-cv, nothing written: ship essex-cv: .*island mean z/)
   })
 })
+
+describe('shipMaterials and a skinned ship (DP2, Review Focus 5)', () => {
+  const skinned = (): Document => {
+    const doc = newDocument()
+    const prim = boxesPrimitive(doc, [[[-1, 0, -1], [1, 1, 1]]], doc.createMaterial('toy-cv-skin').setMetallicFactor(1))
+    prim.setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(new Float32Array(16).fill(0.5)))
+    addMeshNode(doc, 'toy-cv_hull', [prim])
+    return doc
+  }
+  it('passes the named skin material through: its UVs stay and its metallicFactor becomes 0', () => {
+    const doc = skinned()
+    shipMaterials(doc, carrierEntry.ship!, null, 'toy-cv-skin')
+    const prims = doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
+    expect(prims.map((p) => p.getMaterial()!.getName())).toEqual(['toy-cv-skin'])
+    expect(prims[0]!.getAttribute('TEXCOORD_0')).not.toBeNull()
+    expect(prims[0]!.getMaterial()!.getMetallicFactor()).toBe(0)
+  })
+  it('without the name it classifies as before, stripping the UVs: the guard is what keeps the skin', () => {
+    const doc = skinned()
+    shipMaterials(doc, carrierEntry.ship!, null)
+    const prims = doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())
+    expect(prims.every((p) => p.getMaterial()!.getName().startsWith('ship:'))).toBe(true)
+    expect(prims.every((p) => p.getAttribute('TEXCOORD_0') === null)).toBe(true)
+  })
+})

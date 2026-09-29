@@ -50,10 +50,18 @@ describe('ModelEntrySchema', () => {
     expect(() => parseModelEntry({ ...valid, split: [], remove: [], skin: true })).toThrow(/skin/)
   })
 
-  it('refuses a skinned ship until DP2 adapts shipMaterials', () => {
-    const kagero = JSON.parse(readFileSync('tools/models/entries/kagero-dd.json', 'utf8')) as Record<string, unknown>
-    expect(parseModelEntry(kagero).ship).toBeDefined()
-    expect(() => parseModelEntry({ ...kagero, skin: true })).toThrow(/ship takes no skin/)
+  it('a Blender ship may be skinned (DP2), but not with keep or mask rules, which its one skin material replaces', () => {
+    const kagero = JSON.parse(readFileSync('tools/models/entries/kagero-dd.json', 'utf8')) as { ship: Record<string, unknown> }
+    expect(parseModelEntry({ ...kagero, skin: true }).skin).toBe(true)
+    expect(() => parseModelEntry({ ...kagero, skin: true, ship: { ...kagero.ship, materials: { hull: 'keep' } } })).toThrow(/keep and mask do not apply/)
+  })
+  it('boxSkin is a downloaded ship\'s alone, at its textures.maxSize, with every material classified or mapped to a role (DP2)', () => {
+    const essex = JSON.parse(readFileSync('tools/models/entries/essex-cv.json', 'utf8')) as Record<string, unknown>
+    expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 } }).boxSkin).toEqual({ atlasPx: 1024 })
+    expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 512 } })).toThrow(/textures.maxSize/)
+    expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), otherMaterials: 'keep' } })).toThrow(/boxSkin/)
+    const hangar = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
+    expect(() => parseModelEntry({ ...hangar, boxSkin: { atlasPx: 512 } })).toThrow(/boxSkin/)
   })
 })
 

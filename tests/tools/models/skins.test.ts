@@ -35,24 +35,33 @@ describe('the flat-shaded allowlist (DP0)', () => {
   })
 })
 
-const skinned = entries.filter((e) => e.source.kind === 'blender' && !FLAT_SHADED.includes(e.id))
-describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, spec §6)', (id, e) => {
-  it('its entry says skin: true', () => { expect(e.skin).toBe(true) })
-  it('one skin material: base-color, metallic-roughness and normal WebP maps at its atlas size; TEXCOORD_0 and no TEXCOORD_1', async () => {
+const skinned = entries.filter((e) => (e.source.kind === 'blender' || e.boxSkin !== undefined) && !FLAT_SHADED.includes(e.id))
+describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spec §6)', (id, e) => {
+  it('its entry says skin: true (a Blender script) or boxSkin (a download)', () => {
+    expect(e.source.kind === 'blender' ? e.skin : e.boxSkin?.atlasPx).toBeTruthy()
+  })
+  it('one skin material with base-color, metallic-roughness and normal WebP maps at its atlas size; TEXCOORD_0 and no TEXCOORD_1 on every primitive but a ship\'s Skirt (ship:boot)', async () => {
     const doc = await read(e.output)
-    const mats = doc.getRoot().listMaterials()
-    expect(mats.map((m) => m.getName())).toEqual([`${id}-skin`])
-    const mat = mats[0]!
+    const skirt = e.ship?.kind === 'waterline'
+    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual((skirt ? [`${id}-skin`, 'ship:boot'] : [`${id}-skin`]).sort())
+    const mat = doc.getRoot().listMaterials().find((m) => m.getName() === `${id}-skin`)!
     for (const t of [mat.getBaseColorTexture(), mat.getMetallicRoughnessTexture(), mat.getNormalTexture()]) {
       expect(t).not.toBeNull(); expect(t!.getMimeType()).toBe('image/webp')
     }
     expect(measureDocument(doc).maxTextureSize).toBe(e.textures.maxSize)
-    for (const p of doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())) {
-      expect(p.getAttribute('TEXCOORD_0')).not.toBeNull(); expect(p.getAttribute('TEXCOORD_1')).toBeNull()
+    // Ruling S1: a ship's skin is not metallic (no environment map; ship spec §5.1-5.2).
+    expect(mat.getMetallicFactor()).toBe(e.ship ? 0 : 1)
+    for (const node of doc.getRoot().listNodes()) {
+      if (!node.getMesh()) continue
+      for (const p of node.getMesh()!.listPrimitives()) {
+        if (node.getName() === 'Skirt') { expect(p.getMaterial()!.getName()).toBe('ship:boot'); continue }
+        expect(p.getMaterial(), `${node.getName()}`).toBe(mat)
+        expect(p.getAttribute('TEXCOORD_0'), `${node.getName()}`).not.toBeNull(); expect(p.getAttribute('TEXCOORD_1')).toBeNull()
+      }
     }
   })
 })
 
-it('no Blender entry says skin: true while its output is still listed flat', () => {
-  for (const e of entries) if (FLAT_SHADED.includes(e.id)) expect(e.skin, e.id).toBeUndefined()
+it('no entry says skin: true or boxSkin while its output is still listed flat', () => {
+  for (const e of entries) if (FLAT_SHADED.includes(e.id)) { expect(e.skin, e.id).toBeUndefined(); expect(e.boxSkin, e.id).toBeUndefined() }
 })
