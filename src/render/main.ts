@@ -15,10 +15,9 @@ import { createBootQuality } from './bootQuality.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
-import { createAudioSystem } from '../audio/system.js'
-import type { AudioMemory } from '../audio/cues.js'
+import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
-import { audioInputsFrom } from './audio.js'
+import { audioInputsFrom, spatialInputsFrom } from './audio.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createAutopilotBadge } from './autopilotBadge.js'
@@ -1661,7 +1660,7 @@ async function boot(): Promise<void> {
     readonly liveWasPaused: boolean
     readonly liveFxMemory: FxMemory
     replayFxMemory: FxMemory
-    readonly liveAudio: AudioMemory
+    readonly liveAudio: AudioSystemMemory
     readonly onDone: () => void
     eye: EyeTransform
     pose: ReplayPoses
@@ -2468,12 +2467,18 @@ async function boot(): Promise<void> {
     updatePanel(panel, spec, viewPlayer.state, view.controls, makeTextTexture, view.render.attitude, view.world.wind)
     audio.setView(view.cameraMode === 'cockpit' ? 'cockpit' : 'chase')
     audio.setCameraZoom(view.cameraMode === 'cockpit' ? 1 : current.orbit.zoom)
-    if (replay === null) audio.update(audioInputsFrom(current))
-    else {
-      if (replay.jumpedThisFrame) audio.prime(audioInputsFrom(view))
+    if (replay === null) {
+      audio.update(audioInputsFrom(current))
+      audio.updateSpatial(spatialInputsFrom(current, view.eye))
+    } else {
+      if (replay.jumpedThisFrame) {
+        audio.prime(audioInputsFrom(view))
+        audio.primeSpatial(spatialInputsFrom(view, view.eye))
+      }
       if (replay.player.playing) {
         audio.hold(false)
         audio.update(audioInputsFrom(view), replay.player.speed)
+        audio.updateSpatial(spatialInputsFrom(view, view.eye), replay.player.speed)
       } else audio.hold(true)
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)

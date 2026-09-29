@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { QUIET_DAMAGE } from './inputs.js'
+import { assetFor } from '../../src/audio/assets.js'
 import { createAudioSystem } from '../../src/audio/system.js'
 import { createFakeBackend } from './fakeBackend.js'
 import type { AudioInputs } from '../../src/audio/cues.js'
@@ -191,15 +192,15 @@ describe('replay support (instant replay R-4)', () => {
     expect(audio.snapshot().engineGain).toBeGreaterThan(0)
   })
 
-  it('starts sea and deck ambience only when first audible', async () => {
+  it('starts the sea ambience only when first audible', async () => {
     const fake = createFakeBackend()
     const audio = createAudioSystem(fake)
     await audio.load()
     audio.update(flying)
     expect(fake.loopsStarted.map((l) => l.id)).toEqual(['propeller'])
-    audio.update({ ...flying, groundSurface: 'water', heightM: 20, deckDistanceM: 50, tick: 11 })
-    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['propeller', 'sea_waves', 'carrier_deck'])
-    expect(Object.keys(audio.snapshot().layers)).toEqual(['engine', 'sea', 'deck'])
+    audio.update({ ...flying, groundSurface: 'water', heightM: 20, tick: 11 })
+    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['propeller', 'sea_waves'])
+    expect(Object.keys(audio.snapshot().layers)).toEqual(['engine', 'sea'])
   })
 
   it('plays the damage cues through the real path', async () => {
@@ -209,5 +210,91 @@ describe('replay support (instant replay R-4)', () => {
     audio.update(flying)
     audio.update({ ...flying, tick: 11, structure: 0.9, hookDown: true })
     expect(fake.played.map((p) => p.id)).toEqual(['hit_taken', 'hook_clunk'])
+  })
+
+  describe('spatial', () => {
+    const listener = { position: { x: 0, y: 1000, z: 0 }, forward: { x: 0, y: 0, z: -1 }, up: { x: 0, y: 1, z: 0 }, velocity: { x: 0, y: 0, z: 0 } }
+    const ai = (id: string, x: number, shots = 0) =>
+      ({ id, family: 'radial' as const, position: { x, y: 1000, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, shots, engineHealth: 1 })
+    const sp = (tick: number, extra: Partial<Parameters<ReturnType<typeof createAudioSystem>['updateSpatial']>[0]> = {}) =>
+      ({ tick, listener, aircraft: [], decks: [], blasts: [], ...extra })
+
+    it('starts one positioned loop per AI aircraft, once, on the family clip', async () => {
+      const fake = createFakeBackend()
+      const audio = createAudioSystem(fake)
+      await audio.load()
+      audio.updateSpatial(sp(1, { aircraft: [ai('a', 300)] }))
+      audio.updateSpatial(sp(2, { aircraft: [ai('a', 310)] }))
+      expect(fake.spatialLoops.map((l) => l.clip)).toEqual(['propeller'])
+      expect(fake.spatialLoops[0]!.positions.at(-1)!.x).toBeCloseTo(310, 6)
+      expect(fake.spatialLoops[0]!.gains.at(-1)!).toBeGreaterThan(0)
+      expect(fake.spatialLoops[0]!.glides.every((t) => t > 0)).toBe(true)
+      expect(fake.listeners.length).toBe(1)
+    })
+
+    it('fades a source that leaves the nearest set, and silences everything while held', async () => {
+      const fake = createFakeBackend()
+      const audio = createAudioSystem(fake)
+      await audio.load()
+      audio.updateSpatial(sp(1, { aircraft: [ai('a', 300)] }))
+      audio.updateSpatial(sp(2))
+      expect(fake.spatialLoops[0]!.gains.at(-1)).toBe(0)
+      audio.updateSpatial(sp(3, { aircraft: [ai('a', 300)] }))
+      audio.hold(true)
+      expect(fake.spatialLoops[0]!.gains.at(-1)).toBe(0)
+      audio.updateSpatial(sp(4, { aircraft: [ai('a', 300)] }))
+      expect(fake.spatialLoops[0]!.gains.at(-1)).toBe(0)
+    })
+
+    it('plays a detonation after its travel time, lowpassed and quieter than the cue', async () => {
+      const fake = createFakeBackend()
+      const audio = createAudioSystem(fake)
+      await audio.load()
+      audio.updateSpatial(sp(100, { blasts: [{ tick: 100, surface: 'land', position: { x: 1715, y: 0, z: 0 } }] }))
+      expect(fake.spatialShots).toEqual([])
+      for (let t = 101; t < 600; t++) audio.updateSpatial(sp(t))
+      expect(fake.spatialShots.length).toBe(1)
+      const shot = fake.spatialShots[0]!
+      expect(shot.id).toBe('explosion')
+      expect(shot.lowpassHz).toBeLessThan(10_000)
+      expect(shot.gain).toBeLessThan(assetFor('explosion').cueGain)
+      expect(audio.snapshot().spatialPlayed).toBe(1)
+    })
+
+    it('makes no sound for a queued blast when held, and prime drops the queue', async () => {
+      const fake = createFakeBackend()
+      const audio = createAudioSystem(fake)
+      await audio.load()
+      audio.updateSpatial(sp(100, { blasts: [{ tick: 100, surface: 'land', position: { x: 1715, y: 0, z: 0 } }] }))
+      audio.primeSpatial(sp(101))
+      for (let t = 102; t < 600; t++) audio.updateSpatial(sp(t))
+      expect(fake.spatialShots).toEqual([])
+      audio.updateSpatial(sp(500, { blasts: [{ tick: 500, surface: 'land', position: { x: 300, y: 0, z: 0 } }] }))
+      audio.hold(true)
+      for (let t = 501; t < 600; t++) audio.updateSpatial(sp(t))
+      expect(fake.spatialShots).toEqual([])
+    })
+
+    it('restores the spatial memory with the cue memory after a replay', async () => {
+      const fake = createFakeBackend()
+      const audio = createAudioSystem(fake)
+      await audio.load()
+      audio.updateSpatial(sp(100, { blasts: [{ tick: 100, surface: 'land', position: { x: 1715, y: 0, z: 0 } }] }))
+      const live = audio.memory()
+      audio.primeSpatial(sp(5))
+      audio.restore(live)
+      for (let t = 101; t < 600; t++) audio.updateSpatial(sp(t))
+      expect(fake.spatialShots.length).toBe(1)
+    })
+
+    it('starts the deck rumble at the ship only when it is in earshot', async () => {
+      const fake = createFakeBackend()
+      const audio = createAudioSystem(fake)
+      await audio.load()
+      audio.updateSpatial(sp(1, { decks: [{ id: 'd', center: { x: 9000, y: 0, z: 0 }, lengthM: 250 }] }))
+      expect(fake.spatialLoops).toEqual([])
+      audio.updateSpatial(sp(2, { decks: [{ id: 'd', center: { x: 300, y: 0, z: 0 }, lengthM: 250 }] }))
+      expect(fake.spatialLoops.map((l) => l.clip)).toEqual(['carrier_deck'])
+    })
   })
 })

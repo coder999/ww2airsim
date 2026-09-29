@@ -5,6 +5,8 @@ import { engineFamilyFor } from '../audio/mix.js'
 import { onGround } from '../sim/ground.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
 import { sub } from '../sim/math/vec3.js'
+import { qRotate, type Quat } from '../sim/math/quat.js'
+import type { SpatialInputs } from '../audio/spatial.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { playerAircraft } from '../sim/loop.js'
@@ -77,11 +79,7 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     engineHealth: frame.world.combat.aircraft[frame.world.player]?.damage.engine ?? 1,
     arrested: aircraft.arrested,
     hookDown: frame.controls.hookDown === true,
-    // Centre distance less half the deck length: a cue for "near a carrier", not a rectangle test.
     ordnanceBlast: latestBlastNear(frame.world.combat.impacts, aircraft.position),
-    deckDistanceM: decks.length === 0
-      ? null
-      : Math.max(0, Math.min(...decks.map((d) => Math.hypot(aircraft.position.x - d.center.x, aircraft.position.z - d.center.z) - d.lengthM / 2))),
   }
 }
 
@@ -92,4 +90,43 @@ function latestBlastNear(impacts: readonly CombatImpact[], at: Vec3): { tick: nu
     if (Math.hypot(hit.point.x - at.x, hit.point.y - at.y, hit.point.z - at.z) <= BLAST_AUDIBLE_M) return { tick: hit.tick, surface: hit.surface }
   }
   return null
+}
+
+/**
+ * The camera's ears and everything the spatial reducer may place: every other
+ * aircraft that is still flying, the decks, and every bomb or rocket
+ * detonation still in the impact ring. `eye` is the world-space camera pose in
+ * sim convention (body +X forward, +Y up); the world itself is Web Audio's
+ * right-handed frame (north -z, east +x, up +y), so directions pass through
+ * unchanged.
+ */
+export function spatialInputsFrom(
+  frame: Pick<FrameState, 'world'>,
+  eye: { readonly position: Vec3; readonly attitude: Quat },
+): SpatialInputs {
+  const { world } = frame
+  const player = playerAircraft(world)
+  return {
+    tick: world.tick,
+    listener: {
+      position: eye.position,
+      forward: qRotate(eye.attitude, { x: 1, y: 0, z: 0 }),
+      up: qRotate(eye.attitude, { x: 0, y: 1, z: 0 }),
+      velocity: player.state.velocity,
+    },
+    aircraft: world.aircraft
+      .filter((a) => a.id !== world.player && world.combat.aircraft[a.id]?.damage.destroyedAt == null)
+      .map((a) => ({
+        id: a.id,
+        family: engineFamilyFor(a.spec.id),
+        position: a.state.position,
+        velocity: a.state.velocity,
+        shots: world.combat.aircraft[a.id]?.shots ?? 0,
+        engineHealth: world.combat.aircraft[a.id]?.damage.engine ?? 1,
+      })),
+    decks: decksOf(world.ships).map((d, i) => ({ id: `deck${i}`, center: d.center, lengthM: d.lengthM })),
+    blasts: world.combat.impacts
+      .filter((h) => h.cause !== 'round' && h.outcome === 'detonated')
+      .map((h) => ({ tick: h.tick, surface: h.surface, position: h.point })),
+  }
 }

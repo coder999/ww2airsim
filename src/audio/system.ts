@@ -1,7 +1,8 @@
 import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
-import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position } from './backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position, SpatialLoopHandle } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
 import { ENGINE_LAYER_FOR, LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
+import { NO_SPATIAL_MEMORY, nextSpatial, type SpatialInputs, type SpatialMemory } from './spatial.js'
 import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, chaseDistanceGain, type View } from './mix.js'
 
 /**
@@ -32,6 +33,12 @@ export type AudioSnapshot = {
   readonly view: View | null
 }
 
+/** Everything replay puts aside and brings back: the cue memory and the spatial one. */
+export type AudioSystemMemory = { readonly cues: AudioMemory; readonly spatial: SpatialMemory }
+
+/** Position and Doppler glide: fast enough to follow a fly-by, slow enough not to zipper. */
+export const SPATIAL_GLIDE_TAU_S = 0.1
+
 export type AudioSystem = {
   load(): Promise<void>
   resume(): Promise<void>
@@ -54,8 +61,12 @@ export type AudioSystem = {
    *  `update`/`prime` with the replayed world, and bring it back with
    *  `restore` on exit -- "exiting restores the live audio exactly as it
    *  was" (design §7). */
-  memory(): AudioMemory
-  restore(m: AudioMemory): void
+  memory(): AudioSystemMemory
+  restore(m: AudioSystemMemory): void
+  /** Positioned AI engines, delayed blasts and gunfire, and the deck rumble, relative to the camera. */
+  updateSpatial(inputs: SpatialInputs, rate?: number): void
+  /** Advances the spatial memory past `inputs` without a sound and drops queued sounds. */
+  primeSpatial(inputs: SpatialInputs): void
   /** While held, the engine loop glides to gain 0 -- "paused means silent"
    *  (design §7), for a paused replay. The next `update` call resumes it: a
    *  hold has no inputs of its own to compute a gain from. */
@@ -76,6 +87,9 @@ export type AudioSystem = {
 
 export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LAYERS): AudioSystem {
   let memory: AudioMemory = NO_AUDIO_MEMORY
+  let spatialMemory: SpatialMemory = NO_SPATIAL_MEMORY
+  const spatialHandles = new Map<string, SpatialLoopHandle>()
+  let spatialListenerSet = false
   const handles = new Map<string, LoopHandle>()
   const layerState = new Map<string, { gain: number; rate: number; cutoffHz: number | null }>()
   let isMuted = false
@@ -160,9 +174,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
         if (id !== engineLayer && handles.has(id)) driveLayer(id, { gain: 0, rate: 1 }, rate)
       }
       // Ambience starts only when first audible, so a flight that never sees the sea never decodes into a source.
-      for (const [id, gain] of [['sea', frame.ambient.sea], ['deck', frame.ambient.deck]] as const) {
-        if (gain > 0 || handles.has(id)) driveLayer(id, { gain, rate: 1 }, rate)
-      }
+      if (frame.ambient.sea > 0 || handles.has('sea')) driveLayer('sea', { gain: frame.ambient.sea, rate: 1 }, rate)
 
       // Silent while held: a paused replay renders the same frame repeatedly,
       // and re-evaluating cues against it must not re-fire them.
@@ -183,12 +195,53 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       memory = nextAudio(memory, inputs).memory
     },
 
-    memory(): AudioMemory {
-      return memory
+    memory(): AudioSystemMemory {
+      return { cues: memory, spatial: spatialMemory }
     },
 
-    restore(m: AudioMemory): void {
-      memory = m
+    restore(m: AudioSystemMemory): void {
+      memory = m.cues
+      spatialMemory = m.spatial
+    },
+
+    updateSpatial(inputs: SpatialInputs, rate = 1): void {
+      const out = nextSpatial(spatialMemory, inputs)
+      spatialMemory = out.memory
+      if (!spatialListenerSet) {
+        spatialListenerSet = true
+        backend.setListener({ position: { x: 0, y: 0, z: 0 }, forward: { x: 0, y: 0, z: -1 }, up: { x: 0, y: 1, z: 0 } })
+      }
+      const ready = backend.loaded()
+      const live = new Set<string>()
+      for (const loop of out.loops) {
+        const def = layers[loop.layer]
+        if (def === undefined || !ready.includes(def.clip) || !finitePosition(loop.at)) continue
+        live.add(loop.key)
+        let handle = spatialHandles.get(loop.key)
+        if (handle === undefined) {
+          handle = backend.startSpatialLoop({ clip: def.clip, bus: def.bus, loopStartS: def.loopStartS, loopEndS: def.loopEndS })
+          spatialHandles.set(loop.key, handle)
+        }
+        handle.setPosition(loop.at, SPATIAL_GLIDE_TAU_S)
+        handle.setGain(held ? 0 : finiteOr(loop.gain, 0), def.glideTauS)
+        handle.setPlaybackRate(finiteOr(loop.rate, 1) * rate, SPATIAL_GLIDE_TAU_S)
+        handle.setFilterCutoff(finiteOr(loop.cutoffHz, FILTER_OPEN_HZ), SPATIAL_GLIDE_TAU_S)
+      }
+      // A source that left the nearest few, went out of earshot or was destroyed fades out.
+      for (const [key, handle] of spatialHandles) {
+        if (!live.has(key)) handle.setGain(0, SPATIAL_GLIDE_TAU_S)
+      }
+      if (held) return
+      for (const shot of out.shots) {
+        if (!ready.includes(shot.clip) || !finitePosition(shot.at)) continue
+        spatialPlayed++
+        const asset = assetFor(shot.clip)
+        backend.playSpatial(shot.clip, asset.bus, asset.cueGain * finiteOr(shot.level, 0), rate, shot.at, finiteOr(shot.cutoffHz, FILTER_OPEN_HZ))
+      }
+    },
+
+    primeSpatial(inputs: SpatialInputs): void {
+      spatialMemory = { ...nextSpatial(spatialMemory, inputs).memory, pending: [] }
     },
 
     hold(isHeld: boolean): void {
@@ -199,6 +252,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
           const s = layerState.get(id)
           if (s !== undefined) layerState.set(id, { ...s, gain: 0 })
         }
+        for (const handle of spatialHandles.values()) handle.setGain(0, SPATIAL_GLIDE_TAU_S)
       }
     },
 

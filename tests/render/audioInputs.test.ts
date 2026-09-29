@@ -1,6 +1,6 @@
 import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import { describe, it, expect } from 'vitest'
-import { audioInputsFrom } from '../../src/render/audio.js'
+import { audioInputsFrom, spatialInputsFrom } from '../../src/render/audio.js'
 import { initialFrameState, initialFrameStateFor } from '../../src/render/frame.js'
 import { createWorldOf, playerAircraft, type ShipEntity } from '../../src/sim/loop.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
@@ -11,6 +11,7 @@ import { createShipState } from '../../src/sim/world/ships.js'
 import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader } from '../../tools/terrain/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { qFromAxisAngle, qIdentity } from '../../src/sim/math/quat.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const header = loadTerrainHeader()
@@ -179,7 +180,7 @@ it('carries the cumulative bombsDropped/rocketsFired counts, not the falling sto
 it('carries damage, hook, arrest and engine family from the world the sim ran (audio expansion)', () => {
   const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
   const quiet = audioInputsFrom(frame)
-  expect(quiet).toMatchObject({ engineFamily: 'radial', structure: 1, engineHealth: 1, arrested: false, hookDown: false, deckDistanceM: null })
+  expect(quiet).toMatchObject({ engineFamily: 'radial', structure: 1, engineHealth: 1, arrested: false, hookDown: false })
 
   const rec = frame.world.combat.aircraft[frame.world.player]!
   const player = playerAircraft(frame.world)
@@ -211,4 +212,45 @@ it('reports the newest bomb or rocket detonation within earshot, never a round o
   expect(audioInputsFrom(withImpacts([bomb, { ...bomb, tick: 9, cause: 'round' }])).ordnanceBlast?.tick).toBe(7)
   expect(audioInputsFrom(withImpacts([bomb, { ...bomb, tick: 9, outcome: 'expired' }])).ordnanceBlast?.tick).toBe(7)
   expect(audioInputsFrom(withImpacts([{ ...bomb, point: at(20_000) }])).ordnanceBlast).toBeNull()
+})
+
+describe('spatialInputsFrom (spatial audio)', () => {
+  const base = () => initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+
+  it('points the listener where the camera looks, from its attitude', () => {
+    const frame = base()
+    const ahead = spatialInputsFrom(frame, { position: v3(5, 6, 7), attitude: qIdentity() }).listener
+    expect(ahead.position).toEqual(v3(5, 6, 7))
+    expect(ahead.forward.x).toBeCloseTo(1, 9)
+    expect(ahead.up.y).toBeCloseTo(1, 9)
+    // Yawed a quarter turn about +Y: body +X now points along -Z (north).
+    const north = spatialInputsFrom(frame, { position: v3(0, 0, 0), attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2) }).listener
+    expect(north.forward.z).toBeCloseTo(-1, 9)
+    expect(ahead.velocity).toEqual(playerAircraft(frame.world).state.velocity)
+  })
+
+  it('lists other aircraft that are still flying, never the player, and detonations but not rounds', () => {
+    const frame = base()
+    const player = playerAircraft(frame.world)
+    const other = { ...player, id: 'wing' }
+    const impact = (cause: CombatImpact['cause'], outcome: CombatImpact['outcome']): CombatImpact =>
+      ({ tick: 3, cause, outcome, surface: 'water', point: v3(1, 2, 3) })
+    const world = {
+      ...frame.world,
+      aircraft: [player, other, { ...player, id: 'dead' }],
+      combat: {
+        ...frame.world.combat,
+        aircraft: {
+          ...frame.world.combat.aircraft,
+          wing: { ...frame.world.combat.aircraft[frame.world.player]!, shots: 9 },
+          dead: { ...frame.world.combat.aircraft[frame.world.player]!, damage: { ...frame.world.combat.aircraft[frame.world.player]!.damage, destroyedAt: 5 } },
+        },
+        impacts: [impact('round', 'detonated'), impact('bomb', 'expired'), impact('bomb', 'detonated')],
+      },
+    }
+    const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
+    expect(out.aircraft.map((a) => a.id)).toEqual(['wing'])
+    expect(out.aircraft[0]).toMatchObject({ shots: 9, family: 'radial' })
+    expect(out.blasts).toEqual([{ tick: 3, surface: 'water', position: v3(1, 2, 3) }])
+  })
 })
