@@ -22,6 +22,7 @@
     { "node": "Turret4", "pivot": { "point": [-8.000718, -1.38828, 0], "axis": "-y" } },
     { "node": "Turret5", "pivot": { "point": [-16.197606, 0.3018, 0], "axis": "+y" } }
   ],
-  "textures": { "maxSize": 512, "format": "webp" },
+  "skin": true,
+  "textures": { "maxSize": 1024, "format": "webp" },
   "budget": { "maxBytes": 5000000, "maxTriangles": 100000, "maxDrawCalls": 47 }
 }
