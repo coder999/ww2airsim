@@ -47,7 +47,7 @@ describe('replay cameras (spec §5; plan R-6, R-7, R-10, R-11, R-13)', () => {
     const pose = endPose(record())
     for (const o of [{ yawRad: 0.7, pitchRad: 0.3, zoom: 2 }, { yawRad: -2, pitchRad: -0.5, zoom: 0.6 }]) {
       const eye = cameraTransformFor('chase', f6f, pose.render, LOOK_CENTRE, pose.speedMps, o)
-      const back = orbitFromEye(eye.position, pose.render, pose.speedMps)
+      const back = orbitFromEye(eye.position, pose.render, pose.speedMps, f6f)
       expect(back.yawRad).toBeCloseTo(o.yawRad, 6)
       expect(back.pitchRad).toBeCloseTo(o.pitchRad, 6)
       expect(back.zoom).toBeCloseTo(o.zoom, 6)

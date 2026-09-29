@@ -10,6 +10,9 @@ export interface Figure { readonly label: string; readonly value: string; readon
 
 const GAMEPLAY_VALUE = 'gameplay value, not a historical figure'
 const KN_PER_MPS = 3600 / 1852
+const MPH_PER_MPS = 3600 / 1609.344
+const FT_PER_M = 1 / 0.3048
+const LB_PER_KG = 1 / 0.45359237
 
 const int = (n: number): string => Math.round(n).toLocaleString('en-US')
 const one = (n: number): string => n.toFixed(1)
@@ -58,8 +61,8 @@ export function figuresFor(entry: CatalogEntry): Figure[] {
       out.push({ label: 'Structure', value: `${int(a.combat.structureHp)} HP`, note: GAMEPLAY_VALUE })
       out.push({ label: 'Each subsystem', value: `${int(a.combat.subsystemHp)} HP`, note: GAMEPLAY_VALUE })
     }
-    out.push(withNote({ label: 'Top speed', value: `${int(a.reference.topSpeedMps * 3.6)} km/h at ${int(a.reference.topSpeedAltitudeM)} m` }, flight))
-    out.push(withNote({ label: 'Stall speed, clean', value: `${int(a.reference.stallSpeedMps * 3.6)} km/h` }, flight))
+    out.push(withNote({ label: 'Top speed', value: `${int(a.reference.topSpeedMps * MPH_PER_MPS)} mph at ${int(a.reference.topSpeedAltitudeM * FT_PER_M)} ft` }, flight))
+    out.push(withNote({ label: 'Stall speed, clean', value: `${int(a.reference.stallSpeedMps * MPH_PER_MPS)} mph` }, flight))
     out.push(withNote({ label: 'Load limit', value: `${one(a.limits.gLimit)} g` }, flight))
     if (a.combat) {
       const rounds = a.combat.guns.reduce((sum, g) => sum + g.rounds, 0)
@@ -73,18 +76,18 @@ export function figuresFor(entry: CatalogEntry): Figure[] {
     const sh = s.spec
     return [
       { label: 'Hull', value: `${int(sh.hullHp)} HP`, note: GAMEPLAY_VALUE },
-      { label: 'Length', value: `${one(sh.lengthM)} m` },
-      { label: 'Beam', value: `${one(sh.beamM)} m` },
-      { label: 'Top speed', value: `${one(sh.maxSpeedMps * KN_PER_MPS)} kn (${one(sh.maxSpeedMps)} m/s)` },
+      { label: 'Length', value: `${int(sh.lengthM * FT_PER_M)} ft` },
+      { label: 'Beam', value: `${int(sh.beamM * FT_PER_M)} ft` },
+      { label: 'Top speed', value: `${one(sh.maxSpeedMps * KN_PER_MPS)} kn` },
       pointsFigure('Points when sunk', shipTargetType(sh.role)),
     ]
   }
   if (s.kind === 'ordnance') {
     const t = s.store
-    const out: Figure[] = [{ label: 'Weight', value: `${int(t.massKg)} kg (${int(t.massKg / 0.45359237)} lb)` }]
-    if (t.fillerKg !== undefined) out.push({ label: 'Explosive filler', value: `${one(t.fillerKg)} kg` })
-    if (t.warheadKg !== undefined) out.push({ label: 'Warhead', value: `${one(t.warheadKg)} kg` })
-    out.push({ label: 'Blast radius', value: `${int(t.blastRadiusM)} m`, note: GAMEPLAY_VALUE })
+    const out: Figure[] = [{ label: 'Weight', value: `${int(t.massKg * LB_PER_KG)} lb` }]
+    if (t.fillerKg !== undefined) out.push({ label: 'Explosive filler', value: `${int(t.fillerKg * LB_PER_KG)} lb` })
+    if (t.warheadKg !== undefined) out.push({ label: 'Warhead', value: `${int(t.warheadKg * LB_PER_KG)} lb` })
+    out.push({ label: 'Blast radius', value: `${int(t.blastRadiusM * FT_PER_M)} ft`, note: GAMEPLAY_VALUE })
     out.push({ label: 'Damage', value: int(t.damage), note: GAMEPLAY_VALUE })
     out.push({ label: 'Carried by', value: s.carriers.map((a) => a.name).join(', ') })
     return out

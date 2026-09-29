@@ -1,10 +1,11 @@
 import { aircraftById, playerAircraft, type World } from '../sim/loop.js'
 import type { RenderState } from '../sim/interpolate.js'
+import type { AircraftSpec } from '../sim/flight/schema.js'
 import { DT } from '../sim/flight/model.js'
 import { type Vec3, v3, add, sub, scale, length, normalize } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize, qRotate } from '../sim/math/quat.js'
 import {
-  CHASE_OFFSET_M, CHASE_PITCH_FOLLOW, ORBIT_SURFACE_CLEARANCE_M, cameraTransformFor, chaseDistanceScale, headingOf, pitchOf,
+  CHASE_OFFSET_M, CHASE_PITCH_FOLLOW, ORBIT_SURFACE_CLEARANCE_M, cameraTransformFor, chaseDistanceScale, chaseSizeScale, headingOf, pitchOf,
   type EyeTransform, type SurfaceHeightAt,
 } from '../render/camera.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -89,7 +90,7 @@ export function lookAt(from: Vec3, to: Vec3): Quat {
  * `chase * Y(-yaw) * Z(-pitch)`. Clamped to the orbit limits, so a handover
  * from far away keeps the bearing but not the distance.
  */
-export function orbitFromEye(eye: Vec3, render: RenderState, speedMps: number): OrbitOffset {
+export function orbitFromEye(eye: Vec3, render: RenderState, speedMps: number, spec: AircraftSpec): OrbitOffset {
   const chase = headingPitch(headingOf(render.attitude), pitchOf(render.attitude) * CHASE_PITCH_FOLLOW)
   const inverse: Quat = { x: -chase.x, y: -chase.y, z: -chase.z, w: chase.w }
   const local = qRotate(inverse, sub(eye, render.position))
@@ -100,7 +101,7 @@ export function orbitFromEye(eye: Vec3, render: RenderState, speedMps: number): 
   return {
     yawRad: wrapPi(Math.atan2(-local.z, -local.x)),
     pitchRad: clamp(Math.asin(clamp(local.y / d, -1, 1)) - e0, ORBIT_PITCH_MIN_RAD, ORBIT_PITCH_MAX_RAD),
-    zoom: clamp(d / (Math.hypot(ox, oy, oz) * chaseDistanceScale(speedMps)), ORBIT_ZOOM_MIN, ORBIT_ZOOM_MAX),
+    zoom: clamp(d / (Math.hypot(ox, oy, oz) * chaseDistanceScale(speedMps) * chaseSizeScale(spec)), ORBIT_ZOOM_MIN, ORBIT_ZOOM_MAX),
   }
 }
 
@@ -260,7 +261,7 @@ export function stepCameraState(s: ReplayCameraState, input: ReplayCameraInput, 
   let cam = effectiveCamera(s)
   let next = s
   if (drag && (cam === 'flyby' || cam === 'target')) {
-    next = { ...s, selected: 'orbit', orbit: orbitFromEye(eye.position, pose.render, pose.speedMps), spin: false }
+    next = { ...s, selected: 'orbit', orbit: orbitFromEye(eye.position, pose.render, pose.speedMps, playerAircraft(pose.world).spec), spin: false }
     cam = 'orbit'
   }
   if (cam === 'orbit') {

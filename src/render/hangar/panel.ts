@@ -106,7 +106,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
         }
         if (modelSize) {
           const tr = el('tr')
-          tr.append(el('th', undefined, 'Model size'), el('td', undefined, `${modelSize.x.toFixed(1)} × ${modelSize.z.toFixed(1)} × ${modelSize.y.toFixed(1)} m (length × width × height)`))
+          tr.append(el('th', undefined, 'Model size'), el('td', undefined, `${(modelSize.x / 0.3048).toFixed(1)} × ${(modelSize.z / 0.3048).toFixed(1)} × ${(modelSize.y / 0.3048).toFixed(1)} ft (length × width × height)`))
           table.appendChild(tr)
         }
         if (source) {
