@@ -22,6 +22,8 @@ measurements. The per-plan history that used to sit here is in
 for satellite-derived ground texture; findings, variants and traps are in
 [docs/drape.md](docs/drape.md).
 
+**Audio foundation (2026-09-29):** engine, effects and ambient buses, named looping layers, a cockpit/chase cabin mix, chase-camera distance falloff and positioned one-shots. `verify` was red for unrelated failures, see the [handoff](docs/handoff/2026-09-29-audio-foundation.md); master spec §15 holds the status, and the order of the rest is in `docs/superpowers/specs/2026-09-29-audio-expansion-design.md`.
+
 ## Flying it
 
 The cockpit has a grey trapezoidal dashboard with a dark rim and raised centre,

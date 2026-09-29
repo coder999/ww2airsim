@@ -1,7 +1,8 @@
 import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
-import type { AudioBackend, BackendState, LoopHandle } from './backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
-import { ENGINE_GLIDE_TAU_S, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from './mix.js'
+import { LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
+import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, chaseDistanceGain, type View } from './mix.js'
 
 /**
  * The wiring: holds the reducer's memory and the loop handle, and applies each
@@ -25,7 +26,10 @@ export type AudioSnapshot = {
   readonly masterGain: number
   readonly engineGain: number
   readonly enginePlaybackRate: number
+  readonly layers: Readonly<Record<string, { readonly gain: number; readonly rate: number; readonly cutoffHz: number | null }>>
   readonly cuesFired: number
+  readonly spatialPlayed: number
+  readonly view: View | null
 }
 
 export type AudioSystem = {
@@ -37,6 +41,10 @@ export type AudioSystem = {
    *  octave down along with everything else in the scene, not at its live
    *  pitch. */
   update(inputs: AudioInputs, rate?: number): void
+  /** Drives one named looping layer (`LAYERS`). Starts it on first use once its
+   *  clip has decoded; a layer whose clip failed is a silent no-op. `rate` is
+   *  the replay speed, multiplied into the layer's playback rate. */
+  driveLayer(id: string, drive: LayerDrive, rate?: number): void
   /** Advances the cue memory past `inputs` without making a sound and
    *  without touching the engine loop. Instant replay uses this to jump the
    *  replayed cue memory to a scrub target silently: without it, scrubbing
@@ -52,22 +60,33 @@ export type AudioSystem = {
    *  (design §7), for a paused replay. The next `update` call resumes it: a
    *  hold has no inputs of its own to compute a gain from. */
   hold(held: boolean): void
+  /** One-shot placed in the world. Same rules as any cue: silent while held,
+   *  never a failed clip, never a non-finite position. */
+  playAt(clip: ClipId, at: Position, rate?: number): void
+  /** Listener pose for positioned sounds; a pose with a non-finite component is dropped. */
+  setListener(pose: ListenerPose): void
+  /** Called every frame; reaches the backend only when the view changes. */
+  setView(view: View): void
+  /** Chase-camera zoom, called every frame; reaches the backend only when the resulting gain changes. */
+  setCameraZoom(zoom: number): void
   setMuted(muted: boolean): void
   muted(): boolean
   snapshot(): AudioSnapshot
 }
 
-export function createAudioSystem(backend: AudioBackend): AudioSystem {
+export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LAYERS): AudioSystem {
   let memory: AudioMemory = NO_AUDIO_MEMORY
-  let loop: LoopHandle | null = null
+  const handles = new Map<string, LoopHandle>()
+  const layerState = new Map<string, { gain: number; rate: number; cutoffHz: number | null }>()
   let isMuted = false
   // Mirrored here rather than read back off the backend, because the real one
   // cannot be asked: an AudioParam's value after setTargetAtTime is a curve in
   // progress, not the target that was requested.
   let masterGain = 0
-  let engineGain = 0
-  let enginePlaybackRate = 0
   let cuesFired = 0
+  let spatialPlayed = 0
+  let view: View | null = null
+  let distanceGain = 1
   const failed: ClipId[] = []
   // Instant replay's pause (design §7): forced to gain 0 by `hold(true)`
   // rather than by suppressing `update` calls, because the held frame is
@@ -75,7 +94,35 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
   // change.
   let held = false
 
+  const finitePosition = (p: Position): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)
+
+  function driveLayer(id: string, drive: LayerDrive, rate = 1): void {
+    const def = layers[id]
+    if (def === undefined) throw new Error(`no audio layer named ${id}`)
+    if (!backend.loaded().includes(def.clip)) return
+    let handle = handles.get(id)
+    if (handle === undefined) {
+      // Started lazily: the buffer has to have decoded first, and starting it
+      // here means one call site handles "decoded late" and "never decoded".
+      handle = backend.startLoop({ clip: def.clip, bus: def.bus, loopStartS: def.loopStartS, loopEndS: def.loopEndS })
+      handles.set(id, handle)
+    }
+    // Glided, never assigned (see LayerDef.glideTauS). Held (a paused replay)
+    // overrides the computed gain with 0, same as `hold(true)` itself.
+    const gain = held ? 0 : finiteOr(drive.gain, 0)
+    const playbackRate = finiteOr(drive.rate, 1) * rate
+    handle.setGain(gain, def.glideTauS)
+    handle.setPlaybackRate(playbackRate, def.glideTauS)
+    let cutoffHz: number | null = null
+    if (drive.cutoffHz !== undefined) {
+      cutoffHz = finiteOr(drive.cutoffHz, FILTER_OPEN_HZ)
+      handle.setFilterCutoff(cutoffHz, def.glideTauS)
+    }
+    layerState.set(id, { gain, rate: playbackRate, cutoffHz })
+  }
+
   return {
+    driveLayer,
     async load(): Promise<void> {
       masterGain = MASTER_GAIN
       backend.setMasterGain(MASTER_GAIN)
@@ -102,24 +149,9 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       memory = frame.memory
       const ready = backend.loaded()
 
-      // Started lazily rather than in `load()`: the buffer has to have decoded
-      // first, and starting it here means one call site handles both "decoded
-      // late" and "never decoded at all".
-      if (loop === null && ready.includes('propeller')) {
-        loop = backend.startLoop('propeller', loopStartSeconds(), loopEndSeconds())
-      }
-      if (loop !== null) {
-        // Glided, never assigned. `M` (throttle cut) moves the lever 1 -> 0 in
-        // a single frame, and a step on an AudioParam is an audible click.
-        // Held (a paused replay) overrides the computed gain with 0, same as
-        // `hold(true)` itself -- see that method.
-        engineGain = held ? 0 : frame.engine.gain
-        // Scaled by the replay speed (design §7): at 0.5x the engine sounds
-        // half as fast as it does live, matching the replayed world.
-        enginePlaybackRate = frame.engine.playbackRate * rate
-        loop.setGain(engineGain, ENGINE_GLIDE_TAU_S)
-        loop.setPlaybackRate(enginePlaybackRate, ENGINE_GLIDE_TAU_S)
-      }
+      // Scaled by the replay speed (design §7): at 0.5x the engine sounds
+      // half as fast as it does live, matching the replayed world.
+      driveLayer('engine', { gain: frame.engine.gain, rate: frame.engine.playbackRate }, rate)
 
       // Silent while held: a paused replay renders the same frame repeatedly,
       // and re-evaluating cues against it must not re-fire them.
@@ -128,7 +160,8 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       for (const cue of frame.cues) {
         if (!ready.includes(cue)) continue
         cuesFired++
-        backend.playOnce(cue, assetFor(cue).cueGain, rate)
+        const asset = assetFor(cue)
+        backend.playOnce(cue, asset.bus, asset.cueGain, rate)
       }
     },
 
@@ -149,10 +182,31 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
 
     hold(isHeld: boolean): void {
       held = isHeld
-      if (held && loop !== null) {
-        engineGain = 0
-        loop.setGain(0, ENGINE_GLIDE_TAU_S)
+      if (held) {
+        for (const [id, handle] of handles) {
+          handle.setGain(0, layers[id]!.glideTauS)
+          const s = layerState.get(id)
+          if (s !== undefined) layerState.set(id, { ...s, gain: 0 })
+        }
       }
+    },
+
+    /** Bypasses the reducer: no replay-rate scaling or scrub silence here. The caller must
+     *  supply its own edge memory, pass the replay rate, and skip frames where the replay jumped. */
+    playAt(clip: ClipId, at: Position, rate = 1): void {
+      // Same rules as any cue: silent while held, never a failed clip, never
+      // a NaN position (a non-finite value on a PannerNode throws).
+      if (held) return
+      if (!backend.loaded().includes(clip)) return
+      if (!finitePosition(at)) return
+      const asset = assetFor(clip)
+      spatialPlayed++
+      backend.playOnce(clip, asset.bus, asset.cueGain, rate, at)
+    },
+
+    setListener(pose: ListenerPose): void {
+      if (!finitePosition(pose.position) || !finitePosition(pose.forward) || !finitePosition(pose.up)) return
+      backend.setListener(pose)
     },
 
     setMuted(muted: boolean): void {
@@ -167,6 +221,19 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       return isMuted
     },
 
+    setView(next: View): void {
+      if (next === view) return
+      view = next
+      backend.setCabin(CABIN_PRESETS[next], CABIN_GLIDE_TAU_S)
+    },
+
+    setCameraZoom(zoom: number): void {
+      const next = chaseDistanceGain(zoom)
+      if (next === distanceGain) return
+      distanceGain = next
+      backend.setDistanceGain(next, DISTANCE_GLIDE_TAU_S)
+    },
+
     snapshot(): AudioSnapshot {
       return {
         state: backend.state(),
@@ -174,9 +241,12 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
         failed,
         muted: isMuted,
         masterGain,
-        engineGain,
-        enginePlaybackRate,
+        engineGain: layerState.get('engine')?.gain ?? 0,
+        enginePlaybackRate: layerState.get('engine')?.rate ?? 0,
+        layers: Object.fromEntries(layerState),
         cuesFired,
+        spatialPlayed,
+        view,
       }
     },
   }

@@ -15,6 +15,17 @@
  *  budget is asserted in tests/audio/assets.test.ts, not just stated here. */
 export const MASTER_GAIN = 0.80
 
+/** Chase-camera zoom (`OrbitOffset.zoom`, 1 = default) to world-stage gain:
+ *  3 dB quieter per doubling of distance, never louder than the default view.
+ *  Deliberately gentler than the 6 dB of physical spreading -- it is a cue for
+ *  distance, not a simulation of it. Radio is unaffected (it is in the helmet). */
+export function chaseDistanceGain(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= 1) return 1
+  return zoom ** -0.5
+}
+
+export const DISTANCE_GLIDE_TAU_S = 0.1
+
 /** Engine gain at full throttle. */
 export const ENGINE_GAIN_MAX = 0.50
 
@@ -98,3 +109,56 @@ export function enginePlaybackRateFor(throttle: number): number {
 export function worstCaseAmplitude(cueGain: number, cuePeak: number, enginePeak: number): number {
   return cueGain * cuePeak + enginePeak
 }
+
+/** Per-bus output gain, applied in the audio graph after each bus's sources.
+ *  `engine` and `sfx` are 1 so today's mix is unchanged (the gain budget in
+ *  tests/audio/assets.test.ts is arithmetic on exactly those); `ambient` and
+ *  `radio` are reasoned guesses until somebody flies them. */
+export const BUS_GAIN = { engine: 1, sfx: 1, ambient: 0.6, radio: 0.9 } as const
+
+export type Bus = keyof typeof BUS_GAIN
+
+/** A lowpass at this frequency is inaudible: the "open" position of every
+ *  per-layer filter. */
+export const FILTER_OPEN_HZ = 20_000
+
+/** Q for lowpass/highpass biquads is read in dB; -3.0103 dB is Butterworth-flat (linear 1/sqrt(2)), no resonant bump. */
+export const BIQUAD_FLAT_Q_DB = -3.0103
+
+/** The radio chain's pass band (spec §5.3) and how hard its soft clipper is
+ *  driven. */
+export const RADIO_BAND_LOW_HZ = 400
+export const RADIO_BAND_HIGH_HZ = 3_200
+export const RADIO_DRIVE = 2
+
+export type View = 'cockpit' | 'chase'
+
+/** What the cabin stage does to the mix in one view (spec §2). The world
+ *  buses go through one lowpass and gain; the radio through its own. The
+ *  chase world stage is fully open at unity gain (the previous sound; the default
+ *  view is chase), while the cockpit numbers are reasoned guesses until Mark has
+ *  flown and tuned them. */
+export type CabinPreset = {
+  readonly worldLowpassHz: number
+  readonly worldGain: number
+  /** Linear multipliers on the engine and sfx buses ahead of the world stage.
+   *  The lowpass cannot separate the views for the engine (the propeller clip
+   *  has under 0.1% of its energy above 9 kHz), so level is the lever. */
+  readonly engineTrim: number
+  readonly sfxTrim: number
+  readonly radioLowpassHz: number
+  readonly radioGain: number
+}
+
+export const CABIN_PRESETS: Readonly<Record<View, CabinPreset>> = {
+  cockpit: { worldLowpassHz: 9_000, worldGain: 1, engineTrim: 1.4, sfxTrim: 0.7, radioLowpassHz: 20_000, radioGain: 1 },
+  chase: { worldLowpassHz: FILTER_OPEN_HZ, worldGain: 1, engineTrim: 0.7, sfxTrim: 1, radioLowpassHz: 2_200, radioGain: 0.7 },
+}
+
+/** Crossfade time constant when the view changes. */
+export const CABIN_GLIDE_TAU_S = 0.25
+
+/** Distance at which a positioned one-shot is at its recorded level; beyond it
+ *  the panner's inverse-distance model attenuates. Placeholder until
+ *  sub-project 5 tunes rolloff by flying it. */
+export const PANNER_REF_DISTANCE_M = 100
