@@ -21,8 +21,6 @@ not exist, and three conventions below were being missed for that reason).
 6. For cloud work, `docs/clouds.md` — what ships, what was tried and with
    what result, the traps, and the open issues. Update it in the same commit
    as any cloud change.
-7. For ground-drape work (`?drape=`), `docs/drape.md` — variants, what was
-   tried, sources ruled out, traps.
 
 ## This checkout
 
