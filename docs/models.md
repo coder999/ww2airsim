@@ -145,7 +145,7 @@ Every entry must now arrive with its model: R5 deleted the allowlist, and
   place is a wrong pivot. *Wireframe* shows the mesh. The counts line reads
   the model against its budget and turns red when it is over.
 - **Assert:** run `tests/e2e/hangar.spec.ts` on the reference GPU (the
-  command is in README's "Tier 2: the GPU harness"). A new library entry is
+  command is in `docs/testing.md`). A new library entry is
   picked up automatically. Checks 1–3, 5–10 and 12–14 cover the following:
   - it renders
   - its gear, propeller and stores move
