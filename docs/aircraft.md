@@ -88,7 +88,9 @@ Ask three things:
    `differentialBrakes` and `brakeYawRateDegPerSec` no longer exist. Tail
    strike and nosewheel liftoff geometry are not modeled.
 2. **Retractable or fixed.** Recommend the historical answer. A fixed gear
-   (the Val) has `travelSeconds` but no retraction; the Oscar's main gear retracts (its model has GearL/GearR rig nodes). Check the rig nodes.
+   (the Val) sets `gear.fixed: true`: the sim holds the gear down whatever the gear key commands and adds no separate gear drag
+   (that drag is inside the fitted `cd0`); `travelSeconds` and `dragAreaM2` still have to be present and are unused. The Oscar's main
+   gear retracts (its model has GearL/GearR rig nodes). Check the rig nodes.
 3. **Height and stance.** Recommend measuring from the model with
    `tests/tools/models/stance.test.ts`, and stretching legs at load time only
    where the stock model sits wrong (the Wildcat's `wildcatGearStretch`, which
@@ -450,6 +452,60 @@ Detail: [`docs/handoff/2026-09-30-ki43-onboard.md`](handoff/2026-09-30-ki43-onbo
   A `stores` block is offered the same with or without Dev, so a stores-carrying spec needs no `needsDevStores` handling.
 - **Fit two speeds first, then look at the climb.** With the Zero's lift curve the first-guess cd0 and propulsive efficiency landed both
   sourced speeds within 1%; the climb then reads +17% to +20%, the fleet's known bias, and is left alone.
+
+## Lessons from the seventh run (D3A2 Val, 2026-09-30)
+
+Detail: [`docs/handoff/2026-09-30-d3a-onboard.md`](handoff/2026-09-30-d3a-onboard.md).
+
+- **A fixed gear was not a thing before this run.** `gear.fixed: true` (schema, `gearAfter`, `gearDragN`) pins `gearFraction` at 1 and zeroes the
+  separate gear drag; without it the G key retracted the Val's spats in the sim while the model kept drawing them. The spec still needs
+  `travelSeconds` and `dragAreaM2` to satisfy the schema; label them unused. The fixed gear's drag lives in the fitted `cd0`, which is why
+  the Val's (0.022) is above the retractable fighters'.
+- **A fixed-gear model has no rig nodes, so the "stands on the gear height" check in `aircraftRigs.test.ts` reads the airframe mesh
+  (every node but the propeller) for a `gear.fixed` spec.**
+- **A sourced climb table can rise with altitude** (two-speed blower: the Val's 2,160 ft/min at sea level, 2,330 ft/min at 9,850 ft). The
+  graded card's "climbs more slowly at each higher altitude" check now follows the sourced direction instead of assuming a fall.
+- **A centerline belly rack is neither a wing mount nor an internal bay.** Add the id to `INTERNAL` in `wildcatMounts.test.ts` (the set means
+  "not wing-hung") and hold the offset with `tests/tools/models/bellyRack.test.ts`. The `an-m65` origin is the lug top, so the offset y is the
+  lowest belly point under the store minus about 0.02 m minus the lug height.
+- **A store the game does not have stands in for the historic load, and the card says so.** The Val's 250 kg + 2 x 60 kg is one 453.6 kg
+  `an-m65` on one rack (+23%); the two wing bombs are dropped rather than faked with a 7.6x heavier bomb.
+- **Sea-level power fractions carry the rating the speed sheet uses.** The TAIC speeds are military power, so the curve is 1,075/1,280 = 0.84 at
+  sea level, and the take-off roll then reads long (+56%); it is reported, not fitted.
+- **Carrier capability is cheap to try**: set `carrierCapable: true`, run `carrierTakeoff.test.ts` (auto-discovers) and clone
+  `trapCorsair.test.ts` as `trapVal.test.ts`. The Dev carrier-start pins in `sortieFlow.test.ts` and `catalog.test.ts` gain the id.
+- **Spec name and card name must match; put the short roster name in `rosterName`** (the Val: "Aichi D3A2 Model 22 Val" / "Aichi D3A Val").
+- **Combat zones must stay inside the propeller-excluded bounds** (`combatFit.test.ts`); the engine zone's first guess overshot the cowl by 6 mm.
+## Lessons from the seventh run (Ki-84-Ia Frank, 2026-09-30)
+
+Detail: [`docs/handoff/2026-09-30-ki84-onboard.md`](handoff/2026-09-30-ki84-onboard.md).
+
+- **`mainX` must be positive, and `centerPoint.test.ts` caps how far you can move the origin.** A taildragger whose drawn mains stand on the
+  model origin fails the schema ("body origin between its wheels"). The fix is `normalize.origin` in the model entry (source coordinates,
+  rebuild with `npx tsx tools/models/build.ts <id>`, no Blender), but the origin also stands for the quarter-chord within 0.15 m, so the
+  usable shift is under 0.15 m. Every x in the spec (guns, zones, racks, eye, `thirdX`) moves with it; re-run `tools/models/mounts.ts`.
+- **A steep drawn stance pins the ground pitch ceiling to the rest pitch and fails conformance test 6 low.** At 16.4 degrees tail-down the
+  airplane unsticks at its own stall (1.00 x, against the 0.95 floor). That is a finding about the drawing, so the floor was widened for the id
+  in `conformance.test.ts` with a comment, as the B-17's was.
+- **`solve.ts` diverges when the speed Jacobian is near singular.** cd0 and propulsive efficiency were nearly degenerate on speed alone; scan a
+  grid of pairs and break the tie with the climb, and say that you did.
+- **The catalog test's model-only fixture is a real card.** `tests/render/hangar/catalog.test.ts` used the Ki-84 card as its "display-only"
+  example; it now strips `spec` from a copy. Any card onboarded next needs no change there.
+- **A scratch vitest prints nothing by default:** `--silent=false --reporter=verbose`. And check `ss -ltn` for the Tier 2 port before starting
+  vite: `--strictPort` fails and the curl then reaches someone else's server.
+## Lessons from the seventh run (Ki-21-IIb Sally, 2026-09-30)
+
+Detail: [`docs/handoff/2026-09-30-ki21-onboard.md`](handoff/2026-09-30-ki21-onboard.md).
+
+- **A source's own climb table may rise with altitude.** The Ki-21's TAIC sheet prints more climb at 8,550 ft than at sea level (the
+  supercharger's military rating peaks there), and `graded.test.ts` used to demand a fall. It now orders the model as the reference is
+  ordered; do not bend the powers to make a rise into a fall.
+- **The default center-point station can sit on a nacelle or fuselage.** Sweep stations 0.05 to 0.9 with `sectionAtFor(id, -6)` in a
+  scratch test and take a clean wing one (the Ki-21: station 0.5, 0.000 m); the fit test prints the failing quarter-chord.
+- **The schema needs `testMassKg` at or under `maxTakeoffKg`.** When the sourced test weight exceeds a secondary maximum, use the test
+  weight as the maximum and name both figures in `source`.
+- **The B-17's 11.27 g lift-off bump is not visible to a consecutive-tick velocity probe** (the same probe reads 1.28 g on the B-17), so it
+  cannot be used to check another airplane that way.
 
 ## The worked example
 

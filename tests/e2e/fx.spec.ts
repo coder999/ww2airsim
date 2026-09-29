@@ -104,7 +104,9 @@ test('cloud ordering: a fireball in front of a cloud keeps its pixels (spec §4.
   const unlimited = await warmAt(withParams(photo, { fxCloudLimit: 'off' }), 'cloud-fireball-nolimit')
   const clear = await warmAt(withParams(photo, { cloudTier: 'off' }), 'cloud-fireball-clearsky')
   console.log(`FX cloud ordering warm px: limited ${limited}, no limit ${unlimited}, clear sky ${clear}`)
-  expect(limited).toBeGreaterThanOrEqual(0.5 * clear)
+  // 0.4, not E1's 0.5: the baked fireball measured 0.44 and 0.43 of clear sky on 2026-09-28 (plan E2
+  // Task 10, Mark's ruling). The control below still proves the limit is what keeps the fireball.
+  expect(limited).toBeGreaterThanOrEqual(0.4 * clear)
   expect(unlimited).toBeLessThan(0.5 * limited) // the control: without the limit the cloud eats the fireball
 })
 

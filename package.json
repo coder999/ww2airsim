@@ -27,7 +27,9 @@
     "models:mounts": "tsx tools/models/mounts.ts",
     "models:rig": "tsx tools/models/rig.ts",
     "audio:rocket-whoosh": "tsx tools/audio/synthesizeRocketWhoosh.ts",
-    "fx:placeholders": "tsx tools/fx/build.ts",
+    "fx:render": "tsx tools/fx/render.ts",
+    "fx:pack": "tsx tools/fx/bake.ts",
+    "fx:bake": "tsx tools/fx/render.ts && tsx tools/fx/bake.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
     "test:tier2": "playwright test"
   },

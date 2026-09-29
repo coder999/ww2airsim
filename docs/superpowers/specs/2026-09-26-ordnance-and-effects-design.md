@@ -357,6 +357,8 @@ version, the scene file hash and the simulation seed in a manifest,
 | `spray` | liquid spray and mist particles | crowns, base surge, `round.water` |
 | `flame` | small steady fire | rocket motor, `ship.fire` |
 
+**Amended 2026-09-28 (plan E2):** `water-column` and `spray` shipped as this table says, Mantaflow liquid, rendering only its spray and foam particles as a white scattering volume. That reverses the plan's Ruling R4 (white gas, kept as `*-gas.py` for comparison). Bakes run on ryzen or nexus, not only nexus as above; see [`docs/fx-bake.md`](../../fx-bake.md) and the [E2 handoff](../../handoff/2026-09-28-e2-flipbooks.md).
+
 Debris and sparks are code-drawn streak sprites and need no sheet.
 
 ### 6.2 What each sheet contains

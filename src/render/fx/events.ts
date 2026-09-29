@@ -3,7 +3,7 @@ import { DT } from '../../sim/flight/model.js'
 import type { RenderState } from '../../sim/interpolate.js'
 import type { Impact } from '../../sim/loop.js'
 import { qRotate } from '../../sim/math/quat.js'
-import { add, v3, ZERO, type Vec3 } from '../../sim/math/vec3.js'
+import { add, length, scale, v3, ZERO, type Vec3 } from '../../sim/math/vec3.js'
 import type { CombatState } from '../../sim/weapons/combat.js'
 import type { CombatImpact } from '../../sim/weapons/impacts.js'
 import type { RecipeId } from './catalog.js'
@@ -28,7 +28,7 @@ export const NO_FX_MEMORY: FxMemory = { lastTick: 0, lastImpactTick: 0, seenCras
 
 export type FxWorldView = {
   readonly tick: number
-  readonly combat: Pick<CombatState, 'impacts' | 'aircraft' | 'ships' | 'structures'>
+  readonly combat: Pick<CombatState, 'impacts' | 'aircraft' | 'ships' | 'structures' | 'projectiles'>
   readonly aircraft: readonly { readonly id: string; readonly impact: Impact | null; readonly state: { readonly velocity: Vec3 } }[]
   /** Parallel to `aircraft`: this frame's interpolated poses (frame.ts `posesFor`). */
   readonly poses: readonly RenderState[]
@@ -45,6 +45,21 @@ export const COLLAPSE_SMOKE_S = 60
 /** Where engine smoke leaves the airframe, body frame (+x nose): smoke.ts's
  *  first puff, `(3.2, 0.7, 0)`, carried over unchanged. */
 export const ENGINE_SMOKE_OFFSET_BODY: Vec3 = v3(3.2, 0.7, 0)
+
+/**
+ * How long a rocket's motor flame shows, seconds. Rendering-only estimate:
+ * `Projectile` carries no store-type field (only `kind`), so this cannot be
+ * read off `content/aircraft/f6f-hellcat.json`'s `stores.types.hvar.burnS`
+ * at runtime -- it is mirrored from that figure (1.0 s, itself an estimate
+ * per that file's own `stores.source`), and will drift silently if that
+ * content value ever changes.
+ */
+export const ROCKET_BURN_S = 1.0
+
+/** The HVAR model's aft end, metres behind its origin along its axis: content/ordnance/hvar.glb's
+ *  bounds min x is -0.758 (measured 2026-09-27; fxEvents.test.ts re-measures it). The axis sits
+ *  0.09 m below the origin; ignored, against a 0.7-1.1 m flame (plan E2 Ruling R8). */
+export const ROCKET_NOZZLE_AFT_M = 0.76
 
 export function impactRecipe(i: Pick<CombatImpact, 'cause' | 'outcome' | 'surface'>): RecipeId | null {
   if (i.outcome === 'expired' || i.surface === 'air') return null
@@ -98,6 +113,13 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
       })
     }
   })
+
+  for (const p of w.combat.projectiles) {
+    if (p.kind !== 'rocket' || p.ageS >= ROCKET_BURN_S) continue
+    const speed = length(p.velocity)
+    const aft = speed > 1e-9 ? scale(p.velocity, -ROCKET_NOZZLE_AFT_M / speed) : ZERO
+    sustained.push({ key: `rocket:${p.id}`, recipe: 'rocket.motor', intensity: 1, position: add(p.position, aft), velocity: p.velocity })
+  }
 
   for (const [id, d] of Object.entries(w.combat.ships)) {
     const origin = w.shipSmokeOrigins.get(id)

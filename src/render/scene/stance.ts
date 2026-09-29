@@ -47,7 +47,17 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-29 (G4M1 onboarding) with drawnPoints, the propellers and turret excluded: mains at x 1.569, the fixed
   // tailwheel the first aft point to touch at 4.943 degrees.
   'g4m-betty': { mainWheelXM: 1.569, tailDownPitchRad: 4.943 * DEG },
+  // Measured 2026-09-30 (Ki-21-IIb onboarding) with the propellers excluded: mains at x 0.547, the fixed tailwheel the first
+  // aft point to touch at 13.346 degrees.
+  'ki-21-sally': { mainWheelXM: 0.547, tailDownPitchRad: 13.346 * DEG },
   // Measured 2026-09-30 (Ki-43-II onboarding) with the propeller excluded: mains at x 0.348, the fixed tailwheel the first aft
   // point to touch at 12.306 degrees.
   'ki-43-oscar': { mainWheelXM: 0.348, tailDownPitchRad: 12.306 * DEG },
+  // Measured 2026-09-30 (D3A Val onboarding) with drawnPoints, the propeller excluded: the spatted mains bottom out at x 0.257,
+  // y -1.850; the fixed tailwheel is the first aft point to touch at 11.52 degrees.
+  'd3a-val': { mainWheelXM: 0.257, tailDownPitchRad: 11.52 * DEG },
+  // Measured 2026-09-30 (Ki-84-Ia onboarding) with the propeller excluded, after moving the entry's origin 0.25 m behind the mains
+  // (normalize.origin x -0.25; the drawn wheels stood at x 0.000, which the schema's mainX > 0 rejects): mains at x 0.250, the
+  // retractable tailwheel the first aft point to touch at 16.417 degrees, steeper than the Zero's 12.2 (the long drawn legs).
+  'ki-84-frank': { mainWheelXM: 0.100, tailDownPitchRad: 16.417 * DEG },
 }

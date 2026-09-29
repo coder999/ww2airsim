@@ -100,3 +100,18 @@ test('a released bomb and a rocket pair draw the O1 store models in flight, and 
   await page.screenshot({ path: 'test-results/o1-rockets-in-flight.png' })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })
+
+test('a fired rocket pair draws its motor flame from the fx system while it burns (plan E2 Ruling R8)', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(URL_)
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
+  await startGame(page, { loadout: 'Both' })
+  const fx = () => page.evaluate(() => (window as DiagWindow).__ww2!.fx())
+  const before = (await fx()).live
+  await page.keyboard.press('KeyE')
+  await expect.poll(async () => (await view(page)).rockets, { timeout: 2_000 }).toBeGreaterThanOrEqual(2)
+  // From 1,500 m the pair is seconds from any impact: every new particle is motor or exhaust.
+  await expect.poll(async () => (await fx()).live - before, { timeout: 1_000 }).toBeGreaterThanOrEqual(5)
+  await page.screenshot({ path: `${process.env.FX_SHOTS_DIR ?? 'test-results/fx-shots'}/rocket-motor.png` })
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+})

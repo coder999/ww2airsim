@@ -1,16 +1,41 @@
 {
   "id": "ki-84-frank",
-  "name": "Nakajima Ki-84 Frank",
+  "name": "Nakajima Ki-84-Ia Frank",
+  "rosterName": "Nakajima Ki-84 Frank",
   "kind": "aircraft",
   "side": "japanese",
-  "model": { "kind": "aircraft", "id": "ki-84-frank" },
-  "blurb": "A late-war Army fighter with higher performance, planned as a hostile type.",
-  "history": "The Nakajima Ki-84 Hayate (\"gale\"), the Army Type 4 Fighter, reported by the Allies as \"Frank\", flew with the Imperial Japanese Army Air Service in the last two years of the war. It is generally considered the best Japanese fighter to serve in large numbers: fast, maneuverable and heavily armed, and, unlike many Japanese fighters, fitted with armor and self-sealing fuel tanks.\n\nThe Ki-84 entered service in March 1944. Its first major operation was the Battle of Leyte, where its small numbers limited its impact, and it went on to defend the home islands and the Ryukyus.",
+  "model": {
+    "kind": "aircraft",
+    "id": "ki-84-frank"
+  },
+  "blurb": "A late-war Army fighter with a big radial engine, two 12.7 mm nose guns, two 20 mm wing guns, retractable main gear and tailwheel and, in Dev only, two bomb racks. Its speed and climb come from calculated intelligence tables rather than flight tests, and its roll rate and handling are estimates.",
+  "history": "The Nakajima Ki-84 Hayate (\"gale\"), the Army Type 4 Fighter, reported by the Allies as \"Frank\", flew with the Imperial Japanese Army Air Service in the last two years of the war. It is generally considered the best Japanese fighter to serve in large numbers: fast, maneuverable and heavily armed, and, unlike many Japanese fighters, fitted with armor and self-sealing fuel tanks.\n\nThe Ki-84 entered service in March 1944. Its first major operation was the Battle of Leyte, where its small numbers limited its impact, and it went on to defend the home islands and the Ryukyus.\n\nWhat this entry models: the Ki-84-Ia, the Ha-45-powered version with two 12.7 mm nose guns and two 20 mm wing guns. Its speed table (426 mph at 23,000 ft at military power) and climb come from Allied intelligence sheets of March 1945 that were calculated, not flown, and the stall speeds (102 mph clean, 90 mph with flaps) come from a captured airplane the Allies flew. The roll rate, dive limit, g limit and control feel are estimates borrowed from other fighters. The guns are the nearest existing types, and the hit points are the Zero's, so the airplane's real armor and self-sealing tanks are not represented. The bombs offered in Dev are the Hellcat's 1,000 lb store, far heavier than the 66 to 220 lb the primary sources give (English Wikipedia alone says two 250 kg bombs). The wingspan follows English Wikipedia (36.9 ft); the Allied reports print 37.1 ft.",
   "sources": [
     {
       "title": "Nakajima Ki-84 Hayate",
       "url": "https://en.wikipedia.org/wiki/Nakajima_Ki-84_Hayate",
       "read": "2026-09-25"
+    },
+    {
+      "title": "Report on Frank I (Ki-84), Air Technical Intelligence Group T-2 evaluation report, serial 302",
+      "url": "https://www.wwiiaircraftperformance.org/japan/T-2_Report_on_Frank_I_Ki-84.pdf",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "Ki-84 Frank, TAIC Manual sheets 156A-1 to 156A-4, March 1945",
+      "url": "https://wwiiaircraftperformance.org/japan/Ki-84-156A.pdf",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "Ho-5 cannon",
+      "url": "https://en.wikipedia.org/wiki/Ho-5_cannon",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "Ho-103 machine gun",
+      "url": "https://en.wikipedia.org/wiki/Ho-103_machine_gun",
+      "read": "2026-09-29"
     }
-  ]
+  ],
+  "spec": "ki-84-frank"
 }

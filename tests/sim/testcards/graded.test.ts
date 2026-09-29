@@ -261,6 +261,14 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // distance is sourced: the card runs the flap-direction check only, at an ESTIMATED 50 m/s lift-off. cd0 0.026 and propEfficiency 0.725
   // are FITTED to twelve figures with two unknowns, so a green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
   'p-38-lightning': { topSpeed: 0.035, topSpeedTable: 0.04, climb: 0.115, climbTable: 0.12, stall: 0.28, flapStall: 0.27, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 50, flapFraction: 1 } },
+  // Ki-21-IIb onboarding, measured 2026-09-30 at testMassKg 10,659.4 kg (23,500 lb) against the ONE primary document, TAIC Manual
+  // No. 1's SALLY 2 sheet (origin of its figures unstated; docs/handoff/2026-09-30-ki21-onboard.md): top speed +0.30% at sea level
+  // and -1.21% at 16,400 ft; climb +3.24% at sea level and +4.01% at 8,550 ft; stalls 41.68 and 36.83 m/s (-0.19% and -0.30%)
+  // against ESTIMATES from clMax 1.4 and the Zero's flap ratio, so they grade the model against itself; roll 35.0 vs its own
+  // estimate. cd0 0.020 and propEfficiency 0.65 are FITTED to four figures with two unknowns, which is not validation. No take-off
+  // distance is graded: the sheet's 900 ft has no stated conditions and the model rolls 435 m (+59%) at an ESTIMATED 46 m/s, a
+  // REPORTED gap; the card runs the flap-direction check only. Tolerances are about 1.4x to 2x each measurement.
+  'ki-21-sally': { topSpeed: 0.02, topSpeedTable: 0.02, climb: 0.05, climbTable: 0.06, stall: 0.004, flapStall: 0.005, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 46, flapFraction: 1 } },
   // Ki-43-II onboarding, measured 2026-09-30 at testMassKg 2,494.76 kg (5,500 lb) against ONE intelligence sheet (TAIC 152A-2, Dec 1944;
   // no flight-test report exists and other sources disagree, see the spec source): top speed 156.34 vs 155.13 m/s (+0.78%) at 20,000 ft;
   // the one table point (sea level) +0.64%; climb +16.92% at sea level and +20.17% at 17,500 ft, the model's known climb bias (F6F +16.8%,
@@ -271,6 +279,30 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // validation. No take-off distance is sourced (TAIC's two sheets print 450 and 896 ft): the card runs the flap-direction check only,
   // at an ESTIMATED 42 m/s lift-off (the roll reads 217 m clean, 713 ft, between the two sheets). Tolerances are about 1.4x to 2x each measurement.
   'ki-43-oscar': { topSpeed: 0.015, topSpeedTable: 0.012, climb: 0.24, climbTable: 0.29, stall: 0.04, flapStall: 0.04, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 42, flapFraction: 1 } },
+  // D3A2 Val onboarding, measured 2026-09-30 at testMassKg 3,551.6 kg (7,830 lb) against ONE intelligence sheet (TAIC 401A-2, Dec 1944;
+  // no flight-test report exists, and Wikipedia's 267 mph at 6,200 m is 5% slower): top speed 125.95 vs 125.6 m/s (+0.28%) at 20,300 ft; table
+  // -0.09% (sea level) and +0.26% (9,850 ft); climb +12.96% at sea level and +14.80% at 9,850 ft, below the fleet's known +16% to +22% bias and
+  // not tuned. The stalls are ESTIMATES scaled from the Zero's (33.2 and 29.4 m/s), so their +2.42% and +2.24% grade the model against a
+  // number derived from its own lift curve; flap.clIncrement is DERIVED from those two estimates, which is circular. Roll 60.0 vs its own
+  // ESTIMATE. cd0 0.022 and propEfficiency 0.68 are FITTED to three speeds with two unknowns, so a green card is not validation. Take-off: the
+  // model rolls 244.8 m (+55.6%) against TAIC's 157.3 m (516 ft, conditions unstated) at an ESTIMATED 40 m/s lift-off and no flaps: a REPORTED
+  // gap, not a fit (the sea-level power fraction is the 1,075 hp military rating, 0.84 of the 1,280 hp take-off power, so the model takes off
+  // on less power than the sheet's figure likely assumed), so its band is wide and only ever tightens. Other tolerances are about 1.4x to 2x each measurement.
+  'd3a-val': { topSpeed: 0.006, topSpeedTable: 0.006, climb: 0.19, climbTable: 0.22, stall: 0.04, flapStall: 0.04, roll: 0.01, takeoff: { tol: 0.75, liftoffMps: 40, flapFraction: 0 } },
+  // Ki-84-Ia onboarding, measured 2026-09-30 at testMassKg 3,601.5 kg (7,940 lb) against CALCULATED intelligence figures (TAIC 156A-1,
+  // March 1945, and T-2 report on Frank 1; the calculated speed and climb tables are not flown, only the stalls are): top speed 190.44 vs
+  // 190.44 m/s (0.00%) at 23,000 ft, which is FITTED (the 7,010 m power fraction is solved for it, so that row proves nothing); the speed
+  // table reads -1.19% at sea level, -0.86% at 10,000 ft and +1.15% at 20,000 ft, the three points where the power is sourced or
+  // interpolated, and 9,144 and 10,668 m are again FITTED (power solved for them, circular); climb +14.5% at sea level and +15.3% at 20,900 ft,
+  // the model's known bias (F6F +16.8%, Zero +15.7% to +22.4%), reported and not tuned; stalls -3.06% clean and -3.23% flaps against the
+  // flown 102 and 90 mph, read as indicated and measured at sea level (measured at the trial's 8,000 ft true airspeed the model would read
+  // +9.4%; the shared clMax 1.4 stays, docs/aircraft.md); flap.clIncrement is DERIVED from those two stalls, so its ratio check is circular;
+  // roll 80.0 vs its own ESTIMATE (the Zero's). cd0 0.018 and propEfficiency 0.68 are FITTED to the sea-level and 20,000 ft speeds; the
+  // pair is nearly degenerate on speed alone (0.0200/0.75 fits as well) and 0.68 was picked because it also lands the climb inside the
+  // fleet's bias band, which is a use of the climb figure. Take-off: the table's 1,460 ft is not in the reference (conditions unstated, and
+  // the model rolls 579 ft clean and 592 ft with flaps at the ESTIMATED 42.47 m/s three-point speed, 60% short of it): the card runs the
+  // flap-direction check only. A green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
+  'ki-84-frank': { topSpeed: 0.005, topSpeedTable: 0.018, climb: 0.21, climbTable: 0.22, stall: 0.045, flapStall: 0.047, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 42.47, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {
@@ -311,9 +343,16 @@ describe.each(ids.filter((id) => CARDS[id] !== undefined))('%s graded against it
     expect(r.pass, `climb at ${altitudeM} m ${r.actual.toFixed(3)} vs ${rateMps} (${pct(r)})`).toBe(true)
   })
 
-  it('climbs more slowly at each higher altitude in its table', () => {
+  it('climbs in the direction its table does at each higher altitude', () => {
     const rates = [climbSeaLevel, ...(ref.climbRateByAltitudeM ?? []).map(([a]) => measureClimbRate(spec, a))]
-    for (let i = 1; i < rates.length; i++) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
+    const sourced = [ref.climbRateMps, ...(ref.climbRateByAltitudeM ?? []).map(([, r]) => r)]
+    // The model must order its climb rates as the reference does. Normally the table falls with altitude, but a two-speed blower can
+    // make it RISE: the Val's sourced table (2,160 then 2,330 ft/min) and the Ki-21's TAIC sheet (1,665 then 1,800 ft/min) both do
+    // (2026-09-30, D3A and Ki-21 onboardings), so the model is held to the sourced direction, whichever way it runs.
+    for (let i = 1; i < rates.length; i++) {
+      if (sourced[i]! < sourced[i - 1]!) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
+      else expect(rates[i]!).toBeGreaterThan(rates[i - 1]!)
+    }
   })
 
   it('stalls near its clean, power-off stall speed', () => {

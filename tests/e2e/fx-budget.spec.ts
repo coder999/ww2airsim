@@ -17,6 +17,9 @@ import type { FxStressName } from '../../src/render/fx/stress.js'
  * effects cost gate: a shared baseline over 6 ms must not be blamed on E1.
  */
 const FX_DELTA_P95_MS = 1.0
+/** The eye inside a smoke plume: accepted by Mark on 2026-09-28 at the baked sheets' measured
+ *  +2.421 ms (plan E2 Task 10; E1's placeholders fit in 1.0). 3.0 keeps it a tripwire. */
+const EYE_SMOKE_DELTA_P95_MS = 3.0
 const BUDGET_4K_PHOTO_P95_MS = 16.67
 test.setTimeout(420_000)
 const consoleErrors: string[] = []
@@ -65,7 +68,7 @@ test('1440p medium and low: populated and recorded', async ({ page }) => {
   }
 })
 
-test('the eye inside a smoke plume adds at most 1.0 ms (Review Focus 5)', async ({ page }) => {
+test('the eye inside a smoke plume adds at most 3.0 ms (Review Focus 5; plan E2 Task 10 ruling)', async ({ page }) => {
   const off = await measure(page, 'off', 'eye-smoke')
   const high = await measure(page, 'high', 'eye-smoke')
   const delta = high.p95 - off.p95
@@ -75,7 +78,7 @@ test('the eye inside a smoke plume adds at most 1.0 ms (Review Focus 5)', async 
   expect(off.n, 'too few off-arm GPU samples for a percentile').toBeGreaterThan(100)
   expect(high.n, 'too few high-arm GPU samples for a percentile').toBeGreaterThan(100)
   expect(high.live).toBeGreaterThan(0)
-  expect(delta, detail).toBeLessThanOrEqual(FX_DELTA_P95_MS)
+  expect(delta, detail).toBeLessThanOrEqual(EYE_SMOKE_DELTA_P95_MS)
 })
 
 async function measure4kPhoto(page: Page, fx: 'off' | 'high'): Promise<Run> {

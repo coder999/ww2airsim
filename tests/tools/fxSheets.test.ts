@@ -1,7 +1,9 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readKtx2Header } from '../../tools/textures/ktx2.js'
-import { PLACEHOLDER, placeholderLayer } from '../../tools/fx/placeholders.js'
+import { acceptance } from '../../tools/fx/pack.js'
+import { fxSceneSha256 } from '../../tools/fx/sceneHash.js'
+import type { BakeReport } from '../../tools/fx/bake.js'
 import { FX_CONTENT_BYTES_MAX, FX_SHEETS, fxSheetManifestSchema, sheetLayout } from '../../src/render/fx/sheetManifest.js'
 
 const root = new URL('../../', import.meta.url)
@@ -10,18 +12,17 @@ const manifest = fxSheetManifestSchema.parse(JSON.parse(readFileSync(new URL('sh
 // KHR Data Format constants (khr_df.h), as tests/tools/textures.test.ts uses them.
 const MODEL_ETC1S = 163, MODEL_UASTC = 166, TF_LINEAR = 1
 
-describe('placeholder fx sheets (effects design §6.4)', () => {
+describe('fx sheets (effects design §6; E1 Rulings R7, R8; E2)', () => {
   it('the manifest names every sheet once, in FX_SHEETS order, in distinct atlas cells', () => {
     expect(manifest.sheets.map((s) => s.name)).toEqual([...FX_SHEETS])
     const cells = manifest.sheets.map((s) => s.cell)
     expect(new Set(cells).size).toBe(FX_SHEETS.length)
     expect(Math.max(...cells)).toBeLessThan(manifest.cols * manifest.rows)
-    expect(manifest.provenance.generator).toBe('placeholder')
     expect(sheetLayout(manifest).cellOf.flame).toBe(manifest.sheets.find((s) => s.name === 'flame')!.cell)
   })
 
   for (const image of ['lightA', 'lightB', 'motion'] as const) {
-    it(`${image}: a Basis-encoded, linear, ${PLACEHOLDER.frames}-layer array of the atlas size (Rulings R7, R8)`, () => {
+    it(`${image}: a Basis-encoded, linear, ${manifest.frames}-layer array of the atlas size, with mips`, () => {
       const h = readKtx2Header(new Uint8Array(readFileSync(new URL(manifest.images[image], dir))))
       expect(h.layerCount).toBe(manifest.frames)
       expect(h.pixelWidth).toBe(manifest.cols * manifest.cellPx)
@@ -37,33 +38,34 @@ describe('placeholder fx sheets (effects design §6.4)', () => {
     expect(bytes).toBeLessThanOrEqual(FX_CONTENT_BYTES_MAX)
   })
 
-  it('the generator is deterministic and fades every cell to transparent at its border', () => {
-    const a = placeholderLayer('lightA', 5), b = placeholderLayer('lightA', 5)
-    expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true)
-    const w = PLACEHOLDER.cols * PLACEHOLDER.cellPx
-    for (let cell = 0; cell < PLACEHOLDER.cols * PLACEHOLDER.rows; cell++) {
-      const x0 = (cell % PLACEHOLDER.cols) * PLACEHOLDER.cellPx, y0 = Math.floor(cell / PLACEHOLDER.cols) * PLACEHOLDER.cellPx
-      for (let i = 0; i < PLACEHOLDER.cellPx; i++) {
-        // alpha is light A's 4th channel; every edge texel of every cell is 0,
-        // so a mip never bleeds one sheet into its neighbor
-        for (const [x, y] of [[x0 + i, y0], [x0 + i, y0 + PLACEHOLDER.cellPx - 1], [x0, y0 + i], [x0 + PLACEHOLDER.cellPx - 1, y0 + i]]) {
-          expect(a[(y! * w + x!) * 4 + 3]).toBe(0)
-        }
-      }
-    }
+  it('ships baked sheets, not the E1 placeholders', () => {
+    expect(manifest.provenance.generator).toBe('blender')
   })
 
-  it('emission (light B alpha) is lit only in the fireball and flame cells', () => {
-    const b = placeholderLayer('lightB', 0)
-    const w = PLACEHOLDER.cols * PLACEHOLDER.cellPx
-    const emissionIn = (name: (typeof FX_SHEETS)[number]): number => {
-      const cell = FX_SHEETS.indexOf(name)
-      const cx = (cell % PLACEHOLDER.cols) * PLACEHOLDER.cellPx + PLACEHOLDER.cellPx / 2
-      const cy = Math.floor(cell / PLACEHOLDER.cols) * PLACEHOLDER.cellPx + PLACEHOLDER.cellPx / 2
-      return b[(cy * w + cx) * 4 + 3]!
-    }
-    expect(emissionIn('fireball')).toBeGreaterThan(100)
-    expect(emissionIn('flame')).toBeGreaterThan(100)
-    for (const name of ['smoke', 'dust', 'water-column', 'spray'] as const) expect(emissionIn(name)).toBe(0)
+  const reportUrl = new URL('tools/fx/bake-report.json', root)
+  const report = existsSync(reportUrl) ? JSON.parse(readFileSync(reportUrl, 'utf8')) as BakeReport : undefined
+  it('was baked by the blender.org 5.0.1 build from the scripts in this commit (Rulings R1, R2; Review Focus 2)', () => {
+    expect(report, 'tools/fx/bake-report.json is missing: npm run fx:bake').toBeDefined()
+    expect(manifest.provenance.blenderVersion).toMatch(/^5\.0\.1 [0-9a-f]{12}$/)
+    expect(manifest.provenance.seed).toBe(0) // Mantaflow takes no seed (Ruling R2)
+    expect(manifest.provenance.sceneSha256, 'a script in tools/fx/blender changed without a rebake: npm run fx:bake').toBe(fxSceneSha256())
+    expect(report!.sceneSha256).toBe(manifest.provenance.sceneSha256)
+  })
+  it('every sheet passed its acceptance rules at the size that shipped', () => {
+    expect(report, 'tools/fx/bake-report.json is missing: npm run fx:bake').toBeDefined()
+    expect([report!.rung.cellPx, report!.rung.frames]).toEqual([manifest.cellPx, manifest.frames])
+    for (const s of FX_SHEETS) expect(acceptance(s, report!.sheets[s].metrics, manifest.frames), s).toEqual([])
+    expect(report!.motionScale).toBe(manifest.motionScale)
+  })
+
+  it('the placeholder generator is gone (E2 replaces it; git remembers)', () => {
+    expect(existsSync(new URL('tools/fx/placeholders.ts', root))).toBe(false)
+  })
+})
+
+describe('fxSceneSha256', () => {
+  it('is stable, and covers every rig and sheet script', () => {
+    expect(fxSceneSha256()).toMatch(/^[0-9a-f]{64}$/)
+    expect(fxSceneSha256()).toBe(fxSceneSha256())
   })
 })

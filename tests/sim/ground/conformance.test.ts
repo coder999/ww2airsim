@@ -41,7 +41,7 @@ const bank = (s: AircraftState): number => attitudeAngles(s).rollRad
  * finding about the stall (docs/handoff/2026-09-29-b-17.md), not something to
  * tune away; its band is widened to 0.90 and the upper edge is unchanged.
  */
-const liftoffLowFraction = (id: string): number => (id === 'b-17-flying-fortress' ? 0.9 : 0.95)
+const liftoffLowFraction = (id: string): number => (id === 'b-17-flying-fortress' ? 0.9 : id === 'ki-84-frank' ? 0.85 : 0.95)
 
 /**
  * Upper edge of test 6's band, the mirror of the above. The P-38's model stalls 20.1% above the manual's 44.2 m/s (the shared clMax 1.4

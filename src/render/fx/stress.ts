@@ -47,7 +47,10 @@ export function stressScene(name: FxStressName, eye: Vec3, look: Vec3, groundAt:
     case 'bomb-land': return { ...empty, triggers: [t('bomb.land', center)], anchors: [{ name: 'center', position: center }] }
     case 'bomb-water': return { ...empty, triggers: [t('bomb.water', center)], anchors: [{ name: 'center', position: center }] }
     case 'air-kill': { const p = ahead(400); return { ...empty, triggers: [t('kill.air', p)], sustained: [s('kill', 'kill.air', p)], anchors: [{ name: 'kill', position: p }] } }
-    case 'smoke-base': { const base = ground(SMOKE_BASE_RANGE_M, 0); return { ...empty, sustained: [s('base', 'structure.collapse', base)], anchors: [{ name: 'base', position: base }] } }
+    // engine.smoke barely moves (0.5-2 m/s against strong drag), so its puffs sit on the ground at the
+    // anchor. structure.collapse flung E2's compact baked puffs out of the window and left the soft-edge
+    // test measuring bare grass (plan E2 Task 10, 2026-09-28).
+    case 'smoke-base': { const base = ground(SMOKE_BASE_RANGE_M, 0); return { ...empty, sustained: [s('base', 'engine.smoke', base)], anchors: [{ name: 'base', position: base }] } }
     case 'cloud-fireball': { const p = ahead(800); return { ...empty, triggers: [t('kill.air', p)], anchors: [{ name: 'fireball', position: p }] } }
     case 'eye-smoke': return { ...empty, sustained: [s('plume', 'ship.fire', ahead(5)), s('column', 'structure.collapse', v3(eye.x, eye.y - 3, eye.z))], anchors: [] }
     case 'none': return empty
