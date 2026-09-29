@@ -1,5 +1,6 @@
 import type { ClipId } from './assets.js'
-import type { AudioBackend, BackendState, LoopHandle } from './backend.js'
+import type { AudioBackend, BackendState, LoopHandle, LoopSpec } from './backend.js'
+import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, type Bus } from './mix.js'
 
 /**
  * The only file under `src/` that touches Web Audio, which
@@ -7,19 +8,59 @@ import type { AudioBackend, BackendState, LoopHandle } from './backend.js'
  *
  * Deliberately boring and deliberately untested at Tier 1, for the reason
  * `legend.ts` states about its own DOM half: the vitest environment is `node`,
- * so everything worth asserting lives in the pure code above this. Faking a
- * browser audio API in order to test the file whose entire job is to call that
- * API would be a second implementation of Web Audio, free to be wrong in ways
- * the real one is not. Task 7's Tier 2 spec is this file's coverage.
+ * so everything worth asserting lives in the pure code above this. Tier 2
+ * (tests/e2e/audio.spec.ts) is this file's coverage.
  *
  * No `try`/`catch` here: `load` rejects and `system.ts` turns that into
  * silence, so the failure policy lives in exactly one place (design §10.2).
+ *
+ * Graph: engine, sfx and ambient buses feed one world stage; the radio bus
+ * feeds a highpass, lowpass and soft clipper (the radio voice, spec §5.3).
+ * Both reach master. The cabin stage between them and master arrives in Task 3.
  */
+function softClipCurve(drive: number): Float32Array {
+  const n = 1024
+  const curve = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1
+    curve[i] = Math.tanh(drive * x) / Math.tanh(drive)
+  }
+  return curve
+}
+
 export function createWebAudioBackend(): AudioBackend {
   const context = new AudioContext()
   const master = context.createGain()
   master.connect(context.destination)
   const buffers = new Map<ClipId, AudioBuffer>()
+
+  const world = context.createGain()
+  world.connect(master)
+
+  const radioHigh = context.createBiquadFilter()
+  radioHigh.type = 'highpass'
+  radioHigh.frequency.value = RADIO_BAND_LOW_HZ
+  const radioLow = context.createBiquadFilter()
+  radioLow.type = 'lowpass'
+  radioLow.frequency.value = RADIO_BAND_HIGH_HZ
+  const radioShaper = context.createWaveShaper()
+  radioShaper.curve = softClipCurve(RADIO_DRIVE) as Float32Array<ArrayBuffer>
+  radioHigh.connect(radioLow)
+  radioLow.connect(radioShaper)
+  radioShaper.connect(master)
+
+  const busNode = (bus: Bus, into: AudioNode): GainNode => {
+    const node = context.createGain()
+    node.gain.value = BUS_GAIN[bus]
+    node.connect(into)
+    return node
+  }
+  const buses: Record<Bus, GainNode> = {
+    engine: busNode('engine', world),
+    sfx: busNode('sfx', world),
+    ambient: busNode('ambient', world),
+    radio: busNode('radio', radioHigh),
+  }
 
   return {
     state: (): BackendState => context.state as BackendState,
@@ -34,17 +75,26 @@ export function createWebAudioBackend(): AudioBackend {
 
     loaded: (): readonly ClipId[] => [...buffers.keys()],
 
-    startLoop: (id: ClipId, loopStartS: number, loopEndS: number): LoopHandle => {
-      const buffer = buffers.get(id)
-      if (buffer === undefined) throw new Error(`startLoop before ${id} decoded`)
+    startLoop: (spec: LoopSpec): LoopHandle => {
+      const buffer = buffers.get(spec.clip)
+      if (buffer === undefined) throw new Error(`startLoop before ${spec.clip} decoded`)
+      const filter = context.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = FILTER_OPEN_HZ
+      // Starts silent: the system writes the real gain immediately after, and a
+      // default of 1 would glide down from full volume for ~50 ms first.
       const gain = context.createGain()
-      gain.connect(master)
+      gain.gain.value = 0
       const source = context.createBufferSource()
       source.buffer = buffer
       source.loop = true
-      source.loopStart = loopStartS
-      source.loopEnd = loopEndS
-      source.connect(gain)
+      if (spec.loopStartS !== null && spec.loopEndS !== null) {
+        source.loopStart = spec.loopStartS
+        source.loopEnd = spec.loopEndS
+      }
+      source.connect(filter)
+      filter.connect(gain)
+      gain.connect(buses[spec.bus])
       source.start(0)
       // `setTargetAtTime`, never a plain assignment: an AudioParam stepped in
       // one frame clicks, and `M` moves the throttle 1 -> 0 in one frame.
@@ -53,23 +103,23 @@ export function createWebAudioBackend(): AudioBackend {
           { gain.gain.setTargetAtTime(value, context.currentTime, glideTauS) },
         setPlaybackRate: (value: number, glideTauS: number): void =>
           { source.playbackRate.setTargetAtTime(value, context.currentTime, glideTauS) },
+        setFilterCutoff: (hz: number, glideTauS: number): void =>
+          { filter.frequency.setTargetAtTime(hz, context.currentTime, glideTauS) },
       }
     },
 
-    playOnce: (id: ClipId, value: number, rate?: number): void => {
+    playOnce: (id: ClipId, bus: Bus, value: number, rate?: number): void => {
       const buffer = buffers.get(id)
       if (buffer === undefined) return
       // A fresh source per call: AudioBufferSourceNodes are single-use by
       // specification. The `onended` disconnect is what stops a long flight
-      // accumulating dead nodes on the master bus.
+      // accumulating dead nodes on the bus.
       const gain = context.createGain()
       gain.gain.value = value
-      gain.connect(master)
+      gain.connect(buses[bus])
       const source = context.createBufferSource()
       source.buffer = buffer
-      // A plain assignment, not `setTargetAtTime`: a one-shot's rate is fixed
-      // for its entire (short) life, unlike the engine loop's, which glides
-      // to avoid an audible click as the throttle moves (design §7).
+      // A plain assignment: a one-shot's rate is fixed for its short life.
       source.playbackRate.value = rate ?? 1
       source.connect(gain)
       source.onended = (): void => { source.disconnect(); gain.disconnect() }

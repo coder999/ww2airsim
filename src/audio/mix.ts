@@ -98,3 +98,21 @@ export function enginePlaybackRateFor(throttle: number): number {
 export function worstCaseAmplitude(cueGain: number, cuePeak: number, enginePeak: number): number {
   return cueGain * cuePeak + enginePeak
 }
+
+/** Per-bus output gain, applied in the audio graph after each bus's sources.
+ *  `engine` and `sfx` are 1 so today's mix is unchanged (the gain budget in
+ *  tests/audio/assets.test.ts is arithmetic on exactly those); `ambient` and
+ *  `radio` are reasoned guesses until somebody flies them. */
+export const BUS_GAIN = { engine: 1, sfx: 1, ambient: 0.6, radio: 0.9 } as const
+
+export type Bus = keyof typeof BUS_GAIN
+
+/** A lowpass at this frequency is inaudible: the "open" position of every
+ *  per-layer filter. */
+export const FILTER_OPEN_HZ = 20_000
+
+/** The radio chain's pass band (spec §5.3) and how hard its soft clipper is
+ *  driven. */
+export const RADIO_BAND_LOW_HZ = 400
+export const RADIO_BAND_HIGH_HZ = 3_200
+export const RADIO_DRIVE = 2

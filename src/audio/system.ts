@@ -106,7 +106,7 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       // first, and starting it here means one call site handles both "decoded
       // late" and "never decoded at all".
       if (loop === null && ready.includes('propeller')) {
-        loop = backend.startLoop('propeller', loopStartSeconds(), loopEndSeconds())
+        loop = backend.startLoop({ clip: 'propeller', bus: 'engine', loopStartS: loopStartSeconds(), loopEndS: loopEndSeconds() })
       }
       if (loop !== null) {
         // Glided, never assigned. `M` (throttle cut) moves the lever 1 -> 0 in
@@ -128,7 +128,8 @@ export function createAudioSystem(backend: AudioBackend): AudioSystem {
       for (const cue of frame.cues) {
         if (!ready.includes(cue)) continue
         cuesFired++
-        backend.playOnce(cue, assetFor(cue).cueGain, rate)
+        const asset = assetFor(cue)
+        backend.playOnce(cue, asset.bus, asset.cueGain, rate)
       }
     },
 
