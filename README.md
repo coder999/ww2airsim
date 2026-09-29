@@ -299,6 +299,31 @@ Two things it happens to demonstrate, both by design rather than by luck:
   developer's problem and not a pilot's. Only `fail` — an actual software
   rasterizer — reaches the screen, through `showFailure`.
 
+### Laptops with two GPUs (Intel + NVIDIA)
+
+If the DEV overlay reports the integrated GPU on a hybrid machine, the code is
+not at fault: `requestAdapter({ powerPreference: 'high-performance' })`
+(`src/render/renderer.ts`) already asks for the discrete GPU, and WebGPU offers
+no way to enumerate or force one. On Windows the browser's GPU process runs on
+whichever GPU Windows assigns it, and that assignment wins over the hint.
+
+Fix, no admin needed (verified 2026-09-29 on Mark's work laptop, Intel iGPU +
+RTX 3060): Settings -> System -> Display -> Graphics, add `chrome.exe` (or
+`msedge.exe`), Options -> High performance, then fully quit and relaunch the
+browser. To diagnose, run this in DevTools and check the vendor of each result
+(Chrome reports coarse `info`, so the 3060 shows as `nvidia` / `ampere`, with
+empty `device` and `description`):
+
+```js
+for (const p of [undefined, 'low-power', 'high-performance']) {
+  const i = (await navigator.gpu.requestAdapter(p ? { powerPreference: p } : {}))?.info
+  console.log(p ?? 'default', i && { vendor: i.vendor, arch: i.architecture })
+}
+```
+
+If every result is Intel, Chrome cannot see the discrete GPU at all; check
+`chrome://gpu`.
+
 ## Architecture in one line
 
 `sim/` never imports `render/` and never touches a browser global. That single
