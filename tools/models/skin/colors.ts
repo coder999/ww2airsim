@@ -18,6 +18,7 @@ export const MARKING_COLORS = {
   usaaInsigniaBlue: [0x1c, 0x2a, 0x4a], // ESTIMATE: Insignia Blue, weathered
   usaaInsigniaWhite: [0xe8, 0xe6, 0xdf], // ESTIMATE: insignia white, weathered
   usaaInsigniaRed: [0x9a, 0x22, 0x26], // ESTIMATE: Insignia Red (the June-Sep 1943 outline; the red of the cited 1943 style)
+  usaaOliveDrab: [0x5b, 0x58, 0x3a], // ESTIMATE: a common sRGB rendering of olive drab (the anti-glare panel); no chip read
   propTipYellow: [0xe6, 0xb8, 0x1c], // ESTIMATE: US propeller-tip yellow; no source read
 } as const satisfies Record<string, readonly [number, number, number]>
 

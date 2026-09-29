@@ -29,7 +29,9 @@ export interface Surface {
 export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   ijaGreen: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
   underside: { scan: 'painted-metal', roughness: 0.58, metallic: 0, fade: 0.04, chip: 0.005, rivets: true, scanNormal: 0.6 },
-  naturalMetal: { scan: 'painted-metal', roughness: 0.35, metallic: 1, fade: 0, chip: 0, rivets: true, scanNormal: 0.4 },
+  // Ruling (DP1, 2026-09-28): metallic 1 renders near-black in the Hangar (no environment to reflect; check 15
+  // measured 0.089x flat on the P-38). Aluminum here is a satin bare-metal paint chip, so metallic 0.25.
+  naturalMetal: { scan: 'painted-metal', roughness: 0.4, metallic: 0.25, fade: 0, chip: 0, rivets: true, scanNormal: 0.4 },
   dark: { scan: 'painted-metal', roughness: 0.55, metallic: 0, fade: 0.05, chip: 0.005, rivets: false, scanNormal: 0.5 },
   glazing: { scan: null, roughness: 0.08, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
   steel: { scan: 'corrugated-iron', roughness: 0.7, metallic: 0, fade: 0.1, chip: 0.04, rivets: false, scanNormal: 1 },
