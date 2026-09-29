@@ -5,7 +5,7 @@
   "aircraft": [
     { "id": "f6f-1", "spec": "f6f-hellcat", "airborneAt": { "position": [-27000, 800, -16479], "headingDeg": 90, "speedMps": 120 } },
     { "id": "ally-1", "spec": "f6f-hellcat", "side": "allied", "airborneAt": { "position": [-26750, 800, -16479], "headingDeg": 90, "speedMps": 120 } },
-    { "id": "bandit-1", "spec": "f6f-hellcat", "side": "axis", "airborneAt": { "position": [-27000, 800, -16079], "headingDeg": 90, "speedMps": 120 } }
+    { "id": "bandit-1", "spec": "a6m2-zero", "side": "axis", "airborneAt": { "position": [-27000, 800, -16079], "headingDeg": 90, "speedMps": 120 } }
   ],
   "ships": [
     { "id": "cv-1", "spec": "essex-cv", "side": "allied", "waypoints": [[-24000, -17479]], "speedMps": 0 },
