@@ -102,8 +102,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     // symmetryError reads its 2% cap; the hub-offset check carries Review Focus 1 (R3 ledger, Task 6).
     props: [{ node: 'Prop', blades: 3, symmetryTolerance: 0.02 }],
     gear: [
-      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE of the motion: F4U main legs swing aft, turning 90 deg to lie flat in the wing; modeled as the swing alone' },
-      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE of the motion: as GearL' },
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE of the motion: the real F4U legs swing aft and turn 90 deg to lie flat; one hinge axis cannot do both, so the legs fold inboard about +x with the wheels flat, hinge lowered 0.09 m to sit in the wing (2026-09-29: a plain aft swing put the wheels 0.41 m through the wing top; this leaves 0.05 m)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE of the motion: mirror of GearL' },
       { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE' },
     ],
     turrets: [],
