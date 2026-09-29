@@ -15,6 +15,7 @@
     { "node": "GearR", "pivot": { "point": [0.547398, -0.895225, 3.6], "axis": "+z" } },
     { "node": "Turret1", "pivot": { "point": [-1.808, 0.944, 0], "axis": "+y" } }
   ],
-  "textures": { "maxSize": 512, "format": "webp" },
+  "skin": true,
+  "textures": { "maxSize": 1024, "format": "webp" },
   "budget": { "maxBytes": 5000000, "maxTriangles": 100000, "maxDrawCalls": 47 }
 }
