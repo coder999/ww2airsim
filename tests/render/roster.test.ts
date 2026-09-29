@@ -57,7 +57,9 @@ describe('roster persistence — whole-branch review I-1', () => {
 
   it('loadRoster zero-fills kill rows added after the pilot was saved instead of dropping the roster', () => {
     const pilot = createPilot('Boyington')
-    const { destroyer: _d, transport: _t, ...old } = pilot.killsByType
+    const old: Record<string, number> = { ...pilot.killsByType }
+    delete old.destroyer
+    delete old.transport
     ;(globalThis as { window: { localStorage: Storage } }).window.localStorage.setItem(
       'ww2airsim.roster.v1',
       JSON.stringify([{ ...pilot, killsByType: { ...old, cruiser: 2 } }]),
