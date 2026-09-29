@@ -3,14 +3,16 @@ import { pilotTick, type PilotTickContext } from '../../../src/sim/ai/pilotTick.
 import { airborne } from '../../../src/sim/ai/airborne.js'
 import { FLOOR_M, heightAboveGround } from '../../../src/sim/ai/safety.js'
 import { TAKEOFF_DONE_M } from '../../../src/sim/ai/takeoff.js'
-import { advance, aircraftById, type AircraftEntity, type World } from '../../../src/sim/loop.js'
+import { advance, aircraftById, withAircraftState, type AircraftEntity, type World } from '../../../src/sim/loop.js'
+import { DETECTION_RANGE_M } from '../../../src/sim/ai/targeting.js'
+import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { length, sub } from '../../../src/sim/math/vec3.js'
 import { sidesOf } from '../../../src/sim/sides.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { decksOf } from '../../../src/sim/world/deck.js'
 import { loadFixtureScenarioBundle } from '../../fixtures/scenarios.js'
-import { settledAll, terrainOrSkip } from '../mission/fly.js'
+import { levelAt, settledAll, terrainOrSkip } from '../mission/fly.js'
 import { withDestroyed } from './recoveryWorlds.js'
 
 /*
@@ -23,7 +25,6 @@ import { withDestroyed } from './recoveryWorlds.js'
 const terrain = terrainOrSkip()
 
 const pair = (): World<undefined> => settledAll(worldFromScenario(loadFixtureScenarioBundle('takeoff-pair-fixture'), terrain))
-const single = (): World<undefined> => settledAll(worldFromScenario(loadFixtureScenarioBundle('takeoff-fixture'), terrain))
 const dist = (a: AircraftEntity, b: AircraftEntity): number => length(sub(a.state.position, b.state.position))
 const modeOf = (w: World<undefined>, id: string) => aircraftById(w, id)!.pilot!.decision.mode
 const phaseOf = (w: World<undefined>, id: string) => aircraftById(w, id)!.pilot!.decision.takeoff?.phase ?? null
@@ -95,33 +96,62 @@ describe.skipIf(terrain === null)('takeoff mode in the pilot tick (Tier 1, real 
    * took the slow pilot at full stick and looped it into a spin: the Zero hit
    * the ground 70 s after the hand-off. TAKEOFF_DONE_M sits above the floor.
    */
-  it('a Zero climbs out, becomes an ordinary pilot on the tick its takeoff ends, and flies on above the floor', () => {
-    let w = single()
-    let handoff: { readonly s: number; readonly heightM: number; readonly mode: string } | null = null
-    for (let i = 0; i < 60 * 60 && handoff === null; i++) {
-      const before = modeOf(w, 'ai-1')
-      w = advance(w, DT).world
-      const a = aircraftById(w, 'ai-1')!
-      expect(a.impact).toBeNull()
-      if (before === 'takeoff' && a.pilot!.decision.mode !== 'takeoff') {
-        handoff = { s: w.tick * DT, heightM: heightAboveGround(a.state, w.terrain, decksOf(w.ships)), mode: a.pilot!.decision.mode }
-        expect(a.pilot!.decision.takeoff).toBeUndefined()
-      }
-    }
-    expect(handoff).not.toBeNull()
-    expect(handoff!.s).toBeLessThan(60)
-    expect(handoff!.heightM).toBeGreaterThanOrEqual(TAKEOFF_DONE_M)
-    expect(['engage', 'loiter']).toContain(handoff!.mode)
-    // 90 s more under the ordinary pilot: no impact, never back to takeoff,
-    // never down to FLOOR_M (measured lowest 380 m, 2026-09-28).
-    let minM = Infinity
-    for (let i = 0; i < 90 * 60; i++) {
-      w = advance(w, DT).world
-      const a = aircraftById(w, 'ai-1')!
-      expect(a.impact).toBeNull()
-      expect(a.pilot!.decision.mode).not.toBe('takeoff')
-      minM = Math.min(minM, heightAboveGround(a.state, w.terrain, decksOf(w.ships)))
-    }
-    expect(minM).toBeGreaterThan(FLOOR_M)
+  it.each(['a6m2-zero', 'f6f-hellcat'])('a %s climbs out, becomes an ordinary pilot on the tick its takeoff ends, and flies on above the floor', (specId) => {
+    const spec = loadAircraftSpec(specId)
+    const w0 = worldFromScenario(loadFixtureScenarioBundle('takeoff-fixture'), terrain)
+    const r = handoffRun(settledAll({ ...w0, aircraft: w0.aircraft.map((a) => a.id === 'ai-1' ? { ...a, spec } : a) }))
+    expect(['engage', 'loiter']).toContain(r.handoff.mode)
+    expect(r.minM).toBeGreaterThan(FLOOR_M)
+  }, 120000)
+
+  /*
+   * The hand-off into a fight: the player (pinned, so it only flies on) is
+   * level at 450 m, 5 km north of the runway's end, crossing east at 110 m/s;
+   * at the hand-off it is well inside DETECTION_RANGE_M, so the rescore on
+   * that tick picks it and the pilot engages from ~64 m/s at 450 m.
+   * Measured 2026-09-28: hand-off at 49.95 s, 450 m, the player 4.48 km off;
+   * engaged on it to the end, lowest 450.5 m. At TAKEOFF_DONE_M 150 it fails.
+   */
+  it('a Zero that hands off with the player in range engages it and does not fly into the ground', () => {
+    const pin = (w: World<undefined>): World<undefined> =>
+      withAircraftState(w, w.player, { ...levelAt({ x: -34629 + 110 * w.tick * DT, z: -22229 }, 450, 110, 90), tick: w.tick })
+    const r = handoffRun(settledAll(worldFromScenario(loadFixtureScenarioBundle('takeoff-engage-fixture'), terrain)), pin)
+    expect(r.handoff.rangeM).toBeLessThan(DETECTION_RANGE_M)
+    expect(r.engagedPlayer).toBe(true)
+    expect(r.minM).toBeGreaterThan(FLOOR_M)
   }, 120000)
 })
+
+/**
+ * ai-1 from brakes off to the hand-off (under 60 s), then 90 s more: no
+ * impact, never back to `takeoff`. `pin` restages the world before each tick.
+ */
+function handoffRun(start: World<undefined>, pin: (w: World<undefined>) => World<undefined> = (w) => w) {
+  let w = start
+  const heightOf = (a: AircraftEntity): number => heightAboveGround(a.state, w.terrain, decksOf(w.ships))
+  let handoff: { readonly s: number; readonly heightM: number; readonly mode: string; readonly rangeM: number } | null = null
+  for (let i = 0; i < 60 * 60 && handoff === null; i++) {
+    const before = modeOf(w, 'ai-1')
+    w = advance(pin(w), DT).world
+    const a = aircraftById(w, 'ai-1')!
+    expect(a.impact).toBeNull()
+    if (before === 'takeoff' && a.pilot!.decision.mode !== 'takeoff') {
+      handoff = { s: w.tick * DT, heightM: heightOf(a), mode: a.pilot!.decision.mode, rangeM: dist(a, aircraftById(w, w.player)!) }
+      expect(a.pilot!.decision.takeoff).toBeUndefined()
+    }
+  }
+  expect(handoff).not.toBeNull()
+  expect(handoff!.s).toBeLessThan(60)
+  expect(handoff!.heightM).toBeGreaterThanOrEqual(TAKEOFF_DONE_M)
+  let minM = Infinity
+  let engagedPlayer = false
+  for (let i = 0; i < 90 * 60; i++) {
+    w = advance(pin(w), DT).world
+    const a = aircraftById(w, 'ai-1')!
+    expect(a.impact).toBeNull()
+    expect(a.pilot!.decision.mode).not.toBe('takeoff')
+    if (a.pilot!.decision.mode === 'engage' && a.pilot!.decision.targetId === w.player) engagedPlayer = true
+    minM = Math.min(minM, heightOf(a))
+  }
+  return { handoff: handoff!, minM, engagedPlayer }
+}
