@@ -32,6 +32,16 @@ export type LoopHandle = {
   setFilterCutoff(hz: number, glideTauS: number): void
 }
 
+/** A point in world space, metres. Defined here, not borrowed from `sim/`:
+ *  `audio/` must not import the simulation. */
+export type Position = { readonly x: number; readonly y: number; readonly z: number }
+
+export type ListenerPose = {
+  readonly position: Position
+  readonly forward: Position
+  readonly up: Position
+}
+
 export type BackendState = 'suspended' | 'running' | 'closed'
 
 export type AudioBackend = {
@@ -45,8 +55,10 @@ export type AudioBackend = {
   /** `rate` defaults to 1 (its natural pitch). Instant replay (design §7)
    *  scales it with the replay speed, so a burst heard at 0.5x plays back at
    *  half pitch along with the engine loop, rather than at full pitch while
-   *  everything else in the scene runs slow. */
-  playOnce(id: ClipId, bus: Bus, gain: number, rate?: number): void
+   *  everything else in the scene runs slow.
+   *  `at` places the sound in the world; omitted, it is heard in the head. */
+  playOnce(id: ClipId, bus: Bus, gain: number, rate?: number, at?: Position): void
+  setListener(pose: ListenerPose): void
   setMasterGain(value: number): void
   /** Moves the cabin stage (world lowpass and gain, radio lowpass and gain) to
    *  `preset`, gliding with `glideTauS`. */

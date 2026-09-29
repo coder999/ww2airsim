@@ -1,6 +1,6 @@
 import type { ClipId } from './assets.js'
-import type { AudioBackend, BackendState, LoopHandle, LoopSpec } from './backend.js'
-import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, type Bus, type CabinPreset } from './mix.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position } from './backend.js'
+import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, PANNER_REF_DISTANCE_M, type Bus, type CabinPreset } from './mix.js'
 
 /**
  * The only file under `src/` that touches Web Audio, which
@@ -124,7 +124,7 @@ export function createWebAudioBackend(): AudioBackend {
       }
     },
 
-    playOnce: (id: ClipId, bus: Bus, value: number, rate?: number): void => {
+    playOnce: (id: ClipId, bus: Bus, value: number, rate?: number, at?: Position): void => {
       const buffer = buffers.get(id)
       if (buffer === undefined) return
       // A fresh source per call: AudioBufferSourceNodes are single-use by
@@ -132,14 +132,41 @@ export function createWebAudioBackend(): AudioBackend {
       // accumulating dead nodes on the bus.
       const gain = context.createGain()
       gain.gain.value = value
-      gain.connect(buses[bus])
+      let panner: PannerNode | null = null
+      if (at === undefined) {
+        gain.connect(buses[bus])
+      } else {
+        panner = context.createPanner()
+        panner.panningModel = 'equalpower'
+        panner.distanceModel = 'inverse'
+        panner.refDistance = PANNER_REF_DISTANCE_M
+        panner.rolloffFactor = 1
+        panner.positionX.value = at.x
+        panner.positionY.value = at.y
+        panner.positionZ.value = at.z
+        gain.connect(panner)
+        panner.connect(buses[bus])
+      }
       const source = context.createBufferSource()
       source.buffer = buffer
       // A plain assignment: a one-shot's rate is fixed for its short life.
       source.playbackRate.value = rate ?? 1
       source.connect(gain)
-      source.onended = (): void => { source.disconnect(); gain.disconnect() }
+      source.onended = (): void => { source.disconnect(); gain.disconnect(); panner?.disconnect() }
       source.start(0)
+    },
+
+    setListener: (pose: ListenerPose): void => {
+      const l = context.listener
+      l.positionX.value = pose.position.x
+      l.positionY.value = pose.position.y
+      l.positionZ.value = pose.position.z
+      l.forwardX.value = pose.forward.x
+      l.forwardY.value = pose.forward.y
+      l.forwardZ.value = pose.forward.z
+      l.upX.value = pose.up.x
+      l.upY.value = pose.up.y
+      l.upZ.value = pose.up.z
     },
 
     setMasterGain: (value: number): void => { master.gain.value = value },

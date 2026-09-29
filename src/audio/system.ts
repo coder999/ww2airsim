@@ -1,5 +1,5 @@
 import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
-import type { AudioBackend, BackendState, LoopHandle } from './backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
 import { LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
 import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, FILTER_OPEN_HZ, MASTER_GAIN, type View } from './mix.js'
@@ -28,6 +28,7 @@ export type AudioSnapshot = {
   readonly enginePlaybackRate: number
   readonly layers: Readonly<Record<string, { readonly gain: number; readonly rate: number; readonly cutoffHz: number | null }>>
   readonly cuesFired: number
+  readonly spatialPlayed: number
   readonly view: View | null
 }
 
@@ -60,6 +61,11 @@ export type AudioSystem = {
    *  hold has no inputs of its own to compute a gain from. */
   hold(held: boolean): void
   /** Called every frame; reaches the backend only when the view changes. */
+  /** One-shot placed in the world. Same rules as any cue: silent while held,
+   *  never a failed clip, never a non-finite position. */
+  playAt(clip: ClipId, at: Position, rate?: number): void
+  /** Listener pose for positioned sounds; a pose with a non-finite component is dropped. */
+  setListener(pose: ListenerPose): void
   setView(view: View): void
   setMuted(muted: boolean): void
   muted(): boolean
@@ -76,6 +82,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   // progress, not the target that was requested.
   let masterGain = 0
   let cuesFired = 0
+  let spatialPlayed = 0
   let view: View | null = null
   const failed: ClipId[] = []
   // Instant replay's pause (design §7): forced to gain 0 by `hold(true)`
@@ -83,6 +90,8 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   // still rendered while a replay is paused, and nothing else about it may
   // change.
   let held = false
+
+  const finitePosition = (p: Position): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)
 
   function driveLayer(id: string, drive: LayerDrive, rate = 1): void {
     const def = layers[id]
@@ -179,6 +188,22 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       }
     },
 
+    playAt(clip: ClipId, at: Position, rate = 1): void {
+      // Same rules as any cue: silent while held, never a failed clip, never
+      // a NaN position (a non-finite value on a PannerNode throws).
+      if (held) return
+      if (!backend.loaded().includes(clip)) return
+      if (!finitePosition(at)) return
+      const asset = assetFor(clip)
+      spatialPlayed++
+      backend.playOnce(clip, asset.bus, asset.cueGain, rate, at)
+    },
+
+    setListener(pose: ListenerPose): void {
+      if (!finitePosition(pose.position) || !finitePosition(pose.forward) || !finitePosition(pose.up)) return
+      backend.setListener(pose)
+    },
+
     setMuted(muted: boolean): void {
       isMuted = muted
       masterGain = muted ? 0 : MASTER_GAIN
@@ -208,6 +233,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
         enginePlaybackRate: layerState.get('engine')?.rate ?? 0,
         layers: Object.fromEntries(layerState),
         cuesFired,
+        spatialPlayed,
         view,
       }
     },

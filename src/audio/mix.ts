@@ -138,3 +138,8 @@ export const CABIN_PRESETS: Readonly<Record<View, CabinPreset>> = {
 
 /** Crossfade time constant when the view changes. */
 export const CABIN_GLIDE_TAU_S = 0.25
+
+/** Distance at which a positioned one-shot is at its recorded level; beyond it
+ *  the panner's inverse-distance model attenuates. Placeholder until
+ *  sub-project 5 tunes rolloff by flying it. */
+export const PANNER_REF_DISTANCE_M = 100

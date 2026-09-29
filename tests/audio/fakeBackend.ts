@@ -1,5 +1,5 @@
 import type { ClipId } from '../../src/audio/assets.js'
-import type { AudioBackend, BackendState, LoopHandle, LoopSpec } from '../../src/audio/backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position } from '../../src/audio/backend.js'
 import type { Bus, CabinPreset } from '../../src/audio/mix.js'
 
 /**
@@ -21,7 +21,8 @@ export type FakeLayer = {
 export type FakeBackend = AudioBackend & {
   readonly loopsStarted: { id: ClipId; bus: Bus; startS: number | null; endS: number | null }[]
   readonly layers: FakeLayer[]
-  readonly played: { id: ClipId; bus: Bus; gain: number; rate: number }[]
+  readonly played: { id: ClipId; bus: Bus; gain: number; rate: number; at?: Position }[]
+  readonly listeners: ListenerPose[]
   readonly masterGains: number[]
   /** The three below record only loops on the `engine` bus. */
   readonly engineGains: number[]
@@ -37,6 +38,7 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   const loopsStarted: FakeBackend['loopsStarted'] = []
   const layers: FakeLayer[] = []
   const played: FakeBackend['played'] = []
+  const listeners: ListenerPose[] = []
   const masterGains: number[] = []
   const engineGains: number[] = []
   const engineRates: number[] = []
@@ -46,7 +48,7 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   let state: BackendState = 'suspended'
 
   return {
-    loopsStarted, layers, played, masterGains, engineGains, engineRates, engineGlides, resumed, cabins,
+    loopsStarted, layers, played, listeners, masterGains, engineGains, engineRates, engineGlides, resumed, cabins,
     state: (): BackendState => state,
     resume: async (): Promise<void> => { resumed.push(resumed.length); state = 'running' },
     load: async (id: ClipId): Promise<void> => {
@@ -74,7 +76,10 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
         setFilterCutoff: (hz: number, glideTauS: number): void => { layer.cutoffs.push(hz); layer.glides.push(glideTauS) },
       }
     },
-    playOnce: (id: ClipId, bus: Bus, gain: number, rate = 1): void => { played.push({ id, bus, gain, rate }) },
+    playOnce: (id: ClipId, bus: Bus, gain: number, rate = 1, at?: Position): void => {
+      played.push(at === undefined ? { id, bus, gain, rate } : { id, bus, gain, rate, at })
+    },
+    setListener: (pose: ListenerPose): void => { listeners.push(pose) },
     setMasterGain: (value: number): void => { masterGains.push(value) },
     setCabin: (preset: CabinPreset, tauS: number): void => { cabins.push({ preset, tauS }) },
   }
