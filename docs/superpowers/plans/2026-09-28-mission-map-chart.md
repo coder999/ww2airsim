@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-28-mission-map-chart-design.md`
 
+**Viewing checkpoints (Mark, 2026-09-28):** final product only; run unattended. Screenshots go in the handoff.
+
 ## Global Constraints
 
 - All distances shown to the player are imperial: contours and elevation labels in feet; scale bar in nautical miles (`CLAUDE.md`).
