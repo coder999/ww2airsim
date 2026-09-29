@@ -32,6 +32,12 @@ export type LoopHandle = {
   setFilterCutoff(hz: number, glideTauS: number): void
 }
 
+/** A loop that is placed in space: position is listener-relative (x right, y up, -z ahead)
+ *  and only pans -- the reducer in spatial.ts owns all distance decisions. */
+export type SpatialLoopHandle = LoopHandle & {
+  setPosition(at: Position, glideTauS: number): void
+}
+
 /** A point in world space, metres. Defined here, not borrowed from `sim/`:
  *  `audio/` must not import the simulation. */
 export type Position = { readonly x: number; readonly y: number; readonly z: number }
@@ -52,6 +58,9 @@ export type AudioBackend = {
    *  and `system.ts` will not play it -- silence beats a failure screen. */
   loaded(): readonly ClipId[]
   startLoop(spec: LoopSpec): LoopHandle
+  startSpatialLoop(spec: LoopSpec): SpatialLoopHandle
+  /** A one-shot at a listener-relative position (see SpatialLoopHandle), lowpassed at `lowpassHz`. */
+  playSpatial(id: ClipId, bus: Bus, gain: number, rate: number, at: Position, lowpassHz: number): void
   /** `rate` defaults to 1 (its natural pitch). Instant replay (design §7)
    *  scales it with the replay speed, so a burst heard at 0.5x plays back at
    *  half pitch along with the engine loop, rather than at full pitch while

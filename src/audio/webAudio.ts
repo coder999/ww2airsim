@@ -1,5 +1,5 @@
 import type { ClipId } from './assets.js'
-import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position } from './backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, SpatialLoopHandle, Position } from './backend.js'
 import { BIQUAD_FLAT_Q_DB, BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, PANNER_REF_DISTANCE_M, type Bus, type CabinPreset } from './mix.js'
 
 /**
@@ -92,20 +92,7 @@ export function createWebAudioBackend(): AudioBackend {
     radio: busNode('radio', radioHigh),
   }
 
-  return {
-    state: (): BackendState => context.state as BackendState,
-
-    resume: async (): Promise<void> => { await context.resume() },
-
-    load: async (id: ClipId, url: string): Promise<void> => {
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`)
-      buffers.set(id, await context.decodeAudioData(await response.arrayBuffer()))
-    },
-
-    loaded: (): readonly ClipId[] => [...buffers.keys()],
-
-    startLoop: (spec: LoopSpec): LoopHandle => {
+  const makeLoop = (spec: LoopSpec, panner: PannerNode | null): LoopHandle => {
       const buffer = buffers.get(spec.clip)
       if (buffer === undefined) throw new Error(`startLoop before ${spec.clip} decoded`)
       const filter = context.createBiquadFilter()
@@ -125,7 +112,8 @@ export function createWebAudioBackend(): AudioBackend {
       }
       source.connect(filter)
       filter.connect(gain)
-      gain.connect(buses[spec.bus])
+      if (panner === null) gain.connect(buses[spec.bus])
+      else { gain.connect(panner); panner.connect(buses[spec.bus]) }
       source.start(0)
       // `setTargetAtTime`, never a plain assignment: an AudioParam stepped in
       // one frame clicks, and `M` moves the throttle 1 -> 0 in one frame.
@@ -137,6 +125,68 @@ export function createWebAudioBackend(): AudioBackend {
         setFilterCutoff: (hz: number, glideTauS: number): void =>
           { filter.frequency.setTargetAtTime(hz, context.currentTime, glideTauS) },
       }
+    }
+
+  const makeSpatialPanner = (): PannerNode => {
+    const panner = context.createPanner()
+    panner.panningModel = 'equalpower'
+    panner.distanceModel = 'inverse'
+    // Pan only: the reducer owns every distance decision (spatial.ts).
+    panner.rolloffFactor = 0
+    return panner
+  }
+
+  return {
+    state: (): BackendState => context.state as BackendState,
+
+    resume: async (): Promise<void> => { await context.resume() },
+
+    load: async (id: ClipId, url: string): Promise<void> => {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`)
+      buffers.set(id, await context.decodeAudioData(await response.arrayBuffer()))
+    },
+
+    loaded: (): readonly ClipId[] => [...buffers.keys()],
+
+    startLoop: (spec: LoopSpec): LoopHandle => makeLoop(spec, null),
+
+    startSpatialLoop: (spec: LoopSpec): SpatialLoopHandle => {
+      const panner = makeSpatialPanner()
+      const handle = makeLoop(spec, panner)
+      return {
+        ...handle,
+        setPosition: (at: Position, glideTauS: number): void => {
+          const now = context.currentTime
+          panner.positionX.setTargetAtTime(at.x, now, glideTauS)
+          panner.positionY.setTargetAtTime(at.y, now, glideTauS)
+          panner.positionZ.setTargetAtTime(at.z, now, glideTauS)
+        },
+      }
+    },
+
+    playSpatial: (id: ClipId, bus: Bus, value: number, rate: number, at: Position, lowpassHz: number): void => {
+      const buffer = buffers.get(id)
+      if (buffer === undefined) return
+      const filter = context.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = lowpassHz
+      filter.Q.value = BIQUAD_FLAT_Q_DB
+      const gain = context.createGain()
+      gain.gain.value = value
+      const panner = makeSpatialPanner()
+      panner.positionX.value = at.x
+      panner.positionY.value = at.y
+      panner.positionZ.value = at.z
+      const source = context.createBufferSource()
+      source.buffer = buffer
+      source.playbackRate.value = rate
+      source.connect(filter)
+      filter.connect(gain)
+      gain.connect(panner)
+      panner.connect(buses[bus])
+      source.onended = (): void => { source.disconnect(); filter.disconnect(); gain.disconnect(); panner.disconnect() }
+      source.start(0)
     },
 
     playOnce: (id: ClipId, bus: Bus, value: number, rate?: number, at?: Position): void => {

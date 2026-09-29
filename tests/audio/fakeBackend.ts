@@ -1,5 +1,5 @@
 import type { ClipId } from '../../src/audio/assets.js'
-import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position } from '../../src/audio/backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position, SpatialLoopHandle } from '../../src/audio/backend.js'
 import type { Bus, CabinPreset } from '../../src/audio/mix.js'
 
 /**
@@ -18,7 +18,12 @@ export type FakeLayer = {
   readonly glides: number[]
 }
 
+export type FakeSpatialLoop = FakeLayer & { readonly positions: Position[] }
+
 export type FakeBackend = AudioBackend & {
+  /** Every loop started with `startSpatialLoop`, in start order. */
+  readonly spatialLoops: FakeSpatialLoop[]
+  readonly spatialShots: { id: ClipId; bus: Bus; gain: number; rate: number; at: Position; lowpassHz: number }[]
   readonly loopsStarted: { id: ClipId; bus: Bus; startS: number | null; endS: number | null }[]
   readonly layers: FakeLayer[]
   readonly played: { id: ClipId; bus: Bus; gain: number; rate: number; at?: Position }[]
@@ -47,10 +52,12 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   const resumed: number[] = []
   const cabins: FakeBackend['cabins'] = []
   const distances: number[] = []
+  const spatialLoops: FakeSpatialLoop[] = []
+  const spatialShots: FakeBackend['spatialShots'] = []
   let state: BackendState = 'suspended'
 
   return {
-    loopsStarted, layers, played, listeners, masterGains, engineGains, engineRates, engineGlides, resumed, cabins, distances,
+    spatialLoops, spatialShots, loopsStarted, layers, played, listeners, masterGains, engineGains, engineRates, engineGlides, resumed, cabins, distances,
     state: (): BackendState => state,
     resume: async (): Promise<void> => { resumed.push(resumed.length); state = 'running' },
     load: async (id: ClipId): Promise<void> => {
@@ -77,6 +84,19 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
         },
         setFilterCutoff: (hz: number, glideTauS: number): void => { layer.cutoffs.push(hz); layer.glides.push(glideTauS) },
       }
+    },
+    startSpatialLoop: (spec: LoopSpec): SpatialLoopHandle => {
+      const layer: FakeSpatialLoop = { clip: spec.clip, bus: spec.bus, gains: [], rates: [], cutoffs: [], glides: [], positions: [] }
+      spatialLoops.push(layer)
+      return {
+        setGain: (value: number, glideTauS: number): void => { layer.gains.push(value); layer.glides.push(glideTauS) },
+        setPlaybackRate: (value: number, glideTauS: number): void => { layer.rates.push(value); layer.glides.push(glideTauS) },
+        setFilterCutoff: (hz: number, glideTauS: number): void => { layer.cutoffs.push(hz); layer.glides.push(glideTauS) },
+        setPosition: (at: Position, glideTauS: number): void => { layer.positions.push(at); layer.glides.push(glideTauS) },
+      }
+    },
+    playSpatial: (id: ClipId, bus: Bus, gain: number, rate: number, at: Position, lowpassHz: number): void => {
+      spatialShots.push({ id, bus, gain, rate, at, lowpassHz })
     },
     playOnce: (id: ClipId, bus: Bus, gain: number, rate = 1, at?: Position): void => {
       played.push(at === undefined ? { id, bus, gain, rate } : { id, bus, gain, rate, at })
