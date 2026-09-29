@@ -17,6 +17,15 @@ Sub-project 2 of the audio expansion (`docs/superpowers/specs/2026-09-29-audio-e
 - Loop points for the new loops were found by `tools/audio/findloop.ts` and are asserted by
   `tests/audio/loopPoints.test.ts`.
 
+## Follow-up (2026-09-30): bomb blasts
+
+Mark bombed his own carrier in a Zero and heard `hit_taken` (gunfire on the hull) instead of a bomb
+explosion: nothing cued a bomb detonation, and the blast's damage to the player read as a hit. Now any bomb
+or rocket detonation within 1,500 m (`BLAST_AUDIBLE_M`, read from `World.combat.impacts`) plays `explosion`
+(`water_crash` over water), rate-limited to one per 10 ticks, and structure loss within 2 ticks of a
+detonation no longer cues `hit_taken`. NOT positional: it plays at full level anywhere inside 1,500 m
+(sub-project 5). Not yet heard.
+
 ## Not wired
 
 `flak_distant` waits for spatial audio (sub-project 5). Paddles voice lines are not generated yet.

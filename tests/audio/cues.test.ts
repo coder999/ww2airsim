@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { QUIET_DAMAGE } from './inputs.js'
 import {
-  GUN_CUE_INTERVAL_TICKS, HIT_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
+  GUN_CUE_INTERVAL_TICKS, HIT_CUE_INTERVAL_TICKS, BLAST_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
 } from '../../src/audio/cues.js'
 
 const flying: AudioInputs = {
@@ -310,6 +310,21 @@ describe('damage and carrier cues', () => {
     expect(nextAudio(b.memory, at(101 + HIT_CUE_INTERVAL_TICKS, { structure: 0.8 })).cues).toEqual(['hit_taken'])
     // Steady damage is not a new hit.
     expect(nextAudio(b.memory, at(500, { structure: 0.9 })).cues).toEqual([])
+  })
+
+  it('cues a nearby bomb or rocket detonation once, and does not call its blast damage gunfire', () => {
+    const a = nextAudio(NO_AUDIO_MEMORY, at(100))
+    const b = nextAudio(a.memory, at(101, { ordnanceBlast: { tick: 101, surface: 'ship' }, structure: 0.8 }))
+    expect(b.cues).toEqual(['explosion'])
+    expect(nextAudio(b.memory, at(102, { ordnanceBlast: { tick: 101, surface: 'ship' }, structure: 0.8 })).cues).toEqual([])
+    const sea = nextAudio(a.memory, at(101, { ordnanceBlast: { tick: 101, surface: 'water' } }))
+    expect(sea.cues).toEqual(['water_crash'])
+    // A stick of bombs across a few ticks is one rumble, and a later one is a new cue.
+    const c = nextAudio(b.memory, at(103, { ordnanceBlast: { tick: 103, surface: 'ship' } }))
+    expect(c.cues).toEqual([])
+    expect(nextAudio(c.memory, at(101 + BLAST_CUE_INTERVAL_TICKS + 5, { ordnanceBlast: { tick: 120, surface: 'ship' } })).cues).toEqual(['explosion'])
+    // Rounds that hit long after the blast are still gunfire.
+    expect(nextAudio(b.memory, at(200, { ordnanceBlast: { tick: 101, surface: 'ship' }, structure: 0.7 })).cues).toEqual(['hit_taken'])
   })
 
   it('sputters once when the engine drops below half health, and only while it is running', () => {

@@ -1,4 +1,6 @@
-import type { AudioInputs } from '../audio/cues.js'
+import { BLAST_AUDIBLE_M, type AudioInputs } from '../audio/cues.js'
+import type { CombatImpact } from '../sim/weapons/impacts.js'
+import type { Vec3 } from '../sim/math/vec3.js'
 import { engineFamilyFor } from '../audio/mix.js'
 import { onGround } from '../sim/ground.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
@@ -76,8 +78,18 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     arrested: aircraft.arrested,
     hookDown: frame.controls.hookDown === true,
     // Centre distance less half the deck length: a cue for "near a carrier", not a rectangle test.
+    ordnanceBlast: latestBlastNear(frame.world.combat.impacts, aircraft.position),
     deckDistanceM: decks.length === 0
       ? null
       : Math.max(0, Math.min(...decks.map((d) => Math.hypot(aircraft.position.x - d.center.x, aircraft.position.z - d.center.z) - d.lengthM / 2))),
   }
+}
+
+function latestBlastNear(impacts: readonly CombatImpact[], at: Vec3): { tick: number; surface: string } | null {
+  for (let i = impacts.length - 1; i >= 0; i--) {
+    const hit = impacts[i]!
+    if (hit.cause === 'round' || hit.outcome !== 'detonated') continue
+    if (Math.hypot(hit.point.x - at.x, hit.point.y - at.y, hit.point.z - at.z) <= BLAST_AUDIBLE_M) return { tick: hit.tick, surface: hit.surface }
+  }
+  return null
 }

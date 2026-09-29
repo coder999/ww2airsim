@@ -1,3 +1,4 @@
+import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import { describe, it, expect } from 'vitest'
 import { audioInputsFrom } from '../../src/render/audio.js'
 import { initialFrameState, initialFrameStateFor } from '../../src/render/frame.js'
@@ -198,4 +199,16 @@ it('reads the engine family off the aircraft the world flies', () => {
   const p38 = loadAircraftSpec('p-38-lightning')
   const frame = initialFrameState(p38, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
   expect(audioInputsFrom(frame).engineFamily).toBe('allison')
+})
+
+it('reports the newest bomb or rocket detonation within earshot, never a round or a far one', () => {
+  const frame = initialFrameState(loadAircraftSpec('a6m2-zero'), createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+  const at = (x: number) => v3(x, 1000, 0)
+  const withImpacts = (impacts: CombatImpact[]) => ({ ...frame, world: { ...frame.world, combat: { ...frame.world.combat, impacts } } })
+  const bomb = { tick: 7, cause: 'bomb', outcome: 'detonated', surface: 'ship', point: at(200) } as const
+  expect(audioInputsFrom(frame).ordnanceBlast).toBeNull()
+  expect(audioInputsFrom(withImpacts([bomb])).ordnanceBlast).toEqual({ tick: 7, surface: 'ship' })
+  expect(audioInputsFrom(withImpacts([bomb, { ...bomb, tick: 9, cause: 'round' }])).ordnanceBlast?.tick).toBe(7)
+  expect(audioInputsFrom(withImpacts([bomb, { ...bomb, tick: 9, outcome: 'expired' }])).ordnanceBlast?.tick).toBe(7)
+  expect(audioInputsFrom(withImpacts([{ ...bomb, point: at(20_000) }])).ordnanceBlast).toBeNull()
 })

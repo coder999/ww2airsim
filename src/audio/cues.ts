@@ -88,6 +88,9 @@ export type AudioInputs = {
   /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
    *  `null` when there is no carrier. */
   readonly deckDistanceM: number | null
+  /** The newest bomb or rocket detonation near the player (any owner, any target), or `null`.
+   *  Not positional yet: it plays at full level whatever the distance within range. */
+  readonly ordnanceBlast: { readonly tick: number; readonly surface: string } | null
 }
 
 export type AudioMemory = {
@@ -118,12 +121,15 @@ export type AudioMemory = {
   readonly engineFailed: boolean
   readonly lastArrested: boolean
   readonly lastHookDown: boolean
+  readonly firedBlastTick: number | null
+  readonly blastCueUntilTick: number
 }
 
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
   lastBombsDropped: 0, lastRocketsFired: 0, airborneSinceTick: null, airborneLatched: false, lastSinkMps: 0,
   lastStructure: 1, hitCueUntilTick: 0, engineFailed: false, lastArrested: false, lastHookDown: false,
+  firedBlastTick: null, blastCueUntilTick: 0,
 }
 
 /**
@@ -153,6 +159,13 @@ export const TOUCHDOWN_MIN_SINK_MPS = 0.3
  * second, and 80 overlapping one-shots would be noise, not gunfire.
  */
 export const GUN_CUE_INTERVAL_TICKS = 72
+
+/** One detonation cue per this many ticks, so a rocket salvo or bomb stick is one rumble. */
+export const BLAST_CUE_INTERVAL_TICKS = 10
+/** Damage landing this soon after a detonation is the blast's, not a round's. */
+export const BLAST_DAMAGE_WINDOW_TICKS = 2
+/** Detonations farther than this from the player are not cued (no positional audio yet). */
+export const BLAST_AUDIBLE_M = 1500
 
 /** `hit_taken.wav` is 1.5 s; a burst that lands a dozen rounds in a few ticks is one cue, not a dozen. */
 export const HIT_CUE_INTERVAL_TICKS = 30
@@ -243,8 +256,19 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
 
   // Damage and carrier edges. Each is a bare edge on a value the sim already
   // holds, so a replay scrub (`prime`) advances past them silently.
+  let firedBlastTick = restarted ? null : prev.firedBlastTick
+  let blastCueUntilTick = restarted ? 0 : prev.blastCueUntilTick
+  if (inputs.ordnanceBlast !== null && inputs.ordnanceBlast.tick !== firedBlastTick) {
+    firedBlastTick = inputs.ordnanceBlast.tick
+    if (inputs.tick >= blastCueUntilTick) {
+      cues.push(inputs.ordnanceBlast.surface === 'water' ? 'water_crash' : 'explosion')
+      blastCueUntilTick = inputs.tick + BLAST_CUE_INTERVAL_TICKS
+    }
+  }
+  // Blast damage to the player is not gunfire: the detonation just above is its sound.
+  const blastDamage = inputs.ordnanceBlast !== null && inputs.tick - inputs.ordnanceBlast.tick <= BLAST_DAMAGE_WINDOW_TICKS
   let hitCueUntilTick = restarted ? 0 : prev.hitCueUntilTick
-  if (inputs.structure < (restarted ? 1 : prev.lastStructure) && inputs.tick >= hitCueUntilTick) {
+  if (inputs.structure < (restarted ? 1 : prev.lastStructure) && inputs.tick >= hitCueUntilTick && !blastDamage) {
     cues.push('hit_taken')
     hitCueUntilTick = inputs.tick + HIT_CUE_INTERVAL_TICKS
   }
@@ -260,7 +284,7 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
       lastBombsDropped: inputs.bombsDropped, lastRocketsFired: inputs.rocketsFired,
       airborneSinceTick, airborneLatched, lastSinkMps: inputs.sinkMps,
       lastStructure: inputs.structure, hitCueUntilTick, engineFailed: failing,
-      lastArrested: inputs.arrested, lastHookDown: inputs.hookDown,
+      lastArrested: inputs.arrested, lastHookDown: inputs.hookDown, firedBlastTick, blastCueUntilTick,
     },
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already
