@@ -19,6 +19,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'b-17-flying-fortress': 'Object_51',
   // The G4M's model has a single skinned material and no separate canopy node; g4m_dark is the whole airframe's skin, and the eye sits under the glasshouse crown (top y about 1.65 at x 3.4).
   'g4m-betty': 'g4m_dark',
+  // A single-skin airframe like the G4M: b29_dark is the whole skin, and the eye sits under the glazed crown at x 9.0.
+  'b-29-superfortress': 'b29_dark',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

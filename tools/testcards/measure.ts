@@ -108,7 +108,9 @@ const TOP_SPEED_SETTLED_MPS = 0.001
  * Full throttle, flight path held level at `altitudeM`, run until airspeed
  * stops rising. Returns true airspeed in m/s.
  */
-const TOP_SPEED_MAX_S = 900
+/** Raised from 900 to 3600 on 2026-09-29 (B-29 onboarding): a 50 t bomber's acceleration decays so slowly that at 7,620 m the
+ *  run had not settled to the cutoff above within 900 s and the measurement threw instead of answering. Only such an airplane reaches the cap. */
+const TOP_SPEED_MAX_S = 3600
 
 export function measureTopSpeed(spec: AircraftSpec, altitudeM: number): number {
   let s = spawn(spec, altitudeM, spec.rates.rateRefSpeedMps)

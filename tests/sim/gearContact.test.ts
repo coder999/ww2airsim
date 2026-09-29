@@ -44,7 +44,7 @@ describe('gear contact geometry', () => {
   })
 })
 
-describe.each([['f6f-hellcat', 'f6f-hellcat'], ['f4f-wildcat', 'wildcat'], ['a6m2-zero', 'a6m2-zero'], ['f4u-corsair', 'f4u-corsair'], ['b-17-flying-fortress', 'b-17-flying-fortress'], ['g4m-betty', 'g4m-betty']] as const)(
+describe.each([['f6f-hellcat', 'f6f-hellcat'], ['f4f-wildcat', 'wildcat'], ['a6m2-zero', 'a6m2-zero'], ['f4u-corsair', 'f4u-corsair'], ['b-17-flying-fortress', 'b-17-flying-fortress'], ['g4m-betty', 'g4m-betty'], ['b-29-superfortress', 'b-29-superfortress']] as const)(
   '%s layout against the drawing',
   (id, model) => {
     const gear = loadAircraftSpec(id).gear
@@ -55,8 +55,10 @@ describe.each([['f6f-hellcat', 'f6f-hellcat'], ['f4f-wildcat', 'wildcat'], ['a6m
       expect(Math.abs(gear.mainX - MODEL_STANCE[model]!.mainWheelXM)).toBeLessThanOrEqual(0.05)
     })
     it('has the center of gravity (the body origin) between the wheels', () => {
-      expect(gear.thirdX).toBeLessThan(0)
-      expect(gear.mainX).toBeGreaterThan(0)
+      // A taildragger's mains are ahead of the CG and its tail wheel behind; a tricycle's are the reverse.
+      const sign = gear.layout === 'tricycle' ? -1 : 1
+      expect(sign * gear.thirdX).toBeLessThan(0)
+      expect(sign * gear.mainX).toBeGreaterThan(0)
     })
   },
 )

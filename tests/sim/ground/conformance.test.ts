@@ -43,7 +43,9 @@ const bank = (s: AircraftState): number => attitudeAngles(s).rollRad
  */
 const liftoffLowFraction = (id: string): number => (id === 'b-17-flying-fortress' ? 0.9 : 0.95)
 
-const takeoffWindowS = (id: string, fighterS: number): number => (id === 'b-17-flying-fortress' ? 90 : fighterS)
+// The B-29 (50 t on a summed 2,000 hp per engine at sea level, unstick at 1.1 x its own 59.4 m/s stall) never left the ground in
+// 90 s and did in 100 s, measured 2026-09-29; 110 s leaves margin. Harness patience again, not a coefficient (B-29 onboarding).
+const takeoffWindowS = (id: string, fighterS: number): number => (id === 'b-17-flying-fortress' ? 90 : id === 'b-29-superfortress' ? 110 : fighterS)
 
 
 describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance: %s', (_id, spec) => {
