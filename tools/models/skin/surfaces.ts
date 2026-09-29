@@ -11,7 +11,7 @@
  *   rivets      draw rivet rows beside its panel lines
  *   scanNormal  the scan normal's strength, 0-1
  */
-export type ScanId = 'painted-metal' | 'corrugated-iron' | 'concrete'
+export type ScanId = 'painted-metal' | 'corrugated-iron' | 'concrete' | 'deck-planks'
 export interface Surface {
   readonly scan: ScanId | null
   readonly roughness: number
@@ -20,6 +20,10 @@ export interface Surface {
   readonly chip: number
   readonly rivets: boolean
   readonly scanNormal: number
+  /** DP2 (Ruling S7): sample the scan at world (x, z) or (z, x) instead of chart (u, v), so planks run
+   *  fore and aft on every chart and continue across seams. Its scanNormal must be 0: a world-frame
+   *  normal is wrong in a chart's tangent frame. */
+  readonly scanSpace?: 'world-xz' | 'world-zx'
 }
 
 export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
@@ -30,10 +34,21 @@ export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   glazing: { scan: null, roughness: 0.08, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
   steel: { scan: 'corrugated-iron', roughness: 0.7, metallic: 0, fade: 0.1, chip: 0.04, rivets: false, scanNormal: 1 },
   concrete: { scan: 'concrete', roughness: 0.9, metallic: 0, fade: 0.04, chip: 0, rivets: false, scanNormal: 1 },
+  // Ships (DP2). ESTIMATE, set by eye on the Pennsylvania pilot (Task 7). Chips are rare: a ship's skin is
+  // metallicFactor 0 (Ruling S1), so a chip reads as a light fleck of primer, not as metal.
+  hull: { scan: 'painted-metal', roughness: 0.72, metallic: 0, fade: 0.08, chip: 0.004, rivets: false, scanNormal: 0.5 },
+  superstructure: { scan: 'painted-metal', roughness: 0.72, metallic: 0, fade: 0.08, chip: 0.004, rivets: false, scanNormal: 0.5 },
+  fitting: { scan: 'painted-metal', roughness: 0.66, metallic: 0, fade: 0.06, chip: 0.004, rivets: false, scanNormal: 0.5 },
+  deck: { scan: 'deck-planks', roughness: 0.86, metallic: 0, fade: 0.05, chip: 0, rivets: false, scanNormal: 0, scanSpace: 'world-xz' },
+  flightDeck: { scan: 'deck-planks', roughness: 0.86, metallic: 0, fade: 0.05, chip: 0, rivets: false, scanNormal: 0, scanSpace: 'world-xz' },
+  boot: { scan: 'painted-metal', roughness: 0.75, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.3 },
+  antifouling: { scan: 'painted-metal', roughness: 0.8, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.3 },
 }
 
 export function surfaceFor(role: string): Surface {
-  const s = ROLE_SURFACE[role]
+  // DP2: a download's box-projected roles are its shipMaterials names, `ship:<role>`.
+  const key = role.startsWith('ship:') ? role.slice(5) : role
+  const s = ROLE_SURFACE[key]
   if (!s) throw new Error(`skin: palette role "${role}" has no surface in tools/models/skin/surfaces.ts (known: ${Object.keys(ROLE_SURFACE).sort().join(', ')})`)
   return s
 }

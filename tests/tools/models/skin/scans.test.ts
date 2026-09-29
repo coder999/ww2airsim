@@ -53,8 +53,8 @@ describe('scan sampling (DP0, Review Focus 3)', () => {
 })
 
 describe('the pinned scans', () => {
-  it('are three CC0 Poly Haven sets, each with a positive tile size and three MD5-pinned files', () => {
-    expect(Object.keys(SCANS).sort()).toEqual(['concrete', 'corrugated-iron', 'painted-metal'])
+  it('are four CC0 Poly Haven sets, each with a positive tile size and three MD5-pinned files', () => {
+    expect(Object.keys(SCANS).sort()).toEqual(['concrete', 'corrugated-iron', 'deck-planks', 'painted-metal'])
     for (const s of Object.values(SCANS)) {
       expect(s.license).toBe('CC0-1.0')
       expect(s.tileM).toBeGreaterThan(0)
@@ -64,7 +64,7 @@ describe('the pinned scans', () => {
 })
 
 describe.skipIf(!scansCached())('the pinned scans load (needs tools/textures/cache: run `npm run models:build -- hangar` once)', () => {
-  it.each(['painted-metal', 'corrugated-iron', 'concrete'] as const)('%s decodes to a 1024 px scan with unit-ish normals', async (id) => {
+  it.each(['painted-metal', 'corrugated-iron', 'concrete', 'deck-planks'] as const)('%s decodes to a 1024 px scan with unit-ish normals', async (id) => {
     const s = await loadScan(id)
     expect(s.size).toBe(1024)
     const l0 = s.levels[0]!

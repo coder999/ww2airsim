@@ -47,4 +47,12 @@ describe('colors and surfaces (DP0)', () => {
     for (const r of ['ijaGreen', 'underside', 'dark', 'glazing', 'naturalMetal', 'steel', 'concrete']) expect(ROLE_SURFACE[r], r).toBeDefined()
     expect(() => surfaceFor('timber')).toThrow(/timber/)
   })
+  it('every ship role has a surface; a ship:<role> material resolves to it; world-sampled surfaces carry no scan normal (DP2)', () => {
+    for (const r of ['hull', 'superstructure', 'fitting', 'deck', 'flightDeck', 'boot', 'antifouling']) {
+      expect(surfaceFor(r), r).toBe(ROLE_SURFACE[r])
+      expect(surfaceFor(`ship:${r}`), `ship:${r}`).toBe(ROLE_SURFACE[r])
+    }
+    for (const [r, s] of Object.entries(ROLE_SURFACE)) if (s.scanSpace) expect(s.scanNormal, r).toBe(0)
+    expect(ROLE_SURFACE['deck']!.scan).toBe('deck-planks')
+  })
 })

@@ -120,7 +120,9 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
     const p: V3 = [g.pos[3 * i]!, g.pos[3 * i + 1]!, g.pos[3 * i + 2]!]
     const n: V3 = [g.nrm[3 * i]!, g.nrm[3 * i + 1]!, g.nrm[3 * i + 2]!]
     const r = g.role[i]!, surf = surfaces[r]!, sc = scanOf(surf)
-    const s = sc ? sampleScan(sc, u, v, mpp) : { lum: 0.5, rough: 0.5, n: [0, 0, 1] as V3 }
+    // DP2 (Ruling S7): decks sample their planks in world space, so they run fore and aft on every chart.
+    const [su, sv] = surf.scanSpace === 'world-xz' ? [p[0], p[2]] : surf.scanSpace === 'world-zx' ? [p[2], p[0]] : [u, v]
+    const s = sc ? sampleScan(sc, su, sv, mpp) : { lum: 0.5, rough: 0.5, n: [0, 0, 1] as V3 }
     let [cr, cg, cb] = base[r]!
     // scan wear
     if (sc) { const k = 1 + 0.35 * (s.lum - sc.meanLum); cr *= k; cg *= k; cb *= k }

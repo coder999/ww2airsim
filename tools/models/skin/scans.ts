@@ -18,7 +18,7 @@ export interface ScanSource {
   readonly diffuse: ScanFile; readonly normal: ScanFile; readonly rough: ScanFile
 }
 
-/** MD5s from api.polyhaven.com/files/<id>, read 2026-09-28 (painted metal: O1's, read 2026-09-26).
+/** MD5s from api.polyhaven.com/files/<id>, read 2026-09-28, deck planks read 2026-09-28 (painted metal: O1's, read 2026-09-26).
  *  Tile sizes are each asset's own "dimensions" (mm) from api.polyhaven.com/info/<id>. */
 export const SCANS: Readonly<Record<ScanId, ScanSource>> = {
   'painted-metal': { polyHaven: PAINTED_METAL.id, authors: PAINTED_METAL.author, license: 'CC0-1.0', tileM: PAINTED_METAL.tileM, diffuse: PAINTED_METAL.diffuse, normal: PAINTED_METAL.normal, rough: PAINTED_METAL.rough },
@@ -26,6 +26,8 @@ export const SCANS: Readonly<Record<ScanId, ScanSource>> = {
     ...files('worn_corrugated_iron', 'dee4306e2c337afcb3a815eb3345c7bd', 'b1fdf9a7fa3ca2764fe1621a6bdea0db', '78ed19c7b13281d6bfcf12fc9ee27dc3') },
   concrete: { polyHaven: 'concrete_floor_worn_001', authors: 'Dimitrios Savva (photography), Rico Cilliers (processing)', license: 'CC0-1.0', tileM: 3.0,
     ...files('concrete_floor_worn_001', 'e35597cca586150b1ab2aa9a331a39c5', '9de6626758f8793b71182b892c110827', 'b158eae73029ac6a849481274a0e1b35') },
+  'deck-planks': { polyHaven: 'weathered_brown_planks', authors: 'Dimitrios Savva (photography), Rico Cilliers (processing)', license: 'CC0-1.0', tileM: 1.8,
+    ...files('weathered_brown_planks', 'e2fbdf7ed402e272e33e3f7ba707cf69', '1180a2ce3566529b25128252e02bd049', '4893f3ee360a4e1e30b96a157e65e50a') },
 }
 
 export const scansCached = (ids: readonly ScanId[] = Object.keys(SCANS) as ScanId[]): boolean =>

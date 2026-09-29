@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { rasterize, trianglesOf } from '../../../../tools/models/skin/raster.js'
 import { GRID_MIN_TEXELS, paint } from '../../../../tools/models/skin/layers.js'
+import { scanFromChannels } from '../../../../tools/models/skin/scans.js'
 import { compose, type SkinMaps } from '../../../../tools/models/skin/compose.js'
 import type { Sidecar } from '../../../../tools/models/skin/sidecar.js'
 import type { ScanId } from '../../../../tools/models/skin/surfaces.js'
@@ -97,5 +98,28 @@ describe('skin layers (DP0)', () => {
       expect(p.height[i], `sample ${i}`).toBe(0)
     }
     expect(count).toBeGreaterThan(4000)
+  })
+})
+
+describe('world-space scan sampling (DP2, Ruling S7)', () => {
+  const unitNormals = (n: number): Float32Array => { const a = new Float32Array(3 * n); for (let i = 0; i < n; i++) a[3 * i + 2] = 1; return a }
+  // A 4 px, 1 m scan whose luminance ramps across every texel, so any change of sample point changes the result.
+  const ramp = scanFromChannels(4, 1, Float32Array.from({ length: 16 }, (_, k) => k / 15), new Float32Array(16).fill(0.5), unitNormals(16))
+  /** Two texels at the same world point and normal, in two patches whose chart origins differ. */
+  const twoTexels = (role: string) => {
+    const size = 4, g = { size, covered: new Uint8Array(16), role: new Uint8Array(16), patch: new Int32Array(16).fill(-1), pos: new Float32Array(48), nrm: new Float32Array(48) }
+    for (const [i, patch] of [[0, 0], [15, 1]] as const) { g.covered[i] = 1; g.patch[i] = patch; g.pos.set([1.3, 5, 0.7], 3 * i); g.nrm.set([0, 1, 0], 3 * i) }
+    const side = fixtureSidecar({ roles: { [role]: [0.3, 0.25, 0.2] }, lines: [], markings: [],
+      patches: [{ id: 0, tag: 'wing', rect: [8, 8, 32, 32], originM: [0, 0] }, { id: 1, tag: 'fuselage', rect: [48, 8, 12, 12], originM: [7.25, -3.5] }] })
+    return paint(g, [role], side, new Map([['deck-planks', ramp], ['painted-metal', ramp]]), 64)
+  }
+  it('a deck samples its planks at world (x, z): one point reads the same from two differently placed charts', () => {
+    const out = twoTexels('deck')
+    expect([...out.color.subarray(45, 48)]).toEqual([...out.color.subarray(0, 3)])
+    expect(out.rough[15]).toBe(out.rough[0])
+  })
+  it('a chart-sampled role (hull) reads differently there: the check bites', () => {
+    const out = twoTexels('hull')
+    expect([...out.color.subarray(45, 48)]).not.toEqual([...out.color.subarray(0, 3)])
   })
 })
