@@ -12,7 +12,7 @@ const names = ordnanceNames(library)
 
 describe('the flyable catalog (sortie spec, Form 3)', () => {
   it('lists the allied aircraft by name, then the Zero', () => {
-    expect(flyable.map((f) => f.spec.id)).toEqual(['f4f-wildcat', 'f6f-hellcat', 'a6m2-zero'])
+    expect(flyable.map((f) => f.spec.id)).toEqual(['f4f-wildcat', 'f6f-hellcat', 'f4u-corsair', 'a6m2-zero'])
   })
   it('refuses a spec with no Library entry, by name', () => {
     expect(() => flyableAircraft(specs, library.filter((e) => e.spec !== 'a6m2-zero'))).toThrow('flyable a6m2-zero: no Library entry has spec "a6m2-zero"')
