@@ -4,7 +4,7 @@
  * Tuning notes (M3-R9), 2026-09-27:
  *
  * - **The defenders, 7h Task 4, 2026-09-28.** Two Zeros parked on Dulag's
- *   runway at local (0, 650) and (0, 750), unchocked, `takeoff: true`; they
+ *   runway at local (0, 650) and (0, 740), unchocked, `takeoff: true`; they
  *   spawn on the scramble trigger and roll. (Was: airborne 4 km north at
  *   1,500 m, which is what Mark saw fail: they appeared mid-air.) Measured
  *   against a striker 7,900 m out at 400 m, 100 m/s: airborne at 50 s and
@@ -92,6 +92,10 @@ describe('Airfield Strike content', () => {
       const ahead = (e.x - w.x) * Math.sin(h) + (e.z - w.z) * -Math.cos(h)
       expect(ahead).toBeGreaterThanOrEqual(1.5 * ZERO_TAKEOFF_RUN_M)
       expect(ahead).toBeLessThanOrEqual(field.runway.lengthM) // on the strip, not behind it
+      // Firm-runway margin: the app's cover raster classes anything outside the
+      // runway rect as soft or forest, and forest is never supported (a spot at
+      // exactly the end edge fell through in the app, 2026-09-28; Tier 1 has no cover).
+      expect(Math.abs(s.z)).toBeLessThanOrEqual(field.runway.lengthM / 2 - 5)
     }
   })
 

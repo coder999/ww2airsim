@@ -1,0 +1,70 @@
+{
+  "id": "takeoff-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban",
+    "dulag"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": -110,
+          "z": 100
+        }
+      },
+      "chocked": true
+    },
+    {
+      "id": "ai-1",
+      "spec": "a6m2-zero",
+      "side": "allied",
+      "parkedAt": {
+        "airfield": "dulag",
+        "spot": {
+          "x": 0,
+          "z": 650
+        }
+      },
+      "chocked": false,
+      "pilot": {
+        "skill": "veteran",
+        "takeoff": true
+      }
+    },
+    {
+      "id": "ai-2",
+      "spec": "a6m2-zero",
+      "side": "allied",
+      "parkedAt": {
+        "airfield": "dulag",
+        "spot": {
+          "x": 0,
+          "z": 740
+        }
+      },
+      "chocked": false,
+      "pilot": {
+        "skill": "veteran",
+        "takeoff": true
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 3,
+    "timeOfDay": 7.5,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 600,
+        "coverage": 0.3
+      }
+    ]
+  }
+}

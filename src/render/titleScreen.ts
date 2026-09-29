@@ -176,6 +176,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'furball-range', label: 'Furball (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7e): airborne with an allied wingman against four enemy fighters, so AI fights AI.' },
   // Plan 7g's recovery test bed: two allied AI go home on the 30 s idle rule (fuel is not scenario content).
   { value: 'recovery-range', label: 'Recovery (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7g): parked at Tacloban while two allied AI land, one on the runway and one on the Essex.' },
+  // Plan 7h's takeoff test bed: two allied AI Zeros roll off Dulag's runway while the player sits parked at Tacloban.
+  { value: 'takeoff-range', label: 'Takeoff (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7h): parked at Tacloban while two allied AI Zeros take off from Dulag.' },
   // Friendly-fire ruling FF-10: the discharge test bed, Dev-only like the furball.
   { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): airborne near an allied Hellcat, an enemy Hellcat, the Essex and a cargo ship.' },
   // The survivable half: parked on Tacloban's runway behind a parked allied

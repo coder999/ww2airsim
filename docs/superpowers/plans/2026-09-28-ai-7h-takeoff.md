@@ -656,19 +656,19 @@ git commit -m "7h Task 4: Airfield Strike defenders scramble off Dulag's runway"
 - Create: `docs/handoff/2026-09-2x-plan7h-takeoff.md` (use the real date)
 - Modify: `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` (§15 row), `README.md`
 
-- [ ] **Step 1: The Tier 2 scenario and spec**
+- [x] **Step 1: The Tier 2 scenario and spec**
 
 `takeoff-range.json`: copy `content/scenarios/recovery-range.json`, remove its AI entries, and add two start-parked Zeros on Dulag (`spot` z -650 and -750, `chocked: false`, `pilot: { takeoff: true }`) with `airfields: ["tacloban", "dulag"]`. `tests/e2e/takeoff.spec.ts`: copy `tests/e2e/recovery.spec.ts`'s structure (viewport, `waitForTerrain`, `aircraft(page)` via `__ww2.aircraft()`, triple time, `setTimeout`). Assertions: both Zeros' `takeoff` rows leave `roll` and become `null` within 90 s of sim time; `f6f-1` (the parked player) is untouched; zero validation errors; and the frame budget held, with the same statistic `recovery.spec.ts` uses. There is no camera that follows an AI, so the check is numeric, as in 7g.
 
-- [ ] **Step 2: Run Tier 2 on the reference GPU**
+- [x] **Step 2: Run Tier 2 on the reference GPU**
 
 Run via the repo's documented route (`docs/handoff/2026-09-28-plan7g-landing.md` lists it; take the ryzen hwlock if `hwlock status` shows it required). Expected: PASS. Known open item, not this plan's: the 1440p budget was already red at baseline (7-8 ms against 6.0); record the takeoff run's number next to it in the handoff without treating it as a regression.
 
-- [ ] **Step 3: Docs**
+- [x] **Step 3: Docs**
 
 Handoff: what shipped, the measured Zero constants, the tuning trail for Airfield Strike, the open items (taxiing, AI carrier takeoff, a `home` for defenders, the head-on firing window), and the Tier 2 numbers. §15: one row for 7h in the status table's existing style. README: one line where 7g is listed.
 
-- [ ] **Step 4: Full verification and commit**
+- [x] **Step 4: Full verification and commit**
 
 Run: `remote-run npm run verify`
 Expected: exit 0 (capture `rc=$?` before any filtering: never gate on a piped grep).

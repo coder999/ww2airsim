@@ -37,10 +37,10 @@ export type TakeoffContext = Pick<PilotTickContext, 'nowS' | 'terrain' | 'decks'
  * parked start at runway-local z +650 (1,400 m of runway ahead), 60 s each:
  *
  *   aircraft  flaps  wind          run to 10 m  150 m AGL at
- *   a6m2-zero up     calm          309 m        26.4 s
- *   a6m2-zero up     3 m/s at 000  277 m        26.3 s
- *   a6m2-zero down   calm          267 m        26.6 s
- *   a6m2-zero down   3 m/s at 000  244 m        26.6 s
+ *   Zero      up     calm          309 m        26.4 s
+ *   Zero      up     3 m/s at 000  277 m        26.3 s
+ *   Zero      down   calm          267 m        26.6 s
+ *   Zero      down   3 m/s at 000  244 m        26.6 s
  *   f6f       up     calm          507 m        29.3 s
  *   f6f       up     3 m/s at 000  437 m        29.1 s
  *   f6f       down   calm          371 m        28.6 s
@@ -88,7 +88,7 @@ export const TAKEOFF_STEER_GAIN = 15
  *  held (table above; measured 2026-09-28). */
 export const TAKEOFF_FLAPS = true
 /**
- * The a6m2-zero's run under this law, brakes off to wheels 10 m up, calm, flaps
+ * The Zero's run under this law, brakes off to wheels 10 m up, calm, flaps
  * down, from Dulag's z +650: 267 m (measured 2026-09-28, the table above;
  * airfield-strike's 3 m/s headwind shortens it to 244 m). The calm figure is
  * the conservative one. 7h Task 4's runway-length content check (RF1) reads
