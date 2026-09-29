@@ -346,16 +346,11 @@ describe.each(ids.filter((id) => CARDS[id] !== undefined))('%s graded against it
   it('climbs in the direction its table does at each higher altitude', () => {
     const rates = [climbSeaLevel, ...(ref.climbRateByAltitudeM ?? []).map(([a]) => measureClimbRate(spec, a))]
     const sourced = [ref.climbRateMps, ...(ref.climbRateByAltitudeM ?? []).map(([, r]) => r)]
-    // Normally the table falls with altitude. The Val's sourced table RISES from sea level to 9,850 ft (2,160 then 2,330 ft/min: the
-    // supercharger's second gear), so the model has to follow the sourced direction, whichever way it runs.
+    // The model must order its climb rates as the reference does. Normally the table falls with altitude, but a two-speed blower can
+    // make it RISE: the Val's sourced table (2,160 then 2,330 ft/min) and the Ki-21's TAIC sheet (1,665 then 1,800 ft/min) both do
+    // (2026-09-30, D3A and Ki-21 onboardings), so the model is held to the sourced direction, whichever way it runs.
     for (let i = 1; i < rates.length; i++) {
       if (sourced[i]! < sourced[i - 1]!) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
-    // The model must order its climb rates as the reference does. The Ki-21's TAIC sheet prints a HIGHER climb at 8,550 ft than at
-    // sea level (1,800 vs 1,665 ft/min: the supercharger's military rating peaks there), so it is held to that direction, not to
-    // a fall (2026-09-30, Ki-21-IIb onboarding). Every other aircraft's reference falls, so this reads as before.
-    const refRates = [ref.climbRateMps, ...(ref.climbRateByAltitudeM ?? []).map(([, r]) => r)]
-    for (let i = 1; i < rates.length; i++) {
-      if (refRates[i]! < refRates[i - 1]!) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
       else expect(rates[i]!).toBeGreaterThan(rates[i - 1]!)
     }
   })
