@@ -261,6 +261,14 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // distance is sourced: the card runs the flap-direction check only, at an ESTIMATED 50 m/s lift-off. cd0 0.026 and propEfficiency 0.725
   // are FITTED to twelve figures with two unknowns, so a green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
   'p-38-lightning': { topSpeed: 0.035, topSpeedTable: 0.04, climb: 0.115, climbTable: 0.12, stall: 0.28, flapStall: 0.27, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 50, flapFraction: 1 } },
+  // Ki-21-IIb onboarding, measured 2026-09-30 at testMassKg 10,659.4 kg (23,500 lb) against the ONE primary document, TAIC Manual
+  // No. 1's SALLY 2 sheet (origin of its figures unstated; docs/handoff/2026-09-30-ki21-onboard.md): top speed +0.30% at sea level
+  // and -1.21% at 16,400 ft; climb +3.24% at sea level and +4.01% at 8,550 ft; stalls 41.68 and 36.83 m/s (-0.19% and -0.30%)
+  // against ESTIMATES from clMax 1.4 and the Zero's flap ratio, so they grade the model against itself; roll 35.0 vs its own
+  // estimate. cd0 0.020 and propEfficiency 0.65 are FITTED to four figures with two unknowns, which is not validation. No take-off
+  // distance is graded: the sheet's 900 ft has no stated conditions and the model rolls 435 m (+59%) at an ESTIMATED 46 m/s, a
+  // REPORTED gap; the card runs the flap-direction check only. Tolerances are about 1.4x to 2x each measurement.
+  'ki-21-sally': { topSpeed: 0.02, topSpeedTable: 0.02, climb: 0.05, climbTable: 0.06, stall: 0.004, flapStall: 0.005, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 46, flapFraction: 1 } },
   // Ki-43-II onboarding, measured 2026-09-30 at testMassKg 2,494.76 kg (5,500 lb) against ONE intelligence sheet (TAIC 152A-2, Dec 1944;
   // no flight-test report exists and other sources disagree, see the spec source): top speed 156.34 vs 155.13 m/s (+0.78%) at 20,000 ft;
   // the one table point (sea level) +0.64%; climb +16.92% at sea level and +20.17% at 17,500 ft, the model's known climb bias (F6F +16.8%,
@@ -313,7 +321,14 @@ describe.each(ids.filter((id) => CARDS[id] !== undefined))('%s graded against it
 
   it('climbs more slowly at each higher altitude in its table', () => {
     const rates = [climbSeaLevel, ...(ref.climbRateByAltitudeM ?? []).map(([a]) => measureClimbRate(spec, a))]
-    for (let i = 1; i < rates.length; i++) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
+    // The model must order its climb rates as the reference does. The Ki-21's TAIC sheet prints a HIGHER climb at 8,550 ft than at
+    // sea level (1,800 vs 1,665 ft/min: the supercharger's military rating peaks there), so it is held to that direction, not to
+    // a fall (2026-09-30, Ki-21-IIb onboarding). Every other aircraft's reference falls, so this reads as before.
+    const refRates = [ref.climbRateMps, ...(ref.climbRateByAltitudeM ?? []).map(([, r]) => r)]
+    for (let i = 1; i < rates.length; i++) {
+      if (refRates[i]! < refRates[i - 1]!) expect(rates[i]!).toBeLessThan(rates[i - 1]!)
+      else expect(rates[i]!).toBeGreaterThan(rates[i - 1]!)
+    }
   })
 
   it('stalls near its clean, power-off stall speed', () => {

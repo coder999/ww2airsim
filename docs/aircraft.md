@@ -451,6 +451,20 @@ Detail: [`docs/handoff/2026-09-30-ki43-onboard.md`](handoff/2026-09-30-ki43-onbo
 - **Fit two speeds first, then look at the climb.** With the Zero's lift curve the first-guess cd0 and propulsive efficiency landed both
   sourced speeds within 1%; the climb then reads +17% to +20%, the fleet's known bias, and is left alone.
 
+## Lessons from the seventh run (Ki-21-IIb Sally, 2026-09-30)
+
+Detail: [`docs/handoff/2026-09-30-ki21-onboard.md`](handoff/2026-09-30-ki21-onboard.md).
+
+- **A source's own climb table may rise with altitude.** The Ki-21's TAIC sheet prints more climb at 8,550 ft than at sea level (the
+  supercharger's military rating peaks there), and `graded.test.ts` used to demand a fall. It now orders the model as the reference is
+  ordered; do not bend the powers to make a rise into a fall.
+- **The default center-point station can sit on a nacelle or fuselage.** Sweep stations 0.05 to 0.9 with `sectionAtFor(id, -6)` in a
+  scratch test and take a clean wing one (the Ki-21: station 0.5, 0.000 m); the fit test prints the failing quarter-chord.
+- **The schema needs `testMassKg` at or under `maxTakeoffKg`.** When the sourced test weight exceeds a secondary maximum, use the test
+  weight as the maximum and name both figures in `source`.
+- **The B-17's 11.27 g lift-off bump is not visible to a consecutive-tick velocity probe** (the same probe reads 1.28 g on the B-17), so it
+  cannot be used to check another airplane that way.
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

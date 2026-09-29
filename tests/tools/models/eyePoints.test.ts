@@ -25,6 +25,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'p-38-lightning': 'p38_dark',
   // The canopy glazing node kabina-FACES (x -1.88 to -0.15, top y 0.99, measured 2026-09-30); the eye sits 0.29 m under its crown.
   'ki-43-oscar': 'kabina-FACES',
+  // A single-skin airframe: ki21_dark is the whole skin; the glazed crown reads y 1.25 at x 2.6 to 3.4 (measured 2026-09-30), eye at x 3.0.
+  'ki-21-sally': 'ki21_dark',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

@@ -1,0 +1,164 @@
+{
+  "id": "ki-21-sally",
+  "name": "Mitsubishi Ki-21-IIb Sally",
+  "role": "bomber",
+  "side": "japanese",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 69.9,
+    "wingSpanM": 22.5
+  },
+  "mass": {
+    "emptyKg": 6070,
+    "fuelCapacityKg": 1883,
+    "maxTakeoffKg": 10660
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2,
+    "cd0": 0.02,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 2222186,
+    "propEfficiency": 0.65,
+    "staticThrustN": 29800,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.879
+      ],
+      [
+        2606,
+        0.97
+      ],
+      [
+        4602,
+        0.913
+      ],
+      [
+        6000,
+        0.78
+      ],
+      [
+        9296,
+        0.5
+      ],
+      [
+        11000,
+        0.36
+      ]
+    ],
+    "windmillCd0": 0.04
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 35,
+    "maxPitchRateDegPerSec": 20,
+    "maxYawRateDegPerSec": 10,
+    "rateRefSpeedMps": 85,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 150,
+    "gLimit": 4.0
+  },
+  "gear": {
+    "travelSeconds": 12,
+    "dragAreaM2": 0.64,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.991,
+    "layout": "taildragger",
+    "mainX": 0.547,
+    "thirdX": -8.092,
+    "thirdHeightM": 0.942,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 20,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "reference": {
+    "source": "Sources (all read 2026-09-29). The one primary document is TAIC-1 = USAAF Technical Air Intelligence Center Manual No. 1, Japanese Aircraft Performance and Characteristics, Dec 1944, data sheet SALLY 2 (551A, PDF p.177) and the engine sheet (printed p.861, PDF p.222); archive.org item japanese-aircraft-performance-characteristics-taic-manual. Whether its figures were flown, computed or Japanese-supplied is not stated, so they are SOURCED but of unknown origin, and no flight-test report of a captured Ki-21 was found. Secondary: EN-WP = English Wikipedia 'Mitsubishi Ki-21', Specifications (Ki-21-IIb, citing Mondey 1996); HOW = historyofwar.org 'Mitsubishi Ki-21 Sally'; AA = all-aero.com; PW = pacificwrecks.com. VARIANT: Ki-21-IIb (Army Type 97 Heavy Bomber Model 2B, 688 built): two Ha-101 engines, larger tail, dorsal turret. TAIC-1 prints one SALLY 2 sheet, so its figures stand for the IIa and IIb alike; nothing sourced separates their mass or speed. Ki-21-I figures (Ha-5 engines, 850 hp, 268 mph, empty 10,342 lb) belong to another variant and are NOT used. The engine is the Ha-101 (Ha 32 Model 11), not the Ha-102. POWER IS A SUM AND NOTHING FAILS: engine.maxPowerW 2,222,186 = 2 x 1,490 hp x 745.7, the Ha-101 take-off rating at S.L. (TAIC-1 p.222), DERIVED. One flight-model engine stands for both and both propellers turn (Prop1, Prop2); an engine failure is NOT modeled (D6). Ratings conflict: 1,490 hp (TAIC take-off), 1,450 hp (TAIC nominal, AA), 1,500 hp (EN-WP, HOW); TAIC's 1,490 is used. powerFractionByAltitudeM is DERIVED from the TAIC MILITARY rating over 1,490 hp: 1,310 hp at S.L. (0.879), 1,445 hp at 8,550 ft = 2,606 m (0.970), 1,360 hp at 15,100 ft = 4,602 m (0.913); the printed points are used unscaled (no ram term). The WEP curve is not used, since the sheet does not say which rating its speed rows use; that its 'Maximum' rows are military power is an INFERENCE. Points at 6,000 m (0.78), 9,296 m (0.50, the sourced service ceiling) and 11,000 m (0.36) are ESTIMATES with nothing graded above 5,000 m. Mass and geometry: wingAreaM2 69.9 and wingSpanM 22.5 are EN-WP (the drawn model is built to them, tests/tools/models/aircraftDimensions.test.ts); TAIC prints 768 sq ft = 71.35 m2 and 74.5 ft = 22.71 m, so the two figures of that conflict are 69.9 and 71.35 m2; EN-WP's are used and the conflict is REPORTED. emptyKg 6,070 = 13,382 lb (EN-WP and HOW agree; TAIC's empty weight is blank). fuelCapacityKg 1,883 = 691 US gal built-in tanks at 0.72 kg/L (DERIVED; the 131 gal removable bomb-bay tank is not carried because the bay holds the bombs). testMassKg 10,659.4 = 23,500 lb, TAIC-1's normal bomber gross, the weight its performance figures are tabulated at (SOURCED, conversion DERIVED); maxTakeoffKg 10,660 is that gross rounded up, because the schema needs testMassKg at or under it. HOW gives 10,610 kg as a maximum and EN-WP 10,600 kg gross: 0.5% under the TAIC gross, REPORTED, TAIC's is used. The harness carries the test mass through fuelKg (R31). Graded figures (TAIC-1, at testMassKg): 109.97 m/s = 246 mph at S.L. and 130.09 m/s = 291 mph at 16,400 ft = 4,999 m, the 'Maximum' rows; the War Emergency rows are not used. EN-WP, HOW and PW give 301 to 302 mph (485 km/h), 3.7% above TAIC, and a 32,810 ft ceiling against TAIC's 30,500 ft: the two figures of that conflict are 291 and 302 mph, TAIC wins as the only document with a stated weight. climbRateMps 8.458 = 1,665 ft/min at S.L. and 9.144 = 1,800 ft/min at 8,550 ft (TAIC-1). Stalls: NO STALL SPEED IS SOURCED. stallSpeedMps 41.76 is an ESTIMATE, the speed at which aero.clMax 1.4 (the fleet's shared estimate) stalls testMassKg on 69.9 m2 at sea level; the card grades the model against its own lift curve. stallSpeedFlapMps 36.94 is that scaled by the Zero's flap ratio, and flap.clIncrement 0.389 is the Zero's: ESTIMATES, CIRCULAR, so no flap figure is validation. FITTED, NOT SOURCED (measured 2026-09-30, tools/testcards/measure.ts, cd0 0.017 to 0.030 x propEfficiency 0.60 to 0.80): aero.cd0 0.020 and engine.propEfficiency 0.65, chosen because the pair lands all four graded figures within 4.1% at once. Result: top speed 110.30 vs 109.97 m/s (+0.30%) at S.L. and 128.52 vs 130.09 (-1.21%) at 4,999 m; climb 8.732 vs 8.458 m/s (+3.24%) at S.L. and 9.511 vs 9.144 (+4.01%) at 2,606 m; stalls 41.68 and 36.83 (-0.19% and -0.30% against their estimates); roll 35.0. Four figures, two unknowns, one document of unknown origin: a green card is not validation. The model also reads 118.1, 125.1, 126.4, 121.3 and 107.1 m/s at 1,524, 3,048, 6,000, 7,620 and 9,296 m, unchecked. TAKE-OFF: TAIC-1 prints 900 ft (274.3 m) at 23,500 lb with no surface, flap, power or lift-off speed stated, so reference.takeoffDistanceM is ABSENT and the graded card runs the flap-direction check only, at an ESTIMATED 46 m/s (1.1 x the estimated clean stall) lift-off. The model rolls 435 m clean to that speed, 59% longer than the sheet's 274 m: REPORTED, not tuned. engine.staticThrustN 29,800 is DERIVED, the G4M's 30,100 N scaled by summed take-off power. engine.windmillCd0 0.040 is DERIVED as 2 x cd0. gear.dragAreaM2 0.64 and flap.dragAreaM2 1.56 are ESTIMATES, the G4M's scaled by wing area. ESTIMATES with no source: rollRateDegPerSec 35, maxPitchRateDegPerSec 20, maxYawRateDegPerSec 10, rates.rateRefSpeedMps 85, limits.diveSpeedMps 150 and gLimit 4.0, gear.travelSeconds and flap.travelSeconds 12, copied from the G4M. The lift curve, weathercockSeconds, autoRudderGainPerDeg and stallLimiterSeconds are the fleet's shared ESTIMATES. Gear layout (measured 2026-09-30 from the drawn model, propellers excluded): heightM 2.991, mainX 0.547, thirdX -8.092 and thirdHeightM 0.942 (the drawn fixed tailwheel, first aft point to touch when pitched about the mains, 13.346 degrees, a steep rest angle that comes from the drawing's tall main legs; no source gives a Ki-21 ground angle). layout taildragger and thirdSteering casterLock follow the drawn fixed tailwheel. The mains retract (EN-WP, HOW). The drawn fold is AFT, an ESTIMATE in the model script; AA says forward: one secondary source, REPORTED, rig left as drawn. steerYawRateDegPerSec 20, steerLockSpeedMps 8, tailLiftSpeedMps 28 and propWashSpeedMps 12 are ESTIMATES copied from the G4M; torqueYawRateDegPerSec 0 (fleet ruling 2026-09-28). view.eyePointM [3.0, 1.0, 0] is MEASURED from the drawn model, 0.25 m below the glazed crown (eyePoints.test.ts). carrierCapable false (an Army heavy bomber; no source states carrier suitability). No combat block (D11): the dorsal turret and guns (EN-WP: 5 x 7.7 mm and 1 x 12.7 mm) are deferred, not modeled.",
+    "testMassKg": 10659.4,
+    "topSpeedMps": 130.09,
+    "topSpeedAltitudeM": 4999,
+    "climbRateMps": 8.458,
+    "stallSpeedMps": 41.76,
+    "stallSpeedFlapMps": 36.94,
+    "rollRateDegPerSec": 35,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        109.97
+      ],
+      [
+        4999,
+        130.09
+      ]
+    ],
+    "climbRateByAltitudeM": [
+      [
+        2606,
+        9.144
+      ]
+    ]
+  },
+  "view": {
+    "eyePointM": [
+      3.0,
+      1.0,
+      0
+    ],
+    "model": "ki-21-sally"
+  },
+  "flap": {
+    "travelSeconds": 12,
+    "dragAreaM2": 1.56,
+    "clIncrement": 0.389
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "bay-fwd",
+        "offset": [
+          -1.6,
+          -0.05,
+          0
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-aft",
+        "offset": [
+          0.4,
+          -0.05,
+          0
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Sources read 2026-09-29. STAND-IN, NOT HISTORIC: TAIC-1's SALLY 2 sheet (PDF p.177) lists internal loads of 16 x 50 kg (1,760 lb, its normal load), 9 x 100 kg (1,980 lb), 4 x 250 kg or 2 x 500 kg (2,200 lb, its maximum), plus four external 50 kg bombs when the bomb-bay fuel tank is carried; secondary sources give 750 kg (1,653 lb) normal and 1,000 kg (2,205 lb) maximum (AA) and 1,000 kg (EN-WP). No source read gives the bay's rack layout. The game has no 110 lb, 220 lb or 550 lb bomb type, so the spec carries TWO existing 1,000 lb AN-M65 stores (453.6 kg each, 907 kg = 2,000 lb total): the bomb MASS is between the TAIC normal (1,760 lb, +14%) and maximum (2,200 lb, -9%), the bomb COUNT and size do not match (the real load was 2 to 16 smaller bombs). The AN-M65 figures are the fleet's existing ones (see the B-17 spec), not Japanese ordnance. The two racks are undrawn and sit inside the hull under the wing center section (offsets [-1.6, -0.05, 0] and [0.4, -0.05, 0], ESTIMATED from the drawn model; tests/tools/models/internalBay.test.ts holds them inside the fuselage). Bomb-bay doors are not modeled, so the bombs drop through the closed hull. The external racks are not modeled."
+  }
+}
