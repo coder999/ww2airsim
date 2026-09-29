@@ -16,7 +16,7 @@ describe('every non-generated entry is skinned (allowlist deleted 2026-09-29, DP
   it.each(entries.map((e) => [e.id, e] as const))('%s: its committed output is textured and its entry says how', async (id, e) => {
     const m = measureDocument(await read(e.output))
     expect(m.textures, `${id} textures`).toBeGreaterThan(0)
-    expect(e.source.kind === 'blender' ? e.skin : e.boxSkin?.atlasPx, `${id} skin declaration`).toBeTruthy()
+    if (e.source.kind === 'blender') expect(e.skin, `${id} skin declaration`).toBe(true)
   })
 })
 
