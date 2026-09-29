@@ -91,7 +91,8 @@ describe('blender entries (R1)', () => {
     within1pct(deck.max[1], 12.0, 'Casablanca flight-deck height')
   })
 
-  it.each(['pennsylvania-bb', 'kagero-dd'])('%s: the painted main deck stays inside the hull\'s own deck edge (no slab overhangs the taper)', async (id) => {
+  // Pennsylvania's moved to tests/tools/models/blender/ships.test.ts (DP2): its skinned output is one node.
+  it.each(['kagero-dd'])('%s: the painted main deck stays inside the hull\'s own deck edge (no slab overhangs the taper)', async (id) => {
     const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/ships/${id}.glb`)))
     const edge = deckEdge(positions(doc, 'Hull'))
     const over = positions(doc, 'MainDeck')
