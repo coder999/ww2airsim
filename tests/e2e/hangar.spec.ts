@@ -234,8 +234,8 @@ test.describe('the Hangar', () => {
       const up = await shot(page)
       await pose(page, { gearFraction: 1 })
       await page.getByRole('button', { name: 'Cycle landing gear' }).click()
-      // 15 s at 60 Hz covers every shipped spec's gear.travelSeconds (12 s for the B-17, 7 s the fighters', 2026-09-29).
-      await page.evaluate(() => { for (let i = 0; i < 900; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      // 25 s at 60 Hz covers every shipped spec's gear.travelSeconds (20 s for the B-29, 12 s for the B-17, 7 s the fighters', 2026-09-29).
+      await page.evaluate(() => { for (let i = 0; i < 1500; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
       expect(await page.evaluate(() => (window as HangarWindow).__hangar!.bench()), id).toMatchObject({ gearFraction: 0, cycling: null })
       const cycled = await shot(page)
       const vsUp = await masks(page, empty, [cycled, up])

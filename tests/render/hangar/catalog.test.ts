@@ -35,7 +35,7 @@ describe('buildCatalog', () => {
     const bomb = catalog.find((e) => e.library.id === 'an-m65')!
     expect(bomb.subject).toMatchObject({ kind: 'ordnance', storeId: 'an-m65', store: { kind: 'bomb' } })
     const carriers = (bomb.subject as { carriers: readonly { id: string }[] }).carriers.map((a) => a.id).sort()
-    expect(carriers).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty'])
+    expect(carriers).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty'])
     expect(catalog.at(-1)!.library.kind).toBe('ordnance')
   })
 

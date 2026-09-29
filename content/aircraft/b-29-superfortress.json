@@ -1,0 +1,251 @@
+{
+  "id": "b-29-superfortress",
+  "name": "Boeing B-29 Superfortress",
+  "role": "bomber",
+  "side": "allied",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 161.3,
+    "wingSpanM": 43.05
+  },
+  "mass": {
+    "emptyKg": 34019,
+    "fuelCapacityKg": 18806,
+    "maxTakeoffKg": 58059
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2,
+    "cd0": 0.018,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 6562160,
+    "propEfficiency": 0.65,
+    "staticThrustN": 88000,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.9091
+      ],
+      [
+        1524,
+        0.9091
+      ],
+      [
+        3048,
+        0.9091
+      ],
+      [
+        4572,
+        0.9091
+      ],
+      [
+        6096,
+        0.9091
+      ],
+      [
+        7620,
+        0.87
+      ],
+      [
+        9100,
+        0.8
+      ],
+      [
+        11000,
+        0.6
+      ]
+    ],
+    "windmillCd0": 0.036
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 15,
+    "maxPitchRateDegPerSec": 12,
+    "maxYawRateDegPerSec": 6,
+    "rateRefSpeedMps": 110,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 134.1,
+    "gLimit": 3.0
+  },
+  "gear": {
+    "travelSeconds": 20,
+    "dragAreaM2": 1.47,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 4.085,
+    "layout": "tricycle",
+    "mainX": -0.01,
+    "thirdX": 9.49,
+    "thirdHeightM": 4.085,
+    "thirdSteering": "steered",
+    "steerYawRateDegPerSec": 8,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "reference": {
+    "source": "Sources (all read 2026-09-29 unless a date is given). PFOI = USAAF Pilot's Flight Operating Instructions for Army Model B-29 Airplane, AN 01-20EJ-1, restricted, 'estimates as of 7-1-44', read from a scan found through a docdroid link; PDF page numbers below are that scan's. WP = English Wikipedia 'Boeing B-29 Superfortress', read 2026-09-27. NO FLOWN TEST REPORT was found (wwiiaircraftperformance.org has no B-29 file), so EVERY speed, climb and take-off figure below is a PRINTED ESTIMATE from the pilot's manual charts, not a flight measurement, and the airplane depicted is a generic early B-29 with R-3350-23 engines (Mark, D1), which is what the manual's -13/-21/-23/-23A charts cover; the postwar Standard Aircraft Characteristics sheets are for later engines and are not used. POWER IS A SUM AND NOTHING FAILS: engine.maxPowerW 6,562,160 = 4 x 2,200 hp x 745.7 W/hp, the R-3350 take-off rating (2,800 rpm, 49 in. Hg, 5 minutes; PFOI Section I, power table, and its comparison page's 'take-off power 8800 h.p.'). One flight-model engine stands for all four and all four propellers turn (Prop1 to Prop4); an engine failure is NOT modeled (Mark, D6). powerFractionByAltitudeM 0.9091 = 2,000 / 2,200, the maximum-continuous rating (2,000 hp, 2,400 rpm, 43.5 in. Hg) that the manual's true-airspeed and climb charts are computed at, held from sea level to 6,096 m (DERIVED; the manual holds military power to 25,000 ft through the turbosuperchargers); at 7,620 m the entry is 0.87, FITTED, between the 0.85 that matches the chart's speed and the 0.88 that matches its climb (the two charts disagree there and the speed sheet itself prints 322 mph at 25,000 ft below 323 at 20,000 ft); 9,100 m 0.8 and 11,000 m 0.6 are ESTIMATES with nothing graded above 7,620 m. Sea-level take-off is therefore flown at 2,000 hp, not the 2,200 hp the ground-run chart assumes. Mass and geometry: wingAreaM2 161.3 = 1,736 sq ft (WP; PFOI's comparison page prints 1,738, a 0.1 percent difference) and wingSpanM 43.05 = 141 ft 3 in (PFOI text; WP agrees; the drawn model is built to it, aircraftDimensions.test.ts); emptyKg 34,019 = 75,000 lb, the PFOI sample loading chart's BASIC WEIGHT (Figure 36; the chart says the Weight and Balance Handbook holds the latest figure; WP lists 74,500 lb); maxTakeoffKg 58,059 = 128,000 lb, the PFOI's 'recommended maximum gross weight' (its designed gross weight is 105,000 lb); fuelCapacityKg 18,806 = 6,910 US gal x 6 lb/gal x 0.4536, DERIVED from the manual's fuel-tank diagram (2 x 1,361.0 outboard + 2 x 1,436.5 inboard + 1,315 center-wing gallons; the B-29A's center tanks hold 1,100; bomb-bay tanks not counted) with 6 lb per gallon an ESTIMATE (standard aviation gasoline, not printed in the pages read); the total is a sum of diagram labels, not a printed capacity. testMassKg 49,895 = 110,000 lb, the weight the manual's climb, take-off and stall rows all print. Graded figures (PFOI, all printed estimates): topSpeedByAltitudeM is the true airspeed sheet for 120,000 to 110,000 lb at maximum continuous power, 272 mph at sea level, 286 at 5,000 ft, 302 at 10,000, 309 at 15,000 and 322 at 25,000 ft (PDF p.170) x 0.44704, with topSpeedMps 144.4 = 323 mph at 20,000 ft the chart's peak; the 25,000 ft figure is used at 7,620 m; WP's 357 mph at 30,000 ft is a different power setting and weight and is not used. The weight band's lower edge is the test mass. climbRateMps 4.32 = 850 ft/min at sea level and the table 800 / 740 / 670 / 480 ft/min at 5,000 / 10,000 / 15,000 / 25,000 ft, converted to 1,524 / 3,048 / 4,572 / 7,620 m at 110,000 lb (PDF p.167). stallSpeedMps 57.67 = 129 mph clean and stallSpeedFlapMps 46.94 = 105 mph flaps full, power off, indicated, 110,000 lb row of the manual's stall table (PDF p.55), indicated taken as true at sea level; the 25-degree-flap row is 115 mph. flap.clIncrement 0.7133 is DERIVED from those two by the Zero's method, 1.4 x ((57.67 / 46.94)^2 - 1); the manual does not give the full-flap angle. reference.takeoffDistanceM 830.6 = 2,725 ft, the chart's ground run at 110,000 lb (PDF p.167; the chart's wind, flap and temperature basis was not transcribed). The manual says the airplane 'will fly itself off the ground at 115 to 130 MPH, depending on the gross weight' (the manual's take-off text), so the graded card's lift-off speed 54.8 m/s = 122.5 mph, the midpoint, is an ESTIMATE inside a sourced range. FITTED, NOT SOURCED (measured 2026-09-29, tools/testcards/measure.ts sweeps at testMassKg, cd0 0.016 to 0.028 x propEfficiency 0.60 to 0.90, then 0.017 to 0.019 x 0.64 to 0.66): aero.cd0 0.018 and engine.propEfficiency 0.65 against the five speed points and five climb points, chosen because the speed table lands within 1.8 percent and climb within 2.8 percent up to 4,572 m; the fit is two unknowns to ten figures and the residuals are the finding. Result (measured 2026-09-29): top speed 144.19 vs 144.4 m/s (-0.14 percent) at 6,096 m; table 121.93 / 127.15 / 132.63 / 138.33 / 146.31 vs 121.6 / 127.9 / 135.0 / 138.1 / 143.9 (+0.27, -0.59, -1.76, +0.17, +1.68 percent); climb 4.398 vs 4.32 m/s (+1.81 percent) at sea level and 4.132 / 3.833 / 3.495 / 2.349 vs 4.06 / 3.76 / 3.40 / 2.44 (+1.78, +1.94, +2.78, -3.72 percent); stalls 59.43 clean (+3.06 percent) and 48.37 flaps (+3.05 percent) because the fleet's shared clMax 1.4 is not this wing's (the manual's stall implies about 1.49 clean); roll 15.0. TAKE-OFF MISS, REPORTED NOT TUNED: the model rolls 1,073 m clean at the 54.8 m/s lift-off against the chart's 830.6 m (+29 percent); at a 115 mph lift-off it rolls 911 m (+9.6 percent) and at 130 mph 1,257 m, so the lift-off speed, not the engine, sets the miss (a full 2,200 hp at sea level shortens the run only 4 percent, to 1,031 m). engine.staticThrustN 88,000 is DERIVED, the B-17's 48,000 N scaled by take-off power (6.562 / 3.579 MW). engine.windmillCd0 0.036 is DERIVED as 2 x cd0. gear.dragAreaM2 1.47 and flap.dragAreaM2 3.59 are ESTIMATES, the B-17's derived figures (1.20 and 2.94) scaled by wing area (161.3 / 131.92); no B-29 drag calibration exists. ESTIMATES with no source: rollRateDegPerSec 15 (rates.maxRollRateDegPerSec is set to it), maxPitchRateDegPerSec 12, maxYawRateDegPerSec 6, rateRefSpeedMps 110, limits.gLimit 3.0 (a heavy bomber; not copied from the B-17), gear.travelSeconds 20 and flap.travelSeconds 15 (the manual gives 40 s to extend and 60 s to retract only on the EMERGENCY gear motor, and a secondary source (airpages.ru) says about 40 s to lower on the normal system; neither is used), propeller diameter and taper (the model's own), and the fleet's shared lift curve, weathercockSeconds, autoRudderGainPerDeg and stallLimiterSeconds. limits.diveSpeedMps 134.1 = 300 mph, the PFOI's red-line indicated speed, SOURCED (the same section gives 180 mph as the maximum to lower the gear or the flaps fully). Gear layout (measured 2026-09-29 from the drawn model with a throwaway drawnPoints probe, propellers and turrets excluded): retractable tricycle (PFOI PDF p.17; SOURCED),the mains folding into the inboard nacelles (PFOI Section I). heightM 4.085 (the mains and the nose wheel bottom at the same y, so the drawn airplane rests level and restPitchRad is 0), mainX -0.01 (the drawn main wheels' contact patch is centered at x 0.008; the schema needs a tricycle's mainX below zero, and 0.018 m is inside the 0.05 m stance tolerance), thirdX 9.49 and thirdHeightM 4.085 (the drawn nose wheel, its contact patch spanning x 9.15 to 9.83). The drawn airplane stands 10.3 m tall on its gear against the real 8.46 m (WP), about 1.8 m too tall: a proportion finding, reported not tuned. thirdSteering steered follows the nose wheel of the real airplane; steerYawRateDegPerSec 8, steerLockSpeedMps 8, tailLiftSpeedMps 28 and propWashSpeedMps 12 are ESTIMATES (the last two copied from the fleet; a tricycle has no tail to lift, and they set the pitch authority curve); torqueYawRateDegPerSec 0 (Mark's fleet ruling of 2026-09-28). view.eyePointM [9.0, 1.34, 0] is MEASURED from the drawn model: under the glazed crown at x 9.0 (eyePoints.test.ts). The origin is the drawn model's own: the wing quarter-chord reads 0.17 m aft of it at the wing root and 0.32 m at z 4 (the wing is swept 7 degrees), and the drawn mains stand at the root quarter-chord, so no origin both satisfies centerPoint.test.ts's 0.15 m and puts a tricycle's mains behind the center of gravity; the test holds the B-29 to 0.20 m at the 10 percent station and says why. carrierCapable false (Mark, D3). No combat block (D11): the five remotely controlled turrets and the guns are drawn but not modeled, and Turret1 to Turret5 do not move.",
+    "testMassKg": 49895,
+    "topSpeedMps": 144.4,
+    "topSpeedAltitudeM": 6096,
+    "climbRateMps": 4.32,
+    "stallSpeedMps": 57.67,
+    "stallSpeedFlapMps": 46.94,
+    "rollRateDegPerSec": 15,
+    "takeoffDistanceM": 830.6,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        121.6
+      ],
+      [
+        1524,
+        127.9
+      ],
+      [
+        3048,
+        135.0
+      ],
+      [
+        4572,
+        138.1
+      ],
+      [
+        7620,
+        143.9
+      ]
+    ],
+    "climbRateByAltitudeM": [
+      [
+        1524,
+        4.06
+      ],
+      [
+        3048,
+        3.76
+      ],
+      [
+        4572,
+        3.4
+      ],
+      [
+        7620,
+        2.44
+      ]
+    ]
+  },
+  "view": {
+    "eyePointM": [
+      9.0,
+      1.34,
+      0
+    ],
+    "model": "b-29-superfortress"
+  },
+  "flap": {
+    "travelSeconds": 15,
+    "dragAreaM2": 3.59,
+    "clIncrement": 0.7133
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "bay-fwd-1",
+        "offset": [
+          2.6,
+          -0.05,
+          -0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-fwd-2",
+        "offset": [
+          2.6,
+          -0.05,
+          0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-fwd-3",
+        "offset": [
+          4.4,
+          -0.05,
+          -0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-fwd-4",
+        "offset": [
+          4.4,
+          -0.05,
+          0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-aft-1",
+        "offset": [
+          -4.6,
+          -0.05,
+          -0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-aft-2",
+        "offset": [
+          -4.6,
+          -0.05,
+          0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-aft-3",
+        "offset": [
+          -6.4,
+          -0.05,
+          -0.3
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "bay-aft-4",
+        "offset": [
+          -6.4,
+          -0.05,
+          0.3
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Stores (Mark, D7 to D9, 2026-09-29): INTERNAL, UNDRAWN racks. The airplane has a forward and an aft bomb bay (PFOI Figure 36 loading chart, PDF p.42, read 2026-09-29) but the drawn model has no bay doors, and none are modeled: the bombs simply fall from inside the hull with no doors and no drag penalty for open doors. No rails. The store is the fleet's existing an-m65 (1,000 lb GP, 453.6 kg, the same store the B-17 carries), no new store. MODELED LOAD: 8 x an-m65 = 3,629 kg = 8,000 lb, four racks in the forward bay (x 2.6 and 4.4 m, z -0.3 and 0.3 m) and four in the aft bay (x -4.6 and -6.4 m). HISTORIC LOAD: Wikipedia (read 2026-09-27) gives a maximum bomb load of 20,000 lb; the PFOI's loading chart axis runs to 60,000 lb of bombs, cargo and equipment and is not a bomb-load limit. The schema allows 8 racks at most and no new store was allowed, so the modeled load is less than half of the historic maximum: ESTIMATE, a game limit, not a claim about the airplane. The rack offsets (y -0.05 m, all inside the drawn hull) are ESTIMATES chosen to sit inside the fuselage volume and are held there by tests/tools/models/internalBay.test.ts; they are not read from the drawing, which has no bay. The an-m65's own figures are the fleet's."
+  }
+}

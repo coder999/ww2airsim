@@ -241,6 +241,16 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // estimate. No take-off distance is sourced: the card runs the flap-direction check only, at an ESTIMATED 45 m/s lift-off.
   // Tolerances are about 1.5x to 2x each measurement.
   'g4m-betty': { topSpeed: 0.02, climb: 0.01, stall: 0.01, flapStall: 0.01, roll: 0.02, takeoff: { tol: 0.1, liftoffMps: 45, flapFraction: 1 } },
+  // B-29 onboarding, measured 2026-09-29 at testMassKg 49,895 kg (110,000 lb) against the PFOI's PRINTED ESTIMATES (AN 01-20EJ-1,
+  // 1 Jul 1944; no flown B-29 test report was found, so this grades the model against a manual's charts, not an airplane): top speed
+  // 144.19 vs 144.4 m/s (-0.14%) at 20,000 ft; table +0.27, -0.59, -1.76, +0.17, +1.68% (sea level to 25,000 ft); climb +1.81% at sea
+  // level, table +1.78, +1.94, +2.78, -3.72% (1,524 to 7,620 m); stalls +3.06% clean and +3.05% flaps (clMax stays the shared 1.4
+  // ESTIMATE, the manual's stall implies about 1.49); roll 15.0 vs its own ESTIMATE. cd0 0.018 and propEfficiency 0.65 are FITTED to
+  // ten figures with two unknowns, and the 7,620 m power fraction 0.87 is a compromise between a speed chart and a climb chart that
+  // disagree there. Take-off: the model rolls 1,073 m (+29.14%) against the chart's 830.6 m at an ESTIMATED 54.8 m/s lift-off (the
+  // midpoint of the manual's 115 to 130 mph) and no flaps: a REPORTED gap, not a fit (a 115 mph lift-off rolls 911 m, +9.6%), so
+  // its 32% band is wider than any other card's and only ever tightens. Other tolerances are about 1.4x to 2x each measurement.
+  'b-29-superfortress': { topSpeed: 0.005, topSpeedTable: 0.025, climb: 0.03, climbTable: 0.055, stall: 0.045, flapStall: 0.045, roll: 0.01, takeoff: { tol: 0.32, liftoffMps: 54.8, flapFraction: 0 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

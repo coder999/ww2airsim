@@ -402,6 +402,24 @@ Detail: [`docs/handoff/2026-09-29-g4m-onboard.md`](handoff/2026-09-29-g4m-onboar
 - **When no bomb store fits the historic load, match mass, not count.** The Betty's single
   800 kg bomb became two `an-m65` (907 kg) in tandem; the source says so.
 
+## Lessons from the fourth run (B-29 Superfortress, 2026-09-29)
+
+Detail: [`docs/handoff/2026-09-29-b29-onboard.md`](handoff/2026-09-29-b29-onboard.md).
+
+- **A tricycle needs `stance.test.ts` and `gearContact.test.ts` to know it.** The nose wheel ties the mains for the lowest
+  point, so the mains are taken from the points aft of the nose gear and the nose wheel is checked on its own; the "CG between
+  the wheels" check flips sign (mainX below zero, thirdX above). Both tests do this now.
+- **A swept wing at a large chord can fail `centerPoint.test.ts` at any origin.** Give the model a `MIN_X` entry first (the
+  default clip reads the quarter-chord 0.35 m aft on a 5 m chord); a per-model `TOLERANCE_BY_MODEL` entry is the fallback, with
+  its reason written next to it.
+- **A very heavy airplane can outrun three harness limits, all generic:** `TOP_SPEED_MAX_S` in `tools/testcards/measure.ts` (900 s,
+  now 3600), the conformance `takeoffWindowS` (110 s for the B-29) and the Hangar gear-cycle tick count (25 s). Widen the
+  harness; do not change the physics to fit it.
+- **When the source's charts are computed at a lower rating than the take-off rating, `powerFractionByAltitudeM` carries the
+  ratio** (2,000 / 2,200 here), and the sea-level take-off then runs at the lower power. Say so in the spec source.
+- **Grade a known-bad take-off at a wide band and say why in the card's comment** rather than dropping the sourced distance.
+- **Check the failing e2e specs against a clean `origin/main` worktree** (a detached `git worktree add`, its own vite port) before owning them.
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

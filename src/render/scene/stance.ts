@@ -38,6 +38,8 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-29 (B-17G onboarding) after moving the entry's origin 0.354 m forward (quarter-chord to x 0),
   // with the propellers and turrets excluded: mains at x 0.852, tailwheel the first aft point to touch at 7.200 degrees.
   'b-17-flying-fortress': { mainWheelXM: 0.852, tailDownPitchRad: 0.12566 },
+  // Tricycle: nose wheel and mains bottom out at the same y (4.085), so the drawn airplane rests level.
+  'b-29-superfortress': { mainWheelXM: 0.008, tailDownPitchRad: 0 },
   // Measured 2026-09-29 (G4M1 onboarding) with drawnPoints, the propellers and turret excluded: mains at x 1.569, the fixed
   // tailwheel the first aft point to touch at 4.943 degrees.
   'g4m-betty': { mainWheelXM: 1.569, tailDownPitchRad: 4.943 * DEG },
