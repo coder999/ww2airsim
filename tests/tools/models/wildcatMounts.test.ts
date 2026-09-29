@@ -35,8 +35,8 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     wildcatToSimMatrix().forEach((v, i) => expect(v).toBeCloseTo(g.matrix.elements[i]!, 12))
   })
 
-  it('covers every stores-carrying spec, each on the model it draws (A4: the Hellcat on its own; the Corsair likewise)', () => {
-    expect(withStores.map((s) => [s.id, s.view.model]).sort()).toEqual([['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat']])
+  it('covers every stores-carrying spec, each on the model it draws (A4: the Hellcat on its own; the Corsair and the Zero likewise)', () => {
+    expect(withStores.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat']])
   })
 
   it('rejects a model with no glb by name', async () => {
