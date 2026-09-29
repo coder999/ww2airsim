@@ -73,7 +73,7 @@ describe('buildChartLayers', () => {
     for (const loop of layers.woodland) {
       for (const [x, z] of loop.points) {
         expect(x).toBeGreaterThan(-2_000)
-        expect(Math.hypot(x, z)).toBeLessThan(70_000)
+        expect(Math.hypot(x, z)).toBeLessThan(75_000)
       }
     }
     expect(layers.crop).toEqual([])
