@@ -7,7 +7,7 @@ import { objectiveMarks, objectiveRows } from './mission/chart.js'
 import { contourLabelSites } from './mission/chartLabels.js'
 import { pathData } from './mission/chartIso.js'
 import { buildChartLayers, type ChartLayers } from './mission/chartLayers.js'
-import { scaleBar } from './mission/chartScale.js'
+import { M_PER_FT, M_PER_NMI, scaleBar } from './mission/chartScale.js'
 import { fitView, panView, viewBounds, zoomView, type ChartView } from './mission/chartView.js'
 import { CHART, compassRose, ensurePatternDefs, paint, PATTERN_CROP, PATTERN_SWAMP, scaleBarGroup } from './mission/chartStyle.js'
 import { buildGraticule } from './mission/graticule.js'
@@ -190,9 +190,9 @@ export function courseLabel(from: Pick<MapPoint, 'x' | 'z'>, to: Pick<MapPoint, 
   const course = courseTo(from, to)
   const bearing = Math.round(course.bearingDeg) % 360
   const range =
-    course.distanceM >= 1_000
-      ? `${(course.distanceM / 1_000).toFixed(1)} km`
-      : `${Math.round(course.distanceM)} m`
+    course.distanceM >= M_PER_NMI / 4
+      ? `${(course.distanceM / M_PER_NMI).toFixed(1)} nm`
+      : `${Math.round(course.distanceM / M_PER_FT)} ft`
   return `Course ${String(bearing).padStart(3, '0')}° · ${range}`
 }
 

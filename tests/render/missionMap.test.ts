@@ -77,9 +77,9 @@ describe('the Plan 14 navigation chart model', () => {
     expect(courseTo(point(4, -3), point(4, -3))).toEqual({ distanceM: 0, bearingDeg: 0 })
   })
 
-  it('formats a padded true course with meters or kilometers', () => {
-    expect(courseLabel(point(0, 0), point(0, -12_500))).toBe('Course 000° · 12.5 km')
-    expect(courseLabel(point(4, -3), point(4, -3))).toBe('Course 000° · 0 m')
+  it('formats a padded true course in nautical miles or feet', () => {
+    expect(courseLabel(point(0, 0), point(0, -12_500))).toBe('Course 000° · 6.7 nm')
+    expect(courseLabel(point(4, -3), point(4, -3))).toBe('Course 000° · 0 ft')
   })
 
   it('gives even one marker a finite padded chart', () => {
