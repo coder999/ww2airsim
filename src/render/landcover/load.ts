@@ -3,6 +3,8 @@ import { COVER_URL } from '../content.js'
 import { inflateIfGzipped } from '../gunzip.js'
 import { coverByteLength, parseCoverHeader, type CoverHeader } from './cover.js'
 import { TERRAIN_HEADER } from '../terrain/load.js'
+import { createCoverField, type CoverField } from '../../sim/world/cover.js'
+import type { Airfield } from '../../sim/world/airfields.js'
 
 export const COVER_HEADER = parseCoverHeader(coverHeader)
 
@@ -64,4 +66,14 @@ export async function loadCover(fetchImpl: typeof fetch = fetch): Promise<Uint8A
   const expected = coverByteLength(COVER_HEADER)
   if (data.length !== expected) throw new Error(`land cover inflates to ${data.length} bytes; expected ${expected}`)
   return data
+}
+
+/**
+ * The sim-side view of the raster the renderer paints from: what the physics
+ * reads to tell a paddy from woodland (`TerrainField.cover`). Needs the
+ * world's airfields, whose runway, apron and clearing stay firm whatever the
+ * raster says under them.
+ */
+export function coverFieldFor(airfields: readonly Airfield[], data: Uint8Array): CoverField {
+  return createCoverField(COVER_HEADER, data, airfields)
 }

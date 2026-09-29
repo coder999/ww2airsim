@@ -2,6 +2,9 @@ import type { AircraftEntity } from '../loop.js'
 import { dot, length, sub } from '../math/vec3.js'
 import { sameSide, type Side } from '../sides.js'
 import { isAircraftDown, type CombatState } from '../weapons/combat.js'
+import type { TerrainField } from '../world/terrain.js'
+import type { Deck } from '../world/deck.js'
+import { airborne } from './airborne.js'
 import { hasGunSolution } from './pursuit.js'
 
 /**
@@ -39,6 +42,10 @@ export type TargetingView<M> = {
   readonly combat: CombatState['aircraft']
   /** `sidesOf` over the snapshot, built once per tick by `advance`. */
   readonly sides: Readonly<Record<string, Side>>
+  /** For `airborne` (7g spec §2): a contact's ground state, not its spawn flag. */
+  readonly terrain: TerrainField | null
+  /** For `airborne`, live this tick (7g spec §2). */
+  readonly decks: readonly Deck[]
 }
 
 export type TargetingOptions<M> = {
@@ -48,12 +55,14 @@ export type TargetingOptions<M> = {
   readonly accept?: (contact: AircraftEntity<M>, rangeM: number) => boolean
 }
 
-/** Opposite side, not down (destroyed or impacted), not parked, and within
+/** Opposite side, not down (destroyed or impacted), airborne by ground state
+ *  (7g spec §2: never the spawn flag `parked`), and within
  *  `DETECTION_RANGE_M`. */
 export function isContact<M>(self: AircraftEntity<M>, c: AircraftEntity<M>, view: TargetingView<M>): boolean {
-  if (c.id === self.id || c.parked) return false
+  if (c.id === self.id) return false
   if (view.sides[c.id] === undefined || sameSide(view.sides, self.id, c.id)) return false
   if (isAircraftDown(view.combat, c)) return false
+  if (!airborne(c, view.terrain, view.decks)) return false
   return length(sub(c.state.position, self.state.position)) <= DETECTION_RANGE_M
 }
 

@@ -141,7 +141,8 @@ export type SafetyOverride = { readonly mode: 'recover' | 'overspeed'; readonly 
 
 /** Checked every tick, not at rescore: reaction delay models perceiving the
  *  enemy, not a pilot flying into the sea. The floor outranks overspeed.
- *  Never fires. */
+ *  Never fires. `floorM` at -Infinity turns the floor off and leaves the
+ *  overspeed guard: 7g's approach (spec §6, `exemptFromFloor`). */
 export function safetyOverride<M>(
   self: AircraftEntity<M>, terrain: TerrainField | null, decks: readonly Deck[], wind: Vec3 | null,
   floorM: number = floorTriggerM(null),

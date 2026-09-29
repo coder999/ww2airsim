@@ -70,7 +70,7 @@ import {
   settleOnTerrain,
   toThreeOrientation,
   worldOffsetFor,
-  type FrameState, withPaused, acknowledgeLanding, surfaceHeightFor,
+  type FrameState, withPaused, withTerrain, acknowledgeLanding, surfaceHeightFor,
 } from './frame.js'
 import { createRecorder } from '../replay/recorder.js'
 import { replayPosesAt, type ReplayPoses } from '../replay/view.js'
@@ -139,7 +139,7 @@ import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
 import { antiAliasingFromQuery, createFramePipeline, sharpenFromQuery } from './pipeline.js'
 import { exposureFor, toneMapFromQuery } from './exposure.js'
-import { loadCover } from './landcover/load.js'
+import { coverFieldFor, loadCover } from './landcover/load.js'
 
 // index.html always contains #app -- it is the mount point the script tag is
 // loaded from, so this assertion is safe at the entry point.
@@ -983,6 +983,10 @@ async function boot(): Promise<void> {
             // Plan 7e (spec §4.4).
             side: sideOf(frame!.world, a),
             mode: a.pilot?.decision.mode ?? null,
+            // Plan 7g: the recovery phase for an AI with a home, else null.
+            recovery: a.pilot?.decision.recovery?.phase ?? null,
+            // Plan 7h: the takeoff phase for an AI on its takeoff, else null.
+            takeoff: a.pilot?.decision.takeoff?.phase ?? null,
             maneuver: a.pilot?.decision.named ?? null,
             targetId: a.pilot?.decision.targetId ?? null,
           }
@@ -1000,7 +1004,7 @@ async function boot(): Promise<void> {
         const { spec: playerSpec, state } = playerAircraft(frame.world)
         const g = groundUnder(frame.world.terrain, decksOf(frame.world.ships), state.position.x, state.position.z)
         if (g === null) return false
-        return supportedContact(playerSpec, state, g.heightM, g.surface, g.velocity)
+        return supportedContact(playerSpec, state, g.heightM, g.surface, g.velocity, g.landClass)
       },
       // The LSO cue for the player, or `null` when there is nothing to signal (Plan 8).
       paddles: () => (frame ? paddlesFor(frame) : null),
@@ -1261,6 +1265,7 @@ async function boot(): Promise<void> {
   // paint (surface.ts's `ready` uniform) and the daa1b39 forest, logged,
   // not fatal: land cover is a picture, terrain is the ground.
   let cover: CoverLookup | null = null
+  let coverData: Uint8Array | null = null
   // Declared here, not beside `scene.add(terrain.object)` below where it
   // used to live: `loadCover()` can resolve before the `await`s between here
   // and there finish (createOceanCompute/loadDepth), and the closure below
@@ -1284,6 +1289,12 @@ async function boot(): Promise<void> {
       // of fault can never again hide behind "land cover unavailable".
       try {
         terrain.setCover(data)
+        // The physics reads the same raster (soft fields, woodland). Kept for
+        // a terrain level that has not arrived yet; patched in now if one has.
+        coverData = data
+        if (frame?.world.terrain) {
+          frame = withTerrain(frame, { ...frame.world.terrain, cover: coverFieldFor(frame.world.airfields, data) })
+        }
         cover = coverLookup(data)
         vegetation?.setCover(cover)
       } catch (err) {
@@ -2897,7 +2908,7 @@ async function boot(): Promise<void> {
   // close.
   void loadTerrainProgressively((level, data) => {
     const before = frame!
-    const next = applyTerrainLevel(terrain, before, level, data, finestFetchedLevel)
+    const next = applyTerrainLevel(terrain, before, level, data, finestFetchedLevel, coverData === null ? null : coverFieldFor(before.world.airfields, coverData))
     // The field, on the one transition where it first exists, or `null` on
     // every other callback. Written this way rather than as a boolean so the
     // narrowing survives both uses below -- and so the runway and

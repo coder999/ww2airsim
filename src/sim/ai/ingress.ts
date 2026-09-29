@@ -47,7 +47,8 @@ export const ORBIT_RADIUS_M = 1500
 /** How far around the circle the orbit aims (see ingressDesiredVelocity). */
 export const ORBIT_LEAD_RAD = Math.PI / 6
 
-type Goal = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
+/** A point to fly to (or orbit), with the altitude and speed to do it at. */
+export type Goal = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
 
 function destinationPoint(orders: IngressOrders, ships: readonly ShipEntity[]): { x: number; z: number } | null {
   const d = orders.destination
@@ -87,18 +88,24 @@ const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.m
  *  error, clamped to ±MAX_VERTICAL_MPS. Flown through the velocity controller
  *  under the §3.2 safety envelope. */
 export function ingressDesiredVelocity<M>(self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[]): Vec3 {
-  const goal = ingressGoal(orders, legIndex, ships)
+  return goalDesiredVelocity(self, ingressGoal(orders, legIndex, ships), legIndex > orders.route.length ? ORBIT_RADIUS_M : null)
+}
+
+/** `ingressDesiredVelocity` for any goal: straight at it, or, with
+ *  `orbitRadiusM`, round it to the left. Shared with 7g's transit and hold
+ *  (`recovery.ts`), so the two laws cannot drift apart. */
+export function goalDesiredVelocity<M>(self: AircraftEntity<M>, goal: Goal, orbitRadiusM: number | null): Vec3 {
   const p = self.state.position
   const vy = clamp(ALTITUDE_GAIN_PER_S * (goal.altitudeM - p.y), -MAX_VERTICAL_MPS, MAX_VERTICAL_MPS)
   const horizontal = Math.sqrt(Math.max(0, goal.speedMps * goal.speedMps - vy * vy))
   let dx = goal.x - p.x
   let dz = goal.z - p.z
-  if (legIndex > orders.route.length) {
+  if (orbitRadiusM !== null) {
     // Orbit, seen from above as a pure pursuit of the point ORBIT_LEAD_RAD
     // around the circle ahead of this aircraft's own bearing from the center.
     const phi = Math.atan2(p.z - goal.z, p.x - goal.x) - ORBIT_LEAD_RAD
-    dx = goal.x + ORBIT_RADIUS_M * Math.cos(phi) - p.x
-    dz = goal.z + ORBIT_RADIUS_M * Math.sin(phi) - p.z
+    dx = goal.x + orbitRadiusM * Math.cos(phi) - p.x
+    dz = goal.z + orbitRadiusM * Math.sin(phi) - p.z
   }
   const len = Math.hypot(dx, dz)
   if (len < 1e-9) return v3(self.state.velocity.x, vy, self.state.velocity.z)
@@ -123,10 +130,22 @@ const G_MPS2 = 9.80665
 export function ingressOrbitControls<M>(
   self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[],
 ): Controls {
-  const desired = ingressDesiredVelocity(self, orders, legIndex, ships)
+  return orbitControls(self, ingressGoal(orders, legIndex, ships), ORBIT_RADIUS_M)
+}
+
+/** `ingressOrbitControls` for any goal and radius: the left-hand orbit flown
+ *  by the lift vector. Shared with 7g's hold (`recovery.ts`). */
+export function orbitControls<M>(self: AircraftEntity<M>, goal: Goal, radiusM: number): Controls {
+  return liftTowardControls(self, goalDesiredVelocity(self, goal, radiusM), goalThrottle(self, goal.speedMps))
+}
+
+/** The orbit's law for any desired velocity: the horizontal turn its heading
+ *  error asks for plus the vertical its climb-rate error asks for, flown by
+ *  the lift vector. Shared with 7g's join (`recovery.ts`), which turns onto
+ *  the centerline from any heading. */
+export function liftTowardControls<M>(self: AircraftEntity<M>, desired: Vec3, throttle: number): Controls {
   const v = self.state.velocity
   const speedH = Math.hypot(v.x, v.z)
-  const throttle = ingressThrottle(self, orders, legIndex, ships)
   if (speedH < 1) return controlsForLiftVector(self.state, self.spec, v3(0, 1, 0), 1, throttle)
   const fx = v.x / speedH
   const fz = v.z / speedH
@@ -143,9 +162,14 @@ export function ingressOrbitControls<M>(
 
 /** The throttle the route asks for (see INGRESS_THROTTLE_GAIN). */
 export function ingressThrottle<M>(self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[]): number {
+  return goalThrottle(self, ingressGoal(orders, legIndex, ships).speedMps)
+}
+
+/** `ingressThrottle`'s law for any speed. Shared with 7g's transit. */
+export function goalThrottle<M>(self: AircraftEntity<M>, speedMps: number): number {
   const v = self.state.velocity
   const speed = Math.hypot(v.x, v.y, v.z)
-  return clamp(INGRESS_THROTTLE_BASE + INGRESS_THROTTLE_GAIN * (ingressGoal(orders, legIndex, ships).speedMps - speed), 0.2, 1)
+  return clamp(INGRESS_THROTTLE_BASE + INGRESS_THROTTLE_GAIN * (speedMps - speed), 0.2, 1)
 }
 
 /**

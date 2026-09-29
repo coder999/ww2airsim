@@ -1,6 +1,7 @@
 import { v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { heightAt, type TerrainField } from './terrain.js'
 import { surfaceAt, type ContactSurface } from '../contact.js'
+import { landClassAt, type LandClass } from './cover.js'
 import { insideDeck, deckLocal, deckAxes, type Deck } from './deck.js'
 
 /** What is under a point: its height, what kind of thing it is, and how fast
@@ -10,6 +11,9 @@ export type GroundUnder = {
   readonly surface: ContactSurface
   readonly velocity: Vec3
   readonly deck: Deck | null
+  /** What kind of land this is (`landClassAt`, cover.ts). `unclassified` for
+   *  water and decks, and for land when no cover data is loaded. */
+  readonly landClass: LandClass
 }
 
 /**
@@ -42,10 +46,11 @@ export function groundUnder(terrain: TerrainField | null, decks: readonly Deck[]
         0,
         deck.velocity.z + omega * (l.z * s.z - l.x * b.z),
       )
-      return { heightM: deck.center.y, surface: 'deck', velocity, deck }
+      return { heightM: deck.center.y, surface: 'deck', velocity, deck, landClass: 'unclassified' }
     }
   }
   if (terrain === null) return null
   const heightM = heightAt(terrain, x, z)
-  return { heightM, surface: surfaceAt(heightM), velocity: ZERO, deck: null }
+  const surface = surfaceAt(heightM)
+  return { heightM, surface, velocity: ZERO, deck: null, landClass: surface === 'land' ? landClassAt(terrain.cover, x, z) : 'unclassified' }
 }

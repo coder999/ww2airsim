@@ -3,6 +3,7 @@ import { qRotate } from '../math/quat.js'
 import { length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import { decksOf } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
+import { airborne } from './airborne.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { pursuitDesiredVelocity } from './pursuit.js'
 import { sideOf } from '../sides.js'
@@ -47,8 +48,10 @@ export function autoPursuitTarget<M>(world: World<M>): AircraftEntity<M> | null 
   if (self === undefined) return null
   let best: AircraftEntity<M> | null = null
   let bestRange = Infinity
+  const decks = decksOf(world.ships)
   for (const a of world.aircraft) {
-    if (a.id === world.player || a.parked || a.impact !== null) continue
+    if (a.id === world.player || a.impact !== null) continue
+    if (!airborne(a, world.terrain, decks)) continue
     if (sideOf(world, a) === sideOf(world, self)) continue
     if (world.combat.aircraft[a.id]?.damage.destroyedAt != null) continue
     if (heightAboveSurfaceM(world, a.state.position) < AUTO_PURSUIT_FLOOR_AGL_M) continue

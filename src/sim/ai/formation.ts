@@ -4,10 +4,6 @@ import { DT } from '../flight/model.js'
 import { qRotate } from '../math/quat.js'
 import { add, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import type { AircraftCombat } from '../weapons/combat.js'
-import { onGround } from '../ground.js'
-import { groundUnder } from '../world/ground.js'
-import type { Deck } from '../world/deck.js'
-import type { TerrainField } from '../world/terrain.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { RECENT_HIT_S } from './ingress.js'
 import type { FormationSlot } from './pilot.js'
@@ -207,29 +203,7 @@ export const COVER_RELEASE_RANGE_M = 1.5 * COVER_RANGE_M
  *  spec-set value (spec §4, 2026-09-27), not measured. */
 export const COVER_LATCH_S = 5
 
-/**
- * Whether the leader is flying, so a wingman can form on it (spec §4: a
- * parked leader is loitered on "until the leader is airborne"). Decided from
- * state, never from `AircraftEntity.parked`: that flag means "spawned on its
- * wheels" and nothing in the sim clears it, so a player who took off from the
- * deck still read as parked at 399 m (final review C1, 2026-09-27).
- *
- * The test is the sim's own contact test, `onGround` against what
- * `groundUnder` reports beneath the leader -- the same one `canRelease`
- * (weapons/combat.ts) uses for "parked" -- so it is true on a deck or a
- * runway, false the tick the wheels leave it, and false over open sea. Its
- * threshold is `GROUND_CONTACT_TOLERANCE_M` (0.25 m, ground.ts), not a new
- * height here: an altitude threshold would call a leader skimming the sea
- * below it "on the ground". `groundUnder` null (no heightfield and no deck
- * here) is airborne, as in `canRelease`: nothing is there to stand on, and
- * a world with an airplane parked ashore does not tick until its heightfield
- * lands (`AircraftEntity.parked`'s doc: render/frame.ts's `groundSpawn`), so
- * no pilot reads this then.
- */
-export function leaderAirborne<M>(leader: AircraftEntity<M>, terrain: TerrainField | null, decks: readonly Deck[]): boolean {
-  const under = groundUnder(terrain, decks, leader.state.position.x, leader.state.position.z)
-  return under === null || !onGround(leader.spec, leader.state, under.heightM)
-}
+// A parked leader: `airborne` (airborne.ts), shared with targeting (7g).
 
 /** The player fires (`controls.fire`), or an AI leader is engaging. */
 export function leaderIsFighting<M>(leader: AircraftEntity<M>): boolean {
@@ -263,6 +237,8 @@ export function wingmanAccepts<M>(
 export function leaderlessPilot<M>(pilot: PilotAssignment, leader: AircraftEntity<M> | undefined, nowS: number): PilotAssignment {
   const decision = { ...pilot.decision, nextRescoreS: nowS }
   const orders = leader?.pilot?.ingress
-  const alone: PilotAssignment = { target: pilot.target, skill: pilot.skill, decision }
+  // 7g: the home goes with it (7c-7g §6), so a wingman whose leader is down
+  // still goes home on its own triggers. Absent, no key: bit-identical.
+  const alone: PilotAssignment = { target: pilot.target, skill: pilot.skill, decision, ...(pilot.home === undefined ? {} : { home: pilot.home }) }
   return orders === undefined ? alone : { ...alone, ingress: orders, decision: { ...decision, legIndex: leader!.pilot!.decision.legIndex } }
 }
