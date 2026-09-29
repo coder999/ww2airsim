@@ -1,5 +1,6 @@
 import { playerAircraft, type World } from '../sim/loop.js'
 import { localToWorld } from '../sim/world/airfields.js'
+import { heightAt, type TerrainField } from '../sim/world/terrain.js'
 import { BINDINGS } from '../input/bindings.js'
 import { keyLabel } from './legend.js'
 import { objectiveMarks, objectiveRows } from './mission/chart.js'
@@ -151,6 +152,75 @@ export function projectPoint(
   }
 }
 
+/** The world rectangle the letterboxed viewport actually shows, which is
+ * larger than `bounds` on whichever axis the viewport is longer. */
+export function visibleBounds(bounds: ChartBounds, width: number, height: number): ChartBounds {
+  const scale = Math.min(width / (bounds.maxX - bounds.minX), height / (bounds.maxZ - bounds.minZ))
+  const halfX = width / scale / 2
+  const halfZ = height / scale / 2
+  const cx = (bounds.minX + bounds.maxX) / 2
+  const cz = (bounds.minZ + bounds.maxZ) / 2
+  return { minX: cx - halfX, maxX: cx + halfX, minZ: cz - halfZ, maxZ: cz + halfZ }
+}
+
+export type CoastSegment = readonly [x1: number, z1: number, x2: number, z2: number]
+
+/** Any sample above this is land; the coast pass writes the shoreline at 0.3 m or more. */
+const LAND_THRESHOLD_M = 0.15
+const COAST_GRID_COLUMNS = 160
+
+/**
+ * The shoreline inside `area` as world-space line segments: marching squares
+ * over `heightAt` at the land threshold, with each crossing interpolated
+ * along its cell edge. No terrain, or all sea, gives no segments.
+ */
+export function coastSegments(terrain: TerrainField | null | undefined, area: ChartBounds): readonly CoastSegment[] {
+  if (terrain === null || terrain === undefined) return []
+  const cols = COAST_GRID_COLUMNS
+  const rows = Math.max(1, Math.round((cols * (area.maxZ - area.minZ)) / (area.maxX - area.minX)))
+  const dx = (area.maxX - area.minX) / cols
+  const dz = (area.maxZ - area.minZ) / rows
+  const heights: number[] = []
+  for (let r = 0; r <= rows; r++) {
+    for (let c = 0; c <= cols; c++) heights.push(heightAt(terrain, area.minX + c * dx, area.minZ + r * dz))
+  }
+  const at = (c: number, r: number): number => heights[r * (cols + 1) + c]!
+  const cross = (a: number, b: number): number => (LAND_THRESHOLD_M - a) / (b - a)
+  const out: CoastSegment[] = []
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const tl = at(c, r)
+      const tr = at(c + 1, r)
+      const br = at(c + 1, r + 1)
+      const bl = at(c, r + 1)
+      const x0 = area.minX + c * dx
+      const z0 = area.minZ + r * dz
+      const top = { x: x0 + cross(tl, tr) * dx, z: z0 }
+      const bottom = { x: x0 + cross(bl, br) * dx, z: z0 + dz }
+      const left = { x: x0, z: z0 + cross(tl, bl) * dz }
+      const right = { x: x0 + dx, z: z0 + cross(tr, br) * dz }
+      const index =
+        (tl > LAND_THRESHOLD_M ? 8 : 0) | (tr > LAND_THRESHOLD_M ? 4 : 0) |
+        (br > LAND_THRESHOLD_M ? 2 : 0) | (bl > LAND_THRESHOLD_M ? 1 : 0)
+      const link = (a: { x: number; z: number }, b: { x: number; z: number }): void => {
+        out.push([a.x, a.z, b.x, b.z])
+      }
+      switch (index) {
+        case 1: case 14: link(left, bottom); break
+        case 2: case 13: link(bottom, right); break
+        case 3: case 12: link(left, right); break
+        case 4: case 11: link(top, right); break
+        case 6: case 9: link(top, bottom); break
+        case 7: case 8: link(left, top); break
+        case 5: link(left, top); link(bottom, right); break
+        case 10: link(top, right); link(left, bottom); break
+        default: break
+      }
+    }
+  }
+  return out
+}
+
 /** Straight-line chart course from `from` to `to`, clockwise from north. */
 export function courseTo(from: Pick<MapPoint, 'x' | 'z'>, to: Pick<MapPoint, 'x' | 'z'>): NavigationCourse {
   const dx = to.x - from.x
@@ -233,6 +303,26 @@ export function labelPlacements(
   }
   return placed
 }
+
+/**
+ * Marker glyphs in a 24 x 24 box centered on the point, drawn pointing
+ * nowhere in particular: the chart has no heading for a base or ship.
+ * `body` takes the selection/objective colors; `detail` is the dark relief.
+ */
+export const MARKER_ICONS = {
+  airfield: {
+    body: 'M0,-10 A10,10 0 1 1 0,10 A10,10 0 1 1 0,-10 Z',
+    detail: 'M-7,0 H7 M0,-7 V7',
+  },
+  carrier: {
+    body: 'M-13,0 H13 L10,6 H-11 Z',
+    detail: 'M4,-6 H8 V0 H4 Z M-10,-1.5 H2',
+  },
+  ship: {
+    body: 'M-10,0 H10 L6,6 H-8 Z',
+    detail: 'M-4,-4 H2 V0 H-4 Z M-1,-8 V-4',
+  },
+} as const
 
 const svgElement = (name: string): SVGElement => document.createElementNS(SVG_NS, name)
 
@@ -343,21 +433,38 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       ring.setAttribute('stroke-dasharray', '6 5')
       marker.appendChild(ring)
     } else {
-      const dot = svgElement(point.kind === 'airfield' ? 'rect' : 'circle')
-      if (point.kind === 'airfield') {
-        dot.setAttribute('x', String(projection.x - 6))
-        dot.setAttribute('y', String(projection.y - 6))
-        dot.setAttribute('width', '12')
-        dot.setAttribute('height', '12')
+      const icon = point.kind === 'airfield' || point.kind === 'carrier' || point.kind === 'ship' ? MARKER_ICONS[point.kind] : null
+      if (icon !== null) {
+        const glyph = svgElement('g')
+        glyph.setAttribute('transform', `translate(${projection.x} ${projection.y})`)
+        const hit = svgElement('circle')
+        hit.setAttribute('r', '14')
+        hit.setAttribute('fill', 'transparent')
+        glyph.appendChild(hit)
+        const body = svgElement('path')
+        body.setAttribute('d', icon.body)
+        body.setAttribute('fill', color)
+        body.setAttribute('stroke', selected ? '#ffffff' : '#0e151c')
+        body.setAttribute('stroke-width', selected ? '3' : '1.5')
+        body.setAttribute('stroke-linejoin', 'round')
+        glyph.appendChild(body)
+        const detail = svgElement('path')
+        detail.setAttribute('d', icon.detail)
+        detail.setAttribute('fill', 'none')
+        detail.setAttribute('stroke', '#0e151c')
+        detail.setAttribute('stroke-width', '1.5')
+        glyph.appendChild(detail)
+        marker.appendChild(glyph)
       } else {
+        const dot = svgElement('circle')
         dot.setAttribute('cx', String(projection.x))
         dot.setAttribute('cy', String(projection.y))
         dot.setAttribute('r', point.kind === 'player' ? '8' : '6')
+        dot.setAttribute('fill', color)
+        dot.setAttribute('stroke', selected ? '#ffffff' : '#0e151c')
+        dot.setAttribute('stroke-width', selected ? '4' : '2')
+        marker.appendChild(dot)
       }
-      dot.setAttribute('fill', color)
-      dot.setAttribute('stroke', selected ? '#ffffff' : '#0e151c')
-      dot.setAttribute('stroke-width', selected ? '4' : '2')
-      marker.appendChild(dot)
     }
 
     const label = svgElement('text')
@@ -386,6 +493,27 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     north.setAttribute('font-size', '15')
     north.textContent = 'N ↑'
     svg.appendChild(north)
+
+    const coast = coastSegments(world.terrain, visibleBounds(bounds, CHART_WIDTH, CHART_HEIGHT))
+    if (coast.length > 0) {
+      const path = svgElement('path')
+      path.setAttribute(
+        'd',
+        coast
+          .map(([x1, z1, x2, z2]) => {
+            const a = projectPoint({ x: x1, z: z1 }, bounds, CHART_WIDTH, CHART_HEIGHT)
+            const b = projectPoint({ x: x2, z: z2 }, bounds, CHART_WIDTH, CHART_HEIGHT)
+            return `M${a.x.toFixed(1)} ${a.y.toFixed(1)}L${b.x.toFixed(1)} ${b.y.toFixed(1)}`
+          })
+          .join(''),
+      )
+      path.setAttribute('fill', 'none')
+      path.setAttribute('stroke', '#a99f72')
+      path.setAttribute('stroke-width', '1.5')
+      path.setAttribute('stroke-linecap', 'round')
+      path.setAttribute('pointer-events', 'none')
+      svg.appendChild(path)
+    }
 
     if (selected !== null) {
       const from = projectPoint(player, bounds, CHART_WIDTH, CHART_HEIGHT)

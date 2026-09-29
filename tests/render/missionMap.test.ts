@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
+import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import {
   chartBounds,
+  coastSegments,
+  visibleBounds,
+  MARKER_ICONS,
   courseLabel,
   courseTo,
   labelPlacements,
@@ -157,5 +162,41 @@ describe('the Plan 14 navigation chart model', () => {
     expect(closeNavigationMap(paused)).toEqual({
       state: { open: false, selectedId: 'airfield:tacloban', pausedBeforeOpen: false }, restorePaused: true,
     })
+  })
+})
+
+describe('the chart coastline', () => {
+  const header = parseTerrainHeader({
+    centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
+    finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
+  })
+  // 3x3 field over the whole world; the west column is 100 m high, the rest sea.
+  const westLand = createTerrainField(header, 12, Int16Array.from([1000, 0, 0, 1000, 0, 0, 1000, 0, 0]))
+  const area = { minX: -1000, maxX: 1000, minZ: -1000, maxZ: 1000 }
+
+  it('traces a north-south shoreline where land meets sea', () => {
+    const segments = coastSegments(westLand, { minX: -1000, maxX: 1000, minZ: -1000, maxZ: 1000 })
+    expect(segments.length).toBeGreaterThan(50)
+    for (const [x1, , x2] of segments) {
+      expect(x1).toBeGreaterThan(-400)
+      expect(x1).toBeLessThan(0)
+      expect(x2).toBeCloseTo(x1, 6)
+    }
+  })
+
+  it('draws nothing without terrain or over open sea', () => {
+    expect(coastSegments(null, area)).toEqual([])
+    const sea = createTerrainField(header, 12, new Int16Array(9))
+    expect(coastSegments(sea, area)).toEqual([])
+  })
+
+  it('reports the letterboxed world rectangle the viewport shows', () => {
+    const wide = visibleBounds({ minX: 0, maxX: 1000, minZ: 0, maxZ: 1000 }, 800, 520)
+    expect(wide.maxX - wide.minX).toBeCloseTo(1000 * (800 / 520), 6)
+    expect(wide.maxZ - wide.minZ).toBeCloseTo(1000, 6)
+  })
+
+  it('has a distinct icon for bases, carriers and other ships', () => {
+    expect(new Set(Object.values(MARKER_ICONS).map((icon) => icon.body)).size).toBe(3)
   })
 })
