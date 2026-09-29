@@ -88,9 +88,12 @@ this step only says what to author and what to run.
    The conformance battery runs over `allGroundSpecs` in
    `tests/sim/ground/fixtures.ts`; add the new aircraft there. It does not cover the
    retracted-gear and water cases (`gearDown` is always true in it); those are
-   held by a separate ground test. A taildragger whose drawn model rests level
-   gets a rotation ceiling of 6 degrees from a sim-side floor
-   (`TAILDRAGGER_MIN_ROTATION_RAD`); note that in the handoff as a data gap.
+   held by a separate ground test. The ground pitch ceiling is derived from the
+   aircraft's own lift curve (`groundPitchCeilingRad` in `src/sim/ground.ts`):
+   the angle of attack where CL = clMax / 1.1², capped at `alphaCritRad` and
+   never below the rest pitch. It needs no gear data, so a new aircraft gets a
+   liftoff near 1.1 x its clean stall speed for free; conformance test 6 checks
+   the band.
 
 ## 6. Tier 2
 

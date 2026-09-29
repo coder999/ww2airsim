@@ -140,6 +140,79 @@ seconds have been recorded.
 Replay owns these keys while it is up; it does not alter the held live flight,
 assist settings, audio mute, chart, radar range, or time scale.
 
+### Takeoff
+
+Measured 2026-09-28 through the real sim step, from a standstill on the
+Tacloban runway at full throttle (`tests/sim/ground/`). Speeds below are the
+first instant the wheels leave the ground.
+
+**Ground controls.** The arrow keys and A/D steer on the ground and roll in the
+air; Z/X are rudder. **B** holds the brakes. There are no differential
+brakes: steer with the keys, brake with B.
+
+**Steering fades with speed.** The wheel (nose or tail) steering locks out
+above about 8 m/s. Ground steering through rudder and the keys then fades out
+near 1.5 × the aircraft's `tailLiftSpeedMps` (F6F 42 m/s, F4F 37.5, Zero 36),
+after which only the rudder's air authority is left. Do not expect to correct a
+swing with the arrows once the tail is up and fast.
+
+**When and how to pull.** Hold the stick neutral and full throttle until the
+airspeed is near the table below, then pull back and hold. The pitch is capped
+on the wheels at the attitude where the wing makes its lift for 1.1 × the
+clean stall speed (12.6 degrees for all three aircraft; `groundPitchCeilingRad`
+in `src/sim/ground.ts`), so a firm pull leaves the ground within a few knots of
+the table and cannot over-rotate on the runway. Hands off, the airplane never
+lifts off by itself (a conformance test holds it for 30 s at full throttle).
+
+**Flaps 0 vs 1 (F toggles).** Flaps 1 lifts off about 8 m/s earlier and
+roughly 100 to 140 m shorter. Measured, full pull held from 40 m/s, trial mass
+(fuel load large, so heavy):
+
+| Aircraft | Flaps | Liftoff speed | Run |
+| --- | --- | --- | --- |
+| F6F | 0 | 51.0 m/s (114 mph) | 449 m |
+| F6F | 1 | 42.9 m/s (96 mph) | 312 m |
+| F4F | 0 | 46.4 m/s (104 mph) | 401 m |
+| F4F | 1 | 41.4 m/s (93 mph) | 307 m |
+| Zero | 0 | 41.7 m/s (93 mph) | 265 m |
+| Zero | 1 | 40.8 m/s (91 mph) | 263 m |
+
+The Zero and the flaps-1 rows are pinned near 40 m/s because the test starts
+its pull there; a pull earlier would lift them slightly sooner. The scenario's
+default 400 kg fuel load is lighter than this trial mass and lifts sooner
+(F6F flaps 0: 46.2 m/s, 119 m on a carrier deck).
+
+**Carrier.** The game has no ship-speed-as-wind setting: airspeed is the
+airplane's velocity minus the world wind, and the deck carries the ship's
+velocity, so in calm air the wind over the deck is the ship's speed. There are
+no catapults; the take-off path is a deck run from the respot ("Launch when
+ready"). Measured 2026-09-28 (calm air, ship at maximum speed on a straight
+course, start 7 m from the stern, pull from 40 m/s airspeed; the start spot and
+pull point are my choices, not game rules):
+
+| Ship | Aircraft | Flaps | Liftoff airspeed | Deck run | Deck left |
+| --- | --- | --- | --- | --- | --- |
+| Essex (17 m/s) | F6F | 0 | 51.0 m/s | 213 m | 42 m |
+| Essex | F6F | 1 | 42.8 m/s | 126 m | 130 m |
+| Essex | F4F | 0 | 46.5 m/s | 176 m | 80 m |
+| Essex | F4F | 1 | 41.3 m/s | 118 m | 138 m |
+
+At trial mass, Casablanca (9.93 m/s, 145.69 m deck) sends all four cases off
+the bow with the wheels still down. At the default 400 kg the F6F with flaps 1
+lifts with under a metre to spare and the other cases run off the bow. The fall
+after the bow is an estimate: the measurement holds full pull, which stalls it,
+so it overstates how hard a real pilot would hit the water. Treat Casablanca
+take-off as marginal to impossible without a catapult.
+
+**What is not modeled (arcade choices, Mark 2026-09-28).** Engine torque does
+not pull the nose (every shipped aircraft has torque 0), and a tail strike is
+not modeled: the pitch ceiling stops rotation, nothing is damaged.
+
+**The touchdown squeak** plays on the first wheel contact after the airplane
+has been more than 1 m up for half a second, with a sink rate of at least
+0.3 m/s. It does not play on take-off, a hop or rolling chatter, and it does
+not judge or damage the landing; that is the gates in the landing rules.
+
 ## Library
 
 `hangar.html` ("Library" on the title's first form) shows every aircraft,

@@ -213,3 +213,33 @@ realism):**
   `max(rest, 6 deg)` (9.45 degrees for the F6F) forces about 56 m/s (126 mph)
   clean liftoff. Mark has not decided; `groundBodyRates`' ceiling and
   `GROUND_YAW_FADE_MULTIPLE` are untouched.
+
+**Amendment, 2026-09-28 (ground pitch ceiling now derived; resolves "Still open"
+above):** `TAILDRAGGER_MIN_ROTATION_RAD` and the tricycle `rest + 12 degrees`
+limit are gone. `groundPitchCeilingRad(spec)` gives, for every layout, the
+alpha where CL = clMax / 1.1^2 read through the attached-flow line, capped by
+`alphaCritRad` and never below rest. The three shipped aircraft share one aero
+block (clMax 1.4, slope 4.8055, CL0 0.1, alphaCrit 15.5 degrees), so all get
+12.60 degrees (F6F was 9.45, Zero 6, synthetic tricycle rest + 12). Tail strike
+is not modeled (Mark, arcade). Measured through the real step (full throttle
+from rest, pull held from 40 m/s, trial mass; liftoff = first tick with
+`onGround` false):
+
+| Spec | Flaps 0 | Flaps 1 |
+| --- | --- | --- |
+| F6F | 51.0 m/s, 449 m | 42.9 m/s, 312 m |
+| F4F | 46.4 m/s, 401 m | 41.4 m/s, 307 m |
+| Zero | 41.7 m/s, 265 m | 40.8 m/s, 263 m |
+| Synthetic tricycle | 51.0 m/s, 445 m | 42.8 m/s, 307 m |
+| Synthetic twin | 51.0 m/s, 447 m | 42.9 m/s, 308 m |
+
+The F6F clean liftoff was 56.4 m/s after 535 m (flaps 1: 45.5 m/s, 353 m).
+Liftoff is 1.04 to 1.09 times the 1.1 x stall target (the excess is rotation
+time and the 0.5 m/s separation lag). Moved numbers: only the Tacloban landing
+snapshot restZ, -47686.6755654359 to -47686.49097489367 (0.18 m, longer
+rollout ceiling). The take-off cards end at 86.5 mph, below rotation, so they
+did not move (F6F graded 239.148 m, clean 230.264 m; F4F 182.142 and 176.064 m).
+Carrier deck runs (F6F/F4F on Essex, calm air, no catapult) are in GAMEPLAY.md
+"Takeoff"; Casablanca is marginal to impossible. Estimates: the off-bow fall,
+and the carrier start spot and pull point. Still open: no catapult exists in
+the sim.

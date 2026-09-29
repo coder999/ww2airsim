@@ -84,7 +84,9 @@ holds the status.
 **T1 gave the aircraft believable ground handling (2026-09-28):** the rest
 attitude is derived from a gear layout in each spec, the tail rises with
 airflow instead of a speed gate, and the taxi has rudder with prop wash, a
-locking caster, and engine torque. On the wheels the arrow keys and A/D
+and a locking caster. The ground pitch ceiling comes from each
+aircraft's lift curve (liftoff near 1.1 x clean stall speed); the GAMEPLAY.md
+"Takeoff" section has the measured speeds. On the wheels the arrow keys and A/D
 (roll in the air) **steer**, and Z/X (rudder) steer too; roll never banks the
 airplane on the wheels. There are no differential brakes (Mark's ruling,
 2026-09-28). It is on
