@@ -299,15 +299,15 @@ Two things it happens to demonstrate, both by design rather than by luck:
   developer's problem and not a pilot's. Only `fail` — an actual software
   rasterizer — reaches the screen, through `showFailure`.
 
-### Laptops with two GPUs (Intel + NVIDIA)
+### Machines with two GPUs (Intel + NVIDIA)
 
-If the DEV overlay reports the integrated GPU on a hybrid machine, the code is
+If the DEV overlay reports the integrated GPU on a two-GPU machine, the code is
 not at fault: `requestAdapter({ powerPreference: 'high-performance' })`
 (`src/render/renderer.ts`) already asks for the discrete GPU, and WebGPU offers
 no way to enumerate or force one. On Windows the browser's GPU process runs on
 whichever GPU Windows assigns it, and that assignment wins over the hint.
 
-Fix, no admin needed (verified 2026-09-29 on Mark's work laptop, Intel iGPU +
+Fix, no admin needed (verified 2026-09-29 on Mark's work desktop, Intel iGPU +
 RTX 3060): Settings -> System -> Display -> Graphics, add `chrome.exe` (or
 `msedge.exe`), Options -> High performance, then fully quit and relaunch the
 browser. To diagnose, run this in DevTools and check the vendor of each result
