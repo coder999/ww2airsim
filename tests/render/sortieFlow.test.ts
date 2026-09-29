@@ -20,9 +20,9 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
     expect(hidden).toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'recovery-range', 'takeoff-range'])
     expect(visibleScenarios(ctx(true))).toEqual(SCENARIO_OPTIONS)
   })
-  it('a carrier start offers the Hellcat and Wildcat; Dev adds the Zero', () => {
-    expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f6f-hellcat'])
-    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'f4f-wildcat', 'f6f-hellcat'])
+  it('a carrier start offers the Hellcat, Wildcat and Corsair; Dev adds the Zero', () => {
+    expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
+    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
   })
   it('a mission starts on its own aircraft and recommended loadout', () => {
     expect(initialDraft(ctx(false), 'combat-air-patrol')).toEqual({ scenarioId: 'combat-air-patrol', aircraftSpec: 'f6f-hellcat', loadout: 'clean' })
