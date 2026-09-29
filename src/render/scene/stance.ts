@@ -53,4 +53,8 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-30 (D3A Val onboarding) with drawnPoints, the propeller excluded: the spatted mains bottom out at x 0.257,
   // y -1.850; the fixed tailwheel is the first aft point to touch at 11.52 degrees.
   'd3a-val': { mainWheelXM: 0.257, tailDownPitchRad: 11.52 * DEG },
+  // Measured 2026-09-30 (Ki-84-Ia onboarding) with the propeller excluded, after moving the entry's origin 0.25 m behind the mains
+  // (normalize.origin x -0.25; the drawn wheels stood at x 0.000, which the schema's mainX > 0 rejects): mains at x 0.250, the
+  // retractable tailwheel the first aft point to touch at 16.417 degrees, steeper than the Zero's 12.2 (the long drawn legs).
+  'ki-84-frank': { mainWheelXM: 0.100, tailDownPitchRad: 16.417 * DEG },
 }

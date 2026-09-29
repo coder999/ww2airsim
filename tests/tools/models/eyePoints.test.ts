@@ -27,6 +27,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'ki-43-oscar': 'kabina-FACES',
   // The Val's canopy is the mesh node Object_20 (material "transparent", x -3.22 to 0.10, top y 1.009, measured 2026-09-30); the eye sits 0.26 m under its crown.
   'd3a-val': 'Object_20',
+  // Whole-skin crown: the Ki-84 model is one skin node (ki84_dark) with no separate glazing node.
+  'ki-84-frank': 'ki84_dark',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

@@ -476,6 +476,23 @@ Detail: [`docs/handoff/2026-09-30-d3a-onboard.md`](handoff/2026-09-30-d3a-onboar
   `trapCorsair.test.ts` as `trapVal.test.ts`. The Dev carrier-start pins in `sortieFlow.test.ts` and `catalog.test.ts` gain the id.
 - **Spec name and card name must match; put the short roster name in `rosterName`** (the Val: "Aichi D3A2 Model 22 Val" / "Aichi D3A Val").
 - **Combat zones must stay inside the propeller-excluded bounds** (`combatFit.test.ts`); the engine zone's first guess overshot the cowl by 6 mm.
+## Lessons from the seventh run (Ki-84-Ia Frank, 2026-09-30)
+
+Detail: [`docs/handoff/2026-09-30-ki84-onboard.md`](handoff/2026-09-30-ki84-onboard.md).
+
+- **`mainX` must be positive, and `centerPoint.test.ts` caps how far you can move the origin.** A taildragger whose drawn mains stand on the
+  model origin fails the schema ("body origin between its wheels"). The fix is `normalize.origin` in the model entry (source coordinates,
+  rebuild with `npx tsx tools/models/build.ts <id>`, no Blender), but the origin also stands for the quarter-chord within 0.15 m, so the
+  usable shift is under 0.15 m. Every x in the spec (guns, zones, racks, eye, `thirdX`) moves with it; re-run `tools/models/mounts.ts`.
+- **A steep drawn stance pins the ground pitch ceiling to the rest pitch and fails conformance test 6 low.** At 16.4 degrees tail-down the
+  airplane unsticks at its own stall (1.00 x, against the 0.95 floor). That is a finding about the drawing, so the floor was widened for the id
+  in `conformance.test.ts` with a comment, as the B-17's was.
+- **`solve.ts` diverges when the speed Jacobian is near singular.** cd0 and propulsive efficiency were nearly degenerate on speed alone; scan a
+  grid of pairs and break the tie with the climb, and say that you did.
+- **The catalog test's model-only fixture is a real card.** `tests/render/hangar/catalog.test.ts` used the Ki-84 card as its "display-only"
+  example; it now strips `spec` from a copy. Any card onboarded next needs no change there.
+- **A scratch vitest prints nothing by default:** `--silent=false --reporter=verbose`. And check `ss -ltn` for the Tier 2 port before starting
+  vite: `--strictPort` fails and the curl then reaches someone else's server.
 
 ## The worked example
 

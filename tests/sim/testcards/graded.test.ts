@@ -281,6 +281,20 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // gap, not a fit (the sea-level power fraction is the 1,075 hp military rating, 0.84 of the 1,280 hp take-off power, so the model takes off
   // on less power than the sheet's figure likely assumed), so its band is wide and only ever tightens. Other tolerances are about 1.4x to 2x each measurement.
   'd3a-val': { topSpeed: 0.006, topSpeedTable: 0.006, climb: 0.19, climbTable: 0.22, stall: 0.04, flapStall: 0.04, roll: 0.01, takeoff: { tol: 0.75, liftoffMps: 40, flapFraction: 0 } },
+  // Ki-84-Ia onboarding, measured 2026-09-30 at testMassKg 3,601.5 kg (7,940 lb) against CALCULATED intelligence figures (TAIC 156A-1,
+  // March 1945, and T-2 report on Frank 1; the calculated speed and climb tables are not flown, only the stalls are): top speed 190.44 vs
+  // 190.44 m/s (0.00%) at 23,000 ft, which is FITTED (the 7,010 m power fraction is solved for it, so that row proves nothing); the speed
+  // table reads -1.19% at sea level, -0.86% at 10,000 ft and +1.15% at 20,000 ft, the three points where the power is sourced or
+  // interpolated, and 9,144 and 10,668 m are again FITTED (power solved for them, circular); climb +14.5% at sea level and +15.3% at 20,900 ft,
+  // the model's known bias (F6F +16.8%, Zero +15.7% to +22.4%), reported and not tuned; stalls -3.06% clean and -3.23% flaps against the
+  // flown 102 and 90 mph, read as indicated and measured at sea level (measured at the trial's 8,000 ft true airspeed the model would read
+  // +9.4%; the shared clMax 1.4 stays, docs/aircraft.md); flap.clIncrement is DERIVED from those two stalls, so its ratio check is circular;
+  // roll 80.0 vs its own ESTIMATE (the Zero's). cd0 0.018 and propEfficiency 0.68 are FITTED to the sea-level and 20,000 ft speeds; the
+  // pair is nearly degenerate on speed alone (0.0200/0.75 fits as well) and 0.68 was picked because it also lands the climb inside the
+  // fleet's bias band, which is a use of the climb figure. Take-off: the table's 1,460 ft is not in the reference (conditions unstated, and
+  // the model rolls 579 ft clean and 592 ft with flaps at the ESTIMATED 42.47 m/s three-point speed, 60% short of it): the card runs the
+  // flap-direction check only. A green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
+  'ki-84-frank': { topSpeed: 0.005, topSpeedTable: 0.018, climb: 0.21, climbTable: 0.22, stall: 0.045, flapStall: 0.047, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 42.47, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {
