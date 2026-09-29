@@ -44,8 +44,8 @@ describe('colors and surfaces (DP0)', () => {
     for (const c of Object.values(MARKING_COLORS)) for (const v of c) expect(Number.isInteger(v) && v >= 0 && v <= 255).toBe(true)
   })
   it('every pilot role has a surface, and an unknown role is refused by name', () => {
-    for (const r of ['ijaGreen', 'underside', 'dark', 'glazing', 'naturalMetal', 'steel', 'concrete']) expect(ROLE_SURFACE[r], r).toBeDefined()
-    expect(() => surfaceFor('timber')).toThrow(/timber/)
+    for (const r of ['ijaGreen', 'underside', 'dark', 'glazing', 'naturalMetal', 'steel', 'concrete', 'earth', 'timber']) expect(ROLE_SURFACE[r], r).toBeDefined()
+    expect(() => surfaceFor('no-such-role')).toThrow(/no-such-role/)
   })
   it('every ship role has a surface; a ship:<role> material resolves to it; world-sampled surfaces carry no scan normal (DP2)', () => {
     for (const r of ['hull', 'superstructure', 'fitting', 'deck', 'flightDeck', 'boot', 'antifouling']) {

@@ -43,6 +43,10 @@ export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   fitting: { scan: 'painted-metal', roughness: 0.66, metallic: 0, fade: 0.06, chip: 0.004, rivets: false, scanNormal: 0.5 },
   deck: { scan: 'deck-planks', roughness: 0.86, metallic: 0, fade: 0.05, chip: 0, rivets: false, scanNormal: 0, scanSpace: 'world-xz' },
   flightDeck: { scan: 'deck-planks', roughness: 0.86, metallic: 0, fade: 0.05, chip: 0, rivets: false, scanNormal: 0, scanSpace: 'world-xz' },
+  // Buildings (DP3, 2026-09-29). ESTIMATE, set by eye in the Hangar. Earth is packed soil on the worn-concrete scan (gritty,
+  // no chalking); timber is the pinned weathered planks sampled in world (x, z), so boards run one way across a wall or deck.
+  earth: { scan: 'concrete', roughness: 0.95, metallic: 0, fade: 0.02, chip: 0, rivets: false, scanNormal: 0.9 },
+  timber: { scan: 'deck-planks', roughness: 0.85, metallic: 0, fade: 0.06, chip: 0, rivets: false, scanNormal: 0, scanSpace: 'world-xz' },
   boot: { scan: 'painted-metal', roughness: 0.75, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.3 },
   antifouling: { scan: 'painted-metal', roughness: 0.8, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.3 },
 }
