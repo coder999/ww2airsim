@@ -261,6 +261,16 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // distance is sourced: the card runs the flap-direction check only, at an ESTIMATED 50 m/s lift-off. cd0 0.026 and propEfficiency 0.725
   // are FITTED to twelve figures with two unknowns, so a green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
   'p-38-lightning': { topSpeed: 0.035, topSpeedTable: 0.04, climb: 0.115, climbTable: 0.12, stall: 0.28, flapStall: 0.27, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 50, flapFraction: 1 } },
+  // Ki-43-II onboarding, measured 2026-09-30 at testMassKg 2,494.76 kg (5,500 lb) against ONE intelligence sheet (TAIC 152A-2, Dec 1944;
+  // no flight-test report exists and other sources disagree, see the spec source): top speed 156.34 vs 155.13 m/s (+0.78%) at 20,000 ft;
+  // the one table point (sea level) +0.64%; climb +16.92% at sea level and +20.17% at 17,500 ft, the model's known climb bias (F6F +16.8%,
+  // Zero +15.7% to +22.4%), reported and not tuned. Graph-read speed checks, not in the reference: -0.27% (9,000 ft), +4.77% (14,500 ft),
+  // +2.89% (30,000 ft). The stalls are ESTIMATES scaled from the Zero's (35.5 and 31.4 m/s), so their +2.56% and +2.36% grade the model
+  // against a number derived from its own lift curve; flap.clIncrement is DERIVED from those same two estimates, which is circular. Roll
+  // 80.0 vs its own ESTIMATE. cd0 0.0175 and propEfficiency 0.68 are FITTED to two speeds with two unknowns, so a green card is not
+  // validation. No take-off distance is sourced (TAIC's two sheets print 450 and 896 ft): the card runs the flap-direction check only,
+  // at an ESTIMATED 42 m/s lift-off (the roll reads 217 m clean, 713 ft, between the two sheets). Tolerances are about 1.4x to 2x each measurement.
+  'ki-43-oscar': { topSpeed: 0.015, topSpeedTable: 0.012, climb: 0.24, climbTable: 0.29, stall: 0.04, flapStall: 0.04, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 42, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

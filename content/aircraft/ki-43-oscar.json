@@ -1,0 +1,315 @@
+{
+  "id": "ki-43-oscar",
+  "name": "Nakajima Ki-43-II Oscar",
+  "role": "fighter",
+  "side": "japanese",
+  "carrierCapable": false,
+  "geometry": {
+    "wingAreaM2": 21.4,
+    "wingSpanM": 10.84
+  },
+  "mass": {
+    "emptyKg": 1891.5,
+    "fuelCapacityKg": 406.1,
+    "maxTakeoffKg": 2830.5
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.0175,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 868700,
+    "propEfficiency": 0.68,
+    "staticThrustN": 11050,
+    "windmillCd0": 0.035,
+    "negativeGCutout": false,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.948
+      ],
+      [
+        2438,
+        1.0
+      ],
+      [
+        5761,
+        0.884
+      ],
+      [
+        7620,
+        0.72
+      ],
+      [
+        9144,
+        0.58
+      ],
+      [
+        11700,
+        0.4
+      ]
+    ]
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 80,
+    "maxPitchRateDegPerSec": 30,
+    "maxYawRateDegPerSec": 15,
+    "rateRefSpeedMps": 95,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 166.3,
+    "gLimit": 7.0
+  },
+  "gear": {
+    "travelSeconds": 8,
+    "dragAreaM2": 0.2,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 1.843,
+    "layout": "taildragger",
+    "mainX": 0.348,
+    "thirdX": -5.375,
+    "thirdHeightM": 0.595,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 5,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 24,
+    "propWashSpeedMps": 10,
+    "torqueYawRateDegPerSec": 0
+  },
+  "flap": {
+    "travelSeconds": 5,
+    "dragAreaM2": 0.41,
+    "clIncrement": 0.389
+  },
+  "combat": {
+    "roundsPerMinute": 400,
+    "muzzleVelocityMps": 780,
+    "dragPerM": 0.00016,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 4,
+    "structureHp": 80,
+    "subsystemHp": 25,
+    "fuelLeakKgPerS": 1.5,
+    "engineDecayPerS": 0.05,
+    "guns": [
+      {
+        "position": [
+          1.1,
+          0.35,
+          -0.25
+        ],
+        "rounds": 250,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          1.1,
+          0.35,
+          0.25
+        ],
+        "rounds": 250,
+        "group": "rightGuns"
+      }
+    ],
+    "zones": [
+      {
+        "id": "engine",
+        "center": [
+          0.9,
+          0,
+          0
+        ],
+        "halfSize": [
+          0.65,
+          0.7,
+          0.7
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "fuel",
+        "center": [
+          -0.3,
+          0,
+          0
+        ],
+        "halfSize": [
+          1.1,
+          0.7,
+          0.7
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "tail",
+        "center": [
+          -3.4,
+          0.2,
+          0
+        ],
+        "halfSize": [
+          1.5,
+          0.5,
+          0.5
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "rudder",
+        "center": [
+          -5.9,
+          0.6,
+          0
+        ],
+        "halfSize": [
+          0.7,
+          0.85,
+          0.2
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-guns",
+        "center": [
+          0.3,
+          -0.2,
+          -2.4
+        ],
+        "halfSize": [
+          1.0,
+          0.3,
+          1.1
+        ],
+        "system": "leftGuns"
+      },
+      {
+        "id": "right-guns",
+        "center": [
+          0.3,
+          -0.2,
+          2.4
+        ],
+        "halfSize": [
+          1.0,
+          0.3,
+          1.1
+        ],
+        "system": "rightGuns"
+      },
+      {
+        "id": "left-aileron",
+        "center": [
+          -0.9,
+          -0.2,
+          -4.4
+        ],
+        "halfSize": [
+          0.7,
+          0.3,
+          0.9
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-aileron",
+        "center": [
+          -0.9,
+          -0.2,
+          4.4
+        ],
+        "halfSize": [
+          0.7,
+          0.3,
+          0.9
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Armament: two Ho-103 12.7 mm machine guns in the cowl, synchronized to fire through the propeller (docs/superpowers/plans/sourcing/ki-43-oscar.md, section 5). 250 rounds per gun is the TAIC 152A-2 figure; English Wikipedia says 270, and the lower, US-intelligence figure is used because the rest of the reference block is TAIC's too. 400 rpm is the synchronized rate and 780 m/s the muzzle velocity for the Ho-103 (the free-firing rate is 983 rpm; the cowl guns are synchronized), (English Wikipedia 'Ho-103 machine gun', read 2026-09-29, via the dossier). The top-level roundsPerMinute, muzzleVelocityMps and dragPerM are these guns' own, the PRIMARY ballistic the AI leads with; there are no other guns, so no gunTypes block. dragPerM = 0.00016 is an ESTIMATE, the F6F's .50 figure (0.00015) nudged up slightly for the Ho-103's lighter bullet and higher muzzle velocity; it is a gameplay number, not a measurement. Survivability is the Zero's, the nearest unarmored, self-sealing-tank-less Japanese fighter in the game: structureHp 80, subsystemHp 25, fuelLeakKgPerS 1.5, roundDamage 4 (the .50's value), all GAMEPLAY ESTIMATES; no source read gives a Ki-43 protection figure. hitScale is absent, so each round hits with the target's full damagePerHit. Convergence, dispersion, lifetime and engine decay are the F6F's gameplay estimates. Gun positions and hit zones are ESTIMATES, laid out to the Ki-43's 10.84 m span and drawn fuselage and checked against the drawn model by tests/tools/models/combatFit.test.ts (zones lie inside the propeller-excluded bounds, x -6.68 to 1.58, y -1.84 to 1.51)."
+  },
+  "reference": {
+    "source": "Primary: TAIC (Technical Air Intelligence Center) Manual sheet 152A-2, December 1944, Ki-43-II 'Oscar 2' (web.archive.org/web/2020/http://www.wwiiaircraftperformance.org/japan/Ki-43-152A.pdf), sourcing dossier docs/superpowers/plans/sourcing/ki-43-oscar.md, read 2026-09-29. There is no flight-test report for this airplane; these are intelligence-sheet figures, and they DISAGREE with the other sources. testMassKg = 2494.76 is 5,500 lb, the sheet's normal weight. topSpeedMps = 155.13 is 347 mph at 20,000 ft (6,096 m), war emergency power; topSpeedByAltitudeM adds 131.88 (295 mph) at sea level, the sheet's other printed point. climbRateMps = 16.71 is 3,290 ft/min at sea level and climbRateByAltitudeM adds 14.48 (2,850 ft/min) at 17,500 ft (5,334 m). limits.diveSpeedMps = 166.30 is 372 mph, sheet 152A-3. CONFLICTS, named on purpose: English Wikipedia (Francillon) gives the Ki-43-IIb 330 mph at 13,000 ft (4,000 m), 17 mph slower than the TAIC figure and 7,000 ft lower; the May 1945 TAIC Manual No. 1 sheet gives 291 mph SL, 333 mph at 19,100 ft and 3,250 ft/min; take-off power is 1,105 hp on the TAIC engine sheet against Wikipedia's 1,300 hp. The December 1944 sheet was used because its engine ratings match the engine sheet. Graph-read speeds from sheet 152A-1 (about 330 mph at 9,000 ft, 325 mph at 14,500 ft and at 30,000 ft, +/-5 mph by eye) are a CHECK, not a target, and are not in topSpeedByAltitudeM. takeoffDistanceM is absent: the two TAIC sheets print 450 ft and 896 ft with no stated conditions, so the airplane is graded by a direction card against the F6F instead. stallSpeedMps = 35.5 and stallSpeedFlapMps = 31.4 are ESTIMATES, NOT SOURCED: no stall speed for the Ki-43-II was found; 35.5 m/s is the Zero's sourced 34.87 m/s (78 mph IAS) scaled by the square root of the wing-loading ratio ((2494.76/21.4) / (2519.71/22.44) = 1.038, root 1.019) and rounded, and the flap figure is the Zero's 30.85 times the same 1.019. rollRateDegPerSec = 80 is an UNSOURCED ESTIMATE, the Zero's. The whole rates block, limits.gLimit = 7.0 and gear.travelSeconds are ESTIMATES: maxPitchRateDegPerSec, maxYawRateDegPerSec, weathercockSeconds, autoRudderGainPerDeg, stallLimiterSeconds and cySlopePerRad are the F6F's and Zero's values, carried over; rateRefSpeedMps = 95 is the Zero's. No control-fade table: nothing documents the Ki-43's high-speed control heaviness for this model. Geometry: span 10.84 m, wing area 21.4 m2 (TAIC's 232 sq ft), TAIC 152A-2. mass.emptyKg = 1891.5 is 4,170 lb (TAIC); mass.fuelCapacityKg = 406.1 is 149 US gal at 0.72 kg/L; mass.maxTakeoffKg = 2830.5 is the 6,240 lb overload weight. Internal fuel below testMassKg - emptyKg = 603.26 kg is expected: the harness loads pilot, oil and ammunition through fuelKg too (Ruling R31). Engine: Nakajima Ha-115, 14-cylinder two-row radial with a two-speed blower. maxPowerW = 868,700 W is the 1,165 hp WEP peak at 8,000 ft (2,438 m); the curve's 0.948 at sea level is take-off power (1,105 hp / 1,165 hp), 1.0 at 2,438 m is that peak and 0.884 at 5,761 m is 1,030 hp at 18,900 ft, all SOURCED (TAIC engine sheet, December 1944); the points above 5,761 m (0.72, 0.58, 0.40) are ESTIMATES, the Zero's curve shape above its own critical altitude. FITTED, NOT SOURCED (measured 2026-09-30 through tools/testcards/measure.ts at testMassKg): cd0 = 0.0175 and propEfficiency = 0.68, with the power curve above; the fit reads +0.64% at sea level and +0.78% at 20,000 ft on the two sourced top speeds and lands the graph-read check points at -0.27% (9,000 ft), +4.77% (14,500 ft) and +2.89% (30,000 ft). The climb reads +16.92% at sea level and +20.17% at 17,500 ft, the model's known climb bias (the F6F +16.8%, the Zero +15.7% to +22.4%), left alone: it is not tuned to a card. staticThrustN = 11,050 N is the F6F's 20,000 N scaled by take-off power (824 kW / 1,491 kW), an ESTIMATE. windmillCd0 = 2 x cd0, the F6F's rule. aero.clSlopePerRad, clMax, alphaCritDeg, clAtZeroAlpha and oswaldE are the F6F's shipped lift curve, ESTIMATES for this airframe. flap.clIncrement = 0.389 is DERIVED and CIRCULAR: (35.5/31.4)^2 = 1.278 is the CLmax ratio the two ESTIMATED stalls imply, and 1.4 x 0.278 = 0.389; it is therefore the Zero's number, not a Ki-43 measurement. The airplane's differential 'butterfly' combat flaps are drawn as an ordinary flap. flap.dragAreaM2 = 0.41 and gear.dragAreaM2 = 0.2 are the F6F's estimates scaled by wing area (21.4/31.03); flap.travelSeconds = 5 is the F6F's estimate. Gear: the main gear RETRACTS (the Ki-27 was the fixed-gear type; see the dossier) and is drawn as GearL and GearR rig nodes in the model; the tailwheel is drawn fixed and static, believed fixed on the real airplane, ESTIMATE. gear.travelSeconds = 8 is an ESTIMATE: no source gives the retraction time, and the Zero's 10 s is SOURCED for the Zero only. gear.heightM = 1.843, mainX = 0.348, thirdX = -5.375 and thirdHeightM = 0.595 are MEASURED from the drawn mesh (2026-09-30): the lowest point of the forward three quarters, and the first aft point to touch when the model is pitched about the mains (12.306 degrees, tests/tools/models/stance.test.ts holds them). The model is drawn level (its propeller disc is vertical, measured), so no normalize.pitchDeg was needed. layout and the tailwheel steering, tail-lift, prop-wash and torque fields are ESTIMATES, the Zero's; torqueYawRateDegPerSec = 0 is the arcade choice made for the Zero (Mark, 2026-09-28). view.eyePointM = [-1.0, 0.7, 0] is MEASURED from the drawn model: under the canopy node kabina-FACES (x -1.88 to -0.15, top y 0.99), 0.29 m below its crown; tests/tools/models/eyePoints.test.ts holds it inside that canopy. negativeGCutout is false: the carburetor fuel-cutout behavior was documented for the Zero only. ai.excludedManeuvers = ['split-s'] is an ESTIMATE: the Japanese-language sources describe a weak dive and pull-out against later fighters (dossier, section 4, direction only), so the AI does not fly the Split-S. Not carrier capable (plan decision D3): the Ki-43 is an Imperial Army Air Service fighter, and no carrier operation is modeled for it. The variant the drawn model shows (Ki-43-II or Ki-43-I) could not be confirmed against the model's own source; the Ki-43-II figures are used because the dossier's recommendation (D1) and the game's roster names the type as a hostile fighter.",
+    "testMassKg": 2494.76,
+    "topSpeedMps": 155.13,
+    "topSpeedAltitudeM": 6096,
+    "topSpeedByAltitudeM": [
+      [
+        0,
+        131.88
+      ]
+    ],
+    "climbRateMps": 16.71,
+    "climbRateByAltitudeM": [
+      [
+        5334,
+        14.48
+      ]
+    ],
+    "stallSpeedMps": 35.5,
+    "stallSpeedFlapMps": 31.4,
+    "rollRateDegPerSec": 80
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "left-rack",
+        "offset": [
+          -0.335,
+          -0.439,
+          -2.4
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "right-rack",
+        "offset": [
+          -0.336,
+          -0.438,
+          2.4
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      }
+    },
+    "source": "Dev stores only (2026-09-30), and NOT the historic load. The dossier's sources give the Ki-43-II two wing racks for 30 to 100 kg bombs (TAIC 152A-2 maximum 2 x 100 kg; English Wikipedia says 2 x 30 kg or 2 x 250 kg, read 2026-09-29); the an-m65 below is the F6F's 1,000 lb general-purpose bomb (453.6 kg), so each rack here carries 4 to 15 times the historic bomb. It is kept so the bomb-drop path is flyable on this airplane in Dev, the same treatment as the Zero's, and is the airframe's least historic number: do not read it as performance. There are no rails and no rockets (no rocket load is documented for the type). Rack spanwise station is the Zero's 43% semi-span, 2.4 m on this 5.42 m semi-span; the offsets in x and y are measured on the Ki-43's own drawn wing with `npm run models:mounts` (ESTIMATE: 40% chord, 0.02 m clearance). Store figures are the F6F's (see f6f-hellcat.json stores.source, labeled there)."
+  },
+  "ai": {
+    "excludedManeuvers": [
+      "split-s"
+    ]
+  },
+  "view": {
+    "eyePointM": [
+      -1.0,
+      0.7,
+      0
+    ],
+    "model": "ki-43-oscar"
+  }
+}
