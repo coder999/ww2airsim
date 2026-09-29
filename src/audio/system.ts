@@ -2,7 +2,7 @@ import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
 import type { AudioBackend, BackendState, LoopHandle } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
 import { LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
-import { FILTER_OPEN_HZ, MASTER_GAIN } from './mix.js'
+import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, FILTER_OPEN_HZ, MASTER_GAIN, type View } from './mix.js'
 
 /**
  * The wiring: holds the reducer's memory and the loop handle, and applies each
@@ -28,6 +28,7 @@ export type AudioSnapshot = {
   readonly enginePlaybackRate: number
   readonly layers: Readonly<Record<string, { readonly gain: number; readonly rate: number; readonly cutoffHz: number | null }>>
   readonly cuesFired: number
+  readonly view: View | null
 }
 
 export type AudioSystem = {
@@ -58,6 +59,8 @@ export type AudioSystem = {
    *  (design §7), for a paused replay. The next `update` call resumes it: a
    *  hold has no inputs of its own to compute a gain from. */
   hold(held: boolean): void
+  /** Called every frame; reaches the backend only when the view changes. */
+  setView(view: View): void
   setMuted(muted: boolean): void
   muted(): boolean
   snapshot(): AudioSnapshot
@@ -73,6 +76,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   // progress, not the target that was requested.
   let masterGain = 0
   let cuesFired = 0
+  let view: View | null = null
   const failed: ClipId[] = []
   // Instant replay's pause (design §7): forced to gain 0 by `hold(true)`
   // rather than by suppressing `update` calls, because the held frame is
@@ -187,6 +191,12 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       return isMuted
     },
 
+    setView(next: View): void {
+      if (next === view) return
+      view = next
+      backend.setCabin(CABIN_PRESETS[next], CABIN_GLIDE_TAU_S)
+    },
+
     snapshot(): AudioSnapshot {
       return {
         state: backend.state(),
@@ -198,6 +208,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
         enginePlaybackRate: layerState.get('engine')?.rate ?? 0,
         layers: Object.fromEntries(layerState),
         cuesFired,
+        view,
       }
     },
   }

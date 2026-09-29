@@ -2466,6 +2466,7 @@ async function boot(): Promise<void> {
     radarSweepRad = radarSweepAngle(view.world.tick * DT + view.world.accumulatorSeconds)
     radarContactList = radarContacts(viewPlayer, view.world.aircraft, selectedRadarRangeMi, view.world.combat.aircraft)
     updatePanel(panel, spec, viewPlayer.state, view.controls, makeTextTexture, view.render.attitude, view.world.wind)
+    audio.setView(view.cameraMode === 'cockpit' ? 'cockpit' : 'chase')
     if (replay === null) audio.update(audioInputsFrom(current))
     else {
       if (replay.jumpedThisFrame) audio.prime(audioInputsFrom(view))

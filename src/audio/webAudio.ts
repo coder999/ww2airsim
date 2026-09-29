@@ -1,6 +1,6 @@
 import type { ClipId } from './assets.js'
 import type { AudioBackend, BackendState, LoopHandle, LoopSpec } from './backend.js'
-import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, type Bus } from './mix.js'
+import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, type Bus, type CabinPreset } from './mix.js'
 
 /**
  * The only file under `src/` that touches Web Audio, which
@@ -14,9 +14,10 @@ import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_
  * No `try`/`catch` here: `load` rejects and `system.ts` turns that into
  * silence, so the failure policy lives in exactly one place (design §10.2).
  *
- * Graph: engine, sfx and ambient buses feed one world stage; the radio bus
- * feeds a highpass, lowpass and soft clipper (the radio voice, spec §5.3).
- * Both reach master. The cabin stage between them and master arrives in Task 3.
+ * Graph: engine, sfx and ambient buses feed the world stage (lowpass, gain);
+ * the radio bus feeds a highpass, lowpass and soft clipper (the radio voice,
+ * spec §5.3) and then its own cabin lowpass and gain. Both reach master. The
+ * cabin stage is what `setCabin` moves between cockpit and chase (spec §2).
  */
 function softClipCurve(drive: number): Float32Array {
   const n = 1024
@@ -34,8 +35,16 @@ export function createWebAudioBackend(): AudioBackend {
   master.connect(context.destination)
   const buffers = new Map<ClipId, AudioBuffer>()
 
-  const world = context.createGain()
-  world.connect(master)
+  const start = CABIN_PRESETS.chase
+
+  // World stage: buses -> lowpass -> gain -> master.
+  const worldFilter = context.createBiquadFilter()
+  worldFilter.type = 'lowpass'
+  worldFilter.frequency.value = start.worldLowpassHz
+  const worldGain = context.createGain()
+  worldGain.gain.value = start.worldGain
+  worldFilter.connect(worldGain)
+  worldGain.connect(master)
 
   const radioHigh = context.createBiquadFilter()
   radioHigh.type = 'highpass'
@@ -47,7 +56,14 @@ export function createWebAudioBackend(): AudioBackend {
   radioShaper.curve = softClipCurve(RADIO_DRIVE) as Float32Array<ArrayBuffer>
   radioHigh.connect(radioLow)
   radioLow.connect(radioShaper)
-  radioShaper.connect(master)
+  const radioCabinFilter = context.createBiquadFilter()
+  radioCabinFilter.type = 'lowpass'
+  radioCabinFilter.frequency.value = start.radioLowpassHz
+  const radioCabinGain = context.createGain()
+  radioCabinGain.gain.value = start.radioGain
+  radioShaper.connect(radioCabinFilter)
+  radioCabinFilter.connect(radioCabinGain)
+  radioCabinGain.connect(master)
 
   const busNode = (bus: Bus, into: AudioNode): GainNode => {
     const node = context.createGain()
@@ -56,9 +72,9 @@ export function createWebAudioBackend(): AudioBackend {
     return node
   }
   const buses: Record<Bus, GainNode> = {
-    engine: busNode('engine', world),
-    sfx: busNode('sfx', world),
-    ambient: busNode('ambient', world),
+    engine: busNode('engine', worldFilter),
+    sfx: busNode('sfx', worldFilter),
+    ambient: busNode('ambient', worldFilter),
     radio: busNode('radio', radioHigh),
   }
 
@@ -127,5 +143,13 @@ export function createWebAudioBackend(): AudioBackend {
     },
 
     setMasterGain: (value: number): void => { master.gain.value = value },
+
+    setCabin: (preset: CabinPreset, glideTauS: number): void => {
+      const now = context.currentTime
+      worldFilter.frequency.setTargetAtTime(preset.worldLowpassHz, now, glideTauS)
+      worldGain.gain.setTargetAtTime(preset.worldGain, now, glideTauS)
+      radioCabinFilter.frequency.setTargetAtTime(preset.radioLowpassHz, now, glideTauS)
+      radioCabinGain.gain.setTargetAtTime(preset.radioGain, now, glideTauS)
+    },
   }
 }

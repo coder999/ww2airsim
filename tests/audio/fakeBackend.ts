@@ -1,6 +1,6 @@
 import type { ClipId } from '../../src/audio/assets.js'
 import type { AudioBackend, BackendState, LoopHandle, LoopSpec } from '../../src/audio/backend.js'
-import type { Bus } from '../../src/audio/mix.js'
+import type { Bus, CabinPreset } from '../../src/audio/mix.js'
 
 /**
  * Records every call instead of making a sound.
@@ -28,6 +28,7 @@ export type FakeBackend = AudioBackend & {
   readonly engineRates: number[]
   readonly engineGlides: number[]
   readonly resumed: number[]
+  readonly cabins: { preset: CabinPreset; tauS: number }[]
 }
 
 export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = {}): FakeBackend {
@@ -41,10 +42,11 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   const engineRates: number[] = []
   const engineGlides: number[] = []
   const resumed: number[] = []
+  const cabins: FakeBackend['cabins'] = []
   let state: BackendState = 'suspended'
 
   return {
-    loopsStarted, layers, played, masterGains, engineGains, engineRates, engineGlides, resumed,
+    loopsStarted, layers, played, masterGains, engineGains, engineRates, engineGlides, resumed, cabins,
     state: (): BackendState => state,
     resume: async (): Promise<void> => { resumed.push(resumed.length); state = 'running' },
     load: async (id: ClipId): Promise<void> => {
@@ -74,5 +76,6 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
     },
     playOnce: (id: ClipId, bus: Bus, gain: number, rate = 1): void => { played.push({ id, bus, gain, rate }) },
     setMasterGain: (value: number): void => { masterGains.push(value) },
+    setCabin: (preset: CabinPreset, tauS: number): void => { cabins.push({ preset, tauS }) },
   }
 }

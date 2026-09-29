@@ -116,3 +116,25 @@ export const FILTER_OPEN_HZ = 20_000
 export const RADIO_BAND_LOW_HZ = 400
 export const RADIO_BAND_HIGH_HZ = 3_200
 export const RADIO_DRIVE = 2
+
+export type View = 'cockpit' | 'chase'
+
+/** What the cabin stage does to the mix in one view (spec §2). The world
+ *  buses go through one lowpass and gain; the radio through its own. The
+ *  initial numbers are deliberately mild, reasoned guesses: the default view is
+ *  chase and today's mix must not change audibly until Mark has flown the
+ *  presets and tuned them. */
+export type CabinPreset = {
+  readonly worldLowpassHz: number
+  readonly worldGain: number
+  readonly radioLowpassHz: number
+  readonly radioGain: number
+}
+
+export const CABIN_PRESETS: Readonly<Record<View, CabinPreset>> = {
+  cockpit: { worldLowpassHz: 9_000, worldGain: 1, radioLowpassHz: 20_000, radioGain: 1 },
+  chase: { worldLowpassHz: 16_000, worldGain: 0.9, radioLowpassHz: 2_200, radioGain: 0.7 },
+}
+
+/** Crossfade time constant when the view changes. */
+export const CABIN_GLIDE_TAU_S = 0.25

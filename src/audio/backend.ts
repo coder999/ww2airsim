@@ -1,5 +1,5 @@
 import type { ClipId } from './assets.js'
-import type { Bus } from './mix.js'
+import type { Bus, CabinPreset } from './mix.js'
 
 /**
  * The seam between this project's audio logic and the Web Audio API.
@@ -48,4 +48,7 @@ export type AudioBackend = {
    *  everything else in the scene runs slow. */
   playOnce(id: ClipId, bus: Bus, gain: number, rate?: number): void
   setMasterGain(value: number): void
+  /** Moves the cabin stage (world lowpass and gain, radio lowpass and gain) to
+   *  `preset`, gliding with `glideTauS`. */
+  setCabin(preset: CabinPreset, glideTauS: number): void
 }
