@@ -8,6 +8,7 @@ import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { modelIO } from '../../../tools/models/document.js'
 import { bounds, centroid, radiusAbout, rotateAbout, symmetryError, worldPositions, type Vec3 } from '../../../tools/models/rig.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
+import { airframeMeshes, retractedExcess } from './_retractedSkin.js'
 
 const entries = loadModelEntries()
 const specIds = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
@@ -20,12 +21,16 @@ function pivotOf(n: Node): { point: Vec3; axis: Vec3 } {
 }
 const MAIN = new Set(['GearL', 'GearR'])
 
-/** How far a retracted leg may rise above the static airframe over its folded footprint. */
-const SKIN_SLACK_M = 0.05
+/** How far a retracted leg may stand above the airframe surface beneath it (ray-cast per point, _retractedSkin.ts). */
+const SKIN_SLACK_M = 0.08
 /** Legs known to fold through the skin, each with its measured excess (m) as a ceiling: the list only shrinks.
- *  The F6F's real legs turn 90 deg to lie flat as they swing aft; the pivot schema bakes one ±x/y/z axis, so the
- *  rig swings them only, and each wheel stands 0.47 m proud of the wing (R3 ledger, review of batch C). */
-const THROUGH_SKIN: Readonly<Record<string, number>> = { 'f6f-hellcat/GearL': 0.48, 'f6f-hellcat/GearR': 0.48 }
+ *  Re-measured 2026-09-29 with the per-point ray-cast, which replaced a footprint-maximum measure that passed the
+ *  Corsair's wheels standing 0.41 m through its wing. The F6F's real legs turn 90 deg to lie flat as they swing aft;
+ *  the rig swings them only (was 0.48 m under the old measure). The Zero's 0.17 m is newly seen, not newly caused. */
+const THROUGH_SKIN: Readonly<Record<string, number>> = {
+  'f6f-hellcat/GearL': 0.29, 'f6f-hellcat/GearR': 0.29,
+  'a6m2-zero/GearL': 0.18, 'a6m2-zero/GearR': 0.18,
+}
 
 /** Turning a leg to its up angle: how far its centroid rises, and how far it moves the declared way. */
 function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig): { up: number; along: number; height: number } {
@@ -111,24 +116,22 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     }
   })
 
-  it('every retracted leg stays under the airframe skin over its folded footprint (Review Focus 4)', () => {
-    const skin = doc.getRoot().listNodes().filter((n) => n.getMesh() && !PART_NAME.test(n.getName())).flatMap((n) => worldPositions(n))
+  it('every retracted leg stays under the airframe surface beneath it (Review Focus 4)', () => {
+    const meshes = airframeMeshes(doc)
     for (const g of rig.gear) {
       const node = one(doc, g.node)
       const { point, axis } = pivotOf(node)
-      const up = bounds(worldPositions(node).map((p) => rotateAbout(p, point, axis, (g.upAngleDeg * Math.PI) / 180)))
-      const over = skin.filter((p) => p[0] >= up.min[0] && p[0] <= up.max[0] && p[2] >= up.min[2] && p[2] <= up.max[2])
-      expect(over.length, `${g.node}: no airframe over its folded footprint`).toBeGreaterThan(0)
-      const excess = up.max[1] - Math.max(...over.map((p) => p[1]))
+      const { excess, covered } = retractedExcess(meshes, node, point, axis, g.upAngleDeg)
+      expect(covered, `${g.node}: no airframe under its folded leg`).toBeGreaterThan(0)
       const known = THROUGH_SKIN[`${id}/${g.node}`]
-      const msg = `${g.node} at ${g.upAngleDeg} deg rises ${excess.toFixed(3)} m above the skin over it`
+      const msg = `${g.node} at ${g.upAngleDeg} deg stands ${excess.toFixed(3)} m above the airframe surface beneath it`
       if (known === undefined) expect(excess, msg).toBeLessThanOrEqual(SKIN_SLACK_M)
       else {
         expect(excess, `${msg}: a THROUGH_SKIN entry that no longer applies must be deleted`).toBeGreaterThan(SKIN_SLACK_M)
         expect(excess, msg).toBeLessThanOrEqual(known)
       }
     }
-  })
+  }, 120_000)
 
   it('turrets run nose to tail, dorsal before ventral at one station, each on a vertical axis', () => {
     const centers = rig.turrets.map((t) => { const n = one(doc, t); expect(Math.abs(pivotOf(n).axis[1]), `${t} axis`).toBeGreaterThan(0.999); return centroid(worldPositions(n)) })

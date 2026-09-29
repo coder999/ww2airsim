@@ -238,6 +238,12 @@ failure names what to fix:
 `tests/tools/models/_drawnPoints.ts` is the one reader of drawn points; use
 it rather than a second reader.
 
+`tests/tools/models/aircraftRigs.test.ts` also ray-casts every retracted leg onto
+the airframe surface beneath it and fails if a wheel stands more than 0.08 m
+above it (`_retractedSkin.ts`). A leg that cannot meet that with the rig's single
+hinge axis goes on `THROUGH_SKIN` with its measured excess and a date; the list
+only shrinks.
+
 ### Undercarriage
 
 The gear layout is data, and a new aircraft passes the ground checks or does
