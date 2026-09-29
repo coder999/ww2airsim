@@ -52,8 +52,8 @@ with m.tagged('hut-fittings'), m.shared_chart():
 with m.tagged('glass'), m.shared_chart():
     for sz in (-1, 1):
         for x in (-5.6, -2.4):
-            m.box('glazing', (x, 1.2, sz * 4.0 - sz * 0.03), (1.2, 0.9, 0.06))
-    m.box('glazing', (-7.0 + 0.03, 1.2, 0.0), (0.06, 0.9, 1.2))
+            m.box('glazing', (x, 1.2, sz * 4.0 + sz * 0.02), (1.2, 0.9, 0.08))
+    m.box('glazing', (-7.0 - 0.02, 1.2, 0.0), (0.08, 0.9, 1.2))
 with m.tagged('yard'), m.shared_chart():
     m.box('steel', (-5.0, 0.0, 5.0), (1.5, 1.0, 1.2))
     for k in range(3):
