@@ -71,6 +71,6 @@ running on the port). Nothing here started or changed the served copy.
 Fly with the engine at several throttles in chase, press `C` to reach cockpit and
 back, and confirm:
 
-1. The engine and gunfire still sound as before in chase.
-2. Cockpit has a louder, closer engine (+3 dB) and quieter effects (-3 dB). A lowpass alone was inaudible: measured 2026-09-29, the propeller clip has 0.09% of its energy above 9 kHz and 90% below 163 Hz, so Mark heard no engine difference between views on the first build. Cockpit trims are guesses.
+1. Gunfire sounds as before in chase; the chase engine is 3 dB quieter than before.
+2. Cockpit has a louder, closer engine (+3 dB) and quieter effects (-3 dB), and chase's engine is 3 dB quieter than the original sound (engineTrim 0.7), for a measured 5 dB engine step between views (master output, full throttle, 2026-09-29: chase -22.3 dB RMS, cockpit -16.9). At +3 dB alone the step measured 2.4 dB and was not heard. A lowpass alone was inaudible: measured 2026-09-29, the propeller clip has 0.09% of its energy above 9 kHz and 90% below 163 Hz, so Mark heard no engine difference between views on the first build. Cockpit trims are guesses.
 3. The switch crossfades without a click.

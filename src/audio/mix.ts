@@ -141,7 +141,7 @@ export type CabinPreset = {
 
 export const CABIN_PRESETS: Readonly<Record<View, CabinPreset>> = {
   cockpit: { worldLowpassHz: 9_000, worldGain: 1, engineTrim: 1.4, sfxTrim: 0.7, radioLowpassHz: 20_000, radioGain: 1 },
-  chase: { worldLowpassHz: FILTER_OPEN_HZ, worldGain: 1, engineTrim: 1, sfxTrim: 1, radioLowpassHz: 2_200, radioGain: 0.7 },
+  chase: { worldLowpassHz: FILTER_OPEN_HZ, worldGain: 1, engineTrim: 0.7, sfxTrim: 1, radioLowpassHz: 2_200, radioGain: 0.7 },
 }
 
 /** Crossfade time constant when the view changes. */
