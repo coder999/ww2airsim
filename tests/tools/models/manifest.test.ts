@@ -43,6 +43,26 @@ describe('ModelEntrySchema', () => {
   ])('rejects %s', (_label, raw, message) => {
     expect(() => parseModelEntry(raw)).toThrow(message)
   })
+
+  it('skin: true is a Blender entry\'s alone (DP0)', () => {
+    const hangar = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
+    expect(parseModelEntry({ ...hangar, skin: true }).skin).toBe(true)
+    expect(() => parseModelEntry({ ...valid, split: [], remove: [], skin: true })).toThrow(/skin/)
+  })
+
+  it('a Blender ship may be skinned (DP2), but not with keep or mask rules, which its one skin material replaces', () => {
+    const kagero = JSON.parse(readFileSync('tools/models/entries/kagero-dd.json', 'utf8')) as { ship: Record<string, unknown> }
+    expect(parseModelEntry({ ...kagero, skin: true }).skin).toBe(true)
+    expect(() => parseModelEntry({ ...kagero, skin: true, ship: { ...kagero.ship, materials: { hull: 'keep' } } })).toThrow(/keep and mask do not apply/)
+  })
+  it('boxSkin is a downloaded ship\'s alone, at its textures.maxSize, with every material classified or mapped to a role (DP2)', () => {
+    const essex = JSON.parse(readFileSync('tools/models/entries/essex-cv.json', 'utf8')) as Record<string, unknown>
+    expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 } }).boxSkin).toEqual({ atlasPx: 1024 })
+    expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 512 } })).toThrow(/textures.maxSize/)
+    expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), otherMaterials: 'keep' } })).toThrow(/boxSkin/)
+    const hangar = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
+    expect(() => parseModelEntry({ ...hangar, boxSkin: { atlasPx: 512 } })).toThrow(/boxSkin/)
+  })
 })
 
 const generated = {
@@ -81,7 +101,8 @@ describe('generated entries (O1)', () => {
   it('keeps every pre-O1 Sketchfab entry exactly shaped, plus kind "sketchfab"', () => {
     const before = JSON.parse(readFileSync('tests/tools/models/fixtures/entries-before-o1.json', 'utf8')) as { id: string; source: object }[]
     const beforeIds = new Set(before.map((e) => e.id))
-    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id))
+    // DP2 adds `boxSkin` to four of these on purpose; every other field must be exactly as it was.
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, ...rest }) => (void boxSkin, rest))
     expect(now).toEqual(before.map((e) => ({ ...e, source: { kind: 'sketchfab', ...e.source } })))
   })
 })

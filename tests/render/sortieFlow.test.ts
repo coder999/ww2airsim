@@ -5,7 +5,7 @@ import { parseLibraryEntry } from '../../src/render/hangar/library.js'
 import { flyableAircraft } from '../../src/render/sortie/flyable.js'
 import { SCENARIO_OPTIONS } from '../../src/render/titleScreen.js'
 import {
-  aircraftFor, devLayoutNote, initialDraft, loadoutsFor, reconcile, visibleScenarios, withAircraft, withScenario, type FlowContext,
+  aircraftFor, defaultLoadout, devLayoutNote, initialDraft, loadoutsFor, reconcile, visibleScenarios, withAircraft, withScenario, type FlowContext,
 } from '../../src/render/sortieFlow.js'
 
 const library = readdirSync('content/library').map((f) => parseLibraryEntry(JSON.parse(readFileSync(`content/library/${f}`, 'utf8'))))
@@ -15,9 +15,9 @@ const ctx = (dev: boolean): FlowContext => ({ options: SCENARIO_OPTIONS, flyable
 const ids = (xs: readonly { spec: { id: string } }[]) => xs.map((x) => x.spec.id).sort()
 
 describe('the sortie form model (sortie spec, Navigation, A3)', () => {
-  it('Dev off hides exactly the five Dev rows', () => {
+  it('Dev off hides exactly the six Dev rows', () => {
     const hidden = SCENARIO_OPTIONS.filter((o) => !visibleScenarios(ctx(false)).includes(o)).map((o) => o.value).sort()
-    expect(hidden).toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range'])
+    expect(hidden).toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'recovery-range', 'takeoff-range'])
     expect(visibleScenarios(ctx(true))).toEqual(SCENARIO_OPTIONS)
   })
   it('a carrier start offers the Hellcat and Wildcat; Dev adds the Zero', () => {
@@ -34,8 +34,13 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
     expect(withScenario(ctx(false), 'combat-air-patrol')).toEqual({ scenarioId: 'combat-air-patrol', aircraftSpec: 'f6f-hellcat', loadout: 'clean' })
   })
   it('A3, aircraft change keeps an allowed pick', () => {
+    const d = { scenarioId: 'airfield-strike', aircraftSpec: 'f6f-hellcat', loadout: 'bombs' as const }
+    expect(withAircraft(ctx(false), d, 'f4f-wildcat').loadout).toBe('bombs')
+  })
+  it('A3, aircraft change to a racks-only airplane falls back off a loadout it has no stations for (W1: the F4F-4 carries no rockets)', () => {
     const d = { scenarioId: 'airfield-strike', aircraftSpec: 'f6f-hellcat', loadout: 'rockets' as const }
-    expect(withAircraft(ctx(false), d, 'f4f-wildcat').loadout).toBe('rockets')
+    expect(withAircraft(ctx(false), d, 'f4f-wildcat').loadout).toBe(defaultLoadout(ctx(false), d.scenarioId, 'f4f-wildcat'))
+    expect(withAircraft(ctx(false), d, 'f4f-wildcat').loadout).not.toBe('rockets')
   })
   it('A3, aircraft change: Dev allows every loadout on the Zero; without Dev it has only clean', () => {
     const d = { scenarioId: 'free-flight', aircraftSpec: 'f6f-hellcat', loadout: 'rockets' as const }
@@ -51,6 +56,12 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
     it('an enemy aircraft falls back to the scenario\'s own; the loadout is kept if allowed', () => {
       const d = { scenarioId: 'free-flight', aircraftSpec: 'a6m2-zero', loadout: 'rockets' as const }
       expect(reconcile(ctx(false), d, 'free-flight')).toEqual({ scenarioId: 'free-flight', aircraftSpec: 'f6f-hellcat', loadout: 'rockets' })
+    })
+    it('a saved Rockets draft on the Wildcat falls back to its default loadout (W1: no rockets)', () => {
+      const d = { scenarioId: 'airfield-strike', aircraftSpec: 'f4f-wildcat', loadout: 'rockets' as const }
+      const r = reconcile(ctx(false), d, 'free-flight')
+      expect(r.loadout).not.toBe('rockets')
+      expect(r.loadout).toBe(defaultLoadout(ctx(false), d.scenarioId, 'f4f-wildcat'))
     })
     it('a legal draft comes back as the same object', () => {
       const d = { scenarioId: 'airfield-strike', aircraftSpec: 'f4f-wildcat', loadout: 'bombs' as const }

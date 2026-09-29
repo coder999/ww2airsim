@@ -10,6 +10,8 @@ import { add, v3, type Vec3 } from '../../src/sim/math/vec3.js'
 import type { Projectile } from '../../src/sim/weapons/combat.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
+import { restPitchRad } from '../../src/sim/gearContact.js'
+import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { initialFrameStateFor, nextFrameState } from '../../src/render/frame.js'
 
@@ -164,7 +166,20 @@ describe('friendly-fire-field: Space from the runway spawn hits the parked allie
   // tests/sim/weapons/friendlyFire.test.ts: a parked frame in Node has no
   // terrain to settle on, and `nextFrameState` holds it until one arrives.
   it('the parked wingman takes a friendly hit, and no Tacloban building is touched', () => {
-    const w0 = worldFromScenario(loadScenarioBundle('friendly-fire-field'), null)
+    // T1 (2026-09-28): a parked airplane now sits at its derived rest
+    // attitude, 9.45 deg nose-up for the F6F, and from there its guns fire
+    // over the wingman. This test is about the discharge path, not aim, so
+    // the fixture levels the shooter to the attitude it was parked at before
+    // T1 (`parkedAttitude` is yaw * pitch(rest); this takes the pitch back out).
+    const parked = worldFromScenario(loadScenarioBundle('friendly-fire-field'), null)
+    const w0: World<undefined> = {
+      ...parked,
+      aircraft: parked.aircraft.map((a) => {
+        if (a.id !== 'f6f-1') return a
+        const state = { ...a.state, attitude: qMul(a.state.attitude, qFromAxisAngle(v3(0, 0, 1), -restPitchRad(a.spec.gear))) }
+        return { ...a, state, previous: state }
+      }),
+    }
     const firing = (w: World<undefined>): World<undefined> => ({
       ...w, aircraft: w.aircraft.map((a) => (a.id === 'f6f-1' ? { ...a, controls: { ...a.controls, fire: true } } : a)),
     })

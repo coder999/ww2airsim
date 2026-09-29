@@ -123,6 +123,18 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(inputs.groundSurface).toBe('deck')
   })
 
+  it('reports wheel height and sink rate for the touchdown latch (T1, 2026-09-28)', () => {
+    const frame = initialFrameState(
+      f6f, createState({ position: v3(0, 1000, 0), velocity: v3(60, -2, 0) }), undefined, flatField())
+    const inputs = audioInputsFrom(frame)
+    expect(inputs.heightM).toBeGreaterThan(990)
+    expect(inputs.heightM).toBeLessThan(1000)
+    expect(inputs.sinkMps).toBeCloseTo(2, 9)
+    const climbing = initialFrameState(
+      f6f, createState({ position: v3(0, 1000, 0), velocity: v3(60, 3, 0) }), undefined, flatField())
+    expect(audioInputsFrom(climbing).sinkMps).toBeCloseTo(-3, 9)
+  })
+
   it('carries the tick, which is how a restart is told from a landing', () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     expect(audioInputsFrom(frame).tick).toBe(frame.world.tick)

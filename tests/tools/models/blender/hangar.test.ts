@@ -6,10 +6,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getBounds } from '@gltf-transform/functions'
 import type { Document } from '@gltf-transform/core'
-import { HAVE_BLENDER, runBlenderScript } from '../../../../tools/models/blender/run.js'
+import { HAVE_BLENDER, runBlenderScript, skinSidecarPath } from '../../../../tools/models/blender/run.js'
 import { blenderScriptFor, candidateOutput } from '../../../../tools/models/blender/cli.js'
 import { modelIO, findNode } from '../../../../tools/models/document.js'
 import { measureDocument } from '../../../../tools/models/measure.js'
+import { coplanarOverlaps, worldTriangles } from '../buildingGeometry.js'
+
+/** hangar.py's EAVE_OUT_M (DP0): the steel's footprint is the walls' plus an eave each side. */
+const EAVE_OUT_M = 0.35
 
 const sha = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 const tacloban = JSON.parse(readFileSync('content/bases/tacloban.json', 'utf8')) as { buildings: { id: string; widthM: number; lengthM: number }[] }
@@ -45,7 +49,7 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
 
   it('the steel structure fits the sim footprint and stands on y = 0', () => {
     const bb = getBounds(findNode(doc, 'hangar_steel'))
-    within1pct(bb.max[0] - bb.min[0], cited.widthM, 'width (x)')
+    within1pct(bb.max[0] - bb.min[0], cited.widthM + 2 * EAVE_OUT_M, 'width (x), eaves included')
     within1pct(bb.max[2] - bb.min[2], cited.lengthM, 'length (z)')
     within1pct(bb.max[1], 5.5 + cited.widthM * 0.25, 'height: wall + rise')
     expect(bb.min[1]).toBeCloseTo(0, 5)
@@ -63,19 +67,75 @@ describe.skipIf(!HAVE_BLENDER)('the hangar proof model (model-roster spec §4.2,
     expect(doors.min[2]).toBeGreaterThan(cited.lengthM / 2 - 1)
   })
 
-  it('is inside the spec §4.4 building budget: 5k triangles, 4 draw calls, 0.5 MB, no textures', () => {
+  it('the raw export: at most 5k triangles in its 4 role nodes, UVs on every primitive, and its skin sidecar (DP0)', () => {
     const m = measureDocument(doc)
     expect(m.triangles).toBeLessThanOrEqual(5000)
     expect(m.drawCalls).toBeLessThanOrEqual(4)
-    expect(m.textures).toBe(0)
-    expect(readFileSync(a).byteLength).toBeLessThanOrEqual(500_000)
+    expect(findNode(doc, 'hangar_glazing').getMesh(), 'the windows\' glass').not.toBeNull()
+    expect(m.textures).toBe(0) // the kit writes UVs; the build's skin stage adds the textures
+    for (const p of doc.getRoot().listMeshes().flatMap((x) => x.listPrimitives())) expect(p.getAttribute('TEXCOORD_0')).not.toBeNull()
+    const side = JSON.parse(readFileSync(skinSidecarPath(a), 'utf8')) as { atlasPx: number; markings: { kind: string }[] }
+    expect(side.atlasPx).toBe(512)
+    expect(side.markings.filter((k) => k.kind === 'grid')).toHaveLength(3)
+  })
+
+  it('centroid z-fight heuristic: no same-facing coplanar pair where one triangle\'s centroid lies inside the other (partial overlaps are not caught) (DP0)', () => {
+    const tris = doc.getRoot().listNodes().filter((n) => n.getMesh()).flatMap((n) => worldTriangles(n).map((tri, i) => ({ label: `${n.getName()}#${i}`, where: n.getName(), tri })))
+    expect(coplanarOverlaps(tris)).toEqual([])
+  }, 60_000)
+
+  it('every rib sits on the roof: its inner face 0.02 m into the shell, its outer face 0.06 m proud, at every angle (DP0, ray-cast)', () => {
+    // Slice hangar_steel at z = 0 (between ribs: the roof alone) and at z = 1.5 m (a rib's center), and
+    // cast rays from the springing center (0, 5.5). The crossings the rib slice adds over the roof slice
+    // are the rib's inner and outer faces. A rib faceted unlike the roof floats clear of it or sinks deep
+    // between facets; the embed rule needs embed >= 0.015 m (EMBED_M 0.02 less roundoff) everywhere.
+    const tris = worldTriangles(findNode(doc, 'hangar_steel'))
+    const slice = (z0: number): [number, number, number, number][] => {
+      const out: [number, number, number, number][] = []
+      for (const t of tris) {
+        const pts: [number, number][] = []
+        for (let k = 0; k < 3; k++) {
+          const a = t[k]!, b = t[(k + 1) % 3]!
+          if ((a[2] - z0) * (b[2] - z0) < 0) { const f = (z0 - a[2]) / (b[2] - a[2]); pts.push([a[0] + f * (b[0] - a[0]), a[1] + f * (b[1] - a[1])]) }
+        }
+        if (pts.length === 2) out.push([pts[0]![0], pts[0]![1], pts[1]![0], pts[1]![1]])
+      }
+      return out
+    }
+    const hits = (segs: [number, number, number, number][], th: number): number[] => {
+      const dx = Math.cos(th), dy = Math.sin(th), out: number[] = []
+      for (const [x1, y1, x2, y2] of segs) {
+        const ex = x2 - x1, ey = y2 - y1, den = dx * ey - dy * ex
+        if (Math.abs(den) < 1e-12) continue
+        const qx = x1, qy = y1 - 5.5
+        const t = (qx * ey - qy * ex) / den, s = (qx * dy - qy * dx) / den
+        if (t > 0 && s >= 0 && s <= 1) out.push(t)
+      }
+      return [...new Set(out.map((t) => Math.round(t * 1e5) / 1e5))].sort((a, b) => a - b)
+    }
+    const roof = slice(0), rib = slice(1.5)
+    let minEmbed = Infinity, maxEmbed = -Infinity, minProud = Infinity, maxProud = -Infinity
+    for (let i = 0; i <= 352; i++) {
+      const th = ((2 + i * (176 / 352)) * Math.PI) / 180
+      const r = hits(roof, th), all = hits(rib, th)
+      const outer = r[r.length - 1]!
+      const extra = all.filter((t) => !r.some((u) => Math.abs(u - t) < 1e-4))
+      expect(extra, `angle ${(th * 180 / Math.PI).toFixed(2)}: the rib adds an inner and an outer face`).toHaveLength(2)
+      const embed = outer - extra[0]!, proud = extra[1]! - outer
+      minEmbed = Math.min(minEmbed, embed); maxEmbed = Math.max(maxEmbed, embed)
+      minProud = Math.min(minProud, proud); maxProud = Math.max(maxProud, proud)
+    }
+    expect(minEmbed, 'rib inner face below the roof surface, least').toBeGreaterThanOrEqual(0.015)
+    expect(maxEmbed, 'rib inner face below the roof surface, most').toBeLessThanOrEqual(0.035)
+    expect(minProud, 'rib outer face above the roof, least').toBeGreaterThanOrEqual(0.045)
+    expect(maxProud, 'rib outer face above the roof, most').toBeLessThanOrEqual(0.075)
   })
 
   it('takes the Dulag footprint by argument', async () => {
     const out = join(dir, 'dulag.glb')
     runBlenderScript(blenderScriptFor('hangar'), out, ['--width', '22', '--length', '28'])
     const bb = getBounds(findNode(await modelIO().readBinary(new Uint8Array(readFileSync(out))), 'hangar_steel'))
-    within1pct(bb.max[0] - bb.min[0], 22, 'Dulag width')
+    within1pct(bb.max[0] - bb.min[0], 22 + 2 * EAVE_OUT_M, 'Dulag width, eaves included')
     within1pct(bb.max[2] - bb.min[2], 28, 'Dulag length')
   })
 

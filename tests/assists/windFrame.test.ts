@@ -36,9 +36,9 @@ function flyRecording(world: World<undefined>, steps: number): {
   const assist = assistFor(DEFAULT_ASSIST_SETTINGS)
   let w = world
   for (let i = 0; i < steps; i++) {
-    w = advance(w, DT, spy, (state, spec, raw, dt, memory) => {
+    w = advance(w, DT, spy, (state, spec, raw, dt, memory, context) => {
       seenStates.push(state)
-      return assist(state, spec, raw, dt, memory)
+      return assist(state, spec, raw, dt, memory, context)
     }).world
   }
   return { commanded, seenStates, world: w }

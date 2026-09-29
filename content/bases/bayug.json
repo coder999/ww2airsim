@@ -1,0 +1,15 @@
+{
+  "id": "bayug",
+  "name": "Bayug",
+  "side": "allied",
+  "runway": { "center": { "x": -45100, "z": -20700 }, "headingDeg": 0, "lengthM": 1500, "widthM": 45 },
+  "apron": null,
+  "clearing": null,
+  "buildings": [
+    { "id": "bayug-tower", "kind": "tower", "x": -60, "z": 0, "widthM": 9, "lengthM": 9, "hp": 40 },
+    { "id": "bayug-aaa-1", "kind": "aaa", "x": -100, "z": 200, "widthM": 6, "lengthM": 6, "hp": 30 }
+  ],
+  "reference": {
+    "source": "Inspired by Bayug Airfield, east of Burauen in the Leyte valley: 10.984836 N 124.911475 E, built by the Japanese in 1943 and seized by the Americans in November 1944, after which it served as a command and reconnaissance field (English Wikipedia, 'Bayug Airfield', read 2026-09-28). runway.center is NOT that coordinate: it is the flattest 1.5 km north-south line the shipped terrain offers near it, 2.7 km west of it, at about (-45100, -20700) -- measured 2026-09-28 at about 7 m of relief along the strip (the article's own coordinate sits on a 13 percent grade at the north end). headingDeg 0, lengthM 1500 and widthM 45 are ESTIMATES carried from Tacloban, and the article gives no runway dimensions. The tower and the one AAA battery are gameplay additions, placed clear of the strip; sizes and hp follow Tacloban's. side 'allied': the mission represents the field after its capture. Chosen as Convoy Strike's recovery field because Tacloban is about 57 km from the Camotes Sea convoy and this is about 29 km (Mark, 2026-09-28)."
+  }
+}

@@ -15,6 +15,7 @@
     { "node": "GearR", "pivot": { "point": [0.438721, -0.51885, 2.536], "axis": "+z" } },
     { "node": "GearNose", "pivot": { "point": [3.2284, -0.51885, 0], "axis": "+z" } }
   ],
-  "textures": { "maxSize": 512, "format": "webp" },
+  "skin": true,
+  "textures": { "maxSize": 1024, "format": "webp" },
   "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 }
 }

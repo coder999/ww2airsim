@@ -4,6 +4,7 @@ import { AI_GUN_CONE_RAD } from '../../../src/sim/ai/pursuit.js'
 import { VETERAN_SKILL, initialDecision } from '../../../src/sim/ai/pilot.js'
 import { advance, createWorldOf, type AircraftEntity, type World } from '../../../src/sim/loop.js'
 import { sidesOf, type Side } from '../../../src/sim/sides.js'
+import { decksOf } from '../../../src/sim/world/deck.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3, type Vec3 } from '../../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
@@ -19,7 +20,7 @@ const ac = (id: string, p: Vec3, v: Vec3, side?: Side, extra: Partial<AircraftEn
 const shooter = ac('s', v3(0, ALT, 0), v3(120, 0, 0), 'allied')
 const viewOf = (list: AircraftEntity<undefined>[], player = 's') => {
   const w = createWorldOf({ aircraft: list, player })
-  return { w, view: { snapshot: w.aircraft, combat: w.combat.aircraft, sides: sidesOf(w, w.aircraft) } }
+  return { w, view: { snapshot: w.aircraft, combat: w.combat.aircraft, sides: sidesOf(w, w.aircraft), terrain: w.terrain, decks: decksOf(w.ships) } }
 }
 
 describe('friendlyInLineOfFire (unit)', () => {
@@ -75,7 +76,7 @@ describe('a friendly crosses the line of fire (7e spec §4.7)', () => {
       w = { ...w, combat: { ...w.combat, aircraft: { ...w.combat.aircraft, t: { ...w.combat.aircraft['t']!, damage: healthyDamage() } } } }
       const s = w.aircraft.find((a) => a.id === 's')!
       const t = w.aircraft.find((a) => a.id === 't')!
-      const view = { snapshot: w.aircraft, combat: w.combat.aircraft, sides: sidesOf(w, w.aircraft) }
+      const view = { snapshot: w.aircraft, combat: w.combat.aircraft, sides: sidesOf(w, w.aircraft), terrain: w.terrain, decks: decksOf(w.ships) }
       const range = Math.hypot(t.state.position.x - s.state.position.x, t.state.position.y - s.state.position.y, t.state.position.z - s.state.position.z)
       const blocked = friendlyInLineOfFire(s, range, view)
       const shots = w.combat.aircraft['s']!.shots

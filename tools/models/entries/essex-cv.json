@@ -10,6 +10,7 @@
   },
   "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, 0.6621], "fit": { "extent": "length", "meters": 265.8 } },
   "textures": { "maxSize": 1024, "format": "webp" },
+  "boxSkin": { "atlasPx": 1024 },
   "opaque": false,
   "budget": { "maxBytes": 1500000, "maxTriangles": 60000, "maxDrawCalls": 8 },
   "ship": {

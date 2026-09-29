@@ -33,6 +33,7 @@ sortie, 0 points, however it ends.
 | Bomber | 750 | Runway | 500 |
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
+| Destroyer | 750 | Transport | 400 |
 
 Recovery multiplier applied to the mission total:
 
@@ -116,6 +117,175 @@ performance decision, not decoration.
 
 Post-mission: targets destroyed with per-item points, mission total, recovery
 multiplier applied, banked total, badges awarded, and any promotion.
+
+### Landing and ditching rules
+
+What counts as a survivable arrival. Every number below is an untuned guess
+(nobody has flown the limits); the constants own the values, this table only
+names them. Verified against the code 2026-09-28.
+
+**Landing on land or a carrier deck** (`supportedContact`, `src/sim/ground.ts`).
+All must hold when the wheels arrive (the sink limit is lower on a soft field, see "Where you landed"); fail any and the airplane is destroyed.
+There is no pitch or bank gate.
+
+| Gate | Limit | Constant |
+| --- | --- | --- |
+| Gear | at least 95% down | `GEAR_DOWN_FRACTION` |
+| Sink rate | 4.0 m/s or less (about 790 ft/min; a flown approach measures 1.47 m/s) | `MAX_SUPPORTED_SINK_MPS` |
+| Speed | 1.42 × current (flap-adjusted) stall speed or less, while descending | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` |
+
+Speed and sink are judged relative to the surface, so a moving deck counts as
+at rest.
+
+**Carrier trap.** Hook down and main gear inside the ship's `trapZone` (distance
+from the stern; Essex 30–130 m, Casablanca 20–80 m, both estimates), plus the
+gates above, arrests the airplane at 17 m/s² (`TRAP_DECEL_MPS2`). Hook up or
+outside the zone is an ordinary deck roll-out; the bow is a cliff. A failed deck
+arrival is always destroyed, never a ditching.
+
+**Ditching** (water only, `contactOutcome`, `src/sim/contact.ts`). All must hold:
+
+| Gate | Limit |
+| --- | --- |
+| Bank | within 10° of level |
+| Sink rate | 3.0 m/s or less (about 590 ft/min) |
+| Pitch | −2° to +12° |
+| Speed | 1.2 × clean stall speed or less (52.6 m/s for the F6F) |
+
+Any other contact with land is destroyed.
+
+**Where you landed.** Off an airfield, the surface under the wheels depends on
+the land cover (the same raster that paints the ground), read at the wheel
+position. Verified against the code 2026-09-28.
+
+| Surface | Where | Rule | Constants |
+| --- | --- | --- | --- |
+| Runway | inside an airfield's runway, apron or clearing | the gates above, unchanged | `MAX_SUPPORTED_SINK_MPS` |
+| Soft field | any other land that is not mostly woodland: paddy, grass, scrub, bare ground | a lower sink limit; more rolling resistance, so it takes a longer roll to stop with or without brakes (brakes still work); the speed gate is unchanged | `SOFT_FIELD_MAX_SINK_MPS`, `SOFT_FIELD_ROLLING_MULTIPLIER` |
+| Woodland | land where tree plus mangrove cover reaches about half | any gear contact destroys the airplane | `FOREST_COVER_FRACTION` |
+
+With no cover data loaded (the first seconds of a page load, or a test that
+supplies none), all land is judged as a runway is. The landing report records
+which surface the touchdown was on (`landClass`), for the debrief and missions to
+use later; nothing shows it yet. A touchdown still counts as an airfield landing
+only inside that airfield's runway.
+
+**Scoring.** Landed, ditched and killed all carry the 1.0 recovery multiplier;
+the badge is what needs a landing (see Badges).
+
+### Instant Replay
+
+A crash or shoot-down holds for three seconds, replays the final moments once,
+then opens the debrief. **Watch replay** runs the same recording again. While
+paused, **K** opens a manual replay of the last 10 seconds once at least three
+seconds have been recorded.
+
+| Input | Replay action |
+| --- | --- |
+| Space | Play / pause |
+| Left / Right | Step back / forward one second (Shift: one simulation tick) |
+| 1 / 2 / 3 | 0.5× / 1× / 3× speed |
+| C | Cycle cameras |
+| 4–9 | Auto, Orbit, Flyby, Target, Cockpit, Manual |
+| O | Toggle Orbit spin |
+| L | Toggle Manual lock on the airplane |
+| WASD, Q / E | Move Manual forward/sideways, down/up |
+| Mouse drag / wheel | Look around / change Manual movement speed |
+| Esc | Leave or skip replay |
+
+Replay owns these keys while it is up; it does not alter the held live flight,
+assist settings, audio mute, chart, radar range, or time scale.
+
+### Takeoff
+
+Measured 2026-09-28 through the real sim step, from a standstill on the
+Tacloban runway at full throttle (`tests/sim/ground/`). Speeds below are the
+first instant the wheels leave the ground.
+
+**Ground controls.** The arrow keys and A/D steer on the ground and roll in the
+air; Z/X are rudder. **B** holds the brakes. There are no differential
+brakes: steer with the keys, brake with B.
+
+**Steering fades with speed.** The wheel (nose or tail) steering locks out
+above about 8 m/s. Ground steering through rudder and the keys then fades out
+near 1.5 × the aircraft's `tailLiftSpeedMps` (F6F 42 m/s, F4F 37.5, Zero 36),
+after which only the rudder's air authority is left. Do not expect to correct a
+swing with the arrows once the tail is up and fast.
+
+**When and how to pull.** Hold the stick neutral and full throttle until the
+airspeed is near the table below, then pull back and hold. The pitch is capped
+on the wheels at the attitude where the wing makes its lift for 1.1 × the
+clean stall speed (12.6 degrees for all three aircraft; `groundPitchCeilingRad`
+in `src/sim/ground.ts`), so a firm pull leaves the ground within a few knots of
+the table and cannot over-rotate on the runway. Hands off, the airplane never
+lifts off by itself (a conformance test holds it for 30 s at full throttle).
+
+**Flaps 0 vs 1 (F toggles).** Flaps 1 lifts off about 8 m/s earlier and
+roughly 100 to 140 m shorter. Measured, full pull held from 40 m/s, trial mass
+(fuel load large, so heavy):
+
+| Aircraft | Flaps | Liftoff speed | Run |
+| --- | --- | --- | --- |
+| F6F | 0 | 51.0 m/s (114 mph) | 449 m |
+| F6F | 1 | 42.9 m/s (96 mph) | 312 m |
+| F4F | 0 | 46.4 m/s (104 mph) | 401 m |
+| F4F | 1 | 41.4 m/s (93 mph) | 307 m |
+| Zero | 0 | 41.7 m/s (93 mph) | 265 m |
+| Zero | 1 | 40.8 m/s (91 mph) | 263 m |
+
+The Zero and the flaps-1 rows are pinned near 40 m/s because the test starts
+its pull there; a pull earlier would lift them slightly sooner. The scenario's
+default 400 kg fuel load is lighter than this trial mass and lifts sooner
+(F6F flaps 0: 46.2 m/s, 119 m on a carrier deck).
+
+**Carrier.** The game has no ship-speed-as-wind setting: airspeed is the
+airplane's velocity minus the world wind, and the deck carries the ship's
+velocity, so in calm air the wind over the deck is the ship's speed. There are
+no catapults, and no mission uses the Casablanca (only the Essex is flown from
+today); the take-off path is a deck run from the respot ("Launch when ready").
+Measured 2026-09-28 at the shipped default fuel (400 kg), calm air, ship at
+maximum speed on a straight course, start 7 m from the stern, full back stick
+from 40 m/s airspeed. The start spot and pull point are my choices, not game
+rules. `tests/sim/carrierTakeoff.test.ts` re-checks every aircraft and carrier
+in `content/` this way.
+
+| Ship | Aircraft | Flaps | Airspeed at liftoff | Deck run | Deck left |
+| --- | --- | --- | --- | --- | --- |
+| Essex (17 m/s, 256 m run) | F6F | 0 | 46.2 m/s | 119 m | 137 m |
+| Essex | F6F | 1 | 41.4 m/s | 86 m | 170 m |
+| Essex | F4F | 0 | 43.1 m/s | 106 m | 150 m |
+| Essex | F4F | 1 | 41.1 m/s | 97 m | 159 m |
+| Essex | Zero | 0 / 1 | 41.4 / 40.8 m/s | 77 m | 179 m |
+
+Every Essex case is wheels-off well before the bow. Casablanca (9.93 m/s,
+145.69 m deck, 139 m of run from the start spot, deck 12 m above the water):
+the F6F with flaps 1 lifts at 138 m (about 1 m to spare) and the Zero at 125 m
+(flaps 0) or 126 m (flaps 1). The F6F with flaps 0 and the F4F (both flap
+settings) reach the bow still on the wheels at 40 to 43 m/s of airspeed, short of
+the 1.1 x stall speed the wing needs for the F6F flaps 0 and the F4F flaps 0.
+
+*Estimate (technique dependent):* what happens after the bow depends on the
+pilot. Holding full back stick stalls, so that is not a credible pilot. With a
+pilot who lowers the nose to 1.05 x stall speed and then pulls just enough to
+stop sinking, the worst of those cases sags 2.6 m below deck level (F4F flaps
+1), never touches the water, and climbs away. A pilot who sags less or more
+than that policy will do better or worse; the figure is one measured policy,
+not a limit.
+
+*Earlier figures retracted (2026-09-28):* an earlier version of this paragraph
+quoted Essex runs of 213 m, 126 m, 176 m and 118 m (margins of 42, 130, 80 and
+138 m) and called Casablanca "marginal to impossible". Those were measured at
+a lighter trial mass, not the shipped 400 kg fuel, and are superseded by the
+table above.
+
+**What is not modeled (arcade choices, Mark 2026-09-28).** Engine torque does
+not pull the nose (every shipped aircraft has torque 0), and a tail strike is
+not modeled: the pitch ceiling stops rotation, nothing is damaged.
+
+**The touchdown squeak** plays on the first wheel contact after the airplane
+has been more than 1 m up for half a second, with a sink rate of at least
+0.3 m/s. It does not play on take-off, a hop or rolling chatter, and it does
+not judge or damage the landing; that is the gates in the landing rules.
 
 ## Library
 

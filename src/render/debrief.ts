@@ -35,6 +35,8 @@ const POINTS_BY_TARGET_TYPE: Readonly<Record<TargetType, number>> = {
   bomber: 750,
   cruiser: 1500,
   battleship: 3000,
+  destroyer: 750,
+  transport: 400,
   aaa: 250,
   runway: 500,
   building: 150,
@@ -52,6 +54,8 @@ const TARGET_LABEL: Readonly<Record<TargetType, string>> = {
   bomber: 'Bomber',
   cruiser: 'Cruiser',
   battleship: 'Battleship',
+  destroyer: 'Destroyer',
+  transport: 'Transport',
   aaa: 'AAA Battery',
   runway: 'Runway',
   building: 'Building',
@@ -298,8 +302,13 @@ export type DebriefHandle = {
    * landing included, since spec §1 says the debrief gains this "rather than
    * only offering Restart," not as a landing-only substitute for Continue.
    */
-  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void): void
+  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void, onWatchReplay?: () => void): void
   hide(): void
+}
+
+/** Pure action model used by the Node suite and by the real debrief button. */
+export function watchReplayAction(handler?: () => void): { readonly label: 'Watch replay'; readonly run: () => void } | null {
+  return handler === undefined ? null : { label: 'Watch replay', run: handler }
 }
 
 function sectionTitle(text: string): HTMLDivElement {
@@ -452,10 +461,25 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
     onReturnToTitle?.()
   })
 
+  const watchReplay = document.createElement('button')
+  watchReplay.className = 'ink-button'
+  watchReplay.textContent = 'Watch replay'
+  let onWatchReplay: (() => void) | undefined
+  watchReplay.addEventListener('click', () => {
+    watchReplay.blur()
+    watchReplayAction(onWatchReplay)?.run()
+  })
+
   return {
-    show(model: DebriefModel, continueHandler?: () => void, returnToTitleHandler?: () => void): void {
+    show(
+      model: DebriefModel,
+      continueHandler?: () => void,
+      returnToTitleHandler?: () => void,
+      watchReplayHandler?: () => void,
+    ): void {
       onContinue = continueHandler
       onReturnToTitle = returnToTitleHandler
+      onWatchReplay = watchReplayHandler
       panel.textContent = ''
 
       const sheet = document.createElement('div')
@@ -621,6 +645,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         cont.textContent = model.continueLabel
         buttons.appendChild(cont)
       }
+      if (watchReplayAction(onWatchReplay) !== null) buttons.appendChild(watchReplay)
       buttons.append(restart, returnToTitle)
       sheet.appendChild(buttons)
 

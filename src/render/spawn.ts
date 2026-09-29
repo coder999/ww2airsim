@@ -110,10 +110,11 @@ export function hasSpawnOverride(search: string): boolean {
  * `step`, recomputed every frame, and anything passed in is overwritten on
  * the first tick (see `AircraftState.bodyRates`).
  *
- * The parked attitude below is the literal `parkedAttitude(tacloban)` would
+ * The parked attitude below is the literal `parkedAttitude(tacloban, 0)` would
  * produce (`src/sim/world/airfields.ts`) -- north, down the strip, wings
- * level -- but cannot actually call it: that function takes an `Airfield`,
- * and this one has no airfield to hand it, only a bare position.
+ * level, and level in pitch. It is NOT the derived rest attitude
+ * (`restPitchRad`, T1): this function has no airfield to hand
+ * `parkedAttitude` and no spec to derive a pitch from, only a bare position.
  *
  * **Since Task 7, `main.ts` reaches only the `groundSpawn: false` branch**,
  * and only for a DEV `?spawnX/Y/Z` override

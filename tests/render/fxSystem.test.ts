@@ -161,3 +161,21 @@ describe('fx system (effects design §3.4)', () => {
     }
   })
 })
+
+describe('reset(seed) (instant replay R-3)', () => {
+  it('makes a run reproducible whatever the system did before', () => {
+    const burst = (fx: FxSystem) => {
+      fx.reset(7)
+      fx.trigger('crash.water', v3(0, 0, 0), ZERO)
+      for (let i = 0; i < 30; i++) fx.step(1 / 60)
+      return { serials: fx.liveSerials(), live: fx.live() }
+    }
+    const fx = make()
+    fx.trigger('crash.land', v3(10, 0, 0), ZERO) // consume the RNG first
+    fx.step(0.2)
+    const a = burst(fx)
+    const b = burst(fx)
+    expect(a.live).toBeGreaterThan(0)
+    expect(b).toEqual(a)
+  })
+})

@@ -14,6 +14,12 @@ import { dirname } from 'node:path'
 
 export const BLENDER_VERSION = '5.0.1'
 
+/** The skin sidecar a skinned script writes beside its glb (DP0). */
+export function skinSidecarPath(glb: string): string {
+  if (!glb.endsWith('.glb')) throw new Error(`skinSidecarPath: ${glb} is not a .glb`)
+  return `${glb.slice(0, -4)}.skin.json`
+}
+
 export function parseBlenderVersion(stdout: string): string | null {
   const m = /^Blender (\d+\.\d+\.\d+)/m.exec(stdout)
   return m ? m[1]! : null
@@ -52,6 +58,8 @@ export function runBlenderScript(script: string, out: string, args: readonly str
   assertBlenderVersion(installedBlenderVersion(bin))
   mkdirSync(dirname(out), { recursive: true })
   rmSync(out, { force: true })
+  // A stale sidecar would skin this run's glb with another run's atlas (DP0).
+  if (out.endsWith('.glb')) rmSync(skinSidecarPath(out), { force: true })
   // No __pycache__ beside kit.py (an untracked file in every checkout). Blender's bundled
   // Python ignores PYTHONDONTWRITEBYTECODE (measured 2026-09-26), so it is set in-process
   // before the script runs; Blender handles its arguments in order.

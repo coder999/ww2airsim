@@ -115,7 +115,7 @@ describe('insideRunway and airfieldAt', () => {
 
 describe('parkedAttitude', () => {
   it('points the nose north down Tacloban, wings level -- the same quaternion DEFAULT_SPAWN_ATTITUDE was', () => {
-    const q = parkedAttitude(tacloban)
+    const q = parkedAttitude(tacloban, 0)
     const nose = qRotate(q, v3(1, 0, 0))
     expect(nose.x).toBeCloseTo(0, 12)
     expect(nose.z).toBeCloseTo(-1, 12)
@@ -125,7 +125,7 @@ describe('parkedAttitude', () => {
 
   it('points east for a heading of 90', () => {
     const east = parseAirfield({ ...tacloban, runway: { ...tacloban.runway, headingDeg: 90 } })
-    const nose = qRotate(parkedAttitude(east), v3(1, 0, 0))
+    const nose = qRotate(parkedAttitude(east, 0), v3(1, 0, 0))
     expect(nose.x).toBeCloseTo(1, 12)
     expect(nose.z).toBeCloseTo(0, 12)
   })

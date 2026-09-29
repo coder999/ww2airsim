@@ -46,6 +46,14 @@ export type AudioInputs = {
    *  Suppressing on `impact !== null` therefore missed it, which is the
    *  squeak Mark heard on every ditching. */
   readonly groundSurface: ContactSurface | null
+  /** Height of the lowest wheel above the surface under the airplane, metres;
+   *  `null` when there is no ground. Feeds the airborne latch for the
+   *  touchdown squeak (`TOUCHDOWN_AIRBORNE_HEIGHT_M`). */
+  readonly heightM: number | null
+  /** Sink rate relative to the surface, m/s, positive DOWN (negative while
+   *  climbing). Read one frame BEFORE contact, because the ground constraint
+   *  zeroes the sink on the very tick that contact registers. */
+  readonly sinkMps: number
   /** The simulation tick. Only ever compared with the previous one, to notice
    *  that it moved BACKWARDS -- see `nextAudio`. */
   readonly tick: number
@@ -80,12 +88,37 @@ export type AudioMemory = {
    *  edge-triggered once per key-down at the sim level. */
   readonly lastBombsDropped: number
   readonly lastRocketsFired: number
+  /** The tick the airplane first got above `TOUCHDOWN_AIRBORNE_HEIGHT_M` in
+   *  its current stretch of flight, or `null` while it is not above it. */
+  readonly airborneSinceTick: number | null
+  /** True once the airplane has held `TOUCHDOWN_AIRBORNE_HEIGHT_M` for
+   *  `TOUCHDOWN_AIRBORNE_TICKS`; cleared by the first contact after it. */
+  readonly airborneLatched: boolean
+  /** `sinkMps` of the previous frame. */
+  readonly lastSinkMps: number
 }
 
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
-  lastBombsDropped: 0, lastRocketsFired: 0,
+  lastBombsDropped: 0, lastRocketsFired: 0, airborneSinceTick: null, airborneLatched: false, lastSinkMps: 0,
 }
+
+/**
+ * The touchdown squeak is for a real touchdown only (Mark, 2026-09-28: it
+ * played during a plain take-off, and he asked for it silenced for that
+ * purpose or for tail-wheel contact). `onGround` is a +/-0.25 m position band,
+ * so a take-off that climbs slowly through it, or any rolling-contact chatter,
+ * is a false -> true edge with no touchdown behind it. Three gates, none of
+ * them per-wheel because the simulation has no per-wheel contact event:
+ * the airplane held more than a metre of wheel height for half a second
+ * (a take-off climbs through that and never comes back down; a hop does not
+ * reach it), it arrived with a real sink rate, and the latch is spent by the
+ * first contact so chatter after a touchdown cannot repeat it. On a taildragger
+ * the mains are the front wheels, and a flown arrival contacts them first.
+ */
+export const TOUCHDOWN_AIRBORNE_HEIGHT_M = 1
+export const TOUCHDOWN_AIRBORNE_TICKS = 30
+export const TOUCHDOWN_MIN_SINK_MPS = 0.3
 
 /**
  * How many ticks one `machinegun` cue covers before another may fire while
@@ -128,6 +161,21 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
   // Suppressed entirely once there is an impact: a wreck settling onto the
   // ground is not a landing, and squeaking over its own fireball would read
   // as a bug even though each rule fired correctly on its own.
+  // The airborne latch (see `TOUCHDOWN_AIRBORNE_HEIGHT_M`), advanced every
+  // frame and read from the PREVIOUS value below, so a contact frame cannot
+  // arm and spend it in one go.
+  const airborneLatchedBefore = restarted ? false : prev.airborneLatched
+  const lastSinkMps = restarted ? 0 : prev.lastSinkMps
+  let airborneSinceTick = restarted ? null : prev.airborneSinceTick
+  let airborneLatched = airborneLatchedBefore
+  if (inputs.heightM !== null && inputs.heightM > TOUCHDOWN_AIRBORNE_HEIGHT_M) {
+    airborneSinceTick = airborneSinceTick ?? inputs.tick
+    if (inputs.tick - airborneSinceTick >= TOUCHDOWN_AIRBORNE_TICKS) airborneLatched = true
+  } else {
+    airborneSinceTick = null
+  }
+  if (inputs.onGround === true) airborneLatched = false
+
   if (
     inputs.impact === null
     // Land OR a deck: both carry wheels, and only water does not (Plan 8
@@ -136,6 +184,8 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     && (inputs.groundSurface === 'land' || inputs.groundSurface === 'deck')
     && wasOnGround === false
     && inputs.onGround === true
+    && airborneLatchedBefore
+    && lastSinkMps >= TOUCHDOWN_MIN_SINK_MPS
   ) {
     cues.push('landing_squeak')
   }
@@ -165,6 +215,7 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     memory: {
       wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick, lastShots: inputs.shots, gunCueUntilTick,
       lastBombsDropped: inputs.bombsDropped, lastRocketsFired: inputs.rocketsFired,
+      airborneSinceTick, airborneLatched, lastSinkMps: inputs.sinkMps,
     },
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already

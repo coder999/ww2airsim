@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { chmodSync, mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { BLENDER_VERSION, HAVE_BLENDER, assertBlenderVersion, blenderPresent, parseBlenderVersion, runBlenderScript } from '../../../../tools/models/blender/run.js'
+import { BLENDER_VERSION, HAVE_BLENDER, assertBlenderVersion, blenderPresent, parseBlenderVersion, runBlenderScript, skinSidecarPath } from '../../../../tools/models/blender/run.js'
 
 describe('Blender version pinning (model-roster spec §4.1)', () => {
   it('parses the version line Blender prints', () => {
@@ -16,6 +16,10 @@ describe('Blender version pinning (model-roster spec §4.1)', () => {
     expect(() => assertBlenderVersion('5.0.1')).not.toThrow()
     expect(() => assertBlenderVersion('5.0.2')).toThrow(/5\.0\.2 found; models need exactly 5\.0\.1/)
     expect(() => assertBlenderVersion(null)).toThrow(/did not report a version/)
+  })
+  it('skinSidecarPath sits beside the glb and refuses anything else (DP0)', () => {
+    expect(skinSidecarPath('tools/models/cache/hangar.glb')).toBe('tools/models/cache/hangar.skin.json')
+    expect(() => skinSidecarPath('x.gltf')).toThrow(/not a \.glb/)
   })
 })
 

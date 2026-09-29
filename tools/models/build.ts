@@ -38,6 +38,11 @@ import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
 import { shipMaterials } from './stages/shipMaterials.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
+import { parseSidecar, skinSidecarPath } from './skin/sidecar.js'
+import { withShipColors } from './skin/shipColors.js'
+import { attachSkinTextures, skinDocument, skinMaterialName, SHIP_SKIN_OPTIONS, type ScanLoader, type SkinImages } from './skin/stage.js'
+import { loadScan } from './skin/scans.js'
+import { boxProject } from './skin/boxProject.js'
 import { GENERATORS } from './generated/registry.js'
 
 export const ALLOWED_REQUIRED_EXTENSIONS: readonly string[] = ['EXT_texture_webp']
@@ -65,7 +70,7 @@ function provenance(s: SketchfabSource | BlenderSource): Record<string, string> 
 }
 
 /** Every stage, in order, on a document already read. Mutates and returns it. */
-export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec): Promise<Document> {
+export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan): Promise<Document> {
   if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
@@ -94,12 +99,21 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   // Ships (ship-models spec §4-§5): the residual fit and skirt, then the palette roles.
   const ship = entry.ship ? { block: entry.ship, spec: shipSpec(entry.ship.spec) } : null
   const fitted = ship ? shipFitStage(doc, ship.block, ship.spec) : null
-  if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY)
+  if (ship && fitted) shipMaterials(doc, ship.block, fitted.flightDeckY, entry.skin ? skinMaterialName(entry.id) : null)
+  // DP2 (Ruling S3): a box-skinned download is projected after shipMaterials, whose ship:<role>
+  // materials are its roles, and baked like a Blender skin; the Skirt keeps ship:boot (Ruling S4).
+  let images = skin
+  if (entry.boxSkin) {
+    if (!ship) throw new Error(`${entry.id}: boxSkin needs a ship block`)
+    const side = boxProject(doc, entry.id, { atlasPx: entry.boxSkin.atlasPx, palette: ship.block.palette, skip: SHIP_SKIN_OPTIONS.skip! })
+    images = await skinDocument(doc, entry.id, side, scans, SHIP_SKIN_OPTIONS)
+  }
   if (entry.dedupMaterials) await dedupMaterials(doc)
   // 5. join everything except the parts
   await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
-  // 6. textures, 7. opaque
+  // 6. textures, 7. opaque. A skin's maps go on after compressTextures, which would re-encode them (DP0).
   await compressTextures(doc, entry.textures.maxSize)
+  if (images) attachSkinTextures(doc, entry.id, images)
   if (entry.opaque) forceOpaque(doc)
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
   // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
@@ -167,6 +181,10 @@ export interface BuildDeps {
   haveBlender(): boolean
   /** Runs one Blender model script into `out` (run.ts's runBlenderScript). Throws on any failure. */
   blender(script: string, out: string): void
+  /** A text file (the skin sidecar, DP0). */
+  readText(path: string): string
+  /** A pinned scan for the skin stage (skin/scans.ts's loadScan). */
+  scan: ScanLoader
 }
 
 /** The driver, with its file system injected so tests never touch the disk.
@@ -205,10 +223,25 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         doc = await finishGenerated(await deps.generate(source.generator), entry)
       } else if (source.kind === 'blender') {
         // Blender runs are serial (spec §4.1): this loop awaits each entry before the next.
-        deps.blender(source.script, blenderIntermediate(entry.id))
-        doc = await runPipeline(await deps.read(blenderIntermediate(entry.id)), entry)
+        const raw = blenderIntermediate(entry.id)
+        deps.blender(source.script, raw)
+        const read = await deps.read(raw)
+        // runBlenderScript deletes a stale sidecar first, so one here is this run's (DP0).
+        const sidecar = skinSidecarPath(raw)
+        let skin: SkinImages | null = null
+        if (entry.skin) {
+          if (!deps.exists(sidecar)) throw new Error(`the entry says skin: true, but ${source.script} wrote no ${sidecar} (kit.Model(name, skin=<px>))`)
+          const side = parseSidecar(deps.readText(sidecar))
+          // DP2 (Rulings S1, S2): a ship paints in its palette and is not metallic.
+          skin = entry.ship
+            ? await skinDocument(read, entry.id, withShipColors(side, entry.ship), deps.scan, SHIP_SKIN_OPTIONS)
+            : await skinDocument(read, entry.id, side, deps.scan)
+        } else if (deps.exists(sidecar)) {
+          throw new Error(`${source.script} wrote a skin sidecar, but the entry has no "skin": true`)
+        }
+        doc = await runPipeline(read, entry, loadShipSpec, skin)
       } else {
-        doc = await runPipeline(await deps.read(entry.input!), entry)
+        doc = await runPipeline(await deps.read(entry.input!), entry, loadShipSpec, null, deps.scan)
       }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails
@@ -243,6 +276,8 @@ export function nodeBuildDeps(): BuildDeps {
     generate: async (g) => { const run = GENERATORS[g]; if (!run) throw new Error(`no generator registered for ${g} in tools/models/generated/registry.ts`); return run() },
     haveBlender: () => blenderPresent(),
     blender: (script, out) => runBlenderScript(script, out),
+    readText: (p) => readFileSync(p, 'utf8'),
+    scan: loadScan,
   }
 }
 

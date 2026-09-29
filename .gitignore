@@ -50,3 +50,6 @@ src/**/__*__.ts
 
 # Harness-managed worktrees
 .claude/worktrees/
+
+# Python bytecode from importing kit.py outside Blender (DP0, 2026-09-28)
+__pycache__/

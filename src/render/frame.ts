@@ -12,6 +12,7 @@ import type { TerrainField } from '../sim/world/terrain.js'
 import { buildStructures } from '../sim/weapons/structures.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
+import { wheelDepthOf } from '../sim/gearContact.js'
 import { autoPursuit } from '../sim/ai/autoPursuit.js'
 import {
   assistFor,
@@ -23,7 +24,7 @@ import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.j
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
 import { orbitFromMouse, NO_MOUSE, ORBIT_ZERO, type MouseDelta, type OrbitOffset } from '../input/orbit.js'
 import { SEA_LEVEL_M } from '../sim/world/terrain.js'
-import { cameraTransformFor, type CameraMode, type EyeTransform } from './camera.js'
+import { cameraTransformFor, type CameraMode, type EyeTransform, type SurfaceHeightAt } from './camera.js'
 import { BINDINGS, type BindingName } from '../input/bindings.js'
 import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
@@ -430,9 +431,9 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
  * still `null` and get a silently wrong `groundUnder(null, ...)` -- there is
  * no such overload, so that mistake is a type error, not a runtime one.
  *
- * Settles onto `ground.heightM + spec.gear.heightM`, not `ground.heightM`
+ * Settles onto `ground.heightM + wheelDepthOf(spec, state)`, not `ground.heightM`
  * itself (Task 15): `aircraft.position.y` is the body origin, which sits
- * `spec.gear.heightM` above the wheels' contact point, the same convention
+ * `wheelDepthOf(spec, state)` above the wheels' contact point, the same convention
  * `onGround`/`restOnSurface` (`src/sim/ground.ts`) now use. Settling onto
  * the bare `ground.heightM` here would put the body origin back at ground
  * level -- the exact bug Task 15 fixes -- for the one frame between this call
@@ -451,7 +452,7 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
   for (const a of frame.world.aircraft) {
     if (!a.parked) continue
     const ground = groundUnder(terrain, decks, a.state.position.x, a.state.position.z)!
-    const contactHeightM = ground.heightM + a.spec.gear.heightM
+    const contactHeightM = ground.heightM + wheelDepthOf(a.spec, a.state)
     if (a.id === world.player) playerDeltaY = contactHeightM - a.state.position.y
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
     world = withAircraftState(world, a.id, settled)
@@ -465,6 +466,14 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
     render,
     eye: { ...frame.eye, position: v3(frame.eye.position.x, frame.eye.position.y + playerDeltaY, frame.eye.position.z) },
   }
+}
+
+/** The floor under any x/z of `world`: a deck, the terrain, or the sea
+ *  before terrain exists (orbit spec OC-3). Shared with replay, which builds
+ *  the same floor from a RECORDED world (orbit handoff, deferred minor). */
+export function surfaceHeightFor(world: World<undefined>): SurfaceHeightAt {
+  const decks = decksOf(world.ships)
+  return (x, z) => groundUnder(world.terrain, decks, x, z)?.heightM ?? SEA_LEVEL_M
 }
 
 /**
@@ -696,11 +705,7 @@ export function nextFrameState(
   const a = advanced.alpha
   const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
   const decks = decksOf(advanced.world.ships)
-  // Orbit spec OC-3: the ground model `landing.ts` and `step()` share, so a
-  // deck is a floor too; no terrain yet (a ground spawn) reads as the sea.
-  const surfaceHeightAt = (x: number, z: number): number =>
-    groundUnder(advanced.world.terrain, decks, x, z)?.heightM ?? SEA_LEVEL_M
-  const eye = cameraTransformFor(cameraMode, spec, render, look, speed, orbit, surfaceHeightAt)
+  const eye = cameraTransformFor(cameraMode, spec, render, look, speed, orbit, surfaceHeightFor(advanced.world))
 
   // Landing bookkeeping reads the airplane on both sides of this frame's
   // steps: `player.state` is the state before them, `advancedPlayer.state`

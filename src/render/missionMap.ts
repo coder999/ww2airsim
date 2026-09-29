@@ -1,8 +1,16 @@
 import { playerAircraft, type World } from '../sim/loop.js'
 import { localToWorld } from '../sim/world/airfields.js'
+import type { TerrainField } from '../sim/world/terrain.js'
 import { BINDINGS } from '../input/bindings.js'
 import { keyLabel } from './legend.js'
 import { objectiveMarks, objectiveRows } from './mission/chart.js'
+import { contourLabelSites } from './mission/chartLabels.js'
+import { pathData } from './mission/chartIso.js'
+import { buildChartLayers, type ChartLayers } from './mission/chartLayers.js'
+import { scaleBar } from './mission/chartScale.js'
+import { fitView, panView, viewBounds, zoomView, type ChartView } from './mission/chartView.js'
+import { CHART, compassRose, ensurePatternDefs, paint, PATTERN_CROP, PATTERN_SWAMP, scaleBarGroup } from './mission/chartStyle.js'
+import { buildGraticule } from './mission/graticule.js'
 import { figureRow, sectionTitle } from './ui/navalComms.js'
 
 /** A point the Plan 14 navigation chart can draw from the live world. */
@@ -151,6 +159,17 @@ export function projectPoint(
   }
 }
 
+/** The world rectangle the letterboxed viewport actually shows, which is
+ * larger than `bounds` on whichever axis the viewport is longer. */
+export function visibleBounds(bounds: ChartBounds, width: number, height: number): ChartBounds {
+  const scale = Math.min(width / (bounds.maxX - bounds.minX), height / (bounds.maxZ - bounds.minZ))
+  const halfX = width / scale / 2
+  const halfZ = height / scale / 2
+  const cx = (bounds.minX + bounds.maxX) / 2
+  const cz = (bounds.minZ + bounds.maxZ) / 2
+  return { minX: cx - halfX, maxX: cx + halfX, minZ: cz - halfZ, maxZ: cz + halfZ }
+}
+
 /** Straight-line chart course from `from` to `to`, clockwise from north. */
 export function courseTo(from: Pick<MapPoint, 'x' | 'z'>, to: Pick<MapPoint, 'x' | 'z'>): NavigationCourse {
   const dx = to.x - from.x
@@ -196,6 +215,10 @@ const LABEL_FIRST_DY = -9
 const LABEL_LINE_PX = 18
 const LABEL_CHAR_PX = 9.5
 const LABEL_EDGE_PX = 4
+const MARGIN_L = 52
+const MARGIN_T = 14
+const MARGIN_R = 14
+const MARGIN_B = 30
 
 export type LabelPlacement = { readonly x: number; readonly y: number }
 
@@ -234,6 +257,26 @@ export function labelPlacements(
   return placed
 }
 
+/**
+ * Marker glyphs in a 24 x 24 box centered on the point, drawn pointing
+ * nowhere in particular: the chart has no heading for a base or ship.
+ * `body` takes the selection/objective colors; `detail` is the dark relief.
+ */
+export const MARKER_ICONS = {
+  airfield: {
+    body: 'M0,-10 A10,10 0 1 1 0,10 A10,10 0 1 1 0,-10 Z',
+    detail: 'M-7,0 H7 M0,-7 V7',
+  },
+  carrier: {
+    body: 'M-13,0 H13 L10,6 H-11 Z',
+    detail: 'M4,-6 H8 V0 H4 Z M-10,-1.5 H2',
+  },
+  ship: {
+    body: 'M-10,0 H10 L6,6 H-8 Z',
+    detail: 'M-4,-4 H2 V0 H-4 Z M-1,-8 V-4',
+  },
+} as const
+
 const svgElement = (name: string): SVGElement => document.createElementNS(SVG_NS, name)
 
 /**
@@ -243,51 +286,66 @@ const svgElement = (name: string): SVGElement => document.createElementNS(SVG_NS
  * point's responsibility, so a click cannot write into `World`.
  */
 export function createMissionMap(root: HTMLElement, options: MissionMapOptions): MissionMapHandle {
+  ensurePatternDefs()
   const backdrop = document.createElement('div')
   backdrop.style.cssText =
-    'position:fixed;inset:0;display:none;align-items:center;justify-content:center;' +
-    'background:rgba(8,10,14,.58);z-index:11'
+    'position:fixed;inset:0;display:none;overflow-y:auto;background:rgba(8,10,14,.58);z-index:11'
+  const frame = document.createElement('div')
+  frame.className = 'naval-comms'
+  frame.style.cssText = 'padding:24px 16px 40px'
   const panel = document.createElement('section')
+  panel.className = 'sheet'
   panel.setAttribute('role', 'dialog')
   panel.setAttribute('aria-modal', 'true')
   panel.setAttribute('aria-label', 'Navigation chart')
-  panel.style.cssText =
-    'width:min(900px,calc(100vw - 32px));padding:16px 18px;border:1px solid #5a7188;' +
-    'border-radius:6px;background:#101820;color:#e7f0fa;font:13px/1.45 ui-monospace,Menlo,monospace;' +
-    'box-shadow:0 12px 40px rgba(0,0,0,.55)'
-  backdrop.appendChild(panel)
+  frame.appendChild(panel)
+  backdrop.appendChild(frame)
   root.appendChild(backdrop)
 
+  const letterhead = document.createElement('div')
+  letterhead.className = 'letterhead'
+  const letterheadText = document.createElement('div')
+  letterheadText.className = 'letterhead-text'
+  const kicker = document.createElement('div')
+  kicker.className = 'letterhead-kicker'
+  kicker.textContent = 'Theater chart — Leyte Gulf'
   const heading = document.createElement('h2')
-  heading.textContent = 'NAVIGATION CHART'
-  heading.style.cssText = 'margin:0;font:700 18px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.1em'
-  panel.appendChild(heading)
-
+  heading.className = 'letterhead-title'
+  heading.textContent = 'Navigation Chart'
+  heading.style.fontWeight = 'normal'
+  letterheadText.append(kicker, heading)
+  const formNumber = document.createElement('div')
+  formNumber.className = 'form-number'
+  formNumber.textContent = 'FORM NAV-1'
   const close = document.createElement('button')
+  close.className = 'ink-button'
   close.textContent = `Close (${keyLabel(BINDINGS.toggleMissionMap[0])})`
   close.setAttribute('aria-label', 'Close navigation chart')
-  close.style.cssText =
-    'float:right;margin-top:-25px;padding:5px 10px;border:1px solid #7d93a8;border-radius:4px;' +
-    'background:#e7f0fa;color:#101820;font:12px ui-monospace,Menlo,monospace;cursor:pointer'
   close.addEventListener('click', () => options.onClose())
-  panel.appendChild(close)
+  letterhead.append(letterheadText, formNumber, close)
+  panel.appendChild(letterhead)
 
   const detail = document.createElement('div')
   detail.setAttribute('aria-live', 'polite')
-  detail.style.cssText = 'min-height:22px;margin:8px 0;color:#b9d3e8'
+  detail.style.cssText = 'min-height:22px;margin:0 0 8px;color:var(--ink);font-size:14px'
   panel.appendChild(detail)
 
   const svg = svgElement('svg')
-  svg.setAttribute('viewBox', `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`)
+  svg.setAttribute('viewBox', `0 0 ${CHART_WIDTH + MARGIN_L + MARGIN_R} ${CHART_HEIGHT + MARGIN_T + MARGIN_B}`)
   svg.setAttribute('role', 'img')
   svg.setAttribute('aria-label', 'Navigation chart, north at the top')
   svg.setAttribute('width', '100%')
-  svg.style.cssText = 'display:block;border:1px solid #50677e;background:#16232e;max-height:62vh'
+  svg.style.cssText = 'display:block;background:var(--paper-deep);border:1px solid var(--paper-edge);max-height:66vh'
   panel.appendChild(svg)
 
+  const legend = document.createElement('div')
+  legend.style.cssText =
+    'display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:11.5px;color:var(--ink-faint)'
+  panel.appendChild(legend)
+
   const instruction = document.createElement('p')
-  instruction.style.cssText = 'margin:8px 0 0;color:#a9bac8'
-  instruction.textContent = 'Select an airfield or carrier for course and range. North is up.'
+  instruction.style.cssText = 'margin:8px 0 0;color:var(--ink-faint);font-size:12px'
+  instruction.textContent = 'Select an airfield or carrier for course and range. Scroll to zoom, drag to pan, double-click to reset. North is up.'
   panel.appendChild(instruction)
 
   const objectivesList = document.createElement('div')
@@ -302,13 +360,16 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     caption: LabelPlacement,
     selectedId: string | null,
     bounds: ChartBounds,
+    layer: SVGElement,
   ): void => {
     const marker = svgElement('g')
     const selected = point.id === selectedId
     const color =
-      point.objective === 'destroy' ? '#ff8a6a' :
-      point.objective === 'protect' ? '#ffd27a' :
-      point.kind === 'player' ? '#ffe16a' : point.kind === 'airfield' ? '#7ce0a3' : point.kind === 'carrier' ? '#89c7ff' : '#c3cbd4'
+      point.objective === 'destroy' ? 'var(--stamp-red)' :
+      point.objective === 'protect' ? 'var(--stamp-violet)' :
+      point.kind === 'player' ? 'var(--stamp-red)' :
+      point.kind === 'airfield' ? 'var(--ink)' :
+      point.kind === 'carrier' ? 'var(--stamp-blue)' : 'var(--ink-faint)'
 
     if (point.targetable) {
       marker.setAttribute('role', 'button')
@@ -337,68 +398,138 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       ring.setAttribute('cx', String(projection.x))
       ring.setAttribute('cy', String(projection.y))
       ring.setAttribute('r', String(edge.x - projection.x))
-      ring.setAttribute('fill', 'none')
-      ring.setAttribute('stroke', color)
-      ring.setAttribute('stroke-width', selected ? '3' : '2')
-      ring.setAttribute('stroke-dasharray', '6 5')
+      paint(ring, { fill: 'none', stroke: color, 'stroke-width': selected ? '3' : '2', 'stroke-dasharray': '6 5' })
       marker.appendChild(ring)
     } else {
-      const dot = svgElement(point.kind === 'airfield' ? 'rect' : 'circle')
-      if (point.kind === 'airfield') {
-        dot.setAttribute('x', String(projection.x - 6))
-        dot.setAttribute('y', String(projection.y - 6))
-        dot.setAttribute('width', '12')
-        dot.setAttribute('height', '12')
+      const icon = point.kind === 'airfield' || point.kind === 'carrier' || point.kind === 'ship' ? MARKER_ICONS[point.kind] : null
+      if (icon !== null) {
+        const glyph = svgElement('g')
+        glyph.setAttribute('transform', `translate(${projection.x} ${projection.y})`)
+        const hit = svgElement('circle')
+        hit.setAttribute('r', '14')
+        hit.setAttribute('fill', 'transparent')
+        glyph.appendChild(hit)
+        const body = svgElement('path')
+        body.setAttribute('d', icon.body)
+        paint(body, {
+          fill: color,
+          stroke: selected ? 'var(--stamp-red)' : 'var(--paper)',
+          'stroke-width': selected ? '3' : '1.5',
+          'stroke-linejoin': 'round',
+        })
+        glyph.appendChild(body)
+        const detail = svgElement('path')
+        detail.setAttribute('d', icon.detail)
+        paint(detail, { fill: 'none', stroke: 'var(--paper)', 'stroke-width': '1.5' })
+        glyph.appendChild(detail)
+        marker.appendChild(glyph)
       } else {
+        const dot = svgElement('circle')
         dot.setAttribute('cx', String(projection.x))
         dot.setAttribute('cy', String(projection.y))
         dot.setAttribute('r', point.kind === 'player' ? '8' : '6')
+        paint(dot, { fill: color, stroke: selected ? 'var(--stamp-red)' : 'var(--paper)', 'stroke-width': selected ? '4' : '2' })
+        marker.appendChild(dot)
       }
-      dot.setAttribute('fill', color)
-      dot.setAttribute('stroke', selected ? '#ffffff' : '#0e151c')
-      dot.setAttribute('stroke-width', selected ? '4' : '2')
-      marker.appendChild(dot)
     }
 
     const label = svgElement('text')
     label.setAttribute('x', String(caption.x))
     label.setAttribute('y', String(caption.y))
-    label.setAttribute('fill', '#f2f7fb')
-    label.setAttribute('pointer-events', 'none')
+    paint(label, {
+      fill: 'var(--ink)',
+      stroke: 'var(--paper)',
+      'stroke-width': '3',
+      'paint-order': 'stroke',
+      'font-family': 'var(--font-body)',
+      'pointer-events': 'none',
+    })
     label.setAttribute('font-size', '15')
     label.setAttribute('font-weight', point.kind === 'player' || selected ? '700' : '400')
     label.textContent = point.label
-    svg.appendChild(marker)
-    svg.appendChild(label)
+    layer.appendChild(marker)
+    layer.appendChild(label)
   }
+
+  let view: ChartView | null = null
+  let baseBounds: ChartBounds | null = null
+  let lastDraw: (() => void) | null = null
+
+  let layerCache: { terrain: TerrainField | null | undefined; key: string; layers: ChartLayers } | null = null
 
   const draw = <M>(world: World<M>, selectedId: string | null): void => {
     svg.replaceChildren()
     const points = mapPoints(world)
-    const bounds = chartBounds(points)
+    const base = chartBounds(points)
+    baseBounds = base
+    const bounds = view === null ? base : viewBounds(base, view)
+    lastDraw = () => draw(world, selectedId)
     const player = points.find((point) => point.kind === 'player')!
     const selected = selectedPoint(points, selectedId)
+    const project = (x: number, z: number): ChartProjection => projectPoint({ x, z }, bounds, CHART_WIDTH, CHART_HEIGHT)
+    const area = visibleBounds(bounds, CHART_WIDTH, CHART_HEIGHT)
+    const key = `${area.minX}|${area.maxX}|${area.minZ}|${area.maxZ}|${world.terrain?.cover === undefined ? 0 : 1}`
+    if (layerCache === null || layerCache.terrain !== world.terrain || layerCache.key !== key) {
+      layerCache = { terrain: world.terrain, key, layers: buildChartLayers(world.terrain, area) }
+    }
+    const layers = layerCache.layers
 
-    const north = svgElement('text')
-    north.setAttribute('x', '18')
-    north.setAttribute('y', '30')
-    north.setAttribute('fill', '#a9bac8')
-    north.setAttribute('font-size', '15')
-    north.textContent = 'N ↑'
-    svg.appendChild(north)
+    const clip = svgElement('clipPath')
+    clip.id = 'chart-clip'
+    const clipRect = svgElement('rect')
+    clipRect.setAttribute('width', String(CHART_WIDTH))
+    clipRect.setAttribute('height', String(CHART_HEIGHT))
+    clip.appendChild(clipRect)
+    svg.appendChild(clip)
+
+    const sheet = svgElement('g')
+    sheet.setAttribute('transform', `translate(${MARGIN_L} ${MARGIN_T})`)
+    svg.appendChild(sheet)
+    const water = svgElement('rect')
+    water.setAttribute('width', String(CHART_WIDTH))
+    water.setAttribute('height', String(CHART_HEIGHT))
+    water.setAttribute('fill', CHART.water)
+    sheet.appendChild(water)
+    const content = svgElement('g')
+    content.setAttribute('clip-path', 'url(#chart-clip)')
+    sheet.appendChild(content)
+
+    const addPath = (lines: ChartLayers['land'], css: Record<string, string>): void => {
+      const d = pathData(lines, project)
+      if (d === '') return
+      const path = svgElement('path')
+      path.setAttribute('d', d)
+      paint(path, { 'pointer-events': 'none', ...css })
+      content.appendChild(path)
+    }
+    // Water-lining first: the land wash then covers its inland half.
+    addPath(layers.coast, { fill: 'none', stroke: CHART.waterLining, 'stroke-width': '7', opacity: '0.55', 'stroke-linejoin': 'round' })
+    addPath(layers.land, { fill: CHART.wash, 'fill-rule': 'evenodd' })
+    addPath(layers.crop, { fill: `url(#${PATTERN_CROP})`, 'fill-rule': 'evenodd' })
+    addPath(layers.woodland, { fill: CHART.woodland, 'fill-opacity': '0.5', stroke: CHART.woodlandEdge, 'stroke-width': '0.7', 'fill-rule': 'evenodd' })
+    addPath(layers.mangrove, { fill: `url(#${PATTERN_SWAMP})`, 'fill-rule': 'evenodd' })
+    for (const contour of layers.contours) {
+      addPath(contour.lines, { fill: 'none', stroke: CHART.contour, 'stroke-width': contour.index ? '1.1' : '0.5', 'stroke-linejoin': 'round' })
+    }
+    const graticule = buildGraticule(area, project, CHART_WIDTH, CHART_HEIGHT)
+    for (const line of graticule.lines) {
+      const path = svgElement('path')
+      path.setAttribute('d', line.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(''))
+      paint(path, { fill: 'none', stroke: 'var(--ink)', 'stroke-width': '0.6', opacity: '0.22', 'pointer-events': 'none' })
+      content.appendChild(path)
+    }
+    addPath(layers.coast, { fill: 'none', stroke: 'var(--ink)', 'stroke-width': '1.3', 'stroke-linejoin': 'round' })
 
     if (selected !== null) {
-      const from = projectPoint(player, bounds, CHART_WIDTH, CHART_HEIGHT)
-      const to = projectPoint(selected, bounds, CHART_WIDTH, CHART_HEIGHT)
+      const from = project(player.x, player.z)
+      const to = project(selected.x, selected.z)
       const line = svgElement('line')
       line.setAttribute('x1', String(from.x))
       line.setAttribute('y1', String(from.y))
       line.setAttribute('x2', String(to.x))
       line.setAttribute('y2', String(to.y))
-      line.setAttribute('stroke', '#ffe16a')
-      line.setAttribute('stroke-width', '3')
-      line.setAttribute('stroke-dasharray', '8 6')
-      svg.appendChild(line)
+      paint(line, { stroke: 'var(--stamp-red)', 'stroke-width': '2.5', 'stroke-dasharray': '8 6' })
+      content.appendChild(line)
       detail.textContent = `${selected.label} — ${courseLabel(player, selected)}`
     } else {
       detail.textContent = 'Select a friendly recovery point.'
@@ -409,7 +540,70 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       projections.map((projection, index) => ({ ...projection, label: points[index]!.label })),
       CHART_HEIGHT,
     )
-    points.forEach((point, index) => drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null, bounds))
+    points.forEach((point, index) =>
+      drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null, bounds, content),
+    )
+
+    const indexLines = layers.contours
+      .filter((c) => c.index)
+      .flatMap((c) => c.lines.map((line) => ({ text: String(c.levelFt), points: line.points })))
+    const chartMetersPerPixel = 1 / Math.min(CHART_WIDTH / (bounds.maxX - bounds.minX), CHART_HEIGHT / (bounds.maxZ - bounds.minZ))
+    for (const at of contourLabelSites(indexLines, chartMetersPerPixel)) {
+      const site = { text: at.text, ...project(at.x, at.y) }
+      const t = svgElement('text')
+      t.setAttribute('x', String(site.x))
+      t.setAttribute('y', String(site.y))
+      t.setAttribute('font-size', '10')
+      t.setAttribute('text-anchor', 'middle')
+      paint(t, { fill: CHART.contour, stroke: CHART.wash, 'stroke-width': '3', 'paint-order': 'stroke', 'font-family': 'var(--font-body)', 'pointer-events': 'none' })
+      t.textContent = site.text
+      content.appendChild(t)
+    }
+
+    const neatline = (inset: number, width: string): SVGElement => {
+      const r = svgElement('rect')
+      r.setAttribute('x', String(-inset))
+      r.setAttribute('y', String(-inset))
+      r.setAttribute('width', String(CHART_WIDTH + 2 * inset))
+      r.setAttribute('height', String(CHART_HEIGHT + 2 * inset))
+      paint(r, { fill: 'none', stroke: 'var(--ink)', 'stroke-width': width })
+      return r
+    }
+    sheet.append(neatline(4, '2.2'), neatline(0, '0.8'))
+    for (const label of graticule.labels) {
+      const t = svgElement('text')
+      t.setAttribute('x', String(label.x))
+      t.setAttribute('y', String(label.y))
+      t.setAttribute('font-size', '10')
+      t.setAttribute('text-anchor', label.anchor)
+      paint(t, { fill: 'var(--ink-faint)', 'font-family': 'var(--font-body)', 'pointer-events': 'none' })
+      t.textContent = label.text
+      sheet.appendChild(t)
+    }
+    sheet.appendChild(compassRose(CHART_WIDTH - 52, 58))
+    const metersPerPixel = 1 / Math.min(CHART_WIDTH / (bounds.maxX - bounds.minX), CHART_HEIGHT / (bounds.maxZ - bounds.minZ))
+    sheet.appendChild(scaleBarGroup(24, CHART_HEIGHT - 40, scaleBar(metersPerPixel)))
+
+    legend.replaceChildren()
+    const swatch = (inner: string): string =>
+      `<svg width="26" height="16" viewBox="-13 -8 26 16" style="vertical-align:middle;margin-right:5px">${inner}</svg>`
+    const icon = (kind: 'airfield' | 'carrier' | 'ship', fill: string): string =>
+      `<g transform="scale(.8)"><path d="${MARKER_ICONS[kind].body}" fill="${fill}" stroke="#e9dfc2" stroke-width="1.5"/>` +
+      `<path d="${MARKER_ICONS[kind].detail}" fill="none" stroke="#e9dfc2" stroke-width="1.5"/></g>`
+    const entries: [string, string][] = [
+      [swatch(icon('airfield', '#2a2620')), 'Airfield'],
+      [swatch(icon('carrier', '#1f3d63')), 'Carrier'],
+      [swatch(icon('ship', '#6b6252')), 'Ship'],
+      [swatch(`<rect x="-11" y="-6" width="22" height="12" fill="${CHART.woodland}" fill-opacity=".5" stroke="${CHART.woodlandEdge}"/>`), 'Woodland'],
+      [swatch(`<rect x="-11" y="-6" width="22" height="12" fill="url(#${PATTERN_CROP})" stroke="${CHART.cropHatch}" stroke-width=".6"/>`), 'Cultivation'],
+      [swatch(`<rect x="-11" y="-6" width="22" height="12" fill="url(#${PATTERN_SWAMP})" stroke="${CHART.swamp}" stroke-width=".6"/>`), 'Swamp'],
+      [swatch(`<path d="M-11 0H11" stroke="${CHART.contour}" stroke-width="1.1"/>`), `Contours ${layers.intervalFt} ft, index every ${layers.intervalFt * 5} ft`],
+    ]
+    for (const [glyph, name] of entries) {
+      const item = document.createElement('span')
+      item.innerHTML = `${glyph}${name}`
+      legend.appendChild(item)
+    }
 
     const rows = objectiveRows(world.mission)
     objectivesList.replaceChildren()
@@ -418,24 +612,110 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       for (const row of rows) objectivesList.appendChild(figureRow(`${row.label} (${row.priority})`, row.status))
     }
   }
-  let shownTick: number | null = null
-  let shownSelectedId: string | null = null
+  let shown: ChartDrawKey | null = null
+
+  const chartPoint = (event: MouseEvent): { x: number; y: number } | null => {
+    const ctm = (svg as unknown as SVGGraphicsElement).getScreenCTM()
+    if (ctm === null) return null
+    const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse())
+    return { x: p.x - MARGIN_L, y: p.y - MARGIN_T }
+  }
+  let redrawQueued = false
+  const redraw = (): void => {
+    if (redrawQueued) return
+    redrawQueued = true
+    requestAnimationFrame(() => {
+      redrawQueued = false
+      lastDraw?.()
+    })
+  }
+  const currentView = (): ChartView | null => (baseBounds === null ? null : (view ?? fitView(baseBounds)))
+  svg.style.touchAction = 'none'
+  svg.addEventListener(
+    'wheel',
+    (event) => {
+      const at = chartPoint(event)
+      const current = currentView()
+      if (at === null || current === null || baseBounds === null) return
+      event.preventDefault()
+      view = zoomView(baseBounds, current, Math.exp(-event.deltaY * 0.002), at.x / CHART_WIDTH, at.y / CHART_HEIGHT, CHART_WIDTH, CHART_HEIGHT)
+      redraw()
+    },
+    { passive: false },
+  )
+  let drag: { x: number; y: number; moved: boolean; id: number } | null = null
+  let suppressClick = false
+  svg.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return
+    const at = chartPoint(event)
+    if (at !== null) drag = { x: at.x, y: at.y, moved: false, id: event.pointerId }
+  })
+  svg.addEventListener('pointermove', (event) => {
+    const at = chartPoint(event)
+    const current = currentView()
+    if (drag === null || at === null || current === null || baseBounds === null || event.pointerId !== drag.id) return
+    if (!drag.moved && Math.hypot(at.x - drag.x, at.y - drag.y) < 5) return
+    if (!drag.moved) svg.setPointerCapture(event.pointerId)
+    drag.moved = true
+    const scale = Math.min(CHART_WIDTH / (baseBounds.maxX - baseBounds.minX), CHART_HEIGHT / (baseBounds.maxZ - baseBounds.minZ)) * current.zoom
+    view = panView(current, at.x - drag.x, at.y - drag.y, scale)
+    drag.x = at.x
+    drag.y = at.y
+    redraw()
+  })
+  const endDrag = (): void => {
+    if (drag?.moved) suppressClick = true
+    drag = null
+  }
+  svg.addEventListener('pointerup', endDrag)
+  svg.addEventListener('pointercancel', endDrag)
+  svg.addEventListener(
+    'click',
+    (event) => {
+      if (!suppressClick) return
+      suppressClick = false
+      event.stopPropagation()
+    },
+    true,
+  )
+  svg.addEventListener('dblclick', () => {
+    view = null
+    redraw()
+  })
 
   return {
     show<M>(world: World<M>, selectedId: string | null): void {
       const wasHidden = backdrop.style.display === 'none'
-      if (shownTick !== world.tick || shownSelectedId !== selectedId) {
+      const next: ChartDrawKey = { tick: world.tick, selectedId, terrain: world.terrain }
+      if (wasHidden) view = null
+      if (wasHidden || chartNeedsRedraw(shown, next)) {
         draw(world, selectedId)
-        shownTick = world.tick
-        shownSelectedId = selectedId
+        shown = next
       }
-      backdrop.style.display = 'flex'
+      backdrop.style.display = 'block'
       if (wasHidden) close.focus()
     },
     hide(): void {
       backdrop.style.display = 'none'
     },
   }
+}
+
+export type ChartDrawKey = {
+  readonly tick: number
+  readonly selectedId: string | null
+  readonly terrain: unknown
+}
+
+/** A held world keeps its tick, but terrain and cover attach by replacing the
+ * world's terrain object, so the terrain identity is part of the draw key. */
+export function chartNeedsRedraw(shown: ChartDrawKey | null, next: ChartDrawKey): boolean {
+  return (
+    shown === null ||
+    shown.tick !== next.tick ||
+    shown.selectedId !== next.selectedId ||
+    shown.terrain !== next.terrain
+  )
 }
 
 /** Page-furniture state for the chart. It deliberately stays out of

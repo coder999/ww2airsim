@@ -12,6 +12,7 @@ import { emptyStores, storesFromLoadout, storesSpec } from '../../src/sim/weapon
 import { healthyStructureDamage, type StructureEntity } from '../../src/sim/weapons/structures.js'
 import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
+import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const stores = spec.stores!
@@ -300,6 +301,27 @@ describe('ordnance flight', () => {
 
 describe('detonation', () => {
   const skip = (from: Vec3, velocity: Vec3, over: Partial<Projectile> = {}) => bombRound(from, velocity, over)
+
+  // Convoy Strike feedback (Mark, 2026-09-28): rockets aimed straight at a
+  // transport fell 70-400 m short into the water and did nothing. The rail
+  // boresight (`railElevationDeg`) is the pilot's allowance for that drop.
+  it('sinks a transport with one full salvo aimed at it from 500-700 m in an 8-20 degree dive, and 900 m in a 12-20', () => {
+    for (const [diveDeg, rangeM] of [[8, 500], [8, 700], [12, 500], [12, 700], [12, 900], [20, 500], [20, 700], [20, 900]] as const) {
+      const pitch = (-diveDeg * Math.PI) / 180
+      const st = createState({
+        position: v3(0, rangeM * Math.tan(-pitch), 0),
+        velocity: v3(150 * Math.cos(pitch), 150 * Math.sin(pitch), 0),
+        attitude: qFromAxisAngle(v3(0, 0, 1), pitch),
+      })
+      const ship = maru('maru-1', v3(rangeM, 0, 0))
+      let c = armed([air('f6f-1', ZERO)], { ships: [ship] })
+      for (let tick = 1; tick <= 900; tick++) {
+        const a: CombatAircraft = { ...air('f6f-1', ZERO), state: st, previous: st, controls: tick <= 3 ? salvo : idle }
+        c = step(c, [a], { ships: [ship], terrain: flat(0), tick })
+      }
+      expect(c.ships['maru-1']!.destroyedTick, `${diveDeg} deg dive from ${rangeM} m`).not.toBeNull()
+    }
+  })
 
   it('is a dud before armS: removed, and nothing takes damage', () => {
     const a = air('f6f-1', v3(0, 1000, 0))

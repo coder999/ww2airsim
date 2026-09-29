@@ -8,8 +8,11 @@ import {
 import { createState } from '../../../src/sim/flight/state.js'
 import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
 import { v3, type Vec3 } from '../../../src/sim/math/vec3.js'
-import { advance, createWorldOf, playerAircraft, withControls, type AircraftEntity, type World } from '../../../src/sim/loop.js'
-import { loadAircraftSpec } from '../../../tools/content/load.js'
+import {
+  advance, aircraftById, createWorldOf, playerAircraft, withAircraftState, withControls, type AircraftEntity, type World,
+} from '../../../src/sim/loop.js'
+import { loadAircraftSpec, bundleForScenario } from '../../../tools/content/load.js'
+import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const entity = (
@@ -67,7 +70,12 @@ describe('autoPursuitTarget', () => {
     expect(autoPursuitTarget(world)?.id).toBe('far')
   })
 
-  it('ignores parked and crashed aircraft', () => {
+  it('ignores crashed aircraft, but not one merely flagged parked while actually airborne (7g spec §2)', () => {
+    // `parked` here has no ground or deck under it (this world has neither
+    // terrain nor ships), so by ground state it is flying and IS picked --
+    // the flag alone no longer excludes it. `landedHostileWorld`-style cases
+    // (genuinely resting on a deck or runway) are covered above and in
+    // targeting.test.ts's "contacts are decided by ground state" block.
     const crashed = entity('crashed', v3(400, 2000, 0))
     const world = worldOf(
       entity('player', v3(0, 2000, 0)),
@@ -75,7 +83,7 @@ describe('autoPursuitTarget', () => {
       { ...crashed, impact: { tick: 1, position: crashed.state.position } as never },
       entity('live', v3(2500, 2000, 0)),
     )
-    expect(autoPursuitTarget(world)?.id).toBe('live')
+    expect(autoPursuitTarget(world)?.id).toBe('parked')
   })
 
   it('ignores an enemy below the altitude floor', () => {
@@ -90,6 +98,24 @@ describe('autoPursuitTarget', () => {
   it('returns null when nothing qualifies', () => {
     const world = worldOf(entity('player', v3(0, 2000, 0)), entity('low', v3(300, 50, 0)))
     expect(autoPursuitTarget(world)).toBeNull()
+  })
+
+  it('an AI that spawned parked on a runway is a target once airborne (7g spec §2: ground state, not the spawn flag)', () => {
+    const scenario = parseScenario({
+      id: 'auto-pursuit-launched-hostile', player: 'player', airfields: ['tacloban'],
+      aircraft: [
+        { id: 'player', spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [0, 2000, 0], headingDeg: 90, speedMps: 120 } },
+        { id: 'axis-1', spec: 'f6f-hellcat', side: 'axis', parkedAt: { airfield: 'tacloban', spot: 'runwayCenter' }, chocked: false },
+      ],
+      ships: [],
+      weather: { windFromDeg: 0, windMps: 0 },
+    })
+    let world = worldFromScenario(bundleForScenario(scenario), null)
+    const axis = aircraftById(world, 'axis-1')!
+    const airborneState = { ...axis.state, position: v3(axis.state.position.x, 800, axis.state.position.z) }
+    world = withAircraftState(world, 'axis-1', airborneState)
+    expect(aircraftById(world, 'axis-1')!.parked).toBe(true)
+    expect(autoPursuitTarget(world)?.id).toBe('axis-1')
   })
 })
 

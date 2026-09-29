@@ -10,7 +10,7 @@ import type { AudioBackend, BackendState, LoopHandle } from '../../src/audio/bac
  */
 export type FakeBackend = AudioBackend & {
   readonly loopsStarted: { id: ClipId; startS: number; endS: number }[]
-  readonly played: { id: ClipId; gain: number }[]
+  readonly played: { id: ClipId; gain: number; rate: number }[]
   readonly masterGains: number[]
   readonly engineGains: number[]
   readonly engineRates: number[]
@@ -22,7 +22,7 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   const failToLoad = new Set(options.failToLoad ?? [])
   const decoded: ClipId[] = []
   const loopsStarted: { id: ClipId; startS: number; endS: number }[] = []
-  const played: { id: ClipId; gain: number }[] = []
+  const played: { id: ClipId; gain: number; rate: number }[] = []
   const masterGains: number[] = []
   const engineGains: number[] = []
   const engineRates: number[] = []
@@ -49,7 +49,7 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
         setPlaybackRate: (value: number, glideTauS: number): void => { engineRates.push(value); engineGlides.push(glideTauS) },
       }
     },
-    playOnce: (id: ClipId, gain: number): void => { played.push({ id, gain }) },
+    playOnce: (id: ClipId, gain: number, rate = 1): void => { played.push({ id, gain, rate }) },
     setMasterGain: (value: number): void => { masterGains.push(value) },
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, withNotRecorded } from '../../src/render/debrief.js'
+import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, watchReplayAction, withNotRecorded } from '../../src/render/debrief.js'
 import { withMissionDebrief } from '../../src/render/mission/debriefMission.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -20,6 +20,15 @@ const impact = (over: Partial<Impact> = {}): Impact => ({
 })
 
 describe('the debrief', () => {
+  it('offers Watch replay only with a handler, and invoking it calls that handler', () => {
+    expect(watchReplayAction()).toBeNull()
+    let watched = 0
+    const action = watchReplayAction(() => { watched += 1 })
+    expect(action?.label).toBe('Watch replay')
+    action?.run()
+    expect(watched).toBe(1)
+  })
+
   it('says the pilot survived a ditching', () => {
     const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType())
     expect(m.headline).toBe('DITCHED')
@@ -190,9 +199,13 @@ describe('missionScore', () => {
     expect(killed.total).toBe(2 * 500 + 1 * 5000)
   })
 
-  it('every row is present even at zero, in master spec §8\'s eight categories', () => {
+  it('scores a sunk transport at 400 and a destroyer at 750', () => {
+    expect(missionScore({ ...zeroKillsByType(), transport: 2, destroyer: 1 }, 'landed').total).toBe(2 * 400 + 750)
+  })
+
+  it('every row is present even at zero: master spec §8\'s eight categories plus destroyer and transport', () => {
     const score = missionScore(zeroKillsByType(), 'landed')
-    expect(score.rows).toHaveLength(8)
+    expect(score.rows).toHaveLength(10)
     expect(score.total).toBe(0)
   })
 })

@@ -5,13 +5,13 @@
   "side": "allied",
   "carrierCapable": true,
   "geometry": {
-    "wingAreaM2": 31.03,
-    "wingSpanM": 13.06
+    "wingAreaM2": 24.155,
+    "wingSpanM": 11.582
   },
   "mass": {
-    "emptyKg": 4190,
-    "fuelCapacityKg": 681,
-    "maxTakeoffKg": 6990
+    "emptyKg": 2673.9,
+    "fuelCapacityKg": 392.5,
+    "maxTakeoffKg": 3974.4
   },
   "aero": {
     "clSlopePerRad": 4.8055,
@@ -19,39 +19,51 @@
     "alphaCritDeg": 15.5,
     "clAtZeroAlpha": 0.1,
     "cySlopePerRad": 2.0,
-    "cd0": 0.0211,
+    "cd0": 0.016,
     "oswaldE": 0.85
   },
   "engine": {
-    "maxPowerW": 1491000,
-    "propEfficiency": 0.75,
-    "staticThrustN": 20000,
+    "maxPowerW": 894800,
+    "propEfficiency": 0.6,
+    "staticThrustN": 12003,
     "powerFractionByAltitudeM": [
       [
         0,
-        1.0
+        0.9167
       ],
       [
-        3000,
-        1.0
+        1005.8,
+        0.9167
       ],
       [
-        7041,
-        1.0
+        1158.2,
+        0.9
       ],
       [
-        9000,
-        0.82
+        3444.2,
+        0.9083
       ],
       [
-        11400,
-        0.6
+        3962.4,
+        0.8583
+      ],
+      [
+        5608.3,
+        0.8667
+      ],
+      [
+        7500,
+        0.6933
+      ],
+      [
+        10400,
+        0.494
       ]
     ],
-    "windmillCd0": 0.0422
+    "windmillCd0": 0.032
   },
   "rates": {
-    "maxRollRateDegPerSec": 80,
+    "maxRollRateDegPerSec": 68,
     "maxPitchRateDegPerSec": 30,
     "maxYawRateDegPerSec": 15,
     "rateRefSpeedMps": 103,
@@ -64,38 +76,48 @@
     "gLimit": 7.5
   },
   "gear": {
-    "travelSeconds": 7,
-    "dragAreaM2": 0.3,
+    "travelSeconds": 10,
+    "dragAreaM2": 0.234,
     "rollingResistanceCoeff": 0.02,
     "brakingResistanceCoeff": 0.4,
-    "tailUpSpeedMps": 15,
-    "tailwheelYawRateDegPerSec": 20,
     "lateralGripSeconds": 1.5,
-    "heightM": 2.2
+    "heightM": 2.3952,
+    "layout": "taildragger",
+    "mainX": 0.413,
+    "thirdX": -4.627,
+    "thirdHeightM": 1.293,
+    "thirdSteering": "caster",
+    "steerYawRateDegPerSec": 0,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 25,
+    "propWashSpeedMps": 11,
+    "torqueYawRateDegPerSec": 0
   },
   "reference": {
-    "source": "PLACEHOLDER, not F4F-4 data: every field in this aircraft/mass/engine/rates/limits/gear/flap block is reused verbatim from content/aircraft/f6f-hellcat.json's F6F-5 Patuxent River trial data (see that file's own reference.source for the original citation). None of testMassKg, topSpeedMps, climbRateMps, stallSpeedMps, stallSpeedFlapMps, rollRateDegPerSec, takeoffDistanceM, or any aero/engine/rates/gear/flap coefficient in this file is a real F4F-4 Wildcat figure. This was a deliberate choice (Mark, 2026-09-24, docs/superpowers/plans/2026-09-24-f4f-wildcat-default-aircraft.md): ship the real, rigged, CC-BY Wildcat model now with borrowed flight data rather than block shipping on sourcing a genuine F4F-4 performance trial, which is follow-up work on the same footing this file's Hellcat original took (a dedicated primary-source research pass, not a quick estimate). view.eyePointM = [0.18, 0.39, 0] is MEASURED from the drawn model as wildcatCorrection() seats it (2026-09-28): the fore-aft middle of its sliding canopy node Puerta_cabina_Cabina_MAT_0 (x -0.28 to 0.64, top y 0.69), 0.3 m below the top. tests/tools/models/eyePoints.test.ts holds it inside that canopy.",
-    "testMassKg": 5633.62,
-    "topSpeedMps": 174.79,
-    "topSpeedAltitudeM": 7040.9,
-    "climbRateMps": 13.51,
-    "stallSpeedMps": 43.81,
-    "stallSpeedFlapMps": 37.7749,
-    "rollRateDegPerSec": 80,
-    "takeoffDistanceM": 230.124
+    "source": "Primary: BIS Final Report of Production Inspection Trials, F4F-4 No. 4058, NAS Anacostia, 24 Mar 1942 [4058] (http://www.wwiiaircraftperformance.org/f4f/f4f-4-4058.pdf); NAS Anacostia, F4F-4 with Full Span Flaps, 10 Sep 1942 [5262] (http://www.wwiiaircraftperformance.org/f4f/f4f-4-5262.pdf); NAS Anacostia, Performance at Military Power, 19 Sep 1942 [02135] (http://www.wwiiaircraftperformance.org/f4f/f4f-4-02135.pdf). Manufacturer: Grumman Report 1471C, Detail Specification SD-235-4-3A, rev. 21 Oct 1942 [DS] (http://www.wwiiaircraftperformance.org/f4f/f4f-4-detail-specification.pdf), 'based on 4058 flight tests'. Semi-primary: BuAer Airplane Characteristics & Performance, F4F-4/FM-1, 1 Jul 1943 [SAC] (http://www.wwiiaircraftperformance.org/f4f/f4f-4.pdf). Roll only: NACA Report 868 (Toll), Fig. 47 [N868], F4F-3 data, not F4F-4. Ground handling only: AN 01-190FB-1, FM-2 Pilot's Handbook, 1945 [HB]; the F4F-4's own handbook was not found. All read 2026-09-28. wwiiaircraftperformance.org's HTML transcription of [DS]'s stall rows is wrong -- it gives 70.7, 75.0 and 77.4 mph where the scanned page reads 75.0, 76.7 and 81.3 mph; this file cites the scans, not the HTML. testMassKg = 3616.04 (7,972 lb) is R2's six-gun combat condition, from [DS]'s overload table (Mark, 2026-09-28, W1 spec). geometry.wingSpanM = 11.582 (38 ft 0 in) and geometry.wingAreaM2 = 24.155 (260 sq ft): [DS]. mass.emptyKg = 2673.9 (5,895 lb): [SAC], the 1943 service airplane including later contract changes; empty weight differs by source -- 5,758.5 lb actual [4058], 5,778.9 lb estimated [DS] -- and [SAC]'s later, heavier figure is used since testMassKg is graded against a later overload condition. mass.maxTakeoffKg = 3974.4 (8,762 lb, with two drop tanks): [SAC]. mass.fuelCapacityKg = 392.5: internal fuel 144 US gal [SAC] at 0.72 kg/L, the Zero's rule. topSpeedMps = 141.31 at topSpeedAltitudeM 5,913.1 m (316.1 mph true at 19,400 ft) and topSpeedByAltitudeM = SL 122.67, 762 m 125.66, 1,402.1 m 126.38, 3,657.6 m 135.19, 4,267.2 m 135.81, 5,791.2 m 140.82, 5,913.1 m 141.31 m/s (274.4 / 281.1 / 282.7 / 302.4 / 303.8 / 315.0 / 316.1 mph true): [DS] overload table. climbRateMps = 8.585 (1,690 ft/min) at sea level: [DS] overload. climbRateByAltitudeM = [[4968.2, 7.62]] (4,968 m / 16,300 ft: 1,500 ft/min): [02135], at 7,933 lb and military power, 0.5% lighter than R2's weight. stallSpeedMps = 40.45 (90.5 mph) and stallSpeedFlapMps = 35.33 (79.0 mph) are DERIVED: [4058]'s clean power-off 87 mph and landing power-off 76 mph, both at 7,370 lb, corrected to 7,972 lb by sqrt(7972/7370) = 1.0400. Cross-check: [DS] gives 81.3 mph 'without power' at 7,972 lb with no flap condition named, which lies between the two derived stalls. No source states whether any of these speeds is IAS or TAS; these are sea-level figures, where TAS and CAS agree to within instrument error, the same treatment as the F6F and the Zero. takeoffDistanceM = 209.1 (686 ft) calm: [4058], six-gun condition, 7,921 lb (0.6% lighter than R2's weight), with no flap setting stated. The graded card's lift-off speed, 73 mph, is borrowed from [5262] (full-span-flap trial), since [4058] states neither its flap setting nor its lift-off speed; this gap is reported (R36), not tuned around. FITTED, NOT SOURCED (measured 2026-09-28 by the W1 fit, tools/testcards/measure.ts sweep at testMassKg): aero.cd0 0.016, engine.propEfficiency 0.6, and engine.powerFractionByAltitudeM's curve -- fractions of 1,200 hp take-off power (R-1830-86, take-off rating per [SAC]; a two-stage-blower engine with a 3:2 reduction gear) following [SAC]'s normal ratings by altitude (1,100 hp SL-3,300 ft, 1,080 hp at 3,800 ft, 1,090 hp at 11,300 ft, 1,030 hp at 13,000 ft, 1,040 hp at 18,400 ft), with the two points above 18,400 ft (7,500 m and 10,400 m) FITTED, not sourced. [SAC] states the take-off rating at 2,900 rpm; [4058] para. 15 states 2,700 rpm -- a conflict between the two sources, flagged, not resolved. This fit trades a curve fitted to the normal-rating breakpoints for a speed profile within 0.50 to 1.71% of [DS]'s seven table points, a sea-level climb 16.84% over trial (the F6F's own +16.77% bias, the same direction and a similar size), a 16,300 ft climb 5.05% over trial, stalls 2.11% (clean) and 1.86% (flaps) over the derived figures, and a take-off run -14.32% short at full flaps against [5262]'s 73 mph lift-off (re-measured 2026-09-28 after T1's rest attitude and airflow tail-lift, nothing re-tuned: -12.89%, 182.142 m) -- the 20% reported gap above is the missing flap setting and lift-off speed in [4058], not a fit error. engine.staticThrustN = 12,003 is DERIVED, the F6F's 20,000 N scaled by take-off power (894.8/1491 kW). engine.windmillCd0 = 0.032 is DERIVED as 2 x cd0, the F6F's rule. flap.clIncrement = 0.4346 is DERIVED, the Zero's method: 1.400013 x ((87/76)^2 - 1), from the two [4058] stall speeds before the R2 weight correction. rollRateDegPerSec = 68 is an ESTIMATE, read by eye from [N868]'s F4F-3 roll curve (about +/-3 deg/s); no F4F-4 roll trial was found. gear.travelSeconds = 10 is an ESTIMATE: the gear was hand-cranked, about 28 turns [HB], and no timing was found. gear.dragAreaM2 = 0.234 and flap.dragAreaM2 = 0.467 are DERIVED, the Zero's rule: the F6F's 0.3 and 0.6 scaled by wing area (24.155/31.03). rates.* (all fields) and the ground-handling fields in gear (rollingResistanceCoeff, brakingResistanceCoeff, lateralGripSeconds) keep the F6F's values, ESTIMATES carried over; T1 reworks the ground fields (its tailUpSpeedMps gate was replaced by the layout and tailLiftSpeedMps, 2026-09-28). limits.diveSpeedMps and limits.gLimit also keep the F6F's values, as ESTIMATES: no source for either was found for the F4F-4. gear.heightM = 2.3952 and view.eyePointM = [-1.713, 0.315, 0] are MEASURED from the drawn model as wildcatCorrection() seats it at the real span, its wing quarter-chord at the body origin (W1, 2026-09-28): gear.heightM is its main wheels' depth below the origin with the legs lengthened 0.4445 m (WILDCAT_GEAR_STRETCH_M) so the drawing parks at [DS]'s static ground angle, 12 deg 20 min (W1 ruling R5); the eye point is the fore-aft middle of the sliding canopy node Puerta_cabina_Cabina_MAT_0 (x -2.119 to -1.308, top y 0.615), 0.3 m below the top. tests/tools/models/stance.test.ts and eyePoints.test.ts hold each to the drawing. The drawing's other gaps from [DS] are recorded, not fixed (R5): parked propeller hub 2.347 m against about 2.10 m, wheelbase 5.04 m against 5.46 m, main-wheel track 1.28 m against 1.96 m. Gear layout (added 2026-09-28): gear.mainX, thirdX and thirdHeightM are measured from the drawn model with drawnPoints (the first aft point to touch when the model is pitched about the mains); layout and the tail-wheel steering, tail-lift, prop-wash and torque fields (the differential-brake fields, differentialBrakes and brakeYawRateDegPerSec, were removed 2026-09-28 by Mark's ruling) are ESTIMATE ([HB]: the F4F's tailwheel is not steerable, so thirdSteering is caster). Amended 2026-09-28: torqueYawRateDegPerSec set to 0 by Mark's ruling (arcade choice: the hands-off take-off roll felt clunky even if accurate); the hands-off roll now tracks straight. The schema field and the model term are kept for a future aircraft.",
+    "testMassKg": 3616.04,
+    "topSpeedMps": 141.31,
+    "topSpeedAltitudeM": 5913.1,
+    "climbRateMps": 8.585,
+    "stallSpeedMps": 40.45,
+    "stallSpeedFlapMps": 35.33,
+    "rollRateDegPerSec": 68,
+    "takeoffDistanceM": 209.1,
+    "topSpeedByAltitudeM": [[0, 122.67], [762, 125.66], [1402.1, 126.38], [3657.6, 135.19], [4267.2, 135.81], [5791.2, 140.82], [5913.1, 141.31]],
+    "climbRateByAltitudeM": [[4968.2, 7.62]]
   },
   "view": {
     "eyePointM": [
-      0.18,
-      0.39,
+      -1.713,
+      0.315,
       0
     ],
     "model": "wildcat"
   },
   "flap": {
     "travelSeconds": 5,
-    "dragAreaM2": 0.6,
-    "clIncrement": 0.4831
+    "dragAreaM2": 0.467,
+    "clIncrement": 0.4346
   },
   "combat": {
     "roundsPerMinute": 800,
@@ -113,56 +135,56 @@
     "guns": [
       {
         "position": [
-          1.5,
-          -0.25,
-          -3
+          -0.322,
+          -0.539,
+          -2.66
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          -3.4
+          -0.311,
+          -0.526,
+          -3.02
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          -3.8
+          -0.301,
+          -0.514,
+          -3.37
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3
+          -0.322,
+          -0.539,
+          2.66
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "rightGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3.4
+          -0.311,
+          -0.526,
+          3.02
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "rightGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3.8
+          -0.301,
+          -0.514,
+          3.37
         ],
-        "rounds": 400,
+        "rounds": 240,
         "group": "rightGuns"
       }
     ],
@@ -170,27 +192,27 @@
       {
         "id": "engine",
         "center": [
-          3,
-          0,
+          1.64,
+          -0.6,
           0
         ],
         "halfSize": [
-          1.5,
-          0.85,
-          0.85
+          0.26,
+          0.65,
+          0.65
         ],
         "system": "engine"
       },
       {
         "id": "fuel",
         "center": [
-          0,
-          0,
+          -0.73,
+          -0.36,
           0
         ],
         "halfSize": [
-          1.5,
-          0.85,
+          0.37,
+          1,
           0.85
         ],
         "system": "fuel"
@@ -198,107 +220,99 @@
       {
         "id": "tail",
         "center": [
-          -3,
+          -5.52,
           0,
           0
         ],
         "halfSize": [
-          1.5,
-          0.6,
-          0.6
+          0.52,
+          0.5,
+          2.09
         ],
         "system": "pitch"
       },
       {
         "id": "rudder",
         "center": [
-          -4,
-          1,
+          -5.75,
+          0.375,
           0
         ],
         "halfSize": [
-          0.8,
-          1,
-          0.25
+          0.4,
+          0.825,
+          0.4
         ],
         "system": "yaw"
       },
       {
         "id": "left-guns",
         "center": [
-          0,
-          -0.25,
-          -3.2
+          -0.45,
+          -0.53,
+          -3.02
         ],
         "halfSize": [
-          1.2,
+          0.85,
           0.35,
-          1.4
+          0.51
         ],
         "system": "leftGuns"
       },
       {
         "id": "right-guns",
         "center": [
-          0,
-          -0.25,
-          3.2
+          -0.45,
+          -0.53,
+          3.02
         ],
         "halfSize": [
-          1.2,
+          0.85,
           0.35,
-          1.4
+          0.51
         ],
         "system": "rightGuns"
       },
       {
         "id": "left-aileron",
         "center": [
-          -0.3,
-          -0.25,
-          -5.5
+          -1.467,
+          -0.591,
+          -2.229
         ],
         "halfSize": [
-          1,
-          0.35,
-          1
+          0.373,
+          0.116,
+          1.357
         ],
         "system": "roll"
       },
       {
         "id": "right-aileron",
         "center": [
-          -0.3,
-          -0.25,
-          5.5
+          -1.467,
+          -0.591,
+          2.229
         ],
         "halfSize": [
-          1,
-          0.35,
-          1
+          0.373,
+          0.116,
+          1.357
         ],
         "system": "roll"
       }
     ],
-    "source": "Six .50-cal guns: National Naval Aviation Museum https://www.history.navy.mil/content/history/museums/nnam/explore/collections/aircraft/f/f6f-5-hellcat.html . 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html . 400 rounds/gun: Patriots Point Naval & Maritime Museum https://patriotspoint.org/things-to-do/aircraft/f6f-hellcat . Verified 2026-09-19. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates, mounts and hit zones are gameplay ESTIMATES. Hitboxes approximate the existing procedural mesh, not a sourced installation drawing. No penetration model."
+    "source": "Six .50-cal guns: [DS] 104c ('six .50 caliber guns'); [SAC] p.1 gives 1,400 rounds total, but that is 233/gun and this file follows [SAC]'s own drawing note preferring 1,440 (240/gun) instead -- both W1, 2026-09-28. 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html, verified 2026-09-19 (carried over from the Hellcat card, no F4F-4-specific figure found). Gun positions are MEASURED (W1 Task 4, 2026-09-28), not sourced: three stations per side at |z| 2.66, 3.02, 3.37 m -- the pre-W1 placeholder stations (3.0, 3.4, 3.8 m, set when the Wildcat still drew at the Hellcat's 13.06 m span) scaled by 11.582/13.06 to the real 11.582 m span -- sliced on the drawn Wildcat wing with tools/models/mounts.ts's sectionAtFor('wildcat') and placed at 40% chord, mid-thickness (the lower skin plus half the local wing depth at that x). Zones are refit to the drawn airframe (W1 Task 4): engine spans the Helice (propeller) hub to the firewall -- the cowling (Motor node) mesh's own aft bound, clamped just short of the drawn, propeller-excluded airframe's own forward bound, since the true hub sits inside the excluded spinner disc -- and is centered on that cowling mesh in y/z. fuel sits in the fuselage between the wing spars, taking the front spar at the guns' own 40%-chord line (ESTIMATE) and the rear spar at approximately 70% chord (ESTIMATE), measured at a wing-root station clear of the nose. tail and rudder sit inside the fuselage and fin bounds: tail on the horizontal stabilizer (Timon_Der/Timon_Izq) extended forward into the fuselage, rudder on the vertical fin (Timon_Prof) likewise. The gun and aileron zones are centered on the same measured wing stations: left-guns/right-guns bound the three gun stations plus a housing margin, left-aileron/right-aileron are the drawn Aleron_Der/Aleron_Izq mesh bounds directly. Every zone and gun position is proven inside the drawn airframe's own bounds by tests/tools/models/combatFit.test.ts. Convergence, dispersion, lifetime, drag, HP, per-hit damage and leak/decay rates are gameplay ESTIMATES, carried over unchanged from the Hellcat card. No penetration model."
   },
   "stores": {
     "racks": [
-      { "id": "left-rack", "offset": [1.735, -0.803, -2.6], "store": "an-m65" },
-      { "id": "right-rack", "offset": [1.735, -0.803, 2.6], "store": "an-m65" }
+      { "id": "left-rack", "offset": [-0.324, -0.707, -2.6], "store": "an-m65" },
+      { "id": "right-rack", "offset": [-0.324, -0.707, 2.6], "store": "an-m65" }
     ],
-    "rails": [
-      { "id": "left-rail-1", "offset": [1.533, -0.744, -3.6], "store": "hvar" },
-      { "id": "left-rail-2", "offset": [1.577, -0.708, -4.3], "store": "hvar" },
-      { "id": "left-rail-3", "offset": [1.609, -0.667, -5.0], "store": "hvar" },
-      { "id": "right-rail-1", "offset": [1.533, -0.744, 3.6], "store": "hvar" },
-      { "id": "right-rail-2", "offset": [1.577, -0.708, 4.3], "store": "hvar" },
-      { "id": "right-rail-3", "offset": [1.609, -0.667, 5.0], "store": "hvar" }
-    ],
+    "rails": [],
     "types": {
-      "an-m65": { "kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 0.00002 },
-      "hvar": { "kind": "rocket", "massKg": 61, "dragAreaM2": 0.03, "warheadKg": 20.6, "damage": 40, "blastRadiusM": 8, "burnS": 1.0, "burnDeltaVMps": 419, "lifetimeS": 12, "dragPerM": 0.00008 }
+      "an-m65": { "kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 0.00002 }
     },
-    "source": "Six HVARs, three under each wing; single bomb racks under each wing inboard of the undercarriage bays; 1,000 lb class per rack: English Wikipedia, 'Grumman F6F Hellcat', read 2026-09-20. HVAR: 134 lb (61 kg) all-up, 45.5 lb (20.6 kg) warhead, 1,375 ft/s (419 m/s) plus the speed of the launching aircraft: English Wikipedia, 'High Velocity Aircraft Rocket', read 2026-09-20; designation-systems.net 'Air-Launched 5-Inch Rockets' gives 64 kg / 20 kg / 5 km range. Burn time 1.0 s is an ESTIMATE: neither source states it. AN-M65 1,000 lb GP: 530 lb (240.9 kg) Amatol filler, 53% of total weight, so 1,000 lb (453.6 kg) all-up: Australian War Memorial C285409 and bulletpicker.com 'Bomb, 1000 lb GP, AN-M44, AN-M65, AN-M65A1', read 2026-09-20. dragAreaM2, dragPerM, damage, roundDamage, blastRadiusM, armS, lifetimeS are ESTIMATES or gameplay choices, in the same standing as combat's dispersion and HP figures. dragPerM for the bomb was chosen against an estimate of \"about 1,200 m downrange and roughly 200 m/s\" for a release at 120 m/s from 1,500 m; measured 2026-09-22 by tests/sim/strike.test.ts, which is where Plan 6b said the actual figure would be recorded, it is 17.67 s of fall, 2,066 m downrange and 202.9 m/s at the water. The speed estimate held; the range estimate did not, and this sentence carries the measurement instead of the guess. Rack and rail OFFSETS were re-measured 2026-09-26 (plan O1) against the drawn Wildcat model, which every aircraft draws: `npm run models:mounts` slices the drawn wing at each rack's and rail's lateral station (unchanged from the pre-O1 offsets) and hangs the store at 40% (bomb) or 50% (rocket) of the chord, 2 cm clear of the lower skin, parallel to the model's datum; the chord fractions and the clearance are ESTIMATES. Re-measured again 2026-09-28 when the drawn Wildcat was seated on gear.heightM and its 7.33-degree datum leveled (wildcatFrame.ts): until then it stood 2.2 m above the sim body origin and the offsets inherited that, hanging the stores about 2.1 m above where they are now. Re-measured 2026-09-26 (O1) after the rack offsets moved to the drawn Wildcat's wing: 17.68 s of fall (1061 ticks), 2,069.6 m downrange and 203.0 m/s; the 2026-09-22 figures above are from the old offsets."
+    "source": "Single bomb racks under each wing inboard of the undercarriage bays, 1,000 lb class per rack: English Wikipedia, 'Grumman F6F Hellcat', read 2026-09-20 (the Hellcat card this content started from; the real F4F-4 carried lighter 100-250 lb bombs or 58-gal drop tanks, not 1,000-pounders -- kept anyway, R3 below). AN-M65 1,000 lb GP: 530 lb (240.9 kg) Amatol filler, 53% of total weight, so 1,000 lb (453.6 kg) all-up: Australian War Memorial C285409 and bulletpicker.com 'Bomb, 1000 lb GP, AN-M44, AN-M65, AN-M65A1', read 2026-09-20. dragAreaM2, dragPerM, damage, roundDamage, blastRadiusM, armS, lifetimeS are ESTIMATES or gameplay choices, in the same standing as combat's dispersion and HP figures. dragPerM for the bomb was chosen against an estimate of \"about 1,200 m downrange and roughly 200 m/s\" for a release at 120 m/s from 1,500 m; the Hellcat's own strike test (tests/sim/strike.test.ts, which is where Plan 6b said the actual figure would be recorded, not this card) measured 17.67 s of fall, 2,066 m downrange and 202.9 m/s at the water on 2026-09-22, then 17.68 s (1061 ticks), 2,069.6 m downrange and 203.0 m/s on 2026-09-26 after its own rack offsets moved to its drawn model (O1) -- the speed estimate held, the range estimate did not; neither figure was ever measured against this Wildcat card, which shares the estimate, not the measurement. Rack OFFSETS were re-measured 2026-09-26 (plan O1) against the drawn Wildcat model, which every aircraft draws at the time: `npm run models:mounts` slices the drawn wing at each rack's lateral station and hangs the store at 40% of the chord, 2 cm clear of the lower skin, parallel to the model's datum; the chord fraction and the clearance are ESTIMATES. Re-measured again 2026-09-28 when the drawn Wildcat was seated on gear.heightM and its 7.33-degree datum leveled (wildcatFrame.ts): until then it stood 2.2 m above the sim body origin and the offsets inherited that, hanging the stores about 2.1 m above where they are now. Re-measured again 2026-09-28 (W1 Task 3) when the drawn Wildcat was scaled to its real 11.582 m span and moved 1.871 m aft to center its wing quarter-chord on the body origin: the racks moved from [1.735, -0.803, +/-2.6] to [-0.324, -0.707, +/-2.6]. R3 (Mark, 2026-09-28, W1): the six wing rails and their HVAR rockets are dropped -- a gameplay choice, not a correction, since the real F4F-4 never carried rockets at all; the two AN-M65 racks stay as a deliberately un-sourced gameplay loadout (real ordnance was lighter). `stores.rails` is now empty, which `storesSpec` (src/sim/weapons/stores.ts) and its schema (`.min(0)` on `rails`, src/sim/flight/schema.ts) were changed to allow."
   }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { type Quat, qFromAxisAngle } from '../math/quat.js'
+import { type Quat, qFromAxisAngle, qMul } from '../math/quat.js'
 import { v3 } from '../math/vec3.js'
 
 /**
@@ -151,4 +151,5 @@ export function airfieldAt(airfields: readonly Airfield[], x: number, z: number)
  * airfield's `headingDeg` gets the same reasoning for free through the
  * formula above, rather than a second hand-measured table.
  */
-export const parkedAttitude = (a: Airfield): Quat => qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - runwayHeadingRad(a))
+export const parkedAttitude = (a: Airfield, restPitchRad: number): Quat =>
+  qMul(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - runwayHeadingRad(a)), qFromAxisAngle(v3(0, 0, 1), restPitchRad))

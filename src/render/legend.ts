@@ -35,8 +35,8 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Bombs', bindings: ['dropBomb'] },
   { label: 'Rockets', bindings: ['fireRockets'] },
   { label: 'Pitch', bindings: ['pitchDown', 'pitchUp'], pair: true },
-  { label: 'Roll', bindings: ['rollLeft', 'rollRight'], pair: true },
-  { label: 'Yaw', bindings: ['yawLeft', 'yawRight'], pair: true },
+  { label: 'Roll in the air, steer on the ground', bindings: ['rollLeft', 'rollRight'], pair: true },
+  { label: 'Rudder / steer', bindings: ['yawLeft', 'yawRight'], pair: true },
   { label: 'Throttle', bindings: ['throttleUp', 'throttleDown'], pair: true },
   { label: 'Throttle cut', bindings: ['throttleCut'] },
   { label: 'Camera', bindings: ['cycleCamera'] },
@@ -58,6 +58,9 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Radar range', bindings: ['toggleRadarRange'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
   { label: 'Pause', bindings: ['pause'] },
+  // Instant replay (spec §4): offered only while paused. The replay's own
+  // keys are on its bar, not here: they mean nothing in flight.
+  { label: 'Replay (paused)', bindings: ['replay'] },
 ]
 
 const NAMED: Readonly<Record<string, string>> = {

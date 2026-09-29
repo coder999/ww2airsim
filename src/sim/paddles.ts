@@ -1,6 +1,7 @@
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { airVelocity } from './flight/model.js'
+import { wheelDepthOf } from './gearContact.js'
 import { effectiveStallSpeedMps, GEAR_DOWN_FRACTION } from './ground.js'
 import { deckAxes, deckLocal, type Deck } from './world/deck.js'
 import { length, type Vec3 } from './math/vec3.js'
@@ -85,7 +86,7 @@ export function paddlesCue(
   if (g === null) return null
   const { rangeM } = g
 
-  const wheelsAboveDeckM = state.position.y - spec.gear.heightM - deck.center.y
+  const wheelsAboveDeckM = state.position.y - wheelDepthOf(spec, state) - deck.center.y
   const slopeDeg = Math.atan2(wheelsAboveDeckM, rangeM) / DEG
   const slopeError = slopeDeg - params.glideslopeDeg
   const onSlope = Math.abs(slopeError) <= params.glideslopeToleranceDeg

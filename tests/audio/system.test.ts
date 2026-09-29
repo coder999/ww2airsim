@@ -5,7 +5,7 @@ import type { AudioInputs } from '../../src/audio/cues.js'
 import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '../../src/audio/mix.js'
 
 const flying: AudioInputs = {
-  throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 10, shots: 0,
+  throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 0, tick: 10, shots: 0,
   bombsDropped: 0, rocketsFired: 0,
 }
 
@@ -106,5 +106,75 @@ describe('the audio system, driven through a fake backend (design §7.1)', () =>
     expect(fake.state()).toBe('suspended')
     await audio.resume()
     expect(fake.state()).toBe('running')
+  })
+})
+
+describe('replay support (instant replay R-4)', () => {
+  it('rate scales the engine and the one-shot rate', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    const full = fake.engineRates.at(-1)!
+    audio.update({ ...flying, tick: 11, shots: 5 }, 0.5)
+    expect(fake.engineRates.at(-1)).toBeCloseTo(full * 0.5, 9)
+    expect(fake.played.at(-1)!.rate).toBe(0.5)
+  })
+
+  it('prime advances the memory without a sound', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    const before = fake.played.length
+    audio.prime({ ...flying, tick: 20, shots: 50 })
+    audio.update({ ...flying, tick: 21, shots: 50 })
+    expect(fake.played.length).toBe(before)
+  })
+
+  it('restore after a replay fires no live cue (Review Focus 4)', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update({ ...flying, tick: 100, shots: 10 })
+    const live = audio.memory()
+    audio.update({ ...flying, tick: 40, shots: 0 })     // replay: an older tick (restart)
+    audio.update({ ...flying, tick: 41, shots: 3 }, 1)  // a replayed burst
+    const afterReplay = fake.played.length
+    audio.restore(live)
+    audio.update({ ...flying, tick: 101, shots: 10 })   // live again, nothing new
+    expect(fake.played.length).toBe(afterReplay)
+  })
+
+  it('hold silences the engine; the next update brings it back', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    audio.hold(true)
+    expect(fake.engineGains.at(-1)).toBe(0)
+    expect(audio.snapshot().engineGain).toBe(0)
+    audio.hold(false)
+    audio.update({ ...flying, tick: 11 })
+    expect(fake.engineGains.at(-1)).toBeGreaterThan(0)
+  })
+
+  it('suppresses a cue that would otherwise fire while held ("paused means silent", design §7)', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    audio.hold(true)
+    const before = fake.played.length
+    // A rising shot count would fire `machinegun` if not held -- see the
+    // "rate scales..." test above, which fires it from the same inputs.
+    audio.update({ ...flying, tick: 11, shots: 5 })
+    expect(fake.played.length).toBe(before)
+    // Memory still advanced during the hold (only the SOUND was suppressed),
+    // so unholding does not fire the skipped cue late: `shots` has already
+    // been seen at 5, so it is not a further rise.
+    audio.hold(false)
+    audio.update({ ...flying, tick: 12, shots: 5 })
+    expect(fake.played.length).toBe(before)
   })
 })

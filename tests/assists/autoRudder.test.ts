@@ -93,4 +93,19 @@ describe('auto-rudder coordination (Plan 3 Task 2)', () => {
     const yawWithRudder = applyAssists(slipped, spec, withPilotRudder, DT, ONLY_AUTO_RUDDER(true)).yaw
     expect(yawWithRudder - yawNoRudder).toBeCloseTo(0.3, 10)
   })
+
+  it('does nothing while the airplane is on the ground, so it never opposes the pilot (T1)', () => {
+    // A slipping state, so the assist provably WOULD move yaw in the air.
+    const slipped = createState({
+      position: v3(0, 0, 0),
+      velocity: v3(8 * Math.cos((20 * Math.PI) / 180), 0, 8 * Math.sin((20 * Math.PI) / 180)),
+      attitude: qIdentity(),
+      gearFraction: 1,
+    })
+    const raw: Controls = { pitch: 0, roll: 0, yaw: 0.3, throttle: 0.5 }
+    const airborne = applyAssists(slipped, spec, raw, DT, ONLY_AUTO_RUDDER(true), { onGround: false })
+    expect(airborne.yaw).not.toBe(0.3)
+    const onGround = applyAssists(slipped, spec, raw, DT, ONLY_AUTO_RUDDER(true), { onGround: true })
+    expect(onGround.yaw).toBe(0.3)
+  })
 })

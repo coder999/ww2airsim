@@ -41,6 +41,9 @@ describe('eligibleLoadouts', () => {
     expect(eligibleLoadouts(zero, false)).toEqual(['clean'])
     expect(eligibleLoadouts(zero, true)).toEqual(ALL_LOADOUTS)
   })
+  it('racks only, no rails: clean and bombs, not rockets or both (W1: the F4F-4 carries no rockets)', () => {
+    expect(eligibleLoadouts(wildcat, false)).toEqual(['clean', 'bombs'])
+  })
 })
 
 describe('sortieRulesBroken, isDevSortie, validateSortie', () => {

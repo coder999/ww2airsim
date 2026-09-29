@@ -167,7 +167,19 @@ export type Assist<M> = (
   raw: Controls,
   dt: number,
   memory: M,
+  context: AssistContext,
 ) => AssistResult<M>
+
+/** What `advance` knows that an assist cannot see for itself (it has no
+ *  terrain). `onGround` is `supportedContact` of the aircraft against the
+ *  surface under it at the START of the step, the same test that gates the
+ *  ground control regime in `step`. */
+export interface AssistContext {
+  readonly onGround: boolean
+}
+
+/** The context of an aircraft in the air, or of a caller with no terrain. */
+export const AIRBORNE: AssistContext = { onGround: false }
 
 /** What an `Assist` hands back: what to fly this step, and what to remember
  *  for the next one. */
@@ -705,7 +717,12 @@ function stepAircraftEntity<M>(
   // With no wind this IS `entity.state`, the same object, so the calm path
   // is bit-identical (`tests/assists/windFrame.test.ts` pins the identity).
   const airState = wind == null ? entity.state : { ...entity.state, velocity: airVelocity(entity.state, wind) }
-  const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory)
+  const groundAtStart = groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z)
+  const assistContext: AssistContext = {
+    onGround: groundAtStart !== null
+      && supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity),
+  }
+  const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory, assistContext)
   let current = stepper(storesSpec(damagedSpec(entity.spec, damage), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
   if (damage.fuel < 1 && entity.spec.combat !== undefined) {
     current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
@@ -754,7 +771,7 @@ function stepAircraftEntity<M>(
   // above ground and have it read as a normal landing.
   const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
   if (ground !== null) {
-    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity)) {
+    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
       const impact: Impact = {
         tick: current.tick,
         position: current.position,
@@ -918,7 +935,7 @@ export function advance<M>(
       // carry the `!== null` narrowing into the spawn loop below.
       let m: MissionState<M> = stepped.mission
       for (const groupId of stepped.spawns) {
-        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m }, groupId)
+        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m, terrain: world.terrain }, groupId)
         aircraft = spawned.aircraft
         ships = spawned.ships
         combat = spawned.combat

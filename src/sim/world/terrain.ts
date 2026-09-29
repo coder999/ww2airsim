@@ -1,4 +1,5 @@
 import { samplesAtLevel, type TerrainHeader } from './schema.js'
+import type { CoverField } from './cover.js'
 
 /**
  * A terrain field usable by the physics layer: one pyramid level's heights,
@@ -17,6 +18,11 @@ export type TerrainField = {
   readonly samples: number
   readonly spacingM: number
   readonly heightsDm: Int16Array
+  /** Land cover over the same box, when it has loaded. Optional and absent
+   *  from `createTerrainField`: the raster arrives separately and is attached
+   *  by the caller (`{ ...field, cover }`). Absent means every land point is
+   *  `unclassified` and judged as all land was before cover existed. */
+  readonly cover?: CoverField | null
 }
 
 /** Height below which there is no land: `heightAt` returns this for any

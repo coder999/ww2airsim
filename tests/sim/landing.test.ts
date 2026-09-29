@@ -5,6 +5,7 @@ import { createState } from '../../src/sim/flight/state.js'
 import { airspeed, DT } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
+import { wheelDepthOf } from '../../src/sim/gearContact.js'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
 import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
@@ -181,7 +182,9 @@ describe('an approach flown into Tacloban', () => {
     expect(Math.abs(rest.position.z - TACLOBAN_Z)).toBeLessThan(RUNWAY_LENGTH_M / 2)
     // Still on its wheels at rest, not resting on something else.
     const restGroundM = heightAt(terrain, rest.position.x, rest.position.z)
-    expect(rest.position.y - f6f.gear.heightM - restGroundM).toBeLessThan(GROUND_CONTACT_TOLERANCE_M)
+    // Through the attitude it rests at (T1, 2026-09-28): at the 9.45 deg rest
+    // pitch the wheels are 2.285 m below the origin, not `gear.heightM`'s 2.42.
+    expect(Math.abs(rest.position.y - wheelDepthOf(f6f, rest) - restGroundM)).toBeLessThan(GROUND_CONTACT_TOLERANCE_M)
 
     expect(tracking.report, 'no landing report').not.toBeNull()
     expect(tracking.report!.at).toEqual({ kind: 'airfield', id: 'tacloban', name: 'Tacloban' })
@@ -194,12 +197,24 @@ describe('an approach flown into Tacloban', () => {
     // Re-recorded 2026-09-27 (sortie forms A4): gear.heightM 2.2 -> 2.42 to
     // match the Hellcat's own drawn model; with 2.2 the old figures reproduce
     // exactly, so the change is the content, not the northbound path.
+    // Re-recorded 2026-09-28 (T1 ground handling, Task 4): restZ
+    // -47668.7629 -> -47686.6756, sink 1.349220 -> 1.350419, speed
+    // 37.733250 -> 37.714176. Sink and speed moved when contact depth began
+    // to follow pitch (T1 Task 2: the wheels meet the runway at the flare
+    // attitude, not at gear.heightM); restZ moved a further 17.5 m north when
+    // the ground pitch model (Task 3) replaced the drawn stance and the speed
+    // gate, so the rollout's pitch now changes as it slows. restX unchanged.
+    // Re-recorded again 2026-09-28 (derived ground pitch ceiling): restZ
+    // -47686.6756 -> -47686.4910 (0.18 m); sink, speed and restX unchanged. The
+    // rollout's pitch ceiling rose from 9.45 to 12.60 degrees, which changes
+    // the wheel depth the rollout is seated at; the touchdown itself is airborne
+    // flight and does not read the ground ceiling.
     expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
       {
         "restX": -29666,
-        "restZ": -47668.762937158266,
-        "touchdownSinkMps": 1.3492201610483654,
-        "touchdownSpeedMps": 37.73324983011295,
+        "restZ": -47686.49097489367,
+        "touchdownSinkMps": 1.3504191060115247,
+        "touchdownSpeedMps": 37.71417640522327,
       }
     `)
   })

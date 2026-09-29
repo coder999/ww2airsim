@@ -15,6 +15,7 @@ import { loadAircraftSpec, loadAirfield, loadScenarioBundle } from '../../tools/
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul, qNormalize, qRotate } from '../../src/sim/math/quat.js'
+import { restPitchRad, wheelDepthM, wheelDepthOf } from '../../src/sim/gearContact.js'
 import { playerAircraft } from '../../src/sim/loop.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
@@ -565,18 +566,30 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
 
     const rollDistanceM = Math.hypot(playerAircraft(f.world).state.position.x - startX, playerAircraft(f.world).state.position.z - startZ)
 
-    // Phase 2: rotate -- hold nose-up for 1.5 s, matched to this airframe's
-    // `rates.maxPitchRateDegPerSec`-scale response, then release to neutral
-    // and let it fly itself off. A full, indefinitely-held deflection
-    // over-rotates into a climbing stall and porpoises back into the water
-    // (observed manually while building this test); a bounded rotation
-    // input, released once commanded, is what an actual pilot does and is
-    // what this asserts stays crash-free.
-    const ROTATE_TICKS = 90
-    for (let i = 0; i < ROTATE_TICKS; i++) {
+    // Phase 2: rotate -- hold nose-up until the wheels leave the runway, then
+    // release to neutral and let it fly itself off. A full, indefinitely-held
+    // deflection over-rotates into a climbing stall and porpoises back into
+    // the water (observed manually while building this test); a rotation
+    // released once the airplane is flying is what an actual pilot does and
+    // is what this asserts stays crash-free.
+    //
+    // Held until lift-off rather than for a fixed 1.5 s since T1
+    // (2026-09-28): on the wheels the pitch is capped at the derived
+    // ground ceiling (`groundPitchCeilingRad`, 12.6 degrees for the F6F), and a neutral stick on the roll brings the tail
+    // back up toward level (`groundBodyRates`), so a pull released before the
+    // wheels leave sets the airplane back down level. The old fixed pull
+    // rotated past that ceiling on the runway, which the ground
+    // no longer allows. Capped, so a never-lifting airplane fails here.
+    const ROTATE_MAX_TICKS = 60 * 10
+    const wheelsClearM = () => {
+      const s = playerAircraft(f.world).state
+      return s.position.y - wheelDepthOf(f6f, s) - heightAt(terrain, s.position.x, s.position.z)
+    }
+    for (let i = 0; i < ROTATE_MAX_TICKS && wheelsClearM() <= GROUND_CONTACT_TOLERANCE_M; i++) {
       f = nextFrameState(f, 1 / 60, keys('Equal', 'ArrowDown'))
       expect(playerAircraft(f.world).impact, `impact recorded while rotating, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
     }
+    expect(wheelsClearM(), 'never lifted off within the rotation cap').toBeGreaterThan(GROUND_CONTACT_TOLERANCE_M)
 
     // Phase 3: confirm genuine separation from the runway -- height above
     // the real ground clears contact tolerance and STAYS clear for a
@@ -590,13 +603,11 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
       f = nextFrameState(f, 1 / 60, keys('Equal'))
       expect(playerAircraft(f.world).impact, `impact recorded during the climb-out, tick ${playerAircraft(f.world).state.tick}`).toBeNull()
       // Task 15: the WHEELS' height above ground is what "airborne" means --
-      // `position.y` is the body origin, which sits `f6f.gear.heightM` above
+      // `position.y` is the body origin, which sits the wheel depth above
       // the wheels even while parked, so that raw difference alone would read
-      // as "airborne" from the very start of the roll.
-      const heightAboveGroundM =
-        playerAircraft(f.world).state.position.y -
-        f6f.gear.heightM -
-        heightAt(terrain, playerAircraft(f.world).state.position.x, playerAircraft(f.world).state.position.z)
+      // as "airborne" from the very start of the roll. The depth at the
+      // current pitch (`wheelDepthOf`, T1), not the level `gear.heightM`.
+      const heightAboveGroundM = wheelsClearM()
       clearTicks = heightAboveGroundM > GROUND_CONTACT_TOLERANCE_M ? clearTicks + 1 : 0
       if (clearTicks >= SUSTAINED_TICKS) airborneTick = playerAircraft(f.world).state.tick
     }
@@ -663,7 +674,11 @@ describe('take-off from the real Tacloban ground spawn (Task 14 verification)', 
     // North is -z. The roll must be overwhelmingly along that axis: the
     // airplane has no directional stability on the ground yet (Plan 11a's
     // handoff records a taxi turn reaching 113.6 deg of sideslip), so this is
-    // deliberately a ratio rather than a tight bound on `acrossM`.
+    // deliberately a ratio rather than a tight bound on `acrossM`. The ratio
+    // is 1/10 again: T1 Task 5 (2026-09-28) loosened it to 1/5 while engine
+    // torque swung a hands-off roll, and Mark's ruling the same day set
+    // `gear.torqueYawRateDegPerSec` to 0 (arcade feel), so the roll tracks
+    // straight and the original bound holds.
     expect(alongM).toBeGreaterThan(100)
     expect(acrossM).toBeLessThan(alongM / 10)
   })
@@ -747,7 +762,7 @@ describe('a multi-entity frame (Plan 12)', () => {
     f = settleOnTerrain(withTerrain(f, terrain), terrain)
     for (const a of f.world.aircraft) {
       const ground = heightAt(terrain, a.state.position.x, a.state.position.z)
-      expect(a.state.position.y).toBeCloseTo(ground + a.spec.gear.heightM, 9)
+      expect(a.state.position.y).toBeCloseTo(ground + wheelDepthM(a.spec.gear, restPitchRad(a.spec.gear)), 9)
       expect(a.previous.position.y).toBe(a.state.position.y)
     }
     f = nextFrameState(f, 1 / 60, new Set())
@@ -772,7 +787,7 @@ describe('a multi-entity frame (Plan 12)', () => {
     const quals = loadScenarioBundle('deck-quals')
     let f = settleOnTerrain(initialFrameStateFor(worldFromScenario(quals, terrain)), terrain)
     const deck = decksOf(f.world.ships)[0]!
-    expect(f.render.position.y).toBeCloseTo(deck.center.y + playerAircraft(f.world).spec.gear.heightM, 6)
+    expect(f.render.position.y).toBeCloseTo(deck.center.y + wheelDepthM(playerAircraft(f.world).spec.gear, restPitchRad(playerAircraft(f.world).spec.gear)), 6)
     const start = deckLocal(deck, f.render.position.x, f.render.position.z)
     for (let i = 0; i < 60 * 10; i++) f = nextFrameState(f, 1 / 60, new Set())
     const now = decksOf(f.world.ships)[0]!

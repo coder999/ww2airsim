@@ -29,7 +29,7 @@ Ground and water contact now ends the flight (Plan 10, below). And the
 airplane now starts **parked on a runway at Tacloban and takes off from it**
 (Plan 11a): the ground is a surface it rolls on rather than one it falls
 through. Gear that takes seconds to move and costs drag while it hangs out,
-rolling friction and wheel brakes, a tailwheel that steers until the tail
+rolling friction and wheel brakes (`B`), a tailwheel that steers until the tail
 comes up, and a visual strip draped over the real heightfield — running
 north-south, because east-west through the airfield runs into the sea. The
 graded historical take-off card measures that real ground now instead of a
@@ -74,6 +74,25 @@ Tacloban. Tracers, hit flashes, engine smoke, a combat readout and gun audio
 read that state. The
 [handoff](docs/handoff/2026-09-19-plan6-gunnery.md) records what was measured
 and master spec §15 holds the status.
+
+**W1 gave the Wildcat a real F4F-4 flight model (2026-09-28):** sourced
+figures, a drawing at its real span and parked angle, a racks-only loadout, and
+one graded card suite for every aircraft. It is on branch `worktree-w1-wildcat`;
+[aircraft.md](docs/aircraft.md) is the onboarding runbook and master spec §15
+holds the status.
+
+**T1 gave the aircraft believable ground handling (2026-09-28):** the rest
+attitude is derived from a gear layout in each spec, the tail rises with
+airflow instead of a speed gate, and the taxi has rudder with prop wash, a
+and a locking caster. The ground pitch ceiling comes from each
+aircraft's lift curve (liftoff near 1.1 x clean stall speed); the GAMEPLAY.md
+"Takeoff" section has the measured speeds. On the wheels the arrow keys and A/D
+(roll in the air) **steer**, and Z/X (rudder) steer too; roll never banks the
+airplane on the wheels. There are no differential brakes (Mark's ruling,
+2026-09-28). It is on
+branch `worktree-t1-tailwheel`; the [handoff](docs/handoff/2026-09-28-t1-ground-handling.md)
+lists what was measured and what is open, [aircraft.md](docs/aircraft.md) has
+the onboarding step, and master spec §15 holds the status.
 
 **Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
 loadout picker, stores hung under the wings, ship and airfield-structure
@@ -124,6 +143,23 @@ Library building and vehicle now has a model in the Hangar, and nothing in
 the Library is left undrawn; the airfields in the game keep their procedural
 boxes. The [handoff](docs/handoff/2026-09-28-r4-r5-roster.md) records what was
 measured; master spec §15 holds the status.
+
+**Model detail pass DP0 landed 2026-09-28:** Blender
+models can now carry a baked skin (paint, markings, panel lines and scan
+detail), and the Ki-84 and the hangar are the first two to have one. The
+[handoff](docs/handoff/2026-09-28-dp0-skin-pipeline.md) records what was
+measured; master spec §15 holds the status.
+
+**Model detail pass DP2 landed 2026-09-28 and is merged into local `main`:** every
+ship is now skinned, the three Blender ships detailed to the downloads' level,
+and the four print-model downloads box-projected. The
+[handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
+master spec §15 holds the status.
+
+**Model detail pass DP1 landed 2026-09-29 and is merged into local `main`:** the
+Ki-21, P-38 and B-29 are rebuilt to the Ki-84's level of geometry and carry
+baked skins. The [handoff](docs/handoff/2026-09-28-dp1-aircraft.md) records what
+was measured; master spec §15 holds the status.
 
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
@@ -189,6 +225,10 @@ green. See the
 
 **Plan 7f formation, wingmen and escort is complete on branch `worktree-ai-7f-formation` (2026-09-27), not yet merged.** A wingman holds a finger-four station off a leader through one station-keeping law, splits to cover the leader when a hostile threatens it or the leader is firing, and comes back to station once the threat clears. A wingman whose leader is lost takes on the leader's own route; a wingman whose leader is parked loiters until it actually leaves the ground. `furball-range`'s `ally-1` now flies as the player's wingman. Tier 1 only; Tier 2 waits on the sortie forms landing on `main`. See the [handoff](docs/handoff/2026-09-27-plan7f-formation.md); master spec §15 holds the status and open items.
 
+**Plan 7g landing AI is complete on branch `worktree-ai-7g-landing` (2026-09-28), not yet merged.** An AI with a `home` (a runway airfield or a carrier) goes home when it is out of ammunition, damaged, low on fuel or idle, flies an approach under the LSO's rules, goes around when it must, lands, and is respotted on a park spot. `recovery-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7g-landing.md); master spec §15 holds the status and open items.
+
+**Plan 7h AI takeoff is complete on branch `worktree-ai-7h-takeoff` (2026-09-28), not yet merged.** A parked AI with `pilot.takeoff` rolls, lifts off and hands off to the ordinary AI; Airfield Strike's defenders now scramble off Dulag's runway. `takeoff-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7h-takeoff.md); master spec §15 holds the status and open items.
+
 **Friendly fire and dishonorable discharge are complete and merged to `main` (2026-09-26).** Ships and airfield structures now have a side too. Damage to your own side scores nothing, and any of it forfeits everything since the last landing. A pilot who survives the sortie gets DISHONORABLE DISCHARGE, and the roster marks him DISCHARGED until he is resurrected; one who dies is K.I.A., since the dead cannot be discharged. The first friendly hit plays a radio call on the radio line, and the combat readout keeps a FRIENDLY FIRE tag. `friendly-fire-range` ("Friendly Fire (dev)") is the test bed. See the [handoff](docs/handoff/2026-09-26-friendly-fire.md); master spec §15 holds the status.
 
 **The A6M Zero flies, headless (Z2, 2026-09-25):**
@@ -249,6 +289,15 @@ the old chase view. The rules are in the
 [orbit camera spec](docs/superpowers/specs/2026-09-27-orbit-camera-design.md)
 and its [handoff](docs/handoff/2026-09-27-orbit-camera.md); master spec §15
 holds the status, with Instant Replay next.
+
+**Instant Replay is complete and merged into main (2026-09-28).** A crash or
+shoot-down holds for three seconds, replays the final moments once, then opens
+the debrief; **Watch replay** runs it again. While paused, K replays the last
+10 seconds. During replay: Space plays/pauses, Left/Right steps, 1/2/3 select
+0.5×/1×/3×, C or 4–9 selects Auto/Orbit/Flyby/Target/Cockpit/Manual, O toggles
+Orbit spin, L locks Manual on the airplane, WASD/Q/E moves Manual, and Esc
+returns or skips. See the [Instant Replay handoff](docs/handoff/2026-09-27-instant-replay.md)
+and [master spec §15](docs/superpowers/specs/2026-09-12-ww2airsim-design.md#15-first-steps).
 
 The title's **Library** opens the separate Hangar catalog described in
 [GAMEPLAY.md's Library section](GAMEPLAY.md#library). Its delivered scope and
