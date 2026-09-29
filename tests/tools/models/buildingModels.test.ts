@@ -19,7 +19,7 @@ import { nodeHangarContent } from '../../render/hangar/content.js'
 /** Spec §4.4. An entry may budget above it only with a measured reason, here and in the ledger. */
 const BUILDING_BUDGET = { maxBytes: 500_000, maxTriangles: 5000, maxDrawCalls: 4 } as const
 // DP3: ids already skinned (three atlas textures); Task 7 deletes this when all nine are.
-const SKINNED = new Set<string>(['revetment', 'ammunition-bunker', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'tower', 'radio-radar-station'])
+const SKINNED = new Set<string>(['revetment', 'ammunition-bunker', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'tower', 'radio-radar-station', 'barracks-and-huts', 'pier-and-warehouses'])
 const RAISED: Readonly<Record<string, string>> = {}
 
 /** Every building R4 authored. Each task appends its own. */
