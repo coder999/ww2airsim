@@ -14,7 +14,8 @@ describe('buildCatalog', () => {
     expect(kinds.indexOf('building')).toBeGreaterThan(kinds.lastIndexOf('ship'))
     const aircraft = catalog.filter((e) => e.library.kind === 'aircraft')
     const firstOut = aircraft.findIndex((e) => e.subject === null)
-    expect(aircraft.slice(firstOut).every((e) => e.subject === null)).toBe(true)
+    // Once every airframe is flyable there is no model-only card left, and the ordering rule holds vacuously.
+    if (firstOut >= 0) expect(aircraft.slice(firstOut).every((e) => e.subject === null)).toBe(true)
   })
 
   it('resolves a building kind to every placement across content/bases', () => {
