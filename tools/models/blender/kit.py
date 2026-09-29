@@ -386,7 +386,8 @@ class Model:
                 charts.append((side, ((U[s], V[s][j]), (U[s], V[s][j + 1]), (U[s + 1], V[s + 1][j + 1]), (U[s + 1], V[s + 1][j]))))
         verts = [p for ring in rings for p in ring]
         last = (len(rings) - 1) * count
-        # Caps always stay with the loft's main role (_emit), so inside shared_chart() they key on it.
+        # Caps always stay with the loft's main role (_emit), so inside shared_chart() they key on it
+        # (hull_lines splits its caps at the waterline and keeps this key on both halves).
         charts.extend(self._planar_charts(verts, [tuple(reversed(range(count))), tuple(last + j for j in range(count))], role))
         return charts, side, U, V
 
