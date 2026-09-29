@@ -111,6 +111,9 @@ export type Bus = keyof typeof BUS_GAIN
  *  per-layer filter. */
 export const FILTER_OPEN_HZ = 20_000
 
+/** Q for lowpass/highpass biquads is read in dB; -3.0103 dB is Butterworth-flat (linear 1/sqrt(2)), no resonant bump. */
+export const BIQUAD_FLAT_Q_DB = -3.0103
+
 /** The radio chain's pass band (spec §5.3) and how hard its soft clipper is
  *  driven. */
 export const RADIO_BAND_LOW_HZ = 400
@@ -121,9 +124,9 @@ export type View = 'cockpit' | 'chase'
 
 /** What the cabin stage does to the mix in one view (spec §2). The world
  *  buses go through one lowpass and gain; the radio through its own. The
- *  initial numbers are deliberately mild, reasoned guesses: the default view is
- *  chase and today's mix must not change audibly until Mark has flown the
- *  presets and tuned them. */
+ *  chase world stage is fully open at unity gain (the previous sound; the default
+ *  view is chase), while the cockpit numbers are reasoned guesses until Mark has
+ *  flown and tuned them. */
 export type CabinPreset = {
   readonly worldLowpassHz: number
   readonly worldGain: number
@@ -133,7 +136,7 @@ export type CabinPreset = {
 
 export const CABIN_PRESETS: Readonly<Record<View, CabinPreset>> = {
   cockpit: { worldLowpassHz: 9_000, worldGain: 1, radioLowpassHz: 20_000, radioGain: 1 },
-  chase: { worldLowpassHz: 16_000, worldGain: 0.9, radioLowpassHz: 2_200, radioGain: 0.7 },
+  chase: { worldLowpassHz: FILTER_OPEN_HZ, worldGain: 1, radioLowpassHz: 2_200, radioGain: 0.7 },
 }
 
 /** Crossfade time constant when the view changes. */

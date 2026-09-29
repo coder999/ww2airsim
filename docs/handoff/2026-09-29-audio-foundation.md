@@ -43,6 +43,8 @@ passed). None of the failures is in audio code; how each was established:
 - Radio squelch and static: sub-project 4.
 - Listener wiring to the camera, and Doppler: sub-project 5. `setListener` exists
   but nothing calls it per frame yet.
+- Per-bus snapshot fields were not added (bus membership is asserted in the Tier 1 fake,
+  tests/audio/buses.test.ts); they would land with sub-project 2 if Tier 2 needs them.
 
 ## Trap list
 
@@ -53,6 +55,8 @@ passed). None of the failures is in audio code; how each was established:
 - **Deliberate deviation: every loop gets a 20 kHz per-layer lowpass, held open**
   (`FILTER_OPEN_HZ`), so later layers can close it without restructuring the graph.
   At 20 kHz it is inaudible.
+- The radio soft-clip curve tanh(2x)/tanh(2) has small-signal gain of about 2.07 (+6.3 dB) and
+  nothing uses the radio bus yet, so the sub-project 4 gain budget must account for it.
 - Any new `LAYERS` row needs its clip in `AUDIO_ASSETS` and a budget line.
 
 ## Mark's listening checkpoint (final product only; unattended, so not yet done)

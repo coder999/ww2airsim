@@ -1,6 +1,6 @@
 import type { ClipId } from './assets.js'
 import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position } from './backend.js'
-import { BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, PANNER_REF_DISTANCE_M, type Bus, type CabinPreset } from './mix.js'
+import { BIQUAD_FLAT_Q_DB, BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, PANNER_REF_DISTANCE_M, type Bus, type CabinPreset } from './mix.js'
 
 /**
  * The only file under `src/` that touches Web Audio, which
@@ -41,6 +41,7 @@ export function createWebAudioBackend(): AudioBackend {
   const worldFilter = context.createBiquadFilter()
   worldFilter.type = 'lowpass'
   worldFilter.frequency.value = start.worldLowpassHz
+  worldFilter.Q.value = BIQUAD_FLAT_Q_DB
   const worldGain = context.createGain()
   worldGain.gain.value = start.worldGain
   worldFilter.connect(worldGain)
@@ -49,9 +50,11 @@ export function createWebAudioBackend(): AudioBackend {
   const radioHigh = context.createBiquadFilter()
   radioHigh.type = 'highpass'
   radioHigh.frequency.value = RADIO_BAND_LOW_HZ
+  radioHigh.Q.value = BIQUAD_FLAT_Q_DB
   const radioLow = context.createBiquadFilter()
   radioLow.type = 'lowpass'
   radioLow.frequency.value = RADIO_BAND_HIGH_HZ
+  radioLow.Q.value = BIQUAD_FLAT_Q_DB
   const radioShaper = context.createWaveShaper()
   radioShaper.curve = softClipCurve(RADIO_DRIVE) as Float32Array<ArrayBuffer>
   radioHigh.connect(radioLow)
@@ -59,6 +62,7 @@ export function createWebAudioBackend(): AudioBackend {
   const radioCabinFilter = context.createBiquadFilter()
   radioCabinFilter.type = 'lowpass'
   radioCabinFilter.frequency.value = start.radioLowpassHz
+  radioCabinFilter.Q.value = BIQUAD_FLAT_Q_DB
   const radioCabinGain = context.createGain()
   radioCabinGain.gain.value = start.radioGain
   radioShaper.connect(radioCabinFilter)
@@ -97,6 +101,7 @@ export function createWebAudioBackend(): AudioBackend {
       const filter = context.createBiquadFilter()
       filter.type = 'lowpass'
       filter.frequency.value = FILTER_OPEN_HZ
+      filter.Q.value = BIQUAD_FLAT_Q_DB
       // Starts silent: the system writes the real gain immediately after, and a
       // default of 1 would glide down from full volume for ~50 ms first.
       const gain = context.createGain()

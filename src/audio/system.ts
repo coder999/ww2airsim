@@ -188,6 +188,8 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       }
     },
 
+    /** Bypasses the reducer: no replay-rate scaling or scrub silence here. The caller must
+     *  supply its own edge memory, pass the replay rate, and skip frames where the replay jumped. */
     playAt(clip: ClipId, at: Position, rate = 1): void {
       // Same rules as any cue: silent while held, never a failed clip, never
       // a NaN position (a non-finite value on a PannerNode throws).

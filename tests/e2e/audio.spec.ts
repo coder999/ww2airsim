@@ -116,7 +116,7 @@ test('going into the sea fires ONE cue, and a restart fires none', async ({ page
   expect(await cues(), 'a respawn is not a landing').toBe(1)
 })
 
-test('the engine runs as a named layer on the engine bus, and the view follows the camera', async ({ page }) => {
+test('the engine layer starts, and the view follows the camera', async ({ page }) => {
   // The one thing no fake can know: the bus graph and cabin stage built by
   // src/audio/webAudio.ts accept the writes system.ts makes, in the shipped app.
   await page.goto('/')
