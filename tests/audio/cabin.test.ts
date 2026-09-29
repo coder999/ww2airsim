@@ -10,6 +10,11 @@ describe('cabin presets (spec §2: cockpit and chase are different mixes)', () =
     expect(CABIN_PRESETS.chase.radioGain).toBeLessThan(CABIN_PRESETS.cockpit.radioGain)
   })
 
+  it('makes the engine louder and effects quieter in the cockpit, since a lowpass cannot separate the engine', () => {
+    expect(CABIN_PRESETS.cockpit.engineTrim).toBeGreaterThan(CABIN_PRESETS.chase.engineTrim)
+    expect(CABIN_PRESETS.cockpit.sfxTrim).toBeLessThan(CABIN_PRESETS.chase.sfxTrim)
+  })
+
   it('never puts a preset gain above 1 or a cutoff at or below zero', () => {
     for (const p of Object.values(CABIN_PRESETS)) {
       expect(p.worldGain).toBeGreaterThan(0)

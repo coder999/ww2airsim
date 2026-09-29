@@ -69,6 +69,14 @@ export function createWebAudioBackend(): AudioBackend {
   radioCabinFilter.connect(radioCabinGain)
   radioCabinGain.connect(master)
 
+  // Per-view trims sit between the engine and sfx buses and the world stage.
+  const engineTrim = context.createGain()
+  engineTrim.gain.value = start.engineTrim
+  engineTrim.connect(worldFilter)
+  const sfxTrim = context.createGain()
+  sfxTrim.gain.value = start.sfxTrim
+  sfxTrim.connect(worldFilter)
+
   const busNode = (bus: Bus, into: AudioNode): GainNode => {
     const node = context.createGain()
     node.gain.value = BUS_GAIN[bus]
@@ -76,8 +84,8 @@ export function createWebAudioBackend(): AudioBackend {
     return node
   }
   const buses: Record<Bus, GainNode> = {
-    engine: busNode('engine', worldFilter),
-    sfx: busNode('sfx', worldFilter),
+    engine: busNode('engine', engineTrim),
+    sfx: busNode('sfx', sfxTrim),
     ambient: busNode('ambient', worldFilter),
     radio: busNode('radio', radioHigh),
   }
@@ -180,6 +188,8 @@ export function createWebAudioBackend(): AudioBackend {
       const now = context.currentTime
       worldFilter.frequency.setTargetAtTime(preset.worldLowpassHz, now, glideTauS)
       worldGain.gain.setTargetAtTime(preset.worldGain, now, glideTauS)
+      engineTrim.gain.setTargetAtTime(preset.engineTrim, now, glideTauS)
+      sfxTrim.gain.setTargetAtTime(preset.sfxTrim, now, glideTauS)
       radioCabinFilter.frequency.setTargetAtTime(preset.radioLowpassHz, now, glideTauS)
       radioCabinGain.gain.setTargetAtTime(preset.radioGain, now, glideTauS)
     },

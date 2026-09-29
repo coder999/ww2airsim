@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { AUDIO_ASSETS, assetFor } from '../../src/audio/assets.js'
-import { ENGINE_GAIN_MAX, MASTER_GAIN, worstCaseAmplitude } from '../../src/audio/mix.js'
+import { CABIN_PRESETS, ENGINE_GAIN_MAX, MASTER_GAIN, worstCaseAmplitude } from '../../src/audio/mix.js'
 import { readWav } from '../../tools/audio/wav.js'
 
 const repoPath = (rel: string): string => fileURLToPath(new URL(`../../${rel}`, import.meta.url))
@@ -34,6 +34,18 @@ describe('the audio asset table (design §3, §5.1)', () => {
       if (clip.id === 'propeller') continue
       const worst = MASTER_GAIN * worstCaseAmplitude(clip.cueGain, clip.peakFullScale, ENGINE_GAIN_MAX * enginePeak)
       expect(worst, `${clip.id} clips against a full-throttle engine`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('leaves the same headroom in every cabin preset once the bus trims apply', () => {
+    const enginePeak = assetFor('propeller').peakFullScale
+    for (const [view, preset] of Object.entries(CABIN_PRESETS)) {
+      for (const clip of AUDIO_ASSETS) {
+        if (clip.id === 'propeller') continue
+        const worst = MASTER_GAIN * preset.worldGain *
+          (clip.cueGain * clip.peakFullScale * preset.sfxTrim + ENGINE_GAIN_MAX * enginePeak * preset.engineTrim)
+        expect(worst, `${clip.id} clips in ${view}`).toBeLessThanOrEqual(1)
+      }
     }
   })
 })

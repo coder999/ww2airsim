@@ -72,5 +72,5 @@ Fly with the engine at several throttles in chase, press `C` to reach cockpit an
 back, and confirm:
 
 1. The engine and gunfire still sound as before in chase.
-2. Cockpit is a touch duller.
+2. Cockpit has a louder, closer engine (+3 dB) and quieter effects (-3 dB). A lowpass alone was inaudible: measured 2026-09-29, the propeller clip has 0.09% of its energy above 9 kHz and 90% below 163 Hz, so Mark heard no engine difference between views on the first build. Cockpit trims are guesses.
 3. The switch crossfades without a click.

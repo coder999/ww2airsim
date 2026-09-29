@@ -130,13 +130,18 @@ export type View = 'cockpit' | 'chase'
 export type CabinPreset = {
   readonly worldLowpassHz: number
   readonly worldGain: number
+  /** Linear multipliers on the engine and sfx buses ahead of the world stage.
+   *  The lowpass cannot separate the views for the engine (the propeller clip
+   *  has under 0.1% of its energy above 9 kHz), so level is the lever. */
+  readonly engineTrim: number
+  readonly sfxTrim: number
   readonly radioLowpassHz: number
   readonly radioGain: number
 }
 
 export const CABIN_PRESETS: Readonly<Record<View, CabinPreset>> = {
-  cockpit: { worldLowpassHz: 9_000, worldGain: 1, radioLowpassHz: 20_000, radioGain: 1 },
-  chase: { worldLowpassHz: FILTER_OPEN_HZ, worldGain: 1, radioLowpassHz: 2_200, radioGain: 0.7 },
+  cockpit: { worldLowpassHz: 9_000, worldGain: 1, engineTrim: 1.4, sfxTrim: 0.7, radioLowpassHz: 20_000, radioGain: 1 },
+  chase: { worldLowpassHz: FILTER_OPEN_HZ, worldGain: 1, engineTrim: 1, sfxTrim: 1, radioLowpassHz: 2_200, radioGain: 0.7 },
 }
 
 /** Crossfade time constant when the view changes. */
