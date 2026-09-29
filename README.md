@@ -275,7 +275,7 @@ art with **New game** and **About project**. The world boots behind it and is
 held until New game (Enter also works), which is the click that unlocks audio
 on a first visit. [Handoff](docs/handoff/2026-09-19-title-screen.md).
 
-**Audio foundation landed 2026-09-29 on branch `worktree-audio-foundation`, not yet merged:** engine, effects and ambient buses, named looping layers, a cockpit/chase cabin mix and positioned one-shots. See the [handoff](docs/handoff/2026-09-29-audio-foundation.md); master spec §15 holds the status, and the order of the rest is in `docs/superpowers/specs/2026-09-29-audio-expansion-design.md`.
+**Audio foundation landed 2026-09-29 (`verify` red for unrelated failures, see the handoff) on branch `worktree-audio-foundation`, not yet merged:** engine, effects and ambient buses, named looping layers, a cockpit/chase cabin mix and positioned one-shots. See the [handoff](docs/handoff/2026-09-29-audio-foundation.md); master spec §15 holds the status, and the order of the rest is in `docs/superpowers/specs/2026-09-29-audio-expansion-design.md`.
 
 **The title screen is four sequential memo forms (sortie forms, 2026-09-27)**,
 in the Naval Communications style: Squadron Roster, Sortie Orders (the

@@ -6,6 +6,23 @@ worktree `/home/mark/projects/ww2airsim-worktrees/audio-foundation`, branch
 `worktree-audio-foundation`. **Not merged into `main`, not deployed.** Master spec
 §15 (row 15a) holds the status.
 
+## Verification status (2026-09-29): `verify` is NOT green
+
+`remote-run npm run verify` returned rc=1 (3 failed of 354 files, 4088 tests
+passed). None of the failures is in audio code; how each was established:
+
+- `tests/sim/soak.test.ts` fails deterministically (3 of 200 flights sank
+  through the ground, e.g. seed 1337 by 4 m). It reproduced on a ryzen re-run and
+  on nexus. This branch has no `src/sim` diff. **Not checked on `main`.**
+- `tests/architecture/boundary.test.ts` and `tests/render/skyLoad.test.ts` hit
+  load timeouts under shared ryzen load and passed when re-run alone.
+- Tier 2 `tests/e2e/audio.spec.ts` (local nexus 680M): 4 passed, 1 failed,
+  1 skipped. The failure, "going into the sea fires ONE cue" (cuesFired 2),
+  reproduced identically on a detached worktree at `ad1fbcc`, the commit before
+  the audio work.
+- The three older Tier 2 tests still carry a stale "KeyP unbound" comment; KeyP
+  is now `toggleMissionMap`. The new test uses KeyY.
+
 ## What shipped
 
 - **Bus graph** (`src/audio/webAudio.ts`, `src/audio/mix.ts`): engine, sfx and
