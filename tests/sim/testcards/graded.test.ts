@@ -225,6 +225,13 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // = 198.73 m) at full flaps and the FG-1A's 83 mph lift-off, because the DS states neither; the flown FG-1A rolled 720 ft
   // (219.5 m), which the model is 3.2% under. Tolerances are about 1.4x to 2x each measurement.
   'f4u-corsair': { topSpeed: 0.03, topSpeedTable: 0.03, climb: 0.05, stall: 0.08, flapStall: 0.08, roll: 0.02, takeoff: { tol: 0.1, liftoffMps: 83 * MPH, flapFraction: 1 } },
+  // B-17G onboarding, measured 2026-09-29 at testMassKg 26,149.6 kg (57,650 lb) against the flown TSCEP5E-1909 table: top speed
+  // 117.95 vs 123.83 m/s (-4.75%) at 25,000 ft; table +1.73, -0.85, -2.91, -4.75%; climb -6.19% at sea level, table -2.57 and
+  // +6.62% at 10,000 and 15,000 ft (25,000 ft reads +55.6% and is not in the reference: the flown climb had cowl flaps open, the
+  // model has none, so no single cd0 fits both); stalls -7.58% clean and -7.66% flaps against the weight-scaled B-17F trial (clMax
+  // stays 1.4, R36); roll 20.0 vs its own estimate. Take-off distance is not graded (the reference is a W^2 scaling of one flown roll);
+  // the card runs the direction check only. Tolerances are about 1.4x to 1.5x each measurement, all inside the F6F's.
+  'b-17-flying-fortress': { topSpeed: 0.07, topSpeedTable: 0.07, climb: 0.09, climbTable: 0.1, stall: 0.11, flapStall: 0.11, roll: 0.02, takeoff: { tol: 0.1, liftoffMps: 108 * MPH, flapFraction: 1 / 3 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

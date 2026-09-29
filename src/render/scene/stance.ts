@@ -35,4 +35,7 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-29 with the model leveled (normalize.pitchDeg -12.36 in its entry): mains at x 0.182, tailwheel
   // the first aft point to touch at 12.224 degrees, close to the real Zero's three-point attitude.
   'a6m2-zero': { mainWheelXM: 0.182, tailDownPitchRad: 12.224 * DEG },
+  // Measured 2026-09-29 (B-17G onboarding) after moving the entry's origin 0.354 m forward (quarter-chord to x 0),
+  // with the propellers and turrets excluded: mains at x 0.852, tailwheel the first aft point to touch at 7.200 degrees.
+  'b-17-flying-fortress': { mainWheelXM: 0.852, tailDownPitchRad: 0.12566 },
 }

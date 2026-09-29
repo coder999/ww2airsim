@@ -44,7 +44,7 @@ describe('gear contact geometry', () => {
   })
 })
 
-describe.each([['f6f-hellcat', 'f6f-hellcat'], ['f4f-wildcat', 'wildcat'], ['a6m2-zero', 'a6m2-zero'], ['f4u-corsair', 'f4u-corsair']] as const)(
+describe.each([['f6f-hellcat', 'f6f-hellcat'], ['f4f-wildcat', 'wildcat'], ['a6m2-zero', 'a6m2-zero'], ['f4u-corsair', 'f4u-corsair'], ['b-17-flying-fortress', 'b-17-flying-fortress']] as const)(
   '%s layout against the drawing',
   (id, model) => {
     const gear = loadAircraftSpec(id).gear
