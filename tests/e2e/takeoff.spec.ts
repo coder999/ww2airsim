@@ -9,8 +9,9 @@ const TACLOBAN_RUNWAY_CENTRE = loadAirfield('tacloban').runway.center
  * Tier 2, take-off. Same platform and caveats as `adapter.spec.ts`: a real
  * GPU on the Windows reference desktop, never hosted CI.
  *
- * **NOT EXECUTED as of 2026-09-17.** Written on nexus, which has no GPU a
- * browser can reach. Run it with:
+ * Written 2026-09-17 on nexus, before nexus had a GPU a browser could reach.
+ * Last run 2026-09-28 (T1 Task 4), locally on nexus's Radeon 680M against a
+ * worktree dev server: PASS in 32 s. Run it with:
  *
  *     npx playwright test tests/e2e/takeoff.spec.ts
  *
@@ -100,19 +101,37 @@ test('rolls off the Tacloban runway under full throttle and stays airborne', asy
   expect(alongM, 'the roll did not go north').toBeGreaterThan(ROTATE_AFTER_M / 2)
   expect(acrossM, 'the airplane wandered off the side of the strip').toBeLessThan(alongM / 10)
 
-  // Phase 2: rotate. A BOUNDED nose-up input, held about a second and a half
-  // and then released -- a full, indefinitely-held deflection over-rotates
-  // into a climbing stall and porpoises back into the ground, which
+  // Phase 2: rotate. A BOUNDED nose-up input, held until the wheels leave and
+  // then released -- a full, indefinitely-held deflection over-rotates into a
+  // climbing stall and porpoises back into the ground, which
   // `tests/render/frame.test.ts` records observing while it was built. This is
   // what a pilot does, and it is what must stay crash-free.
+  //
+  // Held until lift-off (capped at 10 s) rather than for a fixed 1.5 s since
+  // T1 (2026-09-28), matching `frame.test.ts`: on the wheels the pitch can no
+  // longer pass the rest (tail-strike) attitude, and a neutral stick on the
+  // roll brings the tail back up toward level (`groundBodyRates`), so a pull
+  // released before the wheels leave sets the airplane back down level. Run
+  // on nexus's 680M 2026-09-28, the fixed 1.5 s pull never got airborne.
   await page.keyboard.down('ArrowDown')
-  await page.waitForTimeout(1500)
+  await page.waitForFunction(
+    ([gearHeightM, toleranceM]) => {
+      const d = (window as DiagWindow).__ww2!
+      const groundM = d.groundHeightM()
+      return groundM !== null && !d.supportedContact() && d.aircraftPositionM().y - gearHeightM - groundM > toleranceM
+    },
+    [f6f.gear.heightM, GROUND_CONTACT_TOLERANCE_M] as const,
+    { timeout: 10_000 },
+  )
   await page.keyboard.up('ArrowDown')
 
   // Phase 3: genuinely off the ground and STAYING off it. Both halves matter:
   // `supportedContact()` going false alone would also be true of an airplane
   // that had just bounced, and a height check alone cannot tell the wheels
-  // from the body origin, which sits `gear.heightM` above them even parked.
+  // from the body origin, which sits the wheels' depth above them even parked.
+  // `gear.heightM` is that depth at level attitude; nose-up (T1: it follows
+  // pitch, `wheelDepthOf`) the real depth is smaller, so subtracting
+  // `gear.heightM` under-reads the clearance, the conservative side.
   await page.waitForFunction(
     ([gearHeightM, toleranceM]) => {
       const d = (window as DiagWindow).__ww2!

@@ -144,7 +144,10 @@ per synthetic fixture; a new aircraft passes it or does not ship:
 Constraints carried over: R36 (report a gap, never tune a coefficient to pass
 a card; graded tolerances only tighten). The F6F take-off card's -0.605% is
 two uncorroborated guesses cancelling (Plan 11a) and Phase A may move it; each
-move is recorded with its cause. `src/sim` keeps its import boundary and
+move is recorded with its cause. (Dated note, 2026-09-28, Task 4: -0.605% was
+the pre-11b clean figure; the card grades full flaps at 4%. Phase A moved it
+from +2.579% to +3.921%, cause and figures in `tests/sim/testcards/graded.test.ts`;
+the F4F card moved from -14.32% to -12.89%, inside its 20% reported gap.) `src/sim` keeps its import boundary and
 determinism; aircraft schema objects stay `.strict()`. Verification through
 `remote-run npm run verify`.
 

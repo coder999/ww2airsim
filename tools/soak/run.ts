@@ -550,16 +550,18 @@ export function runTerrainSoak(
     // speed and vertical rate are all deliberately narrow and inside
     // `supportedContact`'s gates (`src/sim/ground.ts`), not a smaller version
     // of `nearGround`'s wide-open ranges below.
-    // Task 15: `groundHeightM + spec.gear.heightM`, not bare `groundHeightM`,
-    // is now the height a RESTING airplane's body origin (`position.y`)
-    // actually sits at -- `onGround`/`restOnSurface` (src/sim/ground.ts)
+    // Task 15: ground height plus the wheels' depth below the origin, not
+    // bare `groundHeightM`, is the height a RESTING airplane's body origin
+    // (`position.y`) actually sits at -- `onGround`/`restOnSurface` (src/sim/ground.ts)
     // compare the gear-offset height for contact, not the raw one. The
     // landing cohort's whole point is spawning a couple of metres over the
     // spot it is meant to settle onto (see `LANDING_SPAWN_FRACTION`'s own
     // comment), so that spot has to move with the datum or every one of
     // these spawns starts already below the new contact surface by up to
-    // `spec.gear.heightM`, never getting close enough to trip
-    // `supportedContact` at all.
+    // the wheels' depth, never getting close enough to trip
+    // `supportedContact` at all. The depth is `wheelDepthM(spec.gear, 0)`
+    // because the spawn attitude is level (T1, 2026-09-28: contact depth
+    // follows pitch, `src/sim/gearContact.ts`).
     const altitude = landing
       ? groundHeightM + wheelDepthM(spec.gear, 0) + rng() * 2
       : nearGround
@@ -650,7 +652,7 @@ export function runTerrainSoak(
           // groundHeightM`) co-incide almost exactly with the tolerance band
           // -- a too-fast arrival could not linger there, since one more tick
           // of freefall put the body origin AT the ground and ended the
-          // flight. With `spec.gear.heightM` of clearance now between the
+          // flight. With the wheels' depth (`wheelDepthOf`) of clearance now between the
           // body origin and the wheels, a too-fast arrival can freefall
           // through the whole tolerance band -- and the ~2 m of gear
           // clearance beyond it -- for many ticks, repeatedly satisfying
@@ -665,11 +667,12 @@ export function runTerrainSoak(
             supportedContactTicks++
             // Task 15: compared against the gear-offset height, not the raw
             // one -- a resting airplane's body origin (`position.y`) sits
-            // `spec.gear.heightM` above the ground now, not on it, so the
+            // `wheelDepthOf(spec, state)` above the ground now, not on it
+            // (that depth follows pitch since T1, 2026-09-28), so the
             // "did not sink through" bound has to follow that same offset or
             // it is trivially true for any position above `gh -
             // GROUND_CONTACT_TOLERANCE_M`, which every normally resting
-            // airplane already satisfies by a margin of `spec.gear.heightM`.
+            // airplane already satisfies by a margin of the wheels' depth.
             if (!(player.state.position.y - wheelDepthOf(spec, player.state) >= gh - GROUND_CONTACT_TOLERANCE_M)) {
               failures.push(
                 `iteration ${n} (seed ${seed}, spawn x ${x.toFixed(0)} z ${z.toFixed(0)} alt ${altitude.toFixed(0)}): ` +

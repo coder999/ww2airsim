@@ -7,8 +7,9 @@ import { sub, length, ZERO, type Vec3 } from '../../src/sim/math/vec3.js'
  * Where an approach is aiming.
  *
  * `touchdownElevationM` is the TERRAIN height at the aim point, not an
- * altitude the airplane should reach: the wheels sit `spec.gear.heightM` above
- * it, and this module adds that itself.
+ * altitude the airplane should reach: the body origin sits the wheels' depth
+ * above it (`wheelDepthOf`, which follows pitch), and this module adds that
+ * itself.
  */
 export type ApproachTarget = {
   readonly aimX: number

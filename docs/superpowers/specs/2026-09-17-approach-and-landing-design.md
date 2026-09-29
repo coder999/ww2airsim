@@ -228,6 +228,12 @@ reports "no failures" indistinguishably from a working check.
 86.5 mph and 2700 RPM. The model matches it to **−0.605%** inside a tolerance
 that 11a *tightened* to 2%.
 
+> Dated note, 2026-09-28 (T1 ground handling, Task 4): this section's figures
+> are the pre-11b clean card. Measured with full flaps as the card now grades
+> it (`tests/sim/testcards/graded.test.ts`, tolerance 4%): +2.579% before T1,
+> +3.921% (239.148 m) after T1's derived rest attitude and airflow tail-lift,
+> nothing re-tuned. Clean, for comparison: −0.603% before T1, +0.061% after.
+
 That agreement is not fidelity, and `f6f-hellcat.json` says so at length: the
 model has no flaps, "which pushes a simulated roll shorter than a full-flaps
 trial roll", and no ground effect, "which pushes it longer". Two errors of

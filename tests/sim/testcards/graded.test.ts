@@ -157,6 +157,17 @@ export const CARDS: Readonly<Record<string, Card>> = {
        * 4% is the re-measured tolerance: 1.5x headroom over the measured 2.590%.
        * Tighter than the 10% this replaced two days ago and looser than the 2% it
        * replaces today, for a model that now measures the right configuration.
+       *
+       * RE-MEASURED 2026-09-28 (T1 ground handling, Task 4), not re-tuned
+       * (R36): the airplane now starts at its derived 9.45 deg rest attitude
+       * and the tail rises with airflow rather than at a speed gate, so part of
+       * the roll is flown tail-down at a higher angle of attack. Full flaps:
+       * 236.058 m (+2.579%, the T1 baseline 87f2c0d) -> 239.148 m (+3.921%);
+       * clean, for reference: 228.737 m (-0.603%) -> 230.264 m (+0.061%). The
+       * -0.605% quoted above and in f6f-hellcat.json is the CLEAN figure from
+       * before 11b, not what this card grades. +3.921% passes 4% with 0.08
+       * points to spare: the next change that lengthens the roll turns this
+       * card red, and the answer then is to report the gap, not to widen 4%.
        * Non-null: optional since Z2 (the A6M has no sourced figure); schema.test.ts pins that the F6F still carries 230.124 m.
        *
        * The companion "rolls longer with full flaps than clean" card is cheap,
@@ -203,6 +214,8 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // 16,300 ft +5.05%; stall +2.11% clean, +1.86% flaps; roll 67.998 vs 68. Take-off -14.32% at full
   // flaps and [5262]'s 73 mph lift-off: [4058] states neither its flap setting nor its lift-off
   // speed, so 20% is a reported gap (R36), not a fit.
+  // Re-measured 2026-09-28 (T1, Task 4; rest attitude and airflow tail-lift, nothing re-tuned):
+  // take-off 179.151 m (-14.32%) -> 182.142 m (-12.89%) at full flaps; clean 174.136 -> 176.064 m.
   'f4f-wildcat': { topSpeed: 0.05, topSpeedTable: 0.05, climb: 0.25, climbTable: 0.3, stall: 0.2, flapStall: 0.2, roll: 0.15, takeoff: { tol: 0.2, liftoffMps: 73 * MPH, flapFraction: 1 } },
 }
 
