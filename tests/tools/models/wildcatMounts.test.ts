@@ -40,7 +40,7 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
   })
 
   it('covers every wing-mounted stores-carrying spec, each on the model it draws (A4: the Hellcat on its own; the Corsair and the Zero likewise; the P-38 has ten rails and two racks hanging on its own wing outboard of the booms)', () => {
-    expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat'], ['ki-43-oscar', 'ki-43-oscar'], ['p-38-lightning', 'p-38-lightning']])
+    expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero'], ['f4f-wildcat', 'wildcat'], ['f4u-corsair', 'f4u-corsair'], ['f6f-hellcat', 'f6f-hellcat'], ['ki-43-oscar', 'ki-43-oscar'], ['ki-84-frank', 'ki-84-frank'], ['p-38-lightning', 'p-38-lightning']])
   })
 
   it('the only stores-carrying specs left out are the B-17 and the G4M, whose racks are internal', () => {

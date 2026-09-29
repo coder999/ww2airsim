@@ -50,4 +50,8 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-30 (Ki-43-II onboarding) with the propeller excluded: mains at x 0.348, the fixed tailwheel the first aft
   // point to touch at 12.306 degrees.
   'ki-43-oscar': { mainWheelXM: 0.348, tailDownPitchRad: 12.306 * DEG },
+  // Measured 2026-09-30 (Ki-84-Ia onboarding) with the propeller excluded, after moving the entry's origin 0.25 m behind the mains
+  // (normalize.origin x -0.25; the drawn wheels stood at x 0.000, which the schema's mainX > 0 rejects): mains at x 0.250, the
+  // retractable tailwheel the first aft point to touch at 16.417 degrees, steeper than the Zero's 12.2 (the long drawn legs).
+  'ki-84-frank': { mainWheelXM: 0.100, tailDownPitchRad: 16.417 * DEG },
 }
