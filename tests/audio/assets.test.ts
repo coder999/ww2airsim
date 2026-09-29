@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { AUDIO_ASSETS, assetFor } from '../../src/audio/assets.js'
+import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 import { CABIN_PRESETS, ENGINE_GAIN_MAX, MASTER_GAIN, worstCaseAmplitude } from '../../src/audio/mix.js'
 import { readWav } from '../../tools/audio/wav.js'
 
@@ -29,19 +29,19 @@ describe('the audio asset table (design §3, §5.1)', () => {
   })
 
   it('leaves headroom for every cue landing on a full-throttle engine', () => {
-    const enginePeak = assetFor('propeller').peakFullScale
+    const enginePeak = Math.max(...AUDIO_ASSETS.filter((a) => a.bus === 'engine').map((a) => a.peakFullScale))
     for (const clip of AUDIO_ASSETS) {
-      if (clip.id === 'propeller') continue
+      if (clip.bus === 'engine') continue
       const worst = MASTER_GAIN * worstCaseAmplitude(clip.cueGain, clip.peakFullScale, ENGINE_GAIN_MAX * enginePeak)
       expect(worst, `${clip.id} clips against a full-throttle engine`).toBeLessThanOrEqual(1)
     }
   })
 
   it('leaves the same headroom in every cabin preset once the bus trims apply', () => {
-    const enginePeak = assetFor('propeller').peakFullScale
+    const enginePeak = Math.max(...AUDIO_ASSETS.filter((a) => a.bus === 'engine').map((a) => a.peakFullScale))
     for (const [view, preset] of Object.entries(CABIN_PRESETS)) {
       for (const clip of AUDIO_ASSETS) {
-        if (clip.id === 'propeller') continue
+        if (clip.bus === 'engine') continue
         const worst = MASTER_GAIN * preset.worldGain *
           (clip.cueGain * clip.peakFullScale * preset.sfxTrim + ENGINE_GAIN_MAX * enginePeak * preset.engineTrim)
         expect(worst, `${clip.id} clips in ${view}`).toBeLessThanOrEqual(1)

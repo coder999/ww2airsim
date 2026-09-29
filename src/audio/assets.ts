@@ -22,6 +22,17 @@ export type ClipId =
   | 'bombs_away'
   | 'machinegun'
   | 'rocket_whoosh'
+  | 'engine_radial_small'
+  | 'engine_radial_big'
+  | 'engine_multi_heavy'
+  | 'engine_allison_v12'
+  | 'engine_sputter'
+  | 'hit_taken'
+  | 'sea_waves'
+  | 'carrier_deck'
+  | 'wire_catch'
+  | 'flak_distant'
+  | 'hook_clunk'
 
 export type AudioAsset = {
   readonly id: ClipId
@@ -52,6 +63,20 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // Swap the WAV for a real recording later and re-measure; no code change
   // needed on either side of that swap.
   { id: 'rocket_whoosh', path: 'content/audio/rocket_whoosh.wav', bus: 'sfx', bytes: 96_044, peakFullScale: 0.8500, cueGain: 0.55 },
+  // Adobe Firefly, generated 2026-09-29 (content/audio/NOTICE.md). None
+  // is wired yet; they are measured and budgeted so the later sub-projects can
+  // just use them.
+  { id: 'engine_radial_small', path: 'content/audio/engine_radial_small.wav', bus: 'engine', bytes: 1_536_770, peakFullScale: 0.7305, cueGain: 0.50 },
+  { id: 'engine_radial_big', path: 'content/audio/engine_radial_big.wav', bus: 'engine', bytes: 1_536_770, peakFullScale: 0.9844, cueGain: 0.50 },
+  { id: 'engine_multi_heavy', path: 'content/audio/engine_multi_heavy.wav', bus: 'engine', bytes: 1_536_770, peakFullScale: 0.9609, cueGain: 0.50 },
+  { id: 'engine_allison_v12', path: 'content/audio/engine_allison_v12.wav', bus: 'engine', bytes: 1_536_770, peakFullScale: 0.7617, cueGain: 0.50 },
+  { id: 'engine_sputter', path: 'content/audio/engine_sputter.wav', bus: 'sfx', bytes: 903_170, peakFullScale: 0.7383, cueGain: 0.60 },
+  { id: 'hit_taken', path: 'content/audio/hit_taken.wav', bus: 'sfx', bytes: 288_770, peakFullScale: 1.0000, cueGain: 0.60 },
+  { id: 'sea_waves', path: 'content/audio/sea_waves.wav', bus: 'ambient', bytes: 2_765_570, peakFullScale: 0.5547, cueGain: 0.50 },
+  { id: 'carrier_deck', path: 'content/audio/carrier_deck.wav', bus: 'ambient', bytes: 2_765_570, peakFullScale: 0.3359, cueGain: 0.50 },
+  { id: 'wire_catch', path: 'content/audio/wire_catch.wav', bus: 'sfx', bytes: 250_370, peakFullScale: 1.0000, cueGain: 0.60 },
+  { id: 'flak_distant', path: 'content/audio/flak_distant.wav', bus: 'sfx', bytes: 691_970, peakFullScale: 0.8984, cueGain: 0.60 },
+  { id: 'hook_clunk', path: 'content/audio/hook_clunk.wav', bus: 'sfx', bytes: 192_770, peakFullScale: 0.9336, cueGain: 0.60 },
 ]
 
 export function assetFor(id: ClipId): AudioAsset {
