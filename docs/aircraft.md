@@ -293,6 +293,26 @@ Record it in the D-table as "deferred", and do not build it.
 - **Real internal bays.** Bay loads are drawn hanging below the aircraft (D7).
 - **Engine-out handling** for multi-engine types (D6); the power is summed.
 
+## Lessons from the first run (F4U-1D, 2026-09-29)
+
+Detail: [`docs/handoff/2026-09-29-f4u-corsair.md`](handoff/2026-09-29-f4u-corsair.md).
+
+- A detail specification is a guarantee. Stall and flap figures it does not state come
+  from a flown trial of the same family, scaled by weight and labeled DERIVED. Do not
+  fit `clMax` to close the gap; report it.
+- Adding a flyable touches tests you did not write: `wildcatMounts.test.ts` (list),
+  `centerPoint.test.ts` (a per-model STATION when gear legs sit at the 30% station),
+  `eyePoints.test.ts`, the picker order pins in `sortieFlow.test.ts` and
+  `sortie/flyable.test.ts`, and the Hangar `catalog.test.ts`. The Library card needs
+  `spec`.
+- `remote-run npm run verify` stops at the first failing stage. Run the later stages
+  separately to see the whole picture, and check a red test against the base commit
+  before assuming it is yours.
+- On nexus, Tier 2 needs `sg render -c '...'`; without it Chromium falls to
+  SwiftShader and every test fails at the software-rasterizer page.
+- No browser spec flies a carrier approach for any airplane. Cover the trap at the sim
+  level (`tests/sim/trapCorsair.test.ts` is the template).
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

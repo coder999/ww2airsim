@@ -2,7 +2,11 @@
 
 The first airframe run through the process in [`docs/aircraft.md`](../../aircraft.md).
 Part A (the decision table) was asked of Mark on 2026-09-28 with
-`AskUserQuestion`; the rest is unexecuted.
+`AskUserQuestion`. **Status 2026-09-29: Parts B to G executed on branch
+`worktree-f4u-onboard`, not merged.** Results, gaps and Tier 2 are in
+[`docs/handoff/2026-09-29-f4u-corsair.md`](../../handoff/2026-09-29-f4u-corsair.md).
+One open item: `npm run verify` is red for two failures that are on `main`
+(`soak.test.ts` iteration 59, `roster.test.ts` lint).
 
 **Run shape (Mark, 2026-09-28):** worktree `~/projects/ww2airsim-worktrees/f4u-onboard`
 (branch `worktree-f4u-onboard`); viewing checkpoint: final product only;
@@ -39,10 +43,13 @@ Not verified when the table was written: whether the committed model's canopy
 matches the F4U-1D. An option description asserted a bubble canopy; the
 `eyePoints` test settles it.
 
-## Open at the end of Part A
+## Open at the end of Part A (all closed 2026-09-29)
 
 - The take-off distance and lift-off speed the detail spec gives are for named
   loadings and flap settings; Part B reads them and records which one the card
   grades against.
 - D5 (gear) and the carrier take-off pin (`tests/sim/carrierTakeoff.test.ts`,
   T1) are waiting on T1.
+
+Resolved 2026-09-29: the take-off card grades the full-flap 83 mph lift-off (FG-1A
+flown, supplementing the guarantee DS); T1 merged, gear authored.
