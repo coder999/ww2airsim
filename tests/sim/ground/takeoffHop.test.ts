@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { QUIET_DAMAGE } from '../../audio/inputs.js'
 import { nextAudio, NO_AUDIO_MEMORY, type AudioMemory } from '../../../src/audio/cues.js'
 import { DT, type AircraftState } from '../../../src/sim/flight/model.js'
 import { wheelDepthOf } from '../../../src/sim/gearContact.js'
@@ -28,7 +29,7 @@ const squeaks = (trace: readonly AircraftState[]): number => {
   let n = 0
   trace.forEach((s, i) => {
     const f = nextAudio(m, {
-      throttle: 1, engineRunning: true, impact: null, groundSurface: 'land', tick: i + 1, shots: 0, bombsDropped: 0, rocketsFired: 0,
+      throttle: 1, engineRunning: true, impact: null, groundSurface: 'land', tick: i + 1, shots: 0, bombsDropped: 0, rocketsFired: 0, ...QUIET_DAMAGE,
       onGround: onGround(f6f, s, RUNWAY_HEIGHT_M),
       heightM: s.position.y - wheelDepthOf(f6f, s) - RUNWAY_HEIGHT_M,
       sinkMps: -s.velocity.y,

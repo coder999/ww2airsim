@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { QUIET_DAMAGE } from './inputs.js'
 import { createAudioSystem } from '../../src/audio/system.js'
 import { LAYERS, finiteOr, type LayerTable } from '../../src/audio/layers.js'
 import { FILTER_OPEN_HZ } from '../../src/audio/mix.js'
@@ -7,7 +8,7 @@ import { createFakeBackend } from './fakeBackend.js'
 
 const flying: AudioInputs = {
   throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 0, tick: 10, shots: 0,
-  bombsDropped: 0, rocketsFired: 0,
+  bombsDropped: 0, rocketsFired: 0, ...QUIET_DAMAGE,
 }
 
 // A second layer on a clip that is already committed, so the test needs no new asset.

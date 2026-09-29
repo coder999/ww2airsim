@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
-import { CABIN_PRESETS, ENGINE_GAIN_MAX, MASTER_GAIN, worstCaseAmplitude } from '../../src/audio/mix.js'
+import { AMBIENT_GAIN_MAX, CABIN_PRESETS, ENGINE_GAIN_MAX, MASTER_GAIN, worstCaseAmplitude } from '../../src/audio/mix.js'
 import { readWav } from '../../tools/audio/wav.js'
 
 const repoPath = (rel: string): string => fileURLToPath(new URL(`../../${rel}`, import.meta.url))
@@ -34,6 +34,12 @@ describe('the audio asset table (design §3, §5.1)', () => {
       if (clip.bus === 'engine') continue
       const worst = MASTER_GAIN * worstCaseAmplitude(clip.cueGain, clip.peakFullScale, ENGINE_GAIN_MAX * enginePeak)
       expect(worst, `${clip.id} clips against a full-throttle engine`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('keeps every ambient clip inside the gain its headroom was budgeted at', () => {
+    for (const clip of AUDIO_ASSETS.filter((a) => a.bus === 'ambient')) {
+      expect(AMBIENT_GAIN_MAX, clip.id).toBeLessThanOrEqual(clip.cueGain)
     }
   })
 

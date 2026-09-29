@@ -174,3 +174,28 @@ it('carries the cumulative bombsDropped/rocketsFired counts, not the falling sto
   expect(audioInputsFrom(fired).bombsDropped).toBe(3)
   expect(audioInputsFrom(fired).rocketsFired).toBe(7)
 })
+
+it('carries damage, hook, arrest and engine family from the world the sim ran (audio expansion)', () => {
+  const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+  const quiet = audioInputsFrom(frame)
+  expect(quiet).toMatchObject({ engineFamily: 'radial', structure: 1, engineHealth: 1, arrested: false, hookDown: false, deckDistanceM: null })
+
+  const rec = frame.world.combat.aircraft[frame.world.player]!
+  const player = playerAircraft(frame.world)
+  const hurt = {
+    ...frame,
+    controls: { ...frame.controls, hookDown: true },
+    world: {
+      ...frame.world,
+      aircraft: frame.world.aircraft.map((a) => (a === player ? { ...a, state: { ...a.state, arrested: true } } : a)),
+      combat: { ...frame.world.combat, aircraft: { [frame.world.player]: { ...rec, damage: { ...rec.damage, structure: 0.4, engine: 0.2 } } } },
+    },
+  }
+  expect(audioInputsFrom(hurt)).toMatchObject({ structure: 0.4, engineHealth: 0.2, hookDown: true, arrested: true })
+})
+
+it('reads the engine family off the aircraft the world flies', () => {
+  const p38 = loadAircraftSpec('p-38-lightning')
+  const frame = initialFrameState(p38, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
+  expect(audioInputsFrom(frame).engineFamily).toBe('allison')
+})

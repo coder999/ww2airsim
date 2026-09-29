@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fileURLToPath } from 'node:url'
 import { assetFor } from '../../src/audio/assets.js'
+import { LAYERS } from '../../src/audio/layers.js'
 import { LOOP_END_FRAME, LOOP_START_FRAME, PROPELLER_SAMPLE_RATE, loopEndSeconds, loopStartSeconds } from '../../src/audio/mix.js'
 import { readWav } from '../../tools/audio/wav.js'
 
@@ -48,5 +49,23 @@ describe('the propeller loop points (design §4.1)', () => {
     expect(loopStartSeconds()).toBeCloseTo(LOOP_START_FRAME / PROPELLER_SAMPLE_RATE, 12)
     expect(loopEndSeconds()).toBeCloseTo(LOOP_END_FRAME / PROPELLER_SAMPLE_RATE, 12)
     expect(loopEndSeconds() - loopStartSeconds()).toBeGreaterThan(5)
+  })
+})
+
+describe('every looped layer splices cleanly', () => {
+  it.each(Object.entries(LAYERS))('%s', (_id, def) => {
+    if (def.loopStartS === null || def.loopEndS === null) return
+    const { samples, channels, frames, sampleRate } = readWav(
+      fileURLToPath(new URL(`../../${assetFor(def.clip).path}`, import.meta.url)),
+    )
+    expect(sampleRate).toBe(PROPELLER_SAMPLE_RATE)
+    const start = Math.round(def.loopStartS * sampleRate)
+    const end = Math.round(def.loopEndS * sampleRate)
+    expect(end).toBeLessThan(frames)
+    const chosen = seamStep(samples, channels, start, end)
+    const naive = seamStep(samples, channels, 1, frames - 1)
+    expect(chosen).toBeLessThanOrEqual(512)
+    expect(chosen).toBeLessThan(naive)
+    expect(def.loopEndS - def.loopStartS).toBeGreaterThan(5)
   })
 })

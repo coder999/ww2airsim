@@ -1,7 +1,7 @@
 import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
 import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
-import { LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
+import { ENGINE_LAYER_FOR, LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
 import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, chaseDistanceGain, type View } from './mix.js'
 
 /**
@@ -87,6 +87,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   let spatialPlayed = 0
   let view: View | null = null
   let distanceGain = 1
+  let activeEngineLayer = 'engine'
   const failed: ClipId[] = []
   // Instant replay's pause (design §7): forced to gain 0 by `hold(true)`
   // rather than by suppressing `update` calls, because the held frame is
@@ -151,7 +152,17 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
 
       // Scaled by the replay speed (design §7): at 0.5x the engine sounds
       // half as fast as it does live, matching the replayed world.
-      driveLayer('engine', { gain: frame.engine.gain, rate: frame.engine.playbackRate }, rate)
+      const engineLayer = ENGINE_LAYER_FOR[frame.engineFamily]
+      activeEngineLayer = engineLayer
+      driveLayer(engineLayer, { gain: frame.engine.gain, rate: frame.engine.playbackRate }, rate)
+      // A different family's loop that was started earlier (restart with another aircraft) fades out.
+      for (const id of Object.values(ENGINE_LAYER_FOR)) {
+        if (id !== engineLayer && handles.has(id)) driveLayer(id, { gain: 0, rate: 1 }, rate)
+      }
+      // Ambience starts only when first audible, so a flight that never sees the sea never decodes into a source.
+      for (const [id, gain] of [['sea', frame.ambient.sea], ['deck', frame.ambient.deck]] as const) {
+        if (gain > 0 || handles.has(id)) driveLayer(id, { gain, rate: 1 }, rate)
+      }
 
       // Silent while held: a paused replay renders the same frame repeatedly,
       // and re-evaluating cues against it must not re-fire them.
@@ -241,8 +252,8 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
         failed,
         muted: isMuted,
         masterGain,
-        engineGain: layerState.get('engine')?.gain ?? 0,
-        enginePlaybackRate: layerState.get('engine')?.rate ?? 0,
+        engineGain: layerState.get(activeEngineLayer)?.gain ?? 0,
+        enginePlaybackRate: layerState.get(activeEngineLayer)?.rate ?? 0,
         layers: Object.fromEntries(layerState),
         cuesFired,
         spatialPlayed,
