@@ -185,24 +185,42 @@ default 400 kg fuel load is lighter than this trial mass and lifts sooner
 **Carrier.** The game has no ship-speed-as-wind setting: airspeed is the
 airplane's velocity minus the world wind, and the deck carries the ship's
 velocity, so in calm air the wind over the deck is the ship's speed. There are
-no catapults; the take-off path is a deck run from the respot ("Launch when
-ready"). Measured 2026-09-28 (calm air, ship at maximum speed on a straight
-course, start 7 m from the stern, pull from 40 m/s airspeed; the start spot and
-pull point are my choices, not game rules):
+no catapults, and no mission uses the Casablanca (only the Essex is flown from
+today); the take-off path is a deck run from the respot ("Launch when ready").
+Measured 2026-09-28 at the shipped default fuel (400 kg), calm air, ship at
+maximum speed on a straight course, start 7 m from the stern, full back stick
+from 40 m/s airspeed. The start spot and pull point are my choices, not game
+rules. `tests/sim/carrierTakeoff.test.ts` re-checks every aircraft and carrier
+in `content/` this way.
 
-| Ship | Aircraft | Flaps | Liftoff airspeed | Deck run | Deck left |
+| Ship | Aircraft | Flaps | Airspeed at liftoff | Deck run | Deck left |
 | --- | --- | --- | --- | --- | --- |
-| Essex (17 m/s) | F6F | 0 | 51.0 m/s | 213 m | 42 m |
-| Essex | F6F | 1 | 42.8 m/s | 126 m | 130 m |
-| Essex | F4F | 0 | 46.5 m/s | 176 m | 80 m |
-| Essex | F4F | 1 | 41.3 m/s | 118 m | 138 m |
+| Essex (17 m/s, 256 m run) | F6F | 0 | 46.2 m/s | 119 m | 137 m |
+| Essex | F6F | 1 | 41.4 m/s | 86 m | 170 m |
+| Essex | F4F | 0 | 43.1 m/s | 106 m | 150 m |
+| Essex | F4F | 1 | 41.1 m/s | 97 m | 159 m |
+| Essex | Zero | 0 / 1 | 41.4 / 40.8 m/s | 77 m | 179 m |
 
-At trial mass, Casablanca (9.93 m/s, 145.69 m deck) sends all four cases off
-the bow with the wheels still down. At the default 400 kg the F6F with flaps 1
-lifts with under a metre to spare and the other cases run off the bow. The fall
-after the bow is an estimate: the measurement holds full pull, which stalls it,
-so it overstates how hard a real pilot would hit the water. Treat Casablanca
-take-off as marginal to impossible without a catapult.
+Every Essex case is wheels-off well before the bow. Casablanca (9.93 m/s,
+145.69 m deck, 139 m of run from the start spot, deck 12 m above the water):
+the F6F with flaps 1 lifts at 138 m (about 1 m to spare) and the Zero at 125 m
+(flaps 0) or 126 m (flaps 1). The F6F with flaps 0 and the F4F (both flap
+settings) reach the bow still on the wheels at 40 to 43 m/s of airspeed, short of
+the 1.1 x stall speed the wing needs for the F6F flaps 0 and the F4F flaps 0.
+
+*Estimate (technique dependent):* what happens after the bow depends on the
+pilot. Holding full back stick stalls, so that is not a credible pilot. With a
+pilot who lowers the nose to 1.05 x stall speed and then pulls just enough to
+stop sinking, the worst of those cases sags 2.6 m below deck level (F4F flaps
+1), never touches the water, and climbs away. A pilot who sags less or more
+than that policy will do better or worse; the figure is one measured policy,
+not a limit.
+
+*Earlier figures retracted (2026-09-28):* an earlier version of this paragraph
+quoted Essex runs of 213 m, 126 m, 176 m and 118 m (margins of 42, 130, 80 and
+138 m) and called Casablanca "marginal to impossible". Those were measured at
+a lighter trial mass, not the shipped 400 kg fuel, and are superseded by the
+table above.
 
 **What is not modeled (arcade choices, Mark 2026-09-28).** Engine torque does
 not pull the nose (every shipped aircraft has torque 0), and a tail strike is

@@ -239,7 +239,16 @@ time and the 0.5 m/s separation lag). Moved numbers: only the Tacloban landing
 snapshot restZ, -47686.6755654359 to -47686.49097489367 (0.18 m, longer
 rollout ceiling). The take-off cards end at 86.5 mph, below rotation, so they
 did not move (F6F graded 239.148 m, clean 230.264 m; F4F 182.142 and 176.064 m).
-Carrier deck runs (F6F/F4F on Essex, calm air, no catapult) are in GAMEPLAY.md
-"Takeoff"; Casablanca is marginal to impossible. Estimates: the off-bow fall,
-and the carrier start spot and pull point. Still open: no catapult exists in
+Carrier deck runs (calm air, ship at maximum speed, shipped 400 kg fuel, start
+7 m from the stern, pull from 40 m/s, no catapult) are in GAMEPLAY.md
+"Takeoff" and pinned per aircraft x carrier by `tests/sim/carrierTakeoff.test.ts`.
+Essex: F6F 119 m (flaps 0) / 86 m (flaps 1) of a 256 m run, F4F 106 / 97 m,
+Zero 77 m; all wheels-off before the bow. Casablanca (139 m run): F6F flaps 1
+lifts at 138 m, Zero at 125-126 m, F6F flaps 0 and F4F leave the bow on the
+wheels at 40-43 m/s and, with a nose-down-to-1.05x-stall-then-stop-sinking
+pilot, sag at most 2.6 m of the 12 m deck height (estimate, technique
+dependent; held full stick stalls). No mission uses the Casablanca. CORRECTION
+2026-09-28: the figures first written here ("42 m margin", 213 m, 126 m, and
+"Casablanca marginal to impossible") were measured at a lighter trial mass,
+not the shipped fuel, and are superseded. Still open: no catapult exists in
 the sim.
