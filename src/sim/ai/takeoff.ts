@@ -7,7 +7,7 @@ import { qRotate } from '../math/quat.js'
 import { length, sub, v3 } from '../math/vec3.js'
 import { isAircraftDown } from '../weapons/combat.js'
 import { airborne } from './airborne.js'
-import { heightAboveGround } from './safety.js'
+import { FLOOR_BUFFER_M, FLOOR_M, heightAboveGround } from './safety.js'
 import type { PilotTickContext } from './pilotTick.js'
 
 /**
@@ -61,7 +61,19 @@ export const TAKEOFF_CLIMB_DEG = 10
 export const TAKEOFF_CLIMB_MIN_STALL_MULTIPLE = 1.3
 /** The gear, and the flaps with it, come up above this wheel height. */
 export const TAKEOFF_GEAR_UP_M = 30
-export const TAKEOFF_DONE_M = 150
+/**
+ * The climb ends here, above the ground: the safety floor's trigger
+ * (FLOOR_M + FLOOR_BUFFER_M, 400 m) plus 50 m, so the ordinary pilot starts
+ * above the floor. The plan's 150 m handed a ~64 m/s pilot to a floor that
+ * pulled full stick: it looped past vertical, stalled and spun in, every
+ * time: from Dulag (takeoff-fixture, through `pilotTick`), the Zero hit the
+ * ground 73 s (calm) and 96 s (3 m/s) in, the F6F 57 s in. At 450 m all four
+ * and the pair fly 130 s past the hand-off, lowest 375-388 m above the
+ * ground (the floor catches the loiter's first sag); 500 m was no better
+ * (382-389 m) and 4 s later. Hand-off 49.5-50.9 s after brakes off.
+ * Measured 2026-09-28 (7h Task 3).
+ */
+export const TAKEOFF_DONE_M = FLOOR_M + FLOOR_BUFFER_M + 50
 export const TAKEOFF_CLEAR_M = 400
 /**
  * Yaw per radian of heading error. 2 (deckRun's F6F used yaw 0) corrected a

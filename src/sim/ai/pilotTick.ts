@@ -18,6 +18,7 @@ import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wi
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { isContact, selectTarget, type TargetingView } from './targeting.js'
 import { exemptFromFloor, peelOffRecovery, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
+import { takeoffControls } from './takeoff.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -88,6 +89,28 @@ export function pilotTick<M>(
     const landed = { ...pilot, decision: { ...pilot.decision, recovery: flown.recovery, safety: 'none' as const, latch: null } }
     if (flown.state !== undefined) return { ...a, state: flown.state, previous: flown.state, controls: flown.controls, pilot: landed }
     return { ...a, controls: flown.controls, pilot: landed }
+  }
+  // 7h: a takeoff is flown before any rescore: no target, no fire, no
+  // floor, no safety override. `wait` holds on the brakes until there is
+  // terrain and the runway is clear (`takeoffClear`, id order).
+  if (pilot.decision.mode === 'takeoff' && pilot.decision.takeoff !== undefined) {
+    const flown = takeoffControls(a, pilot.decision.takeoff, ctx, snapshot)
+    if (flown.takeoff !== null) {
+      // Noise only in the climb: a rolling tailwheel does not want jitter.
+      const noisy = flown.takeoff.phase === 'climb'
+        ? finishControls(a, flown.controls, pilot.skill.controlNoise, pilot.decision.noiseCursor, ctx.wind)
+        : { controls: flown.controls, cursor: pilot.decision.noiseCursor }
+      return {
+        ...a, controls: noisy.controls,
+        pilot: { ...pilot, decision: { ...pilot.decision, takeoff: flown.takeoff, safety: 'none', latch: null, noiseCursor: noisy.cursor } },
+      }
+    }
+    // Climb done: an ordinary pilot from this tick. `engage` is a placeholder
+    // the forced rescore below replaces (engage, ingress or loiter), so the
+    // hand-off tick already flies the ordinary pilot's controls.
+    const handed: { -readonly [K in keyof PilotDecisionState]: PilotDecisionState[K] } = { ...pilot.decision, mode: 'engage', nextRescoreS: 0 }
+    delete handed.takeoff
+    pilot = { ...pilot, decision: handed }
   }
   const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides, terrain: ctx.terrain, decks: ctx.decks }
   // 7f spec §3-4: a wingman's leader, from the start-of-tick snapshot. A

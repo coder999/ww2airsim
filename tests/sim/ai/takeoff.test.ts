@@ -179,11 +179,11 @@ function takeoffRun(specId: string, opts: { readonly calm?: boolean; readonly of
 }
 
 describe.skipIf(terrain === null)('runway takeoffs from Dulag (Tier 1, real terrain)', () => {
-  it.each(['a6m2-zero', 'f6f-hellcat'])('a %s is 150 m up inside 60 s, never impacts, and stays on the runway', (specId) => {
+  it.each(['a6m2-zero', 'f6f-hellcat'])('a %s is TAKEOFF_DONE_M up inside 60 s, never impacts, and stays on the runway', (specId) => {
     const r = takeoffRun(specId)
     expect(r.impact).toBeNull()
     expect(r.upS).not.toBeNull()
-    expect(r.upS!).toBeLessThan(60)
+    expect(r.upS!).toBeLessThan(60)   // 49.5-50.9 s to 450 m (2026-09-28)
     expect(r.maxAcrossM).toBeLessThan(22.5)       // half the runway width
     expect(r.run10M).not.toBeNull()
     expect(r.run10M!).toBeLessThan(r.aheadM)
