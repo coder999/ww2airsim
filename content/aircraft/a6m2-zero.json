@@ -100,6 +100,25 @@
     "stallSpeedFlapMps": 30.85,
     "rollRateDegPerSec": 80
   },
+  "stores": {
+    "racks": [
+      { "id": "left-rack", "offset": [-0.364,  -1.276,  -2.6], "store": "an-m65" },
+      { "id": "right-rack", "offset": [-0.364,  -1.277,  2.6], "store": "an-m65" }
+    ],
+    "rails": [
+      { "id": "left-rail-1", "offset": [-0.568,  -1.136,  -3.6], "store": "hvar" },
+      { "id": "left-rail-2", "offset": [-0.549,  -1.062,  -4.3], "store": "hvar" },
+      { "id": "left-rail-3", "offset": [-0.53,  -0.986,  -5], "store": "hvar" },
+      { "id": "right-rail-1", "offset": [-0.568,  -1.136,  3.6], "store": "hvar" },
+      { "id": "right-rail-2", "offset": [-0.549,  -1.062,  4.3], "store": "hvar" },
+      { "id": "right-rail-3", "offset": [-0.529,  -0.987,  5], "store": "hvar" }
+    ],
+    "types": {
+      "an-m65": {"kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 2e-05},
+      "hvar": {"kind": "rocket", "massKg": 61, "dragAreaM2": 0.03, "warheadKg": 20.6, "damage": 40, "blastRadiusM": 8, "burnS": 1.0, "burnDeltaVMps": 419, "railElevationDeg": 1.8, "lifetimeS": 12, "dragPerM": 8e-05}
+    },
+    "source": "Dev stores only (2026-09-29): the Zero has no sourced under-wing rocket or 500 lb bomb load. Station spacing, store types and store figures are the F6F's (see f6f-hellcat.json stores.source, labeled there); only the offsets differ, measured on the Zero's own drawn wing with `npm run models:mounts` (ESTIMATE: 40% chord for bombs, 50% for rockets, 0.02 m clearance). The Hellcat layout hung on the Zero put the stores 0.6 m above its wing underside, visible on top of the wings."
+  },
   "ai": { "excludedManeuvers": ["immelmann"] },
   "view": { "eyePointM": [-0.55, 0.05, 0], "model": "a6m2-zero" }
 }
