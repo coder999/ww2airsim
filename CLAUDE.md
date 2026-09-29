@@ -171,15 +171,39 @@ tell Mark a model "needs a manual download". A download is not a license
 check: vet and record it per `ASSETS.md` before promoting anything.
 The whole ingest, from search to a Hangar check, is `docs/models.md`.
 
+## Where docs go
+
+One home per kind of fact. Point at it from elsewhere; never copy it.
+
+| Kind of content | Home |
+| --- | --- |
+| Project status and plan order | Master spec §15, **only**. Never restate it. |
+| Design of a feature or plan | `docs/superpowers/specs/<date>-<name>-design.md` |
+| Executable plan, and dated rulings | `docs/superpowers/plans/` |
+| What a finished plan measured, and what is still open | `docs/handoff/<date>-<plan>.md`, one per plan |
+| Post-mortem with an open fix | `docs/incidents/<date>-<name>.md` |
+| A subsystem's standing reference: what ships, what was tried, traps, open items | `docs/<topic>.md` (`clouds.md`, `models.md`, `aircraft.md`, `drape.md`, `testing.md`); update it in the same commit as the change |
+| How to run tests and the GPU harness | `docs/testing.md` |
+| Agent rules that cannot be derived from the code | this file, briefly |
+| Overview, getting started, and pointers | `README.md` |
+| Gameplay a player sees | `GAMEPLAY.md` |
+
+- **The README is not a ledger.** A landed plan gets a handoff and a §15 row,
+  not a README paragraph. The old per-plan entries are frozen in
+  `docs/status-log.md` (2026-09-29); do not append to it.
+- A new standing doc gets one pointer, in the README if it is a subsystem
+  people will look for, in this file's read-first list only if an agent gets
+  something wrong without it. Not both by default.
+
 ## Conventions
 
 - **US spelling** in new prose and identifiers. Existing `centre`-style
   identifiers and content JSON keys are a migration — ask before renaming.
 - A plan's own numbers are claims: run its arithmetic against the repo before
   executing it. Prefer an assertion to a sentence; date cross-boundary claims.
-- Every completed plan ends with a dated `docs/handoff/` document, its row in
-  §15's table updated, and a README paragraph that points at §15 rather than
-  restating the order.
+- Every completed plan ends with a dated `docs/handoff/` document and its row
+  in §15's table updated. Do not add a status paragraph to the README (see
+  "Where docs go").
 - Escape `|` as `\|` inside markdown table cells.
 - **Imperial units, not metric**, in anything user-facing (HUD, instruments,
   docs, plan tables) — feet, miles, knots, mph, pounds, gallons, °F, inHg, as
