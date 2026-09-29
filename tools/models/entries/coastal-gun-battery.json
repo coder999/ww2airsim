@@ -8,6 +8,7 @@
     "license": "AGPL-3.0-or-later"
   },
   "keep": [{ "node": "Turret1" }, { "node": "Turret2" }],
+  "skin": true,
   "textures": { "maxSize": 512, "format": "webp" },
   "budget": { "maxBytes": 500000, "maxTriangles": 5000, "maxDrawCalls": 4 }
 }
