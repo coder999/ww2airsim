@@ -43,7 +43,7 @@ The takeoff adds nothing measurable to the frame; the 1440p budget is the tier's
 ## 6. Mark's viewing steps (final checkpoint)
 
 1. Start `npm run dev:lan` in this worktree, assert `curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/` prints `200` (the primary slot may be another session's; check first).
-2. Open the title screen with Dev on, pick "Takeoff (dev)", and watch Dulag's runway from the Hellcat (press T for triple time): two Zeros roll one after the other, lift off and climb away.
+2. Tacloban is 31 km from Dulag and no camera follows an AI, so a parked player cannot see the Zeros. Load `?scenario=takeoff-range&spawnX=-33000&spawnY=400&spawnZ=-16479`: an override spawns the player airborne (120 m/s due east, gear up) 1.4 km west of Dulag's runway center, so bank to circle the field. Both Zeros start rolling within about 12 s of load.
 3. Fly Airfield Strike: the two defenders now start on Dulag's runway when you cross the scramble ring.
 
 ## 7. Test evidence
