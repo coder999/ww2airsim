@@ -17,6 +17,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'f4u-corsair': 'kabina-FACES',
   // One transparent shell over the whole airframe (alpha 0.15); the eye sits under its top at the flight deck.
   'b-17-flying-fortress': 'Object_51',
+  // The G4M's model has a single skinned material and no separate canopy node; g4m_dark is the whole airframe's skin, and the eye sits under the glasshouse crown (top y about 1.65 at x 3.4).
+  'g4m-betty': 'g4m_dark',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]
