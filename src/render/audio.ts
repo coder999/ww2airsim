@@ -1,5 +1,7 @@
 import type { AudioInputs } from '../audio/cues.js'
 import { onGround } from '../sim/ground.js'
+import { wheelDepthOf } from '../sim/gearContact.js'
+import { sub } from '../sim/math/vec3.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { playerAircraft } from '../sim/loop.js'
@@ -44,10 +46,15 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     // parked and the heightfield arrives seconds later, so calling that gap
     // "airborne" would make its arrival a landing. A deck-parked airplane has
     // ground from tick 0 whatever the terrain is doing.
-    onGround: ground === null ? null : onGround(spec, aircraft, ground.heightM),
+    onGround: ground === null ? null : onGround(spec, aircraft, ground.heightM, ground.velocity),
     // The SAME lookup `onGround` was judged against, so the two cannot
     // disagree about what the airplane is over.
     groundSurface: ground === null ? null : ground.surface,
+    // Wheel height and sink rate for the touchdown squeak's airborne latch and
+    // sink gate (src/audio/cues.ts). Both relative to the surface, so a moving
+    // deck reads like land.
+    heightM: ground === null ? null : aircraft.position.y - wheelDepthOf(spec, aircraft) - ground.heightM,
+    sinkMps: ground === null ? 0 : -sub(aircraft.velocity, ground.velocity).y,
     // The player's own record in `World.combat` (Plan 6): the count the
     // fixed step actually incremented, not the trigger. A world built without
     // a combat record for the player cannot exist -- `createCombat` writes one

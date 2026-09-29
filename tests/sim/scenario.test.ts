@@ -4,7 +4,8 @@ import { advance, playerAircraft, type World } from '../../src/sim/loop.js'
 import { assertLoopOverWater, stepShip } from '../../src/sim/world/ships.js'
 import { insideRunway, worldToLocal } from '../../src/sim/world/airfields.js'
 import { deckOf, deckLocal } from '../../src/sim/world/deck.js'
-import { qFromAxisAngle } from '../../src/sim/math/quat.js'
+import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
+import { restPitchRad, wheelDepthM } from '../../src/sim/gearContact.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
@@ -432,11 +433,11 @@ describe('deck quals (Plan 8)', () => {
     const local = deckLocal(deck, player.state.position.x, player.state.position.z)
     expect(local.x).toBeCloseTo(0, 6)
     expect(local.z).toBeCloseTo(-110, 6)
-    expect(player.state.position.y).toBeCloseTo(deck.center.y + player.spec.gear.heightM, 9)
+    expect(player.state.position.y).toBeCloseTo(deck.center.y + wheelDepthM(player.spec.gear, restPitchRad(player.spec.gear)), 9)
     expect(player.state.velocity).toEqual(deck.velocity)
     expect(player.parked).toBe(true)
     // Nose toward the bow: parkedAttitude's own rule against the ship's heading.
-    expect(player.state.attitude).toEqual(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad))
+    expect(player.state.attitude).toEqual(qMul(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad), qFromAxisAngle(v3(0, 0, 1), restPitchRad(player.spec.gear))))
     // The wingman is still ashore at Tacloban.
     const wingman = world.aircraft.find((a) => a.id === 'f6f-2')!
     // 502 m up the strip since 2026-09-26 (moved clear of the allied hangars).

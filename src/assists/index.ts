@@ -1,6 +1,7 @@
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
-import type { Assist } from '../sim/loop.js'
+import type { Assist, AssistContext } from '../sim/loop.js'
+import { AIRBORNE } from '../sim/loop.js'
 import { clampFinite, angleOfAttack, commandedBodyRates } from '../sim/flight/model.js'
 import { alphaCritRad } from '../sim/aero.js'
 import { v3, dot, length, normalize } from '../sim/math/vec3.js'
@@ -73,8 +74,8 @@ export const DEFAULT_ASSIST_SETTINGS: AssistSettings = {
  * two steps of one frame.
  */
 export const assistFor = (enabled: AssistSettings): Assist<undefined> => {
-  return (state, spec, raw, dt) => ({
-    controls: applyAssists(state, spec, raw, dt, enabled),
+  return (state, spec, raw, dt, _memory, context) => ({
+    controls: applyAssists(state, spec, raw, dt, enabled, context),
     memory: undefined,
   })
 }
@@ -255,8 +256,9 @@ export function applyAssists(
   raw: Controls,
   dt: number,
   enabled: AssistSettings,
+  context: AssistContext = AIRBORNE,
 ): Controls {
-  return runStack(state, spec, raw, dt, enabled).controls
+  return runStack(state, spec, raw, dt, enabled, context).controls
 }
 
 /**
@@ -277,8 +279,9 @@ export function applyAssistsWithAuthority(
   raw: Controls,
   dt: number,
   enabled: AssistSettings,
+  context: AssistContext = AIRBORNE,
 ): { controls: Controls; pitchAuthority: PitchAuthority } {
-  return runStack(state, spec, raw, dt, enabled)
+  return runStack(state, spec, raw, dt, enabled, context)
 }
 
 function runStack(
@@ -287,6 +290,7 @@ function runStack(
   raw: Controls,
   dt: number,
   enabled: AssistSettings,
+  context: AssistContext,
 ): { controls: Controls; pitchAuthority: PitchAuthority } {
   // The pitch axis is sanitised into the range `Controls.pitch` documents
   // before any stage or any budget sees it -- design open item 2, closed
@@ -345,7 +349,11 @@ function runStack(
   }
   // Auto-rudder narrows nothing: it reads sideslip and writes `yaw`, and has
   // no opinion about the pitch axis to spend.
-  controls = enabled.autoRudder ? autoRudder(state, spec, controls, dt) : controls
+  // Off on the ground (T1, 2026-09-28): the wheels, brakes and rudder are the
+  // pilot's there, and a sideslip-driven rudder correction would fight the
+  // steering. `context` is supplied by the caller because `src/assists` cannot
+  // see the terrain.
+  controls = enabled.autoRudder && !context.onGround ? autoRudder(state, spec, controls, dt) : controls
   return { controls, pitchAuthority }
 }
 

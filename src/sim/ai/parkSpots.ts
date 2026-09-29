@@ -3,6 +3,7 @@ import { createState, type AircraftState } from '../flight/state.js'
 import { localToWorld, parkedAttitude, insideRect, type Airfield } from '../world/airfields.js'
 import type { Deck } from '../world/deck.js'
 import { v3 } from '../math/vec3.js'
+import { restPitchRad, wheelDepthM } from '../gearContact.js'
 
 /** Tuning values, 7g spec §3. Clear of the bow's edge. */
 export const PARK_BOW_MARGIN_M = 15
@@ -96,10 +97,12 @@ export function parkedStateOnRunway(
   keep: Partial<Pick<AircraftState, 'fuelKg' | 'flapFraction' | 'tick'>> = {},
 ): AircraftState {
   const w = localToWorld(a, spot.x, spot.z)
+  // T1: at rest the airplane stands at its layout's rest pitch, wheels `wheelDepthM` below the origin.
+  const rest = restPitchRad(spec.gear)
   return createState({
-    position: v3(w.x, groundHeightM + spec.gear.heightM, w.z),
+    position: v3(w.x, groundHeightM + wheelDepthM(spec.gear, rest), w.z),
     velocity: v3(0, 0, 0),
-    attitude: parkedAttitude(a),
+    attitude: parkedAttitude(a, rest),
     gearFraction: 1,
     ...keep,
   })

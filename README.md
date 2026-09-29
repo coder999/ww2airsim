@@ -29,7 +29,7 @@ Ground and water contact now ends the flight (Plan 10, below). And the
 airplane now starts **parked on a runway at Tacloban and takes off from it**
 (Plan 11a): the ground is a surface it rolls on rather than one it falls
 through. Gear that takes seconds to move and costs drag while it hangs out,
-rolling friction and wheel brakes, a tailwheel that steers until the tail
+rolling friction and wheel brakes (`B`), a tailwheel that steers until the tail
 comes up, and a visual strip draped over the real heightfield — running
 north-south, because east-west through the airfield runs into the sea. The
 graded historical take-off card measures that real ground now instead of a
@@ -80,6 +80,19 @@ figures, a drawing at its real span and parked angle, a racks-only loadout, and
 one graded card suite for every aircraft. It is on branch `worktree-w1-wildcat`;
 [aircraft.md](docs/aircraft.md) is the onboarding runbook and master spec §15
 holds the status.
+
+**T1 gave the aircraft believable ground handling (2026-09-28):** the rest
+attitude is derived from a gear layout in each spec, the tail rises with
+airflow instead of a speed gate, and the taxi has rudder with prop wash, a
+and a locking caster. The ground pitch ceiling comes from each
+aircraft's lift curve (liftoff near 1.1 x clean stall speed); the GAMEPLAY.md
+"Takeoff" section has the measured speeds. On the wheels the arrow keys and A/D
+(roll in the air) **steer**, and Z/X (rudder) steer too; roll never banks the
+airplane on the wheels. There are no differential brakes (Mark's ruling,
+2026-09-28). It is on
+branch `worktree-t1-tailwheel`; the [handoff](docs/handoff/2026-09-28-t1-ground-handling.md)
+lists what was measured and what is open, [aircraft.md](docs/aircraft.md) has
+the onboarding step, and master spec §15 holds the status.
 
 **Plan 6b's strike slice landed 2026-09-22:** bombs, rockets, a title-screen
 loadout picker, stores hung under the wings, ship and airfield-structure
@@ -136,13 +149,13 @@ detail), and the Ki-84 and the hangar are the first two to have one. The
 [handoff](docs/handoff/2026-09-28-dp0-skin-pipeline.md) records what was
 measured; master spec §15 holds the status.
 
-**Model detail pass DP2 landed 2026-09-28 on a branch awaiting merge:** every
+**Model detail pass DP2 landed 2026-09-28 and is merged into local `main`:** every
 ship is now skinned, the three Blender ships detailed to the downloads' level,
 and the four print-model downloads box-projected. The
 [handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
 master spec §15 holds the status.
 
-**Model detail pass DP1 landed 2026-09-29 on a branch awaiting merge:** the
+**Model detail pass DP1 landed 2026-09-29 and is merged into local `main`:** the
 Ki-21, P-38 and B-29 are rebuilt to the Ki-84's level of geometry and carry
 baked skins. The [handoff](docs/handoff/2026-09-28-dp1-aircraft.md) records what
 was measured; master spec §15 holds the status.

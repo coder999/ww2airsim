@@ -18,6 +18,7 @@ import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { loadFixtureScenarioBundle } from '../../fixtures/scenarios.js'
 import { flatField } from '../mission/fixture.js'
 import { settledAll, terrainOrSkip } from '../mission/fly.js'
+import { wheelDepthOf } from '../../../src/sim/gearContact.js'
 
 /** Land at 100 m everywhere: the pure tests need a surface, not Leyte. */
 const flat = flatField(100)
@@ -172,7 +173,7 @@ function takeoffRun(specId: string, opts: { readonly calm?: boolean; readonly of
     const b = aircraftById(w, 'ai-1')!
     if (b.impact !== null) return { upS, run10M, aheadM: runwayAheadM(field, start), maxAcrossM, impact: `${b.impact.kind} on ${b.impact.surface} at ${(i * DT).toFixed(2)} s` }
     maxAcrossM = Math.max(maxAcrossM, acrossRunway(field, b.state.position))
-    if (run10M === null && heightAboveGround(b.state, w.terrain, decks) - spec.gear.heightM >= 10) run10M = distanceRolled(field, start, b.state.position)
+    if (run10M === null && heightAboveGround(b.state, w.terrain, decks) - wheelDepthOf(spec, b.state) >= 10) run10M = distanceRolled(field, start, b.state.position)
     if (t === null) upS = (i + 1) * DT
   }
   return { upS, run10M, aheadM: runwayAheadM(field, start), maxAcrossM, impact: null }

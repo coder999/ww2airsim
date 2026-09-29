@@ -3,6 +3,9 @@ import { qRotate } from './math/quat.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { surfaceAt, type ContactSurface } from './contact.js'
+import { restPitchRad, wheelDepthOf } from './gearContact.js'
+import { attitudeAngles } from './flight/attitude.js'
+import { alphaCritRad } from './aero.js'
 import type { LandClass } from './world/cover.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
@@ -100,6 +103,22 @@ export const SOFT_FIELD_ROLLING_MULTIPLIER = 4.0
 export const GROUND_CONTACT_TOLERANCE_M = 0.25
 
 /**
+ * Climb rate relative to the surface above which the airplane counts as
+ * SEPARATING from it, m/s (ESTIMATE, T1 2026-09-28; ungraded -- a hysteresis
+ * margin, not a performance figure).
+ *
+ * `onGround` reads false above this, and every ground consumer (the ground
+ * control regime, rolling resistance, `supportedContact`) follows it. The
+ * 0.25 m band alone flipped true/false every few ticks on a full-pull take-off:
+ * a supported tick's ground pitch rate moved wheel depth so the contact point
+ * left the band, and the free-air pitch-up that followed dropped it back in
+ * (measured 2026-09-28, 9-10 re-contacts per run). Judged relative to the
+ * surface, so a moving deck reads the same. A real bounce is unaffected: a
+ * descent back onto the surface is below this margin.
+ */
+export const SEPARATION_MPS = 0.5
+
+/**
  * Whether the airplane is resting on the surface beneath it.
  *
  * Derived, never stored: five consumers read this, and a stored flag is one
@@ -116,13 +135,26 @@ export const GROUND_CONTACT_TOLERANCE_M = 0.25
  * Takes `spec` as of Task 15: `state.position.y` is the airplane's BODY
  * ORIGIN, not its wheel contact point (`view.eyePointM` in the content file
  * is measured from that same origin, which fixes the convention), so what
- * touches the ground is `position.y - spec.gear.heightM`, not `position.y`
- * itself. Before this, a parked airplane's origin sat exactly on the
+ * touches the ground is `position.y - wheelDepthOf(spec, state)` (the depth
+ * of the lowest wheel at the airplane's current pitch; `spec.gear.heightM` is
+ * the main wheels' depth at level attitude), not `position.y` itself. Before this, a parked airplane's origin sat exactly on the
  * surface and the whole airframe below it -- fuselage, wing, a 3.9 m
  * propeller disc -- was underground (Mark's screenshot, 2026-09-16).
  */
-export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM: number): boolean {
-  const contactHeightM = state.position.y - spec.gear.heightM
+export function onGround(
+  spec: AircraftSpec,
+  state: AircraftState,
+  groundHeightM: number,
+  surfaceVelocity: Vec3 = ZERO,
+): boolean {
+  const contactHeightM = state.position.y - wheelDepthOf(spec, state)
+  // Climbing away faster than `SEPARATION_MPS` relative to the surface is not
+  // being on it, whatever the band says (T1 hysteresis, 2026-09-28). The band
+  // is a POSITION test and a rotating airplane moves its own wheels: on a
+  // full-pull take-off the nose-up pitch drove the contact point back inside
+  // the 0.25 m band the tick after the airplane had left it, so this flipped
+  // true/false 9-10 times per run. The airplane's velocity does not do that.
+  if (sub(state.velocity, surfaceVelocity).y > SEPARATION_MPS) return false
   return contactHeightM - groundHeightM <= GROUND_CONTACT_TOLERANCE_M
     && contactHeightM - groundHeightM >= -GROUND_CONTACT_TOLERANCE_M
 }
@@ -194,12 +226,12 @@ export function onGround(spec: AircraftSpec, state: AircraftState, groundHeightM
  * fix wave to change behavior on.
  *
  * Takes `spec` as of Task 15, for the same reason `onGround` now does: the
- * surface this projects the airplane onto is `groundHeightM + spec.gear.heightM`
- * -- the wheels' contact point -- not `groundHeightM` itself, which is where
+ * surface this projects the airplane onto is `groundHeightM + wheelDepthOf(spec, state)`
+ * -- the wheels' contact point at the airplane's current pitch -- not `groundHeightM` itself, which is where
  * the body origin `position` names would otherwise be pinned, burying the
  * airframe below it. Only the DATUM moves: every comparison and the `g * dh`
  * energy trade below are unchanged in substance, now measured against
- * `groundHeightM + spec.gear.heightM` rather than `groundHeightM` directly --
+ * `groundHeightM + wheelDepthOf(spec, state)` rather than `groundHeightM` directly --
  * `tests/sim/invariants.test.ts`'s sweep re-verifies this after the move.
  *
  * `surfaceVelocity` (Plan 8): everything below is judged and moved RELATIVE
@@ -220,7 +252,7 @@ export function restOnSurface(
   groundHeightM: number,
   surfaceVelocity: Vec3 = ZERO,
 ): AircraftState {
-  const contactTargetM = groundHeightM + spec.gear.heightM
+  const contactTargetM = groundHeightM + wheelDepthOf(spec, state)
   const dh = contactTargetM - state.position.y
   const rel = sub(state.velocity, surfaceVelocity)
 
@@ -493,7 +525,7 @@ export function supportedContact(
   const stallMps = effectiveStallSpeedMps(spec, state.flapFraction)
   return (surface === 'land' || surface === 'deck')
     && landClass !== 'forest'
-    && onGround(spec, state, groundHeightM)
+    && onGround(spec, state, groundHeightM, surfaceVelocity)
     && state.gearFraction >= GEAR_DOWN_FRACTION
     && Number.isFinite(rel.y) && rel.y >= -maxSupportedSinkMps(landClass)
     && Number.isFinite(speed)
@@ -501,6 +533,45 @@ export function supportedContact(
 }
 
 const GROUND_DEG = Math.PI / 180
+
+/** Ground yaw hands over to the aerodynamic rudder by this multiple of
+ *  `gear.tailLiftSpeedMps` (ESTIMATE, T1 2026-09-28; ungraded). */
+const GROUND_YAW_FADE_MULTIPLE = 1.5
+const GROUND_PITCH_SETTLE_PER_S = 1.5
+const GROUND_PITCH_RAISE_PER_S = 1.0
+const GROUND_PITCH_CORRECTION_MAX_RAD_PER_S = 15 * GROUND_DEG
+/** The ground pitch ceiling targets liftoff at this multiple of the clean
+ *  stall speed (Mark, 2026-09-28: arcade over realism, a firm pull should lift
+ *  off soon after rolling, not at 126 mph). 1.1 is the usual margin above the
+ *  stall; a lift coefficient of `clMax / 1.1^2` carries the same weight at
+ *  1.1 times the stall speed. */
+const LIFTOFF_STALL_MULTIPLE = 1.1
+
+/**
+ * The highest nose-up pitch the airplane may reach on its wheels, radians,
+ * DERIVED from the aircraft's own lift curve (T1, 2026-09-28) rather than
+ * from a per-aircraft number: the attitude at which the wing, with the
+ * velocity horizontal, reaches `clMax / LIFTOFF_STALL_MULTIPLE^2`, read back
+ * through the attached-flow line `clAtZeroAlpha + clSlopePerRad * alpha` and
+ * capped by `alphaCritDeg`. At that attitude the wing supports the airplane's
+ * weight at 1.1 times its clean stall speed, so a firm pull lifts off near
+ * there whatever the airplane. Never below the rest attitude, which is what
+ * the tail wheel allows a taildragger to sit at (its contact depth deeper
+ * than rest only raises the origin). Tail strike is deliberately not modeled
+ * (Mark, 2026-09-28). Flaps are not read: the ceiling is a body attitude, and
+ * the flaps' camber shift makes the wing lift off EARLIER at the same pitch.
+ * Replaces the fixed `max(rest, 6 deg)` taildragger and `rest + 12 deg`
+ * tricycle rules.
+ */
+export function groundPitchCeilingRad(spec: AircraftSpec): number {
+  const { clMax, clAtZeroAlpha, clSlopePerRad } = spec.aero
+  const clTarget = clMax / (LIFTOFF_STALL_MULTIPLE * LIFTOFF_STALL_MULTIPLE)
+  const alpha = Math.min(alphaCritRad(spec), (clTarget - clAtZeroAlpha) / clSlopePerRad)
+  return Math.max(restPitchRad(spec.gear), alpha)
+}
+
+const unit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0)
+const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(-1, n)) : 0)
 
 /**
  * What the airplane on its wheels actually does, given the rates the AIR
@@ -525,64 +596,54 @@ const GROUND_DEG = Math.PI / 180
  *   nonzero and the ailerons move while the airplane does not, until they
  *   pick up enough authority to become believable and the airplane snaps
  *   into a roll it has no business doing on the runway.
- * - **Pitch: gated on a SPEED, not an elevator moment.** Ruling taken here
- *   rather than left open (spec §9 question 3): the tail comes up once
- *   ground speed reaches `spec.gear.tailUpSpeedMps`, full stop, rather than
- *   through an elevator-authority-against-a-moment-arm model. The
- *   alternative reintroduces moments this model does not carry anywhere
- *   else and would model the tail in more detail than the airframe it is
- *   attached to. Whether a hard speed gate feels arbitrary next to a
- *   progressive one is a Tier 3 question for whoever flies this next, not
- *   settled here. Compared against GROUND speed -- the horizontal
- *   component of velocity -- not `airspeed` (`src/sim/flight/model.ts`),
- *   because the tail lifting off the runway is a mechanical event driven by
- *   how fast the wheels are moving over the ground, not by the (identical,
- *   absent wind) number the wing sees. Guarded on `Number.isFinite(groundSpeed)`
- *   rather than a bare comparison -- fix round 1, Minor 3: `+Infinity >=
- *   tailUpSpeedMps` is true, so an unguarded comparison would let a broken
- *   (infinite) ground speed buy full pitch authority, the LEAST conservative
- *   of the two outcomes for a state that cannot be trusted at all. Guarded,
- *   a non-finite ground speed comes back with the tail down, matching the
- *   posture `onGround` and `supportedContact` already take.
- * - **Yaw: the tailwheel AND the rudder, blended by speed, available at ANY
- *   speed including zero.** Design §3: tailwheel/differential-braking
- *   steering is "blended into rudder authority as speed builds", not a
- *   switch between the two. `airRates.y` already carries whatever the
- *   rudder (and the weathercock term ahead of this function in `step`) is
- *   commanding, scaled by `ratesFromDynamicPressure`'s own dynamic-pressure
- *   authority -- that term is summed with a SEPARATE tailwheel rate,
- *   proportional to `controls.yaw` and capped at
- *   `spec.gear.tailwheelYawRateDegPerSec`, that fades from full authority at
- *   rest to zero at `tailUpSpeedMps`, the same speed pitch gates on: the
- *   tailwheel is what leaves the ground there, so its authority has to be
- *   gone by the moment it does.
- *
- *   Fix round 1, Important 1: an earlier revision DISCARDED `airRates.y` and
- *   substituted a constant tailwheel rate at every ground speed, which is
- *   wrong on both ends -- no rudder authority at all while rolling, and a
- *   step discontinuity at liftoff (measured: 20.00 deg/s on the runway,
- *   1.95 deg/s the very next tick once airborne, because the constant
- *   tailwheel term vanishes at exactly the tick `onGroundStart` goes false
- *   while the rudder term it replaced was never restored). Summing instead
- *   of switching makes the total continuous by construction: at
- *   `tailUpSpeedMps` the tailwheel term is already 0 by the fade, so the
- *   total is `airRates.y` on both sides of that speed, and `airRates.y`
- *   again the instant the airplane leaves the ground (`step` stops calling
- *   this function at all once `onGroundStart` is false) -- no seam to jump
- *   across. A blend against dynamic-pressure authority ALONE (the same
- *   authority `ratesFromDynamicPressure` itself uses) was considered and
- *   rejected instead of this speed-based fade: that authority is only 0.15
- *   at 40 m/s for this airframe, so it would still be granting the
- *   tailwheel 85% of its steering rate one tick before a typical rotation,
- *   which is not what "the tailwheel lifts off with the tail" means.
+ * - **Pitch: toward the rest attitude, level, or the stick, by airflow
+ *   (T1, 2026-09-28).** The pitch the wheels allow is a RATE, like every
+ *   other rate here, built from three terms that add. `lift` is how much the
+ *   tail can fly: `(airflow / gear.tailLiftSpeedMps)^2`, capped at 1, where
+ *   `airflow = hypot(groundSpeed, gear.propWashSpeedMps * throttle)` -- the
+ *   slipstream over the tail at a standstill, plus the roll. `settle` sinks
+ *   the tail toward the rest attitude (`restPitchRad`, both wheels on the
+ *   ground) as airflow dies, `(1 - lift) * 1.5/s * (rest - pitch)`. `raise`
+ *   lifts the tail toward level while the stick is not held back,
+ *   `-lift * (1 - pull) * 1.0/s * pitch`, only while nose-up. `rotate` is the
+ *   stick itself, `lift * stick * maxPitchRate`: pulled, it rotates on the
+ *   mains; pushed, it lowers the nose. The sum is then bounded so the pitch
+ *   stays between `min(rest, 0)` (never nose-down past level on a
+ *   taildragger) and `groundPitchCeilingRad(spec)` (derived from the lift curve: the
+ *   attitude that lifts off at 1.1 times the clean stall speed, never below
+ *   rest, the same for every layout), and a correction back inside those bounds is
+ *   limited to 15 deg/s so a touchdown above the ceiling settles instead of
+ *   snapping in one tick. Compared against GROUND speed -- the horizontal
+ *   velocity relative to the surface -- because the wheels roll over the
+ *   ground. A non-finite ground speed reads as no speed and no lift: tail
+ *   down, never authority a broken state could not be trusted with; a
+ *   non-finite throttle or stick reads as zero.
+ * - **Yaw (T1): rudder with prop wash, wheel steering and engine torque, summed with `airRates.y` and faded out by
+ *   `GROUND_YAW_FADE_MULTIPLE * tailLiftSpeedMps`.** All terms are deg/s,
+ *   positive = nose right, then negated into the body-rate convention:
+ *   `rudder = min(1, airflow / tailLiftSpeedMps) * maxYawRateDegPerSec`
+ *   (airflow includes prop wash, so a stopped airplane on full throttle has
+ *   rudder authority); `steer` is `steerYawRateDegPerSec` for a steered wheel,
+ *   the same fading linearly to zero at `steerLockSpeedMps` for `casterLock`,
+ *   and 0 for a free `caster`; `torque` fades out as the tail lifts.
+ *   `steerInput = clamp(yaw + roll, -1, 1)`: the arrow keys are the roll
+ *   channel and steer on the wheels (ruling 2026-09-28; there are no
+ *   differential brakes). `noseRight = fade * (steerInput * (rudder + steer) +
+ *   torque)`. Because `airRates.y` is always added, the total
+ *   is continuous into flight by construction: the ground terms are already
+ *   zero at `GROUND_YAW_FADE_MULTIPLE * tailLiftSpeedMps`, and `airRates.y`
+ *   alone is what remains the instant the wheels leave (`step` stops calling
+ *   this function then). The replaced model (one constant tailwheel rate,
+ *   faded by 1 - v/tailLiftSpeedMps) collapsed from 5.5 to 1.5 deg/s
+ *   under power (measured 2026-09-28).
  *
  *   Negated for the same reason `ratesFromDynamicPressure` negates yaw: a
  *   positive rotation about body +Y (right-hand rule) turns +X (forward)
  *   toward -Z (left) in this right-handed frame, but the documented
  *   convention is `Controls.yaw > 0` = nose right. The fade uses the same
- *   `Number.isFinite` guard as the pitch gate above -- a non-finite ground
+ *   `Number.isFinite` guard as the pitch above -- a non-finite ground
  *   speed reads as "still on the tailwheel", i.e. full fade (1), which
- *   together with the pitch gate's own guard keeps a broken state pinned to
+ *   together with the pitch's own guard keeps a broken state pinned to
  *   the tail-down, wheels-steering case rather than handing it any new
  *   authority.
  */
@@ -591,8 +652,10 @@ export function groundBodyRates(
   state: AircraftState,
   controls: Controls,
   airRates: Vec3,
+  dt: number,
   surfaceVelocity: Vec3 = ZERO,
 ): Vec3 {
+  const { gear } = spec
   // Plan 8: ground speed relative to the surface, not the world -- an
   // airplane matching a moving deck's velocity is not rolling at all.
   // `surfaceVelocity` defaults to `ZERO`, which makes `rel` exactly
@@ -600,13 +663,55 @@ export function groundBodyRates(
   const rel = sub(state.velocity, surfaceVelocity)
   const groundSpeed = length(v3(rel.x, 0, rel.z))
   const validSpeed = Number.isFinite(groundSpeed)
-  const pitch = validSpeed && groundSpeed >= spec.gear.tailUpSpeedMps ? airRates.z : 0
+  const speed = validSpeed ? groundSpeed : 0
+  const throttle = unit(controls.throttle)
+  const pitchInput = signedUnit(controls.pitch)
+  const pull = Math.max(0, pitchInput)
 
-  const fade = validSpeed ? Math.min(1, Math.max(0, 1 - groundSpeed / spec.gear.tailUpSpeedMps)) : 1
-  const yawInput = Number.isFinite(controls.yaw) ? Math.min(1, Math.max(-1, controls.yaw)) : 0
-  const tailwheelYaw = -yawInput * spec.gear.tailwheelYawRateDegPerSec * GROUND_DEG * fade
+  const airflowMps = Math.hypot(speed, gear.propWashSpeedMps * throttle)
+  const lift = validSpeed ? Math.min(1, (airflowMps / gear.tailLiftSpeedMps) ** 2) : 0
 
-  return v3(0, tailwheelYaw + airRates.y, pitch)
+  const rest = restPitchRad(gear)
+  const floor = Math.min(rest, 0)
+  const ceiling = groundPitchCeilingRad(spec)
+  const pitch = attitudeAngles(state).pitchRad
+
+  const settle = (1 - lift) * GROUND_PITCH_SETTLE_PER_S * (rest - pitch)
+  const raise = pitch > 0 ? -lift * (1 - pull) * GROUND_PITCH_RAISE_PER_S * pitch : 0
+  const rotate = lift * pitchInput * spec.rates.maxPitchRateDegPerSec * GROUND_DEG
+  // A broken attitude has no pitch to steer from: command no ground pitch at
+  // all (the safe, tail-down-holding answer) rather than hand a NaN on to the
+  // integrator.
+  let pitchRate = Number.isFinite(pitch) ? settle + raise + rotate : 0
+
+  // The bounds are on where this step ENDS, so they need a real step; with no
+  // step to take there is no attitude to protect, and dividing by it would
+  // hand back an infinite rate.
+  const max = GROUND_PITCH_CORRECTION_MAX_RAD_PER_S
+  if (Number.isFinite(dt) && dt > 0 && Number.isFinite(pitch)) {
+    if (pitch + pitchRate * dt > ceiling) pitchRate = Math.max(-max, (ceiling - pitch) / dt)
+    if (pitch + pitchRate * dt < floor) pitchRate = Math.min(max, (floor - pitch) / dt)
+  }
+
+  // Steering on the wheels is the rudder keys AND the roll keys, summed and
+  // clamped (Mark's arcade ruling, 2026-09-28: on the ground the arrows steer,
+  // ArrowRight turns the nose right). Roll itself stays exactly zero above:
+  // the roll input is read only as a steering demand here. `signedUnit` reads
+  // a non-finite channel as 0, so a broken input fails toward no steering.
+  const steerInput = Math.max(-1, Math.min(1, signedUnit(controls.yaw) + signedUnit(controls.roll)))
+  // A non-finite speed reads as "still rolling slowly": full fade (1), so a
+  // broken state is pinned to the tail-down, no-extra-authority case.
+  const fade = validSpeed ? Math.max(0, 1 - groundSpeed / (GROUND_YAW_FADE_MULTIPLE * gear.tailLiftSpeedMps)) : 1
+  const rudderDeg = Math.min(1, airflowMps / gear.tailLiftSpeedMps) * spec.rates.maxYawRateDegPerSec
+  const wheelSteer =
+    gear.thirdSteering === 'steered' ? 1
+    : gear.thirdSteering === 'casterLock' ? Math.max(0, 1 - speed / gear.steerLockSpeedMps)
+    : 0
+  const steerDeg = wheelSteer * gear.steerYawRateDegPerSec
+  const torqueDeg = gear.torqueYawRateDegPerSec * throttle * (1 - Math.min(1, speed / gear.tailLiftSpeedMps))
+  const noseRightDeg = fade * (steerInput * (rudderDeg + steerDeg) + torqueDeg)
+
+  return v3(0, -noseRightDeg * GROUND_DEG + airRates.y, pitchRate)
 }
 
 /**

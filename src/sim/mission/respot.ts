@@ -1,7 +1,8 @@
 import type { AircraftSpec } from '../flight/schema.js'
 import { createState, type AircraftState } from '../flight/state.js'
 import { groundUnder } from '../world/ground.js'
-import { qFromAxisAngle } from '../math/quat.js'
+import { qFromAxisAngle, qMul } from '../math/quat.js'
+import { restPitchRad, wheelDepthM } from '../gearContact.js'
 import { v3 } from '../math/vec3.js'
 import { deckOf, deckWorld, type Deck } from '../world/deck.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
@@ -25,10 +26,11 @@ export function stateOnDeck(
   keep: Partial<Pick<AircraftState, 'fuelKg' | 'flapFraction' | 'tick'>> = {},
 ): AircraftState {
   const at = deckWorld(deck, spot.x, spot.z)
+  const rest = restPitchRad(spec.gear)
   return createState({
-    position: v3(at.x, deck.center.y + spec.gear.heightM, at.z),
+    position: v3(at.x, deck.center.y + wheelDepthM(spec.gear, rest), at.z),
     velocity: groundUnder(null, [deck], at.x, at.z)!.velocity,
-    attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad),
+    attitude: qMul(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad), qFromAxisAngle(v3(0, 0, 1), rest)),
     gearFraction: 1,
     ...keep,
   })

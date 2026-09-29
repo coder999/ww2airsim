@@ -3,6 +3,7 @@ import type { AircraftState, Controls } from '../flight/state.js'
 import { sub, length, ZERO, type Vec3 } from '../math/vec3.js'
 import { APPROACH_SPEED_STALL_MULTIPLE } from '../paddles.js'
 import { effectiveStallSpeedMps } from '../ground.js'
+import { wheelDepthOf } from '../gearContact.js'
 import { deckWorld, type Deck } from '../world/deck.js'
 import type { PaddlesParams } from '../world/ships.js'
 
@@ -10,8 +11,9 @@ import type { PaddlesParams } from '../world/ships.js'
  * Where an approach is aiming.
  *
  * `touchdownElevationM` is the TERRAIN height at the aim point, not an
- * altitude the airplane should reach: the wheels sit `spec.gear.heightM` above
- * it, and this module adds that itself.
+ * altitude the airplane should reach: the body origin sits the wheels' depth
+ * above it (`wheelDepthOf`, which follows pitch), and this module adds that
+ * itself.
  */
 export type ApproachTarget = {
   readonly aimX: number
@@ -147,9 +149,9 @@ export function approachControls(spec: AircraftSpec, state: AircraftState, targe
   const glidePathRad = target.glidePathRad ?? DEFAULT_GLIDE_PATH_RAD
   const flareHeightM = target.flareHeightM ?? FLARE_HEIGHT_M
   // Height of the WHEELS above the touchdown point: `position` names the body
-  // origin, which sits `gear.heightM` above them. Getting this wrong by 2.2 m
+  // origin, which sits `wheelDepthOf(spec, state)` above them. Getting this wrong by 2.2 m
   // would put the flare 2.2 m into the ground.
-  const wheelHeightM = finite(state.position.y - spec.gear.heightM - target.touchdownElevationM)
+  const wheelHeightM = finite(state.position.y - wheelDepthOf(spec, state) - target.touchdownElevationM)
   // The approach is flown in the target's heading frame, so the same law
   // serves a strip on any heading and a deck that is turning. `bow`/`starboard`
   // are `deckAxes`' two directions (`src/sim/world/deck.ts`) -- one convention,

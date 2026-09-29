@@ -43,8 +43,8 @@ export const WILDCAT_SCALE = TARGET_WINGSPAN_M / WILDCAT_NATIVE_WINGSPAN_M
  *
  * wildcatCorrection() pitches the model back down by exactly this, so the drawn Wildcat flies
  * level like every other model (2026-09-28: until then it flew 7.33 degrees nose-high). Its
- * stance on the ground is the renderer's job now, the same as for every taildragger
- * (src/render/scene/stance.ts), so nothing downstream of the correction sees this angle.
+ * stance on the ground is the sim's rest attitude (restPitchRad, src/sim/gearContact.ts, T1),
+ * the same as for every taildragger, so nothing downstream of the correction sees this angle.
  */
 export const WILDCAT_DATUM_PITCH_RAD = 0.12789182382108172
 

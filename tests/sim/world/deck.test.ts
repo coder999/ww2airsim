@@ -6,9 +6,10 @@ import { loadShipSpec } from '../../../tools/content/load.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import type { ShipEntity } from '../../../src/sim/loop.js'
 import { advance, createWorldOf, withControls } from '../../../src/sim/loop.js'
-import { createState, DT } from '../../../src/sim/flight/model.js'
+import { DT } from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
-import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
+import { stateOnDeck } from '../../../src/sim/mission/respot.js'
+import { wheelDepthOf } from '../../../src/sim/gearContact.js'
 
 const cv = loadShipSpec('essex-cv')
 const dd = loadShipSpec('fletcher-dd')
@@ -79,12 +80,13 @@ describe('an airplane on a moving deck', () => {
     const carrier: ShipEntity = { id: 'cv-1', spec: cv, state, previous: state, orders: { waypoints: [{ x: 0, z: 0 }, { x: 3000, z: -3000 }, { x: 0, z: -6000 }], speedMps: 7.717 } }
     const deck = deckOf(carrier)!
     const spot = deckWorld(deck, 0, -110)
-    const plane = createState({
-      position: v3(spot.x, deck.center.y + f6f.gear.heightM, spot.z),
-      velocity: deck.velocity,
-      attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - deck.headingRad),
-      gearFraction: 1,
-    })
+    // T1 (2026-09-28): parked the way production parks it, at the derived
+    // rest attitude with the wheels on the deck (`stateOnDeck`). It used to
+    // spawn level at `gear.heightM` and expect to stay there; under T1 the tail
+    // settles to the rest attitude, 0.134 m lower (2.42 -> 2.285 m of depth).
+    const plane = stateOnDeck(f6f, deck, { x: 0, z: -110 })
+    expect(plane.position.x).toBeCloseTo(spot.x, 9)
+    expect(plane.position.z).toBeCloseTo(spot.z, 9)
     let world = createWorldOf({
       aircraft: [{ id: 'f6f-1', spec: f6f, state: plane, previous: plane, controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: true, brake: 1 }, assistMemory: undefined, impact: null, parked: true }],
       ships: [carrier],
@@ -103,6 +105,7 @@ describe('an airplane on a moving deck', () => {
     }
     expect(Math.abs(world.ships[0]!.state.headingRad)).toBeGreaterThan(0.5)
     expect(worstDriftM).toBeLessThan(0.5)
-    expect(world.aircraft[0]!.state.position.y).toBeCloseTo(deck.center.y + f6f.gear.heightM, 3)
+    const end = world.aircraft[0]!.state
+    expect(end.position.y - wheelDepthOf(f6f, end)).toBeCloseTo(deck.center.y, 3)
   })
 })

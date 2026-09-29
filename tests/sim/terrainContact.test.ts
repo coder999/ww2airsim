@@ -7,6 +7,8 @@ import { DT } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { surfaceAt } from '../../src/sim/contact.js'
+import { restPitchRad, wheelDepthM, wheelDepthOf } from '../../src/sim/gearContact.js'
+import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const header = parseTerrainHeader({
@@ -167,12 +169,25 @@ describe('supported contact does not read as a crash (Task 5b)', () => {
     // `advance`'s raw `position.y <= groundHeightM` check (deliberately
     // gear-agnostic, see that check's own comment in src/sim/loop.ts) reads
     // as a crash on the very first step.
-    const parkedHeightM = 1000 + spec.gear.heightM
-    const parked = createState({ position: v3(0, parkedHeightM, 0), velocity: v3(0, 0, 0), gearFraction: 1 })
+    //
+    // T1 (2026-09-28): the airplane now spawns at its derived rest attitude
+    // (`restPitchRad`, 9.45 deg nose-up for the F6F) with its origin
+    // `wheelDepthM(gear, rest)` = 2.285 m up, not `gear.heightM` = 2.42 m, and
+    // the ground pitch model moves that attitude under throttle (prop wash
+    // lifts the tail). So the check is that the lowest wheel stays ON the
+    // plateau, read through the attitude the step ended at, rather than a
+    // fixed origin height: the old fixed 1002.42 read 1002.306 once the tail
+    // settled, 0.114 m of pitch geometry, not a sink.
+    const rest = restPitchRad(spec.gear)
+    const parked = createState({
+      position: v3(0, 1000 + wheelDepthM(spec.gear, rest), 0), velocity: v3(0, 0, 0),
+      attitude: qFromAxisAngle(v3(0, 0, 1), rest), gearFraction: 1,
+    })
     let w: World<undefined> = { ...createWorld(spec, parked, level), terrain: plateau }
     for (let i = 0; i < 120; i++) w = advance(w, DT).world
     expect(playerAircraft(w).impact).toBeNull()
-    expect(playerAircraft(w).state.position.y).toBeCloseTo(parkedHeightM, 6)
+    const end = playerAircraft(w).state
+    expect(end.position.y - wheelDepthOf(spec, end)).toBeCloseTo(1000, 6)
   })
 })
 

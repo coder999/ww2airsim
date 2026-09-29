@@ -3,7 +3,7 @@ import { createState, type AircraftState, type Controls } from '../flight/state.
 import type { AircraftSpec } from '../flight/schema.js'
 import { airVelocity } from '../flight/model.js'
 import { LANDED_SPEED_MPS } from '../landing.js'
-import { qFromAxisAngle, qRotate } from '../math/quat.js'
+import { qFromAxisAngle, qMul, qRotate } from '../math/quat.js'
 import { RESPOT_DELAY_S, stateOnDeck } from '../mission/respot.js'
 import { dot, length, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 import { paddlesCue } from '../paddles.js'
@@ -11,6 +11,7 @@ import { isAircraftDown, type AircraftCombat, type CombatState } from '../weapon
 import { deckOf, type Deck } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
 import { effectiveStallSpeedMps } from '../ground.js'
+import { restPitchRad, wheelDepthM, wheelDepthOf } from '../gearContact.js'
 import type { PaddlesParams } from '../world/ships.js'
 import { heightAt, SEA_LEVEL_M } from '../world/terrain.js'
 import { airborne } from './airborne.js'
@@ -358,7 +359,7 @@ export function approachFrame(state: AircraftState, spec: AircraftSpec, geo: Rec
   return {
     alongM: -(dx * Math.sin(h) + dz * -Math.cos(h)),
     acrossM: dx * Math.cos(h) + dz * Math.sin(h),
-    wheelM: state.position.y - spec.gear.heightM - geo.touchdownM,
+    wheelM: state.position.y - wheelDepthOf(spec, state) - geo.touchdownM,
   }
 }
 
@@ -590,10 +591,12 @@ function landedControls<M>(
   // (ctx carries no airfields, spec §7). Nothing comes to rest on a runway
   // without terrain (`groundUnder`); sea level only satisfies the type.
   const groundM = ctx.terrain === null ? SEA_LEVEL_M : heightAt(ctx.terrain, p.x, p.z)
+  // T1: stands at the layout's rest pitch, as `parkedStateOnRunway` does.
+  const rest = restPitchRad(a.spec.gear)
   const state = createState({
-    position: v3(p.x, groundM + a.spec.gear.heightM, p.z),
+    position: v3(p.x, groundM + wheelDepthM(a.spec.gear, rest), p.z),
     velocity: v3(0, 0, 0),
-    attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - p.headingRad),
+    attitude: qMul(qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - p.headingRad), qFromAxisAngle(v3(0, 0, 1), rest)),
     gearFraction: 1,
     ...keep,
   })

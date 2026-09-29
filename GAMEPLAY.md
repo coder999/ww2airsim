@@ -196,6 +196,97 @@ seconds have been recorded.
 Replay owns these keys while it is up; it does not alter the held live flight,
 assist settings, audio mute, chart, radar range, or time scale.
 
+### Takeoff
+
+Measured 2026-09-28 through the real sim step, from a standstill on the
+Tacloban runway at full throttle (`tests/sim/ground/`). Speeds below are the
+first instant the wheels leave the ground.
+
+**Ground controls.** The arrow keys and A/D steer on the ground and roll in the
+air; Z/X are rudder. **B** holds the brakes. There are no differential
+brakes: steer with the keys, brake with B.
+
+**Steering fades with speed.** The wheel (nose or tail) steering locks out
+above about 8 m/s. Ground steering through rudder and the keys then fades out
+near 1.5 × the aircraft's `tailLiftSpeedMps` (F6F 42 m/s, F4F 37.5, Zero 36),
+after which only the rudder's air authority is left. Do not expect to correct a
+swing with the arrows once the tail is up and fast.
+
+**When and how to pull.** Hold the stick neutral and full throttle until the
+airspeed is near the table below, then pull back and hold. The pitch is capped
+on the wheels at the attitude where the wing makes its lift for 1.1 × the
+clean stall speed (12.6 degrees for all three aircraft; `groundPitchCeilingRad`
+in `src/sim/ground.ts`), so a firm pull leaves the ground within a few knots of
+the table and cannot over-rotate on the runway. Hands off, the airplane never
+lifts off by itself (a conformance test holds it for 30 s at full throttle).
+
+**Flaps 0 vs 1 (F toggles).** Flaps 1 lifts off about 8 m/s earlier and
+roughly 100 to 140 m shorter. Measured, full pull held from 40 m/s, trial mass
+(fuel load large, so heavy):
+
+| Aircraft | Flaps | Liftoff speed | Run |
+| --- | --- | --- | --- |
+| F6F | 0 | 51.0 m/s (114 mph) | 449 m |
+| F6F | 1 | 42.9 m/s (96 mph) | 312 m |
+| F4F | 0 | 46.4 m/s (104 mph) | 401 m |
+| F4F | 1 | 41.4 m/s (93 mph) | 307 m |
+| Zero | 0 | 41.7 m/s (93 mph) | 265 m |
+| Zero | 1 | 40.8 m/s (91 mph) | 263 m |
+
+The Zero and the flaps-1 rows are pinned near 40 m/s because the test starts
+its pull there; a pull earlier would lift them slightly sooner. The scenario's
+default 400 kg fuel load is lighter than this trial mass and lifts sooner
+(F6F flaps 0: 46.2 m/s, 119 m on a carrier deck).
+
+**Carrier.** The game has no ship-speed-as-wind setting: airspeed is the
+airplane's velocity minus the world wind, and the deck carries the ship's
+velocity, so in calm air the wind over the deck is the ship's speed. There are
+no catapults, and no mission uses the Casablanca (only the Essex is flown from
+today); the take-off path is a deck run from the respot ("Launch when ready").
+Measured 2026-09-28 at the shipped default fuel (400 kg), calm air, ship at
+maximum speed on a straight course, start 7 m from the stern, full back stick
+from 40 m/s airspeed. The start spot and pull point are my choices, not game
+rules. `tests/sim/carrierTakeoff.test.ts` re-checks every aircraft and carrier
+in `content/` this way.
+
+| Ship | Aircraft | Flaps | Airspeed at liftoff | Deck run | Deck left |
+| --- | --- | --- | --- | --- | --- |
+| Essex (17 m/s, 256 m run) | F6F | 0 | 46.2 m/s | 119 m | 137 m |
+| Essex | F6F | 1 | 41.4 m/s | 86 m | 170 m |
+| Essex | F4F | 0 | 43.1 m/s | 106 m | 150 m |
+| Essex | F4F | 1 | 41.1 m/s | 97 m | 159 m |
+| Essex | Zero | 0 / 1 | 41.4 / 40.8 m/s | 77 m | 179 m |
+
+Every Essex case is wheels-off well before the bow. Casablanca (9.93 m/s,
+145.69 m deck, 139 m of run from the start spot, deck 12 m above the water):
+the F6F with flaps 1 lifts at 138 m (about 1 m to spare) and the Zero at 125 m
+(flaps 0) or 126 m (flaps 1). The F6F with flaps 0 and the F4F (both flap
+settings) reach the bow still on the wheels at 40 to 43 m/s of airspeed, short of
+the 1.1 x stall speed the wing needs for the F6F flaps 0 and the F4F flaps 0.
+
+*Estimate (technique dependent):* what happens after the bow depends on the
+pilot. Holding full back stick stalls, so that is not a credible pilot. With a
+pilot who lowers the nose to 1.05 x stall speed and then pulls just enough to
+stop sinking, the worst of those cases sags 2.6 m below deck level (F4F flaps
+1), never touches the water, and climbs away. A pilot who sags less or more
+than that policy will do better or worse; the figure is one measured policy,
+not a limit.
+
+*Earlier figures retracted (2026-09-28):* an earlier version of this paragraph
+quoted Essex runs of 213 m, 126 m, 176 m and 118 m (margins of 42, 130, 80 and
+138 m) and called Casablanca "marginal to impossible". Those were measured at
+a lighter trial mass, not the shipped 400 kg fuel, and are superseded by the
+table above.
+
+**What is not modeled (arcade choices, Mark 2026-09-28).** Engine torque does
+not pull the nose (every shipped aircraft has torque 0), and a tail strike is
+not modeled: the pitch ceiling stops rotation, nothing is damaged.
+
+**The touchdown squeak** plays on the first wheel contact after the airplane
+has been more than 1 m up for half a second, with a sink rate of at least
+0.3 m/s. It does not play on take-off, a hop or rolling chatter, and it does
+not judge or damage the landing; that is the gates in the landing rules.
+
 ## Library
 
 `hangar.html` ("Library" on the title's first form) shows every aircraft,

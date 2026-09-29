@@ -12,8 +12,7 @@ import {
   MAX_SUPPORTED_SPEED_STALL_MULTIPLE,
   ARRIVAL_SINK_THRESHOLD_MPS,
   lateralGripAfter,
-  effectiveStallSpeedMps,
-} from '../../src/sim/ground.js'
+  effectiveStallSpeedMps, groundPitchCeilingRad } from '../../src/sim/ground.js'
 import { createState, type AircraftState } from '../../src/sim/flight/state.js'
 import { step } from '../../src/sim/flight/model.js'
 import type { SimContext } from '../../src/sim/loop.js'
@@ -23,6 +22,7 @@ import { v3, length, ZERO } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { specificEnergyAirmass } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { restPitchRad, wheelDepthM, wheelDepthOf } from '../../src/sim/gearContact.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const DT = 1 / 60
@@ -327,73 +327,201 @@ describe('the ground control regime', () => {
     // Not reduced -- zero. The gear holds the airframe; the ailerons move and
     // the airplane does not. This is the case that makes an airplane barrel-roll
     // down the runway if it is got wrong.
-    expect(groundBodyRates(f6f, rolling(20), stick, airRates).x).toBe(0)
+    expect(groundBodyRates(f6f, rolling(20), stick, airRates, DT).x).toBe(0)
+  })
+})
+
+describe('ground yaw (T1)', () => {
+  const rolling = (speed: number) => createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), rest), gearFraction: 1 })
+  const noAir = v3(0, 0, 0)
+  const yawRate = (speed: number, controls: Partial<typeof neutral>, spec = f6f) =>
+    groundBodyRates(spec, rolling(speed), { ...neutral, ...controls }, noAir, DT).y
+  const noseRightDeg = (y: number) => (-y * 180) / Math.PI
+
+  it('steers at a standstill', () => {
+    expect(noseRightDeg(yawRate(0, { yaw: 1, throttle: 0 }))).toBeGreaterThan(0)
+    expect(noseRightDeg(yawRate(0, { yaw: -1, throttle: 0 }))).toBeLessThan(0)
   })
 
-  it('allows no pitch below the speed the tail can be lifted at', () => {
-    expect(groundBodyRates(f6f, rolling(1), stick, airRates).z).toBe(0)
+  it('does not collapse under power as speed builds (the measured 5.5 -> 1.5 deg/s failure)', () => {
+    const at5 = noseRightDeg(yawRate(5, { yaw: 1, throttle: 0.6 }))
+    const at15 = noseRightDeg(yawRate(15, { yaw: 1, throttle: 0.6 }))
+    expect(at15).toBeGreaterThanOrEqual(3)
+    expect(at15).toBeGreaterThan(0.4 * at5)
   })
 
-  it('allows the full commanded pitch rate once the tail is up', () => {
-    const fast = rolling(f6f.gear.tailUpSpeedMps * 1.5)
-    expect(groundBodyRates(f6f, fast, stick, airRates).z).toBeCloseTo(airRates.z, 9)
+  it('a locked caster wheel steers nothing above the lock speed; rudder still does', () => {
+    const fast = f6f.gear.steerLockSpeedMps * 2
+    const withRudder = noseRightDeg(yawRate(fast, { yaw: 1, throttle: 0.6 }))
+    const without = noseRightDeg(yawRate(fast, { yaw: 0, throttle: 0.6 }))
+    expect(withRudder).toBeGreaterThan(without)
   })
 
-  it('treats a non-finite ground speed as tail-down, not tail-up (fix round 1, Minor 3)', () => {
-    // +Infinity satisfies `groundSpeed >= tailUpSpeedMps` as a bare
-    // comparison, which would buy full pitch authority for a broken state --
-    // the least conservative of the two outcomes.
-    const infiniteSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.POSITIVE_INFINITY, 0, 0) })
-    expect(groundBodyRates(f6f, infiniteSpeed, stick, airRates).z).toBe(0)
-    const nanSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.NaN, 0, 0) })
-    expect(groundBodyRates(f6f, nanSpeed, stick, airRates).z).toBe(0)
+  it('a free caster (F4F) steers only through the rudder', () => {
+    const f4f = loadAircraftSpec('f4f-wildcat')
+    expect(f4f.gear.thirdSteering).toBe('caster')
+    const still = noseRightDeg(groundBodyRates(f4f, rolling(0), { ...neutral, yaw: 1, throttle: 0 }, noAir, DT).y)
+    expect(still).toBeCloseTo(0, 9)
   })
 
-  describe('yaw: tailwheel and rudder, blended by speed (fix round 1, Important 1)', () => {
-    // Isolate the tailwheel term from the arbitrary shared `airRates` fixture
-    // by zeroing its yaw component -- these tests are about the tailwheel
-    // specifically, not the sum.
-    const noRudder = v3(airRates.x, 0, airRates.z)
+  it('the roll keys steer on the wheels: roll +1 turns the nose right, -1 left, and roll adds to rudder', () => {
+    expect(noseRightDeg(yawRate(4, { roll: 1, throttle: 0 }))).toBeGreaterThan(0)
+    expect(noseRightDeg(yawRate(4, { roll: -1, throttle: 0 }))).toBeLessThan(0)
+    expect(noseRightDeg(yawRate(4, { roll: 1, throttle: 0 }))).toBeCloseTo(noseRightDeg(yawRate(4, { yaw: 1, throttle: 0 })), 9)
+    expect(noseRightDeg(yawRate(4, { roll: 0.5, yaw: 0.25, throttle: 0 }))).toBeCloseTo(noseRightDeg(yawRate(4, { yaw: 0.75, throttle: 0 })), 9)
+    // Opposite inputs cancel; the sum saturates at full lock.
+    expect(noseRightDeg(yawRate(4, { roll: 1, yaw: -1, throttle: 0 }))).toBeCloseTo(0, 9)
+    expect(noseRightDeg(yawRate(4, { roll: 1, yaw: 1, throttle: 0 }))).toBeCloseTo(noseRightDeg(yawRate(4, { yaw: 1, throttle: 0 })), 9)
+  })
 
-    it('still yaws when stopped, because that is the tailwheel and not the rudder', () => {
-      expect(Math.abs(groundBodyRates(f6f, rolling(0), stick, noRudder).y)).toBeGreaterThan(0)
-    })
+  it('roll never becomes a roll rate on the wheels', () => {
+    for (const roll of [-1, 1]) {
+      expect(groundBodyRates(f6f, rolling(10), { ...neutral, roll, yaw: 1 }, v3(3, 0, 0), DT).x).toBe(0)
+    }
+  })
 
-    it('yaws the way the pilot asked', () => {
-      const right = groundBodyRates(f6f, rolling(5), { ...stick, yaw: 1 }, noRudder).y
-      const left = groundBodyRates(f6f, rolling(5), { ...stick, yaw: -1 }, noRudder).y
-      expect(Math.sign(right)).toBe(-Math.sign(left))
-    })
+  it('engine torque swings the nose the way torqueYawRateDegPerSec says, and cancels at zero', () => {
+    // The shipped F6F has torque 0 (Mark's ruling, 2026-09-28: arcade feel), so
+    // the term is exercised on a COPY with a nonzero value.
+    expect(f6f.gear.torqueYawRateDegPerSec).toBe(0)
+    const torqued = { ...f6f, gear: { ...f6f.gear, torqueYawRateDegPerSec: -3 } }
+    const swing = noseRightDeg(yawRate(2, { throttle: 1 }, torqued))
+    expect(Math.sign(swing)).toBe(Math.sign(torqued.gear.torqueYawRateDegPerSec))
+    expect(noseRightDeg(yawRate(2, { throttle: 1 }, f6f))).toBeCloseTo(0, 9)
+  })
 
-    it('is at full authority at rest, summed with whatever the rudder/weathercock term already commands', () => {
-      const tailUp = f6f.gear.tailwheelYawRateDegPerSec * (Math.PI / 180)
-      // yaw: 1 negates, matching `ratesFromDynamicPressure`'s own convention.
-      const expected = -tailUp + airRates.y
-      expect(groundBodyRates(f6f, rolling(0), stick, airRates).y).toBeCloseTo(expected, 9)
-    })
+  it('is continuous with the air yaw rate: the ground terms are gone by the time it flies', () => {
+    const air = v3(0, -0.05, 0)
+    const fastEnough = f6f.gear.tailLiftSpeedMps * 1.6
+    const y = groundBodyRates(f6f, rolling(fastEnough), { ...neutral, yaw: 1 }, air, DT).y
+    expect(y).toBeCloseTo(air.y, 9)
+  })
 
-    it('fades to zero at tailUpSpeedMps, leaving only the rudder/weathercock term', () => {
-      const atTailUp = rolling(f6f.gear.tailUpSpeedMps)
-      expect(groundBodyRates(f6f, atTailUp, stick, airRates).y).toBeCloseTo(airRates.y, 9)
-    })
+  it('reads a non-finite rudder, roll or speed as no steering', () => {
+    const y = groundBodyRates(f6f, rolling(Number.NaN), { ...neutral, yaw: Number.NaN, roll: Number.NaN, throttle: 0 }, noAir, DT).y
+    expect(Number.isFinite(y)).toBe(true)
+    expect(y).toBeCloseTo(0, 9)
+  })
+})
 
-    it('is continuous across the speed the tail lifts -- not the order-of-magnitude jump a switched (not summed) term produced', () => {
-      const justBelow = groundBodyRates(f6f, rolling(f6f.gear.tailUpSpeedMps - 0.01), stick, airRates).y
-      const justAbove = groundBodyRates(f6f, rolling(f6f.gear.tailUpSpeedMps + 0.01), stick, airRates).y
-      // The fade itself moves only a hair over this tiny speed step; this
-      // bound is far tighter than the 10x jump fix round 1 measured (20.00
-      // deg/s on the runway to 1.95 deg/s the next tick) and still comfortably
-      // clears floating-point noise.
-      expect(Math.abs(justAbove - justBelow)).toBeLessThan(0.01)
-    })
+const rest = restPitchRad(f6f.gear)
+const atPitch = (pitchRad: number, speed: number) =>
+  createState({
+    position: v3(0, 0, 0),
+    velocity: v3(speed, 0, 0),
+    attitude: qFromAxisAngle(v3(0, 0, 1), pitchRad),
+    gearFraction: 1,
+  })
+const neutral = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
+const groundPitchRate = (pitchRad: number, speed: number, controls = neutral) =>
+  groundBodyRates(f6f, atPitch(pitchRad, speed), controls, v3(0, 0, 0), DT).z
 
-    it('treats a non-finite ground speed as full tailwheel authority, not zero (fix round 1, Minor 3)', () => {
-      // Symmetric with the pitch guard above: a broken state stays pinned to
-      // the tail-down case on every axis, never granted new authority.
-      const infiniteSpeed = createState({ position: v3(0, 0, 0), velocity: v3(Number.POSITIVE_INFINITY, 0, 0) })
-      const tailUp = f6f.gear.tailwheelYawRateDegPerSec * (Math.PI / 180)
-      expect(groundBodyRates(f6f, infiniteSpeed, stick, noRudder).y).toBeCloseTo(-tailUp, 9)
+describe('ground pitch (T1)', () => {
+  it('holds the rest attitude at a standstill on idle', () => {
+    expect(groundPitchRate(rest, 0, { ...neutral, throttle: 0 })).toBeCloseTo(0, 9)
+  })
+
+  it('sinks a raised tail back toward the rest attitude when there is no airflow', () => {
+    expect(groundPitchRate(rest - 0.05, 0, { ...neutral, throttle: 0 })).toBeGreaterThan(0)
+  })
+
+  it('lifts the tail at speed with the stick neutral', () => {
+    expect(groundPitchRate(rest, f6f.gear.tailLiftSpeedMps * 1.2)).toBeLessThan(0)
+  })
+
+  it('a held-back stick rotates on the mains at speed, from the three-point attitude', () => {
+    // Was pinned at rest until 2026-09-28, when the ceiling stopped being the
+    // tail-strike attitude and became the derived liftoff attitude.
+    expect(groundPitchRate(rest, f6f.gear.tailLiftSpeedMps * 1.2, { ...neutral, pitch: 1 })).toBeGreaterThan(0)
+  })
+
+  it('never pitches below level with the tail up, however hard the stick is pushed', () => {
+    const rate = groundPitchRate(0, f6f.gear.tailLiftSpeedMps * 1.2, { ...neutral, pitch: -1 })
+    expect(rate * DT).toBeGreaterThanOrEqual(-1e-12)
+  })
+
+  it('rotates on the mains when pulled with the tail already up', () => {
+    expect(groundPitchRate(0, f6f.gear.tailLiftSpeedMps * 1.2, { ...neutral, pitch: 1 })).toBeGreaterThan(0)
+  })
+
+  it('cannot rotate past the derived ceiling, and the ceiling is the 1.1 x clean stall attitude', () => {
+    const ceiling = groundPitchCeilingRad(f6f)
+    // clMax 1.4 / 1.1^2 = 1.157, through clAtZeroAlpha 0.1 and slope 4.8055 per rad: 12.60 degrees.
+    expect((ceiling * 180) / Math.PI).toBeCloseTo(12.6, 1)
+    expect(ceiling).toBeGreaterThan(rest)
+    const at = ceiling - 0.001
+    const next = at + groundPitchRate(at, f6f.gear.tailLiftSpeedMps * 1.5, { ...neutral, pitch: 1 }) * DT
+    expect(next).toBeLessThanOrEqual(ceiling + 1e-9)
+  })
+
+  it('a touchdown well above the ground pitch ceiling settles at a bounded rate, not in one tick', () => {
+    const rate = groundPitchRate(rest + 0.1, 30, { ...neutral, throttle: 0, pitch: 1 })
+    expect(rate).toBeLessThan(0)
+    expect(Math.abs(rate)).toBeLessThanOrEqual((15 * Math.PI) / 180 + 1e-9)
+  })
+
+  it('reads a non-finite speed, throttle or stick as tail down and no lift', () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      // An unguarded `+Infinity` speed would buy full lift, the least
+      // conservative outcome for a state that cannot be trusted (the old
+      // gate's fix round 1, Minor 3, kept).
+      const rate = groundBodyRates(f6f, atPitch(rest - 0.05, bad), { ...neutral, pitch: -1 }, v3(0, 0, 0), DT).z
+      expect(rate).toBeGreaterThan(0)
+    }
+    const noThrottle = groundBodyRates(f6f, atPitch(rest - 0.05, 0), { ...neutral, throttle: Number.NaN }, v3(0, 0, 0), DT).z
+    expect(Number.isFinite(noThrottle)).toBe(true)
+    const noStick = groundBodyRates(f6f, atPitch(rest - 0.05, 30), { ...neutral, pitch: Number.NaN }, v3(0, 0, 0), DT).z
+    expect(Number.isFinite(noStick)).toBe(true)
+  })
+
+  it('commands no ground pitch, not NaN, for a non-finite attitude', () => {
+    const broken = { ...atPitch(rest, 20), attitude: { x: Number.NaN, y: 0, z: 0, w: 1 } }
+    expect(groundBodyRates(f6f, broken, { ...neutral, pitch: 1 }, v3(0, 0, 0), DT).z).toBe(0)
+  })
+
+  it('roll stays exactly zero', () => {
+    expect(groundBodyRates(f6f, atPitch(0, 20), { ...neutral, roll: 1 }, v3(1.2, 0.4, 0.8), DT).x).toBe(0)
+  })
+})
+
+describe('ground pitch: a taildragger whose rest attitude is about level (T1 fix round 1)', () => {
+  // The Zero's drawn model sits level, so its derived rest pitch is -0.118
+  // deg. Ruling 2026-09-28: it still rotates, to the derived ceiling (12.6 degrees).
+  const zero = loadAircraftSpec('a6m2-zero')
+  const zeroRest = restPitchRad(zero.gear)
+  const zeroAt = (pitchRad: number, speed: number) =>
+    createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitchRad), gearFraction: 1 })
+
+  it('has the rest pitch the ruling was taken on', () => {
+    expect((zeroRest * 180) / Math.PI).toBeCloseTo(-0.118, 3)
+  })
+
+  it('rotates nose-up under full stick at speed, up to the derived ceiling and no further', () => {
+    const at = (p: number) => groundBodyRates(zero, zeroAt(p, zero.gear.tailLiftSpeedMps * 1.5), { ...neutral, pitch: 1 }, v3(0, 0, 0), DT).z
+    expect(at(zeroRest)).toBeGreaterThan(0)
+    const cap = groundPitchCeilingRad(zero)
+    expect(cap).toBeGreaterThan(zeroRest)
+    expect(cap - 0.001 + at(cap - 0.001) * DT).toBeLessThanOrEqual(cap + 1e-9)
+  })
+
+  it('still settles tail-down at low speed on idle', () => {
+    expect(groundBodyRates(zero, zeroAt((3 * Math.PI) / 180, 2), { ...neutral, throttle: 0 }, v3(0, 0, 0), DT).z).toBeLessThan(0)
+  })
+
+  it('lifts off under full throttle and a held pull', () => {
+    const header = parseTerrainHeader({
+      centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000,
+      finestSamples: 8193, levels: 13, encoding: 'int16-decimetres',
     })
+    const field = createTerrainField(header, 12, new Int16Array(9).fill(10))
+    let s = createState({ position: v3(0, 1 + wheelDepthM(zero.gear, zeroRest), 0), attitude: qFromAxisAngle(v3(0, 0, 1), zeroRest), fuelKg: 300, gearFraction: 1 })
+    let airborne = false
+    for (let tick = 1; tick <= 60 * 40 && !airborne; tick++) {
+      const pitch = length(s.velocity) > 35 ? 1 : 0
+      s = step(zero, s, { pitch, roll: 0, yaw: 0, throttle: 1 }, { dt: DT, tick, terrain: field })
+      airborne = s.position.y - wheelDepthOf(zero, s) - 1 > 2
+    }
+    expect(airborne, 'the Zero left the ground within 40 s').toBe(true)
   })
 })
 
@@ -479,6 +607,30 @@ describe('step(): ground consumers are gated on the gear being down (fix round 1
     const withTerrain = step(f6f, rollingGearDown, controls, ctx(flat))
     const withoutTerrain = step(f6f, rollingGearDown, controls, ctx(null))
     expect(withTerrain).not.toEqual(withoutTerrain)
+  })
+
+  it('seats the wheels against the attitude the step ENDS at, not the one it started at (T1)', () => {
+    // Task 2 made wheel depth follow pitch, but `step` seated contact on the
+    // pre-step attitude and then rotated the airframe, so any ground pitch
+    // rate left the step ending with a wheel below (or above) the surface --
+    // a one-tick lag the soak's sink-through check caught at seed 1337.
+    // Tail coming up at speed with the stick pushed: the nose lowers about
+    // the origin, which drives the main wheels DOWN, and the step must end
+    // with them on the ground, not in it.
+    const start = createState({
+      position: v3(0, LAND_M + wheelDepthM(f6f.gear, rest), 0),
+      velocity: v3(40, 0, 0),
+      attitude: qFromAxisAngle(v3(0, 0, 1), rest),
+      gearFraction: 1,
+    })
+    const controls = { pitch: -1, roll: 0, yaw: 0, throttle: 0, brake: 0 }
+    const next = step(f6f, start, controls, ctx(flat))
+    expect(next.bodyRates.z).toBeLessThan(-0.1) // really pitching on the ground
+    expect(next.position.y - wheelDepthOf(f6f, next)).toBeCloseTo(LAND_M, 9)
+    // And it paid for the lift out of kinetic energy rather than gaining it.
+    const before = specificEnergyAirmass(start)
+    const after = specificEnergyAirmass(next)
+    expect(after).toBeLessThanOrEqual(before + 1e-9)
   })
 
   it('brings a braking ground roll to rest without buzzing across zero (fix round 1, Minor 4)', () => {
@@ -710,13 +862,52 @@ describe('a moving surface (Plan 8)', () => {
     const s = createState({ position: v3(0, 1 + H - 0.1, 0), velocity: v3(30, -0.5, 0), gearFraction: 1 })
     expect(restOnSurface(f6f, s, 1, ZERO)).toEqual(restOnSurface(f6f, s, 1))
     expect(lateralGripAfter(f6f, s, DT, ZERO)).toEqual(lateralGripAfter(f6f, s, DT))
-    expect(groundBodyRates(f6f, s, { pitch: 0, roll: 0, yaw: 0.5, throttle: 0 }, v3(0, 0, 0), ZERO))
-      .toEqual(groundBodyRates(f6f, s, { pitch: 0, roll: 0, yaw: 0.5, throttle: 0 }, v3(0, 0, 0)))
+    expect(groundBodyRates(f6f, s, { pitch: 0, roll: 0, yaw: 0.5, throttle: 0 }, v3(0, 0, 0), DT, ZERO))
+      .toEqual(groundBodyRates(f6f, s, { pitch: 0, roll: 0, yaw: 0.5, throttle: 0 }, v3(0, 0, 0), DT))
   })
 
   it('tire grip damps the velocity ACROSS the nose relative to the deck, not relative to the world', () => {
     // Nose north, ship moving east at 7.7: relative to the deck the airplane is still, so grip changes nothing.
     const still = createState({ position: v3(0, DECK_M + H, 0), velocity: shipV, attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2), gearFraction: 1 })
     expect(lateralGripAfter(f6f, still, DT, shipV)).toEqual(shipV)
+  })
+})
+
+describe('contact height follows pitch (T1)', () => {
+  const rest = restPitchRad(f6f.gear)
+  const restAttitude = qFromAxisAngle(v3(0, 0, 1), rest)
+  const depthAtRest = wheelDepthM(f6f.gear, rest)
+
+  it('an airplane parked at the rest attitude is on the ground at ground + the rest depth', () => {
+    const parked = createState({ position: v3(0, depthAtRest, 0), attitude: restAttitude, gearFraction: 1 })
+    expect(onGround(f6f, parked, 0)).toBe(true)
+  })
+
+  it('the same origin height is not ground contact once the nose is far up, because the tail wheel is then lowest', () => {
+    // 30 degrees nose-up: the tail wheel (x -6) hangs ~1.7 m lower than the
+    // mains did at level, so an origin at gear.heightM is now below the
+    // surface. The pre-T1 test `position.y - gear.heightM` called it contact.
+    const pitch = 30 * Math.PI / 180
+    const raised = createState({ position: v3(0, f6f.gear.heightM, 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitch), gearFraction: 1 })
+    expect(wheelDepthM(f6f.gear, pitch)).toBeGreaterThan(f6f.gear.heightM + 1)
+    expect(onGround(f6f, raised, 0)).toBe(false)
+  })
+
+  it('restOnSurface seats a sinking airplane at the depth for its own pitch', () => {
+    const sinking = createState({
+      position: v3(0, depthAtRest + 0.05, 0),
+      velocity: v3(20, -0.5, 0),
+      attitude: restAttitude,
+      gearFraction: 1,
+    })
+    const seated = restOnSurface(f6f, sinking, 0)
+    expect(seated.position.y).toBeCloseTo(depthAtRest, 9)
+    expect(seated.velocity.y).toBe(0)
+  })
+
+  it('never gains energy when the ground rises under it (unchanged rule)', () => {
+    const s = createState({ position: v3(0, depthAtRest, 0), velocity: v3(30, 0, 0), attitude: restAttitude, gearFraction: 1 })
+    const after = restOnSurface(f6f, s, 0.1)
+    expect(length(after.velocity)).toBeLessThanOrEqual(length(s.velocity))
   })
 })

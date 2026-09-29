@@ -6,6 +6,7 @@ import { groundUnder } from '../../src/sim/world/ground.js'
 import { bundleForScenario } from '../../tools/content/load.js'
 import { REACH_FAR, scenario } from './mission/fixture.js'
 import { terrainOrSkip } from './mission/fly.js'
+import { wheelDepthOf } from '../../src/sim/gearContact.js'
 
 const terrain = terrainOrSkip()
 
@@ -60,6 +61,6 @@ describe('takeoff scenarios', () => {
     w = spawnHeldGroup(w, 'defenders')
     const a = aircraftById(w, 'ai-1')!
     const ground = groundUnder(terrain, [], a.state.position.x, a.state.position.z)!
-    expect(a.state.position.y).toBeCloseTo(ground.heightM + a.spec.gear.heightM, 6)
+    expect(a.state.position.y).toBeCloseTo(ground.heightM + wheelDepthOf(a.spec, a.state), 6)
   })
 })

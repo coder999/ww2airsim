@@ -1,4 +1,5 @@
 import { supportedContact } from './ground.js'
+import { wheelDepthOf } from './gearContact.js'
 import { airspeed } from './flight/model.js'
 import type { AircraftState } from './flight/state.js'
 import type { AircraftSpec } from './flight/schema.js'
@@ -96,7 +97,7 @@ const groundFor = (terrain: TerrainField | null, decks: readonly Deck[], s: Airc
   groundUnder(terrain, decks, s.position.x, s.position.z)
 
 const wheelHeightM = (spec: AircraftSpec, s: AircraftState, g: GroundUnder): number =>
-  s.position.y - spec.gear.heightM - g.heightM
+  s.position.y - wheelDepthOf(spec, s) - g.heightM
 
 const supported = (spec: AircraftSpec, s: AircraftState, g: GroundUnder | null): boolean =>
   g !== null && supportedContact(spec, s, g.heightM, g.surface, g.velocity, g.landClass)

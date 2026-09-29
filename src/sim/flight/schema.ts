@@ -17,6 +17,7 @@ import { CombatSpecSchema } from '../weapons/schema.js'
  *  failure mode spec §9 warns about: a NaN reaching the integrator. */
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
 const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
+const nonNegative = finite.refine((n) => n >= 0, { message: 'must not be negative' })
 const fraction = finite.refine((n) => n > 0 && n <= 1, { message: 'must be in (0, 1]' })
 /** `[altitudeM, value]` rows copied from a trial table: altitude at or above
  *  sea level and strictly increasing, value positive. */
@@ -321,15 +322,6 @@ const AircraftSpecObject = z.object({
      *  validated against `rollingResistanceCoeff` here -- a content author
      *  is trusted to keep it the larger of the two. */
     brakingResistanceCoeff: positive,
-    /** Ground speed, m/s, at or above which the tail is judged light enough
-     *  for full pitch authority. Below it, `groundBodyRates` commands no
-     *  pitch at all -- see that function's own doc comment for the ruling
-     *  behind a speed gate instead of an elevator-moment model. */
-    tailUpSpeedMps: positive,
-    /** Maximum tailwheel-steering yaw rate, deg/s, available at any ground
-     *  speed including zero -- distinct from `rates.maxYawRateDegPerSec`,
-     *  which is the RUDDER's authority in the air. */
-    tailwheelYawRateDegPerSec: positive,
     /**
      * Seconds for the wheels to bleed away a sideways velocity component, as a
      * first-order time constant.
@@ -365,7 +357,46 @@ const AircraftSpecObject = z.object({
      * comparison on purpose (see the comment on that check).
      */
     heightM: positive,
-  }).strict(),
+    /** Undercarriage layout. `taildragger`: third wheel behind the mains.
+     *  `tricycle`: third (nose) wheel ahead of them. */
+    layout: z.enum(['taildragger', 'tricycle']),
+    /** Body-frame x, metres, of the main wheels' ground point. The body origin
+     *  stands in for the center of gravity; `heightM` is their depth. */
+    mainX: finite,
+    /** Body-frame x, metres, of the tail or nose wheel's ground point. */
+    thirdX: finite,
+    /** Depth, metres below the body origin at level attitude, of the third
+     *  wheel's ground point. With `mainX`/`heightM`/`thirdX` it fixes the
+     *  parked pitch: `restPitchRad` in `src/sim/gearContact.ts`. */
+    thirdHeightM: finite,
+    /** `caster` swivels free and steers nothing; `casterLock` steers slowly and
+     *  locks straight above `steerLockSpeedMps`; `steered` follows the rudder. */
+    thirdSteering: z.enum(['caster', 'casterLock', 'steered']),
+    /** Yaw rate, deg/s, of wheel steering at full rudder and rest. 0 for `caster`. */
+    steerYawRateDegPerSec: nonNegative,
+    /** Ground speed, m/s, above which a `casterLock` wheel is fully locked. */
+    steerLockSpeedMps: positive,
+    /** Effective airflow speed, m/s (ground speed combined with prop wash),
+     *  at which the elevator can hold the tail fully up. A scale for a smooth
+     *  curve, not a gate. */
+    tailLiftSpeedMps: positive,
+    /** Airflow speed the propeller adds over the tail at full throttle, m/s. */
+    propWashSpeedMps: nonNegative,
+    /** Yaw rate, deg/s, the engine torque swings the nose at full throttle and
+     *  rest. Positive swings right; 0 for counter-rotating propellers. */
+    torqueYawRateDegPerSec: finite,
+  }).strict().superRefine((g, ctx) => {
+    const ok = g.layout === 'taildragger'
+      ? g.thirdX < 0 && g.mainX > 0
+      : g.mainX < 0 && g.thirdX > 0
+    if (!ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `a ${g.layout} needs the body origin (the center of gravity) between its wheels, `
+          + `with the third wheel ${g.layout === 'taildragger' ? 'behind' : 'ahead of'} the mains`,
+      })
+    }
+  }),
   /**
    * Trailing-edge flaps: travel time, the drag they cost, and the lift they
    * buy. Separate from `gear` because they are a separate device with a

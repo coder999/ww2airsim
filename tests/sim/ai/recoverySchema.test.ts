@@ -100,7 +100,7 @@ describe('pilot.home (7g spec §7)', () => {
       velocity: v3(0, 0, 0),
       attitude: qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - home.parkWorld.headingRad),
     })
-    expect(state.attitude).toEqual(parkedAttitude(loadAirfield('tacloban')))
+    expect(state.attitude).toEqual(parkedAttitude(loadAirfield('tacloban'), 0))
   })
 
   it('allows home alongside leader and slot (a wingman has a home)', () => {

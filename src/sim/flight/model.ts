@@ -1,5 +1,5 @@
 import { type Vec3, v3, add, sub, scale, dot, length, normalize, cross, ZERO } from '../math/vec3.js'
-import { qRotate, qIntegrateBodyRates } from '../math/quat.js'
+import { qRotate, qIntegrateBodyRates, qFromAxisAngle, qMul, qNormalize } from '../math/quat.js'
 import { densityAt } from '../atmosphere.js'
 import { piecewiseLinear } from '../math/piecewise.js'
 import { liftCoefficient, dragCoefficient, alphaCritRad, windmillDragCd0, groundEffectFactor, sideForceN, attachedFlowFraction } from '../aero.js'
@@ -167,8 +167,10 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: 
  * the step): there the ground reaction holds the airframe at positive g
  * whatever the wing does, so the carburetor is fed. Keyed on lift alone, a
  * forward tap on the take-off roll put the nose below the zero-lift attitude,
- * cut the engine, and -- with pitch gated to 0 below `tailUpSpeedMps` --
+ * cut the engine, and -- with pitch then gated to 0 below a tail-up speed --
  * stranded the Zero on the runway for good (Z2 final review, 2026-09-25).
+ * (Since T1 the ground pitch is driven toward the rest attitude and level by
+ * `groundBodyRates`, but a cut engine on the roll is still wrong.)
  *
  * Stateless on purpose: no new AircraftState field, so no state migration and
  * no golden churn. The real engine sputtered and caught again over about a
@@ -469,7 +471,7 @@ export function step(
   // second one.
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
   if (startGround !== null) {
-    onGroundStart = onGround(spec, state, startGround.heightM)
+    onGroundStart = onGround(spec, state, startGround.heightM, startGround.velocity)
     onLandStart = startGround.surface === 'land' || startGround.surface === 'deck'
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
@@ -548,9 +550,11 @@ export function step(
   // RELATIVE TO THE DECK -- a chocked airplane matching the ship's velocity
   // reads as at rest, not as rolling at the ship's speed.
   const ground = groundUnder(ctx.terrain ?? null, decks, position.x, position.z)
+  let seated = false
   if (ground !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
     if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
+      seated = true
       const rested = restOnSurface(spec, integrated, ground.heightM, ground.velocity)
       position = rested.position
       // Tire grip, applied ONLY while the wheels are carrying the airplane.
@@ -631,9 +635,9 @@ export function step(
 
   // On the ground, the wheels are the rotation constraint, not the air --
   // spec §5's rate command is right in the air and wrong on a runway, where
-  // an airplane cannot roll about its own axis and pitches about its main
-  // gear only once the tail can be lifted (Task 7; see `groundBodyRates`'s
-  // own doc comment). Applied LAST, after the weathercock and stall
+  // an airplane cannot roll about its own axis, and its pitch is driven
+  // toward the rest attitude and level by airflow and the stick (T1; see
+  // `groundBodyRates`'s own doc comment). Applied LAST, after the weathercock and stall
   // wing-drop terms, and not merely blended in, because of a case that
   // actually occurs, not a hypothetical one: a hard rotation. Measured, full
   // back stick from a standing start gives 38 consecutive ticks (0.63 s) of
@@ -647,8 +651,8 @@ export function step(
   // governs, not one contributor among several. (A parked, nose-up
   // three-point attitude is NOT the case this guards: measured, that alpha
   // is under the stall angle for a realistic sit, and `groundBodyRates`
-  // already refuses any pitch command below `tailUpSpeedMps` regardless of
-  // ordering, so it could not command the nose up into a stall from rest
+  // never lets the pitch past the rest attitude on a taildragger regardless
+  // of ordering, so it could not command the nose up into a stall from rest
   // even if it were.) Gated on the state at the START of this step, matching
   // `onGroundStart` and `wheelsDownStart` above: the rates command THIS
   // step's rotation, so using the integrated (end-of-step) state here would
@@ -661,9 +665,40 @@ export function step(
   // the ocean.
   const bodyRates =
     startGround !== null && onGroundStart && wheelsDownStart && onLandStart
-      ? groundBodyRates(spec, state, controls, ratesWithStall, startGround.velocity)
+      ? groundBodyRates(spec, state, controls, ratesWithStall, dt, startGround.velocity)
       : ratesWithStall
-  const attitude = qIntegrateBodyRates(state.attitude, bodyRates, dt)
+  // On the wheels the airplane turns about the WORLD vertical, not its own
+  // body-up axis (T1 taxi regression, 2026-09-28). The two coincide at level
+  // attitude, but a tail-down airplane's body-up leans by the rest pitch, and
+  // integrating a ground yaw rate about it swings the nose around a cone: the
+  // airplane read 21.9 degrees of bank and lost 3.8 degrees of pitch after a
+  // 180 degree turn, with `groundBodyRates` commanding zero roll throughout.
+  // So the ground branch integrates roll and pitch in the body frame and
+  // applies yaw as a rotation about world +Y.
+  const onWheels = startGround !== null && onGroundStart && wheelsDownStart && onLandStart
+  const attitude = onWheels
+    ? qNormalize(
+        qMul(
+          qFromAxisAngle(v3(0, 1, 0), bodyRates.y * dt),
+          qIntegrateBodyRates(state.attitude, v3(bodyRates.x, 0, bodyRates.z), dt),
+        ),
+      )
+    : qIntegrateBodyRates(state.attitude, bodyRates, dt)
+
+  // Re-seat against the attitude this step ENDS at (T1, 2026-09-28). Wheel
+  // depth follows pitch (`wheelDepthOf`), and the seat above was taken on the
+  // pre-step attitude, so a ground pitch rate would otherwise end the step
+  // with a wheel in the surface or above it -- measured 0.011 m below in one
+  // tick for a tail coming up at 40 m/s (`tests/sim/ground.test.ts` pins it).
+  // `restOnSurface` again, not a bare position write, so the same rules hold:
+  // lifting the airframe is paid for out of kinetic energy, lowering it only
+  // loses energy, and nothing is done beyond contact tolerance. Only when the
+  // wheels were seated above: an unsupported arrival is `advance`'s business.
+  if (seated && ground !== null) {
+    const reseated = restOnSurface(spec, { ...state, position, velocity, attitude }, ground.heightM, ground.velocity)
+    position = reseated.position
+    velocity = reseated.velocity
+  }
 
   // `gearFraction` is state, and `step` is what produces the next state, so
   // advancing it is `step`'s job, not a later task's -- `gearAfter`

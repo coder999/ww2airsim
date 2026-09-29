@@ -64,8 +64,8 @@ describe('engine.negativeGCutout (A6M spec §4.4, the float carburetor)', () => 
 
   // Final review, Important 1 (2026-09-25): keyed on lift alone, a forward
   // tap on the take-off roll (nose below the -1.19 deg zero-lift attitude)
-  // cut the engine; below tailUpSpeedMps the ground regime gates pitch to 0,
-  // so the nose could never come back up and the Zero sat on the runway at
+  // cut the engine; below the then tail-up speed gate the ground regime held
+  // pitch at 0, so the nose could never come back up and the Zero sat on the runway at
   // 12 m/s with no thrust, for good. On the wheels the ground reaction holds
   // the airframe at positive g, so the float carburetor keeps its fuel.
   it('keeps the engine on the wheels: a forward tap on the take-off roll does not strand the Zero', () => {
@@ -82,7 +82,11 @@ describe('engine.negativeGCutout (A6M spec §4.4, the float carburetor)', () => 
     // centered (rate command holds the nose-down attitude), then a steady
     // half pull. With the bug the dead engine decelerated the Zero through
     // the hesitation (measured 20.9 -> 19.5 m/s), and a longer one (about
-    // 22 s) let it fall below tailUpSpeedMps, where the pull does nothing.
+    // 22 s) let it fall below the old tail-up speed gate, where the pull did
+    // nothing. Since T1 (2026-09-28) the ground pitch floor, min(rest, 0) --
+    // the Zero's rest pitch, -0.118 deg, since it sits level -- also keeps
+    // the push from reaching the zero-lift attitude on the wheels; the
+    // on-the-wheels exemption above is what this still pins.
     let pushTicks = 0
     let pushEnd: number | null = null
     let speedAtPushEnd = 0

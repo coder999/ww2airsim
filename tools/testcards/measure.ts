@@ -1,5 +1,5 @@
 import { v3, dot, normalize } from '../../src/sim/math/vec3.js'
-import { qIdentity, qRotate } from '../../src/sim/math/quat.js'
+import { qFromAxisAngle, qIdentity, qRotate } from '../../src/sim/math/quat.js'
 import {
   createState,
   airspeed,
@@ -9,6 +9,7 @@ import {
   type Controls,
 } from '../../src/sim/flight/model.js'
 import { stepChecked } from '../../src/sim/invariants.js'
+import { restPitchRad, wheelDepthM } from '../../src/sim/gearContact.js'
 import { holdPitchAngle, holdLevelFlight, bankAngleRad } from '../../src/sim/autopilot.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
 import { createTerrainField, type TerrainField } from '../../src/sim/world/terrain.js'
@@ -38,7 +39,7 @@ function disposableLoadKg(spec: AircraftSpec): number {
   return kg
 }
 
-const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): AircraftState =>
+export const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): AircraftState =>
   createState({
     position: v3(0, altitudeM, 0),
     velocity: v3(speedMps, 0, 0),
@@ -58,7 +59,7 @@ const spawn = (spec: AircraftSpec, altitudeM: number, speedMps: number): Aircraf
  *  trims to a lower clTrim (= massKg * G / (q * S)), which changes induced
  *  drag and hence the equilibrium speed the run is converging toward. Small,
  *  but it is free to remove and it would not stay small for a longer card. */
-const holdMass = (spec: AircraftSpec, s: AircraftState): AircraftState =>
+export const holdMass = (spec: AircraftSpec, s: AircraftState): AircraftState =>
   s.fuelKg === disposableLoadKg(spec) ? s : { ...s, fuelKg: disposableLoadKg(spec) }
 
 /**
@@ -398,8 +399,8 @@ export function measureRollRate(spec: AircraftSpec, altitudeM: number, speedMps:
  * clear `SEA_LEVEL_M`; its exact value does not otherwise matter to a flat
  * field.
  */
-const RUNWAY_HEIGHT_M = 1
-const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
+export const RUNWAY_HEIGHT_M = 1
+export const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
   parseTerrainHeader({
     centreLatDeg: 10.8,
     centreLonDeg: 125.3,
@@ -414,19 +415,13 @@ const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
 
 /**
  * Ground-roll distance from a standstill to a stated lift-off speed, metres.
- * Controls held at zero (level, no aileron, no rudder) and full throttle, so
- * the commanded body rates are all zero and the attitude never leaves level
- * -- no autopilot is needed to hold it there. `groundBodyRates`
- * (`src/sim/ground.ts`) forces roll to exactly zero throughout, and gates
- * pitch on ground speed reaching `spec.gear.tailUpSpeedMps` -- which this run
- * DOES pass (measured 2026-09-16: at x = 33.8 m of the roll's 228.7 m total,
- * about 15% of the way down it), but that gate only ever passes through
- * `airRates.z`, the AIR-commanded pitch rate, and `airRates.z` is itself zero
- * the whole time because `controls.pitch` is held at zero throughout. So the
- * airplane still never rotates here, not because the speed gate never opens
- * but because there is no rotation command for it to let through -- and it
- * rolls level all the way to lift-off speed by construction, not by a
- * position pin.
+ * Controls held at zero (no elevator, aileron or rudder) and full throttle,
+ * so the AIR commands no rotation and no autopilot is needed. `groundBodyRates`
+ * (`src/sim/ground.ts`) forces roll to exactly zero throughout, and drives
+ * the pitch (T1, 2026-09-28): from the rest attitude the run starts at, the
+ * tail comes up toward level as airflow over it builds, with the stick
+ * neutral; the pitch can never go past level nose-down or past the rest
+ * attitude nose-up while on the wheels.
  *
  * The airplane is spawned with `gearFraction: 1` -- on its wheels -- over
  * `FLAT_RUNWAY_FIELD`, and the real ground constraint (`restOnSurface`,
@@ -446,18 +441,20 @@ const FLAT_RUNWAY_FIELD: TerrainField = createTerrainField(
 const TAKEOFF_MAX_S = 60
 
 export function measureTakeoffRun(spec: AircraftSpec, liftoffSpeedMps: number, flapFraction = 0): number {
-  // Task 15: `position.y` is the body origin, and a resting airplane's origin
-  // sits `spec.gear.heightM` above the ground it is parked on
+  // `position.y` is the body origin, and a resting airplane's origin sits
+  // `wheelDepthM(gear, pitch)` above the ground it is parked on
   // (`onGround`/`restOnSurface`, src/sim/ground.ts), not on the ground
-  // itself. Spawning at `RUNWAY_HEIGHT_M + spec.gear.heightM` here, rather
-  // than `RUNWAY_HEIGHT_M`, is what keeps this card's datum shift invisible
-  // -- the airplane starts exactly on its wheels over `FLAT_RUNWAY_FIELD`
-  // either way, so the measured roll distance is unaffected by Task 15.
+  // itself. T1: the airplane starts at its derived rest attitude (nose up by
+  // `restPitchRad`, both wheel sets on the runway), so it no longer "never
+  // leaves level": the sim lifts the tail itself with the stick neutral
+  // (Task 3), and the run is measured from that real starting attitude.
   // `flapFraction` defaults to 0 for callers predating Plan 11b. The trial
   // figure this card grades against is a FULL-FLAPS run, so the card itself
   // passes 1 -- see the card in f6f.test.ts.
+  const rest = restPitchRad(spec.gear)
   let s: AircraftState = {
-    ...spawn(spec, RUNWAY_HEIGHT_M + spec.gear.heightM, 0),
+    ...spawn(spec, RUNWAY_HEIGHT_M + wheelDepthM(spec.gear, rest), 0),
+    attitude: qFromAxisAngle(v3(0, 0, 1), rest),
     gearFraction: 1,
     flapFraction,
   }

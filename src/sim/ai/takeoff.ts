@@ -3,6 +3,7 @@ import type { Controls } from '../flight/state.js'
 import { airVelocity, DT } from '../flight/model.js'
 import { attitudeAngles } from '../flight/attitude.js'
 import { effectiveStallSpeedMps } from '../ground.js'
+import { wheelDepthOf } from '../gearContact.js'
 import { qRotate } from '../math/quat.js'
 import { length, sub, v3 } from '../math/vec3.js'
 import { isAircraftDown } from '../weapons/combat.js'
@@ -46,10 +47,16 @@ export type TakeoffContext = Pick<PilotTickContext, 'nowS' | 'terrain' | 'decks'
  *   f6f       down   calm          371 m        28.6 s
  *   f6f       down   3 m/s at 000  324 m        28.0 s
  *
- * The "tail comes up" airspeed the plan asked for does not exist here: the
- * sim models no tail-down ground attitude (`parkedAttitude` is level, pitch
- * 0.0 on the roll until rotation) and no takeoff swing (heading error 0.00
- * deg on every undisturbed roll above). Runway-local z -650, the spot the
+ * T1 merge note (2026-09-29): the table and the paragraph below were measured on
+ * the pre-T1 ground model (level parked attitude, no tail-down stance). Under
+ * T1 the airplane parks at its layout's rest pitch, the tail rises with
+ * airflow inside `groundBodyRates`, and this law's stick/rudder are unchanged
+ * (yaw steers on the ground, roll stays 0 on the wheels). Only the Zero's calm
+ * run was re-measured: 267 m -> 253.3 m (`ZERO_TAKEOFF_RUN_M`); the other
+ * rows are the old model's and were not re-run.
+ *
+ * (Pre-T1) The "tail comes up" airspeed the plan asked for did not exist:
+ * the sim modeled no tail-down ground attitude and no takeoff swing. Runway-local z -650, the spot the
  * plan named, is the runway's DEPARTURE end on 000: it leaves 100 m ahead,
  * and the Zero (flaps up, 3 m/s) rolled and climbed 194 m past the end of
  * the strip before its wheels were 10 m up (294 m).
@@ -89,12 +96,13 @@ export const TAKEOFF_STEER_GAIN = 15
 export const TAKEOFF_FLAPS = true
 /**
  * The Zero's run under this law, brakes off to wheels 10 m up, calm, flaps
- * down, from Dulag's z +650: 267 m (measured 2026-09-28, the table above;
+ * down, from Dulag's z +650: 253 m (re-measured 2026-09-29 on the T1 ground
+ * model with the wheels' pitch-dependent depth; was 267 m before T1;
  * airfield-strike's 3 m/s headwind shortens it to 244 m). The calm figure is
  * the conservative one. 7h Task 4's runway-length content check (RF1) reads
  * it, and tests/sim/ai/takeoff.test.ts fails if the law's run grows past it.
  */
-export const ZERO_TAKEOFF_RUN_M = 267
+export const ZERO_TAKEOFF_RUN_M = 253
 
 const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x))
 const wrapPi = (x: number): number => Math.atan2(Math.sin(x), Math.cos(x))
@@ -133,7 +141,7 @@ export function takeoffControls<M>(
   const s = a.state
   const now = ctx.nowS
   const heightM = heightAboveGround(s, ctx.terrain, ctx.decks)
-  const wheelsM = heightM - a.spec.gear.heightM
+  const wheelsM = heightM - wheelDepthOf(a.spec, s)
   let next: TakeoffState = { ...t, headingRad }
 
   if (next.phase === 'wait') {

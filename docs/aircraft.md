@@ -61,7 +61,41 @@ failure names what to fix:
 `tests/tools/models/_drawnPoints.ts` is the one reader of drawn points; use
 it rather than a second reader.
 
-## 5. Tier 2
+## 5. Undercarriage
+
+The gear layout is data, and a new aircraft passes the ground checks or does
+not ship. The design is in
+[`2026-09-28-t1-ground-handling-design.md`](superpowers/specs/2026-09-28-t1-ground-handling-design.md);
+this step only says what to author and what to run.
+
+1. Author `layout`, `mainX`, `heightM`, `thirdX` and `thirdHeightM` in the
+   spec's `gear` block from the drawn model. The method is the one Task 1 of
+   the T1 plan used: pitch the drawn points about the main axle and take the
+   first aft (tailwheel) or forward (nosewheel) point to touch, through
+   `tests/tools/models/_drawnPoints.ts`, with a throwaway test that is deleted
+   before commit.
+2. Label every steering, brake, tail-lift, prop-wash and torque number
+   (`thirdSteering`, `steerYawRateDegPerSec`, `steerLockSpeedMps`,
+   `tailLiftSpeedMps`,
+   `propWashSpeedMps`, `torqueYawRateDegPerSec`) ESTIMATE, or cite the source.
+   Append the label to `reference.source`; do not rewrite what is there.
+3. Run:
+
+   ```sh
+   npx vitest run tests/sim/ground/conformance.test.ts tests/sim/gearContact.test.ts tests/tools/models/stance.test.ts
+   ```
+
+   The conformance battery runs over `allGroundSpecs` in
+   `tests/sim/ground/fixtures.ts`; add the new aircraft there. It does not cover the
+   retracted-gear and water cases (`gearDown` is always true in it); those are
+   held by a separate ground test. The ground pitch ceiling is derived from the
+   aircraft's own lift curve (`groundPitchCeilingRad` in `src/sim/ground.ts`):
+   the angle of attack where CL = clMax / 1.1², capped at `alphaCritRad` and
+   never below the rest pitch. It needs no gear data, so a new aircraft gets a
+   liftoff near 1.1 x its clean stall speed for free; conformance test 6 checks
+   the band.
+
+## 6. Tier 2
 
 Run `tests/e2e/hangar.spec.ts` and the aircraft's own spec on a worktree dev
 server. The Hangar checks that pin node lists and mount counts (9 and 11)

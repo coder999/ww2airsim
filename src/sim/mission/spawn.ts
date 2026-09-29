@@ -1,5 +1,6 @@
 import { heightAt, type TerrainField } from '../world/terrain.js'
 import { v3 } from '../math/vec3.js'
+import { wheelDepthOf } from '../gearContact.js'
 import { createCombat, type CombatState } from '../weapons/combat.js'
 import type { AircraftEntity, ShipEntity, World } from '../loop.js'
 import type { MissionState } from './state.js'
@@ -43,7 +44,7 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
     // 7h: a held airfield park (a takeoff pilot) sits on the terrain, not
     // on the placeholder height it was built with.
     const state = a.parked && parts.terrain != null
-      ? { ...stamped, position: v3(stamped.position.x, heightAt(parts.terrain, stamped.position.x, stamped.position.z) + a.spec.gear.heightM, stamped.position.z) }
+      ? { ...stamped, position: v3(stamped.position.x, heightAt(parts.terrain, stamped.position.x, stamped.position.z) + wheelDepthOf(a.spec, stamped), stamped.position.z) }
       : stamped
     return { ...a, state, previous: state }
   })

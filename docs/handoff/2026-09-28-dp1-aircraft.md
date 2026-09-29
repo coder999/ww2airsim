@@ -9,8 +9,8 @@ fillets, leg covers) and carries a 1024 px baked skin. The design is
 and the plan is
 [`2026-09-28-dp1-aircraft.md`](../superpowers/plans/2026-09-28-dp1-aircraft.md).
 
-The work is complete on branch `worktree-dp1-aircraft` and is **not merged**;
-merging is Mark's call. Mark's decisions for the run (2026-09-28): DP1 only (the
+The work is complete on branch `worktree-dp1-aircraft` and was merged into local `main` on 2026-09-29 at Mark's request (not pushed);
+Mark's decisions for the run (2026-09-28): DP1 only (the
 Pennsylvania is "good enough for now"), checkpoint on the final product only,
 unattended. Nothing under `src/sim` changed and no scenario changed. Every rig
 node, pivot and overall dimension is unchanged.

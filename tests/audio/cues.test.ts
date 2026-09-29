@@ -1,10 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { GUN_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, nextAudio, type AudioInputs } from '../../src/audio/cues.js'
+import {
+  GUN_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
+} from '../../src/audio/cues.js'
 
 const flying: AudioInputs = {
-  throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', tick: 100, shots: 0,
+  throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 1.5, tick: 100, shots: 0,
   bombsDropped: 0, rocketsFired: 0,
 }
+/** Flown for long enough at height that the touchdown latch is armed; the next
+ *  frame is at tick 100 + TOUCHDOWN_AIRBORNE_TICKS + 1. */
+const armed = (over: Partial<AudioInputs> = {}): AudioMemory => {
+  let m = NO_AUDIO_MEMORY
+  for (let i = 0; i <= TOUCHDOWN_AIRBORNE_TICKS; i++) m = nextAudio(m, { ...flying, ...over, tick: 100 + i }).memory
+  return m
+}
+const NEXT = 100 + TOUCHDOWN_AIRBORNE_TICKS + 1
 const hit = (surface: 'water' | 'land', kind: 'ditched' | 'destroyed', over: AudioInputs = flying): AudioInputs =>
   ({ ...over, engineRunning: false, throttle: 0, impact: { tick: 4102, kind, surface } })
 
@@ -24,18 +34,65 @@ describe('the audio cue reducer (design §6.2)', () => {
   })
 
   it('squeaks exactly once on a real touchdown', () => {
-    const airborne = nextAudio(NO_AUDIO_MEMORY, flying)
-    const down = nextAudio(airborne.memory, { ...flying, onGround: true })
+    const down = nextAudio(armed(), { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT })
     expect(down.cues).toEqual(['landing_squeak'])
-    const rolling = nextAudio(down.memory, { ...flying, onGround: true })
+    const rolling = nextAudio(down.memory, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT + 1 })
     expect(rolling.cues).toEqual([])
   })
 
+  it('never squeaks on a take-off hop: no airborne latch, no sink', () => {
+    // Mark, 2026-09-28. A full-pull take-off climbed slowly through the
+    // +/-0.25 m `onGround` band and re-entered it 9-10 times, and each
+    // false -> true edge played the touchdown screech. Frames below are that
+    // chatter: wheel height inside a quarter metre, climbing (negative sink).
+    let m = NO_AUDIO_MEMORY
+    const cues: string[] = []
+    for (let i = 0; i < 200; i++) {
+      const hop = i % 3 === 0 // on for one frame, off for two
+      const f = nextAudio(m, { ...flying, onGround: hop, heightM: hop ? 0.2 : 0.3, sinkMps: -0.8, tick: 100 + i })
+      m = f.memory
+      cues.push(...f.cues)
+    }
+    expect(cues).toEqual([])
+  })
+
+  it('never squeaks on a take-off climb-out or its later rolling, even after the latch arms', () => {
+    // Armed in the air, then a chatter edge at height below the sink gate: a
+    // soft or upward contact is not a touchdown.
+    const m = armed({ sinkMps: -3 })
+    const up = nextAudio(m, { ...flying, onGround: true, heightM: 0.2, sinkMps: -3, tick: NEXT })
+    expect(up.cues).toEqual([])
+  })
+
+  it('does not squeak for a contact that arrives without a real sink rate', () => {
+    const touch = nextAudio(armed({ sinkMps: 0.1 }), { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT })
+    expect(touch.cues).toEqual([])
+  })
+
+  it('does not count a brief pop above a metre as airborne', () => {
+    let m = NO_AUDIO_MEMORY
+    for (let i = 0; i < TOUCHDOWN_AIRBORNE_TICKS - 5; i++) m = nextAudio(m, { ...flying, tick: 100 + i }).memory
+    m = nextAudio(m, { ...flying, onGround: false, heightM: 0.4, tick: 200 }).memory
+    const touch = nextAudio(m, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: 201 })
+    expect(touch.cues).toEqual([])
+  })
+
+  it('spends the latch on the first contact, so chatter after a touchdown is silent', () => {
+    let m = armed()
+    const a = nextAudio(m, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT }); m = a.memory
+    const b = nextAudio(m, { ...flying, onGround: false, heightM: 0.3, sinkMps: 1, tick: NEXT + 1 }); m = b.memory
+    const c = nextAudio(m, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT + 2 })
+    expect(a.cues).toEqual(['landing_squeak'])
+    expect(c.cues).toEqual([])
+  })
+
   it('squeaks again on the second contact of a bounce, because that is what happened', () => {
-    let m = nextAudio(NO_AUDIO_MEMORY, flying).memory
-    const a = nextAudio(m, { ...flying, onGround: true }); m = a.memory
-    const b = nextAudio(m, { ...flying, onGround: false }); m = b.memory
-    const c = nextAudio(m, { ...flying, onGround: true })
+    // A real bounce climbs back above the latch height for half a second and
+    // sinks into the second contact.
+    let m = armed()
+    const a = nextAudio(m, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT }); m = a.memory
+    for (let i = 1; i <= TOUCHDOWN_AIRBORNE_TICKS + 1; i++) m = nextAudio(m, { ...flying, tick: NEXT + i }).memory
+    const c = nextAudio(m, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: NEXT + TOUCHDOWN_AIRBORNE_TICKS + 2 })
     expect(a.cues).toEqual(['landing_squeak'])
     expect(c.cues).toEqual(['landing_squeak'])
   })
@@ -44,8 +101,8 @@ describe('the audio cue reducer (design §6.2)', () => {
     // `ContactSurface` has had three members since Plan 8, and a trap is a
     // landing: steel under the wheels is a hard surface wherever land is
     // (Plan 8 review, item 3). Only water is not.
-    const m = nextAudio(NO_AUDIO_MEMORY, { ...flying, groundSurface: 'deck' }).memory
-    const touch = nextAudio(m, { ...flying, groundSurface: 'deck', onGround: true })
+    const m = armed({ groundSurface: 'deck' })
+    const touch = nextAudio(m, { ...flying, groundSurface: 'deck', onGround: true, heightM: 0, sinkMps: 0, tick: NEXT })
     expect(touch.cues).toEqual(['landing_squeak'])
   })
 
@@ -56,8 +113,8 @@ describe('the audio cue reducer (design §6.2)', () => {
     // one or more frames BEFORE `advance` registers the impact, which is why
     // suppressing the squeak on `impact !== null` alone did not catch it.
     // Wheels do not squeak on the sea whatever else is true.
-    const m = nextAudio(NO_AUDIO_MEMORY, { ...flying, groundSurface: 'water' }).memory
-    const touch = nextAudio(m, { ...flying, groundSurface: 'water', onGround: true })
+    const m = armed({ groundSurface: 'water' })
+    const touch = nextAudio(m, { ...flying, groundSurface: 'water', onGround: true, heightM: 0, sinkMps: 0, tick: NEXT })
     expect(touch.cues).toEqual([])
   })
 
@@ -114,8 +171,9 @@ describe('the audio cue reducer (design §6.2)', () => {
     const respawn = nextAudio(m, { ...flying, onGround: true, tick: 0 })  // parked, tick reset
     expect(respawn.cues).toEqual([])
     // ...and it still squeaks on the first real landing of the NEW flight.
-    const n = nextAudio(respawn.memory, { ...flying, onGround: false, tick: 1 }).memory
-    const landed = nextAudio(n, { ...flying, onGround: true, tick: 2 })
+    let n = respawn.memory
+    for (let i = 1; i <= TOUCHDOWN_AIRBORNE_TICKS + 1; i++) n = nextAudio(n, { ...flying, tick: i }).memory
+    const landed = nextAudio(n, { ...flying, onGround: true, heightM: 0, sinkMps: 0, tick: TOUCHDOWN_AIRBORNE_TICKS + 2 })
     expect(landed.cues).toEqual(['landing_squeak'])
   })
 
