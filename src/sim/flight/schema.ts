@@ -52,6 +52,8 @@ const StoreTypeObject = z.object({
   warheadKg: positive.optional(),
   burnS: positive.optional(),
   burnDeltaVMps: positive.optional(),
+  /** Rail boresight above the gunsight line, degrees: the pilot's aim allowance for the drop. */
+  railElevationDeg: z.number().finite().min(0).max(5).optional(),
 }).strict()
   .refine((t) => t.kind !== 'bomb' || (t.fillerKg !== undefined && t.armS !== undefined), { message: 'a bomb needs fillerKg and armS' })
   .refine((t) => t.kind !== 'rocket' || (t.warheadKg !== undefined && t.burnS !== undefined && t.burnDeltaVMps !== undefined), { message: 'a rocket needs warheadKg, burnS and burnDeltaVMps' })

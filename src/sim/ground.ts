@@ -6,6 +6,7 @@ import { surfaceAt, type ContactSurface } from './contact.js'
 import { restPitchRad, wheelDepthOf } from './gearContact.js'
 import { attitudeAngles } from './flight/attitude.js'
 import { alphaCritRad } from './aero.js'
+import type { LandClass } from './world/cover.js'
 
 /** Standard gravity, m/s^2. Duplicated per-file rather than shared, matching
  *  how `flight/model.ts`, `autopilot.ts`, `invariants.ts` and
@@ -67,12 +68,27 @@ export function rollingResistanceN(
   spec: AircraftSpec,
   massKg: number,
   brake: number | undefined,
+  landClass: LandClass = 'unclassified',
 ): number {
   const b = Number.isFinite(brake) ? Math.min(1, Math.max(0, brake as number)) : 0
-  const { rollingResistanceCoeff, brakingResistanceCoeff } = spec.gear
-  const coeff = rollingResistanceCoeff + b * (brakingResistanceCoeff - rollingResistanceCoeff)
+  const { brakingResistanceCoeff } = spec.gear
+  // Soft ground multiplies the FREE-ROLLING coefficient only; brakes are
+  // traction-limited, not sink-limited, and still work. The braked end is
+  // floored at the soft rolling figure so braking is never weaker than not
+  // braking.
+  const rolling = spec.gear.rollingResistanceCoeff * (landClass === 'soft' ? SOFT_FIELD_ROLLING_MULTIPLIER : 1)
+  const braking = Math.max(brakingResistanceCoeff, rolling)
+  const coeff = rolling + b * (braking - rolling)
   return coeff * massKg * G
 }
+
+/**
+ * How many times the runway's free-rolling resistance a soft field (paddy,
+ * grass, scrub, bare earth) drags. An UNTUNED GUESS, the same standing
+ * `MAX_SUPPORTED_SINK_MPS` has: nobody has flown it. Real figures for a tire
+ * on soft turf run several times those on concrete; 4 puts the F6F at 0.08.
+ */
+export const SOFT_FIELD_ROLLING_MULTIPLIER = 4.0
 
 /**
  * How close to the surface counts as resting on it, meters.
@@ -321,6 +337,21 @@ export const GEAR_DOWN_FRACTION = 0.95
 export const MAX_SUPPORTED_SINK_MPS = 4.0
 
 /**
+ * The sink-rate limit on a soft field (paddy, grass, scrub, bare ground) --
+ * off any airfield, where the land cover is not woodland. Lower than the
+ * runway's `MAX_SUPPORTED_SINK_MPS` because there is no prepared surface and
+ * no ground under it to trust. An UNTUNED GUESS with the same standing as
+ * that constant. The speed gate is unchanged.
+ */
+export const SOFT_FIELD_MAX_SINK_MPS = 3.0
+
+/** The sink limit for a class of land. Woodland has none: `supportedContact`
+ *  rejects it outright first. */
+export function maxSupportedSinkMps(landClass: LandClass): number {
+  return landClass === 'soft' ? SOFT_FIELD_MAX_SINK_MPS : MAX_SUPPORTED_SINK_MPS
+}
+
+/**
  * Landing-gear approach-speed limit, m/s: how fast an ARRIVAL can be and
  * still be judged carried rather than crashed into, whatever its sink rate.
  *
@@ -474,6 +505,11 @@ export function effectiveStallSpeedMps(spec: AircraftSpec, flapFraction: number)
  * velocity is at rest on it, not moving at the ship's speed. Both default to
  * the still-land reading (`surfaceAt(groundHeightM)`, `ZERO`), which makes
  * `rel` exactly `state.velocity` for every pre-Plan-8 call site.
+ *
+ * `landClass` (soft-field landings, 2026-09-28): woodland is never
+ * supported -- any gear contact there is a crash -- and a soft field takes
+ * the lower `SOFT_FIELD_MAX_SINK_MPS`. The default, `unclassified`, is the
+ * pre-cover reading, so a caller with no cover data changes nothing.
  */
 export function supportedContact(
   spec: AircraftSpec,
@@ -481,15 +517,17 @@ export function supportedContact(
   groundHeightM: number,
   surface: ContactSurface = surfaceAt(groundHeightM),
   surfaceVelocity: Vec3 = ZERO,
+  landClass: LandClass = 'unclassified',
 ): boolean {
   const rel = sub(state.velocity, surfaceVelocity)
   const speed = length(rel)
   const descending = rel.y < -ARRIVAL_SINK_THRESHOLD_MPS
   const stallMps = effectiveStallSpeedMps(spec, state.flapFraction)
   return (surface === 'land' || surface === 'deck')
+    && landClass !== 'forest'
     && onGround(spec, state, groundHeightM, surfaceVelocity)
     && state.gearFraction >= GEAR_DOWN_FRACTION
-    && Number.isFinite(rel.y) && rel.y >= -MAX_SUPPORTED_SINK_MPS
+    && Number.isFinite(rel.y) && rel.y >= -maxSupportedSinkMps(landClass)
     && Number.isFinite(speed)
     && (!descending || speed <= MAX_SUPPORTED_SPEED_STALL_MULTIPLE * stallMps)
 }

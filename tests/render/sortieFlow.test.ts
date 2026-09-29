@@ -15,9 +15,9 @@ const ctx = (dev: boolean): FlowContext => ({ options: SCENARIO_OPTIONS, flyable
 const ids = (xs: readonly { spec: { id: string } }[]) => xs.map((x) => x.spec.id).sort()
 
 describe('the sortie form model (sortie spec, Navigation, A3)', () => {
-  it('Dev off hides exactly the five Dev rows', () => {
+  it('Dev off hides exactly the six Dev rows', () => {
     const hidden = SCENARIO_OPTIONS.filter((o) => !visibleScenarios(ctx(false)).includes(o)).map((o) => o.value).sort()
-    expect(hidden).toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range'])
+    expect(hidden).toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'recovery-range', 'takeoff-range'])
     expect(visibleScenarios(ctx(true))).toEqual(SCENARIO_OPTIONS)
   })
   it('a carrier start offers the Hellcat and Wildcat; Dev adds the Zero', () => {

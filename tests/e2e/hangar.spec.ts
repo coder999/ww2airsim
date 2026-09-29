@@ -1,4 +1,5 @@
 // tests/e2e/hangar.spec.ts
+import { readFileSync } from 'node:fs'
 import { test, expect, type Page } from '@playwright/test'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 import type { PartPose } from '../../src/render/hangar/models.js'
@@ -28,7 +29,7 @@ const current = (page: Page) => page.evaluate(() => (window as HangarWindow).__h
 const pose = (page: Page, p: PartPose) => page.evaluate((q) => (window as HangarWindow).__hangar!.pose(q), p)
 const visible = (page: Page, v: boolean) => page.evaluate((x) => (window as HangarWindow).__hangar!.setModelVisible(x), v)
 const hasPart = (c: Current, id: string) => c.parts.some((p) => p.id === id && p.modeled)
-const setDebug = (page: Page, which: 'wireframe' | 'gizmos' | 'turntable', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
+const setDebug = (page: Page, which: 'wireframe' | 'gizmos' | 'turntable' | 'checker', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
 
 /** Three animation frames, so a pose or camera change has reached the canvas. */
 const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
@@ -366,6 +367,33 @@ test.describe('the Hangar', () => {
     await expect(listed('ki-84-frank')).toHaveCount(1)
     // Three filters must not push the sheet sideways (the Origin select once ran off its edge).
     expect(await page.locator('.hangar-panel .sheet').evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0)
+  })
+
+  test('15. every skinned model is lit inside 0.6x to 1.5x of its flat predecessor: no black, missing or blown-out skin (DP0)', async ({ page }) => {
+    const flat = JSON.parse(readFileSync('tests/e2e/fixtures/flat-luminance.json', 'utf8')) as Record<string, number>
+    for (const id of Object.keys(flat).filter((k) => k !== 'note')) {
+      const v = await view(page, id, 'three-quarter')
+      const [lum] = (await masks(page, v.empty, [v.model])).luminance
+      const r = lum! / flat[id]!
+      console.log(`skin ${id}: ${r.toFixed(3)}x its flat predecessor's luminance`)
+      expect.soft(r, `${id} luminance ratio`).toBeGreaterThanOrEqual(0.6)
+      expect.soft(r, `${id} luminance ratio`).toBeLessThanOrEqual(1.5)
+    }
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
+
+  test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv']) {
+      const { empty, model } = await view(page, id, 'three-quarter')
+      await setDebug(page, 'checker', true)
+      const on = await shot(page)
+      await setDebug(page, 'checker', false)
+      const off = await shot(page)
+      const m = await masks(page, empty, [model, on, off])
+      console.log(`checker ${id}: luminance ${m.luminance.map((x) => x.toFixed(4)).join(' / ')}`)
+      expect(Math.abs(m.luminance[1]! - m.luminance[0]!) / m.luminance[0]!, `${id} checker differs`).toBeGreaterThan(0.05)
+      expect(Math.abs(m.luminance[2]! - m.luminance[0]!) / m.luminance[0]!, `${id} restored`).toBeLessThanOrEqual(0.005)
+    }
   })
 })
 

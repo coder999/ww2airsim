@@ -143,6 +143,18 @@ the Library is left undrawn; the airfields in the game keep their procedural
 boxes. The [handoff](docs/handoff/2026-09-28-r4-r5-roster.md) records what was
 measured; master spec §15 holds the status.
 
+**Model detail pass DP0 landed 2026-09-28:** Blender
+models can now carry a baked skin (paint, markings, panel lines and scan
+detail), and the Ki-84 and the hangar are the first two to have one. The
+[handoff](docs/handoff/2026-09-28-dp0-skin-pipeline.md) records what was
+measured; master spec §15 holds the status.
+
+**Model detail pass DP2 landed 2026-09-28 on a branch awaiting merge:** every
+ship is now skinned, the three Blender ships detailed to the downloads' level,
+and the four print-model downloads box-projected. The
+[handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
+master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
@@ -206,6 +218,10 @@ green. See the
 **Plan 7e sides and many-vs-many is complete on branch `worktree-ai-7e` (2026-09-26), not yet merged.** Every aircraft now has a side, allied or axis. By default the player is allied and everyone else axis, so existing scenarios are unchanged. An AI with no fixed target picks one from the other side and switches the moment it dies. It holds fire while a friendly is in the way, and teamkills never score. A new ingress pilot flies a raider's route and fights only what attacks it, for the Combat Air Patrol mission. `furball-range` ("Furball (dev)") puts the player and a wingman against four AI. One open item: AIs rarely hit each other until the AI gunnery-honesty slice lands. See the [handoff](docs/handoff/2026-09-26-plan7e-sides.md); master spec §15 holds the status.
 
 **Plan 7f formation, wingmen and escort is complete on branch `worktree-ai-7f-formation` (2026-09-27), not yet merged.** A wingman holds a finger-four station off a leader through one station-keeping law, splits to cover the leader when a hostile threatens it or the leader is firing, and comes back to station once the threat clears. A wingman whose leader is lost takes on the leader's own route; a wingman whose leader is parked loiters until it actually leaves the ground. `furball-range`'s `ally-1` now flies as the player's wingman. Tier 1 only; Tier 2 waits on the sortie forms landing on `main`. See the [handoff](docs/handoff/2026-09-27-plan7f-formation.md); master spec §15 holds the status and open items.
+
+**Plan 7g landing AI is complete on branch `worktree-ai-7g-landing` (2026-09-28), not yet merged.** An AI with a `home` (a runway airfield or a carrier) goes home when it is out of ammunition, damaged, low on fuel or idle, flies an approach under the LSO's rules, goes around when it must, lands, and is respotted on a park spot. `recovery-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7g-landing.md); master spec §15 holds the status and open items.
+
+**Plan 7h AI takeoff is complete on branch `worktree-ai-7h-takeoff` (2026-09-28), not yet merged.** A parked AI with `pilot.takeoff` rolls, lifts off and hands off to the ordinary AI; Airfield Strike's defenders now scramble off Dulag's runway. `takeoff-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7h-takeoff.md); master spec §15 holds the status and open items.
 
 **Friendly fire and dishonorable discharge are complete and merged to `main` (2026-09-26).** Ships and airfield structures now have a side too. Damage to your own side scores nothing, and any of it forfeits everything since the last landing. A pilot who survives the sortie gets DISHONORABLE DISCHARGE, and the roster marks him DISCHARGED until he is resurrected; one who dies is K.I.A., since the dead cannot be discharged. The first friendly hit plays a radio call on the radio line, and the combat readout keeps a FRIENDLY FIRE tag. `friendly-fire-range` ("Friendly Fire (dev)") is the test bed. See the [handoff](docs/handoff/2026-09-26-friendly-fire.md); master spec §15 holds the status.
 

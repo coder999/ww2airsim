@@ -487,7 +487,7 @@ export function step(
     if (
       force.y < 0 &&
       state.velocity.y <= 0 &&
-      supportedContact(spec, state, startGround.heightM, startGround.surface, startGround.velocity)
+      supportedContact(spec, state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass)
     ) {
       force = v3(force.x, 0, force.z)
     }
@@ -511,7 +511,7 @@ export function step(
       const trackSpeed = length(track)
       if (trackSpeed > 1e-6) {
         const trackDir = normalize(track)
-        const resistanceN = rollingResistanceN(spec, mass, controls.brake)
+        const resistanceN = rollingResistanceN(spec, mass, controls.brake, startGround.landClass)
         // Clamped to at most the force that would exactly null the ground
         // track this step -- fix round 1, Minor 4: unclamped, a resistance
         // force below this bound overshoots past zero and reverses the
@@ -553,7 +553,7 @@ export function step(
   let seated = false
   if (ground !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
-    if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity)) {
+    if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
       seated = true
       const rested = restOnSurface(spec, integrated, ground.heightM, ground.velocity)
       position = rested.position
@@ -574,7 +574,7 @@ export function step(
   let arrested = false
   if (ground !== null && ground.deck !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
-    const onDeckWheels = supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity)
+    const onDeckWheels = supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity, ground.landClass)
     const engages = controls.hookDown === true && onDeckWheels && insideTrapZone(ground.deck, position.x, position.z)
     arrested = onDeckWheels && (state.arrested || engages)
     if (arrested) {

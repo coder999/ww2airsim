@@ -11,7 +11,7 @@ import { countsText, type CountsReport } from './budgets.js'
  * model. The logic lives in benchController.ts and budgets.ts, which Node
  * tests; this file only draws it. H2 complete; H3 adds turret rows.
  */
-export type DebugToggle = 'wireframe' | 'gizmos' | 'turntable'
+export type DebugToggle = 'wireframe' | 'gizmos' | 'turntable' | 'checker'
 
 export interface BenchHandlers {
   onPose(p: PartPose): void
@@ -105,7 +105,7 @@ export function mountBench(
 
   const debugRow = document.createElement('div')
   debugRow.style.cssText = 'margin:8px 0 4px'
-  const toggles: readonly [DebugToggle, string][] = [['gizmos', 'Pivot gizmos'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable']]
+  const toggles: readonly [DebugToggle, string][] = [['gizmos', 'Pivot gizmos'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable'], ['checker', 'UV checker']]
   const debugBoxes = new Map<DebugToggle, HTMLInputElement>()
   for (const [which, label] of toggles) {
     const { row, input } = checkbox(label, debug[which], (on) => h.onDebug(which, on))

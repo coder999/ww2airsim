@@ -181,6 +181,12 @@ The whole ingest, from search to a Hangar check, is `docs/models.md`.
   §15's table updated, and a README paragraph that points at §15 rather than
   restating the order.
 - Escape `|` as `\|` inside markdown table cells.
+- **Imperial units, not metric**, in anything user-facing (HUD, instruments,
+  docs, plan tables) — feet, miles, knots, mph, pounds, gallons, °F, inHg, as
+  the 1940s aircraft and crews would have used. Ask before converting existing
+  internal SI values or content JSON keys; that is a migration.
+- **Prefer the AskUserQuestion tool over free-text questions** whenever the
+  choices can be enumerated (Mark, 2026-09-28).
 
 ## How Mark works
 

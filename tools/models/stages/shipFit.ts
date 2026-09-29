@@ -10,6 +10,9 @@ import {
 } from '../../../src/render/scene/shipFit.js'
 import { roleMaterial } from './shipMaterials.js'
 
+/** The waterline skirt's node (spec §4.5); a skin skips it (DP2, Ruling S4). */
+export const SKIRT_NODE = 'Skirt'
+
 /** How far above the surface under it a smoke origin may sit, meters (spec §4.6). */
 export const SMOKE_REACH_M = 5
 
@@ -98,7 +101,7 @@ export function shipFitStage(doc: Document, ship: ShipEntry, spec: ShipSpec): Sh
       .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(wall.normals))
       .setIndices(doc.createAccessor().setType('SCALAR').setArray(wall.indices))
       .setMaterial(roleMaterial(doc, ship.palette, 'boot'))
-    onlyScene(doc).addChild(doc.createNode('Skirt').setMesh(doc.createMesh('Skirt').addPrimitive(prim)))
+    onlyScene(doc).addChild(doc.createNode(SKIRT_NODE).setMesh(doc.createMesh(SKIRT_NODE).addPrimitive(prim)))
   }
   const soup = documentSoup(doc)
   const { problems, measures } = fitProblems(soup, spec, ship)

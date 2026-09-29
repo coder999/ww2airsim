@@ -180,10 +180,7 @@ determinism rules. `hangar.py` is the worked example, and its header shows
 how to cite each figure and label each estimate.
 For aircraft, `ki-84-frank.py`, `ki-21-sally.py` and
 `b-29-superfortress.py` are one-, two- and four-engine templates whose
-geometry is fractions of the cited length and span (R3). Never build an
-aircraft part on the kit's `tapered_box`, `cylinder` or `turret`: they are
-wound inside out (found 2026-09-27, hidden by double-sided materials; see
-the R3 handoff).
+geometry is fractions of the cited length and span (R3).
 
 A building (R4) takes its parts from the kit: `frustum`, `gable_roof`, `tank`, `sandbag_ring`, `strut`,
 `gun_barrel` and `lattice_mast`, all wound outward and checked by
@@ -217,3 +214,47 @@ does, so `normalize`, `keep` and `split` work the same way. Without Blender,
 compares the bytes with the committed file. To show the model in the Hangar, see §7
 and §8.
 The onboarding runbook for a new aircraft is [aircraft.md](aircraft.md).
+
+### Skins (DP0, DP2)
+
+A Blender model can carry a baked skin: paint, markings, panel lines and
+pinned CC0 scan detail in one atlas on `TEXCOORD_0`
+([detail-pass spec](superpowers/specs/2026-09-28-model-detail-pass-design.md),
+§4 ruling: one UV set, no `TEXCOORD_1`). Written 2026-09-28 and verified by
+the DP0 and DP2 plans' Tier 1 runs and their reference-GPU Tier 2 runs
+(`tests/e2e/hangar.spec.ts` checks 15 and 16); the numbers are in the
+[DP0 handoff](handoff/2026-09-28-dp0-skin-pipeline.md) and the
+[DP2 handoff](handoff/2026-09-28-dp2-ships.md).
+
+- **Turn it on** with `kit.Model(name, skin=<atlas px>)` (1024 for aircraft,
+  512 for buildings). The kit then writes charts, UVs, smooth shading on
+  lofted surfaces, and `<out>.skin.json` beside the glb.
+- **Markings** are declared in model coordinates with `m.marking(...)`; the
+  schema is `tools/models/skin/sidecar.ts`. **Tags** come from
+  `with m.tagged(...)`, and a marking's `tags` restrict it to those parts.
+  Small uniform fittings go inside `with m.shared_chart():` so their padding
+  does not eat the atlas (read its docstring in `kit.py` first).
+- **The entry** takes `"skin": true` (Blender entries, ships included), and
+  `textures.maxSize` equal to the atlas. `maxBytes` does not rise.
+- **Ships (DP2).** A ship takes `"skin": true` too. Its paint is its
+  palette's (`tools/models/skin/shipColors.ts`) and its skin is
+  `metallicFactor 0` (Ruling S1); its skirt stays `ship:boot`. Ship hulls are
+  `hull_lines` and turrets are `naval_turret`: read their docstrings in
+  `kit.py`. A hull number is the `text` marking
+  (`tools/models/skin/strokeFont.ts`; model space, refused mirrored). A
+  downloaded ship with no usable UVs takes `"boxSkin": { "atlasPx": ... }`
+  (`tools/models/skin/boxProject.ts`), and
+  `tests/tools/models/shipEntries.test.ts` rebuilds the downloads from their
+  raw inputs and pins their geometry.
+- **The look** lives in `tools/models/skin/surfaces.ts` (per-role scan,
+  finish, chips, rivets) and `tools/models/skin/layers.ts` (paint, markings,
+  panel lines, height). A change there re-skins every skinned model and moves
+  the golden hashes in `tests/tools/models/skin/golden.test.ts`.
+- **No coplanar overlapping faces.** Two faces of one material can now show
+  different atlas texels, so a coincident face z-fights in paint. Additions
+  embed by at least 0.02 m or clear by at least 0.01 m, never flush.
+- **The UV checker:** open `hangar.html?bench` and tick "UV checker" to see
+  each model's chart stretch.
+- **`tests/tools/models/skins.test.ts`** holds the flat-shaded allowlist (12
+  entries on 2026-09-28, after DP2). It only shrinks: an entry leaves it when it is
+  skinned, and the ceiling drops with it.

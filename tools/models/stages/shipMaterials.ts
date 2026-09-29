@@ -62,13 +62,16 @@ function classify(doc: Document, prim: Primitive, flightDeckY: number | null): M
  * metallicFactor is 0. Runs after shipFit (classification reads the fitted
  * deck height) and before join.
  */
-export function shipMaterials(doc: Document, ship: ShipEntry, flightDeckY: number | null): void {
+export function shipMaterials(doc: Document, ship: ShipEntry, flightDeckY: number | null, skinName: string | null = null): void {
   for (const node of meshNodes(doc)) {
     const mesh = node.getMesh()!
     for (const prim of mesh.listPrimitives()) {
       if (prim.getMode() !== TRIANGLES) continue
       const src = prim.getMaterial()
       if (isRoleMaterial(src)) continue
+      // DP2 (Ruling S1): a skinned Blender ship's one skin material is its paint already. Its UVs and
+      // textures stay; the loop below zeroes its metallicFactor like every other material's.
+      if (skinName !== null && src?.getName() === skinName) continue
       const rule = ship.materials[src?.getName() ?? ''] ?? ship.otherMaterials
       if (rule === 'keep' || rule === 'mask') {
         if (!src) throw new Error(`ship ${ship.spec}: an untextured primitive has no material to ${rule}`)

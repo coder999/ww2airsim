@@ -1,4 +1,5 @@
 import type { AircraftEntity } from '../loop.js'
+import type { TakeoffState } from './takeoff.js'
 import { cross, length, normalize, scale, sub, v3, ZERO, type Vec3 } from '../math/vec3.js'
 
 export type PilotSkill = {
@@ -140,6 +141,20 @@ export type IngressDestination = { readonly kind: 'ship'; readonly id: string } 
  *  then orbit it; fight only what attacks or comes close. */
 export type IngressOrders = { readonly route: readonly IngressWaypoint[]; readonly destination: IngressDestination | null }
 
+/** 7g spec §7: a pilot's home, resolved to plain data by worldFromScenario.
+ *  A runway's approach geometry is fixed; a ship is read live from ctx.ships. */
+export type RecoveryHome =
+  | {
+      readonly kind: 'runway'; readonly airfieldId: string
+      readonly aimX: number; readonly aimZ: number; readonly headingRad: number
+      /** Runway-local park spot (for tests and diagnostics). */
+      readonly parkSpot: { readonly x: number; readonly z: number }
+      /** The same spot in world coordinates, facing down the runway: what the
+       *  respot builds from, because ctx carries no airfields (spec §7). */
+      readonly parkWorld: { readonly x: number; readonly z: number; readonly headingRad: number }
+    }
+  | { readonly kind: 'ship'; readonly id: string; readonly parkSpot: { readonly x: number; readonly z: number } }
+
 /** 7f spec §1-2: a wingman's station number in its leader's formation. */
 export type FormationSlot = 1 | 2 | 3
 /** 7f spec §1: a wingman's orders. The leader is a same-side aircraft,
@@ -149,7 +164,23 @@ export type FormationOrders = { readonly leader: string; readonly slot: Formatio
 /** What a pilot is doing at the top level (7e spec §4.1). 7e flies
  *  `engage`, `ingress` (§4.5) and `loiter`; 7f fills in `formation`, 7g
  *  `rtb` and `landed`. */
-export type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter'
+export type PilotMode = 'engage' | 'ingress' | 'formation' | 'rtb' | 'landed' | 'loiter' | 'takeoff'
+
+/** 7g: the recovery phases (7c-7g §6, 7g spec). */
+export type RecoveryPhase = 'transit' | 'hold' | 'join' | 'configure' | 'final' | 'go-around' | 'rollout' | 'landed'
+/** 7g: written by recovery.ts only. Plain data. */
+export type RecoveryState = {
+  readonly phase: RecoveryPhase
+  /** Sim time the phase began. */
+  readonly sinceS: number
+  /** The LSO gave `cut` on this pass: committed, a later wave-off is ignored (spec §5). */
+  readonly cut: boolean
+  /** Sim time `join` began on this pass; read by later arrivals for the interval. */
+  readonly joinedAtS: number | null
+  /** Sim time the aircraft came to rest; the respot is RESPOT_DELAY_S later. */
+  readonly restAtS: number | null
+  readonly respotted: boolean
+}
 
 export type PilotDecisionState = {
   /** 7e. Written by `pilotTick` at every choice (rescore or forced). */
@@ -163,6 +194,8 @@ export type PilotDecisionState = {
   /** 7e: the heading (atan2(v.z, v.x)) and altitude a loiter holds, latched
    *  when it begins and cleared when a target is chosen; `null` otherwise. */
   readonly loiter: { readonly headingRad: number; readonly altitudeM: number } | null
+  /** 7h: the takeoff phase machine, present only in mode `takeoff`. */
+  readonly takeoff?: TakeoffState
   readonly maneuver: PilotManeuver
   /** The maneuver flown this tick, chosen at rescore within 'maneuver'. */
   readonly named: ManeuverName
@@ -185,6 +218,13 @@ export type PilotDecisionState = {
   /** 7f spec §4: sim time until which a wingman flies trail cover, opened
    *  while its leader fires or engages. Absent (every non-wingman) means 0. */
   readonly coverUntilS?: number
+  /** 7g: the recovery phase machine, present only in mode `rtb`/`landed`. */
+  readonly recovery?: RecoveryState
+  /** 7g spec §1: the last rescore at which any hostile was a contact.
+   *  Written only for a pilot with a home, and seeded with the time of its
+   *  first rescore (ruling P10), so the idle clock starts when the pilot
+   *  does, not at 0 (a trigger-spawned pilot). */
+  readonly lastContactS?: number
 }
 
 /** 32-bit FNV-1a of an entity id: the seed of that pilot's noise cursor

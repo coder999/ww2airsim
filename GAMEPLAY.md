@@ -33,6 +33,7 @@ sortie, 0 points, however it ends.
 | Bomber | 750 | Runway | 500 |
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
+| Destroyer | 750 | Transport | 400 |
 
 Recovery multiplier applied to the mission total:
 
@@ -116,6 +117,61 @@ performance decision, not decoration.
 
 Post-mission: targets destroyed with per-item points, mission total, recovery
 multiplier applied, banked total, badges awarded, and any promotion.
+
+### Landing and ditching rules
+
+What counts as a survivable arrival. Every number below is an untuned guess
+(nobody has flown the limits); the constants own the values, this table only
+names them. Verified against the code 2026-09-28.
+
+**Landing on land or a carrier deck** (`supportedContact`, `src/sim/ground.ts`).
+All must hold when the wheels arrive (the sink limit is lower on a soft field, see "Where you landed"); fail any and the airplane is destroyed.
+There is no pitch or bank gate.
+
+| Gate | Limit | Constant |
+| --- | --- | --- |
+| Gear | at least 95% down | `GEAR_DOWN_FRACTION` |
+| Sink rate | 4.0 m/s or less (about 790 ft/min; a flown approach measures 1.47 m/s) | `MAX_SUPPORTED_SINK_MPS` |
+| Speed | 1.42 × current (flap-adjusted) stall speed or less, while descending | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` |
+
+Speed and sink are judged relative to the surface, so a moving deck counts as
+at rest.
+
+**Carrier trap.** Hook down and main gear inside the ship's `trapZone` (distance
+from the stern; Essex 30–130 m, Casablanca 20–80 m, both estimates), plus the
+gates above, arrests the airplane at 17 m/s² (`TRAP_DECEL_MPS2`). Hook up or
+outside the zone is an ordinary deck roll-out; the bow is a cliff. A failed deck
+arrival is always destroyed, never a ditching.
+
+**Ditching** (water only, `contactOutcome`, `src/sim/contact.ts`). All must hold:
+
+| Gate | Limit |
+| --- | --- |
+| Bank | within 10° of level |
+| Sink rate | 3.0 m/s or less (about 590 ft/min) |
+| Pitch | −2° to +12° |
+| Speed | 1.2 × clean stall speed or less (52.6 m/s for the F6F) |
+
+Any other contact with land is destroyed.
+
+**Where you landed.** Off an airfield, the surface under the wheels depends on
+the land cover (the same raster that paints the ground), read at the wheel
+position. Verified against the code 2026-09-28.
+
+| Surface | Where | Rule | Constants |
+| --- | --- | --- | --- |
+| Runway | inside an airfield's runway, apron or clearing | the gates above, unchanged | `MAX_SUPPORTED_SINK_MPS` |
+| Soft field | any other land that is not mostly woodland: paddy, grass, scrub, bare ground | a lower sink limit; more rolling resistance, so it takes a longer roll to stop with or without brakes (brakes still work); the speed gate is unchanged | `SOFT_FIELD_MAX_SINK_MPS`, `SOFT_FIELD_ROLLING_MULTIPLIER` |
+| Woodland | land where tree plus mangrove cover reaches about half | any gear contact destroys the airplane | `FOREST_COVER_FRACTION` |
+
+With no cover data loaded (the first seconds of a page load, or a test that
+supplies none), all land is judged as a runway is. The landing report records
+which surface the touchdown was on (`landClass`), for the debrief and missions to
+use later; nothing shows it yet. A touchdown still counts as an airfield landing
+only inside that airfield's runway.
+
+**Scoring.** Landed, ditched and killed all carry the 1.0 recovery multiplier;
+the badge is what needs a landing (see Badges).
 
 ### Instant Replay
 

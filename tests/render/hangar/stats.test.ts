@@ -24,9 +24,9 @@ describe('figuresFor (Hangar spec §5), against committed content', () => {
     expect(figure('f4f-wildcat', 'Structure')?.note).toMatch(/gameplay value/)
   })
 
-  it('a ship: hull, dimensions, speed in knots and m/s; an escort does not score', () => {
+  it('a ship: hull, dimensions, speed in knots and m/s; an escort scores as a destroyer', () => {
     expect(figure('essex-cv', 'Points when sunk')?.value).toBe(pointsForTargetType('carrier').toLocaleString('en-US'))
-    expect(figure('fletcher-dd', 'Points when sunk')?.value).toBe('none')
+    expect(figure('fletcher-dd', 'Points when sunk')?.value).toBe(pointsForTargetType('destroyer').toLocaleString('en-US'))
     expect(figure('fletcher-dd', 'Top speed')?.value).toMatch(/^\d+\.\d kn \(\d+\.\d m\/s\)$/)
   })
 
@@ -54,9 +54,9 @@ describe('an ordnance card (Hangar spec §5)', () => {
 })
 
 describe('the target-type mirror of src/sim/weapons/combat.ts', () => {
-  it('ships: only carrier, cruiser and battleship score', () => {
+  it('ships: every role scores', () => {
     expect(['carrier', 'cruiser', 'battleship', 'escort', 'merchant'].map((r) => shipTargetType(r as never)))
-      .toEqual(['carrier', 'cruiser', 'battleship', null, null])
+      .toEqual(['carrier', 'cruiser', 'battleship', 'destroyer', 'transport'])
   })
   it("structures: 'aaa' scores as AAA, every other kind as Building", () => {
     expect(['hangar', 'tower', 'aaa'].map((k) => structureTargetType(k as never))).toEqual(['building', 'building', 'aaa'])

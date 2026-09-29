@@ -1,0 +1,98 @@
+{
+  "id": "recovery-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": -110,
+          "z": 100
+        }
+      },
+      "chocked": true
+    },
+    {
+      "id": "ai-tac",
+      "spec": "f6f-hellcat",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          -14666,
+          1500,
+          -47605
+        ],
+        "headingDeg": 270,
+        "speedMps": 110
+      },
+      "pilot": {
+        "skill": "veteran",
+        "home": {
+          "airfield": "tacloban"
+        }
+      }
+    },
+    {
+      "id": "ai-cv",
+      "spec": "f6f-hellcat",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          5916,
+          1500,
+          -28558
+        ],
+        "headingDeg": 270,
+        "speedMps": 110
+      },
+      "pilot": {
+        "skill": "veteran",
+        "home": {
+          "ship": "cv-1"
+        }
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "cv-1",
+      "spec": "essex-cv",
+      "side": "allied",
+      "waypoints": [
+        [
+          -9084,
+          -28558
+        ],
+        [
+          -15295,
+          -47569
+        ]
+      ],
+      "speedMps": 7.717
+    }
+  ],
+  "weather": {
+    "windFromDeg": 342,
+    "windMps": 7.717,
+    "timeOfDay": 16.5,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1000,
+        "thicknessM": 800,
+        "coverage": 0.55
+      },
+      {
+        "kind": "cirrus",
+        "baseM": 7000,
+        "thicknessM": 300,
+        "coverage": 0.35
+      }
+    ]
+  }
+}

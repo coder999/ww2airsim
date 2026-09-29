@@ -8,13 +8,14 @@
     "license": "AGPL-3.0-or-later"
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 118.5 } },
-  "keep": [{ "node": "Turret1" }, { "node": "Turret2" }, { "node": "Turret3" }],
-  "textures": { "maxSize": 512, "format": "webp" },
+  "skin": true,
+  "keep": [{ "node": "Turret1" }, { "node": "Turret2" }],
+  "textures": { "maxSize": 1024, "format": "webp" },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
   "ship": {
     "spec": "kagero-dd", "fit": "hull", "kind": "full-hull", "keelM": -3.76, "palette": "ijn",
-    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting" },
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting", "antifouling": "antifouling" },
     "otherMaterials": "classify", "smokeOrigin": [10, 13.2, 0], "bow": "narrow-end"
   }
 }

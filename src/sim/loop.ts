@@ -771,7 +771,7 @@ function stepAircraftEntity<M>(
   // above ground and have it read as a normal landing.
   const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
   if (ground !== null) {
-    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity)) {
+    if (current.position.y <= ground.heightM && !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
       const impact: Impact = {
         tick: current.tick,
         position: current.position,
@@ -935,7 +935,7 @@ export function advance<M>(
       // carry the `!== null` narrowing into the spawn loop below.
       let m: MissionState<M> = stepped.mission
       for (const groupId of stepped.spawns) {
-        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m }, groupId)
+        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m, terrain: world.terrain }, groupId)
         aircraft = spawned.aircraft
         ships = spawned.ships
         combat = spawned.combat

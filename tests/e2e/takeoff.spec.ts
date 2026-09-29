@@ -1,173 +1,77 @@
-import { test, expect } from '@playwright/test'
-import { waitForTerrain, type DiagWindow } from './harness.js'
-import { loadAircraftSpec, loadAirfield } from '../../tools/content/load.js'
-import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
-
-const TACLOBAN_RUNWAY_CENTRE = loadAirfield('tacloban').runway.center
+import { test, expect, type Page } from '@playwright/test'
+import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
- * Tier 2, take-off. Same platform and caveats as `adapter.spec.ts`: a real
- * GPU on the Windows reference desktop, never hosted CI.
+ * Tier 2, Plan 7h (AI takeoff): `takeoff-range` in the shipped app on the
+ * reference GPU. Two allied AI Zeros start parked on Dulag's runway with
+ * `pilot.takeoff`; the player sits chocked at Tacloban. Tier 1
+ * (`tests/sim/ai/takeoff*.test.ts`, `airfield-strike.test.ts`) proves the
+ * takeoff headless; what only this tier proves is that it happens in the
+ * running app, on the terrain the renderer draws, without validation errors,
+ * and inside the frame budget.
  *
- * Written 2026-09-17 on nexus, before nexus had a GPU a browser could reach.
- * Last run 2026-09-28 (T1 Task 4), locally on nexus's Radeon 680M against a
- * worktree dev server: PASS in 32 s. Run it with:
- *
- *     npx playwright test tests/e2e/takeoff.spec.ts
- *
- * This is Plan 11a's one end-to-end statement that the whole thing works:
- * terrain arrives, the airplane is standing on its wheels on a runway, full
- * throttle rolls it, and it leaves the ground and stays off it. Every part of
- * that is unit-tested in isolation (`tests/sim/ground.test.ts`,
- * `tests/render/frame.test.ts`), and Plan 11a's own handoff records that the
- * soak's assertions shipped covering zero ticks -- so "the pieces pass
- * individually" has already proven not to mean the production path works.
+ * No camera follows an AI, so the check is numeric, as in `recovery.spec.ts`.
  */
-const f6f = loadAircraftSpec('f6f-hellcat')
+const URL = `/?${SCENARIO_PARAM}=takeoff-range`
+const ZEROS = ['ai-1', 'ai-2']
 
-/**
- * The roll is real time, because the simulation runs at real time: rotation
- * comes up 410-453 m into the roll (Plan 11a's handoff), which is something
- * over twenty seconds of accelerating from a standstill, and the climb-out
- * and the terrain fetch sit on top of that. The config's 60 s default is not
- * enough and a failure against it would read as "the airplane never got
- * airborne" rather than "the clock ran out".
- */
-test.setTimeout(150_000)
+// Sim time is ~50-60 s to hand-off (Task 4 measured 50 s and 60 s); triple
+// time makes that ~20 s of wall clock, plus boot and terrain.
+test.setTimeout(240_000)
 
-/** Metres of roll before the nose comes up. Short of the 410 m minimum the
- *  handoff measured, so the rotation input lands during the roll rather than
- *  after the airplane has already staggered off the ground on its own. */
-const ROTATE_AFTER_M = 380
+const aircraft = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft())
 
-test('rolls off the Tacloban runway under full throttle and stays airborne', async ({ page }) => {
-  // No query string on purpose. This is the DEFAULT spawn -- parked on the
-  // runway, gear down, nose north, as the scenario says
-  // (`content/scenarios/free-flight.json`). Deliberately NOT the
-  // `?spawnX/Y/Z` the plan's brief suggested: `hasSpawnOverride`
-  // (src/render/spawn.ts) makes the player's entity un-parked, so that URL
-  // would hand this test an airborne airplane at 120 m/s with its gear
-  // retracted. The override exists to move the airplane AWAY from the
-  // runway; a take-off test wants exactly what a pilot gets.
-  await page.goto('/')
+test('takeoff-range: both Zeros roll, lift off and hand off, the player is untouched, zero validation errors, the budget held', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(URL)
   await waitForTerrain(page)
 
-  // Standing on its wheels before anything else. This assertion is what makes
-  // the rest of the test mean something: a test that only checks the airplane
-  // ends up airborne passes identically on one that was never on the ground,
-  // which is precisely what the old `(0, 600, 0)` default would have given it.
-  // `supportedContact()` is also the only outside view of the gate chain Plan
-  // 11a got wrong four separate times -- gear down, sink rate, speed cap, and
-  // the surface being land.
+  const rows = await aircraft(page)
+  expect(rows.map((r) => r.id).sort()).toEqual(['ai-1', 'ai-2', 'f6f-1'])
+  expect(rows.find((r) => r.id === 'f6f-1')!.takeoff).toBeNull()
+  for (const id of ZEROS) expect(rows.find((r) => r.id === id)!.takeoff, id).not.toBeNull()
+
+  await page.keyboard.press('KeyT')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.timeScale())).toBe(3)
+  await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
+
+  const rollAt: Record<string, number> = {}
+  const doneAt: Record<string, number> = {}
   await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 })
-    .toBe(true)
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.impact())).toBeNull()
-
-  const start = await page.evaluate(() => {
-    const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-    return { x: p.x, y: p.y, z: p.z }
-  })
-  // Confirms the spawn is where this test thinks it is before spending two
-  // minutes rolling. A wrong spawn would otherwise show up as a mystifying
-  // timeout, or worse, as a pass from somewhere else entirely.
-  expect(Math.hypot(start.x - TACLOBAN_RUNWAY_CENTRE.x, start.z - TACLOBAN_RUNWAY_CENTRE.z)).toBeLessThan(1)
-
-  // Phase 1: full throttle, no pitch input, until it has rolled far enough to
-  // rotate. `Equal` integrates the throttle and holds it after release
-  // (`controlsFromKeys`, src/input/keyboard.ts), so it stays down for the
-  // whole flight from here.
-  await page.keyboard.down('Equal')
-  await page.waitForFunction(
-    ([sx, sz, needM]) => {
-      const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-      return Math.hypot(p.x - sx, p.z - sz) > needM
-    },
-    [start.x, start.z, ROTATE_AFTER_M] as const,
-    { timeout: 90_000 },
-  )
-
-  // The roll must have gone NORTH, down the strip, not east across it -- the
-  // whole reason a parked spawn's attitude is `parkedAttitude(tacloban)`
-  // (`src/sim/world/airfields.ts`) and not the identity. Asserted here and
-  // not only in Tier 1 because the spawn attitude reaches the simulation
-  // through `main.ts`, which no Tier 1 test can execute.
-  const rolled = await page.evaluate(() => {
-    const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-    return { x: p.x, z: p.z }
-  })
-  const alongM = start.z - rolled.z
-  const acrossM = Math.abs(rolled.x - start.x)
-  expect(alongM, 'the roll did not go north').toBeGreaterThan(ROTATE_AFTER_M / 2)
-  expect(acrossM, 'the airplane wandered off the side of the strip').toBeLessThan(alongM / 10)
-
-  // Phase 2: rotate. A BOUNDED nose-up input, held until the wheels leave and
-  // then released -- a full, indefinitely-held deflection over-rotates into a
-  // climbing stall and porpoises back into the ground, which
-  // `tests/render/frame.test.ts` records observing while it was built. This is
-  // what a pilot does, and it is what must stay crash-free.
-  //
-  // Held until lift-off (capped at 10 s) rather than for a fixed 1.5 s since
-  // T1 (2026-09-28), matching `frame.test.ts`: on the wheels the pitch is capped
-  // at the derived ground ceiling (`groundPitchCeilingRad`, 12.6 degrees for the F6F), and a neutral stick on the
-  // roll brings the tail back up toward level (`groundBodyRates`), so a pull
-  // released before the wheels leave sets the airplane back down level. Run
-  // on nexus's 680M 2026-09-28, the fixed 1.5 s pull never got airborne.
-  await page.keyboard.down('ArrowDown')
-  await page.waitForFunction(
-    ([gearHeightM, toleranceM]) => {
-      const d = (window as DiagWindow).__ww2!
-      const groundM = d.groundHeightM()
-      return groundM !== null && !d.supportedContact() && d.aircraftPositionM().y - gearHeightM - groundM > toleranceM
-    },
-    [f6f.gear.heightM, GROUND_CONTACT_TOLERANCE_M] as const,
-    { timeout: 10_000 },
-  )
-  await page.keyboard.up('ArrowDown')
-
-  // Phase 3: genuinely off the ground and STAYING off it. Both halves matter:
-  // `supportedContact()` going false alone would also be true of an airplane
-  // that had just bounced, and a height check alone cannot tell the wheels
-  // from the body origin, which sits the wheels' depth above them even parked.
-  // `gear.heightM` is that depth at level attitude; nose-up (T1: it follows
-  // pitch, `wheelDepthOf`) the real depth is smaller, so subtracting
-  // `gear.heightM` under-reads the clearance, the conservative side.
-  await page.waitForFunction(
-    ([gearHeightM, toleranceM]) => {
-      const d = (window as DiagWindow).__ww2!
-      const groundM = d.groundHeightM()
-      if (groundM === null) return false
-      const wheelsAboveGroundM = d.aircraftPositionM().y - gearHeightM - groundM
-      return !d.supportedContact() && wheelsAboveGroundM > toleranceM
-    },
-    [f6f.gear.heightM, GROUND_CONTACT_TOLERANCE_M] as const,
-    { timeout: 30_000 },
-  )
-  // Held, not instantaneous: a single noisy tick clear of the tolerance is not
-  // a take-off. Plan 11a's own liftoff bug was a position clamp producing an
-  // exactly-one-tick 15.001 m/s catapult, which a one-shot check would pass.
-  await page.waitForTimeout(2000)
-  const settled = await page.evaluate(
-    ([gearHeightM]) => {
-      const d = (window as DiagWindow).__ww2!
-      const groundM = d.groundHeightM()
-      return {
-        supported: d.supportedContact(),
-        wheelsAboveGroundM: groundM === null ? null : d.aircraftPositionM().y - gearHeightM - groundM,
-        impact: d.impact(),
-        errors: d.validationErrors,
+    .poll(async () => {
+      const [r, tick] = await Promise.all([aircraft(page), page.evaluate(() => (window as DiagWindow).__ww2!.tick())])
+      for (const a of r) {
+        if (!ZEROS.includes(a.id)) continue
+        if (a.takeoff === 'roll' && rollAt[a.id] === undefined) rollAt[a.id] = tick / 60
+        if (a.takeoff === null && doneAt[a.id] === undefined) doneAt[a.id] = tick / 60
       }
-    },
-    [f6f.gear.heightM] as const,
-  )
-  expect(settled.supported, 'came back down onto its wheels').toBe(false)
-  expect(settled.wheelsAboveGroundM).not.toBeNull()
-  expect(settled.wheelsAboveGroundM!).toBeGreaterThan(GROUND_CONTACT_TOLERANCE_M)
-  expect(settled.impact, 'the flight ended in an impact').toBeNull()
-  // Only trusted last, and only because every phase above proved it took
-  // effect: an empty error list on a take-off that never happened would be
-  // indistinguishable from a passing run.
-  expect(settled.errors).toEqual([])
+      return ZEROS.every((id) => doneAt[id] !== undefined)
+    }, { timeout: 150_000, intervals: [500], message: 'both Zeros did not leave takeoff mode' })
+    .toBe(true)
+  console.log(`takeoff: roll began (sim s) ${JSON.stringify(rollAt)}; handed off ${JSON.stringify(doneAt)}`)
+  for (const id of ZEROS) {
+    expect(rollAt[id], `${id} never rolled`).toBeDefined()
+    expect(doneAt[id]!, id).toBeLessThan(90)
+  }
+  await page.screenshot({ path: 'test-results/takeoff-handoff-tacloban.png' })
 
-  await page.keyboard.up('Equal')
+  const after = await aircraft(page)
+  for (const id of ZEROS) expect(after.find((r) => r.id === id)!.mode, id).not.toBe('takeoff')
+  const player = after.find((r) => r.id === 'f6f-1')!
+  expect(player.takeoff).toBeNull()
+  const impact = await page.evaluate(() => (window as DiagWindow).__ww2!.impact())
+  expect(impact, 'the parked player registered an impact').toBeNull()
+
+  const live = await page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    return { gpu: d.gpuFrameTimesMs(), errors: d.validationErrors }
+  })
+  expect(live.errors, `WebGPU validation errors:\n${JSON.stringify(live.errors, null, 2)}`).toEqual([])
+  expect(live.gpu.length).toBeGreaterThan(120)
+  const p95 = percentile(live.gpu, 0.95)
+  console.log(`takeoff: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
+  // The 1440p baseline is over 6.0 without any AI in view (recovery.spec.ts,
+  // handoff 7g Open item 1), so a red here is that baseline, not takeoff cost.
+  expect(p95).toBeLessThan(6.0)
 })

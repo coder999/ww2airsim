@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { GREEN_SKILL, VETERAN_SKILL } from '../../../src/sim/ai/pilot.js'
-import { advance, createWorldOf, type World } from '../../../src/sim/loop.js'
+import { advance, aircraftById, createWorldOf, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
-import { loadAircraftSpec } from '../../../tools/content/load.js'
+import { worldFromScenario } from '../../../src/sim/scenario.js'
+import { loadAircraftSpec, loadScenarioBundle } from '../../../tools/content/load.js'
 import { level, pilotFor, runCanned, splitSWorld, straight } from './maneuverWorlds.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -56,5 +57,18 @@ describe('7c determinism (spec §3.6, §7)', () => {
     expect(cloned).toEqual(w)
     const on = (x: World<undefined>) => runCanned(x, { t: straight }, 2, () => undefined)
     expect(on(cloned)).toEqual(on(w))
+  })
+
+  it('recovery-range: two runs are identical, and so is a run from a structuredClone taken mid-approach', () => {
+    const start = () => worldFromScenario(loadScenarioBundle('recovery-range'), null)
+    const on = (w: World<undefined>, ticks: number) => {
+      let x = w
+      for (let i = 0; i < ticks; i++) x = advance(x, DT).world
+      return x
+    }
+    expect(on(start(), 60 * 60)).toEqual(on(start(), 60 * 60))
+    const mid = on(start(), 200 * 60)
+    expect(aircraftById(mid, 'ai-tac')!.pilot!.decision.mode).toBe('rtb')
+    expect(on(structuredClone(mid), 30 * 60)).toEqual(on(mid, 30 * 60))
   })
 })

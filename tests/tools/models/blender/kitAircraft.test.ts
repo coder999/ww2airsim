@@ -10,6 +10,7 @@ import { HAVE_BLENDER, runBlenderScript } from '../../../../tools/models/blender
 import { findNode, modelIO, onlyScene } from '../../../../tools/models/document.js'
 import { measureDocument } from '../../../../tools/models/measure.js'
 import { radiusAbout, rotateAbout, worldPositions, type Vec3 } from '../../../../tools/models/rig.js'
+import { islands, signedVolume } from './solids.js'
 
 const PROBE = 'tests/tools/models/blender/fixtures/kit_aircraft_probe.py'
 const BAD = 'tests/tools/models/blender/fixtures/kit_bad_aircraft.py'
@@ -142,33 +143,11 @@ describe.skipIf(!HAVE_BLENDER)("the Blender kit's aircraft parts (R3)", () => {
   })
 
   it('every part is wound outward: each closed solid in a node has a positive signed volume', () => {
-    // R2's tapered_box, cylinder and turret read negative this way (measured 2026-09-27; see
+    // R2's tapered_box, cylinder and turret read negative this way (measured 2026-09-27, fixed in DP2 Task 2; see
     // the R3 ledger), hidden by double-sided materials. The face-by-face checks above skip
     // caps and tips; this one sees every face. A node holds several solids (blades and a
     // spinner, a strut and a wheel), so the volume is taken per island of welded positions;
     // one inverted blade cannot hide behind its spinner. The split fuselage closes as a pair.
-    const islands = (tris: number[][][]): number[][][][] => {
-      const key = (p: number[]): string => p.map((v) => v.toFixed(6)).join(',')
-      const parent = new Map<string, string>()
-      const find = (k: string): string => {
-        let r = k
-        while (parent.get(r)! !== r) r = parent.get(r)!
-        parent.set(k, r)
-        return r
-      }
-      for (const t of tris) for (const p of t) if (!parent.has(key(p))) parent.set(key(p), key(p))
-      for (const t of tris) for (const p of t.slice(1)) parent.set(find(key(p)), find(key(t[0]!)))
-      const groups = new Map<string, number[][][]>()
-      for (const t of tris) {
-        const r = find(key(t[0]!))
-        if (!groups.has(r)) groups.set(r, [])
-        groups.get(r)!.push(t)
-      }
-      return [...groups.values()]
-    }
-    const signedVolume = (tris: number[][][]): number =>
-      tris.reduce((s, [a, b, c]) => s + (a![0]! * (b![1]! * c![2]! - b![2]! * c![1]!)
-        - a![1]! * (b![0]! * c![2]! - b![2]! * c![0]!) + a![2]! * (b![0]! * c![1]! - b![1]! * c![0]!)) / 6, 0)
     const solids: [string, number, number[][][]][] = [
       ['ap_fuse + ap_fuse_lower', 1, [...triangles(findNode(doc, 'ap_fuse')), ...triangles(findNode(doc, 'ap_fuse_lower'))]],
       // The halves weld along the root, so they are split by side: a root-cap face belongs

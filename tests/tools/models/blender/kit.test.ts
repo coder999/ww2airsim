@@ -9,6 +9,7 @@ import type { Document, Node } from '@gltf-transform/core'
 import { HAVE_BLENDER, runBlenderScript } from '../../../../tools/models/blender/run.js'
 import { modelIO, findNode, onlyScene } from '../../../../tools/models/document.js'
 import { measureDocument } from '../../../../tools/models/measure.js'
+import { islands, signedVolume } from './solids.js'
 
 const PROBE = 'tests/tools/models/blender/fixtures/kit_probe.py'
 const BAD_HULL = 'tests/tools/models/blender/fixtures/kit_bad_hull.py'
@@ -158,5 +159,13 @@ describe.skipIf(!HAVE_BLENDER)('the Blender kit (model-roster spec §4.2)', () =
       .toThrow(/half-beam, draft and freeboard must be > 0/)
     expect(() => runBlenderScript(BAD_HULL, join(dir, 'bad-order.glb'), ['--case', 'nonmonotonic']))
       .toThrow(/station x values must be strictly increasing/)
+  })
+
+  it('R2 parts wind outward (DP2): every solid in the bridge, the mast and both turrets has a positive signed volume', () => {
+    for (const node of ['probe_bridge', 'probe_mast', 'Turret1', 'Turret2']) {
+      const solids = islands(triangles(findNode(doc, node)))
+      expect(solids.length, node).toBeGreaterThan(0)
+      for (const s of solids) expect(signedVolume(s), `${node}: an island of ${s.length} triangles`).toBeGreaterThan(0)
+    }
   })
 })

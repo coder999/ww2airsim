@@ -1,0 +1,22 @@
+{
+  "id": "takeoff-engage-fixture",
+  "player": "f6f-1",
+  "airfields": ["tacloban", "dulag"],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": { "position": [-34629, 450, -22229], "headingDeg": 90, "speedMps": 110 }
+    },
+    {
+      "id": "ai-1",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "parkedAt": { "airfield": "dulag", "spot": { "x": 0, "z": 650 } },
+      "chocked": false,
+      "pilot": { "takeoff": true }
+    }
+  ],
+  "ships": [],
+  "weather": { "windFromDeg": 0, "windMps": 3, "timeOfDay": 12 }
+}

@@ -1,12 +1,14 @@
 // tests/tools/models/build.test.ts
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import type { Document } from '@gltf-transform/core'
-import { blenderIntermediate, checkOutput, finishGenerated, runBuild, runPipeline, type BuildDeps } from '../../../tools/models/build.js'
+import { blenderIntermediate, checkOutput, finishGenerated, nodeBuildDeps, runBuild, runPipeline, type BuildDeps } from '../../../tools/models/build.js'
 import { parseModelEntry, type ModelEntry } from '../../../tools/models/manifest.js'
 import { findNode, modelIO } from '../../../tools/models/document.js'
 import { measureDocument, nodeTriangles } from '../../../tools/models/measure.js'
 import { addMeshNode, boxesPrimitive, newDocument } from './fixtures.js'
+import { fixtureDoc, fixtureSidecar, flatScan } from './skin/fixture.js'
 
 /** A Sketchfab-shaped toy airplane: nose +x, up +y, right +z, every part a group holding a mesh. */
 function toyPlane(): Document {
@@ -104,6 +106,7 @@ function fakeDeps(present: string[], haveBlender = true) {
     generate: async () => { generated.push('called'); return toyBomb() },
     haveBlender: () => haveBlender,
     blender: (script, out) => { blenderRuns.push(`${script} -> ${out}`) },
+    readText: () => { throw new Error('readText: not used by this test') }, scan: () => Promise.reject(new Error('scan: not used by this test')),
   }
   return { deps, lines, written, generated, reads, blenderRuns }
 }
@@ -223,5 +226,44 @@ describe('blender entries in the build (R1)', () => {
     const f = fakeDeps([entry.input!])
     expect(await runBuild([entry, genEntry], ['toy', 'toy-bomb'], f.deps)).toBe(0)
     expect(f.blenderRuns).toEqual([])
+  })
+})
+
+describe('a skinned Blender entry (DP0)', () => {
+  const hangar = (): ModelEntry => parseModelEntry({ ...JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')), skin: true })
+  const deps = (over: Partial<BuildDeps> = {}): { deps: BuildDeps; written: Map<string, Uint8Array>; log: string[] } => {
+    const written = new Map<string, Uint8Array>(), log: string[] = []
+    return {
+      written, log,
+      deps: {
+        ...nodeBuildDeps(), haveBlender: () => true, blender: () => {},
+        exists: (p) => p.endsWith('.skin.json'), read: async () => fixtureDoc(512),
+        readText: () => JSON.stringify(fixtureSidecar()), scan: async () => flatScan(),
+        write: (p, b) => { written.set(p, b) }, log: (l) => { log.push(l) }, ...over,
+      },
+    }
+  }
+
+  it('builds one skin material with three WebP maps, TEXCOORD_0 on every primitive, in one draw', async () => {
+    const d = deps()
+    expect(await runBuild([hangar()], ['hangar'], d.deps), d.log.join('\n')).toBe(0)
+    const doc = await modelIO().readBinary(d.written.get('content/buildings/hangar.glb')!)
+    expect(doc.getRoot().listMaterials().map((m) => m.getName())).toEqual(['hangar-skin'])
+    expect(doc.getRoot().listTextures().map((t) => t.getName()).sort()).toEqual(['hangar-skin-baseColor', 'hangar-skin-metallicRoughness', 'hangar-skin-normal'])
+    expect(doc.getRoot().listTextures().every((t) => t.getMimeType() === 'image/webp')).toBe(true)
+    for (const p of doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())) expect(p.getAttribute('TEXCOORD_0')).not.toBeNull()
+    expect(measureDocument(doc).drawCalls).toBe(1)
+  })
+
+  it('refuses a skin entry whose script wrote no sidecar, and a sidecar its entry did not ask for', async () => {
+    const none = deps({ exists: () => false })
+    expect(await runBuild([hangar()], ['hangar'], none.deps)).toBe(1)
+    expect(none.log.join('\n')).toMatch(/wrote no .*skin\.json/)
+    const unskinned = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
+    delete unskinned['skin']
+    const plain = parseModelEntry(unskinned)
+    const extra = deps()
+    expect(await runBuild([plain], ['hangar'], extra.deps)).toBe(1)
+    expect(extra.log.join('\n')).toMatch(/has no "skin": true/)
   })
 })

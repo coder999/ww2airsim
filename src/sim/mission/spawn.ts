@@ -1,3 +1,6 @@
+import { heightAt, type TerrainField } from '../world/terrain.js'
+import { v3 } from '../math/vec3.js'
+import { wheelDepthOf } from '../gearContact.js'
 import { createCombat, type CombatState } from '../weapons/combat.js'
 import type { AircraftEntity, ShipEntity, World } from '../loop.js'
 import type { MissionState } from './state.js'
@@ -11,6 +14,8 @@ export type SpawnParts<M> = {
   readonly ships: readonly ShipEntity[]
   readonly combat: CombatState
   readonly mission: MissionState<M>
+  /** Rests a parked aircraft on the ground, as `settleOnTerrain` does at load. */
+  readonly terrain?: TerrainField | null
 }
 
 /**
@@ -35,7 +40,12 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
   if (group === undefined) throw new Error(`spawnHeldGroup: no held group "${groupId}"`)
   if (m.spawned.includes(groupId)) throw new Error(`spawnHeldGroup: held group "${groupId}" has already spawned`)
   const aircraft = group.aircraft.map((a) => {
-    const state = { ...a.state, tick: parts.tick }
+    const stamped = { ...a.state, tick: parts.tick }
+    // 7h: a held airfield park (a takeoff pilot) sits on the terrain, not
+    // on the placeholder height it was built with.
+    const state = a.parked && parts.terrain != null
+      ? { ...stamped, position: v3(stamped.position.x, heightAt(parts.terrain, stamped.position.x, stamped.position.z) + wheelDepthOf(a.spec, stamped), stamped.position.z) }
+      : stamped
     return { ...a, state, previous: state }
   })
   const ships = group.ships.map((s) => {
@@ -60,6 +70,6 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
  *  use. Inside `advance`, triggers call `spawnInto` on the loop's locals. */
 export function spawnHeldGroup<M>(world: World<M>, groupId: string): World<M> {
   if (world.mission === null) throw new Error('spawnHeldGroup: this world has no mission')
-  const r = spawnInto({ tick: world.tick, aircraft: world.aircraft, ships: world.ships, combat: world.combat, mission: world.mission }, groupId)
+  const r = spawnInto({ tick: world.tick, aircraft: world.aircraft, ships: world.ships, combat: world.combat, mission: world.mission, terrain: world.terrain }, groupId)
   return { ...world, aircraft: r.aircraft, ships: r.ships, combat: r.combat, mission: r.mission }
 }

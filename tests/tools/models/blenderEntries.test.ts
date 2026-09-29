@@ -6,44 +6,12 @@ import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { nodeBuildDeps, runBuild } from '../../../tools/models/build.js'
 import { HAVE_BLENDER } from '../../../tools/models/blender/run.js'
 import { findNode, modelIO } from '../../../tools/models/document.js'
-import type { Document } from '@gltf-transform/core'
+import { islands, signedVolume } from './blender/solids.js'
 
 const blenderEntries = loadModelEntries().filter((e) => e.source.kind === 'blender')
 const sha = (b: Uint8Array): string => createHash('sha256').update(b).digest('hex')
 const within1pct = (got: number, want: number, label: string): void => {
   expect(Math.abs(got - want) / want, `${label}: measured ${got}, cited ${want}`).toBeLessThanOrEqual(0.01)
-}
-
-/** A node's mesh positions; the R2 ship scripts emit every part with an identity transform. */
-const positions = (doc: Document, name: string): number[][] => {
-  const node = findNode(doc, name)
-  expect([...node.getTranslation(), ...node.getScale()], `${name} transform`).toEqual([0, 0, 0, 1, 1, 1])
-  const out: number[][] = []
-  for (const prim of node.getMesh()!.listPrimitives()) {
-    const pos = prim.getAttribute('POSITION')!
-    for (let i = 0; i < pos.getCount(); i++) out.push(pos.getElement(i, [0, 0, 0]))
-  }
-  return out
-}
-
-/** The hull's deck-edge half-width at x: each station's highest vertices, linearly interpolated; -1 off the ends. */
-const deckEdge = (hull: number[][]): ((x: number) => number) => {
-  const stations = new Map<number, number[][]>()
-  for (const v of hull) {
-    const key = Math.round(v[0]! * 1000) / 1000
-    stations.set(key, [...(stations.get(key) ?? []), v])
-  }
-  const edge = [...stations].map(([x, vs]) => {
-    const top = Math.max(...vs.map((v) => v[1]!))
-    return [x, Math.max(...vs.filter((v) => v[1]! > top - 1e-4).map((v) => Math.abs(v[2]!)))] as const
-  }).sort((a, b) => a[0] - b[0])
-  return (x) => {
-    for (let i = 0; i + 1 < edge.length; i++) {
-      const [x0, h0] = edge[i]!, [x1, h1] = edge[i + 1]!
-      if (x >= x0 - 1e-4 && x <= x1 + 1e-4) return h0 + (h1 - h0) * Math.min(1, Math.max(0, (x - x0) / (x1 - x0)))
-    }
-    return -1
-  }
 }
 
 describe('blender entries (R1)', () => {
@@ -80,8 +48,9 @@ describe('blender entries (R1)', () => {
     within1pct(kageroBounds.max[0] - kageroBounds.min[0], 118.5, 'Kagero overall length')
     within1pct(kageroBounds.max[2] - kageroBounds.min[2], 10.8, 'Kagero beam')
     within1pct(-kageroBounds.min[1], 3.76, 'Kagero design draft')
-    expect(['Turret1', 'Turret2', 'Turret3'].map((n) => findNode(kagero, n).getName()))
-      .toEqual(['Turret1', 'Turret2', 'Turret3'])
+    // Ruling S8 (DP2): the cited hull, Yukikaze in October 1944, had her X mount removed in 1943 (see kagero-dd.py).
+    expect(['Turret1', 'Turret2'].map((n) => findNode(kagero, n).getName()))
+      .toEqual(['Turret1', 'Turret2'])
 
     const casablanca = await modelIO().readBinary(new Uint8Array(readFileSync('content/ships/casablanca-cve.glb')))
     const deck = getBounds(findNode(casablanca, 'FlightDeck'))
@@ -90,14 +59,21 @@ describe('blender entries (R1)', () => {
     within1pct(deck.max[1], 12.0, 'Casablanca flight-deck height')
   })
 
-  it.each(['pennsylvania-bb', 'kagero-dd'])('%s: the painted main deck stays inside the hull\'s own deck edge (no slab overhangs the taper)', async (id) => {
+  it.each(['pennsylvania-bb', 'kagero-dd', 'casablanca-cve'])('%s: every closed solid in the committed output winds outward (DP2 winding fix)', async (id) => {
     const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/ships/${id}.glb`)))
-    const edge = deckEdge(positions(doc, 'Hull'))
-    const over = positions(doc, 'MainDeck')
-      .map((v) => ({ x: v[0]!, z: Math.abs(v[2]!), edge: edge(v[0]!) }))
-      .filter((p) => p.z > p.edge + 0.01)
-      .map((p) => `x=${p.x.toFixed(2)} |z|=${p.z.toFixed(2)} vs hull edge ${p.edge.toFixed(2)}`)
-    expect([...new Set(over)]).toEqual([])
+    // Every node but the skirt (an open wall, not a solid), pooled: the hull and its deck are two
+    // nodes today and one after skinning, and they close only together (welded positions).
+    const tris: number[][][] = []
+    for (const node of doc.getRoot().listNodes()) {
+      if (!node.getMesh() || node.getName() === 'Skirt') continue
+      const m = node.getWorldMatrix()
+      for (const prim of node.getMesh()!.listPrimitives()) {
+        const pos = prim.getAttribute('POSITION')!, idx = prim.getIndices()!
+        const v = (i: number): number[] => { const [x, y, z] = pos.getElement(idx.getScalar(i), [0, 0, 0]) as number[]; return [0, 1, 2].map((r) => m[r]! * x! + m[4 + r]! * y! + m[8 + r]! * z! + m[12 + r]!) }
+        for (let i = 0; i < idx.getCount(); i += 3) tris.push([v(i), v(i + 1), v(i + 2)])
+      }
+    }
+    for (const s of islands(tris)) expect(signedVolume(s), `${id}: an island of ${s.length} triangles`).toBeGreaterThan(0)
   })
 })
 
