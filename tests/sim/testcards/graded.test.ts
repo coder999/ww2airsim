@@ -217,6 +217,14 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // Re-measured 2026-09-28 (T1, Task 4; rest attitude and airflow tail-lift, nothing re-tuned):
   // take-off 179.151 m (-14.32%) -> 182.142 m (-12.89%) at full flaps; clean 174.136 -> 176.064 m.
   'f4f-wildcat': { topSpeed: 0.05, topSpeedTable: 0.05, climb: 0.25, climbTable: 0.3, stall: 0.2, flapStall: 0.2, roll: 0.15, takeoff: { tol: 0.2, liftoffMps: 73 * MPH, flapFraction: 1 } },
+  // Set 2026-09-29 from the F4U-1D onboarding fit (cd0 0.0165, eta 0.75, the DS's normal-rating curve unscaled,
+  // no fitted point). Reference: Vought Detail Specification Report 6756 (15 Feb 1945), Fighter loading, a GUARANTEE,
+  // not a flown trial. Measured: top speed -1.56% at 24,400 ft; table +1.15% .. -2.18%; climb SL -3.18%; stall +5.05%
+  // clean, +4.78% flaps (clMax stays the shared 1.4 ESTIMATE; the flown FG-1A stalls imply about 1.55, so the model
+  // stalls fast and the error is reported, not tuned, R36); roll 84.996 vs 85. Take-off +6.89% (212.41 m vs the DS's 652 ft
+  // = 198.73 m) at full flaps and the FG-1A's 83 mph lift-off, because the DS states neither; the flown FG-1A rolled 720 ft
+  // (219.5 m), which the model is 3.2% under. Tolerances are about 1.4x to 2x each measurement.
+  'f4u-corsair': { topSpeed: 0.03, topSpeedTable: 0.03, climb: 0.05, stall: 0.08, flapStall: 0.08, roll: 0.02, takeoff: { tol: 0.1, liftoffMps: 83 * MPH, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

@@ -7,12 +7,17 @@ import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { sectionAtFor } from '../../../tools/models/mounts.js'
 
 const TOLERANCE_M = 0.15
+/** Semi-span fraction each section is cut at; 0.3 unless listed. The Corsair's main legs and their
+ *  fairings (GearL/GearR, z 1.58 to 2.05 m) cross the 30% station (z 1.87 m), where the slice reads a
+ *  leading edge 0.2 m too far forward (quarter-chord 0.175 m); the gull wing's outer panel at 40%
+ *  (z 2.5 m) is clean and reads 0.02 m. Measured 2026-09-29 (F4U-1D onboarding). */
+const STATION: Readonly<Record<string, number>> = { 'f4u-corsair': 0.4 }
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
 
 describe('every drawn model is centered on its quarter-chord', () => {
   it.each(specs.map((s) => [s.id, s] as const))('%s', async (_id, spec) => {
     const at = await sectionAtFor(spec.view.model)
-    const s = at(0.3 * spec.geometry.wingSpanM / 2)
+    const s = at((STATION[spec.id] ?? 0.3) * spec.geometry.wingSpanM / 2)
     const qc = s.leadingX - 0.25 * (s.leadingX - s.trailingX)
     expect(Math.abs(qc), `${spec.id}: quarter-chord at x ${qc.toFixed(3)} m`).toBeLessThanOrEqual(TOLERANCE_M)
   })

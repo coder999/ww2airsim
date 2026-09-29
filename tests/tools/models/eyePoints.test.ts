@@ -14,6 +14,7 @@ const CANOPY: Readonly<Record<string, string>> = {
   'f6f-hellcat': 'kabina-FACES',
   wildcat: 'Puerta_cabina_Cabina_MAT_0',
   'a6m2-zero': 'Verriere_Verriere_0',
+  'f4u-corsair': 'kabina-FACES',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]
