@@ -1,5 +1,5 @@
 {
-  "note": "Mean lit luminance inside each model's mask, three-quarter view, measured on the reference GPU from main's flat-shaded glbs before DP0 skinned them (Task 12 Step 2, 2026-09-28). Check 15 holds each skinned model inside 0.6x-1.5x of it. Ships added by DP2 Task 13 Step 2 (2026-09-28): the three Blender ships measured from their winding-fixed flat glbs (4ef028a96a3cade44bb7ebedcfff62eaeda6851e), the four downloads from main's.",
+  "note": "Mean lit luminance inside each model's mask, three-quarter view, measured on the reference GPU from main's flat-shaded glbs before DP0 skinned them (Task 12 Step 2, 2026-09-28). Check 15 holds each skinned model inside 0.6x-1.5x of it. Ships added by DP2 Task 13 Step 2 (2026-09-28): the three Blender ships measured from their winding-fixed flat glbs (4ef028a96a3cade44bb7ebedcfff62eaeda6851e), the four downloads from main's. Aircraft added by DP1 Task 1 (2026-09-28) from main's flat glbs, measured on the reference GPU (ryzen console-session Playwright server): ki-21-sally sha256 78edc15387af264118ffc7630cdb33b80feb178feaf25266b2c39a037b5775cc, b-29-superfortress 6921d7a1fce8db4d9c12dbb8150a2612498953cd50f09f0efa2d3f67b478b2ab, p-38-lightning 8e6cab714723d94e461a75c7a4c91659294eb67fbf25320d9b677e3ad4f812b5.",
   "ki-84-frank": 0.08621747942873947,
   "hangar": 0.11544402537008924,
   "pennsylvania-bb": 0.08801001180848897,
@@ -8,5 +8,8 @@
   "essex-cv": 0.067519709511338,
   "cleveland-cl": 0.06716505467952043,
   "mogami-ca": 0.0801564958405688,
-  "yamato-bb": 0.0771699778213746
+  "yamato-bb": 0.0771699778213746,
+  "ki-21-sally": 0.09075854571154839,
+  "b-29-superfortress": 0.29126315395975855,
+  "p-38-lightning": 0.28347152573716694
 }
