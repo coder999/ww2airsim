@@ -45,7 +45,9 @@ export function createWebAudioBackend(): AudioBackend {
   const worldGain = context.createGain()
   worldGain.gain.value = start.worldGain
   worldFilter.connect(worldGain)
-  worldGain.connect(master)
+  const distanceGain = context.createGain()
+  worldGain.connect(distanceGain)
+  distanceGain.connect(master)
 
   const radioHigh = context.createBiquadFilter()
   radioHigh.type = 'highpass'
@@ -183,6 +185,10 @@ export function createWebAudioBackend(): AudioBackend {
     },
 
     setMasterGain: (value: number): void => { master.gain.value = value },
+
+    setDistanceGain: (gain: number, glideTauS: number): void => {
+      distanceGain.gain.setTargetAtTime(gain, context.currentTime, glideTauS)
+    },
 
     setCabin: (preset: CabinPreset, glideTauS: number): void => {
       const now = context.currentTime

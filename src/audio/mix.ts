@@ -15,6 +15,17 @@
  *  budget is asserted in tests/audio/assets.test.ts, not just stated here. */
 export const MASTER_GAIN = 0.80
 
+/** Chase-camera zoom (`OrbitOffset.zoom`, 1 = default) to world-stage gain:
+ *  3 dB quieter per doubling of distance, never louder than the default view.
+ *  Deliberately gentler than the 6 dB of physical spreading -- it is a cue for
+ *  distance, not a simulation of it. Radio is unaffected (it is in the helmet). */
+export function chaseDistanceGain(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= 1) return 1
+  return zoom ** -0.5
+}
+
+export const DISTANCE_GLIDE_TAU_S = 0.1
+
 /** Engine gain at full throttle. */
 export const ENGINE_GAIN_MAX = 0.50
 

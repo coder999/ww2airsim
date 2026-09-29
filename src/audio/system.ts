@@ -2,7 +2,7 @@ import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
 import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
 import { LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
-import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, FILTER_OPEN_HZ, MASTER_GAIN, type View } from './mix.js'
+import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, chaseDistanceGain, type View } from './mix.js'
 
 /**
  * The wiring: holds the reducer's memory and the loop handle, and applies each
@@ -67,6 +67,8 @@ export type AudioSystem = {
   setListener(pose: ListenerPose): void
   /** Called every frame; reaches the backend only when the view changes. */
   setView(view: View): void
+  /** Chase-camera zoom, called every frame; reaches the backend only when the resulting gain changes. */
+  setCameraZoom(zoom: number): void
   setMuted(muted: boolean): void
   muted(): boolean
   snapshot(): AudioSnapshot
@@ -84,6 +86,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   let cuesFired = 0
   let spatialPlayed = 0
   let view: View | null = null
+  let distanceGain = 1
   const failed: ClipId[] = []
   // Instant replay's pause (design §7): forced to gain 0 by `hold(true)`
   // rather than by suppressing `update` calls, because the held frame is
@@ -222,6 +225,13 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       if (next === view) return
       view = next
       backend.setCabin(CABIN_PRESETS[next], CABIN_GLIDE_TAU_S)
+    },
+
+    setCameraZoom(zoom: number): void {
+      const next = chaseDistanceGain(zoom)
+      if (next === distanceGain) return
+      distanceGain = next
+      backend.setDistanceGain(next, DISTANCE_GLIDE_TAU_S)
     },
 
     snapshot(): AudioSnapshot {

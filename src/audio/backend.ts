@@ -63,4 +63,6 @@ export type AudioBackend = {
   /** Moves the cabin stage (world lowpass and gain, radio lowpass and gain) to
    *  `preset`, gliding with `glideTauS`. */
   setCabin(preset: CabinPreset, glideTauS: number): void
+  /** Scales the whole world stage (not the radio) for camera distance. */
+  setDistanceGain(gain: number, glideTauS: number): void
 }

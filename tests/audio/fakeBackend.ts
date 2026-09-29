@@ -30,6 +30,7 @@ export type FakeBackend = AudioBackend & {
   readonly engineGlides: number[]
   readonly resumed: number[]
   readonly cabins: { preset: CabinPreset; tauS: number }[]
+  readonly distances: number[]
 }
 
 export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = {}): FakeBackend {
@@ -45,10 +46,11 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   const engineGlides: number[] = []
   const resumed: number[] = []
   const cabins: FakeBackend['cabins'] = []
+  const distances: number[] = []
   let state: BackendState = 'suspended'
 
   return {
-    loopsStarted, layers, played, listeners, masterGains, engineGains, engineRates, engineGlides, resumed, cabins,
+    loopsStarted, layers, played, listeners, masterGains, engineGains, engineRates, engineGlides, resumed, cabins, distances,
     state: (): BackendState => state,
     resume: async (): Promise<void> => { resumed.push(resumed.length); state = 'running' },
     load: async (id: ClipId): Promise<void> => {
@@ -82,5 +84,6 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
     setListener: (pose: ListenerPose): void => { listeners.push(pose) },
     setMasterGain: (value: number): void => { masterGains.push(value) },
     setCabin: (preset: CabinPreset, tauS: number): void => { cabins.push({ preset, tauS }) },
+    setDistanceGain: (gain: number): void => { distances.push(gain) },
   }
 }

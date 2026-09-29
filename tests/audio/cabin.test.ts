@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ } from '../../src/audio/mix.js'
+import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, chaseDistanceGain, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ } from '../../src/audio/mix.js'
 import { createAudioSystem } from '../../src/audio/system.js'
 import { createFakeBackend } from './fakeBackend.js'
 
@@ -51,5 +51,24 @@ describe('setView', () => {
     expect(audio.snapshot().view).toBeNull()
     audio.setView('cockpit')
     expect(audio.snapshot().view).toBe('cockpit')
+  })
+})
+
+describe('camera distance', () => {
+  it('is 1 at the default zoom and closer, then quiets 3 dB per doubling', () => {
+    expect(chaseDistanceGain(1)).toBe(1)
+    expect(chaseDistanceGain(0.4)).toBe(1)
+    expect(chaseDistanceGain(2)).toBeCloseTo(Math.SQRT1_2, 6)
+    expect(chaseDistanceGain(4)).toBeCloseTo(0.5, 6)
+    expect(chaseDistanceGain(Number.NaN)).toBe(1)
+  })
+
+  it('reaches the backend only when the gain changes', () => {
+    const fake = createFakeBackend()
+    const system = createAudioSystem(fake)
+    system.setCameraZoom(1)
+    system.setCameraZoom(2)
+    system.setCameraZoom(2)
+    expect(fake.distances).toEqual([chaseDistanceGain(2)])
   })
 })
