@@ -9,8 +9,8 @@ rotation (det +1), so face winding survives both ways.
 Determinism: no randomness; parts accumulate in plain lists and become Blender
 objects only at export, one per node, created in sorted name order. The building
 parts (R4) are wound outward and checked by `tests/tools/models/blender/kitBuildings.test.ts`;
-R2's `cylinder`, `tapered_box` and `turret` wind inward (open item, R4 handoff) and
-no building calls them.
+R2's `cylinder`, `tapered_box` and `turret` wound inward until DP2 fixed them (2026-09-28);
+every part is now wound outward.
 """
 import contextlib
 import json
@@ -489,7 +489,8 @@ class Model:
         v = [(x - lx, y, z - lz), (x + lx, y, z - lz), (x + lx, y, z + lz), (x - lx, y, z + lz),
              (x - ux, y + height, z - uz), (x + ux, y + height, z - uz),
              (x + ux, y + height, z + uz), (x - ux, y + height, z + uz)]
-        f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+        # Outward (DP2): R2's list wound every face inward (R4 handoff); frustum's winding, same layout.
+        f = [(0, 1, 2, 3), (4, 7, 6, 5), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
         self._part(role, v, f, node)
 
     def cylinder(self, role, base, radius, height, segments=12, node=None):
@@ -501,10 +502,11 @@ class Model:
         for yy in (y, y + height):
             v.extend((x + math.cos(2 * math.pi * i / segments) * radius, yy,
                       z + math.sin(2 * math.pi * i / segments) * radius) for i in range(segments))
-        f = [tuple(reversed(range(segments))), tuple(range(segments, 2 * segments))]
+        # Outward (DP2): the floor faces -y, the walls away from the axis, the top +y (tank's winding).
+        f = [tuple(range(segments)), tuple(reversed(range(segments, 2 * segments)))]
         for i in range(segments):
             j = (i + 1) % segments
-            f.append((i, j, segments + j, segments + i))
+            f.append((i, segments + i, segments + j, j))
         self._part(role, v, f, node)
 
     def turret(self, role, index, center, facing, body, barrel_length, barrels=2, node=None):

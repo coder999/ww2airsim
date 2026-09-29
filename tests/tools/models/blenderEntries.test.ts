@@ -6,6 +6,7 @@ import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { nodeBuildDeps, runBuild } from '../../../tools/models/build.js'
 import { HAVE_BLENDER } from '../../../tools/models/blender/run.js'
 import { findNode, modelIO } from '../../../tools/models/document.js'
+import { islands, signedVolume } from './blender/solids.js'
 import type { Document } from '@gltf-transform/core'
 
 const blenderEntries = loadModelEntries().filter((e) => e.source.kind === 'blender')
@@ -98,6 +99,23 @@ describe('blender entries (R1)', () => {
       .filter((p) => p.z > p.edge + 0.01)
       .map((p) => `x=${p.x.toFixed(2)} |z|=${p.z.toFixed(2)} vs hull edge ${p.edge.toFixed(2)}`)
     expect([...new Set(over)]).toEqual([])
+  })
+
+  it.each(['pennsylvania-bb', 'kagero-dd', 'casablanca-cve'])('%s: every closed solid in the committed output winds outward (DP2 winding fix)', async (id) => {
+    const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/ships/${id}.glb`)))
+    // Every node but the skirt (an open wall, not a solid), pooled: the hull and its deck are two
+    // nodes today and one after skinning, and they close only together (welded positions).
+    const tris: number[][][] = []
+    for (const node of doc.getRoot().listNodes()) {
+      if (!node.getMesh() || node.getName() === 'Skirt') continue
+      const m = node.getWorldMatrix()
+      for (const prim of node.getMesh()!.listPrimitives()) {
+        const pos = prim.getAttribute('POSITION')!, idx = prim.getIndices()!
+        const v = (i: number): number[] => { const [x, y, z] = pos.getElement(idx.getScalar(i), [0, 0, 0]) as number[]; return [0, 1, 2].map((r) => m[r]! * x! + m[4 + r]! * y! + m[8 + r]! * z! + m[12 + r]!) }
+        for (let i = 0; i < idx.getCount(); i += 3) tris.push([v(i), v(i + 1), v(i + 2)])
+      }
+    }
+    for (const s of islands(tris)) expect(signedVolume(s), `${id}: an island of ${s.length} triangles`).toBeGreaterThan(0)
   })
 })
 
