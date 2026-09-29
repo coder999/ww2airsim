@@ -335,7 +335,7 @@ describe('the ground control regime', () => {
 describe('ground yaw (T1)', () => {
   const rolling = (speed: number) => createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), rest), gearFraction: 1 })
   const noAir = v3(0, 0, 0)
-  const yawRate = (speed: number, controls: Partial<typeof neutral> & { brakeLeft?: number; brakeRight?: number }, spec = f6f) =>
+  const yawRate = (speed: number, controls: Partial<typeof neutral>, spec = f6f) =>
     groundBodyRates(spec, rolling(speed), { ...neutral, ...controls }, noAir, DT).y
   const noseRightDeg = (y: number) => (-y * 180) / Math.PI
 
@@ -365,11 +365,20 @@ describe('ground yaw (T1)', () => {
     expect(still).toBeCloseTo(0, 9)
   })
 
-  it('differential brakes turn toward the braked side and do nothing on an aircraft without them', () => {
-    expect(noseRightDeg(yawRate(4, { brakeRight: 1, throttle: 0 }))).toBeGreaterThan(0)
-    expect(noseRightDeg(yawRate(4, { brakeLeft: 1, throttle: 0 }))).toBeLessThan(0)
-    const noDiff = { ...f6f, gear: { ...f6f.gear, differentialBrakes: false } }
-    expect(noseRightDeg(yawRate(4, { brakeRight: 1, throttle: 0 }, noDiff))).toBeCloseTo(0, 9)
+  it('the roll keys steer on the wheels: roll +1 turns the nose right, -1 left, and roll adds to rudder', () => {
+    expect(noseRightDeg(yawRate(4, { roll: 1, throttle: 0 }))).toBeGreaterThan(0)
+    expect(noseRightDeg(yawRate(4, { roll: -1, throttle: 0 }))).toBeLessThan(0)
+    expect(noseRightDeg(yawRate(4, { roll: 1, throttle: 0 }))).toBeCloseTo(noseRightDeg(yawRate(4, { yaw: 1, throttle: 0 })), 9)
+    expect(noseRightDeg(yawRate(4, { roll: 0.5, yaw: 0.25, throttle: 0 }))).toBeCloseTo(noseRightDeg(yawRate(4, { yaw: 0.75, throttle: 0 })), 9)
+    // Opposite inputs cancel; the sum saturates at full lock.
+    expect(noseRightDeg(yawRate(4, { roll: 1, yaw: -1, throttle: 0 }))).toBeCloseTo(0, 9)
+    expect(noseRightDeg(yawRate(4, { roll: 1, yaw: 1, throttle: 0 }))).toBeCloseTo(noseRightDeg(yawRate(4, { yaw: 1, throttle: 0 })), 9)
+  })
+
+  it('roll never becomes a roll rate on the wheels', () => {
+    for (const roll of [-1, 1]) {
+      expect(groundBodyRates(f6f, rolling(10), { ...neutral, roll, yaw: 1 }, v3(3, 0, 0), DT).x).toBe(0)
+    }
   })
 
   it('engine torque swings the nose the way torqueYawRateDegPerSec says, and cancels at zero', () => {
@@ -386,8 +395,8 @@ describe('ground yaw (T1)', () => {
     expect(y).toBeCloseTo(air.y, 9)
   })
 
-  it('reads a non-finite stick, speed or brake as no steering', () => {
-    const y = groundBodyRates(f6f, rolling(Number.NaN), { ...neutral, yaw: Number.NaN, throttle: 0, brakeLeft: Number.NaN }, noAir, DT).y
+  it('reads a non-finite rudder, roll or speed as no steering', () => {
+    const y = groundBodyRates(f6f, rolling(Number.NaN), { ...neutral, yaw: Number.NaN, roll: Number.NaN, throttle: 0 }, noAir, DT).y
     expect(Number.isFinite(y)).toBe(true)
     expect(y).toBeCloseTo(0, 9)
   })

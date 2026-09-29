@@ -14,12 +14,4 @@ describe('BINDINGS', () => {
     }
     expect(clashes).toEqual([])
   })
-
-  it('binds the two differential brakes to distinct keys, apart from the symmetric brake', () => {
-    expect(BINDINGS.brakeLeft.length).toBeGreaterThan(0)
-    expect(BINDINGS.brakeRight.length).toBeGreaterThan(0)
-    const mine = new Set<string>([...BINDINGS.brakeLeft, ...BINDINGS.brakeRight])
-    expect(mine.size).toBe(BINDINGS.brakeLeft.length + BINDINGS.brakeRight.length)
-    for (const code of BINDINGS.brakes) expect(mine.has(code)).toBe(false)
-  })
 })

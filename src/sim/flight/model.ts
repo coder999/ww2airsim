@@ -11,7 +11,6 @@ import {
   supportedContact,
   onGround,
   rollingResistanceN,
-  symmetricBrake,
   groundBodyRates,
   GEAR_DOWN_FRACTION,
 } from '../ground.js'
@@ -512,7 +511,7 @@ export function step(
       const trackSpeed = length(track)
       if (trackSpeed > 1e-6) {
         const trackDir = normalize(track)
-        const resistanceN = rollingResistanceN(spec, mass, symmetricBrake(controls))
+        const resistanceN = rollingResistanceN(spec, mass, controls.brake)
         // Clamped to at most the force that would exactly null the ground
         // track this step -- fix round 1, Minor 4: unclamped, a resistance
         // force below this bound overshoots past zero and reverses the

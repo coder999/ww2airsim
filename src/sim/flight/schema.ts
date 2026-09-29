@@ -374,10 +374,6 @@ const AircraftSpecObject = z.object({
     steerYawRateDegPerSec: nonNegative,
     /** Ground speed, m/s, above which a `casterLock` wheel is fully locked. */
     steerLockSpeedMps: positive,
-    /** Whether the left and right brakes act separately. */
-    differentialBrakes: z.boolean(),
-    /** Yaw rate, deg/s, of one brake held fully at rest. */
-    brakeYawRateDegPerSec: nonNegative,
     /** Effective airflow speed, m/s (ground speed combined with prop wash),
      *  at which the elevator can hold the tail fully up. A scale for a smooth
      *  curve, not a gate. */

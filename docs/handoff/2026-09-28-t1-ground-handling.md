@@ -182,3 +182,13 @@ are no captures of the Phase B taxi or brakes.
   the drawn tilt (`tailDownFraction`, `stanceTiltRad`, `drawnPose`) is retired.
 - Older plan and handoff documents still mention `tailUpSpeedMps` and the drawn
   stance; they are dated records and were left as written.
+
+**Amendment, 2026-09-28 (Mark's ruling after flying it):** differential toe
+brakes were removed entirely. There are no `brakeLeft`/`brakeRight` channels,
+no Comma/Period bindings, no `gear.differentialBrakes` or
+`gear.brakeYawRateDegPerSec`, and `symmetricBrake` is gone (plain `brake`
+only). Steering on the wheels is now `clamp(yaw + roll, -1, 1)`: the arrow keys
+and A/D steer (ArrowRight turns the nose right) and combine with Z/X, and roll
+still never banks the airplane on the wheels. In the air, on gear-up belly and
+on water, roll is aileron as before. The text above is the record of what was
+built first.

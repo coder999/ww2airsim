@@ -21,7 +21,7 @@ export const syntheticTricycle: AircraftSpec = {
 }
 
 /** A twin with counter-rotating propellers (net torque 0) and no wheel
- *  steering beyond differential brakes, the P-38's shape. Fixture only. */
+ *  steering (rudder only), the P-38's shape. Fixture only. */
 export const syntheticTwin: AircraftSpec = {
   ...syntheticTricycle,
   id: 'synthetic-twin',

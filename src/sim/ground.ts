@@ -74,15 +74,6 @@ export function rollingResistanceN(
 }
 
 /**
- * The symmetric drag the brakes apply: the pilot's `brake` channel, or the
- * mean of the two toe brakes when that is larger. One brake alone gives half
- * the drag and (with `gear.differentialBrakes`) the yaw in `groundBodyRates`.
- */
-export function symmetricBrake(controls: Pick<Controls, 'brake' | 'brakeLeft' | 'brakeRight'>): number {
-  return Math.max(unit(controls.brake ?? 0), (unit(controls.brakeLeft ?? 0) + unit(controls.brakeRight ?? 0)) / 2)
-}
-
-/**
  * How close to the surface counts as resting on it, meters.
  *
  * Wanted because the constraint below must not fight the integrator: an
@@ -538,18 +529,18 @@ const signedUnit = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math
  *   ground. A non-finite ground speed reads as no speed and no lift: tail
  *   down, never authority a broken state could not be trusted with; a
  *   non-finite throttle or stick reads as zero.
- * - **Yaw (T1): rudder with prop wash, wheel steering, differential brakes
- *   and engine torque, summed with `airRates.y` and faded out by
+ * - **Yaw (T1): rudder with prop wash, wheel steering and engine torque, summed with `airRates.y` and faded out by
  *   `GROUND_YAW_FADE_MULTIPLE * tailLiftSpeedMps`.** All terms are deg/s,
  *   positive = nose right, then negated into the body-rate convention:
  *   `rudder = min(1, airflow / tailLiftSpeedMps) * maxYawRateDegPerSec`
  *   (airflow includes prop wash, so a stopped airplane on full throttle has
  *   rudder authority); `steer` is `steerYawRateDegPerSec` for a steered wheel,
  *   the same fading linearly to zero at `steerLockSpeedMps` for `casterLock`,
- *   and 0 for a free `caster`; `brakes = (brakeRight - brakeLeft) *
- *   brakeYawRateDegPerSec` when the layout has differential brakes; `torque`
- *   fades out as the tail lifts. `noseRight = fade * (yawInput * (rudder +
- *   steer) + brakes + torque)`. Because `airRates.y` is always added, the total
+ *   and 0 for a free `caster`; `torque` fades out as the tail lifts.
+ *   `steerInput = clamp(yaw + roll, -1, 1)`: the arrow keys are the roll
+ *   channel and steer on the wheels (ruling 2026-09-28; there are no
+ *   differential brakes). `noseRight = fade * (steerInput * (rudder + steer) +
+ *   torque)`. Because `airRates.y` is always added, the total
  *   is continuous into flight by construction: the ground terms are already
  *   zero at `GROUND_YAW_FADE_MULTIPLE * tailLiftSpeedMps`, and `airRates.y`
  *   alone is what remains the instant the wheels leave (`step` stops calling
@@ -615,7 +606,12 @@ export function groundBodyRates(
     if (pitch + pitchRate * dt < floor) pitchRate = Math.min(max, (floor - pitch) / dt)
   }
 
-  const yawInput = signedUnit(controls.yaw)
+  // Steering on the wheels is the rudder keys AND the roll keys, summed and
+  // clamped (Mark's arcade ruling, 2026-09-28: on the ground the arrows steer,
+  // ArrowRight turns the nose right). Roll itself stays exactly zero above:
+  // the roll input is read only as a steering demand here. `signedUnit` reads
+  // a non-finite channel as 0, so a broken input fails toward no steering.
+  const steerInput = Math.max(-1, Math.min(1, signedUnit(controls.yaw) + signedUnit(controls.roll)))
   // A non-finite speed reads as "still rolling slowly": full fade (1), so a
   // broken state is pinned to the tail-down, no-extra-authority case.
   const fade = validSpeed ? Math.max(0, 1 - groundSpeed / (GROUND_YAW_FADE_MULTIPLE * gear.tailLiftSpeedMps)) : 1
@@ -625,11 +621,8 @@ export function groundBodyRates(
     : gear.thirdSteering === 'casterLock' ? Math.max(0, 1 - speed / gear.steerLockSpeedMps)
     : 0
   const steerDeg = wheelSteer * gear.steerYawRateDegPerSec
-  const brakeDeg = gear.differentialBrakes
-    ? (unit(controls.brakeRight ?? 0) - unit(controls.brakeLeft ?? 0)) * gear.brakeYawRateDegPerSec
-    : 0
   const torqueDeg = gear.torqueYawRateDegPerSec * throttle * (1 - Math.min(1, speed / gear.tailLiftSpeedMps))
-  const noseRightDeg = fade * (yawInput * (rudderDeg + steerDeg) + brakeDeg + torqueDeg)
+  const noseRightDeg = fade * (steerInput * (rudderDeg + steerDeg) + torqueDeg)
 
   return v3(0, -noseRightDeg * GROUND_DEG + airRates.y, pitchRate)
 }

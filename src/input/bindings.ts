@@ -89,14 +89,6 @@ export const BINDINGS = {
   // the gear, this is a hold: brakes bite while the key is down and release
   // the moment it is not, the way a toe-brake pedal does.
   brakes: ['KeyB'],
-  // Differential toe brakes (T1, 2026-09-28): `,` is the left brake and `.`
-  // the right, the pair sitting under the left and right hands as the two
-  // pedals sit under the two feet. Holds, like `brakes`. Neither code is read
-  // anywhere else (grep of src for Comma/Period, 2026-09-28) and the
-  // bindings-distinctness test in tests/input/bindings.test.ts fails if a
-  // later binding takes either.
-  brakeLeft: ['Comma'],
-  brakeRight: ['Period'],
   // Plan 6b Task 4. `V` for release: it drops a bomb, one press, one bomb --
   // edge-triggered exactly like `throttleCut`, for the same reason: a held
   // key must not keep releasing ordnance every frame. Free as of 2026-09-18

@@ -3,8 +3,28 @@ import { attitudeAngles } from '../../../src/sim/flight/attitude.js'
 import { restPitchRad, wheelDepthM } from '../../../src/sim/gearContact.js'
 import { onGround } from '../../../src/sim/ground.js'
 import { length, v3 } from '../../../src/sim/math/vec3.js'
+import { qRotate } from '../../../src/sim/math/quat.js'
+import { createTerrainField, type TerrainField } from '../../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
+import { DT, type AircraftState } from '../../../src/sim/flight/model.js'
+import { RUNWAY_HEIGHT_M } from '../../../tools/testcards/measure.js'
 import { allGroundSpecs } from './fixtures.js'
 import { run } from './run.js'
+
+/** Flat open water: height 0 is SEA_LEVEL_M, which `surfaceAt` reads as water. */
+const WATER_FIELD: TerrainField = createTerrainField(
+  parseTerrainHeader({ centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 100000, finestSamples: 8193, levels: 13, encoding: 'int16-decimetres' }),
+  12,
+  new Int16Array(9).fill(0),
+)
+
+/** Nose heading, degrees, positive = nose right (+Z is right in this frame). */
+const noseHeadingDeg = (s: AircraftState): number => {
+  const f = qRotate(s.attitude, v3(1, 0, 0))
+  return (Math.atan2(f.z, f.x) * 180) / Math.PI
+}
+const bank = (s: AircraftState): number => attitudeAngles(s).rollRad
+
 
 describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance: %s', (_id, spec) => {
   it('1. the layout is valid: a rest pitch exists and both wheels touch at it', () => {
@@ -50,5 +70,57 @@ describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance
       const energy = (i: number) => 0.5 * length(trace[i]!.velocity) ** 2 + 9.80665 * trace[i]!.position.y
       expect(energy(trace.length - 1)).toBeLessThanOrEqual(energy(0) + 1e-6)
     }
+  })
+
+  // Roll keys steer on the wheels (Mark's arcade ruling, 2026-09-28) and must
+  // never bank or tip the airplane there. All through the real `step`.
+  describe('roll input (arrow keys) on the wheels vs in the air', () => {
+    const held = (roll: number, extra: object = {}) => ({ pitch: 0, roll, yaw: 0, throttle: 0.3, gearDown: true, ...extra })
+
+    it('6. full roll held through a taxi, a take-off roll and a rollout never banks or tips the airplane', () => {
+      for (const roll of [1, -1]) {
+        const taxi = run(spec, held(roll), 15).trace
+        const rollout = run(spec, held(roll, { throttle: 0 }), 10, { speedMps: 35 }).trace
+        // Full power, stick neutral: only ticks still on the wheels count.
+        const takeoff = run(spec, held(roll, { throttle: 1 }), 12).trace.filter((s) => onGround(spec, s, RUNWAY_HEIGHT_M))
+        expect(takeoff.length, 'no take-off-roll ticks on the wheels').toBeGreaterThan(300)
+        for (const trace of [taxi, rollout, takeoff]) {
+          for (const s of trace) expect(Math.abs(bank(s))).toBeLessThan(0.01)
+        }
+        for (const s of [...taxi, ...rollout]) expect(Math.abs(attitudeAngles(s).pitchRad)).toBeLessThan(0.5)
+      }
+    })
+
+    it('7. roll +1 turns the nose right and -1 left, the same way rudder does', () => {
+      const turn = (c: object) => { const t = run(spec, { pitch: 0, roll: 0, yaw: 0, throttle: 0.3, gearDown: true, ...c }, 4).trace; return noseHeadingDeg(t[t.length - 1]!) - noseHeadingDeg(t[0]!) }
+      const neutral = turn({})
+      expect(turn({ roll: 1 })).toBeGreaterThan(neutral + 1)
+      expect(turn({ roll: -1 })).toBeLessThan(neutral - 1)
+      // Rudder also adds the air yaw rate (a few percent at taxi speed); roll steers through the ground terms alone.
+      expect(turn({ roll: 1 }) - neutral).toBeGreaterThan(0.8 * (turn({ yaw: 1 }) - neutral))
+    })
+
+    it('8. the same roll in the air still banks, and lift-off is continuous (no roll snap when the wheels leave)', () => {
+      const maxRollStep = (spec.rates.maxRollRateDegPerSec * Math.PI / 180) * DT
+      const air = run(spec, { pitch: 0, roll: 1, yaw: 0, throttle: 1, gearDown: true }, 1, { dropM: 300, speedMps: 90 }).trace
+      expect(Math.abs(bank(air[air.length - 1]!))).toBeGreaterThan(0.2)
+      // A real take-off with roll held from the first tick.
+      const { trace } = run(spec, { pitch: 0.4, roll: 1, yaw: 0, throttle: 1, gearDown: true }, 30)
+      const lift = trace.findIndex((s) => !onGround(spec, s, RUNWAY_HEIGHT_M))
+      expect(lift, 'never left the ground').toBeGreaterThan(0)
+      expect(Math.abs(bank(trace[lift - 1]!))).toBeLessThan(0.01)
+      let worst = 0
+      for (let i = lift; i < Math.min(trace.length, lift + 180); i++) worst = Math.max(worst, Math.abs(bank(trace[i]!) - bank(trace[i - 1]!)))
+      // Aileron is a rate command: no tick may exceed the spec's own roll rate (plus the stall wing-drop).
+      expect(worst).toBeLessThanOrEqual(maxRollStep * 1.05 + 0.5 * DT)
+      expect(Math.abs(bank(trace[Math.min(trace.length - 1, lift + 180)]!))).toBeGreaterThan(0.05)
+    })
+
+    it('9. with the gear up, or over water, roll is aileron, not steering', () => {
+      const belly = run(spec, { pitch: 0, roll: 1, yaw: 0, throttle: 1, gearDown: false }, 0.3, { dropM: 0.5, speedMps: 60, gearFraction: 0 }).trace
+      expect(Math.abs(bank(belly[belly.length - 1]!))).toBeGreaterThan(0.02)
+      const water = run(spec, { pitch: 0, roll: 1, yaw: 0, throttle: 1, gearDown: true }, 0.3, { dropM: 0.5, speedMps: 60, terrain: WATER_FIELD }).trace
+      expect(Math.abs(bank(water[water.length - 1]!))).toBeGreaterThan(0.02)
+    })
   })
 })

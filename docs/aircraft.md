@@ -76,7 +76,7 @@ this step only says what to author and what to run.
    before commit.
 2. Label every steering, brake, tail-lift, prop-wash and torque number
    (`thirdSteering`, `steerYawRateDegPerSec`, `steerLockSpeedMps`,
-   `differentialBrakes`, `brakeYawRateDegPerSec`, `tailLiftSpeedMps`,
+   `tailLiftSpeedMps`,
    `propWashSpeedMps`, `torqueYawRateDegPerSec`) ESTIMATE, or cite the source.
    Append the label to `reference.source`; do not rewrite what is there.
 3. Run:

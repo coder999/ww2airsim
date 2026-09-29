@@ -177,3 +177,13 @@ behavior in section 1.
   0 for counter-rotating props such as the P-38's).
 - `brakeLeft` and `brakeRight` are optional `Controls` channels beside the
   existing `brake`, so no existing `Controls` literal changes.
+
+**Amendment, 2026-09-28 (Mark's ruling after flying it):** differential toe
+brakes were removed entirely. There are no `brakeLeft`/`brakeRight` channels,
+no Comma/Period bindings, no `gear.differentialBrakes` or
+`gear.brakeYawRateDegPerSec`, and `symmetricBrake` is gone (plain `brake`
+only). Steering on the wheels is now `clamp(yaw + roll, -1, 1)`: the arrow keys
+and A/D steer (ArrowRight turns the nose right) and combine with Z/X, and roll
+still never banks the airplane on the wheels. In the air, on gear-up belly and
+on water, roll is aileron as before. The text above is the record of what was
+built first.

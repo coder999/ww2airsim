@@ -17,11 +17,6 @@ export type Controls = {
    *  `Controls` literals appear throughout the suite, and `undefined` reads
    *  as "brakes off", which is what every one of them means. */
   readonly brake?: number
-  /** Left and right wheel brakes, [0, 1], for differential braking. Optional
-   *  like `brake`; `undefined` reads as off. The symmetric drag is the larger
-   *  of `brake` and the mean of the two (`symmetricBrake`). */
-  readonly brakeLeft?: number
-  readonly brakeRight?: number
   /** What the pilot is asking the FLAPS to do, not where they are. Optional
    *  for the same reason `gearDown` and `brake` are: `Controls` literals
    *  appear throughout the suite and `undefined` reads as "unchanged". */

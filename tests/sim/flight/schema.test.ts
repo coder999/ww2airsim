@@ -41,8 +41,6 @@ const valid = {
     thirdSteering: 'casterLock',
     steerYawRateDegPerSec: 20,
     steerLockSpeedMps: 8,
-    differentialBrakes: true,
-    brakeYawRateDegPerSec: 12,
     tailLiftSpeedMps: 28,
     propWashSpeedMps: 12,
     torqueYawRateDegPerSec: -3,

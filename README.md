@@ -29,8 +29,7 @@ Ground and water contact now ends the flight (Plan 10, below). And the
 airplane now starts **parked on a runway at Tacloban and takes off from it**
 (Plan 11a): the ground is a surface it rolls on rather than one it falls
 through. Gear that takes seconds to move and costs drag while it hangs out,
-rolling friction and wheel brakes (`B` both; `,` left and `.` right for
-differential braking, T1), a tailwheel that steers until the tail
+rolling friction and wheel brakes (`B`), a tailwheel that steers until the tail
 comes up, and a visual strip draped over the real heightfield — running
 north-south, because east-west through the airfield runs into the sea. The
 graded historical take-off card measures that real ground now instead of a
@@ -85,7 +84,10 @@ holds the status.
 **T1 gave the aircraft believable ground handling (2026-09-28):** the rest
 attitude is derived from a gear layout in each spec, the tail rises with
 airflow instead of a speed gate, and the taxi has rudder with prop wash, a
-locking caster, differential brakes on `,` and `.`, and engine torque. It is on
+locking caster, and engine torque. On the wheels the arrow keys and A/D
+(roll in the air) **steer**, and Z/X (rudder) steer too; roll never banks the
+airplane on the wheels. There are no differential brakes (Mark's ruling,
+2026-09-28). It is on
 branch `worktree-t1-tailwheel`; the [handoff](docs/handoff/2026-09-28-t1-ground-handling.md)
 lists what was measured and what is open, [aircraft.md](docs/aircraft.md) has
 the onboarding step, and master spec §15 holds the status.

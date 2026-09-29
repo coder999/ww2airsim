@@ -18,6 +18,13 @@ describe('the control legend (2026-09-15)', () => {
     expect([...listed].sort()).toEqual([...declared].sort())
   })
 
+  it('says plainly that the roll keys steer on the ground and the rudder keys steer too (T1, 2026-09-28)', () => {
+    const roll = legendLines().find((l) => l.includes('Roll'))
+    expect(roll).toContain('steer on the ground')
+    expect(roll).toContain('in the air')
+    expect(legendLines().find((l) => l.includes('Rudder'))).toContain('steer')
+  })
+
   it('shows the throttle-down keys, the ones that were invisible', () => {
     // The point of this case is that throttle DOWN is legible at all -- it
     // shipped invisible once. The key it names changed on 2026-09-17 (Z became
