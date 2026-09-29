@@ -1,0 +1,442 @@
+{
+  "id": "f4u-corsair",
+  "name": "Vought F4U-1D Corsair",
+  "role": "fighter",
+  "side": "allied",
+  "carrierCapable": true,
+  "geometry": {
+    "wingAreaM2": 29.17,
+    "wingSpanM": 12.49
+  },
+  "mass": {
+    "emptyKg": 4002.0,
+    "fuelCapacityKg": 645.0,
+    "maxTakeoffKg": 6491.4
+  },
+  "aero": {
+    "clSlopePerRad": 4.8055,
+    "clMax": 1.4,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.0165,
+    "oswaldE": 0.85
+  },
+  "engine": {
+    "maxPowerW": 1491400,
+    "propEfficiency": 0.75,
+    "staticThrustN": 20000,
+    "powerFractionByAltitudeM": [
+      [
+        0,
+        0.8375
+      ],
+      [
+        1676.4,
+        0.8375
+      ],
+      [
+        5181.6,
+        0.8125
+      ],
+      [
+        6553.2,
+        0.775
+      ],
+      [
+        7437.1,
+        0.775
+      ],
+      [
+        11308.1,
+        0.3875
+      ]
+    ],
+    "windmillCd0": 0.033
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 85,
+    "maxPitchRateDegPerSec": 30,
+    "maxYawRateDegPerSec": 15,
+    "rateRefSpeedMps": 103,
+    "weathercockSeconds": 1.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.15
+  },
+  "limits": {
+    "diveSpeedMps": 216,
+    "gLimit": 7.5
+  },
+  "gear": {
+    "travelSeconds": 7,
+    "dragAreaM2": 0.282,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.5,
+    "heightM": 2.418,
+    "layout": "taildragger",
+    "mainX": 0.418,
+    "thirdX": -5.722,
+    "thirdHeightM": 1.306,
+    "thirdSteering": "casterLock",
+    "steerYawRateDegPerSec": 20,
+    "steerLockSpeedMps": 8,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "reference": {
+    "source": "Sources. [DS] = Chance Vought Aircraft, F4U-1D Detail Specification SD-261-1D-1B, Report No. 6756, revised 15 Feb 1945, scanned pages read 2026-09-29 (wwiiaircraftperformance.org/f4u/f4u.html). [DS] is a GUARANTEE-type estimate ('considered reasonable for this airplane and shall be equalled, or if possible, bettered', para. 101a), NOT a flown trial; every graded figure below inherits that, and the gap to flown data is reported, not closed. [FG] = NAS Patuxent River, Final Flight Report of Production Inspection Trials, FG-1A No. 14575 / 14062, TED BIS 2122, 3 Mar to 9 Oct 1944 (same site, read 2026-09-29): flown, used only for what [DS] omits. Mass and geometry: testMassKg 5482.12 = 12,086 lb, [DS] 102a Fighter loading (237 gal fuel, 2,400 rounds); [FG] flew 12,057 lb (0.2% lighter). emptyKg 4001.9 = 8,823 lb, [DS] 105a weight empty as a carrier landplane; fuelCapacityKg 645.0 = 237 gal = 1,422 lb, [DS] 104b; maxTakeoffKg 6491.2 = 14,311 lb, [DS] 102a Long Range Bomber. wingAreaM2 29.17 = 314 sq ft including fuselage, [DS] 108a; wingSpanM 12.49 = 40 ft 11.73 in, [DS] 116a. Graded figures, all at testMassKg, normal rated power, sea-level or altitude as stated ([DS] 113a Fighter column): topSpeedMps 177.92 = 398 mph at the airplane critical altitude 24,400 ft (7,437 m); topSpeedByAltitudeM = 317 mph at sea level, 344 at 7,700 ft, 343 at 9,300 ft, 386 at 20,100 ft, 384 at 21,700 ft; climbRateMps 13.462 = 2,650 ft/min at sea level, normal power. Military-power (2,990 ft/min) and war-emergency (3,110 ft/min, 416 mph at 20,000 ft) columns exist and are not graded. Stalls are DERIVED from [FG], not [DS]: [DS] states 89.0 mph 'without power' with no flap or gear condition named, which lies between the two flown stalls; [FG] p.11/15 flew 98.0 mph clean and 83.5 mph landing configuration, both power off, at 11,950 lb, scaled by sqrt(12,086/11,950) to testMassKg: stallSpeedMps 44.06 (98.5 mph), stallSpeedFlapMps 37.5396 (84.0 mph). flap.clIncrement 0.5284 is DERIVED by the Zero's method, 1.400013 x ((44.06/37.5396)^2 - 1). takeoffDistanceM 198.73 = 652 ft, [DS] 113a, calm, Fighter loading; [DS] names no flap setting and no lift-off speed, so the graded take-off borrows [FG]'s full-flap 83.0 mph lift-off (its own run was 720 ft, 219.5 m, at 1,940 bhp) and grades at full flaps. Gap, reported per R36: the model rolls 212.41 m, +6.89% against [DS] and -3.2% against the flown [FG]; it is the guarantee that is short, not the model that is slow. rollRateDegPerSec 85 is read by eye from [FG] p.15's steady-roll table (81.8 to 88.5 deg/s at 220 to 240 mph, fully deflected ailerons); rates.maxRollRateDegPerSec is set to it. FITTED (measured 2026-09-29, tools/testcards/measure.ts sweep at testMassKg): aero.cd0 0.0165 and engine.propEfficiency 0.75 (the Hellcat's value, same engine family) against the seven top-speed points and the climb; engine.powerFractionByAltitudeM is SOURCED as fractions of the 2,000 hp take-off rating ([DS] 107a, R-2800-8W two-speed two-stage, 2,700 rpm) following the normal ratings: 1,675 hp sea level to 5,500 ft (0.8375), 1,625 hp at 17,000 ft (0.8125), 1,550 hp at 21,500 ft (0.775), held to the 24,400 ft airplane critical altitude ([DS] defines it as where full-throttle power is delivered with ram); the last point, 0.3875 at 37,100 ft ([DS] service ceiling), is an ESTIMATE (half the 21,500 ft fraction) and nothing grades it. No fitted power point. Result: top speed -1.56% at 24,400 ft, table +1.15% to -2.18%, sea-level climb -3.18%, stalls +5.05% clean and +4.78% flaps (aero.clMax stays the shared 1.4 ESTIMATE; the flown stalls imply about 1.55, so the model stalls fast, a reported gap, not tuned), roll 84.996. maxPowerW 1,491,400 = 2,000 hp; engine.staticThrustN 20,000 is DERIVED, the Hellcat's value at the same take-off power; windmillCd0 0.033 is DERIVED as 2 x cd0. aero.clSlopePerRad, alphaCritDeg, clAtZeroAlpha, cySlopePerRad, oswaldE, rates.* (except maxRollRateDegPerSec), limits.* (dive 216 m/s, 7.5 g) and gear.travelSeconds 7, gear.rollingResistanceCoeff, brakingResistanceCoeff, lateralGripSeconds are ESTIMATES carried over from the Hellcat; no F4U source was found for any. gear.dragAreaM2 0.282 and flap.dragAreaM2 0.564 are DERIVED, the Hellcat's 0.3 and 0.6 scaled by wing area (29.17/31.03). Gear layout (measured 2026-09-29 from the drawn model with tests/tools/models/_drawnPoints.ts, a throwaway test deleted before commit): heightM 2.418 (main wheels below the origin), mainX 0.418, thirdX -5.722 and thirdHeightM 1.306 (the first aft point to touch when pitched about the mains, at 10.268 deg; [DS] 116a's static ground angle is 10 deg 59 min, and stance.test.ts and gearContact.test.ts hold the drawing to the derived rest pitch within 0.25 deg). layout taildragger and the tail-wheel steering, tail-lift and prop-wash numbers (thirdSteering casterLock, steerYawRateDegPerSec 20, steerLockSpeedMps 8, tailLiftSpeedMps 28, propWashSpeedMps 12) are ESTIMATES copied from the Hellcat. torqueYawRateDegPerSec is 0 by Mark's ruling of 2026-09-28 (arcade choice: the hands-off take-off roll felt clunky even if accurate). view.eyePointM [-1.85, 0.78, 0] is MEASURED against the drawn canopy node kabina-FACES (glazing kabina-FACES_1: x -2.478 to -1.169, top y 1.075), 0.3 m below the top, inside it fore-aft (eyePoints.test.ts). The committed model is an F4U-1A airframe (aircraftDimensions.test.ts); its raised canopy is the F4U-1D's, so the canopy question is settled as a match. carrierCapable true (Mark, 2026-09-28); carrierTakeoff.test.ts passes on both decks with no exception and no tuned ground pitch cap.",
+    "testMassKg": 5482.12,
+    "topSpeedMps": 177.92,
+    "topSpeedAltitudeM": 7437.1,
+    "climbRateMps": 13.462,
+    "stallSpeedMps": 44.06,
+    "stallSpeedFlapMps": 37.5396,
+    "rollRateDegPerSec": 85,
+    "takeoffDistanceM": 198.73,
+    "topSpeedByAltitudeM": [
+      [
+        0.0,
+        141.71
+      ],
+      [
+        2347.0,
+        153.78
+      ],
+      [
+        2834.6,
+        153.33
+      ],
+      [
+        6126.5,
+        172.56
+      ],
+      [
+        6614.2,
+        171.66
+      ]
+    ]
+  },
+  "view": {
+    "eyePointM": [
+      -1.85,
+      0.78,
+      0
+    ],
+    "model": "f4u-corsair"
+  },
+  "flap": {
+    "travelSeconds": 5,
+    "dragAreaM2": 0.564,
+    "clIncrement": 0.5284
+  },
+  "combat": {
+    "roundsPerMinute": 800,
+    "muzzleVelocityMps": 883.92,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "dragPerM": 0.00015,
+    "damagePerHit": 10,
+    "roundDamage": 4,
+    "structureHp": 120,
+    "subsystemHp": 40,
+    "fuelLeakKgPerS": 0.5,
+    "engineDecayPerS": 0.05,
+    "guns": [
+      {
+        "position": [
+          -0.858,
+          -0.854,
+          -2.87
+        ],
+        "rounds": 400,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          -0.842,
+          -0.818,
+          -3.25
+        ],
+        "rounds": 400,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          -0.825,
+          -0.784,
+          -3.63
+        ],
+        "rounds": 400,
+        "group": "leftGuns"
+      },
+      {
+        "position": [
+          -0.858,
+          -0.854,
+          2.87
+        ],
+        "rounds": 400,
+        "group": "rightGuns"
+      },
+      {
+        "position": [
+          -0.842,
+          -0.818,
+          3.25
+        ],
+        "rounds": 400,
+        "group": "rightGuns"
+      },
+      {
+        "position": [
+          -0.825,
+          -0.784,
+          3.63
+        ],
+        "rounds": 400,
+        "group": "rightGuns"
+      }
+    ],
+    "zones": [
+      {
+        "id": "engine",
+        "center": [
+          1.4,
+          -0.05,
+          0
+        ],
+        "halfSize": [
+          0.9,
+          0.75,
+          0.75
+        ],
+        "system": "engine"
+      },
+      {
+        "id": "fuel",
+        "center": [
+          -0.3,
+          -0.1,
+          0
+        ],
+        "halfSize": [
+          0.8,
+          0.7,
+          0.7
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "tail",
+        "center": [
+          -5.5,
+          -0.1,
+          0
+        ],
+        "halfSize": [
+          1.3,
+          0.4,
+          1.2
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "rudder",
+        "center": [
+          -5.9,
+          1.05,
+          0
+        ],
+        "halfSize": [
+          0.85,
+          0.85,
+          0.15
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-guns",
+        "center": [
+          -0.84,
+          -0.82,
+          -3.25
+        ],
+        "halfSize": [
+          0.9,
+          0.3,
+          0.6
+        ],
+        "system": "leftGuns"
+      },
+      {
+        "id": "right-guns",
+        "center": [
+          -0.84,
+          -0.82,
+          3.25
+        ],
+        "halfSize": [
+          0.9,
+          0.3,
+          0.6
+        ],
+        "system": "rightGuns"
+      },
+      {
+        "id": "left-aileron",
+        "center": [
+          -1.2,
+          -0.7,
+          -5.0
+        ],
+        "halfSize": [
+          0.7,
+          0.3,
+          1.0
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-aileron",
+        "center": [
+          -1.2,
+          -0.7,
+          5.0
+        ],
+        "halfSize": [
+          0.7,
+          0.3,
+          1.0
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Six .50-cal guns, three in each outer wing panel: [DS] 104b ('6-.50 cal., 2400 rds') and English Wikipedia 'Vought F4U Corsair' (six M2 Brownings, three per outer panel; read 2026-09-29). Rounds: 400 per gun from [DS]'s 2,400 total; Wikipedia gives 400 rounds for the inner pair and 375 for the outer, 2,350 in all, and this file follows [DS]. 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html (carried over from the Hellcat card, no F4U-specific figure found). Gun positions are MEASURED, not sourced: stations at |z| 2.87, 3.25, 3.63 m (the shared placeholder stations 3.0, 3.4, 3.8 m scaled by 12.49/13.06) sliced on the drawn wing with tools/models/mounts.ts's sectionAtFor('f4u-corsair'), at 40% chord, mid-thickness (ESTIMATE fractions). Zones are ESTIMATE boxes fitted to sit inside the propeller-excluded drawn airframe (tests/tools/models/combatFit.test.ts): engine forward of the firewall, fuel in the fuselage tank ahead of the cockpit, tail, rudder, gun bays, ailerons on the outer wing. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates are gameplay ESTIMATES. No penetration model."
+  },
+  "stores": {
+    "racks": [
+      {
+        "id": "left-rack",
+        "offset": [
+          -0.379,
+          -1.106,
+          -2.6
+        ],
+        "store": "an-m65"
+      },
+      {
+        "id": "right-rack",
+        "offset": [
+          -0.365,
+          -1.107,
+          2.6
+        ],
+        "store": "an-m65"
+      }
+    ],
+    "rails": [
+      {
+        "id": "left-rail-1",
+        "offset": [
+          -0.615,
+          -0.999,
+          -3.4
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-2",
+        "offset": [
+          -0.604,
+          -0.934,
+          -4
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-3",
+        "offset": [
+          -0.591,
+          -0.874,
+          -4.6
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "left-rail-4",
+        "offset": [
+          -0.569,
+          -0.807,
+          -5.2
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-1",
+        "offset": [
+          -0.597,
+          -1,
+          3.4
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-2",
+        "offset": [
+          -0.582,
+          -0.934,
+          4
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-3",
+        "offset": [
+          -0.566,
+          -0.875,
+          4.6
+        ],
+        "store": "hvar"
+      },
+      {
+        "id": "right-rail-4",
+        "offset": [
+          -0.54,
+          -0.807,
+          5.2
+        ],
+        "store": "hvar"
+      }
+    ],
+    "types": {
+      "an-m65": {
+        "kind": "bomb",
+        "massKg": 453.6,
+        "dragAreaM2": 0.09,
+        "fillerKg": 240.9,
+        "damage": 120,
+        "blastRadiusM": 30,
+        "armS": 0.5,
+        "lifetimeS": 60,
+        "dragPerM": 2e-05
+      },
+      "hvar": {
+        "kind": "rocket",
+        "massKg": 61,
+        "dragAreaM2": 0.03,
+        "warheadKg": 20.6,
+        "damage": 40,
+        "blastRadiusM": 8,
+        "burnS": 1.0,
+        "burnDeltaVMps": 419,
+        "railElevationDeg": 1.8,
+        "lifetimeS": 12,
+        "dragPerM": 8e-05
+      }
+    },
+    "source": "Two bomb racks, one under each wing at z = +/-2.6 m outboard of the gear bays (ESTIMATE, the Hellcat's station), an AN-M65 class 1,000 lb bomb each: [DS] 102a/104d ('1-1000# bomb installation' 1,025.3 lb) and English Wikipedia 'Vought F4U Corsair' ('up to 4,000 pounds of explosive ordnance'), read 2026-09-29. Eight HVAR rails, four under each wing at z = +/-3.4, 4.0, 4.6, 5.2 m (ESTIMATE stations): Wikipedia, 'could carry up to eight rockets, four under each wing'. Store parameters (an-m65, hvar) are the shared, sourced entries used by the Hellcat: AN-M65 1,000 lb GP, 530 lb (240.9 kg) filler, Australian War Memorial C285409 and bulletpicker.com; HVAR 134 lb (61 kg), 45.5 lb warhead, 1,375 ft/s, English Wikipedia 'High Velocity Aircraft Rocket'; burn time 1.0 s, dragAreaM2, dragPerM, damage, blastRadiusM, armS, lifetimeS are ESTIMATES (see the Hellcat card for the 2026-09-22 strike-test measurement that dragPerM carries). Rack and rail OFFSETS are measured on the wing of the model this spec draws: `npm run models:mounts` slices the wing at each station and hangs the store at 40% (bomb) or 50% (rocket) of the chord, 2 cm clear of the lower skin; the fractions and clearance are ESTIMATES. Measured 2026-09-29."
+  }
+}
