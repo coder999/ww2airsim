@@ -161,8 +161,8 @@ and the four print-model downloads box-projected. The
 [handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
 master spec §15 holds the status.
 
-**Model detail pass DP3 landed 2026-09-29, on branch `worktree-dp3-buildings`
-(not merged):** the nine flat-shaded buildings are rebuilt with richer geometry
+**Model detail pass DP3 landed 2026-09-29 and merged into `main`:**
+the nine flat-shaded buildings are rebuilt with richer geometry
 and baked skins, and the flat-shaded allowlist is deleted. The
 [handoff](docs/handoff/2026-09-29-dp3-buildings.md) records what was measured;
 master spec §15 holds the status.

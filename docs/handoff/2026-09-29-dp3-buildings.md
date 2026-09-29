@@ -10,7 +10,7 @@ and the plan is
 [`2026-09-29-dp3-buildings.md`](../superpowers/plans/2026-09-29-dp3-buildings.md).
 
 The work is complete on branch `worktree-dp3-buildings` (forked from `main` at
-`2aa28ff`) and is **not merged**. Merging into `main` is Mark's call. Nothing
+`2aa28ff`) and was merged into `main` on 2026-09-29 at Mark's request. Nothing
 under `src/sim` changed and no scenario changed. The run was unattended, with
 Mark's viewing checkpoint set to the final product only.
 
@@ -107,7 +107,7 @@ the 4K budget spec.
   in-game procedural airfield boxes (`src/render/scene/airfield.ts`) now look
   cruder than the Library models beside them. That is the design spec's open
   question 4. Swapping the game over to these models is a separate decision.
-- The branch is pushed but not merged; the merge and any deploy are Mark's.
+- The branch is merged and pushed 2026-09-29 at Mark's request; any deploy is Mark's.
 - One commit (tower and radar; barracks and pier) covers each pair, because
   the pinned texture count in `buildingModels.test.ts` was shared. One commit
   went in with 12 red tests (a chained `;`) and was fixed in the next; the
