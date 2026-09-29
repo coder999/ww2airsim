@@ -142,6 +142,11 @@ and the four print-model downloads box-projected. The
 [handoff](docs/handoff/2026-09-28-dp2-ships.md) records what was measured;
 master spec §15 holds the status.
 
+**Model detail pass DP1 landed 2026-09-29 on a branch awaiting merge:** the
+Ki-21, P-38 and B-29 are rebuilt to the Ki-84's level of geometry and carry
+baked skins. The [handoff](docs/handoff/2026-09-28-dp1-aircraft.md) records what
+was measured; master spec §15 holds the status.
+
 **Plan 6c structural overload landed 2026-09-23:** the fixed-step simulation
 derives proper load from consecutive aircraft states and airspeed from the wind
 frame. Exceeding the F6F content limits continuously damages structure, with
