@@ -25,7 +25,7 @@ describe('the propeller loop points (design §4.1)', () => {
     // all eighty 100 ms windows), so the default whole-file wrap is an
     // audible click once every eight seconds.
     const { samples, channels, frames, sampleRate } = readWav(
-      fileURLToPath(new URL(`../../${assetFor('propeller').path}`, import.meta.url)),
+      fileURLToPath(new URL(`../../${assetFor('engine_radial_small').path}`, import.meta.url)),
     )
     expect(sampleRate).toBe(PROPELLER_SAMPLE_RATE)
     expect(LOOP_END_FRAME).toBeLessThan(frames)

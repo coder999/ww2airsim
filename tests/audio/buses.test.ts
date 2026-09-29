@@ -14,7 +14,7 @@ describe('buses (spec §4)', () => {
   it('names a real bus for every clip, and the propeller is the engine bus', () => {
     const buses = Object.keys(BUS_GAIN)
     for (const clip of AUDIO_ASSETS) expect(buses, clip.id).toContain(clip.bus)
-    expect(assetFor('propeller').bus).toBe('engine')
+    expect(assetFor('engine_radial_small').bus).toBe('engine')
     expect(assetFor('water_crash').bus).toBe('sfx')
   })
 

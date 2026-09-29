@@ -17,7 +17,7 @@ describe('the audio system, driven through a fake backend (design §7.1)', () =>
     audio.update(flying)
     audio.update(flying)
     expect(fake.loopsStarted.length).toBe(1)
-    expect(fake.loopsStarted[0]!.id).toBe('propeller')
+    expect(fake.loopsStarted[0]!.id).toBe('engine_radial_small')
     // The loop points reach the backend, rather than the backend being left
     // to default to the whole file -- which is the audible click the loop
     // constants exist to avoid.
@@ -64,11 +64,11 @@ describe('the audio system, driven through a fake backend (design §7.1)', () =>
     const audio = createAudioSystem(fake)
     await audio.load()
     audio.update(flying)
-    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['propeller'])
+    expect(fake.loopsStarted.map((l) => l.id)).toEqual(['engine_radial_small'])
   })
 
   it('stays silent, and does not throw, when the ENGINE itself failed to load', async () => {
-    const fake = createFakeBackend({ failToLoad: ['propeller'] })
+    const fake = createFakeBackend({ failToLoad: ['engine_radial_small'] })
     const audio = createAudioSystem(fake)
     await audio.load()
     expect(() => audio.update(flying)).not.toThrow()
