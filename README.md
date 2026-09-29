@@ -202,6 +202,8 @@ green. See the
 
 **Plan 7g landing AI is complete on branch `worktree-ai-7g-landing` (2026-09-28), not yet merged.** An AI with a `home` (a runway airfield or a carrier) goes home when it is out of ammunition, damaged, low on fuel or idle, flies an approach under the LSO's rules, goes around when it must, lands, and is respotted on a park spot. `recovery-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7g-landing.md); master spec §15 holds the status and open items.
 
+**Plan 7h AI takeoff is complete on branch `worktree-ai-7h-takeoff` (2026-09-28), not yet merged.** A parked AI with `pilot.takeoff` rolls, lifts off and hands off to the ordinary AI; Airfield Strike's defenders now scramble off Dulag's runway. `takeoff-range` (a dev scenario on the title screen) shows it. See the [handoff](docs/handoff/2026-09-28-plan7h-takeoff.md); master spec §15 holds the status and open items.
+
 **Friendly fire and dishonorable discharge are complete and merged to `main` (2026-09-26).** Ships and airfield structures now have a side too. Damage to your own side scores nothing, and any of it forfeits everything since the last landing. A pilot who survives the sortie gets DISHONORABLE DISCHARGE, and the roster marks him DISCHARGED until he is resurrected; one who dies is K.I.A., since the dead cannot be discharged. The first friendly hit plays a radio call on the radio line, and the combat readout keeps a FRIENDLY FIRE tag. `friendly-fire-range` ("Friendly Fire (dev)") is the test bed. See the [handoff](docs/handoff/2026-09-26-friendly-fire.md); master spec §15 holds the status.
 
 **The A6M Zero flies, headless (Z2, 2026-09-25):**

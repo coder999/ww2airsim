@@ -122,17 +122,17 @@
           "tags": [
             "defenders"
           ],
-          "airborneAt": {
-            "position": [
-              -31629,
-              1500,
-              -20479
-            ],
-            "headingDeg": 0,
-            "speedMps": 110
+          "parkedAt": {
+            "airfield": "dulag",
+            "spot": {
+              "x": 0,
+              "z": 650
+            }
           },
+          "chocked": false,
           "pilot": {
-            "skill": "green"
+            "skill": "green",
+            "takeoff": true
           }
         },
         {
@@ -141,17 +141,17 @@
           "tags": [
             "defenders"
           ],
-          "airborneAt": {
-            "position": [
-              -31429,
-              1500,
-              -20279
-            ],
-            "headingDeg": 0,
-            "speedMps": 110
+          "parkedAt": {
+            "airfield": "dulag",
+            "spot": {
+              "x": 0,
+              "z": 740
+            }
           },
+          "chocked": false,
           "pilot": {
-            "skill": "green"
+            "skill": "green",
+            "takeoff": true
           }
         }
       ]

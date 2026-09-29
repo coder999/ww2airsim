@@ -985,6 +985,8 @@ async function boot(): Promise<void> {
             mode: a.pilot?.decision.mode ?? null,
             // Plan 7g: the recovery phase for an AI with a home, else null.
             recovery: a.pilot?.decision.recovery?.phase ?? null,
+            // Plan 7h: the takeoff phase for an AI on its takeoff, else null.
+            takeoff: a.pilot?.decision.takeoff?.phase ?? null,
             maneuver: a.pilot?.decision.named ?? null,
             targetId: a.pilot?.decision.targetId ?? null,
           }

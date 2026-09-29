@@ -918,7 +918,7 @@ export function advance<M>(
       // carry the `!== null` narrowing into the spawn loop below.
       let m: MissionState<M> = stepped.mission
       for (const groupId of stepped.spawns) {
-        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m }, groupId)
+        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m, terrain: world.terrain }, groupId)
         aircraft = spawned.aircraft
         ships = spawned.ships
         combat = spawned.combat

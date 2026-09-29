@@ -106,6 +106,20 @@ function settled(w: World<undefined>): World<undefined> {
   return withAircraftState(w, w.player, { ...p.state, position: v3(pos.x, ground.heightM + p.spec.gear.heightM, pos.z) })
 }
 
+/** `settled`, for every parked entity: the frame layer's `settleOnTerrain`
+ *  runs once at load, so a headless world with a parked AI needs this. */
+export function settledAll(w: World<undefined>): World<undefined> {
+  let world = w
+  for (const a of w.aircraft) {
+    if (!a.parked) continue
+    const ground = groundUnder(w.terrain, decksOf(w.ships), a.state.position.x, a.state.position.z)
+    if (ground === null) continue
+    const pos = a.state.position
+    world = withAircraftState(world, a.id, { ...a.state, position: v3(pos.x, ground.heightM + a.spec.gear.heightM, pos.z) })
+  }
+  return world
+}
+
 /** Airspeed above which `deckRun` pulls (the Measured deck-run law). */
 const ROTATE_MPS = 38
 const ROTATE_PITCH = 0.6
