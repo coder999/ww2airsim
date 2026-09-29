@@ -383,7 +383,7 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv']) {
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)
       const on = await shot(page)
