@@ -52,6 +52,9 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
     expect(loadoutsFor(bare(false), 'a6m2-zero')).toEqual(['clean'])
     expect(withAircraft(bare(false), d, 'a6m2-zero').loadout).toBe('clean')
   })
+  it('a bomber with racks and no rails offers Clean and Bombs, in Dev too', () => {
+    expect(loadoutsFor(ctx(true), 'b-17-flying-fortress')).toEqual(['clean', 'bombs'])
+  })
   describe('reconcile after Dev is unchecked', () => {
     it('a Dev-only scenario falls back to the fallback id, with its defaults', () => {
       const d = { scenarioId: 'furball-range', aircraftSpec: 'a6m2-zero', loadout: 'rockets' as const }

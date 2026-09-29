@@ -550,9 +550,11 @@ export function stepCombat(
   // Releases follow structural damage, so a surviving tick's ordnance and its rounds leave together and
   // the PRNG cursor is spent in one stated order (spec §3.7).
   for (const a of aircraft) {
+    // A bomb needs only a rack: a bomber with no `combat` block (no guns, no hit zones) still drops
+    // its load. Rockets fly down the gunsight line, so they need the block.
     const combat = a.spec.combat, rec = records[a.id]
-    if (combat === undefined || rec === undefined) continue
-    const wantsBomb = a.controls.dropBomb === true, wantsRockets = a.controls.fireRockets === true
+    if (rec === undefined) continue
+    const wantsBomb = a.controls.dropBomb === true, wantsRockets = a.controls.fireRockets === true && combat !== undefined
     if (!wantsBomb && !wantsRockets) continue
     if (!canRelease(a, rec, terrain, decks)) continue
     let stores = rec.stores
@@ -571,7 +573,7 @@ export function stepCombat(
       return release.projectiles.length
     }
     const bombsThisTick = wantsBomb ? emit(releaseBomb(a, stores, rngState)) : 0
-    const rocketsThisTick = wantsRockets ? emit(releaseRockets(a, combat, stores, rngState)) : 0
+    const rocketsThisTick = wantsRockets ? emit(releaseRockets(a, combat!, stores, rngState)) : 0
     records[a.id] = {
       ...rec, stores,
       bombsDropped: rec.bombsDropped + bombsThisTick,
@@ -732,11 +734,13 @@ export function stepCombat(
 
   for (const shot of flying) {
     const ownerSpec = specs.get(shot.p.owner)
-    const source = ownerSpec?.combat
-    if (ownerSpec === undefined || source === undefined || shot.dt <= 0) continue
+    if (ownerSpec === undefined || shot.dt <= 0) continue
     const store = shot.p.kind === 'round' ? null : storeTypeOf(ownerSpec, shot.p.kind)
     if (shot.p.kind !== 'round' && store === null) continue // its content is gone
-    const ballistic = store === null ? gunBallistics(source, shot.p.gunType) : null
+    // Only a round needs the owner's combat block; a bomber's bomb flies without one.
+    const source = ownerSpec.combat
+    if (store === null && source === undefined) continue
+    const ballistic = store === null ? gunBallistics(source!, shot.p.gunType) : null
     const burned = shot.p.kind === 'rocket' && store !== null
       ? { ...shot.p, velocity: burnedVelocity(shot.p.velocity, store.burnDeltaVMps ?? 0, store.burnS ?? 1, shot.p.ageS, shot.dt) }
       : shot.p
@@ -754,7 +758,7 @@ export function stepCombat(
     if (p.kind === 'bomb' && store !== null && p.ageS < (store.armS ?? 0)) continue
     const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
     impacts.push({ tick, cause: p.kind, outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point })
-    const damage = store === null ? source.roundDamage : store.damage
+    const damage = store === null ? source!.roundDamage : store.damage
     if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)

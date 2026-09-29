@@ -157,7 +157,8 @@ Options: fixed guns as sourced (count, caliber, rate, muzzle velocity,
 convergence), structure and subsystem hit points, damage zones. Recommend
 copying the shape of the nearest existing aircraft's `combat` block and
 replacing each number with a sourced one. Turrets are out of scope; record
-"no turrets" for a bomber.
+"no turrets" for a bomber. A bomber may have no `combat` block at all (the
+B-17): it still drops bombs, but it cannot fire or be hit.
 
 ### D12. Cockpit view
 
@@ -286,9 +287,39 @@ not ship.
 Run `tests/e2e/hangar.spec.ts` and the aircraft's own spec on a worktree dev
 server. The Hangar checks that pin node lists and mount counts (9 and 11)
 are per-aircraft facts: change them with the model, in the same commit. If
-D3 was true, add a carrier takeoff and trap run. If D7 was a bay load, look at
-the loadout in the Hangar and confirm the bombs read as hanging below the
-fuselage.
+D3 was true, add a carrier takeoff and trap run. If D7 was a bay load, the
+racks are undrawn and inside the hull: confirm in the Hangar that nothing hangs
+below the fuselage.
+
+## Part H: Flyable in the game (the definition of done)
+
+An aircraft is onboarded when Mark can pick it in the sortie forms and fly it.
+"Has a spec and a Library card" is not that. The shipped rules make it
+mechanical:
+
+- **Availability.** Every spec in `content/aircraft/` is a flyable aircraft.
+  With Dev checked, Form 3 lists all of them on every scenario
+  (`eligibleAircraft`). Without Dev it lists the allied ones, and on a carrier
+  start only `carrierCapable` ones. There is no registry to edit.
+- **Data the forms read.** Form 3 shows the Library card's `blurb` and
+  `figuresFor` (speeds, climb, stall, weights, from the spec). Form 4 shows
+  `storesLine` (racks and rails, named from the Library ordnance cards).
+  The Hangar shows `history` and `sources`. `flyable.test.ts` fails a card
+  that lacks any of these.
+- **Armament follows the stores block.** An aircraft with a `stores` block
+  offers only the loadouts it can carry, in Dev too: racks only means Clean and
+  Bombs, so a bomber never offers rockets. Dev lends the Hellcat layout only to
+  an airplane with no `stores` at all. A bomber needs no `combat` block to drop
+  bombs (fixed 2026-09-29; before that a bomb from an aircraft with no
+  `combat` block was counted off the rack and then deleted).
+- **The acceptance run.** `tests/e2e/flyableAll.spec.ts` needs no edit for a new
+  aircraft. For every spec it quick-launches on the Tacloban runway with a full
+  bomb load, asserts it parks on its wheels with no validation error, is drawn
+  as its own model, holds the right bomb count, takes off, and drops one bomb.
+  Run it on the worktree dev server and look at the screenshots it writes to
+  `test-results/flyable-<id>-*.png`.
+
+If the run fails, the airplane is not onboarded, whatever the cards say.
 
 Finish with a handoff (`docs/handoff/<date>-<id>.md`) that lists what was
 measured, what was accepted, and the D-table.
