@@ -196,3 +196,42 @@ page every frame (`tests/e2e/pilot.ts`, imported from the dev server) and
 reads the state it needs from `__ww2.playerFlight()`. The pass's numbers and
 what each was measured against are in `tests/pilot/rangePass.ts`. Tune a
 pass in Tier 1, where a flight takes seconds, not in the browser.
+
+## Overnight run
+
+Tier 2 is not part of CI, so nothing tells you a merge broke it. A nexus
+systemd user timer does (set up 2026-09-29). It is the only copy of this
+mechanism; the script header has the step order.
+
+- **What:** `serverconfig/scripts/ww2airsim-e2e-nightly`, fired at 02:30
+  America/Denver by `ww2airsim-e2e.timer` (units in
+  `serverconfig/scripts/systemd/`, live copies in `~/.config/systemd/user/`;
+  `Persistent=true`, and `loginctl enable-linger mark` is on).
+- **Only when main moved:** it fetches, and exits silently and sends nothing
+  if `origin/main` equals the SHA of the last run that tested a commit.
+  `E2E_FORCE=1` overrides.
+- **Where it runs:** a dedicated detached worktree of `origin/main`
+  (`~/.local/state/ww2airsim-e2e/worktree`, never the served working copy),
+  with the terrain data copied in, and its own vite on the `ww2airsim-3` slot
+  (5174), so **that slot is reserved 02:30 onward**. If 5174 is in use the
+  night is recorded `skipped-slot-busy`. The browser is ryzen's: the console
+  session's Playwright server when it is up, else a session-0 one it starts.
+  It takes `hwlock ryzen` (waits up to 90 min, then records `skipped-lock`
+  rather than hold the lock into the morning), wakes ryzen with WoL if needed,
+  and shuts it down afterward only if it woke it and nobody else is on it.
+  It never falls back to nexus.
+- **Verdict:** any failing test is a hard failure, except titles matching
+  frame-time budgets (`budget|p95|tripwire|frame time`), which are recorded
+  with their numbers and do not turn the run red: session 0 gives no
+  trustworthy frame times yet (above). A test is *newly red* when it passed in
+  the previous tested run.
+- **Record:** one line per run in `~/.local/state/ww2airsim-e2e/runs.tsv`
+  (date, SHA, status `ok|failed|error|skipped-*`, counts, newly red/green,
+  whether the mail sent), plus `report-<date>.json` and `results-<sha>.json`
+  beside it. Every run that happens is emailed (subject has the counts and
+  newly red; body lists them with the first error line); nights main did not
+  move send nothing.
+- **Reading it:** `e2e-status` prints the last run and whether main has moved
+  since. The console tracks the job's health (not the tests') as the
+  `ww2airsim-e2e-nightly` service: it fails if the timer has not fired in 50 h
+  or the last line is `error`.

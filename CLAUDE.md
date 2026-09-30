@@ -163,6 +163,12 @@ needed one — see `docs/testing.md` and
 slot should say so if asked; there's no reservation system for ports (for
 clean GPU numbers, see `hwlock ryzen` above).
 
+**Tier 2 health: run `e2e-status`** (nexus). A nightly job runs Tier 2 on ryzen
+whenever `origin/main` has moved and emails the result; `e2e-status` prints
+the last run and whether main has moved since. The record is
+`~/.local/state/ww2airsim-e2e/runs.tsv`. The `ww2airsim-3` dev-server slot is
+reserved from 02:30. Mechanism: `docs/testing.md`, "Overnight run", only.
+
 ## Fetching third-party models
 
 Sketchfab downloads work headlessly from nexus:
