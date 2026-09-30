@@ -87,9 +87,11 @@ export type AudioInputs = {
   readonly hookDown: boolean
   /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
    *  `null` when there is no carrier. */
-  /** The newest bomb or rocket detonation near the player (any owner, any target), or `null`.
-   *  Not positional yet: it plays at full level whatever the distance within range. */
-  readonly ordnanceBlast: { readonly tick: number; readonly surface: string } | null
+  /** For each cause in `DAMAGE_CUES`, the tick of the newest event of that kind at the player
+   *  (a round that struck the player's aircraft, a bomb or rocket detonation near it), absent when
+   *  none. Structure falling alone does not say why: a crash and a collision lower it too, and
+   *  they are not gunfire. */
+  readonly damage: Readonly<Partial<Record<DamageCause, { readonly tick: number }>>>
 }
 
 export type AudioMemory = {
@@ -115,8 +117,9 @@ export type AudioMemory = {
   /** `sinkMps` of the previous frame. */
   readonly lastSinkMps: number
   readonly lastStructure: number
-  /** The tick before which no further hit cue is due (a burst lands many rounds in a few ticks). */
-  readonly hitCueUntilTick: number
+  /** Per cause, the tick before which no further damage cue is due (a burst lands many rounds in a
+   *  few ticks). Absent means one may fire now. */
+  readonly damageCueUntil: Readonly<Partial<Record<DamageCause, number>>>
   readonly engineFailed: boolean
   readonly lastArrested: boolean
   readonly lastHookDown: boolean
@@ -125,7 +128,7 @@ export type AudioMemory = {
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
   lastBombsDropped: 0, lastRocketsFired: 0, airborneSinceTick: null, airborneLatched: false, lastSinkMps: 0,
-  lastStructure: 1, hitCueUntilTick: 0, engineFailed: false, lastArrested: false, lastHookDown: false,
+  lastStructure: 1, damageCueUntil: {}, engineFailed: false, lastArrested: false, lastHookDown: false,
 }
 
 /**
@@ -157,10 +160,25 @@ export const TOUCHDOWN_MIN_SINK_MPS = 0.3
 export const GUN_CUE_INTERVAL_TICKS = 72
 
 /** One detonation cue per this many ticks, so a rocket salvo or bomb stick is one rumble. */
-/** Damage landing this soon after a detonation is the blast's, not a round's. */
-export const BLAST_DAMAGE_WINDOW_TICKS = 2
-/** Detonations farther than this from the player are not cued (no positional audio yet). */
-export const BLAST_AUDIBLE_M = 1500
+/** Why the player's structure can fall, as far as audio tells them apart. A crash or a collision is
+ *  deliberately not a cause: a crash has its own cue (`impact`) and a collision has none. */
+export type DamageCause = 'round' | 'blast'
+/** The clip that voices each cause, or `null` for silence. To give blast damage its own sound, add
+ *  the clip to `assets.ts` and name it here; nothing else changes. Order is the order they play in. */
+export const DAMAGE_CUES: Readonly<Record<DamageCause, ClipId | null>> = {
+  round: 'hit_taken',
+  // The detonation itself is heard through spatial.ts; a blast is not gunfire.
+  blast: null,
+}
+export const DAMAGE_CAUSES = Object.keys(DAMAGE_CUES) as readonly DamageCause[]
+/** Structure falling this soon after a cause's event is that event's damage.
+ *  `MAX_STEPS_PER_FRAME` (5) ticks can pass between two audio frames. */
+export const DAMAGE_CAUSE_WINDOW_TICKS = 5
+/** A round's contact point is on the airframe; this is wider than any aircraft in the game. */
+export const ROUND_HIT_NEAR_M = 15
+/** Classification only, far beyond any `blastRadiusM`: the sim decides who is hurt, this decides
+ *  whether a detonation was around when structure fell. */
+export const DAMAGE_BLAST_NEAR_M = 1500
 
 /** `hit_taken.wav` is 1.5 s; a burst that lands a dozen rounds in a few ticks is one cue, not a dozen. */
 export const HIT_CUE_INTERVAL_TICKS = 30
@@ -251,12 +269,16 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
 
   // Damage and carrier edges. Each is a bare edge on a value the sim already
   // holds, so a replay scrub (`prime`) advances past them silently.
-  // Blast damage to the player is not gunfire. The detonation itself is heard through spatial.ts.
-  const blastDamage = inputs.ordnanceBlast !== null && inputs.tick - inputs.ordnanceBlast.tick <= BLAST_DAMAGE_WINDOW_TICKS
-  let hitCueUntilTick = restarted ? 0 : prev.hitCueUntilTick
-  if (inputs.structure < (restarted ? 1 : prev.lastStructure) && inputs.tick >= hitCueUntilTick && !blastDamage) {
-    cues.push('hit_taken')
-    hitCueUntilTick = inputs.tick + HIT_CUE_INTERVAL_TICKS
+  let damageCueUntil = restarted ? {} : prev.damageCueUntil
+  if (inputs.structure < (restarted ? 1 : prev.lastStructure)) {
+    for (const cause of DAMAGE_CAUSES) {
+      const clip = DAMAGE_CUES[cause]
+      const seen = inputs.damage[cause]
+      if (clip === null || seen === undefined) continue
+      if (inputs.tick - seen.tick > DAMAGE_CAUSE_WINDOW_TICKS || inputs.tick < (damageCueUntil[cause] ?? 0)) continue
+      cues.push(clip)
+      damageCueUntil = { ...damageCueUntil, [cause]: inputs.tick + HIT_CUE_INTERVAL_TICKS }
+    }
   }
   const failing = inputs.engineHealth < ENGINE_FAILING_HEALTH
   const wasFailed = restarted ? false : prev.engineFailed
@@ -269,7 +291,7 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
       wasOnGround: inputs.onGround, firedImpactTick, lastTick: inputs.tick, lastShots: inputs.shots, gunCueUntilTick,
       lastBombsDropped: inputs.bombsDropped, lastRocketsFired: inputs.rocketsFired,
       airborneSinceTick, airborneLatched, lastSinkMps: inputs.sinkMps,
-      lastStructure: inputs.structure, hitCueUntilTick, engineFailed: failing,
+      lastStructure: inputs.structure, damageCueUntil, engineFailed: failing,
       lastArrested: inputs.arrested, lastHookDown: inputs.hookDown,
     },
     cues,

@@ -94,12 +94,14 @@ test('Q mutes by taking the master gain to zero, and unmutes', async ({ page }) 
     .toBeGreaterThan(0)
 })
 
-test('going into the sea fires ONE cue, and a restart fires none', async ({ page }) => {
+test('going into the sea sounds ONE crash cue live and once more in its replay, and a restart fires none', async ({ page }) => {
   // Both of Mark's 2026-09-18 reports, as a count. He heard a touchdown squeak
   // AND an explosion on a water crash -- two cues where there should be one --
   // and another squeak on respawn. `cuesFired` alone therefore discriminates
   // both without needing to name the clip: 1 after the crash, still 1 after
-  // the restart.
+  // the restart. Since instant replay (2026-09-27) the crash is then replayed
+  // with sound (R-4), so the count is 2: the live crash plus its one replay.
+  // A squeak or an explosion alongside the splash would make it 3.
   const cues = () => page.evaluate(() => (window as DiagWindow).__ww2!.audio().cuesFired)
   await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
   await waitForTerrain(page)
@@ -108,14 +110,14 @@ test('going into the sea fires ONE cue, and a restart fires none', async ({ page
   await page.keyboard.down('ArrowUp')
   await debriefDialog(page).waitFor({ timeout: 20_000 })
   await page.keyboard.up('ArrowUp')
-  await expect.poll(cues, { timeout: 10_000 }).toBe(1)
+  await expect.poll(cues, { timeout: 10_000 }).toBe(2)
 
   // Restart puts a fresh airplane on the ground. The previous flight ended
   // AIRBORNE, so without the tick-backwards reset in cues.ts that parked spawn
   // reads as a false -> true transition and squeaks.
   await debriefDialog(page).getByRole('button', { name: 'Restart' }).click()
   await page.waitForTimeout(4000)
-  expect(await cues(), 'a respawn is not a landing').toBe(1)
+  expect(await cues(), 'a respawn is not a landing').toBe(2)
 })
 
 test('the engine layer starts, and the view follows the camera', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { BLAST_AUDIBLE_M, type AudioInputs } from '../audio/cues.js'
+import { DAMAGE_BLAST_NEAR_M, ROUND_HIT_NEAR_M, type AudioInputs } from '../audio/cues.js'
 import type { CombatImpact } from '../sim/weapons/impacts.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { engineFamilyFor } from '../audio/mix.js'
@@ -79,17 +79,24 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     engineHealth: frame.world.combat.aircraft[frame.world.player]?.damage.engine ?? 1,
     arrested: aircraft.arrested,
     hookDown: frame.controls.hookDown === true,
-    ordnanceBlast: latestBlastNear(frame.world.combat.impacts, aircraft.position),
+    damage: damageEventsNear(frame.world.combat.impacts, aircraft.position),
   }
 }
 
-function latestBlastNear(impacts: readonly CombatImpact[], at: Vec3): { tick: number; surface: string } | null {
-  for (let i = impacts.length - 1; i >= 0; i--) {
+/** The newest event of each `DamageCause` at the player: a round that struck an aircraft within
+ *  `ROUND_HIT_NEAR_M`, a bomb or rocket detonation within `DAMAGE_BLAST_NEAR_M`. */
+function damageEventsNear(impacts: readonly CombatImpact[], at: Vec3): AudioInputs['damage'] {
+  const found: { round?: { tick: number }; blast?: { tick: number } } = {}
+  for (let i = impacts.length - 1; i >= 0 && (found.round === undefined || found.blast === undefined); i--) {
     const hit = impacts[i]!
-    if (hit.cause === 'round' || hit.outcome !== 'detonated') continue
-    if (Math.hypot(hit.point.x - at.x, hit.point.y - at.y, hit.point.z - at.z) <= BLAST_AUDIBLE_M) return { tick: hit.tick, surface: hit.surface }
+    const d = Math.hypot(hit.point.x - at.x, hit.point.y - at.y, hit.point.z - at.z)
+    if (hit.cause === 'round') {
+      if (found.round === undefined && hit.surface === 'aircraft' && d <= ROUND_HIT_NEAR_M) found.round = { tick: hit.tick }
+    } else if (found.blast === undefined && hit.outcome === 'detonated' && d <= DAMAGE_BLAST_NEAR_M) {
+      found.blast = { tick: hit.tick }
+    }
   }
-  return null
+  return found
 }
 
 /**

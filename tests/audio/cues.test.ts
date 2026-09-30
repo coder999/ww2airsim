@@ -304,20 +304,34 @@ describe('damage and carrier cues', () => {
 
   it('plays hit_taken once per burst, on structure falling', () => {
     const a = nextAudio(NO_AUDIO_MEMORY, at(100))
-    const b = nextAudio(a.memory, at(101, { structure: 0.9 }))
+    const b = nextAudio(a.memory, at(101, { structure: 0.9, damage: { round: { tick: 101 } } }))
     expect(b.cues).toEqual(['hit_taken'])
-    expect(nextAudio(b.memory, at(102, { structure: 0.8 })).cues).toEqual([])
-    expect(nextAudio(b.memory, at(101 + HIT_CUE_INTERVAL_TICKS, { structure: 0.8 })).cues).toEqual(['hit_taken'])
+    expect(nextAudio(b.memory, at(102, { structure: 0.8, damage: { round: { tick: 102 } } })).cues).toEqual([])
+    expect(nextAudio(b.memory, at(101 + HIT_CUE_INTERVAL_TICKS, { structure: 0.8, damage: { round: { tick: 101 + HIT_CUE_INTERVAL_TICKS } } })).cues).toEqual(['hit_taken'])
     // Steady damage is not a new hit.
-    expect(nextAudio(b.memory, at(500, { structure: 0.9 })).cues).toEqual([])
+    expect(nextAudio(b.memory, at(500, { structure: 0.9, damage: { round: { tick: 101 } } })).cues).toEqual([])
   })
 
-  it('does not call blast damage gunfire, and leaves the detonation to the spatial reducer', () => {
+  it('plays hit_taken for a round hitting the player and for no other damage', () => {
     const a = nextAudio(NO_AUDIO_MEMORY, at(100))
-    const b = nextAudio(a.memory, at(101, { ordnanceBlast: { tick: 101, surface: 'ship' }, structure: 0.8 }))
-    expect(b.cues).toEqual([])
-    // Rounds that hit long after the blast are still gunfire.
-    expect(nextAudio(b.memory, at(200, { ordnanceBlast: { tick: 101, surface: 'ship' }, structure: 0.7 })).cues).toEqual(['hit_taken'])
+    // Structure falling with no round: a blast, a collision, a wreck. Not gunfire.
+    expect(nextAudio(a.memory, at(101, { structure: 0.8 })).cues).toEqual([])
+    // A round that landed long ago does not explain damage now.
+    expect(nextAudio(a.memory, at(200, { structure: 0.7, damage: { round: { tick: 101 } } })).cues).toEqual([])
+    // A round that just landed does.
+    expect(nextAudio(a.memory, at(200, { structure: 0.7, damage: { round: { tick: 198 } } })).cues).toEqual(['hit_taken'])
+  })
+
+  it('blast damage is tagged but silent, and does not suppress a round landing alongside it', () => {
+    const a = nextAudio(NO_AUDIO_MEMORY, at(100))
+    expect(nextAudio(a.memory, at(101, { structure: 0.8, damage: { blast: { tick: 101 } } })).cues).toEqual([])
+    expect(nextAudio(a.memory, at(101, { structure: 0.8, damage: { blast: { tick: 101 }, round: { tick: 101 } } })).cues).toEqual(['hit_taken'])
+  })
+
+  it('a crash into the sea that also wrecks the airframe is ONE cue, not a hit as well', () => {
+    const a = nextAudio(NO_AUDIO_MEMORY, at(100))
+    const crash = nextAudio(a.memory, at(101, { ...hit('water', 'destroyed', at(101)), structure: 0, engineHealth: 0 }))
+    expect(crash.cues).toEqual(['water_crash'])
   })
 
   it('sputters once when the engine drops below half health, and only while it is running', () => {

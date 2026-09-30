@@ -202,16 +202,20 @@ it('reads the engine family off the aircraft the world flies', () => {
   expect(audioInputsFrom(frame).engineFamily).toBe('allison')
 })
 
-it('reports the newest bomb or rocket detonation within earshot, never a round or a far one', () => {
+it('reports the newest round that struck an aircraft at the player, never a blast, another surface or a far one', () => {
   const frame = initialFrameState(loadAircraftSpec('a6m2-zero'), createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
   const at = (x: number) => v3(x, 1000, 0)
   const withImpacts = (impacts: CombatImpact[]) => ({ ...frame, world: { ...frame.world, combat: { ...frame.world.combat, impacts } } })
-  const bomb = { tick: 7, cause: 'bomb', outcome: 'detonated', surface: 'ship', point: at(200) } as const
-  expect(audioInputsFrom(frame).ordnanceBlast).toBeNull()
-  expect(audioInputsFrom(withImpacts([bomb])).ordnanceBlast).toEqual({ tick: 7, surface: 'ship' })
-  expect(audioInputsFrom(withImpacts([bomb, { ...bomb, tick: 9, cause: 'round' }])).ordnanceBlast?.tick).toBe(7)
-  expect(audioInputsFrom(withImpacts([bomb, { ...bomb, tick: 9, outcome: 'expired' }])).ordnanceBlast?.tick).toBe(7)
-  expect(audioInputsFrom(withImpacts([{ ...bomb, point: at(20_000) }])).ordnanceBlast).toBeNull()
+  const round = { tick: 7, cause: 'round', outcome: 'detonated', surface: 'aircraft', point: at(5) } as const
+  expect(audioInputsFrom(frame).damage.round).toBeUndefined()
+  expect(audioInputsFrom(withImpacts([round])).damage.round).toEqual({ tick: 7 })
+  expect(audioInputsFrom(withImpacts([round, { ...round, tick: 9, cause: 'bomb' }])).damage.round?.tick).toBe(7)
+  expect(audioInputsFrom(withImpacts([round, { ...round, tick: 9, surface: 'water' }])).damage.round?.tick).toBe(7)
+  expect(audioInputsFrom(withImpacts([{ ...round, point: at(500) }])).damage.round).toBeUndefined()
+  const bomb = { tick: 9, cause: 'bomb', outcome: 'detonated', surface: 'ship', point: at(200) } as const
+  expect(audioInputsFrom(withImpacts([round, bomb])).damage).toEqual({ round: { tick: 7 }, blast: { tick: 9 } })
+  expect(audioInputsFrom(withImpacts([{ ...bomb, outcome: 'expired' }])).damage.blast).toBeUndefined()
+  expect(audioInputsFrom(withImpacts([{ ...bomb, point: at(20_000) }])).damage.blast).toBeUndefined()
 })
 
 describe('spatialInputsFrom (spatial audio)', () => {

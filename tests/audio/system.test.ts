@@ -208,7 +208,7 @@ describe('replay support (instant replay R-4)', () => {
     const audio = createAudioSystem(fake)
     await audio.load()
     audio.update(flying)
-    audio.update({ ...flying, tick: 11, structure: 0.9, hookDown: true })
+    audio.update({ ...flying, tick: 11, structure: 0.9, damage: { round: { tick: 11 } }, hookDown: true })
     expect(fake.played.map((p) => p.id)).toEqual(['hit_taken', 'hook_clunk'])
   })
 
