@@ -61,7 +61,8 @@ test('the same view at 06:30, 12:00 and 17:00: warm ends, blue noon, brightest g
   const sky: { r: number; g: number; b: number; gray: number }[] = []
   const ground: number[] = []
   for (const h of hours) {
-    await fixedView(page, `${spawnUrl(at)}&${TIME_OF_DAY_PARAM}=${h}`)
+    // Clouds off: this measures the sky's colour, and the grey cloud deck in the strip pulls blue under red.
+    await fixedView(page, `${spawnUrl(at)}&${TIME_OF_DAY_PARAM}=${h}&cloudTier=off`)
     const s = await page.evaluate(() => (window as DiagWindow).__ww2!.sun())
     expect(s.timeOfDay).toBeCloseTo(h, 2)
     const expected = sunPosition(LAT_DEG, h)
