@@ -23,17 +23,27 @@ test("the navigation chart selects recovery points without advancing the world",
   // Every caption must lie inside the chart's own viewBox; a caption pushed
   // past an edge is silently clipped, which a text assertion cannot see.
   const clipped = await chart.getByRole("img", { name: /^Navigation chart/ }).evaluate((svg) => {
-    const box = (svg as SVGSVGElement).viewBox.baseVal;
-    return Array.from(svg.querySelectorAll("text"))
-      .map((text) => ({ label: text.textContent, bbox: (text as SVGTextElement).getBBox() }))
+    const root = svg as SVGSVGElement;
+    const box = root.viewBox.baseVal;
+    const rootInverse = root.getScreenCTM()!.inverse();
+    return Array.from(root.querySelectorAll("text"))
+      .map((text) => {
+        // getBBox is in the text's own space; the chart draws inside a
+        // translated group, so map the corners into the viewBox's space.
+        const local = (text as SVGTextElement).getBBox();
+        const toRoot = rootInverse.multiply((text as SVGTextElement).getScreenCTM()!);
+        const a = new DOMPoint(local.x, local.y).matrixTransform(toRoot);
+        const b = new DOMPoint(local.x + local.width, local.y + local.height).matrixTransform(toRoot);
+        return { label: text.textContent, x0: a.x, y0: a.y, x1: b.x, y1: b.y };
+      })
       .filter(
-        ({ bbox }) =>
-          bbox.x < box.x ||
-          bbox.y < box.y ||
-          bbox.x + bbox.width > box.x + box.width ||
-          bbox.y + bbox.height > box.y + box.height,
+        (t) =>
+          Math.min(t.x0, t.x1) < box.x ||
+          Math.min(t.y0, t.y1) < box.y ||
+          Math.max(t.x0, t.x1) > box.x + box.width ||
+          Math.max(t.y0, t.y1) > box.y + box.height,
       )
-      .map(({ label, bbox }) => `${label} at ${bbox.x},${bbox.y} ${bbox.width}x${bbox.height}`);
+      .map((t) => `${t.label} at ${t.x0.toFixed(1)},${t.y0.toFixed(1)} to ${t.x1.toFixed(1)},${t.y1.toFixed(1)}`);
   });
   expect(clipped, `captions outside the chart:\n${clipped.join("\n")}`).toEqual([]);
 
