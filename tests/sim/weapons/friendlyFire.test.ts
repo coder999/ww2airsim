@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadAircraftSpec, loadScenarioBundle } from '../../../tools/content/load.js'
 import { createState } from '../../../src/sim/flight/state.js'
-import { advance, type AircraftEntity, type Stepper, type World } from '../../../src/sim/loop.js'
+import { advance, type Stepper, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { add, v3, type Vec3 } from '../../../src/sim/math/vec3.js'
 import {
@@ -10,8 +10,6 @@ import {
 import type { StructureEntity } from '../../../src/sim/weapons/structures.js'
 import { ownSideTarget, withFriendlyFire, type TargetSides } from '../../../src/sim/weapons/friendlyFire.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
-import { restPitchRad } from '../../../src/sim/gearContact.js'
-import { qFromAxisAngle, qMul } from '../../../src/sim/math/quat.js'
 import type { Side } from '../../../src/sim/sides.js'
 
 /**
@@ -22,16 +20,6 @@ import type { Side } from '../../../src/sim/sides.js'
  */
 const f6f = loadAircraftSpec('f6f-hellcat')
 
-/** `id` with the rest pitch taken back out of its parked attitude: level, same
- *  heading. `parkedAttitude` is yaw * pitch(rest), so this undoes the pitch. */
-const levelled = <M>(w: World<M>, id: string): World<M> => ({
-  ...w,
-  aircraft: w.aircraft.map((a) => {
-    if (a.id !== id) return a
-    const state = { ...a.state, attitude: qMul(a.state.attitude, qFromAxisAngle(v3(0, 0, 1), -restPitchRad(a.spec.gear))) }
-    return { ...a, state, previous: state }
-  }),
-})
 const still: Stepper = (_spec, state, _controls, ctx) => ({ ...state, tick: ctx.tick })
 
 const plane = (id: string, at: Vec3): CombatAircraft => {
@@ -238,26 +226,7 @@ describe('through production advance, on shipped content', () => {
     expect(p.friendlyKills).toBe(1)
   })
 
-  it('gunnery-range: the shipped sortie (Space from the parked spot until target-1 dies) never touches Tacloban (ruling FF-2)', () => {
-    // T1 (2026-09-28): a parked airplane now sits at its derived rest
-    // attitude, 9.45 deg nose-up for the F6F, and from there its guns fire
-    // over target-1. This test is about where the rounds land (what dies, what
-    // is never touched), not about aim, so the fixture levels the shooter to
-    // the attitude it was parked at before T1 and leaves the sim alone.
-    const w0 = levelled(worldFromScenario(loadScenarioBundle('gunnery-range'), null), 'f6f-1')
-    const firing = (w: World<undefined>): World<undefined> => ({
-      ...w, aircraft: w.aircraft.map((a): AircraftEntity<undefined> => (a.id === 'f6f-1' ? { ...a, controls: { ...a.controls, fire: true } } : a)),
-    })
-    let w = firing(w0)
-    let ticks = 0
-    while (w.combat.aircraft['target-1']!.damage.destroyedAt === null && ticks < 60 * 20) {
-      w = firing(advance(w, DT, still).world)
-      ticks++
-    }
-    // ...and on, until every round fired has come down or expired.
-    for (let i = 0; i < 60 * 4; i++) w = advance(w, DT, still).world
-    expect(w.combat.aircraft['target-1']!.damage.destroyedAt, 'target-1 never died').not.toBeNull()
-    expect(w.combat.aircraft['f6f-1']!.friendlyFire).toBeNull()
-    for (const s of w.structures) expect(w.combat.structures[s.id]!.hp, s.id).toBe(s.hp)
-  })
+  // The gunnery-range sortie (ruling FF-2: it never touches Tacloban) is
+  // flown for real in tests/sim/gunneryRangePass.test.ts since the range
+  // became a strafing run-in (2026-09-29).
 })

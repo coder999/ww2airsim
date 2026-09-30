@@ -1016,6 +1016,11 @@ async function boot(): Promise<void> {
         if (g === null) return false
         return supportedContact(playerSpec, state, g.heightM, g.surface, g.velocity, g.landClass)
       },
+      playerFlight: () => {
+        if (!frame) return null
+        const { spec, state } = playerAircraft(frame.world)
+        return { spec, state }
+      },
       // The LSO cue for the player, or `null` when there is nothing to signal (Plan 8).
       paddles: () => (frame ? paddlesFor(frame) : null),
       // The deck under the player's wheels, or `null` (Plan 8).
@@ -2488,6 +2493,11 @@ async function boot(): Promise<void> {
       // default's, paused, and its idle engine would play under the menu.
       if (sortieIdle) audio.hold(true)
       else {
+        // Released every flying frame: `hold` is a latch, and nothing else on
+        // this path clears it, so without this the flight after the title was
+        // silent -- engine at gain 0, every cue skipped (2026-09-29, found by
+        // gunnery.spec's cue count; b8f9c25 added the hold).
+        audio.hold(false)
         audio.update(audioInputsFrom(current))
         audio.updateSpatial(spatialInputsFrom(current, view.eye))
       }

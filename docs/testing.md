@@ -178,9 +178,21 @@ one link of the raymarch (`depth`, `layer`, `shape`, `density`, `slab`,
 `point`, `eye`, or `nodepth` to ignore the scene depth) -- the way the first
 GPU run of Plan 16a was diagnosed. Both are DEV-only.
 
-`?scenario=gunnery-range` parks the player on the Tacloban strip 300 m south
-of the runway center with a chocked training Hellcat at the center -- exactly
-the guns' 300 m convergence -- and a second one 500 m ahead, 35 m left. Hold
-Space from the chocks and the readout at the top of the screen counts the
-rounds down and the hits up; `window.__ww2.combat()` reports the same record
-to Tier 2 (`tests/e2e/gunnery.spec.ts`).
+`?scenario=gunnery-range` starts the player on a low run-in from the south,
+lined up with Tacloban, with two chocked training Hellcats on the runway's
+southern half: strafe them, then land straight ahead. It was a parked start
+until 2026-09-29, when T1's 9.45 degree tail-down rest pitch put the parked
+guns about 50 m over the target (plan
+`2026-09-29-gunnery-range-strafing-pass`). The readout at the top of the
+screen counts the rounds down and the hits up; `window.__ww2.combat()` reports
+the same record to Tier 2 (`tests/e2e/gunnery.spec.ts`).
+
+**The test pilot** (`tests/pilot/`) flies that pass, and every Tier 2
+landing, by keys. `strafePilot.ts` is a pure control law (the harmonized sight
+onto the target, then `approachControls`), and `keys.ts` turns its commands
+into the keys a player would press. Tier 1 flies it through `nextFrameState`
+(`tests/sim/gunneryRangePass.test.ts`); Tier 2 runs the same module in the
+page every frame (`tests/e2e/pilot.ts`, imported from the dev server) and
+reads the state it needs from `__ww2.playerFlight()`. The pass's numbers and
+what each was measured against are in `tests/pilot/rangePass.ts`. Tune a
+pass in Tier 1, where a flight takes seconds, not in the browser.

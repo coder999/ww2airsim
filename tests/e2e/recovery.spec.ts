@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
@@ -106,5 +106,5 @@ test('recovery-range: both homed AI land, the carrier AI rests on the rendered d
   // FAILING. The same scene with both AI 30+ km away measured 7.37 ms, and
   // the bare runway spawn 7.82 ms, in the same session: the 1440p baseline
   // is over 6.0 without any landing in view, not this plan's cost.
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 })

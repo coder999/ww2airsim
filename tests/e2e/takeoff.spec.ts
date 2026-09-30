@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
@@ -73,5 +73,5 @@ test('takeoff-range: both Zeros roll, lift off and hand off, the player is untou
   console.log(`takeoff: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
   // The 1440p baseline is over 6.0 without any AI in view (recovery.spec.ts,
   // handoff 7g Open item 1), so a red here is that baseline, not takeoff cost.
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 })

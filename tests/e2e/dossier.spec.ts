@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test'
-import { debriefDialog, hopAndLand, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { flyPass } from './pilot.js'
+import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 test.setTimeout(240_000)
 
-/** Dossier spec §B.5 plus review focus 1 and 5, on Gunnery Range: the
- *  player parks on the strip, so hopAndLand is a real physics landing with
- *  no approach to hand-fly (meta-game.spec.ts's doc comment). */
+const PASS = rangePass('gunnery-range', 'target-1', groundTruthTerrain())
+
+/** Dossier spec §B.5 plus review focus 1 and 5, on Gunnery Range: its
+ *  strafing pass ends in a real physics landing straight ahead, flown by the
+ *  shared test pilot (meta-game.spec.ts's doc comment). */
 test('a landed sortie appears in the dossier; the title does not re-lock', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
@@ -22,9 +26,8 @@ test('a landed sortie appears in the dossier; the title does not re-lock', async
   await expect(title).toBeHidden()
   await waitForScenario(page, 'gunnery-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
-  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
 
-  await hopAndLand(page)
+  expect((await flyPass(page, PASS)).end, 'the pass did not end at rest on the runway').toBe('stopped')
   await expect(debriefDialog(page)).toContainText('LANDED')
   await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
 

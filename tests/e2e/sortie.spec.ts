@@ -63,7 +63,7 @@ test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev
   await expect(radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)')).toBeVisible()
 })
 
-test('a Dev Zero with bombs hangs the Hellcat layout, is drawn as the Zero, and releases a real bomb', async ({ page }) => {
+test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and releases a real bomb', async ({ page }) => {
   // The DEV spawn override puts the sortie in the air, so the release needs no takeoff (strike.spec.ts's pattern).
   const title = await newPilot(page, 'Dev Zero Pilot', spawnUrl({ x: 0, y: 1500, z: 0 }))
   await title.getByRole('checkbox', { name: DEV }).check()
@@ -73,13 +73,15 @@ test('a Dev Zero with bombs hangs the Hellcat layout, is drawn as the Zero, and 
   await radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)').click()
   await next(title)
   await radio(title, 'Loadout', 'Bombs').click()
-  await expect(title).toContainText('dev layout: Hellcat stations')
+  // Since 495941c (2026-09-29) the Zero has its own stores block, so the Dev
+  // fallback to the Hellcat's stations (and its note) no longer applies.
+  await expect(title).not.toContainText('dev layout')
   await expect(title).toContainText('2 × AN-M65')
   await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
   await waitForScenario(page, 'free-flight')
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('a6m2-zero')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['a6m2-zero', 'f6f-hellcat'])
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['a6m2-zero', 'a6m2-zero'])
   await expect.poll(() => combat(page).then((c) => c.player.stores.bombs), { timeout: 10_000 }).toBe(2)
   await page.screenshot({ path: `${SHOTS}/sortie-dev-zero-bombs.png` })
   await page.keyboard.press('KeyV')
@@ -106,7 +108,8 @@ test('the player is drawn as the chosen aircraft, and an aircraft-only change re
   await startGame(page)
   await expect(title).toBeHidden()
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat', 'f6f-hellcat'])
+  // Free Flight's second airframe is its parked axis Zero (6ce00eb, 2026-09-28).
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat', 'a6m2-zero'])
   await page.screenshot({ path: `${SHOTS}/sortie-default-hellcat.png` })
 
   // Return to title the debrief's way: dive in, then "Return to title".
@@ -114,13 +117,13 @@ test('the player is drawn as the chosen aircraft, and an aircraft-only change re
   await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
   await startGame(page, { aircraft: 'Wildcat' })
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('wildcat')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['wildcat', 'f6f-hellcat'])
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['wildcat', 'a6m2-zero'])
 
   await diveToSea(page)
   await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
   await startGame(page, { aircraft: 'Hellcat' })
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat', 'f6f-hellcat'])
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat', 'a6m2-zero'])
 })
 
 test('a quick launch flies without the title, and its debrief says the sortie was not recorded', async ({ page }) => {

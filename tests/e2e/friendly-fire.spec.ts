@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, diveToSea, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, diveToSea, percentile, waitForScenario, type DiagWindow, launchFromOrders, TRIPWIRE_1440P_P95_MS } from './harness.js'
+import { flyPass } from './pilot.js'
+import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
  * Tier 2, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
@@ -65,7 +67,7 @@ async function budget(page: Page, what: string): Promise<void> {
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`friendly-fire (${what}): gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 }
 
 test('friendly fire, then death: the radio call, KILLED with the sortie forfeit, and K.I.A. -- not discharged', async ({ page }) => {
@@ -120,15 +122,13 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
 test('friendly fire, then a landing: DISHONORABLE DISCHARGE with score 0, and DISCHARGED on the roster and Dossier', async ({ page }) => {
   const PILOT = 'Discharge Pilot'
   await launch(page, 'friendly-fire-field', 'Friendly Fire: Field (dev)', PILOT)
-  await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 })
-    .toBe(true)
   await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
 
-  const ff = await fireUntilFriendlyFire(page, 30_000)
-  expect(ff).toMatchObject({ kind: 'aircraft', target: 'ally-1' })
-
-  await hopAndLand(page)
+  // The range's strafing pass onto the parked ally, then the landing straight
+  // ahead (a run-in since 2026-09-29: from T1's tail-down parked attitude the
+  // guns fire over it).
+  expect((await flyPass(page, rangePass('friendly-fire-field', 'ally-1', groundTruthTerrain()))).end, 'the pass did not end at rest on the runway').toBe('stopped')
+  expect((await combat(page)).player.friendlyFire, 'no friendly fire recorded').toMatchObject({ kind: 'aircraft', target: 'ally-1' })
   const debrief = debriefDialog(page)
   await expect(debrief).toContainText('DISHONORABLE DISCHARGE')
   await expect(debrief).toContainText('score 0')

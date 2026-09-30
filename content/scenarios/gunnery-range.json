@@ -8,14 +8,16 @@
     {
       "id": "f6f-1",
       "spec": "f6f-hellcat",
-      "parkedAt": {
-        "airfield": "tacloban",
-        "spot": {
-          "x": 0,
-          "z": 300
-        }
-      },
-      "chocked": false
+      "airborneAt": {
+        "position": [
+          -29666,
+          70,
+          -45555
+        ],
+        "headingDeg": 0,
+        "speedMps": 70,
+        "throttle": 0.3
+      }
     },
     {
       "id": "target-1",
@@ -24,7 +26,7 @@
         "airfield": "tacloban",
         "spot": {
           "x": 0,
-          "z": 0
+          "z": 550
         }
       },
       "chocked": true
@@ -35,8 +37,8 @@
       "parkedAt": {
         "airfield": "tacloban",
         "spot": {
-          "x": -35,
-          "z": -200
+          "x": -12,
+          "z": 500
         }
       },
       "chocked": true
