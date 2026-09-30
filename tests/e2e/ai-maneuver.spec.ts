@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
@@ -116,5 +116,5 @@ test('the veteran pursuer passes the player at the head-on merge inside R4\'s ba
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`ai maneuver: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 })

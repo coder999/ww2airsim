@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { debriefDialog, percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 import { flyPass } from './pilot.js'
@@ -146,7 +146,7 @@ test('firing at 1440p stays inside the GPU frame budget', async ({ page }) => {
   expect(after.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(after.gpu, 0.95)
   console.log(`gunnery gpu p95 ${p95.toFixed(3)} ms over ${after.gpu.length} samples, ${after.shots} rounds fired`)
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 })
 
 test('a restart rebuilds the guns: full load, empty sky, no replayed gunfire', async ({ page }) => {

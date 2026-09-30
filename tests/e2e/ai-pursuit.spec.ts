@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
@@ -95,5 +95,5 @@ test('the assigned pilot turns onto a gun solution and fires through production 
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`ai pursuit: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 })

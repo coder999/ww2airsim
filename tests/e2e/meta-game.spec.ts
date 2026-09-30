@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, percentile, waitForScenario, type DiagWindow, launchFromOrders, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -155,6 +155,6 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`meta-game acceptance: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples after 2 scenario switches`)
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
   await page.screenshot({ path: 'test-results/meta-game-pursuit-range.png' })
 })

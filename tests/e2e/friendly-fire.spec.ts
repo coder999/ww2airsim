@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, diveToSea, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, diveToSea, percentile, waitForScenario, type DiagWindow, launchFromOrders, TRIPWIRE_1440P_P95_MS } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -67,7 +67,7 @@ async function budget(page: Page, what: string): Promise<void> {
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`friendly-fire (${what}): gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
-  expect(p95).toBeLessThan(6.0)
+  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
 }
 
 test('friendly fire, then death: the radio call, KILLED with the sortie forfeit, and K.I.A. -- not discharged', async ({ page }) => {
