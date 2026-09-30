@@ -69,16 +69,18 @@ const terrain = createTerrainField(
 )
 const hangar1GroundM = heightAt(terrain, hangar1World.x, hangar1World.z)
 /**
- * At a 400 m run-in the shipped HVAR falls about 10.7 m. Both numbers are
- * measured from the shipped terrain/closed form, not eyeballed. Since O1
- * (2026-09-26) the rails sit on the drawn Wildcat's wing, 1.31-1.40 m ABOVE
- * the aircraft origin (they were 0.4 m below it), so from ground + 17 m the
- * rocket leaves at about ground + 18.4 m and reaches the box at about 7.7 m
- * (about 5.9 m before O1), still inside the 10 m-tall box. That is by
- * arithmetic; Tier 2 (O1 Task 9) confirms it.
+ * Since 0264d45 (2026-09-28) the HVAR rails launch 1.8 deg above the sight
+ * line, so a level salvo climbs before it falls. Measured with the sim's own
+ * `stepCombat` (level at 120 m/s, 2026-09-29), the rocket relative to the
+ * aircraft origin is +1.3 m at 400 m, -2.2 m at 700 m and -9.3 m at 1,000 m.
+ * At the old 400 m run-in from ground + 17 m it passed over the 10 m-tall box
+ * and outside the 8 m blast radius. 1,000 m from ground + 17 m reaches the
+ * box on paper, but the idle-power spawn pitches down as it sinks and at that
+ * range only the first salvo hit (Tier 2, 2026-09-29). 700 m from ground +
+ * 10 m arrives at about 7.8 m with more than twice the angular margin.
  */
-const DULAG_RUN_IN_M = 400
-const DULAG_ATTACK_ALTITUDE_M = hangar1GroundM + 17
+const DULAG_RUN_IN_M = 700
+const DULAG_ATTACK_ALTITUDE_M = hangar1GroundM + 10
 
 /**
  * `flyProjectile`'s own closed form, measured by `tests/sim/strike.test.ts`
