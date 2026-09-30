@@ -4,6 +4,56 @@ Moved from the README on 2026-09-29. Tier 1 is `npm run verify` (see the
 README's "Getting started"); this file is the reference for Tier 2.
 
 
+## The layers, and what each one is for
+
+Checked against `.github/workflows/*.yml` and `package.json` on 2026-09-30.
+
+| Layer | Runs | Needs a GPU | What it proves |
+| --- | --- | --- | --- |
+| **Tier 1**: `npm run verify` (`tests/` except `e2e/`) | locally, and in `ci.yml` on every push and PR | no | The code is correct as logic: typecheck, lint, dependency rules, and vitest unit tests of the sim, AI, audio cues, input, replay, content and render graph construction. Fast, deterministic, hosted. |
+| **Nightly soak** (`nightly-soak.yml`) | GitHub, 09:00 UTC | no | A long simulation (`tests/sim/soak.test.ts`) stays stable; opens an issue on failure. |
+| **Deploy** (`deploy.yml`, manual) | GitHub, on request | no | The *release artifact* is sound: `npm run verify`, `npm run build`, the build carries the terrain fallback, rsync, then the live site answers (homepage 200, noindex and no-cache headers, the hashed asset the page names is served, `robots.txt`). It never starts a browser. |
+| **Tier 2 e2e** (`tests/e2e/`, `npm run test:tier2`) | ryzen, by hand or the nightly | yes | The *running game* works in a real browser on the reference GPU: it boots, flies, renders without WebGPU validation errors, sounds the right audio cues, and the UI, missions, replay and scoring hold together in a session. |
+
+The deploy workflow and Tier 2 answer different questions. Deploy asks "did
+the files we shipped arrive and get served?", and its checks are HTTP
+assertions plus Tier 1. Tier 2 asks "does the game still work?", and no hosted
+runner can answer that, because WebGPU needs the real GPU. So **a green deploy
+says nothing about Tier 2**, and Tier 2 does not gate a deploy: the nightly
+(below) is what tells you a merge broke it.
+
+### What the Tier 2 specs do, conceptually
+
+- **Drive the real game through diagnostics, not screenshots.** The page
+  exposes `window.__ww2` (`src/render/diagnostics.ts`); specs read state
+  (terrain loaded, cue counts, validation errors, cloud shadow at a point) and
+  press keys, instead of comparing pictures. The reason: most visual changes
+  are smaller than screenshot noise. A pixel diff of the terrain texture
+  detail measured under 1/255 (2026-09-30), so `terrainTextures.spec.ts` now
+  asserts the detail *state* and `tests/render/terrainSurface.test.ts` pins
+  that the graph wires it in.
+- **Boot and sweep:** `boot`, `title`, `adapter` (is the browser on the
+  reference GPU, not a software rasterizer) and the camera sweeps
+  (`terrain`, `ocean`, `clouds`, `atmosphere`) fail on any WebGPU validation
+  error.
+- **Fly it:** `takeoff`, `approach`, `recovery`, `gunnery`, `strike`,
+  `flyableAll` and the AI specs (`furball`, `ai-pursuit*`) run scripted pilots
+  against the live sim and assert outcomes.
+- **Product flow:** `sortie`, `missions`, `meta-game*`, `scenarioPicker`,
+  `settingsUi`, `instantReplay` and `audio` (for example: a sea crash sounds
+  once live and once more in its replay, by design) check the UI and
+  session-level behavior.
+- **Pixel specs are the exception:** `fx*`, `hangar`, `cloudPixels`,
+  `cloudShadow`, `sun` and `ordnance` read the rendered canvas for a specific
+  thing (a flash appears, a shadow is where it should be). They need a real
+  desktop session, which is why the nightly uses the RDP route below.
+- **Budget specs** (titles matching `budget|p95|tripwire|frame time|Hz`,
+  e.g. `budget4k`, `fx-budget`, `motionBudget`) measure frame time. They are
+  the only tests whose numbers depend on the machine, and the nightly records
+  rather than fails them (see Verdict below). To run everything else:
+  `--grep-invert '/budget|p95|tripwire|frame time|\bHz\b/i'`. Last full
+  non-budget run, 2026-09-30 from main a2e3e4f: 181 passed, 0 failed, 2 skipped.
+
 Checks that need a real GPU and a browser cannot run in `npm run verify` or in
 hosted CI: an adapter guard (confirms the browser is actually using the
 reference GPU, not a software rasterizer), camera sweeps that assert zero
