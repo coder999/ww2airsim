@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
+import { readdirSync } from 'node:fs'
 import { debriefDialog, diveToSea, quickLaunch, spawnUrl, startGame, waitForScenario, wholeLabel, type DiagWindow } from './harness.js'
 
 /**
@@ -43,9 +44,10 @@ test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev
   await expect(title.getByRole('region', { name: 'Briefing' })).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/sortie-form-2.png` })
   await next(title)
-  await expect(rows(title, 'Aircraft')).toHaveCount(2)
+  await expect(rows(title, 'Aircraft')).toHaveCount(3)
   await expect(radio(title, 'Aircraft', 'Grumman F6F Hellcat')).toBeVisible()
   await expect(radio(title, 'Aircraft', 'Grumman F4F Wildcat')).toBeVisible()
+  await expect(radio(title, 'Aircraft', 'Vought F4U Corsair')).toBeVisible()
   await expect(title.getByRole('radiogroup', { name: 'Aircraft' })).not.toContainText('Zero')
   await page.screenshot({ path: `${SHOTS}/sortie-form-3.png` })
   await next(title)
@@ -57,7 +59,7 @@ test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev
   await title.getByRole('checkbox', { name: DEV }).check()
   await title.getByRole('button', { name: 'New game' }).click()
   await next(title)
-  await expect(rows(title, 'Aircraft')).toHaveCount(3)
+  await expect(rows(title, 'Aircraft')).toHaveCount(readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).length)
   await expect(radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)')).toBeVisible()
 })
 

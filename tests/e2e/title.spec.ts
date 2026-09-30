@@ -85,7 +85,7 @@ test('four sequential forms: each opens on its default, Back keeps every pick, E
   await expect(title.getByRole('button', { name: 'Settings' })).toBeVisible()
 
   // Back from each form lands on the one before with its pick intact.
-  await radio('Loadout', 'Rockets').click()
+  await radio('Loadout', 'Bombs').click() // the Wildcat has no rockets (R3, 2026-09-28)
   await back.click()
   await expect(title.getByText('Form 3 of 4')).toBeVisible()
   await radio('Aircraft', 'Grumman F4F Wildcat').click()
@@ -110,7 +110,7 @@ test('four sequential forms: each opens on its default, Back keeps every pick, E
   await expect(radio('Aircraft', 'Grumman F4F Wildcat')).toBeChecked()
   await page.keyboard.press('Enter')
   await expect(title.getByText('Form 4 of 4')).toBeVisible()
-  await expect(radio('Loadout', 'Rockets')).toBeChecked()
+  await expect(radio('Loadout', 'Bombs')).toBeChecked()
   await page.keyboard.press('Enter')
   await expect(title).toBeHidden()
   await expect.poll(() => tick(page), { timeout: 10_000 }).toBeGreaterThan(held)

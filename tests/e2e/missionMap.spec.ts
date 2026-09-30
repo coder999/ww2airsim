@@ -22,7 +22,7 @@ test("the navigation chart selects recovery points without advancing the world",
 
   // Every caption must lie inside the chart's own viewBox; a caption pushed
   // past an edge is silently clipped, which a text assertion cannot see.
-  const clipped = await chart.locator("svg").evaluate((svg) => {
+  const clipped = await chart.getByRole("img", { name: /^Navigation chart/ }).evaluate((svg) => {
     const box = (svg as SVGSVGElement).viewBox.baseVal;
     return Array.from(svg.querySelectorAll("text"))
       .map((text) => ({ label: text.textContent, bbox: (text as SVGTextElement).getBBox() }))
