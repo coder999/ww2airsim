@@ -8,8 +8,15 @@ import { VIEWS, withParams } from './views.js'
  * with the original MRT and 3.595 ms with a zero-motion TRAA source and no
  * motion pass. The accepted ceiling leaves 0.15 ms for reconstruction while
  * requiring at least 0.10 ms back from the original path.
+ *
+ * Re-baselined 2026-09-29: content merged since (terrain textures, about
+ * 0.25 ms of it, verified with ?terrainTextures=off; cloud and other work
+ * for the rest) moved this view's p50 to 4.19 ms (4.187-4.207 over five
+ * runs on the reference GPU under hwlock). The reference is the same
+ * no-MRT path measured on today's build, so the 0.15 ms tolerance still
+ * catches the MRT tax coming back.
  */
-const ZERO_MOTION_REFERENCE_P50_MS = 3.595
+const ZERO_MOTION_REFERENCE_P50_MS = 4.19
 const RECONSTRUCTION_TOLERANCE_MS = 0.15
 
 test.setTimeout(120_000)
