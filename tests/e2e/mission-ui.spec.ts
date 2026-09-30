@@ -115,6 +115,9 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   await expect(objectiveLine(page)).toHaveText('TAKE OFF')
   await expect(page.getByRole('status', { name: 'Radio' })).toHaveText('Tower: cleared for takeoff.', { timeout: 10_000 })
   expect((await mission(page))!.meshes).toEqual([{ id: 'drone-1', visible: false }])
+  // The controls legend starts open and is player-collapsible (Slash); the radio line may sit under it
+  // until then, so the overlap check runs the way it is played, collapsed.
+  await page.keyboard.press('Slash')
   // Open question 2 promised both common desktop sizes (controller ruling PF3).
   await expectNoHudOverlap(page)
   await page.setViewportSize({ width: 1920, height: 1080 })
