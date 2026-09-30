@@ -1016,6 +1016,11 @@ async function boot(): Promise<void> {
         if (g === null) return false
         return supportedContact(playerSpec, state, g.heightM, g.surface, g.velocity, g.landClass)
       },
+      playerFlight: () => {
+        if (!frame) return null
+        const { spec, state } = playerAircraft(frame.world)
+        return { spec, state }
+      },
       // The LSO cue for the player, or `null` when there is nothing to signal (Plan 8).
       paddles: () => (frame ? paddlesFor(frame) : null),
       // The deck under the player's wheels, or `null` (Plan 8).

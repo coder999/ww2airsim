@@ -10,10 +10,10 @@ import { add, v3, type Vec3 } from '../../src/sim/math/vec3.js'
 import type { Projectile } from '../../src/sim/weapons/combat.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
-import { restPitchRad } from '../../src/sim/gearContact.js'
-import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { initialFrameStateFor, nextFrameState } from '../../src/render/frame.js'
+import { flyPass } from '../pilot/flyPass.js'
+import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
  * Dishonorable discharge at every flight end that produces a debrief
@@ -160,34 +160,17 @@ describe('friendly-fire-range (Task 6): Space hits the allied Hellcat ahead thro
   })
 })
 
-describe('friendly-fire-field: Space from the runway spawn hits the parked allied Hellcat (the discharge path Tier 2 lands)', () => {
-  // Through `advance` with the trigger held and the airplane held at its
-  // parked attitude, as the gunnery-range sortie is measured in
-  // tests/sim/weapons/friendlyFire.test.ts: a parked frame in Node has no
-  // terrain to settle on, and `nextFrameState` holds it until one arrives.
-  it('the parked wingman takes a friendly hit, and no Tacloban building is touched', () => {
-    // T1 (2026-09-28): a parked airplane now sits at its derived rest
-    // attitude, 9.45 deg nose-up for the F6F, and from there its guns fire
-    // over the wingman. This test is about the discharge path, not aim, so
-    // the fixture levels the shooter to the attitude it was parked at before
-    // T1 (`parkedAttitude` is yaw * pitch(rest); this takes the pitch back out).
-    const parked = worldFromScenario(loadScenarioBundle('friendly-fire-field'), null)
-    const w0: World<undefined> = {
-      ...parked,
-      aircraft: parked.aircraft.map((a) => {
-        if (a.id !== 'f6f-1') return a
-        const state = { ...a.state, attitude: qMul(a.state.attitude, qFromAxisAngle(v3(0, 0, 1), -restPitchRad(a.spec.gear))) }
-        return { ...a, state, previous: state }
-      }),
-    }
-    const firing = (w: World<undefined>): World<undefined> => ({
-      ...w, aircraft: w.aircraft.map((a) => (a.id === 'f6f-1' ? { ...a, controls: { ...a.controls, fire: true } } : a)),
-    })
-    let w = firing(w0)
-    let ticks = 0
-    for (; ticks < 60 * 20 && friendlyFireOf(w) === null; ticks++) w = firing(advance(w, DT, still).world)
-    for (let i = 0; i < 60 * 4; i++) w = advance(w, DT, still).world
-    expect(friendlyFireOf(w), `no friendly fire after ${ticks} ticks`).toMatchObject({ kind: 'aircraft', target: 'ally-1' })
+describe('friendly-fire-field: the run-in pass hits the parked allied Hellcat, then lands (the discharge path Tier 2 lands)', () => {
+  // The range pass since 2026-09-29, flown through the frame pipeline by the
+  // same pilot Tier 2 uses (tests/pilot/). Before, a parked shooter levelled
+  // by hand stood in for T1's 9.45 degree rest pitch.
+  it('the parked wingman takes a friendly hit, no Tacloban building is touched, and the airplane lands', () => {
+    const terrain = groundTruthTerrain()
+    const run = flyPass('friendly-fire-field', 'ally-1', rangePass('friendly-fire-field', 'ally-1', terrain), terrain)
+    const w = run.frame.world
+    expect(friendlyFireOf(w), `no friendly fire, ${run.hits} hits`).toMatchObject({ kind: 'aircraft', target: 'ally-1' })
     for (const s of w.structures) expect(w.combat.structures[s.id]!.hp, s.id).toBe(s.hp)
+    expect(run.crashed).toBe(false)
+    expect(run.landing?.at).toMatchObject({ kind: 'airfield', id: 'tacloban' })
   })
 })

@@ -85,9 +85,11 @@ describe('Space fires through nextFrameState (Plan 6)', () => {
     expect(d.player).toEqual({
       shots: 0, hits: 0, kills: 0, ammo: 2400, structure: 1, destroyed: false, firing: false,
       stores: { bombs: 0, rockets: 0 }, shipsSunk: 0, structuresDestroyed: 0, friendlyFire: null,
+      // The range starts on a 70 m/s run-in since 2026-09-29 (T1's tail-down
+      // attitude took the guns off a parked target).
       stress: {
-        loadFactorG: 1, airspeedMps: 0, overG: false, overspeed: false,
-        peakLoadFactorG: 1, peakAirspeedMps: 0,
+        loadFactorG: 1, airspeedMps: 70, overG: false, overspeed: false,
+        peakLoadFactorG: 1, peakAirspeedMps: 70,
       },
     })
     expect(d.projectiles).toBe(0)

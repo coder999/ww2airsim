@@ -167,7 +167,7 @@ export type ScenarioOption = {
 export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'free-flight', label: 'Free Flight', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban with the Essex task group offshore. No objectives: fly anywhere.' },
   { value: 'deck-quals', label: 'Deck Quals', kind: 'range', dev: false, start: 'carrier', aircraft: 'f6f-hellcat', description: "Spotted on the Essex's deck. Practice launches and traps; no objectives." },
-  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban beside two parked Hellcat targets for gun practice.' },
+  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'On a low run-in to Tacloban with two parked Hellcat targets on the runway. Strafe them, then land straight ahead.' },
   { value: 'pursuit-range', label: 'Air Combat', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Airborne, with a green-skill fighter on your tail. Shake it or shoot it down.' },
   { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'As Air Combat, against a veteran-skill pursuer.' },
   { value: 'strike-range', label: 'Strike Range', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban, with a Japanese cargo ship and enemy airfield targets for bomb and rocket practice.' },
@@ -180,9 +180,11 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'takeoff-range', label: 'Takeoff (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7h): parked at Tacloban while two allied AI Zeros take off from Dulag.' },
   // Friendly-fire ruling FF-10: the discharge test bed, Dev-only like the furball.
   { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): airborne near an allied Hellcat, an enemy Hellcat, the Essex and a cargo ship.' },
-  // The survivable half: parked on Tacloban's runway behind a parked allied
-  // Hellcat, so a hop and a landing end in the discharge (FF-7 as amended).
-  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): parked at Tacloban behind a parked allied Hellcat.' },
+  // The survivable half: a Gunnery Range run-in onto a parked allied Hellcat,
+  // so a strafing pass and the landing after it end in the discharge (FF-7 as
+  // amended; the parked start became a run-in when T1's tail-down attitude
+  // took the guns off a parked target, 2026-09-29).
+  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): on a run-in to Tacloban with a parked allied Hellcat on the runway.' },
   // M3's missions. The picker shows missions first whatever their place here.
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).

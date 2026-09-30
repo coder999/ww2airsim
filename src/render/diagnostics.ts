@@ -1,7 +1,8 @@
 import type { AudioSnapshot } from '../audio/system.js'
 import type { AdapterVerdict } from './adapterGuard.js'
 import type { CameraMode } from './camera.js'
-import type { Controls } from '../sim/flight/state.js'
+import type { AircraftState, Controls } from '../sim/flight/state.js'
+import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { LookOffset } from '../input/lookAround.js'
 import type { OrbitOffset } from '../input/orbit.js'
 import type { AssistSettings } from '../assists/index.js'
@@ -247,6 +248,19 @@ export type Ww2Diagnostics = {
    * `impact` above applies unchanged.
    */
   readonly supportedContact: () => boolean
+  /**
+   * The player's spec and flight state, as the simulation holds them this
+   * frame, or `null` before the first frame. A snapshot: nothing written to
+   * it reaches the simulation.
+   *
+   * Added 2026-09-29 for the Tier 2 test pilot (`tests/pilot/`), which flies
+   * the Gunnery Range's strafing pass and landing by keys with the same pure
+   * control law Tier 1 flies (`strafePilot`, `approachControls`), and so
+   * needs the state that law reads: attitude, velocity, body rates. Position,
+   * heading and airspeed alone cannot separate the nose from the flight path.
+   * Read-only like the rest: the pilot still flies by keys.
+   */
+  readonly playerFlight: () => { readonly spec: AircraftSpec; readonly state: AircraftState } | null
   /**
    * Frame intervals in milliseconds since the last `resetFrameTimes()`, in
    * order, capped at `FRAME_TIME_CAPACITY` samples.
