@@ -75,11 +75,23 @@ merged; `main` and deploys are Mark's call.
   the title", which also fails on unchanged `main`. The other session owns
   it, along with the rest of the untriaged list. Its fixed view now loads an
   airborne start.
-- **ordnance:48 and takeoff:25** are session-0 artifacts (pixel contrast, and
-  the frame budget). Confirm them in the console session.
-- **Nightly soak** failed at seed 1337, iteration 59: the airplane ended 2 m
-  under the ground. `85fefe0` (the T1 "drove into terrain" impact) may
-  already address it. Not investigated here.
+- **ordnance:48 passes in the console session** (2026-09-29, bomb contrast
+  0.191), so its session-0 failure was an artifact.
+- **takeoff:25 is the standing 1440p budget red, not an artifact.** In the
+  console session under `hwlock ryzen` it measured p95 7.86 ms against 6.0.
+  The 7h handoff measured 7.68 ms, with `recovery.spec` at 7.62 ms with no
+  takeoff at all (`2026-09-28-plan7h-takeoff.md`, open item 1). The Tacloban
+  view has been over budget since at least 2026-09-28. It is a perf item,
+  not a test fix.
+- **The nightly soak failure is fixed by `85fefe0`**, confirmed 2026-09-29.
+  - At `85fefe0^` (`fe9e9c3`), `soak.test.ts` fails with the overnight run's
+    exact numbers: iteration 59, seed 1337, tick 757, sank through 1052.66
+    m.
+  - With `85fefe0` all 5 soak tests pass.
+  - The overnight failure (09:17 UTC) came before `85fefe0` was committed
+    (16:00 UTC), and no nightly run has happened since.
+  - `aircraft.md`'s "soak is known red" is stale; the plan's Phase 1 removes
+    that list.
 - **A Tier 1 harness trap:** `worldFromScenario` with terrain leaves parked
   aircraft with their wheels about 2 m under the ground until
   `settleOnTerrain` runs, and stepping it records an impact at tick 1. Fly
