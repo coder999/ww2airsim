@@ -85,10 +85,14 @@ test.describe('terrain textures (visual realism §2.1)', () => {
     expect(await errors(page)).toEqual([])
   })
 
+  // Textures cost 4.1 ms at the runway view (on 8.31-8.35 ms, off 4.2 ms, measured 2026-09-29),
+  // which straddles the 8.33 ms tripwire with GPU load. Mark set 9.0 ms for this view that day.
+  const RUNWAY_TEXTURES_P95_MS = 9.0
+
   // terrain.spec.ts's sampling sequence (SETTLE 1.5 s, reset, 5 s window,
   // p95), at the two views where the near ground fills the most frame.
   for (const name of ['runway', 'low-land-600'] as const) {
-    test(`GPU p95 at 1440p with textures on stays inside the 1440p tripwire at ${name}; on/off delta recorded`, async ({ page }) => {
+    test(`GPU p95 at 1440p with textures on stays inside the budget at ${name}; on/off delta recorded`, async ({ page }) => {
       await page.setViewportSize({ width: 2560, height: 1440 })
       const p95 = async (url: string): Promise<number> => {
         await page.goto(url)
@@ -109,7 +113,7 @@ test.describe('terrain textures (visual realism §2.1)', () => {
       // Printed on a pass too: the handoff quotes this line (terrain.spec.ts's convention).
       console.log(`terrain textures budget: ${detail}`)
       test.info().annotations.push({ type: 'budget', description: detail })
-      expect(on, detail).toBeLessThanOrEqual(TRIPWIRE_1440P_P95_MS)
+      expect(on, detail).toBeLessThanOrEqual(name === 'runway' ? RUNWAY_TEXTURES_P95_MS : TRIPWIRE_1440P_P95_MS)
       expect(await errors(page)).toEqual([])
     })
   }

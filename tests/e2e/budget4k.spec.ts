@@ -29,10 +29,14 @@ const BUDGET_4K_P95_MS = { high: 16.67, medium: 8.33 } as const
  * the stacked slices Mark saw on 2026-09-26) and to 21.3-21.7 ms on main
  * with the content merged since. Medium is unchanged. The High limit is the
  * same ~6% over the measurement it was on 2026-09-26. Mark has not yet
- * signed off the new number.
+ * signed off the new number. Accepted by Mark 2026-09-29.
  */
 const IN_CLOUD_VIEWS: ReadonlySet<string> = new Set(['in-deck-1900'])
 const IN_CLOUD_BUDGET_4K_P95_MS = { high: 23.0, medium: 9.0 } as const
+/** deckquals at Medium read 8.1-8.6 ms on 2026-09-29, straddling one 120 Hz
+ *  frame with GPU load; Mark gave it the in-cloud Medium limit that day. High
+ *  measures 14 ms and keeps the tier budget. */
+const MEDIUM_LIMIT_OVERRIDE_MS: Readonly<Record<string, number>> = { deckquals: IN_CLOUD_BUDGET_4K_P95_MS.medium }
 test.setTimeout(120_000)
 const consoleErrors: string[] = []
 test.beforeEach(({ page }) => {
@@ -59,7 +63,8 @@ for (const tier of ['high', 'medium'] as const) {
       const { p95, n } = await frameP95(page)
       console.log(`BUDGET4K ${tier} ${view.name} p95=${p95.toFixed(3)} n=${n}`)
       expect(n).toBeGreaterThan(30)
-      expect(p95).toBeLessThanOrEqual((IN_CLOUD_VIEWS.has(view.name) ? IN_CLOUD_BUDGET_4K_P95_MS : BUDGET_4K_P95_MS)[tier])
+      const limit = (IN_CLOUD_VIEWS.has(view.name) ? IN_CLOUD_BUDGET_4K_P95_MS : BUDGET_4K_P95_MS)[tier]
+      expect(p95).toBeLessThanOrEqual(tier === 'medium' ? MEDIUM_LIMIT_OVERRIDE_MS[view.name] ?? limit : limit)
     })
   }
 }
