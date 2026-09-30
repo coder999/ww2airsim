@@ -36,7 +36,7 @@ const PASS = rangePass('gunnery-range', 'target-1', groundTruthTerrain())
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 
-test('roster, live scoring and a dynamic scenario switch all work together in one session', async ({ page }) => {
+test('roster, live scoring and a dynamic scenario switch all work together in one session, and the gpu p95 tripwire holds', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })

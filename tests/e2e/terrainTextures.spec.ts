@@ -38,14 +38,17 @@ test.describe('terrain textures (visual realism §2.1)', () => {
   })
 
   test('?terrainTextures=off changes the near ground and nothing breaks', async ({ page }) => {
-    const shot = async (url: string): Promise<Buffer> => {
+    const shot = async (url: string, expected: { texturesLoaded: boolean; detail: boolean }): Promise<Buffer> => {
       await page.goto(url)
       await waitForTerrain(page)
+      // A fixed sleep alone undershoots under load (full-suite runs): the texture
+      // detail is still streaming in and the "on" shot looks like "off".
+      await expect.poll(() => surface(page), { timeout: 30_000 }).toEqual(expected)
       await page.waitForTimeout(1500)
       return page.screenshot()
     }
-    const on = await shot(view('runway'))
-    const off = await shot(withQuery(view('runway'), 'terrainTextures=off'))
+    const on = await shot(view('runway'), { texturesLoaded: true, detail: true })
+    const off = await shot(withQuery(view('runway'), 'terrainTextures=off'), { texturesLoaded: false, detail: false })
     expect(await surface(page)).toEqual({ texturesLoaded: false, detail: false })
     // The unobstructed left-side ground is where the texture is legible. A
     // full-width crop dilutes it with the aircraft, runway, HUD and controls.
