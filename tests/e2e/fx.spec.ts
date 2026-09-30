@@ -99,7 +99,7 @@ test('cloud ordering: a fireball in front of a cloud keeps its pixels (spec §4.
     const { after, a } = await inject(page, url, 'cloud-fireball', 400, label, 'fireball')
     return count(after, a.x, a.y, 160, warm)
   }
-  const photo = withParams('/', { look: '33,33' })
+  const photo = withParams('/', { look: '33,39' })
   const limited = await warmAt(photo, 'cloud-fireball')
   const unlimited = await warmAt(withParams(photo, { fxCloudLimit: 'off' }), 'cloud-fireball-nolimit')
   const clear = await warmAt(withParams(photo, { cloudTier: 'off' }), 'cloud-fireball-clearsky')
@@ -128,10 +128,11 @@ test('a crash into the sea fires crash.water, and Restart clears every effect (R
   await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
   await waitForTerrain(page)
   await page.keyboard.down('ArrowUp')
+  // The debrief follows the crash replay, so the splash has ended by the time it shows: catch it live.
+  await expect.poll(async () => (await fx(page)).live, { timeout: 20_000 }).toBeGreaterThan(10)
+  await shot(page, 'crash-water')
   await debriefDialog(page).waitFor({ timeout: 20_000 })
   await page.keyboard.up('ArrowUp')
-  await expect.poll(async () => (await fx(page)).live, { timeout: 2000 }).toBeGreaterThan(10)
-  await shot(page, 'crash-water')
   await page.getByRole('button', { name: 'Restart' }).click()
   await expect(debriefDialog(page)).toBeHidden()
   await expect.poll(async () => (await fx(page)).live, { timeout: 2000 }).toBe(0)
