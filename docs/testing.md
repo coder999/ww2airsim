@@ -127,6 +127,30 @@ time; that has not been separated from a headless/session-0 pacing effect.
 idle (`hwlock ryzen`) and compare with the console session; until then take no
 frame-time number from session 0.
 
+**Session 0 cannot run the pixel specs (measured 2026-09-29/30).** Headless
+`page.screenshot()` of the WebGPU canvas is flat gray there: the nightly's first
+run on main `dcb9a3f` failed 28 specs that read screenshots (`fx`, `hangar`,
+`cloudShadow`, `ordnance`, `sun`: "the world never drew behind the title"), and
+no Chromium flag tried fixed it (`--disable-gpu-compositing`, `--use-gl=angle`,
+`--in-process-gpu`, `--disable-gpu-sandbox`, `CanvasOopRasterization` off,
+GPU rasterization). Adapter, sweep, boot and `terrain.spec.ts` specs are fine
+there. For a run that needs pixels and has no console login, use the RDP route:
+
+**No console login, pixels included: an RDP session as `rdp`** (verified
+2026-09-30: adapter guard plus the three `cloudShadow` pixel specs passed, twice).
+ryzen has a local standard user `rdp` (in "Remote Desktop Users", not an
+administrator; password in 1Password `hal9000/ryzen-rdp`; log in as
+`MARKDESKTOP\rdp`). The hardware-graphics policy
+`HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\bEnumerateHWBeforeSW=1`
+is set. The Playwright server runs from `C:\e2e` (1.63.0, its own browsers) on
+port 3002, started by a one-shot interactive scheduled task inside the session,
+and is driven headed like the console server: no `PW_SESSION0`. The mechanism is
+`ww2airsim-e2e-nightly`'s `rdp_session()` (serverconfig/scripts); a manual
+walkthrough with the expected output is `serverconfig/scripts/rdp-gpu-test.sh`.
+Windows 10 Pro allows one interactive session, so never do this while someone is
+logged in; the nightly checks. Frame times from it are informational only (the
+120 Hz deck test read 10.9 ms (fail) and under 8.33 ms (pass) on two otherwise identical runs).
+
 One-time setup on the Windows desktop (a separate checkout — the test runner
 has to be local to the GPU, the dev server does not):
 
@@ -215,18 +239,22 @@ mechanism; the script header has the step order.
   with the terrain data copied in, and its own vite on the `ww2airsim-3` slot
   (5174), so **that slot is reserved 02:30 onward**. If 5174 is in use the
   night is recorded `skipped-slot-busy`. The browser is ryzen's: the console
-  session's Playwright server when it is up, else a session-0 one it starts.
+  session's Playwright server when it is up; else, if nobody is logged in, an RDP
+  session as `rdp` with a server started inside it (above); if someone is logged
+  in and no console server is up the night is `skipped-no-session`, never a
+  takeover. `op` must be authenticated in the job's environment to read the
+  `rdp` password.
   It takes `hwlock ryzen` (waits up to 90 min, then records `skipped-lock`
   rather than hold the lock into the morning), wakes ryzen with WoL if needed,
   and shuts it down afterward only if it woke it and nobody else is on it.
   It never falls back to nexus.
 - **Verdict:** any failing test is a hard failure, except titles matching
   frame-time budgets (`budget|p95|tripwire|frame time`), which are recorded
-  with their numbers and do not turn the run red: session 0 gives no
-  trustworthy frame times yet (above). A test is *newly red* when it passed in
+  with their numbers and do not turn the run red: only the console
+  session gives trustworthy frame times (`Hz` titles count as budgets too). A test is *newly red* when it passed in
   the previous tested run.
 - **Record:** one line per run in `~/.local/state/ww2airsim-e2e/runs.tsv`
-  (date, SHA, status `ok|failed|error|skipped-*`, counts, newly red/green,
+  (date, SHA, status `ok|failed|error|skipped-*` (incl. `skipped-no-session`), counts, newly red/green,
   whether the mail sent), plus `report-<date>.json` and `results-<sha>.json`
   beside it. Every run that happens is emailed (subject has the counts and
   newly red; body lists them with the first error line); nights main did not

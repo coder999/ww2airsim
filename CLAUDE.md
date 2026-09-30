@@ -128,15 +128,14 @@ nothing, and the adapter guard passes it all the same;
 `mark` joined the `render` group falls back to SwiftShader: run it under
 `sg render -c '...'`, or start a new session.
 
-**No console login needed for correctness runs** (since 2026-09-27): a
-`playwright run-server` started over SSH runs in session 0 and reaches the GPU
-headless with `--use-angle=d3d11`; `PW_SESSION0=1` with
-`PW_REMOTE=ws://localhost:39002/` sends that. `docs/testing.md` ("Tier 2: the GPU
-harness") has the three-command recipe (server, tunnel, run) and how to stop
-the server without killing another session's run. Use it whenever the console
-server is down or busy. **Not for numbers yet:** its 1440p budget got 71 GPU
-samples in 5 s against the console's ~500, probably other sessions sharing the
-GPU; that comparison is an open item recorded in `docs/testing.md`.
+**No console login needed** (2026-09-27, revised 2026-09-30): a `playwright
+run-server` started over SSH runs in session 0 and reaches the GPU headless
+with `--use-angle=d3d11` (`PW_SESSION0=1`, `PW_REMOTE=ws://localhost:39002/`),
+but that is **correctness only: its screenshots of the WebGPU canvas are blank**,
+so `fx`/`hangar`/`cloudShadow`/`ordnance`/`sun` fail there and no flag fixes it.
+For pixels without a console login use an RDP session as the local `rdp` user
+(`docs/testing.md`, "an RDP session as `rdp`"). Frame times are trustworthy
+only from the console session.
 
 `docs/testing.md` ("Tier 2: the GPU harness") is authoritative for the tunnels and the
 one-time setup. Two facts it records that cost real time: headed Chromium
