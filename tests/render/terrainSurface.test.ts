@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { float, vec2, vec3 } from 'three/tsl'
+import { COVER_HEADER } from '../../src/render/landcover/load.js'
+import { createCoverNodes, terrainSurface } from '../../src/render/terrain/surface.js'
 import { clampDetailSlope, DETAIL_NORMAL_FAR_M, DETAIL_NORMAL_MAX_TILT_DEG, DETAIL_NORMAL_NEAR_M, DETAIL_NORMAL_SCALES, detailNormalFade } from '../../src/render/terrain/surface.js'
 import { albedoDetailFade, normalToSlope, ALBEDO_DETAIL_NEAR_M, ALBEDO_DETAIL_FAR_M } from '../../src/render/terrain/surfaceDetail.js'
 
@@ -121,5 +124,33 @@ describe('normalToSlope (plan Ruling 6: OpenGL normal maps, uv = worldXZ / tileM
   it('a grazing texel stays finite (nz floored)', () => {
     const [sx, sz] = normalToSlope([1, 0.5, 0.5])
     expect(Number.isFinite(sx) && Number.isFinite(sz)).toBe(true)
+  })
+})
+
+describe('terrainSurface: texture detail is wired into the graph (replaces the terrainTextures pixel diff)', () => {
+  const build = (detail?: Parameters<typeof terrainSurface>[4]) =>
+    terrainSurface(vec2(0, 0), float(10), float(0.1), createCoverNodes(COVER_HEADER), detail)
+
+  it('without detail there is no texture slope and no texture is sampled', () => {
+    const r = build()
+    expect(r.detailSlope).toBeNull()
+    expect(r.albedo).toBeDefined()
+  })
+
+  it('with detail every material ratio and slope is requested, and a slope is returned', () => {
+    const ratios = new Set<string>(), slopes = new Set<string>()
+    const r = build({
+      ratio: layer => (ratios.add(layer), vec3(1, 1, 1)),
+      slope: layer => (slopes.add(layer), vec2(0, 0)),
+    })
+    expect(r.detailSlope).not.toBeNull()
+    const all = ['sand', 'grass', 'jungle', 'dirt', 'rock']
+    expect([...ratios].sort()).toEqual([...all].sort())
+    expect([...slopes].sort()).toEqual([...all].sort())
+  })
+
+  it('the detail changes the albedo graph itself', () => {
+    const on = build({ ratio: () => vec3(1, 1, 1), slope: () => vec2(0, 0) })
+    expect(on.albedo).not.toBe(build().albedo)
   })
 })
