@@ -2493,6 +2493,11 @@ async function boot(): Promise<void> {
       // default's, paused, and its idle engine would play under the menu.
       if (sortieIdle) audio.hold(true)
       else {
+        // Released every flying frame: `hold` is a latch, and nothing else on
+        // this path clears it, so without this the flight after the title was
+        // silent -- engine at gain 0, every cue skipped (2026-09-29, found by
+        // gunnery.spec's cue count; b8f9c25 added the hold).
+        audio.hold(false)
         audio.update(audioInputsFrom(current))
         audio.updateSpatial(spatialInputsFrom(current, view.eye))
       }
