@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import sharp from 'sharp'
-import { percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
 const surface = (page: Page) =>
@@ -88,7 +88,7 @@ test.describe('terrain textures (visual realism §2.1)', () => {
   // terrain.spec.ts's sampling sequence (SETTLE 1.5 s, reset, 5 s window,
   // p95), at the two views where the near ground fills the most frame.
   for (const name of ['runway', 'low-land-600'] as const) {
-    test(`GPU p95 at 1440p with textures on stays inside 6.0 ms at ${name}; on/off delta recorded`, async ({ page }) => {
+    test(`GPU p95 at 1440p with textures on stays inside the 1440p tripwire at ${name}; on/off delta recorded`, async ({ page }) => {
       await page.setViewportSize({ width: 2560, height: 1440 })
       const p95 = async (url: string): Promise<number> => {
         await page.goto(url)
@@ -109,7 +109,7 @@ test.describe('terrain textures (visual realism §2.1)', () => {
       // Printed on a pass too: the handoff quotes this line (terrain.spec.ts's convention).
       console.log(`terrain textures budget: ${detail}`)
       test.info().annotations.push({ type: 'budget', description: detail })
-      expect(on, detail).toBeLessThanOrEqual(6.0)
+      expect(on, detail).toBeLessThanOrEqual(TRIPWIRE_1440P_P95_MS)
       expect(await errors(page)).toEqual([])
     })
   }

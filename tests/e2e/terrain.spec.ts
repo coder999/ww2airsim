@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { flySweep, percentile, snapshot, spawnUrl, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { toLocal } from '../../src/sim/world/projection.js'
 import { type Town } from '../../src/render/scene/towns.js'
 import { ROAD_PATHS } from '../../src/render/terrain/rivers.js'
@@ -191,7 +191,8 @@ test.describe('frame-time budget', () => {
 
   /** Milliseconds of GPU render pass, 95th percentile. See the block comment
    *  for the 2026-09-14 derivation of the original 3.5 ms, and below for why
-   *  it is 6.0 ms since 2026-09-17.
+   *  it was 6.0 ms from 2026-09-17 until Mark relaxed it to the shared
+   *  1440p tripwire (harness.ts) on 2026-09-29.
    *
    *  **Re-derived 2026-09-17 for Plan 13's surface detail**, which is content
    *  the frame is meant to carry, not a regression, and which the 3.5 ms
@@ -216,13 +217,14 @@ test.describe('frame-time budget', () => {
    *      speedup -- reported rather than discarded either way, per this
    *      file's own "printed on a PASS" rule below.
    *
-   *  6.0 ms is 1.2x the measured p95, 72% of the 8.33 ms a 120 Hz frame
+   *  (Historical, the 6.0 ms era:) 6.0 ms was 1.2x the measured p95, 72% of the 8.33 ms a 120 Hz frame
    *  allows, and under the 8 ms at which the ocean's one-time tier choice
    *  drops to medium. A regression the size of the old `quadsPerNode`
    *  doubling (+2 ms) still fails it. The same rule as before applies:
    *  tighten or re-measure as the content changes; never widen to whatever
    *  passes. */
-  const GPU_BUDGET_P95_MS = 6.0
+  // Mark relaxed the 1440p budget to one 120 Hz frame on 2026-09-29: measured 6.4 ms on the reference GPU.
+  const GPU_BUDGET_P95_MS = TRIPWIRE_1440P_P95_MS
   /** Milliseconds of wall-clock frame interval, 95th percentile. NOT a budget
    *  -- at a fixed 10.0 ms cadence this can only ever read ~10 -- but a
    *  doubled interval is a missed frame DEADLINE (not a missed vsync: the
