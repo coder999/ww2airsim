@@ -242,8 +242,10 @@ mechanism; the script header has the step order.
   session's Playwright server when it is up; else, if nobody is logged in, an RDP
   session as `rdp` with a server started inside it (above); if someone is logged
   in and no console server is up the night is `skipped-no-session`, never a
-  takeover. `op` must be authenticated in the job's environment to read the
-  `rdp` password.
+  takeover. The timer reads the `rdp` password from a
+  `systemd-creds --user` encrypted credential (`~/.config/ww2airsim-e2e/ryzen-rdp.cred`,
+  loaded by the unit); `op` is only the fallback for manual runs. After rotating the
+  password, re-encrypt it (command in `serverconfig/ryzen.md`).
   It takes `hwlock ryzen` (waits up to 90 min, then records `skipped-lock`
   rather than hold the lock into the morning), wakes ryzen with WoL if needed,
   and shuts it down afterward only if it woke it and nobody else is on it.
