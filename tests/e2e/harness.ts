@@ -4,6 +4,18 @@ import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
 import { BINDINGS } from '../../src/input/bindings.js'
+import type { TerrainField } from '../../src/sim/world/terrain.js'
+import { flyPass } from './pilot.js'
+import { groundTruthTerrain, landingAhead } from '../pilot/rangePass.js'
+
+/** Where `landAndStop` aims, measured along the runway from wherever
+ *  `hopClear` leaves the airplane: past the 5 degree path's 12-15 m of
+ *  climb-out height, well short of the far end (Tacloban's circuit spot is
+ *  z = +700, `hopClear` rolls 380 m before rotating). */
+const LANDING_AHEAD_M = 250
+let terrain: TerrainField | null = null
+/** Loaded on first use, not at import: most specs never land. */
+const groundTruthTerrainOnce = (): TerrainField => (terrain ??= groundTruthTerrain())
 
 /** `window.__ww2` in a dev build (src/render/diagnostics.ts, main.ts). One
  *  shared type with the app rather than a copy declared here: Task 15 review,
@@ -294,31 +306,13 @@ const heightAboveGroundM = (page: Page) =>
     return d.aircraftPositionM().y - gearHeightM - groundM
   }, [f6f.gear.heightM] as const)
 
-/**
- * Rotates off a gunnery-range parking spot, hops just clear of the airborne
- * latch, and settles back down to a real physics landing, ending with the
- * debrief dialog visible: `hopClear` then `landAndStop(page, 'debrief')`.
- * Extracted from `meta-game.spec.ts` (Plan 9 Task 8) in Plan-loading-dossier
- * Task 9 so `dossier.spec.ts` can reuse the same measured hop rather than a
- * second, independently-drifting copy; split in two by M2 Task 8 so
- * `mission-ui.spec.ts` can act between takeoff and landing, and land without
- * a debrief (an intermediate landing).
- *
- * Starts parked on a strip with the title gone and terrain loaded; the
- * caller is responsible for getting there (`waitForScenario` + the
- * `groundHeightM`/`supportedContact` polls).
- */
-export async function hopAndLand(page: Page): Promise<void> {
-  await hopClear(page)
-  await landAndStop(page, 'debrief')
-}
-
 /** The mission log's landing entries so far; 0 without a mission. */
 const landingCount = (page: Page) =>
   page.evaluate(() => ((window as DiagWindow).__ww2!.mission()?.log ?? []).filter((e) => e.kind === 'landing').length)
 
-/** `hopAndLand`'s first half: the takeoff roll, the rotate, and the climb
- *  just past `AIRBORNE_LATCH_M`. Ends airborne at full throttle. */
+/** The takeoff roll from a parked spot, the rotate, and the climb just past
+ *  `AIRBORNE_LATCH_M`. Ends airborne at full throttle; `landAndStop` lands.
+ *  Starts parked with the title gone and terrain loaded. */
 export async function hopClear(page: Page): Promise<void> {
   // -- Take off. Same roll/rotate shape `takeoff.spec.ts` already proved on
   // the default free-flight spawn; there is no aircraft-vs-aircraft
@@ -355,13 +349,12 @@ export async function hopClear(page: Page): Promise<void> {
     [f6f.gear.heightM, AIRBORNE_LATCH_M] as const,
     { timeout: 30_000 },
   )
-  console.log(`hopAndLand: cleared the latch at ${(await heightAboveGroundM(page))?.toFixed(1)} m`)
+  console.log(`hopClear: cleared the latch at ${(await heightAboveGroundM(page))?.toFixed(1)} m`)
 }
 
 /**
- * `hopAndLand`'s second half, from wherever `hopClear` left the airplane: a
- * short controlled descent to a real touchdown, then throttle off and brakes
- * held until `until`: the debrief dialog, or (`'stopped'`) the mission log
+ * From wherever `hopClear` left the airplane: the test pilot's landing onto
+ * Tacloban's runway ahead (see the body), then brakes held until `until`: the debrief dialog, or (`'stopped'`) the mission log
  * recording a NEW landing -- more landing entries than when this call began
  * (controller ruling PF9: "any landing" would return at once on a second
  * landing). The mission logs its landing when the airplane comes to rest
@@ -370,69 +363,24 @@ export async function hopClear(page: Page): Promise<void> {
 export async function landAndStop(page: Page, until: 'debrief' | 'stopped'): Promise<void> {
   const landingsBefore = await landingCount(page)
 
-  // -- Land. `nextLandingTracking` only needs the wheels to come back down
-  // gently (below `MAX_SUPPORTED_SINK_MPS`), not a stabilized approach, so
-  // this is a short, controlled descent rather than a circuit:
-  //
-  // 1. Throttle to idle and a brief nose-down pulse (ArrowUp = pitchDown) --
-  //    measured live on the reference GPU (Task 8, 2026-09-24): a plain
-  //    neutral-pitch glide after the rotate above keeps CLIMBING on
-  //    momentum for several seconds (throttle alone is not enough), and a
-  //    longer/harder nose-down pulse (1.2 s, tried first) dives in at
-  //    -11 m/s and crashes -- both measured, not guessed.
-  // 2. A small closed loop below 8 m: a brief nose-up (ArrowDown) tap
-  //    whenever the sink rate exceeds 2 m/s, the same flare a real landing
-  //    needs and hand-scripting a single fixed pitch pulse cannot reliably
-  //    produce, because how much altitude the nose-down pulse in step 1
-  //    trades for speed is not exactly repeatable. Measured result:
-  //    touchdown sink 1.3 m/s, speed 46.5 m/s, well inside
-  //    `MAX_SUPPORTED_SINK_MPS` (4.0) and the stall-speed gate.
+  // -- Land: the shared test pilot's landing phase (`approachControls`, the
+  // game's own landing autopilot) onto the runway ahead, flown in the page
+  // every frame. Until 2026-09-29 this was a timed key script measured on
+  // 2026-09-24; after T1 changed the take-off it porpoised into the sea
+  // (traced 2026-09-29), which is why `hopClear` hands over to the pilot.
+  // `hopClear` leaves the throttle-up key held (a real Playwright keydown);
+  // held against the pilot's throttle-down it cancels to no change, and the
+  // airplane stays at full power down the runway (measured 2026-09-29).
   await page.keyboard.up('Equal')
-  await page.keyboard.down('Minus')
-  await page.keyboard.down('ArrowUp')
-  await page.waitForTimeout(500)
-  await page.keyboard.up('ArrowUp')
-  let lastHeightM: number | null = null
-  for (let i = 0; i < 40; i++) {
-    await page.waitForTimeout(300)
-    const s = await page.evaluate(
-      ([gearHeightM]) => {
-        const d = (window as DiagWindow).__ww2!
-        const groundM = d.groundHeightM()
-        return {
-          heightM: groundM === null ? null : d.aircraftPositionM().y - gearHeightM - groundM,
-          supported: d.supportedContact(),
-          impact: d.impact(),
-        }
-      },
-      [f6f.gear.heightM] as const,
-    )
-    if (s.supported || s.impact !== null) break
-    const sinkMps = lastHeightM === null || s.heightM === null ? null : (lastHeightM - s.heightM) / 0.3
-    lastHeightM = s.heightM
-    if (s.heightM !== null && s.heightM < 8 && sinkMps !== null && sinkMps > 2) {
-      await page.keyboard.down('ArrowDown')
-      await page.waitForTimeout(250)
-      await page.keyboard.up('ArrowDown')
-    }
-  }
-  await page.keyboard.up('Minus')
-
-  await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), {
-      timeout: 15_000,
-      message: 'never came back down',
-    })
-    .toBe(true)
+  const here = await page.evaluate(() => (window as DiagWindow).__ww2!.playerFlight()!.state.position)
+  const flown = await flyPass(page, landingAhead(here, 'tacloban', LANDING_AHEAD_M, groundTruthTerrainOnce()), 60, 'land')
+  expect(flown.end, 'the landing did not come to rest on the runway').toBe('stopped')
   expect(
     await page.evaluate(() => (window as DiagWindow).__ww2!.impact()),
     'the touchdown was a crash, not a landing',
   ).toBeNull()
-  console.log('hopAndLand: back on the wheels, not a crash')
 
-  // Stop: cut the throttle the rest of the way (`KeyM`, one press to zero)
-  // and hold the brakes until `until` (see this function's doc comment).
-  await page.keyboard.press('KeyM')
+  // At rest: hold the brakes until `until` (see this function's doc comment).
   await page.keyboard.down('KeyB')
   if (until === 'debrief') await debriefDialog(page).waitFor({ timeout: 30_000 })
   else {

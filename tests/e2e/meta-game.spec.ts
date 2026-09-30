@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, percentile, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { flyPass } from './pilot.js'
+import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
  * Tier 2, Plan 9 Task 8: the whole meta-game acceptance, all three pieces
@@ -8,18 +10,14 @@ import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow
  * and caveats as `adapter.spec.ts`: the reference GPU on the Windows
  * desktop, never hosted CI.
  *
- * The flight: pick/create a pilot, shoot target-1 down for real (a kill, not
- * just damage -- `gunnery.spec.ts` only proves rounds land) on
- * `gunnery-range`, take off, and land again on the same strip. A genuine
- * physics landing, not a scripted touchdown: `nextLandingTracking`
- * (landing.ts) only ever produces a `report` after the wheels have actually
- * cleared `AIRBORNE_LATCH_M` and come back down onto the ground below
- * `LANDED_SPEED_MPS`. `approach.spec.ts`'s own doc comment rules out
- * hand-flying a full five-kilometre approach through `page.keyboard` as
- * fragile; this does not need one -- gunnery-range parks the player right on
- * the strip, so the shortest real round trip is a rotate, a brief hop clear
- * of the latch, and an immediate settle back down with the throttle cut and
- * the brakes on.
+ * The flight: pick/create a pilot, then fly `gunnery-range`'s strafing pass:
+ * shoot target-1 down for real (a kill, not just damage) and land straight
+ * ahead on Tacloban. A genuine physics landing, not a scripted touchdown:
+ * `nextLandingTracking` (landing.ts) only produces a `report` once the wheels
+ * come back down onto the ground below `LANDED_SPEED_MPS`. The pass is flown
+ * by the shared test pilot (`./pilot.ts`, `tests/pilot/`): since T1
+ * (2026-09-28) a parked Hellcat's guns fire over the target, so the range
+ * became a run-in (plan 2026-09-29-gunnery-range-strafing-pass).
  *
  * Landing banks a REAL score (kills since the last bank, times the point
  * table, times the "landed" 1.0 recovery multiplier -- `debrief.ts`'s
@@ -33,6 +31,8 @@ import { debriefDialog, hopAndLand, percentile, waitForScenario, type DiagWindow
  * catch a leaked-mesh regression a single switch would not surface.
  */
 test.setTimeout(240_000)
+
+const PASS = rangePass('gunnery-range', 'target-1', groundTruthTerrain())
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 
@@ -60,26 +60,19 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
-  await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 })
-    .toBe(true)
-
   const ids = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id))
   expect(ids.sort()).toEqual(['f6f-1', 'target-1', 'target-2'])
 
-  // -- Real scoring: shoot target-1 down, not just damage it. Points are
-  // keyed on `killsByType`, not on hits -- `debrief.ts`'s `missionScore`.
-  await page.keyboard.down('Space')
-  await expect
-    .poll(() => combat(page).then((c) => c.player.kills), { timeout: 30_000, message: 'target-1 was never destroyed' })
-    .toBeGreaterThan(0)
-  await page.keyboard.up('Space')
+  // -- Real scoring: shoot target-1 down on the pass, not just damage it.
+  // Points are keyed on `killsByType`, not on hits -- `debrief.ts`'s
+  // `missionScore`. Then the landing straight ahead banks them.
+  const flown = await flyPass(page, PASS)
+  expect(flown.end, 'the pass did not end at rest on the runway').toBe('stopped')
   const afterKill = await combat(page)
   const target1 = afterKill.aircraft.find((a) => a.id === 'target-1')!
+  expect(afterKill.player.kills, 'target-1 was never destroyed').toBeGreaterThan(0)
   expect(target1.destroyed, 'the credited kill was not target-1').toBe(true)
   console.log(`meta-game: target-1 destroyed after ${afterKill.player.shots} shots, ${afterKill.player.hits} hits`)
-
-  await hopAndLand(page)
 
   await expect(debriefDialog(page)).toContainText('LANDED')
   // -- Real, non-zero score, banked with the 1.0 "landed" multiplier: one

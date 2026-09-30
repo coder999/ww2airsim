@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
-import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
+import { flyPass } from './pilot.js'
+import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
  * Tier 2, whole-branch review finding C-1. `main.ts`'s `onNewGame` closure
@@ -35,113 +35,27 @@ import { AIRBORNE_LATCH_M } from '../../src/sim/landing.js'
  * content fresh (`buildWorld` reads `bundle` again), so target-1 is alive
  * again for the second sortie.
  */
-const f6f = loadAircraftSpec('f6f-hellcat')
+const PASS = rangePass('gunnery-range', 'target-1', groundTruthTerrain())
 
 test.setTimeout(400_000)
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 
 /**
- * One gunnery-range sortie: kill target-1, take off, and land back on the
- * strip -- a genuine physics landing, not a scripted touchdown (see
- * `meta-game.spec.ts`'s own doc comment for why `nextLandingTracking`
- * requires this and why this exact hop-and-flare sequence is what reliably
- * produces one on this scenario). Leaves the debrief showing "LANDED" with
+ * One gunnery-range sortie: the strafing pass that kills target-1 and lands
+ * straight ahead on Tacloban -- a genuine physics landing, not a scripted
+ * touchdown (see `meta-game.spec.ts`'s own doc comment), flown by the shared
+ * test pilot (`./pilot.ts`). Leaves the debrief showing "LANDED" with
  * `continueLabel` panel up; the caller decides what to do with it.
  */
 async function flyOneGunneryRangeSortie(page: Page): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
-  await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 })
-    .toBe(true)
-
-  // -- Real scoring: shoot target-1 down, not just damage it.
-  await page.keyboard.down('Space')
-  await expect
-    .poll(() => combat(page).then((c) => c.player.kills), { timeout: 30_000, message: 'target-1 was never destroyed' })
-    .toBeGreaterThan(0)
-  await page.keyboard.up('Space')
-
-  // -- Take off.
-  const start = await page.evaluate(() => {
-    const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-    return { x: p.x, z: p.z }
-  })
-  await page.keyboard.down('Equal')
-  await page.waitForFunction(
-    ([sx, sz]) => {
-      const p = (window as DiagWindow).__ww2!.aircraftPositionM()
-      return Math.hypot(p.x - sx, p.z - sz) > 380
-    },
-    [start.x, start.z] as const,
-    { timeout: 90_000 },
-  )
-  await page.keyboard.down('ArrowDown')
-  await page.waitForTimeout(1500)
-  await page.keyboard.up('ArrowDown')
-
-  await page.waitForFunction(
-    ([gearHeightM, latchM]) => {
-      const d = (window as DiagWindow).__ww2!
-      const groundM = d.groundHeightM()
-      if (groundM === null) return false
-      return !d.supportedContact() && d.aircraftPositionM().y - gearHeightM - groundM > latchM
-    },
-    [f6f.gear.heightM, AIRBORNE_LATCH_M] as const,
-    { timeout: 30_000 },
-  )
-
-  // -- Land: throttle to idle, a nose-down pulse, then a closed loop flaring
-  // whenever sink exceeds 2 m/s below 8 m -- the exact sequence measured on
-  // the reference GPU in `meta-game.spec.ts` (this task, 2026-09-24).
-  await page.keyboard.up('Equal')
-  await page.keyboard.down('Minus')
-  await page.keyboard.down('ArrowUp')
-  await page.waitForTimeout(500)
-  await page.keyboard.up('ArrowUp')
-  let lastHeightM: number | null = null
-  for (let i = 0; i < 40; i++) {
-    await page.waitForTimeout(300)
-    const s = await page.evaluate(
-      ([gearHeightM]) => {
-        const d = (window as DiagWindow).__ww2!
-        const groundM = d.groundHeightM()
-        return {
-          heightM: groundM === null ? null : d.aircraftPositionM().y - gearHeightM - groundM,
-          supported: d.supportedContact(),
-          impact: d.impact(),
-        }
-      },
-      [f6f.gear.heightM] as const,
-    )
-    if (s.supported || s.impact !== null) break
-    const sinkMps = lastHeightM === null || s.heightM === null ? null : (lastHeightM - s.heightM) / 0.3
-    lastHeightM = s.heightM
-    if (s.heightM !== null && s.heightM < 8 && sinkMps !== null && sinkMps > 2) {
-      await page.keyboard.down('ArrowDown')
-      await page.waitForTimeout(250)
-      await page.keyboard.up('ArrowDown')
-    }
-  }
-  await page.keyboard.up('Minus')
-
-  await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), {
-      timeout: 15_000,
-      message: 'never came back down',
-    })
-    .toBe(true)
-  expect(
-    await page.evaluate(() => (window as DiagWindow).__ww2!.impact()),
-    'the touchdown was a crash, not a landing',
-  ).toBeNull()
-
-  await page.keyboard.press('KeyM')
-  await page.keyboard.down('KeyB')
+  const flown = await flyPass(page, PASS)
+  expect(flown.end, 'the pass did not end at rest on the runway').toBe('stopped')
+  expect((await combat(page)).player.kills, 'target-1 was never destroyed').toBeGreaterThan(0)
   await debriefDialog(page).waitFor({ timeout: 30_000 })
-  await page.keyboard.up('KeyB')
   await expect(debriefDialog(page)).toContainText('LANDED')
 }
 

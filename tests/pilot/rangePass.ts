@@ -76,3 +76,39 @@ export function rangePass(scenarioId: string, targetId: string, terrain: Terrain
     },
   }
 }
+
+/**
+ * A landing straight ahead on `airfieldId`'s runway from wherever the
+ * airplane is: the aim point `aheadM` further along the runway axis than
+ * `position`, on the centerline. Flown with the pilot started in its land
+ * phase (`approachControls` only); the target is unused there, so it is the
+ * aim point itself. Replaces `landAndStop`'s timed key script (2026-09-29).
+ */
+export function landingAhead(position: { readonly x: number; readonly z: number }, airfieldId: string, aheadM: number, terrain: TerrainField): StrafePass {
+  const field = loadScenarioBundle('gunnery-range').airfields[airfieldId]
+  if (field === undefined) throw new Error(`no airfield ${airfieldId} in the range bundle`)
+  const h = runwayHeadingRad(field)
+  // Along-runway distance of `position` from the runway center, northbound
+  // positive for heading 0 (the `ApproachTarget` convention).
+  const along = (position.x - field.runway.center.x) * Math.sin(h) - (position.z - field.runway.center.z) * Math.cos(h)
+  const s = along + aheadM
+  const aim = { x: field.runway.center.x + s * Math.sin(h), z: field.runway.center.z - s * Math.cos(h) }
+  const elevation = heightAt(terrain, aim.x, aim.z)
+  return {
+    target: v3(aim.x, elevation, aim.z),
+    cruiseHeightM: RANGE_PASS.cruiseHeightM,
+    diveDeg: RANGE_PASS.diveDeg,
+    aimSpeedMps: RANGE_PASS.aimSpeedMps,
+    fireM: 0,
+    fireDeg: 0,
+    breakM: Number.POSITIVE_INFINITY,
+    landing: {
+      aimX: aim.x,
+      aimZ: aim.z,
+      runwayHeadingRad: h,
+      touchdownElevationM: elevation,
+      glidePathRad: RANGE_PASS.glidePathDeg * Math.PI / 180,
+      flareHeightM: RANGE_PASS.flareHeightM,
+    },
+  }
+}

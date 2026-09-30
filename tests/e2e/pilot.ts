@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import type { StrafePass } from '../pilot/strafePilot.js'
+import type { PilotPhase, StrafePass } from '../pilot/strafePilot.js'
 
 export type PilotTrace = {
   readonly end: 'stopped' | 'impact' | 'timeout'
@@ -23,8 +23,8 @@ export type PilotTrace = {
  * released on the next. Resolves when the airplane is at rest on its wheels,
  * has an impact, or `maxS` runs out, with every key released.
  */
-export async function flyPass(page: Page, pass: StrafePass, maxS = 90): Promise<PilotTrace> {
-  const trace = await page.evaluate(async ({ pass, maxS }) => {
+export async function flyPass(page: Page, pass: StrafePass, maxS = 90, startPhase: PilotPhase = 'cruise'): Promise<PilotTrace> {
+  const trace = await page.evaluate(async ({ pass, maxS, startPhase }) => {
     // `new Function`, not `import()`: Playwright transpiles this file, and the
     // browser, not Node, must resolve the dev server's module URL.
     const load = new Function('u', 'return import(u)') as (u: string) => Promise<Record<string, unknown>>
@@ -37,7 +37,7 @@ export async function flyPass(page: Page, pass: StrafePass, maxS = 90): Promise<
     const key = (type: 'keydown' | 'keyup', code: string): void => { window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true })) }
     const down = new Set<string>()
     let toggled: string[] = []
-    let phase = 'cruise'
+    let phase: string = startPhase
     const samples: string[] = []
     const t0 = performance.now()
     let lastSample = -1
@@ -75,7 +75,7 @@ export async function flyPass(page: Page, pass: StrafePass, maxS = 90): Promise<
       }
       requestAnimationFrame(tick)
     })
-  }, { pass, maxS })
+  }, { pass, maxS, startPhase })
   console.log(`pilot: ${trace.end} after ${trace.seconds.toFixed(1)} s\n  ${trace.samples.join('\n  ')}`)
   return trace
 }
