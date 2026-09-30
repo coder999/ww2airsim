@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { quickLaunch, debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 
 /**
@@ -41,13 +41,14 @@ test('the context is running once the game has been played, and every clip decod
   // The one thing a fake backend cannot know: whether a 48 kHz stereo WAV that
   // is the right number of bytes on disk is one `decodeAudioData` accepts.
   // Every clip `AUDIO_ASSETS` lists, from the URLs src/audio/assets.ts builds.
-  await page.goto('/')
+  // Launched past the title, whose keydown listener ignores keys, so the
+  // gesture that resumes the context is the New game click itself.
+  await quickLaunch(page, { scenario: 'free-flight' })
   await waitForTerrain(page)
-  await page.keyboard.press('KeyP') // deliberately UNBOUND: a gesture that changes nothing
   await expect
     .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 })
     .toBe(AUDIO_ASSETS.length)
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().state)).toBe('running')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().state), { timeout: 15_000 }).toBe('running')
   // None of them FAILED, which `loaded.length` alone cannot distinguish from a
   // clip that is merely slow.
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().failed)).toEqual([])
@@ -55,8 +56,9 @@ test('the context is running once the game has been played, and every clip decod
 
 test('the engine gain follows the throttle and falls to zero on the cut', async ({ page }) => {
   // Proves the wire, in the shipped app: `=` ramps over THROTTLE_SECONDS
-  // (src/input/keyboard.ts), `M` chops it in one frame.
-  await page.goto('/')
+  // (src/input/keyboard.ts), `M` chops it in one frame. Launched past the
+  // title: behind it the audio is held silent by design (titleSwap.spec.ts).
+  await quickLaunch(page, { scenario: 'free-flight' })
   await waitForTerrain(page)
   // The loop only starts once propeller.wav has decoded, and engine gain is
   // not written before it exists. Waiting on the rate -- which is non-zero at

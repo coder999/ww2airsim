@@ -37,7 +37,7 @@ test('the title is up on load with both options, holds the world, and New game r
   await startGame(page)
   await expect(title).toBeHidden()
   await expect.poll(() => tick(page), { timeout: 10_000 }).toBeGreaterThan(held)
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().state)).toBe('running')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().state), { timeout: 15_000 }).toBe('running')
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })
 

@@ -134,6 +134,8 @@ export type Ww2Diagnostics = {
    * `null` before the first frame.
    */
   readonly renderedPlayerPositionM: () => Vec3 | null
+  /** Whether the player's airframe root is drawn right now: false behind the title and while a New game reload is in flight. */
+  readonly playerAirframeVisible: () => boolean
   /**
    * The PLAYER aircraft's `impact` for the current frame, or `null` if the
    * flight has not ended yet. Added in Task 11 for the ground-contact plan's

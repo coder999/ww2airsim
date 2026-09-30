@@ -324,6 +324,10 @@ async function boot(): Promise<void> {
   // changed (Review Focus 5); and the Dev stores layout (SF-R2), fetched
   // once, the first time a Dev sortie hangs stores on a spec without any.
   let loadedAircraftSpec: string | null = null
+  // True from the moment a New game click starts a scenario/aircraft reload
+  // until the rebuilt frame replaces the old one. The player's airframe and
+  // the engine audio belong to the OLD sortie until then, so both stay hidden.
+  let swapPending = false
   let devStores: AircraftSpec['stores'] = undefined
   // Read once, right after the FIRST `loadScenario` call below, for `spec`:
   // every scenario flies the one shipped flight model, `f6f-hellcat` (design
@@ -710,7 +714,14 @@ async function boot(): Promise<void> {
       // above) and the same shape `loadTerrainProgressively`'s `.catch` below
       // already uses: a mid-game fetch failure is the same "content the build
       // was supposed to ship" fault, just discovered later than boot.
-      void loadScenario(choice).then(() => { devSortie = sortieNeededDev(choice); rebuildFrame() }).catch((err: unknown) => {
+      swapPending = true
+      performance.mark('sortie-swap-start')
+      void loadScenario(choice).then(() => {
+        devSortie = sortieNeededDev(choice)
+        rebuildFrame()
+        swapPending = false
+        performance.measure('sortie-swap', 'sortie-swap-start')
+      }).catch((err: unknown) => {
         loop?.stop()
         showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
       })
@@ -948,6 +959,7 @@ async function boot(): Promise<void> {
       },
       replayFxRebuildMs: () => lastFxRebuildMs,
       renderedPlayerPositionM: () => renderedPlayerPosition,
+      playerAirframeVisible: () => scenarioEntities?.player.root.visible ?? false,
       // Plan 12: every entity, not just the player's airplane. See the two
       // members' doc comments in diagnostics.ts for what each one proves.
       ships: () =>
@@ -2447,8 +2459,12 @@ async function boot(): Promise<void> {
     // pilot has.
     const visibility = airframeVisibilityFor(view.cameraMode)
     cockpit.visible = visibility.cockpitVisible
-    playerAirframe.root.visible = visibility.hellcatVisible
-    if (gunPipper) poseGunPipper(gunPipper, playerAirframe.root, visibility.hellcatVisible)
+    // Behind the title, and while a New game reload is in flight, the airplane
+    // drawn is the boot default, not the one being chosen: draw nothing.
+    const sortieIdle = title.up() || swapPending
+    const airframeShown = visibility.hellcatVisible && !sortieIdle
+    playerAirframe.root.visible = airframeShown
+    if (gunPipper) poseGunPipper(gunPipper, playerAirframe.root, airframeShown)
     // Numeric gauges from the simulated tick; the attitude ball from the
     // INTERPOLATED attitude, because it is the one instrument compared
     // against something visible in the same frame. `current.controls` is
@@ -2468,8 +2484,13 @@ async function boot(): Promise<void> {
     audio.setView(view.cameraMode === 'cockpit' ? 'cockpit' : 'chase')
     audio.setCameraZoom(view.cameraMode === 'cockpit' ? 1 : current.orbit.zoom)
     if (replay === null) {
-      audio.update(audioInputsFrom(current))
-      audio.updateSpatial(spatialInputsFrom(current, view.eye))
+      // Silent behind the title and during the reload: the world is the boot
+      // default's, paused, and its idle engine would play under the menu.
+      if (sortieIdle) audio.hold(true)
+      else {
+        audio.update(audioInputsFrom(current))
+        audio.updateSpatial(spatialInputsFrom(current, view.eye))
+      }
     } else {
       if (replay.jumpedThisFrame) {
         audio.prime(audioInputsFrom(view))
