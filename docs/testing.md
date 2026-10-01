@@ -49,8 +49,8 @@ says nothing about Tier 2**, and Tier 2 does not gate a deploy: the nightly
   desktop session, which is why the nightly uses the RDP route below.
 - **Budget specs** (titles matching `budget|p95|tripwire|frame time|Hz`,
   e.g. `budget4k`, `fx-budget`, `motionBudget`) measure frame time. They are
-  the only tests whose numbers depend on the machine, and the nightly records
-  rather than fails them (see Verdict below). To run everything else:
+  the only tests whose numbers depend on the machine, and the nightly counts
+  them as failures like any other (see Verdict below). To run everything else:
   `--grep-invert '/budget|p95|tripwire|frame time|\bHz\b/i'`. Last full
   non-budget run, 2026-09-30 from main a2e3e4f: 181 passed, 0 failed, 2 skipped.
 
@@ -198,8 +198,8 @@ and is driven headed like the console server: no `PW_SESSION0`. The mechanism is
 `ww2airsim-e2e-nightly`'s `rdp_session()` (serverconfig/scripts); a manual
 walkthrough with the expected output is `serverconfig/scripts/rdp-gpu-test.sh`.
 Windows 10 Pro allows one interactive session, so never do this while someone is
-logged in; the nightly checks. Frame times from it are informational only (the
-120 Hz deck test read 10.9 ms (fail) and under 8.33 ms (pass) on two otherwise identical runs).
+logged in; the nightly checks. Its frame-time budget results count as real failures: the
+same budget specs also failed on the session-0 run before this route existed.
 
 One-time setup on the Windows desktop (a separate checkout — the test runner
 has to be local to the GPU, the dev server does not):
@@ -300,11 +300,13 @@ mechanism; the script header has the step order.
   rather than hold the lock into the morning), wakes ryzen with WoL if needed,
   and shuts it down afterward only if it woke it and nobody else is on it.
   It never falls back to nexus.
-- **Verdict:** any failing test is a hard failure, except titles matching
-  frame-time budgets (`budget|p95|tripwire|frame time`), which are recorded
-  with their numbers and do not turn the run red: only the console
-  session gives trustworthy frame times (`Hz` titles count as budgets too). A test is *newly red* when it passed in
-  the previous tested run.
+- **Verdict:** any failing test is a failure, frame-time budgets
+  (`budget|p95|tripwire|frame time|Hz` titles) included; the mail says how many
+  of the failures are budget misses (`budget_failed` in `runs.tsv` is that
+  subset of `hard_failed`). Budget specs were record-only until 2026-10-01; they
+  fail identically across session 0 and RDP runs, and the earlier claim that RDP
+  frame times are untrustworthy rested on one pair of runs, so it is dropped as
+  unproven. A test is *newly red* when it passed in the previous tested run.
 - **Record:** one line per run in `~/.local/state/ww2airsim-e2e/runs.tsv`
   (date, SHA, status `ok|failed|error|skipped-*` (incl. `skipped-no-session`), counts, newly red/green,
   whether the mail sent), plus `report-<date>.json` and `results-<sha>.json`

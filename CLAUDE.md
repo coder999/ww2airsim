@@ -134,8 +134,8 @@ with `--use-angle=d3d11` (`PW_SESSION0=1`, `PW_REMOTE=ws://localhost:39002/`),
 but that is **correctness only: its screenshots of the WebGPU canvas are blank**,
 so `fx`/`hangar`/`cloudShadow`/`ordnance`/`sun` fail there and no flag fixes it.
 For pixels without a console login use an RDP session as the local `rdp` user
-(`docs/testing.md`, "an RDP session as `rdp`"). Frame times are trustworthy
-only from the console session.
+(`docs/testing.md`, "an RDP session as `rdp`"). Frame-time budget failures from
+the RDP route count as real failures (see `docs/testing.md`, Verdict).
 
 `docs/testing.md` ("Tier 2: the GPU harness") is authoritative for the tunnels and the
 one-time setup. Two facts it records that cost real time: headed Chromium
