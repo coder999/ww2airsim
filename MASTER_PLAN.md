@@ -46,7 +46,7 @@ render quality with auto-detect.
 
 ### Track B: Guidance, autopilot and tutorial
 
-Mark's items: guide mode (an arrow to the objective; a bomb impact marker); improved autopilot; a tutorial.
+Mark's items: guide mode (an arrow to the objective; a bomb impact marker); improved autopilot; a tutorial. Terms per `CONTEXT.md`: the arrow is the **Steering cue** (always on), the marker an **Assist** (off by default, behind the Assists toggle; §4 Q2).
 
 **B1. Steering cue (S).**
 - **Today:** a course and range to a selected entity exist only inside the modal chart (P). `courseTo` is pure (`missionMap.ts:174-196`). Nothing shows direction in flight.
@@ -56,7 +56,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Today:** bombs are aimed by eye.
 - **What exists:** `flyProjectile` is pure and exported (`sim/weapons/combat.ts:140`). Bomb drag and arming are content (`an-m65`). `groundHit`/`seaHit` (`:181`, `:211`) are module-private.
 - **Proposal:** a pure sim function `predictImpact(state, store)` that iterates `flyProjectile` to terrain or sea, with a ground marker in the renderer. Same pattern as the gun pipper's `gunHarmonization`. Rockets could follow.
-- **This is a period-incorrect aid** (no CCIP in 1944), so it belongs behind guide mode or an assist toggle, not on by default.
+- **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: behind the Assists toggle, off by default (§4 Q2).
 
 **B3. Navigation autopilot (M).**
 - **Today:** the player autopilot is the pursuit law only (Shift). Altitude hold was deleted 2026-09-17 because it wasn't wanted then.
@@ -65,7 +65,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
   - heading and altitude hold;
   - fly to the B1 waypoint;
   - fix the pursuit mode's 13 g overshoot with a g-limit.
-- **Question for Mark:** which modes he wants (§4 Q5).
+- **Decided (§4 Q5):** pursuit only, as g-limited lead pursuit onto a gun solution; the player still fires. Heading/altitude hold and waypoint modes are dropped.
 
 **B4. Tutorial (M).**
 - **Today:** none. Deck Quals and the ranges are practice, not instruction. The legend is a key list.
@@ -96,7 +96,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 - **Proposal, in two stages:**
   1. Per-airframe panel layouts on the existing procedural panel: which instruments, where, in what units (Japanese gauges in metric would be period-correct), plus the frame and canopy bow as simple geometry. This is about one plan and covers all 12.
   2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
-- **Question for Mark:** whether stage 2 is wanted at all (§4 Q4).
+- **Decided (§4 Q4):** stage 1 only; stage 2 is dropped.
 
 ### Track D: Torpedoes (L)
 
@@ -157,7 +157,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - The battle is carriers and dive bombers, which the game already does well.
   - Its aircraft gaps are small: SBD Dauntless and TBD Devastator for the US; the A6M2 and D3A exist; the B5N is needed.
 - **Pearl Harbor** needs Oahu terrain (a full Leyte-scale build), battleship rows, B5N shallow-water torpedoes and, from the US side, mostly defense. It is a bigger lift and better second.
-- **Question for Mark:** Midway first, Pearl Harbor first, or deeper Leyte first (§4 Q1).
+- **Decided (§4 Q1):** Midway first, Pearl Harbor second.
 
 ### Track H: Rendering
 
@@ -201,7 +201,10 @@ Mark's items: better clouds, land and beach.
   - stall buffet and buzz;
   - overspeed creak;
   - radio squelch and static. The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
-- **I2, voice:** 16 Paddles LSO lines, then optional radio chatter. These need a recording or generation decision (§4 Q7).
+- **I2, voice (§4 Q7):** Mark generates in Adobe Firefly. Scope:
+  - a catalog of every on-screen message, with a proposed **Radio line** for each reusable one ("Cleared for takeoff"); Mark strikes what he doesn't want;
+  - Voices: Paddles, Tower and Wingman, each with a US English and a Japanese take chosen by the player's side (`CONTEXT.md`);
+  - `docs/audio/firefly-prompt-sheet.md` (16 Paddles lines today) becomes a manifest, and an ingest script checks name, format and length, measures peaks, writes the `src/audio/assets.ts` entries and the `NOTICE.md`/`ASSETS.md` lines, and reports what is still missing.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S)
@@ -213,7 +216,7 @@ Mark's items: better clouds, land and beach.
   - The site is `noindex` with `robots.txt` `Disallow: /`.
   - There is no privacy text.
 - **Proposal:** provision through the `google-analytics` skill: a GA4 property, then the tag in `index.html`. Add custom events for the things worth knowing: sortie launched (mission, aircraft), mission outcome, the quality tier chosen and auto-detected (useful data for A4), and boot time. Add a privacy line to the About memo.
-- **Question for Mark:** whether DEV and `windomlane` hosts should be excluded (§4 Q8).
+- **Decided (§4 Q8):** production hosts only (DEV and `windomlane` excluded); one privacy line in the About memo, no consent banner.
 
 ---
 
@@ -228,13 +231,12 @@ prerequisites are met.
 | 1 | A1; A2; I quick win (radial engines); J | Days of work, all visible, no dependencies. Track 0 is done |
 | 2 | A3, A4; B1 | Fixes what every player sees first; A4 closes the trees incident |
 | 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks all rendering |
-| 4 | B2, B3, B4 tutorial; C1 control surfaces; I1 | Player experience; C1 and I1 share the flap and gear motion |
+| 4 | B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | F missions that are now unblocked (Single Combat, Scramble); H1 terrain allocation then trees | |
 | 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
 | 7 | D torpedoes (Avenger); H2 clouds; H3 shore | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
-| any | I2 voice; C3 stage 2 | Mark's call |
 
 A rough total by the size key: about 25-35 plans.
 
@@ -250,14 +252,16 @@ A rough total by the size key: about 25-35 plans.
 
 ## 4. Decisions for Mark
 
-1. **Next theater:** Midway first (recommended), Pearl Harbor first, or deepen Leyte (campaign) and defer theaters.
-2. **Guide mode aids:** on by default, behind an assist toggle, or tied to the existing difficulty and damage settings. The impact predictor is anachronistic either way.
-3. **Tutorial:** a tutorial mission on the existing engine (recommended), or a separate mode with its own UI.
-4. **Cockpits:** stage 1 only (per-airframe panel layouts), or stage 2 (modeled 3D cockpits) too.
-5. **Autopilot modes:** heading and altitude hold, waypoint, a fixed pursuit mode. Which of these.
-6. **Torpedo airframe:** TBF/TBM Avenger as the first (recommended), or start with the G4M's historical Type 91 on the Japanese side.
-7. **Voice lines:** generated, recorded, or skipped.
-8. **Analytics scope:** production hosts only, or also `windomlane` dev; and whether a privacy line is enough.
+All decided 2026-10-08 (grilling session); the tracks above carry each answer.
+
+1. ~~**Next theater.**~~ Midway first, then Pearl Harbor.
+2. ~~**Guide mode aids.**~~ Steering cue always on; the impact predictor is an Assist, off by default behind an Assists toggle.
+3. ~~**Tutorial.**~~ A tutorial mission on the existing engine.
+4. ~~**Cockpits.**~~ Stage 1 only.
+5. ~~**Autopilot modes.**~~ G-limited lead pursuit only; nav modes dropped.
+6. ~~**Torpedo airframe.**~~ TBF/TBM Avenger first.
+7. ~~**Voice lines.**~~ Generated by Mark in Firefly; catalog, three Voices (Paddles, Tower, Wingman) each with a Japanese take, manifest and ingest script (Track I).
+8. ~~**Analytics scope.**~~ Production only; one privacy line in About.
 9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; master spec §15 is frozen as history (README).
-10. **T1 and W1 are live without your call.** Both were held for it, but T1 reached `main` inside the DP1 merge (`eb8a854`, 2026-09-29) and W1 inside the detail-pass merge (`74c5b65`, 2026-09-28). Keep them, or revert or rework? If you keep T1: when do you hand-fly its landing and judge the 10° hands-off torque swing?
-11. **Escort pursuit:** an escort out-energized by its attacker never pursues. Should the spec's "takes hits" become "fires within gun solution"? (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps".)
+10. ~~**T1 and W1.**~~ Keep both. Mark hand-flies T1's landing and judges the 10° hands-off torque swing at the next attended session.
+11. ~~**Escort pursuit.**~~ The spec's "takes hits" becomes "fires within gun solution" (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps").

@@ -48,6 +48,7 @@ One home per kind of fact. Point at it from elsewhere; never copy it.
 | Agent rules that cannot be derived from the code | [`AGENTS.md`](AGENTS.md) |
 | Overview, getting started, and pointers | `README.md` |
 | Gameplay a player sees | `GAMEPLAY.md` |
+| Domain vocabulary (glossary only) | `CONTEXT.md` |
 
 
 
