@@ -8,8 +8,11 @@ not exist, and three conventions below were being missed for that reason).
 
 ## Read these before touching anything
 
-1. `docs/superpowers/specs/2026-09-12-ww2airsim-design.md` §15 — the only
-   authoritative plan numbering and order, and the three couplings under it.
+1. `MASTER_PLAN.md` — what comes next: tracks, order, and the decisions
+   they wait on. Then master spec
+   (`docs/superpowers/specs/2026-09-12-ww2airsim-design.md`) §15 — the only
+   authoritative plan numbering and status, and the three couplings under it.
+   The split is the README's "Where docs go"; neither restates the other.
 2. `docs/superpowers/plans/2026-09-12-plan1-rulings.md` — dated decisions with
    what each costs if reversed. Check it before "fixing" an apparent oversight.
 3. The newest `docs/handoff/*.md` — the current trap list and open items. A

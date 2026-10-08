@@ -595,6 +595,12 @@ minimum honest ordering:
 **This table is the only authoritative statement of plan numbering.** Other
 design documents point at it; none of them restate it.
 
+**Since 2026-10-08 the order of work still to come lives in
+[`MASTER_PLAN.md`](../../../MASTER_PLAN.md)** at the repo root (Mark's
+decision). This table keeps numbering and one status row per plan. Its Order
+column records the first pass. A master-plan track gets a row here when its
+first plan starts.
+
 It exists because for two days three documents disagreed. Input assists were
 inserted as Plan 3, taking the slot the ordering above had given terrain, and
 every later number shifted without anything being updated: the renderer design

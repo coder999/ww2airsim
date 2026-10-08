@@ -1,17 +1,20 @@
-# ww2airsim master plan, second pass
+# ww2airsim master plan
 
-**Status: DRAFT for Mark, 2026-10-07; revised 2026-10-08** after Track 0
-and the test cleanup were done. Nothing else here is scheduled until he rules
+**Status: DRAFT for Mark, written 2026-10-07, revised 2026-10-08.** Track 0
+and the test cleanup are done. Nothing else here is scheduled until he rules
 on §6.
 
-**How this relates to master spec §15.** §15's table stays the only
-authoritative record of plan numbering, order and status
-([README, "Where docs go"](../../../README.md#where-docs-go)). This document
-looks forward. It takes stock of the codebase, then groups the next body of
-work into tracks with a proposed order. Once Mark approves it, each track he
-accepts becomes a §15 row. §15 then points here for the reasoning, and this
-document stops carrying status. The first pass was §15's own "First steps"
-list of 9 items, which is all done.
+**This file owns what comes next:** the tracks, their order, and the
+decisions they wait on. Master spec §15 owns **plan numbering and what
+happened**, one status row per plan. That split was decided by Mark on
+2026-10-08 and is recorded in [README, "Where docs go"](README.md#where-docs-go).
+So:
+- A track gets a §15 row, with a plan id, when its first plan starts.
+- When a track's plans are done, delete the track here. Its rows and handoffs
+  are the record. Never carry status in both places.
+
+The first pass was §15's "First steps" list of 9 items. All of it is done.
+This is the second pass.
 
 Every claim below was read from the repo at `main` = `cc8579f` (2026-10-01,
 unchanged as of 2026-10-07) or from the Tier 2 record. File references point
@@ -99,7 +102,7 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 
 - **Stale docs:** fixed (§1).
 - **Test-suite cleanup:** done. Correctness and budget tests separated, three trap clones merged into one enrolled test, unwired coast tools deleted with their tests, capture tools gated behind `E2E_CAPTURE=1`, and the slowest unit file down from 108 s to 1 s.
-- **Testing philosophy:** written into [`docs/testing.md`](../../testing.md#philosophy), with a pointer in `CLAUDE.md`.
+- **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy), with a pointer in `CLAUDE.md`.
 - **Photoreal Task 14,** which never ran: re-filed into H0.
 
 ### Track A: First load and the launch sequence
@@ -341,6 +344,6 @@ A rough total by the size key: about 25-35 plans.
 6. **Torpedo airframe:** TBF/TBM Avenger as the first (recommended), or start with the G4M's historical Type 91 on the Japanese side.
 7. **Voice lines:** generated, recorded, or skipped.
 8. **Analytics scope:** production hosts only, or also `windomlane` dev; and whether a privacy line is enough.
-9. **This document's authority:** whether accepted tracks become §15 rows as described in the header.
+9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives here, at the repo root, and owns order (header).
 10. **T1 and W1 are live without your call** (§1). Keep them, or revert or rework? If you keep T1: when do you hand-fly its landing and judge the 10° hands-off torque swing?
 11. **Escort pursuit:** an escort out-energized by its attacker never pursues. Should the spec's "takes hits" become "fires within gun solution"? (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps".)

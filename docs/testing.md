@@ -1,15 +1,9 @@
 # Testing
 
 How tests are written here (Philosophy), what each layer is for, and the
-reference for Tier 2, the GPU harness. Tier 1 is `npm run verify` (see the
-README's "Getting started"). The Tier 2 material moved from the README on
-2026-09-29.
+reference for test groupings.
 
 ## Philosophy
-
-Written 2026-10-08, after an audit of the whole suite. The suite was 4,549
-unit cases and 229 Tier 2 cases, and its code is longer than the game's.
-That size is deliberate. It is not something to trim for its own sake.
 
 **Why the suite is this big.** Several agents commit to this repo at once,
 often in parallel worktrees. None of them sees the others' work in progress.
@@ -29,35 +23,26 @@ works"). Only the automated tiers decide pass or fail.
    - no energy gain;
    - the `sim/` boundary (`tests/architecture/boundary.test.ts`);
    - the soak.
-3. **Seams other agents touch:** content schemas, enrollment lists, and the `__ww2` diagnostics shared with Tier 2.
-4. **Wiring:** that a feature actually reaches the running game. In Tier 2 this means reading `__ww2` state, not comparing pictures (below).
+3. **Seams other agents touch:** content schemas, enrollment lists, and the `__ww2` diagnostics shared with E2E.
+4. **Wiring:** that a feature actually reaches the running game. In E2E this means reading `__ww2` state, not comparing pictures (below).
 
 ### Rules
 
 - **Enroll, don't clone.** Coverage of every airframe, ship or scenario comes from one table-driven test that reads `content/`. A new airframe should be covered without a new test file. Examples: `graded.test.ts`, `trap.test.ts`, `carrierTakeoff.test.ts`, `flyableAll.spec.ts`.
   - Pin the enrolled list in the same test, so a filter that matches nothing fails instead of passing empty.
   - `trapCorsair.test.ts` and `trapVal.test.ts` were clones of `trap.test.ts` differing in two numbers. They were merged on 2026-10-08, which also covered the Zero and Wildcat for the first time.
-- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in the dedicated budget specs:
-  - `budget4k.spec.ts` (the gate: Mark's 60 Hz decision, every view and tier);
-  - `fx-budget.spec.ts` (on/off deltas);
-  - `motionBudget.spec.ts`;
-  - `terrainTextures.spec.ts`;
-  - the "frame-time budget" tests in `terrain.spec.ts` and `strike.spec.ts`.
 
-  Any other spec may measure, but it records the number with `recordFrameTime` (`tests/e2e/harness.ts`) and does not assert it. Until 2026-10-08, sixteen correctness specs also asserted a 1440p tripwire. A slow frame turned furball, takeoff and recovery red for reasons that had nothing to do with AI.
   - Budget test titles match `budget|p95|tripwire|frame time|Hz`. That is how the nightly tells budget misses apart (Overnight run, below), so keep those words out of other titles.
 - **Assert behavior, not constants.** A bare `expect(SOME_CONST).toBe(0.25)` fails on every intentional tweak and protects nothing. Prefer:
   - a relationship: `MAP_TEXEL_M === MAP_SIDE_M / MAP_TEXELS`;
   - or the behavior the constant produces: `detailNormalFade(2000) === 0`.
-
-  Pin a number only when it is a ruling or a tuning with a cost if changed, and say so where it is pinned. For example, `cloudField.test.ts` "keeps the constants the dome was tuned with", and `DEFAULT_ASSIST_SETTINGS`, where a revert has to fail both.
 - **A test must be able to fail.** Before trusting a green, see it go red once against the fault it exists for: the stimulus actually happens and the detector actually reads it. Guard against vacuous passes, such as a sample count that is zero or a loop over an empty list. That is why so many specs assert `gpu.length > 120`.
 - **Tolerances come from measurement and only tighten.** Re-measure, date the number, and say where it came from. Never widen a tolerance to whatever passes.
 - **Every skip has a reason the code can check.** `skipIf(terrain === null)` or `skipIf(!HAVE_BLENDER)` are fine: the data or tool is absent, and the skip names it. An unconditional skip is either:
   - waiting on a named ruling from Mark (say which, and in which handoff); or
   - a known gap, which belongs in "Known gaps" below, not in the suite as a skipped test.
 - **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable.
-- **Delete a test with its code.** Unwired code and its tests go together, because git remembers. The 13c coast tools were deleted with their tests on 2026-10-08.
+- **Delete a test with its code.** Unwired code and its tests go together, because git remembers.
 - **Grepping source is a last resort.** A few tests assert that `main.ts` contains a call (for example `bootQuality.test.ts`) because the wiring has no seam to call. They break on renames. The fix is to extract that wiring into a function a test can call, not to add more greps.
 - **Keep files cheap.**
   - Compare large buffers with `Buffer.from(a).equals(Buffer.from(b))`, not `toEqual`. `toEqual`'s per-element diff spent about 110 s in `gunzip.test.ts` on its cloud volumes.
@@ -80,19 +65,19 @@ Checked against `.github/workflows/*.yml` and `package.json` on 2026-09-30.
 
 | Layer | Runs | Needs a GPU | What it proves |
 | --- | --- | --- | --- |
-| **Tier 1**: `npm run verify` (`tests/` except `e2e/`) | locally, and in `ci.yml` on every push and PR | no | The code is correct as logic: typecheck, lint, dependency rules, and vitest unit tests of the sim, AI, audio cues, input, replay, content and render graph construction. Fast, deterministic, hosted. |
-| **Nightly soak** (`nightly-soak.yml`) | GitHub, 09:00 UTC | no | A long simulation (`tests/sim/soak.test.ts`) stays stable; opens an issue on failure. |
-| **Deploy** (`deploy.yml`, manual) | GitHub, on request | no | The *release artifact* is sound: `npm run verify`, `npm run build`, the build carries the terrain fallback, rsync, then the live site answers (homepage 200, noindex and no-cache headers, the hashed asset the page names is served, `robots.txt`). It never starts a browser. |
-| **Tier 2 e2e** (`tests/e2e/`, `npm run test:tier2`) | ryzen, by hand or the nightly | yes | The *running game* works in a real browser on the reference GPU: it boots, flies, renders without WebGPU validation errors, sounds the right audio cues, and the UI, missions, replay and scoring hold together in a session. |
+| **Deterministic Test**: `npm run verify` (`tests/` except `e2e/`) | locally, and in `ci.yml` on every push and PR | no | The code is correct as logic: typecheck, lint, dependency rules, and vitest unit tests of the sim, AI, audio cues, input, replay, content and render graph construction. Fast, deterministic, hosted. |
+| **Soak Test** (`nightly-soak.yml`) | GitHub, 09:00 UTC | no | A long simulation (`tests/sim/soak.test.ts`) stays stable; opens an issue on failure. |
+| **End-to-end (E2E) Test** (`tests/e2e/`, `npm run test:tier2`) | ryzen, by hand or the nightly | yes | The *running game* works in a real browser on the reference GPU: it boots, flies, renders without WebGPU validation errors, sounds the right audio cues, and the UI, missions, replay and scoring hold together in a session. |
+| **Deploy Verification** (`deploy.yml`, manual) | GitHub, on request | no | The *release artifact* is sound: `npm run verify`, `npm run build`, the build carries the terrain fallback, rsync, then the live site answers (homepage 200, noindex and no-cache headers, the hashed asset the page names is served, `robots.txt`). It never starts a browser. |
 
-The deploy workflow and Tier 2 answer different questions. Deploy asks "did
+The deploy workflow and E2E answer different questions. Deploy asks "did
 the files we shipped arrive and get served?", and its checks are HTTP
-assertions plus Tier 1. Tier 2 asks "does the game still work?", and no hosted
+assertions plus Deterministic. E2E asks "does the game still work?", and no hosted
 runner can answer that, because WebGPU needs the real GPU. So **a green deploy
-says nothing about Tier 2**, and Tier 2 does not gate a deploy: the nightly
+says nothing about E2E**, and E2E does not gate a deploy: the nightly
 (below) is what tells you a merge broke it.
 
-### What the Tier 2 specs do, conceptually
+### What the E2E specs do, conceptually
 
 - **Drive the real game through diagnostics, not screenshots.** The page
   exposes `window.__ww2` (`src/render/diagnostics.ts`); specs read state
@@ -174,54 +159,9 @@ Other sessions may be rendering on the same GPU. For budget numbers you
 mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
 (`serverconfig/scripts/hwlock`); CLAUDE.md's GPU section says when.
 
-Verified 2026-09-16: whole suite green against that URL, adapter guard
-included, so the desktop really was on its own GPU and really did reach nexus
-directly. This replaced a second, reverse tunnel
-(`ssh -N -R 5173:localhost:5173 ryzen`) that existed only to make nexus's
-loopback dev server visible to the desktop; if the LAN path is ever
-unavailable, that reverse tunnel plus plain `npm run dev` is still the
-fallback, with `PW_BASE_URL` left unset. An isolated worktree on another port
-needs `PW_BASE_URL=http://localhost:5183` and the reverse tunnel, since only
-5173 is routed — unless it uses one of the two dedicated slots below, which
-route the same real-HTTPS way `ww2airsim.windomlane.org` does and need no
-reverse tunnel at all.
 
-**Two more slots exist for running a second and third dev server in
-parallel** — e.g. two worktrees each mid-plan, both needing the reference
-GPU at once. `ww2airsim-3.windomlane.org` routes to port 5174,
-`ww2airsim-2.windomlane.org` to port 5175; both are real A records +
-Traefik routes, wired exactly like the main hostname above (LAN goes
-straight to nexus with a cert, off-LAN goes through the Cloudflare tunnel
-and Access). To use one from a worktree: edit that worktree's own
-`vite.config.ts` — change `TUNNEL_HOST` to the slot's hostname and
-`server.port` to match — then run `WW2AIRSIM_TUNNEL=1 npx vite --port 5174`
-(or `5175`) from the worktree. That edit is local scratch, not something to
-commit: `vite.config.ts` on `main` stays pointed at the primary hostname and
-port 5173, and each worktree that wants a slot points its own uncommitted
-copy at it for as long as it needs the GPU. Whichever worktree is using a
-slot should say so if asked, since only one dev server can bind a given port
-at a time; there's no reservation system beyond that. Both routes are
-persistent, reusable infrastructure, not scoped to whichever plan first
-needed them — see `vps-local/shared/traefik/dynamic/ww2airsim-3-dev.yml`
-and `ww2airsim-2-dev.yml` for the full wiring and history. (The 5174 slot
-was originally named `ww2airsim-wt`, renamed to `ww2airsim-3` 2026-09-24
-to match `ww2airsim-2`'s own generic naming.)
 
-The one thing this cannot do for itself: **the `playwright run-server` it
-connects to must already be running in the Windows console session** (started
-there by hand, `npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe`).
-`--unsafe` is not optional: without it the server silently discards the
-`args` this repo's `playwright.config.ts` sends it, so none of the Chromium
-flags in `CHROMIUM_ARGS` apply on the reference platform (measured 2026-09-18
-by reading `chrome://version` through a server started without it).
-**Or with no console login at all: a server in session 0.** SSH on Windows
-lands in session 0, the non-interactive session services use. Chromium there
-gets the real GPU **only headless and only with `--use-angle=d3d11`**; with
-ANGLE's default backend `requestAdapter()` returns null, which is what the
-2026-09-13 note "Chromium over SSH gets no GPU" actually measured. Headed
-launches fail there (no display). `PW_SESSION0=1` makes `playwright.config.ts`
-send exactly that. From nexus, with ryzen awake (`serverconfig/ryzen.md`,
-"Wake-on-LAN"):
+
 
 ```sh
 # the server, in session 0 (reuse it if 3001 already listens; other sessions may be on it)
@@ -230,32 +170,7 @@ ss -ltn | grep -q 39002 || ssh -f -N -L 39002:127.0.0.1:3001 ryzen
 PW_SESSION0=1 PW_REMOTE=ws://localhost:39002/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
 ```
 
-The server outlives its SSH connection. Stop it by port, and only when
-`Get-NetTCPConnection -LocalPort 3001 -State Established` shows no one else on
-it: `ssh ryzen 'Stop-Process -Id (Get-NetTCPConnection -LocalPort 3001 -State
-Listen).OwningProcess -Force'`. Close the tunnel by its port too, not with
-`pkill -f`, whose pattern matches your own shell: `kill $(ss -ltnpH 'sport =
-:39002' | grep -oP 'pid=\K[0-9]+')`. `C:\Users\markt\projects` holds Playwright
-1.63.0, the same as this repo; keep them matched.
 
-Verified 2026-09-27: the adapter guard passes ("Reference platform: amd
-rdna-2"), zero console errors, and `adapter.spec.ts` + `terrain.spec.ts`
-passed 10 of 11. **Correctness only, for now:** the one failure was the 1440p
-budget, which got 71 GPU samples in its 5 s window where the console session
-gets about 500. Other sessions were probably rendering on the same GPU at the
-time; that has not been separated from a headless/session-0 pacing effect.
-**Open:** re-run `terrain.spec.ts`'s budget test here with the GPU otherwise
-idle (`hwlock ryzen`) and compare with the console session; until then take no
-frame-time number from session 0.
-
-**Session 0 cannot run the pixel specs (measured 2026-09-29/30).** Headless
-`page.screenshot()` of the WebGPU canvas is flat gray there: the nightly's first
-run on main `dcb9a3f` failed 28 specs that read screenshots (`fx`, `hangar`,
-`cloudShadow`, `ordnance`, `sun`: "the world never drew behind the title"), and
-no Chromium flag tried fixed it (`--disable-gpu-compositing`, `--use-gl=angle`,
-`--in-process-gpu`, `--disable-gpu-sandbox`, `CanvasOopRasterization` off,
-GPU rasterization). Adapter, sweep, boot and `terrain.spec.ts` specs are fine
-there. For a run that needs pixels and has no console login, use the RDP route:
 
 **No console login, pixels included: an RDP session as `rdp`** (verified
 2026-09-30: adapter guard plus the three `cloudShadow` pixel specs passed, twice).
@@ -306,7 +221,7 @@ warns about, found while deploying.
 
 `?spawnX=&spawnY=&spawnZ=` moves it, and any of the three turns the ground
 spawn OFF — an override means an airborne airplane at 120 m/s heading east
-with its gear up, which is what Tier 2's terrain and ocean specs want and is
+with its gear up, which is what E2E's terrain and ocean specs want and is
 the opposite of what a take-off test wants (`hasSpawnOverride`). The
 parameters exist in DEV only and `tests/build/dist.test.ts` asserts they are
 absent from a production bundle.
@@ -330,21 +245,21 @@ until 2026-09-29, when T1's 9.45 degree tail-down rest pitch put the parked
 guns about 50 m over the target (plan
 `2026-09-29-gunnery-range-strafing-pass`). The readout at the top of the
 screen counts the rounds down and the hits up; `window.__ww2.combat()` reports
-the same record to Tier 2 (`tests/e2e/gunnery.spec.ts`).
+the same record to E2E (`tests/e2e/gunnery.spec.ts`).
 
-**The test pilot** (`tests/pilot/`) flies that pass, and every Tier 2
+**The test pilot** (`tests/pilot/`) flies that pass, and every E2E
 landing, by keys. `strafePilot.ts` is a pure control law (the harmonized sight
 onto the target, then `approachControls`), and `keys.ts` turns its commands
-into the keys a player would press. Tier 1 flies it through `nextFrameState`
-(`tests/sim/gunneryRangePass.test.ts`); Tier 2 runs the same module in the
+into the keys a player would press. Deterministic test flies it through `nextFrameState`
+(`tests/sim/gunneryRangePass.test.ts`); E2E runs the same module in the
 page every frame (`tests/e2e/pilot.ts`, imported from the dev server) and
 reads the state it needs from `__ww2.playerFlight()`. The pass's numbers and
 what each was measured against are in `tests/pilot/rangePass.ts`. Tune a
-pass in Tier 1, where a flight takes seconds, not in the browser.
+pass in Deterministic test, where a flight takes seconds, not in the browser.
 
 ## Overnight run
 
-Tier 2 is not part of CI, so nothing tells you a merge broke it. A nexus
+E2E is not part of CI, so nothing tells you a merge broke it. A nexus
 systemd user timer does (set up 2026-09-29). It is the only copy of this
 mechanism; the script header has the step order.
 

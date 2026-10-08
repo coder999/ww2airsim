@@ -9,8 +9,9 @@ This file was split out of the master spec
 on 2026-09-24. **It owns these facts now**; the master spec's §8 and §9
 keep their headings, so every existing "master spec §8" reference still
 lands somewhere, and point here. Engineering detail stays in the master
-spec: the schemas under which this content is stored (§9), the plan order
-and what has shipped (§15), and the tests that pin it (§11).
+spec: the schemas under which this content is stored (§9), plan numbering
+and what has shipped (§15), and the tests that pin it (§11). What comes next
+is [MASTER_PLAN.md](MASTER_PLAN.md).
 
 Shipped versus planned is called out where it is known. The authoritative
 status of any plan is the table in master spec §15, not this file.
