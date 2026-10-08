@@ -83,15 +83,19 @@ export function loopEndSeconds(): number {
 
 /** Which engine recording an aircraft uses (spec §5.1). Single-engine radials
  *  keep the original propeller (Mark, 2026-09-29: preferred to the Firefly
- *  radial loops); only families that sound different get their own clip. */
-export type EngineFamily = 'radial' | 'multi_heavy' | 'allison'
+ *  radial loops), except the ~2,000 hp class, which gets the big radial
+ *  (Mark, 2026-10-08); only families that sound different get their own clip. */
+export type EngineFamily = 'radial' | 'radial_big' | 'multi_heavy' | 'allison'
 
 const MULTI_HEAVY_IDS: readonly string[] = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally']
+/** `engine.maxPowerW` of about 1.47 MW and up (2,000 hp); the next single radial down is the D3A at 0.95 MW. */
+const RADIAL_BIG_IDS: readonly string[] = ['f6f-hellcat', 'f4u-corsair', 'ki-84-frank']
 
 /** By aircraft id, not an aircraft-JSON key: the JSON is sourced physics data and the sim must not
  *  know about sound. An id nobody lists is a radial, which is the safe default. */
 export function engineFamilyFor(aircraftId: string): EngineFamily {
   if (aircraftId === 'p-38-lightning') return 'allison'
+  if (RADIAL_BIG_IDS.includes(aircraftId)) return 'radial_big'
   return MULTI_HEAVY_IDS.includes(aircraftId) ? 'multi_heavy' : 'radial'
 }
 

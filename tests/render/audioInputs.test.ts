@@ -180,7 +180,7 @@ it('carries the cumulative bombsDropped/rocketsFired counts, not the falling sto
 it('carries damage, hook, arrest and engine family from the world the sim ran (audio expansion)', () => {
   const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
   const quiet = audioInputsFrom(frame)
-  expect(quiet).toMatchObject({ engineFamily: 'radial', structure: 1, engineHealth: 1, arrested: false, hookDown: false })
+  expect(quiet).toMatchObject({ engineFamily: 'radial_big', structure: 1, engineHealth: 1, arrested: false, hookDown: false })
 
   const rec = frame.world.combat.aircraft[frame.world.player]!
   const player = playerAircraft(frame.world)
@@ -254,7 +254,7 @@ describe('spatialInputsFrom (spatial audio)', () => {
     }
     const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
     expect(out.aircraft.map((a) => a.id)).toEqual(['wing'])
-    expect(out.aircraft[0]).toMatchObject({ shots: 9, family: 'radial' })
+    expect(out.aircraft[0]).toMatchObject({ shots: 9, family: 'radial_big' })
     expect(out.blasts).toEqual([{ tick: 3, surface: 'water', position: v3(1, 2, 3) }])
   })
 })

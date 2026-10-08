@@ -31,7 +31,7 @@ const AMBIENT_GLIDE_TAU_S = 0.3
 /** The engine layer each family drives; `system.update` drives the player's and fades any other
  *  that has been started (an aircraft change on restart). */
 export const ENGINE_LAYER_FOR: Readonly<Record<EngineFamily, string>> = {
-  radial: 'engine', multi_heavy: 'engine_multi_heavy', allison: 'engine_allison',
+  radial: 'engine', radial_big: 'engine_radial_big', multi_heavy: 'engine_multi_heavy', allison: 'engine_allison',
 }
 
 export const LAYERS = {
@@ -41,6 +41,9 @@ export const LAYERS = {
     loopStartS: loopStartSeconds(),
     loopEndS: loopEndSeconds(),
     glideTauS: ENGINE_GLIDE_TAU_S,
+  },
+  engine_radial_big: {
+    clip: 'engine_radial_big', bus: 'engine', loopStartS: seconds(12_241), loopEndS: seconds(359_360), glideTauS: ENGINE_GLIDE_TAU_S,
   },
   engine_multi_heavy: {
     clip: 'engine_multi_heavy', bus: 'engine', loopStartS: seconds(4_929), loopEndS: seconds(361_296), glideTauS: ENGINE_GLIDE_TAU_S,
