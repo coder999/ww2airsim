@@ -23,14 +23,19 @@ const POSES: readonly [string, CameraPreset, PartPose][] = [
 test('control surfaces on the bench (C1 checkpoint)', async ({ page }) => {
   test.setTimeout(300_000)
   mkdirSync(OUT, { recursive: true })
-  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto('/hangar.html?bench')
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
   await page.evaluate(() => (window as HangarWindow).__hangar!.freeze())
-  const ids = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0).map(([id]) => id)
+  // The F4F is drawn by wildcat.ts, not a rig, and has surfaces since C1 batch 2. CAPTURE_IDS narrows the list.
+  const all = [...Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0).map(([id]) => id), 'f4f-wildcat']
+  const ids = process.env.CAPTURE_IDS ? all.filter((id) => process.env.CAPTURE_IDS!.split(',').includes(id)) : all
   for (const id of ids) {
     await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
+    // The details panel takes a column; collapsed, the model gets the width (2026-10-08 layout).
+    const collapse = page.getByRole('button', { name: 'Collapse details' })
+    if (await collapse.isVisible()) await collapse.click()
     for (const [name, preset, p] of POSES) {
       await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), preset)
       await page.evaluate((q) => (window as HangarWindow).__hangar!.pose(q), p)

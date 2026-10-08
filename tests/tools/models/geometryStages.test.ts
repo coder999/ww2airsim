@@ -10,6 +10,7 @@ import { collapseKept } from '../../../tools/models/stages/collapse.js'
 import { pivotNode } from '../../../tools/models/stages/pivot.js'
 import { normalizeDocument, normalizeMatrix } from '../../../tools/models/stages/normalize.js'
 import { addMeshNode, boxesPrimitive, newDocument, worldPositions } from './fixtures.js'
+import { worldTriangles } from './buildingGeometry.js'
 
 const close = (a: readonly number[], b: readonly number[], eps = 1e-4): boolean => a.every((v, i) => Math.abs(v - b[i]!) < eps)
 /** Vertex sets compared order-free: compaction reorders vertices, and only positions matter. */
@@ -52,6 +53,28 @@ describe('splitByBox', () => {
     const cut = splitByBox(doc, { name: 'Belly', select: 'triangles', boxMin: [-1, -1, -1], boxMax: [11, 0.5, 3] })
     expect(nodeTriangles(cut)).toBe(2) // the y = 0 face, whose centroids sit at y = 0
     expect(nodeTriangles(body)).toBe(10)
+  })
+})
+
+describe('splitByBox with a cut (C1 batch 2)', () => {
+  const area = (n: Parameters<typeof worldTriangles>[0]): number => worldTriangles(n).reduce((s, [a, b, c]) => {
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
+    return s + Math.hypot(u[1]! * v[2]! - u[2]! * v[1]!, u[2]! * v[0]! - u[0]! * v[2]!, u[0]! * v[1]! - u[1]! * v[0]!) / 2
+  }, 0)
+
+  it('slices triangles that span the hinge, takes exactly the side behind it, and loses no area', () => {
+    const doc = newDocument()
+    // A 10 x 2 x 2 box whose long faces are each ONE quad end to end (as a download's wing skin is),
+    // under a +100 x translation: no edge lies at x = 107, where the cut is.
+    const body = addMeshNode(doc, 'Wing', [boxesPrimitive(doc, [[[0, 0, 0], [10, 2, 2]]])])
+    body.setTranslation([100, 0, 0])
+    const before = area(body)
+    const flap = splitByBox(doc, { name: 'Flap', select: 'triangles', boxMin: [106, -1, -1], boxMax: [111, 3, 3], pivot: { point: [107, 0, 0] }, cut: { normal: [1, 0, 0] } })
+    // Behind the plane: 3 m of the four long faces (3 x 2 each) plus the 2 x 2 end.
+    expect(area(flap)).toBeCloseTo(4 * 3 * 2 + 4, 9)
+    expect(area(flap) + area(body)).toBeCloseTo(before, 9)
+    expect(worldPositions(flap).every((p) => p[0]! >= 107 - 1e-9)).toBe(true)
+    expect(worldPositions(body).every((p) => p[0]! <= 107 + 1e-9)).toBe(true)
   })
 })
 

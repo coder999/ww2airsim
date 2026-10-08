@@ -1,5 +1,5 @@
 // tools/models/stages/split.ts
-import type { Document, mat4, Node, Primitive } from '@gltf-transform/core'
+import type { Document, mat4, Mesh, Node, Primitive } from '@gltf-transform/core'
 import { compactPrimitive } from '@gltf-transform/functions'
 import { meshNodes, onlyScene, ownMesh } from '../document.js'
 import { applyMatrix, carve, ensureIndices } from './geometry.js'
@@ -9,6 +9,87 @@ export interface SplitRule {
   readonly select: 'components' | 'triangles'
   readonly boxMin: readonly [number, number, number]
   readonly boxMax: readonly [number, number, number]
+  readonly pivot?: { readonly point: readonly [number, number, number] } | undefined
+  readonly cut?: { readonly normal: readonly [number, number, number] } | undefined
+}
+
+/** A plane n . p = d, in the frame the box is in. */
+interface Plane { readonly n: readonly number[]; readonly d: number }
+
+const EPS = 1e-7
+
+/**
+ * Slices every triangle of `prim` that touches the box by `plane`: a triangle with vertices on both
+ * sides becomes three, with new vertices on the crossing edges whose every float attribute is
+ * interpolated (an affine world matrix keeps the edge parameter, so it is found from world positions).
+ * Crossing edges are shared, so the slices stay welded. Mutates `prim`.
+ */
+function slice(prim: Primitive, world: mat4, plane: Plane, min: readonly number[], max: readonly number[]): void {
+  // A clone shares accessors with its source; this one writes its own.
+  for (const sem of prim.listSemantics()) prim.setAttribute(sem, prim.getAttribute(sem)!.clone())
+  prim.setIndices(prim.getIndices()!.clone())
+  const pos = prim.getAttribute('POSITION')!
+  const idx = Array.from(prim.getIndices()!.getArray() as ArrayLike<number>)
+  const attrs = prim.listSemantics().map((s) => prim.getAttribute(s)!)
+  const data = attrs.map((a) => Array.from(a.getArray() as ArrayLike<number>))
+  const sizes = attrs.map((a) => a.getElementSize())
+  const p = (v: number): [number, number, number] => applyMatrix(world, pos.getArray()!, v)
+  const pts: number[][] = Array.from({ length: pos.getCount() }, (_, v) => p(v))
+  const dist = (v: number): number => plane.n[0]! * pts[v]![0]! + plane.n[1]! * pts[v]![1]! + plane.n[2]! * pts[v]![2]! - plane.d
+  const touches = (a: number, b: number, c: number): boolean =>
+    [0, 1, 2].every((k) => Math.max(pts[a]![k]!, pts[b]![k]!, pts[c]![k]!) >= min[k]! - EPS && Math.min(pts[a]![k]!, pts[b]![k]!, pts[c]![k]!) <= max[k]! + EPS)
+  const edges = new Map<string, number>()
+  const cross = (a: number, b: number): number => {
+    const key = a < b ? `${a},${b}` : `${b},${a}`
+    const hit = edges.get(key)
+    if (hit !== undefined) return hit
+    const t = dist(a) / (dist(a) - dist(b))
+    attrs.forEach((_, i) => { for (let k = 0; k < sizes[i]!; k++) data[i]!.push(data[i]![a * sizes[i]! + k]! + t * (data[i]![b * sizes[i]! + k]! - data[i]![a * sizes[i]! + k]!)) })
+    const v = pts.length
+    pts.push([0, 1, 2].map((k) => pts[a]![k]! + t * (pts[b]![k]! - pts[a]![k]!)))
+    edges.set(key, v)
+    return v
+  }
+  const out: number[] = []
+  for (let t = 0; t < idx.length; t += 3) {
+    const tri = [idx[t]!, idx[t + 1]!, idx[t + 2]!]
+    const s = tri.map((v) => { const d = dist(v); return d > EPS ? 1 : d < -EPS ? -1 : 0 })
+    if (!touches(tri[0]!, tri[1]!, tri[2]!) || !(s.includes(1) && s.includes(-1))) { out.push(...tri); continue }
+    // Rotate so the lone vertex (the one whose side no other shares) is first; winding is kept.
+    const lone = [0, 1, 2].find((k) => s[k] !== 0 && s.filter((x) => x === s[k]).length === 1)!
+    const [a, b, c] = [tri[lone]!, tri[(lone + 1) % 3]!, tri[(lone + 2) % 3]!]
+    const sb = s[(lone + 1) % 3]!, sc = s[(lone + 2) % 3]!
+    if (sb === 0) { const m = cross(a, c); out.push(a, b, m, b, c, m) } // b on the plane: one cut, two triangles
+    else if (sc === 0) { const m = cross(a, b); out.push(a, m, c, m, b, c) }
+    else { const ab = cross(a, b), ac = cross(a, c); out.push(a, ab, ac, ab, b, c, ab, c, ac) }
+  }
+  attrs.forEach((a, i) => { const Ctor = (a.getArray() as Float32Array).constructor as Float32ArrayConstructor; a.setArray(new Ctor(data[i]!)) })
+  const Index = out.length > 0 && Math.max(...out) > 65535 ? Uint32Array : (prim.getIndices()!.getArray() as Uint32Array).constructor as Uint32ArrayConstructor
+  prim.getIndices()!.setArray(new Index(out))
+}
+
+/** Whether any vertex of `mesh` lies inside the box: only then is it sliced (and copied). */
+function touchesBox(mesh: Mesh, world: mat4, rule: SplitRule): boolean {
+  return mesh.listPrimitives().some((prim) => {
+    const pos = prim.getAttribute('POSITION')
+    if (!pos) return false
+    for (let v = 0; v < pos.getCount(); v++) if (inside(applyMatrix(world, pos.getArray()!, v), rule.boxMin, rule.boxMax)) return true
+    return false
+  })
+}
+
+/** The box's six faces, inward, and the rule's cut plane, as planes to slice by. */
+function planesOf(rule: SplitRule): Plane[] {
+  const planes: Plane[] = []
+  for (let k = 0; k < 3; k++) {
+    const n = [0, 0, 0]; n[k] = 1
+    planes.push({ n, d: rule.boxMin[k]! }, { n, d: rule.boxMax[k]! })
+  }
+  if (rule.cut) {
+    const n = rule.cut.normal, q = rule.pivot!.point
+    planes.push({ n, d: n[0] * q[0] + n[1] * q[1] + n[2] * q[2] })
+  }
+  return planes
 }
 
 const TRIANGLES = 4
@@ -25,9 +106,11 @@ function selectTriangles(indices: Uint32Array, positions: ArrayLike<number>, wor
   const triCount = indices.length / 3
   const worldPos = (v: number) => applyMatrix(world, positions, v)
   if (rule.select === 'triangles') {
+    const cut = rule.cut ? planesOf(rule).at(-1)! : null
     return Array.from({ length: triCount }, (_, t) => {
       const a = worldPos(indices[3 * t]!), b = worldPos(indices[3 * t + 1]!), c = worldPos(indices[3 * t + 2]!)
-      return inside([(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3], rule.boxMin, rule.boxMax)
+      const m = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]
+      return inside(m, rule.boxMin, rule.boxMax) && (cut === null || cut.n[0]! * m[0]! + cut.n[1]! * m[1]! + cut.n[2]! * m[2]! >= cut.d)
     })
   }
   // Union-find over position keys.
@@ -75,7 +158,17 @@ export function splitByBox(doc: Document, rule: SplitRule): Node {
     const world = node.getWorldMatrix()
     const mesh = node.getMesh()!
     const hits: { prim: Primitive; take: Uint32Array; leave: Uint32Array }[] = []
-    for (const prim of mesh.listPrimitives()) {
+    if (rule.cut && touchesBox(mesh, world, rule)) {
+      // Slice in the node's own mesh copy first, so a shared mesh elsewhere is untouched.
+      const owned = ownMesh(doc, node)!
+      for (const prim of owned.listPrimitives()) {
+        if (prim.getMode() !== TRIANGLES) continue
+        ensureIndices(doc, prim)
+        for (const plane of planesOf(rule)) slice(prim, world, plane, rule.boxMin, rule.boxMax)
+      }
+    }
+    const meshNow = node.getMesh()!
+    for (const prim of meshNow.listPrimitives()) {
       if (prim.getMode() !== TRIANGLES) continue
       const indices = prim.getIndices() ? Uint32Array.from(prim.getIndices()!.getArray() as ArrayLike<number>) : null
       const idx = indices ?? Uint32Array.from({ length: prim.getAttribute('POSITION')!.getCount() }, (_, i) => i)
@@ -88,7 +181,7 @@ export function splitByBox(doc: Document, rule: SplitRule): Node {
     if (hits.length === 0) continue
     const owned = ownMesh(doc, node)!
     const ownedPrims = owned.listPrimitives()
-    const originalPrims = mesh.listPrimitives()
+    const originalPrims = meshNow.listPrimitives()
     for (const hit of hits) {
       const prim = ownedPrims[originalPrims.indexOf(hit.prim)]!
       ensureIndices(doc, prim)

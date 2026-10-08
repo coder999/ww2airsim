@@ -50,11 +50,12 @@ it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
   }
 })
 
-// Pinned (C1 batch 1, 2026-10-08), so a filter that matches nothing fails rather than passing empty.
-// Batches 2-4 add rows here as their models get surfaces.
-it('control surfaces: exactly the batch-1 airframes, each driving roll, pitch, yaw and flaps', () => {
+// Pinned (C1 batches 1 and 2, 2026-10-08), so a filter that matches nothing fails rather than passing
+// empty. Batches 3-4 add rows here as their models get surfaces. The F4F is not a rig (wildcat.ts draws
+// it): tests/render/wildcat.test.ts checks its surfaces the same two ways.
+it('control surfaces: exactly the batch-1 and batch-2 airframes, each driving roll, pitch, yaw and flaps', () => {
   const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
-  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'ki-84-frank', 'p-38-lightning'])
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['b-29-superfortress', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-84-frank', 'p-38-lightning'])
   for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
 })
 

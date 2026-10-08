@@ -73,7 +73,14 @@ it about. A Blender model's control surface is the exception. `kit.py`
 writes its hinge to `<raw>.hinges.json`, oriented so a positive turn raises
 the trailing edge (or swings a rudder's to starboard), and the build pivots
 every `keep` node named there that has no `pivot` of its own. The entry
-lists the node without one, so the hinge has one copy, in the script. Never simplify a propeller (`perNode` ratio 1):
+lists the node without one, so the hinge has one copy, in the script.
+A download's surface is a `split` with a `cut`: a plane through its
+`pivot.point` with the given normal, pointing aft. Triangles the box touches
+are sliced by the box and that plane, and only the slices behind the plane are
+taken. So the surface comes out exactly along its hinge, even where the mesh
+has no edge there, as on the F6F's and F4U's full-chord wing skins. A swept
+hinge takes a unit-vector `pivot.axis`. Measure the hinge from true sections
+of the skin (the C1 batch 2 handoff says how). Never simplify a propeller (`perNode` ratio 1):
 `tests/tools/models/aircraftRigs.test.ts` checks its N-fold symmetry about
 the pivot, and that its vertex centroid lies within 5% of its radius of the
 spin axis. The symmetry check is waived where the source prop cannot pass
