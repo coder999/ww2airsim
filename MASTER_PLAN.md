@@ -78,18 +78,28 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits unique to each plane.
 
 **C1. Control surfaces (M per batch).**
-- **Today:** no airframe animates any surface. The data path already exists and is unread: `AirframeUpdate` carries `flapFraction` and `controls` "for control surfaces where a model has them" (`render/aircraft/airframe.ts:14-19`), and the Hangar bench has a flap slider that drives nothing.
+- **Today:** no airframe animates any surface. The data path already exists and is unread: `AirframeUpdate` carries `flapFraction` and `controls` "for control surfaces where a model has them" (`render/scene/airframe.ts:14-19`), and the Hangar bench has a flap slider that drives nothing.
 - **Geometry:**
-  - The four in-house Blender models (B-29, Ki-21, G4M, P-38) already cut separate surface pieces (`kit.py` `controls=`), but merge them into the parent node.
+  - The five in-house Blender models (B-29, Ki-21, G4M, P-38, Ki-84) already cut separate surface pieces (`kit.py` `controls=`), but merge them into the parent node.
   - The downloaded models (Wildcat, Zero and others) need surfaces split per model, and the Wildcat has no flap geometry at all.
-- **Proposal:**
-  - Extend the rig name pattern (`airframeRigs.ts:37`) with `Aileron[LR]`, `Elevator`, `Rudder`, `Flap[LR]`, with hinge axes in the manifest.
-  - Animate the four Blender models first, then split the downloaded models one at a time through the `docs/aircraft.md` process.
-  - The Hangar bench is the test harness.
+- **Decided (grilling, 2026-10-08):**
+  - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
+  - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.
+  - Deflection limits: one default set (aileron ±20°, elevator ±25°, rudder ±25°, flap 0-45°) in the manifest, overridden per model only where a source gives the real figure.
+  - Every airframe, one plan per batch: (1) the five Blender models; (2) F6F, F4U, F4F, with split flaps modeled for the F4F; (3) A6M2, Ki-43; (4) D3A, B-17.
+  - The rig name pattern (`render/scene/airframeRigs.ts:37`) gains `Aileron[LR]`, `Elevator`, `Rudder`, `Flap[LR]`, with hinge axes in the manifest. The Hangar bench gains roll, pitch and yaw sliders and is the test harness.
+  - Worktree, unattended. Checkpoint: one Hangar look per batch, captures in the handoff.
 
-**C2. Bomb-bay doors (M).**
-- **Today:** no door geometry anywhere. Each bomber's model script leaves it out by name. The policy in `aircraft.md:119-124` is "bay doors get their own plan".
-- **Proposal:** door geometry and a rig on B-17, B-29, G4M and Ki-21, plus a sim-side door state. Release is gated on doors open, and drag rises with doors open. The B-29's two bays are the test case. This pairs with a door-motor sound (Track I).
+**C2. Bomb-bay doors (M, after C1 batch 1).**
+- **Today:** no door geometry anywhere. Each bomber's model script leaves it out by name. The policy in `aircraft.md:339` and `:373` is "bay doors get their own plan".
+- **Decided (grilling, 2026-10-08):**
+  - Bay doors on the B-29 (two bays, the test case), G4M, Ki-21 and B-17, reusing C1 batch 1's hinge machinery. The Avenger (Track D) reuses the mechanism.
+  - A sim-side door state with a per-airframe travel time. The player toggles it with `O`.
+  - Release (`V`) with the doors shut drops nothing and shows "BAY DOORS CLOSED".
+  - Drag: open doors add drag scaled by door fraction. Bay bombs keep their current stores drag.
+  - AI stub: the AI opens the doors inside a fixed range of its target and closes them past it. A sim unit test and a Dev/Hangar check prove it, since no scenario places a bomber yet. E3 builds on it.
+  - Sound in C2: a synthesized door motor plus a lock clunk (`hook_clunk.wav`), the first of I1's mechanicals, which I1 reuses for gear and flaps.
+  - Worktree, unattended. Checkpoint: B-29 doors cycling in the Hangar plus a flown drop, captures in the handoff.
 
 **C3. Per-plane cockpits (L, staged).**
 - **Today:** one shared procedural 3D panel for every airframe, placed per spec's eye point (`panel.ts`). It has an airspeed indicator, altimeter, rate of climb, attitude ball, heading tape, throttle, fuel, gear and flap lights, radar scope and reflector sight. Per-plane cockpits are deferred by Mark's ruling D12 (2026-09-28).
@@ -205,7 +215,7 @@ one plan for the lot.
 - **Quick win:** `engine_radial_small` and `engine_radial_big` are on disk and unwired. The code has 3 engine families, not the spec's 4, and picks by aircraft id rather than the spec's `engineSound` key (`audio/layers.ts:33-35`).
 - **I1, synthesized mechanicals:**
   - wind;
-  - gear and flap motors, plus lock clunk (pair with C1, and with C2's door motors);
+  - gear and flap motors, plus lock clunk (C1 pairs; reuse C2's synthesized door motor);
   - wheel rumble;
   - stall buffet and buzz;
   - overspeed creak;
