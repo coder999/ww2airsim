@@ -108,6 +108,8 @@ per kind of fact; point at it, never copy it.
 
 ## Conventions
 
+- **Before writing or changing a test, read `docs/testing.md`, "Philosophy"**
+  (enroll, don't clone; a test is a correctness test or a budget test, never both).
 - **US spelling** in  prose and identifiers. Existing `centre`-style (e.g. UK english)
   identifiers and content JSON keys are a migration — ask before renaming.
 - A plan's own numbers are claims: run its arithmetic against the repo before
