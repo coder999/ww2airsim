@@ -422,6 +422,32 @@ test('the canvas and the panel fit the window: nothing renders off-screen', asyn
   expect(r.sheetBottom, 'sheet bottom edge (the list scrolls inside it)').toBeLessThanOrEqual(r.h)
 })
 
+test('the details panel appears on the right once something is picked, and collapses to give the model the width', async ({ page }) => {
+  await openHangar(page)
+  const details = page.getByRole('region', { name: 'Details' })
+  await expect(details).toBeHidden()
+  await expect(page.getByText('Pick an item')).toBeVisible()
+  await page.getByRole('list', { name: 'Objects' }).getByRole('button').first().click()
+  await expect(details).toBeVisible()
+  await expect(page.getByText('Pick an item')).toHaveCount(0)
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+  const edges = () => page.evaluate(() => {
+    const box = (s: string) => document.querySelector(s)!.getBoundingClientRect()
+    return { canvas: box('#hangar-canvas'), details: box('.hangar-detail'), list: box('.hangar-panel'), w: innerWidth, h: innerHeight }
+  })
+  const open = await edges()
+  // Left list, model, details: three columns side by side, nothing off-screen.
+  expect(open.list.right).toBeLessThanOrEqual(open.canvas.left + 1)
+  expect(open.canvas.right).toBeLessThanOrEqual(open.details.left + 1)
+  expect(open.details.right).toBeLessThanOrEqual(open.w)
+  expect(open.details.bottom).toBeLessThanOrEqual(open.h)
+  await details.getByRole('button', { name: 'Collapse details' }).click()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeHidden()
+  await expect.poll(async () => (await edges()).canvas.width).toBeGreaterThan(open.canvas.width + 200)
+  await details.getByRole('button', { name: 'Expand details' }).click()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+})
+
 test("the title's Hangar button opens the hangar", async ({ page }) => {
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
@@ -435,6 +461,8 @@ test('dragging to orbit stops the turntable, and its checkbox says so (H2 review
   await page.goto('/hangar.html?bench')
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
+  // Nothing is picked on load, so there is no bench until a pick (2026-10-08).
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('f4f-wildcat'))
   const box = page.getByRole('checkbox', { name: 'Turntable' })
   await expect(box).toBeChecked()
   const c = (await page.locator('#hangar-canvas').boundingBox())!

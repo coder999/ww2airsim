@@ -11,6 +11,9 @@ export interface HangarPanel {
   showCard(entry: CatalogEntry, figures: readonly Figure[], modelSize: { x: number; y: number; z: number } | null, source: ModelProvenance | 'code' | null): void
   /** The element the bench (bench.ts) mounts into, under the card. */
   readonly benchSlot: HTMLElement
+  /** The right-hand panel holding the card and the bench: hidden until the first pick, then
+   *  collapsible to a thin strip. main.ts places it after the canvas in the grid. */
+  readonly detail: HTMLElement
 }
 
 const KIND_LABEL: Readonly<Record<string, string>> = { all: 'All', aircraft: 'Aircraft', ship: 'Ships', building: 'Buildings', vehicle: 'Vehicles', ordnance: 'Ordnance' }
@@ -25,15 +28,16 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 }
 
 /**
- * The list, its three filters and the info card (Hangar spec §2), in the
- * Naval Communications style the title screen uses. `onSelect` is called with
+ * The list and its three filters on the left, and the info card with the bench in a matching panel
+ * on the right that appears once something is picked (Hangar spec §2; split left/right by Mark,
+ * 2026-10-08), in the Naval Communications style the title screen uses. `onSelect` is called with
  * a library id; main.ts loads the model and calls `showCard`.
  */
 export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[], onSelect: (id: string) => void): HangarPanel {
   ensureStampFilter()
   const panel = el('div', 'naval-comms hangar-panel')
   panel.setAttribute('role', 'region')
-  panel.setAttribute('aria-label', 'Library')
+  panel.setAttribute('aria-label', 'Hangar')
   // The panel fills its grid cell and the sheet scrolls inside it, rather
   // than the page growing to the list's height.
   panel.style.cssText = 'min-height:0;overflow:hidden;padding:16px'
@@ -42,7 +46,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   panel.appendChild(sheet)
 
   const header = el('div', 'letterhead')
-  header.append(el('div', 'letterhead-kicker', 'Bureau of Aeronautics'), el('div', 'letterhead-title', 'Library'))
+  header.append(el('div', 'letterhead-kicker', 'Bureau of Aeronautics'), el('div', 'letterhead-title', 'Hangar'))
   const back = el('a', 'ink-button', 'Back to title')
   back.href = import.meta.env.BASE_URL
   sheet.append(header, back)
@@ -69,10 +73,35 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   const list = el('ul')
   list.setAttribute('aria-label', 'Objects')
   list.style.cssText = 'list-style:none;margin:0;padding:0'
+  sheet.append(filters, list)
+  root.appendChild(panel)
+
+  const detail = el('div', 'naval-comms hangar-detail')
+  detail.setAttribute('role', 'region')
+  detail.setAttribute('aria-label', 'Details')
+  detail.style.cssText = 'grid-area:1/3;min-height:0;overflow:hidden;padding:16px;display:none'
+  const detailSheet = el('div', 'sheet')
+  detailSheet.style.cssText = sheet.style.cssText
+  const toggle = el('button', 'ink-button')
+  toggle.type = 'button'
+  // Paper-backed: it sits on the dark page, outside the sheet, where ink alone barely shows.
+  toggle.style.cssText = 'align-self:flex-end;padding:4px 12px;font-size:16px;background:var(--paper);border-color:var(--paper-edge)'
   const card = el('div', 'hangar-card')
   const benchSlot = el('div', 'hangar-bench')
-  sheet.append(filters, list, card, benchSlot)
-  root.appendChild(panel)
+  detailSheet.append(card, benchSlot)
+  detail.append(toggle, detailSheet)
+  let collapsed = false
+  const layout = (): void => {
+    // Collapsed, the panel is a strip holding only its toggle, and the model gets the width.
+    detail.style.width = collapsed ? 'auto' : '380px'
+    detail.style.gap = collapsed ? '0' : '8px'
+    detailSheet.style.display = collapsed ? 'none' : ''
+    toggle.textContent = collapsed ? '‹' : '›'
+    toggle.setAttribute('aria-label', collapsed ? 'Expand details' : 'Collapse details')
+    toggle.setAttribute('aria-expanded', String(!collapsed))
+  }
+  toggle.addEventListener('click', () => { collapsed = !collapsed; layout() })
+  layout()
 
   function renderList(): void {
     list.replaceChildren(...filterCatalog(catalog, filter).map((e) => {
@@ -89,7 +118,9 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
 
   return {
     benchSlot,
+    detail,
     showCard(entry, figures, modelSize, source): void {
+      detail.style.display = ''
       const l = entry.library
       const rows: HTMLElement[] = [
         el('div', 'form-section-title', l.name),
