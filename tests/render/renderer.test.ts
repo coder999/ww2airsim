@@ -1,8 +1,19 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeGpuError, requiredDeviceLimits } from '../../src/render/renderer.js'
+import { normalizeGpuError, renderScaleFromQuery, requiredDeviceLimits } from '../../src/render/renderer.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
+
+describe('renderScaleFromQuery', () => {
+  it('reads 1 when absent or garbage, and clamps to [0.25, 1]', () => {
+    expect(renderScaleFromQuery('')).toBe(1)
+    expect(renderScaleFromQuery('?renderScale=')).toBe(1)
+    expect(renderScaleFromQuery('?renderScale=abc')).toBe(1)
+    expect(renderScaleFromQuery('?renderScale=2')).toBe(1)
+    expect(renderScaleFromQuery('?renderScale=0.1')).toBe(0.25)
+    expect(renderScaleFromQuery('?x=1&renderScale=0.667')).toBe(0.667)
+  })
+})
 
 describe('normalizeGpuError', () => {
   // @types/three declares Renderer.onError as (errorMessage: string) => void,

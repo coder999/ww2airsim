@@ -1,6 +1,6 @@
 import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
 import { positionWorld } from 'three/tsl'
-import { initRenderer, normalizeGpuError } from './renderer.js'
+import { initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { entityViews } from './mission/entityViews.js'
@@ -773,7 +773,8 @@ async function boot(): Promise<void> {
   // Timestamp queries also support one automatic ocean quality decision.
   // The external diagnostics hook remains development-only.
   boot.begin('renderer')
-  const { renderer, adapterVerdict } = await initRenderer(canvas, true)
+  const renderScale = import.meta.env.DEV ? renderScaleFromQuery(location.search) : 1
+  const { renderer, adapterVerdict } = await initRenderer(canvas, true, renderScale)
   boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
