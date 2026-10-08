@@ -24,13 +24,9 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 Mark's items: the loading bar UI; choosing time of day with a suggestion;
 render quality with auto-detect.
 
-**A1. Loading screen (S).**
-- **Today:** the boot strip is appended inside the roster memo, between the pilot table and "Enlist New Pilot" (`titleScreen.ts:567-584` vs `:1006-1051`). The design (§A.2) said the foot of the overlay. The title art (`content/art/title.png`) is the overlay's own background, and the opaque roster sheet sits on it from frame one, so the art is never seen (`titleScreen.ts:508-510`).
-- **Proposal:** a boot state that shows the art alone, with the progress bar at the foot of the overlay. The roster sheet slides in once the boot is `ready` (about 2.9 s cold, 2026-09-26 handoff). Terrain keeps streaming afterwards, as now.
+**A1. Loading screen (S). Done 2026-10-08** (`ca97a522`): the art shows alone with the strip at its foot; the memos slide in on ready. Handoff `docs/handoff/2026-10-08-order-1.md`.
 
-**A2. Scenario switch reloads sky and time (S, prerequisite for A3).**
-- **Today:** `loadScenario` leaves sky and terrain alone, so every title launch flies the boot scenario's 10:00 sun and clouds, whatever the briefing says (`clouds.md` #10).
-- **Proposal:** fix this before adding a picker, or the picker will appear to do nothing.
+**A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
 **A3. Time-of-day picker (S-M).**
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
@@ -227,7 +223,7 @@ one plan for the lot.
 ### Track I: Sound (M, two plans)
 
 - **Today:** 16 sounds wired out of about 44 designed.
-- **Quick win:** `engine_radial_small` and `engine_radial_big` are on disk and unwired. The code has 3 engine families, not the spec's 4, and picks by aircraft id rather than the spec's `engineSound` key (`audio/layers.ts:33-35`).
+- **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals:**
   - wind;
   - gear and flap motors, plus lock clunk (C1 pairs; reuse C2's synthesized door motor);
@@ -241,16 +237,9 @@ one plan for the lot.
   - `docs/audio/firefly-prompt-sheet.md` (16 Paddles lines today) becomes a manifest, and an ingest script checks name, format and length, measures peaks, writes the `src/audio/assets.ts` entries and the `NOTICE.md`/`ASSETS.md` lines, and reports what is still missing.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
-### Track J: Google Analytics (S)
+### Track J: Google Analytics (S). Done 2026-10-08
 
-- **Today:**
-  - No analytics anywhere.
-  - The game is a static Vite build served by nginx on the VPS.
-  - There is no CSP header that would block it.
-  - The site is `noindex` with `robots.txt` `Disallow: /`.
-  - There is no privacy text.
-- **Proposal:** provision through the `google-analytics` skill: a GA4 property, then the tag in `index.html`. Add custom events for the things worth knowing: sortie launched (mission, aircraft), mission outcome, the quality tier chosen and auto-detected (useful data for A4), and boot time. Add a privacy line to the About memo.
-- **Decided (§4 Q8):** production hosts only (DEV and `windomlane` excluded); one privacy line in the About memo, no consent banner.
+`0fe24aab`: GA4 property 558194335 (`G-3VE6LD7RCS`). The tag is in the production build only and loads only on `ww2airsim.com` and `ww2airsim.marktuttle.dev`. The events are `sortie_launched`, `mission_outcome`, `quality_tier` (detected against chosen, for A4) and `boot_ready`. There is a privacy line in the About memo. It is live only after Mark's next deploy. Handoff `docs/handoff/2026-10-08-order-1.md`.
 
 ---
 
@@ -262,7 +251,7 @@ prerequisites are met.
 
 | Order | Work | Why here |
 | --- | --- | --- |
-| 1 | A1; A2; I quick win (radial engines); J | Days of work, all visible, no dependencies. Track 0 is done |
+| 1 | ~~A1; A2; I quick win (radial engines); J~~ done 2026-10-08 | Days of work, all visible, no dependencies. Track 0 is done |
 | 2 | A3, A4; B1 | Fixes what every player sees first; A4 closes the trees incident |
 | 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
