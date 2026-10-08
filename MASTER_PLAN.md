@@ -44,6 +44,10 @@ render quality with auto-detect.
   - Show the recommendation on a quality step in the launch flow, with an override.
 - This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
 
+**A5. Render scale in Settings (S, after H0 and A4).**
+- **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
+- **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
+
 ### Track B: Guidance, autopilot and tutorial
 
 Mark's items: guide mode (an arrow to the objective; a bomb impact marker); improved autopilot; a tutorial. Terms per `CONTEXT.md`: the arrow is the **Steering cue** (always on), the marker an **Assist** (off by default, behind the Assists toggle; §4 Q2).
@@ -177,7 +181,17 @@ H1-H3: those names already mean the Hangar plans.)
 
 **H0. Win back budget first (M).**
 - **Today:** the 2026-10-03 E2E run had 13 frame-time reds. Since correctness specs stopped asserting frame time (2026-10-08), 7 of them are budget misses: six `budget4k` views and `motionBudget` (projected; the next nightly confirms). The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
-- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so Tracks K and L have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and its entry here.
+- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that buys headroom first and re-baselines what is left with Mark's ruling, so Tracks K and L have a budget to spend.
+- **Decided (grilling, 2026-10-08):**
+  - **The gate moves to 1440p.** High gpu p95 ≤ 16.67 ms, Medium ≤ 8.33 ms, both at 2560×1440. The in-cloud view loses its carve-out and meets the same bar. 4K p95 is still recorded as an annotation, never asserted.
+  - **Margin target:** every High view at ≤ 15.0 ms (about 10%) when H0 ends.
+  - **Optimize until wins dry up:** stop after two levers in a row each buy < 0.3 ms p95 on the worst view.
+  - **Levers:** a lever whose frozen-scene capture matches the baseline lands as is. A visible one lands behind a URL param, default off, with a before/after pair, and Mark rules on flipping it.
+  - **Leftover reds stay red.** The handoff gives each one its measured p95 and a proposed limit, so the ruling is a one-line change.
+  - **`motionBudget`** is re-measured at 1440p on the final build, with the same no-MRT reference method.
+  - **`?renderScale=`** DEV param (render at a fraction of window size), so Mark can compare 4K and 1440p live. The player-facing setting is A5.
+  - **Photoreal Task 14** is H0's last step: tripwires re-derived from H0's final numbers, the probe check in Mark's Chrome, the handoff and its entry here.
+  - **How it runs:** in a worktree, unattended. Viewing checkpoints: the re-baseline ruling and the final result, both collected in the handoff.
 
 ### Track K: Clouds (size L)
 
@@ -250,7 +264,7 @@ prerequisites are met.
 | 1 | A1; A2; I quick win (radial engines); J | Days of work, all visible, no dependencies. Track 0 is done |
 | 2 | A3, A4; B1 | Fixes what every player sees first; A4 closes the trees incident |
 | 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
-| 4 | B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
+| 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | F missions that are now unblocked (Single Combat, Scramble); L1 terrain allocation then trees; K in-cloud pacing | |
 | 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
 | 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore | |

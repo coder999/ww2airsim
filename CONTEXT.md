@@ -32,3 +32,13 @@ _Avoid_: moving part, control (alone)
 **Bay doors**:
 The doors over an internal bomb bay, opened and closed by the player (or the AI near its target). Bombs cannot be released while they are shut, and open doors add drag.
 _Avoid_: bomb doors, bay (alone)
+
+## Rendering
+
+**Frame budget**:
+The GPU frame time a quality tier promises at the gate resolution (1440p): High holds 60 Hz, Medium half of High's time. Tracks spend margin under it; they never raise it without Mark's ruling.
+_Avoid_: perf budget, frame time (alone)
+
+**Render scale**:
+The fraction of the window's pixel size the scene is drawn at, independent of quality tier.
+_Avoid_: resolution, DPR
