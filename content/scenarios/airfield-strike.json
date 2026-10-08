@@ -76,7 +76,7 @@
       },
       "then": [
         {
-          "message": "Tacloban tower: cleared for takeoff. Dulag strip is thirty kilometers south."
+          "message": "Tacloban tower: cleared for takeoff. Dulag strip is nineteen miles south."
         }
       ]
     },
@@ -162,7 +162,7 @@
     "name": "Airfield Strike"
   },
   "briefing": {
-    "situation": "Take off from Tacloban and strike the Japanese strip at Dulag, thirty kilometers down the coast. Destroy its hangars; its two AA batteries are a bonus. Expect fighters to scramble when you arrive. Recover at Tacloban — Dulag is enemy ground.",
+    "situation": "Take off from Tacloban and strike the Japanese strip at Dulag, nineteen miles down the coast. Destroy its hangars; its two AA batteries are a bonus. Expect fighters to scramble when you arrive. Recover at Tacloban — Dulag is enemy ground.",
     "loadout": "both"
   },
   "history": {
