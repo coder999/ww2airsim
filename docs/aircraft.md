@@ -357,7 +357,8 @@ Detail: [`docs/handoff/2026-09-29-f4u-corsair.md`](handoff/2026-09-29-f4u-corsai
 - On nexus, Tier 2 needs `sg render -c '...'`; without it Chromium falls to
   SwiftShader and every test fails at the software-rasterizer page.
 - No browser spec flies a carrier approach for any airplane. Cover the trap at the sim
-  level (`tests/sim/trapCorsair.test.ts` is the template).
+  level: `tests/sim/trap.test.ts` enrolls every `carrierCapable` airframe from content
+  (since 2026-10-08), so there is nothing to clone; add the id to its pinned list.
 
 ## Lessons from the second run (B-17G, 2026-09-29)
 
@@ -472,8 +473,8 @@ Detail: [`docs/handoff/2026-09-30-d3a-onboard.md`](handoff/2026-09-30-d3a-onboar
   `an-m65` on one rack (+23%); the two wing bombs are dropped rather than faked with a 7.6x heavier bomb.
 - **Sea-level power fractions carry the rating the speed sheet uses.** The TAIC speeds are military power, so the curve is 1,075/1,280 = 0.84 at
   sea level, and the take-off roll then reads long (+56%); it is reported, not fitted.
-- **Carrier capability is cheap to try**: set `carrierCapable: true`, run `carrierTakeoff.test.ts` (auto-discovers) and clone
-  `trapCorsair.test.ts` as `trapVal.test.ts`. The Dev carrier-start pins in `sortieFlow.test.ts` and `catalog.test.ts` gain the id.
+- **Carrier capability is cheap to try**: set `carrierCapable: true`, run `carrierTakeoff.test.ts` and `trap.test.ts` (both
+  auto-discover; `trap.test.ts` pins the list, so add the id there). The Dev carrier-start pins in `sortieFlow.test.ts` and `catalog.test.ts` gain the id.
 - **Spec name and card name must match; put the short roster name in `rosterName`** (the Val: "Aichi D3A2 Model 22 Val" / "Aichi D3A Val").
 - **Combat zones must stay inside the propeller-excluded bounds** (`combatFit.test.ts`); the engine zone's first guess overshot the cowl by 6 mm.
 ## Lessons from the seventh run (Ki-84-Ia Frank, 2026-09-30)

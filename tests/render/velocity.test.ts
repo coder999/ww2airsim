@@ -15,7 +15,6 @@ function ndcMotion(rel: Vector3): { x: number; y: number } {
 
 describe('depth-reconstructed camera motion (Cloud Fidelity II §3.1)', () => {
   it('reconstructs one sixteenth as many pixels as the 4K resolve', () => {
-    expect(CAMERA_MOTION_RESOLUTION_SCALE).toBe(0.25)
     expect(CAMERA_MOTION_RESOLUTION_SCALE ** 2).toBe(1 / 16)
   })
 

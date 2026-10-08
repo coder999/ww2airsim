@@ -261,7 +261,6 @@ describe('airborne spawns start at cruise throttle (2026-09-25)', () => {
   }
 
   it('gives every airborne aircraft AIRBORNE_SPAWN_THROTTLE unless the scenario says otherwise', () => {
-    expect(AIRBORNE_SPAWN_THROTTLE).toBe(0.7)
     const world = worldFromScenario(shipped, null)
     for (const a of world.aircraft) expect(a.controls.throttle, a.id).toBe(AIRBORNE_SPAWN_THROTTLE)
     // Parked airplanes are untouched: nobody leaves an engine at cruise on

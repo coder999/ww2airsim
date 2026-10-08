@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
+import { percentile, waitForTerrain, type DiagWindow, recordFrameTime } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { radarBrightness } from '../../src/render/radar.js'
 import { TRAIL_DIM } from '../../src/render/scene/radarScope.js'
@@ -29,7 +29,7 @@ test.setTimeout(120_000)
 
 const radar = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.radar()!)
 
-test('the scope shows the contact where the math predicts, Tab cycles range, sweep freezes on pause, budget held', async ({ page }) => {
+test('the scope shows the contact where the math predicts, Tab cycles range, sweep freezes on pause', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(RANGE)
   await waitForTerrain(page)
@@ -165,5 +165,5 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`radar scope: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
-  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
+  recordFrameTime(p95)
 })

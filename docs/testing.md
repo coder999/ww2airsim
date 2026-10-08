@@ -1,7 +1,77 @@
-# Testing: Tier 2, the GPU harness
+# Testing
 
-Moved from the README on 2026-09-29. Tier 1 is `npm run verify` (see the
-README's "Getting started"); this file is the reference for Tier 2.
+How tests are written here (Philosophy), what each layer is for, and the
+reference for Tier 2, the GPU harness. Tier 1 is `npm run verify` (see the
+README's "Getting started"). The Tier 2 material moved from the README on
+2026-09-29.
+
+## Philosophy
+
+Written 2026-10-08, after an audit of the whole suite. The suite was 4,549
+unit cases and 229 Tier 2 cases, and its code is longer than the game's.
+That size is deliberate. It is not something to trim for its own sake.
+
+**Why the suite is this big.** Several agents commit to this repo at once,
+often in parallel worktrees. None of them sees the others' work in progress.
+A test is the contract that stops one agent's change from silently breaking a
+feature another agent built, so most tests here protect *someone else's*
+feature. Mark's viewing is a checkpoint, never a gate (CLAUDE.md, "How Mark
+works"). Only the automated tiers decide pass or fail.
+
+### What deserves a test, in order of value
+
+1. **Behavior against an outside truth.** Examples:
+   - The graded flight cards against historical trial data (`tests/sim/testcards/graded.test.ts`).
+   - The GPU ocean against its CPU reference (`ocean.spec.ts`).
+   - The golden trajectory, with a tolerance sized from measured drift.
+2. **Invariants:**
+   - determinism;
+   - no energy gain;
+   - the `sim/` boundary (`tests/architecture/boundary.test.ts`);
+   - the soak.
+3. **Seams other agents touch:** content schemas, enrollment lists, and the `__ww2` diagnostics shared with Tier 2.
+4. **Wiring:** that a feature actually reaches the running game. In Tier 2 this means reading `__ww2` state, not comparing pictures (below).
+
+### Rules
+
+- **Enroll, don't clone.** Coverage of every airframe, ship or scenario comes from one table-driven test that reads `content/`. A new airframe should be covered without a new test file. Examples: `graded.test.ts`, `trap.test.ts`, `carrierTakeoff.test.ts`, `flyableAll.spec.ts`.
+  - Pin the enrolled list in the same test, so a filter that matches nothing fails instead of passing empty.
+  - `trapCorsair.test.ts` and `trapVal.test.ts` were clones of `trap.test.ts` differing in two numbers. They were merged on 2026-10-08, which also covered the Zero and Wildcat for the first time.
+- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in the dedicated budget specs:
+  - `budget4k.spec.ts` (the gate: Mark's 60 Hz decision, every view and tier);
+  - `fx-budget.spec.ts` (on/off deltas);
+  - `motionBudget.spec.ts`;
+  - `terrainTextures.spec.ts`;
+  - the "frame-time budget" tests in `terrain.spec.ts` and `strike.spec.ts`.
+
+  Any other spec may measure, but it records the number with `recordFrameTime` (`tests/e2e/harness.ts`) and does not assert it. Until 2026-10-08, sixteen correctness specs also asserted a 1440p tripwire. A slow frame turned furball, takeoff and recovery red for reasons that had nothing to do with AI.
+  - Budget test titles match `budget|p95|tripwire|frame time|Hz`. That is how the nightly tells budget misses apart (Overnight run, below), so keep those words out of other titles.
+- **Assert behavior, not constants.** A bare `expect(SOME_CONST).toBe(0.25)` fails on every intentional tweak and protects nothing. Prefer:
+  - a relationship: `MAP_TEXEL_M === MAP_SIDE_M / MAP_TEXELS`;
+  - or the behavior the constant produces: `detailNormalFade(2000) === 0`.
+
+  Pin a number only when it is a ruling or a tuning with a cost if changed, and say so where it is pinned. For example, `cloudField.test.ts` "keeps the constants the dome was tuned with", and `DEFAULT_ASSIST_SETTINGS`, where a revert has to fail both.
+- **A test must be able to fail.** Before trusting a green, see it go red once against the fault it exists for: the stimulus actually happens and the detector actually reads it. Guard against vacuous passes, such as a sample count that is zero or a loop over an empty list. That is why so many specs assert `gpu.length > 120`.
+- **Tolerances come from measurement and only tighten.** Re-measure, date the number, and say where it came from. Never widen a tolerance to whatever passes.
+- **Every skip has a reason the code can check.** `skipIf(terrain === null)` or `skipIf(!HAVE_BLENDER)` are fine: the data or tool is absent, and the skip names it. An unconditional skip is either:
+  - waiting on a named ruling from Mark (say which, and in which handoff); or
+  - a known gap, which belongs in "Known gaps" below, not in the suite as a skipped test.
+- **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable.
+- **Delete a test with its code.** Unwired code and its tests go together, because git remembers. The 13c coast tools were deleted with their tests on 2026-10-08.
+- **Grepping source is a last resort.** A few tests assert that `main.ts` contains a call (for example `bootQuality.test.ts`) because the wiring has no seam to call. They break on renames. The fix is to extract that wiring into a function a test can call, not to add more greps.
+- **Keep files cheap.**
+  - Compare large buffers with `Buffer.from(a).equals(Buffer.from(b))`, not `toEqual`. `toEqual`'s per-element diff spent about 110 s in `gunzip.test.ts` on its cloud volumes.
+  - Full suites go through `remote-run`. On nexus, run only the files you touch (CLAUDE.md).
+- **Comments say why, with a date.** Long rationale in a test is fine here: it is what the next agent reads before "fixing" it.
+
+### Known gaps
+
+Things nothing automated covers, recorded here rather than as skipped tests:
+
+- **A first-time visitor's audio context.** Nothing automated proves it starts suspended and resumes on the first gesture.
+  - On the reference desktop the context is already `running` at boot. The likely cause, unverified, is Chrome's Media Engagement Index for an origin Mark flies on often. So the assertion would pass on a fresh profile and fail on the runner.
+  - `void audio.resume()` in `main.ts`'s keydown listener is exercised by `audio.spec.ts`. That it runs before the first sound is wanted has to be checked by hand, once, in a fresh profile. Measured 2026-09-18.
+- **An escort wingman pursuing an attacker on its leader.** `tests/sim/ai/formationCover.test.ts` keeps this as an `it.skip`, waiting on Mark's ruling (7f handoff §4.2): an escort out-energized by its attacker never chooses Pursue.
 
 
 ## The layers, and what each one is for
@@ -47,10 +117,11 @@ says nothing about Tier 2**, and Tier 2 does not gate a deploy: the nightly
   `cloudShadow`, `sun` and `ordnance` read the rendered canvas for a specific
   thing (a flash appears, a shadow is where it should be). They need a real
   desktop session, which is why the nightly uses the RDP route below.
-- **Budget specs** (titles matching `budget|p95|tripwire|frame time|Hz`,
-  e.g. `budget4k`, `fx-budget`, `motionBudget`) measure frame time. They are
-  the only tests whose numbers depend on the machine, and the nightly counts
-  them as failures like any other (see Verdict below). To run everything else:
+- **Budget specs** (titles matching `budget|p95|tripwire|frame time|Hz`;
+  the list is in Philosophy, above) measure frame time. They are the only
+  tests whose numbers depend on the machine, and the nightly counts them as
+  failures like any other (see Verdict below). Other specs record a
+  `frame-time` annotation in the report instead of asserting. To run everything else:
   `--grep-invert '/budget|p95|tripwire|frame time|\bHz\b/i'`. Last full
   non-budget run, 2026-09-30 from main a2e3e4f: 181 passed, 0 failed, 2 skipped.
 

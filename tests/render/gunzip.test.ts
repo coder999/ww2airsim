@@ -35,24 +35,25 @@ const rawServer: typeof fetch = async (input) => {
   return new Response(readFileSync(path), { status: 200 })
 }
 
+/** Byte equality without toEqual's per-element diff, which spent about 110 s on
+ *  these multi-megabyte volumes (measured 2026-10-08) to say the same thing. */
+const sameBytes = (a: Uint8Array, b: Uint8Array): boolean => Buffer.from(a).equals(Buffer.from(b))
+
 describe('inflateIfGzipped (2026-09-19)', () => {
   it('inflates gzip bytes and passes anything else through untouched', async () => {
     const raw = readFileSync(shapePath())
-    expect(await inflateIfGzipped(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength))).toEqual(loadShape())
+    expect(sameBytes(await inflateIfGzipped(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)), loadShape())).toBe(true)
     const plain = new Uint8Array([190, 187, 1, 2, 3])
     expect(await inflateIfGzipped(plain.buffer)).toEqual(plain)
   }, 120_000)
   it('loads the sky noise and the land cover from BOTH kinds of server', async () => {
     const viaInflating = await loadSkyNoise(inflatingServer)
     const viaRaw = await loadSkyNoise(rawServer)
-    expect(viaInflating.shape).toEqual(viaRaw.shape)
-    expect(viaInflating.detail).toEqual(viaRaw.detail)
-    expect(viaInflating.curl).toEqual(viaRaw.curl)
-    expect(viaInflating.weather).toEqual(viaRaw.weather)
-    // 1.6 MB: a byte compare, not toEqual's per-element diff (which timed out).
-    expect(Buffer.from(viaInflating.cumulus).equals(Buffer.from(viaRaw.cumulus))).toBe(true)
+    for (const volume of ['shape', 'detail', 'curl', 'weather', 'cumulus'] as const) {
+      expect(sameBytes(viaInflating[volume], viaRaw[volume]), volume).toBe(true)
+    }
     // The dev server has inflated the land cover before every session since
     // 2026-09-18, and the old loader failed on it with a console warning.
-    expect(await loadCover(inflatingServer)).toEqual(await loadCover(rawServer))
+    expect(sameBytes(await loadCover(inflatingServer), await loadCover(rawServer))).toBe(true)
   }, 120_000)
 })

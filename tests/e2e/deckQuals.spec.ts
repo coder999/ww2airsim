@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, waitForTerrain, type DiagWindow } from './harness.js'
+import { recordFrameTime, debriefDialog, percentile, waitForTerrain, type DiagWindow } from './harness.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
@@ -59,8 +59,8 @@ test('deck quals: the player is parked on the moving deck and sails with the car
 // Renamed 2026-09-19 (Plan 8 review, item 4): this used to say "with the trap
 // zone and cue in view", which the screenshots it takes do not show -- the
 // chase camera looks FORWARD, so the carrier is behind the airplane by the
-// time this asserts. What it measures is the climb-out and the frame budget.
-test('deck quals: a full-throttle deck run gets airborne off the bow and climbs out over the water inside the frame budget', async ({ page }) => {
+// time this asserts. What it measures is the climb-out.
+test('deck quals: a full-throttle deck run gets airborne off the bow and climbs out over the water', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(URL)
   await waitForTerrain(page)
@@ -101,11 +101,7 @@ test('deck quals: a full-throttle deck run gets airborne off the bow and climbs 
   expect(after.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(after.gpu, 0.95)
   console.log(`deck quals gpu p95 ${p95.toFixed(3)} ms over ${after.gpu.length} samples`)
-  // A 1440p tripwire; budget4k.spec.ts is the gate. The 8.33 ms rule
-  // cloudShadow.spec.ts's deck run got on 2026-09-26, missed here: measured
-  // 8.21 ms after the cloud VDB and S1 merges, with 4K deckquals passing
-  // (High 13.41 / 16.67, Medium 7.79 / 8.33; 13.0 / 7.9 before S1).
-  expect(p95).toBeLessThan(8.33)
+  recordFrameTime(p95)
   await page.keyboard.up('Equal')
   await page.screenshot({ path: 'test-results/deck-quals-airborne.png' })
 })

@@ -8,6 +8,8 @@ import { VIEWS, withParams } from './views.js'
  *  view so one run can capture e.g. `toneMap=none` for comparison. */
 const extra = Object.fromEntries(new URLSearchParams(process.env.CAPTURE_PARAMS ?? ''))
 test.setTimeout(90_000)
+// A capture tool, not a test: a plain Tier 2 run skips it (docs/testing.md, "Philosophy").
+test.skip(!process.env.E2E_CAPTURE, 'set E2E_CAPTURE=1 to run the eight-view capture')
 for (const view of VIEWS) {
   test(`capture: ${view.name}`, async ({ page }) => {
     const errors: string[] = []

@@ -35,10 +35,8 @@ const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weat
 const deck = () => createCloudField(loadScenario('free-flight').weather.clouds ?? [], noise)
 
 describe('cloud shadow map (Plan 16b)', () => {
-  it('is 1024 texels over 80 km, 78.125 m each, with taps that descend by tier', () => {
-    expect(MAP_TEXELS).toBe(1024)
-    expect(MAP_SIDE_M).toBe(80_000)
-    expect(MAP_TEXEL_M).toBe(78.125)
+  it('covers its side in square texels, with taps that descend by tier', () => {
+    expect(MAP_TEXEL_M).toBe(MAP_SIDE_M / MAP_TEXELS)
     expect(SHADOW_TIERS.high.taps).toBeGreaterThan(SHADOW_TIERS.medium.taps)
     expect(SHADOW_TIERS.medium.taps).toBeGreaterThan(SHADOW_TIERS.low.taps)
   })

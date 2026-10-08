@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { percentile, waitForTerrain, type DiagWindow, TRIPWIRE_1440P_P95_MS } from './harness.js'
+import { percentile, waitForTerrain, type DiagWindow, recordFrameTime } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
@@ -59,7 +59,7 @@ test.setTimeout(120_000)
 type MergeSampler = { closest: number; closestTick: number; lastRange: number; crossed: boolean }
 type SamplerWindow = DiagWindow & { __merge?: MergeSampler }
 
-test('the veteran pursuer passes the player at the head-on merge inside R4\'s band, then opens range, with zero WebGPU validation errors and the render budget held', async ({ page }) => {
+test('the veteran pursuer passes the player at the head-on merge inside R4\'s band, then opens range, with zero WebGPU validation errors', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(RANGE)
   await waitForTerrain(page)
@@ -116,5 +116,5 @@ test('the veteran pursuer passes the player at the head-on merge inside R4\'s ba
   expect(live.gpu.length).toBeGreaterThan(120)
   const p95 = percentile(live.gpu, 0.95)
   console.log(`ai maneuver: gpu p95 ${p95.toFixed(3)} ms over ${live.gpu.length} samples`)
-  expect(p95).toBeLessThan(TRIPWIRE_1440P_P95_MS)
+  recordFrameTime(p95)
 })

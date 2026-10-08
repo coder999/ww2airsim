@@ -281,7 +281,7 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test('10. every committed model is inside its manifest budget as drawn, and the readout says so', async ({ page }) => {
+  test('10. every committed model is inside its manifest limits as drawn, and the readout says so', async ({ page }) => {
     for (const id of await entries(page)) {
       await select(page, id)
       const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())

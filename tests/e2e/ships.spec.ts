@@ -1,6 +1,6 @@
 // tests/e2e/ships.spec.ts
 import { test, expect } from '@playwright/test'
-import { percentile, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { percentile, spawnUrl, waitForTerrain, type DiagWindow, recordFrameTime } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
@@ -31,7 +31,7 @@ for (const [scenario, models] of Object.entries(MODELS)) {
   })
 }
 
-test.describe('broadsides and budgets at 1440p', () => {
+test.describe('ship models at 1440p', () => {
   test.use({ viewport: { width: 2560, height: 1440 } })
 
   test('each ship model from the side, in the Hangar (the agent reads the PNGs)', async ({ page }) => {
@@ -48,11 +48,8 @@ test.describe('broadsides and budgets at 1440p', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  // A 1440p tripwire at the superseded 120 Hz frame, as cloudShadow.spec.ts's
-  // deck run; budget4k.spec.ts is the gate. deck-quals measured 7.99 ms here
-  // on the first run (2026-09-26) while 4K deckquals passed at 7.79 / 8.33
-  // Medium, 7.90 before S1: the clouds' cost, not the ship models'.
-  const GPU_BUDGET_P95_MS = 8.33
+  // Frame time is recorded, not asserted: budget4k.spec.ts's deckquals view is
+  // the gate (docs/testing.md, "Philosophy").
   const maru = loadScenarioBundle('strike-range').scenario.ships[0]!
   const [mx, mz] = maru.waypoints[0]!
   const views: Record<string, string> = {
@@ -62,7 +59,7 @@ test.describe('broadsides and budgets at 1440p', () => {
     'strike-range': `${spawnUrl({ x: mx - 1500, y: 800, z: mz })}&${SCENARIO_PARAM}=strike-range`,
   }
   for (const [scenario, url] of Object.entries(views)) {
-    test(`${scenario}: gpu p95 under ${GPU_BUDGET_P95_MS} ms with the ship models`, async ({ page }) => {
+    test(`${scenario}: the ship models draw at 1440p`, async ({ page }) => {
       await page.goto(url)
       await waitForTerrain(page)
       await page.waitForTimeout(1500)
@@ -73,7 +70,7 @@ test.describe('broadsides and budgets at 1440p', () => {
       const p95 = percentile(gpu, 0.95)
       console.log(`${scenario} ship models gpu p95 ${p95.toFixed(3)} ms over ${gpu.length} samples`)
       await page.screenshot({ path: `test-results/ships-${scenario}.png` })
-      expect(p95).toBeLessThan(GPU_BUDGET_P95_MS)
+      recordFrameTime(p95)
     })
   }
 })

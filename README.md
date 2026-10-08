@@ -133,7 +133,7 @@ One home per kind of fact. Point at it from elsewhere; never copy it.
 | What a finished plan measured, and what is still open | `docs/handoff/<date>-<plan>.md`, one per plan |
 | Post-mortem with an open fix | `docs/incidents/<date>-<name>.md` |
 | A subsystem's standing reference: what ships, what was tried, traps, open items | `docs/<topic>.md` (`clouds.md`, `models.md`, `aircraft.md`, `drape.md`, `testing.md`); update it in the same commit as the change |
-| How to run tests and the GPU harness | `docs/testing.md` |
+| How tests are written (philosophy), how to run them, and the GPU harness | `docs/testing.md` |
 | Agent rules that cannot be derived from the code | this file, briefly |
 | Overview, getting started, and pointers | `README.md` |
 | Gameplay a player sees | `GAMEPLAY.md` |

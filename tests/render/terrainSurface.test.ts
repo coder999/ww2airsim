@@ -2,13 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { float, vec2, vec3 } from 'three/tsl'
 import { COVER_HEADER } from '../../src/render/landcover/load.js'
 import { createCoverNodes, terrainSurface } from '../../src/render/terrain/surface.js'
-import { clampDetailSlope, DETAIL_NORMAL_FAR_M, DETAIL_NORMAL_MAX_TILT_DEG, DETAIL_NORMAL_NEAR_M, DETAIL_NORMAL_SCALES, detailNormalFade } from '../../src/render/terrain/surface.js'
+import { clampDetailSlope, DETAIL_NORMAL_MAX_TILT_DEG, DETAIL_NORMAL_SCALES, detailNormalFade } from '../../src/render/terrain/surface.js'
 import { albedoDetailFade, normalToSlope, ALBEDO_DETAIL_NEAR_M, ALBEDO_DETAIL_FAR_M } from '../../src/render/terrain/surfaceDetail.js'
 
 describe('terrain detail normal (photoreal Task 13)', () => {
   it('fades from full strength at 500 m to nothing at 2000 m', () => {
-    expect(DETAIL_NORMAL_NEAR_M).toBe(500)
-    expect(DETAIL_NORMAL_FAR_M).toBe(2000)
     expect(detailNormalFade(0)).toBe(1)
     expect(detailNormalFade(500)).toBe(1)
     expect(detailNormalFade(2000)).toBe(0)

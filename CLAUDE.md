@@ -42,6 +42,8 @@ not exist, and three conventions below were being missed for that reason).
 
   Pushing `main` releases nothing. The deploy command is in README's
   "Deployment".
+- **Before writing or changing a test, read `docs/testing.md`, "Philosophy"**
+  (enroll don't clone; a test is correctness or budget, never both).
 - `npm run verify` (typecheck, lint at zero warnings, depcruise, tests) ends
   every task. Capture `rc=$?` directly; never gate on a grepped pipeline.
 - **Full suites and `verify` go through `remote-run`** (`remote-run npm run

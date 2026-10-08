@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { Ww2Diagnostics } from '../../src/render/diagnostics.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
@@ -23,6 +23,17 @@ let terrain: TerrainField | null = null
  * on the desktop under `hwlock ryzen`. One copy, so it cannot drift again.
  */
 export const TRIPWIRE_1440P_P95_MS = 8.33
+
+/**
+ * Records a correctness spec's GPU p95 as a `frame-time` annotation in the
+ * report, without asserting it. A spec is a correctness test or a budget test,
+ * never both (2026-10-08, docs/testing.md "Philosophy"): a slow frame used to
+ * turn furball, takeoff and recovery red for reasons that had nothing to do
+ * with what they test. The gates are the dedicated budget specs.
+ */
+export function recordFrameTime(p95: number): void {
+  test.info().annotations.push({ type: 'frame-time', description: `gpu p95 ${p95.toFixed(3)} ms at 1440p` })
+}
 
 /** Loaded on first use, not at import: most specs never land. */
 const groundTruthTerrainOnce = (): TerrainField => (terrain ??= groundTruthTerrain())

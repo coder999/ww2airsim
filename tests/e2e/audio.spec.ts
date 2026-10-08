@@ -16,26 +16,8 @@ import { AUDIO_ASSETS } from '../../src/audio/assets.js'
  * while the app itself was working correctly the whole time.
  */
 
-test.skip('the audio context is suspended until a key is pressed', () => {
-  // NOT IMPLEMENTED, and deliberately not made to pass. Measured 2026-09-18 on
-  // the reference desktop: the context is ALREADY 'running' at boot, before
-  // any gesture. That is not this app's doing and not the harness's --
-  // `CHROMIUM_ARGS` in playwright.config.ts carries no autoplay override, and
-  // playwright-core passes none either (grepped, 2026-09-18).
-  //
-  // The likely cause, UNVERIFIED: Chrome's Media Engagement Index grants
-  // autoplay to an origin the user has used repeatedly, and this origin is one
-  // Mark flies on that desktop. If so the precondition is a property of that
-  // browser profile, so asserting it here would pass on a fresh profile and
-  // fail on the reference runner -- a flake that says nothing about the code.
-  //
-  // What it costs: nothing automated proves a FIRST-TIME visitor hears
-  // anything. `void audio.resume()` in main.ts's keydown listener is the code
-  // that matters and it is exercised by the cases below; that it is reached
-  // before the first sound is wanted has to be checked by hand, in a fresh
-  // profile, once. Recorded in the handoff as an open item rather than hidden
-  // behind a green test.
-})
+// A first-visit "suspended until a gesture" case is a known gap, not a skipped
+// test: docs/testing.md, "Known gaps".
 
 test('the context is running once the game has been played, and every clip decodes', async ({ page }) => {
   // The one thing a fake backend cannot know: whether a 48 kHz stereo WAV that

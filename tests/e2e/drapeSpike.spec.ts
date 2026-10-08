@@ -15,6 +15,8 @@ const VIEWS = [
 ]
 const VARIANTS = (process.env.DRAPE_VARIANTS ?? 'off,1944').split(',')
 test.setTimeout(120_000)
+// A capture tool, not a test: a plain Tier 2 run skips it (docs/testing.md, "Philosophy").
+test.skip(!process.env.E2E_CAPTURE, 'set E2E_CAPTURE=1 to run the drape spike capture')
 for (const view of VIEWS) for (const v of VARIANTS) {
   test(`drape ${view.name} ${v}`, async ({ page }) => {
     const errors: string[] = []

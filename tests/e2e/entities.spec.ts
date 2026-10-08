@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { flySweep, percentile, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
+import { flySweep, percentile, spawnUrl, waitForTerrain, type DiagWindow, recordFrameTime } from './harness.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 
 /** Over San Pedro Bay, 2 km up, looking at the task force's first waypoint. */
@@ -47,15 +47,13 @@ test('two Hellcats exist and the parked one is at Tacloban', async ({ page }) =>
   expect(Math.hypot(wingman.x - tacloban.x, wingman.z - tacloban.z)).toBeLessThan(600)
 })
 
-test.describe('frame-time budget with entities', () => {
+test.describe('entities at 1440p', () => {
   test.use({ viewport: { width: 2560, height: 1440 } })
-  // A 1440p tripwire at the superseded 120 Hz frame, the rule cloudShadow.spec.ts's
-  // deck run got; budget4k.spec.ts is the gate. Measured here 2026-09-26 after
-  // the cloud VDB and S1 merges: p95 7.2-7.4 ms, and 2.34 ms with
+  // Recorded, not asserted; budget4k.spec.ts is the gate. Measured here 2026-09-26
+  // after the cloud VDB and S1 merges: p95 7.2-7.4 ms, and 2.34 ms with
   // `cloudTier=off` and all three ship models drawn (5.41 ms before either).
-  const GPU_BUDGET_P95_MS = 8.33
 
-  test('the GPU frame at 1440p over the task force stays inside its budget', async ({ page }) => {
+  test('the task force draws at 1440p with GPU timestamps on', async ({ page }) => {
     await page.goto(spawnUrl({ x: wpX - 1500, y: 800, z: wpZ }))
     await waitForTerrain(page)
     await page.waitForTimeout(1500)
@@ -70,6 +68,6 @@ test.describe('frame-time budget with entities', () => {
     const p50 = percentile(times.gpu, 0.5)
     const p95 = percentile(times.gpu, 0.95)
     console.log(`entities gpu p50 ${p50.toFixed(3)} ms p95 ${p95.toFixed(3)} ms`)
-    expect(p95).toBeLessThan(GPU_BUDGET_P95_MS)
+    recordFrameTime(p95)
   })
 })
