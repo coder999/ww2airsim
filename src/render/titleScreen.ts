@@ -345,7 +345,16 @@ const BOOT_STRIP_CSS = `
 [data-ww2-boot] .fill{position:absolute;inset:0 auto 0 0;background:var(--ink-faint);transition:width .25s}
 [data-ww2-boot] .stripe{position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:ww2-boot-stripe 1.1s linear infinite;will-change:transform}
 @keyframes ww2-boot-stripe{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+[data-ww2-boot]{background:rgba(0,0,0,.45);box-shadow:0 0 0 1px rgba(233,223,194,.35)}
+[data-ww2-boot] .fill{background:var(--paper)}
+.ww2-boot-slide-in{animation:ww2-boot-slide-in .45s ease-out both}
+@keyframes ww2-boot-slide-in{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 `
+/** The boot strip on the bare title art: paper-colored, shadowed so it reads on
+ *  any part of the picture, at the overlay's foot (A1). */
+const BOOT_FOOT_STYLE =
+  'position:absolute;left:50%;bottom:6vh;transform:translateX(-50%);width:min(560px,86vw);pointer-events:none;' +
+  'color:var(--paper);text-shadow:0 1px 3px rgba(0,0,0,.9)'
 
 /**
  * One memo panel: a `.naval-comms` wrapper around a `.sheet`.
@@ -578,10 +587,12 @@ export function createTitleScreen(
     bootStripe.className = 'stripe'
     bootBar.append(bootFill, bootStripe)
     const bootLabel = document.createElement('p')
-    bootLabel.style.cssText = FLYING_AS_STYLE
+    bootLabel.style.cssText = FLYING_AS_STYLE + ';color:inherit'
     bootLabel.setAttribute('aria-live', 'polite')
     bootWrap.append(bootStyle, bootBar, bootLabel)
-    rosterSheet.appendChild(bootWrap)
+    // Loading spec §A.2 / MASTER_PLAN A1: the strip sits at the foot of the
+    // overlay, on the art itself, not inside a memo -- appended last, below.
+    bootWrap.style.cssText = BOOT_FOOT_STYLE
 
     const flyingAs = document.createElement('p')
     flyingAs.style.cssText = FLYING_AS_STYLE
@@ -824,6 +835,7 @@ export function createTitleScreen(
     adminRow.append(adminKicker, adminButtons)
     admin.sheet.appendChild(adminRow)
     overlay.appendChild(admin.panel)
+    overlay.appendChild(bootWrap)
 
     // ============ About memo (popup) ============
     // Inside the overlay so it can never outlive it; dimmed the same way the
@@ -1214,6 +1226,11 @@ export function createTitleScreen(
     // shown this build, so there is nothing to fade FROM. Only the live
     // "still loading -> ready" transition below fades.
     bootWrap.style.display = wasLocked ? 'block' : 'none'
+    // A1: while booting the art shows alone -- every memo waits for ready.
+    // `visibility`, not `display`: each memo keeps its own inline layout
+    // (the stage is a flex column), and the forms keep their place.
+    const memos = [stage, admin.panel]
+    for (const el of memos) el.style.visibility = wasLocked ? 'hidden' : ''
     applyBootLock()
     unsubscribeBoot?.()
     unsubscribeBoot = boot.onChange(() => {
@@ -1228,6 +1245,12 @@ export function createTitleScreen(
         bootWrap.style.transition = 'opacity .3s'
         bootWrap.style.opacity = '0'
         window.setTimeout(() => { bootWrap.style.display = 'none' }, 300)
+        // The memos slide in at once, under the fading strip: the first
+        // click after ready must land (boot.spec.ts).
+        for (const el of memos) {
+          el.style.visibility = ''
+          el.classList.add('ww2-boot-slide-in')
+        }
         const first = [...pilotRows.values()][0]
         ;(first?.selectButton ?? newPilotButton).focus()
       }
