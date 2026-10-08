@@ -237,7 +237,7 @@ one plan for the lot.
 
 ### Track J: Google Analytics (S). Done 2026-10-08
 
-`0fe24aab`: GA4 property 558194335 (`G-3VE6LD7RCS`). The tag is in the production build only and loads only on `ww2airsim.com` and `ww2airsim.marktuttle.dev`. The events are `sortie_launched`, `mission_outcome`, `quality_tier` (detected against chosen, for A4) and `boot_ready`. There is a privacy line in the About memo. It is live only after Mark's next deploy. Handoff `docs/handoff/2026-10-08-order-1.md`.
+`0fe24aab`: GA4 property 558194335 (`G-3VE6LD7RCS`). The tag is in the production build only and loads only on `ww2airsim.com` and `ww2airsim.marktuttle.dev`. The events are `sortie_launched`, `mission_outcome`, `quality_tier` (detected against chosen, for A4) and `boot_ready`. There is a privacy line in the About memo. Deployed 2026-10-08 (run 37852717790); the page source on both production hosts carries the tag, and windomlane does not (curl, same day). Handoff `docs/handoff/2026-10-08-order-1.md`.
 
 ---
 
