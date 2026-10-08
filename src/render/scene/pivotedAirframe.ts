@@ -2,7 +2,7 @@
 import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
 import { propAngle, type Airframe, type PartId } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
-import type { AirframeRig, GearRig } from './airframeRigs.js'
+import { SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 
@@ -38,19 +38,44 @@ export function turnedAbout(rest: Quaternion, axis: Vector3, angleRad: number): 
 /** The bench parts a rig drives. Stores are added by the loader when the spec carries any. */
 export function rigParts(rig: AirframeRig): PartId[] {
   const parts: PartId[] = []
+  const inputs = new Set((rig.surfaces ?? []).map((n) => surfaceDrive(n).input))
   if (rig.props.length > 0) parts.push('prop')
   if (rig.gear.length > 0) parts.push('gear')
+  if (inputs.has('flap')) parts.push('flaps')
+  if (inputs.has('roll') || inputs.has('pitch') || inputs.has('yaw')) parts.push('surfaces')
   return parts
+}
+
+/** Seconds a surface takes from one stop to the other: cosmetic (C1 Ruling R1), so a keyboard's
+ *  instant full stick still shows as a sweep. A guess, for Mark's eye at the batch checkpoint. */
+export const SURFACE_SWEEP_S = 0.3
+
+/** `current` moved toward `target` by at most a full sweep's rate over `dtS`; dtS <= 0 snaps (a bench pose). */
+export function slewToward(current: number, target: number, dtS: number): number {
+  if (dtS <= 0) return target
+  const step = (2 / SURFACE_SWEEP_S) * dtS
+  return current + Math.max(-step, Math.min(step, target - current))
+}
+
+/** Radians a surface turns about its hinge at `value` (a command in [-1, 1], or a flap fraction in [0, 1]). */
+export function surfaceAngleRad(node: string, value: number): number {
+  const d = surfaceDrive(node)
+  const v = Math.max(d.input === 'flap' ? 0 : -1, Math.min(1, value))
+  return (d.sign * v * SURFACE_MAX_DEG[d.input] * Math.PI) / 180
 }
 
 interface Posed { readonly node: Object3D; readonly axis: Vector3; readonly rest: Quaternion }
 
-function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { props: Posed[]; gear: { posed: Posed; rig: GearRig }[] } {
+function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { props: Posed[]; gear: { posed: Posed; rig: GearRig }[]; surfaces: { posed: Posed; name: string; input: SurfaceInput }[] } {
   const pose = (name: string): Posed => {
     const node = instance.node(name)
     return { node, axis: pivotAxisOf(node, modelId), rest: node.quaternion.clone() }
   }
-  return { props: rig.props.map((p) => pose(p.node)), gear: rig.gear.map((g) => ({ posed: pose(g.node), rig: g })) }
+  return {
+    props: rig.props.map((p) => pose(p.node)),
+    gear: rig.gear.map((g) => ({ posed: pose(g.node), rig: g })),
+    surfaces: (rig.surfaces ?? []).map((n) => ({ posed: pose(n), name: n, input: surfaceDrive(n).input })),
+  }
 }
 
 export async function loadPivotedAirframe(modelId: string, url: string, rig: AirframeRig, stores: StoreMounts | undefined, acquire: (url: string) => Promise<ModelInstance> = acquireModel): Promise<Airframe> {
@@ -92,6 +117,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
     freeVisuals = visuals.release
   }
   let propRad = 0
+  const stick = { roll: 0, pitch: 0, yaw: 0 }
   let disposed = false
   return {
     root,
@@ -101,6 +127,12 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
       propRad = propAngle(propRad, u.throttle, u.frameS)
       for (const p of bound.props) p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad))
       for (const g of bound.gear) g.posed.node.quaternion.copy(turnedAbout(g.posed.rest, g.posed.axis, gearAngleRad(g.rig, u.gearFraction)))
+      for (const k of ['roll', 'pitch', 'yaw'] as const) stick[k] = slewToward(stick[k], u.controls[k], u.frameS)
+      for (const s of bound.surfaces) {
+        // Flaps already move at the sim's own travel rate (C1 Ruling R3), so they are not slewed again.
+        const v = s.input === 'flap' ? u.flapFraction : stick[s.input]
+        s.posed.node.quaternion.copy(turnedAbout(s.posed.rest, s.posed.axis, surfaceAngleRad(s.name, v)))
+      }
     },
     dispose(): void {
       if (disposed) return

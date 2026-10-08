@@ -2,7 +2,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import type { Document, Node } from '@gltf-transform/core'
-import { AIRFRAME_RIGS, PART_NAME, type GearRig } from '../../../src/render/scene/airframeRigs.js'
+import { AIRFRAME_RIGS, PART_NAME, surfaceDrive, type GearRig } from '../../../src/render/scene/airframeRigs.js'
+import { surfaceAngleRad } from '../../../src/render/scene/pivotedAirframe.js'
 import { aircraftModelPath } from '../../../src/render/content.js'
 import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { modelIO } from '../../../tools/models/document.js'
@@ -45,8 +46,16 @@ function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig
 it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
   expect(Object.keys(AIRFRAME_RIGS).length).toBeGreaterThan(0)
   for (const [id, rig] of Object.entries(AIRFRAME_RIGS)) {
-    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets]) expect(name, id).toMatch(PART_NAME)
+    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...(rig.surfaces ?? [])]) expect(name, id).toMatch(PART_NAME)
   }
+})
+
+// Pinned (C1 batch 1, 2026-10-08), so a filter that matches nothing fails rather than passing empty.
+// Batches 2-4 add rows here as their models get surfaces.
+it('control surfaces: exactly the batch-1 airframes, each driving roll, pitch, yaw and flaps', () => {
+  const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'ki-84-frank', 'p-38-lightning'])
+  for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
 })
 
 describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (R3)', (id, rig) => {
@@ -70,8 +79,36 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
 
   it('drives every part the glb names: no pivoted part is left out of the rig and silently static', () => {
     const inGlb = doc.getRoot().listNodes().map((n) => n.getName()).filter((n) => PART_NAME.test(n)).sort()
-    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets].sort()
+    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...(rig.surfaces ?? [])].sort()
     expect(inGlb).toEqual(inRig)
+  })
+
+  it.each(rig.surfaces ?? [])('control surface %s: hinged on its leading edge, and a positive input moves its trailing edge the right way (C1)', (name) => {
+    const n = one(doc, name)
+    const { point, axis } = pivotOf(n)
+    expect(Math.hypot(...axis), `${name} axis`).toBeCloseTo(1, 6)
+    const pts = worldPositions(n)
+    const dist = pts.map((p) => radiusAbout([p], point, axis))
+    // kit.py puts the hinge on the chord line at the piece's own front face, so nothing lies ahead of it: every
+    // vertex is aft along -x taken square to the axis. A hinge at mid-chord or the trailing edge fails here.
+    const ax = -axis[0]
+    const aft = [-1 - ax * axis[0], -ax * axis[1], -ax * axis[2]] as const
+    const len = Math.hypot(...aft)
+    const ahead = Math.min(...pts.map((p) => ((p[0] - point[0]) * aft[0] + (p[1] - point[1]) * aft[1] + (p[2] - point[2]) * aft[2]) / len))
+    // Dihedral tilts the front face against that direction: the worst is 1.8 mm, G4M Flap1 (measured 2026-10-08),
+    // well inside CONTROL_GAP_M's 12 mm. A hinge one gap forward would stand 12 mm ahead and fail.
+    expect(ahead, `${name}: how far its foremost vertex stands ahead of the hinge (m)`).toBeGreaterThan(-0.002)
+    // The trailing edge: the points farthest from the hinge. A +1 input (full deflection; flaps fully down)
+    // must move them as aircraftRigs.ts's surfaceDrive says: +roll raises the right aileron and lowers the
+    // left, +pitch raises the elevator, +yaw swings the rudder to starboard (+z), and flaps go down.
+    const far = Math.max(...dist)
+    const te = pts.filter((_p, i) => dist[i]! > 0.9 * far)
+    const moved = centroid(te.map((p) => rotateAbout(p, point, axis, surfaceAngleRad(name, 1))))
+    const was = centroid(te)
+    const d = surfaceDrive(name)
+    const [k, want] = d.input === 'yaw' ? [2, 1] : d.input === 'flap' ? [1, -1] : d.input === 'pitch' ? [1, 1] : [1, name.endsWith('R') ? 1 : -1]
+    expect(Math.sign(moved[k]! - was[k]!), `${name} trailing edge along ${'xyz'[k]}`).toBe(want)
+    expect(Math.abs(moved[k]! - was[k]!), `${name} moves visibly`).toBeGreaterThan(0.05)
   })
 
   it('every propeller spins about body x and is N-fold symmetric about its pivot (Review Focus 1)', () => {

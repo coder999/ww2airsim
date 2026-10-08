@@ -27,7 +27,7 @@ describe('sceneCounts', () => {
 describe('partSpecsFor', () => {
   it("reports every bench part, modeled only where the airframe's parts say so", () => {
     const rows = partSpecsFor(['prop', 'gear', 'stores'])
-    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['prop', true], ['stores', true]])
+    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['prop', true], ['surfaces', false], ['stores', true]])
   })
 })
 
@@ -44,6 +44,15 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
     m!.update(0.1)
     expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ throttle: 1, frameS: 0.1, gearFraction: 1 }))
     expect(m!.parts.find((p) => p.id === 'gear')!.modeled).toBe(false)
+  })
+
+  it('the stick sliders reach the airframe as its controls, and the others keep theirs (C1)', async () => {
+    const hellcat = createHellcat()
+    const update = vi.spyOn(hellcat, 'update')
+    const m = await loadHangarModel(byId('f4f-wildcat'), async () => hellcat)
+    m!.pose({ roll: 1 })
+    m!.pose({ yaw: -0.5 })
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ controls: { roll: 1, pitch: 0, yaw: -0.5 }, frameS: 0 }))
   })
 
   it('pose applies at once, without advancing the clock, so a frozen page still shows it (E2E check 2)', async () => {

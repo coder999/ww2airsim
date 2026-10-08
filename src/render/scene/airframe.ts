@@ -5,7 +5,7 @@ import type { Object3D } from 'three'
  *  model actually has, so the Hangar bench can show the rest as "not
  *  modeled" instead of a slider that moves nothing (Hangar spec §7, Mark's
  *  decision 1, 2026-09-25). */
-export type PartId = 'prop' | 'gear' | 'flaps' | 'stores'
+export type PartId = 'prop' | 'gear' | 'flaps' | 'surfaces' | 'stores'
 
 /** Everything one airframe needs to pose itself for one rendered frame. */
 export interface AirframeUpdate {

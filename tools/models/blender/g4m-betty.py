@@ -216,7 +216,7 @@ with m.tagged('tailcone'), m.shared_chart():
     m.canopy('glazing', UPPER, [(X(f), w * L, h * L, y * L) for f, w, h, y in TAIL_GLAZING], [X(f) for f in TAIL_FRAMES],
              bar=0.016, segments=32, subdivide=4)
 
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (*FLAPS, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in zip((*FLAPS, AILERON), ('Flap1', 'Flap2', 'Aileron'))]
 nac_z = ENGINES[0] * S
 breaks = [0.0, nac_z, S / 2]
 with m.tagged('wing'), m.shared_chart():
@@ -230,13 +230,13 @@ tp = TAILPLANE
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(UPPER, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, tp['span'] * S,
            sweep_deg=tp['sweep'], thickness=0.10, lower_role=LOWER, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 with m.tagged('fin'), m.shared_chart():
     m.fin(UPPER, X(0.985) + fin_root, FIN['y'] * L, fin_root, fin_tip, fin_h,
           sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
 
 for i, z in enumerate(props, start=1):
     le, ny = wing_le(z), nacelle_y(z)

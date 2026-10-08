@@ -16,9 +16,10 @@ import { staticModelUrlFor } from '../scene/staticModels.js'
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
  *  the propeller; H2 adds stores (and Cycle, in the bench); H3 turrets. */
 export interface PartSpec {
-  readonly id: 'gear' | 'flaps' | 'prop' | 'stores'
+  readonly id: 'gear' | 'flaps' | 'prop' | 'surfaces' | 'stores'
   readonly label: string
-  readonly kind: 'fraction' | 'rate' | 'toggle'
+  /** `stick`: three sliders, roll, pitch and yaw, each over `range` (C1). */
+  readonly kind: 'fraction' | 'rate' | 'toggle' | 'stick'
   readonly range: readonly [number, number]
   /** false = the model has no such geometry: the row reads "not modeled". */
   readonly modeled: boolean
@@ -28,6 +29,10 @@ export interface PartPose {
   readonly gearFraction?: number
   readonly flapFraction?: number
   readonly throttle?: number
+  /** The pilot's stick and rudder, each in [-1, 1], for the control surfaces (C1). */
+  readonly roll?: number
+  readonly pitch?: number
+  readonly yaw?: number
   /** Bombs on the racks (true) or dropped (false); H2. */
   readonly bombs?: boolean
   /** Rockets on the rails (true) or fired (false); H2. */
@@ -52,6 +57,7 @@ const BENCH_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
   { id: 'gear', label: 'Landing gear', kind: 'fraction', range: [0, 1] },
   { id: 'flaps', label: 'Flaps', kind: 'fraction', range: [0, 1] },
   { id: 'prop', label: 'Throttle (propeller)', kind: 'rate', range: [0, 1] },
+  { id: 'surfaces', label: 'Control surfaces', kind: 'stick', range: [-1, 1] },
   { id: 'stores', label: 'Stores', kind: 'toggle', range: [0, 1] },
 ]
 
@@ -93,17 +99,19 @@ export function flatField(): TerrainField {
  * point: a wrong pivot shows as a gizmo in the wrong place. Leaves gear and
  * flaps at rest; the propeller keeps its advanced angle, which is cosmetic.
  */
-export function probeArticulated(root: Object3D, drive: (u: { gearFraction: number; flapFraction: number; throttle: number; frameS: number }) => void): Object3D[] {
+export function probeArticulated(root: Object3D, drive: (u: { gearFraction: number; flapFraction: number; throttle: number; controls: { roll: number; pitch: number; yaw: number }; frameS: number }) => void): Object3D[] {
   const read = (): Map<Object3D, string> => {
     const m = new Map<Object3D, string>()
     root.traverse((o) => m.set(o, [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()].map((v) => v.toFixed(6)).join(',')))
     return m
   }
-  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, frameS: 0 })
+  const still = { roll: 0, pitch: 0, yaw: 0 }
+  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, controls: still, frameS: 0 })
   const before = read()
-  drive({ gearFraction: 0, flapFraction: 1, throttle: 1, frameS: 0.05 })
+  // frameS 0 would leave the propeller still; at 0.05 s the control surfaces slew a third of the way (C1), enough to show.
+  drive({ gearFraction: 0, flapFraction: 1, throttle: 1, controls: { roll: 1, pitch: 1, yaw: 1 }, frameS: 0.05 })
   const after = read()
-  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, frameS: 0 })
+  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, controls: still, frameS: 0 })
   return [...before].filter(([o, k]) => after.get(o) !== k).map(([o]) => o)
 }
 
@@ -129,11 +137,12 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
   stand.position.y = gearHeightM
   stand.add(airframe.root)
   let gearFraction = 1, flapFraction = 0, throttle = 0
+  let controls = { roll: 0, pitch: 0, yaw: 0 }
   let bombs = true, rockets = true
   const apply = (frameS: number): void => {
-    airframe.update({ gearFraction, flapFraction, throttle, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS, cameraDistanceM: 0 })
+    airframe.update({ gearFraction, flapFraction, throttle, controls, frameS, cameraDistanceM: 0 })
   }
-  const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }))
+  const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, cameraDistanceM: 0 }))
   apply(0)
   return {
     root: stand,
@@ -150,6 +159,7 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
       if (p.gearFraction !== undefined) gearFraction = p.gearFraction
       if (p.flapFraction !== undefined) flapFraction = p.flapFraction
       if (p.throttle !== undefined) throttle = p.throttle
+      controls = { roll: p.roll ?? controls.roll, pitch: p.pitch ?? controls.pitch, yaw: p.yaw ?? controls.yaw }
       if (p.bombs !== undefined || p.rockets !== undefined) {
         bombs = p.bombs ?? bombs
         rockets = p.rockets ?? rockets

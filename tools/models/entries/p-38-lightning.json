@@ -13,7 +13,17 @@
     { "node": "Prop2", "pivot": { "point": [3.36676, 0, 2.536], "axis": "+x" } },
     { "node": "GearL", "pivot": { "point": [0.438721, -0.51885, -2.536], "axis": "+z" } },
     { "node": "GearR", "pivot": { "point": [0.438721, -0.51885, 2.536], "axis": "+z" } },
-    { "node": "GearNose", "pivot": { "point": [3.2284, -0.51885, 0], "axis": "+z" } }
+    { "node": "GearNose", "pivot": { "point": [3.2284, -0.51885, 0], "axis": "+z" } },
+    { "node": "AileronL" },
+    { "node": "AileronR" },
+    { "node": "Flap1L" },
+    { "node": "Flap1R" },
+    { "node": "Flap2L" },
+    { "node": "Flap2R" },
+    { "node": "ElevatorL" },
+    { "node": "ElevatorR" },
+    { "node": "Rudder1" },
+    { "node": "Rudder2" }
   ],
   "skin": true,
   "textures": { "maxSize": 1024, "format": "webp" },

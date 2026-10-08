@@ -200,6 +200,12 @@ def _loft(rings):
     return verts, faces
 
 
+def _ends(points):
+    """The two points farthest apart, in a stable order: a line's ends."""
+    a, b = max(((p, q) for p in points for q in points), key=lambda pq: sum((x - y) ** 2 for x, y in zip(*pq)))
+    return (a, b) if a <= b else (b, a)
+
+
 def _mirror_z(verts, faces):
     """The reflection in z = 0, windings reversed so faces still point outward."""
     return [(x, y, -z) for x, y, z in verts], [(tuple(reversed(f)), j) for f, j in faces]
@@ -301,6 +307,8 @@ class Model:
         self._tag = 'part'
         self._shared = None  # inside shared_chart(): (tag, role) -> its one chart key, else None
         self._hull = None  # DP2: the last hull_lines' refined stations, for hull_at
+        self._parents = {}  # node -> the node it hangs under, so the build's collapse makes them one part
+        self._hinges = {}  # control node -> [hinge-line points], written to <out>.hinges.json
 
     @contextlib.contextmanager
     def tagged(self, tag):
@@ -693,8 +701,10 @@ class Model:
 
         Detail (DP0, all opt-in): ``stations`` are the section's chord fractions (e.g.
         AIRFOIL_STATIONS_FINE), ``span_segments`` lofts that many spans root to tip, and
-        ``controls`` is a list of (z0, z1, hinge chord fraction) in absolute z, clipped to the
-        panel: each is its own piece aft of the hinge, with CONTROL_GAP_M gaps around it.
+        ``controls`` is a list of (z0, z1, hinge chord fraction, name) in absolute z, clipped to the
+        panel: each is its own piece aft of the hinge, with CONTROL_GAP_M gaps around it, in node
+        ``<name>R`` (``<name>L`` for the mirror; ``name`` itself without one), with its hinge line
+        recorded for the build (C1).
         """
         half = span / 2
         tip_t = thickness if tip_thickness is None else tip_thickness
@@ -735,7 +745,7 @@ class Model:
             tip_thickness=None, center_z=0.0, node=None, stations=None, span_segments=1, controls=None):
         """A vertical tail surface standing on y = ``root_y`` in the plane z = ``center_z``.
         ``stations``, ``span_segments`` and ``controls`` are ``wing``'s, with each control's
-        (h0, h1, hinge chord fraction) in height above the root."""
+        (h0, h1, hinge chord fraction, name) in height above the root."""
         tip_t = thickness if tip_thickness is None else tip_thickness
         _require(root_chord > 0 and tip_chord > 0 and height > 0,
                  f'fin: chords and height must be > 0, got {root_chord}, {tip_chord}, {height}')
@@ -774,26 +784,58 @@ class Model:
                  'stations must run 0 to 1, strictly increasing')
         _require(isinstance(span_segments, int) and span_segments >= 1, f'span_segments must be an integer >= 1, got {span_segments!r}')
         ctrls = []
-        for z0, z1, hinge in controls or []:
+        for z0, z1, hinge, name in controls or []:
             _require(z0 < z1 and 0.3 < hinge < 0.95, f'control ({z0}, {z1}, {hinge}): need z0 < z1 and a hinge in (0.3, 0.95)')
+            _require(isinstance(name, str) and name, f'control ({z0}, {z1}, {hinge}): needs a node name, got {name!r}')
             if z1 > z_from and z0 < z_to:
-                ctrls.append((max(z0, z_from), min(z1, z_to), hinge, z0 >= z_from, z1 <= z_to))
-        cuts = sorted({z_from, z_to} | {c for a, b, _h, _s, _e in ctrls for c in (a, b)})
+                ctrls.append((max(z0, z_from), min(z1, z_to), hinge, z0 >= z_from, z1 <= z_to, name))
+        cuts = sorted({z_from, z_to} | {c for a, b, *_rest in ctrls for c in (a, b)})
         for za, zb in zip(cuts, cuts[1:]):
             c = next((x for x in ctrls if x[0] <= za and zb <= x[1]), None)
             if c is None:
                 self._lifting_piece(role, section, za, zb, 0.0, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
                 continue
-            _a, _b, hinge, own_start, own_end = c
+            _a, _b, hinge, own_start, own_end, name = c
             chord = min(section(za)[0], section(zb)[0])
             self._lifting_piece(role, section, za, zb, 0.0, hinge - CONTROL_GAP_M / chord, stations, span_segments, node, lower_role, lower_node, mirror, place)
             lo = za + CONTROL_GAP_M if own_start and za == _a else za
             hi = zb - CONTROL_GAP_M if own_end and zb == _b else zb
-            self._lifting_piece(role, section, lo, hi, hinge, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
+            # The control is its own part (C1). A lower-role underside goes in a child node, which the
+            # build's collapse folds into the part, since a kit node carries one role.
+            here, there = (name + 'R', name + 'L') if mirror else (name, None)
+            low = (lambda n: n + '_lower') if lower_role else (lambda n: None)
+            for n in (here, there):
+                if n is not None and lower_role:
+                    self._parents[n + '_lower'] = n
+            line = []
+            for z in (lo, hi):
+                ch, _t, le, y = section(z)
+                line.append(place((le - hinge * ch, y, z)))
+            self._hinge(here, line)
+            if there is not None:
+                self._hinge(there, [(x, y, -z) for x, y, z in line])
+            self._lifting_piece(role, section, lo, hi, hinge, 1.0, stations, span_segments, here, lower_role, low(here), mirror, place,
+                                there, low(there) if there else None)
 
-    def _lifting_piece(self, role, section, za, zb, f0, f1, stations, span_segments, node, lower_role, lower_node, mirror, place):
+    def _hinge(self, node, points):
+        """Adds a control piece's hinge-line ends to ``node``'s line; pieces of one control (split at a
+        wing break) must share one straight line, or the part cannot turn about one axis."""
+        line = self._hinges.setdefault(node, [])
+        line.extend(points)
+        a, b = _ends(line)
+        d = [q - p for p, q in zip(a, b)]
+        n = math.sqrt(sum(c * c for c in d))
+        for p in line:
+            v = [q - r for q, r in zip(p, a)]
+            t = sum(vi * di for vi, di in zip(v, d)) / (n * n)
+            off = math.sqrt(sum((vi - t * di) ** 2 for vi, di in zip(v, d)))
+            _require(off < 1e-6, f'{node}: its pieces are {off:.3g} m off one hinge line')
+
+    def _lifting_piece(self, role, section, za, zb, f0, f1, stations, span_segments, node, lower_role, lower_node, mirror, place,
+                       mirror_node=None, mirror_lower_node=None):
         """One piece of a detailed panel: the section's part between chord fractions f0 and f1,
-        lofted over span_segments spans from za to zb (and mirrored in z = 0 if asked)."""
+        lofted over span_segments spans from za to zb (and mirrored in z = 0 if asked, into
+        ``mirror_node`` and ``mirror_lower_node`` when given)."""
         rings, labels = [], None
         for k in range(span_segments + 1):
             z = za + (zb - za) * k / span_segments
@@ -813,7 +855,9 @@ class Model:
         self._emit(role, verts, faces, node, lower_role, lower_node if lower_role else None, lower if lower_role else None, charts, smooth)
         if mirror:
             mverts, mfaces = _mirror_z(verts, faces)
-            self._emit(role, mverts, mfaces, node, lower_role, lower_node if lower_role else None, lower if lower_role else None,
+            m_node = node if mirror_node is None else mirror_node
+            m_lower = lower_node if mirror_node is None else mirror_lower_node
+            self._emit(role, mverts, mfaces, m_node, lower_role, m_lower if lower_role else None, lower if lower_role else None,
                        None if charts is None else self._mirror_charts(charts), smooth)
 
     def revolve(self, role, origin, direction, profile, segments=12, node=None):
@@ -1270,6 +1314,9 @@ class Model:
             ob = bpy.data.objects.new(key, me)
             scene.collection.objects.link(ob)
             ob.parent = root
+        for child, parent in self._parents.items():
+            _require(child in self._nodes and parent in self._nodes, f'{child} hangs under {parent}, but one of them has no faces')
+            bpy.data.objects[child].parent = bpy.data.objects[parent]
         bpy.ops.export_scene.gltf(
             filepath=path, export_format='GLB', export_yup=True, export_apply=True,
             export_animations=False, export_cameras=False, export_lights=False,
@@ -1278,6 +1325,24 @@ class Model:
         )
         if packed is not None:
             self._write_sidecar(path, packed)
+        if self._hinges:
+            # C1: each control's hinge, in the glTF source frame the entry's pivots use; the build
+            # pivots every kept node named here that the entry gives no pivot of its own.
+            def end(p):
+                return [round(c, 6) for c in p]
+            hinges = {}
+            for node, line in sorted(self._hinges.items()):
+                a, b = _ends(line)
+                d = [q - p for p, q in zip(a, b)]
+                n = math.sqrt(sum(c * c for c in d))
+                d = [c / n for c in d]
+                # One orientation for every hinge, so a positive turn about it raises the trailing edge
+                # (it lies aft, -x: axis x -x = (0, -z, y)), or on a fin swings it to starboard (+z).
+                if (d[2] > 0) if abs(d[2]) >= abs(d[1]) else (d[1] < 0):
+                    d = [-c for c in d]
+                hinges[node] = {'point': end(a), 'axis': [round(c, 9) for c in d]}
+            with open(path[:-4] + '.hinges.json', 'w', encoding='utf-8') as fh:
+                json.dump({'version': 1, 'model': self.name, 'hinges': hinges}, fh, sort_keys=True, separators=(',', ':'))
 
     def _write_uvs(self, me, key, faces, charts, smooth, packed):
         mpp, box, placed = packed

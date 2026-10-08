@@ -78,10 +78,8 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits unique to each plane.
 
 **C1. Control surfaces (M per batch).**
-- **Today:** no airframe animates any surface. The data path already exists and is unread: `AirframeUpdate` carries `flapFraction` and `controls` "for control surfaces where a model has them" (`render/scene/airframe.ts:14-19`), and the Hangar bench has a flap slider that drives nothing.
-- **Geometry:**
-  - The five in-house Blender models (B-29, Ki-21, G4M, P-38, Ki-84) already cut separate surface pieces (`kit.py` `controls=`), but merge them into the parent node.
-  - The downloaded models (Wildcat, Zero and others) need surfaces split per model, and the Wildcat has no flap geometry at all.
+- **Batch 1 done 2026-10-08:** the five Blender models (B-29, Ki-21, G4M, P-38, Ki-84) move ailerons, elevators, rudders and flaps, and the Hangar bench has roll, pitch and yaw sliders. Plan `docs/superpowers/plans/2026-10-08-c1-surfaces-batch1.md`; handoff `docs/handoff/2026-10-08-c1-surfaces-batch1.md`.
+- **Still to do:** the downloaded models (Wildcat, Zero and others) need surfaces split per model, and the Wildcat has no flap geometry at all. Batch 2 first adds a vector `pivot.axis` to the manifest (`docs/aircraft.md` Part E).
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
   - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.

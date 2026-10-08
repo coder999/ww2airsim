@@ -63,9 +63,17 @@ spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern; a building
 has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
 Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
-tail, dorsal before ventral at one station. Every one needs a `pivot`: the
+tail, dorsal before ventral at one station. Control surfaces (C1):
+`AileronL`/`AileronR`, `ElevatorL`/`ElevatorR`, `Flap1L`…`FlapNR` inboard to
+outboard, and `Rudder`, or `Rudder1`…`RudderN` port to starboard.
+`surfaceDrive` in `src/render/scene/airframeRigs.ts` reads what each one
+follows from its name. Every part needs a `pivot`: the
 build moves its origin onto the hinge and records the axis the runtime turns
-it about. Never simplify a propeller (`perNode` ratio 1):
+it about. A Blender model's control surface is the exception. `kit.py`
+writes its hinge to `<raw>.hinges.json`, oriented so a positive turn raises
+the trailing edge (or swings a rudder's to starboard), and the build pivots
+every `keep` node named there that has no `pivot` of its own. The entry
+lists the node without one, so the hinge has one copy, in the script. Never simplify a propeller (`perNode` ratio 1):
 `tests/tools/models/aircraftRigs.test.ts` checks its N-fold symmetry about
 the pivot, and that its vertex centroid lies within 5% of its radius of the
 spin axis. The symmetry check is waived where the source prop cannot pass

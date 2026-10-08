@@ -21,13 +21,17 @@ with the new roll, pitch and yaw sliders. The run is unattended, so the captures
 
 One node per mesh, one draw call per node, and every entry's budget is 47 draw calls.
 
-| Model | Draws today | New nodes | Draws after |
-| --- | --- | --- | --- |
-| B-29 | 13 | 2 aileron + 4 flap + 2 elevator + 1 rudder = 9 | 22 |
-| G4M | 6 | 2 + 4 + 2 + 1 = 9 | 15 |
-| Ki-21 | 6 | 2 + 4 + 2 + 1 = 9 | 15 |
-| P-38 | 6 | 2 + 4 + 2 + 2 rudders = 10 | 16 |
-| Ki-84 | 5 | 2 + 2 + 2 + 1 = 7 | 12 |
+| Model | Draws today | New nodes | Draws after (planned) | Draws after (built) |
+| --- | --- | --- | --- | --- |
+| B-29 | 13 | 2 aileron + 4 flap + 2 elevator + 1 rudder = 9 | 22 | 22 |
+| G4M | 6 | 2 + 4 + 2 + 1 = 9 | 15 | 23 |
+| Ki-21 | 6 | 2 + 4 + 2 + 1 = 9 | 15 | 23 |
+| P-38 | 6 | 2 + 4 + 2 + 2 rudders = 10 | 16 | 16 |
+| Ki-84 | 5 | 2 + 2 + 2 + 1 = 7 | 12 | 18 |
+
+The plan missed that the G4M, Ki-21 and Ki-84 paint their undersides in a second role. A kit node
+carries one role, so each of their horizontal surfaces is two primitives, which is one more draw each.
+All are still far inside 47.
 
 Triangles barely change, because the pieces are already cut (`kit.py`
 `_lifting_detailed`). Today they are emitted into their parent's node.
@@ -54,6 +58,9 @@ so the elevator is two nodes.
 Every pivot today is typed into the entry's `keep`, with an axis from `±x/y/z`.
 A hinge line on a tapered or swept panel is not axis-aligned, and `kit.py`
 already knows it exactly, so it should be the one copy.
+
+Done as written, except that the hinge travels in a sidecar, `<raw>.hinges.json`, not as a glTF extra.
+The kit already writes a skin sidecar beside the raw glb, and a sidecar never meets collapse or join.
 
 - [ ] `kit.py`: a control tuple gains a name, `(z0, z1, hinge, 'Aileron')`. The
   control piece goes to its own node (`<name>R`, with the mirror as `<name>L`;
