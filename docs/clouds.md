@@ -334,7 +334,7 @@ reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 
 | # | Issue | State |
 | --- | --- | --- |
-| 1 | **Page-load freeze on `main`** (26–56 s TSL build). Fixed at 1.24 s cold on `worktree-loading-dossier` (`db044e1`, §3.9); `main` merged into that branch 2026-09-26 and re-measured at 1.08 s | Fixed on the branch; reaches `main` when the branch merges |
+| 1 | **Page-load freeze on `main`** (26–56 s TSL build). Fixed at 1.24 s cold on `worktree-loading-dossier` (`db044e1`, §3.9); `main` merged into that branch 2026-09-26 and re-measured at 1.08 s | Fixed: `db044e1` is on `main` (checked 2026-10-08) |
 | 2 | **Auto tier picks Low on Mark's desktop** (`docs/incidents/2026-09-20-low-tier-hides-trees.md`) | Open; Mark: "leave it for now" (2026-09-26) |
 | 3 | **Low shimmers at cloud edges** | Open, cosmetic, Low-only |
 | 4 | **High in-cloud frame pacing:** stutter reported, then "no apparent loss of fps" after the fixes | Unmeasured since the fixes |
@@ -349,9 +349,8 @@ reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 
 In the order I would take them. Items marked (Mark) need his decision first.
 
-1. **Merge the boot-freeze fix** (issue 1): `worktree-loading-dossier`
-   already contains `main` as of 2026-09-26 and is awaiting its whole-branch
-   review. The pilot feels it on every load; it is not a cloud-branch change.
+1. **Boot-freeze fix (issue 1): done.** `db044e1` is on `main` (checked
+   2026-10-08).
 2. **Measure High in-cloud frame pacing** (issue 4): p50, p95 and p99, plus
    frame-to-frame deltas, in-deck on the reference GPU. If the variance is
    still large, the next lever is the amortized schedule inside cloud.

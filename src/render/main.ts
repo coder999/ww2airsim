@@ -2839,8 +2839,10 @@ async function boot(): Promise<void> {
     // 1.84 ms either way) and halves the frame rate only while the GPU is
     // heavy AND samples are still wanted: the first FRAME_TIME_CAPACITY
     // frames after boot or a `resetFrameTimes()`, i.e. the tier choice and
-    // a Tier 2 budget window. Production never tracks timestamps
-    // (renderer.ts), so it never serializes.
+    // a Tier 2 budget window. Production tracks timestamps too
+    // (`initRenderer(canvas, true)`, for the ocean tier choice), so it
+    // serializes for those first frames as well; corrected 2026-10-08, this
+    // said production never tracks them.
     void adaptOceanQuality()
     if (sampling && !gpuResolvePending) {
       gpuResolvePending = true

@@ -1,7 +1,7 @@
 # Ground drape spike (`?drape=`)
 
-Status: **spike, off by default** (2026-09-29, branch `worktree-sat-drape`, not
-merged). Goal was ground that looks like OpenSkyFlight's, which drapes roughly
+Status: **spike, off by default** (2026-09-29). Its code is on `main` via
+`10cd56e`; the baked textures are not in git (below). Goal was ground that looks like OpenSkyFlight's, which drapes roughly
 1 m/px real satellite imagery over terrain. Mark judged the final variant
 ("synthsr") "pretty good" but not OpenSkyFlight-level. Nothing here is a plan
 of record; §15 of the master spec owns plan numbering.
@@ -19,7 +19,7 @@ of record; §15 of the master spec owns plan numbering.
 Code: `src/render/terrain/surface.ts` (variant whitelist; synthetic variants use
 raw color and a 40-220 m fade), `tools/drape/` (`bake.py`, `gen.py`,
 `detail.py`), `tests/e2e/drapeSpike.spec.ts` (four views, screenshots to
-`test-results/drape/`). Baked textures live in `content/drape-spike/`, which is
+`test-results/drape/`; skipped unless `E2E_CAPTURE=1`). Baked textures live in `content/drape-spike/`, which is
 git-excluded and exists only where it was baked; regenerate with the commands
 in each script's header.
 
