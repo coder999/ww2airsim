@@ -155,11 +155,13 @@ ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:e2e
 ```
 
-Other sessions may be rendering on the same GPU. For budget numbers you
-mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
-(`serverconfig/scripts/hwlock`). Hold it for the budget specs only, never a
-whole suite: while it is held every other session's compute is squeezed onto
-nexus.
+Other sessions may be rendering on the same GPU. Run the budget specs, and
+only them, under `hwlock ryzen-budget <cmd>` (`serverconfig/scripts/hwlock`;
+Mark, 2026-10-08). It orders budget runs against each other and nothing
+else. `hwlock ryzen` locks nothing: `ryzen` is in `~/.config/hwlock/off`
+(`serverconfig/ryzen.md`, "Resource locks"). Work started on Ryzen itself
+is invisible to either lock, so before trusting a number check that no other
+browser is driving its GPU.
 
 
 **No console login, correctness only: a server in session 0.** Chromium there

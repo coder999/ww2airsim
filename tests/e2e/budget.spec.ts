@@ -13,7 +13,11 @@ import { VIEWS, withParams } from './views.js'
  * Medium at 1440p, and both tiers at 4K, are recorded (`frame-time`
  * annotations and the BUDGET log lines), never asserted. The 4K per-tier
  * limits and the in-cloud carve-out they replace are in git history.
+ *
+ * `BUDGET_PARAMS` (a query string) is appended to every view, so one run can
+ * price a lever or an ablation, e.g. `BUDGET_PARAMS=fx=off`.
  */
+const extra = Object.fromEntries(new URLSearchParams(process.env.BUDGET_PARAMS ?? ''))
 const GATE_1440P_HIGH_P95_MS = 8.33
 const SIZES = {
   '1440p': { width: 2560, height: 1440 },
@@ -41,7 +45,7 @@ for (const size of ['1440p', '4K'] as const) {
     for (const view of VIEWS) {
       test(`${size} budget (${tier}${gated ? '' : ', recorded'}): ${view.name}`, async ({ page }) => {
         await page.setViewportSize(SIZES[size])
-        await page.goto(withParams(view.url, { cloudTier: tier, oceanTier: 'high' }))
+        await page.goto(withParams(view.url, { cloudTier: tier, oceanTier: 'high', ...extra }))
         await waitForTerrain(page)
         await page.waitForTimeout(3000)
         const { p95, n } = await frameP95(page)
